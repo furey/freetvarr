@@ -85,8 +85,8 @@ onMounted(() => {
   border-radius: 50%;
 }
 
-.browser-frame__dot--blue { background: #46b6ec; }
-.browser-frame__dot--orange { background: #f7931e; }
+.browser-frame__dot--blue { background: #1eb6ff; }
+.browser-frame__dot--orange { background: #ff8a00; }
 .browser-frame__dot--yellow { background: #e2b03c; }
 
 .browser-frame__url {

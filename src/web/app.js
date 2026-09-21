@@ -273,8 +273,8 @@ const FAVICON_BOB_AMPLITUDE = 4
 const FAVICON_BOB_PERIOD_MS = 900
 const FAVICON_FRAME_INTERVAL_MS = 90
 const FAVICON_CHIPS = [
-  { x: 3,  color: '#46b6ec' },
-  { x: 12, color: '#f7931e' },
+  { x: 3,  color: '#1eb6ff' },
+  { x: 12, color: '#ff8a00' },
   { x: 21, color: '#e2b03c' },
 ]
 
@@ -479,7 +479,7 @@ const DashboardView = {
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
             <div class="space-y-2">
               <p v-for="r in guideUpcoming" :key="r.id" class="flex items-center gap-2.5 font-mono text-xs text-ink-dim min-w-0">
-                <span class="led-dot sm shrink-0" :style="{ background: isSeriesRec(r) ? '#e2b03c' : '#46b6ec' }"></span>
+                <span class="led-dot sm shrink-0" :style="{ background: isSeriesRec(r) ? '#e2b03c' : '#1eb6ff' }"></span>
                 <span class="truncate min-w-0"><span class="text-ink">{{ r.name }}</span>
                 · {{ fmtClockTz(tsOfMs(r.startDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template> · {{ isSeriesRec(r) ? 'series' : 'one-off' }}</span>
               </p>
@@ -2768,7 +2768,7 @@ const EpgView = {
                         <span class="epg-cell-title">{{ p.title }}</span>
                         <span class="epg-cell-meta">
                           <span v-if="cellState(p) === 'recording'" class="led-dot sm live"></span>
-                          <span v-else-if="cellState(p) === 'scheduled'" class="led-dot sm" style="background:#46b6ec"></span>
+                          <span v-else-if="cellState(p) === 'scheduled'" class="led-dot sm" style="background:#1eb6ff"></span>
                           <span v-else-if="cellState(p) === 'series'" class="led-dot sm" style="background:#e2b03c"></span>
                           <span v-if="isSeriesScheduled(p)" class="led-dot sm" style="background:#e2b03c"></span>
                           {{ fmtClock(p.start) }}
@@ -3864,8 +3864,8 @@ const App = {
           <div class="flex items-center justify-between gap-4 py-3">
             <a href="#/dashboard" class="no-hover-underline flex items-center gap-3 no-underline text-ink">
               <svg viewBox="0 0 15.5 3" :class="['brand-mark', 'w-[39px]', 'h-[8px]', 'shrink-0', { syncing: syncStatus.activeSyncId }]" aria-hidden="true">
-                <rect x="0"    y="0" width="4" height="3" fill="#46b6ec"/>
-                <rect x="5.75" y="0" width="4" height="3" fill="#f7931e"/>
+                <rect x="0"    y="0" width="4" height="3" fill="#1eb6ff"/>
+                <rect x="5.75" y="0" width="4" height="3" fill="#ff8a00"/>
                 <rect x="11.5" y="0" width="4" height="3" fill="#e2b03c"/>
               </svg>
               <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">freetvarr</span>

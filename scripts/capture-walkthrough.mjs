@@ -168,7 +168,7 @@ const epgNow = {
   }),
 }
 
-const CHANNEL_TINTS = ['#46b6ec', '#f7931e', '#e2b03c', '#7ecff5', '#ffb15c', '#ffcd00']
+const CHANNEL_TINTS = ['#1eb6ff', '#ff8a00', '#e2b03c', '#62cfff', '#ffab3d', '#ffcd00']
 const logoSvg = (id) => {
   const ch = epgChannels.find((c) => String(c.id) === String(id))
   const tint = CHANNEL_TINTS[(ch?.id ?? 0) % CHANNEL_TINTS.length]
@@ -217,7 +217,7 @@ const installCursor = (page) =>
         const r = document.createElement('div')
         r.style.cssText =
           `position:fixed;left:${this.x}px;top:${this.y}px;width:10px;height:10px;` +
-          'margin:-5px 0 0 -5px;border-radius:50%;border:2px solid #46b6ec;' +
+          'margin:-5px 0 0 -5px;border-radius:50%;border:2px solid #1eb6ff;' +
           'z-index:2147483646;pointer-events:none;opacity:.9;' +
           'transition:transform .5s ease-out,opacity .5s ease-out'
         document.body.appendChild(r)
