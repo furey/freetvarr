@@ -387,7 +387,7 @@ freetvarr/
 | `npm run migrate:refresh` | `rm -f ./config/state.db && mkdir -p config && knex migrate:latest`; dev only                  |
 | `npm start`               | `node --env-file-if-exists=.env src/server.js` (chains `npm run migrate` via `prestart`)       |
 | `npm run dev`             | `node --env-file-if-exists=.env --watch src/server.js` (chains `npm run migrate` via `predev`) |
-| `npm test`                | `node --test 'test/*.test.js'`; Node 22 built-in runner, no extra deps                         |
+| `npm test`                | `node --test 'test/*.test.js'`; Node 24 built-in runner, no extra deps                         |
 
 ## Testing
 
@@ -395,7 +395,7 @@ freetvarr/
 npm test
 ```
 
-Node 22's built-in test runner, with no additional test dependencies. What's covered by unit tests, all of it pure functions:
+Node 24's built-in test runner, with no additional test dependencies. What's covered by unit tests, all of it pure functions:
 
 - **Sync**: `classifyImport` across the size-tolerance boundary, `matchShow` (case-insensitive substring matching), `buildDestPath` (`{season}` / `{season_padded}` / `{season_unpadded}` substitution, missing-season fallback, media-root escape rejection), `episodeFilename` (the `SxxEyy` and air-date forms, and title sanitisation), and `localPathFor` (prefix rewrite, the outside-the-prefix `null`, trailing-slash handling).
 - **Ad removal**: EDL parsing (malformed rows, action filtering), keep-segment maths (clamping, merging, break-at-edge, whole-file-break), cut verification tolerance, comskip.ini resolution, the auto-delete gating matrix, and the scan-estimate maths.

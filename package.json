@@ -2,7 +2,7 @@
   "name": "freetvarr",
   "version": "0.1.0",
   "author": "James Furey (https://about.me/jamesfurey)",
-  "description": "Free-to-air TV \u2192 Plex. TVHeadend + HDHomeRun recordings, imported into Plex.",
+  "description": "Free-to-air TV → Plex. TVHeadend + HDHomeRun recordings, imported into Plex.",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "private": true,
@@ -29,11 +29,11 @@
     "australia"
   ],
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=24.0.0",
     "npm": ">=11.10.0"
   },
   "volta": {
-    "node": "22.19.0",
+    "node": "24.21.0",
     "npm": "11.15.0"
   },
   "overrides": {

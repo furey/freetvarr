@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json .npmrc ./
-# node:22-bookworm-slim bundles npm 10.x but package.json requires >=11.10.0
+# node:24-bookworm-slim bundles npm 10.x but package.json requires >=11.10.0
 # (engine-strict). We inline the install steps instead of `npm run setup` to
 # skip `npm audit signatures` at build time — it re-queries the registry and
 # enforces min-release-age=3, which blocks freshly-published deps. Run `npm
