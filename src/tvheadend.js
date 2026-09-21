@@ -1,3 +1,4 @@
+import os from 'os'
 import axios from 'axios'
 
 import { getSetting, setSetting } from './db.js'
@@ -31,6 +32,43 @@ export const testConnection = async ({ url, username, password, persist = true }
     channels: channels.length,
     tuners: inputs.length,
   }
+}
+
+export const detectServers = async ({ hintAddress, env = process.env } = {}) => {
+  const envUrl = (env.TVH_URL || '').trim().replace(/\/+$/, '')
+  if (envUrl) {
+    return { ok: true, source: 'env', candidates: [{ url: envUrl, version: '', needsAuth: false, loopback: false }] }
+  }
+  const urls = rankCandidates({ interfaces: os.networkInterfaces(), hintAddress })
+  const probes = await Promise.all(urls.map(probeServer))
+  const candidates = preferLanOverLoopback(probes.filter(Boolean))
+  if (!candidates.length) {
+    return {
+      ok: false,
+      source: 'probe',
+      candidates: [],
+      reason: 'No TVHeadend answered on port 9981 at any address of this host.',
+    }
+  }
+  return { ok: true, source: 'probe', candidates }
+}
+
+export const rankCandidates = ({ interfaces = {}, hintAddress = '', port = DEFAULT_PORT } = {}) => {
+  const hint = normaliseAddress(hintAddress)
+  const hostAddresses = Object.values(interfaces)
+    .flat()
+    .filter((i) => i && (i.family === 'IPv4' || i.family === 4) && !i.internal)
+    .map((i) => i.address)
+    .filter((a) => !isDockerBridge(a) && !isLinkLocal(a))
+    .sort((a, b) => Number(isPrivate(b)) - Number(isPrivate(a)))
+  const ordered = [
+    ...(hint && !isLoopback(hint) ? [hint] : []),
+    ...hostAddresses,
+    'tvheadend',
+    'host.docker.internal',
+    '127.0.0.1',
+  ]
+  return [...new Set(ordered)].map((host) => `http://${host}:${port}`)
 }
 
 export const listChannels = async (conn) => {
@@ -398,6 +436,37 @@ const basicAuth = (conn) =>
 
 const CREATOR_TAG = 'freetvarr'
 const EVENT_PAGE_SIZE = 2000
+const DEFAULT_PORT = 9981
+const PROBE_TIMEOUT_MS = 1500
+
+const probeServer = async (url) => {
+  let res
+  try {
+    res = await axios.get(`${url}/api/serverinfo`, { timeout: PROBE_TIMEOUT_MS, validateStatus: () => true })
+  } catch {
+    return null
+  }
+  const loopback = isLoopback(new URL(url).hostname)
+  if (res.status === 200 && res.data && typeof res.data === 'object' && 'sw_version' in res.data) {
+    return { url, version: res.data.sw_version || '', needsAuth: false, loopback }
+  }
+  const realm = String(res.headers['www-authenticate'] || '')
+  if (res.status === 401 && /tvheadend/i.test(realm)) return { url, version: '', needsAuth: true, loopback }
+  return null
+}
+
+const preferLanOverLoopback = (found) => {
+  const lan = found.filter((c) => !c.loopback)
+  return lan.length ? lan : found
+}
+
+const normaliseAddress = (address) => String(address || '').replace(/^::ffff:/, '').trim()
+const isLoopback = (a) => a === '127.0.0.1' || a === '::1' || a === 'localhost'
+const isLinkLocal = (a) => a.startsWith('169.254.')
+const isDockerBridge = (a) => /^172\.(1[7-9]|2\d|3[01])\./.test(a)
+const isPrivate = (a) =>
+  a.startsWith('10.') || a.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(a)
+
 const REQUEST_TIMEOUT_MS = 15000
 const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
 const DEFAULT_LEAD_MINUTES = 2
