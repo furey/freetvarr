@@ -15,12 +15,12 @@ The guide is only as good as what you loaded into TVHeadend. With the XMLTV feed
 
 ## The grid
 
-Channels run down the page, time runs across, and a magenta line marks now. The guide opens scrolled to the current half hour.
+Channels run down the page, time runs across, and an orange line marks now. The guide opens scrolled to the current half hour.
 
 - **Day chips** switch between today and the next six days; `NOW` and `TONIGHT` jump within the day.
 - **Search** scopes to the section you are on. On the grid it searches the full 7 days of programmes; on `UPCOMING` and `SERIES` it filters the list as you type. Switching sections clears the query. Every result card opens the programme detail.
 - The **filter box** in the top-left corner narrows the rows by channel name or number as you type.
-- Cell borders show recording state: blue for scheduled, gold for a series recording, pulsing magenta for recording right now. A scheduled episode that came from a series rule carries a gold dot next to the blue one. The programme airing now on each channel is lifted brighter.
+- Cell borders show recording state: blue for scheduled, gold for a series recording, pulsing orange for recording right now. A scheduled episode that came from a series rule carries a gold dot next to the blue one. The programme airing now on each channel is lifted brighter.
 - The status line above the grid reports the TVHeadend connection, the scheduled count, and how many tuners it found.
 - Drag the rail's right edge to resize it, from icons-only up to full channel names; the width is remembered per browser.
 - A channel whose name ends `HD` is labelled `HD`, so an HD simulcast is distinguishable from its SD sibling.

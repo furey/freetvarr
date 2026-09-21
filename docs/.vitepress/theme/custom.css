@@ -2,7 +2,7 @@
   Brand styling for the freetvarr docs.
   Palette and fonts are lifted from the web app (src/web/index.html @theme,
   src/web/styles.css): warm near-black #1a1611 canvas, #fffcfb ink, signal-blue
-  interactive accent, with magenta and Plex-yellow as the wordmark's other two chips.
+  interactive accent, with orange and Plex-yellow as the wordmark's other two chips.
 */
 
 @font-face {
@@ -29,42 +29,42 @@
   --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
     "Courier New", monospace;
 
-  --vp-c-brand-1: #008bcd;
-  --vp-c-brand-2: #009be4;
-  --vp-c-brand-3: #4ebef0;
-  --vp-c-brand-soft: rgba(0, 155, 228, 0.16);
-  --vp-c-brand-softer: rgba(0, 155, 228, 0.08);
+  --vp-c-brand-1: #2a9bd6;
+  --vp-c-brand-2: #46b6ec;
+  --vp-c-brand-3: #7ecff5;
+  --vp-c-brand-soft: rgba(70, 182, 236, 0.16);
+  --vp-c-brand-softer: rgba(70, 182, 236, 0.08);
 
   --vp-button-brand-border: transparent;
   --vp-button-brand-text: #1a1611;
-  --vp-button-brand-bg: #009be4;
+  --vp-button-brand-bg: #46b6ec;
   --vp-button-brand-hover-border: transparent;
   --vp-button-brand-hover-text: #1a1611;
-  --vp-button-brand-hover-bg: #4ebef0;
+  --vp-button-brand-hover-bg: #7ecff5;
   --vp-button-brand-active-border: transparent;
   --vp-button-brand-active-text: #1a1611;
-  --vp-button-brand-active-bg: #008bcd;
+  --vp-button-brand-active-bg: #2a9bd6;
 
   --vp-home-hero-name-color: transparent;
   --vp-home-hero-name-background: -webkit-linear-gradient(
     120deg,
-    #009be4 20%,
-    #f10c69 55%,
+    #46b6ec 20%,
+    #f7931e 55%,
     #e2b03c
   );
   --vp-home-hero-image-background-image: linear-gradient(
     -45deg,
-    rgba(0, 155, 228, 0.45),
-    rgba(241, 12, 105, 0.4) 50%,
+    rgba(70, 182, 236, 0.45),
+    rgba(247, 147, 30, 0.4) 50%,
     rgba(226, 176, 60, 0.4)
   );
   --vp-home-hero-image-filter: blur(52px);
 }
 
 .dark {
-  --vp-c-brand-1: #4ebef0;
-  --vp-c-brand-2: #009be4;
-  --vp-c-brand-3: #008bcd;
+  --vp-c-brand-1: #7ecff5;
+  --vp-c-brand-2: #46b6ec;
+  --vp-c-brand-3: #2a9bd6;
 
   --vp-c-bg: #1a1611;
   --vp-c-bg-alt: #201b15;
