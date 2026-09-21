@@ -117,6 +117,19 @@ The linuxserver image ships a small grabber called **XMLTV URL grabber** (`/usr/
 
 [IceTV](https://www.icetv.com.au/xmltv-subscription/) sells an Australian XMLTV subscription at `$3.99` per month (their month is `30 days`) and publish their own TVHeadend setup guide. It is the fallback if the free feed ever stops; nothing in freetvarr cares which one you use.
 
+### Outside Australia
+
+The mjh feed covers Australia and New Zealand only. Elsewhere, pick the guide source TVHeadend already supports for your country; freetvarr does not care which one feeds it:
+
+| Region | Guide source | Where in TVHeadend |
+| --- | --- | --- |
+| UK | Over-the-air Freeview EIT, `7` days, free | **EPG Grabber Modules → Over-the-air: EIT: DVB Grabber**, enabled by default |
+| Europe | Over-the-air EIT (often `1–7` days) or a national XMLTV feed | Same EIT module, or the **XMLTV URL grabber** with the feed URL |
+| United States, Canada | [Schedules Direct](https://www.schedulesdirect.org/), about `US$35` a year | **Internal: XMLTV: Schedules Direct JSON API**, which the linuxserver image bundles |
+| New Zealand | `https://i.mjh.nz/nz/epg.xml`, free | **XMLTV URL grabber**, as above |
+
+The scan list in [step 4](#_4-scan-the-muxes) also changes: TVHeadend ships predefined mux lists for every country under **Pre-defined muxes**, named by country code and city or transmitter.
+
 ### Linking the guide to your channels
 
 The feed's channel names and your scanned channel names will not all match. Go to **Configuration → Channel/EPG → EPG Grabber Channels**. Each row is a channel the feed offers; the **Channels** column is the TVHeadend channel it feeds. TVHeadend matches what it can by name automatically, so fix the leftovers by hand.

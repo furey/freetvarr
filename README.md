@@ -82,6 +82,10 @@ If your media stack is aerial → HDHomeRun → TVHeadend → Plex, freetvarr is
 
 It's a fork of [`fetcharr`](https://github.com/furey/fetcharr) with the recorder replaced. Fetch TV's Gen 3 Extended Service Levy made a Fetch-bound tool a dead end; an aerial, a tuner you own, and a free guide cost nothing per year. See [Migrating from Fetch](https://furey.github.io/freetvarr/guide/migrating-from-fetch).
 
+## Where it works
+
+Everywhere TVHeadend works. freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T HDHomeRun in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through the Australian setup because that is where it was built; the bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian free-to-air but do no harm elsewhere.
+
 ## What freetvarr isn't
 
 - ❌ **An indexer integration** (Sonarr / Radarr / Prowlarr): freetvarr works with the recordings TVHeadend has made, and its TV Guide schedules what TVHeadend records next. It doesn't search the internet for content.
