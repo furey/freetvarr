@@ -86,6 +86,12 @@ It's a fork of [`fetcharr`](https://github.com/furey/fetcharr) with the recorder
 
 Everywhere TVHeadend works. freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T HDHomeRun in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through the Australian setup because that is where it was built; the bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian free-to-air but do no harm elsewhere.
 
+## Why not just TVHeadend
+
+TVHeadend on its own covers most of the job. Its web UI has the guide, one-off and series recording with padding and duplicate detection, and a filename template that can write Plex-readable paths (`$t/Season $s/$t - S$sE$e.$x`) straight into the library folder; its DVR post-processor hook can run a script that calls Plex's refresh URL or comskip. If that is enough, use it and skip freetvarr.
+
+freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and dashboard, follow-a-show with fuzzy matching to the folders Plex already has, the Plex refresh and delete-after-confirm loop, the comskip detect/cut pipeline with a verified swap and `.orig` rollback, live progress, and a sync history you can read. It is a convenience layer on TVHeadend, not a replacement for it.
+
 ## What freetvarr isn't
 
 - ❌ **An indexer integration** (Sonarr / Radarr / Prowlarr): freetvarr works with the recordings TVHeadend has made, and its TV Guide schedules what TVHeadend records next. It doesn't search the internet for content.
