@@ -20,6 +20,7 @@ import {
 } from './plex.js'
 import {
   testConnection as testTvheadendConnection,
+  detectServers as detectTvheadendServers,
   deleteRecordings as deleteTvhRecordings,
   listFinished,
   resolveConnection,
@@ -758,6 +759,11 @@ app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) =>
     const code = err instanceof TvheadendError ? err.code : undefined
     res.status(502).json({ ok: false, error: err.message, stage, code })
   }
+})
+
+app.post('/api/tvh-detect', syncLimiter, doubleCsrfProtection, async (req, res) => {
+  const result = await detectTvheadendServers({ hintAddress: req.socket.localAddress })
+  res.status(result.ok ? 200 : 502).json(result)
 })
 
 app.post('/api/plex-detect-token', doubleCsrfProtection, async (req, res) => {
