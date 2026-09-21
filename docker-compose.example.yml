@@ -1,0 +1,72 @@
+# Example docker-compose for freetvarr.
+#
+# Copy to `docker-compose.yml`, then create a `.env` file alongside it with:
+#   CONFIG_PATH=/path/to/your/config          # required
+#   DATA_PATH=/path/to/your/media             # required
+#   CSRF_SECRET=paste-openssl-rand-hex-32     # required (openssl rand -hex 32)
+#   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # optional; leave unset if no local Plex
+#   TZ=Australia/Sydney
+#   PUID=1000
+#   PGID=1000
+#   FREETVARR_PORT=8124
+#
+# CONFIG_PATH, DATA_PATH and CSRF_SECRET are required: compose fails fast with a
+# message if any is unset, rather than silently mounting the wrong host paths.
+#
+# `network_mode: host` is required on both services: HDHomeRun auto-discovery
+# is a UDP broadcast, which does NOT traverse Docker's bridge network. With
+# host networking neither container has a `ports:` mapping — freetvarr binds
+# directly to ${FREETVARR_PORT} on the host LAN IP, and TVHeadend to its own
+# ports (9981 HTTP, 9982 HTSP).
+#
+# ${DATA_PATH}/recordings is mounted at the SAME container path (/recordings)
+# in both services. TVHeadend writes recordings there and records their paths
+# in its own database; freetvarr reads those same paths, so the mount point
+# must match exactly between the two containers, on the same filesystem as
+# MEDIA_ROOT, so the Plex import can hardlink the file instead of copying it.
+#
+# The optional ad-removal feature (Settings → AD REMOVAL) runs comskip inside
+# the freetvarr container and is CPU-bound: expect minutes of sustained CPU
+# per scanned recording. It's niced down, but budget for it on low-power hosts.
+
+services:
+  tvheadend:
+    image: lscr.io/linuxserver/tvheadend:latest
+    container_name: tvheadend
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ${CONFIG_PATH:?set CONFIG_PATH in your .env}/tvheadend:/config
+      - ${DATA_PATH:?set DATA_PATH in your .env}/recordings:/recordings
+
+  freetvarr:
+    container_name: freetvarr
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      - NODE_ENV=production
+      - PORT=${FREETVARR_PORT:-8124}
+      - TZ=${TZ:-UTC}
+      - DB_PATH=/config/state.db
+      - MEDIA_ROOT=/media/tv
+      - RECORDINGS_ROOT=/recordings
+      - TVH_RECORDINGS_PATH=/recordings
+      - CSRF_SECRET=${CSRF_SECRET:?set CSRF_SECRET in your .env (openssl rand -hex 32)}
+      # Only set if you want the "Auto-detect from local Plex" button to work:
+      - PLEX_PREFS_PATH=/plex-preferences.xml
+    volumes:
+      - ${CONFIG_PATH:?set CONFIG_PATH in your .env}/freetvarr:/config
+      - ${DATA_PATH:?set DATA_PATH in your .env}/media/tv:/media/tv
+      - ${DATA_PATH:?set DATA_PATH in your .env}/recordings:/recordings
+      # Plex Preferences.xml, read-only, only for the "Auto-detect token" button.
+      # Defaults to /dev/null when PLEX_PREFS_PATH is unset, so leaving it blank is
+      # safe (the button just degrades). Set it only if Plex runs on this host.
+      - ${PLEX_PREFS_PATH:-/dev/null}:/plex-preferences.xml:ro
+    depends_on:
+      - tvheadend

@@ -1,0 +1,168 @@
+/*
+  Brand styling for the freetvarr docs.
+  Palette and fonts are lifted from the web app (src/web/index.html @theme,
+  src/web/styles.css): warm near-black #1a1611 canvas, #fffcfb ink, signal-blue
+  interactive accent, with magenta and Plex-yellow as the wordmark's other two chips.
+*/
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/inter-variable.woff2") format("woff2-variations"),
+       url("./fonts/inter-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("./fonts/jetbrains-mono-variable.woff2") format("woff2-variations"),
+       url("./fonts/jetbrains-mono-variable.woff2") format("woff2");
+}
+
+:root {
+  --vp-font-family-base: "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    "Courier New", monospace;
+
+  --vp-c-brand-1: #008bcd;
+  --vp-c-brand-2: #009be4;
+  --vp-c-brand-3: #4ebef0;
+  --vp-c-brand-soft: rgba(0, 155, 228, 0.16);
+  --vp-c-brand-softer: rgba(0, 155, 228, 0.08);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #1a1611;
+  --vp-button-brand-bg: #009be4;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #1a1611;
+  --vp-button-brand-hover-bg: #4ebef0;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #1a1611;
+  --vp-button-brand-active-bg: #008bcd;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: -webkit-linear-gradient(
+    120deg,
+    #009be4 20%,
+    #f10c69 55%,
+    #e2b03c
+  );
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    rgba(0, 155, 228, 0.45),
+    rgba(241, 12, 105, 0.4) 50%,
+    rgba(226, 176, 60, 0.4)
+  );
+  --vp-home-hero-image-filter: blur(52px);
+}
+
+.dark {
+  --vp-c-brand-1: #4ebef0;
+  --vp-c-brand-2: #009be4;
+  --vp-c-brand-3: #008bcd;
+
+  --vp-c-bg: #1a1611;
+  --vp-c-bg-alt: #201b15;
+  --vp-c-bg-soft: #28231b;
+  --vp-c-bg-elv: #28231b;
+  --vp-c-bg-elv-mute: #332f21;
+
+  --vp-c-gutter: #12100c;
+  --vp-c-divider: #3d3829;
+  --vp-c-border: #3d3829;
+
+  --vp-c-text-1: #fffcfb;
+  --vp-c-text-2: #b0a89e;
+  --vp-c-text-3: #8b837e;
+}
+
+/* The app renders numbers tabular so live readings hold their width; carry the
+   same tabular figures into code and tables here. */
+.vp-doc table,
+.vp-doc code,
+.vp-doc kbd,
+kbd {
+  font-feature-settings: "tnum" 1;
+}
+
+/* Headings use the web app's tighter tracking rather than the looser default. */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4,
+.vp-doc h5,
+.vp-doc h6,
+.VPHero .name,
+.VPHero .text,
+.VPFeature .title {
+  letter-spacing: -0.025em;
+}
+
+.dark .VPHero .name .clip {
+  filter: saturate(1.1);
+}
+
+/* Keyboard hints. */
+kbd {
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--vp-c-divider);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--vp-c-bg-soft);
+  font-size: 0.85em;
+  line-height: 1.2;
+}
+
+/* Home hero: the image slot carries the browser-framed demo video, so let it
+   grow past the default VPImage box and re-centre the glow behind it. */
+.VPHero .image {
+  max-width: none;
+}
+
+.VPHero .image-container {
+  transform: none;
+  padding: 0;
+  max-width: 560px;
+}
+
+.VPHero .image-bg {
+  width: 644px;
+  height: 644px;
+  top: 58%;
+  opacity: 0.6;
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-container {
+    max-width: 100%;
+  }
+
+  /* Keep the hero copy off the video frame; the default layout butts the two
+     columns together with no space between them. */
+  .VPHero .container {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin-top: 2rem;
+  }
+}
+
+/* Let the browser balance line breaks so no last line is left with a single
+   orphaned word (the CSS behind Tailwind's text-pretty). */
+.VPHero .text,
+.VPHero .tagline,
+.VPFeature .title,
+.VPFeature .details,
+.vp-doc p,
+.vp-doc li {
+  text-wrap: pretty;
+}

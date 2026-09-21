@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="freetvarr" />
+    <meta name="color-scheme" content="dark" />
+    <title>freetvarr</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script src="/vendor/tailwind-play.js"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-surface-deep: #1a1611;
+        --color-surface: #28231b;
+        --color-surface-raised: #332f21;
+        --color-surface-lift: #3d3829;
+        --color-ink: #fffcfb;
+        --color-ink-dim: #8b837e;
+        --color-ink-mute: #544e47;
+        --color-hairline: #3d3829;
+        --color-signal-blue: #009be4;
+        --color-signal-blue-hi: #4ebef0;
+        --color-signal-blue-deep: #008bcd;
+        --color-signal-magenta: #f10c69;
+        --color-signal-magenta-hi: #ff5c97;
+        --color-signal-yellow: #ffcd00;
+        --color-plex-yellow: #e2b03c;
+        --color-plex-yellow-hi: #f0c861;
+        --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace;
+      }
+    </style>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="bg-surface-deep text-ink font-sans antialiased min-h-dvh">
+    <div id="app">
+      <div class="grid min-h-dvh place-items-center text-ink-dim font-mono text-sm">
+        <span class="signal-boot">▰▰ initialising</span>
+      </div>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

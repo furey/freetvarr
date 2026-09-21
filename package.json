@@ -1,0 +1,68 @@
+{
+  "name": "freetvarr",
+  "version": "0.1.0",
+  "author": "James Furey (https://about.me/jamesfurey)",
+  "description": "Free-to-air TV \u2192 Plex. TVHeadend + HDHomeRun recordings, imported into Plex.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/furey/freetvarr.git"
+  },
+  "homepage": "https://furey.github.io/freetvarr/",
+  "keywords": [
+    "plex",
+    "tvheadend",
+    "hdhomerun",
+    "dvb-t",
+    "free-to-air",
+    "freeview",
+    "dvr",
+    "pvr",
+    "recordings",
+    "media-server",
+    "self-hosted",
+    "docker",
+    "arr",
+    "plex-media-server",
+    "australia"
+  ],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=11.10.0"
+  },
+  "volta": {
+    "node": "22.19.0",
+    "npm": "11.15.0"
+  },
+  "overrides": {
+    "qs": "^6.15.2"
+  },
+  "scripts": {
+    "setup": "npm ci --ignore-scripts && npm run rebuild:natives && npm audit signatures",
+    "rebuild:natives": "npm rebuild --ignore-scripts=false better-sqlite3",
+    "migrate": "mkdir -p config && knex migrate:latest",
+    "migrate:refresh": "rm -f ./config/state.db && mkdir -p config && knex migrate:latest",
+    "prestart": "npm run migrate",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "predev": "npm run migrate",
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "test": "node --test 'test/*.test.js'"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "better-sqlite3": "^11.5.0",
+    "cookie-parser": "^1.4.7",
+    "csrf-csrf": "^3.0.6",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "fast-xml-parser": "^4.5.5",
+    "fuse.js": "^7.0.0",
+    "helmet": "^8.0.0",
+    "knex": "^3.1.0",
+    "node-cron": "^4.2.1",
+    "pretty-ms": "^9.0.0",
+    "vue": "^3.5.13"
+  }
+}

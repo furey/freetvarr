@@ -1,0 +1,17 @@
+node_modules/
+config/
+tmp/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+walkthrough.webm
+walkthrough.mp4
+walkthrough.jpg
+docker-compose.yml
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.env
+.DS_Store
+npm-debug.log*
+*.log
