@@ -273,8 +273,8 @@ const FAVICON_BOB_AMPLITUDE = 4
 const FAVICON_BOB_PERIOD_MS = 900
 const FAVICON_FRAME_INTERVAL_MS = 90
 const FAVICON_CHIPS = [
-  { x: 3,  color: '#009be4' },
-  { x: 12, color: '#f10c69' },
+  { x: 3,  color: '#46b6ec' },
+  { x: 12, color: '#f7931e' },
   { x: 21, color: '#e2b03c' },
 ]
 
@@ -388,7 +388,7 @@ const DashboardView = {
           <div>
             <div class="flex flex-wrap items-center gap-4 mb-3">
               <span :class="['led-dot', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
-              <span :class="['text-3xl', 'md:text-4xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-magenta' : 'text-ink-dim']">
+              <span :class="['text-3xl', 'md:text-4xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
                 {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
               </span>
               <span v-if="syncStatus.activeSyncId" class="font-mono text-sm text-ink-dim">
@@ -413,14 +413,14 @@ const DashboardView = {
       </section>
 
       <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <a href="#/shows" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-magenta transition-colors">
+        <a href="#/shows" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
           <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Shows</div>
           <div class="text-3xl md:text-4xl font-mono text-ink">{{ showCount }}</div>
           <div class="text-xs text-ink-dim mt-2">
             <span class="text-plex-yellow">{{ showEnabledCount }}</span> enabled
           </div>
         </a>
-        <a href="#/recordings" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-magenta transition-colors">
+        <a href="#/recordings" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
           <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Recordings 7d</div>
           <div class="text-3xl md:text-4xl font-mono text-ink">{{ recordings7dCount }}</div>
           <div class="text-xs text-ink-dim mt-2">
@@ -479,7 +479,7 @@ const DashboardView = {
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
             <div class="space-y-2">
               <p v-for="r in guideUpcoming" :key="r.id" class="flex items-center gap-2.5 font-mono text-xs text-ink-dim min-w-0">
-                <span class="led-dot sm shrink-0" :style="{ background: isSeriesRec(r) ? '#e2b03c' : '#009be4' }"></span>
+                <span class="led-dot sm shrink-0" :style="{ background: isSeriesRec(r) ? '#e2b03c' : '#46b6ec' }"></span>
                 <span class="truncate min-w-0"><span class="text-ink">{{ r.name }}</span>
                 · {{ fmtClockTz(tsOfMs(r.startDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template> · {{ isSeriesRec(r) ? 'series' : 'one-off' }}</span>
               </p>
@@ -591,7 +591,7 @@ const DashboardView = {
 
     const tvhClass = computed(() => {
       if (!tvhConfigured.value) return 'text-ink-dim'
-      return tvhReachable.value ? 'text-plex-yellow' : 'text-signal-magenta-hi'
+      return tvhReachable.value ? 'text-plex-yellow' : 'text-signal-orange-hi'
     })
 
     const tvhMeta = computed(() => {
@@ -1253,7 +1253,7 @@ const RecordingsView = {
                 <td class="font-mono whitespace-nowrap">{{ fmtBytes(r.size) }}</td>
                 <td>
                   <span :class="['pill', r.status]">{{ r.status }}</span>
-                  <span v-if="r.error" class="block text-xs font-mono text-signal-magenta-hi mt-1">{{ r.error }}</span>
+                  <span v-if="r.error" class="block text-xs font-mono text-signal-orange-hi mt-1">{{ r.error }}</span>
                   <progress-block v-if="progressPhase(r) === 'importing'"
                     :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
                 </td>
@@ -1310,7 +1310,7 @@ const RecordingsView = {
               <p v-if="r.deleted_from_tvh_at" class="deck-card-meta">
                 deleted from TVHeadend {{ fmtTime(r.deleted_from_tvh_at) }}
               </p>
-              <p v-if="r.error" class="text-xs font-mono text-signal-magenta-hi">{{ r.error }}</p>
+              <p v-if="r.error" class="text-xs font-mono text-signal-orange-hi">{{ r.error }}</p>
               <div v-if="r.ad_status" class="flex flex-wrap items-center gap-2">
                 <span :class="['pill', r.ad_status]">{{ adLabel(r.ad_status) }}</span>
                 <span v-if="adTooltip(r)" class="deck-card-meta">{{ adTooltip(r) }}</span>
@@ -2169,7 +2169,7 @@ const WelcomeView = {
 
           <div v-if="step === 1" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
-              freetvarr watches <strong class="text-signal-magenta">TVHeadend</strong> for new recordings of shows you follow, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) deletes them from TVHeadend afterwards.
+              freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings of shows you follow, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) deletes them from TVHeadend afterwards.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               This wizard takes about two minutes. The only required step is pointing freetvarr at TVHeadend — Plex is optional.
@@ -2713,7 +2713,7 @@ const EpgView = {
               <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })">RETRY</button>
             </div>
             <div v-else-if="error" class="space-y-3">
-              <p class="text-sm font-mono text-signal-magenta-hi">{{ error }}</p>
+              <p class="text-sm font-mono text-signal-orange-hi">{{ error }}</p>
               <p class="text-xs text-ink-dim">
                 Check the TVHeadend connection in <a href="#/settings">Settings</a>.
               </p>
@@ -2768,7 +2768,7 @@ const EpgView = {
                         <span class="epg-cell-title">{{ p.title }}</span>
                         <span class="epg-cell-meta">
                           <span v-if="cellState(p) === 'recording'" class="led-dot sm live"></span>
-                          <span v-else-if="cellState(p) === 'scheduled'" class="led-dot sm" style="background:#009be4"></span>
+                          <span v-else-if="cellState(p) === 'scheduled'" class="led-dot sm" style="background:#46b6ec"></span>
                           <span v-else-if="cellState(p) === 'series'" class="led-dot sm" style="background:#e2b03c"></span>
                           <span v-if="isSeriesScheduled(p)" class="led-dot sm" style="background:#e2b03c"></span>
                           {{ fmtClock(p.start) }}
@@ -2785,7 +2785,7 @@ const EpgView = {
           </template>
 
           <template v-else-if="mode === 'upcoming'">
-            <p v-if="stateError" class="text-sm font-mono text-signal-magenta-hi">{{ stateError }}</p>
+            <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
             <div v-else-if="!state" class="text-ink-dim font-mono text-sm">▰▰ contacting TVHeadend…</div>
             <template v-else>
               <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
@@ -2822,7 +2822,7 @@ const EpgView = {
           </template>
 
           <template v-else>
-            <p v-if="stateError" class="text-sm font-mono text-signal-magenta-hi">{{ stateError }}</p>
+            <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
             <div v-else-if="!state" class="text-ink-dim font-mono text-sm">▰▰ contacting TVHeadend…</div>
             <template v-else>
               <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
@@ -3864,17 +3864,17 @@ const App = {
           <div class="flex items-center justify-between gap-4 py-3">
             <a href="#/dashboard" class="no-hover-underline flex items-center gap-3 no-underline text-ink">
               <svg viewBox="0 0 15.5 3" :class="['brand-mark', 'w-[39px]', 'h-[8px]', 'shrink-0', { syncing: syncStatus.activeSyncId }]" aria-hidden="true">
-                <rect x="0"    y="0" width="4" height="3" fill="#009be4"/>
-                <rect x="5.75" y="0" width="4" height="3" fill="#f10c69"/>
+                <rect x="0"    y="0" width="4" height="3" fill="#46b6ec"/>
+                <rect x="5.75" y="0" width="4" height="3" fill="#f7931e"/>
                 <rect x="11.5" y="0" width="4" height="3" fill="#e2b03c"/>
               </svg>
               <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">freetvarr</span>
-              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]"><span class="text-signal-magenta">//</span> tvheadend → plex bridge</span>
+              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]"><span class="text-signal-orange">//</span> tvheadend → plex bridge</span>
             </a>
             <div class="flex items-center gap-5">
               <div class="flex items-center gap-2">
                 <span :class="['led-dot', 'sm', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
-                <span :class="['font-mono', 'text-xs', 'tracking-[0.18em]', syncStatus.activeSyncId ? 'text-signal-magenta' : 'text-ink-mute']">
+                <span :class="['font-mono', 'text-xs', 'tracking-[0.18em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-mute']">
                   {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
                 </span>
                 <span v-if="syncStatus.activeSyncId" class="hidden md:inline text-xs font-mono text-ink-dim">

@@ -29,7 +29,7 @@ onMounted(() => {
     <div class="browser-frame__bar" aria-hidden="true">
       <span class="browser-frame__dots">
         <span class="browser-frame__dot browser-frame__dot--blue"></span>
-        <span class="browser-frame__dot browser-frame__dot--magenta"></span>
+        <span class="browser-frame__dot browser-frame__dot--orange"></span>
         <span class="browser-frame__dot browser-frame__dot--yellow"></span>
       </span>
       <span class="browser-frame__url">{{ label }}</span>
@@ -85,8 +85,8 @@ onMounted(() => {
   border-radius: 50%;
 }
 
-.browser-frame__dot--blue { background: #009be4; }
-.browser-frame__dot--magenta { background: #f10c69; }
+.browser-frame__dot--blue { background: #46b6ec; }
+.browser-frame__dot--orange { background: #f7931e; }
 .browser-frame__dot--yellow { background: #e2b03c; }
 
 .browser-frame__url {
