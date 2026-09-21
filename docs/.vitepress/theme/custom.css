@@ -29,42 +29,42 @@
   --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
     "Courier New", monospace;
 
-  --vp-c-brand-1: #2a9bd6;
-  --vp-c-brand-2: #46b6ec;
-  --vp-c-brand-3: #7ecff5;
-  --vp-c-brand-soft: rgba(70, 182, 236, 0.16);
-  --vp-c-brand-softer: rgba(70, 182, 236, 0.08);
+  --vp-c-brand-1: #0a9fe6;
+  --vp-c-brand-2: #1eb6ff;
+  --vp-c-brand-3: #62cfff;
+  --vp-c-brand-soft: rgba(30, 182, 255, 0.16);
+  --vp-c-brand-softer: rgba(30, 182, 255, 0.08);
 
   --vp-button-brand-border: transparent;
   --vp-button-brand-text: #1a1611;
-  --vp-button-brand-bg: #46b6ec;
+  --vp-button-brand-bg: #1eb6ff;
   --vp-button-brand-hover-border: transparent;
   --vp-button-brand-hover-text: #1a1611;
-  --vp-button-brand-hover-bg: #7ecff5;
+  --vp-button-brand-hover-bg: #62cfff;
   --vp-button-brand-active-border: transparent;
   --vp-button-brand-active-text: #1a1611;
-  --vp-button-brand-active-bg: #2a9bd6;
+  --vp-button-brand-active-bg: #0a9fe6;
 
   --vp-home-hero-name-color: transparent;
   --vp-home-hero-name-background: -webkit-linear-gradient(
     120deg,
-    #46b6ec 20%,
-    #f7931e 55%,
+    #1eb6ff 20%,
+    #ff8a00 55%,
     #e2b03c
   );
   --vp-home-hero-image-background-image: linear-gradient(
     -45deg,
-    rgba(70, 182, 236, 0.45),
-    rgba(247, 147, 30, 0.4) 50%,
+    rgba(30, 182, 255, 0.45),
+    rgba(255, 138, 0, 0.4) 50%,
     rgba(226, 176, 60, 0.4)
   );
   --vp-home-hero-image-filter: blur(52px);
 }
 
 .dark {
-  --vp-c-brand-1: #7ecff5;
-  --vp-c-brand-2: #46b6ec;
-  --vp-c-brand-3: #2a9bd6;
+  --vp-c-brand-1: #62cfff;
+  --vp-c-brand-2: #1eb6ff;
+  --vp-c-brand-3: #0a9fe6;
 
   --vp-c-bg: #1a1611;
   --vp-c-bg-alt: #201b15;

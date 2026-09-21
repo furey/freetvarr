@@ -8,12 +8,12 @@
 </p>
 
 <p align="center">
-  <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-f7931e.svg?style=flat-square"/>
-  <img alt="Node 22+" src="https://img.shields.io/badge/node-22%2B-46b6ec.svg?style=flat-square"/>
-  <img alt="Docker" src="https://img.shields.io/badge/docker-compose-46b6ec.svg?style=flat-square"/>
+  <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-ff8a00.svg?style=flat-square"/>
+  <img alt="Node 22+" src="https://img.shields.io/badge/node-22%2B-1eb6ff.svg?style=flat-square"/>
+  <img alt="Docker" src="https://img.shields.io/badge/docker-compose-1eb6ff.svg?style=flat-square"/>
   <img alt="Last commit" src="https://img.shields.io/github/last-commit/furey/freetvarr.svg?style=flat-square&color=e2b03c"/>
   <img alt="No auth" src="https://img.shields.io/badge/auth-LAN%20only-8b837e.svg?style=flat-square"/>
-  <a href="https://furey.github.io/freetvarr/"><img alt="Documentation" src="https://img.shields.io/badge/docs-vitepress-46b6ec.svg?style=flat-square"/></a>
+  <a href="https://furey.github.io/freetvarr/"><img alt="Documentation" src="https://img.shields.io/badge/docs-vitepress-1eb6ff.svg?style=flat-square"/></a>
 </p>
 
 <p align="center">
