@@ -32,6 +32,18 @@ No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust 
 
 Anything with `-US` in the model number, and anything branded 4K, is an ATSC tuner for the American standard. It will not tune a single Australian channel. Most Amazon AU and eBay AU HDHomeRun listings are these; check the model number before you buy.
 
+### Outside Australia
+
+The HDHomeRun family covers most of the world, and TVHeadend drives all of them the same way. Match the model to the local broadcast standard:
+
+| Region | Standard | HDHomeRun model |
+| --- | --- | --- |
+| Australia, New Zealand, UK, Europe | DVB-T/T2 | `HDFX-4DT` Flex Quatro (this page) |
+| Europe, cable | DVB-C | `HDHR5-4DT` Connect Quatro (T/T2/C) |
+| United States, Canada | ATSC 1.0 / 3.0 | `HDFX-4US` Flex Quatro, `HDHR5-4US` Connect Quatro, or the Flex 4K |
+
+Everything else on this page (network tuner, wiring, signal checks) applies unchanged. Only the guide source changes; see [Outside Australia](/guide/tvheadend#outside-australia) on the TVHeadend page.
+
 ### Why not a USB tuner
 
 A `A$20` Xbox One or Hauppauge USB tuner is tempting and does work on a normal Linux box. It does not work on a Synology or QNAP NAS: their kernels ship no DVB drivers, so there is no `/dev/dvb` to pass into the container and nothing for TVHeadend to find. A network tuner sidesteps the kernel entirely. If you want the cheap tuner anyway, run TVHeadend on a Raspberry Pi and write its recordings to a NAS share instead.
