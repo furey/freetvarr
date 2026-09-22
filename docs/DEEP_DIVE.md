@@ -27,7 +27,7 @@ The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob
 ```mermaid
 flowchart TB
   subgraph lan["Home LAN"]
-    hdhr["HDHomeRun Flex Quatro<br>DVB-T, 4 tuners"]
+    hdhr["Tuner<br>e.g. HDHomeRun Flex Quatro"]
 
     subgraph tvh["tvheadend container"]
       tvhsrv["TVHeadend<br>HTTP API on 9981"]
@@ -50,7 +50,7 @@ flowchart TB
     media[("Media library<br>/media/tv")]
   end
 
-  xmltv["XMLTV feed<br>i.mjh.nz/au/&lt;Region&gt;/epg.xml"]
+  xmltv["XMLTV feed<br>e.g. i.mjh.nz/au/&lt;Region&gt;/epg.xml"]
 
   hdhr --> tvhsrv
   xmltv -->|"tv_grab_ script, on cron"| tvhsrv
@@ -162,9 +162,9 @@ RECORD SERIES creates one TVHeadend autorec rule through `dvr/autorec/create`:
 
 The design decisions in that payload:
 
-- **Title plus channel, any time, any day.** Australian broadcasters move timeslots constantly, so a time window would silently miss episodes. `fulltext: false` keeps the match on the title field rather than the synopsis, which otherwise catches every programme that mentions the show.
+- **Title plus channel, any time, any day.** A time window would silently miss episodes whenever a broadcaster moves the timeslot, as Australian broadcasters do constantly. `fulltext: false` keeps the match on the title field rather than the synopsis, which otherwise catches every programme that mentions the show.
 - **`record: 1`** is TVHeadend's duplicate detection by episode number. Where the XMLTV feed supplies episode numbers this stops repeats cleanly. Where it doesn't, every airing records and Freetvarr's own already-done check is the second line.
-- **`start_extra: 2` / `stop_extra: 10`** are minutes of padding. The asymmetry is deliberate: Australian free-to-air overruns far more often than it starts early.
+- **`start_extra: 2` / `stop_extra: 10`** are minutes of padding. The asymmetry is deliberate: free-to-air overruns far more often than it starts early, Australian channels especially.
 - **`comment: "freetvarr"`** tags every entry and rule Freetvarr created, so rules made by hand in TVHeadend's own UI are distinguishable.
 
 Single recordings take a second call. `dvr/entry/create_by_event` does not accept padding, so Freetvarr creates the entry, then patches `start_extra` and `stop_extra` onto it with `idnode/save`.
@@ -221,7 +221,7 @@ The three sources:
 
 - **Import**: `makeImportProgress(recordingId)` is only wired into the copy path, because a hardlink completes before a bar could render. A `1 s` ticker stats the growing destination file, and the shim recomputes percentage, rate, and ETA from the bytes on disk against the source size.
 - **Cut**: `cutBreaks` already loops over keep segments, so `segment i/N` is free; it writes a `cutting` entry per segment and flips to `verifying` before the duration check. Stream-copy is seconds per segment, so a counter is more honest than a bar and neither phase carries a percentage.
-- **Scan**: `comskip` runs through a buffered `execFileP` and emits no live signal, so the bar is a duration-based estimate rather than parsed output. `detectBreaks` already probes duration (for the timeout); a 1-second ticker writes `percent = clamp(0, 99, elapsed / expectedScanMs × 100)` where `expectedScanMs = durationSeconds × SCAN_REALTIME_FACTOR × 1000`. `SCAN_REALTIME_FACTOR` is `0.5`, deliberately above the measured `~0.39` on the NAS so the bar under-promises; it clamps at 99 so it never claims done while comskip is still running, and holds there if the scan over-runs. If the duration probe failed the scan entry is indeterminate (`percent: null`) with an elapsed count-up caption. `computeScanPercent` and `expectedScanMs` are pure exports, unit-tested.
+- **Scan**: `comskip` runs through a buffered `execFileP` and emits no live signal, so the bar is a duration-based estimate rather than parsed output. `detectBreaks` already probes duration (for the timeout); a 1-second ticker writes `percent = clamp(0, 99, elapsed / expectedScanMs × 100)` where `expectedScanMs = durationSeconds × SCAN_REALTIME_FACTOR × 1000`. `SCAN_REALTIME_FACTOR` is `0.5`, deliberately above the `~0.39` measured on the author's NAS so the bar under-promises; it clamps at 99 so it never claims done while comskip is still running, and holds there if the scan over-runs. If the duration probe failed the scan entry is indeterminate (`percent: null`) with an elapsed count-up caption. `computeScanPercent` and `expectedScanMs` are pure exports, unit-tested.
 
 Lifecycle is owned in one place so no path leaks an entry. The scan ticker clears its own `setInterval` in a `finally` inside `detectBreaks`; `processRecordingAds` clears the registry entry in a single `finally` around the whole detect/cut sequence; the import shim clears on `stop()`. On the API side, `GET /api/recordings` calls `snapshotProgress` over the returned rows and attaches `progress` (the entry or `null`) to each one without mutating the query result.
 
@@ -277,7 +277,7 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
 - Freetvarr's image is built locally from the repo via compose; nothing is pushed to a registry. TVHeadend comes from `lscr.io/linuxserver/tvheadend`.
 - The Dockerfile inlines `npm ci --ignore-scripts && npm run rebuild:natives` instead of calling `npm run setup`, deliberately skipping `npm audit signatures` at build time. That step re-queries the registry and enforces `.npmrc`'s `min-release-age=3`, which would block whenever a brand-new dep is in the lockfile. Run `npm run setup` on the host once the newest dep has aged past the threshold; the lockfile's integrity hashes still verify package contents during `npm ci`.
-- Both services use `network_mode: host` (no `ports:` mapping). TVHeadend needs it to discover an HDHomeRun, which announces itself by UDP broadcast that doesn't traverse Docker's bridge network. Side-effect: neither container is on a Docker bridge network, so they address each other by the host's LAN IP rather than by container name, and so does anything else that wants to reach them.
+- Both services use `network_mode: host` (no `ports:` mapping). TVHeadend needs it to discover a network tuner such as an HDHomeRun, which announces itself by UDP broadcast that doesn't traverse Docker's bridge network. Side-effect: neither container is on a Docker bridge network, so they address each other by the host's LAN IP rather than by container name, and so does anything else that wants to reach them.
 - Both run as `${PUID}:${PGID}` (default `1000:1000`). They must match: Freetvarr hardlinks files TVHeadend wrote and deletes them afterwards.
 - `tini` is PID 1 inside the Freetvarr container so `SIGTERM` propagates cleanly.
 - The Docker healthcheck hits `GET /healthz` every `30 s`.

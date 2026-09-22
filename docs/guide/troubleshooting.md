@@ -5,6 +5,9 @@ description: 'Fixes for the common snags: the TVHeadend connection, missing file
 
 # Troubleshooting
 
+> [!NOTE]<br>
+> Where a fix below names an HDHomeRun or an Australian broadcaster, that is the author's own setup. Each such entry says what to do with a different tuner or in another country.
+
 ## TEST CONNECTION fails
 
 - **"TVHeadend URL is not configured"**: set it in Settings. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981`; neither container is on a Docker bridge network, so container names don't resolve.
@@ -13,13 +16,13 @@ description: 'Fixes for the common snags: the TVHeadend connection, missing file
 
 ## TVHeadend finds no tuner
 
-- The TVHeadend container has to run with `network_mode: host`. It discovers an HDHomeRun by broadcasting on the local network, and those broadcasts don't cross Docker's private bridge network.
+- The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server; those broadcasts don't cross Docker's private bridge network. A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.
 - The tuner has to be on the same part of the network as the host; those broadcasts don't cross between subnets without extra setup.
-- Check the tuner answers at all: open `http://<hdhr-ip>/tuners.html` in a browser. Nothing there means a power or ethernet problem, not a TVHeadend one. See [Hardware](/guide/hardware#checking-the-signal).
+- Check the tuner answers at all. On an HDHomeRun, open `http://<hdhr-ip>/tuners.html` in a browser; nothing there means a power or ethernet problem, not a TVHeadend one. See [Hardware](/guide/hardware#checking-the-signal). On a USB or PCIe tuner, check `/dev/dvb` exists on the host and inside the container.
 
 ## The guide is empty or one day deep
 
-- Without an XMLTV feed you get only what the broadcast signal carries, which is about a day of thin data. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
+- Without an XMLTV feed you get only what the broadcast signal carries. In Australia that is about a day of thin data; UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
 - With the feed loaded but one channel blank, that channel isn't linked to a feed channel. Fix it under **Configuration → Channel/EPG → EPG Grabber Channels**.
 - After installing the grabber script, restart TVHeadend. It looks for grabbers at startup only, so a running instance never sees a new one.
 
@@ -56,11 +59,11 @@ The error text says which of the two causes it was:
 - Ad detection is educated guessing, never perfect. Comskip's accuracy varies a lot by channel (logo detection, silence thresholds, and break lengths all differ).
 - Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. Scans work the CPU hard: budget ~30 minutes per 75-minute recording on a home NAS.
 - Cuts land on the nearest keyframe, so a second or two either side of a break is normal.
-- To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which is tuned for Australian channels. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it. See [Ad removal](/guide/ad-removal).
+- To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it. See [Ad removal](/guide/ad-removal).
 
 ## Captions are missing
 
-- Australian broadcasters send captions as Teletext. Some players decode it and some don't; it isn't a recording fault. See [Live TV](/guide/live-tv#captions).
+- Your broadcaster sends captions as Teletext or as DVB subtitles; Australian broadcasters send Teletext. Some players decode Teletext and some don't; it isn't a recording fault. See [Live TV](/guide/live-tv#captions).
 
 ## Timestamps show the wrong time
 
