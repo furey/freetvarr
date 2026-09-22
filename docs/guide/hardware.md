@@ -50,13 +50,32 @@ A `A$20` Xbox One or Hauppauge USB tuner is tempting and does work on a normal L
 
 ## Wiring it up
 
-The HDHomeRun takes the place of whatever box was on the end of your aerial lead. Nothing else in the chain changes.
+The tuner takes the place of whatever box was on the end of your aerial lead. Nothing else in the chain changes. For most homes the chain is the aerial lead into the tuner and an ethernet lead into the router:
 
 ```mermaid
 flowchart LR
   subgraph roof["Roof"]
     ant["Antenna"]
-    amp["Masthead amplifier<br>(if fitted)"]
+  end
+  subgraph rack["Rack"]
+    hdhr["Network tuner<br>e.g. HDHomeRun"]
+    router["Router"]
+  end
+  ant -->|"wall plate"| hdhr --> router
+```
+
+> [!NOTE]<br>
+> The masthead amplifier, the power injector, and the F-to-PAL adapter below are the author's own installation. None of them is required by Freetvarr or TVHeadend. Skip this section unless your aerial already has an amplifier or your wall plate does not fit the tuner's socket.
+
+### With a masthead amplifier (author's setup)
+
+If a masthead amplifier sits at the antenna, a small box at the wall powers it by sending mains-derived voltage back up the coax. A Kingray `PSK02` is the common one in Australia: the wall lead goes into its `ANTENNA` port and the tuner hangs off its `TELEVISION` port.
+
+```mermaid
+flowchart LR
+  subgraph roof["Roof"]
+    ant["Antenna"]
+    amp["Masthead amplifier"]
   end
   subgraph wall["Wall"]
     inj["Power injector<br>e.g. Kingray PSK02"]
@@ -70,11 +89,12 @@ flowchart LR
   inj -->|"TELEVISION port"| adapt --> hdhr --> router
 ```
 
-If a masthead amplifier sits at the antenna, a small box at the wall powers it by sending mains-derived voltage back up the coax. A Kingray `PSK02` is the common one: the wall lead goes into its `ANTENNA` port and the tuner hangs off its `TELEVISION` port. **Keep that box in the chain.** Run a lead from the wall straight to the tuner and the masthead amplifier loses its power, so almost no signal arrives and the tuner finds nothing.
+> [!WARNING]<br>
+> If you have an injector, keep it in the chain. Run a lead from the wall straight to the tuner and the masthead amplifier loses its power, so almost no signal arrives and the tuner finds nothing.
 
 ### The connector
 
-The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. Australian buyers on the Whirlpool HDHomeRun thread report that the AU order ships with an F-to-PAL converter in the box, so check the box first. If it is missing, one adapter fixes it: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
+The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. Australian buyers on the Whirlpool HDHomeRun thread report that the AU order ships with an F-to-PAL converter in the box, so check the box first. If it is missing, one adapter fixes it: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
 
 > [!NOTE]<br>
 > SiliconDust's product page does not itemise what is in the box beyond the power adapter; the converter report comes from owners, not the vendor.
@@ -86,9 +106,9 @@ Once the tuner has power and ethernet, find its IP in your router's client list 
 Two faults account for most complaints:
 
 - **Dropouts and reboots.** The usual cause is a tired `5 V` power supply, not reception. Swap in a `2–3 A` `5 V` supply and re-test.
-- **Strong signal, poor quality.** A masthead amplifier plus a short cable run can overload the front end. A `12 dB` inline attenuator between the adapter and the tuner is the first thing to try.
+- **Strong signal, poor quality.** Only with a masthead amplifier: the amplifier plus a short cable run can overload the front end. A `12 dB` inline attenuator between the adapter and the tuner is the first thing to try.
 
-If the injector's `TELEVISION` port is not fully isolated it can pass a few volts AC through to the tuner. Tuners tolerate this, but if the readings look strange, a `$5` inline DC block (Jaycar `LT3068`, or any F-type DC block) between the adapter and the tuner removes it.
+Only with a power injector: if its `TELEVISION` port is not fully isolated it can pass a few volts AC through to the tuner. Tuners tolerate this, but if the readings look strange, a `$5` inline DC block (Jaycar `LT3068`, or any F-type DC block) between the adapter and the tuner removes it.
 
 ## Where next
 
