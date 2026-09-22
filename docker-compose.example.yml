@@ -1,4 +1,4 @@
-# Example docker-compose for freetvarr.
+# Example docker-compose for Freetvarr.
 #
 # Copy to `docker-compose.yml`, then create a `.env` file alongside it with:
 #   CONFIG_PATH=/path/to/your/config          # required
@@ -15,18 +15,18 @@
 #
 # `network_mode: host` is required on both services: HDHomeRun auto-discovery
 # is a UDP broadcast, which does NOT traverse Docker's bridge network. With
-# host networking neither container has a `ports:` mapping — freetvarr binds
+# host networking neither container has a `ports:` mapping — Freetvarr binds
 # directly to ${FREETVARR_PORT} on the host LAN IP, and TVHeadend to its own
 # ports (9981 HTTP, 9982 HTSP).
 #
 # ${DATA_PATH}/recordings is mounted at the SAME container path (/recordings)
 # in both services. TVHeadend writes recordings there and records their paths
-# in its own database; freetvarr reads those same paths, so the mount point
+# in its own database; Freetvarr reads those same paths, so the mount point
 # must match exactly between the two containers, on the same filesystem as
 # MEDIA_ROOT, so the Plex import can hardlink the file instead of copying it.
 #
 # The optional ad-removal feature (Settings → AD REMOVAL) runs comskip inside
-# the freetvarr container and is CPU-bound: expect minutes of sustained CPU
+# the Freetvarr container and is CPU-bound: expect minutes of sustained CPU
 # per scanned recording. It's niced down, but budget for it on low-power hosts.
 
 services:

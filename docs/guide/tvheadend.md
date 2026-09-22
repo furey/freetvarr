@@ -2,12 +2,12 @@
 title: TVHeadend
 description: >-
   Run TVHeadend in Docker, add the HDHomeRun, scan your channels, load an
-  XMLTV guide, and make a user for freetvarr.
+  XMLTV guide, and make a user for Freetvarr.
 ---
 
 # TVHeadend
 
-TVHeadend is the recorder. It drives the tuner, holds the channel list and the guide, runs the timers, and writes the files. freetvarr reads all of that over TVHeadend's HTTP API, so TVHeadend has to work on its own before freetvarr is any use.
+TVHeadend is the recorder. It drives the tuner, holds the channel list and the guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so TVHeadend has to work on its own before Freetvarr is any use.
 
 Set it up in this order. Each step depends on the one before it.
 
@@ -19,12 +19,12 @@ flowchart TD
   d --> e["5. Map services to channels"]
   e --> f["6. Load the XMLTV guide"]
   f --> g["7. Set the recording path"]
-  g --> h["8. Make a user for freetvarr"]
+  g --> h["8. Make a user for Freetvarr"]
 ```
 
 ## 1. Run the container
 
-Add TVHeadend to the same compose file as freetvarr:
+Add TVHeadend to the same compose file as Freetvarr:
 
 ```yaml
 services:
@@ -50,7 +50,7 @@ The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an opt
 Run `docker compose up -d tvheadend`, then open `http://<host-ip>:9981`.
 
 > [!NOTE]<br>
-> Give TVHeadend and freetvarr the same `PUID`/`PGID`. freetvarr imports by hardlink where it can, and it deletes the TVHeadend copy afterwards; both need the same owner on the recordings folder.
+> Give TVHeadend and Freetvarr the same `PUID`/`PGID`. Freetvarr imports by hardlink where it can, and it deletes the TVHeadend copy afterwards; both need the same owner on the recordings folder.
 
 ## 2. First-run wizard
 
@@ -117,11 +117,11 @@ The linuxserver image ships a small grabber called **XMLTV URL grabber** (`/usr/
 
 ### IceTV, if you would rather pay
 
-[IceTV](https://www.icetv.com.au/xmltv-subscription/) sells an Australian XMLTV subscription at `$3.99` per month (their month is `30 days`) and publish their own TVHeadend setup guide. It is the fallback if the free feed ever stops; nothing in freetvarr cares which one you use.
+[IceTV](https://www.icetv.com.au/xmltv-subscription/) sells an Australian XMLTV subscription at `$3.99` per month (their month is `30 days`) and publish their own TVHeadend setup guide. It is the fallback if the free feed ever stops; nothing in Freetvarr cares which one you use.
 
 ### Outside Australia
 
-The mjh feed covers Australia and New Zealand only. Elsewhere, pick the guide source TVHeadend already supports for your country; freetvarr does not care which one feeds it:
+The mjh feed covers Australia and New Zealand only. Elsewhere, pick the guide source TVHeadend already supports for your country; Freetvarr does not care which one feeds it:
 
 | Region | Guide source | Where in TVHeadend |
 | --- | --- | --- |
@@ -142,28 +142,28 @@ Check the result in the **Electronic Program Guide** tab. Every channel you care
 
 Go to **Configuration → Recording → Digital Video Recorder Profiles** and open the default profile. Set **Recording system path** to `/recordings`.
 
-Leave the file-naming options alone. TVHeadend's own layout does not matter, because freetvarr renames every file as it imports it into Plex's library ([Following shows](/guide/following-shows)).
+Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into Plex's library ([Following shows](/guide/following-shows)).
 
-Two settings worth knowing, both of which freetvarr also sets per recording:
+Two settings worth knowing, both of which Freetvarr also sets per recording:
 
 - **Pre-recording padding**: `2` minutes.
 - **Post-recording padding**: `10` minutes. Free-to-air broadcasts run late; ten minutes is the difference between catching the end of a drama and not.
 
-## 8. Make a user for freetvarr
+## 8. Make a user for Freetvarr
 
-freetvarr signs in as an ordinary TVHeadend user. Give it its own.
+Freetvarr signs in as an ordinary TVHeadend user. Give it its own.
 
 1. **Configuration → Users → Access Entries → Add.**
-2. Username and password: whatever you like; you type these into freetvarr once.
+2. Username and password: whatever you like; you type these into Freetvarr once.
 3. Allowed networks: your LAN prefix.
 4. Tick **Admin**, **Streaming**, and **Video recorder** rights.
 
-Admin is not optional. freetvarr creates and deletes autorec rules, edits recording entries, and reads the tuner and hardware status, and TVHeadend gates all of that behind admin.
+Admin is not optional. Freetvarr creates and deletes autorec rules, edits recording entries, and reads the tuner and hardware status, and TVHeadend gates all of that behind admin.
 
 > [!NOTE]<br>
 > Access entries are an ordered list, evaluated top to bottom. A broad anonymous entry above your new one can hand out rights you did not intend, so check the order after you add it.
 
 ## Where next
 
-- **[Getting started](/guide/getting-started)**: run freetvarr and point it at this TVHeadend.
-- **[TV Guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from freetvarr instead of TVHeadend's own UI.
+- **[Getting started](/guide/getting-started)**: run Freetvarr and point it at this TVHeadend.
+- **[TV Guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from Freetvarr instead of TVHeadend's own UI.

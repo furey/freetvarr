@@ -5,7 +5,7 @@ import { ref, onMounted } from 'vue'
 const props = defineProps({
   src: { type: String, default: '/demo.mp4' },
   poster: { type: String, default: '/demo-poster.jpg' },
-  label: { type: String, default: 'http://fetcharr.lan' }
+  label: { type: String, default: 'http://freetvarr.lan' }
 })
 
 const video = ref(null)

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img/logo.svg" alt="freetvarr" width="240"/>
+  <img src="docs/img/logo.svg" alt="Freetvarr" width="240"/>
 </p>
 
 <p align="center">
@@ -23,8 +23,8 @@
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What freetvarr is](#what-freetvarr-is)
-- [What freetvarr isn't](#what-freetvarr-isnt)
+- [What Freetvarr is](#what-freetvarr-is)
+- [What Freetvarr isn't](#what-freetvarr-isnt)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
@@ -74,30 +74,30 @@
   <br/><em>Mobile</em>
 </p>
 
-## What freetvarr is
+## What Freetvarr is
 
-TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex can't read. **freetvarr** watches TVHeadend on your LAN, picks up new episodes of the shows you mark to follow, files them into your Plex TV library under names Plex understands, pokes Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
+TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex can't read. **Freetvarr** watches TVHeadend on your LAN, picks up new episodes of the shows you mark to follow, files them into your Plex TV library under names Plex understands, pokes Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
 
-If your media stack is HDHomeRun → TVHeadend → Plex, freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered.
+If your media stack is HDHomeRun → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered.
 
-It's a fork of [`fetcharr`](https://github.com/furey/fetcharr) with the recorder replaced. Fetch TV's Gen 3 Extended Service Levy made a Fetch-bound tool a dead end; a tuner you own and a free guide cost nothing per year. See [Migrating from Fetch](https://furey.github.io/freetvarr/guide/migrating-from-fetch).
+It's a fork of [Fetcharr](https://github.com/furey/fetcharr) with the recorder replaced. Fetch TV's Gen 3 Extended Service Levy made a Fetch-bound tool a dead end; a tuner you own and a free guide cost nothing per year. See [Migrating from Fetch](https://furey.github.io/freetvarr/guide/migrating-from-fetch).
 
 ## Where it works
 
-Everywhere TVHeadend works. freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T HDHomeRun in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through an Australian setup because that is where the author lives. Every Australian value in them is an example: swap the timezone, the mux list, the guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian channels but do no harm elsewhere.
+Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T HDHomeRun in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through an Australian setup because that is where the author lives. Every Australian value in them is an example: swap the timezone, the mux list, the guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian channels but do no harm elsewhere.
 
 ## Why not just TVHeadend
 
-TVHeadend on its own covers most of the job. Its web UI has the guide, one-off and series recording with padding and duplicate detection, and a filename template that can write Plex-readable paths (`$t/Season $s/$t - S$sE$e.$x`) straight into the library folder; its DVR post-processor hook can run a script that calls Plex's refresh URL or comskip. If that is enough, use it and skip freetvarr.
+TVHeadend on its own covers most of the job. Its web UI has the guide, one-off and series recording with padding and duplicate detection, and a filename template that can write Plex-readable paths (`$t/Season $s/$t - S$sE$e.$x`) straight into the library folder; its DVR post-processor hook can run a script that calls Plex's refresh URL or comskip. If that is enough, use it and skip Freetvarr.
 
-freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and dashboard, follow-a-show with fuzzy matching to the folders Plex already has, the Plex refresh and delete-after-confirm loop, the comskip detect/cut pipeline with a verified swap and `.orig` rollback, live progress, and a sync history you can read. It is a convenience layer on TVHeadend, not a replacement for it.
+Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and dashboard, follow-a-show with fuzzy matching to the folders Plex already has, the Plex refresh and delete-after-confirm loop, the comskip detect/cut pipeline with a verified swap and `.orig` rollback, live progress, and a sync history you can read. It is a convenience layer on TVHeadend, not a replacement for it.
 
-## What freetvarr isn't
+## What Freetvarr isn't
 
-- ❌ **An indexer integration** (Sonarr / Radarr / Prowlarr): freetvarr works with the recordings TVHeadend has made, and its TV Guide schedules what TVHeadend records next. It doesn't search the internet for content.
-- ❌ **A tuner:** TVHeadend drives the hardware, scans the muxes, and writes the files. freetvarr talks to TVHeadend's HTTP API and never touches the tuner.
+- ❌ **An indexer integration** (Sonarr / Radarr / Prowlarr): Freetvarr works with the recordings TVHeadend has made, and its TV Guide schedules what TVHeadend records next. It doesn't search the internet for content.
+- ❌ **A tuner:** TVHeadend drives the hardware, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never touches the tuner.
 - ❌ **Authenticated:** designed for a home network you trust. CSRF protection, rate limiting, and a strict content-security policy are in place, but there's no login, so anyone who can reach it can change its settings. Don't expose it to the internet (see [Security](#security)).
-- ❌ **A converter:** files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; freetvarr never re-encodes them. The optional ad-cutting copies the video across untouched, so there's no quality loss and no change of format. Add Tdarr or similar afterwards if you need `.mkv`.
+- ❌ **A converter:** files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad-cutting copies the video across untouched, so there's no quality loss and no change of format. Add Tdarr or similar afterwards if you need `.mkv`.
 - ❌ **A notifier:** no Discord / ntfy / push integration.
 
 > [!IMPORTANT]<br>
@@ -128,8 +128,8 @@ freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and das
 - A **tuner on your LAN** that TVHeadend can drive, matched to your broadcast standard. An [HDHomeRun Flex Quatro](https://furey.github.io/freetvarr/guide/hardware) `HDFX-4DT` (DVB-T/T2) is the tested one. USB tuners don't work on a Synology or QNAP NAS, whose kernels ship no DVB drivers.
 - A **working TVHeadend** with channels scanned, an XMLTV guide loaded, and a user holding admin, streaming, and DVR rights. The [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend) walks all of it.
 - **Docker + Docker Compose** on the host running both.
-- **The same recordings folder mounted into both containers**, so freetvarr can read what TVHeadend wrote.
-- **Plex Media Server** is optional; freetvarr runs fine without it, you just won't get the automatic Plex library refresh after a sync.
+- **The same recordings folder mounted into both containers**, so Freetvarr can read what TVHeadend wrote.
+- **Plex Media Server** is optional; Freetvarr runs fine without it, you just won't get the automatic Plex library refresh after a sync.
 
 ## Quick start
 
@@ -160,7 +160,7 @@ FREETVARR_PORT=8124
 
 `CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts.
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, freetvarr picks it up from the same folder. Give both the same `PUID`/`PGID`.
+The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, Freetvarr picks it up from the same folder. Give both the same `PUID`/`PGID`.
 
 ### 3. Start it
 
@@ -174,15 +174,15 @@ docker compose logs -f
 
 ### 4. Set up TVHeadend
 
-Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): first-run wizard, add the HDHomeRun, scan the predefined muxes for your transmitter, map services to channels, load a free XMLTV guide, set the recording path to `/recordings`, and make a user for freetvarr.
+Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): first-run wizard, add the HDHomeRun, scan the predefined muxes for your transmitter, map services to channels, load a free XMLTV guide, set the recording path to `/recordings`, and make a user for Freetvarr.
 
-Do this before step 5. freetvarr can do nothing until TVHeadend has channels and a guide.
+Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and a guide.
 
-### 5. Run the freetvarr wizard
+### 5. Run the Freetvarr wizard
 
 Browse to `http://<host-ip>:8124`. The first visit opens a setup wizard that walks you through TVHeadend (URL plus the user you just made, with a TEST CONNECTION button), storage (with a TEST PATH button for each path), and Plex. You can change all of it later in Settings, and reopen the wizard from there whenever you like.
 
-Mark shows to follow on the Shows tab and freetvarr syncs them on the schedule you set.
+Mark shows to follow on the Shows tab and Freetvarr syncs them on the schedule you set.
 
 ### Updating
 
@@ -199,7 +199,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 
 | Variable          | Purpose                                                                                                           |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `CONFIG_PATH`     | Host folder for both containers' config; freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                 |
+| `CONFIG_PATH`     | Host folder for both containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                 |
 | `DATA_PATH`       | Host folder holding both `recordings/` (TVHeadend's output) and `media/tv` (your Plex TV library)                 |
 | `PLEX_PREFS_PATH` | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host |
 | `CSRF_SECRET`     | 32+ random bytes (`openssl rand -hex 32`); required                                                               |
@@ -207,9 +207,9 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 | `PUID`/`PGID`     | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services          |
 | `FREETVARR_PORT`  | Host port to serve on (default `8124`)                                                                            |
 
-freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. Mount the recordings folder at `/recordings` in both containers and the two are identical. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
+Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. Mount the recordings folder at `/recordings` in both containers and the two are identical. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
-**Ad removal** is configured at runtime, not via env: turn it on in Settings → AD REMOVAL (off by default), then pick a per-show mode on the Shows tab. `DETECT` notes where the ad breaks are without touching the file; `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels; drop your own `comskip.ini` into the `/config` bind mount to override it.
+**Ad removal** is configured at runtime, not via env: turn it on in Settings → AD REMOVAL (off by default), then pick a per-show mode on the Shows tab. `DETECT` notes where the ad breaks are without touching the file; `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels; drop your own `comskip.ini` into the `/config` bind mount to override it.
 
 <p align="center">
   <img src="docs/img/screenshot-settings.png" alt="Settings" width="100%"/>
@@ -218,7 +218,7 @@ freetvarr keeps two settings for one folder: `recordings_root` is where it sees 
 
 ## Security
 
-freetvarr has no login; anyone who can reach the port can see everything and change settings, including the TVHeadend password it holds. CSRF protection, rate limiting, a strict CSP, and `noindex` headers are all in place, but the design assumes a home network you trust: don't port-forward or reverse-proxy it to the internet. Supply-chain hardening, the HTTP security headers, and the reasoning behind each measure are covered in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model); vulnerability reporting and accepted residual risks are in [SECURITY.md](SECURITY.md).
+Freetvarr has no login; anyone who can reach the port can see everything and change settings, including the TVHeadend password it holds. CSRF protection, rate limiting, a strict CSP, and `noindex` headers are all in place, but the design assumes a home network you trust: don't port-forward or reverse-proxy it to the internet. Supply-chain hardening, the HTTP security headers, and the reasoning behind each measure are covered in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model); vulnerability reporting and accepted residual risks are in [SECURITY.md](SECURITY.md).
 
 ## Technical deep dive
 
@@ -238,7 +238,7 @@ Architecture diagrams, the TVHeadend API surface, the import state machine, the 
 
 **A recording came in as `skipped`**
 
-- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder freetvarr can see. The error text on the row says which.
+- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error text on the row says which.
 
 **A recording shows `partial`**
 
@@ -246,19 +246,19 @@ Architecture diagrams, the TVHeadend API surface, the import state machine, the 
 
 **Imports are slow**
 
-- A hardlink import is instant. A progress bar means freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
+- A hardlink import is instant. A progress bar means Freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
 
 **Permission errors, or the TVHeadend file won't delete**
 
-- Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both services. freetvarr hardlinks and deletes files TVHeadend created.
+- Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both services. Freetvarr hardlinks and deletes files TVHeadend created.
 
 **The guide is empty or one day deep**
 
 - Without an XMLTV feed you get only what the broadcast signal carries. Set one up; the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend) covers a free Australian feed, a paid one, and the sources to use in other countries. Restart TVHeadend after installing a grabber script; it looks for grabbers at startup only.
 
-**Other containers can't reach freetvarr by name**
+**Other containers can't reach Freetvarr by name**
 
-- A side-effect of host networking: freetvarr isn't on any Docker bridge network. Reach it via the host's LAN IP and `FREETVARR_PORT` instead.
+- A side-effect of host networking: Freetvarr isn't on any Docker bridge network. Reach it via the host's LAN IP and `FREETVARR_PORT` instead.
 
 **Ad detection is cutting the wrong things (or missing breaks)**
 
@@ -277,7 +277,7 @@ This project:
 
 - Is licensed under the [GNU GPLv3 License](./LICENSE).
 - Is not affiliated with or endorsed by SiliconDust, TVHeadend, or Plex.
-- Began as a fork of [`fetcharr`](https://github.com/furey/fetcharr), with the Fetch TV backend replaced by TVHeadend.
+- Began as a fork of [Fetcharr](https://github.com/furey/fetcharr), with the Fetch TV backend replaced by TVHeadend.
 - Is written with the assistance of AI and may contain errors.
 - Is intended for educational and experimental purposes only.
 - Is provided as-is with no warranty; use at your own risk.

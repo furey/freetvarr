@@ -2,19 +2,19 @@
 layout: home
 
 hero:
-  name: freetvarr
+  name: Freetvarr
   text: >-
     Free-to-air TV in&nbsp;Plex, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span>
   tagline: >-
     A self-hosted bridge between TVHeadend and Plex. An HDHomeRun records
-    free-to-air; freetvarr picks up new episodes of the shows you follow,
+    free-to-air; Freetvarr picks up new episodes of the shows you follow,
     optionally removes the ads, files them into your Plex TV
     library, and pokes Plex to scan.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
     <code>comskip</code></span>
   image:
     src: /logo.svg
-    alt: freetvarr
+    alt: Freetvarr
   actions:
     - theme: brand
       text: Get started
@@ -42,7 +42,7 @@ features:
   - title: Per-show follow
     details: >-
       Pick a show TVHeadend records, match it to a folder under your media root,
-      set a season template, and freetvarr imports new episodes on your schedule.
+      set a season template, and Freetvarr imports new episodes on your schedule.
     link: /guide/following-shows
     linkText: Set it up
   - title: Hardlink imports

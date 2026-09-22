@@ -7,7 +7,7 @@ description: >-
 
 # TV Guide
 
-The TV Guide tab is a 7-day programme guide, in the browser. Click a programme to record it, cancel it, or set a series recording; the command goes straight to TVHeadend's API. Combined with [following shows](/guide/following-shows), schedule a series here and freetvarr files each episode into Plex as TVHeadend records it.
+The TV Guide tab is a 7-day programme guide, in the browser. Click a programme to record it, cancel it, or set a series recording; the command goes straight to TVHeadend's API. Combined with [following shows](/guide/following-shows), schedule a series here and Freetvarr files each episode into Plex as TVHeadend records it.
 
 The guide is only as good as what you loaded into TVHeadend. With the XMLTV feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get whatever the broadcast signal carries, which is about a day and very thin.
 
@@ -38,12 +38,12 @@ The **UPCOMING** view lists what will record: the timers TVHeadend has set (`SCH
 
 ## How a series recording works
 
-A series in freetvarr is one TVHeadend autorec rule. It matches on **title plus channel**, across all days and all start times, and it skips an episode whose episode number it has already recorded. Episodes-to-keep maps to TVHeadend's own maximum-count field, so TVHeadend prunes the oldest itself.
+A series in Freetvarr is one TVHeadend autorec rule. It matches on **title plus channel**, across all days and all start times, and it skips an episode whose episode number it has already recorded. Episodes-to-keep maps to TVHeadend's own maximum-count field, so TVHeadend prunes the oldest itself.
 
 Two consequences worth knowing:
 
 - **A rule belongs to one channel.** An SD channel and its HD simulcast are separate channels, so a series set on the HD channel does not cover SD airings. The channel logo on each row shows which is which.
-- **Duplicate detection needs episode numbers.** XMLTV feeds carry them inconsistently. Where they're missing, TVHeadend records every airing, and freetvarr's own folder matching is the second line of defence.
+- **Duplicate detection needs episode numbers.** XMLTV feeds carry them inconsistently. Where they're missing, TVHeadend records every airing, and Freetvarr's own folder matching is the second line of defence.
 
 ## Pinned channels
 
@@ -53,7 +53,7 @@ Press the ★ next to a channel in the rail to pin it; the row animates up into 
 
 ## On a phone
 
-The guide works in the phone browser: the channel rail narrows, programme and channel dialogs open as bottom sheets, and the rail cells drag to reorder pins by touch. A sheet's buttons (CLOSE, RECORD, CANCEL) sit in a row pinned to its bottom edge, so they stay visible while the sheet content scrolls. On iOS, add freetvarr to the Home Screen (Share → Add to Home Screen) to run it full-screen without Safari's toolbar.
+The guide works in the phone browser: the channel rail narrows, programme and channel dialogs open as bottom sheets, and the rail cells drag to reorder pins by touch. A sheet's buttons (CLOSE, RECORD, CANCEL) sit in a row pinned to its bottom edge, so they stay visible while the sheet content scrolls. On iOS, add Freetvarr to the Home Screen (Share → Add to Home Screen) to run it full-screen without Safari's toolbar.
 
 ## On the dashboard
 
@@ -61,4 +61,4 @@ The dashboard carries a TV Guide panel: what's on now across your pinned channel
 
 ## Caching
 
-freetvarr holds the guide for an hour and the recording state for 45 seconds, so paging around the week doesn't hammer TVHeadend. `⟳ REFRESH` forces a re-fetch. If TVHeadend goes unreachable, the guide keeps serving its cached copy with a note above the grid, and recovers by itself once TVHeadend answers again.
+Freetvarr holds the guide for an hour and the recording state for 45 seconds, so paging around the week doesn't hammer TVHeadend. `⟳ REFRESH` forces a re-fetch. If TVHeadend goes unreachable, the guide keeps serving its cached copy with a note above the grid, and recovers by itself once TVHeadend answers again.

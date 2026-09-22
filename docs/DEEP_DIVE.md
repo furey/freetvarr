@@ -1,6 +1,6 @@
 # Technical Deep Dive
 
-The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob/main/README.md): what freetvarr does internally, and why it works the way it does.
+The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob/main/README.md): what Freetvarr does internally, and why it works the way it does.
 
 ## Contents
 
@@ -37,7 +37,7 @@ flowchart TB
     plex["Plex Media Server"]
     browser["Browser<br>Vue 3 SPA"]
 
-    subgraph app["freetvarr container"]
+    subgraph app["Freetvarr container"]
       server["Express server<br>REST API + static UI"]
       sched["Scheduler<br>node-cron"]
       sync["Sync engine"]
@@ -73,7 +73,7 @@ flowchart TB
 
 A single Node process runs everything. The Express server (`src/server.js`) serves the Vue 3 SPA and the REST API; the scheduler (`src/scheduler.js`) wires `node-cron` to the sync engine and reloads whenever the cron setting changes; the sync engine (`src/sync.js`) lists TVHeadend's finished recordings, matches them to followed shows, imports new episodes into the media library, and persists every outcome to SQLite. The guide layer (`src/epg.js`) caches TVHeadend's EPG and recording state for the TV Guide tab. After any sync that imported something, the Plex client (`src/plex.js`) refreshes the configured library section, and only then is a delete queued back to TVHeadend.
 
-The load-bearing difference from [`fetcharr`](https://github.com/furey/fetcharr), which this forked from, is that the recorder is now on the same filesystem. fetcharr downloaded each episode from a set-top box over HTTP and could only delete the source through a vendor cloud service. freetvarr reads a local file and deletes through one authenticated API call.
+The load-bearing difference from [Fetcharr](https://github.com/furey/fetcharr), which this forked from, is that the recorder is now on the same filesystem. Fetcharr downloaded each episode from a set-top box over HTTP and could only delete the source through a vendor cloud service. Freetvarr reads a local file and deletes through one authenticated API call.
 
 ## The TVHeadend API surface
 
@@ -97,7 +97,7 @@ Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTT
 
 Two translations happen at this boundary:
 
-- **Series identity.** TVHeadend has no single series ID, so freetvarr synthesises one: `` `${channelUuid}|${title.toLowerCase()}` ``. That key is what the UI uses to tell whether a programme's show already has a rule.
+- **Series identity.** TVHeadend has no single series ID, so Freetvarr synthesises one: `` `${channelUuid}|${title.toLowerCase()}` ``. That key is what the UI uses to tell whether a programme's show already has a rule.
 - **Season and episode.** `dvr/entry/*` returns a human-readable `episode_disp` (`Season 3.Episode 7`) rather than numeric fields, so `parseEpisodeDisp` regexes the numbers back out. Guide events, by contrast, carry `seasonNumber` and `episodeNumber` directly.
 
 Errors come back as a `TvheadendError` carrying a `stage` (the API path) and a `code`, so a failure logs where it happened. HTTP `401` and `403` are mapped to `code: 'auth'` and surfaced as a credentials problem rather than a generic HTTP error.
@@ -163,15 +163,15 @@ RECORD SERIES creates one TVHeadend autorec rule through `dvr/autorec/create`:
 The design decisions in that payload:
 
 - **Title plus channel, any time, any day.** Australian broadcasters move timeslots constantly, so a time window would silently miss episodes. `fulltext: false` keeps the match on the title field rather than the synopsis, which otherwise catches every programme that mentions the show.
-- **`record: 1`** is TVHeadend's duplicate detection by episode number. Where the XMLTV feed supplies episode numbers this stops repeats cleanly. Where it doesn't, every airing records and freetvarr's own already-done check is the second line.
+- **`record: 1`** is TVHeadend's duplicate detection by episode number. Where the XMLTV feed supplies episode numbers this stops repeats cleanly. Where it doesn't, every airing records and Freetvarr's own already-done check is the second line.
 - **`start_extra: 2` / `stop_extra: 10`** are minutes of padding. The asymmetry is deliberate: Australian free-to-air overruns far more often than it starts early.
-- **`comment: "freetvarr"`** tags every entry and rule freetvarr created, so rules made by hand in TVHeadend's own UI are distinguishable.
+- **`comment: "freetvarr"`** tags every entry and rule Freetvarr created, so rules made by hand in TVHeadend's own UI are distinguishable.
 
-Single recordings take a second call. `dvr/entry/create_by_event` does not accept padding, so freetvarr creates the entry, then patches `start_extra` and `stop_extra` onto it with `idnode/save`.
+Single recordings take a second call. `dvr/entry/create_by_event` does not accept padding, so Freetvarr creates the entry, then patches `start_extra` and `stop_extra` onto it with `idnode/save`.
 
 ## Ad removal
 
-Free-to-air recordings carry their commercial breaks. Plex has no marker API for non-DVR library items and doesn't read EDL sidecar files, so skip markers are not viable; the only end state that actually helps playback is physically cutting the breaks out of the file. freetvarr does this with two spawned binaries (`comskip` for detection, `ffmpeg`/`ffprobe` for cutting; both baked into the Docker image, never npm deps) and a safety design that assumes detection will sometimes be wrong.
+Free-to-air recordings carry their commercial breaks. Plex has no marker API for non-DVR library items and doesn't read EDL sidecar files, so skip markers are not viable; the only end state that actually helps playback is physically cutting the breaks out of the file. Freetvarr does this with two spawned binaries (`comskip` for detection, `ffmpeg`/`ffprobe` for cutting; both baked into the Docker image, never npm deps) and a safety design that assumes detection will sometimes be wrong.
 
 The feature is double-gated: a global `ad_removal_enabled` setting (Settings → AD REMOVAL, default off) and a per-show mode (`off` / `detect` / `cut`, default `off`). Processing runs inline in the sync loop, immediately after an import classifies `done` (never on `partial`), and everything is wrapped so a failure can never kill the sync or damage the recording.
 
@@ -179,7 +179,7 @@ The feature is double-gated: a global `ad_removal_enabled` setting (Settings →
 
 **Cut** continues from detection:
 
-1. `ffprobe` reads the container duration; `computeKeepSegments` inverts the merged, clamped break list into keep segments. An empty keep list (breaks covering the whole file) is treated as a failure; freetvarr never produces an empty output.
+1. `ffprobe` reads the container duration; `computeKeepSegments` inverts the merged, clamped break list into keep segments. An empty keep list (breaks covering the whole file) is treated as a failure; Freetvarr never produces an empty output.
 2. Each keep segment is extracted with `ffmpeg -ss … -to … -c copy`, mapping only the video, audio and subtitle streams (`-map 0:v -map 0:a -map 0:s?`). AU DVB-T recordings carry a private data stream the mpegts muxer can't stream-copy, so a blanket `-map 0` aborts the cut; dropping that stream is harmless for playback. Keyframe stream-copy, no transcode; output stays `.ts`, then the segments are concatenated with ffmpeg's concat demuxer. All intermediate files live in a hidden `.freetvarr-adcut/` workdir next to the recording: same filesystem, so the final swap is an atomic rename, and hidden so Plex ignores it. The workdir is removed on every exit path.
 3. **Verify then swap**: the output must be non-empty and its ffprobe duration must match the summed keep-segment duration within a tolerance that scales with boundary count (`max(5, 2 × boundaries)` seconds; keyframe snapping costs up to a couple of seconds per cut point). Only then does the swap happen: original → `<file>.ts.orig`, output → original name; if the second rename fails the `.orig` is rolled back. Plex ignores the unknown `.orig` extension.
 4. Any caught failure at any step leaves the original file exactly where it was and marks the row `cut_failed`; the sync carries on. The one gap the rollback can't cover is a process death *between* the two renames of the swap; that would leave no file at the real path. `recoverInterruptedCuts` on startup closes it: for any recording row whose `file_path` is missing on disk but whose `<file>.ts.orig` exists, it renames the `.orig` back, so a crash mid-swap self-heals on the next boot.
@@ -191,7 +191,7 @@ The feature is double-gated: a global `ad_removal_enabled` setting (Settings →
 
 **Delete gating**: for a `cut`-mode show, the TVHeadend copy is the last pristine source once the local file has been rewritten. Auto-delete is therefore only queued when the cut verified (or no breaks were found); a `cut_failed` or detect-only outcome keeps the TVHeadend copy. This composes with the Plex-refresh delete guard (`delete_after_plex_refresh_only`, default on), which skips the delete entirely when a Plex refresh was attempted and failed.
 
-**comskip.ini resolution**: freetvarr bundles `assets/comskip.ini`, tuned for Australian free-to-air DVB-T (detection method, break-length windows, brightness/silence thresholds, logo detection). Detect-mode runs against real Network 10 captures (July 2026) found the expected pattern (five 2.5–4-minute ad blocks per ~75-minute episode plus occasional pre-roll/tail slivers), so the bundled ini is a sane default for at least that channel; others remain untested. If `comskip.ini` exists in the config dir (the `/config` bind mount), it wins. `GET /api/settings` reports which one is active and the Settings panel displays it.
+**comskip.ini resolution**: Freetvarr bundles `assets/comskip.ini`, tuned for Australian free-to-air DVB-T (detection method, break-length windows, brightness/silence thresholds, logo detection). Detect-mode runs against real Network 10 captures (July 2026) found the expected pattern (five 2.5–4-minute ad blocks per ~75-minute episode plus occasional pre-roll/tail slivers), so the bundled ini is a sane default for at least that channel; others remain untested. If `comskip.ini` exists in the config dir (the `/config` bind mount), it wins. `GET /api/settings` reports which one is active and the Settings panel displays it.
 
 **Manual scans**: `POST /api/recordings/:recording_id/ad-scan` (re)processes an already-imported recording using the show's mode (detect-only when the show is `off`), so existing files can be trialled without re-importing. The endpoint responds `202` immediately and processes in the background; the UI polls the recordings list for the resulting `ad_status`. Both entry points (this endpoint and the sync loop's inline call) share one single-flight guard, a module-level `Set` keyed by recording ID inside `processRecordingAds`. A given recording is therefore only ever processed by one `comskip`/`ffmpeg` pipeline at a time; the endpoint returns `409` if that recording is already in flight. Different recordings may still process concurrently.
 
@@ -254,14 +254,14 @@ The TVHeadend URL and credentials, the Plex token, and the storage paths are run
 
 | Variable              | Notes                                                                                                                                                                                                 |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MEDIA_ROOT`          | Default for the `media_root` setting: the directory freetvarr writes imported episodes to. Defaults to `/media/tv`.                                                                                     |
-| `RECORDINGS_ROOT`     | Default for the `recordings_root` setting: where freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`.                                                             |
+| `MEDIA_ROOT`          | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`.                                                                                     |
+| `RECORDINGS_ROOT`     | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`.                                                             |
 | `TVH_RECORDINGS_PATH` | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`. Only differs from `RECORDINGS_ROOT` if the mounts disagree. |
 | `DB_PATH`             | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                   |
 | `PORT`                | HTTP port inside the container. Defaults to `8124`.                                                                                                                                                    |
 | `NODE_ENV`            | `production` makes the server refuse to start if `CSRF_SECRET` is unset or the dev placeholder. Compose sets this.                                                                                      |
 | `TZ`                  | Container timezone (IANA name). The Dockerfile installs `tzdata` so any IANA zone resolves. `/api/settings` exposes the value as `tz`; the web UI renders all timestamps in that zone.                  |
-| `PUID`/`PGID`         | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because freetvarr hardlinks and deletes files TVHeadend created.                                            |
+| `PUID`/`PGID`         | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because Freetvarr hardlinks and deletes files TVHeadend created.                                            |
 | `CSRF_SECRET`         | 32+ random bytes used to sign the CSRF cookie. `openssl rand -hex 32`. Required in production.                                                                                                         |
 
 Compose-only env (set in `.env` alongside `docker-compose.yml`):
@@ -269,17 +269,17 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 | Variable          | Notes                                                                                                                                                                                                            |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `FREETVARR_PORT`  | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `8124`.                                                                                       |
-| `CONFIG_PATH`     | Host root for the config bind mounts. freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                                                                             |
+| `CONFIG_PATH`     | Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                                                                             |
 | `DATA_PATH`       | Host root for the data bind mounts. `/media/tv` is `${DATA_PATH}/media/tv`; `/recordings` is `${DATA_PATH}/recordings` in both containers.                                                                         |
 | `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the "Auto-detect from local Plex" button can read `PlexOnlineToken`. Drop the mount if Plex isn't on this host; the button degrades.   |
 
 ## Docker deployment
 
-- freetvarr's image is built locally from the repo via compose; nothing is pushed to a registry. TVHeadend comes from `lscr.io/linuxserver/tvheadend`.
+- Freetvarr's image is built locally from the repo via compose; nothing is pushed to a registry. TVHeadend comes from `lscr.io/linuxserver/tvheadend`.
 - The Dockerfile inlines `npm ci --ignore-scripts && npm run rebuild:natives` instead of calling `npm run setup`, deliberately skipping `npm audit signatures` at build time. That step re-queries the registry and enforces `.npmrc`'s `min-release-age=3`, which would block whenever a brand-new dep is in the lockfile. Run `npm run setup` on the host once the newest dep has aged past the threshold; the lockfile's integrity hashes still verify package contents during `npm ci`.
 - Both services use `network_mode: host` (no `ports:` mapping). TVHeadend needs it to discover an HDHomeRun, which announces itself by UDP broadcast that doesn't traverse Docker's bridge network. Side-effect: neither container is on a Docker bridge network, so they address each other by the host's LAN IP rather than by container name, and so does anything else that wants to reach them.
-- Both run as `${PUID}:${PGID}` (default `1000:1000`). They must match: freetvarr hardlinks files TVHeadend wrote and deletes them afterwards.
-- `tini` is PID 1 inside the freetvarr container so `SIGTERM` propagates cleanly.
+- Both run as `${PUID}:${PGID}` (default `1000:1000`). They must match: Freetvarr hardlinks files TVHeadend wrote and deletes them afterwards.
+- `tini` is PID 1 inside the Freetvarr container so `SIGTERM` propagates cleanly.
 - The Docker healthcheck hits `GET /healthz` every `30 s`.
 - The container entrypoint (`docker-entrypoint.sh`) runs `knex migrate:latest` against `/config/state.db` before exec'ing the server, so pending migrations apply on next boot and first boot on a fresh host is a no-op for the operator.
 - `docker compose up -d --build freetvarr` rebuilds the image from the local `Dockerfile` and recreates the container only if its image actually changed; the bind-mounted `/config/state.db` is untouched.
@@ -315,7 +315,7 @@ Vulnerability reporting and the accepted residual risks are documented in [SECUR
 - **Fail-closed production defaults**: the Dockerfile sets `NODE_ENV=production`, so even a bare `docker run` refuses the dev CSRF secret. A terminal Express error handler returns the error message only, never a stack trace.
 - **Daemon resilience**: a `process.on('unhandledRejection')` handler logs and keeps the process alive, so a DB-layer rejection in an async route handler can't take the whole daemon (and any in-flight sync or cut) down.
 - **Indexing**: `X-Robots-Tag: noindex, nofollow` is set globally; this is a LAN-only service.
-- **HSTS disabled**: freetvarr serves over plain HTTP on the LAN. Helmet's default `Strict-Transport-Security` header would tell browsers to refuse HTTP for the host for a year, which is wrong for this deployment. Re-enable HSTS (with an appropriate `maxAge`) only when fronted by TLS.
+- **HSTS disabled**: Freetvarr serves over plain HTTP on the LAN. Helmet's default `Strict-Transport-Security` header would tell browsers to refuse HTTP for the host for a year, which is wrong for this deployment. Re-enable HSTS (with an appropriate `maxAge`) only when fronted by TLS.
 
 ## Local development
 
@@ -330,7 +330,7 @@ npm start                  # http://localhost:8124; first visit shows the setup 
 
 `npm start` / `npm run dev` load `./.env` via Node's `--env-file-if-exists`, so the `CSRF_SECRET` you set there applies to the from-source run. The Docker path doesn't use `.env.example` at all; it takes its environment from the compose file.
 
-Running from source still needs a reachable TVHeadend. Point the `tvh_url` setting at an existing instance on the LAN; nothing else about the host matters, because freetvarr talks to it over HTTP like any other client.
+Running from source still needs a reachable TVHeadend. Point the `tvh_url` setting at an existing instance on the LAN; nothing else about the host matters, because Freetvarr talks to it over HTTP like any other client.
 
 > [!NOTE]<br>
 > `npm run setup` calls `npm audit signatures`, which honours `.npmrc`'s `min-release-age=3`. If a dep in the lockfile was published in the last three days, the audit step fails (`ETARGET notarget`). Either wait for it to age past the threshold or run `npm install --ignore-scripts --min-release-age=0` once for the freshly-published dep.
@@ -429,7 +429,7 @@ The PNGs under `docs/img/` are captured from the running app by `scripts/capture
 The captures themselves are configured in `scripts/capture-screenshots.mjs` (desktop viewport `1280×936`, mobile `390×844`, viewport-only clip so every shot has the same aspect ratio, 2× device-scale). Before the Settings shot, the script rewrites the `/api/settings` response in-page so no real TVHeadend URL, password, Plex token, or host path reaches a committed PNG.
 
 > [!WARNING]<br>
-> The committed PNGs are still the fetcharr-era captures, and the capture scripts still carry fetcharr's fixture data. Both need a pass before the shots in the README and on the docs site match what the app now shows.
+> The committed PNGs are still the Fetcharr-era captures, and the capture scripts still carry Fetcharr's fixture data. Both need a pass before the shots in the README and on the docs site match what the app now shows.
 
 > [!TIP]<br>
 > To shoot UI changes that haven't shipped yet, run them locally against a copy of the live database; every panel renders from SQLite and the settings row, so the shots come out identical to production. Copy the state file off the deploy host (`ssh <host> 'cat /path/to/freetvarr/state.db' > /tmp/shots.db`; `scp` fails on Synology's restricted sftp subsystem), start the server with `DB_PATH=/tmp/shots.db CSRF_SECRET=$(openssl rand -hex 32) node src/server.js`, then point the capture script at your machine's LAN IP rather than `localhost` (the Playwright container can't reach the host loopback). Cautions: the scheduler starts with the copied `sync_cron`, so capture outside the cron window or a real sync fires against the live TVHeadend, and delete the copy afterwards; it holds the TVHeadend password and the Plex token.

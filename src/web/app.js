@@ -1195,7 +1195,7 @@ const RecordingsView = {
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
             <button type="button" class="btn btn-sm btn-danger" @click="purgeDeleted"
               :disabled="purging"
-              title="Remove all tombstoned rows from freetvarr's history (recordings already deleted from TVHeadend).">
+              title="Remove all tombstoned rows from Freetvarr's history (recordings already deleted from TVHeadend).">
               {{ purging ? 'PURGING…' : '⨯ PURGE DELETED' }}
             </button>
             <button type="button" class="btn btn-sm" @click="manualRefresh"><span class="btn-glyph">⟳</span> REFRESH</button>
@@ -1483,8 +1483,8 @@ const RecordingsView = {
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
       || UNIMPORTED_STATUSES.includes(r.status)
     const removeTitle = (r) => (r.deleted_from_tvh_at
-      ? "Remove this tombstone from freetvarr's history."
-      : "Remove this recording from freetvarr's history."
+      ? "Remove this tombstone from Freetvarr's history."
+      : "Remove this recording from Freetvarr's history."
         + ' If it is still in TVHeadend, the next sync imports it again.')
     const canAdScan = (r) => adRemovalEnabled.value && r.status === 'done'
 
@@ -1571,7 +1571,7 @@ const RecordingsView = {
       const note = r.deleted_from_tvh_at
         ? ''
         : '\n\nIf it is still in TVHeadend, the next sync imports it again.'
-      if (!confirm(`Remove "${r.title}" from freetvarr's history?${note}`)) return
+      if (!confirm(`Remove "${r.title}" from Freetvarr's history?${note}`)) return
       removingId.value = r.recording_id
       try {
         await api('DELETE', `/api/recordings/${encodeURIComponent(r.recording_id)}`)
@@ -1585,7 +1585,7 @@ const RecordingsView = {
     }
 
     const purgeDeleted = async () => {
-      if (!confirm('Purge all tombstoned recordings from freetvarr\'s history?')) return
+      if (!confirm('Purge all tombstoned recordings from Freetvarr\'s history?')) return
       purging.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
@@ -1713,7 +1713,7 @@ const SettingsView = {
         <section class="panel">
           <header class="panel-header">
             <span class="panel-title">SCHEDULE</span>
-            <span class="text-xs font-mono text-ink-dim">when freetvarr syncs</span>
+            <span class="text-xs font-mono text-ink-dim">when Freetvarr syncs</span>
           </header>
           <div class="panel-body">
             <div class="field-row">
@@ -1736,7 +1736,7 @@ const SettingsView = {
               <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
               <input type="text" class="field-input" v-model="mediaRoot" placeholder="/media/tv" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Container-internal directory where freetvarr writes imported episodes. In Docker, this must match a bind-mount target in your <code>docker-compose.yml</code> — changing it without updating compose will silently fail. Bare-metal: an absolute path you own and can write to.
+                Container-internal directory where Freetvarr writes imported episodes. In Docker, this must match a bind-mount target in your <code>docker-compose.yml</code> — changing it without updating compose will silently fail. Bare-metal: an absolute path you own and can write to.
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -1747,7 +1747,7 @@ const SettingsView = {
             </div>
             <div class="grid gap-4 md:grid-cols-2 pt-1">
               <div class="field-row">
-                <label class="field-label">Recordings folder (as freetvarr sees it)</label>
+                <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
                 <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
               </div>
               <div class="field-row">
@@ -1756,7 +1756,7 @@ const SettingsView = {
               </div>
             </div>
             <p class="text-xs text-ink-mute leading-relaxed">
-              Both containers must mount the same folder; freetvarr rewrites TVHeadend's file paths onto its own mount, then hardlinks or copies the file.
+              Both containers must mount the same folder; Freetvarr rewrites TVHeadend's file paths onto its own mount, then hardlinks or copies the file.
             </p>
           </div>
         </section>
@@ -1799,7 +1799,7 @@ const SettingsView = {
                 <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
               </div>
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Reads <code>PlexOnlineToken</code> from <code>Preferences.xml</code> at the path below. Requires Plex to run on the same host as freetvarr with its config dir bind-mounted into the container. URL doesn't have to be localhost — works even if Plex was discovered as a LAN IP.
+                Reads <code>PlexOnlineToken</code> from <code>Preferences.xml</code> at the path below. Requires Plex to run on the same host as Freetvarr with its config dir bind-mounted into the container. URL doesn't have to be localhost — works even if Plex was discovered as a LAN IP.
               </p>
             </div>
             <div class="field-row md:col-span-2">
@@ -1866,10 +1866,10 @@ const SettingsView = {
           <div class="panel-body space-y-4">
             <div>
               <p class="text-sm text-ink leading-relaxed">
-                Wipe all settings, shows, recordings history, and sync history from freetvarr's database. The next time you open freetvarr, the setup wizard fires from scratch.
+                Wipe all settings, shows, recordings history, and sync history from Freetvarr's database. The next time you open Freetvarr, the setup wizard fires from scratch.
               </p>
               <p class="text-xs text-ink-mute leading-relaxed mt-2">
-                Your imported video files in <code>{{ mediaRoot || '/media/tv' }}</code> are <strong>not touched</strong> — only freetvarr's own bookkeeping is cleared. Refused while a sync is running.
+                Your imported video files in <code>{{ mediaRoot || '/media/tv' }}</code> are <strong>not touched</strong> — only Freetvarr's own bookkeeping is cleared. Refused while a sync is running.
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -2148,7 +2148,7 @@ const SettingsView = {
     const nukeState = async () => {
       const mediaPath = mediaRoot.value || '/media/tv'
       const prompt = 'NUKE ALL STATE?\n\n'
-        + 'This deletes every setting, show, recording entry, and sync from freetvarr\'s database.\n\n'
+        + 'This deletes every setting, show, recording entry, and sync from Freetvarr\'s database.\n\n'
         + `Your imported video files in ${mediaPath} are NOT touched.\n\n`
         + 'This cannot be undone. Continue?'
       if (!confirm(prompt)) return
@@ -2225,10 +2225,10 @@ const WelcomeView = {
 
           <div v-if="step === 1" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
-              freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings of shows you follow, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) deletes them from TVHeadend afterwards.
+              Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings of shows you follow, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) deletes them from TVHeadend afterwards.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              This wizard takes about two minutes. The only required step is pointing freetvarr at TVHeadend — Plex is optional.
+              This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend — Plex is optional.
             </p>
             <p v-if="hasExistingConfig" class="text-xs font-mono text-plex-yellow">
               ● RETURN VISIT — your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
@@ -2237,7 +2237,7 @@ const WelcomeView = {
 
           <div v-if="step === 2" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
-              freetvarr needs the address of your TVHeadend server. Leave the username and password blank if TVHeadend allows anonymous access.
+              Freetvarr needs the address of your TVHeadend server. Leave the username and password blank if TVHeadend allows anonymous access.
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="detectTvh()" :disabled="tvhDetecting">
@@ -2281,7 +2281,7 @@ const WelcomeView = {
 
           <div v-if="step === 3" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
-              Where freetvarr writes imported episodes inside the container. Leave blank to fall back to <code>MEDIA_ROOT</code> env (default <code>/media/tv</code>).
+              Where Freetvarr writes imported episodes inside the container. Leave blank to fall back to <code>MEDIA_ROOT</code> env (default <code>/media/tv</code>).
             </p>
             <div class="field-row">
               <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
@@ -2298,7 +2298,7 @@ const WelcomeView = {
             </div>
             <div class="grid gap-4 md:grid-cols-2">
               <div class="field-row">
-                <label class="field-label">Recordings folder (as freetvarr sees it)</label>
+                <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
                 <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
               </div>
               <div class="field-row">
@@ -2307,13 +2307,13 @@ const WelcomeView = {
               </div>
             </div>
             <p class="text-xs text-ink-mute leading-relaxed">
-              Both containers must mount the same folder; freetvarr rewrites TVHeadend's file paths onto its own mount.
+              Both containers must mount the same folder; Freetvarr rewrites TVHeadend's file paths onto its own mount.
             </p>
           </div>
 
           <div v-if="step === 4" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
-              <strong>Optional.</strong> Connect to <strong class="text-plex-yellow">Plex</strong> so freetvarr can trigger a library refresh after each sync. Skip if you don't use Plex.
+              <strong>Optional.</strong> Connect to <strong class="text-plex-yellow">Plex</strong> so Freetvarr can trigger a library refresh after each sync. Skip if you don't use Plex.
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
@@ -2348,7 +2348,7 @@ const WelcomeView = {
                   <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
                 </div>
                 <p class="text-xs text-ink-mute mt-2 leading-relaxed">
-                  Reads <code>PlexOnlineToken</code> from Plex's <code>Preferences.xml</code> at the path below. Requires Plex to run on the same host as freetvarr, with its config directory bind-mounted into the container. The URL field above isn't checked — if Plex's IP is your LAN address but Plex is on this machine, this still works.
+                  Reads <code>PlexOnlineToken</code> from Plex's <code>Preferences.xml</code> at the path below. Requires Plex to run on the same host as Freetvarr, with its config directory bind-mounted into the container. The URL field above isn't checked — if Plex's IP is your LAN address but Plex is on this machine, this still works.
                 </p>
               </div>
               <div class="field-row">
@@ -2383,7 +2383,7 @@ const WelcomeView = {
               <span class="text-plex-yellow">●</span> You're set.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              Next: head to the <strong class="text-ink">Shows</strong> tab and add your first show. freetvarr will pick it up on the next sync (every 30 minutes by default).
+              Next: head to the <strong class="text-ink">Shows</strong> tab and add your first show. Freetvarr will pick it up on the next sync (every 30 minutes by default).
             </p>
           </div>
 
@@ -3980,7 +3980,7 @@ const App = {
                 <rect x="5.75" y="0" width="4" height="3" fill="#ff8a00"/>
                 <rect x="11.5" y="0" width="4" height="3" fill="#e2b03c"/>
               </svg>
-              <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">freetvarr</span>
+              <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">Freetvarr</span>
               <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]"><span class="text-signal-orange">//</span> tvheadend → plex bridge</span>
             </a>
             <div class="flex items-center gap-5">
@@ -4016,7 +4016,7 @@ const App = {
 
       <footer class="border-t border-hairline">
         <div class="max-w-6xl mx-auto px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-ink-mute">
-          <span><a href="/#dashboard" class="no-underline text-ink">freetvarr</a> · self-hosted tvheadend → plex bridge</span>
+          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> · self-hosted tvheadend → plex bridge</span>
           <a
             href="https://github.com/furey/freetvarr"
             target="_blank"
