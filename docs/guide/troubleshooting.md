@@ -53,10 +53,10 @@ The error text says which of the two causes it was:
 
 ## Ad detection is cutting the wrong things (or missing breaks)
 
-- Ad detection is educated guessing, never perfect. Comskip's accuracy on Australian free-to-air varies a lot by channel (logo detection, silence thresholds, and break lengths all differ).
+- Ad detection is educated guessing, never perfect. Comskip's accuracy varies a lot by channel (logo detection, silence thresholds, and break lengths all differ).
 - Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. Scans work the CPU hard: budget ~30 minutes per 75-minute recording on a home NAS.
 - Cuts land on the nearest keyframe, so a second or two either side of a break is normal.
-- To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled Australian-tuned default. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it. See [Ad removal](/guide/ad-removal).
+- To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which is tuned for Australian channels. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it. See [Ad removal](/guide/ad-removal).
 
 ## Captions are missing
 

@@ -5,7 +5,7 @@
 #   DATA_PATH=/path/to/your/media             # required
 #   CSRF_SECRET=paste-openssl-rand-hex-32     # required (openssl rand -hex 32)
 #   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # optional; leave unset if no local Plex
-#   TZ=Australia/Sydney
+#   TZ=Australia/Sydney                       # example; use your own IANA zone
 #   PUID=1000
 #   PGID=1000
 #   FREETVARR_PORT=8124

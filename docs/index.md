@@ -6,9 +6,9 @@ hero:
   text: >-
     Free-to-air TV in&nbsp;Plex, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span>
   tagline: >-
-    A self-hosted bridge between TVHeadend and Plex. An aerial and an HDHomeRun
-    record Australian free-to-air; freetvarr picks up new episodes of the shows
-    you follow, optionally removes the ads, files them into your Plex TV
+    A self-hosted bridge between TVHeadend and Plex. An HDHomeRun records
+    free-to-air; freetvarr picks up new episodes of the shows you follow,
+    optionally removes the ads, files them into your Plex TV
     library, and pokes Plex to scan.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
     <code>comskip</code></span>
@@ -29,8 +29,8 @@ hero:
 features:
   - title: Free to run
     details: >-
-      An aerial, a tuner you own, and a free XMLTV guide. No subscription, no
-      levy, no vendor who can retire your recorder.
+      A tuner you own and a free XMLTV guide. No subscription, no levy, no
+      vendor who can retire your recorder.
     link: /guide/hardware
     linkText: What to buy
   - title: TV Guide

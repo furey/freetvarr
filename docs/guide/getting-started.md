@@ -11,7 +11,7 @@ freetvarr runs as a single Docker container next to TVHeadend, usually on the sa
 
 ## Prerequisites
 
-- A **DVB-T tuner** on your LAN. See [Hardware](/guide/hardware) for what to buy and how to wire it in.
+- A **tuner on your LAN** that TVHeadend can drive, matched to your broadcast standard. See [Hardware](/guide/hardware) for what to buy and how to wire it in.
 - A **working TVHeadend** with channels scanned, a guide loaded, and a user for freetvarr. See [TVHeadend](/guide/tvheadend). Do this first; freetvarr can do nothing without it.
 - **Docker and Docker Compose** on the host.
 - **The same recordings folder mounted into both containers.** freetvarr reads the files TVHeadend wrote, so both need to see them.
@@ -32,7 +32,7 @@ Copy `docker-compose.example.yml` to `docker-compose.yml`, then create a `.env` 
 CONFIG_PATH=/path/to/your/config
 DATA_PATH=/path/to/your/data
 CSRF_SECRET=paste-openssl-rand-hex-32
-TZ=Australia/Sydney
+TZ=Australia/Sydney          # example; use your own IANA zone
 PUID=1000
 PGID=1000
 FREETVARR_PORT=8124

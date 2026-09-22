@@ -1,8 +1,8 @@
 ---
 title: TVHeadend
 description: >-
-  Run TVHeadend in Docker, add the HDHomeRun, scan Australian channels, load a
-  free XMLTV guide, and make a user for freetvarr.
+  Run TVHeadend in Docker, add the HDHomeRun, scan your channels, load an
+  XMLTV guide, and make a user for freetvarr.
 ---
 
 # TVHeadend
@@ -36,7 +36,7 @@ services:
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
-      - TZ=${TZ:-Australia/Sydney}
+      - TZ=${TZ:-Australia/Sydney} # example default; set TZ in your .env
     volumes:
       - ${CONFIG_PATH}/tvheadend:/config
       - ${DATA_PATH}/recordings:/recordings
@@ -59,7 +59,7 @@ The first visit opens a wizard. What matters:
 1. **Language.** Set the interface and EPG languages you want.
 2. **Access control.** Set the allowed network prefix to your LAN (`192.168.1.0/24`, or whatever yours is), then set an admin username and password. Do this properly; the next steps assume a login exists.
 3. **Tuner and network.** The wizard offers to assign a network to each tuner it found. You can skip that here and do it deliberately in step 3.
-4. **Mux scan and service mapping.** Skip both. Steps 4 and 5 cover them with the Australian settings.
+4. **Mux scan and service mapping.** Skip both. Steps 4 and 5 cover them.
 
 ## 3. Add the HDHomeRun
 
@@ -70,14 +70,16 @@ Go to **Configuration → DVB Inputs → TV adapters**. The four tuners of a Fle
 Now create the network the tuners will use:
 
 1. **Configuration → DVB Inputs → Networks → Add.**
-2. Network type: **DVB-T Network**.
+2. Network type: pick what your country broadcasts. **DVB-T Network** in Australia, New Zealand, the UK, and Europe; **ATSC-T Network** in North America; **DVB-C Network** on cable.
 3. Give it a name (`Free-to-air`, say).
-4. **Pre-defined muxes**: pick the `au-` entry for your transmitter (details in step 4).
+4. **Pre-defined muxes**: pick the entry for your transmitter (details in step 4).
 5. Save, then go back to **TV adapters**, select each tuner, and set its **Networks** field to the network you just made.
 
 ## 4. Scan the muxes
 
-TVHeadend ships the community [`dtv-scan-tables`](https://github.com/tvheadend/dtv-scan-tables/tree/master/dvb-t), so you don't have to enter frequencies. The Australian files are named `au-<Location>`: `au-Sydney`, `au-Melbourne`, `au-Brisbane`, `au-Perth`, `au-Adelaide`, `au-Darwin`, `au-Hobart`, `au-canberra` and `au-Canberra-Black-Mt`, plus around thirty regional transmitters (`au-Newcastle`, `au-Wollongong`, `au-GoldCoast`, `au-Cairns`, `au-Townsville`, `au-Gippsland`, and more). Pick the transmitter your antenna points at, not the nearest capital city. `au-ALL` exists but scans every Australian frequency, which takes a long time and finds muxes you cannot receive.
+TVHeadend ships the community [`dtv-scan-tables`](https://github.com/tvheadend/dtv-scan-tables/tree/master/dvb-t), so you don't have to enter frequencies. The list covers every country, and each file is named by country code and by city or transmitter. Pick your own country's entry; the Australian ones below are the example this page follows.
+
+The Australian files are named `au-<Location>`: `au-Sydney`, `au-Melbourne`, `au-Brisbane`, `au-Perth`, `au-Adelaide`, `au-Darwin`, `au-Hobart`, `au-canberra` and `au-Canberra-Black-Mt`, plus around thirty regional transmitters (`au-Newcastle`, `au-Wollongong`, `au-GoldCoast`, `au-Cairns`, `au-Townsville`, `au-Gippsland`, and more). Pick the transmitter your antenna points at, not the nearest capital city. `au-ALL` exists but scans every Australian frequency, which takes a long time and finds muxes you cannot receive.
 
 Saving the network with a pre-defined mux list starts the scan. Watch **Configuration → DVB Inputs → Muxes**: each row moves from `PEND` to `ACTIVE` to `OK`, and the **Services** count fills in. A mux that ends `FAIL` is one your antenna can't reach, which is normal for a few of them.
 
@@ -88,13 +90,13 @@ A service is a stream inside a mux. A channel is what you watch. Go to **Configu
 - **Check availability**: only map services that actually tune.
 - **Merge same name**: fold duplicate listings of one channel together.
 
-Leave **Include encrypted** off; Australian free-to-air carries nothing encrypted worth having.
+Leave **Include encrypted** off; free-to-air carries nothing encrypted worth having.
 
 The channels land in **Configuration → Channel/EPG → Channels**. Fix the numbering there if you want `ABC` on `2` rather than whatever the broadcaster's service numbering gave it. Delete the radio and data services you will never record.
 
 ## 6. Load the XMLTV guide
 
-Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and Plex naming work.
+Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and Plex naming work. The Australian feed below is the example; [Outside Australia](#outside-australia) lists the source to use in other countries.
 
 ### Matt Huisman's free feed
 
@@ -128,7 +130,7 @@ The mjh feed covers Australia and New Zealand only. Elsewhere, pick the guide so
 | United States, Canada | [Schedules Direct](https://www.schedulesdirect.org/), about `US$35` a year | **Internal: XMLTV: Schedules Direct JSON API**, which the linuxserver image bundles |
 | New Zealand | `https://i.mjh.nz/nz/epg.xml`, free | **XMLTV URL grabber**, as above |
 
-The scan list in [step 4](#_4-scan-the-muxes) also changes: TVHeadend ships predefined mux lists for every country under **Pre-defined muxes**, named by country code and city or transmitter.
+TVHeadend also bundles the `tv_grab_*` grabbers, so a national XMLTV service your broadcaster or a third party publishes works too. The scan list in [step 4](#_4-scan-the-muxes) changes as well: TVHeadend ships predefined mux lists for every country under **Pre-defined muxes**, named by country code and city or transmitter.
 
 ### Linking the guide to your channels
 
@@ -145,7 +147,7 @@ Leave the file-naming options alone. TVHeadend's own layout does not matter, bec
 Two settings worth knowing, both of which freetvarr also sets per recording:
 
 - **Pre-recording padding**: `2` minutes.
-- **Post-recording padding**: `10` minutes. Australian free-to-air runs late; ten minutes is the difference between catching the end of a drama and not.
+- **Post-recording padding**: `10` minutes. Free-to-air broadcasts run late; ten minutes is the difference between catching the end of a drama and not.
 
 ## 8. Make a user for freetvarr
 
