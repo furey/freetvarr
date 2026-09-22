@@ -182,7 +182,7 @@ Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and
 
 ### 5. Run the Freetvarr wizard
 
-Browse to `http://<host-ip>:8124`. The first visit opens a setup wizard that walks you through TVHeadend (URL plus the user you just made, with a TEST CONNECTION button), storage (with a TEST PATH button for each path), and Plex. You can change all of it later in Settings, and reopen the wizard from there whenever you like.
+Browse to `http://<host-ip>:8124`. The first visit opens a setup wizard that walks you through TVHeadend (the URL is auto-discovered by probing port `9981` on the host, plus the user you just made, with a TEST CONNECTION button), storage (with a TEST PATH button for each path), and Plex. You can change all of it later in Settings, and reopen the wizard from there whenever you like.
 
 Mark shows to follow on the Shows tab and Freetvarr syncs them on the schedule you set.
 
@@ -208,6 +208,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 | `TZ`              | Your IANA timezone (e.g. `Australia/Sydney`); the UI renders all timestamps in it                                 |
 | `PUID`/`PGID`     | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services          |
 | `FREETVARR_PORT`  | Host port to serve on (default `8124`)                                                                            |
+| `TVH_URL`         | Optional. Fixes the address AUTO-DISCOVER TVHEADEND offers; omit to let Freetvarr probe port `9981` on the host |
 
 Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. Mount the recordings folder at `/recordings` in both containers and the two are identical. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
