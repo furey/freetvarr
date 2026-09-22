@@ -9,7 +9,7 @@ description: >-
 
 TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex cannot read. Freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library under names Plex understands, and pokes Plex to scan. Once Plex confirms the file, it can delete the recording from TVHeadend.
 
-If your media stack is HDHomeRun → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered.
+If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any tuner TVHeadend can drive counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
 
 > [!NOTE]<br>
 > Screenshots are pending. The images below still show the previous Fetch TV build of the app.

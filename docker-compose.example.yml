@@ -13,8 +13,9 @@
 # CONFIG_PATH, DATA_PATH and CSRF_SECRET are required: compose fails fast with a
 # message if any is unset, rather than silently mounting the wrong host paths.
 #
-# `network_mode: host` is required on both services: HDHomeRun auto-discovery
-# is a UDP broadcast, which does NOT traverse Docker's bridge network. With
+# `network_mode: host` is required on both services: network-tuner auto-discovery
+# (an HDHomeRun, for example) is a UDP broadcast, which does NOT traverse
+# Docker's bridge network. With
 # host networking neither container has a `ports:` mapping — Freetvarr binds
 # directly to ${FREETVARR_PORT} on the host LAN IP, and TVHeadend to its own
 # ports (9981 HTTP, 9982 HTSP).

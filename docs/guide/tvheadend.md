@@ -67,6 +67,8 @@ The linuxserver image is built with `--enable-hdhomerun_client`, so TVHeadend di
 
 Go to **Configuration → DVB Inputs → TV adapters**. The four tuners of a Flex Quatro appear as separate entries, each naming the device ID. If nothing appears, TVHeadend is not on the host network; go back to step 1.
 
+A USB stick or a PCIe card appears on the same **TV adapters** screen, once you pass its `/dev/dvb` devices into the container. The rest of this step is the same for either.
+
 Now create the network the tuners will use:
 
 1. **Configuration → DVB Inputs → Networks → Add.**
