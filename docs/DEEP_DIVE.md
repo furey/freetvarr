@@ -81,7 +81,7 @@ Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTT
 
 | Endpoint | Used for |
 | --- | --- |
-| `serverinfo` | TEST CONNECTION; reports the version and API version |
+| `serverinfo` | TEST CONNECTION; reports the version and API version. Also the unauthenticated probe behind AUTO-DISCOVER TVHEADEND, which tries port `9981` on the address the browser used to reach Freetvarr, then each host LAN address, `tvheadend`, `host.docker.internal`, and `127.0.0.1`, in parallel with a `1.5 s` timeout. A `200` with `sw_version` or a `401` with the `tvheadend` realm counts as a hit; loopback hits are dropped when a LAN address answers |
 | `channel/grid` | The channel lineup, sorted by number, disabled channels dropped |
 | `epg/events/grid` | The guide, paged `2000` events at a time until the window is covered |
 | `epg/events/load` | One programme's detail |
@@ -263,6 +263,7 @@ The TVHeadend URL and credentials, the Plex token, and the storage paths are run
 | `TZ`                  | Container timezone (IANA name). The Dockerfile installs `tzdata` so any IANA zone resolves. `/api/settings` exposes the value as `tz`; the web UI renders all timestamps in that zone.                  |
 | `PUID`/`PGID`         | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because Freetvarr hardlinks and deletes files TVHeadend created.                                            |
 | `CSRF_SECRET`         | 32+ random bytes used to sign the CSRF cookie. `openssl rand -hex 32`. Required in production.                                                                                                         |
+| `TVH_URL`             | Optional. When set, AUTO-DISCOVER TVHEADEND offers this address instead of probing. The stored `tvh_url` setting still wins once saved. |
 
 Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
@@ -308,7 +309,7 @@ Vulnerability reporting and the accepted residual risks are documented in [SECUR
 - **`npm audit signatures`** runs as the last step of `setup` to verify the npm registry signatures of every dep. The Docker build deliberately inlines `npm ci + rebuild:natives` instead, because `npm audit signatures` re-queries the registry and enforces `min-release-age`.
 - **`package-lock.json`** is committed; integrity hashes verify package contents during `npm ci` even when the audit step is skipped.
 - **HTTP**: Helmet with a strict CSP. `script-src 'self' 'unsafe-eval'` is required because Vue's in-browser template compiler uses `new Function()`; everything else is locked down. Dropping `'unsafe-eval'` would need a build step that pre-compiles templates.
-- **Rate limiting**: `express-rate-limit` on the POST endpoints that reach TVHeadend or Plex (`/api/sync`, `/api/tvh-shows`, `/api/tvh-test`, `/api/discover-plex`, the per-recording delete and ad-scan endpoints), and a separate limiter on the guide's record/cancel endpoints.
+- **Rate limiting**: `express-rate-limit` on the POST endpoints that reach TVHeadend or Plex (`/api/sync`, `/api/tvh-shows`, `/api/tvh-test`, `/api/tvh-detect`, `/api/discover-plex`, the per-recording delete and ad-scan endpoints), and a separate limiter on the guide's record/cancel endpoints.
 - **CSRF**: `csrf-csrf` (double-submit cookie) protects state-changing POSTs. The UI fetches a token from `GET /api/csrf-token` and sends it as the `x-csrf-token` header. `generateToken` is called with `overwrite=true` so a stale browser cookie from a previous `CSRF_SECRET` doesn't trigger a 403 mint. `getSessionIdentifier` is a constant, because this is an authless LAN service. The front-end clears the cached token and retries once on any 403, so secret rotations and cookie clears recover silently.
 - **Path containment**: `dest_folder` and `season_template` are validated on write to reject `..` segments and leading slashes, and `buildDestPath` resolves the final path and throws if it escapes the media root. A show can only ever write inside the configured library.
 - **Credential storage**: the TVHeadend password sits in plaintext in the SQLite database, and `GET /api/settings` returns only a `tvh_password_set` boolean rather than the value. There is no login in front of any of this, which is the whole reason for the LAN-only posture below.
