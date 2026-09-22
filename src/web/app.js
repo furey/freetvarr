@@ -1664,7 +1664,8 @@ const SettingsView = {
               <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
                 {{ tvhDetecting ? 'SCANNING…' : '◎ AUTO-DISCOVER TVHEADEND' }}
               </button>
-              <span class="text-xs font-mono text-ink-dim">port 9981 · this host</span>
+              <span v-if="tvhDiscoverText" :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
+              <span v-else class="text-xs font-mono text-ink-dim">port 9981 · this host</span>
             </div>
             <div v-if="tvhCandidates.length > 1" class="md:col-span-3">
               <p class="text-sm text-ink-dim mb-2">Multiple TVHeadend servers found — pick one:</p>
@@ -1767,7 +1768,8 @@ const SettingsView = {
               <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
                 {{ plexDiscovering ? 'SCANNING…' : '◎ AUTO-DISCOVER PLEX' }}
               </button>
-              <span class="text-xs font-mono text-ink-dim">GDM · LAN broadcast</span>
+              <span v-if="plexDiscoverText" :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
+              <span v-else class="text-xs font-mono text-ink-dim">GDM · LAN broadcast</span>
             </div>
             <div v-if="plexCandidates.length > 1" class="md:col-span-2">
               <p class="text-sm text-ink-dim mb-2">Multiple Plex servers found — pick one:</p>
@@ -2004,27 +2006,25 @@ const SettingsView = {
 
     const tvhDetecting = ref(false)
     const tvhCandidates = ref([])
+    const [tvhDiscoverText, tvhDiscoverKind, setTvhDiscover] = makeStatus()
     const useTvhCandidate = (c) => {
       tvhUrl.value = c.url
       tvhCandidates.value = []
-      tvhStatus.value = tvhDetectSummary(c)
-      tvhStatusKind.value = c.loopback ? 'info' : 'ok'
+      setTvhDiscover(tvhDetectSummary(c), c.loopback ? 'info' : 'ok', 0)
     }
     const detectTvh = async () => {
       tvhDetecting.value = true
       tvhCandidates.value = []
-      tvhStatus.value = 'Scanning this host (~2s)…'
-      tvhStatusKind.value = 'info'
+      setTvhDiscover('Scanning this host (~2s)…', 'info', 0)
       try {
         const r = await api('POST', '/api/tvh-detect')
         if (r.candidates.length === 1) useTvhCandidate(r.candidates[0])
         else {
           tvhCandidates.value = r.candidates
-          tvhStatus.value = `${r.candidates.length} TVHeadend servers answered.`
+          setTvhDiscover(`${r.candidates.length} TVHeadend servers answered.`, 'info', 0)
         }
       } catch (err) {
-        tvhStatus.value = `Auto-discover failed: ${err.message}`
-        tvhStatusKind.value = 'err'
+        setTvhDiscover(`Auto-discover failed: ${err.message}`, 'err', 8000)
       } finally {
         tvhDetecting.value = false
       }
@@ -2094,22 +2094,23 @@ const SettingsView = {
       }
     }
 
+    const [plexDiscoverText, plexDiscoverKind, setPlexDiscover] = makeStatus()
     const discoverPlex = async () => {
       plexDiscovering.value = true
       plexCandidates.value = []
-      flash({ msg: 'Broadcasting GDM (~2s)…', kind: 'info', ms: 0 })
+      setPlexDiscover('Broadcasting GDM (~2s)…', 'info', 0)
       try {
         const { servers = [] } = await api('POST', '/api/discover-plex')
         if (servers.length === 0) {
-          flash({ msg: 'No Plex servers found on the LAN.', kind: 'err', ms: 5000 })
+          setPlexDiscover('No Plex servers found on the LAN.', 'err', 5000)
         } else if (servers.length === 1) {
           usePlexCandidate(servers[0])
         } else {
           plexCandidates.value = servers
-          flash({ msg: `Found ${servers.length} Plex servers — choose one below.`, kind: 'info', ms: 5000 })
+          setPlexDiscover(`Found ${servers.length} Plex servers — choose one below.`, 'info', 5000)
         }
       } catch (err) {
-        flash({ msg: `Plex discovery failed: ${err.message}`, kind: 'err', ms: 5000 })
+        setPlexDiscover(`Plex discovery failed: ${err.message}`, 'err', 5000)
       } finally {
         plexDiscovering.value = false
       }
@@ -2118,7 +2119,7 @@ const SettingsView = {
     const usePlexCandidate = (c) => {
       plexUrl.value = `http://${c.ip}:${c.port}`
       plexCandidates.value = []
-      flash({ msg: `Selected ${c.name || 'Plex'} at ${c.ip}:${c.port}. Save to persist.`, ms: 5000 })
+      setPlexDiscover(`Selected ${c.name || 'Plex'} at ${c.ip}:${c.port}. Save to persist.`, 'ok', 5000)
     }
 
     const testMediaRoot = async () => {
@@ -2195,7 +2196,7 @@ const SettingsView = {
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections,
       plexProbing, plexRefreshing, plexDetecting,
       plexTokenStatus, plexTokenStatusKind,
-      plexDiscovering, plexCandidates, plexPrefsPath,
+      plexDiscovering, plexCandidates, plexPrefsPath, plexDiscoverText, plexDiscoverKind,
       deleteAfterPlexRefreshOnly,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
@@ -2204,6 +2205,7 @@ const SettingsView = {
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,
       testTvh, detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate,
+      tvhDiscoverText, tvhDiscoverKind,
     }
   },
 }
