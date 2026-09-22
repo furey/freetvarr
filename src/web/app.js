@@ -2240,8 +2240,8 @@ const WelcomeView = {
               freetvarr needs the address of your TVHeadend server. Leave the username and password blank if TVHeadend allows anonymous access.
             </p>
             <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
-                {{ tvhDetecting ? 'SCANNING…' : '◎ AUTO-DISCOVER TVHEADEND' }}
+              <button type="button" class="btn" @click="detectTvh()" :disabled="tvhDetecting">
+                {{ tvhDetecting && !tvhAutoScanning ? 'SCANNING…' : '◎ AUTO-DISCOVER TVHEADEND' }}
               </button>
               <span v-if="tvhDiscoverText"
                 :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
@@ -2277,9 +2277,6 @@ const WelcomeView = {
               </button>
               <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
             </div>
-            <p v-if="!tvhUrl" class="text-xs text-signal-yellow font-mono">
-              A URL is required to continue.
-            </p>
           </div>
 
           <div v-if="step === 3" class="space-y-4">
@@ -2396,6 +2393,7 @@ const WelcomeView = {
           <div class="flex items-center gap-3">
             <span v-if="saveStatusText"
               :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
+            <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">A TVHeadend URL is required to continue.</span>
             <button type="button" class="btn btn-primary" @click="next" :disabled="!canAdvance || saving">
               {{ nextLabel }}
             </button>
@@ -2651,8 +2649,10 @@ const WelcomeView = {
       tvhCandidates.value = []
       setTvhDiscover(tvhDetectSummary(c), c.loopback ? 'info' : 'ok', 0)
     }
+    const tvhAutoScanning = ref(false)
     const detectTvh = async ({ quiet = false } = {}) => {
       tvhDetecting.value = true
+      tvhAutoScanning.value = quiet
       tvhCandidates.value = []
       setTvhDiscover('Scanning this host (~2s)…', 'info', 0)
       try {
@@ -2667,6 +2667,7 @@ const WelcomeView = {
         else setTvhDiscover(`Auto-discover failed: ${err.message}`, 'err', 8000)
       } finally {
         tvhDetecting.value = false
+        tvhAutoScanning.value = false
       }
     }
     watch(step, (curr) => {
@@ -2703,7 +2704,7 @@ const WelcomeView = {
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh,
-      detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
+      detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
       discoverPlex, usePlexCandidate, detectPlexToken,
       plexDiscoverText, plexDiscoverKind,
       plexSectionsText, plexSectionsKind,
