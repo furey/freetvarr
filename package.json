@@ -2,7 +2,7 @@
   "name": "freetvarr",
   "version": "0.1.0",
   "author": "James Furey (https://about.me/jamesfurey)",
-  "description": "Free-to-air TV → Plex. TVHeadend recordings from any tuner it can drive, imported into Plex.",
+  "description": "Free-to-air TV → Plex. Recordings from a TVHeadend-compatible tuner, imported into Plex.",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "private": true,

@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Sync TVHeadend recordings into Plex.</strong><br/>
-  A self-hosted bridge for free-to-air TV, recorded by TVHeadend from any tuner it can drive.
+  A self-hosted bridge for free-to-air TV, recorded with a TVHeadend-compatible tuner.
 </p>
 
 <p align="center">
