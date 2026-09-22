@@ -1,13 +1,15 @@
 ---
 title: Migrating from Fetch
 description: >-
-  Moving from a Fetch TV box and Fetcharr to an HDHomeRun, TVHeadend, and
-  Freetvarr, before the Fetch levy bites.
+  Moving from a Fetch TV box and Fetcharr to a TVHeadend-compatible tuner,
+  TVHeadend, and Freetvarr, before the Fetch levy bites.
 ---
 
 # Migrating from Fetch
 
-Freetvarr is Fetcharr with the recorder swapped out. The web UI, the shows, the Plex pipeline, and the ad removal are the same; only the thing holding the tuner changed. If you ran Fetcharr, everything below is familiar except the first hour.
+Fetch TV is an Australian subscription recorder. The steps below move a Fetcharr user off that box; skip them if you never had one.
+
+Freetvarr is Fetcharr with the recorder swapped out. The web UI, the shows, the Plex pipeline, and the ad removal are the same. Only the recorder changed: TVHeadend and a TVHeadend-compatible tuner, in place of the Fetch box. If you ran Fetcharr, everything below is familiar except the first hour.
 
 ## The deadline
 
@@ -28,9 +30,9 @@ Do this while the box still works. `fetchtv` is not retired and stays published 
 
 ## 2. Buy and wire the tuner
 
-Order the HDHomeRun Flex Quatro and an F-to-PAL adapter; [Hardware](/guide/hardware) has the model numbers, the sourcing, and the wiring. Allow about a week for shipping from the US.
+Order a TVHeadend-compatible tuner for DVB-T/T2, the Australian standard. The author uses an HDHomeRun Flex Quatro with an F-to-PAL adapter; [Hardware](/guide/hardware) has the model numbers, the sourcing, and the wiring. An HDHomeRun ships from the US, so allow about a week.
 
-When it arrives, unplug the aerial lead from the Fetch box and plug it into the HDHomeRun through the adapter. If a masthead amplifier power injector sits in the chain, leave it there. Nothing else in the wall changes.
+When it arrives, unplug the aerial lead from the Fetch box and plug it into the tuner through the adapter. If a masthead amplifier power injector sits in the chain, leave it there. Nothing else in the wall changes.
 
 There is no parallel-running period. The aerial goes to one box or the other.
 
@@ -48,7 +50,7 @@ Re-set your series recordings from the [TV Guide](/guide/tv-guide). A Fetch seri
 
 ## 5. Decide on the levy
 
-Once Freetvarr has recorded a clean week off the HDHomeRun, unplug the Fetch box. Cancel the levy by `2026-10-31` and check the card on file is removed as well as the subscription.
+Once Freetvarr has recorded a clean week off the new tuner, unplug the Fetch box. Cancel the levy by `2026-10-31` and check the card on file is removed as well as the subscription.
 
 If the replacement is not recording cleanly by then, paying the `$29.99` is cheap insurance for another 13 months. It buys time, not a solution.
 
@@ -56,7 +58,7 @@ If the replacement is not recording cleanly by then, paying the `$29.99` is chea
 
 | | Fetcharr | Freetvarr |
 | --- | --- | --- |
-| Recorder | Fetch Mighty Gen 3 | TVHeadend + HDHomeRun |
+| Recorder | Fetch Mighty Gen 3 | TVHeadend + a TVHeadend-compatible tuner |
 | Guide | Fetch's cloud API | XMLTV, 7 days, free |
 | Series recording | Fetch series tag | TVHeadend autorec rule (title + channel) |
 | Getting the file | HTTP download from the box | Hardlink or copy from a shared folder |

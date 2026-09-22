@@ -23,7 +23,7 @@ Channels run down the page, time runs across, and an orange line marks now. The 
 - Cell borders show recording state: blue for scheduled, gold for a series recording, pulsing orange for recording right now. A scheduled episode that came from a series rule carries a gold dot next to the blue one. The programme airing now on each channel is lifted brighter.
 - The status line above the grid reports the TVHeadend connection, the scheduled count, and how many tuners it found.
 - Drag the rail's right edge to resize it, from icons-only up to full channel names; the width is remembered per browser.
-- A channel whose name ends `HD` is labelled `HD`, so an HD simulcast is distinguishable from its SD sibling.
+- A channel whose name ends `HD` is labelled `HD`, so an HD simulcast is distinguishable from its SD sibling. Whether you see this depends on your broadcaster's naming; Australian free-to-air channels end in `HD`.
 
 ## Recording a programme
 
@@ -43,7 +43,7 @@ A series in Freetvarr is one TVHeadend autorec rule. It matches on **title plus 
 Two consequences worth knowing:
 
 - **A rule belongs to one channel.** An SD channel and its HD simulcast are separate channels, so a series set on the HD channel does not cover SD airings. The channel logo on each row shows which is which.
-- **Duplicate detection needs episode numbers.** XMLTV feeds carry them inconsistently. Where they're missing, TVHeadend records every airing, and Freetvarr's own folder matching is the second line of defence.
+- **Duplicate detection needs episode numbers.** XMLTV feeds carry them inconsistently, so your guide source decides what you get. Where they're missing, TVHeadend records every airing, and Freetvarr's own folder matching is the second line of defence.
 
 ## Pinned channels
 

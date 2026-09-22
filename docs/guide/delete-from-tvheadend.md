@@ -13,7 +13,7 @@ Once an episode is in Plex, the copy in TVHeadend's recordings folder is dead we
 
 Freetvarr calls TVHeadend's `dvr/entry/remove` endpoint with the recording's ID. TVHeadend deletes both its own entry and the file on disk, so the folder doesn't fill up with orphans. There's no cloud service in the path and no second account to hold; it's one authenticated call on your LAN.
 
-If you're coming from Fetcharr, this is the part that finally works. The Fetch box advertised a delete action and then refused every request for it, so Fetcharr had to route deletes through Fetch's cloud and wait on a handshake that often timed out. None of that applies here.
+If you're coming from Fetcharr and an Australian Fetch TV box, this is the part that finally works. That box advertised a delete action and then refused every request for it, so Fetcharr had to route deletes through Fetch's cloud and wait on a handshake that often timed out. None of that applies here.
 
 ## Turn it on
 

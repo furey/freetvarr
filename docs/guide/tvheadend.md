@@ -1,7 +1,7 @@
 ---
 title: TVHeadend
 description: >-
-  Run TVHeadend in Docker, add the HDHomeRun, scan your channels, load an
+  Run TVHeadend in Docker, add your tuner, scan your channels, load an
   XMLTV guide, and make a user for Freetvarr.
 ---
 
@@ -9,12 +9,15 @@ description: >-
 
 TVHeadend is the recorder. It drives the tuner, holds the channel list and the guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so TVHeadend has to work on its own before Freetvarr is any use.
 
-Set it up in this order. Each step depends on the one before it.
+Set it up in this order. Each step depends on the one before it. Any TVHeadend-compatible tuner works here; the steps only change where they name a device or a country.
+
+> [!NOTE]<br>
+> The HDHomeRun tuner, the `au-Sydney` mux list, and the Sydney XMLTV feed on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and guide source; [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
 
 ```mermaid
 flowchart TD
   a["1. Run the container"] --> b["2. First-run wizard"]
-  b --> c["3. Add the HDHomeRun"]
+  b --> c["3. Add the tuner"]
   c --> d["4. Scan the muxes"]
   d --> e["5. Map services to channels"]
   e --> f["6. Load the XMLTV guide"]
@@ -45,7 +48,7 @@ services:
 The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. `/config` holds TVHeadend's own configuration; `/recordings` is where it writes.
 
 > [!IMPORTANT]<br>
-> Use `network_mode: host`. TVHeadend finds an HDHomeRun by broadcasting on the local network, and those broadcasts don't cross Docker's private bridge network. Under host networking there is no `ports:` mapping; TVHeadend binds `9981` (web UI and API) and `9982` (its own streaming protocol) straight onto the host.
+> Use `network_mode: host` for a tuner TVHeadend finds by network broadcast, such as an HDHomeRun or a SAT>IP server: those broadcasts don't cross Docker's private bridge network. A USB stick or a PCIe card needs no discovery, so you can drop host networking, map `9981` and `9982` as ports, and pass the `/dev/dvb` devices in instead. Under host networking there is no `ports:` mapping; TVHeadend binds `9981` (web UI and API) and `9982` (its own streaming protocol) straight onto the host.
 
 Run `docker compose up -d tvheadend`, then open `http://<host-ip>:9981`.
 
@@ -61,9 +64,9 @@ The first visit opens a wizard. What matters:
 3. **Tuner and network.** The wizard offers to assign a network to each tuner it found. You can skip that here and do it deliberately in step 3.
 4. **Mux scan and service mapping.** Skip both. Steps 4 and 5 cover them.
 
-## 3. Add the HDHomeRun
+## 3. Add the tuner
 
-The linuxserver image is built with `--enable-hdhomerun_client`, so TVHeadend discovers HDHomeRun tuners on the LAN by itself.
+The linuxserver image is built with `--enable-hdhomerun_client`, so TVHeadend discovers HDHomeRun tuners on the LAN by itself. The author's tuner is an HDHomeRun Flex Quatro, and the screens below follow it.
 
 Go to **Configuration → DVB Inputs → TV adapters**. The four tuners of a Flex Quatro appear as separate entries, each naming the device ID. If nothing appears, TVHeadend is not on the host network; go back to step 1.
 
@@ -79,7 +82,7 @@ Now create the network the tuners will use:
 
 ## 4. Scan the muxes
 
-TVHeadend ships the community [`dtv-scan-tables`](https://github.com/tvheadend/dtv-scan-tables/tree/master/dvb-t), so you don't have to enter frequencies. The list covers every country, and each file is named by country code and by city or transmitter. Pick your own country's entry; the Australian ones below are the example this page follows.
+TVHeadend ships the community [`dtv-scan-tables`](https://github.com/tvheadend/dtv-scan-tables/tree/master/dvb-t), so you don't have to enter frequencies. The list covers every country, and each file is named by country code and by city or transmitter. Pick your own country's entry; the Australian ones below are the author's example. [Outside Australia](#outside-australia) says how the list is named for other countries.
 
 The Australian files are named `au-<Location>`: `au-Sydney`, `au-Melbourne`, `au-Brisbane`, `au-Perth`, `au-Adelaide`, `au-Darwin`, `au-Hobart`, `au-canberra` and `au-Canberra-Black-Mt`, plus around thirty regional transmitters (`au-Newcastle`, `au-Wollongong`, `au-GoldCoast`, `au-Cairns`, `au-Townsville`, `au-Gippsland`, and more). Pick the transmitter your antenna points at, not the nearest capital city. `au-ALL` exists but scans every Australian frequency, which takes a long time and finds muxes you cannot receive.
 
@@ -94,7 +97,7 @@ A service is a stream inside a mux. A channel is what you watch. Go to **Configu
 
 Leave **Include encrypted** off; free-to-air carries nothing encrypted worth having.
 
-The channels land in **Configuration → Channel/EPG → Channels**. Fix the numbering there if you want `ABC` on `2` rather than whatever the broadcaster's service numbering gave it. Delete the radio and data services you will never record.
+The channels land in **Configuration → Channel/EPG → Channels**. Fix the numbering there if you want your own order rather than whatever the broadcaster's service numbering gave it; in Australia, for example, `ABC` on `2`. Delete the radio and data services you will never record.
 
 ## 6. Load the XMLTV guide
 
