@@ -10,7 +10,7 @@ description: >-
 Free-to-air recordings come with their ad breaks. freetvarr can find those breaks, and optionally cut them out, using comskip (an ad-detection tool) and ffmpeg, both bundled in the image. It's off by default, and built on the assumption that detection is sometimes wrong.
 
 > [!WARNING]<br>
-> Detection accuracy varies channel by channel on Australian free-to-air. Run `DETECT` mode first and check the breaks it reports before you let it `CUT`.
+> Detection accuracy varies channel by channel. Run `DETECT` mode first and check the breaks it reports before you let it `CUT`.
 
 ## Turn it on
 
@@ -27,7 +27,7 @@ Every cut keeps a `.ts.orig` backup for a window you choose (`ad_original_retent
 
 ## The comskip.ini
 
-freetvarr ships a `comskip.ini` tuned for AU free-to-air. Drop your own `comskip.ini` into the `/config` bind mount to override it; Settings shows which one is active.
+freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. Drop your own `comskip.ini` into the `/config` bind mount to override it; Settings shows which one is active.
 
 ## Cost and gating
 

@@ -7,14 +7,21 @@ description: >-
 
 # What freetvarr is
 
-TVHeadend records free-to-air TV off an aerial, then the files sit in its recordings folder with names Plex cannot read. freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library under names Plex understands, and pokes Plex to scan. Once Plex confirms the file, it can delete the recording from TVHeadend.
+TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex cannot read. freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library under names Plex understands, and pokes Plex to scan. Once Plex confirms the file, it can delete the recording from TVHeadend.
 
-If your media stack is aerial → HDHomeRun → TVHeadend → Plex, freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered.
+If your media stack is HDHomeRun → TVHeadend → Plex, freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered.
 
 > [!NOTE]<br>
 > Screenshots are pending. The images below still show the previous Fetch TV build of the app.
 
 ![The freetvarr dashboard](../img/screenshot-dashboard.png)
+
+## Where it works
+
+Everywhere TVHeadend works. freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, New Zealand, UK, Europe), DVB-C and DVB-S, ATSC (United States and Canada), ISDB-T. Three things differ by country, and TVHeadend holds all three: the tuner model, the guide source, and the mux scan list.
+
+> [!NOTE]<br>
+> These pages use Australian values in their examples (`TZ=Australia/Sydney`, the `au-Sydney` mux list, a Sydney XMLTV feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) say what to pick instead.
 
 ## What freetvarr isn't
 

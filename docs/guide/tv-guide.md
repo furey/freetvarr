@@ -29,7 +29,7 @@ Channels run down the page, time runs across, and an orange line marks now. The 
 
 Click a cell to open its detail: synopsis, rating, season and episode, and the channel artwork. From there:
 
-- **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the timer, 2 minutes before and 10 minutes after by default. Australian free-to-air runs late; the generous tail is deliberate.
+- **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the timer, 2 minutes before and 10 minutes after by default. Free-to-air broadcasts run late; the generous tail is deliberate.
 - **RECORD SERIES** creates a TVHeadend autorec rule, with an episodes-to-keep option.
 - A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series rule, cancelling asks whether to cancel just that episode or the whole series.
 - A programme whose show already has a series rule but no episode scheduled yet shows the rule with a **CANCEL SERIES** action.
@@ -43,7 +43,7 @@ A series in freetvarr is one TVHeadend autorec rule. It matches on **title plus 
 Two consequences worth knowing:
 
 - **A rule belongs to one channel.** An SD channel and its HD simulcast are separate channels, so a series set on the HD channel does not cover SD airings. The channel logo on each row shows which is which.
-- **Duplicate detection needs episode numbers.** Australian XMLTV carries them inconsistently. Where they're missing, TVHeadend records every airing, and freetvarr's own folder matching is the second line of defence.
+- **Duplicate detection needs episode numbers.** XMLTV feeds carry them inconsistently. Where they're missing, TVHeadend records every airing, and freetvarr's own folder matching is the second line of defence.
 
 ## Pinned channels
 
