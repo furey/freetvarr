@@ -826,10 +826,11 @@ const ShowsView = {
               </p>
             </div>
           </div>
-          <div class="flex items-center gap-3 mt-2">
+          <div class="flex flex-wrap items-center gap-3 mt-2">
             <button type="submit" class="btn btn-primary" :disabled="adding">
               {{ adding ? 'ADDING…' : '＋ TRACK SHOW' }}
             </button>
+            <span v-if="formStatusText" :class="['status-readout', formStatusKind]">{{ formStatusText }}</span>
           </div>
         </form>
       </section>
@@ -837,6 +838,7 @@ const ShowsView = {
   `,
   setup() {
     const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
+    const [formStatusText, formStatusKind, setFormStatus] = makeStatus()
     const shows = ref([])
     const tvhShows = ref([])
     const folders = ref([])
@@ -904,7 +906,7 @@ const ShowsView = {
 
     const add = async () => {
       if (!newPattern.value.trim() || !newFolder.value.trim()) {
-        flash({ msg: 'Title match and folder are required.', kind: 'err', ms: 5000 })
+        setFormStatus('Title match and folder are required.', 'err', 5000)
         return
       }
       adding.value = true
@@ -923,9 +925,9 @@ const ShowsView = {
         newAdRemoval.value = 'off'
         suggestion.value = ''
         await refresh()
-        flash({ msg: 'Added.' })
+        setFormStatus('Added.')
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        setFormStatus(`Error: ${err.message}`, 'err', 5000)
       } finally {
         adding.value = false
       }
@@ -963,6 +965,7 @@ const ShowsView = {
       try {
         await api('DELETE', `/api/shows/${s.id}`)
         await refresh()
+        flash({ msg: `Removed "${s.show_pattern}".` })
       } catch (err) {
         flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
       }
@@ -970,13 +973,13 @@ const ShowsView = {
 
     const loadTvhShows = async () => {
       loadingShows.value = true
-      flash({ msg: 'Listing TVHeadend recordings…', kind: 'info', ms: 0 })
+      setFormStatus('Listing TVHeadend recordings…', 'info', 0)
       try {
         const r = await api('POST', '/api/tvh-shows')
         tvhShows.value = r.shows
-        flash({ msg: `Found ${r.shows.length} title${r.shows.length === 1 ? '' : 's'}.`, ms: 5000 })
+        setFormStatus(`Found ${r.shows.length} title${r.shows.length === 1 ? '' : 's'}.`, 'ok', 5000)
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        setFormStatus(`Error: ${err.message}`, 'err', 5000)
       } finally {
         loadingShows.value = false
       }
@@ -1002,7 +1005,7 @@ const ShowsView = {
       newPattern, newFolder, newTemplate, newDeleteAfter, newAdRemoval,
       suggestion, suggestionIsNew, adding, loadingShows, syncingId, adRemovalEnabled,
       add, toggle, toggleDeleteAfter, setAdRemoval, remove, loadTvhShows, syncOne,
-      flashText, flashKind,
+      flashText, flashKind, formStatusText, formStatusKind,
     }
   },
 }
@@ -2995,6 +2998,7 @@ const EpgView = {
             </div>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
               <button type="button" class="btn btn-sm epg-modal-close mr-auto" @click="closeModal" aria-label="Close">✕ CLOSE</button>
+              <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
               <template v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'">
                 <template v-if="isSeriesScheduled(selected.program) && cancelChoice">
                   <span class="text-xs font-mono text-ink-mute">This is part of a series recording — cancel what?</span>
@@ -3104,6 +3108,7 @@ const EpgView = {
               </div>
             </div>
             <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
+              <span v-if="channelsModalStatusText" :class="['status-readout', channelsModalStatusKind]">{{ channelsModalStatusText }}</span>
               <button type="button" class="btn btn-sm" @click="channelsModal = false">CANCEL</button>
               <button type="button" class="btn btn-sm btn-primary" @click="saveChannelPrefs" :disabled="savingPrefs">
                 {{ savingPrefs ? 'SAVING…' : 'SAVE' }}
@@ -3141,6 +3146,8 @@ const EpgView = {
     const modalAction = ref('')
     const busyId = ref(null)
     const channelsModal = ref(false)
+    const [modalStatusText, modalStatusKind, setModalStatus] = makeStatus()
+    const [channelsModalStatusText, channelsModalStatusKind, setChannelsModalStatus] = makeStatus()
 
     watch([selected, channelsModal], ([program, channels]) => {
       try { document.body.classList.toggle('sheet-open', Boolean(program || channels)) } catch { /* ignore */ }
@@ -3472,6 +3479,7 @@ const EpgView = {
       episodesToKeep.value = 0
       cancelChoice.value = false
       modalAction.value = ''
+      setModalStatus('')
       selected.value = { program: p, channel }
     }
 
@@ -3527,7 +3535,7 @@ const EpgView = {
         closeModal()
         await loadState({ fresh: true })
       } catch (err) {
-        flash({ msg: `Record failed: ${err.message}`, kind: 'err', ms: 8000 })
+        setModalStatus(`Record failed: ${err.message}`, 'err', 8000)
       } finally {
         modalBusy.value = false
         modalAction.value = ""
@@ -3552,7 +3560,7 @@ const EpgView = {
         closeModal()
         await loadState({ fresh: true })
       } catch (err) {
-        flash({ msg: `Series record failed: ${err.message}`, kind: 'err', ms: 8000 })
+        setModalStatus(`Series record failed: ${err.message}`, 'err', 8000)
       } finally {
         modalBusy.value = false
         modalAction.value = ""
@@ -3571,7 +3579,7 @@ const EpgView = {
         closeModal()
         await loadState({ fresh: true })
       } catch (err) {
-        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
+        setModalStatus(`Cancel failed: ${err.message}`, 'err', 8000)
       } finally {
         modalBusy.value = false
         modalAction.value = ""
@@ -3592,7 +3600,7 @@ const EpgView = {
         closeModal()
         await loadState({ fresh: true })
       } catch (err) {
-        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
+        setModalStatus(`Cancel failed: ${err.message}`, 'err', 8000)
       } finally {
         modalBusy.value = false
         modalAction.value = ""
@@ -3825,6 +3833,7 @@ const EpgView = {
       hiddenDraft.value = new Set((guide.value?.hiddenIds || []).map(String))
       sortDraft.value = guide.value?.sort || 'default'
       hideSdDraft.value = Boolean(guide.value?.hideSdSimulcasts)
+      setChannelsModalStatus('')
       channelsModal.value = true
     }
 
@@ -3869,7 +3878,7 @@ const EpgView = {
         await reloadGuide()
         flash({ msg: 'Channel preferences saved.' })
       } catch (err) {
-        flash({ msg: `Save failed: ${err.message}`, kind: 'err', ms: 6000 })
+        setChannelsModalStatus(`Save failed: ${err.message}`, 'err', 8000)
       } finally {
         savingPrefs.value = false
       }
@@ -3921,6 +3930,7 @@ const EpgView = {
       jumpNow, jumpTonight, manualRefresh,
       searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered, seriesTagsFiltered,
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
+      modalStatusText, modalStatusKind, channelsModalStatusText, channelsModalStatusKind,
       leadTime, lagTime, episodesToKeep,
       leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, cancelSelected, cancelSelectedSeries, cancelChoice,
