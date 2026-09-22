@@ -22,7 +22,7 @@ Set these in the `.env` alongside `docker-compose.yml`:
 | `TZ`              | Your IANA timezone (e.g. `Australia/Sydney`); the UI renders all timestamps in it                                |
 | `PUID`/`PGID`     | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services         |
 | `FREETVARR_PORT`  | Host port to serve on (default `8124`)                                                                           |
-| `TVH_URL`         | Optional. Fixes the address the `DETECT URL` button offers; omit to let freetvarr probe port `9981` on the host    |
+| `TVH_URL`         | Optional. Fixes the address `AUTO-DISCOVER TVHEADEND` offers; omit to let freetvarr probe port `9981` on the host    |
 
 ## The two recordings paths
 

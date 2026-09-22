@@ -1660,6 +1660,22 @@ const SettingsView = {
             <span class="text-xs font-mono text-ink-dim">the recorder</span>
           </header>
           <div class="panel-body grid gap-4 md:grid-cols-3">
+            <div class="md:col-span-3 flex flex-wrap items-center gap-3">
+              <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
+                {{ tvhDetecting ? 'SCANNING…' : '◎ AUTO-DISCOVER TVHEADEND' }}
+              </button>
+              <span class="text-xs font-mono text-ink-dim">port 9981 · this host</span>
+            </div>
+            <div v-if="tvhCandidates.length > 1" class="md:col-span-3">
+              <p class="text-sm text-ink-dim mb-2">Multiple TVHeadend servers found — pick one:</p>
+              <ul class="space-y-2">
+                <li v-for="c in tvhCandidates" :key="c.url">
+                  <button type="button" class="btn" @click="useTvhCandidate(c)">
+                    Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}
+                  </button>
+                </li>
+              </ul>
+            </div>
             <div class="field-row md:col-span-3">
               <label class="field-label">TVHeadend URL</label>
               <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
@@ -1678,18 +1694,7 @@ const SettingsView = {
               <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
                 {{ tvhTesting ? 'TESTING…' : '↯ TEST CONNECTION' }}
               </button>
-              <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
-                {{ tvhDetecting ? 'DETECTING…' : '⌖ DETECT URL' }}
-              </button>
               <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
-            </div>
-            <div v-if="tvhCandidates.length > 1" class="md:col-span-3 space-y-2">
-              <p class="text-sm text-ink-dim">Several TVHeadend servers answered — pick one:</p>
-              <ul class="space-y-2">
-                <li v-for="c in tvhCandidates" :key="c.url">
-                  <button type="button" class="btn" @click="useTvhCandidate(c)">Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}</button>
-                </li>
-              </ul>
             </div>
             <div class="md:col-span-3 flex items-center gap-3">
               <input id="del-plex-only" type="checkbox" class="chk" v-model="deleteAfterPlexRefreshOnly" />
@@ -2008,7 +2013,7 @@ const SettingsView = {
     const detectTvh = async () => {
       tvhDetecting.value = true
       tvhCandidates.value = []
-      tvhStatus.value = 'Looking for TVHeadend…'
+      tvhStatus.value = 'Scanning this host (~2s)…'
       tvhStatusKind.value = 'info'
       try {
         const r = await api('POST', '/api/tvh-detect')
@@ -2018,7 +2023,7 @@ const SettingsView = {
           tvhStatus.value = `${r.candidates.length} TVHeadend servers answered.`
         }
       } catch (err) {
-        tvhStatus.value = `Detect failed: ${err.message}`
+        tvhStatus.value = `Auto-discover failed: ${err.message}`
         tvhStatusKind.value = 'err'
       } finally {
         tvhDetecting.value = false
@@ -2229,6 +2234,23 @@ const WelcomeView = {
             <p class="text-ink text-sm leading-relaxed">
               freetvarr needs the address of your TVHeadend server. Leave the username and password blank if TVHeadend allows anonymous access.
             </p>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
+                {{ tvhDetecting ? 'SCANNING…' : '◎ AUTO-DISCOVER TVHEADEND' }}
+              </button>
+              <span v-if="tvhDiscoverText"
+                :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
+            </div>
+            <div v-if="tvhCandidates.length > 1" class="space-y-2">
+              <p class="text-sm text-ink-dim">Multiple TVHeadend servers found — pick one:</p>
+              <ul class="space-y-2">
+                <li v-for="c in tvhCandidates" :key="c.url">
+                  <button type="button" class="btn" @click="useTvhCandidate(c)">
+                    Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}
+                  </button>
+                </li>
+              </ul>
+            </div>
             <div class="field-row">
               <label class="field-label">TVHeadend URL</label>
               <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
@@ -2248,18 +2270,7 @@ const WelcomeView = {
               <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
                 {{ tvhTesting ? 'TESTING…' : '↯ TEST CONNECTION' }}
               </button>
-              <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
-                {{ tvhDetecting ? 'DETECTING…' : '⌖ DETECT URL' }}
-              </button>
               <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
-            </div>
-            <div v-if="tvhCandidates.length > 1" class="space-y-2">
-              <p class="text-sm text-ink-dim">Several TVHeadend servers answered — pick one:</p>
-              <ul class="space-y-2">
-                <li v-for="c in tvhCandidates" :key="c.url">
-                  <button type="button" class="btn" @click="useTvhCandidate(c)">Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}</button>
-                </li>
-              </ul>
             </div>
             <p v-if="!tvhUrl" class="text-xs text-signal-yellow font-mono">
               A URL is required to continue.
@@ -2629,25 +2640,26 @@ const WelcomeView = {
 
     const tvhDetecting = ref(false)
     const tvhCandidates = ref([])
+    const [tvhDiscoverText, tvhDiscoverKind, setTvhDiscover] = makeStatus()
     const useTvhCandidate = (c) => {
       tvhUrl.value = c.url
       tvhCandidates.value = []
-      setTvhText(tvhDetectSummary(c), c.loopback ? 'info' : 'ok', 0)
+      setTvhDiscover(tvhDetectSummary(c), c.loopback ? 'info' : 'ok', 0)
     }
     const detectTvh = async ({ quiet = false } = {}) => {
       tvhDetecting.value = true
       tvhCandidates.value = []
-      setTvhText('Looking for TVHeadend…', 'info', 0)
+      setTvhDiscover('Scanning this host (~2s)…', 'info', 0)
       try {
         const r = await api('POST', '/api/tvh-detect')
         if (r.candidates.length === 1) useTvhCandidate(r.candidates[0])
         else {
           tvhCandidates.value = r.candidates
-          setTvhText(`${r.candidates.length} TVHeadend servers answered.`, 'info', 0)
+          setTvhDiscover(`${r.candidates.length} TVHeadend servers answered.`, 'info', 0)
         }
       } catch (err) {
-        if (quiet) setTvhText('', 'info', 0)
-        else setTvhText(`Detect failed: ${err.message}`, 'err', 8000)
+        if (quiet) setTvhDiscover('', 'info', 0)
+        else setTvhDiscover(`Auto-discover failed: ${err.message}`, 'err', 8000)
       } finally {
         tvhDetecting.value = false
       }
@@ -2686,7 +2698,7 @@ const WelcomeView = {
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh,
-      detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate,
+      detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
       discoverPlex, usePlexCandidate, detectPlexToken,
       plexDiscoverText, plexDiscoverKind,
       plexSectionsText, plexSectionsKind,
