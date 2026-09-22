@@ -11,7 +11,7 @@ Freetvarr runs as a single Docker container next to TVHeadend, usually on the sa
 
 ## Prerequisites
 
-- A **tuner on your LAN** that TVHeadend can drive, matched to your broadcast standard. See [Hardware](/guide/hardware) for what to buy and how to wire it in.
+- A **tuner TVHeadend can drive**, matched to your broadcast standard: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. See [Hardware](/guide/hardware) for what to buy and how to wire it in.
 - A **working TVHeadend** with channels scanned, a guide loaded, and a user for Freetvarr. See [TVHeadend](/guide/tvheadend). Do this first; Freetvarr can do nothing without it.
 - **Docker and Docker Compose** on the host.
 - **The same recordings folder mounted into both containers.** Freetvarr reads the files TVHeadend wrote, so both need to see them.
@@ -57,7 +57,7 @@ docker compose logs -f
 ```
 
 > [!IMPORTANT]<br>
-> Both services use `network_mode: host`. TVHeadend needs it to discover the HDHomeRun by network broadcast. With host networking there's no `ports:` mapping: Freetvarr binds `${FREETVARR_PORT}` straight onto the host.
+> Both services use `network_mode: host`. TVHeadend needs it to discover a network tuner such as an HDHomeRun by network broadcast. With host networking there's no `ports:` mapping: Freetvarr binds `${FREETVARR_PORT}` straight onto the host.
 
 ## 4. Run the wizard
 

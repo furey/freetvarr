@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Sync TVHeadend recordings into Plex.</strong><br/>
-  A self-hosted bridge for free-to-air TV, recorded by TVHeadend from an HDHomeRun tuner.
+  A self-hosted bridge for free-to-air TV, recorded by TVHeadend from any tuner it can drive.
 </p>
 
 <p align="center">
@@ -78,13 +78,15 @@
 
 TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex can't read. **Freetvarr** watches TVHeadend on your LAN, picks up new episodes of the shows you mark to follow, files them into your Plex TV library under names Plex understands, pokes Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
 
-If your media stack is HDHomeRun → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered.
+If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any tuner TVHeadend can drive counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
 
 It's a fork of [Fetcharr](https://github.com/furey/fetcharr) with the recorder replaced. Fetch TV's Gen 3 Extended Service Levy made a Fetch-bound tool a dead end; a tuner you own and a free guide cost nothing per year. See [Migrating from Fetch](https://furey.github.io/freetvarr/guide/migrating-from-fetch).
 
 ## Where it works
 
-Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T HDHomeRun in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through an Australian setup because that is where the author lives. Every Australian value in them is an example: swap the timezone, the mux list, the guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian channels but do no harm elsewhere.
+Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T tuner in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through an Australian setup because that is where the author lives. Every Australian value in them is an example: swap the timezone, the mux list, the guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian channels but do no harm elsewhere.
+
+Tested with an HDHomeRun Flex Quatro; the [hardware guide](https://furey.github.io/freetvarr/guide/hardware) says why we recommend it and what else works.
 
 ## Why not just TVHeadend
 
@@ -125,7 +127,7 @@ Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and das
 
 ## Prerequisites
 
-- A **tuner on your LAN** that TVHeadend can drive, matched to your broadcast standard. An [HDHomeRun Flex Quatro](https://furey.github.io/freetvarr/guide/hardware) `HDFX-4DT` (DVB-T/T2) is the tested one. USB tuners don't work on a Synology or QNAP NAS, whose kernels ship no DVB drivers.
+- A **tuner TVHeadend can drive**, matched to your broadcast standard: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. USB tuners don't work on a Synology or QNAP NAS, whose kernels ship no DVB drivers.
 - A **working TVHeadend** with channels scanned, an XMLTV guide loaded, and a user holding admin, streaming, and DVR rights. The [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend) walks all of it.
 - **Docker + Docker Compose** on the host running both.
 - **The same recordings folder mounted into both containers**, so Freetvarr can read what TVHeadend wrote.
