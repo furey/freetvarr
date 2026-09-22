@@ -7,7 +7,7 @@ description: >-
 
 # Hardware
 
-freetvarr needs a tuner that TVHeadend can drive. Two requirements decide the model:
+Freetvarr needs a tuner that TVHeadend can drive. Two requirements decide the model:
 
 - **The broadcast standard where you live.** DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
 - **A network tuner, not a USB stick, on a NAS.** Synology and QNAP kernels ship no DVB drivers.

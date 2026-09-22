@@ -28,7 +28,7 @@ description: 'Fixes for the common snags: the TVHeadend connection, missing file
 The error text says which of the two causes it was:
 
 - **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress lands here, and post-recording padding keeps it there for up to ten minutes after the programme ends. The next sync picks it up.
-- **"outside the recordings mount"**: TVHeadend reported a path freetvarr can't translate. The two paths have to line up; see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+- **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two paths have to line up; see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 
 ## A recording shows `partial`
 
@@ -36,20 +36,20 @@ The error text says which of the two causes it was:
 
 ## Imports are slow
 
-- A hardlink import is instant. If you're watching a progress bar, freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
+- A hardlink import is instant. If you're watching a progress bar, Freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
 
 ## Permission errors, or the TVHeadend file won't delete
 
-- Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both services. freetvarr hardlinks and deletes files TVHeadend created, so a mismatch shows up as a permission error at exactly those two steps.
+- Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both services. Freetvarr hardlinks and deletes files TVHeadend created, so a mismatch shows up as a permission error at exactly those two steps.
 
 ## Plex token auto-detect fails
 
 - It needs Plex's `Preferences.xml` bind-mounted into the container (`PLEX_PREFS_PATH`), which only works when Plex runs on the same host.
 - Paste the token manually instead; grab it from `app.plex.tv` (or Plex's own support article on finding your token). See [Plex](/guide/plex).
 
-## Other containers can't reach freetvarr by name
+## Other containers can't reach Freetvarr by name
 
-- A side-effect of host networking: freetvarr isn't on any Docker bridge network. Reach it via the host's LAN IP and `FREETVARR_PORT` instead.
+- A side-effect of host networking: Freetvarr isn't on any Docker bridge network. Reach it via the host's LAN IP and `FREETVARR_PORT` instead.
 
 ## Ad detection is cutting the wrong things (or missing breaks)
 

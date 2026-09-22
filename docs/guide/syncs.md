@@ -13,7 +13,7 @@ A sync is one pass over TVHeadend's finished recordings: list them, match them a
 
 ## Scheduled and manual
 
-Set a schedule in Settings as a cron expression (the `* * * * *` timing string) and freetvarr checks TVHeadend on that schedule; changing it takes effect without a restart. You can also Sync now for every enabled show at once, or for a single show from the [Shows tab](/guide/following-shows).
+Set a schedule in Settings as a cron expression (the `* * * * *` timing string) and Freetvarr checks TVHeadend on that schedule; changing it takes effect without a restart. You can also Sync now for every enabled show at once, or for a single show from the [Shows tab](/guide/following-shows).
 
 Only one sync runs at a time. Asking for a second while one is in flight returns the running one rather than starting another.
 

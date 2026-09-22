@@ -1,13 +1,13 @@
 ---
 title: Migrating from Fetch
 description: >-
-  Moving from a Fetch TV box and fetcharr to an HDHomeRun, TVHeadend, and
-  freetvarr, before the Fetch levy bites.
+  Moving from a Fetch TV box and Fetcharr to an HDHomeRun, TVHeadend, and
+  Freetvarr, before the Fetch levy bites.
 ---
 
 # Migrating from Fetch
 
-freetvarr is fetcharr with the recorder swapped out. The web UI, the shows, the Plex pipeline, and the ad removal are the same; only the thing holding the tuner changed. If you ran fetcharr, everything below is familiar except the first hour.
+Freetvarr is Fetcharr with the recorder swapped out. The web UI, the shows, the Plex pipeline, and the ad removal are the same; only the thing holding the tuner changed. If you ran Fetcharr, everything below is familiar except the first hour.
 
 ## The deadline
 
@@ -36,25 +36,25 @@ There is no parallel-running period. The aerial goes to one box or the other.
 
 ## 3. Set up TVHeadend
 
-Follow [TVHeadend](/guide/tvheadend) end to end: container, wizard, tuner, mux scan for your transmitter, channel mapping, XMLTV guide, recording path, and a user for freetvarr. Allow an evening. The mux scan and the guide linking are the slow parts.
+Follow [TVHeadend](/guide/tvheadend) end to end: container, wizard, tuner, mux scan for your transmitter, channel mapping, XMLTV guide, recording path, and a user for Freetvarr. Allow an evening. The mux scan and the guide linking are the slow parts.
 
-## 4. Move freetvarr in
+## 4. Move Freetvarr in
 
-Follow [Getting started](/guide/getting-started). Your fetcharr database does not carry over; freetvarr starts clean.
+Follow [Getting started](/guide/getting-started). Your Fetcharr database does not carry over; Freetvarr starts clean.
 
 Recreate your follows on the Shows tab. The show names come from TVHeadend now, so the titles may differ slightly from Fetch's. Point each one at the folder it already used under your media root and nothing in Plex moves.
 
-Re-set your series recordings from the [TV Guide](/guide/tv-guide). A Fetch series tag has no equivalent to import; a series in freetvarr becomes a TVHeadend autorec rule, matching on title and channel.
+Re-set your series recordings from the [TV Guide](/guide/tv-guide). A Fetch series tag has no equivalent to import; a series in Freetvarr becomes a TVHeadend autorec rule, matching on title and channel.
 
 ## 5. Decide on the levy
 
-Once freetvarr has recorded a clean week off the HDHomeRun, unplug the Fetch box. Cancel the levy by `2026-10-31` and check the card on file is removed as well as the subscription.
+Once Freetvarr has recorded a clean week off the HDHomeRun, unplug the Fetch box. Cancel the levy by `2026-10-31` and check the card on file is removed as well as the subscription.
 
 If the replacement is not recording cleanly by then, paying the `$29.99` is cheap insurance for another 13 months. It buys time, not a solution.
 
 ## What changed
 
-| | fetcharr | freetvarr |
+| | Fetcharr | Freetvarr |
 | --- | --- | --- |
 | Recorder | Fetch Mighty Gen 3 | TVHeadend + HDHomeRun |
 | Guide | Fetch's cloud API | XMLTV, 7 days, free |

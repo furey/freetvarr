@@ -2,20 +2,20 @@
 title: Getting started
 description: >-
   Prerequisites, Docker Compose setup, and the first-run wizard for running
-  freetvarr alongside TVHeadend.
+  Freetvarr alongside TVHeadend.
 ---
 
 # Getting started
 
-freetvarr runs as a single Docker container next to TVHeadend, usually on the same host.
+Freetvarr runs as a single Docker container next to TVHeadend, usually on the same host.
 
 ## Prerequisites
 
 - A **tuner on your LAN** that TVHeadend can drive, matched to your broadcast standard. See [Hardware](/guide/hardware) for what to buy and how to wire it in.
-- A **working TVHeadend** with channels scanned, a guide loaded, and a user for freetvarr. See [TVHeadend](/guide/tvheadend). Do this first; freetvarr can do nothing without it.
+- A **working TVHeadend** with channels scanned, a guide loaded, and a user for Freetvarr. See [TVHeadend](/guide/tvheadend). Do this first; Freetvarr can do nothing without it.
 - **Docker and Docker Compose** on the host.
-- **The same recordings folder mounted into both containers.** freetvarr reads the files TVHeadend wrote, so both need to see them.
-- **Plex Media Server** is optional. freetvarr runs fine without it; you just won't get the automatic library refresh after a sync. See [Plex](/guide/plex).
+- **The same recordings folder mounted into both containers.** Freetvarr reads the files TVHeadend wrote, so both need to see them.
+- **Plex Media Server** is optional. Freetvarr runs fine without it; you just won't get the automatic library refresh after a sync. See [Plex](/guide/plex).
 
 ## 1. Get the code
 
@@ -44,10 +44,10 @@ FREETVARR_PORT=8124
 
 `CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts. Every variable is explained in [Configuration](/guide/configuration).
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, freetvarr picks it up from the same folder.
+The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, Freetvarr picks it up from the same folder.
 
 > [!TIP]<br>
-> Set `PUID`/`PGID` to the owner of your host folders, and give both services the same pair. freetvarr deletes the TVHeadend copy after import, so it needs write access to files TVHeadend created.
+> Set `PUID`/`PGID` to the owner of your host folders, and give both services the same pair. Freetvarr deletes the TVHeadend copy after import, so it needs write access to files TVHeadend created.
 
 ## 3. Start it
 
@@ -57,14 +57,14 @@ docker compose logs -f
 ```
 
 > [!IMPORTANT]<br>
-> Both services use `network_mode: host`. TVHeadend needs it to discover the HDHomeRun by network broadcast. With host networking there's no `ports:` mapping: freetvarr binds `${FREETVARR_PORT}` straight onto the host.
+> Both services use `network_mode: host`. TVHeadend needs it to discover the HDHomeRun by network broadcast. With host networking there's no `ports:` mapping: Freetvarr binds `${FREETVARR_PORT}` straight onto the host.
 
 ## 4. Run the wizard
 
 Browse to `http://<host-ip>:8124`. The first visit opens a setup wizard:
 
 1. **TVHeadend**: its URL (`http://<host-ip>:9981`) and the username and password you made in [step 8 of the TVHeadend setup](/guide/tvheadend#_8-make-a-user-for-freetvarr). The wizard probes port `9981` on every address of the host when the URL field is empty and fills in the one that answers; `AUTO-DISCOVER TVHEADEND` repeats that probe. `TEST CONNECTION` reports the version, the channel count, and the tuner count.
-2. **Storage**: where freetvarr reads recordings from and writes episodes to, each with a `TEST PATH` button.
+2. **Storage**: where Freetvarr reads recordings from and writes episodes to, each with a `TEST PATH` button.
 3. **Plex**: server URL, token, and which library section holds your TV shows. Optional.
 
 You can change all of it later in Settings, and reopen the wizard from there whenever you like.

@@ -7,7 +7,7 @@ const site = 'https://furey.github.io/freetvarr/'
 export default withMermaid(defineConfig({
   base: '/freetvarr/',
   lang: 'en-AU',
-  title: 'freetvarr',
+  title: 'Freetvarr',
   description:
     'Sync TVHeadend recordings into Plex. A self-hosted bridge for free-to-air TV, recorded by TVHeadend from an HDHomeRun tuner.',
   appearance: 'dark',
@@ -36,15 +36,15 @@ export default withMermaid(defineConfig({
     ['meta', { name: 'theme-color', content: '#1a1611' }],
     ['meta', { name: 'color-scheme', content: 'dark' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'freetvarr' }],
-    ['meta', { property: 'og:title', content: 'freetvarr' }],
+    ['meta', { property: 'og:site_name', content: 'Freetvarr' }],
+    ['meta', { property: 'og:title', content: 'Freetvarr' }],
     ['meta', { property: 'og:description', content: 'Sync TVHeadend recordings into Plex.' }],
     ['meta', { property: 'og:url', content: site }],
     ['meta', { name: 'twitter:card', content: 'summary' }]
   ],
 
   themeConfig: {
-    siteTitle: 'freetvarr',
+    siteTitle: 'Freetvarr',
 
     nav: [
       { text: 'Guide', link: '/guide/', activeMatch: '/guide/' },
@@ -56,14 +56,14 @@ export default withMermaid(defineConfig({
         text: 'Start here',
         collapsed: false,
         items: [
-          { text: 'What freetvarr is', link: '/guide/' },
+          { text: 'What Freetvarr is', link: '/guide/' },
           { text: 'Hardware', link: '/guide/hardware' },
           { text: 'TVHeadend', link: '/guide/tvheadend' },
           { text: 'Getting started', link: '/guide/getting-started' }
         ]
       },
       {
-        text: 'Using freetvarr',
+        text: 'Using Freetvarr',
         collapsed: false,
         items: [
           { text: 'TV Guide', link: '/guide/tv-guide' },
