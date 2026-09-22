@@ -9,7 +9,7 @@ export default withMermaid(defineConfig({
   lang: 'en-AU',
   title: 'Freetvarr',
   description:
-    'Sync TVHeadend recordings into Plex. A self-hosted bridge for free-to-air TV, recorded by TVHeadend from any tuner it can drive.',
+    'Sync TVHeadend recordings into Plex. A self-hosted bridge for free-to-air TV, recorded with a TVHeadend-compatible tuner.',
   appearance: 'dark',
   cleanUrls: true,
   lastUpdated: true,
