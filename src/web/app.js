@@ -4131,20 +4131,25 @@ const pollLive = async (run) => {
 
 const attachLiveVideo = async (run, playlist) => {
   liveAttached = true
-  if (liveVideo.canPlayType('application/vnd.apple.mpegurl')) {
-    liveVideo.src = playlist
-  } else {
-    const { default: Hls } = await import('/vendor/hls.mjs')
-    if (run !== liveRun) return
-    if (!Hls.isSupported()) return endLive(run, { code: 'unsupported' })
-    liveHls = new Hls({ workerPath: '/vendor/hls.worker.js', liveSyncDurationCount: 3 })
-    liveHls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) endLive(run, { code: 'playback', detail: data.details })
-    })
-    liveHls.loadSource(playlist)
-    liveHls.attachMedia(liveVideo)
-  }
   live.phase = 'live'
+  if (!liveVideo.canPlayType('application/vnd.apple.mpegurl')) return attachHlsJs(run, playlist)
+  liveVideo.addEventListener('error', () => {
+    if (run === liveRun && liveAttached && !liveHls) attachHlsJs(run, playlist)
+  }, { once: true })
+  liveVideo.src = playlist
+  liveVideo.play()?.catch(() => {})
+}
+
+const attachHlsJs = async (run, playlist) => {
+  const { default: Hls } = await import('/vendor/hls.mjs')
+  if (run !== liveRun) return
+  if (!Hls.isSupported()) return endLive(run, { code: 'unsupported' })
+  liveHls = new Hls({ workerPath: '/vendor/hls.worker.js', liveSyncDurationCount: 3 })
+  liveHls.on(Hls.Events.ERROR, (event, data) => {
+    if (data.fatal) endLive(run, { code: 'playback', detail: data.details })
+  })
+  liveHls.loadSource(playlist)
+  liveHls.attachMedia(liveVideo)
   liveVideo.play()?.catch(() => {})
 }
 
