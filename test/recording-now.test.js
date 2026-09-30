@@ -15,6 +15,7 @@ const {
   describeActiveRecording,
   describeJourney,
   isRecordingFailure,
+  recordingOutcome,
 } = await import('../src/recording-now.js')
 const { normaliseInput } = await import('../src/tvheadend.js')
 const { db } = await import('../src/db.js')
@@ -121,6 +122,7 @@ test('isRecordingFailure: an error state or error code fails the recording', () 
   assert.equal(isRecordingFailure(recording({ schedStatus: 'completedError' })), true)
   assert.equal(isRecordingFailure(recording({ schedStatus: 'completed', errorCode: 3 })), true)
   assert.equal(isRecordingFailure(recording({ schedStatus: 'completedWarning' })), false)
+  assert.equal(isRecordingFailure(recording({ schedStatus: 'completedRerecord' })), false)
 })
 
 const ok = { failed: false, statusText: 'Completed OK' }
@@ -292,4 +294,13 @@ test('getRecordingNow: ended recordings become journeys, failures turn red, and 
   const done = await poll(endedAt + 17 * MIN)
   assert.equal(done.active.length, 0)
   assert.deepEqual(done.journeys.map((j) => j.uuid), ['r2'])
+})
+
+test('describeJourney: a recording marked for re-record still imports, with a warning on Recorded', () => {
+  const outcome = recordingOutcome(recording({ schedStatus: 'completedRerecord', dataErrors: 20 }))
+  const { steps } = describeJourney({ outcome })
+  assert.equal(outcome.failed, false)
+  assert.equal(steps[0].state, 'warn')
+  assert.match(steps[0].detail, /20 data errors/)
+  assert.equal(steps[1].key, 'importing')
 })
