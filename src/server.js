@@ -49,6 +49,7 @@ import {
   recoverInterruptedCuts,
 } from './commercials.js'
 import { snapshotProgress } from './progress.js'
+import { getRecordingNow, recordingImageSource } from './recording-now.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -423,7 +424,8 @@ const serveImage = (loadImage) => async (req, res) => {
 }
 
 app.get('/api/epg/logo/:channelId', serveImage(({ channelId }) => getChannelImage({ channelId })))
-app.get('/api/epg/image/:eventId', serveImage(({ eventId }) => getProgrammeImage({ eventId })))
+app.get('/api/epg/image/:eventId', serveImage(({ eventId }) =>
+  getProgrammeImage({ eventId, fallbackSource: recordingImageSource(eventId) })))
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const { channel_id, program_id, epg_program_id, lead_time, lag_time } = req.body || {}
@@ -518,6 +520,14 @@ app.get('/api/epg/now', async (req, res) => {
     res.json(await getOnNowForPinned())
   } catch (err) {
     epgError(res, err, 'now')
+  }
+})
+
+app.get('/api/recording-now', async (req, res) => {
+  try {
+    res.json(await getRecordingNow())
+  } catch (err) {
+    epgError(res, err, 'recording-now')
   }
 })
 

@@ -1167,6 +1167,261 @@ body.epg-drag-lock * {
   border-top: 6px solid #ff8a00;
 }
 
+.epg-cell-rec-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(255, 138, 0, 0.28);
+  pointer-events: none;
+}
+
+.epg-cell-rec-fill ~ * {
+  position: relative;
+}
+
+.progress-fill.rec {
+  background: #ff8a00;
+}
+
+.on-now-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  color: #ff8a00;
+}
+
+.rec-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.rec-card {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(255, 138, 0, 0.45);
+  border-radius: 0.4rem;
+  background: rgba(255, 138, 0, 0.05);
+}
+
+.rec-card.failed {
+  border-color: rgba(255, 77, 77, 0.7);
+  background: rgba(255, 77, 77, 0.08);
+}
+
+.programme-image.rec {
+  width: 11rem;
+  aspect-ratio: auto;
+  min-height: 6.2rem;
+  border-right: 1px solid rgba(61, 56, 41, 0.85);
+}
+
+.rec-card-body {
+  flex: 1;
+  min-width: 0;
+  padding: 0.8rem 1rem;
+}
+
+.rec-card-body > * + * {
+  margin-top: 0.35rem;
+}
+
+.rec-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rec-card-channel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #8b837e;
+}
+
+.rec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  color: #ff8a00;
+}
+
+.rec-badge.failed {
+  color: #ff4d4d;
+}
+
+.rec-badge.ended {
+  color: #8b837e;
+  letter-spacing: 0.1em;
+}
+
+.rec-card-title {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: #fffcfb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rec-card-meta,
+.rec-live {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #8b837e;
+  overflow-wrap: anywhere;
+}
+
+.rec-live {
+  color: #b0a89e;
+}
+
+.rec-error {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #ff4d4d;
+}
+
+.rec-bar {
+  position: relative;
+  height: 6px;
+  margin-top: 0.6rem !important;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rec-bar > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.rec-bar-pad {
+  background: rgba(255, 138, 0, 0.16);
+}
+
+.rec-bar-fill {
+  left: 0;
+  background: #ff8a00;
+  transition: width 0.6s linear;
+}
+
+.rec-bar-shade {
+  background: rgba(26, 22, 17, 0.5);
+}
+
+.rec-card.failed .rec-bar-fill {
+  background: #ff4d4d;
+}
+
+.rec-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.3rem !important;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: #8b837e;
+}
+
+.rec-phase {
+  color: #ff8a00;
+  letter-spacing: 0.08em;
+}
+
+.rec-phase.pre-roll,
+.rec-phase.post-roll {
+  color: #ffab3d;
+  opacity: 0.8;
+}
+
+.rec-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.6rem !important;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #544e47;
+}
+
+.rec-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.rec-step + .rec-step::before {
+  content: "→";
+  margin-right: 0.2rem;
+  color: #544e47;
+}
+
+.rec-step.done { color: #e2b03c; }
+.rec-step.active { color: #62cfff; }
+.rec-step.failed { color: #ff4d4d; }
+.rec-step.warn { color: #ffcd00; }
+.rec-step.skipped { color: #8b837e; }
+
+.rec-step.active .rec-step-mark {
+  animation: rec-step-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes rec-step-blink {
+  50% { opacity: 0.3; }
+}
+
+.rec-card-enter-active,
+.rec-card-leave-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.rec-card-enter-from,
+.rec-card-leave-to {
+  opacity: 0;
+  transform: translateY(-0.4rem);
+}
+
+@media (min-width: 768px) {
+  .rec-grid:has(> :nth-child(2)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .rec-panel .panel-body {
+    padding-inline: 0;
+  }
+
+  .rec-card {
+    flex-direction: column;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .programme-image.rec {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid rgba(61, 56, 41, 0.85);
+  }
+}
+
 .epg-modal-backdrop {
   position: fixed;
   inset: 0;

@@ -20,7 +20,7 @@ Channels run down the page, time runs across, and an orange line marks now. The 
 - **Day chips** switch between today and the next six days; `NOW` and `TONIGHT` jump within the day.
 - **Search** scopes to the section you are on. On the grid it searches the full 7 days of programmes; on `UPCOMING` and `SERIES` it filters the list as you type. Switching sections clears the query. Every result card opens the programme detail.
 - The **filter box** in the top-left corner narrows the rows by channel name or number as you type.
-- Cell borders show recording state: blue for scheduled, gold for a series recording, pulsing orange for recording right now. A scheduled episode that came from a series rule carries a gold dot next to the blue one. The programme airing now on each channel is lifted brighter.
+- Cell borders show recording state: blue for scheduled, gold for a series recording, pulsing orange for recording right now. A cell that is recording fills orange from its left edge up to the now line. A scheduled episode that came from a series rule carries a gold dot next to the blue one. The programme airing now on each channel is lifted brighter.
 - The status line above the grid reports the TVHeadend connection, the scheduled count, and how many tuners it found.
 - Drag the rail's right edge to resize it, from icons-only up to full channel names; the width is remembered per browser.
 - A channel whose name ends `HD` is labelled `HD`, so an HD simulcast is distinguishable from its SD sibling. Whether you see this depends on your broadcaster's naming; Australian free-to-air channels end in `HD`.
@@ -57,7 +57,11 @@ The guide works in the phone browser: the channel rail narrows, programme and ch
 
 ## On the dashboard
 
-The dashboard carries a TV Guide panel: what's on now across your pinned channels (with the start time, minutes remaining, and a progress bar for each programme), what's on next, and the next few scheduled recordings, each marked series or one-off.
+The dashboard carries a TV Guide panel: what's on now across your pinned channels (with the start time, minutes remaining, and a progress bar for each programme), what's on next, and the next few scheduled recordings, each marked series or one-off. A pinned channel that is recording shows an orange bar and `● REC` in place of the minutes remaining.
+
+While TVHeadend records, a `RECORDING NOW` panel sits at the top of the dashboard, with one card per recording. Each card shows the programme image, channel, title, and episode, and an orange bar from the padded start to the padded stop. The dimmer ends of the bar are the `START EARLY` and `RUN LATE` padding, labelled `pre-roll` and `post-roll` while they run. Below the bar is a live line: file size, bitrate, tuner signal and SNR, and error counts. A recording TVHeadend reports as failed turns red and shows TVHeadend's status text.
+
+When a recording stops, its card becomes a stepper: `Recorded`, `Importing`, `Cutting ads` (only for a show with ad removal on), then `In Plex`. Importing waits for the next sync. The card stays for about ten minutes after the last step, then collapses. The header shows `● REC` with the number of recordings, the browser tab title starts with `● REC`, and the tab icon carries an orange dot. The dashboard polls every 5 seconds while a recording or a stepper is on screen, and every 45 seconds otherwise.
 
 ## Caching
 

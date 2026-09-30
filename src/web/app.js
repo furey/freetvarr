@@ -355,11 +355,14 @@ const FAVICON_CHIPS = [
   { x: 21, color: '#e2b03c' },
 ]
 
+const FAVICON_REC_DOT = { x: 26, y: 6, radius: 5, color: '#ff8a00' }
+
 let faviconCanvas = null
 let faviconCtx = null
 let faviconLink = null
 let faviconTimer = null
 let faviconStart = 0
+let faviconRecording = false
 
 const ensureFaviconCanvas = () => {
   if (faviconCanvas) return
@@ -370,17 +373,39 @@ const ensureFaviconCanvas = () => {
   faviconLink = document.querySelector('link[rel="icon"]')
 }
 
-const drawFaviconFrame = (now) => {
+const drawFaviconFrame = (now, { bob = true } = {}) => {
   const phase = ((now - faviconStart) / FAVICON_BOB_PERIOD_MS) * Math.PI * 2
   faviconCtx.fillStyle = FAVICON_BG
   faviconCtx.fillRect(0, 0, FAVICON_SIZE, FAVICON_SIZE)
   FAVICON_CHIPS.forEach((chip, index) => {
     const stagger = (index / FAVICON_CHIPS.length) * Math.PI * 2
-    const offset = Math.sin(phase + stagger) * FAVICON_BOB_AMPLITUDE
+    const offset = bob ? Math.sin(phase + stagger) * FAVICON_BOB_AMPLITUDE : 0
     faviconCtx.fillStyle = chip.color
     faviconCtx.fillRect(chip.x, FAVICON_CHIP_BASE_Y - offset, FAVICON_CHIP_WIDTH, FAVICON_CHIP_HEIGHT)
   })
+  if (faviconRecording) drawFaviconRecDot()
   faviconLink.href = faviconCanvas.toDataURL('image/png')
+}
+
+const drawFaviconRecDot = () => {
+  faviconCtx.fillStyle = FAVICON_REC_DOT.color
+  faviconCtx.beginPath()
+  faviconCtx.arc(FAVICON_REC_DOT.x, FAVICON_REC_DOT.y, FAVICON_REC_DOT.radius, 0, Math.PI * 2)
+  faviconCtx.fill()
+}
+
+const showFaviconAtRest = () => {
+  if (!faviconRecording) {
+    if (faviconLink) faviconLink.href = '/favicon.svg'
+    return
+  }
+  ensureFaviconCanvas()
+  drawFaviconFrame(0, { bob: false })
+}
+
+const setFaviconRecording = (recording) => {
+  faviconRecording = recording
+  if (!faviconTimer) showFaviconAtRest()
 }
 
 const startFaviconAnimation = () => {
@@ -395,7 +420,7 @@ const stopFaviconAnimation = () => {
     clearInterval(faviconTimer)
     faviconTimer = null
   }
-  if (faviconLink) faviconLink.href = '/favicon.svg'
+  showFaviconAtRest()
 }
 
 watch(() => syncStatus.value.activeSyncId, (curr) => {
@@ -405,6 +430,42 @@ watch(() => syncStatus.value.activeSyncId, (curr) => {
 
 const now = ref(new Date())
 setInterval(() => { now.value = new Date() }, 1000)
+
+const recordingNow = ref({ active: [], journeys: [] })
+let recordingNowTimer = null
+
+const recordingCount = computed(() => recordingNow.value.active.length)
+
+const recordingNowBusy = computed(() =>
+  recordingNow.value.active.length > 0 || recordingNow.value.journeys.length > 0)
+
+const loadRecordingNow = async () => {
+  try {
+    recordingNow.value = await api('GET', '/api/recording-now')
+  } catch {
+    recordingNow.value = { active: [], journeys: [] }
+  }
+}
+
+const pollRecordingNow = async () => {
+  clearTimeout(recordingNowTimer)
+  await loadRecordingNow()
+  const fast = recordingNowBusy.value && !document.hidden
+  recordingNowTimer = setTimeout(pollRecordingNow, fast ? RECORDING_NOW_FAST_POLL_MS : RECORDING_NOW_IDLE_POLL_MS)
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && recordingNowBusy.value) pollRecordingNow()
+})
+
+watch(recordingCount, (count) => {
+  document.title = count > 0 ? `● REC · ${APP_TITLE}` : APP_TITLE
+  setFaviconRecording(count > 0)
+})
+
+const APP_TITLE = 'Freetvarr'
+const RECORDING_NOW_FAST_POLL_MS = 5_000
+const RECORDING_NOW_IDLE_POLL_MS = 45_000
 
 const clockReadout = computed(() => dateFormat({
   hour12: true,
@@ -447,9 +508,130 @@ const tsOfMs = (v) => {
   return Number.isFinite(t) ? t : 0
 }
 
+const RecordingCard = {
+  props: ['rec', 'kind'],
+  setup(props) {
+    const geometry = computed(() => recordingBarGeometry({ rec: props.rec, nowMs: now.value.getTime() }))
+    const phaseLabel = computed(() => {
+      if (props.rec.phase !== 'programme') return props.rec.phase
+      const mins = Math.max(0, Math.ceil((props.rec.stop - now.value.getTime()) / 60_000))
+      return `${mins} min left`
+    })
+    const liveLine = computed(() => recordingLiveLine(props.rec))
+    const metaLine = computed(() =>
+      [seasonEpisodeLabel(props.rec), props.rec.episodeTitle].filter(Boolean).join(' · '))
+    const stepDetail = computed(() => {
+      if (props.rec.failed) return ''
+      const current = (props.rec.steps || []).find((st) => st.state !== 'done' && st.detail)
+      return current ? `${current.label}: ${current.detail}` : ''
+    })
+    return { geometry, phaseLabel, liveLine, metaLine, stepDetail, stepMark, fmtClockTz }
+  },
+  template: `
+    <article :class="['rec-card', { failed: rec.failed }]">
+      <programme-image v-if="rec.hasImage" :event-id="rec.programId" variant="rec" />
+      <div class="rec-card-body">
+        <div class="rec-card-head">
+          <img class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + rec.channelId" alt=""
+            @error="$event.target.style.display = 'none'" />
+          <span class="rec-card-channel">{{ rec.channelName }}</span>
+          <span v-if="rec.failed" class="rec-badge failed">✕ FAILED</span>
+          <span v-else-if="kind === 'active'" class="rec-badge"><span class="led-dot sm live"></span>REC</span>
+          <span v-else class="rec-badge ended">ENDED {{ fmtClockTz(rec.endedAt) }}</span>
+        </div>
+        <div class="rec-card-title">{{ rec.title }}</div>
+        <div v-if="metaLine" class="rec-card-meta">{{ metaLine }}</div>
+        <template v-if="kind === 'active'">
+          <div class="rec-bar" role="progressbar" aria-label="Recording progress"
+            :aria-valuenow="Math.round(geometry.fill)" aria-valuemin="0" aria-valuemax="100">
+            <span class="rec-bar-pad" :style="{ left: 0, width: geometry.pre + '%' }"></span>
+            <span class="rec-bar-pad" :style="{ right: 0, width: geometry.post + '%' }"></span>
+            <span class="rec-bar-fill" :style="{ width: geometry.fill + '%' }"></span>
+            <span class="rec-bar-shade" :style="{ left: 0, width: Math.min(geometry.pre, geometry.fill) + '%' }"></span>
+            <span class="rec-bar-shade" :style="{ left: (100 - geometry.post) + '%', width: Math.max(0, geometry.fill - 100 + geometry.post) + '%' }"></span>
+          </div>
+          <div class="rec-bar-labels">
+            <span>{{ fmtClockTz(rec.startPadded) }}</span>
+            <span :class="['rec-phase', rec.phase]">{{ phaseLabel }}</span>
+            <span>{{ fmtClockTz(rec.stopPadded) }}</span>
+          </div>
+          <p class="rec-live">{{ liveLine }}</p>
+          <p v-if="rec.failed" class="rec-error">{{ rec.statusText || 'TVHeadend reported an error' }}</p>
+        </template>
+        <template v-else>
+          <p v-if="rec.failed" class="rec-error">{{ rec.statusText || 'Recording failed' }}</p>
+          <ol class="rec-steps">
+            <li v-for="st in rec.steps" :key="st.key" :class="['rec-step', st.state]">
+              <span class="rec-step-mark">{{ stepMark(st.state) }}</span>{{ st.label }}{{ st.percent != null ? ' ' + st.percent + '%' : '' }}
+            </li>
+          </ol>
+          <p v-if="stepDetail" class="rec-card-meta">{{ stepDetail }}</p>
+        </template>
+      </div>
+    </article>
+  `,
+}
+
+const RecordingNowPanel = {
+  setup() {
+    const cards = computed(() => [
+      ...recordingNow.value.active.slice(0, RECORDING_CARDS_MAX).map((rec) => ({ rec, kind: 'active' })),
+      ...recordingNow.value.journeys.map((rec) => ({ rec, kind: 'journey' })),
+    ])
+    const title = computed(() => recordingNow.value.active.length ? 'RECORDING NOW' : 'JUST RECORDED')
+    const summary = computed(() => recordingCount.value ? `${recordingCount.value} active` : '')
+    return { cards, title, summary }
+  },
+  template: `
+    <section v-if="cards.length" class="panel rec-panel">
+      <header class="panel-header">
+        <span class="panel-title">{{ title }}</span>
+        <span v-if="summary" class="text-xs font-mono uppercase tracking-[0.16em] text-signal-orange">{{ summary }}</span>
+      </header>
+      <div class="panel-body">
+        <transition-group name="rec-card" tag="div" class="rec-grid">
+          <recording-card v-for="c in cards" :key="c.kind + '-' + c.rec.uuid" :rec="c.rec" :kind="c.kind" />
+        </transition-group>
+      </div>
+    </section>
+  `,
+}
+
+const recordingBarGeometry = ({ rec, nowMs }) => {
+  const total = rec.stopPadded - rec.startPadded
+  if (!(total > 0)) return { pre: 0, post: 0, fill: 0 }
+  const share = (ms) => Math.min(100, Math.max(0, (ms / total) * 100))
+  return {
+    pre: share(rec.start - rec.startPadded),
+    post: share(rec.stopPadded - rec.stop),
+    fill: share(nowMs - rec.startPadded),
+  }
+}
+
+const recordingLiveLine = (rec) => {
+  const bits = []
+  if (rec.filesize) bits.push(fmtBytes(rec.filesize))
+  if (rec.bitsPerSecond) bits.push(`${(rec.bitsPerSecond / 1_000_000).toFixed(1)} Mb/s`)
+  if (rec.signal != null) bits.push(`signal ${fmtReading(rec.signal, rec.signalUnit)}`)
+  if (rec.snr != null) bits.push(`SNR ${fmtReading(rec.snr, rec.snrUnit)}`)
+  const errors = (rec.errors || 0) + (rec.dataErrors || 0)
+  bits.push(errors ? `${errors} error${errors === 1 ? '' : 's'}` : 'no errors')
+  if (rec.continuityErrors) bits.push(`${rec.continuityErrors} CC`)
+  return bits.join(' · ')
+}
+
+const fmtReading = (value, unit) => unit === '%' ? `${value}%` : `${Number(value).toFixed(1)} ${unit}`
+
+const stepMark = (state) => STEP_MARKS[state] || '○'
+
+const STEP_MARKS = { done: '✓', active: '●', pending: '○', failed: '✕', warn: '!', skipped: '–' }
+const RECORDING_CARDS_MAX = 4
+
 const DashboardView = {
   template: `
     <div class="view-reveal space-y-6">
+      <recording-now-panel />
+
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">SYNC DECK</span>
@@ -527,11 +709,12 @@ const DashboardView = {
                 <template v-if="e.now">
                   <span class="block truncate">
                     <span class="text-sm font-semibold text-ink mr-3">{{ e.now.title }}</span>
-                    <span class="font-mono text-xs text-ink-dim">{{ onNowMeta(e.now) }}</span>
+                    <span v-if="isRecordingChannel(e.channel.id)" class="on-now-rec"><span class="led-dot sm live"></span>REC</span>
+                    <span v-else class="font-mono text-xs text-ink-dim">{{ onNowMeta(e.now) }}</span>
                   </span>
                   <div class="progress" style="margin-top: 0.25rem; max-width: none;">
                     <div class="progress-track">
-                      <div class="progress-fill" :style="{ width: onNowPercent(e.now) + '%' }"></div>
+                      <div :class="['progress-fill', { rec: isRecordingChannel(e.channel.id) }]" :style="{ width: onNowPercent(e.now) + '%' }"></div>
                     </div>
                   </div>
                 </template>
@@ -647,6 +830,11 @@ const DashboardView = {
     const isSeriesRec = (r) =>
       r?.seriesLinkId != null && guideSeriesLinks.value.has(String(r.seriesLinkId))
 
+    const recordingChannelIds = computed(() =>
+      new Set(recordingNow.value.active.filter((r) => !r.failed).map((r) => String(r.channelId))))
+
+    const isRecordingChannel = (channelId) => recordingChannelIds.value.has(String(channelId))
+
     const plexLabel = computed(() => plexConfigured.value ? 'Connected' : 'Not configured')
     const plexClass = computed(() => plexConfigured.value ? 'text-plex-yellow' : 'text-ink-dim')
 
@@ -728,6 +916,7 @@ const DashboardView = {
       plexLabel, plexClass, plexHost,
       tvhLabel, tvhClass, tvhMeta, tvhConfigured,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
+      isRecordingChannel,
       starting, syncNow, fmtTime,
       flashText, flashKind,
     }
@@ -2974,6 +3163,7 @@ const EpgView = {
                       :class="['epg-cell', cellState(p), { past: p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs }]"
                       :style="cellStyle(p)" :title="cellTitle(p)"
                       @click="openProgram(p, ch)">
+                      <span v-if="cellState(p) === 'recording'" class="epg-cell-rec-fill" :style="{ width: recordingFillPercent(p) + '%' }"></span>
                       <template v-if="cellWidth(p) > 40">
                         <span class="epg-cell-title">{{ p.title }}</span>
                         <span class="epg-cell-meta">
@@ -3506,6 +3696,12 @@ const EpgView = {
       return Math.max(((end - start) / 60_000) * EPG_PX_PER_MIN - 2, 6)
     }
 
+    const recordingFillPercent = (p) => {
+      const span = p.end - p.start
+      if (span <= 0) return 0
+      return Math.min(100, Math.max(0, ((nowMs.value - p.start) / span) * 100))
+    }
+
     const cellStyle = (p) => ({
       left: `${cellX(p.start)}px`,
       width: `${cellWidth(p)}px`,
@@ -4035,7 +4231,7 @@ const EpgView = {
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
       scrollEl, railPx, trackWidth, railStripH, railNumWidth, ticks, nowX, nowMs,
       visibleChannels, railNum, railFilter, pinnedCount, pinsOffscreen, scrollRailTop,
-      cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled, isSeriesRec,
+      cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled, isSeriesRec, recordingFillPercent,
       jumpNow, jumpTonight, manualRefresh,
       searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered, seriesTagsFiltered,
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
@@ -4092,7 +4288,11 @@ const App = {
               <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]"><span class="text-signal-orange">//</span> tvheadend → plex bridge</span>
             </a>
             <div class="flex items-center gap-5">
-              <div class="flex items-center gap-2">
+              <a v-if="recordingCount" href="#/dashboard" class="no-hover-underline flex items-center gap-2" :title="recordingCount + ' recording now in TVHeadend'">
+                <span class="led-dot sm live"></span>
+                <span class="font-mono text-xs tracking-[0.18em] text-signal-orange">REC {{ recordingCount }}</span>
+              </a>
+              <div v-if="syncStatus.activeSyncId || !recordingCount" class="flex items-center gap-2">
                 <span :class="['led-dot', 'sm', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
                 <span :class="['font-mono', 'text-xs', 'tracking-[0.18em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-mute']">
                   {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
@@ -4149,7 +4349,7 @@ const App = {
     }, { immediate: true })
     return {
       route, tabs: TABS, currentView,
-      syncStatus, clockReadout, tzShortName,
+      syncStatus, clockReadout, tzShortName, recordingCount,
     }
   },
 }
@@ -4171,9 +4371,12 @@ fetch('/api/settings')
   .catch(() => {})
 
 loadSyncStatus().then(ensureSyncPolling)
+pollRecordingNow()
 
 const app = createApp(App)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
+app.component('recording-card', RecordingCard)
+app.component('recording-now-panel', RecordingNowPanel)
 app.mount('#app')
