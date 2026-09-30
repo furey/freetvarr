@@ -2861,7 +2861,7 @@ const EpgView = {
                   </span>
                 </div>
                 <p class="deck-card-meta flex items-center gap-1.5">
-                  <img v-if="channelById(p.channelId)?.logo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + p.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
+                  <img v-if="channelById(p.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + p.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
                   <span>{{ p.channelName }} · {{ fmtDayTime(p.start) }}–{{ fmtClock(p.end) }}<template v-if="p.episode_title"> · {{ p.episode_title }}</template></span>
                 </p>
               </article>
@@ -2946,7 +2946,7 @@ const EpgView = {
                       :aria-label="(ch.pinned ? 'Unpin ' : 'Pin ') + ch.name"
                       @click="togglePin(ch)">★</button>
                     <span class="epg-rail-num">{{ railNum(ch) }}</span>
-                    <img v-if="ch.logo" class="epg-rail-logo" :src="'/api/epg/logo/' + ch.id" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
+                    <img v-if="ch.logos?.length" class="epg-rail-logo" :src="'/api/epg/logo/' + ch.id" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
                     <span class="epg-rail-name">{{ ch.name }}</span>
                   </div>
                   <div class="epg-track" :style="{ width: trackWidth + 'px' }">
@@ -3003,7 +3003,7 @@ const EpgView = {
                     </span>
                   </div>
                   <p class="deck-card-meta flex items-center gap-1.5">
-                    <img v-if="channelById(r.channelId)?.logo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + r.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
+                    <img v-if="channelById(r.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + r.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
                     <span>{{ channelName(r.channelId) }} · {{ fmtDayTime(tsOf(r.startDate)) }}–{{ fmtClock(tsOf(r.endDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template></span>
                   </p>
                 </article>
@@ -3029,7 +3029,7 @@ const EpgView = {
                     <span class="pill done">SERIES</span>
                   </div>
                   <p class="deck-card-meta flex items-center gap-1.5">
-                    <img v-if="channelById(t.channelId)?.logo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + t.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
+                    <img v-if="channelById(t.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + t.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
                     <span>{{ channelName(t.channelId) }}<template v-if="t.episodesToKeep"> · keep {{ t.episodesToKeep }}</template></span>
                   </p>
                 </article>
