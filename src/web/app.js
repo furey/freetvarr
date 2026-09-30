@@ -4290,7 +4290,7 @@ const App = {
             <div class="flex items-center gap-5">
               <a v-if="recordingCount" href="#/dashboard" class="no-hover-underline flex items-center gap-2" :title="recordingCount + ' recording now in TVHeadend'">
                 <span class="led-dot sm live"></span>
-                <span class="font-mono text-xs tracking-[0.18em] text-signal-orange">REC {{ recordingCount }}</span>
+                <span class="font-mono text-xs tracking-[0.18em] text-signal-orange">REC</span>
               </a>
               <div v-if="syncStatus.activeSyncId || !recordingCount" class="flex items-center gap-2">
                 <span :class="['led-dot', 'sm', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
