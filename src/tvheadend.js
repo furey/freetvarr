@@ -88,7 +88,6 @@ export const listChannels = async (conn) => {
       hd: /hd$/i.test((c.name || '').trim()),
       recordable: true,
       logos: channelLogoSources({ channel: c, epgIcons: epgIconsByChannel.get(c.uuid) }),
-      thumb: '',
     }))
 }
 
@@ -296,6 +295,18 @@ export const getChannelIcon = async ({ sources = [], conn } = {}) => {
   return null
 }
 
+export const fetchProgrammeImage = async ({ source, conn } = {}) => {
+  if (!source) return null
+  const c = conn || (await resolveConnection())
+  return fetchImage({
+    source,
+    conn: c,
+    timeout: PROGRAMME_IMAGE_TIMEOUT_MS,
+    maxBytes: PROGRAMME_IMAGE_MAX_BYTES,
+    imagesOnly: true,
+  }).catch(() => null)
+}
+
 export const getRecordingStorage = async () => {
   const conn = await resolveConnection()
   const body = await apiGet('dvr/config/grid', {}, conn)
@@ -333,6 +344,7 @@ const normaliseEvent = (e) => ({
   rating: e.ageRating ? String(e.ageRating) : null,
   dvr_state: e.dvrState || null,
   dvr_uuid: e.dvrUuid || null,
+  image: e.image || null,
 })
 
 const normaliseEntry = (e) => {
@@ -421,17 +433,20 @@ const listEpgIconsByChannel = async (conn) => {
   return indexEpgIconsByChannel(body?.entries || [])
 }
 
-const fetchImage = async ({ source, conn }) => {
+const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes, imagesOnly = false }) => {
+  const limits = { timeout, ...(maxBytes ? { maxContentLength: maxBytes } : {}) }
   const res = isAbsoluteUrl(source)
-    ? await axios.get(source, { responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT_MS, validateStatus: () => true })
+    ? await axios.get(source, { responseType: 'arraybuffer', validateStatus: () => true, ...limits })
     : await sendAuthenticated({
       method: 'get',
       url: `${conn.url}/${source.replace(/^\//, '')}`,
       responseType: 'arraybuffer',
+      ...limits,
     }, conn)
-  const contentType = String(res.headers['content-type'] || 'image/png')
+  const contentType = String(res.headers['content-type'] || '')
   if (res.status >= 400 || contentType.startsWith('text/')) return null
-  return { body: Buffer.from(res.data), contentType }
+  if (imagesOnly && !contentType.startsWith('image/')) return null
+  return { body: Buffer.from(res.data), contentType: contentType || 'image/png' }
 }
 
 const isAbsoluteUrl = (source) => /^https?:\/\//i.test(source)
@@ -482,7 +497,7 @@ const sendAuthenticated = async (config, conn) => {
   const send = (headers) => axios({
     ...config,
     headers: { ...config.headers, ...headers },
-    timeout: REQUEST_TIMEOUT_MS,
+    timeout: config.timeout ?? REQUEST_TIMEOUT_MS,
     validateStatus: () => true,
   })
   const key = `${conn.url}|${conn.username}`
@@ -554,6 +569,8 @@ const isPrivate = (a) =>
   a.startsWith('10.') || a.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(a)
 
 const REQUEST_TIMEOUT_MS = 15000
+const PROGRAMME_IMAGE_TIMEOUT_MS = 5000
+const PROGRAMME_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 const TUNER_COUNT_TTL_MS = 10 * 60 * 1000
 const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
 const DEFAULT_LEAD_MINUTES = 2

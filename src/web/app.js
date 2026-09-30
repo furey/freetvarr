@@ -191,6 +191,21 @@ const ProgressBlock = {
   `,
 }
 
+const ProgrammeImage = {
+  props: ['eventId', 'variant'],
+  setup(props) {
+    const failed = ref(false)
+    watch(() => props.eventId, () => { failed.value = false })
+    const src = computed(() => `/api/epg/image/${encodeURIComponent(props.eventId)}`)
+    return { failed, src }
+  },
+  template: `
+    <div v-if="eventId != null && !failed" :class="['programme-image', variant || 'thumb']">
+      <img :src="src" alt="" :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @error="failed = true" />
+    </div>
+  `,
+}
+
 const makeStatus = () => {
   const text = ref('')
   const kind = ref('ok')
@@ -2849,10 +2864,12 @@ const EpgView = {
             </p>
             <div class="space-y-3">
               <article v-for="p in searchResults" :key="p.program_id + '-' + p.start"
-                class="deck-card deck-card-clickable space-y-1.5" role="button" tabindex="0"
+                class="deck-card deck-card-clickable deck-card-with-image" role="button" tabindex="0"
                 @click="openProgram(p, channelById(p.channelId))"
                 @keydown.enter.prevent="openProgram(p, channelById(p.channelId))"
                 @keydown.space.prevent="openProgram(p, channelById(p.channelId))">
+                <programme-image v-if="p.has_image" :event-id="p.program_id" />
+                <div class="deck-card-text">
                 <div class="flex items-start justify-between gap-3">
                   <span class="deck-card-title">{{ p.title }}</span>
                   <span class="flex items-center gap-1.5 shrink-0">
@@ -2866,6 +2883,7 @@ const EpgView = {
                   <img v-if="channelById(p.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + p.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
                   <span>{{ p.channelName }} · {{ fmtDayTime(p.start) }}–{{ fmtClock(p.end) }}<template v-if="p.episode_title"> · {{ p.episode_title }}</template></span>
                 </p>
+                </div>
               </article>
               <p v-if="!searching && searchResults.length === 0" class="text-ink-dim text-sm">Nothing upcoming matches.</p>
             </div>
@@ -2985,10 +3003,12 @@ const EpgView = {
               <p v-else-if="upcomingFiltered.length === 0" class="text-ink-dim text-sm">No upcoming recordings match “{{ searchQ.trim() }}”.</p>
               <div v-else class="space-y-3">
                 <article v-for="r in upcomingFiltered" :key="r.programId + '-' + r.source"
-                  class="deck-card deck-card-clickable space-y-1.5" role="button" tabindex="0"
+                  class="deck-card deck-card-clickable deck-card-with-image" role="button" tabindex="0"
                   @click="openUpcoming(r)"
                   @keydown.enter.prevent="openUpcoming(r)"
                   @keydown.space.prevent="openUpcoming(r)">
+                  <programme-image v-if="r.hasImage" :event-id="r.programId" />
+                  <div class="deck-card-text">
                   <div class="flex items-start justify-between gap-3">
                     <span class="deck-card-title">{{ r.name }}</span>
                     <span class="flex items-center gap-1.5 shrink-0">
@@ -3008,6 +3028,7 @@ const EpgView = {
                     <img v-if="channelById(r.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + r.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
                     <span>{{ channelName(r.channelId) }} · {{ fmtDayTime(tsOf(r.startDate)) }}–{{ fmtClock(tsOf(r.endDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template></span>
                   </p>
+                  </div>
                 </article>
               </div>
             </template>
@@ -3022,10 +3043,12 @@ const EpgView = {
               <p v-else-if="seriesTagsFiltered.length === 0" class="text-ink-dim text-sm">No series match “{{ searchQ.trim() }}”.</p>
               <div v-else class="space-y-3">
                 <article v-for="t in seriesTagsFiltered" :key="seriesKey(t)"
-                  class="deck-card deck-card-clickable space-y-1.5" role="button" tabindex="0"
+                  class="deck-card deck-card-clickable deck-card-with-image" role="button" tabindex="0"
                   @click="openSeriesTag(t)"
                   @keydown.enter.prevent="openSeriesTag(t)"
                   @keydown.space.prevent="openSeriesTag(t)">
+                  <programme-image v-if="t.imageProgramId != null" :event-id="t.imageProgramId" />
+                  <div class="deck-card-text">
                   <div class="flex items-start justify-between gap-3">
                     <span class="deck-card-title">{{ t.name || t.title || seriesKey(t) }}</span>
                     <span class="pill done">SERIES</span>
@@ -3034,6 +3057,7 @@ const EpgView = {
                     <img v-if="channelById(t.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + t.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
                     <span>{{ channelName(t.channelId) }}<template v-if="t.episodesToKeep"> · keep {{ t.episodesToKeep }}</template></span>
                   </p>
+                  </div>
                 </article>
               </div>
             </template>
@@ -3049,6 +3073,7 @@ const EpgView = {
             <span class="panel-title">{{ selected.program.title }}</span>
             <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeModal" aria-label="Close">✕</button>
           </header>
+          <programme-image v-if="selected.program.has_image" :key="selected.program.program_id" :event-id="selected.program.program_id" variant="hero" />
           <div class="panel-body space-y-4">
             <p class="text-sm font-mono text-ink-dim">
               {{ selected.channel?.name || channelName(selected.program.channelId) }}<template v-if="selected.program.start"> ·
@@ -3593,6 +3618,7 @@ const EpgView = {
         series_link: r.seriesLinkId || null,
         series_no: r.seriesNo ?? null,
         episode_no: r.episodeNo ?? null,
+        has_image: Boolean(r.hasImage),
         channelId: r.channelId,
       }, channelById(r.channelId))
     }
@@ -4149,4 +4175,5 @@ loadSyncStatus().then(ensureSyncPolling)
 const app = createApp(App)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
+app.component('programme-image', ProgrammeImage)
 app.mount('#app')
