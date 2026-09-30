@@ -4331,7 +4331,7 @@ const App = {
 
       <footer class="border-t border-hairline">
         <div class="max-w-6xl mx-auto px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-ink-mute">
-          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> · self-hosted tvheadend → plex bridge</span>
+          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> · tvheadend → plex bridge</span>
           <a
             href="https://github.com/furey/freetvarr"
             target="_blank"
