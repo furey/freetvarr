@@ -235,6 +235,8 @@ The load-bearing decision is how the `deck-table` views behave on a phone. They 
 
 Filter button groups become `chip-row`s below `md`: single-line, horizontally scrollable, hidden scrollbar, non-shrinking children. The tab nav is the same pattern (`tab-strip`), with a `watch(route)` and `scrollIntoView` nudge so the active tab is always visible.
 
+Below `md`, content runs edge to edge. The header, the tab nav, and the footer keep their `1rem` side padding, but every top-level `.panel` and the TV Guide's `.epg-scroll` take a `-1rem` side margin and lose their side borders and rounded corners, so they span the full screen width. A two-column tile grid (the dashboard stats) takes the negative margin as a whole, so its gap survives; the guide grid also breaks out of its panel's inner padding. Nested panels keep their borders.
+
 The rest is a CSS pass in `styles.css`, all standard iOS Safari accommodations:
 
 - `.field-input` bumps to `16 px` below `md`; iOS auto-zooms (and stays zoomed) on focusing any input smaller than that.
