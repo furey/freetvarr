@@ -89,6 +89,7 @@ export const listChannels = async (conn) => {
       recordable: true,
       logos: channelLogoSources({ channel: c, epgIcons: epgIconsByChannel.get(c.uuid) }),
       thumb: '',
+      serviceIds: c.services || [],
     }))
 }
 
@@ -286,6 +287,103 @@ export const getState = async () => {
   }
 }
 
+export const getTunerStatus = async (conn) => {
+  const c = conn || (await resolveConnection())
+  const [inputs, tunerCount] = await Promise.all([
+    listInputs(c),
+    countTuners(c).catch(() => null),
+  ])
+  return { inputs, tunerCount: tunerCount ?? inputs.length }
+}
+
+export const listSubscriptions = async (conn) => {
+  const body = await apiGet('status/subscriptions', {}, conn)
+  return (body?.entries || []).map((s) => ({
+    id: s.id,
+    title: s.title || '',
+    channel: s.channel || '',
+    service: s.service || '',
+    client: s.client || '',
+    state: s.state || '',
+    errors: s.errors ?? 0,
+    startedAt: (s.start ?? 0) * 1000,
+  }))
+}
+
+export const listServiceMuxes = async (conn) => {
+  if (serviceMuxCache && serviceMuxCache.expiresAt > Date.now()) return serviceMuxCache.value
+  const body = await apiGet('mpegts/service/grid', { limit: 10000 }, conn)
+  const value = new Map((body?.entries || []).map((s) => [s.uuid, {
+    muxId: s.multiplex_uuid,
+    muxName: muxDisplayName({ multiplex: s.multiplex, network: s.network }),
+  }]))
+  serviceMuxCache = { value, expiresAt: Date.now() + SERVICE_MUX_TTL_MS }
+  return value
+}
+
+export const muxDisplayName = ({ multiplex, network }) =>
+  network ? `${multiplex} in ${network}` : multiplex
+
+export const getChannelServiceInfo = async ({ serviceId, conn } = {}) => {
+  const c = conn || (await resolveConnection())
+  const [muxes, body] = await Promise.all([
+    listServiceMuxes(c),
+    apiGet('service/streams', { uuid: serviceId }, c),
+  ])
+  return {
+    serviceId,
+    ...(muxes.get(serviceId) || { muxId: null, muxName: null }),
+    streams: normaliseServiceStreams(body?.streams),
+  }
+}
+
+export const normaliseServiceStreams = (streams = []) =>
+  streams
+    .filter((s) => s.index != null)
+    .map((s) => ({
+      pid: s.pid,
+      type: s.type,
+      language: s.language || '',
+      audioType: s.audio_type ?? null,
+      height: s.height || null,
+    }))
+
+export const getDefaultLanguages = async (conn) => {
+  if (languagesCache) return languagesCache
+  const c = conn || (await resolveConnection())
+  const body = await apiGet('config/load', {}, c)
+  const param = (body?.entries?.[0]?.params || []).find((p) => p.id === 'language')
+  languagesCache = Array.isArray(param?.value) ? param.value : []
+  return languagesCache
+}
+
+export const openChannelStream = async ({ channelId, signal, userAgent, conn } = {}) => {
+  const c = conn || (await resolveConnection())
+  const url = new URL(`${c.url}/stream/channel/${encodeURIComponent(channelId)}`)
+  url.searchParams.set('profile', 'pass')
+  url.searchParams.set('weight', String(LIVE_STREAM_WEIGHT))
+  const res = await sendAuthenticated({
+    method: 'get',
+    url: url.toString(),
+    responseType: 'stream',
+    signal,
+    timeout: 0,
+    headers: { 'User-Agent': userAgent },
+  }, c)
+  if (res.status === 200) return res.data
+  res.data?.destroy?.()
+  const code = streamFailureCode(res.status)
+  throw new TvheadendError(`TVHeadend refused the stream (HTTP ${res.status}).`, {
+    stage: 'stream', status: res.status, code,
+  })
+}
+
+const streamFailureCode = (status) => {
+  if (status === 401 || status === 403) return 'auth'
+  if (status === 503) return 'no-tuner'
+  return 'http'
+}
+
 export const getChannelIcon = async ({ sources = [], conn } = {}) => {
   if (!sources.length) return null
   const c = conn || (await resolveConnection())
@@ -346,6 +444,8 @@ const normaliseEntry = (e) => {
     channelName: e.channelname || null,
     startDate: e.start * 1000,
     endDate: e.stop * 1000,
+    paddedStartDate: (e.start_real ?? e.start) * 1000,
+    paddedEndDate: (e.stop_real ?? e.stop) * 1000,
     schedStatus: e.sched_status || '',
     statusText: e.status || '',
     autorecId: e.autorec || null,
@@ -373,6 +473,8 @@ const listInputs = async (conn) => {
   return (body?.entries || []).map((i) => ({
     input: i.input,
     stream: i.stream,
+    mux: i.stream || null,
+    subs: i.subs ?? 0,
     signal: i.signal_scale === 2 ? i.signal / 655.35 : null,
     snr: i.snr_scale === 2 ? i.snr / 1000 : null,
   }))
@@ -406,6 +508,8 @@ const countLeafNodes = async (nodes, conn) => {
 
 let dvrConfigCache = null
 let tunerCountCache = null
+let serviceMuxCache = null
+let languagesCache = null
 
 const defaultDvrConfig = async (conn) => {
   if (dvrConfigCache) return dvrConfigCache
@@ -482,7 +586,7 @@ const sendAuthenticated = async (config, conn) => {
   const send = (headers) => axios({
     ...config,
     headers: { ...config.headers, ...headers },
-    timeout: REQUEST_TIMEOUT_MS,
+    timeout: config.timeout ?? REQUEST_TIMEOUT_MS,
     validateStatus: () => true,
   })
   const key = `${conn.url}|${conn.username}`
@@ -500,6 +604,7 @@ const sendAuthenticated = async (config, conn) => {
   challenges.remember(key, first.headers['www-authenticate'])
   const authorization = sign(challenges.next(key))
   if (!authorization) return first
+  first.data?.destroy?.()
   const second = await send({ Authorization: authorization })
   if (second.status === 401) challenges.forget(key)
   return second
@@ -555,6 +660,8 @@ const isPrivate = (a) =>
 
 const REQUEST_TIMEOUT_MS = 15000
 const TUNER_COUNT_TTL_MS = 10 * 60 * 1000
+const SERVICE_MUX_TTL_MS = 10 * 60 * 1000
+const LIVE_STREAM_WEIGHT = 50
 const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
 const DEFAULT_LEAD_MINUTES = 2
 const DEFAULT_LAG_MINUTES = 10

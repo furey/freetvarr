@@ -370,6 +370,8 @@ export const getChannelImage = async ({ channelId, kind = 'logo' } = {}) => {
   return value
 }
 
+export const listGuideChannels = async () => (await getCachedGuide()).channels
+
 export const localMidnightMs = (now = new Date()) => {
   const midnight = new Date(now)
   midnight.setHours(0, 0, 0, 0)

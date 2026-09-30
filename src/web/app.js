@@ -35,6 +35,7 @@ const apiCall = async (method, url, body, headersExtra = {}) => {
     err.code = data.code || null
     err.stage = data.stage || null
     err.status = res.status
+    err.data = data
     throw err
   }
   return data
@@ -525,6 +526,9 @@ const DashboardView = {
               <span v-if="e.next" class="hidden sm:block font-mono text-xs text-ink-dim min-w-0 max-w-[16rem] truncate">
                 next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
               </span>
+              <button type="button" class="btn btn-sm btn-icon shrink-0" title="Watch live"
+                :aria-label="'Watch ' + e.channel.name + ' live'"
+                @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })">▶</button>
             </div>
             </div>
           </div>
@@ -713,7 +717,7 @@ const DashboardView = {
       plexLabel, plexClass, plexHost,
       tvhLabel, tvhClass, tvhMeta, tvhConfigured,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
-      starting, syncNow, fmtTime,
+      watchLive, starting, syncNow, fmtTime,
       flashText, flashKind,
     }
   },
@@ -3087,6 +3091,7 @@ const EpgView = {
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
               <button type="button" class="btn btn-sm epg-modal-close mr-auto" @click="closeModal" aria-label="Close">✕ CLOSE</button>
               <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
+              <button v-if="canWatchLive" type="button" class="btn btn-sm btn-primary" @click="watchSelected">▶ WATCH LIVE</button>
               <template v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'">
                 <template v-if="isSeriesScheduled(selected.program) && cancelChoice">
                   <span class="text-xs font-mono text-ink-mute">This is part of a series recording — cancel what?</span>
@@ -3410,6 +3415,19 @@ const EpgView = {
     const canRecord = computed(() =>
       selected.value && selected.value.program.end > nowMs.value
       && (selected.value.channel?.recordable !== false))
+
+    const canWatchLive = computed(() => {
+      if (!selected.value?.channel) return false
+      const { start, end } = selected.value.program
+      const t = now.value.getTime()
+      return Boolean(start) && start <= t && end > t
+    })
+
+    const watchSelected = () => {
+      const { program, channel } = selected.value
+      closeModal()
+      watchLive({ channel: liveChannelOf(channel), nowTitle: program.title })
+    }
 
     const tsOf = tsOfMs
     const fmtClock = fmtClockTz
@@ -4013,6 +4031,7 @@ const EpgView = {
       jumpNow, jumpTonight, manualRefresh,
       searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered, seriesTagsFiltered,
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
+      canWatchLive, watchSelected,
       modalStatusText, modalStatusKind, channelsModalStatusText, channelsModalStatusKind,
       leadTime, lagTime, episodesToKeep,
       leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
@@ -4030,6 +4049,228 @@ const EpgView = {
     }
   },
 }
+
+const live = reactive({
+  open: false,
+  channel: null,
+  nowTitle: '',
+  sessionId: null,
+  phase: 'idle',
+  message: '',
+  holders: [],
+  conflict: null,
+})
+
+let liveVideo = null
+let liveHls = null
+let liveAttached = false
+let livePollTimer = null
+let liveRun = 0
+
+const liveChannelOf = (channel) => ({
+  id: channel.id,
+  name: channel.name,
+  hasLogo: (channel.logos || []).length > 0,
+})
+
+const watchLive = ({ channel, nowTitle }) => {
+  if (live.open && live.channel?.id === channel.id && live.phase !== 'ended') return
+  stopLive()
+  Object.assign(live, {
+    open: true, channel, nowTitle, sessionId: null,
+    phase: 'tuning', message: '', holders: [], conflict: null,
+  })
+  liveVideo?.play()?.catch(() => {})
+  startLiveSession(liveRun)
+}
+
+const stopLive = () => {
+  liveRun += 1
+  clearTimeout(livePollTimer)
+  detachLiveVideo()
+  if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
+  Object.assign(live, { open: false, sessionId: null, phase: 'idle', message: '', holders: [], conflict: null })
+}
+
+const startLiveSession = async (run) => {
+  try {
+    const r = await api('POST', '/api/live', { channel_id: live.channel.id })
+    if (run !== liveRun) {
+      api('DELETE', `/api/live/${r.session.id}`).catch(() => {})
+      return
+    }
+    live.sessionId = r.session.id
+    live.conflict = r.conflict
+    if (r.session.status === 'ended') return endLive(run, r.session.reason)
+    pollLive(run)
+  } catch (err) {
+    if (run !== liveRun) return
+    live.phase = 'ended'
+    live.message = liveStartErrorText(err)
+    live.holders = err.data?.holders || []
+  }
+}
+
+const pollLive = async (run) => {
+  if (run !== liveRun) return
+  try {
+    const params = new URLSearchParams({ channel: live.channel.id, session: live.sessionId })
+    const r = await api('GET', `/api/live/preflight?${params}`)
+    if (run !== liveRun) return
+    live.conflict = r.conflict
+    const session = r.session
+    if (!session || session.id !== live.sessionId || session.status === 'ended') {
+      return endLive(run, session?.reason)
+    }
+    if (session.status === 'live' && !liveAttached) await attachLiveVideo(run, session.playlist)
+  } catch {
+    if (run !== liveRun) return
+  }
+  livePollTimer = setTimeout(() => pollLive(run), liveAttached ? LIVE_POLL_PLAYING_MS : LIVE_POLL_TUNING_MS)
+}
+
+const attachLiveVideo = async (run, playlist) => {
+  liveAttached = true
+  if (liveVideo.canPlayType('application/vnd.apple.mpegurl')) {
+    liveVideo.src = playlist
+  } else {
+    const { default: Hls } = await import('/vendor/hls.mjs')
+    if (run !== liveRun) return
+    if (!Hls.isSupported()) return endLive(run, { code: 'unsupported' })
+    liveHls = new Hls({ workerPath: '/vendor/hls.worker.js', liveSyncDurationCount: 3 })
+    liveHls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) endLive(run, { code: 'playback', detail: data.details })
+    })
+    liveHls.loadSource(playlist)
+    liveHls.attachMedia(liveVideo)
+  }
+  live.phase = 'live'
+  liveVideo.play()?.catch(() => {})
+}
+
+const endLive = (run, reason) => {
+  if (run !== liveRun) return
+  clearTimeout(livePollTimer)
+  detachLiveVideo()
+  live.sessionId = null
+  live.phase = 'ended'
+  live.message = liveReasonText(reason)
+}
+
+const detachLiveVideo = () => {
+  liveHls?.destroy()
+  liveHls = null
+  liveAttached = false
+  if (!liveVideo) return
+  liveVideo.pause()
+  liveVideo.removeAttribute('src')
+  liveVideo.load()
+}
+
+const liveReasonText = (reason) => {
+  const detail = reason?.detail ? `: ${reason.detail}` : '.'
+  if (!reason) return 'Stopped: the stream ended.'
+  if (reason.code === 'preempted') return `Stopped: the recording "${reason.recording}" took the tuner.`
+  if (reason.code === 'no-input') return 'Stopped: TVHeadend gets no signal for this channel.'
+  if (reason.code === 'gone') return 'Stopped: TVHeadend ended the stream.'
+  if (reason.code === 'idle') return 'Stopped: nobody was watching.'
+  if (reason.code === 'shutdown') return 'Stopped: Freetvarr restarted.'
+  if (reason.code === 'no-tuner') return 'No free tuner.'
+  if (reason.code === 'ffmpeg') return `ffmpeg failed${detail}`
+  if (reason.code === 'upstream') return `TVHeadend refused the stream${detail}`
+  if (reason.code === 'playback') return `Playback failed${detail}`
+  if (reason.code === 'unsupported') return 'This browser cannot play live TV.'
+  return 'Stopped.'
+}
+
+const liveStartErrorText = (err) => {
+  if (err.code === 'no-tuner') return 'No free tuner. Every tuner is busy on another multiplex:'
+  return `Error: ${err.message}`
+}
+
+const liveHolderText = (h) => `${h.tuner} · ${h.mux} · ${h.holders.join(', ') || 'in use'}`
+
+const fmtCountdown = (ms) => {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = String(total % 60).padStart(2, '0')
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`
+}
+
+window.addEventListener('pagehide', () => {
+  if (!live.sessionId) return
+  fetch(`/api/live/${live.sessionId}`, {
+    method: 'DELETE',
+    keepalive: true,
+    headers: { 'x-csrf-token': csrfToken || '' },
+  }).catch(() => {})
+})
+
+const LivePlayer = {
+  template: `
+    <teleport to="body">
+    <transition name="epg-sheet">
+    <div v-show="live.open" class="epg-modal-backdrop">
+      <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
+        <header class="panel-header live-header">
+          <img v-if="live.channel?.hasLogo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + live.channel.id" alt=""
+            @error="$event.target.style.display = 'none'" />
+          <div class="flex-1 min-w-0">
+            <span class="panel-title block truncate">{{ live.channel?.name }}</span>
+            <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-icon" @click="stopLive" aria-label="Stop and close">✕</button>
+        </header>
+        <div class="live-frame">
+          <video ref="videoEl" class="live-video" playsinline controls></video>
+        </div>
+        <div class="panel-body space-y-3">
+          <ul v-if="live.holders.length" class="space-y-1 font-mono text-xs text-ink-dim">
+            <li v-for="h in live.holders" :key="h.tuner">{{ liveHolderText(h) }}</li>
+          </ul>
+          <div class="epg-modal-actions flex items-center justify-between gap-3">
+            <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
+            <button type="button" class="btn btn-sm btn-danger shrink-0" @click="stopLive">■ STOP</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    </transition>
+    </teleport>
+  `,
+  setup() {
+    const videoEl = ref(null)
+
+    const statusText = computed(() => {
+      if (live.phase === 'ended') return live.message
+      if (live.phase === 'tuning') return 'TUNING…'
+      if (!live.conflict) return 'LIVE'
+      const wait = fmtCountdown(live.conflict.startsAt - now.value.getTime())
+      return `LIVE · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
+    })
+
+    const statusKind = computed(() => {
+      if (live.phase === 'ended' || live.conflict) return 'err'
+      return live.phase === 'live' ? 'ok' : 'info'
+    })
+
+    const onKeydown = (e) => {
+      if (e.key === 'Escape' && live.open) stopLive()
+    }
+
+    onMounted(() => {
+      liveVideo = videoEl.value
+      window.addEventListener('keydown', onKeydown)
+    })
+    onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
+    return { live, videoEl, stopLive, statusText, statusKind, liveHolderText }
+  },
+}
+
+const LIVE_POLL_TUNING_MS = 1_000
+const LIVE_POLL_PLAYING_MS = 10_000
 
 const VIEW_MAP = {
   dashboard: DashboardView,
@@ -4112,6 +4353,7 @@ const App = {
           </a>
         </div>
       </footer>
+      <live-player />
     </div>
   `,
   setup() {
@@ -4149,4 +4391,5 @@ loadSyncStatus().then(ensureSyncPolling)
 const app = createApp(App)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
+app.component('live-player', LivePlayer)
 app.mount('#app')
