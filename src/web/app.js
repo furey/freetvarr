@@ -4282,7 +4282,7 @@ const TABS = [
 const App = {
   template: `
     <div class="min-h-dvh flex flex-col">
-      <header class="sticky top-0 z-20 backdrop-blur-md bg-surface-deep/85 border-b border-hairline">
+      <header class="app-header sticky top-0 z-20 backdrop-blur-md bg-surface-deep/85 border-b border-hairline">
         <div class="max-w-6xl mx-auto px-4 md:px-6">
           <div class="flex items-center justify-between gap-4 py-3">
             <a href="#/dashboard" class="no-hover-underline flex items-center gap-3 no-underline text-ink">
