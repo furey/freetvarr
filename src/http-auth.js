@@ -1,10 +1,39 @@
 import crypto from 'crypto'
 
-export const authorizationFor = ({ challenge, method, uri, username, password, cnonce = randomCnonce() }) => {
+export const authorizationFor = ({
+  challenge,
+  method,
+  uri,
+  username,
+  password,
+  nonceCount = 1,
+  cnonce = randomCnonce(),
+}) => {
   const scheme = /^\s*(\w+)/.exec(challenge || '')?.[1]?.toLowerCase()
   if (scheme === 'basic') return basicHeader({ username, password })
   if (scheme !== 'digest') return null
-  return digestHeader({ params: parseChallenge(challenge), method, uri, username, password, cnonce })
+  const nc = formatNonceCount(nonceCount)
+  return digestHeader({ params: parseChallenge(challenge), method, uri, username, password, nc, cnonce })
+}
+
+export const createChallengeCache = ({ maxIdleMs = CHALLENGE_MAX_IDLE_MS, now = Date.now } = {}) => {
+  const entries = new Map()
+  const remember = (key, challenge) => {
+    if (challenge) entries.set(key, { challenge, usedAt: now(), uses: 0 })
+  }
+  const next = (key) => {
+    const entry = entries.get(key)
+    if (!entry) return null
+    if (now() - entry.usedAt > maxIdleMs) {
+      entries.delete(key)
+      return null
+    }
+    entry.uses += 1
+    entry.usedAt = now()
+    return { challenge: entry.challenge, nonceCount: entry.uses }
+  }
+  const forget = (key) => entries.delete(key)
+  return { remember, next, forget }
 }
 
 export const parseChallenge = (challenge) =>
@@ -16,14 +45,14 @@ export const parseChallenge = (challenge) =>
 const basicHeader = ({ username, password }) =>
   `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
 
-const digestHeader = ({ params, method, uri, username, password, cnonce }) => {
+const digestHeader = ({ params, method, uri, username, password, nc, cnonce }) => {
   const algorithm = params.algorithm || 'MD5'
   const hash = hasherFor(algorithm)
   const ha1 = hash(`${username}:${params.realm}:${password}`)
   const ha2 = hash(`${method.toUpperCase()}:${uri}`)
   const usesQop = (params.qop || '').split(',').map((q) => q.trim()).includes('auth')
   const response = usesQop
-    ? hash(`${ha1}:${params.nonce}:${NONCE_COUNT}:${cnonce}:auth:${ha2}`)
+    ? hash(`${ha1}:${params.nonce}:${nc}:${cnonce}:auth:${ha2}`)
     : hash(`${ha1}:${params.nonce}:${ha2}`)
   const fields = [
     `username="${username}"`,
@@ -33,7 +62,7 @@ const digestHeader = ({ params, method, uri, username, password, cnonce }) => {
     `algorithm=${algorithm}`,
     `response="${response}"`,
     ...(params.opaque !== undefined ? [`opaque="${params.opaque}"`] : []),
-    ...(usesQop ? ['qop=auth', `nc=${NONCE_COUNT}`, `cnonce="${cnonce}"`] : []),
+    ...(usesQop ? ['qop=auth', `nc=${nc}`, `cnonce="${cnonce}"`] : []),
   ]
   return `Digest ${fields.join(', ')}`
 }
@@ -45,4 +74,6 @@ const hasherFor = (algorithm) => {
 
 const randomCnonce = () => crypto.randomBytes(8).toString('hex')
 
-const NONCE_COUNT = '00000001'
+const formatNonceCount = (n) => n.toString(16).padStart(8, '0')
+
+const CHALLENGE_MAX_IDLE_MS = 90_000

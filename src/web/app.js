@@ -81,11 +81,21 @@ const tvhTestSummary = (r) => {
 
 const tz = ref('UTC')
 
+const dateFormatters = new Map()
+
+const dateFormat = (options) => {
+  const key = `${tz.value}|${JSON.stringify(options)}`
+  if (!dateFormatters.has(key)) {
+    dateFormatters.set(key, new Intl.DateTimeFormat('en-AU', { timeZone: tz.value, ...options }))
+  }
+  return dateFormatters.get(key)
+}
+
 const fmtTime = (s) => {
   if (!s) return ''
   const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s
-  return new Intl.DateTimeFormat('en-AU', {
-    timeZone: tz.value, day: '2-digit', month: '2-digit', year: '2-digit',
+  return dateFormat({
+    day: '2-digit', month: '2-digit', year: '2-digit',
     hour: 'numeric', minute: '2-digit', hour12: true,
   }).format(new Date(iso)).replace(', ', ' ').replace(/\s(am|pm)$/, '$1')
 }
@@ -381,8 +391,7 @@ watch(() => syncStatus.value.activeSyncId, (curr) => {
 const now = ref(new Date())
 setInterval(() => { now.value = new Date() }, 1000)
 
-const clockReadout = computed(() => new Intl.DateTimeFormat('en-AU', {
-  timeZone: tz.value,
+const clockReadout = computed(() => dateFormat({
   hour12: true,
   hour: '2-digit',
   minute: '2-digit',
@@ -391,10 +400,7 @@ const clockReadout = computed(() => new Intl.DateTimeFormat('en-AU', {
 
 const tzShortName = computed(() => {
   try {
-    const parts = new Intl.DateTimeFormat('en-AU', {
-      timeZone: tz.value,
-      timeZoneName: 'short',
-    }).formatToParts(now.value)
+    const parts = dateFormat({ timeZoneName: 'short' }).formatToParts(now.value)
     return parts.find((p) => p.type === 'timeZoneName')?.value || tz.value
   } catch {
     return tz.value
@@ -415,9 +421,7 @@ const within7Days = (s) => {
   return Number.isFinite(t) && (Date.now() - t) < 7 * 24 * 60 * 60 * 1000
 }
 
-const fmtClockTz = (ms) => new Intl.DateTimeFormat('en-AU', {
-  timeZone: tz.value, hour: 'numeric', minute: '2-digit',
-}).format(new Date(ms)).replace(/\s/g, '').toLowerCase()
+const fmtClockTz = (ms) => dateFormat({ hour: 'numeric', minute: '2-digit' }).format(new Date(ms)).replace(/\s/g, '').toLowerCase()
 
 const tsOfMs = (v) => {
   if (v == null) return 0
@@ -610,7 +614,10 @@ const DashboardView = {
         tvhState.value = null
         return
       }
-      const s = await api('GET', '/api/epg/state').catch(() => null)
+      const [s, onNowResult] = await Promise.all([
+        api('GET', '/api/epg/state').catch(() => null),
+        api('GET', '/api/epg/now').catch(() => null),
+      ])
       tvhState.value = s
       tvhReachable.value = Boolean(s) && !s.stale
       guideSeriesLinks.value = new Set((s?.seriesTags || []).map((t) => String(t.seriesLinkId ?? t.id)))
@@ -618,13 +625,8 @@ const DashboardView = {
         .filter((r) => !r.pendingDelete)
         .sort((a, b) => tsOfMs(a.startDate) - tsOfMs(b.startDate))
         .slice(0, 3)
-      try {
-        const r = await api('GET', '/api/epg/now')
-        onNow.value = r.entries || []
-        guideOk.value = true
-      } catch {
-        guideOk.value = false
-      }
+      guideOk.value = Boolean(onNowResult)
+      if (onNowResult) onNow.value = onNowResult.entries || []
     }
 
     const isSeriesRec = (r) =>
@@ -3325,16 +3327,13 @@ const EpgView = {
       const date = new Date(Date.now() + d * 86_400_000)
       return {
         day: d,
-        label: new Intl.DateTimeFormat('en-AU', { timeZone: tz.value, weekday: 'short' })
-          .format(date).toUpperCase(),
+        label: dateFormat({ weekday: 'short' }).format(date).toUpperCase(),
       }
     }))
 
     const dayTitle = computed(() => {
       if (!guide.value) return dayChips.value[day.value]?.label || ''
-      return new Intl.DateTimeFormat('en-AU', {
-        timeZone: tz.value, weekday: 'long', day: 'numeric', month: 'short',
-      }).format(new Date(guide.value.dayStart + 12 * 3_600_000))
+      return dateFormat({ weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(guide.value.dayStart + 12 * 3_600_000))
     })
 
     const scheduledByProgramId = computed(() => {
@@ -3415,15 +3414,13 @@ const EpgView = {
     const tsOf = tsOfMs
     const fmtClock = fmtClockTz
 
-    const fmtDayTime = (ms) => new Intl.DateTimeFormat('en-AU', {
-      timeZone: tz.value, weekday: 'short', day: 'numeric', month: 'short',
+    const fmtDayTime = (ms) => dateFormat({
+      weekday: 'short', day: 'numeric', month: 'short',
       hour: 'numeric', minute: '2-digit',
     }).format(new Date(ms)).toLowerCase().replace(/\s(am|pm)$/, '$1')
 
     const fmtShortRange = (start, end) => {
-      const day = new Intl.DateTimeFormat('en-AU', {
-        timeZone: tz.value, weekday: 'short', day: '2-digit', month: '2-digit',
-      }).format(new Date(start)).toLowerCase().replace(',', '')
+      const day = dateFormat({ weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(start)).toLowerCase().replace(',', '')
       const from = fmtClock(start).replace(':00', '')
       const to = fmtClock(end).replace(':00', '')
       const trimmed = from.slice(-2) === to.slice(-2) ? from.replace(/(am|pm)$/, '') : from
@@ -3996,9 +3993,9 @@ const EpgView = {
     let statePollTimer = null
     onMounted(async () => {
       window.addEventListener('keydown', onKeydown)
+      loadState()
       await loadDay(0)
       await scrollToMs(Date.now() - 30 * 60_000)
-      loadState()
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
     })
     onUnmounted(() => {

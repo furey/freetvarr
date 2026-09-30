@@ -294,8 +294,11 @@ export const getRecordingState = async ({ fresh = false } = {}) => {
 }
 
 const loadRecordingState = async (now) => {
-  const state = await getState()
-  const guide = await getCachedGuide().catch(() => null)
+  const [state, guide, storageInfo] = await Promise.all([
+    getState(),
+    getCachedGuide().catch(() => null),
+    recordingsStorageInfo(),
+  ])
   const upcomingRecordings = projectUpcomingRecordings({
     seriesTags: state.seriesTags,
     futureRecordings: state.futureRecordings,
@@ -304,7 +307,7 @@ const loadRecordingState = async (now) => {
   })
   const value = {
     standby: false,
-    storageInfo: await recordingsStorageInfo(),
+    storageInfo,
     tunerCount: state.tunerCount,
     maxConcurrentRecordings: state.tunerCount,
     activeInputs: state.activeInputs,
