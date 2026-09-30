@@ -380,15 +380,75 @@ const parseEpisodeDisp = (disp) => {
   }
 }
 
-const listInputs = async (conn) => {
+export const listInputs = async (conn) => {
   const body = await apiGet('status/inputs', {}, conn)
-  return (body?.entries || []).map((i) => ({
-    input: i.input,
-    stream: i.stream,
-    signal: i.signal_scale === 2 ? i.signal / 655.35 : null,
-    snr: i.snr_scale === 2 ? i.snr / 1000 : null,
+  return (body?.entries || []).map(normaliseInput)
+}
+
+export const normaliseInput = (i) => ({
+  uuid: i.uuid || null,
+  input: i.input || '',
+  stream: i.stream || '',
+  subscriptions: i.subs ?? 0,
+  ...scaledReading({ value: i.signal, scale: i.signal_scale, key: 'signal', unit: 'dBm' }),
+  ...scaledReading({ value: i.snr, scale: i.snr_scale, key: 'snr', unit: 'dB' }),
+  bitsPerSecond: i.bps ?? null,
+  continuityErrors: i.cc ?? 0,
+  transportErrors: i.te ?? 0,
+  uncorrectedBlocks: i.unc ?? 0,
+})
+
+const scaledReading = ({ value, scale, key, unit }) => {
+  if (scale === SCALE_RELATIVE) {
+    return { [key]: Math.round((value / RELATIVE_FULL_SCALE) * 100), [`${key}Unit`]: '%' }
+  }
+  if (scale === SCALE_DECIBEL) return { [key]: value / 1000, [`${key}Unit`]: unit }
+  return { [key]: null, [`${key}Unit`]: null }
+}
+
+export const listSubscriptions = async (conn) => {
+  const body = await apiGet('status/subscriptions', {}, conn)
+  return (body?.entries || []).map((s) => ({
+    id: s.id,
+    title: s.title || '',
+    channelName: s.channel || '',
+    service: s.service || '',
+    state: s.state || '',
+    errors: s.errors ?? 0,
+    bytesInPerSecond: s.in ?? null,
+    start: s.start ? s.start * 1000 : null,
   }))
 }
+
+export const listActiveRecordings = async (conn) => {
+  const body = await apiGet('dvr/entry/grid_upcoming', { limit: 1000 }, conn)
+  return (body?.entries || [])
+    .filter((e) => String(e.sched_status || '').startsWith('recording'))
+    .map(normaliseRecording)
+}
+
+export const listRecentlyEnded = async (conn) => {
+  const params = { limit: RECENTLY_ENDED_LIMIT, sort: 'stop_real', dir: 'DESC' }
+  const [finished, failed] = await Promise.all([
+    apiGet('dvr/entry/grid_finished', params, conn),
+    apiGet('dvr/entry/grid_failed', params, conn),
+  ])
+  return [...(finished?.entries || []), ...(failed?.entries || [])].map(normaliseRecording)
+}
+
+export const loadRecording = async ({ uuid, conn }) => {
+  const body = await apiGet('idnode/load', { uuid, grid: 1 }, conn)
+  const raw = body?.entries?.[0]
+  return raw?.uuid ? normaliseRecording(raw) : null
+}
+
+export const normaliseRecording = (e) => ({
+  ...normaliseEntry(e),
+  startPadded: (e.start_real ?? e.start) * 1000,
+  stopPadded: (e.stop_real ?? e.stop) * 1000,
+  errorCode: e.errorcode ?? 0,
+  image: e.image || null,
+})
 
 const countTuners = async (conn) => {
   if (tunerCountCache && tunerCountCache.expiresAt > Date.now()) return tunerCountCache.value
@@ -569,6 +629,10 @@ const isPrivate = (a) =>
   a.startsWith('10.') || a.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(a)
 
 const REQUEST_TIMEOUT_MS = 15000
+const SCALE_RELATIVE = 1
+const SCALE_DECIBEL = 2
+const RELATIVE_FULL_SCALE = 65535
+const RECENTLY_ENDED_LIMIT = 5
 const PROGRAMME_IMAGE_TIMEOUT_MS = 5000
 const PROGRAMME_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 const TUNER_COUNT_TTL_MS = 10 * 60 * 1000
