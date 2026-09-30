@@ -11,6 +11,7 @@ The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob
 - [Series recordings as autorec rules](#series-recordings-as-autorec-rules)
 - [Ad removal](#ad-removal)
 - [Live progress indicators](#live-progress-indicators)
+- [Live TV](#live-tv)
 - [Mobile layout](#mobile-layout)
 - [Full environment reference](#full-environment-reference)
 - [Docker deployment](#docker-deployment)
@@ -42,6 +43,7 @@ flowchart TB
       sched["Scheduler<br>node-cron"]
       sync["Sync engine"]
       epg["Guide cache"]
+      live["Live TV sessions<br>ffmpeg → HLS"]
       matcher["Folder matcher<br>Fuse.js"]
       plexclient["Plex client<br>GDM discovery · section refresh"]
       db[("state.db<br>SQLite via Knex")]
@@ -58,6 +60,8 @@ flowchart TB
   browser -->|"REST + CSRF token"| server
   server --> sync
   server --> epg
+  server --> live
+  live -->|"stream/channel · status/*"| tvhsrv
   sched -->|"cron trigger"| sync
   epg -->|"epg/events/grid · dvr/*"| tvhsrv
   sync -->|"dvr/entry/grid_finished"| tvhsrv
@@ -71,7 +75,7 @@ flowchart TB
   sync -->|"dvr/entry/remove"| tvhsrv
 ```
 
-A single Node process runs everything. The Express server (`src/server.js`) serves the Vue 3 SPA and the REST API; the scheduler (`src/scheduler.js`) wires `node-cron` to the sync engine and reloads whenever the cron setting changes; the sync engine (`src/sync.js`) lists TVHeadend's finished recordings, matches them to followed shows, imports new episodes into the media library, and persists every outcome to SQLite. The guide layer (`src/epg.js`) caches TVHeadend's EPG and recording state for the TV Guide tab. After any sync that imported something, the Plex client (`src/plex.js`) refreshes the configured library section, and only then is a delete queued back to TVHeadend.
+A single Node process runs everything. The Express server (`src/server.js`) serves the Vue 3 SPA and the REST API; the scheduler (`src/scheduler.js`) wires `node-cron` to the sync engine and reloads whenever the cron setting changes; the sync engine (`src/sync.js`) lists TVHeadend's finished recordings, matches them to followed shows, imports new episodes into the media library, and persists every outcome to SQLite. The guide layer (`src/epg.js`) caches TVHeadend's EPG and recording state for the TV Guide tab. After any sync that imported something, the Plex client (`src/plex.js`) refreshes the configured library section, and only then is a delete queued back to TVHeadend. The live TV layer (`src/live-tv.js`) pulls a channel's transport stream from TVHeadend, pipes it through ffmpeg into rolling HLS files under the temp folder, and serves them to the browser player ([Live TV](#live-tv)).
 
 The load-bearing difference from [Fetcharr](https://github.com/furey/fetcharr), which this forked from, is that the recorder is now on the same filesystem. Fetcharr downloaded each episode from a set-top box over HTTP and could only delete the source through a vendor cloud service. Freetvarr reads a local file and deletes through one authenticated API call.
 
@@ -93,8 +97,13 @@ Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTT
 | `dvr/autorec/grid`, `dvr/autorec/create` | Series recordings                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `idnode/save`, `idnode/delete`           | Applying padding to a new entry; removing an autorec rule                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `dvr/config/grid`                        | Finding the default DVR profile, cached after the first call                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `status/inputs`, `hardware/tree`         | Tuner count and signal readings for the dashboard                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `epggrab/channel/grid`                   | Channel logo fallback: the guide feed's channel icons, used when TVHeadend reports no `icon_public_url` for a channel. Admin only in TVHeadend; a failure leaves the logos to TVHeadend's own icons                                                                                                                                                                                                                                                          |
+| `status/inputs`, `hardware/tree`         | Tuner count and signal readings for the dashboard; the multiplex each tuner carries, for the live TV preflight                                                                                                                                                                                                                                                                                                                                               |
+| `status/subscriptions`                   | What holds each tuner, and why a live stream stalled                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `mpegts/service/grid`                    | The multiplex of every service, cached for `10` minutes                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `service/streams`                        | A channel's elementary streams and their PIDs, which set the live TV codec choice                                                                                                                                                                                                                                                                                                                                                                            |
+| `config/load`                            | TVHeadend's default language, for the live TV audio track                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `/stream/channel/<uuid>`                 | Live TV. Not under `/api`; requested with `profile=pass`, `weight=50`, a `Freetvarr-live/<session>` user agent, and no timeout                                                                                                                                                                                                                                                                                                                               |
 
 Two translations happen at this boundary:
 
@@ -228,6 +237,50 @@ Lifecycle is owned in one place so no path leaks an entry. The scan ticker clear
 
 The frontend renders a thin CSS bar plus a `percent · ETA` caption under the relevant label, and reuses the existing cell so nothing shifts when the bar appears or vanishes. The recordings poll is a self-scheduling `setTimeout` that recomputes its cadence every tick from the freshly fetched rows: `RECORDINGS_ACTIVE_POLL_MS` (`2 s`) when any row has a non-null `progress`, `RECORDINGS_POLL_MS` (`60 s`) otherwise, so it always falls back to idle once operations end. A restart mid-operation leaves no frozen bar: the registry is empty on boot and `resetInterruptedScans` has already cleared any persisted `scanning` row.
 
+## Live TV
+
+The browser plays live TV as HLS that Freetvarr makes itself. TVHeadend streams MPEG-TS, which no browser plays, and TVHeadend's own transcoding profiles vary by build, so Freetvarr uses the ffmpeg already in its image.
+
+```mermaid
+flowchart LR
+  subgraph browser["Browser"]
+    player["LivePlayer<br>native HLS or hls.js"]
+  end
+  subgraph app["Freetvarr"]
+    routes["/api/live routes"]
+    reg["Session registry<br>reaper · watchdog"]
+    ff["ffmpeg<br>pipe:0 → HLS"]
+    dir[("os.tmpdir()/freetvarr-live/&lt;session&gt;")]
+  end
+  tvh["TVHeadend<br>/stream/channel"]
+  player -->|"POST · preflight · playlist and segments · DELETE"| routes
+  routes --> reg
+  reg -->|"Digest-authenticated GET"| tvh
+  tvh -->|"MPEG-TS"| ff
+  ff --> dir
+  routes -->|"index.m3u8, seg&lt;N&gt;.ts"| dir
+```
+
+Start (`POST /api/live`):
+
+1. Check the channel id against the guide's channel list.
+2. Run the preflight (below). A `409` with `code: 'no-tuner'` lists what holds each tuner.
+3. Read the channel's first service from `service/streams` and pick the streams with `pickStreams`. H.264 video is copied. MPEG-2, HEVC, and other video goes to `libx264` (`veryfast`, `zerolatency`, CRF `23`, GOP `50`), with `yadif` and a `576`-line cap for SD and a `540`-line cap for HD. Audio is the first track with `audio_type` `0` (so never audio description), preferring TVHeadend's default language, always re-encoded to stereo AAC at `128k`. Streams are mapped by PID.
+4. Spawn ffmpeg reading `-f mpegts -i pipe:0` and writing `-hls_time 2 -hls_list_size 6` with `delete_segments`, `independent_segments`, `omit_endlist`, and `temp_file`, so a reader never sees a half-written playlist.
+5. Open the TVHeadend stream through the same `sendAuthenticated` path as the API, with an `AbortSignal`, and pipe the body into ffmpeg's stdin. The credentials never appear in ffmpeg's arguments or in any URL.
+
+Sessions are one per channel and shared by every viewer of it, up to `LIVE_TV_MAX_SESSIONS` (default `2`). Every playlist or segment request refreshes the session's last-seen time, and so does the player's preflight poll. A reaper runs every `5 s`:
+
+- **Idle**: no request for `20 s` ends the session.
+- **Stalled**: no bytes from TVHeadend for `10 s` marks it stalled, then `status/subscriptions` decides why. A DVR subscription that started after the stream means a recording preempted it. The stream's own subscription still present means no input. Neither means TVHeadend dropped it.
+- **ffmpeg exit**: the first line ffmpeg printed to stderr becomes the stop reason.
+
+Teardown runs in a fixed order: abort the upstream request, `SIGTERM` ffmpeg (`SIGKILL` after `3 s`), then delete the session folder. Server shutdown tears down every session, and startup deletes any folder a crash left behind. An ended session's reason stays readable for `60 s`, so the player can say why it stopped.
+
+The preflight (`GET /api/live/preflight?channel=<uuid>`) reads `status/inputs` live and compares multiplex names. A tuner already on the channel's multiplex is shared; otherwise an idle tuner is needed. For recordings whose padded start falls in the next `60` minutes, it counts the distinct multiplexes needed at that start: recordings running then, that recording, and this stream. More than the tuner count is a conflict, returned with the recording's title and start. Recordings come from the `45 s` recording-state cache, so the player's poll every `10 s` costs TVHeadend only a few small status reads.
+
+The player is one Vue component mounted once in the app shell and teleported to `<body>`, so it survives tab changes. It uses native HLS where `canPlayType('application/vnd.apple.mpegurl')` says so (Safari, iOS, recent Chrome). Otherwise it imports hls.js only when a stream starts: `/vendor/hls.mjs` is served from `node_modules` at a pinned version, with its worker at `/vendor/hls.worker.js`. iOS allows playback only from a tap, so the tap handler calls `video.play()` on the empty element at once and sets the source when the stream is ready. On `pagehide` the page sends a `keepalive` `DELETE` with the CSRF header.
+
 ## Mobile layout
 
 The UI is responsive at a single breakpoint: Tailwind's `md` (`768 px`). Below it, phone layout (baseline iPhone 16e, `390×844 pt`); at or above it, the desktop layout, unchanged.
@@ -255,18 +308,19 @@ The TVHeadend URL and credentials, the Plex token, and the storage paths are run
 > [!NOTE]<br>
 > `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for matching DB-backed settings that can be overridden from the UI at runtime. The fallback chain is *settings DB value → env var → hardcoded default*. The Storage panel in Settings (and the STORAGE step of the wizard) shows the effective values, with TEST PATH on the media root and the recordings folder and CHECK TVHEADEND on TVHeadend's recording path.
 
-| Variable              | Notes                                                                                                                                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MEDIA_ROOT`          | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`.                                                                                    |
-| `RECORDINGS_ROOT`     | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`.                                                            |
-| `TVH_RECORDINGS_PATH` | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`. Only differs from `RECORDINGS_ROOT` if the mounts disagree. |
-| `DB_PATH`             | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                  |
-| `PORT`                | HTTP port inside the container. Defaults to `3733`.                                                                                                                                                    |
-| `NODE_ENV`            | `production` makes the server refuse to start if `CSRF_SECRET` is unset or the dev placeholder. Compose sets this.                                                                                     |
-| `TZ`                  | Container timezone (IANA name). The Dockerfile installs `tzdata` so any IANA zone resolves. `/api/settings` exposes the value as `tz`; the web UI renders all timestamps in that zone.                 |
-| `PUID`/`PGID`         | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because Freetvarr hardlinks and deletes files TVHeadend created.                                           |
-| `CSRF_SECRET`         | 32+ random bytes used to sign the CSRF cookie. `openssl rand -hex 32`. Required in production.                                                                                                         |
-| `TVH_URL`             | Optional. When set, AUTO-DISCOVER TVHEADEND offers this address instead of probing. The stored `tvh_url` setting still wins once saved.                                                                |
+| Variable               | Notes                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MEDIA_ROOT`           | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`.                                                                                    |
+| `RECORDINGS_ROOT`      | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`.                                                            |
+| `TVH_RECORDINGS_PATH`  | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`. Only differs from `RECORDINGS_ROOT` if the mounts disagree. |
+| `DB_PATH`              | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                  |
+| `PORT`                 | HTTP port inside the container. Defaults to `3733`.                                                                                                                                                    |
+| `NODE_ENV`             | `production` makes the server refuse to start if `CSRF_SECRET` is unset or the dev placeholder. Compose sets this.                                                                                     |
+| `TZ`                   | Container timezone (IANA name). The Dockerfile installs `tzdata` so any IANA zone resolves. `/api/settings` exposes the value as `tz`; the web UI renders all timestamps in that zone.                 |
+| `PUID`/`PGID`          | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because Freetvarr hardlinks and deletes files TVHeadend created.                                           |
+| `CSRF_SECRET`          | 32+ random bytes used to sign the CSRF cookie. `openssl rand -hex 32`. Required in production.                                                                                                         |
+| `TVH_URL`              | Optional. When set, AUTO-DISCOVER TVHEADEND offers this address instead of probing. The stored `tvh_url` setting still wins once saved.                                                                |
+| `LIVE_TV_MAX_SESSIONS` | How many channels live TV streams at once. Defaults to `2`. Each channel holds a tuner unless it shares a multiplex with a recording or another stream.                                                |
 
 Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
@@ -311,7 +365,8 @@ Vulnerability reporting and the accepted residual risks are documented in [SECUR
 - **`npm run rebuild:natives`** is an explicit allow-list; only `better-sqlite3` rebuilds. Adding a new native dep means adding it here on purpose.
 - **`npm audit signatures`** runs as the last step of `setup` to verify the npm registry signatures of every dep. The Docker build deliberately inlines `npm ci + rebuild:natives` instead, because `npm audit signatures` re-queries the registry and enforces `min-release-age`.
 - **`package-lock.json`** is committed; integrity hashes verify package contents during `npm ci` even when the audit step is skipped.
-- **HTTP**: Helmet with a strict CSP. `script-src 'self' 'unsafe-eval'` is required because Vue's in-browser template compiler uses `new Function()`; everything else is locked down. Dropping `'unsafe-eval'` would need a build step that pre-compiles templates.
+- **HTTP**: Helmet with a strict CSP. `script-src 'self' 'unsafe-eval'` is required because Vue's in-browser template compiler uses `new Function()`; everything else is locked down. Dropping `'unsafe-eval'` would need a build step that pre-compiles templates. `media-src 'self' blob:` and `worker-src 'self' blob:` let the live TV player attach hls.js's MediaSource to the video element and run its worker.
+- **Live TV files**: `GET /api/live/:session/:file` accepts a 16-hex-digit session id and a file name matching `index.m3u8` or `seg<N>.ts` only, so no request can reach outside the session folder. Starting a stream is rate limited like the guide's record endpoints; starting and stopping need the CSRF token.
 - **Rate limiting**: `express-rate-limit` on the POST endpoints that reach TVHeadend or Plex (`/api/sync`, `/api/tvh-shows`, `/api/tvh-test`, `/api/tvh-detect`, `/api/tvh-recordings-path-check`, `/api/discover-plex`, the per-recording delete and ad-scan endpoints), and a separate limiter on the guide's record/cancel endpoints.
 - **CSRF**: `csrf-csrf` (double-submit cookie) protects state-changing POSTs. The UI fetches a token from `GET /api/csrf-token` and sends it as the `x-csrf-token` header. `generateToken` is called with `overwrite=true` so a stale browser cookie from a previous `CSRF_SECRET` doesn't trigger a 403 mint. `getSessionIdentifier` is a constant, because this is an authless LAN service. The front-end clears the cached token and retries once on any 403, so secret rotations and cookie clears recover silently.
 - **Path containment**: `dest_folder` and `season_template` are validated on write to reject `..` segments and leading slashes, and `buildDestPath` resolves the final path and throws if it escapes the media root. A show can only ever write inside the configured library.
@@ -363,6 +418,7 @@ freetvarr/
 │   ├── folder-matcher.js   # Fuse.js wrapper that scans /media/tv
 │   ├── sync.js             # Sync engine; list finished, match shows, hardlink or copy, persist; exports classifyImport / matchShow / buildDestPath / localPathFor for tests
 │   ├── commercials.js      # Ad removal; comskip detect + ffmpeg cut orchestration, pure helpers exported for tests
+│   ├── live-tv.js          # Live TV; stream picking, ffmpeg arguments, tuner preflight, session registry
 │   ├── progress.js         # In-memory progress registry + import-bar shim; merged into GET /api/recordings
 │   ├── scheduler.js        # node-cron wiring, reloads on settings change
 │   ├── plex.js             # Plex section refresh + token detection from Preferences.xml
@@ -406,6 +462,7 @@ Node 24's built-in test runner, with no additional test dependencies. What's cov
 - **Sync**: `classifyImport` across the size-tolerance boundary, `matchShow` (case-insensitive substring matching), `buildDestPath` (`{season}` / `{season_padded}` / `{season_unpadded}` substitution, missing-season fallback, media-root escape rejection), `episodeFilename` (the `SxxEyy` and air-date forms, and title sanitisation), and `localPathFor` (prefix rewrite, the outside-the-prefix `null`, trailing-slash handling).
 - **Ad removal**: EDL parsing (malformed rows, action filtering), keep-segment maths (clamping, merging, break-at-edge, whole-file-break), cut verification tolerance, comskip.ini resolution, the auto-delete gating matrix, and the scan-estimate maths.
 - **Progress**: registry round-trip, staleness eviction past `PROGRESS_STALE_MS` (via mocked timers), `clearProgress`, and the import shim's percentage and monotonically decreasing ETA.
+- **Live TV**: `pickStreams` (audio description skipped, AC-3-only audio, H.264 copied, MPEG-2 and HEVC transcoded with the right height cap), exact ffmpeg arguments with no URL or credentials, `tunerVerdict` (multiplex sharing, idle tuner, none free, recording conflict inside and outside the window, same-multiplex recording), `stallReason`, the file-name pattern against path traversal, and the session registry with a fake clock, fake ffmpeg, and fake upstream: teardown order, the `SIGKILL` fallback, sharing, the session limit, the idle reaper, the stall watchdog, and the ffmpeg error line.
 - **Folder matcher**: a real on-disk fixture under `os.tmpdir()` exercising `listShowFolders` and `matchShowFolder` against realistic disambiguated folder names.
 
 The TVHeadend client and the comskip/ffmpeg orchestration are exercised against the real thing rather than mocked. Manual smoke test:

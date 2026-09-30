@@ -58,6 +58,7 @@ services:
       - MEDIA_ROOT=/media/tv
       - RECORDINGS_ROOT=/recordings
       - TVH_RECORDINGS_PATH=/recordings
+      - LIVE_TV_MAX_SESSIONS=${LIVE_TV_MAX_SESSIONS:-2}
       - CSRF_SECRET=${CSRF_SECRET:?set CSRF_SECRET in your .env (openssl rand -hex 32)}
       # Only set if you want the "Auto-detect from local Plex" button to work:
       - PLEX_PREFS_PATH=/plex-preferences.xml
