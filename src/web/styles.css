@@ -770,6 +770,8 @@ a.icon-link {
 
 .programme-image.hero {
   width: 100%;
+  aspect-ratio: auto;
+  height: clamp(8rem, 24vh, 13rem);
   border-bottom: 1px dashed #3d3829;
 }
 
@@ -1185,13 +1187,15 @@ body.epg-drag-lock * {
 }
 
 .on-now-rec {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   letter-spacing: 0.14em;
   color: #ff8a00;
+}
+
+.on-now-rec .led-dot {
+  margin-right: 0.35rem;
+  vertical-align: 0.1em;
 }
 
 .rec-grid {
@@ -1203,9 +1207,9 @@ body.epg-drag-lock * {
   display: flex;
   align-items: stretch;
   overflow: hidden;
-  border: 1px solid rgba(255, 138, 0, 0.45);
+  border: 1px solid rgba(61, 56, 41, 0.85);
   border-radius: 0.4rem;
-  background: rgba(255, 138, 0, 0.05);
+  background: rgba(40, 35, 27, 0.6);
 }
 
 .rec-card.failed {
