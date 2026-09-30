@@ -395,6 +395,7 @@ export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {})
   const source = guide?.imageByEventId.get(String(eventId)) || fallbackSource
   return programmeImages.imageFor(source)
 }
+export const listGuideChannels = async () => (await getCachedGuide()).channels
 
 export const localMidnightMs = (now = new Date()) => {
   const midnight = new Date(now)

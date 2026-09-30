@@ -1732,3 +1732,32 @@ body.epg-drag-lock * {
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
+
+.live-modal {
+  max-width: 60rem;
+  max-width: min(60rem, calc((85svh - 10rem) * 16 / 9));
+  overflow-x: hidden;
+}
+
+.live-header {
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+}
+
+.live-frame {
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.live-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+@media (max-width: 767px) {
+  .live-modal {
+    max-width: none;
+  }
+}

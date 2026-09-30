@@ -50,6 +50,15 @@ import {
 } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { getRecordingNow, recordingImageSource } from './recording-now.js'
+import {
+  LIVE_ROOT,
+  LiveTvError,
+  createLiveSessions,
+  preflightChannel,
+  startLiveChannel,
+  describeStallFor,
+  openUpstreamFor,
+} from './live-tv.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -58,6 +67,8 @@ const DEV_CSRF_SECRET = 'dev-only-csrf-secret-set-CSRF_SECRET-in-prod'
 const CSRF_SECRET = process.env.CSRF_SECRET || DEV_CSRF_SECRET
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const UNIMPORTED_STATUSES = ['failed', 'skipped']
+const LIVE_TV_MAX_SESSIONS = Math.max(1, Number(process.env.LIVE_TV_MAX_SESSIONS) || 2)
+const LIVE_REAPER_MS = 5_000
 
 if (process.env.NODE_ENV === 'production' && CSRF_SECRET === DEV_CSRF_SECRET) {
   console.error(
@@ -85,6 +96,8 @@ app.use(
         'script-src': ["'self'", "'unsafe-eval'"],
         'style-src': ["'self'", "'unsafe-inline'"],
         'img-src': ["'self'", 'data:'],
+        'media-src': ["'self'", 'blob:'],
+        'worker-src': ["'self'", 'blob:'],
         'connect-src': ["'self'"],
         'object-src': ["'none'"],
         'base-uri': ["'self'"],
@@ -531,6 +544,72 @@ app.get('/api/recording-now', async (req, res) => {
   }
 })
 
+const liveSessions = createLiveSessions({
+  openUpstream: openUpstreamFor,
+  describeStall: describeStallFor,
+  maxSessions: LIVE_TV_MAX_SESSIONS,
+})
+
+const liveLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+const liveError = (res, err, context) => {
+  if (err instanceof LiveTvError) {
+    return res.status(err.status).json({ ok: false, error: err.message, code: err.code, ...err.details })
+  }
+  epgError(res, err, context)
+}
+
+app.post('/api/live', liveLimiter, doubleCsrfProtection, async (req, res) => {
+  const channelId = String(req.body?.channel_id || '')
+  if (!channelId) return res.status(400).json({ error: 'channel_id is required' })
+  try {
+    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions })) })
+  } catch (err) {
+    liveError(res, err, 'live start')
+  }
+})
+
+app.get('/api/live/preflight', async (req, res) => {
+  const channelId = String(req.query.channel || '')
+  if (!channelId) return res.status(400).json({ error: 'channel is required' })
+  if (req.query.session) liveSessions.touch(String(req.query.session))
+  try {
+    const [verdict, session] = await Promise.all([
+      preflightChannel({ channelId }),
+      liveSessions.statusForChannel(channelId),
+    ])
+    res.json({ ...verdict, session })
+  } catch (err) {
+    liveError(res, err, 'live preflight')
+  }
+})
+
+app.get('/api/live/:session/:file', async (req, res) => {
+  const { session: sessionId, file } = req.params
+  const filePath = liveSessions.fileFor(sessionId, file)
+  if (!filePath) return res.status(404).json({ error: 'not found' })
+  liveSessions.touch(sessionId)
+  const isPlaylist = file === 'index.m3u8'
+  if (isPlaylist && !(await liveSessions.waitForPlaylist(sessionId))) {
+    return res.status(404).json({ error: 'stream not ready' })
+  }
+  res.setHeader('Cache-Control', 'no-store')
+  res.type(isPlaylist ? 'application/vnd.apple.mpegurl' : 'video/mp2t')
+  res.sendFile(filePath, (err) => {
+    if (err && !res.headersSent) res.status(404).end()
+  })
+})
+
+app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
+  const left = await liveSessions.leave(String(req.params.session))
+  res.json({ ok: true, left })
+})
+
 app.get('/api/shows', async (req, res) => {
   const rows = await db('shows').orderBy('created_at', 'desc')
   res.json({ shows: rows })
@@ -858,6 +937,14 @@ app.get('/vendor/vue.esm-browser.prod.js', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'node_modules', 'vue', 'dist', 'vue.esm-browser.prod.js'))
 })
 
+app.get('/vendor/hls.mjs', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'node_modules', 'hls.js', 'dist', 'hls.light.min.mjs'))
+})
+
+app.get('/vendor/hls.worker.js', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'node_modules', 'hls.js', 'dist', 'hls.worker.js'))
+})
+
 app.use(express.static(path.join(__dirname, 'web')))
 
 app.get('/', (req, res) => {
@@ -885,6 +972,7 @@ const escapesMediaRoot = (value) =>
 
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
+  await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
   try {
     await recoverInterruptedCuts()
     await resetInterruptedScans()
@@ -898,8 +986,14 @@ const server = app.listen(PORT, async () => {
   }
 })
 
+const liveReaper = setInterval(() => {
+  liveSessions.tick().catch((err) => console.error('[live] reaper failed:', err.message))
+}, LIVE_REAPER_MS)
+
 const shutdown = async () => {
   stopScheduler()
+  clearInterval(liveReaper)
+  await liveSessions.stopAll().catch(() => {})
   server.close()
   await db.destroy()
   process.exit(0)
