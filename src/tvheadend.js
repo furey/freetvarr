@@ -73,7 +73,10 @@ export const rankCandidates = ({ interfaces = {}, hintAddress = '', port = DEFAU
 }
 
 export const listChannels = async (conn) => {
-  const body = await apiGet('channel/grid', { limit: 1000, sort: 'number', dir: 'ASC' }, conn)
+  const [body, epgIconsByChannel] = await Promise.all([
+    apiGet('channel/grid', { limit: 1000, sort: 'number', dir: 'ASC' }, conn),
+    listEpgIconsByChannel(conn).catch(() => new Map()),
+  ])
   return (body?.entries || [])
     .filter((c) => c.enabled !== false)
     .map((c) => ({
@@ -84,10 +87,24 @@ export const listChannels = async (conn) => {
       description: '',
       hd: /hd$/i.test((c.name || '').trim()),
       recordable: true,
-      logo: c.icon_public_url || '',
+      logos: channelLogoSources({ channel: c, epgIcons: epgIconsByChannel.get(c.uuid) }),
       thumb: '',
     }))
 }
+
+export const indexEpgIconsByChannel = (epgChannels = []) => {
+  const index = new Map()
+  for (const e of epgChannels) {
+    if (!e.icon) continue
+    for (const channelId of e.channels || []) {
+      index.set(channelId, [...(index.get(channelId) || []), e.icon])
+    }
+  }
+  return index
+}
+
+export const channelLogoSources = ({ channel, epgIcons = [] }) =>
+  [...new Set([channel.icon_public_url, ...epgIcons].filter(Boolean))]
 
 export const listEvents = async ({ startMs, endMs, conn } = {}) => {
   const events = []
@@ -269,16 +286,14 @@ export const getState = async () => {
   }
 }
 
-export const getChannelIcon = async ({ iconPath } = {}) => {
-  if (!iconPath) return null
-  const conn = await resolveConnection()
-  const res = await sendAuthenticated({
-    method: 'get',
-    url: `${conn.url}/${iconPath.replace(/^\//, '')}`,
-    responseType: 'arraybuffer',
-  }, conn)
-  if (res.status >= 400) return null
-  return { body: Buffer.from(res.data), contentType: res.headers['content-type'] || 'image/png' }
+export const getChannelIcon = async ({ sources = [], conn } = {}) => {
+  if (!sources.length) return null
+  const c = conn || (await resolveConnection())
+  for (const source of sources) {
+    const image = await fetchImage({ source, conn: c }).catch(() => null)
+    if (image) return image
+  }
+  return null
 }
 
 export const getRecordingStorage = async () => {
@@ -392,6 +407,26 @@ const defaultDvrConfig = async (conn) => {
   dvrConfigCache = chosen?.uuid || ''
   return dvrConfigCache
 }
+
+const listEpgIconsByChannel = async (conn) => {
+  const body = await apiGet('epggrab/channel/grid', { limit: 10000 }, conn)
+  return indexEpgIconsByChannel(body?.entries || [])
+}
+
+const fetchImage = async ({ source, conn }) => {
+  const res = isAbsoluteUrl(source)
+    ? await axios.get(source, { responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT_MS, validateStatus: () => true })
+    : await sendAuthenticated({
+      method: 'get',
+      url: `${conn.url}/${source.replace(/^\//, '')}`,
+      responseType: 'arraybuffer',
+    }, conn)
+  const contentType = String(res.headers['content-type'] || 'image/png')
+  if (res.status >= 400 || contentType.startsWith('text/')) return null
+  return { body: Buffer.from(res.data), contentType }
+}
+
+const isAbsoluteUrl = (source) => /^https?:\/\//i.test(source)
 
 const channelNumber = (raw) => {
   const n = Number(raw)

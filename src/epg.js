@@ -146,7 +146,7 @@ export const getOnNowForPinned = async ({ nowMs = Date.now() } = {}) => {
         id: channel.id,
         name: channel.name,
         number: channel.number ?? null,
-        hasLogo: Boolean(channel.logo),
+        hasLogo: channel.logos.length > 0,
       },
       now,
       next,
@@ -361,7 +361,7 @@ export const getChannelImage = async ({ channelId, kind = 'logo' } = {}) => {
   if (cached && cached.expiresAt > Date.now()) return cached.value
   const guide = await getCachedGuide()
   const channel = guide.channels.find((c) => String(c.id) === String(channelId))
-  const value = await getChannelIcon({ iconPath: channel?.logo })
+  const value = await getChannelIcon({ sources: channel?.logos })
   if (!value) return null
   imageCache.set(cacheKey, { value, expiresAt: Date.now() + IMAGE_TTL_MS })
   return value
