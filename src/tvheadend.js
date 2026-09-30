@@ -2,6 +2,7 @@ import os from 'os'
 import axios from 'axios'
 
 import { getSetting, setSetting } from './db.js'
+import { authorizationFor } from './http-auth.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -271,12 +272,11 @@ export const getState = async () => {
 export const getChannelIcon = async ({ iconPath } = {}) => {
   if (!iconPath) return null
   const conn = await resolveConnection()
-  const res = await axios.get(`${conn.url}/${iconPath.replace(/^\//, '')}`, {
-    auth: basicAuth(conn),
+  const res = await sendAuthenticated({
+    method: 'get',
+    url: `${conn.url}/${iconPath.replace(/^\//, '')}`,
     responseType: 'arraybuffer',
-    timeout: REQUEST_TIMEOUT_MS,
-    validateStatus: () => true,
-  })
+  }, conn)
   if (res.status >= 400) return null
   return { body: Buffer.from(res.data), contentType: res.headers['content-type'] || 'image/png' }
 }
@@ -403,16 +403,12 @@ const apiPost = async (path, form, conn) => {
 const request = async ({ method, path, params, form, conn }) => {
   let res
   try {
-    res = await axios({
+    res = await sendAuthenticated({
       method,
-      url: `${conn.url}/api/${path}`,
-      params,
+      url: apiUrl({ base: conn.url, path, params }),
       data: form ? new URLSearchParams(form).toString() : undefined,
-      headers: form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : undefined,
-      auth: basicAuth(conn),
-      timeout: REQUEST_TIMEOUT_MS,
-      validateStatus: () => true,
-    })
+      headers: form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {},
+    }, conn)
   } catch (err) {
     throw new TvheadendError(
       `TVHeadend request failed: ${err.code || err.message}`,
@@ -431,8 +427,37 @@ const request = async ({ method, path, params, form, conn }) => {
   return res.data
 }
 
-const basicAuth = (conn) =>
-  conn.username ? { username: conn.username, password: conn.password } : undefined
+const sendAuthenticated = async (config, conn) => {
+  const send = (headers) => axios({
+    ...config,
+    headers: { ...config.headers, ...headers },
+    timeout: REQUEST_TIMEOUT_MS,
+    validateStatus: () => true,
+  })
+  const first = await send({})
+  if (first.status !== 401 || !conn.username) return first
+  const authorization = authorizationFor({
+    challenge: first.headers['www-authenticate'],
+    method: config.method,
+    uri: requestUri(config.url),
+    username: conn.username,
+    password: conn.password,
+  })
+  return authorization ? send({ Authorization: authorization }) : first
+}
+
+const apiUrl = ({ base, path, params = {} }) => {
+  const url = new URL(`${base}/api/${path}`)
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) url.searchParams.set(key, String(value))
+  }
+  return url.toString()
+}
+
+const requestUri = (url) => {
+  const { pathname, search } = new URL(url)
+  return `${pathname}${search}`
+}
 
 const CREATOR_TAG = 'freetvarr'
 const EVENT_PAGE_SIZE = 2000
