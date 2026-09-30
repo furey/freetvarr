@@ -99,7 +99,7 @@ Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and das
 - ❌ **An indexer integration** (Sonarr / Radarr / Prowlarr): Freetvarr works with the recordings TVHeadend has made, and its TV Guide schedules what TVHeadend records next. It doesn't search the internet for content.
 - ❌ **A tuner:** TVHeadend drives the hardware, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never touches the tuner.
 - ❌ **Authenticated:** designed for a home network you trust. CSRF protection, rate limiting, and a strict content-security policy are in place, but there's no login, so anyone who can reach it can change its settings. Don't expose it to the internet (see [Security](#security)).
-- ❌ **A converter:** files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad-cutting copies the video across untouched, so there's no quality loss and no change of format. Add Tdarr or similar afterwards if you need `.mkv`.
+- ❌ **A converter:** files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them (only the live TV player re-encodes, and only what it streams to the browser). The optional ad-cutting copies the video across untouched, so there's no quality loss and no change of format. Add Tdarr or similar afterwards if you need `.mkv`.
 - ❌ **A notifier:** no Discord / ntfy / push integration.
 
 > [!IMPORTANT]<br>
@@ -108,6 +108,7 @@ Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and das
 ## Features
 
 - **TV Guide**: a 7-day programme guide in the browser; schedule, cancel, and series-record in TVHeadend (with padding and episodes-to-keep options), search the week, pin and reorder favourite channels, and see what's on now from the dashboard.
+- **Live TV in the browser**: watch any channel from the TV Guide or the dashboard, on a phone or a desktop. Freetvarr checks for a free tuner first, warns when a recording will need it within the hour, and re-encodes only what a browser can't play (MPEG-2 video, AC-3 audio). See [Live TV](https://furey.github.io/freetvarr/guide/live-tv#in-freetvarr).
 - **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late.
 - **First-run wizard**: walks TVHeadend → storage → Plex. Re-openable from Settings; previously-saved values prefill.
 - **Per-show follow**: pick a show TVHeadend records, match it by name to an existing folder under your media root (even when the names aren't identical), and set a season template.
