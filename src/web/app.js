@@ -2545,7 +2545,10 @@ const WelcomeView = {
       try {
         if (step.value === 2) {
           const connected = await testTvh()
-          if (!connected) return
+          if (!connected) {
+            setSaveStatus('Connection failed. Correct the TVHeadend details to continue.', 'err', 0)
+            return
+          }
         } else if (step.value === 3) {
           await api('POST', '/api/settings', {
             media_root: mediaRoot.value,
@@ -2664,6 +2667,9 @@ const WelcomeView = {
     }
     watch(step, (curr) => {
       if (curr === 2 && !tvhUrl.value.trim()) detectTvh({ quiet: true })
+    })
+    watch([tvhUrl, tvhUsername, tvhPassword], () => {
+      if (step.value === 2) clearSaveStatus()
     })
 
     const testTvh = async () => {
