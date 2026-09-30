@@ -24,8 +24,10 @@ import {
   deleteRecordings as deleteTvhRecordings,
   listFinished,
   resolveConnection,
+  getRecordingStorage,
   TvheadendError,
 } from './tvheadend.js'
+import { checkRecordingsFolder, compareRecordingPaths } from './path-check.js'
 import {
   getGuideDay,
   searchGuide,
@@ -625,6 +627,24 @@ app.post('/api/media-root-test', doubleCsrfProtection, async (req, res) => {
       return res.json({ ok: false, error: `${probePath} is not writable by the container user` })
     }
     res.json({ ok: false, error: `${err.code || 'error'}: ${err.message}` })
+  }
+})
+
+app.post('/api/recordings-root-test', doubleCsrfProtection, async (req, res) => {
+  const result = await checkRecordingsFolder({
+    recordingsPath: (req.body?.path || '').trim() || (await getRecordingsRoot()),
+    mediaRoot: (req.body?.media_root || '').trim() || (await getMediaRoot()),
+  })
+  res.json(result)
+})
+
+app.post('/api/tvh-recordings-path-check', syncLimiter, doubleCsrfProtection, async (req, res) => {
+  try {
+    const tvhStorage = await getRecordingStorage()
+    res.json({ ok: true, ...compareRecordingPaths({ configured: req.body?.path, tvhStorage }) })
+  } catch (err) {
+    const status = err instanceof TvheadendError ? 502 : 500
+    res.status(status).json({ ok: false, error: err.message })
   }
 })
 
