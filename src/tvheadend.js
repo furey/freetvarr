@@ -281,6 +281,14 @@ export const getChannelIcon = async ({ iconPath } = {}) => {
   return { body: Buffer.from(res.data), contentType: res.headers['content-type'] || 'image/png' }
 }
 
+export const getRecordingStorage = async () => {
+  const conn = await resolveConnection()
+  const body = await apiGet('dvr/config/grid', {}, conn)
+  const entries = body?.entries || []
+  const chosen = entries.find((c) => c.name === '') || entries[0]
+  return chosen?.storage || ''
+}
+
 export const seriesKey = ({ channelId, title }) =>
   `${channelId}|${(title || '').trim().toLowerCase()}`
 

@@ -1,6 +1,7 @@
 import {
   createApp,
   ref,
+  reactive,
   computed,
   onMounted,
   onUnmounted,
@@ -190,6 +191,50 @@ const makeStatus = () => {
   }
   const clear = () => (text.value = '')
   return [text, kind, set, clear]
+}
+
+const usePathCheck = (request) => {
+  const checking = ref(false)
+  const [text, kind, set] = makeStatus()
+  const run = async () => {
+    checking.value = true
+    set('Checking…', 'info', 0)
+    try {
+      const result = await request()
+      set(result.text, result.kind, 0)
+    } catch (err) {
+      set(`Check failed: ${err.message}`, 'err', 0)
+    } finally {
+      checking.value = false
+    }
+  }
+  return reactive({ checking, text, kind, run })
+}
+
+const recordingsFolderStatus = async ({ path, mediaRoot }) => {
+  const r = await api('POST', '/api/recordings-root-test', { path, media_root: mediaRoot })
+  if (!r.ok) return { text: r.error, kind: 'err' }
+  if (r.sameFilesystem === false) {
+    return {
+      text: `${r.path} is readable, but it sits on a different filesystem from the media root, so imports copy each file instead of hardlinking it.`,
+      kind: 'info',
+    }
+  }
+  const hardlinks = r.sameFilesystem ? ' and shares a filesystem with the media root, so imports hardlink' : ''
+  return { text: `OK — ${r.path} is readable${hardlinks}.`, kind: 'ok' }
+}
+
+const tvhRecordingsPathStatus = async ({ path, fill }) => {
+  const r = await api('POST', '/api/tvh-recordings-path-check', { path })
+  if (!r.tvhPath) {
+    return { text: 'TVHeadend has no recording path. Set one in its DVR profile.', kind: 'err' }
+  }
+  if (!r.configured) {
+    fill(r.tvhPath)
+    return { text: `Filled in from TVHeadend: ${r.tvhPath}. Save to keep it.`, kind: 'ok' }
+  }
+  if (r.matches) return { text: `OK — TVHeadend records to ${r.tvhPath}.`, kind: 'ok' }
+  return { text: `TVHeadend records to ${r.tvhPath}, not ${r.configured}.`, kind: 'err' }
 }
 
 const useFlash = () => {
@@ -1749,10 +1794,22 @@ const SettingsView = {
               <div class="field-row">
                 <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
                 <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
+                <div class="flex flex-wrap items-center gap-3 mt-2">
+                  <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
+                    {{ recordingsCheck.checking ? 'CHECKING…' : '↯ TEST PATH' }}
+                  </button>
+                  <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
+                </div>
               </div>
               <div class="field-row">
                 <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
                 <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                <div class="flex flex-wrap items-center gap-3 mt-2">
+                  <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
+                    {{ tvhPathCheck.checking ? 'CHECKING…' : '↯ CHECK TVHEADEND' }}
+                  </button>
+                  <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
+                </div>
               </div>
             </div>
             <p class="text-xs text-ink-mute leading-relaxed">
@@ -1902,6 +1959,14 @@ const SettingsView = {
     const tvhStatusKind = ref('ok')
     const recordingsRoot = ref('')
     const tvhRecordingsPath = ref('')
+    const recordingsCheck = usePathCheck(() => recordingsFolderStatus({
+      path: recordingsRoot.value,
+      mediaRoot: mediaRoot.value,
+    }))
+    const tvhPathCheck = usePathCheck(() => tvhRecordingsPathStatus({
+      path: tvhRecordingsPath.value,
+      fill: (value) => (tvhRecordingsPath.value = value),
+    }))
     const syncCron = ref('')
     const syncCronEffective = ref('')
     const plexUrl = ref('')
@@ -2194,7 +2259,7 @@ const SettingsView = {
 
     return {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
-      recordingsRoot, tvhRecordingsPath,
+      recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       syncCron, syncCronEffective,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections,
       plexProbing, plexRefreshing, plexDetecting,
@@ -2300,10 +2365,22 @@ const WelcomeView = {
               <div class="field-row">
                 <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
                 <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
+                <div class="flex flex-wrap items-center gap-3 mt-2">
+                  <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
+                    {{ recordingsCheck.checking ? 'CHECKING…' : '↯ TEST PATH' }}
+                  </button>
+                  <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
+                </div>
               </div>
               <div class="field-row">
                 <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
                 <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                <div class="flex flex-wrap items-center gap-3 mt-2">
+                  <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
+                    {{ tvhPathCheck.checking ? 'CHECKING…' : '↯ CHECK TVHEADEND' }}
+                  </button>
+                  <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
+                </div>
               </div>
             </div>
             <p class="text-xs text-ink-mute leading-relaxed">
@@ -2426,6 +2503,14 @@ const WelcomeView = {
     const tvhTesting = ref(false)
     const recordingsRoot = ref('')
     const tvhRecordingsPath = ref('')
+    const recordingsCheck = usePathCheck(() => recordingsFolderStatus({
+      path: recordingsRoot.value,
+      mediaRoot: mediaRoot.value,
+    }))
+    const tvhPathCheck = usePathCheck(() => tvhRecordingsPathStatus({
+      path: tvhRecordingsPath.value,
+      fill: (value) => (tvhRecordingsPath.value = value),
+    }))
 
     const plexUrl = ref('')
     const plexToken = ref('')
@@ -2698,7 +2783,7 @@ const WelcomeView = {
     return {
       step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
-      recordingsRoot, tvhRecordingsPath,
+      recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
       plexDiscovering, plexCandidates, plexDetectingToken, plexPrefsPath,
       plexTokenStatus, plexTokenStatusKind,
