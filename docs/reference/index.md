@@ -1,13 +1,13 @@
 ---
 title: Reference
 description: >-
-  The technical companion to the guide; how freetvarr works under the hood, and
+  The technical companion to the guide; how Freetvarr works under the hood, and
   why it works that way.
 ---
 
 # Reference
 
-The guide covers how to run freetvarr and use each tab. This section is the companion for how it works underneath, and why.
+The guide covers how to run Freetvarr and use each tab. This section is the companion for how it works underneath, and why.
 
 Most of it lives in one place:
 

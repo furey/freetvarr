@@ -94,6 +94,7 @@ Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTT
 | `idnode/save`, `idnode/delete`           | Applying padding to a new entry; removing an autorec rule                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `dvr/config/grid`                        | Finding the default DVR profile, cached after the first call                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `status/inputs`, `hardware/tree`         | Tuner count and signal readings for the dashboard                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `epggrab/channel/grid`                   | Channel logo fallback: the guide feed's channel icons, used when TVHeadend reports no `icon_public_url` for a channel. Admin only in TVHeadend; a failure leaves the logos to TVHeadend's own icons                                                                                                                                                                                                                                                          |
 
 Two translations happen at this boundary:
 
@@ -332,6 +333,8 @@ npm start                  # http://localhost:3733; first visit shows the setup 
 ```
 
 `npm start` / `npm run dev` load `./.env` via Node's `--env-file-if-exists`, so the `CSRF_SECRET` you set there applies to the from-source run. The Docker path doesn't use `.env.example` at all; it takes its environment from the compose file.
+
+`better-sqlite3` is pinned to a release with prebuilt binaries for Node 24, so `npm run setup` downloads one rather than compiling. On a Node version with no prebuilt binary it compiles from source, which needs Python 3, `make`, and a C++ compiler.
 
 Running from source still needs a reachable TVHeadend. Point the `tvh_url` setting at an existing instance on the LAN; nothing else about the host matters, because Freetvarr talks to it over HTTP like any other client.
 

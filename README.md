@@ -162,7 +162,7 @@ FREETVARR_PORT=3733
 
 `CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts.
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, Freetvarr picks it up from the same folder. Give both the same `PUID`/`PGID`.
+The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, Freetvarr picks it up from the same folder. Give both the same `PUID`/`PGID` (run `id` on the host to read them), and create the host folders owned by that pair before the first start; Docker creates a missing folder as `root`. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_2-configure) has the commands.
 
 ### 3. Start it
 
@@ -176,7 +176,7 @@ docker compose logs -f
 
 ### 4. Set up TVHeadend
 
-Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): first-run wizard, add the HDHomeRun or your own tuner's adapter, scan the predefined muxes for your transmitter, map services to channels, load a free XMLTV guide for your region, set the recording path to `/recordings`, and make a user for Freetvarr.
+Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): first-run wizard, add your tuner, scan the predefined muxes for your transmitter, map services to channels, load and link an XMLTV guide for your region, set the recording path to `/recordings`, and make a user for Freetvarr (an access entry for the rights, plus a password entry).
 
 Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and a guide.
 
@@ -229,10 +229,12 @@ Architecture diagrams, the TVHeadend API surface, the import state machine, the 
 
 ## Troubleshooting
 
+The common snags are below. The [troubleshooting guide](https://furey.github.io/freetvarr/guide/troubleshooting) has the full list, keyed by symptom, including the wizard's path checks, missing channels, missing logos, and Plex refreshes.
+
 **TEST CONNECTION fails**
 
 - Under host networking, neither container is on a Docker bridge network, so container names don't resolve. Use `http://<host-ip>:9981`, not `http://tvheadend:9981`.
-- An HTTP `401` or `403` means TVHeadend rejected the credentials. Check the access entry has Admin, Streaming, and Video recorder rights, and check its position in the list; access entries are evaluated top to bottom.
+- `TVHeadend rejected the credentials (HTTP 401)` with no username means TVHeadend wants a login. `HTTP 403` means a wrong password (TVHeadend keeps it under Configuration → Users → Passwords, not on the access entry), an allowed-networks prefix that leaves out the host, or a missing right. Check the access entry has Admin, Streaming, and Video recorder rights, and check its position in the list; access entries are evaluated top to bottom.
 
 **TVHeadend finds no tuner**
 

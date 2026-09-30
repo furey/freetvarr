@@ -11,7 +11,7 @@ TVHeadend records shows; Freetvarr imports the ones you follow. The Shows tab is
 
 ## Add a show
 
-The first time you open the Shows tab with TVHeadend set up, it pulls the titles TVHeadend has finished recording into a dropdown. Pick a title and Freetvarr matches it against the folders already under your media root (even when the names aren't identical) and suggests where to file it. If nothing matches, it suggests a new folder named after the show. Either way, you can change the folder before saving.
+The first time you open the Shows tab with TVHeadend set up, it pulls the titles TVHeadend has finished recording into a dropdown. On a new install that list is empty, because nothing has recorded yet; type the show's title into the same box instead. Pick or type a title and Freetvarr matches it against the folders already under your media root (even when the names aren't identical) and suggests where to file it. If nothing matches, it suggests a new folder named after the show. Either way, you can change the folder before saving.
 
 ![The Shows tab](../img/screenshot-shows.png)
 

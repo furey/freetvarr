@@ -1,9 +1,9 @@
 {
-  "name": "fetcharr-docs",
+  "name": "freetvarr-docs",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "VitePress documentation site for fetcharr.",
+  "description": "VitePress documentation site for Freetvarr.",
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
