@@ -14,10 +14,10 @@ set -euo pipefail
 # first-boot instance is fine.
 #
 #   ./scripts/capture-walkthrough.sh
-#   FREETVARR_URL=http://localhost:8124 ./scripts/capture-walkthrough.sh
+#   FREETVARR_URL=http://localhost:3733 ./scripts/capture-walkthrough.sh
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-FREETVARR_URL="${FREETVARR_URL:-http://localhost:8124}"
+FREETVARR_URL="${FREETVARR_URL:-http://localhost:3733}"
 FREETVARR_URL="${FREETVARR_URL%/}"
 PLAYWRIGHT_VERSION="${PLAYWRIGHT_VERSION:-1.49.0}"
 PLAYWRIGHT_IMAGE="${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy}"

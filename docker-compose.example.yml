@@ -8,7 +8,7 @@
 #   TZ=Australia/Sydney                       # example; use your own IANA zone
 #   PUID=1000
 #   PGID=1000
-#   FREETVARR_PORT=8124
+#   FREETVARR_PORT=3733
 #
 # CONFIG_PATH, DATA_PATH and CSRF_SECRET are required: compose fails fast with a
 # message if any is unset, rather than silently mounting the wrong host paths.
@@ -52,7 +52,7 @@ services:
     user: "${PUID:-1000}:${PGID:-1000}"
     environment:
       - NODE_ENV=production
-      - PORT=${FREETVARR_PORT:-8124}
+      - PORT=${FREETVARR_PORT:-3733}
       - TZ=${TZ:-UTC}
       - DB_PATH=/config/state.db
       - MEDIA_ROOT=/media/tv

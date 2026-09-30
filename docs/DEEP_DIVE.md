@@ -79,21 +79,21 @@ The load-bearing difference from [Fetcharr](https://github.com/furey/fetcharr), 
 
 Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTTP basic auth, a `15 s` timeout, and `application/x-www-form-urlencoded` bodies on writes. `src/tvheadend.js` is the only module that speaks it.
 
-| Endpoint | Used for |
-| --- | --- |
-| `serverinfo` | TEST CONNECTION; reports the version and API version. Also the unauthenticated probe behind AUTO-DISCOVER TVHEADEND, which tries port `9981` on the address the browser used to reach Freetvarr, then each host LAN address, `tvheadend`, `host.docker.internal`, and `127.0.0.1`, in parallel with a `1.5 s` timeout. A `200` with `sw_version` or a `401` with the `tvheadend` realm counts as a hit; loopback hits are dropped when a LAN address answers |
-| `channel/grid` | The channel lineup, sorted by number, disabled channels dropped |
-| `epg/events/grid` | The guide, paged `2000` events at a time until the window is covered |
-| `epg/events/load` | One programme's detail |
-| `dvr/entry/grid_upcoming` | Scheduled and in-progress recordings |
-| `dvr/entry/grid_finished` | The import queue: everything TVHeadend has finished |
-| `dvr/entry/create_by_event` | RECORD |
-| `dvr/entry/cancel`, `dvr/entry/stop` | CANCEL RECORDING, depending on whether it's already running |
-| `dvr/entry/remove` | Delete: drops the entry and the file |
-| `dvr/autorec/grid`, `dvr/autorec/create` | Series recordings |
-| `idnode/save`, `idnode/delete` | Applying padding to a new entry; removing an autorec rule |
-| `dvr/config/grid` | Finding the default DVR profile, cached after the first call |
-| `status/inputs`, `hardware/tree` | Tuner count and signal readings for the dashboard |
+| Endpoint                                 | Used for                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `serverinfo`                             | TEST CONNECTION; reports the version and API version. Also the unauthenticated probe behind AUTO-DISCOVER TVHEADEND, which tries port `9981` on the address the browser used to reach Freetvarr, then each host LAN address, `tvheadend`, `host.docker.internal`, and `127.0.0.1`, in parallel with a `1.5 s` timeout. A `200` with `sw_version` or a `401` with the `tvheadend` realm counts as a hit; loopback hits are dropped when a LAN address answers |
+| `channel/grid`                           | The channel lineup, sorted by number, disabled channels dropped                                                                                                                                                                                                                                                                                                                                                                                              |
+| `epg/events/grid`                        | The guide, paged `2000` events at a time until the window is covered                                                                                                                                                                                                                                                                                                                                                                                         |
+| `epg/events/load`                        | One programme's detail                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `dvr/entry/grid_upcoming`                | Scheduled and in-progress recordings                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `dvr/entry/grid_finished`                | The import queue: everything TVHeadend has finished                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `dvr/entry/create_by_event`              | RECORD                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `dvr/entry/cancel`, `dvr/entry/stop`     | CANCEL RECORDING, depending on whether it's already running                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `dvr/entry/remove`                       | Delete: drops the entry and the file                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `dvr/autorec/grid`, `dvr/autorec/create` | Series recordings                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `idnode/save`, `idnode/delete`           | Applying padding to a new entry; removing an autorec rule                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `dvr/config/grid`                        | Finding the default DVR profile, cached after the first call                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `status/inputs`, `hardware/tree`         | Tuner count and signal readings for the dashboard                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 Two translations happen at this boundary:
 
@@ -252,27 +252,27 @@ The TVHeadend URL and credentials, the Plex token, and the storage paths are run
 > [!NOTE]<br>
 > `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for matching DB-backed settings that can be overridden from the UI at runtime. The fallback chain is *settings DB value → env var → hardcoded default*. The Storage panel in Settings (and the STORAGE step of the wizard) shows the effective values and provides a TEST PATH button.
 
-| Variable              | Notes                                                                                                                                                                                                 |
+| Variable              | Notes                                                                                                                                                                                                  |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MEDIA_ROOT`          | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`.                                                                                     |
-| `RECORDINGS_ROOT`     | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`.                                                             |
+| `MEDIA_ROOT`          | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`.                                                                                    |
+| `RECORDINGS_ROOT`     | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`.                                                            |
 | `TVH_RECORDINGS_PATH` | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`. Only differs from `RECORDINGS_ROOT` if the mounts disagree. |
-| `DB_PATH`             | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                   |
-| `PORT`                | HTTP port inside the container. Defaults to `8124`.                                                                                                                                                    |
-| `NODE_ENV`            | `production` makes the server refuse to start if `CSRF_SECRET` is unset or the dev placeholder. Compose sets this.                                                                                      |
-| `TZ`                  | Container timezone (IANA name). The Dockerfile installs `tzdata` so any IANA zone resolves. `/api/settings` exposes the value as `tz`; the web UI renders all timestamps in that zone.                  |
-| `PUID`/`PGID`         | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because Freetvarr hardlinks and deletes files TVHeadend created.                                            |
+| `DB_PATH`             | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                  |
+| `PORT`                | HTTP port inside the container. Defaults to `3733`.                                                                                                                                                    |
+| `NODE_ENV`            | `production` makes the server refuse to start if `CSRF_SECRET` is unset or the dev placeholder. Compose sets this.                                                                                     |
+| `TZ`                  | Container timezone (IANA name). The Dockerfile installs `tzdata` so any IANA zone resolves. `/api/settings` exposes the value as `tz`; the web UI renders all timestamps in that zone.                 |
+| `PUID`/`PGID`         | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because Freetvarr hardlinks and deletes files TVHeadend created.                                           |
 | `CSRF_SECRET`         | 32+ random bytes used to sign the CSRF cookie. `openssl rand -hex 32`. Required in production.                                                                                                         |
-| `TVH_URL`             | Optional. When set, AUTO-DISCOVER TVHEADEND offers this address instead of probing. The stored `tvh_url` setting still wins once saved. |
+| `TVH_URL`             | Optional. When set, AUTO-DISCOVER TVHEADEND offers this address instead of probing. The stored `tvh_url` setting still wins once saved.                                                                |
 
 Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
-| Variable          | Notes                                                                                                                                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `FREETVARR_PORT`  | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `8124`.                                                                                       |
-| `CONFIG_PATH`     | Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                                                                             |
-| `DATA_PATH`       | Host root for the data bind mounts. `/media/tv` is `${DATA_PATH}/media/tv`; `/recordings` is `${DATA_PATH}/recordings` in both containers.                                                                         |
-| `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the "Auto-detect from local Plex" button can read `PlexOnlineToken`. Drop the mount if Plex isn't on this host; the button degrades.   |
+| Variable          | Notes                                                                                                                                                                                                           |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FREETVARR_PORT`  | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `3733`.                                                                                    |
+| `CONFIG_PATH`     | Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                                                                           |
+| `DATA_PATH`       | Host root for the data bind mounts. `/media/tv` is `${DATA_PATH}/media/tv`; `/recordings` is `${DATA_PATH}/recordings` in both containers.                                                                      |
+| `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the "Auto-detect from local Plex" button can read `PlexOnlineToken`. Drop the mount if Plex isn't on this host; the button degrades. |
 
 ## Docker deployment
 
@@ -287,14 +287,14 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
 Volumes:
 
-| Service | Container path | Host path | Purpose |
-| --- | --- | --- | --- |
-| `tvheadend` | `/config` | `${CONFIG_PATH}/tvheadend` | TVHeadend's own configuration, channels, and DVR entries |
-| `tvheadend` | `/recordings` | `${DATA_PATH}/recordings` | Where TVHeadend writes `.ts` files |
-| `freetvarr` | `/config` | `${CONFIG_PATH}/freetvarr` | SQLite state DB and an optional `comskip.ini` override |
-| `freetvarr` | `/recordings` | `${DATA_PATH}/recordings` | The same folder, read side. This shared mount is what makes the import a hardlink |
-| `freetvarr` | `/media/tv` | `${DATA_PATH}/media/tv` | Plex TV library, where imports land |
-| `freetvarr` | `/plex-preferences.xml` (ro) | `${PLEX_PREFS_PATH}` | Optional. Read-only, only for the Auto-detect token button |
+| Service     | Container path               | Host path                  | Purpose                                                                           |
+| ----------- | ---------------------------- | -------------------------- | --------------------------------------------------------------------------------- |
+| `tvheadend` | `/config`                    | `${CONFIG_PATH}/tvheadend` | TVHeadend's own configuration, channels, and DVR entries                          |
+| `tvheadend` | `/recordings`                | `${DATA_PATH}/recordings`  | Where TVHeadend writes `.ts` files                                                |
+| `freetvarr` | `/config`                    | `${CONFIG_PATH}/freetvarr` | SQLite state DB and an optional `comskip.ini` override                            |
+| `freetvarr` | `/recordings`                | `${DATA_PATH}/recordings`  | The same folder, read side. This shared mount is what makes the import a hardlink |
+| `freetvarr` | `/media/tv`                  | `${DATA_PATH}/media/tv`    | Plex TV library, where imports land                                               |
+| `freetvarr` | `/plex-preferences.xml` (ro) | `${PLEX_PREFS_PATH}`       | Optional. Read-only, only for the Auto-detect token button                        |
 
 > [!IMPORTANT]<br>
 > `/recordings` and `/media/tv` should be on one host filesystem. They are two directories under `${DATA_PATH}` for exactly that reason; split them across volumes and every import becomes a full copy.
@@ -325,7 +325,7 @@ git clone https://github.com/furey/freetvarr
 cd freetvarr
 cp .env.example .env       # fill in CSRF_SECRET (openssl rand -hex 32)
 npm run setup              # ci --ignore-scripts + rebuild natives + audit signatures
-npm start                  # http://localhost:8124; first visit shows the setup wizard
+npm start                  # http://localhost:3733; first visit shows the setup wizard
                            # (prestart auto-creates ./config/ and runs migrations)
 ```
 
@@ -405,7 +405,7 @@ Node 24's built-in test runner, with no additional test dependencies. What's cov
 
 The TVHeadend client and the comskip/ffmpeg orchestration are exercised against the real thing rather than mocked. Manual smoke test:
 
-- `npm run dev`, hit `http://localhost:8124`.
+- `npm run dev`, hit `http://localhost:3733`.
 - **First visit** (with empty settings): auto-redirects to the setup wizard. Walks TVHeadend (URL, user, TEST CONNECTION) → storage (three paths, each with TEST PATH) → Plex → ready.
 - **Re-open the wizard later**: SETUP WIZARD panel at the top of Settings. All previously-saved values prefill; stored passwords and tokens render as `••••• (stored)`.
 - **Settings**: save; the cron field reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.

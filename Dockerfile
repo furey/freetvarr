@@ -34,11 +34,11 @@ ENV NODE_ENV=production
 # if the host directory is empty on first run.
 RUN mkdir -p /config
 
-EXPOSE 8124
+EXPOSE 3733
 
 # Healthcheck hits the in-process /healthz endpoint.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q --spider http://127.0.0.1:8124/healthz || exit 1
+  CMD wget -q --spider http://127.0.0.1:3733/healthz || exit 1
 
 # tini handles signals and reaps the migrate child; entrypoint runs migrations
 # before exec'ing the server.
