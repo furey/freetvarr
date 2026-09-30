@@ -355,7 +355,7 @@ const FAVICON_CHIPS = [
   { x: 21, color: '#e2b03c' },
 ]
 
-const FAVICON_REC_DISC = { x: 16, y: 16, radius: 8, color: '#ff8a00' }
+const FAVICON_REC_DISC = { x: 16, y: 16, radius: 6.5, color: '#ff8a00' }
 
 let faviconCanvas = null
 let faviconCtx = null
