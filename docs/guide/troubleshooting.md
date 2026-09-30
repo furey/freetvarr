@@ -14,6 +14,10 @@ description: 'Fixes for the common snags: the TVHeadend connection, missing file
 - **HTTP `401` or `403`**: TVHeadend rejected the credentials. Check the username and password, and check the access entry has Admin, Streaming, and Video recorder rights ([TVHeadend](/guide/tvheadend#_8-make-a-user-for-freetvarr)). Access entries are an ordered list, so a broader entry above yours can win.
 - **A connection refused or timeout**: TVHeadend isn't running, or isn't on that port. `docker compose logs tvheadend` first.
 
+## TVHeadend login fails after its wizard
+
+The TVHeadend web UI answers `403 Forbidden` to the admin login: the password TVHeadend stored is not the one you are typing. [TVHeadend step 2](/guide/tvheadend#_2-first-run-wizard) says how to reset it with `--noacl`.
+
 ## TVHeadend finds no tuner
 
 - The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server; those broadcasts don't cross Docker's private bridge network. A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.

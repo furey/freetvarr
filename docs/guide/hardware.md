@@ -11,11 +11,11 @@ Any TVHeadend-compatible tuner works. Freetvarr talks only to TVHeadend's HTTP A
 
 One thing still decides the model: the broadcast standard where you live. DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
 
-| Region | Standard | HDHomeRun model |
-| --- | --- | --- |
-| Australia, New Zealand, UK, Europe | DVB-T/T2 | `HDFX-4DT` Flex Quatro |
-| Europe, cable | DVB-C | `HDHR5-4DT` Connect Quatro (T/T2/C) |
-| United States, Canada | ATSC 1.0 / 3.0 | `HDFX-4US` Flex Quatro, `HDHR5-4US` Connect Quatro, or the Flex 4K |
+| Region                             | Standard       | HDHomeRun model                                                    |
+| ---------------------------------- | -------------- | ------------------------------------------------------------------ |
+| Australia, New Zealand, UK, Europe | DVB-T/T2       | `HDFX-4DT` Flex Quatro                                             |
+| Europe, cable                      | DVB-C          | `HDHR5-4DT` Connect Quatro (T/T2/C)                                |
+| United States, Canada              | ATSC 1.0 / 3.0 | `HDFX-4US` Flex Quatro, `HDHR5-4US` Connect Quatro, or the Flex 4K |
 
 The wiring, the connector, and the signal checks below are the same for every model. Only the model number and the guide source change; see [Outside Australia](/guide/tvheadend#outside-australia) on the TVHeadend page for the guide.
 
@@ -34,11 +34,11 @@ No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust 
 
 ### Models that work in Australia
 
-| Model | Standard | Tuners | Note |
-| --- | --- | --- | --- |
-| `HDFX-4DT` Flex Quatro | DVB-T/T2 | 4 | The current model. `2 year` warranty |
-| `HDFX-4DT-R` Flex Quatro refurbished | DVB-T/T2 | 4 | Cheaper, `90 day` warranty, stock comes and goes |
-| `HDHR5-4DT` Connect Quatro | DVB-T/T2/C | 4 | The older model. Works, but usually dearer through AU resellers than a new Flex direct |
+| Model                                | Standard   | Tuners | Note                                                                                   |
+| ------------------------------------ | ---------- | ------ | -------------------------------------------------------------------------------------- |
+| `HDFX-4DT` Flex Quatro               | DVB-T/T2   | 4      | The current model. `2 year` warranty                                                   |
+| `HDFX-4DT-R` Flex Quatro refurbished | DVB-T/T2   | 4      | Cheaper, `90 day` warranty, stock comes and goes                                       |
+| `HDHR5-4DT` Connect Quatro           | DVB-T/T2/C | 4      | The older model. Works, but usually dearer through AU resellers than a new Flex direct |
 
 ### Models that do not work in Australia
 
@@ -94,10 +94,10 @@ flowchart LR
 
 ### The connector
 
-The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. Australian buyers on the Whirlpool HDHomeRun thread report that the AU order ships with an F-to-PAL converter in the box, so check the box first. If it is missing, one adapter fixes it: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
+The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. The author's AU/NZ order from SiliconDust came with an F-to-PAL adapter in the box, and buyers on the Whirlpool HDHomeRun thread report the same, so check the box first. If it is missing, one adapter fixes it: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
 
 > [!NOTE]<br>
-> SiliconDust's product page does not itemise what is in the box beyond the power adapter; the converter report comes from owners, not the vendor.
+> SiliconDust's product page lists only the power adapter as in the box. The F-to-PAL adapter is not a listed item, so a future order could arrive without it.
 
 ## Checking the signal
 

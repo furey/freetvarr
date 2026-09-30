@@ -182,7 +182,7 @@ Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and
 
 ### 5. Run the Freetvarr wizard
 
-Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard that walks you through TVHeadend (the URL is auto-discovered by probing port `9981` on the host, plus the user you just made, with a TEST CONNECTION button), storage (with a TEST PATH button for each path), and Plex. You can change all of it later in Settings, and reopen the wizard from there whenever you like.
+Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard that walks you through TVHeadend (the URL is auto-discovered by probing port `9981` on the host, plus the user you just made, with a TEST CONNECTION button; SAVE & NEXT will not continue until the connection works), storage (with path checks against the container and TVHeadend), and Plex. You can change all of it later in Settings, and reopen the wizard from there whenever you like.
 
 Mark shows to follow on the Shows tab and Freetvarr syncs them on the schedule you set.
 

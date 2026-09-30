@@ -63,8 +63,8 @@ docker compose logs -f
 
 Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard:
 
-1. **TVHeadend**: its URL (`http://<host-ip>:9981`) and the username and password you made in [step 8 of the TVHeadend setup](/guide/tvheadend#_8-make-a-user-for-freetvarr). The wizard probes port `9981` on every address of the host when the URL field is empty and fills in the one that answers; `AUTO-DISCOVER TVHEADEND` repeats that probe. `TEST CONNECTION` reports the version, the channel count, and the tuner count.
-2. **Storage**: where Freetvarr reads recordings from and writes episodes to, each with a `TEST PATH` button.
+1. **TVHeadend**: its URL (`http://<host-ip>:9981`) and the username and password you made in [step 8 of the TVHeadend setup](/guide/tvheadend#_8-make-a-user-for-freetvarr). The wizard probes port `9981` on every address of the host when the URL field is empty and fills in the one that answers; `AUTO-DISCOVER TVHEADEND` repeats that probe. `TEST CONNECTION` reports the version, the channel count, and the tuner count. `SAVE & NEXT` runs the same test and stays on the step until it passes; `SKIP TO SETTINGS` is the way out if TVHeadend is not ready yet.
+2. **Storage**: where Freetvarr reads recordings from and writes episodes to. `TEST PATH` checks each folder inside the container and says whether imports can hardlink; `CHECK TVHEADEND` fills in or checks the recording path TVHeadend uses.
 3. **Plex**: server URL, token, and which library section holds your TV shows. Optional.
 
 You can change all of it later in Settings, and reopen the wizard from there whenever you like.
