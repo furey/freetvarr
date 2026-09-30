@@ -1458,14 +1458,18 @@ body.epg-drag-lock * {
   overflow-y: auto;
 }
 
-.epg-modal-actions {
+.epg-modal > .panel-body {
+  padding-bottom: 0;
+}
+
+.epg-modal .epg-modal-actions {
   position: sticky;
-  bottom: -1.25rem;
+  bottom: 0;
   z-index: 1;
-  margin: 0 -1.25rem -1.25rem;
-  padding: 0.75rem 1.25rem 1.25rem;
+  margin: 0 -1.25rem;
+  padding: 0.9rem 1.25rem;
+  border-top: 1px dashed #3d3829;
   background: #28231b;
-  box-shadow: 0 -8px 16px -10px rgba(0, 0, 0, 0.6);
 }
 
 .epg-sheet-enter-active,
@@ -1708,7 +1712,7 @@ body.epg-drag-lock * {
     font-size: 0.75rem;
   }
 
-  .epg-modal-actions {
+  .epg-modal .epg-modal-actions {
     position: sticky;
     bottom: 0;
     z-index: 1;
