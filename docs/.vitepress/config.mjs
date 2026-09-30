@@ -78,7 +78,7 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'Plex', link: '/guide/plex' },
-          { text: 'Delete from TVHeadend', link: '/guide/delete-from-tvheadend' },
+          { text: 'Remove from TVHeadend', link: '/guide/remove-from-tvheadend' },
           { text: 'Live TV', link: '/guide/live-tv' }
         ]
       },

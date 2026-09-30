@@ -51,5 +51,5 @@ There is no download step. TVHeadend already wrote the file to a folder Freetvar
 
 Two options live per show rather than globally:
 
-- **Delete after import**: remove the TVHeadend copy once Plex confirms the file. See [Delete from TVHeadend](/guide/delete-from-tvheadend).
+- **Remove after import**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 - **Ad removal mode**: `off`, `DETECT`, or `CUT`. See [Ad removal](/guide/ad-removal).

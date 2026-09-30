@@ -236,30 +236,32 @@ export const disableSeriesTag = async ({ seriesLinkId } = {}) => {
   return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId }
 }
 
-export const deleteRecordings = async ({ recordingIds } = {}) => {
+export const removeRecordings = async ({ recordingIds } = {}) => {
   const ids = (recordingIds || []).map(String).filter(Boolean)
   if (ids.length === 0) {
-    throw new TvheadendError('No recordingIds provided.', { stage: 'delete', code: 'no-ids' })
+    throw new TvheadendError('No recordingIds provided.', { stage: 'remove', code: 'no-ids' })
   }
   const conn = await resolveConnection()
-  const known = new Set((await listFinished(conn)).map((e) => e.uuid))
-  const deleted = []
+  const [finished, upcoming] = await Promise.all([listFinished(conn), listUpcoming(conn)])
+  const known = new Set(finished.map((e) => e.uuid))
+  const removed = []
   const unknown = []
   for (const id of ids) {
     if (!known.has(id)) {
       unknown.push(id)
       continue
     }
-    await apiPost('dvr/entry/remove', { uuid: id }, conn)
-    deleted.push(id)
+    const rerecords = upcoming.filter((e) => e.parentId === id)
+    await removeKeepingHistory({ uuid: id, rerecords, conn })
+    removed.push(id)
   }
-  if (deleted.length === 0) {
+  if (removed.length === 0) {
     throw new TvheadendError(
       `Recording(s) not in TVHeadend's finished list: ${unknown.join(', ')}.`,
-      { stage: 'delete', code: 'not-found' },
+      { stage: 'remove', code: 'not-found' },
     )
   }
-  return { ok: true, deleted, unknown }
+  return { ok: true, removed, unknown }
 }
 
 export const getState = async () => {
@@ -412,6 +414,13 @@ export const resolveConnection = async ({ url, username, password } = {}) => {
   return { url: resolvedUrl, username: resolvedUser, password: resolvedPass }
 }
 
+const removeKeepingHistory = async ({ uuid, rerecords, conn }) => {
+  for (const rerecord of rerecords) await apiPost('idnode/delete', { uuid: rerecord.uuid }, conn)
+  await apiPost('idnode/save', { node: JSON.stringify({ uuid, retention: RETAIN_FOREVER }) }, conn)
+  await apiPost('dvr/entry/prevrec/set', { uuid }, conn)
+  await apiPost('dvr/entry/remove', { uuid }, conn)
+}
+
 const normaliseEvent = (e) => ({
   program_id: e.eventId,
   epg_program_id: e.eventId,
@@ -447,6 +456,7 @@ const normaliseEntry = (e) => {
     schedStatus: e.sched_status || '',
     statusText: e.status || '',
     autorecId: e.autorec || null,
+    parentId: e.parent || null,
     filename: e.filename || null,
     filesize: e.filesize ?? null,
     errors: e.errors ?? 0,
@@ -732,5 +742,6 @@ const TUNER_COUNT_TTL_MS = 10 * 60 * 1000
 const SERVICE_MUX_TTL_MS = 10 * 60 * 1000
 const LIVE_STREAM_WEIGHT = 50
 const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
+const RETAIN_FOREVER = 2147483647
 const DEFAULT_LEAD_MINUTES = 2
 const DEFAULT_LAG_MINUTES = 10

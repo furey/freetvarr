@@ -36,7 +36,7 @@ Auto-detect fails with `PlexOnlineToken attribute not found` when that Plex serv
 
 After any sync that imported a file, Freetvarr refreshes the configured section so new episodes appear without waiting for Plex's own scan interval. Refresh Plex now triggers it on demand.
 
-The refresh also gates deletes: a recording is only removed from TVHeadend after Plex confirms the file ([Delete from TVHeadend](/guide/delete-from-tvheadend)).
+The refresh also gates removes: a recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)).
 
 ## Where the files land
 

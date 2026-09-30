@@ -22,7 +22,7 @@ import {
 import {
   testConnection as testTvheadendConnection,
   detectServers as detectTvheadendServers,
-  deleteRecordings as deleteTvhRecordings,
+  removeRecordings as removeTvhRecordings,
   listFinished,
   resolveConnection,
   getRecordingStorage,
@@ -230,10 +230,10 @@ app.post(
     const row = await db('recordings').where({ recording_id: recordingId }).first()
     if (!row) return res.status(404).json({ error: 'recording not found' })
     if (row.deleted_from_tvh_at) {
-      return res.status(409).json({ error: 'recording already marked deleted from TVHeadend' })
+      return res.status(409).json({ error: 'recording already marked removed from TVHeadend' })
     }
     try {
-      await deleteTvhRecordings({ recordingIds: [recordingId] })
+      await removeTvhRecordings({ recordingIds: [recordingId] })
       const now = new Date().toISOString()
       await db('recordings')
         .where({ recording_id: recordingId })
@@ -297,7 +297,7 @@ app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, re
   if (!row) return res.status(404).json({ error: 'recording not found' })
   const isUnimported = UNIMPORTED_STATUSES.includes(row.status)
   if (!row.deleted_from_tvh_at && !isUnimported) {
-    return res.status(409).json({ error: 'recording still in TVHeadend — delete it there first' })
+    return res.status(409).json({ error: 'recording still in TVHeadend — remove it there first' })
   }
   await db('recordings')
     .where({ recording_id: recordingId })
@@ -804,7 +804,7 @@ app.get('/api/settings', async (req, res) => {
     plex_tv_section_id: plexTvSectionId,
     plex_prefs_path: plexPrefsPath,
     media_root: mediaRoot,
-    // Default true: don't delete from TVHeadend unless Plex confirmed the file is in
+    // Default true: don't remove from TVHeadend unless Plex confirmed the file is in
     // its library. Safer baseline.
     delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly == null
       ? true

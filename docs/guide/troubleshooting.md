@@ -124,6 +124,19 @@ The error text says which of the two causes it was:
 
 - A hardlink import is instant. If you're watching a progress bar, Freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
 
+## Repeat recordings
+
+TVHeadend records a repeat of an episode that Freetvarr already imported, and the next sync imports it again.
+
+- **The repeat has no episode number in the guide.** Freetvarr's series recordings skip a repeat only when both airings carry the same season and episode number. Some free-to-air guides drop the number from daytime repeats. Cancel that repeat in TVHeadend's **Upcoming / Current Recordings** tab.
+- **The kept entry is gone.** With [Remove after import](/guide/remove-from-tvheadend) on, TVHeadend keeps an entry for each imported episode in its **Removed Recordings** tab. Delete that entry and TVHeadend no longer knows the episode was recorded. The same happens when you press **Remove** on a finished recording in TVHeadend's own UI while the DVR profile's **Recording info retention period** is `On file removal` (the default).
+
+## TVHeadend crash on start
+
+TVHeadend stops with a segfault (signal `11`) just after it logs `Purging obsolete autorec entries for current schedule`.
+
+- This is a TVHeadend bug: the purge reads freed memory after it drops a scheduled entry. Commit [`5acec7ee5`](https://github.com/tvheadend/tvheadend/commit/5acec7ee5c294d887b6ad9858d664e36f095df8c) (`2026-09-20`) fixes it. Update TVHeadend to a build that includes it.
+
 ## Permission errors
 
 An import fails with a permission error, or the TVHeadend file won't delete.
