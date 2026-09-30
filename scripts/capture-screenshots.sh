@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-FREETVARR_URL="${FREETVARR_URL:-http://localhost:8124}"
+FREETVARR_URL="${FREETVARR_URL:-http://localhost:3733}"
 FREETVARR_URL="${FREETVARR_URL%/}"
 PLAYWRIGHT_IMAGE="${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v1.49.0-jammy}"
 SHOT_FILTER="${SHOT_FILTER:-${1:-}}"

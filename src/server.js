@@ -48,7 +48,7 @@ import { snapshotProgress } from './progress.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const PORT = Number(process.env.PORT || 8124)
+const PORT = Number(process.env.PORT || 3733)
 const DEV_CSRF_SECRET = 'dev-only-csrf-secret-set-CSRF_SECRET-in-prod'
 const CSRF_SECRET = process.env.CSRF_SECRET || DEV_CSRF_SECRET
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']

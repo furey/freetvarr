@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 
-const BASE = process.env.FREETVARR_URL || 'http://localhost:8124'
+const BASE = process.env.FREETVARR_URL || 'http://localhost:3733'
 const OUT = process.env.SCREENSHOT_OUT || '/work/docs/img'
 const ONLY = (process.env.SHOT_FILTER || '').trim()
 const DESKTOP_VIEWPORT = { width: 1280, height: 936 }

@@ -2,7 +2,7 @@ import { chromium } from 'playwright'
 import { join } from 'node:path'
 import { rename } from 'node:fs/promises'
 
-const BASE = (process.env.FREETVARR_URL || 'http://localhost:8124').replace(/\/$/, '')
+const BASE = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
 const OUT = process.env.WALKTHROUGH_OUT || '/work'
 const VIEWPORT = { width: 1280, height: 800 }
 

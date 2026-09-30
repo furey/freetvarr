@@ -35,7 +35,7 @@ CSRF_SECRET=paste-openssl-rand-hex-32
 TZ=Australia/Sydney          # example; use your own IANA zone
 PUID=1000
 PGID=1000
-FREETVARR_PORT=8124
+FREETVARR_PORT=3733
 
 # Optional: only if Plex runs on this host and you want the Auto-detect token
 # button. Leave it out entirely if not; the mount defaults to a no-op.
@@ -61,7 +61,7 @@ docker compose logs -f
 
 ## 4. Run the wizard
 
-Browse to `http://<host-ip>:8124`. The first visit opens a setup wizard:
+Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard:
 
 1. **TVHeadend**: its URL (`http://<host-ip>:9981`) and the username and password you made in [step 8 of the TVHeadend setup](/guide/tvheadend#_8-make-a-user-for-freetvarr). The wizard probes port `9981` on every address of the host when the URL field is empty and fills in the one that answers; `AUTO-DISCOVER TVHEADEND` repeats that probe. `TEST CONNECTION` reports the version, the channel count, and the tuner count.
 2. **Storage**: where Freetvarr reads recordings from and writes episodes to, each with a `TEST PATH` button.
