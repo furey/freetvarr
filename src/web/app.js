@@ -2544,16 +2544,8 @@ const WelcomeView = {
       saving.value = true
       try {
         if (step.value === 2) {
-          const body = {
-            tvh_url: tvhUrl.value.trim(),
-            tvh_username: tvhUsername.value.trim(),
-          }
-          if (tvhPassword.value) body.tvh_password = tvhPassword.value
-          await api('POST', '/api/settings', body)
-          if (tvhPassword.value) {
-            tvhPasswordSet.value = true
-            tvhPassword.value = ''
-          }
+          const connected = await testTvh()
+          if (!connected) return
         } else if (step.value === 3) {
           await api('POST', '/api/settings', {
             media_root: mediaRoot.value,
@@ -2688,8 +2680,10 @@ const WelcomeView = {
           tvhPassword.value = ''
         }
         setTvhText(tvhTestSummary(r), 'ok', 8000)
+        return true
       } catch (err) {
-        setTvhText(`Failed: ${err.message}`, 'err', 8000)
+        setTvhText(`Failed: ${err.message}`, 'err', 0)
+        return false
       } finally {
         tvhTesting.value = false
       }
