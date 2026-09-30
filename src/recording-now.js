@@ -79,7 +79,11 @@ export const describeActiveRecording = ({ recording, inputs, subscriptions, nowM
 
 export const recordingOutcome = (recording) => {
   if (!recording) return { failed: false, statusText: '' }
-  return { failed: isRecordingFailure(recording), statusText: recording.statusText }
+  return {
+    failed: isRecordingFailure(recording),
+    statusText: recording.statusText,
+    warning: isMarkedForRerecord(recording) ? rerecordDetail(recording) : null,
+  }
 }
 
 export const describeJourney = ({
@@ -97,7 +101,9 @@ export const describeJourney = ({
       steps: [step({ key: 'recorded', label: 'Recorded', state: 'failed', detail: outcome.statusText })],
     }
   }
-  const recorded = step({ key: 'recorded', label: 'Recorded', state: 'done' })
+  const recorded = outcome.warning
+    ? step({ key: 'recorded', label: 'Recorded', state: 'warn', detail: outcome.warning })
+    : step({ key: 'recorded', label: 'Recorded', state: 'done' })
   const importing = importingStep({ row, show, progress, activeSyncId })
   if (importing.state === 'skipped' || importing.state === 'failed') {
     return { settled: true, steps: [recorded, importing] }
@@ -111,7 +117,12 @@ export const describeJourney = ({
 }
 
 export const isRecordingFailure = (recording) =>
-  (recording.errorCode ?? 0) !== 0 || /error|rerecord/i.test(recording.schedStatus || '')
+  (recording.errorCode ?? 0) !== 0 || /error/i.test(recording.schedStatus || '')
+
+export const isMarkedForRerecord = (recording) => /rerecord/i.test(recording.schedStatus || '')
+
+const rerecordDetail = (recording) =>
+  `${recording.dataErrors ?? 0} data errors · TVHeadend will re-record the next airing`
 
 const loadRecordingNow = async (nowMs) => {
   const conn = await resolveConnection()
