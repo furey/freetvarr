@@ -27,7 +27,7 @@ Channels run down the page, time runs across, and an orange line marks now. The 
 
 ## Recording a programme
 
-Click a cell to open its detail: the programme image, synopsis, rating, season and episode. From there:
+Click a cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV feed; a guide fed only by the broadcast has none. From there:
 
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the timer, 2 minutes before and 10 minutes after by default. Free-to-air broadcasts run late; the generous tail is deliberate.
 - **RECORD SERIES** creates a TVHeadend autorec rule, with an episodes-to-keep option.
@@ -61,7 +61,7 @@ The dashboard carries a TV Guide panel: what's on now across your pinned channel
 
 While TVHeadend records, a `RECORDING NOW` panel sits at the top of the dashboard, with one card per recording. Each card shows the programme image, channel, title, and episode, and an orange bar from the padded start to the padded stop. The dimmer ends of the bar are the `START EARLY` and `RUN LATE` padding, labelled `pre-roll` and `post-roll` while they run. Below the bar is a live line: file size, bitrate, tuner signal and SNR, and error counts. A recording TVHeadend reports as failed turns red and shows TVHeadend's status text.
 
-When a recording stops, its card becomes a stepper: `Recorded`, `Importing`, `Cutting ads` (only for a show with ad removal on), then `In Plex`. Importing waits for the next sync. The card stays for about ten minutes after the last step, then collapses. The header shows `● REC` with the number of recordings, the browser tab title starts with `● REC`, and the tab icon carries an orange dot. The dashboard polls every 5 seconds while a recording or a stepper is on screen, and every 45 seconds otherwise.
+When a recording stops, its card becomes a stepper: `Recorded`, `Importing`, `Cutting ads` (only for a show with ad removal on), then `In Plex`. Importing waits for the next sync. The card stays for about ten minutes after the last step, then collapses. The header shows `● REC`, the browser tab title starts with `● REC`, and the tab icon turns into an orange disc. The dashboard polls every 5 seconds while a recording or a stepper is on screen, and every 45 seconds otherwise.
 
 ## Caching
 

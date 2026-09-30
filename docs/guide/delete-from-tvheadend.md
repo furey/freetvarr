@@ -31,5 +31,5 @@ Deleted recordings show as tombstones in [Recordings](/guide/recordings): struck
 ## If a delete fails
 
 - **"Recording not in TVHeadend's finished list"** means the entry has already gone, usually because you deleted it in TVHeadend's own UI. Nothing to fix; the row stays as it is.
-- **An HTTP `401` or `403`** means the Freetvarr user lacks DVR rights. Add them under **Configuration → Users → Access Entries**; see [TVHeadend](/guide/tvheadend#_8-make-a-user-for-freetvarr).
+- **An HTTP `401` or `403`** means the Freetvarr user lacks DVR rights. Tick **Video recorder** `Basic` and `Manage all` under **Configuration → Users → Access Entries**; `Manage all` covers recordings another user scheduled. See [TVHeadend](/guide/tvheadend#_8-make-a-user-for-freetvarr).
 - **A file that won't disappear** is a permissions problem, not an API one. TVHeadend deletes the file as its own user, so check `PUID`/`PGID` match across both containers.

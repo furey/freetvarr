@@ -27,7 +27,7 @@ flowchart TD
 
 ## 1. Run the container
 
-Add TVHeadend to the same compose file as Freetvarr:
+The example compose file already defines TVHeadend next to Freetvarr. Do steps 1 and 2 of [Getting started](/guide/getting-started) first (clone the repository, copy `docker-compose.example.yml`, write the `.env`), then come back here. The service looks like this:
 
 ```yaml
 services:
@@ -39,13 +39,13 @@ services:
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
-      - TZ=${TZ:-Australia/Sydney} # example default; set TZ in your .env
+      - TZ=${TZ:-UTC}
     volumes:
       - ${CONFIG_PATH}/tvheadend:/config
       - ${DATA_PATH}/recordings:/recordings
 ```
 
-The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. `/config` holds TVHeadend's own configuration; `/recordings` is where it writes.
+The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. `/config` holds TVHeadend's own configuration; `/recordings` is where it writes. Remember that path: step 7 sets it as TVHeadend's recording path, and Freetvarr mounts the same host folder at the same path.
 
 > [!IMPORTANT]<br>
 > Use `network_mode: host` for a tuner TVHeadend finds by network broadcast, such as an HDHomeRun or a SAT>IP server: those broadcasts don't cross Docker's private bridge network. A USB stick or a PCIe card needs no discovery, so you can drop host networking, map `9981` and `9982` as ports, and pass the `/dev/dvb` devices in instead. Under host networking there is no `ports:` mapping; TVHeadend binds `9981` (web UI and API) and `9982` (its own streaming protocol) straight onto the host.
@@ -83,7 +83,7 @@ Now create the network the tuners will use:
 2. Network type: pick what your country broadcasts. **DVB-T Network** in Australia, New Zealand, the UK, and Europe; **ATSC-T Network** in North America; **DVB-C Network** on cable.
 3. Give it a name (`Free-to-air`, say).
 4. **Pre-defined muxes**: pick the entry for your transmitter (details in step 4).
-5. Save, then go back to **TV adapters**, select each tuner, and set its **Networks** field to the network you just made.
+5. Save, then go back to **TV adapters**, select each tuner, tick **Enabled**, and set its **Networks** field to the network you just made.
 
 ## 4. Scan the muxes
 
@@ -152,9 +152,13 @@ Go to **Configuration → Channel/EPG → EPG Grabber Channels**. Each row is a 
 
 Check the result in the **Electronic Program Guide** tab. Every channel you care about should show seven days of programmes with names. A channel showing nothing is an unlinked row here.
 
+The feed also supplies two kinds of image. Its `<channel>` entries carry an `<icon>`, which Freetvarr uses as the channel logo when TVHeadend has no icon of its own for that channel. Its `<programme>` entries can carry an `<icon>` too, which Freetvarr shows as the programme image in the guide and on the dashboard. Over-the-air guide data carries no programme images, so a guide fed only by the broadcast shows none.
+
 ## 7. Set the recording path
 
-Go to **Configuration → Recording → Digital Video Recorder Profiles** and open the default profile. Set **Recording system path** to `/recordings`.
+Go to **Configuration → Recording → Digital Video Recorder Profiles** and open the default profile (the one with an empty name, listed as `(Default profile)`). Freetvarr records with that profile and reads its path. Set **Recording system path** to `/recordings`, the container path from step 1.
+
+The path is the one inside the TVHeadend container, not the host path. Freetvarr sees the same host folder at its own `/recordings` mount, and the Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
 
 Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into Plex's library ([Following shows](/guide/following-shows)).
 
@@ -165,17 +169,35 @@ Two settings worth knowing, both of which Freetvarr also sets per recording:
 
 ## 8. Make a user for Freetvarr
 
-Freetvarr signs in as an ordinary TVHeadend user. Give it its own.
+Freetvarr signs in as an ordinary TVHeadend user. Give it its own. TVHeadend keeps a user in two places: the access entry holds the rights, and a separate password entry holds the password. Make both, with the same username.
 
 1. **Configuration → Users → Access Entries → Add.**
-2. Username and password: whatever you like; you type these into Freetvarr once.
-3. Allowed networks: your LAN prefix.
-4. Tick **Admin**, **Streaming**, and **Video recorder** rights.
+2. Tick **Enabled**. Set **Username** to `freetvarr` (or any name you like).
+3. **Allowed networks**: your LAN prefix, the same one as the admin entry (`192.168.86.0/24` for a host at `192.168.86.254`). Freetvarr connects from the host's own LAN address, so that address has to fall inside the prefix.
+4. **Change parameters**: keep **Rights** ticked, or the entry grants nothing.
+5. Tick the rights in the table below, then **Save**.
+6. **Configuration → Users → Passwords → Add.** Tick **Enabled**, enter the same username, and set a password. You type these two into Freetvarr once.
 
-Admin is not optional. Freetvarr creates and deletes autorec rules, edits recording entries, and reads the tuner and hardware status, and TVHeadend gates all of that behind admin.
+| Right              | Tick                              | Why Freetvarr needs it                                                                                                                       |
+| ------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for `CHECK TVHEADEND`)                 |
+| **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series rules, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend |
+| **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                    |
+| **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web UI as this user                                                                                   |
+
+Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, `TEST CONNECTION` still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
+
+TVHeadend's default configuration accepts only HTTP Digest logins. Freetvarr answers whichever challenge TVHeadend sends, Digest or Basic, so leave TVHeadend's authentication setting as it is.
 
 > [!NOTE]<br>
 > Access entries are an ordered list, evaluated top to bottom. A broad anonymous entry above your new one can hand out rights you did not intend, so check the order after you add it.
+
+To check the user before you open Freetvarr, run this from any machine on the LAN. A `200` means the login works; [Troubleshooting](/guide/troubleshooting#tvheadend-401-or-403) explains a `401` or a `403`.
+
+```sh
+curl --digest -u freetvarr:<password> -o /dev/null -w '%{http_code}\n' \
+  http://<host-ip>:9981/api/serverinfo
+```
 
 ## Where next
 
