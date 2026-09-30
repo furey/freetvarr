@@ -1236,6 +1236,20 @@ body.epg-drag-lock * {
   .panel-body {
     padding: 1rem;
   }
+
+  main :is(.panel, .epg-scroll):not(.panel *) {
+    margin-inline: -1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  main .grid-cols-2:has(> .panel) {
+    margin-inline: -1rem;
+  }
+
+  main .grid-cols-2 > .panel {
+    margin-inline: 0;
+  }
 }
 
 @media (pointer: coarse) {
