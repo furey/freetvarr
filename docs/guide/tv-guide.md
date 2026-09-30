@@ -27,14 +27,14 @@ Channels run down the page, time runs across, and an orange line marks now. The 
 
 ## Recording a programme
 
-Click a cell to open its detail: synopsis, rating, season and episode, and the channel artwork. From there:
+Click a cell to open its detail: the programme image, synopsis, rating, season and episode. From there:
 
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the timer, 2 minutes before and 10 minutes after by default. Free-to-air broadcasts run late; the generous tail is deliberate.
 - **RECORD SERIES** creates a TVHeadend autorec rule, with an episodes-to-keep option.
 - A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series rule, cancelling asks whether to cancel just that episode or the whole series.
 - A programme whose show already has a series rule but no episode scheduled yet shows the rule with a **CANCEL SERIES** action.
 
-The **UPCOMING** view lists what will record: the timers TVHeadend has set (`SCHEDULED`, marked `SERIES` or `ONE-OFF`), plus the episodes your series rules are expected to catch over the next 7 days (`SERIES` · `EXPECTED`). **SERIES** lists the rules themselves. A card in either view opens the programme detail, where you record or cancel; a series card opens its next airing.
+The **UPCOMING** view lists what will record: the timers TVHeadend has set (`SCHEDULED`, marked `SERIES` or `ONE-OFF`), plus the episodes your series rules are expected to catch over the next 7 days (`SERIES` · `EXPECTED`). **SERIES** lists the rules themselves. Cards carry a small programme image when the guide feed has one. A card in either view opens the programme detail, where you record or cancel; a series card opens its next airing.
 
 ## How a series recording works
 

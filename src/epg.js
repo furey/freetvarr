@@ -11,8 +11,10 @@ import {
   disableSeriesTag,
   resolveConnection,
   getChannelIcon,
+  fetchProgrammeImage,
   TvheadendError,
 } from './tvheadend.js'
+import { createProgrammeImages } from './programme-images.js'
 
 export const getGuideDay = async ({ day = 0 } = {}) => {
   const guide = await getCachedGuide()
@@ -21,7 +23,7 @@ export const getGuideDay = async ({ day = 0 } = {}) => {
   const programs = {}
   for (const channel of guide.channels) {
     const rows = guide.programsByChannel[String(channel.epgId)] || []
-    programs[channel.id] = rows.filter((p) => p.start < dayEnd && p.end > dayStart)
+    programs[channel.id] = rows.filter((p) => p.start < dayEnd && p.end > dayStart).map(toBrowserProgram)
   }
   const prefs = await getChannelPrefs()
   return {
@@ -182,6 +184,7 @@ export const projectUpcomingRecordings = ({ seriesTags = [], futureRecordings = 
       endDate: r.endDate,
       episodeTitle: r.episodeTitle || null,
       seriesLinkId: r.seriesLinkId || null,
+      hasImage: Boolean(guide?.imageByEventId?.has(String(r.programId))),
       source: 'timer',
     }))
   const timerProgramIds = new Set(timers.map((t) => String(t.programId)))
@@ -218,6 +221,7 @@ export const projectUpcomingRecordings = ({ seriesTags = [], futureRecordings = 
           seriesLinkId: p.series_link,
           seriesNo: p.series_no ?? null,
           episodeNo: p.episode_no ?? null,
+          hasImage: Boolean(p.image),
           source: 'series',
         })
       }
@@ -226,6 +230,8 @@ export const projectUpcomingRecordings = ({ seriesTags = [], futureRecordings = 
 
   return [...timers, ...projected].sort((a, b) => a.startDate - b.startDate)
 }
+
+export const toBrowserProgram = ({ image, ...program }) => ({ ...program, has_image: Boolean(image) })
 
 const trimProgram = (p) => p == null ? null : {
   program_id: p.program_id,
@@ -261,7 +267,7 @@ export const searchGuide = async ({ q } = {}) => {
       if (p.end <= nowMs) continue
       const haystack = `${p.title || ''} ${p.episode_title || ''}`.toLowerCase()
       if (!haystack.includes(needle)) continue
-      results.push({ ...p, channelId: channel.id, channelName: channel.name })
+      results.push({ ...toBrowserProgram(p), channelId: channel.id, channelName: channel.name })
       if (results.length >= SEARCH_RESULT_CAP) break
     }
     if (results.length >= SEARCH_RESULT_CAP) break
@@ -313,13 +319,28 @@ const loadRecordingState = async (now) => {
     activeInputs: state.activeInputs,
     futureRecordings: state.futureRecordings,
     upcomingRecordings,
-    seriesTags: state.seriesTags,
+    seriesTags: withSeriesImages({ seriesTags: state.seriesTags, guide, nowMs: now }),
     activeRecordingIds: state.activeRecordingIds,
     fetchedAt: now,
   }
   stateCache = { value, expiresAt: now + STATE_TTL_MS }
   stateFailedUntil = 0
   return value
+}
+
+export const withSeriesImages = ({ seriesTags = [], guide, nowMs = Date.now() }) => {
+  const imageProgramByLink = new Map()
+  for (const rows of Object.values(guide?.programsByChannel || {})) {
+    for (const p of rows) {
+      if (!p.image || p.series_link == null || p.end <= nowMs) continue
+      const known = imageProgramByLink.get(p.series_link)
+      if (!known || p.start < known.start) imageProgramByLink.set(p.series_link, p)
+    }
+  }
+  return seriesTags.map((t) => ({
+    ...t,
+    imageProgramId: imageProgramByLink.get(t.seriesLinkId)?.program_id ?? null,
+  }))
 }
 
 export const invalidateRecordingState = () => {
@@ -357,9 +378,8 @@ export const cancelSeries = async (args) => {
   return result
 }
 
-export const getChannelImage = async ({ channelId, kind = 'logo' } = {}) => {
-  if (kind !== 'logo') return null
-  const cacheKey = `${kind}:${channelId}`
+export const getChannelImage = async ({ channelId } = {}) => {
+  const cacheKey = String(channelId)
   const cached = imageCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.value
   const guide = await getCachedGuide()
@@ -368,6 +388,12 @@ export const getChannelImage = async ({ channelId, kind = 'logo' } = {}) => {
   if (!value) return null
   imageCache.set(cacheKey, { value, expiresAt: Date.now() + IMAGE_TTL_MS })
   return value
+}
+
+export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
+  const guide = await getCachedGuide().catch(() => null)
+  const source = guide?.imageByEventId.get(String(eventId)) || fallbackSource
+  return programmeImages.imageFor(source)
 }
 
 export const localMidnightMs = (now = new Date()) => {
@@ -413,15 +439,18 @@ const loadGuide = async (startMs) => {
     )
   }
   const programsByChannel = {}
+  const imageByEventId = new Map()
   for (const c of channels) programsByChannel[String(c.epgId)] = []
   for (const e of events) {
     const rows = programsByChannel[String(e.channel_id)]
     if (rows) rows.push(e)
+    if (e.image) imageByEventId.set(String(e.program_id), e.image)
   }
   return {
     startMs,
     channels,
     programsByChannel,
+    imageByEventId,
     fetchedAt: Date.now(),
     expiresAt: Date.now() + GUIDE_TTL_MS,
   }
@@ -446,6 +475,9 @@ let stateInflight = null
 let stateFailedUntil = 0
 let stateLastError = null
 const imageCache = new Map()
+const programmeImages = createProgrammeImages({
+  fetchImage: (source) => fetchProgrammeImage({ source }),
+})
 
 const CHANNEL_SORTS = ['default', 'number', 'name']
 const DAY_MS = 24 * 60 * 60 * 1000

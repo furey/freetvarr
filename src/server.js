@@ -34,6 +34,7 @@ import {
   searchGuide,
   getRecordingState,
   getChannelImage,
+  getProgrammeImage,
   recordProgram,
   cancelProgram,
   recordSeries,
@@ -409,9 +410,9 @@ app.get('/api/epg/state', async (req, res) => {
   }
 })
 
-const serveChannelImage = (kind) => async (req, res) => {
+const serveImage = (loadImage) => async (req, res) => {
   try {
-    const image = await getChannelImage({ channelId: req.params.channelId, kind })
+    const image = await loadImage(req.params)
     if (!image) return res.status(404).end()
     res.setHeader('Content-Type', image.contentType)
     res.setHeader('Cache-Control', 'public, max-age=86400')
@@ -421,8 +422,8 @@ const serveChannelImage = (kind) => async (req, res) => {
   }
 }
 
-app.get('/api/epg/logo/:channelId', serveChannelImage('logo'))
-app.get('/api/epg/artwork/:channelId', serveChannelImage('thumb'))
+app.get('/api/epg/logo/:channelId', serveImage(({ channelId }) => getChannelImage({ channelId })))
+app.get('/api/epg/image/:eventId', serveImage(({ eventId }) => getProgrammeImage({ eventId })))
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const { channel_id, program_id, epg_program_id, lead_time, lag_time } = req.body || {}

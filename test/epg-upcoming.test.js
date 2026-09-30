@@ -126,3 +126,24 @@ test('orderChannels: hideSdSimulcasts hides SD twins but never pinned ones', () 
   assert.equal(by['hd'], false)
   assert.equal(by['pin-sd'], false)
 })
+
+test('projectUpcomingRecordings and withSeriesImages: flag programme images without exposing URLs', async () => {
+  const { withSeriesImages } = await import('../src/epg.js')
+  const g = {
+    channels: [{ id: 'c', epgId: 1, name: 'C' }],
+    imageByEventId: new Map([['timer-1', 'https://img.example/t.jpg']]),
+    programsByChannel: {
+      1: [
+        { program_id: 'old', series_link: 'sl', title: 'Show', start: NOW - 2 * HOUR, end: NOW - HOUR, image: 'https://img.example/old.jpg' },
+        { program_id: 'next', series_link: 'sl', title: 'Show', start: NOW + HOUR, end: NOW + 2 * HOUR, image: 'https://img.example/next.jpg', series_no: 1, episode_no: 2 },
+        { program_id: 'bare', series_link: 'sl', title: 'Show', start: NOW + 3 * HOUR, end: NOW + 4 * HOUR, series_no: 1, episode_no: 3 },
+      ],
+    },
+  }
+  const tags = [{ seriesLinkId: 'sl', name: 'Show', channelId: 'c' }, { seriesLinkId: 'none', channelId: 'c' }]
+  const timers = [{ programId: 'timer-1', name: 'One-off', channelId: 'c', startDate: NOW + HOUR, endDate: NOW + 2 * HOUR }]
+  const out = projectUpcomingRecordings({ seriesTags: tags, futureRecordings: timers, guide: g, nowMs: NOW })
+  assert.deepEqual(out.map((r) => [r.programId, r.hasImage]), [['timer-1', true], ['next', true], ['bare', false]])
+  assert.ok(!JSON.stringify(out).includes('img.example'))
+  assert.deepEqual(withSeriesImages({ seriesTags: tags, guide: g, nowMs: NOW }).map((t) => t.imageProgramId), ['next', null])
+})
