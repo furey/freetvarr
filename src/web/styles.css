@@ -1250,6 +1250,12 @@ body.epg-drag-lock * {
   main .grid-cols-2 > .panel {
     margin-inline: 0;
   }
+
+  main .panel-body .epg-scroll {
+    margin-inline: -1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
 }
 
 @media (pointer: coarse) {
