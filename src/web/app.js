@@ -355,7 +355,7 @@ const FAVICON_CHIPS = [
   { x: 21, color: '#e2b03c' },
 ]
 
-const FAVICON_REC_DOT = { x: 26, y: 6, radius: 5, color: '#ff8a00' }
+const FAVICON_REC_DISC = { x: 16, y: 16, radius: 8, color: '#ff8a00' }
 
 let faviconCanvas = null
 let faviconCtx = null
@@ -371,9 +371,11 @@ const ensureFaviconCanvas = () => {
   faviconCanvas.height = FAVICON_SIZE
   faviconCtx = faviconCanvas.getContext('2d')
   faviconLink = document.querySelector('link[rel="icon"]')
+  faviconLink.type = 'image/png'
 }
 
 const drawFaviconFrame = (now, { bob = true } = {}) => {
+  if (faviconRecording) return drawFaviconRecording()
   const phase = ((now - faviconStart) / FAVICON_BOB_PERIOD_MS) * Math.PI * 2
   faviconCtx.fillStyle = FAVICON_BG
   faviconCtx.fillRect(0, 0, FAVICON_SIZE, FAVICON_SIZE)
@@ -383,20 +385,25 @@ const drawFaviconFrame = (now, { bob = true } = {}) => {
     faviconCtx.fillStyle = chip.color
     faviconCtx.fillRect(chip.x, FAVICON_CHIP_BASE_Y - offset, FAVICON_CHIP_WIDTH, FAVICON_CHIP_HEIGHT)
   })
-  if (faviconRecording) drawFaviconRecDot()
   faviconLink.href = faviconCanvas.toDataURL('image/png')
 }
 
-const drawFaviconRecDot = () => {
-  faviconCtx.fillStyle = FAVICON_REC_DOT.color
+const drawFaviconRecording = () => {
+  faviconCtx.fillStyle = FAVICON_BG
+  faviconCtx.fillRect(0, 0, FAVICON_SIZE, FAVICON_SIZE)
+  faviconCtx.fillStyle = FAVICON_REC_DISC.color
   faviconCtx.beginPath()
-  faviconCtx.arc(FAVICON_REC_DOT.x, FAVICON_REC_DOT.y, FAVICON_REC_DOT.radius, 0, Math.PI * 2)
+  faviconCtx.arc(FAVICON_REC_DISC.x, FAVICON_REC_DISC.y, FAVICON_REC_DISC.radius, 0, Math.PI * 2)
   faviconCtx.fill()
+  faviconLink.href = faviconCanvas.toDataURL('image/png')
 }
 
 const showFaviconAtRest = () => {
   if (!faviconRecording) {
-    if (faviconLink) faviconLink.href = '/favicon.svg'
+    if (faviconLink) {
+      faviconLink.type = 'image/svg+xml'
+      faviconLink.href = '/favicon.svg'
+    }
     return
   }
   ensureFaviconCanvas()
