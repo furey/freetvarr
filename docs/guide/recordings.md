@@ -2,7 +2,7 @@
 title: Recordings
 description: >-
   The per-episode record: import outcomes, live progress bars, re-scans, and
-  markers for recordings deleted from TVHeadend.
+  markers for recordings removed from TVHeadend.
 ---
 
 # Recordings
@@ -33,7 +33,7 @@ The row can re-run an ad scan or cut on the file you've already imported, withou
 
 ## Tombstones
 
-A recording deleted from TVHeadend shows struck-through and dimmed (a tombstone), but its labels, buttons, and progress bar stay readable: a tombstoned recording is still on disk in your Plex library, so you can re-scan or re-cut it. Tombstoned rows drop off the list 30 days after the delete.
+A recording removed from TVHeadend shows struck-through and dimmed (a tombstone), but its labels, buttons, and progress bar stay readable: a tombstoned recording is still on disk in your Plex library, so you can re-scan or re-cut it. Tombstoned rows drop off the list 30 days after the remove.
 
 ## Failed rows
 

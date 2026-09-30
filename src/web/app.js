@@ -109,10 +109,10 @@ const plexSummary = (p) => {
 }
 
 const deleteSummary = (d) => {
-  if (d.triggered) return `del ✓ ${d.deleted?.length ?? '?'}`
-  if (d.skipped) return `del — ${d.reason || ''}`.trim()
-  if (d.error) return `del ✗ ${d.error}`
-  return 'del ?'
+  if (d.triggered) return `rm ✓ ${d.removed?.length ?? '?'}`
+  if (d.skipped) return `rm — ${d.reason || ''}`.trim()
+  if (d.error) return `rm ✗ ${d.error}`
+  return 'rm ?'
 }
 
 const adsSummary = (a) => {
@@ -949,7 +949,7 @@ const ShowsView = {
               <th>Destination</th>
               <th>Season template</th>
               <th>Enabled</th>
-              <th title="Delete from TVHeadend after each successful import.">Delete after import</th>
+              <th title="Remove the recording from TVHeadend after each successful import. TVHeadend keeps the episode in its history, so it does not record it again.">Remove after import</th>
               <th title="Detect = report ad breaks only; Cut = remove them from the file (keeps a .orig backup).">Ad removal</th>
               <th></th>
             </tr></thead>
@@ -1001,7 +1001,7 @@ const ShowsView = {
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer font-mono text-xs uppercase tracking-[0.08em] text-ink-dim">
                   <input type="checkbox" class="chk" :checked="s.delete_after_import" @change="toggleDeleteAfter(s, $event.target.checked)" />
-                  Delete after import
+                  Remove after import
                 </label>
               </div>
               <div class="flex items-center gap-3">
@@ -1068,11 +1068,11 @@ const ShowsView = {
               <input type="text" v-model="newTemplate" placeholder="Season {season}" class="field-input" />
             </div>
             <div class="field-row">
-              <span class="field-label">Auto-delete</span>
+              <span class="field-label">Auto-remove</span>
               <label class="flex items-center gap-3 cursor-pointer h-[2.5rem]">
                 <input id="new-del-after" type="checkbox" class="chk" v-model="newDeleteAfter" />
                 <span class="font-mono text-sm text-ink-dim">
-                  Delete from TVHeadend after each successful import
+                  Remove from TVHeadend after each successful import
                 </span>
               </label>
             </div>
@@ -1363,7 +1363,7 @@ const SyncsView = {
       { key: 'cron',      label: 'CRON' },
       { key: 'imports',   label: 'IMPORTS' },
       { key: 'fails',     label: 'FAILS' },
-      { key: 'deletes',   label: 'DELETES' },
+      { key: 'deletes',   label: 'REMOVALS' },
       { key: 'empty',     label: 'EMPTY' },
     ]
 
@@ -1457,8 +1457,8 @@ const RecordingsView = {
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
             <button type="button" class="btn btn-sm btn-danger" @click="purgeDeleted"
               :disabled="purging"
-              title="Remove all tombstoned rows from Freetvarr's history (recordings already deleted from TVHeadend).">
-              {{ purging ? 'PURGING…' : '⨯ PURGE DELETED' }}
+              title="Remove all tombstoned rows from Freetvarr's history (recordings already removed from TVHeadend).">
+              {{ purging ? 'PURGING…' : '⨯ PURGE REMOVED' }}
             </button>
             <button type="button" class="btn btn-sm" @click="manualRefresh"><span class="btn-glyph">⟳</span> REFRESH</button>
           </div>
@@ -1502,7 +1502,7 @@ const RecordingsView = {
             </div>
           </div>
           <p class="text-xs font-mono text-ink-mute">
-            Legend: <span class="tombstone-legend">struck-through + dim</span> = deleted from TVHeadend.
+            Legend: <span class="tombstone-legend">struck-through + dim</span> = removed from TVHeadend.
           </p>
           <table v-if="recordings.length" class="deck-table hidden md:table">
             <thead><tr>
@@ -1518,7 +1518,7 @@ const RecordingsView = {
             <tbody>
               <tr v-for="r in recordings" :key="r.recording_id"
                 :class="{ tombstone: r.deleted_from_tvh_at }"
-                :title="r.deleted_from_tvh_at ? 'Deleted from TVHeadend ' + fmtTime(r.deleted_from_tvh_at) : ''">
+                :title="r.deleted_from_tvh_at ? 'Removed from TVHeadend ' + fmtTime(r.deleted_from_tvh_at) : ''">
                 <td class="font-mono">{{ r.show_pattern || '—' }}</td>
                 <td class="font-mono">{{ r.title }}</td>
                 <td class="font-mono">{{ se(r) }}</td>
@@ -1550,7 +1550,7 @@ const RecordingsView = {
                   </button>
                   <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
                     @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id"
-                    title="Delete this recording from TVHeadend. Irreversible.">
+                    title="Remove this recording from TVHeadend. TVHeadend deletes the file and keeps the episode in its history. Irreversible.">
                     <span v-if="deletingId === r.recording_id">…</span>
                     <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
@@ -1580,7 +1580,7 @@ const RecordingsView = {
                 {{ r.show_pattern || '—' }}<template v-if="se(r)"> · {{ se(r) }}</template><template v-if="fmtBytes(r.size)"> · {{ fmtBytes(r.size) }}</template><template v-if="r.imported_at"> · {{ fmtTime(r.imported_at) }}</template>
               </p>
               <p v-if="r.deleted_from_tvh_at" class="deck-card-meta">
-                deleted from TVHeadend {{ fmtTime(r.deleted_from_tvh_at) }}
+                removed from TVHeadend {{ fmtTime(r.deleted_from_tvh_at) }}
               </p>
               <p v-if="r.error" class="text-xs font-mono text-signal-orange-hi">{{ r.error }}</p>
               <div v-if="r.ad_status" class="flex flex-wrap items-center gap-2">
@@ -1663,7 +1663,7 @@ const RecordingsView = {
     const deletedOptions = [
       { key: 'all',      label: 'ALL'      },
       { key: 'on_tvh', label: 'ON TVH' },
-      { key: 'deleted',  label: 'DELETED'  },
+      { key: 'deleted',  label: 'REMOVED'  },
     ]
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
@@ -1805,25 +1805,26 @@ const RecordingsView = {
     }
 
     const deleteFromTvh = async (r) => {
-      const prompt = `Delete "${r.title}" from TVHeadend?\n\n`
-        + 'This is irreversible — the recording in TVHeadend will be gone.'
+      const prompt = `Remove "${r.title}" from TVHeadend?\n\n`
+        + 'TVHeadend deletes the recording file and keeps the episode in its history,'
+        + ' so it does not record it again. This is irreversible.'
       if (!confirm(prompt)) return
       deletingId.value = r.recording_id
       try {
         const url = `/api/recordings/${encodeURIComponent(r.recording_id)}/delete-from-tvh`
         const result = await api('POST', url)
         if (result.ok) {
-          flash({ msg: `Deleted "${r.title}" from TVHeadend.` })
+          flash({ msg: `Removed "${r.title}" from TVHeadend.` })
           await refresh()
         } else {
           flash({
-            msg: `Delete failed: ${result.error} (stage: ${result.stage || '?'})`,
+            msg: `TVHeadend remove failed: ${result.error} (stage: ${result.stage || '?'})`,
             kind: 'err',
             ms: 8000,
           })
         }
       } catch (err) {
-        flash({ msg: `Delete failed: ${err.message}`, kind: 'err', ms: 8000 })
+        flash({ msg: `TVHeadend remove failed: ${err.message}`, kind: 'err', ms: 8000 })
       } finally {
         deletingId.value = null
       }
@@ -1965,7 +1966,7 @@ const SettingsView = {
             <div class="md:col-span-3 flex items-center gap-3">
               <input id="del-plex-only" type="checkbox" class="chk" v-model="deleteAfterPlexRefreshOnly" />
               <label for="del-plex-only" class="text-sm text-ink-dim">
-                Only delete from TVHeadend after Plex refresh succeeds
+                Only remove from TVHeadend after Plex refresh succeeds
                 <span class="text-ink-mute">(recommended — confirms the file is in Plex first)</span>
               </label>
             </div>
@@ -2507,7 +2508,7 @@ const WelcomeView = {
 
           <div v-if="step === 1" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
-              Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings of shows you follow, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) deletes them from TVHeadend afterwards.
+              Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings of shows you follow, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) removes them from TVHeadend afterwards.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend — Plex is optional.

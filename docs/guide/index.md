@@ -7,7 +7,7 @@ description: >-
 
 # What Freetvarr is
 
-TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex cannot read. Freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library under names Plex understands, and pokes Plex to scan. Once Plex confirms the file, it can delete the recording from TVHeadend.
+TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex cannot read. Freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library under names Plex understands, and pokes Plex to scan. Once Plex confirms the file, it can remove the recording from TVHeadend.
 
 If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any tuner TVHeadend can drive counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
 
@@ -43,7 +43,7 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 - **[Following shows](/guide/following-shows)**: mark shows to follow and point them at library folders.
 - **[Recordings](/guide/recordings)** and **[Syncs](/guide/syncs)**: watch imports happen and read the status of each one.
 - **[Ad removal](/guide/ad-removal)**: the optional comskip detect/cut pass.
-- **[Plex](/guide/plex)**, **[Delete from TVHeadend](/guide/delete-from-tvheadend)**, and **[Live TV](/guide/live-tv)**: the optional extras.
+- **[Plex](/guide/plex)**, **[Remove from TVHeadend](/guide/remove-from-tvheadend)**, and **[Live TV](/guide/live-tv)**: the optional extras.
 - **[Migrating from Fetch](/guide/migrating-from-fetch)**: the moving-day checklist if you're coming off a Fetch box.
 - **[Configuration](/guide/configuration)** and **[Troubleshooting](/guide/troubleshooting)**: the deploy knobs and the fixes for common snags.
 

@@ -64,11 +64,12 @@ features:
       every cut.
     link: /deep-dive#ad-removal
     linkText: How it works
-  - title: Deletes that work
+  - title: Removes that work
     details: >-
-      One call to TVHeadend's DVR API removes the entry and the file, once Plex
-      has confirmed its copy. No cloud, no handshake, no retry loop.
-    link: /guide/delete-from-tvheadend
+      TVHeadend's DVR API deletes the file once Plex has confirmed its copy,
+      and keeps the entry so TVHeadend's duplicate check still sees the
+      episode. No cloud, no handshake, no retry loop.
+    link: /guide/remove-from-tvheadend
     linkText: The rules
   - title: Authless LAN service
     details: >-

@@ -5,7 +5,7 @@ import { db, getSetting } from './db.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import {
   listFinished,
-  deleteRecordings as deleteTvhRecordings,
+  removeRecordings as removeTvhRecordings,
   resolveConnection,
   TvheadendError,
 } from './tvheadend.js'
@@ -297,14 +297,14 @@ const runAutoDelete = async (deletables, plex) => {
   }
 
   try {
-    const result = await deleteTvhRecordings({ recordingIds: ids })
+    const result = await removeTvhRecordings({ recordingIds: ids })
     const now = new Date().toISOString()
-    await db('recordings').whereIn('recording_id', result.deleted).update({ deleted_from_tvh_at: now })
-    return { triggered: true, deleted: result.deleted, unmapped: result.unknown, deleted_at: now }
+    await db('recordings').whereIn('recording_id', result.removed).update({ deleted_from_tvh_at: now })
+    return { triggered: true, removed: result.removed, unmapped: result.unknown, removed_at: now }
   } catch (err) {
     const stage = err instanceof TvheadendError ? err.stage : 'unknown'
     const code = err instanceof TvheadendError ? err.code : undefined
-    console.error(`[tvheadend] delete-after-import failed for ${ids.length} recording(s) (stage ${stage}): ${err.message}`)
+    console.error(`[tvheadend] remove-after-import failed for ${ids.length} recording(s) (stage ${stage}): ${err.message}`)
     return { error: err.message, stage, code, candidates: ids.length }
   }
 }

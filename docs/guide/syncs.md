@@ -19,7 +19,7 @@ Only one sync runs at a time. Asking for a second while one is in flight returns
 
 ## Reading a sync
 
-Each row shows what the pass did: imports, failures, deletes, or nothing (empty). A sync is marked `ok` unless something failed. A short import (a `partial` recording) counts as a failure rather than a skip, so it stands out at a glance.
+Each row shows what the pass did: imports, failures, removals, or nothing (empty). A sync is marked `ok` unless something failed. A short import (a `partial` recording) counts as a failure rather than a skip, so it stands out at a glance.
 
 ## History
 
