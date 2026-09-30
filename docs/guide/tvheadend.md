@@ -57,12 +57,17 @@ Run `docker compose up -d tvheadend`, then open `http://<host-ip>:9981`.
 
 ## 2. First-run wizard
 
-The first visit opens a wizard. What matters:
+Recent linuxserver builds do not open the wizard on the first visit. They start with a default access entry that gives anyone on any network full admin rights and no login. Start the wizard yourself: **Configuration → General → Base → Start wizard**. What matters:
 
 1. **Language.** Set the interface and EPG languages you want.
-2. **Access control.** Set the allowed network prefix to your LAN (`192.168.1.0/24`, or whatever yours is), then set an admin username and password. Do this properly; the next steps assume a login exists.
+2. **Access control.** Set the allowed network prefix to your own LAN. Take it from the host's IP address: a host at `192.168.86.254` gives `192.168.86.0/24`. Then set an admin username and password. Leave the user login empty; step 8 makes the user Freetvarr needs.
 3. **Tuner and network.** The wizard offers to assign a network to each tuner it found. You can skip that here and do it deliberately in step 3.
 4. **Mux scan and service mapping.** Skip both. Steps 4 and 5 cover them.
+
+**Finish** removes the default open entry. From then on the web UI asks for the admin login.
+
+> [!WARNING]<br>
+> The wizard's password field has no confirm box, and a typo or a password manager's autofill leaves you locked out with `403 Forbidden`. To get back in, add `RUN_OPTS=--noacl` to the TVHeadend environment and restart it; that switches off all access checks. Set a new password in **Configuration → Users → Passwords**, then remove `--noacl` and restart again.
 
 ## 3. Add the tuner
 
@@ -86,7 +91,9 @@ TVHeadend ships the community [`dtv-scan-tables`](https://github.com/tvheadend/d
 
 The Australian files are named `au-<Location>`: `au-Sydney`, `au-Melbourne`, `au-Brisbane`, `au-Perth`, `au-Adelaide`, `au-Darwin`, `au-Hobart`, `au-canberra` and `au-Canberra-Black-Mt`, plus around thirty regional transmitters (`au-Newcastle`, `au-Wollongong`, `au-GoldCoast`, `au-Cairns`, `au-Townsville`, `au-Gippsland`, and more). Pick the transmitter your antenna points at, not the nearest capital city. `au-ALL` exists but scans every Australian frequency, which takes a long time and finds muxes you cannot receive.
 
-Saving the network with a pre-defined mux list starts the scan. Watch **Configuration → DVB Inputs → Muxes**: each row moves from `PEND` to `ACTIVE` to `OK`, and the **Services** count fills in. A mux that ends `FAIL` is one your antenna can't reach, which is normal for a few of them.
+The current linuxserver build drops the last letter of every name in the list, so `au-Sydney` shows as `au-Sydne` and `au-Brisbane` as `au-Brisban`. Pick by the stem. A search for the full city name finds only the longer entries, such as `au-Sydney_Kings_Cros`. That one is the Kings Cross repeater: an antenna aimed at the main Sydney transmitter fails every mux on it.
+
+Saving the network with a pre-defined mux list starts the scan. Watch **Configuration → DVB Inputs → Muxes**: each row moves from `PEND` to `ACTIVE` to `OK`, and the **Services** count fills in. A mux that ends `FAIL` is one your antenna can't reach, or a stale entry in the list; either way it is normal for a few of them. In the author's Sydney scan, five VHF muxes found 59 services, and `536.625 MHz` failed because SBS now broadcasts on `184.5 MHz`. Delete a failed mux so TVHeadend stops retrying it.
 
 ## 5. Map services to channels
 
@@ -107,10 +114,10 @@ Broadcast guide data in Australia runs about a day ahead and carries thin metada
 
 [Matt Huisman](https://i.mjh.nz/au/) publishes free Australian XMLTV per region, updated daily. The regions are `Adelaide`, `Brisbane`, `Canberra`, `Darwin`, `Hobart`, `Melbourne`, `Perth`, and `Sydney`. Each has:
 
-| URL | What it is |
-| --- | --- |
-| `https://i.mjh.nz/au/<Region>/epg.xml` | The guide, plain XML (about `6.6 MB` for Sydney) |
-| `https://i.mjh.nz/au/<Region>/epg.xml.gz` | The same file gzipped (about `700 KB`) |
+| URL                                       | What it is                                       |
+| ----------------------------------------- | ------------------------------------------------ |
+| `https://i.mjh.nz/au/<Region>/epg.xml`    | The guide, plain XML (about `6.6 MB` for Sydney) |
+| `https://i.mjh.nz/au/<Region>/epg.xml.gz` | The same file gzipped (about `700 KB`)           |
 
 The linuxserver image ships a small grabber called **XMLTV URL grabber** (`/usr/bin/tv_grab_url`). It takes the feed URL as its argument and runs `curl` on it, so no script install is needed.
 
@@ -118,7 +125,7 @@ The linuxserver image ships a small grabber called **XMLTV URL grabber** (`/usr/
 2. Select **Internal: XMLTV: XMLTV URL grabber**, tick **Enabled**, and set **Extra arguments** to `https://i.mjh.nz/au/<Region>/epg.xml` with your region substituted.
 3. Save.
 4. **Configuration → Channel/EPG → EPG Grabber**: set **Cron multi-line** to a quiet hour, one line per run. `0 4 * * *` fetches the guide at 4am daily.
-5. Press **Re-run internal EPG grabbers** to fetch once now rather than waiting for the cron. The log (**Status → Log**) shows `tv_grab_url: channels tot= …` when it has run; Sydney lists about `120` channels.
+5. Press **Re-run internal EPG grabbers** to fetch once now rather than waiting for the cron. The log (**Status → Log**) shows `tv_grab_url: channels tot= …` when it has run; Sydney lists about `170` channels.
 
 ### IceTV, if you would rather pay
 
@@ -128,18 +135,20 @@ The linuxserver image ships a small grabber called **XMLTV URL grabber** (`/usr/
 
 The mjh feed covers Australia and New Zealand only. Elsewhere, pick the guide source TVHeadend already supports for your country; Freetvarr does not care which one feeds it:
 
-| Region | Guide source | Where in TVHeadend |
-| --- | --- | --- |
-| UK | Over-the-air Freeview EIT, `7` days, free | **EPG Grabber Modules → Over-the-air: EIT: DVB Grabber**, enabled by default |
-| Europe | Over-the-air EIT (often `1–7` days) or a national XMLTV feed | Same EIT module, or the **XMLTV URL grabber** with the feed URL |
+| Region                | Guide source                                                               | Where in TVHeadend                                                                  |
+| --------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| UK                    | Over-the-air Freeview EIT, `7` days, free                                  | **EPG Grabber Modules → Over-the-air: EIT: DVB Grabber**, enabled by default        |
+| Europe                | Over-the-air EIT (often `1–7` days) or a national XMLTV feed               | Same EIT module, or the **XMLTV URL grabber** with the feed URL                     |
 | United States, Canada | [Schedules Direct](https://www.schedulesdirect.org/), about `US$35` a year | **Internal: XMLTV: Schedules Direct JSON API**, which the linuxserver image bundles |
-| New Zealand | `https://i.mjh.nz/nz/epg.xml`, free | **XMLTV URL grabber**, as above |
+| New Zealand           | `https://i.mjh.nz/nz/epg.xml`, free                                        | **XMLTV URL grabber**, as above                                                     |
 
 TVHeadend also bundles the `tv_grab_*` grabbers, so a national XMLTV service your broadcaster or a third party publishes works too. The scan list in [step 4](#_4-scan-the-muxes) changes as well: TVHeadend ships predefined mux lists for every country under **Pre-defined muxes**, named by country code and city or transmitter.
 
 ### Linking the guide to your channels
 
-The feed's channel names and your scanned channel names will not all match. Go to **Configuration → Channel/EPG → EPG Grabber Channels**. Each row is a channel the feed offers; the **Channels** column is the TVHeadend channel it feeds. TVHeadend matches what it can by name automatically, so fix the leftovers by hand.
+The feed's channel names and your scanned channel names rarely match. The mjh feed calls a channel `Seven`, `9Gem`, or `ABC TV`; the broadcast calls it `7 Sydney`, `9GemHD Sydney`, or `ABCTV`. TVHeadend links a feed channel only when the names match, so in the author's Sydney setup it linked none, and every channel needed a hand link. The first guide fetch reports `broadcasts tot= 0` in the log until the links exist.
+
+Go to **Configuration → Channel/EPG → EPG Grabber Channels**. Each row is a channel the feed offers; the **Channels** column is the TVHeadend channel it feeds. Set it for every channel you watch, then press **Re-run internal EPG grabbers** again. Some broadcast channels have no row in the feed at all; in Sydney these are SBS WorldWatch, Extra, and 10 HD +1.
 
 Check the result in the **Electronic Program Guide** tab. Every channel you care about should show seven days of programmes with names. A channel showing nothing is an unlinked row here.
 

@@ -40,7 +40,7 @@ The third path, **media root** (`media_root`, default `/media/tv`), is where fin
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the three storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. The Storage panel shows the paths in use and offers a `TEST PATH` button for each.
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the three storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. The Storage panel shows the paths in use. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 ![The Settings tab](../img/screenshot-settings.png)
 

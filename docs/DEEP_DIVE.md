@@ -77,7 +77,7 @@ The load-bearing difference from [Fetcharr](https://github.com/furey/fetcharr), 
 
 ## The TVHeadend API surface
 
-Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTTP basic auth, a `15 s` timeout, and `application/x-www-form-urlencoded` bodies on writes. `src/tvheadend.js` is the only module that speaks it.
+Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTTP Digest auth (or Basic, whichever challenge TVHeadend sends; `src/http-auth.js` builds the header), a `15 s` timeout, and `application/x-www-form-urlencoded` bodies on writes. `src/tvheadend.js` is the only module that speaks it.
 
 | Endpoint                                 | Used for                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -250,7 +250,7 @@ The rest is a CSS pass in `styles.css`, all standard iOS Safari accommodations:
 The TVHeadend URL and credentials, the Plex token, and the storage paths are runtime settings; configure them in the web UI (or the first-run wizard), not via env. The env vars below are deploy/runtime knobs only.
 
 > [!NOTE]<br>
-> `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for matching DB-backed settings that can be overridden from the UI at runtime. The fallback chain is *settings DB value → env var → hardcoded default*. The Storage panel in Settings (and the STORAGE step of the wizard) shows the effective values and provides a TEST PATH button.
+> `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for matching DB-backed settings that can be overridden from the UI at runtime. The fallback chain is *settings DB value → env var → hardcoded default*. The Storage panel in Settings (and the STORAGE step of the wizard) shows the effective values, with TEST PATH on the media root and the recordings folder and CHECK TVHEADEND on TVHeadend's recording path.
 
 | Variable              | Notes                                                                                                                                                                                                  |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -309,7 +309,7 @@ Vulnerability reporting and the accepted residual risks are documented in [SECUR
 - **`npm audit signatures`** runs as the last step of `setup` to verify the npm registry signatures of every dep. The Docker build deliberately inlines `npm ci + rebuild:natives` instead, because `npm audit signatures` re-queries the registry and enforces `min-release-age`.
 - **`package-lock.json`** is committed; integrity hashes verify package contents during `npm ci` even when the audit step is skipped.
 - **HTTP**: Helmet with a strict CSP. `script-src 'self' 'unsafe-eval'` is required because Vue's in-browser template compiler uses `new Function()`; everything else is locked down. Dropping `'unsafe-eval'` would need a build step that pre-compiles templates.
-- **Rate limiting**: `express-rate-limit` on the POST endpoints that reach TVHeadend or Plex (`/api/sync`, `/api/tvh-shows`, `/api/tvh-test`, `/api/tvh-detect`, `/api/discover-plex`, the per-recording delete and ad-scan endpoints), and a separate limiter on the guide's record/cancel endpoints.
+- **Rate limiting**: `express-rate-limit` on the POST endpoints that reach TVHeadend or Plex (`/api/sync`, `/api/tvh-shows`, `/api/tvh-test`, `/api/tvh-detect`, `/api/tvh-recordings-path-check`, `/api/discover-plex`, the per-recording delete and ad-scan endpoints), and a separate limiter on the guide's record/cancel endpoints.
 - **CSRF**: `csrf-csrf` (double-submit cookie) protects state-changing POSTs. The UI fetches a token from `GET /api/csrf-token` and sends it as the `x-csrf-token` header. `generateToken` is called with `overwrite=true` so a stale browser cookie from a previous `CSRF_SECRET` doesn't trigger a 403 mint. `getSessionIdentifier` is a constant, because this is an authless LAN service. The front-end clears the cached token and retries once on any 403, so secret rotations and cookie clears recover silently.
 - **Path containment**: `dest_folder` and `season_template` are validated on write to reject `..` segments and leading slashes, and `buildDestPath` resolves the final path and throws if it escapes the media root. A show can only ever write inside the configured library.
 - **Credential storage**: the TVHeadend password sits in plaintext in the SQLite database, and `GET /api/settings` returns only a `tvh_password_set` boolean rather than the value. There is no login in front of any of this, which is the whole reason for the LAN-only posture below.
@@ -406,7 +406,7 @@ Node 24's built-in test runner, with no additional test dependencies. What's cov
 The TVHeadend client and the comskip/ffmpeg orchestration are exercised against the real thing rather than mocked. Manual smoke test:
 
 - `npm run dev`, hit `http://localhost:3733`.
-- **First visit** (with empty settings): auto-redirects to the setup wizard. Walks TVHeadend (URL, user, TEST CONNECTION) → storage (three paths, each with TEST PATH) → Plex → ready.
+- **First visit** (with empty settings): auto-redirects to the setup wizard. Walks TVHeadend (URL, user, TEST CONNECTION; SAVE & NEXT runs the same test and stays on the step until it passes) → storage (three paths, with TEST PATH and CHECK TVHEADEND) → Plex → ready.
 - **Re-open the wizard later**: SETUP WIZARD panel at the top of Settings. All previously-saved values prefill; stored passwords and tokens render as `••••• (stored)`.
 - **Settings**: save; the cron field reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
 - **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; pin, hide, and reorder channels.
