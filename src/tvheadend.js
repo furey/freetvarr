@@ -2,7 +2,7 @@ import os from 'os'
 import axios from 'axios'
 
 import { getSetting, setSetting } from './db.js'
-import { authorizationFor } from './http-auth.js'
+import { authorizationFor, createChallengeCache } from './http-auth.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -379,6 +379,13 @@ const listInputs = async (conn) => {
 }
 
 const countTuners = async (conn) => {
+  if (tunerCountCache && tunerCountCache.expiresAt > Date.now()) return tunerCountCache.value
+  const value = await walkTuners(conn)
+  tunerCountCache = { value, expiresAt: Date.now() + TUNER_COUNT_TTL_MS }
+  return value
+}
+
+const walkTuners = async (conn) => {
   const roots = await apiGet('hardware/tree', { uuid: 'root' }, conn)
   const count = await countLeafNodes(Array.isArray(roots) ? roots : [], conn)
   return count > 0 ? count : null
@@ -398,6 +405,7 @@ const countLeafNodes = async (nodes, conn) => {
 }
 
 let dvrConfigCache = null
+let tunerCountCache = null
 
 const defaultDvrConfig = async (conn) => {
   if (dvrConfigCache) return dvrConfigCache
@@ -477,17 +485,27 @@ const sendAuthenticated = async (config, conn) => {
     timeout: REQUEST_TIMEOUT_MS,
     validateStatus: () => true,
   })
-  const first = await send({})
-  if (first.status !== 401 || !conn.username) return first
-  const authorization = authorizationFor({
-    challenge: first.headers['www-authenticate'],
+  const key = `${conn.url}|${conn.username}`
+  const sign = (cached) => cached && authorizationFor({
+    challenge: cached.challenge,
+    nonceCount: cached.nonceCount,
     method: config.method,
     uri: requestUri(config.url),
     username: conn.username,
     password: conn.password,
   })
-  return authorization ? send({ Authorization: authorization }) : first
+  const reused = conn.username ? sign(challenges.next(key)) : null
+  const first = await send(reused ? { Authorization: reused } : {})
+  if (first.status !== 401 || !conn.username) return first
+  challenges.remember(key, first.headers['www-authenticate'])
+  const authorization = sign(challenges.next(key))
+  if (!authorization) return first
+  const second = await send({ Authorization: authorization })
+  if (second.status === 401) challenges.forget(key)
+  return second
 }
+
+const challenges = createChallengeCache()
 
 const apiUrl = ({ base, path, params = {} }) => {
   const url = new URL(`${base}/api/${path}`)
@@ -536,6 +554,7 @@ const isPrivate = (a) =>
   a.startsWith('10.') || a.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(a)
 
 const REQUEST_TIMEOUT_MS = 15000
+const TUNER_COUNT_TTL_MS = 10 * 60 * 1000
 const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
 const DEFAULT_LEAD_MINUTES = 2
 const DEFAULT_LAG_MINUTES = 10
