@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import express from 'express'
 import helmet from 'helmet'
+import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
 import { doubleCsrf } from 'csrf-csrf'
@@ -101,6 +102,7 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use(compression())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser(CSRF_SECRET))
