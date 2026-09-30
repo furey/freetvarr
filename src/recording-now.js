@@ -28,7 +28,8 @@ export const getRecordingNow = async ({ nowMs = Date.now() } = {}) => {
 
 export const recordingImageSource = (eventId) => {
   for (const { recording } of tracked.values()) {
-    if (String(recording.programId) === String(eventId)) return recording.image
+    const ids = [recording.programId, recording.uuid].filter((id) => id != null).map(String)
+    if (ids.includes(String(eventId))) return recording.image
   }
   return null
 }

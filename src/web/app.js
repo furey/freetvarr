@@ -536,7 +536,7 @@ const RecordingCard = {
   },
   template: `
     <article :class="['rec-card', { failed: rec.failed }]">
-      <programme-image v-if="rec.hasImage" :event-id="rec.programId" variant="rec" />
+      <programme-image v-if="rec.hasImage" :event-id="rec.programId ?? rec.uuid" variant="rec" />
       <div class="rec-card-body">
         <div class="rec-card-head">
           <img class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + rec.channelId" alt=""
