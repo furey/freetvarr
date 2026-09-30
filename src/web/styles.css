@@ -1104,7 +1104,6 @@ body.epg-drag-lock * {
   letter-spacing: 0.04em;
   color: #8b837e;
   white-space: nowrap;
-  overflow: hidden;
 }
 
 .epg-nowline {
