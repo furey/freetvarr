@@ -66,6 +66,8 @@ Recent linuxserver builds do not open the wizard on the first visit. They start 
 
 **Finish** removes the default open entry. From then on the web UI asks for the admin login.
 
+Finish or cancel the wizard, even if you configured TVHeadend by hand. An unfinished wizard leaves the `wizard` value set in **Configuration → General → Base**, and the wizard opens again on every page load. Finishing or cancelling it clears the value.
+
 > [!WARNING]<br>
 > The wizard's password field has no confirm box, and a typo or a password manager's autofill leaves you locked out with `403 Forbidden`. To get back in, add `RUN_OPTS=--noacl` to the TVHeadend environment and restart it; that switches off all access checks. Set a new password in **Configuration → Users → Passwords**, then remove `--noacl` and restart again.
 
@@ -154,6 +156,21 @@ Check the result in the **Electronic Program Guide** tab. Every channel you care
 
 The feed also supplies two kinds of image. Its `<channel>` entries carry an `<icon>`, which Freetvarr uses as the channel logo when TVHeadend has no icon of its own for that channel. Its `<programme>` entries can carry an `<icon>` too, which Freetvarr shows as the programme image in the guide and on the dashboard. Over-the-air guide data carries no programme images, so a guide fed only by the broadcast shows none.
 
+### Guide priority
+
+When an XMLTV grabber and the over-the-air EIT grabber are both enabled, the module priority decides which one supplies a programme. XMLTV has priority `3` by default and EIT has `1`, so XMLTV wins. Set the priorities in **Configuration → Channel/EPG → EPG Grabber Modules** and keep XMLTV above EIT.
+
+Some broadcasters send EIT with the wrong UTC offset for dates after a daylight-saving change. Until the XMLTV feed covers those dates, TVHeadend shows them from EIT, and the times are an hour out. In the author's Sydney setup the change on `2026-10-04` produced this. Press **Re-run internal EPG grabbers** under **Configuration → Channel/EPG → EPG Grabber** to load the XMLTV times. [Troubleshooting](/guide/troubleshooting#recordings-an-hour-out-after-a-clock-change) has the symptom.
+
+### Saving the guide
+
+TVHeadend holds the guide in memory. The linuxserver build leaves both save options off, so a crash or restart loses the whole guide, and the series rules (autorecs) remove their scheduled recordings until the guide reloads. In **Configuration → Channel/EPG → EPG Grabber**, set:
+
+- **Periodic save** (`epgdb_periodicsave`) to `1` hour.
+- **Save after import** (`epgdb_saveafterimport`) on.
+
+Switch the view level to Advanced or Expert if the fields are hidden.
+
 ## 7. Set the recording path
 
 Go to **Configuration → Recording → Digital Video Recorder Profiles** and open the default profile (the one with an empty name, listed as `(Default profile)`). Freetvarr records with that profile and reads its path. Set **Recording system path** to `/recordings`, the container path from step 1.
@@ -166,6 +183,8 @@ Two settings worth knowing, both of which Freetvarr also sets per recording:
 
 - **Pre-recording padding**: `2` minutes.
 - **Post-recording padding**: `10` minutes. Free-to-air broadcasts run late; ten minutes is the difference between catching the end of a drama and not.
+
+Set **Re-record if errors** (`rerecord-errors`) on the same profile to `0` (off). The default is `10`: a recording with more data errors than that schedules a second recording of the same episode, so a few seconds of reception glitches record the episode twice. Freetvarr shows such a recording as Recorded with a warning, not as failed.
 
 ## 8. Make a user for Freetvarr
 

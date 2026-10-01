@@ -100,6 +100,28 @@ Freetvarr takes each channel's logo from TVHeadend's own channel icon first, the
 
 Programme images come from the guide feed's `<programme>` `<icon>` entries. Over-the-air guide data carries none, and not every XMLTV feed includes them. A programme without an image shows its text only; nothing in Freetvarr needs fixing. The container needs outbound internet access to fetch images from an external feed, as for [channel logos](#missing-channel-logos).
 
+## Recordings an hour out after a clock change
+
+Recordings on the days after a daylight-saving change start an hour early or late, often after a TVHeadend restart. The over-the-air EIT guide data of some broadcasters carries the wrong UTC offset after the change, and TVHeadend uses it until the XMLTV feed covers those dates. The author saw this in Sydney after `2026-10-04`.
+
+- Press **Re-run internal EPG grabbers** under **Configuration → Channel/EPG → EPG Grabber**, then check the times in the **Electronic Program Guide** tab.
+- Keep the XMLTV module at a higher priority than EIT ([Guide priority](/guide/tvheadend#guide-priority)).
+
+## Scheduled recordings vanished
+
+Upcoming recordings from series rules disappear after TVHeadend crashes or restarts, and return when the guide reloads. The autorec purge removes its scheduled entries while the guide is empty, and with both save options off the guide is empty after a restart.
+
+- Turn on periodic save and save after import ([Saving the guide](/guide/tvheadend#saving-the-guide)).
+- Press **Re-run internal EPG grabbers** to reload the guide now; the rules schedule again from it.
+
+## Duplicate episode recordings
+
+TVHeadend records the same episode twice in a row. The DVR profile's **Re-record if errors** setting is `10` by default, and a recording with more data errors than that schedules a repeat. Freetvarr shows the first recording as Recorded with a data-error warning, not as failed. Set the option to `0` ([TVHeadend step 7](/guide/tvheadend#_7-set-the-recording-path)).
+
+## Setup wizard keeps opening
+
+TVHeadend's first-run wizard opens on every page load. The `wizard` value in **Configuration → General → Base** is still set because the wizard never finished. Open the wizard and finish or cancel it, and the value clears ([TVHeadend step 2](/guide/tvheadend#_2-first-run-wizard)).
+
 ## Unimported recordings
 
 TVHeadend finished a recording, but nothing appears on the Recordings tab or in Plex.
@@ -136,6 +158,7 @@ TVHeadend records a repeat of an episode that Freetvarr already imported, and th
 TVHeadend stops with a segfault (signal `11`) just after it logs `Purging obsolete autorec entries for current schedule`.
 
 - This is a TVHeadend bug: the purge reads freed memory after it drops a scheduled entry. Commit [`5acec7ee5`](https://github.com/tvheadend/tvheadend/commit/5acec7ee5c294d887b6ad9858d664e36f095df8c) (`2026-09-20`) fixes it. Update TVHeadend to a build that includes it.
+- Back up TVHeadend's `/config` folder before you update the image.
 
 ## Permission errors
 
