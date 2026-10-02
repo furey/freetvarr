@@ -1833,6 +1833,19 @@ body.epg-drag-lock * {
   .epg-sheet-leave-to .live-modal {
     transform: none;
   }
+
+  .live-modal.epg-modal {
+    padding-bottom: 0;
+  }
+
+  .live-modal.epg-modal .panel-body {
+    padding-bottom: 0;
+  }
+
+  .live-modal.epg-modal .epg-modal-actions {
+    padding-bottom: 0.6rem;
+    box-shadow: none;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
