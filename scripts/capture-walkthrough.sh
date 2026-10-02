@@ -68,16 +68,19 @@ docker run --rm --network host \
 
 TOUR_TRIM=$(sed -n 's/.*TOUR_TRIM=\([0-9][0-9.]*\).*/\1/p' "$DOCKER_LOG" | tail -1)
 TRIM_HEAD="${WALKTHROUGH_TRIM_HEAD:-${TOUR_TRIM:-0.5}}"
+TOUR_POSTER=$(sed -n 's/.*TOUR_POSTER=\([0-9][0-9.]*\).*/\1/p' "$DOCKER_LOG" | tail -1)
+POSTER_AT="${WALKTHROUGH_POSTER_AT:-${TOUR_POSTER:-$TRIM_HEAD}}"
+VIDEO_FPS="${WALKTHROUGH_FPS:-25}"
 
 echo "[walkthrough] encoding mp4 (trim head ${TRIM_HEAD}s)"
 ffmpeg -y -loglevel error -ss "$TRIM_HEAD" -i "$WEBM" \
-  -an -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
-  -c:v libx264 -profile:v high -crf 28 -preset slow \
+  -an -vf "fps=${VIDEO_FPS},scale=trunc(iw/2)*2:trunc(ih/2)*2" -fps_mode cfr \
+  -c:v libx264 -profile:v high -crf 23 -preset slow -tune animation \
   -pix_fmt yuv420p -movflags +faststart \
   "$MP4"
 
-echo "[walkthrough] extracting poster"
-ffmpeg -y -loglevel error -ss "$TRIM_HEAD" -i "$WEBM" \
+echo "[walkthrough] extracting poster at ${POSTER_AT}s"
+ffmpeg -y -loglevel error -ss "$POSTER_AT" -i "$WEBM" \
   -frames:v 1 -update 1 -q:v 4 "$POSTER"
 
 rm -f "$WEBM" "$DOCKER_LOG"
