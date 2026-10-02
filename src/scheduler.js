@@ -19,6 +19,8 @@ export const startScheduler = async () => {
 
 export const getSchedulerExpression = () => currentExpr
 
+export const getSchedulerNextRun = () => task?.getNextRun()?.toISOString() ?? null
+
 export const stopScheduler = () => {
   if (task) task.stop()
   task = null

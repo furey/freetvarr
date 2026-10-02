@@ -92,13 +92,28 @@ const dateFormat = (options) => {
   return dateFormatters.get(key)
 }
 
+const toIso = (s) => (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s)
+
 const fmtTime = (s) => {
   if (!s) return ''
-  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s
+  const iso = toIso(s)
   return dateFormat({
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: 'numeric', minute: '2-digit', hour12: true,
   }).format(new Date(iso)).replace(', ', ' ').replace(/\s(am|pm)$/, '$1')
+}
+
+const fmtAgo = ({ at, nowMs }) => {
+  const mins = Math.floor((nowMs - Date.parse(toIso(at))) / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
+  if (mins < 1440) return `${Math.floor(mins / 60)} h ago`
+  return fmtTime(at)
+}
+
+const fmtElapsed = ({ at, nowMs }) => {
+  const secs = Math.max(0, Math.floor((nowMs - Date.parse(toIso(at))) / 1000))
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 }
 
 const plexSummary = (p) => {
@@ -293,6 +308,7 @@ const useFlash = () => {
 }
 
 const FLASH_DEFAULT_MS = 4500
+const SYNC_DOTS = { ok: '#e2b03c', partial: '#ffcd00', error: '#ffab3d', running: '#62cfff' }
 const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
 
@@ -737,31 +753,27 @@ const DashboardView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">SYNC DECK</span>
-          <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
+          <span v-if="nextSyncLabel" class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim" :title="'Cron: ' + syncStatus.cron">NEXT SYNC · <span class="text-ink">{{ nextSyncLabel }}</span></span>
         </header>
         <div class="deck-status">
-          <div class="deck-zone deck-zone-state">
-            <span :class="['led-dot', shownSyncId ? 'live' : 'idle']"></span>
-            <span :class="['text-lg', 'md:text-xl', 'font-mono', 'tracking-[0.2em]', shownSyncId ? 'text-signal-orange' : 'text-ink-dim']">
-              {{ shownSyncId ? 'SYNC' : 'IDLE' }}
-            </span>
+          <div class="deck-cell deck-cell-status">
+            <span class="deck-cell-label"><span :class="['led-dot', 'sm', shownSyncId ? 'live' : 'idle']"></span>STATUS</span>
+            <span :class="['deck-cell-value', { 'deck-cell-live': shownSyncId }]">{{ shownSyncId ? 'Syncing' : 'Idle' }}</span>
           </div>
-          <div class="deck-zone deck-zone-info">
-            <span v-if="flashText" :key="flashText" :class="['status-readout', 'deck-fade', flashKind]">{{ flashText }}</span>
-            <div v-else-if="deckSync" :key="deckSync.id + deckSync.status" class="deck-zone-info-body deck-fade">
-              <div class="deck-status-line">
-                <span class="deck-cell-label">{{ deckSync.id === shownSyncId ? 'Current sync' : 'Last sync' }} #{{ deckSync.id }}</span>
-                <span :class="['pill', deckSync.status]">{{ deckSync.status }}</span>
-                <span>{{ fmtTime(deckSync.started_at) }}</span>
-              </div>
-              <summary-line v-if="deckSync.summary" class="text-sm" :summary="deckSync.summary"/>
-            </div>
-            <p v-else class="text-sm text-ink-dim">No syncs yet.</p>
-          </div>
-          <div class="deck-zone deck-zone-action">
+          <div class="deck-zone-action">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="!!shownSyncId || starting">
               {{ syncButtonLabel }}
             </button>
+          </div>
+          <a href="#/syncs" class="deck-cell deck-cell-last no-hover-underline" :title="lastSyncCell.title">
+            <span class="deck-cell-label">
+              <span v-if="lastSyncCell.dot" :class="['led-dot', 'sm', { live: lastSyncCell.live }]" :style="{ background: lastSyncCell.dot }"></span>{{ lastSyncCell.label }}
+            </span>
+            <span :class="['deck-cell-value', { 'deck-cell-dim': lastSyncCell.dim }]">{{ lastSyncCell.value }}</span>
+          </a>
+          <div :key="resultCell.key" class="deck-cell deck-cell-result deck-fade" :title="resultCell.title">
+            <span class="deck-cell-label">{{ resultCell.label }}</span>
+            <span :class="['deck-cell-value', resultCell.tone]">{{ resultCell.value }}<span v-if="resultCell.failed" class="deck-cell-err"> · {{ resultCell.failed }} failed</span></span>
           </div>
         </div>
         <div class="deck-pipeline">
@@ -877,8 +889,9 @@ const DashboardView = {
     const isRecordingChannel = (channelId) => recordingChannelIds.value.has(String(channelId))
 
     const refresh = async () => {
-      const [syncs, shows, recordings, settings] = await Promise.all([
+      const [syncs, , shows, recordings, settings] = await Promise.all([
         api('GET', '/api/syncs').catch(() => ({ syncs: [] })),
+        loadSyncStatus().then(ensureSyncPolling),
         api('GET', '/api/shows').catch(() => ({ shows: [] })),
         api('GET', '/api/recordings').catch(() => ({ recordings: [] })),
         api('GET', '/api/settings').catch(() => ({})),
@@ -928,6 +941,44 @@ const DashboardView = {
 
     const pipeline = computed(() => [tvhCell.value, showsCell.value, recordingsCell.value, plexCell.value])
 
+    const lastSyncCell = computed(() => {
+      const s = deckSync.value
+      if (!s) return { label: 'LAST SYNC', value: 'never', dim: true }
+      const nowMs = now.value.getTime()
+      const title = [`#${s.id}`, fmtTime(s.started_at), s.summary?.trigger].filter(Boolean).join(' · ')
+      if (s.status === 'running') {
+        return { label: 'ELAPSED', value: fmtElapsed({ at: s.started_at, nowMs }), dot: SYNC_DOTS.running, live: true, title }
+      }
+      return { label: 'LAST SYNC', value: fmtAgo({ at: s.finished_at || s.started_at, nowMs }), dot: SYNC_DOTS[s.status], title }
+    })
+
+    const resultCell = computed(() => {
+      if (flashText.value) {
+        return { key: `flash-${flashText.value}`, label: 'NOTICE', value: flashText.value, tone: flashKind.value, title: flashText.value }
+      }
+      const s = deckSync.value
+      if (!s) return { key: 'none', label: 'RESULT', value: '—', tone: 'deck-cell-dim' }
+      if (s.status === 'running') return { key: `run-${s.id}`, label: 'RESULT', value: 'in progress', tone: 'deck-cell-dim' }
+      const sum = s.summary || {}
+      const errors = (sum.errors || []).join('\n')
+      if (s.status === 'error') {
+        const text = sum.message || sum.errors?.[0] || 'failed'
+        return { key: `err-${s.id}`, label: 'RESULT', value: text, tone: 'err', title: errors || text }
+      }
+      if (sum.imported) return { key: `ok-${s.id}`, label: 'RESULT', value: `${sum.imported} imported`, failed: sum.failed, title: errors }
+      if (sum.failed) return { key: `fail-${s.id}`, label: 'RESULT', value: `${sum.failed} failed`, tone: 'err', title: errors }
+      return { key: `none-${s.id}`, label: 'RESULT', value: sum.message || 'nothing new', tone: 'deck-cell-dim' }
+    })
+
+    const nextSyncLabel = computed(() => {
+      const at = Date.parse(syncStatus.value.nextRunAt || '')
+      if (!at) return ''
+      const mins = Math.ceil((at - now.value.getTime()) / 60_000)
+      if (mins <= 0) return 'due'
+      if (mins < 60) return `in ${mins} min`
+      return `at ${fmtClockTz(at)}`
+    })
+
     const syncButtonLabel = computed(() => {
       if (starting.value) return 'STARTING…'
       if (shownSyncId.value) return 'SYNCING…'
@@ -969,7 +1020,7 @@ const DashboardView = {
     onUnmounted(stopWatch)
 
     return {
-      syncStatus, shownSyncId, deckSync, recentSyncs,
+      syncStatus, shownSyncId, lastSyncCell, resultCell, nextSyncLabel, recentSyncs,
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
       isRecordingChannel,
