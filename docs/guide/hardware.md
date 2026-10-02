@@ -27,14 +27,14 @@ Buy an **HDHomeRun Flex Quatro**, model `HDFX-4DT`, direct from [SiliconDust](ht
 
 It is a network tuner: it plugs into your router, or a switch on your LAN, by ethernet and serves its tuners over the LAN. Nothing plugs into the NAS. The author's router has a single LAN port, so a `TP-Link TL-SG105` five-port switch connects the router, the NAS, and the tuner.
 
+> [!IMPORTANT]<br>
+> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in his order notes, and both came in the box.
+
+No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
+
 ### Direct to a spare NAS port
 
 A NAS with a second ethernet port can take the tuner directly, with no router in between. It works, with two catches. Nothing on that link hands out addresses, so the tuner and the NAS port fall back to link-local addresses (`169.254.x.x`). TVHeadend under host networking still finds the tuner by broadcast on that port. But the tuner no longer appears in your router's client list, and its status page answers only from the NAS itself. Plug the tuner into the router or a switch on your LAN if you can.
-
-> [!IMPORTANT]<br>
-> Put "AU/NZ adapter" in the order notes. SiliconDust ship the unit with a US, UK, EU, or AU/NZ mains adapter, and they pick from what you tell them.
-
-No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
 
 ### Models that work in Australia
 
@@ -98,7 +98,7 @@ flowchart LR
 
 ### The connector
 
-The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. The author's AU/NZ order from SiliconDust came with an F-to-PAL adapter in the box, and buyers on the Whirlpool HDHomeRun thread report the same, so check the box first. If it is missing, one adapter fixes it: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
+The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. The author asked for an F-to-PAL adapter in the order notes of his AU/NZ order from SiliconDust, and it came in the box. Buyers on the Whirlpool HDHomeRun thread report the same, so ask for one and check the box first. If it is missing, one adapter fixes it: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
 
 > [!NOTE]<br>
 > SiliconDust's product page lists only the power adapter as in the box. The F-to-PAL adapter is not a listed item, so a future order could arrive without it.
