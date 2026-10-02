@@ -2136,6 +2136,12 @@ body {
   scale: 0.6;
 }
 
+body.pull-refreshing .view-reveal,
+body.pull-refreshing .view-reveal > * {
+  animation: none;
+  opacity: 1;
+}
+
 @keyframes pull-spin {
   to { rotate: 1turn; }
 }

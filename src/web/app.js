@@ -5214,7 +5214,7 @@ const installPullToRefresh = ({ onRefresh }) => {
   document.body.append(indicator)
   let start = null
   let claimed = false
-  let fired = false
+  let committed = false
   let offset = 0
   let refreshing = false
   let frame = 0
@@ -5242,32 +5242,45 @@ const installPullToRefresh = ({ onRefresh }) => {
   const finish = async () => {
     indicator.classList.add('done')
     await wait(PULL_FADE_MS)
-    refreshing = false
-    if (!start) place(0, { animate: true })
+    place(0, { animate: true })
     await wait(PULL_SETTLE_MS)
     indicator.classList.remove('refreshing', 'done')
+    document.body.classList.remove('pull-refreshing')
+    refreshing = false
   }
-  const beginRefresh = async () => {
-    fired = true
-    refreshing = true
+  const commit = () => {
+    committed = true
     indicator.classList.add('refreshing')
+  }
+  const runRefresh = async () => {
+    refreshing = true
+    document.body.classList.add('pull-refreshing')
+    place(PULL_HOLD_PX, { animate: true })
     await onRefresh().catch(() => {})
     await finish()
   }
   const release = () => {
     start = null
-    place(refreshing ? PULL_HOLD_PX : 0, { animate: true })
+    if (committed) {
+      committed = false
+      return runRefresh()
+    }
+    place(0, { animate: true })
   }
   window.addEventListener('touchstart', (e) => {
     if (refreshing || pullBlocked(e)) return
     const touch = e.touches[0]
     start = { x: touch.clientX, y: touch.clientY }
     claimed = false
-    fired = false
+    committed = false
   }, { passive: true })
   window.addEventListener('touchmove', (e) => {
     if (!start) return
-    if (e.touches.length > 1 || document.body.classList.contains('epg-drag-lock')) return release()
+    if (e.touches.length > 1 || document.body.classList.contains('epg-drag-lock')) {
+      committed = false
+      indicator.classList.remove('refreshing')
+      return release()
+    }
     const touch = e.touches[0]
     const dx = touch.clientX - start.x
     const dy = touch.clientY - start.y
@@ -5281,7 +5294,7 @@ const installPullToRefresh = ({ onRefresh }) => {
     }
     e.preventDefault()
     place(rubberBand(Math.max(0, dy - PULL_SLOP_PX)))
-    if (!fired && offset >= PULL_TRIGGER_PX) beginRefresh()
+    if (!committed && offset >= PULL_TRIGGER_PX) commit()
   }, { passive: false })
   window.addEventListener('touchend', (e) => {
     if (!start || e.touches.length > 0) return
