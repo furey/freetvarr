@@ -313,6 +313,13 @@ const parseHash = () => {
 const route = ref(parseHash())
 window.addEventListener('hashchange', () => { route.value = parseHash() })
 
+const guideHandoff = ref(null)
+
+const openInGuide = (handoff) => {
+  guideHandoff.value = handoff
+  window.location.hash = '#/guide'
+}
+
 const syncStatus = ref({ activeSyncId: null, cron: '' })
 let syncPollTimer = null
 
@@ -714,7 +721,9 @@ const DashboardView = {
                 @error="$event.target.style.display = 'none'" />
               <span class="font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate" :title="e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
-                <template v-if="e.now">
+                <button v-if="e.now" type="button" class="on-now-open"
+                  :aria-label="'Show details for ' + e.now.title"
+                  @click="openInGuide({ channelId: e.channel.id, program: e.now })">
                   <span class="block truncate">
                     <span class="text-sm font-semibold text-ink mr-3">{{ e.now.title }}</span>
                     <span v-if="isRecordingChannel(e.channel.id)" class="on-now-rec"><span class="led-dot sm live"></span>REC</span>
@@ -725,15 +734,17 @@ const DashboardView = {
                       <div :class="['progress-fill', { rec: isRecordingChannel(e.channel.id) }]" :style="{ width: onNowPercent(e.now) + '%' }"></div>
                     </div>
                   </div>
-                </template>
+                </button>
                 <span v-else class="text-sm text-ink-mute">off air</span>
               </div>
-              <span v-if="e.next" class="hidden sm:block font-mono text-xs text-ink-dim min-w-0 max-w-[16rem] truncate">
+              <button v-if="e.next" type="button" class="on-now-open hidden sm:block font-mono text-xs text-ink-dim min-w-0 max-w-[16rem] truncate"
+                :aria-label="'Show details for ' + e.next.title"
+                @click="openInGuide({ channelId: e.channel.id, program: e.next })">
                 next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
-              </span>
-              <button type="button" class="btn btn-sm btn-icon shrink-0" title="Watch live"
+              </button>
+              <button type="button" class="btn btn-sm btn-icon btn-watch shrink-0" title="Watch live"
                 :aria-label="'Watch ' + e.channel.name + ' live'"
-                @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })">▶</button>
+                @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
             </div>
             </div>
           </div>
@@ -743,11 +754,14 @@ const DashboardView = {
           <div v-if="guideUpcoming.length">
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
             <div class="space-y-2">
-              <p v-for="r in guideUpcoming" :key="r.id" class="flex items-center gap-2.5 font-mono text-xs text-ink-dim min-w-0">
+              <button v-for="r in guideUpcoming" :key="r.id" type="button"
+                class="on-now-open flex items-center gap-2.5 font-mono text-xs text-ink-dim min-w-0"
+                :aria-label="'Show details for ' + r.name"
+                @click="openInGuide({ upcoming: r })">
                 <span class="led-dot sm shrink-0" :style="{ background: isSeriesRec(r) ? '#e2b03c' : '#1eb6ff' }"></span>
                 <span class="truncate min-w-0"><span class="text-ink">{{ r.name }}</span>
                 · {{ fmtClockTz(tsOfMs(r.startDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template> · {{ isSeriesRec(r) ? 'series' : 'one-off' }}</span>
-              </p>
+              </button>
             </div>
           </div>
         </div>
@@ -928,7 +942,7 @@ const DashboardView = {
       tvhLabel, tvhClass, tvhMeta, tvhConfigured,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
       isRecordingChannel,
-      watchLive, starting, syncNow, fmtTime,
+      watchLive, openInGuide, starting, syncNow, fmtTime,
       flashText, flashKind,
     }
   },
@@ -3312,40 +3326,40 @@ const EpgView = {
               </div>
             </div>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
-              <button type="button" class="btn btn-sm epg-modal-close mr-auto" @click="closeModal" aria-label="Close">✕ CLOSE</button>
+              <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close">✕ CLOSE</button>
               <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
-              <button v-if="canWatchLive" type="button" class="btn btn-sm btn-primary" @click="watchSelected">▶ WATCH LIVE</button>
+              <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
               <template v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'">
                 <template v-if="isSeriesScheduled(selected.program) && cancelChoice">
                   <span class="text-xs font-mono text-ink-mute">This is part of a series recording — cancel what?</span>
-                  <button type="button" class="btn btn-sm btn-danger" :class="{ 'is-busy': modalAction === 'cancel-episode' }" @click="cancelSelected" :disabled="modalBusy">
+                  <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-episode' }" @click="cancelSelected" :disabled="modalBusy">
                     <span class="btn-label">⨯ THIS EPISODE</span>
                     <span v-if="modalAction === 'cancel-episode'" class="spinner spinner-overlay"></span>
                   </button>
-                  <button type="button" class="btn btn-sm btn-danger" :class="{ 'is-busy': modalAction === 'cancel-whole' }" @click="cancelSelectedSeries" :disabled="modalBusy">
+                  <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-whole' }" @click="cancelSelectedSeries" :disabled="modalBusy">
                     <span class="btn-label">⨯ WHOLE SERIES</span>
                     <span v-if="modalAction === 'cancel-whole'" class="spinner spinner-overlay"></span>
                   </button>
-                  <button type="button" class="btn btn-sm" @click="cancelChoice = false" :disabled="modalBusy">KEEP</button>
+                  <button type="button" class="btn" @click="cancelChoice = false" :disabled="modalBusy">KEEP</button>
                 </template>
-                <button v-else type="button" class="btn btn-sm btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }"
+                <button v-else type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }"
                   @click="isSeriesScheduled(selected.program) ? (cancelChoice = true) : cancelSelected()" :disabled="modalBusy">
                   <span class="btn-label">⨯ CANCEL RECORDING</span>
                   <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
               <template v-else-if="cellState(selected.program) === 'series'">
-                <button type="button" class="btn btn-sm btn-danger" :class="{ 'is-busy': modalAction === 'cancel-series' }" @click="cancelSelectedSeries" :disabled="modalBusy">
+                <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-series' }" @click="cancelSelectedSeries" :disabled="modalBusy">
                   <span class="btn-label">⨯ CANCEL SERIES</span>
                   <span v-if="modalAction === 'cancel-series'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
               <template v-else-if="canRecord">
-                <button v-if="selected.program.series_link" type="button" class="btn btn-sm" :class="{ 'is-busy': modalAction === 'record-series' }" @click="recordSelectedSeries" :disabled="modalBusy">
+                <button v-if="selected.program.series_link" type="button" class="btn" :class="{ 'is-busy': modalAction === 'record-series' }" @click="recordSelectedSeries" :disabled="modalBusy">
                   <span class="btn-label">⦿ RECORD SERIES</span>
                   <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
                 </button>
-                <button type="button" class="btn btn-sm btn-primary" :class="{ 'is-busy': modalAction === 'record' }" @click="recordSelected" :disabled="modalBusy">
+                <button type="button" class="btn btn-primary" :class="{ 'is-busy': modalAction === 'record' }" @click="recordSelected" :disabled="modalBusy">
                   <span class="btn-label">⦿ RECORD</span>
                   <span v-if="modalAction === 'record'" class="spinner spinner-overlay"></span>
                 </button>
@@ -3845,9 +3859,25 @@ const EpgView = {
       }, channelById(r.channelId))
     }
 
+    let returnToDashboard = false
+
+    const openHandoff = () => {
+      const handoff = guideHandoff.value
+      if (!handoff) return
+      guideHandoff.value = null
+      returnToDashboard = true
+      if (handoff.upcoming) return openUpcoming(handoff.upcoming)
+      const listed = (guide.value?.programs[handoff.channelId] || [])
+        .find((p) => p.start === handoff.program.start)
+      openProgram(listed || handoff.program, channelById(handoff.channelId))
+    }
+
     const closeModal = () => {
       cancelChoice.value = false
       selected.value = null
+      if (!returnToDashboard) return
+      returnToDashboard = false
+      window.location.hash = '#/dashboard'
     }
 
     const recordSelected = async () => {
@@ -4234,7 +4264,7 @@ const EpgView = {
 
     const onKeydown = (e) => {
       if (e.key !== 'Escape') return
-      if (selected.value) selected.value = null
+      if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
     }
 
@@ -4243,6 +4273,7 @@ const EpgView = {
       window.addEventListener('keydown', onKeydown)
       loadState()
       await loadDay(0)
+      openHandoff()
       await scrollToMs(Date.now() - 30 * 60_000)
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
     })
@@ -4442,6 +4473,23 @@ window.addEventListener('pagehide', () => {
   }).catch(() => {})
 })
 
+const resumeAtLiveEdge = () => {
+  if (!live.open || live.phase === 'ended' || !liveVideo) return
+  const { seekable } = liveVideo
+  if (seekable.length) liveVideo.currentTime = seekable.end(seekable.length - 1)
+  liveVideo.play()?.catch(() => {})
+}
+
+const TvIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5.5 1.5 8 4l2.5-2.5"/>
+      <rect x="1.5" y="4" width="13" height="10" rx="1.5"/>
+      <path d="M6.75 7v4l3.25-2z" fill="currentColor"/>
+    </svg>
+  `,
+}
+
 const LivePlayer = {
   template: `
     <teleport to="body">
@@ -4455,7 +4503,7 @@ const LivePlayer = {
             <span class="panel-title block truncate">{{ live.channel?.name }}</span>
             <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
           </div>
-          <button type="button" class="btn btn-sm btn-icon" @click="stopLive" aria-label="Stop and close">✕</button>
+          <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close">✕</button>
         </header>
         <div class="live-frame">
           <video ref="videoEl" class="live-video" playsinline controls></video>
@@ -4466,7 +4514,7 @@ const LivePlayer = {
           </ul>
           <div class="epg-modal-actions flex items-center justify-between gap-3">
             <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
-            <button type="button" class="btn btn-sm btn-danger shrink-0" @click="stopLive">■ STOP</button>
+            <button type="button" class="btn btn-danger shrink-0" @click="stopLive">■ STOP</button>
           </div>
         </div>
       </section>
@@ -4496,6 +4544,7 @@ const LivePlayer = {
 
     onMounted(() => {
       liveVideo = videoEl.value
+      liveVideo.addEventListener('webkitendfullscreen', resumeAtLiveEdge)
       window.addEventListener('keydown', onKeydown)
     })
     onUnmounted(() => window.removeEventListener('keydown', onKeydown))
@@ -4635,4 +4684,5 @@ app.component('programme-image', ProgrammeImage)
 app.component('recording-card', RecordingCard)
 app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
+app.component('tv-icon', TvIcon)
 app.mount('#app')
