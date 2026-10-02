@@ -832,29 +832,27 @@ const LiveView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">LIVE TV</span>
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <button type="button" class="btn btn-sm" @click="channelsModal = true" :disabled="!data"><span class="btn-glyph">⚙︎</span> CHANNELS</button>
+            <button type="button" :class="['btn', 'btn-sm', { 'btn-on': pinnedOnly }]" :aria-pressed="pinnedOnly"
+              @click="pinnedOnly = !pinnedOnly">FAVOURITES ONLY</button>
+            <button type="button" class="btn btn-sm" @click="channelsModal = true" :disabled="!data"><sliders-icon /> CHANNELS</button>
           </div>
         </header>
         <div class="panel-body space-y-5">
-          <div class="flex flex-wrap items-center gap-3">
-            <input v-model="filterQ" type="search" class="field-input flex-1 min-w-[12rem] md:max-w-sm"
-              placeholder="Filter channels or shows" aria-label="Filter channels or shows"
-              style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
-            <button type="button" :class="['btn', 'btn-sm', { 'btn-on': pinnedOnly }]" :aria-pressed="pinnedOnly"
-              @click="pinnedOnly = !pinnedOnly">★ FAVOURITES ONLY</button>
-          </div>
+          <input v-model="filterQ" type="search" class="field-input w-full"
+            placeholder="Filter channels or shows" aria-label="Filter channels or shows"
+            style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
           <p v-if="tvhConfigured === false" class="text-sm text-ink-dim">
             Connect TVHeadend in <a href="#/settings/tvheadend">Settings</a> to watch live TV.
           </p>
           <div v-else-if="error" class="flex flex-wrap items-center gap-3">
             <span class="status-readout err">Guide unavailable: {{ error }}</span>
-            <button type="button" class="btn btn-sm" @click="load">⟳ RETRY</button>
+            <button type="button" class="btn btn-sm" @click="load"><refresh-icon /> RETRY</button>
           </div>
           <p v-else-if="!data" class="text-sm text-ink-dim">Loading channels…</p>
           <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
-          <div v-for="g in groups" :key="g.key">
+          <div v-for="g in groups" :key="g.key" class="live-group">
             <div class="live-group-heading">{{ g.label }}</div>
             <ul class="live-list">
               <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
@@ -1047,7 +1045,7 @@ const DashboardView = {
         </header>
         <div v-if="!guideOk" class="panel-body flex flex-wrap items-center gap-3">
           <span class="status-readout err">Guide unavailable. TVHeadend did not answer.</span>
-          <button type="button" class="btn btn-sm" @click="loadGuidePanel">⟳ RETRY</button>
+          <button type="button" class="btn btn-sm" @click="loadGuidePanel"><refresh-icon /> RETRY</button>
         </div>
         <div v-else class="panel-body space-y-5">
           <div v-if="onNow.length">
@@ -1118,7 +1116,7 @@ const DashboardView = {
           </div>
           <div class="deck-zone-action">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="!!shownSyncId || starting">
-              {{ syncButtonLabel }}
+              <play-icon v-if="!shownSyncId && !starting" /> {{ syncButtonLabel }}
             </button>
           </div>
           <a href="#/syncs" class="deck-cell deck-cell-last no-hover-underline" :title="lastSyncCell.title">
@@ -1324,7 +1322,7 @@ const DashboardView = {
     const syncButtonLabel = computed(() => {
       if (starting.value) return 'STARTING…'
       if (shownSyncId.value) return 'SYNCING…'
-      return '▶ SYNC NOW'
+      return 'SYNC NOW'
     })
 
     const holdSyncState = (syncId) => {
@@ -1417,7 +1415,7 @@ const ShowsView = {
                     <button type="button" class="btn" @click="syncOne(s)"
                       :disabled="!s.enabled || syncingId === s.id"
                       :title="s.enabled ? 'Sync just this show now' : 'Enable to sync'">
-                      {{ syncingId === s.id ? 'STARTING…' : '▶ SYNC' }}
+                      <template v-if="syncingId === s.id">STARTING…</template><template v-else><play-icon /> SYNC</template>
                     </button>
                     <button type="button" class="btn btn-danger" @click="remove(s)">DELETE</button>
                   </div>
@@ -1455,7 +1453,7 @@ const ShowsView = {
               <div class="grid grid-cols-2 gap-2 pt-1">
                 <button type="button" class="btn justify-center" @click="syncOne(s)"
                   :disabled="!s.enabled || syncingId === s.id">
-                  {{ syncingId === s.id ? 'STARTING…' : '▶ SYNC' }}
+                  <template v-if="syncingId === s.id">STARTING…</template><template v-else><play-icon /> SYNC</template>
                 </button>
                 <button type="button" class="btn btn-danger justify-center" @click="remove(s)">DELETE</button>
               </div>
@@ -1479,7 +1477,7 @@ const ShowsView = {
                 <input type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. Bluey" class="field-input flex-1 min-w-[12rem]" />
                 <button type="button" class="btn btn-sm" @click="loadTvhShows" :disabled="loadingShows"
                   title="List the titles TVHeadend has finished recordings for.">
-                  {{ loadingShows ? 'LISTING…' : '⟳ REFRESH TITLES' }}
+                  <template v-if="loadingShows">LISTING…</template><template v-else><refresh-icon /> REFRESH TITLES</template>
                 </button>
               </div>
               <datalist id="tvh-shows">
@@ -1528,7 +1526,7 @@ const ShowsView = {
           </div>
           <div class="flex flex-wrap items-center gap-3 mt-2">
             <button type="submit" class="btn btn-primary" :disabled="adding">
-              {{ adding ? 'ADDING…' : '＋ TRACK SHOW' }}
+              <template v-if="adding">ADDING…</template><template v-else><plus-icon /> TRACK SHOW</template>
             </button>
             <span v-if="formStatusText" :class="['status-readout', formStatusKind]">{{ formStatusText }}</span>
           </div>
@@ -1725,10 +1723,12 @@ const SyncsView = {
         <div class="panel-body space-y-4">
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
-              {{ syncStatus.activeSyncId ? '● SYNC RUNNING…' : (starting ? 'STARTING…' : '▶ SYNC NOW') }}
+              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span> SYNC RUNNING…</template>
+              <template v-else-if="starting">STARTING…</template>
+              <template v-else><play-icon /> SYNC NOW</template>
             </button>
-            <button type="button" class="btn" @click="manualRefresh"><span class="btn-glyph">⟳</span> REFRESH</button>
-            <button type="button" class="btn btn-danger" @click="clearAll" :disabled="!syncs.length">⨯ CLEAR HISTORY</button>
+            <button type="button" class="btn" @click="manualRefresh"><refresh-icon /> REFRESH</button>
+            <button type="button" class="btn btn-danger" @click="clearAll" :disabled="!syncs.length"><cross-icon /> CLEAR HISTORY</button>
           </div>
 
           <div class="flex items-center gap-2 min-w-0">
@@ -1756,9 +1756,7 @@ const SyncsView = {
                     :disabled="s.id === syncStatus.activeSyncId"
                     @click="removeSync(s)"
                     title="Delete this sync from history.">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
-                    </svg>
+                    <trash-icon />
                   </button>
                 </td>
               </tr>
@@ -1772,9 +1770,7 @@ const SyncsView = {
                 <button type="button" class="btn btn-sm btn-icon btn-danger"
                   :disabled="s.id === syncStatus.activeSyncId"
                   @click="removeSync(s)">
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
-                  </svg>
+                  <trash-icon />
                 </button>
               </div>
               <p class="deck-card-meta">
@@ -1896,9 +1892,9 @@ const RecordingsView = {
             <button type="button" class="btn btn-sm btn-danger" @click="purgeDeleted"
               :disabled="purging"
               title="Remove all tombstoned rows from Freetvarr's history (recordings already removed from TVHeadend).">
-              {{ purging ? 'PURGING…' : '⨯ PURGE REMOVED' }}
+              <template v-if="purging">PURGING…</template><template v-else><cross-icon /> PURGE REMOVED</template>
             </button>
-            <button type="button" class="btn btn-sm" @click="manualRefresh"><span class="btn-glyph">⟳</span> REFRESH</button>
+            <button type="button" class="btn btn-sm" @click="manualRefresh"><refresh-icon /> REFRESH</button>
           </div>
         </header>
         <div class="panel-body space-y-4">
@@ -1990,17 +1986,13 @@ const RecordingsView = {
                     @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id"
                     title="Remove this recording from TVHeadend. TVHeadend deletes the file and keeps the episode in its history. Irreversible.">
                     <span v-if="deletingId === r.recording_id">…</span>
-                    <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
-                    </svg>
+                    <trash-icon v-else />
                   </button>
                   <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
                     @click="removeRecording(r)" :disabled="removingId === r.recording_id"
                     :title="removeTitle(r)">
                     <span v-if="removingId === r.recording_id">…</span>
-                    <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
-                    </svg>
+                    <trash-icon v-else />
                   </button>
                   </div>
                 </td>
@@ -2042,16 +2034,12 @@ const RecordingsView = {
                 <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
                   @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id">
                   <span v-if="deletingId === r.recording_id">…</span>
-                  <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
-                  </svg>
+                  <trash-icon v-else />
                 </button>
                 <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
                   @click="removeRecording(r)" :disabled="removingId === r.recording_id" :title="removeTitle(r)">
                   <span v-if="removingId === r.recording_id">…</span>
-                  <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
-                  </svg>
+                  <trash-icon v-else />
                 </button>
               </div>
             </article>
@@ -2062,8 +2050,8 @@ const RecordingsView = {
           <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
             <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
             <div class="flex items-center gap-2">
-              <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1">← PREV</button>
-              <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">NEXT →</button>
+              <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> PREV</button>
+              <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">NEXT <arrow-right-icon /></button>
             </div>
           </div>
         </div>
@@ -2354,7 +2342,7 @@ const SettingsView = {
           <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
             Re-open the guided setup at any time. Already-saved values prefill — including a <code>••••• (stored)</code> hint for the Plex token and the TVHeadend password — so you can tweak one step without retyping the rest. To wipe captured data first, use <strong class="text-ink">NUKE ALL STATE</strong> in the Danger Zone below.
           </p>
-          <button type="button" class="btn" @click="reopenWizard"><span class="btn-glyph">⟳</span> REOPEN WIZARD</button>
+          <button type="button" class="btn" @click="reopenWizard"><refresh-icon /> REOPEN WIZARD</button>
         </div>
       </section>
       <form @submit.prevent="save" class="space-y-6 pb-24">
@@ -2366,7 +2354,7 @@ const SettingsView = {
           <div class="panel-body grid gap-4 md:grid-cols-3">
             <div class="md:col-span-3 flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
-                {{ tvhDetecting ? 'SCANNING…' : '◎ AUTO-DISCOVER TVHEADEND' }}
+                <template v-if="tvhDetecting">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER TVHEADEND</template>
               </button>
               <span v-if="tvhDiscoverText" :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
               <span v-else class="text-xs font-mono text-ink-dim">port 9981 · this host</span>
@@ -2397,7 +2385,7 @@ const SettingsView = {
             </div>
             <div class="field-row md:col-span-3 flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
-                {{ tvhTesting ? 'TESTING…' : '↯ TEST CONNECTION' }}
+                <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
               </button>
               <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
             </div>
@@ -2442,7 +2430,7 @@ const SettingsView = {
             </div>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
-                {{ mediaRootTesting ? 'TESTING…' : '↯ TEST PATH' }}
+                <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
               </button>
               <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
             </div>
@@ -2452,7 +2440,7 @@ const SettingsView = {
                 <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
-                    {{ recordingsCheck.checking ? 'CHECKING…' : '↯ TEST PATH' }}
+                    <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
                   </button>
                   <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
                 </div>
@@ -2462,7 +2450,7 @@ const SettingsView = {
                 <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
-                    {{ tvhPathCheck.checking ? 'CHECKING…' : '↯ CHECK TVHEADEND' }}
+                    <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
                   </button>
                   <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
                 </div>
@@ -2482,7 +2470,7 @@ const SettingsView = {
           <div class="panel-body grid gap-4 md:grid-cols-2">
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
-                {{ plexDiscovering ? 'SCANNING…' : '◎ AUTO-DISCOVER PLEX' }}
+                <template v-if="plexDiscovering">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER PLEX</template>
               </button>
               <span v-if="plexDiscoverText" :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
               <span v-else class="text-xs font-mono text-ink-dim">GDM · LAN broadcast</span>
@@ -2507,7 +2495,7 @@ const SettingsView = {
                 :placeholder="plexTokenSet ? '••••• (stored)' : 'X-Plex-Token'" autocomplete="off" />
               <div class="mt-2 flex flex-wrap items-center gap-3">
                 <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetecting">
-                  {{ plexDetecting ? 'DETECTING…' : '⚡ AUTO-DETECT TOKEN' }}
+                  <template v-if="plexDetecting">DETECTING…</template><template v-else><bolt-icon /> AUTO-DETECT TOKEN</template>
                 </button>
                 <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
               </div>
@@ -2535,10 +2523,10 @@ const SettingsView = {
             </div>
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="loadPlexSections" :disabled="plexProbing">
-                {{ plexProbing ? 'PROBING…' : '⇣ LOAD SECTIONS' }}
+                <template v-if="plexProbing">PROBING…</template><template v-else><download-icon /> LOAD SECTIONS</template>
               </button>
               <button type="button" class="btn" @click="refreshPlexNow" :disabled="plexRefreshing">
-                {{ plexRefreshing ? 'REFRESHING…' : '⟳ REFRESH PLEX NOW' }}
+                <template v-if="plexRefreshing">REFRESHING…</template><template v-else><refresh-icon /> REFRESH PLEX NOW</template>
               </button>
               <span v-if="plexStatus" :class="['status-readout', plexStatusKind]">{{ plexStatus }}</span>
             </div>
@@ -2587,7 +2575,7 @@ const SettingsView = {
             </div>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn btn-danger" @click="nukeState" :disabled="nuking">
-                {{ nuking ? 'NUKING…' : '☠ NUKE ALL STATE' }}
+                <template v-if="nuking">NUKING…</template><template v-else><trash-icon /> NUKE ALL STATE</template>
               </button>
             </div>
           </div>
@@ -2598,7 +2586,7 @@ const SettingsView = {
             <span v-if="status" :class="['status-readout', statusKind]">{{ status }}</span>
             <span v-else class="text-xs font-mono text-ink-mute">Changes apply on save · scheduler reloads if <code>sync_cron</code> changed.</span>
             <button type="submit" class="btn btn-primary" :disabled="saving">
-              {{ saving ? 'SAVING…' : '✓ SAVE SETTINGS' }}
+              <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE SETTINGS</template>
             </button>
           </div>
         </div>
@@ -2965,7 +2953,7 @@ const WelcomeView = {
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="detectTvh()" :disabled="tvhDetecting">
-                {{ tvhDetecting && !tvhAutoScanning ? 'SCANNING…' : '◎ AUTO-DISCOVER TVHEADEND' }}
+                <template v-if="tvhDetecting && !tvhAutoScanning">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER TVHEADEND</template>
               </button>
               <span v-if="tvhDiscoverText"
                 :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
@@ -2997,7 +2985,7 @@ const WelcomeView = {
             </div>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
-                {{ tvhTesting ? 'TESTING…' : '↯ TEST CONNECTION' }}
+                <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
               </button>
               <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
             </div>
@@ -3012,7 +3000,7 @@ const WelcomeView = {
               <input type="text" class="field-input" v-model="mediaRoot" placeholder="/media/tv" />
               <div class="flex flex-wrap items-center gap-3 mt-2">
                 <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
-                  {{ mediaRootTesting ? 'TESTING…' : '↯ TEST PATH' }}
+                  <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
                 </button>
                 <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
               </div>
@@ -3026,7 +3014,7 @@ const WelcomeView = {
                 <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
-                    {{ recordingsCheck.checking ? 'CHECKING…' : '↯ TEST PATH' }}
+                    <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
                   </button>
                   <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
                 </div>
@@ -3036,7 +3024,7 @@ const WelcomeView = {
                 <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
-                    {{ tvhPathCheck.checking ? 'CHECKING…' : '↯ CHECK TVHEADEND' }}
+                    <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
                   </button>
                   <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
                 </div>
@@ -3053,7 +3041,7 @@ const WelcomeView = {
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
-                {{ plexDiscovering ? 'SCANNING…' : '◎ AUTO-DISCOVER PLEX' }}
+                <template v-if="plexDiscovering">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER PLEX</template>
               </button>
               <span v-if="plexDiscoverText"
                 :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
@@ -3079,7 +3067,7 @@ const WelcomeView = {
                   :placeholder="plexTokenSet ? '••••• (stored)' : 'X-Plex-Token'" autocomplete="off" />
                 <div class="mt-2 flex flex-wrap items-center gap-3">
                   <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
-                    {{ plexDetectingToken ? 'DETECTING…' : '⚡ AUTO-DETECT TOKEN' }}
+                    <template v-if="plexDetectingToken">DETECTING…</template><template v-else><bolt-icon /> AUTO-DETECT TOKEN</template>
                   </button>
                   <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
                 </div>
@@ -3106,7 +3094,7 @@ const WelcomeView = {
               </div>
               <div class="flex flex-wrap items-center gap-3">
                 <button type="button" class="btn" @click="loadPlexSections" :disabled="plexProbing">
-                  {{ plexProbing ? 'PROBING…' : '⇣ LOAD SECTIONS' }}
+                  <template v-if="plexProbing">PROBING…</template><template v-else><download-icon /> LOAD SECTIONS</template>
                 </button>
                 <span v-if="plexSectionsText"
                   :class="['status-readout', plexSectionsKind]">{{ plexSectionsText }}</span>
@@ -3125,13 +3113,13 @@ const WelcomeView = {
 
         </div>
         <div class="panel-body border-t border-hairline flex items-center justify-between gap-3 pt-4">
-          <button type="button" class="btn" @click="back" :disabled="step === 1 || saving">← BACK</button>
+          <button type="button" class="btn" @click="back" :disabled="step === 1 || saving"><arrow-left-icon /> BACK</button>
           <div class="flex items-center gap-3">
             <span v-if="saveStatusText"
               :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
             <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">A TVHeadend URL is required to continue.</span>
             <button type="button" class="btn btn-primary" @click="next" :disabled="!canAdvance || saving">
-              {{ nextLabel }}
+              {{ nextLabel }} <arrow-right-icon />
             </button>
           </div>
         </div>
@@ -3249,17 +3237,17 @@ const WelcomeView = {
     })
 
     const nextLabel = computed(() => {
-      if (step.value === totalSteps) return 'GO TO SHOWS →'
-      if (step.value === 2) return 'SAVE & NEXT →'
+      if (step.value === totalSteps) return 'GO TO SHOWS'
+      if (step.value === 2) return 'SAVE & NEXT'
       if (step.value === 3) {
         const hasStorage = mediaRoot.value || recordingsRoot.value || tvhRecordingsPath.value
-        return hasStorage ? 'SAVE & NEXT →' : 'SKIP →'
+        return hasStorage ? 'SAVE & NEXT' : 'SKIP'
       }
       if (step.value === 4) {
         const hasPlex = plexUrl.value || plexToken.value || plexSectionId.value
-        return hasPlex ? 'SAVE & NEXT →' : 'SKIP →'
+        return hasPlex ? 'SAVE & NEXT' : 'SKIP'
       }
-      return 'NEXT →'
+      return 'NEXT'
     })
 
     const dismiss = () => {
@@ -3501,9 +3489,9 @@ const ChannelsModal = {
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === 0"
-                  @click="movePin(i, -1)" :aria-label="'Move ' + draftName(id) + ' up'">↑</button>
+                  @click="movePin(i, -1)" :aria-label="'Move ' + draftName(id) + ' up'"><arrow-up-icon /></button>
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === pinnedDraft.length - 1"
-                  @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'">↓</button>
+                  @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
                 <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">
                   <span class="text-signal-yellow">★</span> {{ draftName(id) }}
                 </span>
@@ -3642,8 +3630,8 @@ const EpgView = {
           <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · {{ dayTitle }}</template><template v-else> · {{ mode.toUpperCase() }}</template></span>
           <div class="flex flex-wrap items-center gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <button type="button" class="btn btn-sm" @click="openChannelsModal" :disabled="!guide"><span class="btn-glyph">⚙︎</span> CHANNELS</button>
-            <button type="button" class="btn btn-sm" @click="manualRefresh" :disabled="loading"><span class="btn-glyph">⟳</span> REFRESH</button>
+            <button type="button" class="btn btn-sm" @click="openChannelsModal" :disabled="!guide"><sliders-icon /> CHANNELS</button>
+            <button type="button" class="btn btn-sm" @click="manualRefresh" :disabled="loading"><refresh-icon /> REFRESH</button>
           </div>
         </header>
         <div class="panel-body space-y-4">
@@ -3716,23 +3704,23 @@ const EpgView = {
               <p class="text-sm text-ink">Set the TVHeadend URL in Settings.</p>
               <div class="flex items-center gap-2">
                 <a href="#/settings" class="btn btn-sm btn-primary no-underline">OPEN SETTINGS</a>
-                <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })">RETRY</button>
+                <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
               </div>
             </div>
             <div v-else-if="errorCode === 'no-channels'" class="space-y-3">
               <p class="text-sm text-ink">TVHeadend has no channels yet; scan and map them in TVHeadend.</p>
-              <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })">RETRY</button>
+              <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
             </div>
             <div v-else-if="error" class="space-y-3">
               <p class="text-sm font-mono text-signal-orange-hi">{{ error }}</p>
               <p class="text-xs text-ink-dim">
                 Check the TVHeadend connection in <a href="#/settings">Settings</a>.
               </p>
-              <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })">RETRY</button>
+              <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
             </div>
             <div v-else-if="loading && !guide" class="text-ink-dim font-mono text-sm">▰▰ loading guide…</div>
             <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 32vw)' }">
-              <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop">↑ {{ pinnedCount }} FAVOURITES</button>
+              <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
               <div class="epg-scroll" ref="scrollEl">
               <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + trackWidth + 'px)' }">
                 <div class="epg-ruler">
@@ -4911,6 +4899,123 @@ const CrossIcon = {
   `,
 }
 
+const RefreshIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12.7 10.21A5 5 0 1 1 8.5 3.53"/>
+      <path d="M6.75 1.25 9.25 3.5 6.75 5.75"/>
+    </svg>
+  `,
+}
+
+const SlidersIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 3.5h7M12 3.5h2M2 8h2M7 8h7M2 12.5h4.5M9.5 12.5H14"/>
+      <circle cx="10.5" cy="3.5" r="1.5"/>
+      <circle cx="5.5" cy="8" r="1.5"/>
+      <circle cx="8" cy="12.5" r="1.5"/>
+    </svg>
+  `,
+}
+
+const ArrowLeftIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M13.5 8h-11M6.5 4l-4 4 4 4"/>
+    </svg>
+  `,
+}
+
+const ArrowRightIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2.5 8h11M9.5 4l4 4-4 4"/>
+    </svg>
+  `,
+}
+
+const ArrowUpIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 13.5v-11M4 6.5l4-4 4 4"/>
+    </svg>
+  `,
+}
+
+const ArrowDownIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 2.5v11M4 9.5l4 4 4-4"/>
+    </svg>
+  `,
+}
+
+const PlayIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5.5 3.75v8.5L12.75 8z"/>
+    </svg>
+  `,
+}
+
+const PlusIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 3v10M3 8h10"/>
+    </svg>
+  `,
+}
+
+const CheckIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 8.5l3.25 3.25L13 5"/>
+    </svg>
+  `,
+}
+
+const SearchIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.25"/>
+      <path d="M10.25 10.25l3.25 3.25"/>
+    </svg>
+  `,
+}
+
+const PulseIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M1.5 8.5h2.75L6 4l3.5 8.5 1.75-4h3.25"/>
+    </svg>
+  `,
+}
+
+const BoltIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 1.75 3.5 9.25H8l-1 5 5.5-7.5H8z"/>
+    </svg>
+  `,
+}
+
+const DownloadIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 2.5V10M4.75 7 8 10.25 11.25 7M3 13.5h10"/>
+    </svg>
+  `,
+}
+
+const TrashIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 5h10M6.5 5V3h3v2M4.5 5l.7 8.5h5.6L11.5 5M6.5 7.5v4M9.5 7.5v4"/>
+    </svg>
+  `,
+}
+
 const LivePlayer = {
   template: `
     <teleport to="body">
@@ -4946,7 +5051,7 @@ const LivePlayer = {
           <div class="epg-modal-actions flex items-center justify-between gap-3">
             <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
             <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
-              <button type="button" class="btn" @click="retryLive"><span class="btn-glyph">⟳</span> RETRY</button>
+              <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
               <button type="button" class="btn" @click="stopLive"><cross-icon /> CLOSE</button>
             </div>
             <button v-else type="button" class="btn btn-danger shrink-0" @click="stopLive"><stop-icon /> STOP</button>
@@ -5324,4 +5429,18 @@ app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)
 app.component('stop-icon', StopIcon)
+app.component('refresh-icon', RefreshIcon)
+app.component('sliders-icon', SlidersIcon)
+app.component('arrow-left-icon', ArrowLeftIcon)
+app.component('arrow-right-icon', ArrowRightIcon)
+app.component('arrow-up-icon', ArrowUpIcon)
+app.component('arrow-down-icon', ArrowDownIcon)
+app.component('play-icon', PlayIcon)
+app.component('plus-icon', PlusIcon)
+app.component('check-icon', CheckIcon)
+app.component('search-icon', SearchIcon)
+app.component('pulse-icon', PulseIcon)
+app.component('bolt-icon', BoltIcon)
+app.component('download-icon', DownloadIcon)
+app.component('trash-icon', TrashIcon)
 app.mount('#app')
