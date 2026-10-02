@@ -563,7 +563,7 @@ const fmtRelativeDay = (ms) => {
   const key = dayKey(ms)
   if (key === dayKey(Date.now())) return 'Today'
   if (key === dayKey(Date.now() + 86_400_000)) return 'Tomorrow'
-  return dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(ms))
+  return dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(ms)).replace(',', '')
 }
 
 const tsOfMs = (v) => {
