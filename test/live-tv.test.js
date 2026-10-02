@@ -10,6 +10,8 @@ import {
   stallReason,
   createLiveSessions,
   LIVE_FILE_PATTERN,
+  withoutCutInSegment,
+  hasSegments,
 } from '../src/live-tv.js'
 
 const ABC_SD = [
@@ -234,7 +236,7 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000 } = {}) => {
     rootDir: '/tmp/fake-live',
     makeDir: async () => {},
     removeDir: async (dir) => { events.push(`rm ${dir}`) },
-    fileExists: async () => false,
+    readText: async () => null,
     killGraceMs,
     spawnProcess: () => {
       const child = new EventEmitter()
@@ -340,4 +342,38 @@ test('sessions: fileFor rejects bad names and unknown sessions', async () => {
   assert.equal(h.sessions.fileFor('../x', 'index.m3u8'), null)
   assert.equal(h.sessions.fileFor('ffffffffffffffff', 'index.m3u8'), null)
   await h.sessions.stopAll()
+})
+
+const FIRST_PLAYLIST = [
+  '#EXTM3U',
+  '#EXT-X-VERSION:6',
+  '#EXT-X-TARGETDURATION:2',
+  '#EXT-X-MEDIA-SEQUENCE:0',
+  '#EXT-X-INDEPENDENT-SEGMENTS',
+  '#EXTINF:0.960000,',
+  'seg0.ts',
+  '#EXTINF:1.920000,',
+  'seg1.ts',
+  '',
+].join('\n')
+
+test('playlist: the cut-in segment is dropped and the sequence starts at 1', () => {
+  const trimmed = withoutCutInSegment(FIRST_PLAYLIST)
+  assert.ok(!trimmed.includes('seg0.ts'))
+  assert.ok(!trimmed.includes('#EXTINF:0.960000,'))
+  assert.ok(trimmed.includes('#EXT-X-MEDIA-SEQUENCE:1\n'))
+  assert.ok(trimmed.includes('#EXTINF:1.920000,\nseg1.ts'))
+})
+
+test('playlist: a playlist past the cut-in segment is unchanged', () => {
+  const later = FIRST_PLAYLIST
+    .replace('#EXT-X-MEDIA-SEQUENCE:0', '#EXT-X-MEDIA-SEQUENCE:1')
+    .replace('#EXTINF:0.960000,\nseg0.ts\n', '')
+  assert.equal(withoutCutInSegment(later), later)
+})
+
+test('playlist: only the cut-in segment is not yet playable', () => {
+  const onlyCutIn = FIRST_PLAYLIST.replace('#EXTINF:1.920000,\nseg1.ts\n', '')
+  assert.equal(hasSegments(withoutCutInSegment(onlyCutIn)), false)
+  assert.equal(hasSegments(withoutCutInSegment(FIRST_PLAYLIST)), true)
 })

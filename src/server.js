@@ -599,7 +599,12 @@ app.get('/api/live/:session/:file', async (req, res) => {
     return res.status(404).json({ error: 'stream not ready' })
   }
   res.setHeader('Cache-Control', 'no-store')
-  res.type(isPlaylist ? 'application/vnd.apple.mpegurl' : 'video/mp2t')
+  if (isPlaylist) {
+    const playlist = await liveSessions.playlistFor(sessionId)
+    if (playlist == null) return res.status(404).json({ error: 'stream not ready' })
+    return res.type('application/vnd.apple.mpegurl').send(playlist)
+  }
+  res.type('video/mp2t')
   res.sendFile(filePath, (err) => {
     if (err && !res.headersSent) res.status(404).end()
   })
