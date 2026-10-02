@@ -1966,12 +1966,64 @@ body.epg-drag-lock * {
   padding-top: 0.75rem;
 }
 
+.deck-status,
 .deck-pipeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.deck-status {
+  grid-template-areas: "state info info action";
+  padding-block: 1.25rem;
+}
+
+.deck-zone {
   display: flex;
-  align-items: stretch;
+  min-width: 0;
+  padding-inline: 1.25rem;
+}
+
+.deck-zone-state {
+  grid-area: state;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.deck-zone-info {
+  grid-area: info;
+  flex-direction: column;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 0.75rem;
+  border-left: 1px dashed #3d3829;
+}
+
+.deck-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: #b0a89e;
+}
+
+.deck-zone-action {
+  grid-area: action;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.5rem;
+  border-left: 1px dashed #3d3829;
+  text-align: right;
+}
+
+.deck-pipeline {
+  padding-block: 0.5rem;
   border-top: 1px dashed #3d3829;
+}
+
+.deck-cell + .deck-cell {
+  border-left: 1px dashed #3d3829;
 }
 
 .deck-cell {
@@ -1980,8 +2032,7 @@ body.epg-drag-lock * {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
+  padding: 0.75rem 1.25rem;
   color: inherit;
   transition: background 0.15s ease;
 }
@@ -2010,12 +2061,6 @@ body.epg-drag-lock * {
   color: #1eb6ff;
 }
 
-.deck-arrow {
-  align-self: center;
-  color: #544e47;
-  font-family: var(--font-mono);
-}
-
 .deck-cell:focus-visible {
   outline: 2px solid #1eb6ff;
   outline-offset: 2px;
@@ -2028,13 +2073,30 @@ body.epg-drag-lock * {
 }
 
 @media (max-width: 767px) {
+  .deck-status,
   .deck-pipeline {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .deck-arrow {
-    display: none;
+  .deck-status {
+    grid-template-areas: "state action" "info info";
+    row-gap: 1rem;
+  }
+
+  .deck-zone-info,
+  .deck-zone-action {
+    border-left: 0;
+  }
+
+  .deck-pipeline {
+    padding-block: 0;
+  }
+
+  .deck-cell:nth-child(n + 3) {
+    border-top: 1px dashed #3d3829;
+  }
+
+  .deck-cell:nth-child(odd) {
+    border-left: 0;
   }
 }
