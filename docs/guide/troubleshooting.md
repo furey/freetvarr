@@ -5,6 +5,8 @@ description: 'Fixes keyed by symptom: the TVHeadend login, the wizard checks, tu
 
 # Troubleshooting
 
+Run the [Doctor](/guide/doctor) first. It checks TVHeadend, the guide, the folders, and Plex, and links each problem it finds to the section below that fixes it.
+
 Each section below starts from what you see, then gives the cause and the fix. The sections follow the order of a first install: TVHeadend, the Freetvarr wizard, the tuner and channels, the guide, then imports and Plex.
 
 > [!NOTE]<br>

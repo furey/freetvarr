@@ -78,13 +78,13 @@ The author uses the HDHomeRun app. Install it, and it finds the tuner by itself.
 
 ## Plex
 
-Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass. You need a Plex Pass to *record* through Plex, which is exactly the thing TVHeadend and Freetvarr already do for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi against TVHeadend instead.
+Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass to *record* through Plex, which is exactly the thing TVHeadend and Freetvarr already do for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi against TVHeadend instead.
 
 ## Captions
 
 Captions arrive either as Teletext or as DVB subtitles, and your broadcaster decides which. Australian broadcasters send Teletext. This matters:
 
-- **The native HDHomeRun app does not render them.** It is not a settings problem; the app has no Teletext decoder.
+- **The native HDHomeRun app is unproven.** SiliconDust documents DVB subtitle support but says nothing about Teletext, and the author has not tested it on an Australian channel.
 - **Kodi, VLC, and Channels do render them.** If captions are a requirement, watch through one of those.
 
 > [!NOTE]<br>

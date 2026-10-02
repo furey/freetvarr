@@ -557,7 +557,7 @@ const countTuners = async (conn) => {
   return value
 }
 
-const walkTuners = async (conn) => {
+export const walkTuners = async (conn) => {
   const roots = await apiGet('hardware/tree', { uuid: 'root' }, conn)
   const count = await countLeafNodes(Array.isArray(roots) ? roots : [], conn)
   return count > 0 ? count : null
@@ -617,6 +617,8 @@ const channelNumber = (raw) => {
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? n : null
 }
+
+export const tvhRead = (path, params = {}, conn) => apiGet(path, params, conn)
 
 const apiGet = async (path, params, conn) => {
   const c = conn || (await resolveConnection())

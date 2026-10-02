@@ -3,6 +3,49 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 
 const repo = 'https://github.com/furey/freetvarr'
 const site = 'https://furey.github.io/freetvarr/'
+const defaultSocialImage = {
+  path: '/social/default.png',
+  alt: 'Freetvarr: live TV in your browser, recordings in Plex'
+}
+
+const pageUrl = (relativePath) => {
+  const path = relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+  return `${site}${path}`
+}
+
+const absoluteUrl = (path) => `${site}${path.replace(/^\//, '')}`
+
+const socialTitle = ({ pageData, siteData }) => {
+  const isHome = pageData.frontmatter.layout === 'home'
+  return isHome || !pageData.title ? siteData.title : `${pageData.title} | ${siteData.title}`
+}
+
+const socialHead = ({ pageData, siteData }) => {
+  const title = socialTitle({ pageData, siteData })
+  const description = pageData.description || siteData.description
+  const url = pageUrl(pageData.relativePath)
+  const image = absoluteUrl(pageData.frontmatter.image ?? defaultSocialImage.path)
+  const imageAlt = pageData.frontmatter.imageAlt ?? defaultSocialImage.alt
+  return [
+    ['link', { rel: 'canonical', href: url }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: siteData.title }],
+    ['meta', { property: 'og:locale', content: 'en_AU' }],
+    ['meta', { property: 'og:url', content: url }],
+    ['meta', { property: 'og:title', content: title }],
+    ['meta', { property: 'og:description', content: description }],
+    ['meta', { property: 'og:image', content: image }],
+    ['meta', { property: 'og:image:type', content: 'image/png' }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
+    ['meta', { property: 'og:image:alt', content: imageAlt }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: title }],
+    ['meta', { name: 'twitter:description', content: description }],
+    ['meta', { name: 'twitter:image', content: image }],
+    ['meta', { name: 'twitter:image:alt', content: imageAlt }]
+  ]
+}
 
 export default withMermaid(defineConfig({
   base: '/freetvarr/',
@@ -34,14 +77,10 @@ export default withMermaid(defineConfig({
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/freetvarr/favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#1a1611' }],
-    ['meta', { name: 'color-scheme', content: 'dark' }],
-    ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'Freetvarr' }],
-    ['meta', { property: 'og:title', content: 'Freetvarr' }],
-    ['meta', { property: 'og:description', content: 'Sync TVHeadend recordings into Plex.' }],
-    ['meta', { property: 'og:url', content: site }],
-    ['meta', { name: 'twitter:card', content: 'summary' }]
+    ['meta', { name: 'color-scheme', content: 'dark' }]
   ],
+
+  transformHead: ({ pageData, siteData }) => socialHead({ pageData, siteData }),
 
   themeConfig: {
     siteTitle: 'Freetvarr',
@@ -86,7 +125,8 @@ export default withMermaid(defineConfig({
         text: 'Coming from Fetch',
         collapsed: false,
         items: [
-          { text: 'Migrating from Fetch', link: '/guide/migrating-from-fetch' }
+          { text: 'Leaving Fetch TV', link: '/guide/leaving-fetch' },
+          { text: 'From Fetcharr', link: '/guide/from-fetcharr' }
         ]
       },
       {
@@ -94,7 +134,8 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
-          { text: 'Troubleshooting', link: '/guide/troubleshooting' }
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+          { text: 'Doctor', link: '/guide/doctor' }
         ]
       },
       {

@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "Free-to-air TV from a TVHeadend-compatible tuner: watch live in the browser, and import recordings into Plex.",
   "license": "GPL-3.0-or-later",
@@ -51,7 +51,8 @@
     "start": "node --env-file-if-exists=.env src/server.js",
     "predev": "npm run migrate",
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
-    "test": "node --test 'test/*.test.js'"
+    "test": "node --test 'test/*.test.js'",
+    "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs"
   },
   "dependencies": {
     "axios": "^1.7.2",
