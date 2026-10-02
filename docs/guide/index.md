@@ -43,7 +43,7 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 - **[Recordings](/guide/recordings)** and **[Syncs](/guide/syncs)**: watch imports happen and read the status of each one.
 - **[Ad removal](/guide/ad-removal)**: the optional comskip detect/cut pass.
 - **[Plex](/guide/plex)**, **[Remove from TVHeadend](/guide/remove-from-tvheadend)**, and **[Live TV](/guide/live-tv)**: the optional extras.
-- **[Migrating from Fetch](/guide/migrating-from-fetch)**: the moving-day checklist if you're coming off a Fetch box.
+- **[Leaving Fetch TV](/guide/leaving-fetch)**: save your recordings, buy a tuner, and cancel before the levy. Former Fetcharr users also read **[From Fetcharr](/guide/from-fetcharr)**.
 - **[Configuration](/guide/configuration)** and **[Troubleshooting](/guide/troubleshooting)**: the deploy knobs and the fixes for common snags.
 
 The tabs, left to right, are `DASHBOARD`, `LIVE TV`, `TV GUIDE`, `SHOWS`, `SYNCS`, `RECORDINGS`, and `SETTINGS`.

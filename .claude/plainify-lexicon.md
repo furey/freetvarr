@@ -55,5 +55,5 @@ TVHeadend → Plex, and possibly new to aerials); `docs/DEEP_DIVE.md` and
 - Keep every command, path, filename, env var, cron string, status value, URL, model number, and cross-reference byte-for-byte. Only prose changes.
 - Reader knows self-hosting (Docker, Compose, LAN, ports, git); don't gloss those. Reader does not know aerials, DVB, or TVHeadend; gloss those.
 - TVHeadend UI paths are quoted from the product, so they keep the product's own wording (`Configuration → DVB Inputs → Networks`), even where it breaks plain style.
-- Fetch TV is past tense. It appears only in `guide/migrating-from-fetch.md` and one line of the README; don't reintroduce it elsewhere.
+- Fetch TV appears only in `guide/leaving-fetch.md`, `guide/from-fetcharr.md`, the docs home banner, and two lines of the README; don't reintroduce it elsewhere.
 - Never invite "open an issue/PR" (furey repos use Discussions only).

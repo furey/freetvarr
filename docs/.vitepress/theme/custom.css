@@ -131,6 +131,10 @@ kbd {
   max-width: 560px;
 }
 
+.VPHero {
+  overflow-x: clip;
+}
+
 .VPHero .image-bg {
   width: 644px;
   height: 644px;
