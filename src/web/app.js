@@ -4734,10 +4734,18 @@ fetch('/api/settings')
 loadSyncStatus().then(ensureSyncPolling)
 pollRecordingNow()
 
-const PULL_RESISTANCE = 0.5
-const PULL_TRIGGER_PX = 64
-const PULL_MAX_PX = 110
-const PULL_HOLD_PX = 56
+const PULL_MAX_PX = 120
+const PULL_TRIGGER_PX = 60
+const PULL_SLOP_PX = 6
+const PULL_FADE_PX = 24
+const PULL_SPRING = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+
+const PULL_REFRESH_ICON = `
+  <svg class="pull-refresh-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path class="pull-refresh-arc" pathLength="1" d="M8 2.5A5.5 5.5 0 1 1 3.24 5.25"/>
+    <path class="pull-refresh-head" d="M1.25 6.4 3.24 5.25 3.24 7.55"/>
+  </svg>
+`
 
 const isStandaloneApp = () =>
   window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
@@ -4754,42 +4762,80 @@ const pullBlocked = (e) => window.scrollY > 0
   || Boolean(e.target.closest?.('.epg-modal-backdrop'))
   || hasScrolledAncestor(e.target)
 
+const clamp01 = (n) => Math.min(1, Math.max(0, n))
+
+const rubberBand = (dragged) => PULL_MAX_PX * (1 - Math.exp(-dragged / PULL_MAX_PX))
+
 const installPullToRefresh = () => {
   if (!isStandaloneApp()) return
   const page = document.getElementById('app')
   const indicator = document.createElement('div')
   indicator.className = 'pull-refresh'
-  indicator.innerHTML = '<span class="spinner"></span>'
+  indicator.innerHTML = PULL_REFRESH_ICON
   document.body.append(indicator)
-  let startY = null
+  let start = null
+  let claimed = false
   let offset = 0
+  let refreshing = false
   const place = (px, { animate = false } = {}) => {
     offset = px
-    const transition = animate ? 'transform 0.2s ease' : 'none'
+    const transition = animate
+      ? `transform 0.32s ${PULL_SPRING}, --pull-offset 0.32s ${PULL_SPRING}`
+      : 'none'
     page.style.transition = transition
     indicator.style.transition = transition
     page.style.transform = px ? `translateY(${px}px)` : ''
-    indicator.style.transform = `translate(-50%, ${px}px) rotate(${px * 4}deg)`
-    indicator.style.opacity = px > 0 ? '1' : '0'
-    indicator.classList.toggle('armed', px >= PULL_TRIGGER_PX)
+    page.style.setProperty('--pull-offset', `${px}px`)
+    indicator.style.transform = `translate(-50%, ${px}px)`
+    indicator.style.opacity = clamp01(px / PULL_FADE_PX)
+    indicator.style.setProperty('--pull-progress', clamp01(px / PULL_TRIGGER_PX))
+    const armed = px >= PULL_TRIGGER_PX
+    if (armed && !indicator.classList.contains('armed')) navigator.vibrate?.(10)
+    indicator.classList.toggle('armed', armed)
   }
-  window.addEventListener('touchstart', (e) => {
-    startY = pullBlocked(e) ? null : e.touches[0].clientY
-  }, { passive: true })
-  window.addEventListener('touchmove', (e) => {
-    if (startY == null) return
-    const dragged = e.touches[0].clientY - startY
-    if (dragged <= 0) return place(0)
-    e.preventDefault()
-    place(Math.min(PULL_MAX_PX, dragged * PULL_RESISTANCE))
-  }, { passive: false })
-  window.addEventListener('touchend', () => {
-    if (startY == null) return
-    startY = null
-    if (offset < PULL_TRIGGER_PX) return place(0, { animate: true })
-    place(PULL_HOLD_PX, { animate: true })
+  const settle = () => {
+    start = null
+    claimed = false
+    place(0, { animate: true })
+  }
+  const refresh = () => {
+    start = null
+    claimed = false
+    refreshing = true
+    place(PULL_TRIGGER_PX, { animate: true })
     indicator.classList.add('refreshing')
     window.location.reload()
+  }
+  window.addEventListener('touchstart', (e) => {
+    if (refreshing || pullBlocked(e)) return
+    const touch = e.touches[0]
+    start = { x: touch.clientX, y: touch.clientY }
+    claimed = false
+  }, { passive: true })
+  window.addEventListener('touchmove', (e) => {
+    if (!start) return
+    if (e.touches.length > 1) return settle()
+    const touch = e.touches[0]
+    const dx = touch.clientX - start.x
+    const dy = touch.clientY - start.y
+    if (!claimed) {
+      if (Math.abs(dx) < PULL_SLOP_PX && Math.abs(dy) < PULL_SLOP_PX) return
+      if (Math.abs(dx) > dy) {
+        start = null
+        return
+      }
+      claimed = true
+    }
+    e.preventDefault()
+    place(rubberBand(Math.max(0, dy)))
+  }, { passive: false })
+  window.addEventListener('touchend', (e) => {
+    if (!start || e.touches.length > 0) return
+    if (offset >= PULL_TRIGGER_PX) return refresh()
+    settle()
+  })
+  window.addEventListener('touchcancel', () => {
+    if (start) settle()
   })
 }
 
