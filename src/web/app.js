@@ -8,12 +8,32 @@ import {
   watch,
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
+import { isStaleBuild, shouldReloadOnPull } from '/stale-build.js'
 
 let csrfToken = null
 
+const BUILD_HEADER = 'X-Freetvarr-Build'
+const loadedBuild = document.querySelector('meta[name="freetvarr-build"]')?.content || null
+const latestBuild = ref(null)
+const dismissedBuild = ref(null)
+
+const noteBuild = (res) => {
+  const build = res.headers.get(BUILD_HEADER)
+  if (build) latestBuild.value = build
+  return res
+}
+
+const checkForNewBuild = () => fetch('/api/version', { cache: 'no-store' }).then(noteBuild).catch(() => {})
+
+const staleBuild = computed(() => isStaleBuild({
+  loaded: loadedBuild,
+  latest: latestBuild.value,
+  dismissed: dismissedBuild.value,
+}))
+
 const getCsrf = async ({ force = false } = {}) => {
   if (csrfToken && !force) return csrfToken
-  const res = await fetch('/api/csrf-token')
+  const res = noteBuild(await fetch('/api/csrf-token'))
   if (!res.ok) throw new Error(`csrf-token HTTP ${res.status}`)
   const data = await res.json().catch(() => {
     throw new Error(`csrf-token returned non-JSON (HTTP ${res.status})`)
@@ -24,11 +44,11 @@ const getCsrf = async ({ force = false } = {}) => {
 
 const apiCall = async (method, url, body, headersExtra = {}) => {
   const headers = { 'Content-Type': 'application/json', ...headersExtra }
-  const res = await fetch(url, {
+  const res = noteBuild(await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-  })
+  }))
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const err = new Error(data.error || data.reason || `HTTP ${res.status}`)
@@ -504,6 +524,10 @@ const pollRecordingNow = async () => {
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && recordingNowBusy.value) pollRecordingNow()
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkForNewBuild()
 })
 
 watch(recordingCount, (count) => {
@@ -5016,6 +5040,24 @@ const TrashIcon = {
   `,
 }
 
+const StaleBuildBanner = {
+  template: `
+    <div v-if="staleBuild" class="stale-build" role="status">
+      <div class="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center gap-3">
+        <span class="panel-title hidden sm:inline shrink-0">Update</span>
+        <span class="stale-build-text">A new version of Freetvarr is ready.</span>
+        <button type="button" class="btn btn-sm btn-primary shrink-0" @click="reloadPage"><refresh-icon /> RELOAD</button>
+        <button type="button" class="btn btn-icon shrink-0" @click="dismissStaleBuild" aria-label="Dismiss until the next update" title="Dismiss"><cross-icon /></button>
+      </div>
+    </div>
+  `,
+  setup() {
+    const reloadPage = () => window.location.reload()
+    const dismissStaleBuild = () => { dismissedBuild.value = latestBuild.value }
+    return { staleBuild, reloadPage, dismissStaleBuild }
+  },
+}
+
 const LivePlayer = {
   template: `
     <teleport to="body">
@@ -5215,6 +5257,7 @@ const App = {
             </a>
           </nav>
         </div>
+        <stale-build-banner />
       </header>
 
       <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-5 md:px-6 md:py-8">
@@ -5259,7 +5302,7 @@ const welcomeDismissed = () => {
 }
 
 fetch('/api/settings')
-  .then((r) => r.json())
+  .then((r) => noteBuild(r).json())
   .then((s) => {
     if (s.tz) tz.value = s.tz
     const hashIsExplicit = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -5312,6 +5355,12 @@ const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: r
 const refreshInPlace = async () => {
   refreshTick.value += 1
   await Promise.all([loadSyncStatus(), pollRecordingNow(), wait(PULL_MIN_SPIN_MS)])
+}
+
+const refreshFromPull = async () => {
+  await checkForNewBuild()
+  if (shouldReloadOnPull({ loaded: loadedBuild, latest: latestBuild.value })) return window.location.reload()
+  await refreshInPlace()
 }
 
 const installPullToRefresh = ({ onRefresh }) => {
@@ -5415,7 +5464,7 @@ const installPullToRefresh = ({ onRefresh }) => {
   })
 }
 
-installPullToRefresh({ onRefresh: refreshInPlace })
+installPullToRefresh({ onRefresh: refreshFromPull })
 
 const app = createApp(App)
 app.component('summary-line', SummaryLine)
@@ -5424,6 +5473,7 @@ app.component('programme-image', ProgrammeImage)
 app.component('recording-card', RecordingCard)
 app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
+app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
