@@ -1,0 +1,21 @@
+# Optional: hardware video transcoding for live TV (Intel Quick Sync or AMD,
+# through VAAPI).
+#
+# Copy to `docker-compose.override.yml` beside your `docker-compose.yml`;
+# compose loads an override file automatically. Then add the group that owns
+# the render node to your `.env`:
+#   RENDER_GID=<output of: stat -c %g /dev/dri/renderD128>
+#
+# Freetvarr runs a test encode at startup and logs the result on a line that
+# starts with `[live] video`. Without this file, or if the test fails, live TV
+# transcodes in software instead.
+#
+# Do not add this to the main compose file on a host without /dev/dri: the
+# container then fails to start.
+
+services:
+  freetvarr:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${RENDER_GID:?set RENDER_GID in your .env (stat -c %g /dev/dri/renderD128)}"

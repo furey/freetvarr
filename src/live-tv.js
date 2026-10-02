@@ -14,6 +14,7 @@ import {
   openChannelStream,
 } from './tvheadend.js'
 import { getRecordingState, listGuideChannels } from './epg.js'
+import { vaapiFilters, vaapiEncoderArgs, VAAPI_HEIGHT_CAP } from './live-encoder.js'
 
 export const LIVE_ROOT = path.join(os.tmpdir(), 'freetvarr-live')
 export const LIVE_FILE_PATTERN = /^(index\.m3u8|seg\d{1,9}\.ts)$/
@@ -30,11 +31,11 @@ export class LiveTvError extends Error {
   }
 }
 
-export const pickStreams = ({ streams = [], languages = [] } = {}) => {
+export const pickStreams = ({ streams = [], languages = [], encoder = COPY_ENCODER } = {}) => {
   const video = streams.find((s) => VIDEO_TYPES.includes(s.type)) || null
   const audio = pickAudio({ streams, languages })
   if (!video) return { video: null, audio, videoMode: null, heightCap: null, deinterlace: false }
-  if (video.type === 'H264') return { video, audio, videoMode: 'copy', heightCap: null, deinterlace: false }
+  if (video.type === 'H264') return { video, audio, ...h264Plan(encoder) }
   const standardDefinition = isStandardDefinition(video)
   return {
     video,
@@ -48,6 +49,7 @@ export const pickStreams = ({ streams = [], languages = [] } = {}) => {
 export const ffmpegArgsFor = ({ plan, dir }) => [
   '-hide_banner',
   '-loglevel', 'error',
+  ...hardwareDecodeArgs(plan),
   '-fflags', '+genpts+discardcorrupt',
   '-f', 'mpegts',
   '-i', 'pipe:0',
@@ -389,7 +391,7 @@ export const preflightChannel = async ({ channelId, now = Date.now() }) => {
   return { ...verdict, channel: { id: channel.id, name: channel.name } }
 }
 
-export const startLiveChannel = async ({ channelId, sessions }) => {
+export const startLiveChannel = async ({ channelId, sessions, encoder }) => {
   const existing = sessions.forChannel(channelId)
   const verdict = existing ? null : await preflightChannel({ channelId })
   if (verdict && !verdict.ok) {
@@ -398,7 +400,7 @@ export const startLiveChannel = async ({ channelId, sessions }) => {
       details: { holders: verdict.holders, conflict: verdict.conflict },
     })
   }
-  const plan = existing ? null : await planForChannel(channelId)
+  const plan = existing ? null : await planForChannel({ channelId, encoder })
   const { session, shared } = await sessions.start({ channelId, plan })
   return { session: sessions.view(session), shared, conflict: verdict?.conflict || null }
 }
@@ -413,7 +415,7 @@ export const describeStallFor = async (session) =>
 export const openUpstreamFor = ({ channelId, signal, userAgent }) =>
   openChannelStream({ channelId, signal, userAgent })
 
-const planForChannel = async (channelId) => {
+const planForChannel = async ({ channelId, encoder }) => {
   const channel = await findChannel(channelId)
   const conn = await resolveConnection()
   const serviceId = channel.serviceIds?.[0]
@@ -424,7 +426,7 @@ const planForChannel = async (channelId) => {
     getChannelServiceInfo({ serviceId, conn }),
     getDefaultLanguages(conn).catch(() => []),
   ])
-  const plan = pickStreams({ streams: info.streams, languages })
+  const plan = pickStreams({ streams: info.streams, languages, encoder })
   if (!plan.video) {
     throw new LiveTvError('This channel carries no video.', { code: 'no-video' })
   }
@@ -462,10 +464,37 @@ const pickAudio = ({ streams, languages }) => {
 const isStandardDefinition = (video) =>
   video.height ? video.height <= SD_HEIGHT_CAP : video.type === 'MPEG2VIDEO'
 
+const h264Plan = (encoder) => {
+  if (encoder.kind === 'vaapi') {
+    return {
+      videoMode: 'vaapi',
+      heightCap: VAAPI_HEIGHT_CAP,
+      deinterlace: true,
+      vaapi: { device: encoder.device, lowPower: encoder.lowPower },
+    }
+  }
+  if (encoder.kind === 'software') {
+    return { videoMode: 'transcode', heightCap: HD_TRANSCODE_HEIGHT_CAP, deinterlace: true }
+  }
+  return { videoMode: 'copy', heightCap: null, deinterlace: false }
+}
+
+const hardwareDecodeArgs = (plan) => plan.videoMode === 'vaapi'
+  ? ['-hwaccel', 'vaapi', '-hwaccel_device', plan.vaapi.device, '-hwaccel_output_format', 'vaapi']
+  : []
+
 const videoCodecArgs = (plan) => {
   if (plan.videoMode === 'copy') return ['-c:v', 'copy']
+  if (plan.videoMode === 'vaapi') {
+    return [
+      '-vf', vaapiFilters(),
+      ...vaapiEncoderArgs({ lowPower: plan.vaapi.lowPower }),
+      '-g', '50',
+      '-keyint_min', '50',
+    ]
+  }
   const filters = [
-    ...(plan.deinterlace ? ['yadif'] : []),
+    ...(plan.deinterlace ? ['yadif=deint=interlaced'] : []),
     `scale=-2:min(ih\\,${plan.heightCap})`,
   ].join(',')
   return [
@@ -487,4 +516,5 @@ const AUDIO_TYPES = ['MPEG2AUDIO', 'AC3', 'EAC3', 'AAC', 'AAC-LATM', 'MP4A', 'VO
 const DVR_TITLE = /^DVR:\s*/
 const SD_HEIGHT_CAP = 576
 const HD_TRANSCODE_HEIGHT_CAP = 540
+const COPY_ENCODER = { kind: 'copy' }
 const MAX_ERROR_LINES = 20

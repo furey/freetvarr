@@ -11,6 +11,19 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends tini tzdata wget comskip ffmpeg \
  && rm -rf /var/lib/apt/lists/*
 
+# VAAPI drivers for optional hardware transcoding of live TV (Intel Quick Sync
+# via iHD, AMD via Mesa). Debian's free Intel driver lacks the video
+# processing entrypoint that deinterlace_vaapi and scale_vaapi need, so the
+# non-free iHD driver comes from non-free on amd64 only. Without /dev/dri in
+# the container these are unused and live TV transcodes in software instead.
+RUN sed -i 's/^Components: main$/Components: main non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends mesa-va-drivers \
+ && if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+      apt-get install -y --no-install-recommends intel-media-va-driver-non-free; \
+    fi \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json .npmrc ./
 # node:24-bookworm-slim bundles npm 10.x but package.json requires >=11.10.0
 # (engine-strict). We inline the install steps instead of `npm run setup` to
