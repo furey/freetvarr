@@ -723,42 +723,38 @@ const DashboardView = {
           <span class="panel-title">SYNC DECK</span>
           <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
         </header>
-        <div class="panel-body grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
-          <div>
-            <div class="flex flex-wrap items-center gap-3 mb-2">
-              <span :class="['led-dot', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
-              <span :class="['text-lg', 'md:text-xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
-                {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
-              </span>
-              <span v-if="syncStatus.activeSyncId" class="font-mono text-sm text-ink-dim">
-                · sync #{{ syncStatus.activeSyncId }} in progress
-              </span>
-            </div>
-            <p v-if="lastSync" class="font-mono text-sm text-ink-dim">
-              Last sync #{{ lastSync.id }}
-              · <span :class="['pill', lastSync.status]">{{ lastSync.status }}</span>
-              · {{ fmtTime(lastSync.started_at) }}
-              <span v-if="lastSync.summary"> · <summary-line :summary="lastSync.summary"/></span>
-            </p>
-            <p v-else class="text-sm text-ink-dim">No syncs yet — kick one off.</p>
+        <div class="deck-status">
+          <div class="deck-zone deck-zone-state">
+            <span :class="['led-dot', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
+            <span :class="['text-lg', 'md:text-xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
+              {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
+            </span>
           </div>
-          <div class="flex items-center gap-3 md:justify-self-end">
-            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
+          <div class="deck-zone deck-zone-info">
+            <template v-if="lastSync">
+              <div class="deck-status-line">
+                <span class="deck-cell-label">{{ lastSync.id === syncStatus.activeSyncId ? 'Current sync' : 'Last sync' }} #{{ lastSync.id }}</span>
+                <span :class="['pill', lastSync.status]">{{ lastSync.status }}</span>
+                <span>{{ fmtTime(lastSync.started_at) }}</span>
+              </div>
+              <summary-line v-if="lastSync.summary" class="text-sm" :summary="lastSync.summary"/>
+            </template>
+            <p v-else class="text-sm text-ink-dim">No syncs yet.</p>
+          </div>
+          <div class="deck-zone deck-zone-action">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="!!syncStatus.activeSyncId || starting">
-              {{ starting ? 'STARTING…' : '▶ SYNC NOW' }}
+              {{ syncButtonLabel }}
             </button>
+            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
           </div>
         </div>
         <div class="deck-pipeline">
-          <template v-for="(cell, i) in pipeline" :key="cell.label">
-            <span v-if="i" class="deck-arrow" aria-hidden="true">→</span>
-            <a :href="cell.href" class="deck-cell no-hover-underline">
-              <span class="deck-cell-label">
-                <span v-if="cell.health" class="led-dot sm" :style="{ background: HEALTH_COLOURS[cell.health] }"></span>{{ cell.label }}
-              </span>
-              <span :class="['deck-cell-value', { 'deck-cell-cta': cell.cta }]" :title="cell.title || cell.value">{{ cell.value }}</span>
-            </a>
-          </template>
+          <a v-for="cell in pipeline" :key="cell.label" :href="cell.href" class="deck-cell no-hover-underline">
+            <span class="deck-cell-label">
+              <span v-if="cell.health" class="led-dot sm" :style="{ background: HEALTH_COLOURS[cell.health] }"></span>{{ cell.label }}
+            </span>
+            <span :class="['deck-cell-value', { 'deck-cell-cta': cell.cta }]" :title="cell.title || cell.value">{{ cell.value }}</span>
+          </a>
         </div>
       </section>
 
@@ -907,6 +903,12 @@ const DashboardView = {
 
     const pipeline = computed(() => [tvhCell.value, showsCell.value, recordingsCell.value, plexCell.value])
 
+    const syncButtonLabel = computed(() => {
+      if (starting.value) return 'STARTING…'
+      if (syncStatus.value.activeSyncId) return 'SYNCING…'
+      return '▶ SYNC NOW'
+    })
+
     const syncNow = async () => {
       starting.value = true
       try {
@@ -939,7 +941,7 @@ const DashboardView = {
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
       isRecordingChannel,
-      watchLive, openInGuide, starting, syncNow, fmtTime,
+      watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
       flashText, flashKind,
     }
   },
