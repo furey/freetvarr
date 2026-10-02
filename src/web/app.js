@@ -3326,7 +3326,7 @@ const EpgView = {
               </div>
             </div>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
-              <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close">CLOSE</button>
+              <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close"><cross-icon v-if="!hasCancelAction" /> CLOSE</button>
               <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
               <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
               <template v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'">
@@ -3659,6 +3659,9 @@ const EpgView = {
       const t = now.value.getTime()
       return Boolean(start) && start <= t && end > t
     })
+
+    const hasCancelAction = computed(() => Boolean(selected.value)
+      && ['scheduled', 'recording', 'series'].includes(cellState(selected.value.program)))
 
     const watchSelected = () => {
       const { program, channel } = selected.value
@@ -4292,7 +4295,7 @@ const EpgView = {
       jumpNow, jumpTonight, manualRefresh,
       searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered, seriesTagsFiltered,
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
-      canWatchLive, watchSelected,
+      canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind, channelsModalStatusText, channelsModalStatusKind,
       leadTime, lagTime, episodesToKeep,
       leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
