@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
 export const TIMEZONE = process.env.TZ || 'Australia/Sydney'
 
 export const simulatedNow = () => {
@@ -33,8 +36,8 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/recordings**', (route) => fulfillJson(route, fixtures.recordingsPage))
   await context.route('**/api/recording-now', (route) => fulfillJson(route, fixtures.recordingNow))
   await context.route('**/api/folder-suggest**', (route) => fulfillJson(route, { match: null, folders: [] }))
-  await context.route('**/api/live/**', (route) => route.fulfill({ status: 404, body: '' }))
   await context.route('**/api/**', refuseWrites)
+  await context.route(/\/api\/live(\/|\?|$)/, demoLiveTv())
   return picks
 }
 
@@ -49,6 +52,10 @@ export const waitForImages = (page, selector) => page.waitForFunction((sel) => {
 }, selector, { timeout: 10_000 }).catch(() => console.log(`  images not ready: ${selector}`))
 
 const PRIME_TIME = { hour: 19, minute: 45 }
+const LIVE_DEMO_DIR = process.env.LIVE_DEMO_DIR || '/work/scripts/.cache/live-demo'
+const LIVE_SESSION_ID = 'demo-live'
+const LIVE_TUNING_MS = 2_600
+const LIVE_WINDOW_SEGMENTS = 3
 const MINUTE_MS = 60_000
 const DAY_MS = 86_400_000
 const SYNC_INTERVAL_MIN = 30
@@ -304,6 +311,54 @@ const localMidnight = (ms) => {
   const midnight = new Date(ms)
   midnight.setHours(0, 0, 0, 0)
   return midnight.getTime()
+}
+
+const demoLiveTv = () => {
+  let session = null
+  const sessionView = () => session && {
+    id: LIVE_SESSION_ID,
+    channelId: session.channelId,
+    status: Date.now() - session.startedAt < LIVE_TUNING_MS ? 'tuning' : 'live',
+    reason: null,
+    startedAt: session.startedAt,
+    playlist: `/api/live/${LIVE_SESSION_ID}/index.m3u8`,
+  }
+  return async (route) => {
+    const request = route.request()
+    const { pathname } = new URL(request.url())
+    if (request.method() === 'POST') {
+      session = { channelId: String(request.postDataJSON()?.channel_id || ''), startedAt: Date.now() }
+      return fulfillJson(route, { ok: true, session: sessionView(), shared: false, conflict: null })
+    }
+    if (request.method() === 'DELETE') {
+      session = null
+      return fulfillJson(route, { ok: true, left: true })
+    }
+    if (pathname.endsWith('/preflight')) {
+      return fulfillJson(route, { ok: true, code: null, holders: [], conflict: null, session: sessionView() })
+    }
+    const file = pathname.split('/').pop()
+    if (!session) return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"not found"}' })
+    if (file === 'index.m3u8') return fulfillLivePlaylist({ route, liveSince: session.startedAt + LIVE_TUNING_MS })
+    return route.fulfill({ path: join(LIVE_DEMO_DIR, file), contentType: 'video/mp4', headers: { 'Cache-Control': 'no-store' } })
+  }
+}
+
+const fulfillLivePlaylist = async ({ route, liveSince }) => {
+  const source = await readFile(join(LIVE_DEMO_DIR, 'index.m3u8'), 'utf8')
+  const lines = source.split('\n')
+  const segments = lines.flatMap((line, i) => line.startsWith('#EXTINF') ? [[line, lines[i + 1]]] : [])
+  const header = lines.filter((line) => /^#EXT(M3U|-X-(VERSION|TARGETDURATION|MAP))/.test(line))
+  const targetMs = Number(header.find((line) => line.startsWith('#EXT-X-TARGETDURATION')).split(':')[1]) * 1000
+  const published = Math.min(segments.length, LIVE_WINDOW_SEGMENTS + Math.floor((Date.now() - liveSince) / targetMs))
+  const body = [
+    ...header,
+    '#EXT-X-MEDIA-SEQUENCE:0',
+    ...segments.slice(0, published).flat(),
+    ...(published === segments.length ? ['#EXT-X-ENDLIST'] : []),
+    '',
+  ].join('\n')
+  return route.fulfill({ status: 200, contentType: 'application/vnd.apple.mpegurl', headers: { 'Cache-Control': 'no-store' }, body })
 }
 
 const fulfillJson = (route, data) => route.fulfill({

@@ -7,7 +7,9 @@ set -euo pipefail
 # running freetvarr at a simulated prime time (19:45 tonight in TZ, or set
 # SIMULATED_NOW). Guide, search, logo, and programme-image GETs come from the
 # real server; settings are masked; syncs, shows, recordings, and recording-now
-# are synthetic fixtures; every non-GET is answered locally and never reaches
+# are synthetic fixtures; live TV plays a Big Buck Bunny clip (Blender
+# Foundation, CC BY 3.0) prepared by capture-live-clip.sh, so no live session
+# starts on the server; every non-GET is answered locally and never reaches
 # the server. It records a .webm, then ffmpeg on the host trims and transcodes
 # it to docs/public/demo.mp4 with a matching poster frame.
 #
@@ -42,6 +44,8 @@ if ! curl -fsS "$FREETVARR_URL/healthz" >/dev/null; then
   echo "             start it (e.g. docker compose up -d), or set FREETVARR_URL." >&2
   exit 1
 fi
+
+"$REPO_ROOT/scripts/capture-live-clip.sh"
 
 echo "[walkthrough] recording with $PLAYWRIGHT_IMAGE"
 docker run --rm --network host \

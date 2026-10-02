@@ -4945,7 +4945,11 @@ const LivePlayer = {
           </ul>
           <div class="epg-modal-actions flex items-center justify-between gap-3">
             <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
-            <button type="button" class="btn btn-danger shrink-0" @click="stopLive"><stop-icon /> STOP</button>
+            <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
+              <button type="button" class="btn" @click="retryLive"><span class="btn-glyph">⟳</span> RETRY</button>
+              <button type="button" class="btn" @click="stopLive"><cross-icon /> CLOSE</button>
+            </div>
+            <button v-else type="button" class="btn btn-danger shrink-0" @click="stopLive"><stop-icon /> STOP</button>
           </div>
         </div>
       </section>
@@ -5024,7 +5028,8 @@ const LivePlayer = {
       window.removeEventListener('keydown', onKeydown)
     })
 
-    return { live, videoEl, chips, chipsRun, stopLive, statusText, statusKind, liveHolderText }
+    const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+    return { live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText }
   },
 }
 

@@ -25,33 +25,54 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="browser-frame">
-    <div class="browser-frame__bar" aria-hidden="true">
-      <span class="browser-frame__dots">
-        <span class="browser-frame__dot browser-frame__dot--blue"></span>
-        <span class="browser-frame__dot browser-frame__dot--orange"></span>
-        <span class="browser-frame__dot browser-frame__dot--yellow"></span>
-      </span>
-      <span class="browser-frame__url">{{ label }}</span>
+  <figure class="browser-frame__figure">
+    <div class="browser-frame">
+      <div class="browser-frame__bar" aria-hidden="true">
+        <span class="browser-frame__dots">
+          <span class="browser-frame__dot browser-frame__dot--blue"></span>
+          <span class="browser-frame__dot browser-frame__dot--orange"></span>
+          <span class="browser-frame__dot browser-frame__dot--yellow"></span>
+        </span>
+        <span class="browser-frame__url">{{ label }}</span>
+      </div>
+      <div class="browser-frame__screen">
+        <video
+          ref="video"
+          :poster="withBase(poster)"
+          autoplay
+          loop
+          muted
+          playsinline
+          preload="metadata"
+          aria-label="A walkthrough of the Freetvarr dashboard, live TV, TV guide, shows, recordings, syncs, and settings"
+        >
+          <source :src="withBase(src)" type="video/mp4" />
+        </video>
+      </div>
     </div>
-    <div class="browser-frame__screen">
-      <video
-        ref="video"
-        :poster="withBase(poster)"
-        autoplay
-        loop
-        muted
-        playsinline
-        preload="metadata"
-        aria-label="A walkthrough of the Fetcharr dashboard, shows, recordings, syncs, and settings"
-      >
-        <source :src="withBase(src)" type="video/mp4" />
-      </video>
-    </div>
-  </div>
+    <figcaption class="browser-frame__credit">Demo video: Big Buck Bunny, © Blender Foundation, CC BY 3.0</figcaption>
+  </figure>
 </template>
 
 <style scoped>
+.browser-frame__figure {
+  margin: 0;
+}
+
+.browser-frame__credit {
+  margin-top: 8px;
+  color: var(--vp-c-text-3);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .browser-frame__credit {
+    font-size: 10px;
+  }
+}
+
 .browser-frame {
   position: relative;
   z-index: 1;

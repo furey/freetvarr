@@ -123,6 +123,22 @@ const run = async () => {
     await closeButton.click().catch(() => {})
     await page.waitForTimeout(500)
   }
+  const watchButton = page.locator('.live-row.pinned .live-row-watch').first()
+  const watchBox = await watchButton.boundingBox().catch(() => null)
+  if (watchBox) {
+    await cursorTo(page, Math.round(watchBox.x + watchBox.width / 2), Math.round(watchBox.y + watchBox.height / 2))
+    await page.evaluate(() => window.__wt?.click())
+    await watchButton.click()
+    await cursorTo(page, 1240, 760)
+    await page.waitForSelector('.live-video:not(.is-veiled)', { timeout: 20000 }).catch(() => {})
+    await page.waitForTimeout(5000)
+    const stopButton = page.locator('.live-modal .btn-danger')
+    const stopBox = await stopButton.boundingBox().catch(() => null)
+    if (stopBox) await cursorTo(page, Math.round(stopBox.x + stopBox.width / 2), Math.round(stopBox.y + stopBox.height / 2))
+    await page.evaluate(() => window.__wt?.click())
+    await stopButton.click().catch(() => {})
+    await page.waitForTimeout(700)
+  }
 
   await clickTab(page, 'guide')
   await page.waitForSelector('.epg-cell', { timeout: 8000 }).catch(() => {})
