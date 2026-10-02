@@ -4393,10 +4393,13 @@ const pollLive = async (run) => {
   livePollTimer = setTimeout(() => pollLive(run), liveAttached ? LIVE_POLL_PLAYING_MS : LIVE_POLL_TUNING_MS)
 }
 
+const playsHlsOnlyNatively = () =>
+  !('MediaSource' in window) && liveVideo.canPlayType('application/vnd.apple.mpegurl') !== ''
+
 const attachLiveVideo = async (run, playlist) => {
   liveAttached = true
   live.phase = 'live'
-  if (!liveVideo.canPlayType('application/vnd.apple.mpegurl')) return attachHlsJs(run, playlist)
+  if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist)
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
@@ -4411,8 +4414,14 @@ const attachHlsJs = async (run, playlist) => {
   if (run !== liveRun) return
   if (!Hls.isSupported()) return endLive(run, { code: 'unsupported' })
   liveHls = new Hls({ workerPath: '/vendor/hls.worker.js', liveSyncDurationCount: 3 })
+  let mediaRecoveries = 0
   liveHls.on(Hls.Events.ERROR, (event, data) => {
-    if (data.fatal) endLive(run, { code: 'playback', detail: data.details })
+    if (!data.fatal) return
+    if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRecoveries < LIVE_MEDIA_RECOVERIES) {
+      mediaRecoveries += 1
+      return liveHls.recoverMediaError()
+    }
+    endLive(run, { code: 'playback', detail: data.details })
   })
   liveHls.loadSource(playlist)
   liveHls.attachMedia(liveVideo)
@@ -4603,6 +4612,7 @@ const LivePlayer = {
 }
 
 const LIVE_POLL_TUNING_MS = 1_000
+const LIVE_MEDIA_RECOVERIES = 3
 const LIVE_POLL_PLAYING_MS = 10_000
 
 const VIEW_MAP = {
