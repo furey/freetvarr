@@ -557,6 +557,15 @@ const HEALTH_COLOURS = { ok: '#e2b03c', err: '#ff8a00', off: '#544e47' }
 
 const fmtClockTz = (ms) => dateFormat({ hour: 'numeric', minute: '2-digit' }).format(new Date(ms)).replace(/\s/g, '').toLowerCase()
 
+const dayKey = (ms) => dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
+
+const fmtRelativeDay = (ms) => {
+  const key = dayKey(ms)
+  if (key === dayKey(Date.now())) return 'Today'
+  if (key === dayKey(Date.now() + 86_400_000)) return 'Tomorrow'
+  return dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(ms))
+}
+
 const tsOfMs = (v) => {
   if (v == null) return 0
   if (typeof v === 'number') return v
@@ -743,7 +752,7 @@ const DashboardView = {
                 @click="openInGuide({ upcoming: r })">
                 <span class="led-dot sm shrink-0" :style="{ background: isSeriesRec(r) ? '#e2b03c' : '#1eb6ff' }"></span>
                 <span class="truncate min-w-0"><span class="text-ink">{{ r.name }}</span>
-                · {{ fmtClockTz(tsOfMs(r.startDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template> · {{ isSeriesRec(r) ? 'series' : 'one-off' }}</span>
+                · {{ fmtRelativeDay(tsOfMs(r.startDate)) }} {{ fmtClockTz(tsOfMs(r.startDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template> · {{ isSeriesRec(r) ? 'series' : 'one-off' }}</span>
               </button>
             </div>
           </div>
@@ -1022,7 +1031,7 @@ const DashboardView = {
     return {
       syncStatus, shownSyncId, lastSyncCell, resultCell, nextSyncLabel, recentSyncs,
       tvhConfigured, pipeline, HEALTH_COLOURS,
-      onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
+      onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, fmtRelativeDay, tsOfMs,
       isRecordingChannel,
       watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
       flashText, flashKind,
