@@ -5187,7 +5187,7 @@ const hasScrolledAncestor = (el) => {
 
 const pullBlocked = (e) => window.scrollY > 0
   || e.touches.length > 1
-  || Boolean(e.target.closest?.('.epg-modal-backdrop'))
+  || Boolean(e.target.closest?.('.epg-modal-backdrop, .epg-row.pinned .epg-rail-cell, .live-row.pinned .live-row-handle'))
   || hasScrolledAncestor(e.target)
 
 const clamp01 = (n) => Math.min(1, Math.max(0, n))
@@ -5242,7 +5242,7 @@ const installPullToRefresh = () => {
   }, { passive: true })
   window.addEventListener('touchmove', (e) => {
     if (!start) return
-    if (e.touches.length > 1) return settle()
+    if (e.touches.length > 1 || document.body.classList.contains('epg-drag-lock')) return settle()
     const touch = e.touches[0]
     const dx = touch.clientX - start.x
     const dy = touch.clientY - start.y
