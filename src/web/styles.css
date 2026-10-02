@@ -186,6 +186,12 @@ body {
   position: relative;
 }
 
+.tab-led:focus-visible {
+  outline: 2px solid #1eb6ff;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .tab-led[data-active="true"]::after {
   content: "";
   position: absolute;
@@ -669,6 +675,8 @@ a.icon-link {
   display: flex;
   align-items: flex-end;
   gap: 1rem;
+  margin: 0 -0.5rem -0.75rem;
+  padding: 0 0.5rem 0.75rem;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
