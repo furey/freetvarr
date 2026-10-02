@@ -197,6 +197,24 @@ Ad detection is cutting the wrong things, or missing breaks.
 - Cuts land on the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it. See [Ad removal](/guide/ad-removal).
 
+## Playback failed on HD channels
+
+Chrome shows "Playback failed" or a black player on an HD channel, while SD channels play. Chrome cannot decode interlaced H.264, so Freetvarr must re-encode it. Check the method it chose:
+
+```sh
+docker compose logs freetvarr | grep "\[live\] video"
+```
+
+The line ends with the reason:
+
+- **`LIVE_TV_TRANSCODE=copy`**: H.264 passes through untouched. Remove the setting or set it to `auto`.
+- **`not found; pass /dev/dri into the container`**: the container has no render device. Add [`docker-compose.override.yml`](/guide/hardware#hardware-transcoding). Without it, Freetvarr uses software, which plays but costs much more CPU.
+- **`permission denied for uid ...`**: the container user lacks the render group. Set `RENDER_GID` in `.env` to the output of `stat -c %g /dev/dri/renderD128`, then recreate the container.
+- **`VAAPI test encode failed`**: ffmpeg's error follows the reason. The graphics chip or its driver does not support the encode. Freetvarr uses software.
+- **`is not one of auto, hardware, software, copy`**: `LIVE_TV_TRANSCODE` has a typo. Freetvarr uses software.
+
+If the line says `software` and the channel stutters, the CPU is too slow for the software path. Choose a smaller stream or add hardware transcoding. See [Video handling](/guide/live-tv#video-handling).
+
 ## Missing captions
 
 - Your broadcaster sends captions as Teletext or as DVB subtitles; Australian broadcasters send Teletext. Some players decode Teletext and some don't; it isn't a recording fault. See [Live TV](/guide/live-tv#captions).
