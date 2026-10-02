@@ -47,6 +47,8 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 - **[Migrating from Fetch](/guide/migrating-from-fetch)**: the moving-day checklist if you're coming off a Fetch box.
 - **[Configuration](/guide/configuration)** and **[Troubleshooting](/guide/troubleshooting)**: the deploy knobs and the fixes for common snags.
 
+The tabs, left to right, are `DASHBOARD`, `LIVE TV`, `TV GUIDE`, `SHOWS`, `SYNCS`, `RECORDINGS`, and `SETTINGS`.
+
 It works on a phone, too: on a narrow screen every view rearranges into cards and swipeable rows of buttons.
 
 <div class="freetvarr-mobile-shots">
