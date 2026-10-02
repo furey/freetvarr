@@ -116,6 +116,8 @@ docker compose up -d --build freetvarr
 
 This rebuilds the image and recreates the container only if the image actually changed. Your database is left alone, and any pending database updates (migrations) run automatically on the next start.
 
+Freetvarr tabs that were open during the update show a bar that says a new version is ready. Press **RELOAD** when it suits you; Freetvarr never reloads by itself, so live TV keeps playing.
+
 ## Where next
 
 - [Following shows](/guide/following-shows): the core loop. Pick shows, point them at folders, sync.
