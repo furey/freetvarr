@@ -163,6 +163,14 @@ export const scheduleRecording = async ({
   lagTime = DEFAULT_LAG_MINUTES,
 } = {}) => {
   const conn = await resolveConnection()
+  const skipped = (await listUpcoming(conn))
+    .find((e) => !e.enabled && String(e.programId) === String(programId))
+  if (skipped) {
+    await apiPost('idnode/save', {
+      node: JSON.stringify({ uuid: skipped.uuid, enabled: true, start_extra: leadTime, stop_extra: lagTime }),
+    }, conn)
+    return { ok: true, uuid: skipped.uuid, programId }
+  }
   const body = await apiPost('dvr/entry/create_by_event', {
     event_id: programId,
     config_uuid: await defaultDvrConfig(conn),
@@ -180,14 +188,25 @@ export const scheduleRecording = async ({
 
 export const cancelRecording = async ({ programId } = {}) => {
   const conn = await resolveConnection()
-  const entry = (await listUpcoming(conn)).find((e) => String(e.programId) === String(programId))
+  const entry = (await listUpcoming(conn))
+    .find((e) => e.enabled && String(e.programId) === String(programId))
   if (!entry) {
     throw new TvheadendError('No scheduled recording for that programme.', { stage: 'cancel', code: 'not-found' })
   }
-  const action = entry.schedStatus === 'recording' ? 'stop' : 'cancel'
+  const action = cancelAction(entry)
+  if (action === 'skip') {
+    await apiPost('idnode/save', { node: JSON.stringify({ uuid: entry.uuid, enabled: false }) }, conn)
+    return { ok: true, uuid: entry.uuid, programId }
+  }
   await apiPost(`dvr/entry/${action}`, { uuid: entry.uuid }, conn)
   await apiPost('dvr/entry/remove', { uuid: entry.uuid }, conn).catch(() => null)
   return { ok: true, uuid: entry.uuid, programId }
+}
+
+export const cancelAction = ({ schedStatus, autorecId }) => {
+  if (schedStatus === 'recording') return 'stop'
+  if (autorecId) return 'skip'
+  return 'cancel'
 }
 
 export const enableSeriesTag = async ({
@@ -273,12 +292,13 @@ export const getState = async () => {
     countTuners(conn).catch(() => null),
   ])
   const keyByAutorecId = new Map(autorecs.map((a) => [a.id, a.seriesLinkId]))
-  const futureRecordings = upcoming.map((e) => ({
+  const futureRecordings = upcoming.filter((e) => e.enabled).map((e) => ({
     ...e,
     seriesLinkId: e.autorecId ? keyByAutorecId.get(e.autorecId) || null : null,
   }))
   return {
     futureRecordings,
+    skippedProgramIds: upcoming.filter((e) => !e.enabled).map((e) => String(e.programId)),
     seriesTags: autorecs,
     activeRecordingIds: futureRecordings
       .filter((e) => e.schedStatus === 'recording' && e.programId != null)
@@ -456,6 +476,7 @@ const normaliseEntry = (e) => {
     schedStatus: e.sched_status || '',
     statusText: e.status || '',
     autorecId: e.autorec || null,
+    enabled: e.enabled !== false,
     parentId: e.parent || null,
     filename: e.filename || null,
     filesize: e.filesize ?? null,

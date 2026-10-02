@@ -35,7 +35,7 @@ From there:
 
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the timer, 2 minutes before and 10 minutes after by default. Free-to-air broadcasts run late; the generous tail is deliberate.
 - **RECORD SERIES** creates a TVHeadend autorec rule, with an episodes-to-keep option.
-- A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series rule, cancelling asks whether to cancel just that episode or the whole series.
+- A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series rule, cancelling asks whether to cancel just that episode or the whole series. Cancelling one episode disables its timer in TVHeadend rather than deleting it, so the series rule does not schedule it again; recording it later turns the timer back on.
 - A programme whose show already has a series rule but no episode scheduled yet shows the rule with a **CANCEL SERIES** action.
 
 The **UPCOMING** view lists what will record: the timers TVHeadend has set (`SCHEDULED`, marked `SERIES` or `ONE-OFF`), plus the episodes your series rules are expected to catch over the next 7 days (`SERIES` · `EXPECTED`). **SERIES** lists the rules themselves. Cards carry a small programme image when the guide feed has one. A card in either view opens the programme detail, where you record or cancel; a series card opens its next airing.
