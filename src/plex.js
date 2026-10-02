@@ -74,7 +74,12 @@ export const listPlexSections = async ({ url, token } = {}) => {
 
   const dirs = res.data?.MediaContainer?.Directory
   const list = Array.isArray(dirs) ? dirs : dirs ? [dirs] : []
-  return list.map((d) => ({ key: String(d.key), title: d.title, type: d.type }))
+  return list.map((d) => ({
+    key: String(d.key),
+    title: d.title,
+    type: d.type,
+    locations: [d.Location || []].flat().map((l) => l.path).filter(Boolean),
+  }))
 }
 
 // Plex's GDM ("G'Day Mate") discovery: UDP broadcast on 32414. Servers reply

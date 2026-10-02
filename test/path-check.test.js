@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
-import { checkRecordingsFolder, compareRecordingPaths } from '../src/path-check.js'
+import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from '../src/path-check.js'
 
 const tempDir = () => fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-path-check-'))
 
@@ -64,4 +64,35 @@ test('compareRecordingPaths: reports a mismatch', () => {
 
 test('compareRecordingPaths: an empty TVHeadend path never matches', () => {
   assert.equal(compareRecordingPaths({ configured: '', tvhStorage: '' }).matches, false)
+})
+
+test('checkMediaRoot: a writable folder passes and reports its owner', async () => {
+  const root = await tempDir()
+  const result = await checkMediaRoot(root)
+  assert.equal(result.ok, true)
+  assert.equal(result.path, root)
+  assert.equal(result.ownerUid, process.getuid())
+})
+
+test('checkMediaRoot: a missing folder fails with a plain reason', async () => {
+  const root = await tempDir()
+  const missing = path.join(root, 'nope')
+  assert.deepEqual(await checkMediaRoot(missing), {
+    ok: false,
+    error: `${missing} does not exist inside the container`,
+  })
+})
+
+test('checkMediaRoot: a read-only folder is not writable', { skip: process.getuid() === 0 }, async () => {
+  const root = await tempDir()
+  await fs.chmod(root, 0o555)
+  const result = await checkMediaRoot(root)
+  await fs.chmod(root, 0o755)
+  assert.equal(result.ok, false)
+  assert.equal(result.error, `${root} is not writable by the container user`)
+  assert.equal(result.ownerUid, process.getuid())
+})
+
+test('checkMediaRoot: a relative path is rejected', async () => {
+  assert.equal((await checkMediaRoot('media')).error, 'path must be absolute (start with /)')
 })

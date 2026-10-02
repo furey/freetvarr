@@ -1,0 +1,43 @@
+{
+  "entries": [
+    {
+      "uuid": "ea78a9c5906aad4150c5d07b442d4a97",
+      "input": "HDHomeRun DVB-T Tuner #0 (192.0.2.10)",
+      "subs": 0,
+      "weight": 0,
+      "signal": 0,
+      "signal_scale": 0,
+      "ber": 0,
+      "snr": 0,
+      "snr_scale": 0,
+      "unc": 0,
+      "bps": 0,
+      "te": 0,
+      "cc": 0,
+      "ec_bit": 0,
+      "tc_bit": 0,
+      "ec_block": 0,
+      "tc_block": 0
+    },
+    {
+      "uuid": "ddb5ddd1d2810912c179b7a0607d65d3",
+      "input": "HDHomeRun DVB-T Tuner #1 (192.0.2.10)",
+      "subs": 0,
+      "weight": 0,
+      "signal": 0,
+      "signal_scale": 0,
+      "ber": 0,
+      "snr": 0,
+      "snr_scale": 0,
+      "unc": 0,
+      "bps": 0,
+      "te": 0,
+      "cc": 0,
+      "ec_bit": 0,
+      "tc_bit": 0,
+      "ec_block": 0,
+      "tc_block": 0
+    }
+  ],
+  "totalCount": 2
+}
