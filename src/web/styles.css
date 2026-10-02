@@ -1998,6 +1998,32 @@ body.epg-drag-lock * {
   border-left: 1px dashed #3d3829;
 }
 
+.deck-zone-info-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.deck-fade {
+  animation: deck-fade 0.3s ease-out both;
+}
+
+@keyframes deck-fade {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-fade {
+    animation: none;
+  }
+}
+
+section[id^="section-"] {
+  scroll-margin-top: 7rem;
+}
+
 .deck-status-line {
   display: flex;
   flex-wrap: wrap;
