@@ -88,6 +88,8 @@ You can change all of it later in Settings, and reopen the wizard from there whe
 
 Then mark shows to follow on the Shows tab; see [Following shows](/guide/following-shows).
 
+To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**. The [Doctor](/guide/doctor) reads TVHeadend, Plex, and the folders, changes nothing, and says what to fix.
+
 ## An existing TVHeadend
 
 If TVHeadend already runs on another host or in another compose project, delete the `tvheadend` service from your `docker-compose.yml` and keep only `freetvarr`. Two things still have to hold:

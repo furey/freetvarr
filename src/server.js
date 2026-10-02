@@ -28,7 +28,7 @@ import {
   getRecordingStorage,
   TvheadendError,
 } from './tvheadend.js'
-import { checkRecordingsFolder, compareRecordingPaths } from './path-check.js'
+import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
 import {
   getGuideDay,
   searchGuide,
@@ -62,6 +62,7 @@ import {
 } from './live-tv.js'
 import { detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
 import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
+import { getDoctorReport } from './doctor.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -639,6 +640,25 @@ app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, left })
 })
 
+const doctorLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+app.get('/api/doctor', doctorLimiter, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    res.json(await getDoctorReport({
+      fresh: req.query.fresh === '1',
+      deps: { liveEncoder: () => liveEncoderReady },
+    }))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.get('/api/shows', async (req, res) => {
   const rows = await db('shows').orderBy('created_at', 'desc')
   res.json({ shows: rows })
@@ -728,27 +748,7 @@ app.get('/api/folder-suggest', async (req, res) => {
 })
 
 app.post('/api/media-root-test', doubleCsrfProtection, async (req, res) => {
-  const probePath = (req.body?.path || '').trim()
-  if (!probePath) return res.status(400).json({ ok: false, error: 'path is required' })
-  if (!probePath.startsWith('/')) {
-    return res.status(400).json({ ok: false, error: 'path must be absolute (start with /)' })
-  }
-  try {
-    const stat = await fs.stat(probePath)
-    if (!stat.isDirectory()) {
-      return res.json({ ok: false, error: `${probePath} exists but is not a directory` })
-    }
-    await fs.access(probePath, fs.constants.W_OK)
-    res.json({ ok: true, path: probePath })
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      return res.json({ ok: false, error: `${probePath} does not exist inside the container` })
-    }
-    if (err.code === 'EACCES') {
-      return res.json({ ok: false, error: `${probePath} is not writable by the container user` })
-    }
-    res.json({ ok: false, error: `${err.code || 'error'}: ${err.message}` })
-  }
+  res.json(await checkMediaRoot(req.body?.path))
 })
 
 app.post('/api/recordings-root-test', doubleCsrfProtection, async (req, res) => {

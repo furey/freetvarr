@@ -20,6 +20,25 @@ export const checkRecordingsFolder = async ({ recordingsPath, mediaRoot }) => {
   }
 }
 
+export const checkMediaRoot = async (mediaRoot) => {
+  const probePath = (mediaRoot || '').trim()
+  if (!probePath) return { ok: false, error: 'path is required' }
+  if (!probePath.startsWith('/')) return { ok: false, error: 'path must be absolute (start with /)' }
+  let stat
+  try {
+    stat = await fs.stat(probePath)
+  } catch (err) {
+    return { ok: false, error: describeAccessError({ err, probePath, need: 'writable' }) }
+  }
+  if (!stat.isDirectory()) return { ok: false, error: `${probePath} exists but is not a directory` }
+  try {
+    await fs.access(probePath, fs.constants.W_OK)
+  } catch (err) {
+    return { ok: false, ownerUid: stat.uid, error: describeAccessError({ err, probePath, need: 'writable' }) }
+  }
+  return { ok: true, path: probePath, ownerUid: stat.uid }
+}
+
 export const compareRecordingPaths = ({ configured, tvhStorage }) => {
   const tvhPath = trimTrailingSlash(tvhStorage)
   const configuredPath = trimTrailingSlash(configured)
