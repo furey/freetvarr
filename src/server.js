@@ -11,7 +11,7 @@ import { doubleCsrf } from 'csrf-csrf'
 import { db, getSetting, setSetting } from './db.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { startSync, getActiveSyncId, getMediaRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
-import { startScheduler, getSchedulerExpression, stopScheduler } from './scheduler.js'
+import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopScheduler } from './scheduler.js'
 import {
   detectPlexTokenFromPreferences,
   listPlexSections,
@@ -186,6 +186,7 @@ app.get('/api/sync-status', (req, res) => {
   res.json({
     activeSyncId: getActiveSyncId(),
     cron: getSchedulerExpression(),
+    nextRunAt: getSchedulerNextRun(),
   })
 })
 
