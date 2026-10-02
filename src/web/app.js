@@ -4609,7 +4609,7 @@ const EpgView = {
       searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered, seriesTagsFiltered,
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected, hasCancelAction,
-      modalStatusText, modalStatusKind, channelsModalStatusText, channelsModalStatusKind,
+      modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep,
       leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, cancelSelected, cancelSelectedSeries, cancelChoice,
