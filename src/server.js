@@ -41,6 +41,7 @@ import {
   cancelSeries,
   setChannelPrefs,
   getOnNowForPinned,
+  getOnNowAll,
 } from './epg.js'
 import {
   startManualAdScan,
@@ -539,7 +540,7 @@ app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
 
 app.get('/api/epg/now', async (req, res) => {
   try {
-    res.json(await getOnNowForPinned())
+    res.json(await (req.query.all === '1' ? getOnNowAll() : getOnNowForPinned()))
   } catch (err) {
     epgError(res, err, 'now')
   }

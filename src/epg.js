@@ -158,13 +158,48 @@ export const getOnNowForPinned = async ({ nowMs = Date.now() } = {}) => {
 }
 
 export const nowAndNext = (programs, nowMs) => {
+  const { now, next } = airingPair(programs, nowMs)
+  return { now: trimProgram(now), next: trimProgram(next) }
+}
+
+const airingPair = (programs, nowMs) => {
   let now = null
   let next = null
   for (const p of programs) {
     if (p.start <= nowMs && p.end > nowMs) now = p
     else if (p.start > nowMs && (!next || p.start < next.start)) next = p
   }
-  return { now: trimProgram(now), next: trimProgram(next) }
+  return { now, next }
+}
+
+// On-now / up-next for every channel in channel-prefs order: the Live TV view.
+export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
+  const [guide, prefs] = await Promise.all([getCachedGuide(), getChannelPrefs()])
+  const channels = orderChannels({ channels: guide.channels, ...prefs })
+  const entries = channels.filter((c) => !c.hidden).map((channel) => {
+    const rows = guide.programsByChannel[String(channel.epgId)] || []
+    const { now, next } = airingPair(rows, nowMs)
+    return {
+      channel: {
+        id: channel.id,
+        name: channel.name,
+        number: channel.number ?? null,
+        hasLogo: channel.logos.length > 0,
+        pinned: channel.pinned,
+      },
+      now: now && toBrowserProgram(now),
+      next: next && toBrowserProgram(next),
+    }
+  })
+  return {
+    fetchedAt: guide.fetchedAt,
+    stale: Boolean(guide.stale),
+    sort: prefs.sort,
+    hideSdSimulcasts: prefs.hideSdSimulcasts,
+    hiddenIds: prefs.hiddenIds,
+    channels,
+    entries,
+  }
 }
 
 // TVHeadend materialises autorec timers only within its EPG update window, so a

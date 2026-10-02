@@ -312,7 +312,7 @@ const SYNC_DOTS = { ok: '#e2b03c', partial: '#ffcd00', error: '#ffab3d', running
 const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
 
-const ROUTES = ['dashboard', 'guide', 'shows', 'syncs', 'recordings', 'settings', 'welcome']
+const ROUTES = ['dashboard', 'live', 'guide', 'shows', 'syncs', 'recordings', 'settings', 'welcome']
 const WELCOME_DISMISSED_KEY = 'freetvarr.welcomeDismissed'
 const DEFAULT_ROUTE = 'dashboard'
 
@@ -694,17 +694,222 @@ const stepMark = (state) => STEP_MARKS[state] || '○'
 const STEP_MARKS = { done: '✓', active: '●', pending: '○', failed: '✕', warn: '!', skipped: '–' }
 const RECORDING_CARDS_MAX = 4
 
+const recordingChannelIds = computed(() =>
+  new Set(recordingNow.value.active.filter((r) => !r.failed).map((r) => String(r.channelId))))
+
+const isRecordingChannel = (channelId) => recordingChannelIds.value.has(String(channelId))
+
+const onNowPercent = (p) => {
+  const span = p.end - p.start
+  if (span <= 0) return 0
+  return Math.min(100, Math.max(0, Math.round(((now.value.getTime() - p.start) / span) * 100)))
+}
+
+const onNowMeta = (p) => {
+  const mins = Math.max(0, Math.ceil((p.end - now.value.getTime()) / 60_000))
+  return `${fmtClockTz(p.start)} · ${mins} min${mins === 1 ? '' : 's'} remaining`
+}
+
+const LiveView = {
+  template: `
+    <div class="view-reveal space-y-6">
+      <section class="panel">
+        <header class="panel-header">
+          <span class="panel-title">LIVE TV</span>
+          <div class="flex flex-wrap items-center gap-3">
+            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
+            <button type="button" class="btn btn-sm" @click="channelsModal = true" :disabled="!data"><span class="btn-glyph">⚙︎</span> CHANNELS</button>
+          </div>
+        </header>
+        <div class="panel-body space-y-5">
+          <div class="flex flex-wrap items-center gap-3">
+            <input v-model="filterQ" type="search" class="field-input flex-1 min-w-[12rem] md:max-w-sm"
+              placeholder="Filter channels or shows" aria-label="Filter channels or shows"
+              style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
+            <button type="button" :class="['btn', 'btn-sm', { 'btn-on': pinnedOnly }]" :aria-pressed="pinnedOnly"
+              @click="pinnedOnly = !pinnedOnly">★ PINNED ONLY</button>
+          </div>
+          <p v-if="tvhConfigured === false" class="text-sm text-ink-dim">
+            Connect TVHeadend in <a href="#/settings/tvheadend">Settings</a> to watch live TV.
+          </p>
+          <div v-else-if="error" class="flex flex-wrap items-center gap-3">
+            <span class="status-readout err">Guide unavailable: {{ error }}</span>
+            <button type="button" class="btn btn-sm" @click="load">⟳ RETRY</button>
+          </div>
+          <p v-else-if="!data" class="text-sm text-ink-dim">Loading channels…</p>
+          <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
+          <div v-for="g in groups" :key="g.key">
+            <div class="live-group-heading">{{ g.label }}</div>
+            <ul class="live-list">
+              <li v-for="e in g.entries" :key="e.channel.id" class="live-row">
+                <button type="button" :class="['epg-pin', 'live-row-pin', { pinned: e.channel.pinned }]"
+                  :aria-pressed="e.channel.pinned" :aria-label="(e.channel.pinned ? 'Unpin ' : 'Pin ') + e.channel.name"
+                  @click="togglePin(e.channel)">★</button>
+                <span class="live-row-logo">
+                  <img v-if="e.channel.hasLogo" class="epg-rail-logo" :src="'/api/epg/logo/' + e.channel.id" alt=""
+                    @error="$event.target.style.display = 'none'" />
+                </span>
+                <span class="live-row-name" :title="e.channel.name">
+                  <span v-if="e.channel.number != null" class="text-ink-mute">{{ e.channel.number }}</span>
+                  {{ e.channel.name }}
+                </span>
+                <div class="live-row-now">
+                  <button v-if="e.now" type="button" class="on-now-open block w-full"
+                    :aria-label="'Show details for ' + e.now.title" @click="openDetails(e, e.now)">
+                    <span class="block truncate">
+                      <span class="text-sm font-semibold text-ink mr-3">{{ e.now.title }}</span>
+                      <span v-if="isRecordingChannel(e.channel.id)" class="on-now-rec"><span class="led-dot sm live"></span>REC</span>
+                      <span v-else class="font-mono text-xs text-ink-dim">{{ onNowMeta(e.now) }}</span>
+                    </span>
+                    <div class="progress" style="margin-top: 0.25rem; max-width: none;">
+                      <div class="progress-track">
+                        <div :class="['progress-fill', { rec: isRecordingChannel(e.channel.id) }]" :style="{ width: onNowPercent(e.now) + '%' }"></div>
+                      </div>
+                    </div>
+                  </button>
+                  <span v-else class="text-sm text-ink-mute">No guide data</span>
+                </div>
+                <button v-if="e.next" type="button" class="on-now-open live-row-next font-mono text-xs text-ink-dim min-w-0 truncate"
+                  :aria-label="'Show details for ' + e.next.title" @click="openDetails(e, e.next)">
+                  next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
+                </button>
+                <button type="button" class="btn btn-sm btn-icon btn-watch live-row-watch" title="Watch live"
+                  :aria-label="'Watch ' + e.channel.name + ' live'"
+                  @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+      <teleport to="body">
+      <transition name="epg-sheet">
+      <channels-modal v-if="channelsModal" :channels="data?.channels || []" :hidden-ids="data?.hiddenIds || []"
+        :sort="data?.sort" :hide-sd-simulcasts="data?.hideSdSimulcasts"
+        @close="channelsModal = false" @saved="onChannelPrefsSaved" />
+      </transition>
+      </teleport>
+    </div>
+  `,
+  setup() {
+    const { flashText, flashKind, flash } = useFlash()
+    const data = ref(null)
+    const error = ref('')
+    const tvhConfigured = ref(null)
+    const filterQ = ref('')
+    const pinnedOnly = ref(false)
+    const channelsModal = ref(false)
+    let pollTimer = null
+    let boundaryTimer = null
+
+    const matchesFilter = (e) => {
+      const q = filterQ.value.trim().toLowerCase()
+      if (!q) return true
+      return [e.channel.name, e.channel.number, e.now?.title, e.next?.title]
+        .some((v) => v != null && String(v).toLowerCase().includes(q))
+    }
+
+    const groups = computed(() => {
+      const entries = (data.value?.entries || []).filter(matchesFilter)
+      const pinned = entries.filter((e) => e.channel.pinned)
+      const rest = pinnedOnly.value ? [] : entries.filter((e) => !e.channel.pinned)
+      return [
+        ...(pinned.length ? [{ key: 'pinned', label: 'Pinned', entries: pinned }] : []),
+        ...(rest.length ? [{ key: 'all', label: pinned.length ? 'All channels' : 'Channels', entries: rest }] : []),
+      ]
+    })
+
+    const emptyText = computed(() => {
+      if (filterQ.value.trim()) return `No channels or shows match "${filterQ.value.trim()}".`
+      if (pinnedOnly.value) return 'No pinned channels yet. Tap ★ next to a channel to pin it.'
+      return 'No channels to show. Open CHANNELS to unhide some.'
+    })
+
+    const scheduleBoundaryReload = () => {
+      clearTimeout(boundaryTimer)
+      const ends = (data.value?.entries || []).map((e) => e.now?.end).filter(Boolean)
+      if (!ends.length) return
+      const wait = Math.max(LIVE_BOUNDARY_MIN_MS, Math.min(...ends) - Date.now() + LIVE_BOUNDARY_GRACE_MS)
+      boundaryTimer = setTimeout(load, wait)
+    }
+
+    const load = async () => {
+      if (tvhConfigured.value === null) {
+        const settings = await api('GET', '/api/settings').catch(() => ({}))
+        tvhConfigured.value = Boolean(settings.tvh_url)
+      }
+      if (!tvhConfigured.value) return
+      try {
+        data.value = await api('GET', '/api/epg/now?all=1')
+        error.value = ''
+        scheduleBoundaryReload()
+      } catch (err) {
+        error.value = err.message
+      }
+    }
+
+    const togglePin = async (channel) => {
+      const pinnedIds = (data.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
+      try {
+        await togglePinnedChannel({ pinnedIds, channelId: channel.id })
+        await load()
+      } catch (err) {
+        flash({ msg: `Pin failed: ${err.message}`, kind: 'err', ms: 6000 })
+      }
+    }
+
+    const onChannelPrefsSaved = async () => {
+      channelsModal.value = false
+      await load()
+      flash({ msg: 'Channel preferences saved.' })
+    }
+
+    const openDetails = (e, program) => openInGuide({ channelId: e.channel.id, program, returnTo: '#/live' })
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+
+    onMounted(() => {
+      load()
+      pollTimer = setInterval(load, LIVE_LIST_POLL_MS)
+      document.addEventListener('visibilitychange', onVisibility)
+    })
+    onUnmounted(() => {
+      clearInterval(pollTimer)
+      clearTimeout(boundaryTimer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    })
+
+    return {
+      data, error, tvhConfigured, filterQ, pinnedOnly, channelsModal, groups, emptyText,
+      load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
+      isRecordingChannel, onNowPercent, onNowMeta, fmtClockTz, flashText, flashKind,
+    }
+  },
+}
+
+const LIVE_LIST_POLL_MS = 30_000
+const LIVE_BOUNDARY_MIN_MS = 5_000
+const LIVE_BOUNDARY_GRACE_MS = 2_000
+
 const DashboardView = {
   template: `
     <div class="view-reveal space-y-6">
       <recording-now-panel />
 
-      <section v-if="tvhConfigured && guideOk" class="panel">
+      <section v-if="tvhConfigured" class="panel">
         <header class="panel-header">
           <span class="panel-title">TV GUIDE</span>
-          <a href="#/guide" class="text-xs font-mono uppercase tracking-[0.16em]">Open guide →</a>
+          <div class="flex items-center gap-4">
+            <a href="#/live" class="text-xs font-mono uppercase tracking-[0.16em]">Live TV →</a>
+            <a href="#/guide" class="text-xs font-mono uppercase tracking-[0.16em]">Guide →</a>
+          </div>
         </header>
-        <div class="panel-body space-y-5">
+        <div v-if="!guideOk" class="panel-body flex flex-wrap items-center gap-3">
+          <span class="status-readout err">Guide unavailable. TVHeadend did not answer.</span>
+          <button type="button" class="btn btn-sm" @click="loadGuidePanel">⟳ RETRY</button>
+        </div>
+        <div v-else class="panel-body space-y-5">
           <div v-if="onNow.length">
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">On now · pinned channels</div>
             <div class="space-y-3">
@@ -740,12 +945,14 @@ const DashboardView = {
             </div>
             </div>
           </div>
-          <p v-else class="text-xs text-ink-dim">
-            Pin channels in the <a href="#/guide">TV Guide</a> (★ in the channel rail) to see what's on now.
-          </p>
-          <div v-if="guideUpcoming.length">
+          <div v-else class="flex flex-wrap items-center gap-3">
+            <p class="text-xs text-ink-dim">Pin channels with ★ to see what's on now.</p>
+            <a href="#/live" class="btn btn-sm no-hover-underline">OPEN LIVE TV</a>
+          </div>
+          <div>
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
-            <div class="space-y-2">
+            <p v-if="!guideUpcoming.length" class="text-xs text-ink-dim">Nothing scheduled to record.</p>
+            <div v-else class="space-y-2">
               <button v-for="r in guideUpcoming" :key="r.id" type="button"
                 class="on-now-open flex w-full items-center gap-2.5 font-mono text-xs text-ink-dim min-w-0"
                 :aria-label="'Show details for ' + r.name"
@@ -857,16 +1064,6 @@ const DashboardView = {
       return { id: held, status: 'running', started_at: heldSyncStartedAt.value, summary: null }
     })
 
-    const onNowPercent = (p) => {
-      const span = p.end - p.start
-      if (span <= 0) return 0
-      return Math.min(100, Math.max(0, Math.round(((Date.now() - p.start) / span) * 100)))
-    }
-
-    const onNowMeta = (p) => {
-      const mins = Math.max(0, Math.ceil((p.end - Date.now()) / 60_000))
-      return `${fmtClockTz(p.start)} · ${mins} min${mins === 1 ? '' : 's'} remaining`
-    }
 
     const loadGuidePanel = async () => {
       if (!tvhConfigured.value) {
@@ -892,10 +1089,6 @@ const DashboardView = {
     const isSeriesRec = (r) =>
       r?.seriesLinkId != null && guideSeriesLinks.value.has(String(r.seriesLinkId))
 
-    const recordingChannelIds = computed(() =>
-      new Set(recordingNow.value.active.filter((r) => !r.failed).map((r) => String(r.channelId))))
-
-    const isRecordingChannel = (channelId) => recordingChannelIds.value.has(String(channelId))
 
     const refresh = async () => {
       const [syncs, , shows, recordings, settings] = await Promise.all([
@@ -1032,7 +1225,7 @@ const DashboardView = {
       syncStatus, shownSyncId, lastSyncCell, resultCell, nextSyncLabel, recentSyncs,
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, fmtRelativeDay, tsOfMs,
-      isRecordingChannel,
+      isRecordingChannel, loadGuidePanel,
       watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
       flashText, flashKind,
     }
@@ -3142,6 +3335,163 @@ const EPG_KEEP_OPTIONS = [
   { value: 10, label: 'KEEP 10' },
 ]
 
+const CHANNEL_SORT_OPTIONS = [
+  { key: 'default', label: 'TVH ORDER' },
+  { key: 'number', label: 'NUMBER' },
+  { key: 'name', label: 'NAME' },
+]
+
+const ChannelsModal = {
+  props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts'],
+  emits: ['close', 'saved'],
+  template: `
+    <div class="epg-modal-backdrop" @click.self="$emit('close')">
+      <section class="panel epg-modal">
+        <header class="panel-header">
+          <span class="panel-title">CHANNELS</span>
+          <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
+        </header>
+        <div class="panel-body space-y-5">
+          <div>
+            <label class="field-label">PINNED · SHOWN FIRST, IN THIS ORDER</label>
+            <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
+              Nothing pinned yet. Tap the ★ next to a channel below, in the TV Guide rail, or in Live TV.
+            </p>
+            <ul v-else class="space-y-1.5">
+              <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
+                <button type="button" class="btn btn-sm btn-icon" :disabled="i === 0"
+                  @click="movePin(i, -1)" :aria-label="'Move ' + draftName(id) + ' up'">↑</button>
+                <button type="button" class="btn btn-sm btn-icon" :disabled="i === pinnedDraft.length - 1"
+                  @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'">↓</button>
+                <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">
+                  <span class="text-signal-yellow">★</span> {{ draftName(id) }}
+                </span>
+                <button type="button" class="btn btn-sm btn-icon" @click="toggleDraftPin(id)"
+                  :aria-label="'Unpin ' + draftName(id)"><cross-icon /></button>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <label class="field-label">SORT UNPINNED CHANNELS BY</label>
+            <div class="chip-row">
+              <button v-for="s in CHANNEL_SORT_OPTIONS" :key="s.key" type="button"
+                :class="['btn', 'btn-sm', sortDraft === s.key ? 'btn-on' : '']"
+                @click="sortDraft = s.key">{{ s.label }}</button>
+            </div>
+          </div>
+          <div>
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+              <input type="checkbox" class="chk" v-model="hideSdDraft" />
+              <span class="font-mono text-[0.8rem]">HIDE SD SIMULCASTS</span>
+            </label>
+            <p class="text-xs text-ink-dim mt-1.5">
+              Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a pinned channel is never hidden.
+            </p>
+          </div>
+          <div>
+            <label class="field-label">ALL CHANNELS · ★ PINS, TICK SHOWS</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+              <div v-for="ch in channels" :key="ch.id" class="flex items-center gap-2">
+                <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
+                  @click="toggleDraftPin(String(ch.id))"
+                  :aria-label="(pinnedDraft.includes(String(ch.id)) ? 'Unpin ' : 'Pin ') + ch.name">★</button>
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer min-w-0">
+                  <input type="checkbox" class="chk"
+                    :checked="!hiddenDraft.has(String(ch.id))"
+                    :disabled="pinnedDraft.includes(String(ch.id))"
+                    @change="toggleHidden(ch)" />
+                  <span class="font-mono text-[0.8rem] truncate">
+                    <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
+                    {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
+            <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
+            <button type="button" class="btn btn-sm" @click="$emit('close')">CANCEL</button>
+            <button type="button" class="btn btn-sm btn-primary" @click="save" :disabled="savingPrefs">
+              {{ savingPrefs ? 'SAVING…' : 'SAVE' }}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  `,
+  setup(props, { emit }) {
+    const pinnedDraft = ref(props.channels.filter((c) => c.pinned).map((c) => String(c.id)))
+    const hiddenDraft = ref(new Set((props.hiddenIds || []).map(String)))
+    const sortDraft = ref(props.sort || 'default')
+    const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
+    const savingPrefs = ref(false)
+    const [statusText, statusKind, setStatus] = makeStatus()
+
+    onMounted(() => {
+      try { document.body.classList.add('sheet-open') } catch { /* ignore */ }
+    })
+    onUnmounted(() => {
+      try { document.body.classList.remove('sheet-open') } catch { /* ignore */ }
+    })
+
+    const draftName = (id) => props.channels.find((c) => String(c.id) === String(id))?.name || `channel ${id}`
+
+    const toggleDraftPin = (id) => {
+      if (pinnedDraft.value.includes(id)) {
+        pinnedDraft.value = pinnedDraft.value.filter((p) => p !== id)
+        return
+      }
+      pinnedDraft.value = [...pinnedDraft.value, id]
+      const next = new Set(hiddenDraft.value)
+      next.delete(id)
+      hiddenDraft.value = next
+    }
+
+    const movePin = (i, delta) => {
+      const next = [...pinnedDraft.value]
+      const [moved] = next.splice(i, 1)
+      next.splice(i + delta, 0, moved)
+      pinnedDraft.value = next
+    }
+
+    const toggleHidden = (ch) => {
+      const next = new Set(hiddenDraft.value)
+      const key = String(ch.id)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      hiddenDraft.value = next
+    }
+
+    const save = async () => {
+      savingPrefs.value = true
+      try {
+        await api('PUT', '/api/epg/channel-prefs', {
+          pinned_ids: pinnedDraft.value,
+          hidden_ids: [...hiddenDraft.value],
+          sort: sortDraft.value,
+          hide_sd_simulcasts: hideSdDraft.value,
+        })
+        emit('saved')
+      } catch (err) {
+        setStatus(`Save failed: ${err.message}`, 'err', 8000)
+      } finally {
+        savingPrefs.value = false
+      }
+    }
+
+    return {
+      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, savingPrefs,
+      statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
+    }
+  },
+}
+
+const togglePinnedChannel = async ({ pinnedIds, channelId }) => {
+  const key = String(channelId)
+  const next = pinnedIds.includes(key) ? pinnedIds.filter((id) => id !== key) : [...pinnedIds, key]
+  await api('PUT', '/api/epg/channel-prefs', { pinned_ids: next })
+}
+
 const EpgView = {
   template: `
     <div class="view-reveal space-y-6">
@@ -3468,79 +3818,9 @@ const EpgView = {
 
       <teleport to="body">
       <transition name="epg-sheet">
-      <div v-if="channelsModal" class="epg-modal-backdrop" @click.self="channelsModal = false">
-        <section class="panel epg-modal">
-          <header class="panel-header">
-            <span class="panel-title">CHANNELS</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="channelsModal = false" aria-label="Close"><cross-icon /></button>
-          </header>
-          <div class="panel-body space-y-5">
-            <div>
-              <label class="field-label">PINNED · SHOWN FIRST, IN THIS ORDER</label>
-              <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
-                Nothing pinned yet — hit the ★ next to a channel below (or in the guide rail).
-              </p>
-              <ul v-else class="space-y-1.5">
-                <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
-                  <button type="button" class="btn btn-sm btn-icon" :disabled="i === 0"
-                    @click="movePin(i, -1)" :aria-label="'Move ' + draftName(id) + ' up'">↑</button>
-                  <button type="button" class="btn btn-sm btn-icon" :disabled="i === pinnedDraft.length - 1"
-                    @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'">↓</button>
-                  <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">
-                    <span class="text-signal-yellow">★</span> {{ draftName(id) }}
-                  </span>
-                  <button type="button" class="btn btn-sm btn-icon" @click="toggleDraftPin(id)"
-                    :aria-label="'Unpin ' + draftName(id)"><cross-icon /></button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <label class="field-label">SORT UNPINNED CHANNELS BY</label>
-              <div class="chip-row">
-                <button v-for="s in sortOptions" :key="s.key" type="button"
-                  :class="['btn', 'btn-sm', sortDraft === s.key ? 'btn-on' : '']"
-                  @click="sortDraft = s.key">{{ s.label }}</button>
-              </div>
-            </div>
-            <div>
-              <label class="flex items-center gap-2.5 text-sm cursor-pointer">
-                <input type="checkbox" class="chk" v-model="hideSdDraft" />
-                <span class="font-mono text-[0.8rem]">HIDE SD SIMULCASTS</span>
-              </label>
-              <p class="text-xs text-ink-dim mt-1.5">
-                Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a pinned channel is never hidden.
-              </p>
-            </div>
-            <div>
-              <label class="field-label">ALL CHANNELS · ★ PINS, TICK SHOWS</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                <div v-for="ch in guide?.channels || []" :key="ch.id" class="flex items-center gap-2">
-                  <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
-                    @click="toggleDraftPin(String(ch.id))"
-                    :aria-label="(pinnedDraft.includes(String(ch.id)) ? 'Unpin ' : 'Pin ') + ch.name">★</button>
-                  <label class="flex items-center gap-2.5 text-sm cursor-pointer min-w-0">
-                    <input type="checkbox" class="chk"
-                      :checked="!hiddenDraft.has(String(ch.id))"
-                      :disabled="pinnedDraft.includes(String(ch.id))"
-                      @change="toggleHidden(ch)" />
-                    <span class="font-mono text-[0.8rem] truncate">
-                      <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
-                      {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
-              <span v-if="channelsModalStatusText" :class="['status-readout', channelsModalStatusKind]">{{ channelsModalStatusText }}</span>
-              <button type="button" class="btn btn-sm" @click="channelsModal = false">CANCEL</button>
-              <button type="button" class="btn btn-sm btn-primary" @click="saveChannelPrefs" :disabled="savingPrefs">
-                {{ savingPrefs ? 'SAVING…' : 'SAVE' }}
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
+      <channels-modal v-if="channelsModal" :channels="guide?.channels || []" :hidden-ids="guide?.hiddenIds || []"
+        :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts"
+        @close="channelsModal = false" @saved="onChannelPrefsSaved" />
       </transition>
       </teleport>
     </div>
@@ -3571,7 +3851,6 @@ const EpgView = {
     const busyId = ref(null)
     const channelsModal = ref(false)
     const [modalStatusText, modalStatusKind, setModalStatus] = makeStatus()
-    const [channelsModalStatusText, channelsModalStatusKind, setChannelsModalStatus] = makeStatus()
 
     watch([selected, channelsModal], ([program, channels]) => {
       try { document.body.classList.toggle('sheet-open', Boolean(program || channels)) } catch { /* ignore */ }
@@ -3579,16 +3858,6 @@ const EpgView = {
     onUnmounted(() => {
       try { document.body.classList.remove('sheet-open') } catch { /* ignore */ }
     })
-    const hiddenDraft = ref(new Set())
-    const pinnedDraft = ref([])
-    const sortDraft = ref('default')
-    const savingPrefs = ref(false)
-    const hideSdDraft = ref(false)
-    const sortOptions = [
-      { key: 'default', label: 'TVH ORDER' },
-      { key: 'number', label: 'NUMBER' },
-      { key: 'name', label: 'NAME' },
-    ]
     const leadTime = ref(2)
     const lagTime = ref(10)
     const episodesToKeep = ref(0)
@@ -3956,13 +4225,13 @@ const EpgView = {
       }, channelById(r.channelId))
     }
 
-    let returnToDashboard = false
+    let returnRoute = ''
 
     const openHandoff = () => {
       const handoff = guideHandoff.value
       if (!handoff) return
       guideHandoff.value = null
-      returnToDashboard = true
+      returnRoute = handoff.returnTo || '#/dashboard'
       if (handoff.upcoming) return openUpcoming(handoff.upcoming)
       const listed = (guide.value?.programs[handoff.channelId] || [])
         .find((p) => p.start === handoff.program.start)
@@ -3972,9 +4241,10 @@ const EpgView = {
     const closeModal = () => {
       cancelChoice.value = false
       selected.value = null
-      if (!returnToDashboard) return
-      returnToDashboard = false
-      window.location.hash = '#/dashboard'
+      if (!returnRoute) return
+      const target = returnRoute
+      returnRoute = ''
+      window.location.hash = target
     }
 
     const recordSelected = async () => {
@@ -4272,13 +4542,9 @@ const EpgView = {
 
     const togglePin = async (ch) => {
       if (dragDidMove) return
-      const pinned = (guide.value?.channels || [])
-        .filter((c) => c.pinned)
-        .map((c) => String(c.id))
-      const key = String(ch.id)
-      const next = pinned.includes(key) ? pinned.filter((id) => id !== key) : [...pinned, key]
+      const pinnedIds = (guide.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
       try {
-        await api('PUT', '/api/epg/channel-prefs', { pinned_ids: next })
+        await togglePinnedChannel({ pinnedIds, channelId: ch.id })
         await reloadGuide()
       } catch (err) {
         flash({ msg: `Pin failed: ${err.message}`, kind: 'err', ms: 6000 })
@@ -4286,60 +4552,13 @@ const EpgView = {
     }
 
     const openChannelsModal = () => {
-      const channels = guide.value?.channels || []
-      pinnedDraft.value = channels.filter((c) => c.pinned).map((c) => String(c.id))
-      hiddenDraft.value = new Set((guide.value?.hiddenIds || []).map(String))
-      sortDraft.value = guide.value?.sort || 'default'
-      hideSdDraft.value = Boolean(guide.value?.hideSdSimulcasts)
-      setChannelsModalStatus('')
       channelsModal.value = true
     }
 
-    const draftName = (id) => channelById(id)?.name || `channel ${id}`
-
-    const toggleDraftPin = (id) => {
-      if (pinnedDraft.value.includes(id)) {
-        pinnedDraft.value = pinnedDraft.value.filter((p) => p !== id)
-      } else {
-        pinnedDraft.value = [...pinnedDraft.value, id]
-        const next = new Set(hiddenDraft.value)
-        next.delete(id)
-        hiddenDraft.value = next
-      }
-    }
-
-    const movePin = (i, delta) => {
-      const next = [...pinnedDraft.value]
-      const [moved] = next.splice(i, 1)
-      next.splice(i + delta, 0, moved)
-      pinnedDraft.value = next
-    }
-
-    const toggleHidden = (ch) => {
-      const next = new Set(hiddenDraft.value)
-      const key = String(ch.id)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      hiddenDraft.value = next
-    }
-
-    const saveChannelPrefs = async () => {
-      savingPrefs.value = true
-      try {
-        await api('PUT', '/api/epg/channel-prefs', {
-          pinned_ids: pinnedDraft.value,
-          hidden_ids: [...hiddenDraft.value],
-          sort: sortDraft.value,
-          hide_sd_simulcasts: hideSdDraft.value,
-        })
-        channelsModal.value = false
-        await reloadGuide()
-        flash({ msg: 'Channel preferences saved.' })
-      } catch (err) {
-        setChannelsModalStatus(`Save failed: ${err.message}`, 'err', 8000)
-      } finally {
-        savingPrefs.value = false
-      }
+    const onChannelPrefsSaved = async () => {
+      channelsModal.value = false
+      await reloadGuide()
+      flash({ msg: 'Channel preferences saved.' })
     }
 
     let searchTimer = null
@@ -4396,9 +4615,8 @@ const EpgView = {
       recordSelected, recordSelectedSeries, cancelSelected, cancelSelectedSeries, cancelChoice,
       upcoming, seriesTags, seriesKey, cancelUpcoming, cancelSeriesTag, openSeriesTag,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
-      busyId, channelsModal, openChannelsModal, hiddenDraft, toggleHidden,
-      pinnedDraft, sortDraft, sortOptions, savingPrefs, saveChannelPrefs, hideSdDraft,
-      togglePin, toggleDraftPin, movePin, draftName, rowShown, firstUnpinnedId,
+      busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
+      togglePin, rowShown, firstUnpinnedId,
       dropTargetId, dragPinId,
       onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
@@ -4777,6 +4995,7 @@ const LIVE_POLL_PLAYING_MS = 10_000
 
 const VIEW_MAP = {
   dashboard: DashboardView,
+  live: LiveView,
   guide: EpgView,
   shows: ShowsView,
   syncs: SyncsView,
@@ -4787,6 +5006,7 @@ const VIEW_MAP = {
 
 const TABS = [
   { key: 'dashboard',  label: 'DASHBOARD'  },
+  { key: 'live',       label: 'LIVE TV'    },
   { key: 'guide',      label: 'TV GUIDE'   },
   { key: 'shows',      label: 'SHOWS'      },
   { key: 'syncs',      label: 'SYNCS'      },
@@ -5010,6 +5230,7 @@ app.component('programme-image', ProgrammeImage)
 app.component('recording-card', RecordingCard)
 app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
+app.component('channels-modal', ChannelsModal)
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)
