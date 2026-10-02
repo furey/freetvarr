@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Sync TVHeadend recordings into Plex.</strong><br/>
+  <strong>Watch live TV in your browser. Sync TVHeadend recordings into Plex.</strong><br/>
   A self-hosted bridge for free-to-air TV, recorded with a TVHeadend-compatible tuner.
 </p>
 
@@ -87,6 +87,8 @@ Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 
 
 TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex can't read. **Freetvarr** watches TVHeadend on your LAN, picks up new episodes of the shows you mark to follow, files them into your Plex TV library under names Plex understands, pokes Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
 
+It is also a TV app for your home network. Open the Live TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first.
+
 If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any TVHeadend-compatible tuner counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
 
 It's a fork of [Fetcharr](https://github.com/furey/fetcharr) with the recorder replaced. Fetch TV's Gen 3 Extended Service Levy made a Fetch-bound tool a dead end; a tuner you own and a free guide cost nothing per year. See [Migrating from Fetch](https://furey.github.io/freetvarr/guide/migrating-from-fetch).
@@ -116,8 +118,8 @@ Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and das
 
 ## Features
 
+- **Live TV in the browser**: watch any channel from the Live TV tab, the TV Guide, or the dashboard, on a phone or a desktop. Freetvarr checks for a free tuner first, warns when a recording will need it within the hour, and re-encodes what a browser can't play (MPEG-2 video, AC-3 audio) and deinterlaces H.264 so Chrome can play interlaced HD, in hardware through VAAPI when the host has it. See [Live TV](https://furey.github.io/freetvarr/guide/live-tv#in-freetvarr).
 - **TV Guide**: a 7-day programme guide in the browser; schedule, cancel, and series-record in TVHeadend (with padding and episodes-to-keep options), search the week, star and reorder favourite channels (★ marks a favourite, ☆ does not), browse every channel's now and next on the Live TV page, and see what's on now from the dashboard.
-- **Live TV in the browser**: watch any channel from the TV Guide or the dashboard, on a phone or a desktop. Freetvarr checks for a free tuner first, warns when a recording will need it within the hour, and re-encodes what a browser can't play (MPEG-2 video, AC-3 audio) and deinterlaces H.264 so Chrome can play interlaced HD, in hardware through VAAPI when the host has it. See [Live TV](https://furey.github.io/freetvarr/guide/live-tv#in-freetvarr).
 - **Recording Now panel**: the dashboard shows each active recording with live progress, signal quality, and data errors, then follows it step by step through import, ad cutting, and the Plex refresh.
 - **Programme images**: the guide and the dashboard show a programme's image when the XMLTV feed supplies one.
 - **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late.

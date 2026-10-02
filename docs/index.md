@@ -4,12 +4,12 @@ layout: home
 hero:
   name: Freetvarr
   text: >-
-    Free-to-air TV in&nbsp;Plex, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span>
+    Live TV in your browser. Recordings in&nbsp;Plex, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span>
   tagline: >-
-    A self-hosted bridge between TVHeadend and Plex. TVHeadend records
-    free-to-air from a TVHeadend-compatible tuner; Freetvarr picks up new episodes of the shows you follow,
-    optionally removes the ads, files them into your Plex TV
-    library, and pokes Plex to scan.<br><span
+    A self-hosted companion for TVHeadend and a TVHeadend-compatible tuner.
+    Watch any channel live on your phone or desktop, browse a 7-day guide,
+    and schedule recordings. Freetvarr then files new episodes of the shows
+    you follow into your Plex TV library, optionally without the ads.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
     <code>comskip</code></span>
   image:
@@ -27,6 +27,12 @@ hero:
       link: /deep-dive
 
 features:
+  - title: Live TV
+    details: >-
+      Watch any channel in the browser, on a phone or a desktop. See what's on
+      now and next across every channel, with your favourites first.
+    link: /guide/live-tv
+    linkText: Watch live
   - title: Free to run
     details: >-
       A tuner you own and a free XMLTV guide. No subscription, no levy, no
