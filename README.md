@@ -28,6 +28,8 @@
 
 - [Screenshots](#screenshots)
 - [What Freetvarr is](#what-freetvarr-is)
+- [Why not just TVHeadend](#why-not-just-tvheadend)
+- [Why not just Plex DVR](#why-not-just-plex-dvr)
 - [What Freetvarr isn't](#what-freetvarr-isnt)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
@@ -108,6 +110,12 @@ Tested with an HDHomeRun Flex Quatro; the [hardware guide](https://furey.github.
 TVHeadend on its own covers most of the job. Its web UI has the guide, one-off and series recording with padding and duplicate detection, and a filename template that can write Plex-readable paths (`$t/Season $s/$t - S$sE$e.$x`) straight into the library folder; its DVR post-processor hook can run a script that calls Plex's refresh URL or comskip. If that is enough, use it and skip Freetvarr.
 
 Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and dashboard, follow-a-show with fuzzy matching to the folders Plex already has, the Plex refresh and delete-after-confirm loop, the comskip detect/cut pipeline with a verified swap and `.orig` rollback, live progress, and a sync history you can read. It is a convenience layer on TVHeadend, not a replacement for it.
+
+## Why not just Plex DVR
+
+If you already have a Plex Pass, Plex's own Live TV & DVR may be all you need, and that is a fine choice. It records from a network tuner such as an HDHomeRun straight into your Plex library, with series rules, padding, ad skipping, and live TV in every Plex app. In Australia it needs an XMLTV guide feed, such as [i.mjh.nz](https://i.mjh.nz/au/), because Plex has no built-in Australian guide.
+
+If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` lifetime, in October 2026) with a free setup. TVHeadend and Freetvarr cost nothing, keep recording when Plex changes, play live TV in any browser, and keep the Teletext captions Australian channels send. [Plex DVR instead](https://furey.github.io/freetvarr/guide/plex-dvr) has the full comparison and a setup guide.
 
 ## What Freetvarr isn't
 

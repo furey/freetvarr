@@ -12,7 +12,20 @@ imageAlt: 'Leaving Fetch TV? Own your free-to-air setup before the levy.'
 
 Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now charges a one-off levy to keep it working until October 2027. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
-The first path needs no technical skill. The second path means installing and setting up software on a computer; if you have never done that, ask a friend who has.
+## The pieces you need
+
+Once you know the few pieces that do the Fetch box's job, you no longer need Fetch:
+
+1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun is a good one. The Flex Quatro has four tuners inside, so it receives four channels at once.
+2. **Somewhere to store recordings**: a hard drive. A NAS (a small storage box with hard drives that stays on) suits this well, because it can also run the recording software.
+3. **Recording software** on a computer that stays on, such as the NAS. It follows the TV guide and records what you ask for. Free options include TVHeadend and Jellyfin. Paid options include Plex's own recording feature (it needs a Plex Pass subscription), Channels DVR, and SiliconDust's own recording service.
+
+To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
+
+Freetvarr is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. It runs alongside TVHeadend. You can use any of the other software instead.
+
+> [!TIP]<br>
+> If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
 
 ## What the Fetch box did
 
@@ -48,6 +61,8 @@ Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at
 
 Both paths start with the same network tuner: a small box that takes your aerial lead and sends live TV over your home network. Pick the path that fits you. You can start with Path 1 and add Path 2 later with the same tuner.
 
+The first path needs no technical skill. The second path means installing and setting up software on a computer; if you have never done that, ask a friend who has.
+
 |                  | Path 1: Watch only                  | Path 2: Watch and record                                                               |
 | ---------------- | ----------------------------------- | -------------------------------------------------------------------------------------- |
 | Cost             | about `A$280–400` once              | about `A$600–1,400` once, or the tuner alone if you already own an always-on computer  |
@@ -72,6 +87,8 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 
 The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few typed commands. The guides linked in [Setting up](#setting-up) show each step.
 
+To use other recording software from [The pieces you need](#the-pieces-you-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
+
 ## Shopping list
 
 Some links below are affiliate links: as an Amazon Associate I earn from qualifying purchases, at no extra cost to you.
@@ -80,14 +97,14 @@ Prices are in Australian dollars, as of October 2026, and change often. Check th
 
 ### Path 1 shopping
 
-| Item                                              | Why                                                                                                      | Price                                                                                | Where to buy                                                                                                                                                                                                |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HDHomeRun Flex Quatro (`HDFX-4DT`)                | The tuner. It has four tuners inside, so it receives four channels at once                               | `US$199.99` direct (about `A$280–330` with GST), `A$370–400` from Australian sellers | [SiliconDust](https://shop.silicondust.com/shop/product/hdfx-4dt/), [Standard Computers](https://www.standard.com.au/silicondust-hd-homerun-quatro-flex-tv-tuner-hdfx-4dt-au-aussie-version/product-detail) |
-| HDHomeRun Flex Quatro, refurbished (`HDFX-4DT-R`) | The same tuner, cheaper, with a `90 day` warranty; not always in stock                                   | `US$174.99` direct                                                                   | [SiliconDust](https://shop.silicondust.com/shop/product/dvb-t-t2-c-hdhomerun-flex-quatro-hdfx-4dt-r/)                                                                                                       |
-| F-to-PAL adapter                                  | Australian aerial leads have a PAL plug; the tuner has an F socket. Often in the box with an AU/NZ order | `A$4–6`                                                                              | [Jaycar `PA3672`](https://www.jaycar.com.au/f-59-plug-to-pal-tv-socket/p/PA3672)                                                                                                                            |
-| 5-port network switch                             | Only if your router has no free network (ethernet) port                                                  | `A$24–29`                                                                            | [Umart `TL-SG105`](https://www.umart.com.au/product/tp-link-5-port-steel-gigabit-switch-tl-sg105-25339)                                                                                                     |
+| Item                                              | Why                                                                                                                                  | Price                                                                                | Where to buy                                                                                                                                                                                                |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HDHomeRun Flex Quatro (`HDFX-4DT`)                | The tuner. It has four tuners inside, so it receives four channels at once                                                           | `US$199.99` direct (about `A$280–330` with GST), `A$370–400` from Australian sellers | [SiliconDust](https://shop.silicondust.com/shop/product/hdfx-4dt/), [Standard Computers](https://www.standard.com.au/silicondust-hd-homerun-quatro-flex-tv-tuner-hdfx-4dt-au-aussie-version/product-detail) |
+| HDHomeRun Flex Quatro, refurbished (`HDFX-4DT-R`) | The same tuner, cheaper, with a `90 day` warranty; not always in stock                                                               | `US$174.99` direct                                                                   | [SiliconDust](https://shop.silicondust.com/shop/product/dvb-t-t2-c-hdhomerun-flex-quatro-hdfx-4dt-r/)                                                                                                       |
+| F-to-PAL adapter                                  | Australian aerial leads have a PAL plug; the tuner has an F socket. Ask for one in the order notes; buy one only if it does not come | `A$4–6`                                                                              | [Jaycar `PA3672`](https://www.jaycar.com.au/f-59-plug-to-pal-tv-socket/p/PA3672)                                                                                                                            |
+| 5-port network switch                             | Only if your router has no free network (ethernet) port                                                                              | `A$23–29`                                                                            | [Amazon AU `TL-SG105`](https://www.amazon.com.au/dp/B00A128S24?tag=freetvarr-22), [Umart](https://www.umart.com.au/product/tp-link-5-port-steel-gigabit-switch-tl-sg105-25339)                              |
 
-Buy only a `DT` model. Anything with `US` in the model number, any Flex Duo, and anything branded 4K is built for American TV and cannot receive Australian channels. Most HDHomeRun listings on Amazon AU and eBay AU are these American models. When you order from SiliconDust, ask for the AU/NZ power adapter in the order notes. Shipping from the US takes about a week, so order early.
+Buy only a `DT` model. Anything with `US` in the model number, any Flex Duo, and anything branded 4K is built for American TV and cannot receive Australian channels. Most HDHomeRun listings on Amazon AU and eBay AU are these American models. When you order from SiliconDust, write in the order notes that you need the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in his order notes, and both came in the box. Shipping from the US takes about a week, so order early.
 
 ### Path 2 shopping
 
