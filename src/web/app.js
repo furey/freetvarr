@@ -505,6 +505,24 @@ const seasonEpisodeLabel = (r) => {
   return `${s}${e}`
 }
 
+const within7Days = (s) => {
+  if (!s) return false
+  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s
+  const t = new Date(iso).getTime()
+  return Number.isFinite(t) && (Date.now() - t) < 7 * 24 * 60 * 60 * 1000
+}
+
+const hostOf = (url) => {
+  if (!url) return ''
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+const HEALTH_COLOURS = { ok: '#e2b03c', err: '#ff8a00', off: '#544e47' }
+
 const fmtClockTz = (ms) => dateFormat({ hour: 'numeric', minute: '2-digit' }).format(new Date(ms)).replace(/\s/g, '').toLowerCase()
 
 const tsOfMs = (v) => {
@@ -731,6 +749,17 @@ const DashboardView = {
             </button>
           </div>
         </div>
+        <div class="deck-pipeline">
+          <template v-for="(cell, i) in pipeline" :key="cell.label">
+            <span v-if="i" class="deck-arrow" aria-hidden="true">→</span>
+            <a :href="cell.href" class="deck-cell no-hover-underline">
+              <span class="deck-cell-label">
+                <span v-if="cell.health" class="led-dot sm" :style="{ background: HEALTH_COLOURS[cell.health] }"></span>{{ cell.label }}
+              </span>
+              <span :class="['deck-cell-value', { 'deck-cell-cta': cell.cta }]" :title="cell.title || cell.value">{{ cell.value }}</span>
+            </a>
+          </template>
+        </div>
       </section>
 
       <section class="panel">
@@ -770,6 +799,14 @@ const DashboardView = {
     const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
     const starting = ref(false)
     const recentSyncs = ref([])
+    const statsLoaded = ref(false)
+    const showCount = ref(0)
+    const showEnabledCount = ref(0)
+    const recordings7dCount = ref(0)
+    const plexConfigured = ref(false)
+    const plexHost = ref('')
+    const tvhState = ref(null)
+    const tvhReachable = ref(false)
     const tvhConfigured = ref(false)
     const onNow = ref([])
     const guideUpcoming = ref([])
@@ -790,11 +827,17 @@ const DashboardView = {
     }
 
     const loadGuidePanel = async () => {
-      if (!tvhConfigured.value) return
+      if (!tvhConfigured.value) {
+        tvhState.value = null
+        tvhReachable.value = false
+        return
+      }
       const [s, onNowResult] = await Promise.all([
         api('GET', '/api/epg/state').catch(() => null),
         api('GET', '/api/epg/now').catch(() => null),
       ])
+      tvhState.value = s
+      tvhReachable.value = Boolean(s) && !s.stale
       guideSeriesLinks.value = new Set((s?.seriesTags || []).map((t) => String(t.seriesLinkId ?? t.id)))
       guideUpcoming.value = (s?.futureRecordings || [])
         .filter((r) => !r.pendingDelete)
@@ -813,14 +856,56 @@ const DashboardView = {
     const isRecordingChannel = (channelId) => recordingChannelIds.value.has(String(channelId))
 
     const refresh = async () => {
-      const [syncs, settings] = await Promise.all([
+      const [syncs, shows, recordings, settings] = await Promise.all([
         api('GET', '/api/syncs').catch(() => ({ syncs: [] })),
+        api('GET', '/api/shows').catch(() => ({ shows: [] })),
+        api('GET', '/api/recordings').catch(() => ({ recordings: [] })),
         api('GET', '/api/settings').catch(() => ({})),
       ])
       recentSyncs.value = (syncs.syncs || []).slice(0, 5)
+      showCount.value = shows.shows?.length || 0
+      showEnabledCount.value = shows.shows?.filter((s) => s.enabled).length || 0
+      recordings7dCount.value = recordings.recordings?.filter((r) => within7Days(r.imported_at)).length || 0
+      plexConfigured.value = Boolean(settings.plex_url && settings.plex_token_set && settings.plex_tv_section_id)
+      plexHost.value = hostOf(settings.plex_url)
       tvhConfigured.value = Boolean(settings.tvh_url)
-      loadGuidePanel()
+      await loadGuidePanel()
+      statsLoaded.value = true
     }
+
+    const tvhCell = computed(() => {
+      const base = { label: 'TVHEADEND', href: '#/settings' }
+      if (!statsLoaded.value) return { ...base, value: '—' }
+      if (!tvhConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
+      if (!tvhReachable.value) return { ...base, health: 'err', value: 'unreachable' }
+      const s = tvhState.value
+      const bits = [
+        ...(s?.tunerCount ? [`${s.tunerCount} tuner${s.tunerCount === 1 ? '' : 's'}`] : []),
+        ...(s?.storageInfo?.free ? [`${fmtBytes(s.storageInfo.free)} free`] : []),
+      ]
+      return { ...base, health: 'ok', value: bits.join(' · ') || 'reachable' }
+    })
+
+    const showsCell = computed(() => {
+      if (!statsLoaded.value) return { label: 'SHOWS', href: '#/shows', value: '—' }
+      if (!showCount.value) return { label: 'SHOWS', href: '#/guide', value: 'follow a show', cta: true }
+      return { label: 'SHOWS', href: '#/shows', value: `${showCount.value} · ${showEnabledCount.value} enabled` }
+    })
+
+    const recordingsCell = computed(() => ({
+      label: 'RECORDINGS 7D',
+      href: '#/recordings',
+      value: statsLoaded.value ? `${recordings7dCount.value} imported` : '—',
+    }))
+
+    const plexCell = computed(() => {
+      const base = { label: 'PLEX', href: '#/settings' }
+      if (!statsLoaded.value) return { ...base, value: '—' }
+      if (!plexConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
+      return { ...base, health: 'ok', value: plexHost.value || 'connected' }
+    })
+
+    const pipeline = computed(() => [tvhCell.value, showsCell.value, recordingsCell.value, plexCell.value])
 
     const syncNow = async () => {
       starting.value = true
@@ -851,7 +936,7 @@ const DashboardView = {
 
     return {
       syncStatus, lastSync, recentSyncs,
-      tvhConfigured,
+      tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
       isRecordingChannel,
       watchLive, openInGuide, starting, syncNow, fmtTime,

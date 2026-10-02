@@ -21,7 +21,7 @@ A network tuner streams live channels to anything on your LAN, and TVHeadend str
 
 ## In Freetvarr
 
-Open a programme that is on air in the TV Guide and press **▶ WATCH LIVE**, or press the TV button beside a channel under **On now** on the dashboard. The player opens over the page and keeps playing while you switch tabs. **■ STOP** or **✕** ends the stream and frees the tuner.
+Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or press the TV button beside a channel under **On now** on the dashboard. The player opens over the page and keeps playing while you switch tabs. **■ STOP** or **✕** ends the stream and frees the tuner.
 
 Freetvarr asks TVHeadend for the channel and turns it into an HLS stream (short video segments that any browser can play) with the ffmpeg already in its container:
 
