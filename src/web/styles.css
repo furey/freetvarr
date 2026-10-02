@@ -1810,3 +1810,71 @@ body.epg-drag-lock * {
   width: 1.1rem;
   height: 1.1rem;
 }
+
+.live-frame {
+  position: relative;
+}
+
+.live-landscape-close {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .live-backdrop {
+    align-items: center;
+  }
+
+  .live-modal {
+    border-radius: 0;
+    border-inline: 0;
+  }
+
+  .epg-sheet-enter-from .live-modal,
+  .epg-sheet-leave-to .live-modal {
+    transform: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .live-backdrop {
+    padding: 0;
+    background: #000;
+  }
+
+  .live-modal {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    background: #000;
+    padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+  }
+
+  .live-modal > .live-header,
+  .live-modal > .panel-body {
+    display: none;
+  }
+
+  .live-modal .live-frame {
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .live-modal .live-video {
+    object-fit: contain;
+  }
+
+  .live-landscape-close {
+    display: inline-flex;
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+}
