@@ -4393,13 +4393,10 @@ const pollLive = async (run) => {
   livePollTimer = setTimeout(() => pollLive(run), liveAttached ? LIVE_POLL_PLAYING_MS : LIVE_POLL_TUNING_MS)
 }
 
-const playsHlsOnlyNatively = () =>
-  !('MediaSource' in window) && liveVideo.canPlayType('application/vnd.apple.mpegurl') !== ''
-
 const attachLiveVideo = async (run, playlist) => {
   liveAttached = true
   live.phase = 'live'
-  if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist)
+  if (!liveVideo.canPlayType('application/vnd.apple.mpegurl')) return attachHlsJs(run, playlist)
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
@@ -4729,8 +4726,10 @@ fetch('/api/settings')
 loadSyncStatus().then(ensureSyncPolling)
 pollRecordingNow()
 
-const PULL_REFRESH_TRIGGER_PX = 110
-const PULL_REFRESH_TRAVEL = 0.5
+const PULL_RESISTANCE = 0.5
+const PULL_TRIGGER_PX = 64
+const PULL_MAX_PX = 110
+const PULL_HOLD_PX = 56
 
 const isStandaloneApp = () =>
   window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
@@ -4749,34 +4748,38 @@ const pullBlocked = (e) => window.scrollY > 0
 
 const installPullToRefresh = () => {
   if (!isStandaloneApp()) return
+  const page = document.getElementById('app')
   const indicator = document.createElement('div')
   indicator.className = 'pull-refresh'
   indicator.innerHTML = '<span class="spinner"></span>'
   document.body.append(indicator)
   let startY = null
-  let pulled = 0
-  const showPull = () => {
-    const travel = pulled * PULL_REFRESH_TRAVEL
-    indicator.style.transform = `translate(-50%, ${travel}px) rotate(${pulled * 2}deg)`
-    indicator.style.opacity = String(Math.min(1, pulled / PULL_REFRESH_TRIGGER_PX))
-    indicator.classList.toggle('armed', pulled >= PULL_REFRESH_TRIGGER_PX)
+  let offset = 0
+  const place = (px, { animate = false } = {}) => {
+    offset = px
+    const transition = animate ? 'transform 0.2s ease' : 'none'
+    page.style.transition = transition
+    indicator.style.transition = transition
+    page.style.transform = px ? `translateY(${px}px)` : ''
+    indicator.style.transform = `translate(-50%, ${px}px) rotate(${px * 4}deg)`
+    indicator.style.opacity = px > 0 ? '1' : '0'
+    indicator.classList.toggle('armed', px >= PULL_TRIGGER_PX)
   }
   window.addEventListener('touchstart', (e) => {
     startY = pullBlocked(e) ? null : e.touches[0].clientY
-    pulled = 0
   }, { passive: true })
   window.addEventListener('touchmove', (e) => {
     if (startY == null) return
-    pulled = Math.max(0, e.touches[0].clientY - startY)
-    showPull()
-  }, { passive: true })
+    const dragged = e.touches[0].clientY - startY
+    if (dragged <= 0) return place(0)
+    e.preventDefault()
+    place(Math.min(PULL_MAX_PX, dragged * PULL_RESISTANCE))
+  }, { passive: false })
   window.addEventListener('touchend', () => {
     if (startY == null) return
     startY = null
-    if (pulled < PULL_REFRESH_TRIGGER_PX) {
-      pulled = 0
-      return showPull()
-    }
+    if (offset < PULL_TRIGGER_PX) return place(0, { animate: true })
+    place(PULL_HOLD_PX, { animate: true })
     indicator.classList.add('refreshing')
     window.location.reload()
   })
