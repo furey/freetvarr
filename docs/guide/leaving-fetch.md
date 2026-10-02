@@ -70,6 +70,8 @@ The first path needs no technical skill. The second path means installing and se
 | Your time        | about `30 minutes`                  | `1–2` evenings                                                                         |
 | Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC                        |
 
+On cost alone, a new Fetch box can come out cheaper. [Staying with Fetch](#staying-with-fetch) has the numbers.
+
 ### Path 1: Watch only
 
 Buy a network tuner, plug in the aerial lead and a network cable from your router, and install the HDHomeRun app on your phone, tablet, or TV. The app finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free.
@@ -192,6 +194,22 @@ Freetvarr's browser player has no captions yet. Australian channels send caption
 ### Your aerial
 
 If the Fetch box gets a clear picture now, the tuner will too: it uses the same aerial lead. After setup, the tuner's status page shows signal strength for each channel; [Checking the signal](/guide/hardware#checking-the-signal) explains how to read it.
+
+### Staying with Fetch
+
+On cost alone, a new Fetch box can come out cheaper than either path. Fetch's prices, from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in October 2026:
+
+| Box              | Price                                  | Records          | Three years with Fetch Access |
+| ---------------- | -------------------------------------- | ---------------- | ----------------------------- |
+| Mini Gen 5       | `A$149` for Gen 3 owners (RRP `A$199`) | No               | about `A$300`                 |
+| Mighty Gen 4     | `A$659`                                | Yes, `1 TB` disk | about `A$840`                 |
+| Mighty Gen 4 Pro | `A$799` pre-order (RRP `A$999`)        | Yes, `2 TB` disk | about `A$980`                 |
+
+Every new box needs Fetch Access at `A$4.99` a month (`A$59.88` a year). Fetch Access includes Movie Box, 30+ streamed channels, and games; apps such as Netflix cost extra. Gen 3 owners who buy the Mini also get `A$29.94` of credit, which is six months of Fetch Access. The offer ends on `31 October 2026`.
+
+Path 1 costs about `A$280–400` once, about the same as a Mini over three years. Path 2 costs about `A$600–1,400` once, so a Mighty can cost less than a new NAS and drive. After three years, a Fetch box still costs `A$59.88` a year, and the tuner route costs nothing more.
+
+What the tuner route buys is control: you own the hardware and the recordings, and no company can add a levy, remove an app, or switch the box off. The way Fetch brought in the levy has annoyed enough people that some will pay a bit more for that.
 
 ### Former Fetcharr users
 
