@@ -11,10 +11,9 @@ HOST_TZ="${HOST_TZ:-Australia/Sydney}"
 HOST_UID=$(id -u)
 HOST_GID=$(id -g)
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "[capture] docker not found on PATH" >&2
-  exit 1
-fi
+for tool in docker ffmpeg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "[capture] $tool not found on PATH" >&2; exit 1; }
+done
 
 echo "[capture] checking freetvarr at $FREETVARR_URL"
 if ! curl -fsS "$FREETVARR_URL/healthz" >/dev/null; then
@@ -22,6 +21,8 @@ if ! curl -fsS "$FREETVARR_URL/healthz" >/dev/null; then
   echo "          start it (e.g. docker compose up -d), or set FREETVARR_URL." >&2
   exit 1
 fi
+
+"$REPO_ROOT/scripts/capture-live-clip.sh"
 
 echo "[capture] running $PLAYWRIGHT_IMAGE"
 docker run --rm --network host \

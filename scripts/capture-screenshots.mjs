@@ -6,6 +6,7 @@ const OUT = process.env.SCREENSHOT_OUT || '/work/docs/img'
 const ONLY = (process.env.SHOT_FILTER || '').trim()
 const DESKTOP_VIEWPORT = { width: 1280, height: 936 }
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
+const LIVE_SHOT_AT_S = 4
 
 const DESKTOP_SHOTS = [
   { hash: '#/dashboard',  file: 'screenshot-dashboard.png',  wait: '.panel-title' },
@@ -16,6 +17,7 @@ const DESKTOP_SHOTS = [
   { hash: '#/guide',      file: 'screenshot-guide.png',      wait: '.epg-cell' },
   { hash: '#/guide',      file: 'screenshot-programme.png',  wait: '.epg-cell', prepare: (page, picks) => openProgramme(page, picks.programme) },
   { hash: '#/live',       file: 'screenshot-live.png',       wait: '.live-row' },
+  { hash: '#/live',       file: 'screenshot-player.png',     wait: '.live-row', prepare: (page) => playLive(page) },
   { hash: '#/live',       file: 'screenshot-channels.png',   wait: '.live-row', click: 'button:has-text("CHANNELS")', clickWait: '.epg-modal:not(.live-modal)' },
 ]
 
@@ -25,6 +27,7 @@ const MOBILE_SHOTS = [
   { hash: '#/recordings', file: 'screenshot-mobile-recordings.png', wait: '.panel-title' },
   { hash: '#/guide',      file: 'screenshot-mobile-guide.png',      wait: '.epg-cell' },
   { hash: '#/live',       file: 'screenshot-mobile-live.png',       wait: '.live-row' },
+  { hash: '#/live',       file: 'screenshot-mobile-player.png',     wait: '.live-row', prepare: (page) => playLive(page) },
 ]
 
 const HIDE_SCROLLBARS = `
@@ -44,6 +47,14 @@ const openProgramme = async (page, programme) => {
   await onAirCell(page, programme).click()
   await page.waitForSelector('.epg-modal .programme-image.hero img', { timeout: 15_000 })
   await waitForImages(page, '.epg-modal img')
+}
+
+const playLive = async (page) => {
+  await page.locator('.live-row.pinned .live-row-watch').first().click()
+  await page.mouse.move(0, 0)
+  await page.waitForSelector('.live-video:not(.is-veiled)', { timeout: 20_000 })
+  await page.waitForFunction((at) => document.querySelector('.live-video')?.currentTime >= at,
+    LIVE_SHOT_AT_S, { timeout: 30_000 })
 }
 
 const SIM_NOW = simulatedNow()
@@ -79,6 +90,7 @@ const captureAll = async (shots, viewport) => {
       clip: { x: 0, y: 0, width: viewport.width, height: viewport.height },
     })
     console.log(`  saved ${shot.file}`)
+    await page.keyboard.press('Escape')
   }
   await ctx.close()
 }

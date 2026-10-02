@@ -50,6 +50,11 @@
 </p>
 
 <p align="center">
+  <img src="docs/img/screenshot-player.png" alt="Live TV player" width="100%"/>
+  <br/><em>Live TV player</em>
+</p>
+
+<p align="center">
   <img src="docs/img/screenshot-guide.png" alt="TV Guide" width="100%"/>
   <br/><em>TV Guide</em>
 </p>
@@ -75,6 +80,8 @@
   <img src="docs/img/screenshot-mobile-recordings.png" alt="Recordings on mobile" width="32%"/>
   <br/><em>Mobile</em>
 </p>
+
+Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
 
 ## What Freetvarr is
 
