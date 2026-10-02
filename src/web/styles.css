@@ -184,6 +184,7 @@ body {
 
 .tab-led {
   position: relative;
+  word-spacing: -0.2em;
 }
 
 .tab-led:focus-visible {
@@ -674,7 +675,7 @@ a.icon-link {
 .tab-strip {
   display: flex;
   align-items: flex-end;
-  gap: 1rem;
+  gap: 1.75rem;
   margin: -0.25rem -0.5rem -0.75rem;
   padding: 0.5rem 0.5rem 0.75rem;
   overflow-x: auto;
@@ -2303,3 +2304,61 @@ section[id^="section-"] {
     border-left: 0;
   }
 }
+
+.live-group-heading {
+  margin-bottom: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8b837e;
+}
+
+.live-group-heading + .live-list {
+  margin-bottom: 1.5rem;
+}
+
+.live-row {
+  display: grid;
+  grid-template-columns: auto 2rem minmax(0, 9rem) minmax(0, 1fr) minmax(0, 16rem) auto;
+  grid-template-areas: "pin logo name now next watch";
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 0;
+}
+
+.live-row + .live-row {
+  border-top: 1px dashed #3d3829;
+}
+
+.live-row-pin { grid-area: pin; }
+.live-row-logo { grid-area: logo; display: flex; justify-content: center; }
+.live-row-now { grid-area: now; min-width: 0; }
+.live-row-next { grid-area: next; justify-self: end; max-width: 100%; }
+.live-row-watch { grid-area: watch; }
+
+.live-row-name {
+  grid-area: name;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #b0a89e;
+}
+
+@media (max-width: 767px) {
+  .live-row {
+    grid-template-columns: auto 2rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "pin logo name watch"
+      ". now now now"
+      ". next next next";
+    gap: 0.35rem 0.75rem;
+  }
+
+  .live-row-next {
+    justify-self: start;
+  }
+}
+
