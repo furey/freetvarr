@@ -1994,6 +1994,7 @@ body.epg-drag-lock * {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
+  min-height: 3.5rem;
   gap: 0.5rem;
   border-left: 1px dashed #3d3829;
 }
