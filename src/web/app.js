@@ -4398,7 +4398,9 @@ const attachLiveVideo = async (run, playlist) => {
   live.phase = 'live'
   if (!liveVideo.canPlayType('application/vnd.apple.mpegurl')) return attachHlsJs(run, playlist)
   liveVideo.addEventListener('error', () => {
-    if (run === liveRun && liveAttached && !liveHls) attachHlsJs(run, playlist)
+    if (run !== liveRun || !liveAttached || liveHls) return
+    clearVideoSource()
+    attachHlsJs(run, playlist)
   }, { once: true })
   liveVideo.src = playlist
   liveVideo.play()?.catch(() => {})
@@ -4432,6 +4434,10 @@ const detachLiveVideo = () => {
   liveAttached = false
   if (!liveVideo) return
   liveVideo.pause()
+  clearVideoSource()
+}
+
+const clearVideoSource = () => {
   liveVideo.removeAttribute('src')
   liveVideo.load()
 }
