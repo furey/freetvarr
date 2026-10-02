@@ -1846,19 +1846,20 @@ body.epg-drag-lock * {
   opacity: 0;
   animation:
     live-chips-in 0.4s 0.15s ease-out both,
-    live-chips-spin 2.4s 1s linear infinite,
+    live-chips-spin-up 0.8s 1s cubic-bezier(0.33, 0, 0.67, 0.33) forwards,
+    live-chips-spin 2.4s 1.8s linear infinite,
     live-chips-calm 1s 12s forwards;
 }
 
 .live-chip-orbit {
   --angle: calc(var(--i) * 120deg - 90deg);
   --row-x: calc((var(--i) - 1) * var(--chip-w) * 1.125);
-  animation: live-chip-intro 0.6s 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: live-chip-intro 0.6s calc(1s + var(--i) * 0.15s) cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 .live-chip-arm {
   transform: translateX(var(--r));
-  animation: live-chip-breathe 1.2s cubic-bezier(0.45, 0, 0.55, 1) calc(1.6s + var(--i) * 0.8s) infinite alternate both;
+  animation: live-chip-breathe 1.2s cubic-bezier(0.45, 0, 0.55, 1) 1.9s infinite alternate both;
 }
 
 .live-chip {
@@ -1923,8 +1924,14 @@ body.epg-drag-lock * {
   to { opacity: 1; }
 }
 
+@keyframes live-chips-spin-up {
+  from { rotate: 0deg; }
+  to { rotate: 60deg; }
+}
+
 @keyframes live-chips-spin {
-  to { rotate: 360deg; }
+  from { rotate: 60deg; }
+  to { rotate: 420deg; }
 }
 
 @keyframes live-chips-calm {
@@ -1942,7 +1949,7 @@ body.epg-drag-lock * {
 
 @keyframes live-chip-breathe {
   from { transform: translateX(var(--r)); }
-  to { transform: translateX(calc(var(--r) * 0.7)); }
+  to { transform: translateX(calc(var(--r) * 0.8)); }
 }
 
 @keyframes live-chip-pulse {
