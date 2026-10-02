@@ -3356,11 +3356,11 @@ const EpgView = {
               </template>
               <template v-else-if="canRecord">
                 <button v-if="selected.program.series_link" type="button" class="btn" :class="{ 'is-busy': modalAction === 'record-series' }" @click="recordSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label">⦿ RECORD SERIES</span>
+                  <span class="btn-label"><record-icon /> RECORD SERIES</span>
                   <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
                 </button>
                 <button type="button" class="btn btn-primary" :class="{ 'is-busy': modalAction === 'record' }" @click="recordSelected" :disabled="modalBusy">
-                  <span class="btn-label">⦿ RECORD</span>
+                  <span class="btn-label"><record-icon /> RECORD</span>
                   <span v-if="modalAction === 'record'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
@@ -4493,6 +4493,23 @@ const TvIcon = {
   `,
 }
 
+const RecordIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <circle cx="8" cy="8" r="6"/>
+      <circle cx="8" cy="8" r="2.75" fill="currentColor" stroke="none"/>
+    </svg>
+  `,
+}
+
+const StopIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="9" height="9" rx="1"/>
+    </svg>
+  `,
+}
+
 const CrossIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -4525,7 +4542,7 @@ const LivePlayer = {
           </ul>
           <div class="epg-modal-actions flex items-center justify-between gap-3">
             <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
-            <button type="button" class="btn btn-danger shrink-0" @click="stopLive">■ STOP</button>
+            <button type="button" class="btn btn-danger shrink-0" @click="stopLive"><stop-icon /> STOP</button>
           </div>
         </div>
       </section>
@@ -4697,4 +4714,6 @@ app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
+app.component('record-icon', RecordIcon)
+app.component('stop-icon', StopIcon)
 app.mount('#app')
