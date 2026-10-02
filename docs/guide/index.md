@@ -36,6 +36,10 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 > [!IMPORTANT]<br>
 > Tested against TVHeadend `4.3` fed by an HDHomeRun Flex Quatro, with Plex Media Server. Other tuners and TVHeadend versions are unverified.
 
+## Background
+
+The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copied recordings off a Fetch TV box into Plex. When Fetch announced its Gen 3 levy, he bought an HDHomeRun tuner, set up TVHeadend, and swapped Fetcharr's pieces one at a time until the new setup worked. That became Freetvarr. Only after all that did he notice that his own Plex Pass already covered Plex DVR, which records from the same tuner with no extra software; [Plex DVR instead](/guide/plex-dvr) compares the two. For people without a Plex Pass, Freetvarr is one option, but the hardware still costs a few hundred dollars. [Leaving Fetch TV](/guide/leaving-fetch) compares that cost with a new Fetch box.
+
 ## Where next
 
 - **[Hardware](/guide/hardware)**: what to buy, and how it wires into the aerial you already have.
