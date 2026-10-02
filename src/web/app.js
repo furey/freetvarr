@@ -647,33 +647,6 @@ const DashboardView = {
     <div class="view-reveal space-y-6">
       <recording-now-panel />
 
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <a href="#/shows" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Shows</div>
-          <div class="text-3xl md:text-4xl font-mono text-ink">{{ showCount }}</div>
-          <div class="text-xs text-ink-dim mt-2">
-            <span class="text-plex-yellow">{{ showEnabledCount }}</span> enabled
-          </div>
-        </a>
-        <a href="#/recordings" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Recordings 7d</div>
-          <div class="text-3xl md:text-4xl font-mono text-ink">{{ recordings7dCount }}</div>
-          <div class="text-xs text-ink-dim mt-2">
-            <span class="text-plex-yellow">{{ recordingsTotal }}</span> in window
-          </div>
-        </a>
-        <article class="panel p-5">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">TVHeadend</div>
-          <div class="text-lg font-mono" :class="tvhClass">{{ tvhLabel }}</div>
-          <div v-if="tvhMeta" class="text-xs font-mono text-ink-dim mt-2 truncate" :title="tvhMeta">{{ tvhMeta }}</div>
-        </article>
-        <article class="panel p-5">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Plex</div>
-          <div class="text-lg font-mono" :class="plexClass">{{ plexLabel }}</div>
-          <div v-if="plexHost" class="text-xs font-mono text-ink-dim mt-2 truncate">{{ plexHost }}</div>
-        </article>
-      </section>
-
       <section v-if="tvhConfigured && guideOk" class="panel">
         <header class="panel-header">
           <span class="panel-title">TV GUIDE</span>
@@ -732,6 +705,33 @@ const DashboardView = {
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="#/shows" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
+          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Shows</div>
+          <div class="text-3xl md:text-4xl font-mono text-ink">{{ showCount }}</div>
+          <div class="text-xs text-ink-dim mt-2">
+            <span class="text-plex-yellow">{{ showEnabledCount }}</span> enabled
+          </div>
+        </a>
+        <a href="#/recordings" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
+          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Recordings 7d</div>
+          <div class="text-3xl md:text-4xl font-mono text-ink">{{ recordings7dCount }}</div>
+          <div class="text-xs text-ink-dim mt-2">
+            <span class="text-plex-yellow">{{ recordingsTotal }}</span> in window
+          </div>
+        </a>
+        <article class="panel p-5">
+          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">TVHeadend</div>
+          <div class="text-lg font-mono" :class="tvhClass">{{ tvhLabel }}</div>
+          <div v-if="tvhMeta" class="text-xs font-mono text-ink-dim mt-2 truncate" :title="tvhMeta">{{ tvhMeta }}</div>
+        </article>
+        <article class="panel p-5">
+          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Plex</div>
+          <div class="text-lg font-mono" :class="plexClass">{{ plexLabel }}</div>
+          <div v-if="plexHost" class="text-xs font-mono text-ink-dim mt-2 truncate">{{ plexHost }}</div>
+        </article>
       </section>
 
       <section class="panel">
