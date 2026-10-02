@@ -3287,7 +3287,7 @@ const EpgView = {
         <section class="panel epg-modal">
           <header class="panel-header">
             <span class="panel-title">{{ selected.program.title }}</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeModal" aria-label="Close">✕</button>
+            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeModal" aria-label="Close"><cross-icon /></button>
           </header>
           <programme-image v-if="selected.program.has_image" :key="selected.program.program_id" :event-id="selected.program.program_id" variant="hero" />
           <div class="panel-body space-y-4">
@@ -3378,7 +3378,7 @@ const EpgView = {
         <section class="panel epg-modal">
           <header class="panel-header">
             <span class="panel-title">CHANNELS</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="channelsModal = false" aria-label="Close">✕</button>
+            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="channelsModal = false" aria-label="Close"><cross-icon /></button>
           </header>
           <div class="panel-body space-y-5">
             <div>
@@ -3396,7 +3396,7 @@ const EpgView = {
                     <span class="text-signal-yellow">★</span> {{ draftName(id) }}
                   </span>
                   <button type="button" class="btn btn-sm btn-icon" @click="toggleDraftPin(id)"
-                    :aria-label="'Unpin ' + draftName(id)">✕</button>
+                    :aria-label="'Unpin ' + draftName(id)"><cross-icon /></button>
                 </li>
               </ul>
             </div>
@@ -4511,7 +4511,7 @@ const LivePlayer = {
             <span class="panel-title block truncate">{{ live.channel?.name }}</span>
             <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
           </div>
-          <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close">✕</button>
+          <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
         <div class="live-frame">
           <video ref="videoEl" class="live-video" playsinline controls></video>
