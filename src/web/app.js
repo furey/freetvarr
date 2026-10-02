@@ -747,13 +747,13 @@ const DashboardView = {
           </div>
           <div class="deck-zone deck-zone-info">
             <span v-if="flashText" :key="flashText" :class="['status-readout', 'deck-fade', flashKind]">{{ flashText }}</span>
-            <div v-else-if="lastSync" :key="lastSync.id + lastSync.status" class="deck-zone-info-body deck-fade">
+            <div v-else-if="deckSync" :key="deckSync.id + deckSync.status" class="deck-zone-info-body deck-fade">
               <div class="deck-status-line">
-                <span class="deck-cell-label">{{ lastSync.id === shownSyncId ? 'Current sync' : 'Last sync' }} #{{ lastSync.id }}</span>
-                <span :class="['pill', lastSync.status]">{{ lastSync.status }}</span>
-                <span>{{ fmtTime(lastSync.started_at) }}</span>
+                <span class="deck-cell-label">{{ deckSync.id === shownSyncId ? 'Current sync' : 'Last sync' }} #{{ deckSync.id }}</span>
+                <span :class="['pill', deckSync.status]">{{ deckSync.status }}</span>
+                <span>{{ fmtTime(deckSync.started_at) }}</span>
               </div>
-              <summary-line v-if="lastSync.summary" class="text-sm" :summary="lastSync.summary"/>
+              <summary-line v-if="deckSync.summary" class="text-sm" :summary="deckSync.summary"/>
             </div>
             <p v-else class="text-sm text-ink-dim">No syncs yet.</p>
           </div>
@@ -810,6 +810,7 @@ const DashboardView = {
     const { flashText, flashKind, flash } = useFlash()
     const starting = ref(false)
     const heldSyncId = ref(null)
+    const heldSyncStartedAt = ref(null)
     const shownSyncId = computed(() => syncStatus.value.activeSyncId || heldSyncId.value)
     const recentSyncs = ref([])
     const statsLoaded = ref(false)
@@ -827,6 +828,12 @@ const DashboardView = {
     const guideOk = ref(true)
 
     const lastSync = computed(() => recentSyncs.value[0] || null)
+
+    const deckSync = computed(() => {
+      const held = heldSyncId.value
+      if (!held || lastSync.value?.id === held) return lastSync.value
+      return { id: held, status: 'running', started_at: heldSyncStartedAt.value, summary: null }
+    })
 
     const onNowPercent = (p) => {
       const span = p.end - p.start
@@ -928,6 +935,7 @@ const DashboardView = {
 
     const holdSyncState = (syncId) => {
       heldSyncId.value = syncId
+      heldSyncStartedAt.value = new Date().toISOString()
       setTimeout(() => { heldSyncId.value = null }, MIN_SYNC_DISPLAY_MS)
     }
 
@@ -954,11 +962,13 @@ const DashboardView = {
     onUnmounted(() => {
       if (pollTimer) clearInterval(pollTimer)
     })
-    const stopWatch = watch(shownSyncId, refresh)
+    const stopWatch = watch(shownSyncId, (curr) => {
+      if (!curr || !heldSyncId.value) refresh()
+    })
     onUnmounted(stopWatch)
 
     return {
-      syncStatus, shownSyncId, lastSync, recentSyncs,
+      syncStatus, shownSyncId, deckSync, recentSyncs,
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
       isRecordingChannel,
