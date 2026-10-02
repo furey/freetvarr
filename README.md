@@ -39,12 +39,14 @@
 
 ## Screenshots
 
-> [!NOTE]<br>
-> Fresh captures are pending. The shots below are from the previous Fetch TV build, so the layout is current but the Fetch-specific labels are not.
-
 <p align="center">
   <img src="docs/img/screenshot-dashboard.png" alt="Dashboard" width="100%"/>
   <br/><em>Dashboard</em>
+</p>
+
+<p align="center">
+  <img src="docs/img/screenshot-live.png" alt="Live TV" width="100%"/>
+  <br/><em>Live TV</em>
 </p>
 
 <p align="center">
@@ -69,7 +71,7 @@
 
 <p align="center">
   <img src="docs/img/screenshot-mobile-dashboard.png" alt="Dashboard on mobile" width="32%"/>
-  <img src="docs/img/screenshot-mobile-shows.png" alt="Shows on mobile" width="32%"/>
+  <img src="docs/img/screenshot-mobile-live.png" alt="Live TV on mobile" width="32%"/>
   <img src="docs/img/screenshot-mobile-recordings.png" alt="Recordings on mobile" width="32%"/>
   <br/><em>Mobile</em>
 </p>
