@@ -4726,6 +4726,61 @@ fetch('/api/settings')
 loadSyncStatus().then(ensureSyncPolling)
 pollRecordingNow()
 
+const PULL_REFRESH_TRIGGER_PX = 110
+const PULL_REFRESH_TRAVEL = 0.5
+
+const isStandaloneApp = () =>
+  window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+
+const hasScrolledAncestor = (el) => {
+  for (let node = el; node && node !== document.body; node = node.parentElement) {
+    if (node.scrollTop > 0) return true
+  }
+  return false
+}
+
+const pullBlocked = (e) => window.scrollY > 0
+  || e.touches.length > 1
+  || Boolean(e.target.closest?.('.epg-modal-backdrop'))
+  || hasScrolledAncestor(e.target)
+
+const installPullToRefresh = () => {
+  if (!isStandaloneApp()) return
+  const indicator = document.createElement('div')
+  indicator.className = 'pull-refresh'
+  indicator.innerHTML = '<span class="spinner"></span>'
+  document.body.append(indicator)
+  let startY = null
+  let pulled = 0
+  const showPull = () => {
+    const travel = pulled * PULL_REFRESH_TRAVEL
+    indicator.style.transform = `translate(-50%, ${travel}px) rotate(${pulled * 2}deg)`
+    indicator.style.opacity = String(Math.min(1, pulled / PULL_REFRESH_TRIGGER_PX))
+    indicator.classList.toggle('armed', pulled >= PULL_REFRESH_TRIGGER_PX)
+  }
+  window.addEventListener('touchstart', (e) => {
+    startY = pullBlocked(e) ? null : e.touches[0].clientY
+    pulled = 0
+  }, { passive: true })
+  window.addEventListener('touchmove', (e) => {
+    if (startY == null) return
+    pulled = Math.max(0, e.touches[0].clientY - startY)
+    showPull()
+  }, { passive: true })
+  window.addEventListener('touchend', () => {
+    if (startY == null) return
+    startY = null
+    if (pulled < PULL_REFRESH_TRIGGER_PX) {
+      pulled = 0
+      return showPull()
+    }
+    indicator.classList.add('refreshing')
+    window.location.reload()
+  })
+}
+
+installPullToRefresh()
+
 const app = createApp(App)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
