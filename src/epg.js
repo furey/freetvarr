@@ -207,7 +207,13 @@ export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
 // episodes from each series rule against the loaded guide and merge them with
 // the real timers, so the Upcoming view reflects what will actually record.
 // A projected entry is source:'series' (expected); a real timer is source:'timer'.
-export const projectUpcomingRecordings = ({ seriesTags = [], futureRecordings = [], guide, nowMs = Date.now() } = {}) => {
+export const projectUpcomingRecordings = ({
+  seriesTags = [],
+  futureRecordings = [],
+  skippedProgramIds = [],
+  guide,
+  nowMs = Date.now(),
+} = {}) => {
   const timers = futureRecordings
     .filter((r) => !r.pendingDelete)
     .map((r) => ({
@@ -222,7 +228,7 @@ export const projectUpcomingRecordings = ({ seriesTags = [], futureRecordings = 
       hasImage: Boolean(guide?.imageByEventId?.has(String(r.programId))),
       source: 'timer',
     }))
-  const timerProgramIds = new Set(timers.map((t) => String(t.programId)))
+  const timerProgramIds = new Set([...timers.map((t) => String(t.programId)), ...skippedProgramIds.map(String)])
 
   const projected = []
   if (guide?.channels?.length) {
@@ -343,6 +349,7 @@ const loadRecordingState = async (now) => {
   const upcomingRecordings = projectUpcomingRecordings({
     seriesTags: state.seriesTags,
     futureRecordings: state.futureRecordings,
+    skippedProgramIds: state.skippedProgramIds,
     guide,
     nowMs: now,
   })
