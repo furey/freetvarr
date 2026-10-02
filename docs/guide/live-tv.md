@@ -29,7 +29,7 @@ Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or pre
 
 Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
 
-While a channel tunes, the player shows Freetvarr's three logo chips (blue, orange, and yellow). They fade in as a row, move together into a spinning triangle, and when the stream's first frames load they glide to the centre and fade before the video fades in. The chips stay up for at least `1.8` seconds. After `12` seconds they dim, and after `15` seconds the status reads `TUNING… STILL WAITING FOR A SIGNAL`. A failed or ended stream leaves a grey chip row. With reduced motion on, the chips pulse in place. In phone landscape, a caption with the channel name and status sits at the bottom left.
+While a channel tunes, the player shows Freetvarr's three logo chips (blue, orange, and yellow). They fade in as a row, move together into a spinning triangle, and when the stream's first frames load they glide to the centre and fade before the video fades in. The chips stay up for at least `1.8` seconds. After `12` seconds they dim, and after `15` seconds the status reads `TUNING… STILL WAITING FOR A SIGNAL`. A failed or ended stream leaves a grey chip row, and the player says why it stopped (for example, that a recording took the tuner); **⟳ RETRY** tunes the channel again and **✕ CLOSE** closes the player. With reduced motion on, the chips pulse in place. In phone landscape, a caption with the channel name and status sits at the bottom left.
 
 Freetvarr asks TVHeadend for the channel and turns it into an HLS stream (short video segments that any browser can play) with the ffmpeg already in its container:
 
