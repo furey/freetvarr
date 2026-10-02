@@ -4653,7 +4653,7 @@ const LivePlayer = {
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
         <div class="live-frame">
-          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips === 'tuning' || chips === 'ended' }]" playsinline controls></video>
+          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controls></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
               <span class="live-chip-arm"><i class="live-chip"></i></span>
@@ -4684,17 +4684,31 @@ const LivePlayer = {
     const chips = ref(live.phase === 'tuning' ? 'tuning' : 'hidden')
     const chipsRun = ref(0)
     let chipsTimer = null
+    let chipsShownAt = 0
+    let handOffPending = false
 
     const showChips = (state) => {
       clearTimeout(chipsTimer)
-      if (state === 'tuning' && chips.value !== 'tuning') chipsRun.value += 1
+      handOffPending = false
+      if (state === 'tuning' && chips.value !== 'tuning') {
+        chipsRun.value += 1
+        chipsShownAt = Date.now()
+      }
       chips.value = state
     }
 
-    const handOffToVideo = () => {
+    const animateChipsAway = () => {
+      handOffPending = false
       if (chips.value !== 'tuning' || live.phase !== 'live') return
-      showChips('handoff')
+      chips.value = 'handoff'
       chipsTimer = setTimeout(() => { chips.value = 'hidden' }, CHIPS_HANDOFF_MS)
+    }
+
+    const handOffToVideo = () => {
+      if (chips.value !== 'tuning' || live.phase !== 'live' || handOffPending) return
+      handOffPending = true
+      const wait = Math.max(0, CHIPS_MIN_SHOWN_MS - (Date.now() - chipsShownAt))
+      chipsTimer = setTimeout(animateChipsAway, wait)
     }
 
     watch(() => live.phase, (phase) => {
@@ -4741,7 +4755,8 @@ const LivePlayer = {
 }
 
 const LIVE_POLL_TUNING_MS = 1_000
-const CHIPS_HANDOFF_MS = 400
+const CHIPS_HANDOFF_MS = 440
+const CHIPS_MIN_SHOWN_MS = 1_800
 const TUNING_SLOW_MS = 15_000
 const LIVE_HLS_CONFIG = {
   workerPath: '/vendor/hls.worker.js',
