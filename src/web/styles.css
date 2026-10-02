@@ -912,6 +912,7 @@ a.icon-link {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
   touch-action: none;
 }
 
@@ -929,17 +930,6 @@ a.icon-link {
 
 .epg-row.epg-dragging {
   opacity: 0.4;
-}
-
-.epg-row.pinned .epg-rail-cell,
-.live-row.pinned .live-row-handle {
-  transition: background-color 0.15s ease 0.1s, box-shadow 0.15s ease 0.1s;
-}
-
-.epg-row.epg-armed .epg-rail-cell,
-.live-row.epg-armed .live-row-handle {
-  background-color: #4b3f15;
-  box-shadow: inset 2px 0 0 #ffcd00;
 }
 
 .epg-rail-num {
@@ -2352,10 +2342,10 @@ section[id^="section-"] {
 }
 
 .live-row.pinned .live-row-handle {
-  border-radius: 0.3rem;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
   touch-action: none;
 }
 
