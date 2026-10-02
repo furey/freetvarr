@@ -21,7 +21,7 @@ A network tuner streams live channels to anything on your LAN, and TVHeadend str
 
 ## In Freetvarr
 
-Open a programme that is on air in the TV Guide and press **▶ WATCH LIVE**, or press **▶** beside a channel under **On now** on the dashboard. The player opens over the page and keeps playing while you switch tabs. **■ STOP** or **✕** ends the stream and frees the tuner.
+Open a programme that is on air in the TV Guide and press **▶ WATCH LIVE**, or press the TV button beside a channel under **On now** on the dashboard. The player opens over the page and keeps playing while you switch tabs. **■ STOP** or **✕** ends the stream and frees the tuner.
 
 Freetvarr asks TVHeadend for the channel and turns it into an HLS stream (short video segments that any browser can play) with the ffmpeg already in its container:
 
@@ -84,4 +84,4 @@ Captions arrive either as Teletext or as DVB subtitles, and your broadcaster dec
 
 ## Tuner budget
 
-Your tuner count is the limit, shared between recording and watching. The author's Flex Quatro has four tuners, so recording three overlapping programmes leaves one tuner for live TV. TVHeadend reports what's in use under **Status → Stream**; Freetvarr shows the tuner count on its dashboard.
+Your tuner count is the limit, shared between recording and watching. The author's Flex Quatro has four tuners, so recording three overlapping programmes leaves one tuner for live TV. TVHeadend reports what's in use under **Status → Stream**.

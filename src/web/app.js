@@ -505,13 +505,6 @@ const seasonEpisodeLabel = (r) => {
   return `${s}${e}`
 }
 
-const within7Days = (s) => {
-  if (!s) return false
-  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s
-  const t = new Date(iso).getTime()
-  return Number.isFinite(t) && (Date.now() - t) < 7 * 24 * 60 * 60 * 1000
-}
-
 const fmtClockTz = (ms) => dateFormat({ hour: 'numeric', minute: '2-digit' }).format(new Date(ms)).replace(/\s/g, '').toLowerCase()
 
 const tsOfMs = (v) => {
@@ -707,33 +700,6 @@ const DashboardView = {
         </div>
       </section>
 
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <a href="#/shows" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Shows</div>
-          <div class="text-3xl md:text-4xl font-mono text-ink">{{ showCount }}</div>
-          <div class="text-xs text-ink-dim mt-2">
-            <span class="text-plex-yellow">{{ showEnabledCount }}</span> enabled
-          </div>
-        </a>
-        <a href="#/recordings" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Recordings 7d</div>
-          <div class="text-3xl md:text-4xl font-mono text-ink">{{ recordings7dCount }}</div>
-          <div class="text-xs text-ink-dim mt-2">
-            <span class="text-plex-yellow">{{ recordingsTotal }}</span> in window
-          </div>
-        </a>
-        <article class="panel p-5">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">TVHeadend</div>
-          <div class="text-lg font-mono" :class="tvhClass">{{ tvhLabel }}</div>
-          <div v-if="tvhMeta" class="text-xs font-mono text-ink-dim mt-2 truncate" :title="tvhMeta">{{ tvhMeta }}</div>
-        </article>
-        <article class="panel p-5">
-          <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Plex</div>
-          <div class="text-lg font-mono" :class="plexClass">{{ plexLabel }}</div>
-          <div v-if="plexHost" class="text-xs font-mono text-ink-dim mt-2 truncate">{{ plexHost }}</div>
-        </article>
-      </section>
-
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">SYNC DECK</span>
@@ -804,15 +770,7 @@ const DashboardView = {
     const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
     const starting = ref(false)
     const recentSyncs = ref([])
-    const showCount = ref(0)
-    const showEnabledCount = ref(0)
-    const recordingsTotal = ref(0)
-    const recordings7dCount = ref(0)
-    const plexHost = ref('')
-    const plexConfigured = ref(false)
     const tvhConfigured = ref(false)
-    const tvhState = ref(null)
-    const tvhReachable = ref(false)
     const onNow = ref([])
     const guideUpcoming = ref([])
     const guideSeriesLinks = ref(new Set())
@@ -832,17 +790,11 @@ const DashboardView = {
     }
 
     const loadGuidePanel = async () => {
-      if (!tvhConfigured.value) {
-        tvhReachable.value = false
-        tvhState.value = null
-        return
-      }
+      if (!tvhConfigured.value) return
       const [s, onNowResult] = await Promise.all([
         api('GET', '/api/epg/state').catch(() => null),
         api('GET', '/api/epg/now').catch(() => null),
       ])
-      tvhState.value = s
-      tvhReachable.value = Boolean(s) && !s.stale
       guideSeriesLinks.value = new Set((s?.seriesTags || []).map((t) => String(t.seriesLinkId ?? t.id)))
       guideUpcoming.value = (s?.futureRecordings || [])
         .filter((r) => !r.pendingDelete)
@@ -860,50 +812,12 @@ const DashboardView = {
 
     const isRecordingChannel = (channelId) => recordingChannelIds.value.has(String(channelId))
 
-    const plexLabel = computed(() => plexConfigured.value ? 'Connected' : 'Not configured')
-    const plexClass = computed(() => plexConfigured.value ? 'text-plex-yellow' : 'text-ink-dim')
-
-    const activeRecordingCount = computed(() =>
-      (tvhState.value?.futureRecordings || []).filter((r) => r.schedStatus === 'recording').length)
-
-    const tvhLabel = computed(() => {
-      if (!tvhConfigured.value) return 'Not configured'
-      return tvhReachable.value ? 'Reachable' : 'Unreachable'
-    })
-
-    const tvhClass = computed(() => {
-      if (!tvhConfigured.value) return 'text-ink-dim'
-      return tvhReachable.value ? 'text-plex-yellow' : 'text-signal-orange-hi'
-    })
-
-    const tvhMeta = computed(() => {
-      const s = tvhState.value
-      if (!s) return ''
-      const bits = []
-      if (s.tunerCount) bits.push(`${s.tunerCount} tuner${s.tunerCount === 1 ? '' : 's'}`)
-      bits.push(`${activeRecordingCount.value} recording`)
-      if (s.storageInfo?.free) bits.push(`${fmtBytes(s.storageInfo.free)} free`)
-      return bits.join(' · ')
-    })
-
     const refresh = async () => {
-      const [syncs, shows, recordings, settings] = await Promise.all([
+      const [syncs, settings] = await Promise.all([
         api('GET', '/api/syncs').catch(() => ({ syncs: [] })),
-        api('GET', '/api/shows').catch(() => ({ shows: [] })),
-        api('GET', '/api/recordings').catch(() => ({ recordings: [] })),
         api('GET', '/api/settings').catch(() => ({})),
       ])
       recentSyncs.value = (syncs.syncs || []).slice(0, 5)
-      showCount.value = shows.shows?.length || 0
-      showEnabledCount.value = shows.shows?.filter((s) => s.enabled).length || 0
-      recordingsTotal.value = recordings.recordings?.length || 0
-      recordings7dCount.value = recordings.recordings?.filter((r) => within7Days(r.imported_at)).length || 0
-      plexConfigured.value = Boolean(settings.plex_url && settings.plex_token_set && settings.plex_tv_section_id)
-      try {
-        plexHost.value = settings.plex_url ? new URL(settings.plex_url).host : ''
-      } catch {
-        plexHost.value = settings.plex_url || ''
-      }
       tvhConfigured.value = Boolean(settings.tvh_url)
       loadGuidePanel()
     }
@@ -937,9 +851,7 @@ const DashboardView = {
 
     return {
       syncStatus, lastSync, recentSyncs,
-      showCount, showEnabledCount, recordingsTotal, recordings7dCount,
-      plexLabel, plexClass, plexHost,
-      tvhLabel, tvhClass, tvhMeta, tvhConfigured,
+      tvhConfigured,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
       isRecordingChannel,
       watchLive, openInGuide, starting, syncNow, fmtTime,

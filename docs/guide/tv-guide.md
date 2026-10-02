@@ -57,7 +57,7 @@ The guide works in the phone browser: the channel rail narrows, programme and ch
 
 ## On the dashboard
 
-The dashboard carries a TV Guide panel: what's on now across your pinned channels (with the start time, minutes remaining, and a progress bar for each programme), what's on next, and the next few scheduled recordings, each marked series or one-off. A pinned channel that is recording shows an orange bar and `● REC` in place of the minutes remaining.
+The dashboard carries a TV Guide panel: what's on now across your pinned channels (with the start time, minutes remaining, and a progress bar for each programme), what's on next, and the next few scheduled recordings, each marked series or one-off. A pinned channel that is recording shows an orange bar and `● REC` in place of the minutes remaining. Tap a programme or a recording in the panel to open its details in the TV Guide; closing them returns you to the dashboard. With no pinned channels, the panel shows a prompt to pin some with ★ in the guide's channel rail.
 
 While TVHeadend records, a `RECORDING NOW` panel sits at the top of the dashboard, with one card per recording. Each card shows the programme image, channel, title, and episode, and an orange bar from the padded start to the padded stop. The dimmer ends of the bar are the `START EARLY` and `RUN LATE` padding, labelled `pre-roll` and `post-roll` while they run. Below the bar is a live line: file size, bitrate, tuner signal and SNR, and error counts. A recording TVHeadend reports as failed turns red and shows TVHeadend's status text.
 
