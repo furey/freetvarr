@@ -25,6 +25,10 @@ A network tuner streams live channels to anything on your LAN, and TVHeadend str
 
 Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or press the TV button beside a channel under **On now** on the dashboard. The player opens over the page and keeps playing while you switch tabs. **■ STOP** or **✕** ends the stream and frees the tuner.
 
+![The player over the Live TV tab](../img/screenshot-player.png)
+
+Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
+
 While a channel tunes, the player shows Freetvarr's three logo chips (blue, orange, and yellow). They fade in as a row, move together into a spinning triangle, and when the stream's first frames load they glide to the centre and fade before the video fades in. The chips stay up for at least `1.8` seconds. After `12` seconds they dim, and after `15` seconds the status reads `TUNING… STILL WAITING FOR A SIGNAL`. A failed or ended stream leaves a grey chip row. With reduced motion on, the chips pulse in place. In phone landscape, a caption with the channel name and status sits at the bottom left.
 
 Freetvarr asks TVHeadend for the channel and turns it into an HLS stream (short video segments that any browser can play) with the ffmpeg already in its container:
