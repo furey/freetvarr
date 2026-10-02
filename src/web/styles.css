@@ -1923,3 +1923,11 @@ body.epg-drag-lock * {
 .pull-refresh.refreshing .spinner {
   animation-play-state: running;
 }
+
+.live-modal.epg-modal > .panel-body {
+  padding-top: 0;
+}
+
+.live-modal.epg-modal > .panel-body > ul {
+  padding-top: 0.75rem;
+}
