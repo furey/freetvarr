@@ -1814,6 +1814,171 @@ body.epg-drag-lock * {
 
 .live-frame {
   position: relative;
+  container-type: inline-size;
+  --chip-w: clamp(18px, 6cqw, 44px);
+  --chip-h: calc(var(--chip-w) * 0.75);
+  --r: calc(var(--chip-w) * 1.6);
+}
+
+.live-video {
+  transition: opacity 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.live-video.is-veiled {
+  opacity: 0;
+}
+
+.live-chips,
+.live-chip-orbit,
+.live-chip-arm {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.live-chips {
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+  animation:
+    live-chips-in 0.2s 0.12s both,
+    live-chips-spin 2.4s 0.12s linear infinite,
+    live-chips-calm 1s 12s forwards;
+}
+
+.live-chip-orbit {
+  --angle: calc(var(--i) * 120deg - 90deg);
+  --row-x: calc((var(--i) - 1) * var(--chip-w) * 1.125);
+  animation: live-chip-intro 0.6s 0.12s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.live-chip-arm {
+  transform: translateX(var(--r));
+  animation: live-chip-breathe 1.2s cubic-bezier(0.45, 0, 0.55, 1) calc(0.72s + var(--i) * 0.8s) infinite alternate both;
+}
+
+.live-chip {
+  position: absolute;
+  left: calc(var(--chip-w) / -2);
+  top: calc(var(--chip-h) / -2);
+  width: var(--chip-w);
+  height: var(--chip-h);
+  background: #1eb6ff;
+}
+
+.live-chip-orbit:nth-child(2) .live-chip {
+  background: #ff8a00;
+}
+
+.live-chip-orbit:nth-child(3) .live-chip {
+  background: #e2b03c;
+}
+
+.live-chips.handoff,
+.live-chips.ended,
+.live-chips.handoff .live-chip-orbit,
+.live-chips.ended .live-chip-orbit {
+  animation-play-state: paused;
+}
+
+.live-chips.handoff .live-chip-arm,
+.live-chips.ended .live-chip-arm {
+  animation: none;
+  transform: translateX(0);
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.live-chips.handoff .live-chip,
+.live-chips.ended .live-chip {
+  opacity: 0;
+  scale: 0.6;
+  transition: opacity 0.2s 0.12s, scale 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.live-chips-row {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  gap: calc(var(--chip-w) * 0.125);
+  translate: -50% -50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: live-chips-row-in 0.3s 0.32s forwards;
+}
+
+.live-chips-row .live-chip {
+  position: static;
+  background: #544e47;
+}
+
+.live-chip-caption {
+  display: none;
+}
+
+@keyframes live-chips-in {
+  to { opacity: 1; }
+}
+
+@keyframes live-chips-spin {
+  to { rotate: 360deg; }
+}
+
+@keyframes live-chips-calm {
+  to { opacity: 0.7; }
+}
+
+@keyframes live-chips-row-in {
+  to { opacity: 0.6; }
+}
+
+@keyframes live-chip-intro {
+  from { transform: translateX(calc(var(--row-x) - var(--r))) rotate(0deg); }
+  to { transform: translateX(0) rotate(var(--angle)); }
+}
+
+@keyframes live-chip-breathe {
+  from { transform: translateX(var(--r)); }
+  to { transform: translateX(calc(var(--r) * 0.7)); }
+}
+
+@keyframes live-chip-pulse {
+  to { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-chips {
+    animation: live-chips-in 0.2s 0.12s both;
+  }
+
+  .live-chip-orbit {
+    animation: none;
+    transform: translateX(var(--row-x));
+  }
+
+  .live-chip-arm {
+    transform: none;
+    animation: live-chip-pulse 0.8s ease-in-out calc(var(--i) * 0.27s) infinite alternate both;
+  }
+
+  .live-chips.handoff .live-chip-arm,
+  .live-chips.ended .live-chip-arm {
+    transition: none;
+  }
+
+  .live-chips.handoff .live-chip,
+  .live-chips.ended .live-chip {
+    scale: 1;
+    transition: opacity 0.2s;
+  }
+
+  .live-video {
+    transition-duration: 0.2s;
+  }
 }
 
 .live-landscape-close {
@@ -1878,6 +2043,22 @@ body.epg-drag-lock * {
 
   .live-modal .live-video {
     object-fit: contain;
+  }
+
+  .live-chip-caption {
+    display: block;
+    position: absolute;
+    left: calc(env(safe-area-inset-left, 0px) + 1rem);
+    bottom: 1rem;
+    max-width: calc(100% - 2rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    color: #b0a89e;
+    pointer-events: none;
   }
 
   .live-landscape-close {

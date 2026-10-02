@@ -4357,6 +4357,7 @@ const live = reactive({
   message: '',
   holders: [],
   conflict: null,
+  tuningStartedAt: 0,
 })
 
 let liveVideo = null
@@ -4376,7 +4377,7 @@ const watchLive = ({ channel, nowTitle }) => {
   stopLive()
   Object.assign(live, {
     open: true, channel, nowTitle, sessionId: null,
-    phase: 'tuning', message: '', holders: [], conflict: null,
+    phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
   })
   liveVideo?.play()?.catch(() => {})
   startLiveSession(liveRun)
@@ -4601,7 +4602,16 @@ const LivePlayer = {
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
         <div class="live-frame">
-          <video ref="videoEl" class="live-video" playsinline controls></video>
+          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips === 'tuning' || chips === 'ended' }]" playsinline controls></video>
+          <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
+            <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
+              <span class="live-chip-arm"><i class="live-chip"></i></span>
+            </span>
+          </div>
+          <div v-if="chips === 'ended'" class="live-chips-row" aria-hidden="true">
+            <i v-for="n in 3" :key="n" class="live-chip"></i>
+          </div>
+          <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </div>
         <div class="panel-body space-y-3">
@@ -4620,10 +4630,34 @@ const LivePlayer = {
   `,
   setup() {
     const videoEl = ref(null)
+    const chips = ref(live.phase === 'tuning' ? 'tuning' : 'hidden')
+    const chipsRun = ref(0)
+    let chipsTimer = null
+
+    const showChips = (state) => {
+      clearTimeout(chipsTimer)
+      if (state === 'tuning' && chips.value !== 'tuning') chipsRun.value += 1
+      chips.value = state
+    }
+
+    const handOffToVideo = () => {
+      if (chips.value !== 'tuning' || live.phase !== 'live') return
+      showChips('handoff')
+      chipsTimer = setTimeout(() => { chips.value = 'hidden' }, CHIPS_HANDOFF_MS)
+    }
+
+    watch(() => live.phase, (phase) => {
+      if (phase === 'tuning') return showChips('tuning')
+      if (phase === 'ended') return showChips('ended')
+      if (phase === 'idle') return showChips('hidden')
+    })
 
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
-      if (live.phase === 'tuning') return 'TUNING…'
+      if (live.phase === 'tuning') {
+        const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
+        return slow ? 'TUNING… STILL WAITING FOR A SIGNAL' : 'TUNING…'
+      }
       if (!live.conflict) return 'LIVE'
       const wait = fmtCountdown(live.conflict.startsAt - now.value.getTime())
       return `LIVE · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
@@ -4642,15 +4676,22 @@ const LivePlayer = {
       liveVideo = videoEl.value
       liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
       liveVideo.addEventListener('pause', onLivePause)
+      liveVideo.addEventListener('loadeddata', handOffToVideo)
+      liveVideo.addEventListener('playing', handOffToVideo)
       window.addEventListener('keydown', onKeydown)
     })
-    onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+    onUnmounted(() => {
+      clearTimeout(chipsTimer)
+      window.removeEventListener('keydown', onKeydown)
+    })
 
-    return { live, videoEl, stopLive, statusText, statusKind, liveHolderText }
+    return { live, videoEl, chips, chipsRun, stopLive, statusText, statusKind, liveHolderText }
   },
 }
 
 const LIVE_POLL_TUNING_MS = 1_000
+const CHIPS_HANDOFF_MS = 400
+const TUNING_SLOW_MS = 15_000
 const LIVE_HLS_CONFIG = {
   workerPath: '/vendor/hls.worker.js',
   liveSyncDurationCount: 2,
