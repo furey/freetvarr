@@ -1992,6 +1992,7 @@ body.epg-drag-lock * {
 .deck-zone-info {
   grid-area: info;
   flex-direction: column;
+  align-items: flex-start;
   justify-content: center;
   gap: 0.5rem;
   border-left: 1px dashed #3d3829;
