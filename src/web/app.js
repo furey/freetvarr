@@ -4756,7 +4756,7 @@ const LivePlayer = {
 
 const LIVE_POLL_TUNING_MS = 1_000
 const CHIPS_HANDOFF_MS = 440
-const CHIPS_MIN_SHOWN_MS = 2_200
+const CHIPS_MIN_SHOWN_MS = 1_800
 const TUNING_SLOW_MS = 15_000
 const LIVE_HLS_CONFIG = {
   workerPath: '/vendor/hls.worker.js',
