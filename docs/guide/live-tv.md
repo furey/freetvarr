@@ -25,8 +25,8 @@ Open a programme that is on air in the TV Guide and press **▶ WATCH LIVE**, or
 
 Freetvarr asks TVHeadend for the channel and turns it into an HLS stream (short video segments that any browser can play) with the ffmpeg already in its container:
 
-- **H.264 video** passes through untouched.
-- **MPEG-2 or HEVC video** is re-encoded to H.264, because browsers cannot play MPEG-2. Standard-definition channels are deinterlaced and stay at `576` lines; HD channels in those formats drop to `540` lines to keep the CPU load down.
+- **H.264 video** is deinterlaced and re-encoded to progressive H.264. See [Video handling](#video-handling).
+- **MPEG-2 or HEVC video** is re-encoded to H.264 in software, because browsers cannot play MPEG-2. Standard-definition channels are deinterlaced and stay at `576` lines; HD channels in those formats drop to `540` lines to keep the CPU load down.
 - **Audio** becomes stereo AAC. Freetvarr picks the main soundtrack in TVHeadend's default language and skips the audio-description track.
 
 Before it tunes, Freetvarr checks the tuners. A channel on a multiplex that a tuner already carries shares that tuner at no cost. Otherwise it needs an idle tuner, and if every tuner is busy the player says so and lists what holds each one. If a scheduled recording in the next hour will need the tuner, the player shows the recording's name and a countdown; the recording wins when the time comes, and the player says which recording took the tuner.
@@ -35,10 +35,34 @@ Stream limits:
 
 - **Two channels at once** by default. Set `LIVE_TV_MAX_SESSIONS` to change it. Viewers of the same channel share one stream.
 - **The stream stops 20 seconds** after the last viewer closes the player or the tab.
-- **CPU**: a re-encoded channel costs far more CPU than one that passes through, so prefer an H.264 simulcast where your broadcaster has one.
+- **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 
 > [!NOTE]<br>
 > The Freetvarr user in TVHeadend needs the streaming right, which the [TVHeadend guide](/guide/tvheadend#_8-make-a-user-for-freetvarr) already grants. TVHeadend gives Freetvarr's stream a low priority (`weight` `50`), so a recording always takes the tuner first.
+
+## Video handling
+
+Many broadcasters send HD as interlaced H.264. Australian 1080i, for example, is field-coded (PAFF). Chrome cannot decode interlaced H.264: its macOS hardware decoder rejects the stream, and its software fallback fails on lone fields. Safari decodes it. Freetvarr therefore deinterlaces H.264 (only the frames that are interlaced) and re-encodes it to progressive H.264.
+
+At startup Freetvarr reads `LIVE_TV_TRANSCODE` and picks one method:
+
+| Value            | Behaviour                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| `auto` (default) | Hardware if a test encode passes on the VAAPI device, software otherwise                                   |
+| `hardware`       | The same test and the same fallback as `auto`                                                              |
+| `software`       | Always software: `yadif` and `libx264`, capped at `540` lines. Costs much more CPU                         |
+| `copy`           | The old behaviour: H.264 passes through untouched. Safari plays it; Chrome cannot play interlaced channels |
+
+Hardware means VAAPI on Intel Quick Sync or AMD, set up as in [Hardware transcoding](/guide/hardware#hardware-transcoding). The result is capped at `720` lines. The device defaults to `/dev/dri/renderD128`; set `LIVE_TV_VAAPI_DEVICE` to use another. NVIDIA (NVENC) is not supported, so an NVIDIA host uses software.
+
+Freetvarr logs the choice and the reason on a line that starts with `[live] video`. Read it with `docker compose logs freetvarr | grep "\[live\] video"`.
+
+> [!NOTE]<br>
+> The author's NAS (Synology DS220+, Intel Celeron J4025 with two cores) re-encodes `1080i` to `720p` in hardware at about `6.5x` real time, using about `5%` of one core. Software at `720p` ran at only `1.36x` real time on both cores, which is why the software path caps at `540` lines.
+
+## Browser notes
+
+The player uses hls.js wherever the browser has Media Source Extensions. It uses native HLS only where they are missing, which means Safari on iPhone. Hls.js recovers from a limited number of media errors, then stops and shows the error. If an HD channel fails in Chrome, see [Playback failed on HD channels](/guide/troubleshooting#playback-failed-on-hd-channels).
 
 ## The tuner's own app
 

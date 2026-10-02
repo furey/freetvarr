@@ -114,6 +114,21 @@ Two faults account for most complaints:
 
 Only with a power injector: if its `TELEVISION` port is not fully isolated it can pass a few volts AC through to the tuner. Tuners tolerate this, but if the readings look strange, a `$5` inline DC block (Jaycar `LT3068`, or any F-type DC block) between the adapter and the tuner removes it.
 
+## Hardware transcoding
+
+Live TV in the browser re-encodes H.264 so that Chrome can play interlaced channels; see [Video handling](/guide/live-tv#video-handling). A graphics chip does this work with almost no CPU. Freetvarr supports Intel Quick Sync and AMD through VAAPI. NVIDIA (NVENC) is not supported. A host without a supported chip needs no setup: Freetvarr uses software and caps the video at `540` lines.
+
+1. Find the render group on the host: `stat -c %g /dev/dri/renderD128`.
+2. Add that number to `.env`: `RENDER_GID=<number>`.
+3. Copy `docker-compose.hwaccel.example.yml` to `docker-compose.override.yml` beside `docker-compose.yml`. Compose loads the override file by itself.
+4. Recreate the container: `docker compose up -d`.
+5. Check the log: `docker compose logs freetvarr | grep "\[live\] video"`. The line says `hardware (VAAPI` when it works.
+
+The override file passes `/dev/dri` into the container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main compose file on a host that lacks it; the container then fails to start. Set `LIVE_TV_VAAPI_DEVICE` if the render node is not `/dev/dri/renderD128`.
+
+> [!NOTE]<br>
+> The author's NAS is a Synology DS220+ (Intel Celeron J4025, UHD 600 graphics) with render group `937`. Hardware `1080i` to `720p` ran at about `6.5x` real time, using about `5%` of one core. Software `720p` ran at only `1.36x` real time on both cores.
+
 ## Where next
 
 - **[TVHeadend](/guide/tvheadend)**: point the recorder at the tuner and scan for channels.
