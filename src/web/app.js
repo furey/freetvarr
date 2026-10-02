@@ -4393,13 +4393,10 @@ const pollLive = async (run) => {
   livePollTimer = setTimeout(() => pollLive(run), liveAttached ? LIVE_POLL_PLAYING_MS : LIVE_POLL_TUNING_MS)
 }
 
-const playsHlsOnlyNatively = () =>
-  !('MediaSource' in window) && liveVideo.canPlayType('application/vnd.apple.mpegurl') !== ''
-
 const attachLiveVideo = async (run, playlist) => {
   liveAttached = true
   live.phase = 'live'
-  if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist)
+  if (!liveVideo.canPlayType('application/vnd.apple.mpegurl')) return attachHlsJs(run, playlist)
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
@@ -4432,6 +4429,7 @@ const endLive = (run, reason) => {
   if (run !== liveRun) return
   clearTimeout(livePollTimer)
   detachLiveVideo()
+  if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
   live.sessionId = null
   live.phase = 'ended'
   live.message = liveReasonText(reason)
