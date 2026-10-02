@@ -456,6 +456,18 @@ input[type="search"]::-webkit-search-cancel-button {
   display: block;
 }
 
+.link-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.link-arrow svg {
+  width: 1.3em;
+  height: 1.3em;
+  flex-shrink: 0;
+}
+
 .btn-link {
   border: none;
   padding: 0 0.4rem;
