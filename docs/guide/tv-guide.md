@@ -27,7 +27,11 @@ Channels run down the page, time runs across, and an orange line marks now. The 
 
 ## Recording a programme
 
-Click a cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV feed; a guide fed only by the broadcast has none. From there:
+Click a cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV feed; a guide fed only by the broadcast has none.
+
+![A programme's detail dialog with its image, synopsis, and RECORD buttons](../img/screenshot-programme.png)
+
+From there:
 
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the timer, 2 minutes before and 10 minutes after by default. Free-to-air broadcasts run late; the generous tail is deliberate.
 - **RECORD SERIES** creates a TVHeadend autorec rule, with an episodes-to-keep option.
@@ -50,6 +54,8 @@ Two consequences worth knowing:
 Press the ☆ next to a channel in the rail to add it to your favourites (the button reads `Add to favourites`); the star turns to ★, and the row animates up into the favourites block. Press ★ to remove it (`Remove from favourites`). Favourites sit at the top of the grid in your order, with a gold tint; hold a favourite row by any part of its rail cell for a quarter of a second, and it lifts into a drag ghost that you move to reorder (`Drag to reorder favourites`), or use the arrows in the `CHANNELS` dialog. When the favourites block scrolls out of view, a `↑ N FAVOURITES` chip appears; click it to jump back to the top. The same hold-then-drag works in the channel cell of the Live TV page.
 
 `⚙ CHANNELS` (in the panel header, next to `⟳ REFRESH`) also hides channels you never watch (a favourite can't be hidden: its tick box is disabled, with the tooltip `Favourites are always shown`; making a channel a favourite unhides it), sorts the other channels by TVHeadend order, channel number, or name (`SORT OTHER CHANNELS BY`), and has a `HIDE SD SIMULCASTS` switch: it hides an SD channel only when its HD twin is in the lineup, so SD-only channels stay. The switch applies to the grid and search. The dialog lists your favourites under `FAVOURITES · SHOWN FIRST, IN THIS ORDER`, then every channel under `ALL CHANNELS · ★ FAVOURITE, TICK TO SHOW`.
+
+![The CHANNELS dialog](../img/screenshot-channels.png)
 
 ## On a phone
 
