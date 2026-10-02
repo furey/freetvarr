@@ -647,39 +647,6 @@ const DashboardView = {
     <div class="view-reveal space-y-6">
       <recording-now-panel />
 
-      <section class="panel">
-        <header class="panel-header">
-          <span class="panel-title">SYNC DECK</span>
-          <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
-        </header>
-        <div class="panel-body grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
-          <div>
-            <div class="flex flex-wrap items-center gap-4 mb-3">
-              <span :class="['led-dot', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
-              <span :class="['text-3xl', 'md:text-4xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
-                {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
-              </span>
-              <span v-if="syncStatus.activeSyncId" class="font-mono text-sm text-ink-dim">
-                · sync #{{ syncStatus.activeSyncId }} in progress
-              </span>
-            </div>
-            <p v-if="lastSync" class="font-mono text-sm text-ink-dim">
-              Last sync #{{ lastSync.id }}
-              · <span :class="['pill', lastSync.status]">{{ lastSync.status }}</span>
-              · {{ fmtTime(lastSync.started_at) }}
-              <span v-if="lastSync.summary"> · <summary-line :summary="lastSync.summary"/></span>
-            </p>
-            <p v-else class="text-sm text-ink-dim">No syncs yet — kick one off.</p>
-          </div>
-          <div class="flex items-center gap-3 md:justify-self-end">
-            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <button type="button" class="btn btn-primary" @click="syncNow" :disabled="!!syncStatus.activeSyncId || starting">
-              {{ starting ? 'STARTING…' : '▶ SYNC NOW' }}
-            </button>
-          </div>
-        </div>
-      </section>
-
       <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <a href="#/shows" class="panel p-5 block text-ink hover:text-ink no-hover-underline hover:border-signal-orange transition-colors">
           <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-2">Shows</div>
@@ -763,6 +730,39 @@ const DashboardView = {
                 · {{ fmtClockTz(tsOfMs(r.startDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template> · {{ isSeriesRec(r) ? 'series' : 'one-off' }}</span>
               </button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel-header">
+          <span class="panel-title">SYNC DECK</span>
+          <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
+        </header>
+        <div class="panel-body grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <div class="flex flex-wrap items-center gap-4 mb-3">
+              <span :class="['led-dot', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
+              <span :class="['text-3xl', 'md:text-4xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
+                {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
+              </span>
+              <span v-if="syncStatus.activeSyncId" class="font-mono text-sm text-ink-dim">
+                · sync #{{ syncStatus.activeSyncId }} in progress
+              </span>
+            </div>
+            <p v-if="lastSync" class="font-mono text-sm text-ink-dim">
+              Last sync #{{ lastSync.id }}
+              · <span :class="['pill', lastSync.status]">{{ lastSync.status }}</span>
+              · {{ fmtTime(lastSync.started_at) }}
+              <span v-if="lastSync.summary"> · <summary-line :summary="lastSync.summary"/></span>
+            </p>
+            <p v-else class="text-sm text-ink-dim">No syncs yet — kick one off.</p>
+          </div>
+          <div class="flex items-center gap-3 md:justify-self-end">
+            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
+            <button type="button" class="btn btn-primary" @click="syncNow" :disabled="!!syncStatus.activeSyncId || starting">
+              {{ starting ? 'STARTING…' : '▶ SYNC NOW' }}
+            </button>
           </div>
         </div>
       </section>
