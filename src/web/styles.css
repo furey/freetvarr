@@ -1878,3 +1878,35 @@ body.epg-drag-lock * {
     border-color: rgba(255, 255, 255, 0.3);
   }
 }
+
+.pull-refresh {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  left: 50%;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: #28231b;
+  border: 1px solid #3d3829;
+  color: #8b837e;
+  opacity: 0;
+  transform: translate(-50%, 0);
+  pointer-events: none;
+}
+
+.pull-refresh .spinner {
+  animation-play-state: paused;
+}
+
+.pull-refresh.armed {
+  color: #1eb6ff;
+  border-color: #1eb6ff;
+}
+
+.pull-refresh.refreshing .spinner {
+  animation-play-state: running;
+}
