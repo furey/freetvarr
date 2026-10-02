@@ -3326,7 +3326,7 @@ const EpgView = {
               </div>
             </div>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
-              <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close">✕ CLOSE</button>
+              <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close"><cross-icon /> CLOSE</button>
               <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
               <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
               <template v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'">
