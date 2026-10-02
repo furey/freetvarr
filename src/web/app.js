@@ -721,7 +721,7 @@ const DashboardView = {
                 @error="$event.target.style.display = 'none'" />
               <span class="font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate" :title="e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
-                <button v-if="e.now" type="button" class="on-now-open"
+                <button v-if="e.now" type="button" class="on-now-open block w-full"
                   :aria-label="'Show details for ' + e.now.title"
                   @click="openInGuide({ channelId: e.channel.id, program: e.now })">
                   <span class="block truncate">
@@ -755,7 +755,7 @@ const DashboardView = {
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
             <div class="space-y-2">
               <button v-for="r in guideUpcoming" :key="r.id" type="button"
-                class="on-now-open flex items-center gap-2.5 font-mono text-xs text-ink-dim min-w-0"
+                class="on-now-open flex w-full items-center gap-2.5 font-mono text-xs text-ink-dim min-w-0"
                 :aria-label="'Show details for ' + r.name"
                 @click="openInGuide({ upcoming: r })">
                 <span class="led-dot sm shrink-0" :style="{ background: isSeriesRec(r) ? '#e2b03c' : '#1eb6ff' }"></span>

@@ -1763,8 +1763,6 @@ body.epg-drag-lock * {
 }
 
 .on-now-open {
-  display: block;
-  width: 100%;
   text-align: left;
   border-radius: 0.25rem;
   cursor: pointer;
