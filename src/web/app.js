@@ -741,9 +741,9 @@ const DashboardView = {
         </header>
         <div class="panel-body grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
           <div>
-            <div class="flex flex-wrap items-center gap-4 mb-3">
+            <div class="flex flex-wrap items-center gap-3 mb-2">
               <span :class="['led-dot', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
-              <span :class="['text-3xl', 'md:text-4xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
+              <span :class="['text-lg', 'md:text-xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
                 {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
               </span>
               <span v-if="syncStatus.activeSyncId" class="font-mono text-sm text-ink-dim">
