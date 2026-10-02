@@ -928,7 +928,18 @@ a.icon-link {
 }
 
 .epg-row.epg-dragging {
-  opacity: 0.6;
+  opacity: 0.4;
+}
+
+.epg-row.pinned .epg-rail-cell,
+.live-row.pinned .live-row-handle {
+  transition: background-color 0.15s ease 0.1s, box-shadow 0.15s ease 0.1s;
+}
+
+.epg-row.epg-armed .epg-rail-cell,
+.live-row.epg-armed .live-row-handle {
+  background-color: rgba(255, 205, 0, 0.14);
+  box-shadow: inset 2px 0 0 #ffcd00;
 }
 
 .epg-rail-num {
@@ -2341,6 +2352,7 @@ section[id^="section-"] {
 }
 
 .live-row.pinned .live-row-handle {
+  border-radius: 0.3rem;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -2348,7 +2360,7 @@ section[id^="section-"] {
 }
 
 .live-row.epg-dragging {
-  opacity: 0.6;
+  opacity: 0.4;
 }
 
 .live-row.epg-dragging .live-row-handle {
