@@ -1063,8 +1063,8 @@ const DashboardView = {
         <header class="panel-header">
           <span class="panel-title">TV GUIDE</span>
           <div class="flex items-center gap-4">
-            <a href="#/live" class="text-xs font-mono uppercase tracking-[0.16em]">Live TV →</a>
-            <a href="#/guide" class="text-xs font-mono uppercase tracking-[0.16em]">Guide →</a>
+            <a href="#/live" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Live TV <arrow-right-icon /></a>
+            <a href="#/guide" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Guide <arrow-right-icon /></a>
           </div>
         </header>
         <div v-if="!guideOk" class="panel-body flex flex-wrap items-center gap-3">
@@ -1167,7 +1167,7 @@ const DashboardView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">RECENT SYNCS</span>
-          <a href="#/syncs" class="text-xs font-mono uppercase tracking-[0.16em]">See all →</a>
+          <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
         </header>
         <div class="panel-body">
           <table v-if="recentSyncs.length" class="deck-table hidden md:table">
@@ -2955,7 +2955,7 @@ const WelcomeView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">{{ stepTitle }} · STEP {{ step }} / {{ totalSteps }}</span>
-          <button type="button" class="btn-link" @click="skipToSettings">SKIP TO SETTINGS →</button>
+          <button type="button" class="btn-link link-arrow" @click="skipToSettings">SKIP TO SETTINGS <arrow-right-icon /></button>
         </header>
         <div class="panel-body space-y-4">
 
