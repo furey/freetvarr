@@ -25,11 +25,11 @@ The rest of this page is the author's own setup, in Australia. Read it as a work
 
 Buy an **HDHomeRun Flex Quatro**, model `HDFX-4DT`, direct from [SiliconDust](https://shop.silicondust.com/shop/product/hdfx-4dt/). It is `US$199.99`, receives DVB-T and DVB-T2, and carries four tuners, so four things can record at once (or three record while you watch a fourth live).
 
-It is a network tuner: it plugs into your router by ethernet and serves its tuners over the LAN. Nothing plugs into the NAS.
+It is a network tuner: it plugs into your router, or a switch on your LAN, by ethernet and serves its tuners over the LAN. Nothing plugs into the NAS. The author's router has a single LAN port, so a `TP-Link TL-SG105` five-port switch connects the router, the NAS, and the tuner.
 
 ### Direct to a spare NAS port
 
-A NAS with a second ethernet port can take the tuner directly, with no router in between. It works, with two catches. Nothing on that link hands out addresses, so the tuner and the NAS port fall back to link-local addresses (`169.254.x.x`). TVHeadend under host networking still finds the tuner by broadcast on that port. But the tuner no longer appears in your router's client list, and its status page answers only from the NAS itself. The author ran this way until a switch arrived; plug the tuner into the router or a switch on your LAN if you can.
+A NAS with a second ethernet port can take the tuner directly, with no router in between. It works, with two catches. Nothing on that link hands out addresses, so the tuner and the NAS port fall back to link-local addresses (`169.254.x.x`). TVHeadend under host networking still finds the tuner by broadcast on that port. But the tuner no longer appears in your router's client list, and its status page answers only from the NAS itself. Plug the tuner into the router or a switch on your LAN if you can.
 
 > [!IMPORTANT]<br>
 > Put "AU/NZ adapter" in the order notes. SiliconDust ship the unit with a US, UK, EU, or AU/NZ mains adapter, and they pick from what you tell them.
