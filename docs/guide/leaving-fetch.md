@@ -12,7 +12,7 @@ imageAlt: 'Leaving Fetch TV? Own your free-to-air setup before the levy.'
 
 Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now charges a one-off levy to keep it working until October 2027, and it removes some apps whatever you pay. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
-You do not need to be technical for the first path. The second path needs some comfort with a computer, or a friend who has it.
+The first path needs no technical skill. The second path means installing and setting up software on a computer; if you have never done that, ask a friend who has.
 
 ## What the Fetch box did
 
