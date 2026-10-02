@@ -486,7 +486,7 @@ The TVHeadend client and the comskip/ffmpeg orchestration are exercised against 
 - **First visit** (with empty settings): auto-redirects to the setup wizard. Walks TVHeadend (URL, user, TEST CONNECTION; SAVE & NEXT runs the same test and stays on the step until it passes) → storage (three paths, with TEST PATH and CHECK TVHEADEND) → Plex → ready.
 - **Re-open the wizard later**: SETUP WIZARD panel at the top of Settings. All previously-saved values prefill; stored passwords and tokens render as `••••• (stored)`.
 - **Settings**: save; the cron field reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
-- **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; pin, hide, and reorder channels.
+- **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
 - **Shows**: add a show (folder-suggest auto-completes from the effective `media_root`), toggle enabled, per-show Sync now, delete.
 - **Syncs**: run a sync, watch the row appear and finish; clear history; filter by activity type.
 - **Recordings**: a hardlink import completes with no bar; a cross-filesystem copy shows one and the list polls every `2 s`. Tombstoned rows appear struck-through and dimmed, except for labels, buttons, and progress bars, so a tombstoned recording can still be re-scanned.

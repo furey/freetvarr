@@ -36,7 +36,7 @@ features:
   - title: TV Guide
     details: >-
       A 7-day programme guide in the browser: schedule, cancel, and
-      series-record in TVHeadend, with pinned favourite channels.
+      series-record in TVHeadend, with favourite channels.
     link: /guide/tv-guide
     linkText: Browse and record
   - title: Per-show follow
