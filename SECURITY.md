@@ -2,7 +2,7 @@
 
 ## Reporting
 
-Open a private security advisory at https://github.com/furey/freetvarr/security/advisories/new.
+Open a private security advisory at <https://github.com/furey/freetvarr/security/advisories/new>.
 
 ## Threat model
 
