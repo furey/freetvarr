@@ -1,8 +1,8 @@
 {
   "name": "freetvarr",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": "James Furey (https://about.me/jamesfurey)",
-  "description": "Free-to-air TV → Plex. Recordings from a TVHeadend-compatible tuner, imported into Plex.",
+  "description": "Free-to-air TV from a TVHeadend-compatible tuner: watch live in the browser, and import recordings into Plex.",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "private": true,

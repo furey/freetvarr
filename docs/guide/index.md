@@ -1,18 +1,17 @@
 ---
 title: What Freetvarr is
 description: >-
-  Freetvarr is a self-hosted bridge that files TVHeadend recordings into Plex,
-  named and foldered, on your LAN.
+  Freetvarr is a self-hosted TVHeadend companion: watch live TV in the browser,
+  and file recordings into Plex, named and foldered, on your LAN.
 ---
 
 # What Freetvarr is
 
 TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex cannot read. Freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library under names Plex understands, and pokes Plex to scan. Once Plex confirms the file, it can remove the recording from TVHeadend.
 
-If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any tuner TVHeadend can drive counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
+It is also a TV app for your home network: the [Live TV](/guide/live-tv) tab plays any channel in the browser, on a phone or a desktop.
 
-> [!NOTE]<br>
-> Screenshots are pending. The images below still show the previous Fetch TV build of the app.
+If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any tuner TVHeadend can drive counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
 
 ![The Freetvarr dashboard](../img/screenshot-dashboard.png)
 
