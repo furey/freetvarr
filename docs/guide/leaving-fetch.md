@@ -24,6 +24,9 @@ To watch live TV only, you need just the tuner and its free app. The drive and t
 
 Freetvarr is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. It runs alongside TVHeadend. You can use any of the other software instead.
 
+> [!TIP]<br>
+> If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
+
 ## What the Fetch box did
 
 Each thing the Fetch box did has a replacement:
@@ -84,7 +87,7 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 
 The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few typed commands. The guides linked in [Setting up](#setting-up) show each step.
 
-To use other recording software from [The pieces you need](#the-pieces-you-need), buy the same tuner, drive, and computer, and follow that software's own setup guide.
+To use other recording software from [The pieces you need](#the-pieces-you-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
 
 ## Shopping list
 

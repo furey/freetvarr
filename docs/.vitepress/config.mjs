@@ -96,6 +96,7 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'What Freetvarr is', link: '/guide/' },
+          { text: 'Plex DVR instead', link: '/guide/plex-dvr' },
           { text: 'Hardware', link: '/guide/hardware' },
           { text: 'TVHeadend', link: '/guide/tvheadend' },
           { text: 'Getting started', link: '/guide/getting-started' }
