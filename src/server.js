@@ -59,6 +59,7 @@ import {
   describeStallFor,
   openUpstreamFor,
 } from './live-tv.js'
+import { detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -68,6 +69,13 @@ const CSRF_SECRET = process.env.CSRF_SECRET || DEV_CSRF_SECRET
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const UNIMPORTED_STATUSES = ['failed', 'skipped']
 const LIVE_TV_MAX_SESSIONS = Math.max(1, Number(process.env.LIVE_TV_MAX_SESSIONS) || 2)
+const liveEncoderReady = detectLiveEncoder({
+  mode: (process.env.LIVE_TV_TRANSCODE || 'auto').trim().toLowerCase(),
+  device: process.env.LIVE_TV_VAAPI_DEVICE || DEFAULT_VAAPI_DEVICE,
+}).then((encoder) => {
+  console.log(`[live] video ${describeLiveEncoder(encoder)}`)
+  return encoder
+})
 const LIVE_REAPER_MS = 5_000
 
 if (process.env.NODE_ENV === 'production' && CSRF_SECRET === DEV_CSRF_SECRET) {
@@ -568,7 +576,7 @@ app.post('/api/live', liveLimiter, doubleCsrfProtection, async (req, res) => {
   const channelId = String(req.body?.channel_id || '')
   if (!channelId) return res.status(400).json({ error: 'channel_id is required' })
   try {
-    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions })) })
+    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady })) })
   } catch (err) {
     liveError(res, err, 'live start')
   }

@@ -108,7 +108,7 @@ test('ffmpegArgsFor: exact arguments for a transcoded MPEG-2 SD channel', () => 
     '-hide_banner', '-loglevel', 'error', '-fflags', '+genpts+discardcorrupt',
     '-f', 'mpegts', '-i', 'pipe:0',
     '-map', '0:i:0x200', '-map', '0:i:0x28a',
-    '-vf', 'yadif,scale=-2:min(ih\\,576)',
+    '-vf', 'yadif=deint=interlaced,scale=-2:min(ih\\,576)',
     '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency', '-crf', '23',
     '-g', '50', '-sc_threshold', '0', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
@@ -376,4 +376,45 @@ test('playlist: only the cut-in segment is not yet playable', () => {
   const onlyCutIn = FIRST_PLAYLIST.replace('#EXTINF:1.920000,\nseg1.ts\n', '')
   assert.equal(hasSegments(withoutCutInSegment(onlyCutIn)), false)
   assert.equal(hasSegments(withoutCutInSegment(FIRST_PLAYLIST)), true)
+})
+
+const VAAPI_ENCODER = { kind: 'vaapi', device: '/dev/dri/renderD128', lowPower: true }
+
+test('pickStreams: H.264 is transcoded to 720p in hardware when VAAPI is available', () => {
+  const plan = pickStreams({ streams: SBS_HD, encoder: VAAPI_ENCODER })
+  assert.deepEqual(
+    { mode: plan.videoMode, cap: plan.heightCap, vaapi: plan.vaapi },
+    { mode: 'vaapi', cap: 720, vaapi: { device: '/dev/dri/renderD128', lowPower: true } },
+  )
+})
+
+test('pickStreams: H.264 is deinterlaced in software at 540p without hardware', () => {
+  const plan = pickStreams({ streams: SBS_HD, encoder: { kind: 'software' } })
+  assert.deepEqual(
+    { mode: plan.videoMode, cap: plan.heightCap, deinterlace: plan.deinterlace },
+    { mode: 'transcode', cap: 540, deinterlace: true },
+  )
+})
+
+test('pickStreams: MPEG-2 SD stays on the software path even with VAAPI', () => {
+  assert.equal(pickStreams({ streams: ABC_SD, encoder: VAAPI_ENCODER }).videoMode, 'transcode')
+})
+
+test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', () => {
+  const plan = pickStreams({ streams: SBS_HD, encoder: VAAPI_ENCODER })
+  assert.deepEqual(ffmpegArgsFor({ plan, dir: '/tmp/live/abc' }), [
+    '-hide_banner', '-loglevel', 'error',
+    '-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi',
+    '-fflags', '+genpts+discardcorrupt',
+    '-f', 'mpegts', '-i', 'pipe:0',
+    '-map', '0:i:0x66', '-map', '0:i:0x67',
+    '-vf', 'deinterlace_vaapi=auto=1,scale_vaapi=w=-2:h=min(ih\\,720)',
+    '-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24',
+    '-g', '50', '-keyint_min', '50',
+    '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
+    '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
+    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
+    '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
+    '/tmp/live/abc/index.m3u8',
+  ])
 })
