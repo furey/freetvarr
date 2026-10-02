@@ -346,6 +346,7 @@ const scrollToRouteSection = async () => {
 }
 
 const guideHandoff = ref(null)
+const refreshTick = ref(0)
 
 const openInGuide = (handoff) => {
   guideHandoff.value = handoff
@@ -5107,7 +5108,7 @@ const App = {
       </header>
 
       <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-5 md:px-6 md:py-8">
-        <component :is="currentView" :key="route" />
+        <component :is="currentView" :key="route + ':' + refreshTick" />
       </main>
 
       <footer class="border-t border-hairline">
@@ -5137,7 +5138,7 @@ const App = {
         ?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
     }, { immediate: true })
     return {
-      route, tabs: TABS, currentView,
+      route, refreshTick, tabs: TABS, currentView,
       syncStatus, clockReadout, tzShortName, recordingCount,
     }
   },
@@ -5162,18 +5163,18 @@ fetch('/api/settings')
 loadSyncStatus().then(ensureSyncPolling)
 pollRecordingNow()
 
-const PULL_MAX_PX = 120
 const PULL_TRIGGER_PX = 60
+const PULL_HOLD_PX = 52
 const PULL_SLOP_PX = 6
-const PULL_FADE_PX = 24
+const PULL_TICKS = 8
+const PULL_MIN_SPIN_MS = 600
+const PULL_FADE_MS = 200
+const PULL_SETTLE_MS = 350
 const PULL_SPRING = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
 
-const PULL_REFRESH_ICON = `
-  <svg class="pull-refresh-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path class="pull-refresh-arc" pathLength="1" d="M8 2.5A5.5 5.5 0 1 1 3.24 5.25"/>
-    <path class="pull-refresh-head" d="M1.25 6.4 3.24 5.25 3.24 7.55"/>
-  </svg>
-`
+const PULL_REFRESH_SPINNER = `<span class="pull-refresh-spinner">${
+  Array.from({ length: PULL_TICKS }, (_, i) => `<i style="--i:${i}"></i>`).join('')
+}</span>`
 
 const isStandaloneApp = () =>
   window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
@@ -5192,57 +5193,81 @@ const pullBlocked = (e) => window.scrollY > 0
 
 const clamp01 = (n) => Math.min(1, Math.max(0, n))
 
-const rubberBand = (dragged) => PULL_MAX_PX * (1 - Math.exp(-dragged / PULL_MAX_PX))
+const rubberBand = (dragged, span = window.innerHeight) => (1 - 1 / ((dragged * 0.55) / span + 1)) * span
 
-const installPullToRefresh = () => {
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+const refreshInPlace = async () => {
+  refreshTick.value += 1
+  await Promise.all([loadSyncStatus(), pollRecordingNow(), wait(PULL_MIN_SPIN_MS)])
+}
+
+const installPullToRefresh = ({ onRefresh }) => {
   if (!isStandaloneApp()) return
   const page = document.getElementById('app')
   const indicator = document.createElement('div')
   indicator.className = 'pull-refresh'
-  indicator.innerHTML = PULL_REFRESH_ICON
+  indicator.setAttribute('aria-hidden', 'true')
+  indicator.innerHTML = PULL_REFRESH_SPINNER
   document.body.append(indicator)
   let start = null
   let claimed = false
+  let fired = false
   let offset = 0
   let refreshing = false
-  const place = (px, { animate = false } = {}) => {
-    offset = px
-    const transition = animate
-      ? `transform 0.32s ${PULL_SPRING}, --pull-offset 0.32s ${PULL_SPRING}`
-      : 'none'
+  let frame = 0
+  const settleTransition = () => (prefersReducedMotion()
+    ? 'transform 150ms linear'
+    : `transform ${PULL_SETTLE_MS}ms ${PULL_SPRING}`)
+  const render = (animate) => {
+    const transition = animate ? settleTransition() : 'none'
     page.style.transition = transition
     indicator.style.transition = transition
-    page.style.transform = px ? `translateY(${px}px)` : ''
-    page.style.setProperty('--pull-offset', `${px}px`)
-    indicator.style.transform = `translate(-50%, ${px}px)`
-    indicator.style.opacity = clamp01(px / PULL_FADE_PX)
-    indicator.style.setProperty('--pull-progress', clamp01(px / PULL_TRIGGER_PX))
-    const armed = px >= PULL_TRIGGER_PX
-    if (armed && !indicator.classList.contains('armed')) navigator.vibrate?.(10)
-    indicator.classList.toggle('armed', armed)
+    page.style.transform = offset ? `translate3d(0, ${offset}px, 0)` : ''
+    const bar = page.querySelector('.settings-save-bar')
+    if (bar) {
+      bar.style.transition = transition
+      bar.style.transform = offset ? `translate3d(0, ${-offset}px, 0)` : ''
+    }
+    indicator.style.transform = `translate3d(-50%, ${offset / 2}px, 0)`
+    indicator.style.setProperty('--pull-progress', clamp01(offset / PULL_TRIGGER_PX))
   }
-  const settle = () => {
-    start = null
-    claimed = false
-    place(0, { animate: true })
+  const place = (px, { animate = false } = {}) => {
+    offset = px
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(() => render(animate))
   }
-  const refresh = () => {
-    start = null
-    claimed = false
+  const finish = async () => {
+    indicator.classList.add('done')
+    await wait(PULL_FADE_MS)
+    refreshing = false
+    if (!start) place(0, { animate: true })
+    await wait(PULL_SETTLE_MS)
+    indicator.classList.remove('refreshing', 'done')
+  }
+  const beginRefresh = async () => {
+    fired = true
     refreshing = true
-    place(PULL_TRIGGER_PX, { animate: true })
     indicator.classList.add('refreshing')
-    window.location.reload()
+    await onRefresh().catch(() => {})
+    await finish()
+  }
+  const release = () => {
+    start = null
+    place(refreshing ? PULL_HOLD_PX : 0, { animate: true })
   }
   window.addEventListener('touchstart', (e) => {
     if (refreshing || pullBlocked(e)) return
     const touch = e.touches[0]
     start = { x: touch.clientX, y: touch.clientY }
     claimed = false
+    fired = false
   }, { passive: true })
   window.addEventListener('touchmove', (e) => {
     if (!start) return
-    if (e.touches.length > 1 || document.body.classList.contains('epg-drag-lock')) return settle()
+    if (e.touches.length > 1 || document.body.classList.contains('epg-drag-lock')) return release()
     const touch = e.touches[0]
     const dx = touch.clientX - start.x
     const dy = touch.clientY - start.y
@@ -5255,19 +5280,19 @@ const installPullToRefresh = () => {
       claimed = true
     }
     e.preventDefault()
-    place(rubberBand(Math.max(0, dy)))
+    place(rubberBand(Math.max(0, dy - PULL_SLOP_PX)))
+    if (!fired && offset >= PULL_TRIGGER_PX) beginRefresh()
   }, { passive: false })
   window.addEventListener('touchend', (e) => {
     if (!start || e.touches.length > 0) return
-    if (offset >= PULL_TRIGGER_PX) return refresh()
-    settle()
+    release()
   })
   window.addEventListener('touchcancel', () => {
-    if (start) settle()
+    if (start) release()
   })
 }
 
-installPullToRefresh()
+installPullToRefresh({ onRefresh: refreshInPlace })
 
 const app = createApp(App)
 app.component('summary-line', SummaryLine)
