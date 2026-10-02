@@ -61,8 +61,12 @@ import {
   openUpstreamFor,
 } from './live-tv.js'
 import { detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
+import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const WEB_ROOT = path.join(__dirname, 'web')
+const { version: APP_VERSION } = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'package.json'), 'utf8'))
+const BUILD_ID = await readBuildId({ webRoot: WEB_ROOT, version: APP_VERSION })
 
 const PORT = Number(process.env.PORT || 3733)
 const DEV_CSRF_SECRET = 'dev-only-csrf-secret-set-CSRF_SECRET-in-prod'
@@ -126,6 +130,11 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use('/api', (req, res, next) => {
+  res.setHeader(BUILD_HEADER, BUILD_ID)
+  next()
+})
+
 app.use(compression())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
@@ -157,6 +166,11 @@ const syncLimiter = rateLimit({
 })
 
 app.get('/healthz', (req, res) => res.json({ ok: true }))
+
+app.get('/api/version', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json({ version: APP_VERSION, build: BUILD_ID })
+})
 
 app.get('/api/csrf-token', (req, res) => {
   // overwrite=true forces a fresh token. Without it, csrf-csrf tries to reuse
@@ -960,11 +974,13 @@ app.get('/vendor/hls.worker.js', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'node_modules', 'hls.js', 'dist', 'hls.worker.js'))
 })
 
-app.use(express.static(path.join(__dirname, 'web')))
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'web', 'index.html'))
+app.get(['/', '/index.html'], async (req, res) => {
+  const html = await fs.readFile(path.join(WEB_ROOT, 'index.html'), 'utf8')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.type('html').send(stampIndexHtml({ html, build: BUILD_ID }))
 })
+
+app.use(express.static(WEB_ROOT, { index: false }))
 
 // Terminal error handler: return the message only, never a stack trace, and never
 // fall through to Express' development-mode handler (which leaks node_modules paths
