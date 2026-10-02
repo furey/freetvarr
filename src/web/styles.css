@@ -22,7 +22,8 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
+#app {
+  min-height: 100dvh;
   background-image:
     radial-gradient(120% 80% at 50% -20%, rgba(30, 182, 255, 0.08), transparent 60%),
     radial-gradient(80% 60% at 100% 100%, rgba(255, 138, 0, 0.06), transparent 60%);
