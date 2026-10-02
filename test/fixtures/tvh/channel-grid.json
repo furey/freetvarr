@@ -1,0 +1,39 @@
+{
+  "entries": [
+    {
+      "uuid": "78c39d39e60dfa03ea1850673ca65218",
+      "enabled": true,
+      "name": "10",
+      "number": 1,
+      "icon": "picon://1_0_1_625_602_1014_EEEE0000_0_0_0.png",
+      "icon_public_url": "imagecache/16",
+      "services": [
+        "78f50bc29022328b76f62fbe862ef717"
+      ]
+    },
+    {
+      "uuid": "3b6b1efd5c4ad532eef656c9ab9f6f4e",
+      "enabled": true,
+      "name": "ABC TV",
+      "number": 2,
+      "icon": "picon://1_0_1_223_221_1010_EEEE0000_0_0_0.png",
+      "icon_public_url": "imagecache/34",
+      "services": [
+        "6e96b69c4a7ac6779b85348be126bfac",
+        "2103a3f7b416f1e469143abb3094252f"
+      ]
+    },
+    {
+      "uuid": "e52f8028f3bbf341a4f0569d3048c652",
+      "enabled": true,
+      "name": "SBS ONE",
+      "number": 3,
+      "icon": "picon://1_0_1_301_300_3202_EEEE0000_0_0_0.png",
+      "icon_public_url": "imagecache/11",
+      "services": [
+        "833b5580170b6298176b5c6d0f89cb48"
+      ]
+    }
+  ],
+  "total": 3
+}

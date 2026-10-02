@@ -134,7 +134,8 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
-          { text: 'Troubleshooting', link: '/guide/troubleshooting' }
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+          { text: 'Doctor', link: '/guide/doctor' }
         ]
       },
       {

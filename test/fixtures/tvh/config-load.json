@@ -1,0 +1,38 @@
+{
+  "entries": [
+    {
+      "text": "00000000000000000000000000000000",
+      "caption": "Configuration - Base",
+      "class": "config",
+      "event": "config",
+      "params": [
+        {
+          "id": "language",
+          "type": "str",
+          "caption": "Default language(s)",
+          "value": [
+            "eng"
+          ]
+        },
+        {
+          "id": "prefer_picon",
+          "type": "bool",
+          "caption": "Prefer picons over channel icons",
+          "value": true
+        },
+        {
+          "id": "chiconpath",
+          "type": "str",
+          "caption": "Channel icon path",
+          "value": "file:///picons/%C.png"
+        },
+        {
+          "id": "piconpath",
+          "type": "str",
+          "caption": "Picon path",
+          "value": "file:///picons/"
+        }
+      ]
+    }
+  ]
+}

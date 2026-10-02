@@ -332,7 +332,7 @@ const SYNC_DOTS = { ok: '#e2b03c', partial: '#ffcd00', error: '#ffab3d', running
 const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
 
-const ROUTES = ['dashboard', 'live', 'guide', 'shows', 'syncs', 'recordings', 'settings', 'welcome']
+const ROUTES = ['dashboard', 'live', 'guide', 'shows', 'syncs', 'recordings', 'settings', 'doctor', 'welcome']
 const WELCOME_DISMISSED_KEY = 'freetvarr.welcomeDismissed'
 const DEFAULT_ROUTE = 'dashboard'
 
@@ -1275,7 +1275,7 @@ const DashboardView = {
       const base = { label: 'TVHEADEND', href: '#/settings/tvheadend' }
       if (!statsLoaded.value) return { ...base, value: '—' }
       if (!tvhConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
-      if (!tvhReachable.value) return { ...base, health: 'err', value: 'unreachable' }
+      if (!tvhReachable.value) return { ...base, href: '#/doctor/tvheadend', health: 'err', value: 'unreachable' }
       const s = tvhState.value
       const bits = [
         ...(s?.tunerCount ? [`${s.tunerCount} tuner${s.tunerCount === 1 ? '' : 's'}`] : []),
@@ -2357,6 +2357,7 @@ const RecordingsView = {
 const SettingsView = {
   template: `
     <div class="view-reveal space-y-6">
+      <div class="grid gap-6 lg:grid-cols-2">
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">SETUP WIZARD</span>
@@ -2369,6 +2370,19 @@ const SettingsView = {
           <button type="button" class="btn" @click="reopenWizard"><refresh-icon /> REOPEN WIZARD</button>
         </div>
       </section>
+      <section class="panel">
+        <header class="panel-header">
+          <span class="panel-title">HEALTH CHECK</span>
+          <span class="text-xs font-mono text-ink-dim">read-only</span>
+        </header>
+        <div class="panel-body flex flex-wrap items-center justify-between gap-4">
+          <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
+            The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix. It changes nothing.
+          </p>
+          <a href="#/doctor" class="btn no-hover-underline"><pulse-icon /> RUN DOCTOR</a>
+        </div>
+      </section>
+      </div>
       <form @submit.prevent="save" class="space-y-6 pb-24">
         <section id="section-tvheadend" class="panel">
           <header class="panel-header">
@@ -2949,6 +2963,118 @@ const SettingsView = {
   },
 }
 
+const DOCS_BASE = 'https://furey.github.io/freetvarr/'
+const DOCTOR_GROUPS = [
+  { key: 'tvheadend', label: 'TVHEADEND' },
+  { key: 'guide',     label: 'GUIDE'     },
+  { key: 'storage',   label: 'STORAGE'   },
+  { key: 'plex',      label: 'PLEX'      },
+  { key: 'live',      label: 'LIVE TV'   },
+  { key: 'host',      label: 'HOST'      },
+]
+const DOCTOR_PILLS = { pass: 'ok', warn: 'partial', fail: 'failed', skip: 'skipped' }
+const DOCTOR_STATUS_ORDER = ['fail', 'warn', 'pass', 'skip']
+
+const sortDoctorChecks = (checks) => [...checks].sort((a, b) =>
+  DOCTOR_STATUS_ORDER.indexOf(a.status) - DOCTOR_STATUS_ORDER.indexOf(b.status))
+
+const DoctorView = {
+  template: `
+    <div class="view-reveal space-y-6">
+      <section class="panel">
+        <header class="panel-header">
+          <span class="panel-title">DOCTOR</span>
+          <div class="flex items-center gap-3">
+            <span v-if="report" class="text-xs font-mono text-ink-dim">ran {{ ranLabel }}, {{ durationLabel }}</span>
+            <button type="button" class="btn btn-sm" @click="load({ fresh: true })" :disabled="checking">
+              <template v-if="checking">CHECKING…</template><template v-else><refresh-icon /> RE-RUN</template>
+            </button>
+          </div>
+        </header>
+        <div class="panel-body space-y-3">
+          <div v-if="report" class="flex flex-wrap gap-2">
+            <span v-for="s in summaryPills" :key="s.status" :class="['pill', s.pill]">{{ s.count }} {{ s.status }}</span>
+          </div>
+          <p v-else-if="checking" class="status-readout info">Checking TVHeadend, Plex, and the folders…</p>
+          <p v-if="error" class="status-readout err">Doctor failed: {{ error }}</p>
+          <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
+            The Doctor reads TVHeadend, Plex, and the folders Freetvarr uses, then lists what needs fixing. It changes nothing.
+          </p>
+        </div>
+      </section>
+
+      <section v-for="g in groups" :key="g.key" :id="'section-' + g.key" class="panel">
+        <header class="panel-header">
+          <span class="panel-title">{{ g.label }}</span>
+        </header>
+        <ul class="doctor-list">
+          <li v-for="c in g.checks" :key="c.id" class="doctor-row">
+            <span :class="['pill', 'doctor-pill', pillFor(c.status)]">{{ c.status }}</span>
+            <div class="min-w-0 space-y-1.5">
+              <div class="text-sm font-semibold text-ink">{{ c.title }}</div>
+              <div class="doctor-detail font-mono text-xs text-ink-dim">{{ c.detail }}</div>
+              <p v-if="needsFix(c) && c.fix" class="text-sm text-ink leading-relaxed">{{ c.fix }}</p>
+              <div v-if="needsFix(c) || c.action" class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-0.5">
+                <a v-if="needsFix(c) && c.doc" :href="docsUrl(c.doc)" target="_blank" rel="noopener noreferrer"
+                  class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Read more <external-link-icon /></a>
+                <a v-if="c.action" :href="c.action.href"
+                  class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">{{ c.action.label }} <arrow-right-icon /></a>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </div>
+  `,
+  setup() {
+    const report = ref(null)
+    const checking = ref(false)
+    const error = ref('')
+
+    const load = async ({ fresh = false } = {}) => {
+      checking.value = true
+      error.value = ''
+      try {
+        report.value = await api('GET', `/api/doctor${fresh ? '?fresh=1' : ''}`)
+      } catch (err) {
+        error.value = err.message
+      } finally {
+        checking.value = false
+      }
+      await scrollToRouteSection()
+    }
+
+    const groups = computed(() => {
+      const checks = report.value?.checks || []
+      return DOCTOR_GROUPS
+        .map((g) => ({ ...g, checks: sortDoctorChecks(checks.filter((c) => c.group === g.key)) }))
+        .filter((g) => g.checks.length)
+    })
+
+    const summaryPills = computed(() => DOCTOR_STATUS_ORDER.map((status) => ({
+      status,
+      pill: DOCTOR_PILLS[status],
+      count: report.value?.summary?.[status] ?? 0,
+    })))
+
+    const ranLabel = computed(() => fmtClockTz(Date.parse(report.value.ranAt)))
+    const durationLabel = computed(() => `${(report.value.durationMs / 1000).toFixed(1)} s`)
+
+    const pillFor = (status) => DOCTOR_PILLS[status]
+    const needsFix = (c) => c.status === 'fail' || c.status === 'warn'
+    const docsUrl = (doc) => `${DOCS_BASE}${doc}`
+
+    onMounted(load)
+    const stopSectionWatch = watch(routeSection, scrollToRouteSection)
+    onUnmounted(stopSectionWatch)
+
+    return {
+      report, checking, error, load, groups, summaryPills,
+      ranLabel, durationLabel, pillFor, needsFix, docsUrl,
+    }
+  },
+}
+
 const WelcomeView = {
   template: `
     <div class="view-reveal space-y-6">
@@ -3132,6 +3258,9 @@ const WelcomeView = {
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               Next: head to the <strong class="text-ink">Shows</strong> tab and add your first show. Freetvarr will pick it up on the next sync (every 30 minutes by default).
+            </p>
+            <p class="text-ink-dim text-sm leading-relaxed">
+              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads TVHeadend, Plex, and the folders, and changes nothing.
             </p>
           </div>
 
@@ -5040,6 +5169,14 @@ const TrashIcon = {
   `,
 }
 
+const ExternalLinkIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/>
+    </svg>
+  `,
+}
+
 const StaleBuildBanner = {
   template: `
     <div v-if="staleBuild" class="stale-build" role="status">
@@ -5200,6 +5337,7 @@ const VIEW_MAP = {
   syncs: SyncsView,
   recordings: RecordingsView,
   settings: SettingsView,
+  doctor: DoctorView,
   welcome: WelcomeView,
 }
 
@@ -5493,4 +5631,5 @@ app.component('pulse-icon', PulseIcon)
 app.component('bolt-icon', BoltIcon)
 app.component('download-icon', DownloadIcon)
 app.component('trash-icon', TrashIcon)
+app.component('external-link-icon', ExternalLinkIcon)
 app.mount('#app')

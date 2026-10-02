@@ -127,6 +127,7 @@ Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and das
 - **Recording Now panel**: the dashboard shows each active recording with live progress, signal quality, and data errors, then follows it step by step through import, ad cutting, and the Plex refresh.
 - **Programme images**: the guide and the dashboard show a programme's image when the XMLTV feed supplies one.
 - **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late.
+- **Doctor**: a read-only health check of TVHeadend, the guide, the folders, Plex, and live TV, with the fix and a docs link for each problem.
 - **First-run wizard**: walks TVHeadend → storage → Plex. Re-openable from Settings; previously-saved values prefill.
 - **Per-show follow**: pick a show TVHeadend records, match it by name to an existing folder under your media root (even when the names aren't identical), and set a season template.
 - **Hardlink imports**: the recording is already on disk, so the import is a hardlink when the recordings folder and the media library share a filesystem, and a copy when they don't. No download, no second copy of a 3 GB transport stream.

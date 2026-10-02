@@ -1,0 +1,13 @@
+{
+  "sw_version": "4.3-2794~g5ce3ff63c",
+  "api_version": 20,
+  "name": "Tvheadend",
+  "capabilities": [
+    "caclient",
+    "tvadapters",
+    "satip_client",
+    "satip_server",
+    "trace",
+    "libav"
+  ]
+}
