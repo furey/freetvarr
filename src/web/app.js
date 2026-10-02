@@ -835,7 +835,7 @@ const LiveView = {
               placeholder="Filter channels or shows" aria-label="Filter channels or shows"
               style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
             <button type="button" :class="['btn', 'btn-sm', { 'btn-on': pinnedOnly }]" :aria-pressed="pinnedOnly"
-              @click="pinnedOnly = !pinnedOnly">★ PINNED ONLY</button>
+              @click="pinnedOnly = !pinnedOnly">★ FAVOURITES ONLY</button>
           </div>
           <p v-if="tvhConfigured === false" class="text-sm text-ink-dim">
             Connect TVHeadend in <a href="#/settings/tvheadend">Settings</a> to watch live TV.
@@ -851,13 +851,13 @@ const LiveView = {
             <ul class="live-list">
               <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
                 :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
-                <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder pinned channels' : null"
+                <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
                   @pointerdown="onPinPointerDown(e.channel, $event)"
                   @pointermove="onPinPointerMove"
                   @pointerup="onPinPointerUp"
                   @pointercancel="onPinPointerCancel">
                   <button type="button" :class="['epg-pin', { pinned: e.channel.pinned }]"
-                    :aria-pressed="e.channel.pinned" :aria-label="(e.channel.pinned ? 'Unpin ' : 'Pin ') + e.channel.name"
+                    :aria-pressed="e.channel.pinned" :aria-label="e.channel.pinned ? 'Remove ' + e.channel.name + ' from favourites' : 'Add ' + e.channel.name + ' to favourites'"
                     @click="togglePin(e.channel)">★</button>
                   <span class="live-row-logo">
                     <img v-if="e.channel.hasLogo" class="epg-rail-logo" :src="'/api/epg/logo/' + e.channel.id" alt=""
@@ -928,14 +928,14 @@ const LiveView = {
       const pinned = entries.filter((e) => e.channel.pinned)
       const rest = pinnedOnly.value ? [] : entries.filter((e) => !e.channel.pinned)
       return [
-        ...(pinned.length ? [{ key: 'pinned', label: 'Pinned', entries: pinned }] : []),
+        ...(pinned.length ? [{ key: 'pinned', label: 'Favourites', entries: pinned }] : []),
         ...(rest.length ? [{ key: 'all', label: pinned.length ? 'All channels' : 'Channels', entries: rest }] : []),
       ]
     })
 
     const emptyText = computed(() => {
       if (filterQ.value.trim()) return `No channels or shows match "${filterQ.value.trim()}".`
-      if (pinnedOnly.value) return 'No pinned channels yet. Tap ★ next to a channel to pin it.'
+      if (pinnedOnly.value) return 'No favourites yet. Tap ☆ next to a channel to add it.'
       return 'No channels to show. Open CHANNELS to unhide some.'
     })
 
@@ -982,7 +982,7 @@ const LiveView = {
         await togglePinnedChannel({ pinnedIds, channelId: channel.id })
         await load()
       } catch (err) {
-        flash({ msg: `Pin failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err', ms: 6000 })
       }
     }
 
@@ -1043,7 +1043,7 @@ const DashboardView = {
         </div>
         <div v-else class="panel-body space-y-5">
           <div v-if="onNow.length">
-            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">On now · pinned channels</div>
+            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">On now · favourites</div>
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
               <img v-if="e.channel.hasLogo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + e.channel.id" alt=""
@@ -1078,7 +1078,7 @@ const DashboardView = {
             </div>
           </div>
           <div v-else class="flex flex-wrap items-center gap-3">
-            <p class="text-xs text-ink-dim">Pin channels with ★ to see what's on now.</p>
+            <p class="text-xs text-ink-dim">Star channels to see what's on now.</p>
             <a href="#/live" class="btn btn-sm no-hover-underline">OPEN LIVE TV</a>
           </div>
           <div>
@@ -3485,9 +3485,9 @@ const ChannelsModal = {
         </header>
         <div class="panel-body space-y-5">
           <div>
-            <label class="field-label">PINNED · SHOWN FIRST, IN THIS ORDER</label>
+            <label class="field-label">FAVOURITES · SHOWN FIRST, IN THIS ORDER</label>
             <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
-              Nothing pinned yet. Tap the ★ next to a channel below, in the TV Guide rail, or in Live TV.
+              No favourites yet. Tap the ☆ next to a channel below, in the TV Guide rail, or in Live TV.
             </p>
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
@@ -3499,12 +3499,12 @@ const ChannelsModal = {
                   <span class="text-signal-yellow">★</span> {{ draftName(id) }}
                 </span>
                 <button type="button" class="btn btn-sm btn-icon" @click="toggleDraftPin(id)"
-                  :aria-label="'Unpin ' + draftName(id)"><cross-icon /></button>
+                  :aria-label="'Remove ' + draftName(id) + ' from favourites'"><cross-icon /></button>
               </li>
             </ul>
           </div>
           <div>
-            <label class="field-label">SORT UNPINNED CHANNELS BY</label>
+            <label class="field-label">SORT OTHER CHANNELS BY</label>
             <div class="chip-row">
               <button v-for="s in CHANNEL_SORT_OPTIONS" :key="s.key" type="button"
                 :class="['btn', 'btn-sm', sortDraft === s.key ? 'btn-on' : '']"
@@ -3521,13 +3521,14 @@ const ChannelsModal = {
             </p>
           </div>
           <div>
-            <label class="field-label">ALL CHANNELS · ★ PINS, TICK SHOWS</label>
+            <label class="field-label">ALL CHANNELS · ★ FAVOURITE, TICK TO SHOW</label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
               <div v-for="ch in channels" :key="ch.id" class="flex items-center gap-2">
                 <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
                   @click="toggleDraftPin(String(ch.id))"
-                  :aria-label="(pinnedDraft.includes(String(ch.id)) ? 'Unpin ' : 'Pin ') + ch.name">★</button>
-                <label class="flex items-center gap-2.5 text-sm cursor-pointer min-w-0">
+                  :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'">★</button>
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer min-w-0"
+                  :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
                   <input type="checkbox" class="chk"
                     :checked="!hiddenDraft.has(String(ch.id))"
                     :disabled="pinnedDraft.includes(String(ch.id))"
@@ -3722,7 +3723,7 @@ const EpgView = {
             </div>
             <div v-else-if="loading && !guide" class="text-ink-dim font-mono text-sm">▰▰ loading guide…</div>
             <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 32vw)' }">
-              <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop">↑ {{ pinnedCount }} PINNED</button>
+              <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop">↑ {{ pinnedCount }} FAVOURITES</button>
               <div class="epg-scroll" ref="scrollEl">
               <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + trackWidth + 'px)' }">
                 <div class="epg-ruler">
@@ -3747,14 +3748,14 @@ const EpgView = {
                   :data-channel-id="ch.id"
                   :class="['epg-row', { 'epg-pin-divider': firstUnpinnedId === String(ch.id), pinned: ch.pinned, 'epg-drop-target': dropTargetId === String(ch.id), 'epg-dragging': dragPinId === String(ch.id) }]">
                   <div class="epg-rail-cell"
-                    :title="ch.pinned ? 'Drag to reorder pinned channels' : null"
+                    :title="ch.pinned ? 'Drag to reorder favourites' : null"
                     @pointerdown="onPinPointerDown(ch, $event)"
                     @pointermove="onPinPointerMove"
                     @pointerup="onPinPointerUp"
                     @pointercancel="onPinPointerCancel">
                     <button type="button" :class="['epg-pin', { pinned: ch.pinned }]"
-                      :title="ch.pinned ? 'Unpin channel' : 'Pin channel to the top'"
-                      :aria-label="(ch.pinned ? 'Unpin ' : 'Pin ') + ch.name"
+                      :title="ch.pinned ? 'Remove from favourites' : 'Add to favourites'"
+                      :aria-label="ch.pinned ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"
                       @click="togglePin(ch)">★</button>
                     <span class="epg-rail-num">{{ railNum(ch) }}</span>
                     <img v-if="ch.logos?.length" class="epg-rail-logo" :src="'/api/epg/logo/' + ch.id" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
@@ -4584,7 +4585,7 @@ const EpgView = {
         await togglePinnedChannel({ pinnedIds, channelId: ch.id })
         await reloadGuide()
       } catch (err) {
-        flash({ msg: `Pin failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err', ms: 6000 })
       }
     }
 
