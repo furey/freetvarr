@@ -63,6 +63,20 @@ export const ffmpegArgsFor = ({ plan, dir }) => [
   path.join(dir, 'index.m3u8'),
 ]
 
+const CUT_IN_SEGMENT = 'seg0.ts'
+
+export const withoutCutInSegment = (playlist) => {
+  const lines = playlist.split('\n')
+  const cutIn = lines.indexOf(CUT_IN_SEGMENT)
+  if (cutIn < 1 || !lines[cutIn - 1].startsWith('#EXTINF')) return playlist
+  return lines
+    .filter((_, i) => i !== cutIn && i !== cutIn - 1)
+    .map((line) => line.startsWith('#EXT-X-MEDIA-SEQUENCE:0') ? '#EXT-X-MEDIA-SEQUENCE:1' : line)
+    .join('\n')
+}
+
+export const hasSegments = (playlist) => /^seg\d+\.ts$/m.test(playlist)
+
 export const tunerVerdict = ({
   channelMux,
   inputs = [],
@@ -108,7 +122,7 @@ export const createLiveSessions = ({
   describeStall = async () => ({ code: 'gone' }),
   makeDir = (dir) => fs.mkdir(dir, { recursive: true }),
   removeDir = (dir) => fs.rm(dir, { recursive: true, force: true }),
-  fileExists = (file) => fs.access(file).then(() => true, () => false),
+  readText = (file) => fs.readFile(file, 'utf8').catch(() => null),
   now = Date.now,
   newId = () => crypto.randomBytes(8).toString('hex'),
   rootDir = LIVE_ROOT,
@@ -291,10 +305,22 @@ export const createLiveSessions = ({
     return view(session)
   }
 
+  const readPlaylist = async (session) => {
+    const text = await readText(path.join(session.dir, 'index.m3u8'))
+    return text == null ? null : withoutCutInSegment(text)
+  }
+
   const refreshStatus = async (session) => {
     if (session.status !== 'tuning') return session
-    if (await fileExists(path.join(session.dir, 'index.m3u8'))) session.status = 'live'
+    const playlist = await readPlaylist(session)
+    if (playlist && hasSegments(playlist)) session.status = 'live'
     return session
+  }
+
+  const playlistFor = async (id) => {
+    const session = sessions.get(id)
+    if (!session || session.ending) return null
+    return readPlaylist(session)
   }
 
   const waitForPlaylist = async (id, { timeoutMs = 8_000, pollMs = 200 } = {}) => {
@@ -320,7 +346,7 @@ export const createLiveSessions = ({
 
   return {
     start, touch, leave, tick, stopAll, forChannel, statusForChannel,
-    waitForPlaylist, fileFor, get, view, activeCount: () => sessions.size,
+    waitForPlaylist, playlistFor, fileFor, get, view, activeCount: () => sessions.size,
   }
 }
 
