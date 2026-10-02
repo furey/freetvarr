@@ -147,3 +147,8 @@ test('projectUpcomingRecordings and withSeriesImages: flag programme images with
   assert.ok(!JSON.stringify(out).includes('img.example'))
   assert.deepEqual(withSeriesImages({ seriesTags: tags, guide: g, nowMs: NOW }).map((t) => t.imageProgramId), ['next', null])
 })
+
+test('projectUpcomingRecordings: a skipped timer is not projected back from its series tag', () => {
+  const out = projectUpcomingRecordings({ seriesTags, futureRecordings: [], skippedProgramIds: ['p2'], guide, nowMs: NOW })
+  assert.deepEqual(out.map((r) => r.programId), ['p1'])
+})
