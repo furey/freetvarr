@@ -4476,11 +4476,24 @@ window.addEventListener('pagehide', () => {
   }).catch(() => {})
 })
 
+const FULLSCREEN_EXIT_RESUME_MS = 1_500
+
+let resumeAfterFullscreenUntil = 0
+
 const resumeAtLiveEdge = () => {
   if (!live.open || live.phase === 'ended' || !liveVideo) return
   const { seekable } = liveVideo
   if (seekable.length) liveVideo.currentTime = seekable.end(seekable.length - 1)
   liveVideo.play()?.catch(() => {})
+}
+
+const onLiveFullscreenExit = () => {
+  resumeAfterFullscreenUntil = Date.now() + FULLSCREEN_EXIT_RESUME_MS
+  setTimeout(resumeAtLiveEdge, 100)
+}
+
+const onLivePause = () => {
+  if (Date.now() < resumeAfterFullscreenUntil) setTimeout(resumeAtLiveEdge, 100)
 }
 
 const TvIcon = {
@@ -4522,7 +4535,7 @@ const LivePlayer = {
   template: `
     <teleport to="body">
     <transition name="epg-sheet">
-    <div v-show="live.open" class="epg-modal-backdrop">
+    <div v-show="live.open" class="epg-modal-backdrop live-backdrop">
       <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
         <header class="panel-header live-header">
           <img v-if="live.channel?.hasLogo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + live.channel.id" alt=""
@@ -4535,6 +4548,7 @@ const LivePlayer = {
         </header>
         <div class="live-frame">
           <video ref="videoEl" class="live-video" playsinline controls></video>
+          <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </div>
         <div class="panel-body space-y-3">
           <ul v-if="live.holders.length" class="space-y-1 font-mono text-xs text-ink-dim">
@@ -4572,7 +4586,8 @@ const LivePlayer = {
 
     onMounted(() => {
       liveVideo = videoEl.value
-      liveVideo.addEventListener('webkitendfullscreen', resumeAtLiveEdge)
+      liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
+      liveVideo.addEventListener('pause', onLivePause)
       window.addEventListener('keydown', onKeydown)
     })
     onUnmounted(() => window.removeEventListener('keydown', onKeydown))
