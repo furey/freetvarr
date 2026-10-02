@@ -294,6 +294,7 @@ const useFlash = () => {
 
 const FLASH_DEFAULT_MS = 4500
 const SYNC_FLASH_SAFETY_MS = 60_000
+const MIN_SYNC_DISPLAY_MS = 1500
 
 const ROUTES = ['dashboard', 'guide', 'shows', 'syncs', 'recordings', 'settings', 'welcome']
 const WELCOME_DISMISSED_KEY = 'freetvarr.welcomeDismissed'
@@ -305,13 +306,27 @@ const RECORDINGS_POLL_MS = 60_000
 const RECORDINGS_ACTIVE_POLL_MS = 2_000
 const UNIMPORTED_STATUSES = ['failed', 'skipped']
 
+const hashSegments = () => (window.location.hash || '').replace(/^#\/?/, '').toLowerCase().split('/')
+
 const parseHash = () => {
-  const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
-  return ROUTES.includes(h) ? h : DEFAULT_ROUTE
+  const [view] = hashSegments()
+  return ROUTES.includes(view) ? view : DEFAULT_ROUTE
 }
 
+const parseHashSection = () => hashSegments()[1] || ''
+
 const route = ref(parseHash())
-window.addEventListener('hashchange', () => { route.value = parseHash() })
+const routeSection = ref(parseHashSection())
+window.addEventListener('hashchange', () => {
+  route.value = parseHash()
+  routeSection.value = parseHashSection()
+})
+
+const scrollToRouteSection = async () => {
+  if (!routeSection.value) return
+  await nextTick()
+  document.getElementById(`section-${routeSection.value}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const guideHandoff = ref(null)
 
@@ -725,27 +740,27 @@ const DashboardView = {
         </header>
         <div class="deck-status">
           <div class="deck-zone deck-zone-state">
-            <span :class="['led-dot', syncStatus.activeSyncId ? 'live' : 'idle']"></span>
-            <span :class="['text-lg', 'md:text-xl', 'font-mono', 'tracking-[0.2em]', syncStatus.activeSyncId ? 'text-signal-orange' : 'text-ink-dim']">
-              {{ syncStatus.activeSyncId ? 'SYNC' : 'IDLE' }}
+            <span :class="['led-dot', shownSyncId ? 'live' : 'idle']"></span>
+            <span :class="['text-lg', 'md:text-xl', 'font-mono', 'tracking-[0.2em]', shownSyncId ? 'text-signal-orange' : 'text-ink-dim']">
+              {{ shownSyncId ? 'SYNC' : 'IDLE' }}
             </span>
           </div>
           <div class="deck-zone deck-zone-info">
-            <template v-if="lastSync">
+            <span v-if="flashText" :key="flashText" :class="['status-readout', 'deck-fade', flashKind]">{{ flashText }}</span>
+            <div v-else-if="lastSync" :key="lastSync.id + lastSync.status" class="deck-zone-info-body deck-fade">
               <div class="deck-status-line">
-                <span class="deck-cell-label">{{ lastSync.id === syncStatus.activeSyncId ? 'Current sync' : 'Last sync' }} #{{ lastSync.id }}</span>
+                <span class="deck-cell-label">{{ lastSync.id === shownSyncId ? 'Current sync' : 'Last sync' }} #{{ lastSync.id }}</span>
                 <span :class="['pill', lastSync.status]">{{ lastSync.status }}</span>
                 <span>{{ fmtTime(lastSync.started_at) }}</span>
               </div>
               <summary-line v-if="lastSync.summary" class="text-sm" :summary="lastSync.summary"/>
-            </template>
+            </div>
             <p v-else class="text-sm text-ink-dim">No syncs yet.</p>
           </div>
           <div class="deck-zone deck-zone-action">
-            <button type="button" class="btn btn-primary" @click="syncNow" :disabled="!!syncStatus.activeSyncId || starting">
+            <button type="button" class="btn btn-primary" @click="syncNow" :disabled="!!shownSyncId || starting">
               {{ syncButtonLabel }}
             </button>
-            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
           </div>
         </div>
         <div class="deck-pipeline">
@@ -792,8 +807,10 @@ const DashboardView = {
     </div>
   `,
   setup() {
-    const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
+    const { flashText, flashKind, flash } = useFlash()
     const starting = ref(false)
+    const heldSyncId = ref(null)
+    const shownSyncId = computed(() => syncStatus.value.activeSyncId || heldSyncId.value)
     const recentSyncs = ref([])
     const statsLoaded = ref(false)
     const showCount = ref(0)
@@ -870,7 +887,7 @@ const DashboardView = {
     }
 
     const tvhCell = computed(() => {
-      const base = { label: 'TVHEADEND', href: '#/settings' }
+      const base = { label: 'TVHEADEND', href: '#/settings/tvheadend' }
       if (!statsLoaded.value) return { ...base, value: '—' }
       if (!tvhConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
       if (!tvhReachable.value) return { ...base, health: 'err', value: 'unreachable' }
@@ -895,7 +912,7 @@ const DashboardView = {
     }))
 
     const plexCell = computed(() => {
-      const base = { label: 'PLEX', href: '#/settings' }
+      const base = { label: 'PLEX', href: '#/settings/plex' }
       if (!statsLoaded.value) return { ...base, value: '—' }
       if (!plexConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
       return { ...base, health: 'ok', value: plexHost.value || 'connected' }
@@ -905,19 +922,23 @@ const DashboardView = {
 
     const syncButtonLabel = computed(() => {
       if (starting.value) return 'STARTING…'
-      if (syncStatus.value.activeSyncId) return 'SYNCING…'
+      if (shownSyncId.value) return 'SYNCING…'
       return '▶ SYNC NOW'
     })
+
+    const holdSyncState = (syncId) => {
+      heldSyncId.value = syncId
+      setTimeout(() => { heldSyncId.value = null }, MIN_SYNC_DISPLAY_MS)
+    }
 
     const syncNow = async () => {
       starting.value = true
       try {
         const r = await api('POST', '/api/sync')
         if (r.alreadyRunning) flash({ msg: 'A sync is already running.', kind: 'info' })
-        else flashUntilSyncDone({ msg: `Started sync #${r.syncId}.` })
+        else holdSyncState(r.syncId)
         await loadSyncStatus()
         ensureSyncPolling()
-        await refresh()
       } catch (err) {
         flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
       } finally {
@@ -933,11 +954,11 @@ const DashboardView = {
     onUnmounted(() => {
       if (pollTimer) clearInterval(pollTimer)
     })
-    const stopWatch = watch(() => syncStatus.value.activeSyncId, refresh)
+    const stopWatch = watch(shownSyncId, refresh)
     onUnmounted(stopWatch)
 
     return {
-      syncStatus, lastSync, recentSyncs,
+      syncStatus, shownSyncId, lastSync, recentSyncs,
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, tsOfMs,
       isRecordingChannel,
@@ -1933,7 +1954,7 @@ const SettingsView = {
         </div>
       </section>
       <form @submit.prevent="save" class="space-y-6 pb-24">
-        <section class="panel">
+        <section id="section-tvheadend" class="panel">
           <header class="panel-header">
             <span class="panel-title">TVHEADEND</span>
             <span class="text-xs font-mono text-ink-dim">the recorder</span>
@@ -1986,7 +2007,7 @@ const SettingsView = {
           </div>
         </section>
 
-        <section class="panel">
+        <section id="section-schedule" class="panel">
           <header class="panel-header">
             <span class="panel-title">SCHEDULE</span>
             <span class="text-xs font-mono text-ink-dim">when Freetvarr syncs</span>
@@ -2002,7 +2023,7 @@ const SettingsView = {
           </div>
         </section>
 
-        <section class="panel">
+        <section id="section-storage" class="panel">
           <header class="panel-header">
             <span class="panel-title">STORAGE</span>
             <span class="text-xs font-mono text-ink-dim">where recordings land</span>
@@ -2049,7 +2070,7 @@ const SettingsView = {
           </div>
         </section>
 
-        <section class="panel">
+        <section id="section-plex" class="panel">
           <header class="panel-header">
             <span class="panel-title">PLEX</span>
             <span class="text-xs font-mono text-ink-dim">post-sync section refresh</span>
@@ -2120,7 +2141,7 @@ const SettingsView = {
           </div>
         </section>
 
-        <section class="panel">
+        <section id="section-ad-removal" class="panel">
           <header class="panel-header">
             <span class="panel-title">AD REMOVAL</span>
             <span class="text-xs font-mono text-ink-dim">comskip · optional</span>
@@ -2146,7 +2167,7 @@ const SettingsView = {
           </div>
         </section>
 
-        <section class="panel">
+        <section id="section-danger-zone" class="panel">
           <header class="panel-header">
             <span class="panel-title">DANGER ZONE</span>
             <span class="text-xs font-mono text-ink-dim">irreversible</span>
@@ -2265,7 +2286,10 @@ const SettingsView = {
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
       adOriginalRetentionDays.value = s.ad_original_retention_days || '7'
       comskipIniOverride.value = Boolean(s.comskip_ini_override)
+      await scrollToRouteSection()
     })
+    const stopSectionWatch = watch(routeSection, scrollToRouteSection)
+    onUnmounted(stopSectionWatch)
 
     const save = async () => {
       saving.value = true
