@@ -107,7 +107,7 @@ Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and das
 
 ## Features
 
-- **TV Guide**: a 7-day programme guide in the browser; schedule, cancel, and series-record in TVHeadend (with padding and episodes-to-keep options), search the week, pin and reorder favourite channels, and see what's on now from the dashboard.
+- **TV Guide**: a 7-day programme guide in the browser; schedule, cancel, and series-record in TVHeadend (with padding and episodes-to-keep options), search the week, star and reorder favourite channels (★ marks a favourite, ☆ does not), browse every channel's now and next on the Live TV page, and see what's on now from the dashboard.
 - **Live TV in the browser**: watch any channel from the TV Guide or the dashboard, on a phone or a desktop. Freetvarr checks for a free tuner first, warns when a recording will need it within the hour, and re-encodes what a browser can't play (MPEG-2 video, AC-3 audio) and deinterlaces H.264 so Chrome can play interlaced HD, in hardware through VAAPI when the host has it. See [Live TV](https://furey.github.io/freetvarr/guide/live-tv#in-freetvarr).
 - **Recording Now panel**: the dashboard shows each active recording with live progress, signal quality, and data errors, then follows it step by step through import, ad cutting, and the Plex refresh.
 - **Programme images**: the guide and the dashboard show a programme's image when the XMLTV feed supplies one.
