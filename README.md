@@ -243,49 +243,49 @@ Architecture diagrams, the TVHeadend API surface, the import state machine, the 
 
 The common snags are below. The [troubleshooting guide](https://furey.github.io/freetvarr/guide/troubleshooting) has the full list, keyed by symptom, including the wizard's path checks, missing channels, missing logos, and Plex refreshes.
 
-**TEST CONNECTION fails**
+### `TEST CONNECTION` failure
 
 - Under host networking, neither container is on a Docker bridge network, so container names don't resolve. Use `http://<host-ip>:9981`, not `http://tvheadend:9981`.
 - `TVHeadend rejected the credentials (HTTP 401)` with no username means TVHeadend wants a login. `HTTP 403` means a wrong password (TVHeadend keeps it under Configuration → Users → Passwords, not on the access entry), an allowed-networks prefix that leaves out the host, or a missing right. Check the access entry has Admin, Streaming, and Video recorder rights, and check its position in the list; access entries are evaluated top to bottom.
 
-**TVHeadend finds no tuner**
+### No tuner found
 
 - The TVHeadend container has to run with host networking (the example compose already does this). It discovers a network tuner such as an HDHomeRun by broadcasting on the local network, and those broadcasts don't reach across Docker's own private network.
 - On an HDHomeRun, check the tuner itself at `http://<hdhr-ip>/tuners.html`; that page is HDHomeRun-only. Nothing there is a power or aerial problem, not a TVHeadend one.
 - On any other tuner, open TVHeadend's Configuration → DVB Inputs → TV adapters. An empty list means TVHeadend sees no tuner at all: check the USB passthrough, the driver, or the SAT>IP/IPTV settings.
 
-**A recording came in as `skipped`**
+### `skipped` recordings
 
 - Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error text on the row says which.
 
-**A recording shows `partial`**
+### `partial` recordings
 
 - The imported file came up more than `1 MB` short of what TVHeadend reported. The next sync redoes the import. If it stays short, the source is short; check TVHeadend's own status for that entry, which usually reports data errors from a weak signal.
 
-**Imports are slow**
+### Slow imports
 
 - A hardlink import is instant. A progress bar means Freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
 
-**Permission errors, or the TVHeadend file won't delete**
+### Permission errors
 
 - Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both services. Freetvarr hardlinks and deletes files TVHeadend created.
 
-**The guide is empty or one day deep**
+### Empty or thin guide
 
 - Without an XMLTV feed you get only what the broadcast signal carries. Set one up; the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend) covers a free Australian feed, a paid one, and the sources to use in other countries. Restart TVHeadend after installing a grabber script; it looks for grabbers at startup only.
 
-**Other containers can't reach Freetvarr by name**
+### Container name lookups
 
 - A side-effect of host networking: Freetvarr isn't on any Docker bridge network. Reach it via the host's LAN IP and `FREETVARR_PORT` instead.
 
-**Ad detection is cutting the wrong things (or missing breaks)**
+### Wrong ad cuts
 
 - Ad detection is educated guessing, never perfect. Comskip's accuracy varies noticeably by channel (logo detection, silence thresholds, and break lengths all differ).
 - Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. Scans work the CPU hard: budget ~30 minutes per 75-minute recording on a home NAS.
 - Cuts land on the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which is tuned for Australian channels. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it.
 
-**Timestamps show the wrong time**
+### Wrong timestamps
 
 - Set `TZ` in your `.env` to your IANA timezone; the UI shows every timestamp in the container's zone, whatever device you're browsing from.
 
