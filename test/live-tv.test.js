@@ -222,7 +222,7 @@ test('LIVE_FILE_PATTERN: accepts the playlist and segments only', () => {
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
-const fakeHarness = ({ exitOnTerm = true } = {}) => {
+const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000 } = {}) => {
   const events = []
   let clock = NOW
   let ids = 0
@@ -235,7 +235,7 @@ const fakeHarness = ({ exitOnTerm = true } = {}) => {
     makeDir: async () => {},
     removeDir: async (dir) => { events.push(`rm ${dir}`) },
     fileExists: async () => false,
-    killGraceMs: 20,
+    killGraceMs,
     spawnProcess: () => {
       const child = new EventEmitter()
       child.stdin = new PassThrough()
@@ -266,7 +266,7 @@ test('sessions: teardown aborts upstream, then stops ffmpeg, then removes the fo
 })
 
 test('sessions: ffmpeg that ignores SIGTERM is killed after the grace period', async () => {
-  const h = fakeHarness({ exitOnTerm: false })
+  const h = fakeHarness({ exitOnTerm: false, killGraceMs: 20 })
   const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
   await h.sessions.leave(session.id)
   assert.deepEqual(h.events, ['abort', 'SIGTERM', 'SIGKILL', `rm /tmp/fake-live/${session.id}`])
