@@ -50,6 +50,7 @@ TVHeadend → Plex, and possibly new to aerials); `docs/DEEP_DIVE.md` and
 | Docker / Compose / container / bind mount / host networking / env var / token | — | keep | self-hoster / docs | reader knows self-hosting; leave as-is |
 
 ## Voice notes
+
 - Guide pages and README: short-ish sentences, Australian, gloss the TV, aerial, TVHeadend, video, and comskip jargon on first use, then use the plain form. Say why a step matters, not just what to do.
 - Keep every command, path, filename, env var, cron string, status value, URL, model number, and cross-reference byte-for-byte. Only prose changes.
 - Reader knows self-hosting (Docker, Compose, LAN, ports, git); don't gloss those. Reader does not know aerials, DVB, or TVHeadend; gloss those.

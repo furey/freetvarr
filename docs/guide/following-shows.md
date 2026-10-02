@@ -25,13 +25,13 @@ Each show has a season-folder template that decides where episodes are saved: `{
 
 Freetvarr renames every file as it imports it, into the shape Plex reads:
 
-```
+```text
 Show Name - S01E02 - Episode Title.ts
 ```
 
 When the guide gave no episode number, the air date stands in:
 
-```
+```text
 Show Name - 2026-09-21 - Episode Title.ts
 ```
 
