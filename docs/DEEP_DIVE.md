@@ -423,7 +423,7 @@ npm run migrate:refresh    # drop the SQLite DB and re-migrate
 
 ## Project layout
 
-```
+```text
 freetvarr/
 ├── src/
 │   ├── server.js           # Express app; helmet, CSP, rate limit, CSRF, X-Robots-Tag
