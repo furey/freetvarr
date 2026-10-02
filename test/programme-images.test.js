@@ -19,12 +19,12 @@ let db
 
 const eventsGrid = () => {
   const start = Math.floor(Date.now() / 1000)
-  const event = (eventId, image, offsetMinutes) => ({
+  const event = (eventId, image, offsetSeconds) => ({
     eventId,
     channelUuid: CHANNEL,
     title: `Programme ${eventId}`,
-    start: start + offsetMinutes * 60,
-    stop: start + (offsetMinutes + 1) * 60,
+    start: start + offsetSeconds,
+    stop: start + offsetSeconds + 60,
     ...(image ? { image } : {}),
   })
   return {
