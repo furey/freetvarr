@@ -152,3 +152,18 @@ test('projectUpcomingRecordings: a skipped timer is not projected back from its 
   const out = projectUpcomingRecordings({ seriesTags, futureRecordings: [], skippedProgramIds: ['p2'], guide, nowMs: NOW })
   assert.deepEqual(out.map((r) => r.programId), ['p1'])
 })
+
+test('projectUpcomingRecordings: a repeat of an episode that already has a timer is not projected', () => {
+  const g = {
+    channels: [{ id: 'c', epgId: 1, name: 'C' }],
+    programsByChannel: {
+      1: [
+        { program_id: 'night', series_link: 'sl', title: 'Show', start: NOW + HOUR, end: NOW + 2 * HOUR, series_no: 2, episode_no: 3 },
+        { program_id: 'repeat', series_link: 'sl', title: 'Show', start: NOW + 17 * HOUR, end: NOW + 18 * HOUR, series_no: 2, episode_no: 3 },
+      ],
+    },
+  }
+  const futureRecordings = [{ programId: 'night', name: 'Show', channelId: 'c', startDate: NOW + HOUR, endDate: NOW + 2 * HOUR }]
+  const out = projectUpcomingRecordings({ seriesTags: [{ seriesLinkId: 'sl', channelId: 'c' }], futureRecordings, guide: g, nowMs: NOW })
+  assert.deepEqual(out.map((r) => r.programId), ['night'])
+})

@@ -237,7 +237,7 @@ export const projectUpcomingRecordings = ({
       const link = t?.seriesLinkId ?? t?.id
       if (link != null) tagByLink.set(String(link), t)
     }
-    const seenEpisode = new Set()
+    const seenEpisode = scheduledEpisodeKeys({ guide, programIds: timerProgramIds })
     for (const channel of guide.channels) {
       const rows = [...(guide.programsByChannel?.[String(channel.epgId)] || [])]
         .sort((a, b) => a.start - b.start)
@@ -247,7 +247,7 @@ export const projectUpcomingRecordings = ({
         if (!tag || String(tag.channelId) !== String(channel.id)) continue
         if (timerProgramIds.has(String(p.program_id))) continue
         if (p.series_no != null && p.episode_no != null) {
-          const key = `${p.series_link}|${p.series_no}x${p.episode_no}`
+          const key = episodeKey(p)
           if (seenEpisode.has(key)) continue
           seenEpisode.add(key)
         }
@@ -534,3 +534,12 @@ const STATE_TTL_MS = 45 * 1000
 const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const SEARCH_RESULT_CAP = 100
+
+const episodeKey = (p) => `${p.series_link}|${p.series_no}x${p.episode_no}`
+
+const scheduledEpisodeKeys = ({ guide, programIds }) => new Set(
+  Object.values(guide.programsByChannel || {})
+    .flat()
+    .filter((p) => programIds.has(String(p.program_id)) && p.series_no != null && p.episode_no != null)
+    .map(episodeKey),
+)
