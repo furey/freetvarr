@@ -4829,7 +4829,7 @@ const App = {
               </div>
             </div>
           </div>
-          <nav class="tab-strip pt-1">
+          <nav class="tab-strip">
             <a v-for="t in tabs" :key="t.key"
               :href="'#/' + t.key"
               :data-active="route === t.key"

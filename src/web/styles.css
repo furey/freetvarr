@@ -675,8 +675,8 @@ a.icon-link {
   display: flex;
   align-items: flex-end;
   gap: 1rem;
-  margin: 0 -0.5rem -0.75rem;
-  padding: 0 0.5rem 0.75rem;
+  margin: -0.25rem -0.5rem -0.75rem;
+  padding: 0.5rem 0.5rem 0.75rem;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
