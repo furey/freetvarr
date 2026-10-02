@@ -2320,8 +2320,8 @@ section[id^="section-"] {
 
 .live-row {
   display: grid;
-  grid-template-columns: auto 2rem minmax(0, 9rem) minmax(0, 1fr) minmax(0, 16rem) auto;
-  grid-template-areas: "pin logo name now next watch";
+  grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) minmax(0, 16rem) auto;
+  grid-template-areas: "handle now next watch";
   align-items: center;
   gap: 0.5rem 1rem;
   padding: 0.6rem 0;
@@ -2331,14 +2331,45 @@ section[id^="section-"] {
   border-top: 1px dashed #3d3829;
 }
 
-.live-row-pin { grid-area: pin; }
-.live-row-logo { grid-area: logo; display: flex; justify-content: center; }
+.live-row-handle {
+  grid-area: handle;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.live-row.pinned .live-row-handle {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.live-row.epg-dragging {
+  opacity: 0.6;
+}
+
+.live-row.epg-dragging .live-row-handle {
+  cursor: grabbing;
+}
+
+.live-row.epg-drop-target {
+  box-shadow: inset 0 2px 0 0 #ffcd00;
+}
+
+.live-row-handle.epg-ghost {
+  padding: 0 0.75rem;
+}
+
+.live-row-logo { flex: none; width: 2rem; display: flex; justify-content: center; }
 .live-row-now { grid-area: now; min-width: 0; }
 .live-row-next { grid-area: next; justify-self: end; max-width: 100%; }
 .live-row-watch { grid-area: watch; }
 
 .live-row-name {
-  grid-area: name;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2349,11 +2380,11 @@ section[id^="section-"] {
 
 @media (max-width: 767px) {
   .live-row {
-    grid-template-columns: auto 2rem minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "pin logo name watch"
-      ". now now now"
-      ". next next next";
+      "handle watch"
+      "now now"
+      "next next";
     gap: 0.35rem 0.75rem;
   }
 

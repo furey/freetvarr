@@ -694,6 +694,114 @@ const stepMark = (state) => STEP_MARKS[state] || '○'
 const STEP_MARKS = { done: '✓', active: '●', pending: '○', failed: '✕', warn: '!', skipped: '–' }
 const RECORDING_CARDS_MAX = 4
 
+const setDragLock = (on) => {
+  try { document.body.classList.toggle('epg-drag-lock', on) } catch { /* ignore */ }
+}
+
+// Pointer-based drag (not HTML5 drag-and-drop) so reordering works with a
+// finger on iOS as well as a mouse. A pinned row's handle (the guide's rail
+// cell, Live TV's channel cell) is the drag surface; the drag only starts after
+// a small movement threshold so plain clicks and taps (the ★ button) still
+// register. Rows are hit-tested by their live bounding boxes on every move,
+// and a cloned ghost of the handle follows the pointer.
+const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
+  const dragPinId = ref(null)
+  const dropTargetId = ref(null)
+  let pendingDrag = null
+  let dragDidMove = false
+  let ghostEl = null
+  let ghostDX = 0
+  let ghostDY = 0
+
+  const pinRowUnderPointer = (clientY) => {
+    for (const el of document.querySelectorAll(rowSelector)) {
+      const box = el.getBoundingClientRect()
+      if (clientY >= box.top && clientY <= box.bottom) return el.dataset.channelId || null
+    }
+    return null
+  }
+
+  const moveGhost = (e) => {
+    if (!ghostEl) return
+    ghostEl.style.left = `${e.clientX - ghostDX}px`
+    ghostEl.style.top = `${e.clientY - ghostDY}px`
+  }
+
+  const removeGhost = () => {
+    if (!ghostEl) return
+    ghostEl.remove()
+    ghostEl = null
+  }
+
+  const startPinDrag = (e) => {
+    const { ch, cell, pointerId, x, y } = pendingDrag
+    pendingDrag = null
+    dragDidMove = true
+    setDragLock(true)
+    try { cell.setPointerCapture(pointerId) } catch { /* ignore */ }
+    dragPinId.value = String(ch.id)
+    dropTargetId.value = null
+    const box = cell.getBoundingClientRect()
+    ghostDX = x - box.left
+    ghostDY = y - box.top
+    ghostEl = cell.cloneNode(true)
+    ghostEl.classList.add('epg-ghost')
+    ghostEl.style.width = `${box.width}px`
+    ghostEl.style.height = `${box.height}px`
+    document.body.appendChild(ghostEl)
+    moveGhost(e)
+  }
+
+  const onPinPointerDown = (ch, e) => {
+    if (!ch.pinned) return
+    if (e.button !== 0 && e.pointerType === 'mouse') return
+    pendingDrag = { ch, cell: e.currentTarget, pointerId: e.pointerId, x: e.clientX, y: e.clientY }
+  }
+
+  const onPinPointerMove = (e) => {
+    if (pendingDrag) {
+      if (Math.hypot(e.clientX - pendingDrag.x, e.clientY - pendingDrag.y) < EPG_DRAG_THRESHOLD_PX) return
+      startPinDrag(e)
+    }
+    if (!dragPinId.value) return
+    e.preventDefault()
+    moveGhost(e)
+    const over = pinRowUnderPointer(e.clientY)
+    dropTargetId.value = over && over !== dragPinId.value ? over : null
+  }
+
+  const onPinPointerUp = async () => {
+    pendingDrag = null
+    setDragLock(false)
+    removeGhost()
+    if (dragDidMove) setTimeout(() => { dragDidMove = false }, 0)
+    const from = dragPinId.value
+    const to = dropTargetId.value
+    dragPinId.value = null
+    dropTargetId.value = null
+    if (!from || !to || from === to) return
+    const orig = currentPins()
+    const movingDown = orig.indexOf(from) < orig.indexOf(to)
+    const pins = orig.filter((id) => id !== from)
+    pins.splice(pins.indexOf(to) + (movingDown ? 1 : 0), 0, from)
+    await onReorder(pins)
+  }
+
+  const onPinPointerCancel = () => {
+    pendingDrag = null
+    setDragLock(false)
+    removeGhost()
+    dragDidMove = false
+    dragPinId.value = null
+    dropTargetId.value = null
+  }
+
+  return {
+    dragPinId, dropTargetId, didDrag: () => dragDidMove,
+    onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
+  }
+}
+
 const recordingChannelIds = computed(() =>
   new Set(recordingNow.value.active.filter((r) => !r.failed).map((r) => String(r.channelId))))
 
@@ -741,18 +849,25 @@ const LiveView = {
           <div v-for="g in groups" :key="g.key">
             <div class="live-group-heading">{{ g.label }}</div>
             <ul class="live-list">
-              <li v-for="e in g.entries" :key="e.channel.id" class="live-row">
-                <button type="button" :class="['epg-pin', 'live-row-pin', { pinned: e.channel.pinned }]"
-                  :aria-pressed="e.channel.pinned" :aria-label="(e.channel.pinned ? 'Unpin ' : 'Pin ') + e.channel.name"
-                  @click="togglePin(e.channel)">★</button>
-                <span class="live-row-logo">
-                  <img v-if="e.channel.hasLogo" class="epg-rail-logo" :src="'/api/epg/logo/' + e.channel.id" alt=""
-                    @error="$event.target.style.display = 'none'" />
-                </span>
-                <span class="live-row-name" :title="e.channel.name">
-                  <span v-if="e.channel.number != null" class="text-ink-mute">{{ e.channel.number }}</span>
-                  {{ e.channel.name }}
-                </span>
+              <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
+                :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
+                <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder pinned channels' : null"
+                  @pointerdown="onPinPointerDown(e.channel, $event)"
+                  @pointermove="onPinPointerMove"
+                  @pointerup="onPinPointerUp"
+                  @pointercancel="onPinPointerCancel">
+                  <button type="button" :class="['epg-pin', { pinned: e.channel.pinned }]"
+                    :aria-pressed="e.channel.pinned" :aria-label="(e.channel.pinned ? 'Unpin ' : 'Pin ') + e.channel.name"
+                    @click="togglePin(e.channel)">★</button>
+                  <span class="live-row-logo">
+                    <img v-if="e.channel.hasLogo" class="epg-rail-logo" :src="'/api/epg/logo/' + e.channel.id" alt=""
+                      draggable="false" @error="$event.target.style.display = 'none'" />
+                  </span>
+                  <span class="live-row-name" :title="e.channel.name">
+                    <span v-if="e.channel.number != null" class="text-ink-mute">{{ e.channel.number }}</span>
+                    {{ e.channel.name }}
+                  </span>
+                </div>
                 <div class="live-row-now">
                   <button v-if="e.now" type="button" class="on-now-open block w-full"
                     :aria-label="'Show details for ' + e.now.title" @click="openDetails(e, e.now)">
@@ -847,8 +962,22 @@ const LiveView = {
       }
     }
 
+    const currentPins = () => (data.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
+
+    const reorderPins = async (pins) => {
+      try {
+        await api('PUT', '/api/epg/channel-prefs', { pinned_ids: pins })
+        await load()
+      } catch (err) {
+        flash({ msg: `Reorder failed: ${err.message}`, kind: 'err', ms: 6000 })
+      }
+    }
+
+    const pinDrag = usePinDrag({ rowSelector: '.live-row.pinned', currentPins, onReorder: reorderPins })
+
     const togglePin = async (channel) => {
-      const pinnedIds = (data.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
+      if (pinDrag.didDrag()) return
+      const pinnedIds = currentPins()
       try {
         await togglePinnedChannel({ pinnedIds, channelId: channel.id })
         await load()
@@ -883,6 +1012,9 @@ const LiveView = {
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, channelsModal, groups, emptyText,
       load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
+      dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId,
+      onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
+      onPinPointerUp: pinDrag.onPinPointerUp, onPinPointerCancel: pinDrag.onPinPointerCancel,
       isRecordingChannel, onNowPercent, onNowMeta, fmtClockTz, flashText, flashKind,
     }
   },
@@ -4371,100 +4503,11 @@ const EpgView = {
       await loadDay(day.value, { force: true })
     }
 
-    const dragPinId = ref(null)
-    const dropTargetId = ref(null)
-
     const currentPins = () => (guide.value?.channels || [])
       .filter((c) => c.pinned)
       .map((c) => String(c.id))
 
-    // Pointer-based drag (not HTML5 drag-and-drop) so reordering works with a
-    // finger on iOS as well as a mouse. The whole rail cell of a pinned row is
-    // the drag surface; the drag only starts after a small movement threshold
-    // so plain clicks and taps (the ★ button) still register. Rows are
-    // hit-tested by their live bounding boxes on every move, and a cloned
-    // ghost of the cell follows the pointer.
-    const pinRowUnderPointer = (clientY) => {
-      for (const el of document.querySelectorAll('.epg-row.pinned')) {
-        const box = el.getBoundingClientRect()
-        if (clientY >= box.top && clientY <= box.bottom) return el.dataset.channelId || null
-      }
-      return null
-    }
-
-    let pendingDrag = null
-    let dragDidMove = false
-    let ghostEl = null
-    let ghostDX = 0
-    let ghostDY = 0
-
-    const moveGhost = (e) => {
-      if (!ghostEl) return
-      ghostEl.style.left = `${e.clientX - ghostDX}px`
-      ghostEl.style.top = `${e.clientY - ghostDY}px`
-    }
-
-    const removeGhost = () => {
-      if (!ghostEl) return
-      ghostEl.remove()
-      ghostEl = null
-    }
-
-    const setDragLock = (on) => {
-      try { document.body.classList.toggle('epg-drag-lock', on) } catch { /* ignore */ }
-    }
-
-    const startPinDrag = (e) => {
-      const { ch, cell, pointerId, x, y } = pendingDrag
-      pendingDrag = null
-      dragDidMove = true
-      setDragLock(true)
-      try { cell.setPointerCapture(pointerId) } catch { /* ignore */ }
-      dragPinId.value = String(ch.id)
-      dropTargetId.value = null
-      const box = cell.getBoundingClientRect()
-      ghostDX = x - box.left
-      ghostDY = y - box.top
-      ghostEl = cell.cloneNode(true)
-      ghostEl.classList.add('epg-ghost')
-      ghostEl.style.width = `${box.width}px`
-      ghostEl.style.height = `${box.height}px`
-      document.body.appendChild(ghostEl)
-      moveGhost(e)
-    }
-
-    const onPinPointerDown = (ch, e) => {
-      if (!ch.pinned) return
-      if (e.button !== 0 && e.pointerType === 'mouse') return
-      pendingDrag = { ch, cell: e.currentTarget, pointerId: e.pointerId, x: e.clientX, y: e.clientY }
-    }
-
-    const onPinPointerMove = (e) => {
-      if (pendingDrag) {
-        if (Math.hypot(e.clientX - pendingDrag.x, e.clientY - pendingDrag.y) < EPG_DRAG_THRESHOLD_PX) return
-        startPinDrag(e)
-      }
-      if (!dragPinId.value) return
-      e.preventDefault()
-      moveGhost(e)
-      const over = pinRowUnderPointer(e.clientY)
-      dropTargetId.value = over && over !== dragPinId.value ? over : null
-    }
-
-    const onPinPointerUp = async () => {
-      pendingDrag = null
-      setDragLock(false)
-      removeGhost()
-      if (dragDidMove) setTimeout(() => { dragDidMove = false }, 0)
-      const from = dragPinId.value
-      const to = dropTargetId.value
-      dragPinId.value = null
-      dropTargetId.value = null
-      if (!from || !to || from === to) return
-      const orig = currentPins()
-      const movingDown = orig.indexOf(from) < orig.indexOf(to)
-      const pins = orig.filter((id) => id !== from)
-      pins.splice(pins.indexOf(to) + (movingDown ? 1 : 0), 0, from)
+    const reorderPins = async (pins) => {
       try {
         await api('PUT', '/api/epg/channel-prefs', { pinned_ids: pins })
         await reloadGuide()
@@ -4473,14 +4516,8 @@ const EpgView = {
       }
     }
 
-    const onPinPointerCancel = () => {
-      pendingDrag = null
-      setDragLock(false)
-      removeGhost()
-      dragDidMove = false
-      dragPinId.value = null
-      dropTargetId.value = null
-    }
+    const pinDrag = usePinDrag({ rowSelector: '.epg-row.pinned', currentPins, onReorder: reorderPins })
+    const { dragPinId, dropTargetId, onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel } = pinDrag
 
     const isSeriesRec = (r) =>
       r?.seriesLinkId != null && seriesLinkSet.value.has(String(r.seriesLinkId))
@@ -4541,7 +4578,7 @@ const EpgView = {
     }
 
     const togglePin = async (ch) => {
-      if (dragDidMove) return
+      if (pinDrag.didDrag()) return
       const pinnedIds = (guide.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
       try {
         await togglePinnedChannel({ pinnedIds, channelId: ch.id })
