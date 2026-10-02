@@ -4,14 +4,15 @@ set -euo pipefail
 # Record a walkthrough of the freetvarr UI and encode it for the docs + README.
 #
 # A Playwright container drives a scripted cursor tour of the tabs against a
-# running freetvarr, stubbing every /api GET with synthetic fixtures so the clip
-# shows a realistic, populated UI without touching any real data. It records a
-# .webm, then ffmpeg on the host trims and transcodes it to docs/public/demo.mp4
-# with a matching poster frame.
+# running freetvarr at a simulated prime time (19:45 tonight in TZ, or set
+# SIMULATED_NOW). Guide, search, logo, and programme-image GETs come from the
+# real server; settings are masked; syncs, shows, recordings, and recording-now
+# are synthetic fixtures; every non-GET is answered locally and never reaches
+# the server. It records a .webm, then ffmpeg on the host trims and transcodes
+# it to docs/public/demo.mp4 with a matching poster frame.
 #
-# Needs host `docker` + `ffmpeg`, and a running freetvarr (any DB; the fixtures
-# override what's on screen). The app only has to serve the SPA, so an empty
-# first-boot instance is fine.
+# Needs host `docker` + `ffmpeg`, and a running freetvarr with a reachable
+# TVHeadend EPG (the tour shows its real channels, logos, and artwork).
 #
 #   ./scripts/capture-walkthrough.sh
 #   FREETVARR_URL=http://localhost:3733 ./scripts/capture-walkthrough.sh
@@ -21,6 +22,8 @@ FREETVARR_URL="${FREETVARR_URL:-http://localhost:3733}"
 FREETVARR_URL="${FREETVARR_URL%/}"
 PLAYWRIGHT_VERSION="${PLAYWRIGHT_VERSION:-1.49.0}"
 PLAYWRIGHT_IMAGE="${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy}"
+HOST_TZ="${TZ:-$(readlink /etc/localtime 2>/dev/null | sed 's#.*zoneinfo/##')}"
+HOST_TZ="${HOST_TZ:-Australia/Sydney}"
 HOST_UID=$(id -u)
 HOST_GID=$(id -g)
 
@@ -45,11 +48,14 @@ docker run --rm --network host \
   -v "$REPO_ROOT":/work \
   -w /tmp \
   -e FREETVARR_URL="$FREETVARR_URL" \
+  -e TZ="$HOST_TZ" \
+  -e SIMULATED_NOW="${SIMULATED_NOW:-}" \
   -e WALKTHROUGH_OUT="/work" \
   "$PLAYWRIGHT_IMAGE" \
   bash -c "npm init -y >/dev/null && \
     npm install --silent --no-save --no-audit --no-fund playwright@${PLAYWRIGHT_VERSION} 2>&1 | tail -1 && \
     cp /work/scripts/capture-walkthrough.mjs ./tour.mjs && \
+    cp /work/scripts/capture-demo-api.mjs ./capture-demo-api.mjs && \
     node ./tour.mjs && \
     chown ${HOST_UID}:${HOST_GID} /work/walkthrough.webm" \
   2>&1 | tee "$DOCKER_LOG"

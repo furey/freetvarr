@@ -55,7 +55,7 @@ It works on a phone, too: on a narrow screen every view rearranges into cards an
 
 ![Dashboard on a phone](../img/screenshot-mobile-dashboard.png)
 ![The TV Guide on a phone](../img/screenshot-mobile-guide.png)
-![Recordings on a phone](../img/screenshot-mobile-recordings.png)
+![Live TV on a phone](../img/screenshot-mobile-live.png)
 
 </div>
 
