@@ -1800,7 +1800,13 @@ body.epg-drag-lock * {
   min-height: 2.75rem;
 }
 
-.epg-modal-actions .btn > svg {
+.epg-modal-actions .btn-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.epg-modal-actions .btn svg {
   width: 1.1rem;
   height: 1.1rem;
 }

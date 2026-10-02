@@ -3333,24 +3333,24 @@ const EpgView = {
                 <template v-if="isSeriesScheduled(selected.program) && cancelChoice">
                   <span class="text-xs font-mono text-ink-mute">This is part of a series recording — cancel what?</span>
                   <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-episode' }" @click="cancelSelected" :disabled="modalBusy">
-                    <span class="btn-label">⨯ THIS EPISODE</span>
+                    <span class="btn-label"><cross-icon /> THIS EPISODE</span>
                     <span v-if="modalAction === 'cancel-episode'" class="spinner spinner-overlay"></span>
                   </button>
                   <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-whole' }" @click="cancelSelectedSeries" :disabled="modalBusy">
-                    <span class="btn-label">⨯ WHOLE SERIES</span>
+                    <span class="btn-label"><cross-icon /> WHOLE SERIES</span>
                     <span v-if="modalAction === 'cancel-whole'" class="spinner spinner-overlay"></span>
                   </button>
                   <button type="button" class="btn" @click="cancelChoice = false" :disabled="modalBusy">KEEP</button>
                 </template>
                 <button v-else type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }"
                   @click="isSeriesScheduled(selected.program) ? (cancelChoice = true) : cancelSelected()" :disabled="modalBusy">
-                  <span class="btn-label">⨯ CANCEL RECORDING</span>
+                  <span class="btn-label"><cross-icon /> CANCEL RECORDING</span>
                   <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
               <template v-else-if="cellState(selected.program) === 'series'">
                 <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-series' }" @click="cancelSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label">⨯ CANCEL SERIES</span>
+                  <span class="btn-label"><cross-icon /> CANCEL SERIES</span>
                   <span v-if="modalAction === 'cancel-series'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
@@ -4482,10 +4482,18 @@ const resumeAtLiveEdge = () => {
 
 const TvIcon = {
   template: `
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M5.5 1.5 8 4l2.5-2.5"/>
       <rect x="1.5" y="4" width="13" height="10" rx="1.5"/>
-      <path d="M6.75 7v4l3.25-2z" fill="currentColor"/>
+      <path d="M6.75 7.25v3.5l2.9-1.75z" fill="currentColor"/>
+    </svg>
+  `,
+}
+
+const CrossIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+      <path d="M4 4l8 8M12 4l-8 8"/>
     </svg>
   `,
 }
@@ -4685,4 +4693,5 @@ app.component('recording-card', RecordingCard)
 app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
 app.component('tv-icon', TvIcon)
+app.component('cross-icon', CrossIcon)
 app.mount('#app')
