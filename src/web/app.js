@@ -325,7 +325,8 @@ window.addEventListener('hashchange', () => {
 const scrollToRouteSection = async () => {
   if (!routeSection.value) return
   await nextTick()
-  document.getElementById(`section-${routeSection.value}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const behavior = document.visibilityState === 'visible' ? 'smooth' : 'auto'
+  document.getElementById(`section-${routeSection.value}`)?.scrollIntoView({ behavior, block: 'start' })
 }
 
 const guideHandoff = ref(null)
