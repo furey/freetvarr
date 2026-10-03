@@ -44,7 +44,7 @@ FREETVARR_PORT=3733
 
 `CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts. Every variable is explained in [Configuration](/guide/configuration).
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, Freetvarr picks it up from the same folder.
+The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes recordings there, and Freetvarr reads them from the same folder.
 
 Create the host folders before the first start, owned by the user the containers run as. Docker creates a missing bind-mount folder as `root`, and neither container can then write to it:
 
@@ -80,11 +80,11 @@ Browse to `http://<host-ip>:9981` and work through [TVHeadend](/guide/tvheadend)
 
 Browse to `http://<host-ip>:3733` (or the port you set in `FREETVARR_PORT`). The first visit opens a setup wizard:
 
-1. **TVHeadend**: its URL (`http://<host-ip>:9981`) and the username and password you made in [step 8 of the TVHeadend setup](/guide/tvheadend#_8-make-a-user-for-freetvarr). The wizard probes port `9981` on every address of the host when the URL field is empty and fills in the one that answers; `AUTO-DISCOVER TVHEADEND` repeats that probe. `TEST CONNECTION` reports the version, the channel count, and the tuner count. `SAVE & NEXT` runs the same test and stays on the step until it passes; `SKIP TO SETTINGS` is the way out if TVHeadend is not ready yet. A failure shows as `Failed:` and the reason, such as `TVHeadend rejected the credentials (HTTP 403).`; [Troubleshooting](/guide/troubleshooting#tvheadend-401-or-403) lists each one.
-2. **Storage**: where Freetvarr reads recordings from and writes episodes to. With the example compose file, the defaults (`/media/tv` and `/recordings` twice) are already right. `TEST PATH` checks each folder inside the container and says whether imports can hardlink; `CHECK TVHEADEND` reads the recording path from TVHeadend's default DVR profile and fills in or checks the path next to it. See [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+1. **TVHeadend**: its URL (`http://<host-ip>:9981`) and the username and password you made in [step 8 of the TVHeadend setup](/guide/tvheadend#_8-make-a-user-for-freetvarr). If TVHeadend runs on the same host, the wizard usually finds the URL for you. The wizard moves on only when the connection test passes; use `SKIP TO SETTINGS` if TVHeadend is not ready yet. If the test fails, [Troubleshooting](/guide/troubleshooting#tvheadend-401-or-403) explains each error.
+2. **Storage**: where Freetvarr reads recordings from and writes episodes to. With the example compose file, the defaults are already right. `TEST PATH` checks a folder, and `CHECK TVHEADEND` checks that the recordings path matches TVHeadend's. See [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 3. **Plex**: server URL, token, and which library section holds your TV shows. Optional; see [Plex](/guide/plex).
 
-You can change all of it later in Settings, and reopen the wizard from there whenever you like.
+You can change all of it later in Settings, and reopen the wizard from there.
 
 Then mark shows to follow on the Shows tab; see [Following shows](/guide/following-shows).
 
@@ -118,7 +118,7 @@ docker compose up -d --build freetvarr
 
 This rebuilds the image and recreates the container only if the image actually changed. Your database is left alone, and any pending database updates (migrations) run automatically on the next start.
 
-Freetvarr tabs that were open during the update show a bar that says a new version is ready. Press **RELOAD** when it suits you; Freetvarr never reloads by itself, so live TV keeps playing.
+A Freetvarr tab left open during the update says a new version is ready. Press **RELOAD** when it suits you; live TV keeps playing until you do.
 
 ## Where next
 

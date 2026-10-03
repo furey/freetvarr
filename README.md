@@ -32,6 +32,7 @@
 
 - [Screenshots](#screenshots)
 - [What Freetvarr is](#what-freetvarr-is)
+- [Where it works](#where-it-works)
 - [Why not just TVHeadend](#why-not-just-tvheadend)
 - [Why not just Plex DVR](#why-not-just-plex-dvr)
 - [What Freetvarr isn't](#what-freetvarr-isnt)
@@ -105,7 +106,7 @@ It's a fork of [Fetcharr](https://github.com/furey/fetcharr) with the recorder r
 
 ## Where it works
 
-Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T tuner in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through an Australian setup because that is where the author lives. Every Australian value in them is an example: swap the timezone, the mux list, the guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian channels but do no harm elsewhere.
+Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so TVHeadend handles the broadcast standard: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T tuner in Australia or the UK, an ATSC one in the US), the guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through an Australian setup because that is where the author lives. Every Australian value in them is an example: swap the timezone, the mux list, the guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases in the guide are tuned for Australian channels but do no harm elsewhere.
 
 Tested with an HDHomeRun Flex Quatro; the [hardware guide](https://furey.github.io/freetvarr/guide/hardware) says why the author recommends it and what else works.
 
@@ -134,26 +135,26 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 
 ## Features
 
-- **Live TV in the browser**: watch any channel from the Live TV tab, the TV Guide, or the dashboard, on a phone or a desktop. Freetvarr checks for a free tuner first, warns when a recording will need it within the hour, and re-encodes what a browser can't play (MPEG-2 video, AC-3 audio) and deinterlaces H.264 so Chrome can play interlaced HD, in hardware through VAAPI when the host has it. See [Live TV](https://furey.github.io/freetvarr/guide/live-tv#in-freetvarr).
-- **TV Guide**: a 7-day programme guide in the browser; schedule, cancel, and series-record in TVHeadend (with padding and episodes-to-keep options), search the week, star and reorder favourite channels (★ marks a favourite, ☆ does not), browse every channel's now and next on the Live TV page, and see what's on now from the dashboard.
-- **Recording Now panel**: the dashboard shows each active recording with live progress, signal quality, and data errors, then follows it step by step through import, ad cutting, and the Plex refresh.
+- **Live TV in the browser**: watch any channel on a phone or a desktop. Freetvarr checks for a free tuner first and warns when a recording will need it within the hour. It converts channels a browser can't play, in hardware through VAAPI when the host has it. See [Live TV](https://furey.github.io/freetvarr/guide/live-tv#in-freetvarr).
+- **TV Guide**: a 7-day programme guide. Schedule, cancel, and series-record in TVHeadend, search the week, and put your favourite channels first.
+- **Recording Now panel**: the dashboard shows each active recording and its signal health, then tracks it through import, ad cutting, and the Plex refresh.
 - **Programme images**: the guide and the dashboard show a programme's image when the XMLTV feed supplies one.
 - **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late.
 - **Doctor**: a read-only health check of TVHeadend, the guide, the folders, Plex, and live TV, with the fix and a docs link for each problem.
-- **First-run wizard**: walks TVHeadend → storage → Plex. Re-openable from Settings; previously-saved values prefill.
+- **First-run wizard**: sets up TVHeadend, storage, and Plex. You can reopen it from Settings.
 - **Per-show follow**: pick a show TVHeadend records, match it by name to an existing folder under your media root (even when the names aren't identical), and set a season template.
-- **Hardlink imports**: the recording is already on disk, so the import is a hardlink when the recordings folder and the media library share a filesystem, and a copy when they don't. No download, no second copy of a 3 GB transport stream.
+- **Hardlink imports**: the recording is already on disk, so the import is a hardlink when the recordings folder and the media library share a filesystem, and a copy when they don't. A hardlink uses no extra disk space.
 - **Plex-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the guide gave no episode number.
 - **Short-file detection**: an import more than `1 MB` short of what TVHeadend reported stays `partial`, and the next sync redoes it.
 - **Scheduled + manual sync**: checks TVHeadend on a schedule you set (a cron expression), plus on-demand Sync now for everything or a single show.
 - **Plex integration**: section refresh after every sync that imported something, plus a Refresh Plex now button.
-- **Delete-from-TVHeadend that works**: one `dvr/entry/remove` call drops the entry and the file, gated on Plex confirming its copy. No cloud relay, no handshake, no retry loop.
+- **Remove after import**: once Plex confirms its copy, Freetvarr can delete the recording's file from TVHeadend.
 - **Optional ad removal**: ad detection with comskip, a detect-only mode for checking accuracy, cutting that copies the video across untouched (no re-encode), and a `.orig` backup of every cut file. Off by default; detection accuracy on free-to-air varies by channel, so try detect mode before trusting cuts. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#ad-removal).
-- **Live operation progress**: copies, ad scans, and cuts show inline in the Recordings tab (a copy bar with speed and time left, a scan bar that counts down from an estimate, a cut segment counter); the list refreshes every 2 s while anything's active instead of the idle 60 s. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#live-progress-indicators).
+- **Live operation progress**: the Recordings tab shows the progress of each copy, ad scan, and cut. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#live-progress-indicators).
 - **Self-housekeeping**: sync history trims itself to the latest 500 rows; recording rows drop off 30 days after the TVHeadend copy is deleted.
 - **Timezone-aware UI**: the container's `TZ` carries through to the browser, so timestamps show in that zone whatever device hits the page.
-- **Phone-friendly UI**: on a narrow screen every view rearranges (tables become cards, filters become swipeable rows of buttons, and touch targets meet Apple's 44 pt guideline), so checking a sync from the couch works as well as from a desk.
-- **Danger Zone**: one-click `NUKE ALL STATE` reset back to the welcome wizard. DB only; imported media files untouched.
+- **Phone-friendly UI**: every view works on a phone.
+- **Danger Zone**: a reset in Settings that clears Freetvarr's database and returns to the setup wizard. Imported media files stay.
 - **Authless LAN service**: SQLite-backed, single Docker container, no external runtime dependencies once configured.
 
 ## Prerequisites
@@ -193,7 +194,7 @@ FREETVARR_PORT=3733
 
 `CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts.
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`, which is the whole point: TVHeadend writes a recording there, Freetvarr picks it up from the same folder. Give both the same `PUID`/`PGID` (run `id` on the host to read them), and create the host folders owned by that pair before the first start; Docker creates a missing folder as `root`. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_2-configure) has the commands.
+The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes a recording there, and Freetvarr picks it up from the same folder. Give both the same `PUID`/`PGID` (run `id` on the host to read them), and create the host folders owned by that pair before the first start; Docker creates a missing folder as `root`. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_2-configure) has the commands.
 
 ### 3. Start it
 
@@ -213,7 +214,7 @@ Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and
 
 ### 5. Run the Freetvarr wizard
 
-Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard that walks you through TVHeadend (the URL is auto-discovered by probing port `9981` on the host, plus the user you just made, with a TEST CONNECTION button; SAVE & NEXT will not continue until the connection works), storage (with path checks against the container and TVHeadend), and Plex. You can change all of it later in Settings, and reopen the wizard from there whenever you like.
+Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard for TVHeadend, storage, and Plex. Enter the TVHeadend user you just made and press TEST CONNECTION; the wizard does not continue until the connection works. You can change all of it later in Settings.
 
 Mark shows to follow on the Shows tab and Freetvarr syncs them on the schedule you set.
 
@@ -299,9 +300,9 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 
 ### Wrong ad cuts
 
-- Ad detection is educated guessing, never perfect. Comskip's accuracy varies noticeably by channel (logo detection, silence thresholds, and break lengths all differ).
-- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. Scans work the CPU hard: budget ~30 minutes per 75-minute recording on a home NAS.
-- Cuts land on the nearest keyframe, so a second or two either side of a break is normal.
+- Ad detection is never exact. Comskip's accuracy varies by channel.
+- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. A scan uses a lot of CPU: allow about 30 minutes per 75-minute recording on a home NAS.
+- Cuts fall on the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which is tuned for Australian channels. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it.
 
 ### Wrong timestamps

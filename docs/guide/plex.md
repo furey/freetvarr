@@ -11,11 +11,11 @@ Plex is optional. Without it, Freetvarr still imports and files episodes; you ju
 
 ## Point Freetvarr at Plex
 
-In Settings (or the wizard's Plex step), set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. Auto-discover finds a Plex server on your network the same way Plex's own apps do (a protocol called GDM).
+In Settings (or the wizard's Plex step), set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. Auto-discover finds Plex servers on your network.
 
 ## The library folder
 
-Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/media/tv` inside its container). The Plex TV library you pick has to include that same host folder, or Plex refreshes the section and finds nothing new. If Plex runs in a container, mount `${DATA_PATH}/media/tv` into it then edit the library in Plex and add the path Plex sees under **Add folders**. The two containers can use different paths for the folder; only the host folder has to be the same.
+Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/media/tv` inside its container). The Plex TV library you pick has to include that same host folder, or Plex refreshes the section and finds nothing new. If Plex runs in a container, mount `${DATA_PATH}/media/tv` into it, then edit the library in Plex and add the path Plex sees under **Add folders**. The two containers can use different paths for the folder; only the host folder has to be the same.
 
 ## The token
 
@@ -34,13 +34,13 @@ Auto-detect fails with `PlexOnlineToken attribute not found` when that Plex serv
 
 ## Refresh
 
-After any sync that imported a file, Freetvarr refreshes the configured section so new episodes appear without waiting for Plex's own scan interval. Refresh Plex now triggers it on demand.
+After any sync that imported a file, Freetvarr refreshes the configured section so new episodes appear without waiting for Plex's own scan interval. Press `REFRESH PLEX NOW` in Settings to refresh at any time.
 
-The refresh also gates removes: a recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)).
+A recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)).
 
 ## Where the files land
 
 Imports write under your media root using each show's folder and season template ([Following shows](/guide/following-shows)); Plex reads them as an ordinary TV library.
 
 > [!NOTE]<br>
-> Episodes stay `.ts`, the raw broadcast format. Plex plays it, but seeks through it clumsily, because a transport stream carries no index. If that bothers you, run the files through Tdarr or similar to remux them to `.mkv` after Freetvarr is done with them.
+> Episodes stay `.ts`, the raw broadcast format. Plex plays them, but seeking is slow, because a transport stream has no index. If that bothers you, run the files through Tdarr or similar to remux them to `.mkv` after Freetvarr is done with them.

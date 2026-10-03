@@ -18,7 +18,7 @@ Each check gets one of these results:
 - **Fail**: something Freetvarr needs is broken. The row says how to fix it and links to the matching docs.
 - **Skip**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
 
-Failing rows come first in each group. `RE-RUN` runs every check again; otherwise the page shows a result up to `15` seconds old. Each check has `8` seconds to answer before it fails.
+Failing rows come first. Press `RE-RUN` to check again. A check that gets no answer in `8` seconds fails.
 
 From a source checkout, `npm run doctor` prints the same checks in the terminal. It reads the settings from the database, so run it on the machine that runs Freetvarr.
 

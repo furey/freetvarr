@@ -7,9 +7,9 @@ description: >-
 
 # Hardware
 
-Any TVHeadend-compatible tuner works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so it never touches the hardware: a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, and IPTV are all the same to it. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange; Synology and QNAP kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in. The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with.
+Any TVHeadend-compatible tuner works. Freetvarr talks only to TVHeadend and the recordings folder, so a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, and IPTV all work. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange; Synology and QNAP kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in. The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with.
 
-One thing still decides the model: the broadcast standard where you live. DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
+The broadcast standard where you live decides the model: DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
 
 | Region                             | Standard       | HDHomeRun model                                                    |
 | ---------------------------------- | -------------- | ------------------------------------------------------------------ |
@@ -50,7 +50,7 @@ Anything with `-US` in the model number, and anything branded 4K, is an ATSC tun
 
 ### Why not a USB tuner
 
-A `A$20` Xbox One or Hauppauge USB tuner is tempting and does work on a normal Linux box. It does not work on a Synology or QNAP NAS: their kernels ship no DVB drivers, so there is no `/dev/dvb` to pass into the container and nothing for TVHeadend to find. A network tuner sidesteps the kernel entirely. If you want the cheap tuner anyway, run TVHeadend on a Raspberry Pi and write its recordings to a NAS share instead.
+A `A$20` Xbox One or Hauppauge USB tuner works on a normal Linux computer. It does not work on a Synology or QNAP NAS: their kernels ship no DVB drivers, so there is no `/dev/dvb` to pass into the container and nothing for TVHeadend to find. A network tuner needs no driver on the NAS. To use a USB tuner anyway, run TVHeadend on a Raspberry Pi and write its recordings to a NAS share instead.
 
 <div class="product-shot">
   <img src="../img/hardware/hauppauge-usb-tuner.webp" alt="A Hauppauge WinTV USB tuner stick with its case removed, showing the aerial socket at one end and the USB plug at the other" width="1000" height="563" loading="lazy">
@@ -108,7 +108,7 @@ flowchart LR
 
 ### The connector
 
-The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. The author asked for an F-to-PAL adapter in the order notes of his AU/NZ order from SiliconDust, and it came in the box. Buyers on the Whirlpool HDHomeRun thread report the same, so ask for one and check the box first. If it is missing, one adapter fixes it: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
+The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. Ask for an F-to-PAL adapter in the order notes, as above; buyers on the Whirlpool HDHomeRun thread report that it comes in the box. If it is missing, buy one: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
 
 <div class="product-shot">
   <img src="../img/hardware/pal-and-f-plugs.webp" alt="Two aerial leads side by side: a PAL plug with a plain metal barrel on the left, and a smaller threaded F plug with a bare centre wire on the right" width="1000" height="644" loading="lazy">
@@ -122,7 +122,7 @@ The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate m
 
 Once the tuner has power and ethernet, find its IP in your router's client list and open `http://<hdhr-ip>/tuners.html`. That page reports signal strength, signal quality, and symbol quality per tuner. Read it before you blame the tuner for anything.
 
-Two faults account for most complaints:
+The common faults:
 
 - **Dropouts and reboots.** The usual cause is a tired `5 V` power supply, not reception. Swap in a `2–3 A` `5 V` supply and re-test.
 - **Strong signal, poor quality.** Only with a masthead amplifier: the amplifier plus a short cable run can overload the front end. A `12 dB` inline attenuator between the adapter and the tuner is the first thing to try.
