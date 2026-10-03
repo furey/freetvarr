@@ -25,8 +25,7 @@ import {
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
-  const dayStart = guide.startMs + day * DAY_MS
-  const dayEnd = dayStart + DAY_MS
+  const { dayStart, dayEnd } = guideDayWindow({ startMs: guide.startMs, day })
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: dayEnd, nowMs })
     .catch(logHistoryError('load'))
   const programs = {}
@@ -472,6 +471,12 @@ export const localMidnightMs = (now = new Date()) => {
   return midnight.getTime()
 }
 
+export const guideDayWindow = ({ startMs, day = 0 }) => {
+  const base = new Date(startMs)
+  const dateAt = (offset) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset).getTime()
+  return { dayStart: dateAt(day), dayEnd: dateAt(day + 1) }
+}
+
 const getCachedGuide = async () => {
   const now = Date.now()
   const startMs = localMidnightMs()
@@ -497,7 +502,7 @@ const getCachedGuide = async () => {
 
 const loadGuide = async (startMs) => {
   const conn = await resolveConnection()
-  const endMs = startMs + GUIDE_DAYS * DAY_MS
+  const endMs = guideDayWindow({ startMs, day: GUIDE_DAYS - 1 }).dayEnd
   const [channels, events] = await Promise.all([
     listChannels(conn),
     listEvents({ startMs, endMs, conn }),
@@ -551,7 +556,6 @@ const programmeImages = createProgrammeImages({
 })
 
 const CHANNEL_SORTS = ['default', 'number', 'name']
-const DAY_MS = 24 * 60 * 60 * 1000
 const GUIDE_DAYS = 7
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000
