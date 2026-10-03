@@ -3211,6 +3211,7 @@ const DOCTOR_GROUPS = [
 ]
 const DOCTOR_PILLS = { pass: 'doctor-pass', warn: 'doctor-warn', fail: 'doctor-fail', skip: 'doctor-skip' }
 const DOCTOR_STATUS_ORDER = ['fail', 'warn', 'pass', 'skip']
+const DOCTOR_PILL_ORDER = ['pass', 'warn', 'fail', 'skip']
 
 const sortDoctorChecks = (checks) => [...checks].sort((a, b) =>
   DOCTOR_STATUS_ORDER.indexOf(a.status) - DOCTOR_STATUS_ORDER.indexOf(b.status))
@@ -3376,7 +3377,7 @@ const DoctorView = {
 
     const resolvedChecks = computed(() => orderedChecks.value.slice(0, revealed.value))
 
-    const summaryPills = computed(() => DOCTOR_STATUS_ORDER.map((status) => ({
+    const summaryPills = computed(() => DOCTOR_PILL_ORDER.map((status) => ({
       status,
       pill: DOCTOR_PILLS[status],
       count: resolvedChecks.value.filter((c) => c.status === status).length,
