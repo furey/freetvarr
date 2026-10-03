@@ -5462,6 +5462,12 @@ const EpgView = {
       }, EPG_SEARCH_DEBOUNCE_MS)
     })
 
+    watch(searchActive, async (active, wasActive) => {
+      if (active || !wasActive || mode.value !== 'guide') return
+      if (day.value === 0) await scrollToNow()
+      else await scrollToMs(guide.value.dayStart + 18 * 3_600_000)
+    })
+
     const onKeydown = (e) => {
       if (e.key !== 'Escape') return
       if (selected.value) closeModal()
