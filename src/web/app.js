@@ -9,6 +9,7 @@ import {
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
 import { isStaleBuild, shouldReloadOnPull } from '/stale-build.js'
+import { isNewerRelease, latestReleaseTag } from '/version-check.js'
 import {
   localDayNumber,
   weekdayOfDayNumber,
@@ -31,7 +32,19 @@ const noteBuild = (res) => {
   return res
 }
 
-const checkForNewBuild = () => fetch('/api/version', { cache: 'no-store' }).then(noteBuild).catch(() => {})
+const serverAbout = ref({})
+
+const fetchServerAbout = async (query = '') => {
+  const res = noteBuild(await fetch(`/api/version${query}`, { cache: 'no-store' }))
+  const about = await res.json()
+  serverAbout.value = { ...serverAbout.value, ...about }
+  return about
+}
+
+const checkForNewBuild = () => fetchServerAbout().catch(() => {})
+
+const REPO_URL = 'https://github.com/furey/freetvarr'
+const releaseUrl = (version) => `${REPO_URL}/tree/${encodeURIComponent(version)}`
 
 const staleBuild = computed(() => isStaleBuild({
   loaded: loadedBuild,
@@ -2834,6 +2847,8 @@ const SettingsView = {
           </div>
         </section>
 
+        <about-panel />
+
         <section id="section-danger-zone" class="panel">
           <header class="panel-header">
             <span class="panel-title">DANGER ZONE</span>
@@ -3975,6 +3990,148 @@ const CHANNEL_SORT_OPTIONS = [
 ]
 
 let infoDialogCount = 0
+
+const LATEST_RELEASE_KEY = 'freetvarr.latest-release'
+const LATEST_RELEASE_TTL_MS = 60 * 60 * 1000
+const COPIED_FLASH_MS = 2000
+
+const readCachedLatestRelease = () => {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(LATEST_RELEASE_KEY) || 'null')
+    return cached && Date.now() - cached.at < LATEST_RELEASE_TTL_MS ? cached.latest : undefined
+  } catch {
+    return undefined
+  }
+}
+
+const cacheLatestRelease = (latest) => {
+  try {
+    sessionStorage.setItem(LATEST_RELEASE_KEY, JSON.stringify({ at: Date.now(), latest }))
+  } catch {}
+}
+
+const fetchLatestRelease = async () => {
+  const cached = readCachedLatestRelease()
+  if (cached !== undefined) return cached
+  const res = await fetch('https://api.github.com/repos/furey/freetvarr/tags?per_page=20', {
+    headers: { Accept: 'application/vnd.github+json' },
+  })
+  if (!res.ok) throw new Error(`GitHub HTTP ${res.status}`)
+  const tags = await res.json()
+  const latest = latestReleaseTag(tags.map((tag) => tag.name))
+  cacheLatestRelease(latest)
+  return latest
+}
+
+const copyText = async (text) => {
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text)
+  const scratch = document.createElement('textarea')
+  scratch.value = text
+  scratch.setAttribute('readonly', '')
+  scratch.style.position = 'fixed'
+  scratch.style.opacity = '0'
+  document.body.append(scratch)
+  scratch.select()
+  const copied = document.execCommand('copy')
+  scratch.remove()
+  if (!copied) throw new Error('Copy failed')
+}
+
+const AboutPanel = {
+  template: `
+    <section id="section-about" class="panel">
+      <header class="panel-header">
+        <span class="panel-heading">
+          <span class="panel-title">ABOUT</span>
+          <info-button title="ABOUT" doc="guide/troubleshooting#reporting-a-bug">
+            <p>The versions Freetvarr is running with. Include them when you report a bug.</p>
+            <p><strong>COPY</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser.</p>
+          </info-button>
+        </span>
+        <span class="text-xs font-mono text-ink-dim">versions</span>
+      </header>
+      <div class="panel-body flex flex-wrap items-end justify-between gap-4">
+        <dl class="about-list">
+          <dt>FREETVARR</dt>
+          <dd>
+            <a v-if="about.version" :href="releaseUrl(about.version)" target="_blank" rel="noopener noreferrer">{{ about.version }}</a>
+            <span v-else class="about-muted">…</span>
+          </dd>
+          <dt>UPDATES</dt>
+          <dd>
+            <a v-if="update.state === 'available'" :href="releaseUrl(update.latest)" target="_blank" rel="noopener noreferrer" class="about-update">{{ update.latest }} available</a>
+            <span v-else :class="update.state === 'current' ? 'about-current' : 'about-muted'">{{ updateText }}</span>
+          </dd>
+          <dt>BUILD</dt>
+          <dd>{{ about.build || '…' }}</dd>
+          <dt>TVHEADEND</dt>
+          <dd :class="{ 'about-muted': !about.tvheadend }">{{ tvheadendText }}</dd>
+          <dt>NODE</dt>
+          <dd>{{ about.node || '…' }}</dd>
+        </dl>
+        <button type="button" class="btn" @click="copyAbout" :disabled="!about.version">
+          <template v-if="copyState === 'copied'"><check-icon /> COPIED</template>
+          <template v-else-if="copyState === 'failed'"><cross-icon /> COPY FAILED</template>
+          <template v-else><copy-icon /> COPY</template>
+        </button>
+      </div>
+    </section>
+  `,
+  setup() {
+    const tvheadendLoaded = ref(false)
+    const update = ref({ state: 'checking', latest: null })
+    const copyState = ref('')
+    let copyTimer = null
+    const about = serverAbout
+    const tvheadendText = computed(() => {
+      if (about.value.tvheadend) return about.value.tvheadend
+      return tvheadendLoaded.value ? 'not connected' : '…'
+    })
+    const updateText = computed(() => ({
+      checking: 'Checking…',
+      current: 'Up to date',
+      failed: "Couldn't check for updates",
+    })[update.value.state] || '')
+    const aboutLines = () => [
+      `Freetvarr ${about.value.version}`,
+      `Build ${about.value.build}`,
+      `TVHeadend ${about.value.tvheadend || 'not connected'}`,
+      `Node ${about.value.node}`,
+    ].join('\n')
+    const flashCopy = (state) => {
+      copyState.value = state
+      clearTimeout(copyTimer)
+      copyTimer = setTimeout(() => { copyState.value = '' }, COPIED_FLASH_MS)
+    }
+    const copyAbout = async () => {
+      try {
+        await copyText(aboutLines())
+        flashCopy('copied')
+      } catch {
+        flashCopy('failed')
+      }
+    }
+    const loadTvheadendVersion = async () => {
+      await fetchServerAbout('?tvheadend=1').catch(() => {})
+      tvheadendLoaded.value = true
+    }
+    const checkForUpdate = async () => {
+      try {
+        const [latest] = await Promise.all([fetchLatestRelease(), about.value.version || fetchServerAbout()])
+        const state = isNewerRelease({ current: about.value.version, latest }) ? 'available' : 'current'
+        update.value = { state: latest ? state : 'failed', latest }
+      } catch {
+        update.value = { state: 'failed', latest: null }
+      }
+    }
+    onMounted(() => {
+      loadTvheadendVersion()
+      checkForUpdate()
+    })
+    onUnmounted(() => clearTimeout(copyTimer))
+    return { about, update, updateText, tvheadendText, copyState, copyAbout, releaseUrl }
+  },
+}
 
 const InfoButton = {
   props: {
@@ -6015,6 +6172,15 @@ const ExternalLinkIcon = {
   `,
 }
 
+const CopyIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1"/>
+      <path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>
+    </svg>
+  `,
+}
+
 const InfoIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
@@ -6251,7 +6417,7 @@ const App = {
 
       <footer class="border-t border-hairline">
         <div class="max-w-6xl mx-auto px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-ink-mute">
-          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> · Self-hosted free-to-air TV</span>
+          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> <a v-if="appVersion" :href="releaseUrl(appVersion)" target="_blank" rel="noopener noreferrer" class="text-ink-dim" :title="'Freetvarr ' + appVersion + ' on GitHub'">{{ appVersion }}</a> · Self-hosted free-to-air TV</span>
           <a
             href="https://github.com/furey/freetvarr"
             target="_blank"
@@ -6275,9 +6441,11 @@ const App = {
       document.querySelector('.tab-strip [data-active="true"]')
         ?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
     }, { immediate: true })
+    const appVersion = computed(() => serverAbout.value.version || '')
     return {
       route, refreshTick, tabs: TABS, currentView,
       syncStatus, clockReadout, tzShortName, recordingCount,
+      appVersion, releaseUrl,
     }
   },
 }
@@ -6285,6 +6453,8 @@ const App = {
 const welcomeDismissed = () => {
   try { return localStorage.getItem(WELCOME_DISMISSED_KEY) === '1' } catch { return false }
 }
+
+checkForNewBuild()
 
 fetch('/api/settings')
   .then((r) => noteBuild(r).json())
@@ -6468,6 +6638,8 @@ app.component('live-player', LivePlayer)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
+app.component('about-panel', AboutPanel)
+app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
 app.component('doctor-spinner', DoctorSpinner)
 app.component('tv-icon', TvIcon)

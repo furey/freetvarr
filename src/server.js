@@ -26,6 +26,7 @@ import {
   listFinished,
   resolveConnection,
   getRecordingStorage,
+  getServerVersion as getTvheadendVersion,
   TvheadendError,
 } from './tvheadend.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
@@ -112,7 +113,7 @@ app.use(
         'img-src': ["'self'", 'data:'],
         'media-src': ["'self'", 'blob:'],
         'worker-src': ["'self'", 'blob:'],
-        'connect-src': ["'self'"],
+        'connect-src': ["'self'", 'https://api.github.com'],
         'object-src': ["'none'"],
         'base-uri': ["'self'"],
         'form-action': ["'self'"],
@@ -168,9 +169,19 @@ const syncLimiter = rateLimit({
 
 app.get('/healthz', (req, res) => res.json({ ok: true }))
 
-app.get('/api/version', (req, res) => {
+const readTvheadendVersion = async () => {
+  try {
+    return (await getTvheadendVersion()) || null
+  } catch {
+    return null
+  }
+}
+
+app.get('/api/version', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
-  res.json({ version: APP_VERSION, build: BUILD_ID })
+  const about = { version: APP_VERSION, build: BUILD_ID, node: process.version }
+  if (req.query.tvheadend !== '1') return res.json(about)
+  res.json({ ...about, tvheadend: await readTvheadendVersion() })
 })
 
 app.get('/api/csrf-token', (req, res) => {

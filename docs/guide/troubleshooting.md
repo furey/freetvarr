@@ -230,3 +230,7 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 Running Freetvarr from source (`npm start`) rather than in Docker fails at `better-sqlite3`.
 
 - Freetvarr needs Node `24` (`package.json` sets `engines`), and the pinned `better-sqlite3` ships prebuilt binaries for it. On a Node version with no prebuilt binary, `npm run setup` compiles `better-sqlite3` from source, which needs Python 3, `make`, and a C++ compiler. Use Node 24 instead; [Volta](https://volta.sh) picks the pinned version up from `package.json`. See the [deep dive](/deep-dive#local-development).
+
+## Reporting a bug
+
+Open an issue on [GitHub](https://github.com/furey/freetvarr/issues) with what you did, what you expected, and what happened. Include your versions: **Settings → About** lists the Freetvarr, TVHeadend, and Node versions, and **COPY** puts them on the clipboard. The same panel says whether a newer Freetvarr release is out.
