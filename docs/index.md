@@ -59,8 +59,8 @@ features:
     linkText: The state machine
   - title: Plex integration
     details: >-
-      Refreshes the library section after any sync that imported something, with
-      a Refresh Plex now button when you want it sooner.
+      Refreshes your Plex library after each sync that imports something, or
+      whenever you ask.
     link: /guide/plex
     linkText: Set up Plex
   - title: Optional ad removal
@@ -74,7 +74,7 @@ features:
     details: >-
       TVHeadend's DVR API deletes the file once Plex has confirmed its copy,
       and keeps the entry so TVHeadend's duplicate check still sees the
-      episode. No cloud, no handshake, no retry loop.
+      episode.
     link: /guide/remove-from-tvheadend
     linkText: The rules
   - title: Authless LAN service

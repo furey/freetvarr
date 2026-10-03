@@ -23,21 +23,21 @@ A network tuner streams live channels to anything on your LAN, and TVHeadend str
 
 ![The Live TV tab](../img/screenshot-live.png)
 
-Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or press the TV button beside a channel under **On now** on the dashboard. The player opens over the page and keeps playing while you switch tabs. **■ STOP** or **✕** ends the stream and frees the tuner.
+Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or press the TV button beside a channel under **On now** on the dashboard. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
 
 ![The player over the Live TV tab](../img/screenshot-player.png)
 
 Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
 
-While a channel tunes, the player shows Freetvarr's three logo chips (blue, orange, and yellow). They fade in as a row, move together into a spinning triangle, and when the stream's first frames load they glide to the centre and fade before the video fades in. The chips stay up for at least `1.8` seconds. After `12` seconds they dim, and after `15` seconds the status reads `TUNING… STILL WAITING FOR A SIGNAL`. A failed or ended stream leaves a grey chip row, and the player says why it stopped (for example, that a recording took the tuner); **⟳ RETRY** tunes the channel again and **✕ CLOSE** closes the player. With reduced motion on, the chips pulse in place. In phone landscape, a caption with the channel name and status sits at the bottom left.
+If a channel takes longer than about `15` seconds to start, the player says it is still waiting for a signal. If a stream stops, the player says why (for example, a recording took the tuner), and **RETRY** tunes the channel again.
 
-Freetvarr asks TVHeadend for the channel and turns it into an HLS stream (short video segments that any browser can play) with the ffmpeg already in its container:
+Freetvarr gets the channel from TVHeadend and converts it with ffmpeg into a stream that any browser can play:
 
 - **H.264 video** is deinterlaced and re-encoded to progressive H.264. See [Video handling](#video-handling).
-- **MPEG-2 or HEVC video** is re-encoded to H.264 in software, because browsers cannot play MPEG-2. Standard-definition channels are deinterlaced and stay at `576` lines; HD channels in those formats drop to `540` lines to keep the CPU load down.
-- **Audio** becomes stereo AAC. Freetvarr picks the main soundtrack in TVHeadend's default language and skips the audio-description track.
+- **MPEG-2 or HEVC video** is re-encoded to H.264 in software, because browsers cannot play MPEG-2. Standard-definition channels stay at `576` lines; HD channels in those formats drop to `540` lines to keep the CPU load down.
+- **Audio** becomes stereo, in TVHeadend's default language, without the audio-description track.
 
-Before it tunes, Freetvarr checks the tuners. A channel on a multiplex that a tuner already carries shares that tuner at no cost. Otherwise it needs an idle tuner, and if every tuner is busy the player says so and lists what holds each one. If a scheduled recording in the next hour will need the tuner, the player shows the recording's name and a countdown; the recording wins when the time comes, and the player says which recording took the tuner.
+Each channel needs a tuner, unless a tuner already carries its multiplex, in which case the two share it. If every tuner is busy, the player says what is using each one. If a recording in the next hour needs the tuner, the player warns you; when the recording starts, it takes the tuner.
 
 Stream limits:
 
@@ -50,7 +50,7 @@ Stream limits:
 
 ## Video handling
 
-Many broadcasters send HD as interlaced H.264. Australian 1080i, for example, is field-coded (PAFF). Chrome cannot decode interlaced H.264: its macOS hardware decoder rejects the stream, and its software fallback fails on lone fields. Safari decodes it. Freetvarr therefore deinterlaces H.264 (only the frames that are interlaced) and re-encodes it to progressive H.264.
+Many broadcasters send HD as interlaced H.264 (Australian 1080i, for example). Chrome cannot play interlaced H.264; Safari can. So Freetvarr deinterlaces H.264 and re-encodes it to progressive H.264.
 
 At startup Freetvarr reads `LIVE_TV_TRANSCODE` and picks one method:
 
@@ -70,19 +70,19 @@ Freetvarr logs the choice and the reason on a line that starts with `[live] vide
 
 ## Browser notes
 
-The player uses hls.js wherever the browser has Media Source Extensions. It uses native HLS only where they are missing, which means Safari on iPhone. Hls.js recovers from a limited number of media errors, then stops and shows the error. If an HD channel fails in Chrome, see [Playback failed on HD channels](/guide/troubleshooting#playback-failed-on-hd-channels).
+If an HD channel fails in Chrome, see [Playback failed on HD channels](/guide/troubleshooting#playback-failed-on-hd-channels).
 
 ## The tuner's own app
 
-The author uses the HDHomeRun app. Install it, and it finds the tuner by itself. Channels appear in the order TVHeadend never sees, because this path skips TVHeadend entirely: the app talks to the tuner directly. That also means it competes for tuners, so a recording in progress takes one of them. A USB or PCIe tuner has no app of its own, so watch it through TVHeadend with Jellyfin or Kodi instead.
+The author uses the HDHomeRun app, which finds the tuner by itself. The app talks to the tuner directly and skips TVHeadend, so it competes with recordings for tuners. A USB or PCIe tuner has no app of its own, so watch it through TVHeadend with Jellyfin or Kodi instead.
 
 ## Plex
 
-Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass to *record* through Plex, which is exactly the thing TVHeadend and Freetvarr already do for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi against TVHeadend instead.
+Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass only to *record* through Plex, and TVHeadend and Freetvarr already do that for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi against TVHeadend instead.
 
 ## Captions
 
-Captions arrive either as Teletext or as DVB subtitles, and your broadcaster decides which. Australian broadcasters send Teletext. This matters:
+Captions arrive either as Teletext or as DVB subtitles, and your broadcaster decides which. Australian broadcasters send Teletext, and not every app shows it:
 
 - **The native HDHomeRun app is unproven.** SiliconDust documents DVB subtitle support but says nothing about Teletext, and the author has not tested it on an Australian channel.
 - **Kodi, VLC, and Channels do render them.** If captions are a requirement, watch through one of those.
@@ -92,4 +92,4 @@ Captions arrive either as Teletext or as DVB subtitles, and your broadcaster dec
 
 ## Tuner budget
 
-Your tuner count is the limit, shared between recording and watching. The author's Flex Quatro has four tuners, so recording three overlapping programmes leaves one tuner for live TV. TVHeadend reports what's in use under **Status → Stream**.
+Recording and watching share your tuners. The author's Flex Quatro has four tuners, so recording three overlapping programmes leaves one tuner for live TV. TVHeadend reports what's in use under **Status → Stream**.

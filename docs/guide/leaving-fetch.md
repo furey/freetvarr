@@ -33,8 +33,6 @@ Freetvarr is one more optional piece. The author built it for his own setup and 
 
 ## What the Fetch box did
 
-Each thing the Fetch box did has a replacement:
-
 | Job                 | Fetch box                          | Replacement                                                                     |
 | ------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
 | Live free-to-air TV | Fetch's guide and remote           | A network tuner and its free app (Path 1), or Freetvarr in any browser (Path 2) |
@@ -91,12 +89,12 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 - [Recordings](/guide/recordings) filed into a [Plex](/guide/plex) library, so you can watch them in the Plex app on your TV. Plex is optional.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 
-The clip below runs through each tab (the dashboard, Live TV, the TV Guide, followed shows, recordings, syncs, and settings), then runs the Doctor.
+The clip below shows Freetvarr in use.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Recording works like the record button on the Fetch remote. Open a programme in the TV Guide, then press **RECORD** for one episode or **RECORD SERIES** for every episode. **WATCH LIVE** plays the channel in the browser.
+Recording works like the record button on the Fetch remote. Open a programme in the TV Guide, then press **RECORD** for one episode or **RECORD SERIES** for every episode.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -104,7 +102,7 @@ Recording works like the record button on the Fetch remote. Open a programme in 
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-On a phone, the Live TV tab lists every channel with what is on now. Tap a channel to watch it. No app is needed; the browser plays it.
+On a phone, open the Live TV tab and tap a channel. The browser plays it, with no app to install.
 
 <div class="phone-shots">
   <div class="phone-shots__row">
@@ -169,7 +167,7 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 6. Check that the computer has enough free space. Each hour of HD takes about `3–6 GB`.
 7. Copy everything: `npx fetchtv recordings --ip=192.168.1.50 --save=./fetch-recordings`.
 
-The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. The copy shows a progress bar. If it stops, run the same command again: it skips the files it already copied.
+The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again: it skips the files it already copied.
 
 To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. If you will use Plex, add `--for-plex` to name the files the way Plex expects. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
 

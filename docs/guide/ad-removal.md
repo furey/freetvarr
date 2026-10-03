@@ -7,14 +7,14 @@ description: >-
 
 # Ad removal
 
-Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using comskip (an ad-detection tool) and ffmpeg, both bundled in the image. It's off by default, and built on the assumption that detection is sometimes wrong.
+Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using comskip (an ad-detection tool) and ffmpeg, both bundled in the image. It is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
 
 > [!WARNING]<br>
 > Detection accuracy varies channel by channel, because every broadcaster cuts its breaks differently. Run `DETECT` mode first and check the breaks it reports before you let it `CUT`.
 
 ## Turn it on
 
-Turn on the master switch in Settings → AD REMOVAL (off by default), then pick a per-show mode on the Shows tab; both have to be on.
+Turn on ad removal in Settings → AD REMOVAL, then pick a mode for each show on the Shows tab. Both must be on.
 
 ## Modes
 
@@ -27,10 +27,10 @@ Every cut keeps a `.ts.orig` backup for a window you choose (`ad_original_retent
 
 ## The comskip.ini
 
-Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. It is an example, not a requirement. Drop your own `comskip.ini` into the `/config` bind mount to override it; Settings shows which one is active.
+Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. It is an example, not a requirement. To use your own, put a `comskip.ini` in the `/config` bind mount. Settings shows which file is in use.
 
 ## Cost and gating
 
-Scans work the CPU hard: budget roughly 30 minutes per 75-minute recording on NAS-class hardware (the author's measurement on a Synology; faster CPUs finish sooner). The scan runs at low priority so it doesn't starve a concurrent import. For a `CUT`-mode show, remove-from-TVHeadend is only queued once the cut verifies, so TVHeadend keeps the untouched copy if a cut fails.
+Scans work the CPU hard: budget roughly 30 minutes per 75-minute recording on NAS-class hardware (the author's measurement on a Synology; faster CPUs finish sooner). Scans run at low priority, so imports still run at full speed. For a `CUT`-mode show, Freetvarr removes the TVHeadend copy only after the cut passes its checks, so a failed cut leaves the original in TVHeadend.
 
 Cuts snap to keyframes, so a second or two either side of a break is expected. The full pipeline (verify-then-swap, keep-segment maths, crash recovery) is in the [deep dive](/deep-dive#ad-removal).
