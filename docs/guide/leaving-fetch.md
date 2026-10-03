@@ -14,10 +14,36 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 ## The pieces you need
 
-Once you know the few pieces that do the Fetch box's job, you no longer need Fetch:
+Once you know the few pieces that do the Fetch box's job, you no longer need Fetch. The arrows show where the TV signal and the guide data go, now and after the switch:
+
+```mermaid
+flowchart TB
+  subgraph before["Now: Fetch"]
+    direction LR
+    aerial1["Aerial"] --> fetch["Fetch box<br>(a Mighty records)"] --> tv1["TV"]
+    cloud["Fetch's cloud<br>guide and apps"] --> fetch
+  end
+  subgraph after["After: hardware you own"]
+    direction LR
+    aerial2["Aerial"] --> tuner["Network tuner"] --> router["Router"]
+    router --> app["Tuner app on a<br>TV or phone (Path 1)"]
+    router --> computer["Always-on computer<br>that records (Path 2)"]
+    guide["Free online guide"] --> computer
+    computer --> plex["Plex app on the TV<br>(optional)"]
+  end
+  before ~~~ after
+```
+
+The pieces:
 
 1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun is a good one. The Flex Quatro has four tuners inside, so it receives four channels at once.
 2. **Somewhere to store recordings**: a hard drive. A NAS (a small storage box with hard drives that stays on) suits this well, because it can also run the recording software.
+
+   <div class="product-shot">
+     <img src="../img/hardware/synology-ds223j.webp" alt="A small white Synology NAS with two drive bays, about the size of a shoebox, on a wooden table" width="1000" height="668" loading="lazy">
+     <p>A two-bay NAS (Synology DS223j). It holds two hard drives and stays on all the time.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Synology_Disk_Station_DS223J_-_NAS-Server.jpg">DYVER</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
+   </div>
+
 3. **Recording software** on a computer that stays on, such as the NAS. It follows the TV guide and records what you ask for. Free options include TVHeadend and Jellyfin. Paid options include Plex's own recording feature (it needs a Plex Pass subscription), Channels DVR, and SiliconDust's own recording service.
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
@@ -87,6 +113,29 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 - [Recordings](/guide/recordings) filed into a [Plex](/guide/plex) library, so you can watch them in the Plex app on your TV. Plex is optional.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 
+The clip below runs through each tab: the dashboard, Live TV, the TV Guide, followed shows, recordings, syncs, and settings.
+
+<!-- markdownlint-disable-next-line MD033 -->
+<BrowserFrame />
+
+Recording works like the record button on the Fetch remote. Open a programme in the TV Guide, then press **RECORD** for one episode or **RECORD SERIES** for every episode. **WATCH LIVE** plays the channel in the browser.
+
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/guide">
+  <img src="../img/screenshot-programme.png" alt="A programme opened from the TV Guide, with its image, description, padding settings, and WATCH LIVE, RECORD SERIES, and RECORD buttons" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
+On a phone, the Live TV tab lists every channel with what is on now. Tap a channel to watch it. No app is needed; the browser plays it.
+
+<div class="phone-shots">
+  <div class="phone-shots__row">
+    <img src="../img/screenshot-mobile-live.png" alt="The Live TV tab on a phone, listing channels with the programme on now" width="780" height="1688" loading="lazy">
+    <img src="../img/screenshot-mobile-player.png" alt="The live TV player on a phone, playing a channel" width="780" height="1688" loading="lazy">
+  </div>
+  <p>Live TV on a phone: the channel list, then the player.<br><em>Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.</em></p>
+</div>
+
 The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few typed commands. The guides linked in [Setting up](#setting-up) show each step.
 
 To use other recording software from [The pieces you need](#the-pieces-you-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
@@ -105,6 +154,11 @@ Prices are in Australian dollars, as of October 2026, and change often. Check th
 | HDHomeRun Flex Quatro, refurbished (`HDFX-4DT-R`) | The same tuner, cheaper, with a `90 day` warranty; not always in stock                                                               | `US$174.99` direct                                                                   | [SiliconDust](https://shop.silicondust.com/shop/product/dvb-t-t2-c-hdhomerun-flex-quatro-hdfx-4dt-r/)                                                                                                       |
 | F-to-PAL adapter                                  | Australian aerial leads have a PAL plug; the tuner has an F socket. Ask for one in the order notes; buy one only if it does not come | `A$4–6`                                                                              | [Jaycar `PA3672`](https://www.jaycar.com.au/f-59-plug-to-pal-tv-socket/p/PA3672)                                                                                                                            |
 | 5-port network switch                             | Only if your router has no free network (ethernet) port                                                                              | `A$23–29`                                                                            | [Amazon AU `TL-SG105`](https://www.amazon.com.au/dp/B00A128S24?tag=freetvarr-22), [Umart](https://www.umart.com.au/product/tp-link-5-port-steel-gigabit-switch-tl-sg105-25339)                              |
+
+<div class="product-shot">
+  <img src="../img/hardware/pal-and-f-plugs.webp" alt="Two aerial leads side by side: a PAL plug with a plain metal barrel on the left, and a smaller threaded F plug with a bare centre wire on the right" width="1000" height="644" loading="lazy">
+  <p>Left: the PAL plug on an Australian aerial lead. Right: an F plug, the type the tuner takes. The F-to-PAL adapter joins the two.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:TV_antenna_connectors.jpg">Sajad-HasanAhmadi</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
+</div>
 
 Buy only a `DT` model. Anything with `US` in the model number, any Flex Duo, and anything branded 4K is built for American TV and cannot receive Australian channels. Most HDHomeRun listings on Amazon AU and eBay AU are these American models. When you order from SiliconDust, write in the order notes that you need the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in his order notes, and both came in the box. Shipping from the US takes about a week, so order early.
 
@@ -165,7 +219,23 @@ Do these in order. The times are for someone doing it the first time.
 4. Remove your card from the Fetch account, so Fetch cannot charge it again.
 5. Unplug the Fetch box.
 
-To keep the Fetch box running during the test week, use a two-way TV splitter: it connects both boxes to one aerial lead. Each side gets less signal, so skip it if your reception is already weak.
+To keep the Fetch box running during the test week, use a two-way TV splitter: it connects both boxes to one aerial lead. Each side gets less signal, so skip it if your reception is already weak. If your home has an amplifier power injector, put the splitter after it, on its TV port, so the amplifier keeps its power:
+
+```mermaid
+flowchart LR
+  subgraph wall["At the wall"]
+    plate["Aerial wall socket"]
+    inj["Power injector<br>(only if fitted)"]
+  end
+  subgraph test["Test week"]
+    split["Two-way splitter"]
+    fetch["Fetch box"]
+    tuner["Network tuner"]
+  end
+  plate --> inj -->|"TV port"| split
+  split --> fetch
+  split --> tuner
+```
 
 If the new setup is not working by the deadline, paying the `$29.99` keeps the Fetch box going for another year while you finish.
 

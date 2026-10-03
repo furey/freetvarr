@@ -6,6 +6,9 @@ import './custom.css'
 
 export default {
   extends: DefaultTheme,
+  enhanceApp: ({ app }) => {
+    app.component('BrowserFrame', BrowserFrame)
+  },
   Layout: () =>
     h(DefaultTheme.Layout, null, {
       'home-hero-info-before': () => h(FetchBanner),

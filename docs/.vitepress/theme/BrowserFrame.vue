@@ -1,12 +1,18 @@
 <script setup>
 import { withBase } from 'vitepress'
-import { ref, onMounted } from 'vue'
+import { ref, computed, useSlots, onMounted } from 'vue'
 
 const props = defineProps({
   src: { type: String, default: '/demo.mp4' },
   poster: { type: String, default: '/demo-poster.jpg' },
-  label: { type: String, default: 'http://freetvarr.lan' }
+  label: { type: String, default: 'http://freetvarr.lan' },
+  credit: { type: String, default: null }
 })
+
+const VIDEO_CREDIT = 'Demo video: Big Buck Bunny, © Blender Foundation, CC BY 3.0'
+const slots = useSlots()
+const showsScreenshot = computed(() => Boolean(slots.default))
+const creditText = computed(() => props.credit ?? (showsScreenshot.value ? '' : VIDEO_CREDIT))
 
 const video = ref(null)
 
@@ -35,7 +41,10 @@ onMounted(() => {
         </span>
         <span class="browser-frame__url">{{ label }}</span>
       </div>
-      <div class="browser-frame__screen">
+      <div v-if="showsScreenshot" class="browser-frame__shot">
+        <slot />
+      </div>
+      <div v-else class="browser-frame__screen">
         <video
           ref="video"
           :poster="withBase(poster)"
@@ -50,13 +59,17 @@ onMounted(() => {
         </video>
       </div>
     </div>
-    <figcaption class="browser-frame__credit">Demo video: Big Buck Bunny, © Blender Foundation, CC BY 3.0</figcaption>
+    <figcaption v-if="creditText" class="browser-frame__credit">{{ creditText }}</figcaption>
   </figure>
 </template>
 
 <style scoped>
 .browser-frame__figure {
   margin: 0;
+}
+
+.vp-doc .browser-frame__figure {
+  margin: 24px 0;
 }
 
 .browser-frame__credit {
@@ -128,6 +141,13 @@ onMounted(() => {
 .browser-frame__screen {
   aspect-ratio: 1280 / 800;
   background: #1a1611;
+}
+
+.browser-frame__shot :slotted(img) {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
 }
 
 .browser-frame__screen video {
