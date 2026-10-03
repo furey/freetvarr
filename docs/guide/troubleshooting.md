@@ -7,7 +7,7 @@ description: 'Fixes keyed by symptom: the TVHeadend login, the wizard checks, tu
 
 Run the [Doctor](/guide/doctor) first. It checks TVHeadend, the guide, the folders, and Plex, and links each problem it finds to the section below that fixes it.
 
-Each section below starts from what you see, then gives the cause and the fix. The sections follow the order of a first install: TVHeadend, the Freetvarr wizard, the tuner and channels, the guide, then imports and Plex.
+Each section starts from what you see, then gives the cause and the fix. The sections follow the order of a first install.
 
 > [!NOTE]<br>
 > Where a fix below names an HDHomeRun or an Australian broadcaster, that is the author's own setup. Each such entry says what to do with a different tuner or in another country.
@@ -87,7 +87,7 @@ The TV Guide shows channels but no programmes, or only about a day of them.
 - The TVHeadend log says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. Link them under **Configuration → Channel/EPG → EPG Grabber Channels**, then press **Re-run internal EPG grabbers**.
 - With the feed loaded but one channel blank, that channel isn't linked to a feed channel. Fix it on the same screen.
 - After installing a grabber script, restart TVHeadend. It looks for grabbers at startup only, so a running instance never sees a new one.
-- Freetvarr holds the guide for an hour. Press `⟳ REFRESH` on the TV Guide after you fix TVHeadend.
+- Freetvarr holds the guide for an hour. Press `REFRESH` on the TV Guide after you fix TVHeadend.
 
 ## Missing channel logos
 
@@ -137,7 +137,7 @@ TVHeadend finished a recording, but nothing appears on the Recordings tab or in 
 
 The error text says which of the two causes it was:
 
-- **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress lands here, and post-recording padding keeps it there for up to ten minutes after the programme ends. The next sync picks it up.
+- **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress shows this, and post-recording padding can keep it here for up to ten minutes after the programme ends. The next sync picks it up.
 - **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two paths have to line up; run `CHECK TVHEADEND` in Settings and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 
 ## Partial recordings
@@ -146,7 +146,7 @@ The error text says which of the two causes it was:
 
 ## Slow imports
 
-- A hardlink import is instant. If you're watching a progress bar, Freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
+- A hardlink import is instant. If an import shows progress, Freetvarr is copying, because the recordings folder and the media library are on different filesystems. Put them on one filesystem to import by hardlink.
 
 ## Repeat recordings
 
@@ -166,13 +166,13 @@ TVHeadend stops with a segfault (signal `11`) just after it logs `Purging obsole
 
 An import fails with a permission error, or the TVHeadend file won't delete.
 
-- Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both services. Freetvarr hardlinks and deletes files TVHeadend created, so a mismatch shows up as a permission error at exactly those two steps.
+- Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both services. Freetvarr hardlinks and deletes files that TVHeadend created, so a mismatch fails at those steps.
 
 ## Plex not refreshing
 
 Episodes import, but Plex doesn't show them.
 
-- Press `⟳ REFRESH PLEX NOW` in Settings. It reports `Plex refresh sent (HTTP 200).` or the error.
+- Press `REFRESH PLEX NOW` in Settings. It reports `Plex refresh sent (HTTP 200).` or the error.
 - **`Plex HTTP 401`**: the token is wrong or expired. Detect or paste it again ([Plex](/guide/plex#the-token)).
 - **`Plex HTTP 404`**: the section ID doesn't exist. Pick the TV section again from the list.
 - **`ECONNREFUSED` or `ECONNABORTED`**: the Plex URL is wrong, or Plex isn't running. Use `http://<plex-host-ip>:32400`.
@@ -188,16 +188,16 @@ Episodes import, but Plex doesn't show them.
 
 Other containers can't reach Freetvarr by name.
 
-- A side-effect of host networking: Freetvarr isn't on any Docker bridge network. Reach it via the host's LAN IP and `FREETVARR_PORT` instead.
+- Under host networking, Freetvarr is on no Docker bridge network. Use the host's LAN IP and `FREETVARR_PORT` instead.
 
 ## Ad detection errors
 
 Ad detection is cutting the wrong things, or missing breaks.
 
-- Ad detection is educated guessing, never perfect. Comskip's accuracy varies a lot by channel (logo detection, silence thresholds, and break lengths all differ).
-- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. Scans work the CPU hard: budget ~30 minutes per 75-minute recording on a home NAS.
-- Cuts land on the nearest keyframe, so a second or two either side of a break is normal.
-- To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it. See [Ad removal](/guide/ad-removal).
+- Ad detection is never perfect. Comskip's accuracy varies a lot by channel.
+- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. Allow about 30 minutes of scan per 75-minute recording on a home NAS.
+- Cuts snap to the nearest keyframe, so a second or two either side of a break is normal.
+- To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. If a cut goes wrong, rename its `<file>.ts.orig` backup back to recover the original. See [Ad removal](/guide/ad-removal).
 
 ## Playback failed on HD channels
 
@@ -223,7 +223,7 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 
 ## Wrong timestamps
 
-- Set `TZ` in your `.env` to your IANA timezone; the UI shows every timestamp in the container's zone, whatever device you're browsing from.
+- Set `TZ` in your `.env` to your IANA timezone; Freetvarr shows every time in that zone, on every device.
 
 ## Source install errors
 

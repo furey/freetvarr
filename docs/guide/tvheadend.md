@@ -91,11 +91,11 @@ Now create the network the tuners will use:
 
 TVHeadend ships the community [`dtv-scan-tables`](https://github.com/tvheadend/dtv-scan-tables/tree/master/dvb-t), so you don't have to enter frequencies. The list covers every country, and each file is named by country code and by city or transmitter. Pick your own country's entry; the Australian ones below are the author's example. [Outside Australia](#outside-australia) says how the list is named for other countries.
 
-The Australian files are named `au-<Location>`: `au-Sydney`, `au-Melbourne`, `au-Brisbane`, `au-Perth`, `au-Adelaide`, `au-Darwin`, `au-Hobart`, `au-canberra` and `au-Canberra-Black-Mt`, plus around thirty regional transmitters (`au-Newcastle`, `au-Wollongong`, `au-GoldCoast`, `au-Cairns`, `au-Townsville`, `au-Gippsland`, and more). Pick the transmitter your antenna points at, not the nearest capital city. `au-ALL` exists but scans every Australian frequency, which takes a long time and finds muxes you cannot receive.
+The Australian files are named `au-<Location>`, such as `au-Sydney` or `au-Newcastle`, and cover the capital cities and the regional transmitters. Pick the transmitter your antenna points at, not the nearest capital city. Avoid `au-ALL`: it scans every Australian frequency, takes a long time, and finds muxes you cannot receive.
 
 The current linuxserver build drops the last letter of every name in the list, so `au-Sydney` shows as `au-Sydne` and `au-Brisbane` as `au-Brisban`. Pick by the stem. A search for the full city name finds only the longer entries, such as `au-Sydney_Kings_Cros`. That one is the Kings Cross repeater: an antenna aimed at the main Sydney transmitter fails every mux on it.
 
-Saving the network with a pre-defined mux list starts the scan. Watch **Configuration → DVB Inputs → Muxes**: each row moves from `PEND` to `ACTIVE` to `OK`, and the **Services** count fills in. A mux that ends `FAIL` is one your antenna can't reach, or a stale entry in the list; either way it is normal for a few of them. In the author's Sydney scan, five VHF muxes found 59 services, and `536.625 MHz` failed because SBS now broadcasts on `184.5 MHz`. Delete a failed mux so TVHeadend stops retrying it.
+Saving the network with a pre-defined mux list starts the scan. Check progress in **Configuration → DVB Inputs → Muxes**; the scan is done when each mux shows `OK` or `FAIL`. A few `FAIL` results are normal: the antenna can't reach that mux, or the list entry is out of date. In the author's Sydney scan, five VHF muxes found 59 services, and `536.625 MHz` failed because SBS now broadcasts on `184.5 MHz`. Delete a failed mux so TVHeadend stops retrying it.
 
 ## 5. Map services to channels
 
@@ -154,7 +154,7 @@ Go to **Configuration → Channel/EPG → EPG Grabber Channels**. Each row is a 
 
 Check the result in the **Electronic Program Guide** tab. Every channel you care about should show seven days of programmes with names. A channel showing nothing is an unlinked row here.
 
-The feed also supplies two kinds of image. Its `<channel>` entries carry an `<icon>`, which Freetvarr uses as the channel logo when TVHeadend has no icon of its own for that channel. Its `<programme>` entries can carry an `<icon>` too, which Freetvarr shows as the programme image in the guide and on the dashboard. Over-the-air guide data carries no programme images, so a guide fed only by the broadcast shows none.
+The feed also supplies channel logos and programme images, which Freetvarr shows when TVHeadend has none of its own. Over-the-air guide data has no programme images.
 
 ### Guide priority
 
@@ -179,12 +179,12 @@ The path is the one inside the TVHeadend container, not the host path. Freetvarr
 
 Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into Plex's library ([Following shows](/guide/following-shows)).
 
-Two settings worth knowing, both of which Freetvarr also sets per recording:
+Freetvarr also sets these two on each recording it schedules:
 
 - **Pre-recording padding**: `2` minutes.
-- **Post-recording padding**: `10` minutes. Free-to-air broadcasts run late; ten minutes is the difference between catching the end of a drama and not.
+- **Post-recording padding**: `10` minutes, because free-to-air broadcasts often run late.
 
-Set **Re-record if errors** (`rerecord-errors`) on the same profile to `0` (off). The default is `10`: a recording with more data errors than that schedules a second recording of the same episode, so a few seconds of reception glitches record the episode twice. Freetvarr shows such a recording as Recorded with a warning, not as failed.
+Set **Re-record if errors** (`rerecord-errors`) on the same profile to `0` (off). With the default of `10`, a few seconds of bad reception makes TVHeadend record the episode a second time. Freetvarr shows a recording with errors as Recorded with a warning, not as failed.
 
 ## 8. Make a user for Freetvarr
 

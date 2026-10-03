@@ -8,9 +8,9 @@ description: >-
 
 # Plex DVR instead
 
-Before you set up TVHeadend and Freetvarr, check whether you need them at all. Plex has its own recorder, Live TV & DVR. With a network tuner such as an HDHomeRun, it records free-to-air TV straight into your Plex library. If you already have a Plex Pass, that may be all you need, and it is a fine choice.
+Before you set up TVHeadend and Freetvarr, check whether you need them at all. Plex has its own recorder, Live TV & DVR. With a network tuner such as an HDHomeRun, it records free-to-air TV straight into your Plex library. If you already have a Plex Pass, that may be all you need.
 
-The author built Freetvarr before he noticed that his own Plex Pass already covered Plex DVR. This page exists so that you can check before you start.
+The author built Freetvarr before he noticed that his own Plex Pass already covered Plex DVR.
 
 > [!TIP]<br>
 > If you already have a Plex Pass, try Plex DVR first. If you don't, compare the Plex Pass price with a free setup.
@@ -91,4 +91,4 @@ Plex's own guide is [Live TV & DVR](https://support.plex.tv/articles/225877347-l
 > [!WARNING]<br>
 > Plex expects to have the tuner to itself ([Supported tuners](https://support.plex.tv/articles/225877427-supported-dvr-tuners-and-antennas/)). Don't record from Plex DVR and TVHeadend on the same tuner at the same time. To try Plex DVR, pause TVHeadend's recordings first.
 
-If Plex DVR does the job, you are done, and you don't need anything else on this site. If you later want a free recorder, browser live TV, or captions in your recordings, [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) are the next steps.
+If Plex DVR does the job, you need nothing else on this site. If you later want a free recorder, browser live TV, or captions in your recordings, [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) are the next steps.

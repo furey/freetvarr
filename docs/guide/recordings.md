@@ -7,7 +7,7 @@ description: >-
 
 # Recordings
 
-The Recordings tab is the per-episode record: every import Freetvarr has attempted, and how each one turned out.
+The Recordings tab lists every import Freetvarr has attempted, and how each one turned out.
 
 ![The Recordings tab](../img/screenshot-recordings.png)
 
@@ -21,24 +21,24 @@ The Recordings tab is the per-episode record: every import Freetvarr has attempt
 With ad removal on, an ad status also appears: `scanning`, `detected`, `no_breaks`, `cut`, `detect_failed`, or `cut_failed`. See [Ad removal](/guide/ad-removal).
 
 > [!NOTE]<br>
-> A recording still in progress has no finished file, so it lands as `skipped` and is picked up on the next sync after TVHeadend closes it. Post-recording padding means that's up to ten minutes after the programme ends.
+> A recording still in progress shows as `skipped`. The next sync after TVHeadend finishes it imports it, up to ten minutes after the programme ends because of the padding.
 
 ## Live progress
 
-A hardlink import is instant and shows no bar. A cross-filesystem copy, an ad scan, and a cut are all slow, so the row shows a thin progress bar with a percentage and a time-remaining caption, and the list refreshes every 2 seconds instead of the idle 60. A copy bar shows the speed and time left; a scan bar counts down from an estimate; a cut shows how many segments it's joined. Once nothing's active, the list goes back to refreshing slowly.
+A hardlink import is instant. A copy between filesystems, an ad scan, or a cut takes longer, so the row shows its progress and the time left.
 
 ## Re-scan and re-cut
 
-The row can re-run an ad scan or cut on the file you've already imported, without touching TVHeadend, so you can try detection on recordings you already have.
+Re-run an ad scan or cut on a file you have already imported. This does not touch TVHeadend.
 
 ## Tombstones
 
-A recording removed from TVHeadend shows struck-through and dimmed (a tombstone), but its labels, buttons, and progress bar stay readable: a tombstoned recording is still on disk in your Plex library, so you can re-scan or re-cut it. Tombstoned rows drop off the list 30 days after the remove.
+A recording removed from TVHeadend shows struck through (a tombstone). The file is still in your Plex library, so you can still re-scan or re-cut it. Tombstones leave the list 30 days after the removal.
 
 ## Failed rows
 
-A `failed` row that is no longer in TVHeadend has nothing left to clean up, so the row carries a delete button that removes it from Freetvarr's history. If the recording is still in TVHeadend, the next sync imports it again and the row comes back.
+You can delete a `failed` row from Freetvarr's history once the recording is no longer in TVHeadend. If the recording is still in TVHeadend, the next sync imports it again and the row comes back.
 
 ## Filters and time
 
-Filter by `ON TVHEADEND` / `DELETED`; the `WHEN` filter adds `1H` / `24H` shortcuts for recent activity. Timestamps show in the container's timezone (`TZ`), whatever device you're browsing from.
+Filter by `ON TVHEADEND` or `DELETED`, or by time with `WHEN`. Times show in the container's time zone (`TZ`), whatever device you browse from.

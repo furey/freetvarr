@@ -20,7 +20,7 @@ If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation
 
 ## Where it works
 
-Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, New Zealand, UK, Europe), DVB-C and DVB-S, ATSC (United States and Canada), ISDB-T. Three things differ by country, and TVHeadend holds all three: the tuner model, the guide source, and the mux scan list.
+Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, New Zealand, UK, Europe), DVB-C and DVB-S, ATSC (United States and Canada), ISDB-T. The tuner model, the guide source, and the mux scan list differ by country, and all of them are TVHeadend settings.
 
 > [!NOTE]<br>
 > These pages use Australian values in their examples (`TZ=Australia/Sydney`, the `au-Sydney` mux list, a Sydney XMLTV feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) say what to pick instead.
@@ -30,7 +30,7 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 - **Not an indexer integration** (Sonarr / Radarr / Prowlarr). Freetvarr works with the recordings TVHeadend has made, and its [TV Guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content.
 - **Not a tuner.** TVHeadend drives the tuner, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API; it never touches the hardware. See [TVHeadend](/guide/tvheadend).
 - **Not authenticated.** There's no login, so it's built for a home network you trust. The usual web hardening is in place (CSRF protection, rate limiting, a strict content-security policy), but anyone who can reach the page can change its settings, so don't expose it to the internet. See the [security model](/deep-dive#security-model).
-- **Not a converter.** Files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad-cutting copies the video across untouched and just drops the ad sections, so there's no quality loss and no change of format. If you want `.mkv`, run the files through Tdarr or similar afterwards.
+- **Not a converter.** Files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad removal drops the ad sections without re-encoding, so there's no quality loss. If you want `.mkv`, run the files through Tdarr or similar afterwards.
 - **Not a notifier.** No Discord / ntfy / push integration.
 
 > [!IMPORTANT]<br>
@@ -53,9 +53,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 - **[Leaving Fetch TV](/guide/leaving-fetch)**: save your recordings, buy a tuner, and cancel before the levy. Former Fetcharr users also read **[From Fetcharr](/guide/from-fetcharr)**.
 - **[Configuration](/guide/configuration)** and **[Troubleshooting](/guide/troubleshooting)**: the deploy knobs and the fixes for common snags.
 
-The tabs, left to right, are `DASHBOARD`, `LIVE TV`, `TV GUIDE`, `SHOWS`, `SYNCS`, `RECORDINGS`, and `SETTINGS`.
-
-It works on a phone, too: on a narrow screen every view rearranges into cards and swipeable rows of buttons.
+It works on a phone, too.
 
 <div class="freetvarr-mobile-shots">
 
