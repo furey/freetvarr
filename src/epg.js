@@ -15,15 +15,26 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
+import {
+  saveGuidePrograms,
+  loadEndedProgramsByChannel,
+  mergeGuidePrograms,
+  syncSavedDvrState,
+  savedImageFor,
+} from './guide-history.js'
 
-export const getGuideDay = async ({ day = 0 } = {}) => {
+export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
   const dayStart = guide.startMs + day * DAY_MS
   const dayEnd = dayStart + DAY_MS
+  const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: dayEnd, nowMs })
+    .catch(logHistoryError('load'))
   const programs = {}
   for (const channel of guide.channels) {
     const rows = guide.programsByChannel[String(channel.epgId)] || []
-    programs[channel.id] = rows.filter((p) => p.start < dayEnd && p.end > dayStart).map(toBrowserProgram)
+    const live = rows.filter((p) => p.start < dayEnd && p.end > dayStart)
+    const saved = endedByChannel?.get(String(channel.epgId)) || []
+    programs[channel.id] = mergeGuidePrograms({ live, saved }).map((program) => toGuideCell({ program, nowMs }))
   }
   const prefs = await getChannelPrefs()
   return {
@@ -274,6 +285,16 @@ export const projectUpcomingRecordings = ({
 
 export const toBrowserProgram = ({ image, ...program }) => ({ ...program, has_image: Boolean(image) })
 
+export const toGuideCell = ({ program, nowMs }) => {
+  const past = program.end <= nowMs
+  return { ...toBrowserProgram(program), past, recorded: past && Boolean(program.dvr_uuid) }
+}
+
+const logHistoryError = (action) => (err) => {
+  console.error(`[epg] guide history ${action} failed: ${err.message}`)
+  return null
+}
+
 const trimProgram = (p) => p == null ? null : {
   program_id: p.program_id,
   epg_program_id: p.epg_program_id,
@@ -353,6 +374,8 @@ const loadRecordingState = async (now) => {
     guide,
     nowMs: now,
   })
+  await syncSavedDvrState({ futureRecordings: state.futureRecordings, nowMs: now })
+    .catch(logHistoryError('dvr sync'))
   const value = {
     standby: false,
     storageInfo,
@@ -434,7 +457,9 @@ export const getChannelImage = async ({ channelId } = {}) => {
 
 export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
   const guide = await getCachedGuide().catch(() => null)
-  const source = guide?.imageByEventId.get(String(eventId)) || fallbackSource
+  const source = guide?.imageByEventId.get(String(eventId))
+    || fallbackSource
+    || await savedImageFor({ programId: eventId }).catch(logHistoryError('image'))
   return programmeImages.imageFor(source)
 }
 export const listGuideChannels = async () => (await getCachedGuide()).channels
@@ -491,6 +516,7 @@ const loadGuide = async (startMs) => {
     if (rows) rows.push(e)
     if (e.image) imageByEventId.set(String(e.program_id), e.image)
   }
+  await saveGuidePrograms({ programs: events }).catch(logHistoryError('save'))
   return {
     startMs,
     channels,

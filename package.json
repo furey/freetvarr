@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into Plex.",
   "license": "GPL-3.0-or-later",
@@ -47,10 +47,8 @@
     "rebuild:natives": "npm rebuild --ignore-scripts=false better-sqlite3",
     "migrate": "mkdir -p config && knex migrate:latest",
     "migrate:refresh": "rm -f ./config/state.db && mkdir -p config && knex migrate:latest",
-    "prestart": "npm run migrate",
-    "start": "node --env-file-if-exists=.env src/server.js",
-    "predev": "npm run migrate",
-    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "start": "npm run migrate && node --env-file-if-exists=.env src/server.js",
+    "dev": "npm run migrate && node --env-file-if-exists=.env --watch src/server.js",
     "test": "node --test 'test/*.test.js'",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs"
   },
