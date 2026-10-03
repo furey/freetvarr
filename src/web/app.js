@@ -9,6 +9,13 @@ import {
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
 import { isStaleBuild, shouldReloadOnPull } from '/stale-build.js'
+import {
+  localDayNumber,
+  weekdayOfDayNumber,
+  localClockMs,
+  dayLengthMin,
+  rulerTickMinutes,
+} from '/guide-time.js'
 
 let csrfToken = null
 
@@ -711,9 +718,9 @@ const fmtClockTz = (ms) => dateFormat({ hour: 'numeric', minute: '2-digit' }).fo
 const dayKey = (ms) => dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
 
 const fmtRelativeDay = (ms) => {
-  const key = dayKey(ms)
-  if (key === dayKey(Date.now())) return 'Today'
-  if (key === dayKey(Date.now() + 86_400_000)) return 'Tomorrow'
+  const daysAhead = localDayNumber({ ms, timeZone: tz.value }) - localDayNumber({ ms: Date.now(), timeZone: tz.value })
+  if (daysAhead === 0) return 'Today'
+  if (daysAhead === 1) return 'Tomorrow'
   return dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(ms)).replace(',', '')
 }
 
@@ -3949,7 +3956,6 @@ const EPG_RAIL_KEY = 'freetvarr.epgRailPx'
 const EPG_IMAGES_KEY = 'freetvarr.guideImages'
 const EPG_DRAG_THRESHOLD_PX = 6
 const PIN_LIFT_HOLD_MS = 250
-const EPG_DAY_MIN = 24 * 60
 const EPG_STATE_POLL_MS = 60_000
 const EPG_SEARCH_DEBOUNCE_MS = 300
 const EPG_LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15]
@@ -4049,7 +4055,13 @@ const ChannelsModal = {
     <div class="epg-modal-backdrop" @click.self="$emit('close')">
       <section class="panel epg-modal">
         <header class="panel-header">
-          <span class="panel-title">CHANNELS</span>
+          <span class="panel-heading">
+            <span class="panel-title">CHANNELS</span>
+            <info-button title="Channels" doc="guide/tv-guide#favourites">
+              <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
+              <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
+            </info-button>
+          </span>
           <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
         </header>
         <div class="panel-body space-y-5">
@@ -4064,11 +4076,9 @@ const ChannelsModal = {
                   @click="movePin(i, -1)" :aria-label="'Move ' + draftName(id) + ' up'"><arrow-up-icon /></button>
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === pinnedDraft.length - 1"
                   @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
-                <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">
-                  <star-icon class="icon-inline text-signal-yellow" /> {{ draftName(id) }}
-                </span>
-                <button type="button" class="btn btn-sm btn-icon" @click="toggleDraftPin(id)"
-                  :aria-label="'Remove ' + draftName(id) + ' from favourites'"><cross-icon /></button>
+                <button type="button" class="epg-pin pinned" @click="toggleDraftPin(id)"
+                  :aria-label="'Remove ' + draftName(id) + ' from favourites'"><star-icon /></button>
+                <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">{{ draftName(id) }}</span>
               </li>
             </ul>
           </div>
@@ -4631,7 +4641,7 @@ const EpgView = {
     const zoomIndex = computed(() => EPG_ZOOM_LEVELS.findIndex((l) => l.key === zoom.value))
     const zoomLevel = computed(() => EPG_ZOOM_LEVELS[zoomIndex.value])
     const pxPerMin = computed(() => zoomLevel.value.pxPerMin)
-    const trackWidth = computed(() => EPG_DAY_MIN * pxPerMin.value)
+    const trackWidth = computed(() => (guide.value ? dayLengthMin(guide.value) : 24 * 60) * pxPerMin.value)
     const zooming = ref(false)
     const narrow = useMediaQuery(EPG_NARROW_QUERY)
 
@@ -4698,14 +4708,11 @@ const EpgView = {
     const ticks = computed(() => {
       if (!guide.value) return []
       const stepMin = zoomLevel.value.halfHourTicks ? 30 : 60
-      return Array.from({ length: EPG_DAY_MIN / stepMin }, (_, i) => {
-        const min = i * stepMin
-        return {
-          x: min * pxPerMin.value,
-          label: fmtClock(guide.value.dayStart + min * 60_000),
-          half: min % 60 !== 0,
-        }
-      })
+      return rulerTickMinutes({ ...guide.value, stepMin }).map((min) => ({
+        x: min * pxPerMin.value,
+        label: fmtClock(guide.value.dayStart + min * 60_000),
+        half: min % 60 !== 0,
+      }))
     })
 
     const nowX = computed(() => {
@@ -4721,13 +4728,11 @@ const EpgView = {
       return Math.max(0, Math.ceil(nowX.value + scrollViewW.value * (1 - EPG_NOW_ANCHOR) - trackWidth.value))
     })
 
+    const todayNumber = computed(() => localDayNumber({ ms: nowMs.value, timeZone: tz.value }))
+
     const dayChips = computed(() => Array.from({ length: 7 }, (_, d) => {
       if (d === 0) return { day: 0, label: 'TODAY' }
-      const date = new Date(Date.now() + d * 86_400_000)
-      return {
-        day: d,
-        label: dateFormat({ weekday: 'short' }).format(date).toUpperCase(),
-      }
+      return { day: d, label: weekdayOfDayNumber(todayNumber.value + d).toUpperCase() }
     }))
 
     const dayTitle = computed(() => {
@@ -4961,11 +4966,25 @@ const EpgView = {
 
     const scrollToNow = () => scrollToMs(Date.now(), { anchor: EPG_NOW_ANCHOR })
 
+    const clockOfDay = (hour) =>
+      localClockMs({ dayStart: guide.value?.dayStart ?? 0, hour, timeZone: tz.value })
+
+    const rollOverToToday = async () => {
+      guideByDay.clear()
+      await loadDay(0, { force: true })
+      if (mode.value === 'guide' && !searchActive.value) await scrollToNow()
+    }
+
+    watch(nowMs, (ms) => {
+      if (day.value !== 0 || loading.value || !guide.value || ms < guide.value.dayEnd) return
+      rollOverToToday()
+    })
+
     const setDay = async (d) => {
       day.value = d
       await loadDay(d)
       if (d === 0) await scrollToNow()
-      else await scrollToMs(guide.value.dayStart + 18 * 3_600_000)
+      else await scrollToMs(clockOfDay(18))
     }
 
     const setMode = async (m) => {
@@ -4976,7 +4995,7 @@ const EpgView = {
         return
       }
       if (day.value === 0) await scrollToNow()
-      else await scrollToMs((guide.value?.dayStart ?? 0) + 18 * 3_600_000)
+      else await scrollToMs(clockOfDay(18))
     }
 
     const jumpNow = async () => {
@@ -4986,7 +5005,7 @@ const EpgView = {
 
     const jumpTonight = async () => {
       if (day.value !== 0) { day.value = 0; await loadDay(0) }
-      await scrollToMs(guide.value.dayStart + 19 * 3_600_000)
+      await scrollToMs(clockOfDay(19))
     }
 
     const railWidthOf = (el) => el.querySelector('.epg-ruler-corner')?.offsetWidth || 0
@@ -5465,7 +5484,7 @@ const EpgView = {
     watch(searchActive, async (active, wasActive) => {
       if (active || !wasActive || mode.value !== 'guide') return
       if (day.value === 0) await scrollToNow()
-      else await scrollToMs(guide.value.dayStart + 18 * 3_600_000)
+      else await scrollToMs(clockOfDay(18))
     })
 
     const onKeydown = (e) => {
