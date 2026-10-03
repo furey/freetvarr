@@ -14,6 +14,7 @@ import {
   weekdayOfDayNumber,
   localClockMs,
   dayLengthMin,
+  spillLengthMin,
   rulerTickMinutes,
 } from '/guide-time.js'
 
@@ -3210,6 +3211,7 @@ const DOCTOR_GROUPS = [
 ]
 const DOCTOR_PILLS = { pass: 'doctor-pass', warn: 'doctor-warn', fail: 'doctor-fail', skip: 'doctor-skip' }
 const DOCTOR_STATUS_ORDER = ['fail', 'warn', 'pass', 'skip']
+const DOCTOR_PILL_ORDER = ['pass', 'warn', 'fail', 'skip']
 
 const sortDoctorChecks = (checks) => [...checks].sort((a, b) =>
   DOCTOR_STATUS_ORDER.indexOf(a.status) - DOCTOR_STATUS_ORDER.indexOf(b.status))
@@ -3375,7 +3377,7 @@ const DoctorView = {
 
     const resolvedChecks = computed(() => orderedChecks.value.slice(0, revealed.value))
 
-    const summaryPills = computed(() => DOCTOR_STATUS_ORDER.map((status) => ({
+    const summaryPills = computed(() => DOCTOR_PILL_ORDER.map((status) => ({
       status,
       pill: DOCTOR_PILLS[status],
       count: resolvedChecks.value.filter((c) => c.status === status).length,
@@ -4221,7 +4223,7 @@ const EpgView = {
             </info-button>
             <info-button v-else title="TV GUIDE: GUIDE" doc="guide/tv-guide#the-grid">
               <p>Channels run down the page and time runs across; the orange line marks now. The day chips, <strong>NOW</strong>, and <strong>TONIGHT</strong> move through the week, and the zoom buttons change the time scale.</p>
-              <p>Earlier programmes from today are dimmed. Blue borders are scheduled, gold borders are series recordings, and orange is recording now. Hover a programme for its details.</p>
+              <p>Earlier programmes from today are dimmed. The grid runs on to 3am; programmes after midnight are dimmed, and the date pill opens the next day. Blue borders are scheduled, gold borders are series recordings, and orange is recording now. Hover a programme for its details.</p>
               <p>Click a programme to record it, record the series, or cancel. A programme on now also offers <strong>WATCH LIVE</strong>.</p>
             </info-button>
           </span>
@@ -4332,6 +4334,9 @@ const EpgView = {
             <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
               <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
               <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
+              <button v-if="midnightOnScreen && day < 6" type="button" class="epg-pinned-chip epg-next-day-chip"
+                :style="{ right: 'calc(' + scrollbarW + 'px + 0.4rem)' }" :aria-label="'Go to ' + nextDayLongLabel"
+                @click="goToNextDay">{{ narrow ? nextDayWeekday : nextDayLabel }} <chevron-right-icon /></button>
               <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming }]" ref="scrollEl"
                 @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
                 @pointerdown="hideTooltip" @focusin="onGridFocusIn" @focusout="onGridFocusOut">
@@ -4350,7 +4355,12 @@ const EpgView = {
                   </div>
                   <div class="epg-ruler-track" :style="{ width: trackWidth + 'px' }">
                     <span v-for="t in ticks" :key="t.x" :class="['epg-tick', { half: t.half }]" :style="{ left: t.x + 'px' }">{{ t.label }}</span>
+                    <span class="epg-tick epg-midnight-tick" :style="{ left: midnightX + 'px' }"><calendar-icon /> {{ nextDayLabel }}</span>
                   </div>
+                </div>
+                <div class="epg-midnight-line" aria-hidden="true" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }"></div>
+                <div v-if="day === 6" class="epg-guide-end-lane" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }">
+                  <span class="epg-guide-end">Guide ends {{ lastDayLabel }}</span>
                 </div>
                 <transition-group name="epg-rows" tag="div">
                 <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
@@ -4373,7 +4383,7 @@ const EpgView = {
                   </div>
                   <div class="epg-track" :style="{ width: trackWidth + 'px' }">
                     <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
-                      :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'with-thumb': cellHasThumb(p) }]"
+                      :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'next-day': p.start >= guide.dayEnd, 'with-thumb': cellHasThumb(p) }]"
                       :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
                       @click="openProgram(p, ch)">
                       <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
@@ -4641,7 +4651,8 @@ const EpgView = {
     const zoomIndex = computed(() => EPG_ZOOM_LEVELS.findIndex((l) => l.key === zoom.value))
     const zoomLevel = computed(() => EPG_ZOOM_LEVELS[zoomIndex.value])
     const pxPerMin = computed(() => zoomLevel.value.pxPerMin)
-    const trackWidth = computed(() => (guide.value ? dayLengthMin(guide.value) : 24 * 60) * pxPerMin.value)
+    const trackWidth = computed(() => (guide.value ? spillLengthMin(guide.value) : 24 * 60) * pxPerMin.value)
+    const midnightX = computed(() => (guide.value ? dayLengthMin(guide.value) : 24 * 60) * pxPerMin.value)
     const zooming = ref(false)
     const narrow = useMediaQuery(EPG_NARROW_QUERY)
 
@@ -4708,11 +4719,15 @@ const EpgView = {
     const ticks = computed(() => {
       if (!guide.value) return []
       const stepMin = zoomLevel.value.halfHourTicks ? 30 : 60
-      return rulerTickMinutes({ ...guide.value, stepMin }).map((min) => ({
-        x: min * pxPerMin.value,
-        label: fmtClock(guide.value.dayStart + min * 60_000),
-        half: min % 60 !== 0,
-      }))
+      const { dayStart, spillEnd } = guide.value
+      const midnightMin = dayLengthMin(guide.value)
+      return rulerTickMinutes({ dayStart, dayEnd: spillEnd, stepMin })
+        .filter((min) => min !== midnightMin)
+        .map((min) => ({
+          x: min * pxPerMin.value,
+          label: fmtClock(dayStart + min * 60_000),
+          half: min % 60 !== 0,
+        }))
     })
 
     const nowX = computed(() => {
@@ -4734,6 +4749,16 @@ const EpgView = {
       if (d === 0) return { day: 0, label: 'TODAY' }
       return { day: d, label: weekdayOfDayNumber(todayNumber.value + d).toUpperCase() }
     }))
+
+    const noonOf = (ms) => new Date(ms + 12 * 3_600_000)
+    const nextDayNoon = computed(() => noonOf(guide.value?.dayEnd ?? 0))
+    const nextDayLabel = computed(() =>
+      dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(nextDayNoon.value).replace(',', '').toUpperCase())
+    const nextDayWeekday = computed(() => dateFormat({ weekday: 'short' }).format(nextDayNoon.value).toUpperCase())
+    const nextDayLongLabel = computed(() =>
+      dateFormat({ weekday: 'long', day: 'numeric', month: 'long' }).format(nextDayNoon.value).replace(',', ''))
+    const lastDayLabel = computed(() =>
+      dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(noonOf(guide.value?.dayStart ?? 0)).replace(',', ''))
 
     const dayTitle = computed(() => {
       if (!guide.value) return dayChips.value[day.value]?.label || ''
@@ -4905,7 +4930,7 @@ const EpgView = {
 
     const cellWidth = (p) => {
       const start = Math.max(p.start, guide.value.dayStart)
-      const end = Math.min(p.end, guide.value.dayEnd)
+      const end = Math.min(p.end, guide.value.spillEnd)
       return Math.max(((end - start) / 60_000) * pxPerMin.value - 2, 6)
     }
 
@@ -4953,14 +4978,14 @@ const EpgView = {
       }
     }
 
-    const scrollToMs = async (ms, { anchor = 0 } = {}) => {
+    const scrollToMs = async (ms, { anchor = 0, leadPx = 60 } = {}) => {
       await nextTick()
       if (!scrollEl.value || !guide.value) return
       scrollViewW.value = scrollEl.value.clientWidth
       await nextTick()
       const x = ((ms - guide.value.dayStart) / 60_000) * pxPerMin.value
       const trackWidth = scrollEl.value.clientWidth - railWidthOf(scrollEl.value)
-      const offset = anchor ? trackWidth * anchor : 60
+      const offset = anchor ? trackWidth * anchor : leadPx
       scrollEl.value.scrollLeft = Math.max(0, x - offset)
     }
 
@@ -4980,12 +5005,17 @@ const EpgView = {
       rollOverToToday()
     })
 
-    const setDay = async (d) => {
+    const setDay = async (d, { atMs = null } = {}) => {
       day.value = d
       await loadDay(d)
-      if (d === 0) await scrollToNow()
+      if (atMs != null) await scrollToMs(Math.max(atMs, guide.value?.dayStart ?? atMs), { leadPx: 0 })
+      else if (d === 0) await scrollToNow()
       else await scrollToMs(clockOfDay(18))
     }
+
+    const leftEdgeMs = () => guide.value.dayStart + (scrollEl.value.scrollLeft / pxPerMin.value) * 60_000
+
+    const goToNextDay = () => setDay(day.value + 1, { atMs: leftEdgeMs() })
 
     const setMode = async (m) => {
       if (m !== mode.value) searchQ.value = ''
@@ -5270,6 +5300,22 @@ const EpgView = {
 
     const scrollRailTop = () => scrollEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
 
+    const midnightOnScreen = ref(false)
+
+    const updateMidnightOnScreen = () => {
+      const el = scrollEl.value
+      if (!el || !guide.value) { midnightOnScreen.value = false; return }
+      const viewW = el.clientWidth - railWidthOf(el)
+      midnightOnScreen.value = midnightX.value >= el.scrollLeft && midnightX.value <= el.scrollLeft + viewW
+    }
+
+    const updateFloatingChips = () => {
+      updatePinsOffscreen()
+      updateMidnightOnScreen()
+    }
+
+    watch([midnightX, guide], () => nextTick(updateMidnightOnScreen))
+
     const railStripH = ref(0)
     const scrollbarW = ref(0)
     const syncScrollSize = () => {
@@ -5280,15 +5326,15 @@ const EpgView = {
 
     let scrollRo = null
     watch(scrollEl, (el, prev) => {
-      if (prev) prev.removeEventListener('scroll', updatePinsOffscreen)
+      if (prev) prev.removeEventListener('scroll', updateFloatingChips)
       if (scrollRo) { scrollRo.disconnect(); scrollRo = null }
       if (el) {
-        el.addEventListener('scroll', updatePinsOffscreen, { passive: true })
-        scrollRo = new ResizeObserver(() => { syncScrollSize(); updatePinsOffscreen() })
+        el.addEventListener('scroll', updateFloatingChips, { passive: true })
+        scrollRo = new ResizeObserver(() => { syncScrollSize(); updateFloatingChips() })
         scrollRo.observe(el)
       }
       syncScrollSize()
-      updatePinsOffscreen()
+      updateFloatingChips()
     })
     onUnmounted(() => { if (scrollRo) scrollRo.disconnect() })
 
@@ -5519,6 +5565,7 @@ const EpgView = {
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
       recordingStateText, fmtProgrammeRange, cellKey, cellShowsText,
       visibleChannels, railNum, railFilter, pinnedCount, pinsOffscreen, scrollRailTop,
+      midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled, isSeriesRec, recordingFillPercent,
       jumpNow, jumpTonight, manualRefresh,
       searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered, seriesTagsFiltered,
@@ -5811,6 +5858,23 @@ const ArrowRightIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M2.5 8h11M9.5 4l4 4-4 4"/>
+    </svg>
+  `,
+}
+
+const ChevronRightIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M6 3.5l4.5 4.5L6 12.5"/>
+    </svg>
+  `,
+}
+
+const CalendarIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/>
+      <path d="M2.5 6.75h11M5.5 2v3M10.5 2v3"/>
     </svg>
   `,
 }
@@ -6415,6 +6479,8 @@ app.component('sliders-icon', SlidersIcon)
 app.component('arrow-left-icon', ArrowLeftIcon)
 app.component('arrow-right-icon', ArrowRightIcon)
 app.component('arrow-up-icon', ArrowUpIcon)
+app.component('chevron-right-icon', ChevronRightIcon)
+app.component('calendar-icon', CalendarIcon)
 app.component('arrow-down-icon', ArrowDownIcon)
 app.component('play-icon', PlayIcon)
 app.component('plus-icon', PlusIcon)
