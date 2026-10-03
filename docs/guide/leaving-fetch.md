@@ -111,7 +111,7 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 - [Recordings](/guide/recordings) filed into a [Plex](/guide/plex) library, so you can watch them in the Plex app on your TV. Plex is optional.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 
-The clip below runs through each tab: the dashboard, Live TV, the TV Guide, followed shows, recordings, syncs, and settings.
+The clip below runs through each tab (the dashboard, Live TV, the TV Guide, followed shows, recordings, syncs, and settings), then runs the Doctor.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />

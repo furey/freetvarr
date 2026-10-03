@@ -15,16 +15,19 @@ export const simulatedNow = () => {
 
 export const prepareDemoContext = async ({ context, base, simNow }) => {
   const { guide, dayOffset } = await loadSimulatedGuide({ request: context.request, base, simNow })
-  const picks = pickShowcase({ guide, simNow })
+  const picks = await pickShowcase({ request: context.request, base, guide, simNow })
   const fixtures = demoFixtures({ simNow, recording: picks.recording })
   await context.clock.install({ time: simNow })
-  await context.addInitScript(() => {
-    try { localStorage.setItem('freetvarr.welcomeDismissed', '1') } catch {}
-  })
+  await context.addInitScript((prefs) => {
+    try {
+      for (const [key, value] of Object.entries(prefs)) localStorage.setItem(key, value)
+    } catch {}
+  }, DEMO_PREFS)
   await context.route('**/api/**', refuseUnknownGet)
   await context.route('**/api/epg/logo/**', (route) => route.continue())
   await context.route('**/api/epg/image/**', (route) => route.continue())
   await context.route('**/api/csrf-token', (route) => route.continue())
+  await context.route('**/api/version', (route) => route.continue())
   await context.route('**/api/epg/guide**', rewriteJson(withSimulatedDay({ dayOffset, simNow }), shiftDay(dayOffset)))
   await context.route('**/api/epg/now**', (route) => fulfillJson(route, onNowAt({ guide, simNow, url: route.request().url() })))
   await context.route('**/api/epg/search**', rewriteJson(futureResults(simNow)))
@@ -36,6 +39,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/recordings**', (route) => fulfillJson(route, fixtures.recordingsPage))
   await context.route('**/api/recording-now', (route) => fulfillJson(route, fixtures.recordingNow))
   await context.route('**/api/folder-suggest**', (route) => fulfillJson(route, { match: null, folders: [] }))
+  await context.route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
   await context.route('**/api/**', refuseWrites)
   await context.route(/\/api\/live(\/|\?|$)/, demoLiveTv())
   return picks
@@ -44,6 +48,14 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
 export const onAirCell = (page, { program }) => page.locator('.epg-cell.on-now')
   .filter({ has: page.locator('.epg-cell-title', { hasText: program.title }) })
   .first()
+
+export const waitForProgrammeImages = (page) => page.waitForFunction(() => [...document.querySelectorAll('.programme-image')]
+  .filter((el) => {
+    const box = el.getBoundingClientRect()
+    return box.width > 0 && box.bottom > 0 && box.top < window.innerHeight && box.right > 0 && box.left < window.innerWidth
+  })
+  .every((el) => !el.classList.contains('is-loading')), null, { timeout: 15_000 })
+  .catch(() => console.log('  programme images still loading'))
 
 export const waitForImages = (page, selector) => page.waitForFunction((sel) => {
   const images = [...document.querySelectorAll(sel)]
@@ -63,6 +75,13 @@ const LAST_SYNC_AGO_MIN = 16
 const FAVOURITE_CHANNEL_PATTERNS = [/^ABC TV/i, /^SBS\b/i, /^9/i, /^7/i]
 const FAVOURITE_COUNT = 3
 const SEARCH_TITLE_MAX = 24
+const DEMO_PREFS = {
+  'freetvarr.welcomeDismissed': '1',
+  'freetvarr.guideZoom': 'm',
+  'freetvarr.guideImages': '1',
+  'freetvarr.liveImages': '1',
+  'freetvarr.liveFavouritesOnly': '0',
+}
 
 const SANITISED_SETTINGS = {
   tvh_url: 'http://192.168.1.50:9981',
@@ -87,8 +106,8 @@ const fetchGuideDay = async ({ request, base, day }) => {
   return response.json()
 }
 
-const pickShowcase = ({ guide, simNow }) => {
-  const onAir = onAirWithImage({ guide, simNow })
+const pickShowcase = async ({ request, base, guide, simNow }) => {
+  const onAir = await withServedImage({ request, base, entries: onAirWithImage({ guide, simNow }) })
   const pinned = onAir.filter(({ channel }) => channel.pinned)
   const [programme, recording] = [...pinned, ...onAir.filter(({ channel }) => !channel.pinned)]
   if (!programme) throw new Error('no on-air programme with an image at the simulated time')
@@ -99,6 +118,14 @@ const onAirWithImage = ({ guide, simNow }) => visibleChannels(guide).flatMap((ch
   const program = programsOf(guide, channel).find((p) => airsAt(p, simNow) && p.has_image)
   return program ? [{ channel, program }] : []
 })
+
+const withServedImage = async ({ request, base, entries }) => {
+  const served = await Promise.all(entries.map(async ({ program }) => {
+    const response = await request.get(`${base}/api/epg/image/${encodeURIComponent(program.program_id)}`)
+    return response.ok()
+  }))
+  return entries.filter((_, i) => served[i])
+}
 
 const upNextTitle = ({ guide, simNow }) => {
   const channels = visibleChannels(guide)
@@ -270,8 +297,44 @@ const demoFixtures = ({ simNow, recording }) => {
       journeys: [],
       fetchedAt: simNow,
     },
+    doctor: doctorReport(simNow),
   }
 }
+
+const doctorCheck = (id, group, title, status, detail, extra = {}) => ({ id, group, title, status, detail, fix: '', doc: null, ...extra })
+
+const doctorStamp = (ms) => {
+  const d = new Date(ms)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const doctorReport = (simNow) => ({
+  ranAt: new Date(simNow - 4_000).toISOString(),
+  durationMs: 1_840,
+  checks: [
+    doctorCheck('tvh.reach', 'tvheadend', 'Connection', 'pass', `TVHeadend 4.3-2491 at ${SANITISED_SETTINGS.tvh_url}, API version 19.`),
+    doctorCheck('tvh.auth', 'tvheadend', 'Login', 'pass', `Signed in as ${SANITISED_SETTINGS.tvh_username}.`),
+    doctorCheck('tvh.rights', 'tvheadend', 'User rights', 'pass', `The ${SANITISED_SETTINGS.tvh_username} entry has the Admin and Video recorder rights.`),
+    doctorCheck('tvh.tuners', 'tvheadend', 'Tuners', 'pass', '2 tuners: HDHomeRun FLEX DUO Tuner #0; HDHomeRun FLEX DUO Tuner #1.'),
+    doctorCheck('tvh.channels', 'tvheadend', 'Channels', 'pass', '38 channels in TVHeadend.'),
+    doctorCheck('guide.depth', 'guide', 'Guide depth', 'warn', `The guide runs 172 h ahead, to ${doctorStamp(simNow + 172 * 3_600_000)}. 3 of 38 channels have nothing in the next 24 h.`, {
+      fix: 'Link the empty channels under Configuration → Channel/EPG → EPG Grabber Channels.',
+      doc: 'guide/troubleshooting#empty-guide',
+    }),
+    doctorCheck('guide.logos', 'guide', 'Channel logos', 'pass', '38 of 38 channels have a TVHeadend icon.'),
+    doctorCheck('paths.recordings', 'storage', 'Recordings folder', 'pass', `${SANITISED_SETTINGS.recordings_root} is readable.`),
+    doctorCheck('paths.match', 'storage', 'TVHeadend recording path', 'pass', `TVHeadend and Freetvarr both use ${SANITISED_SETTINGS.tvh_recordings_path}.`),
+    doctorCheck('paths.media', 'storage', 'Media folder', 'pass', `${SANITISED_SETTINGS.media_root} is writable.`),
+    doctorCheck('paths.hardlink', 'storage', 'Hardlinks', 'pass', 'Recordings and media share a filesystem, so imports hardlink.'),
+    doctorCheck('disk.free', 'storage', 'Free space', 'pass', `1452 GB free on ${SANITISED_SETTINGS.recordings_root} (41%); 1452 GB free on ${SANITISED_SETTINGS.media_root} (41%).`),
+    doctorCheck('plex.reach', 'plex', 'Plex library', 'pass', `Section TV Shows reads ${SANITISED_SETTINGS.media_root}.`),
+    doctorCheck('sync.health', 'plex', 'Syncs', 'pass', `Sync #412 finished ${doctorStamp(simNow - (LAST_SYNC_AGO_MIN - 1) * MINUTE_MS)}. Schedule: */${SYNC_INTERVAL_MIN} * * * *.`),
+    doctorCheck('live.encoder', 'live', 'Live TV encoder', 'pass', 'Hardware encoding. VAAPI H.264 on /dev/dri/renderD128.'),
+    doctorCheck('ads.comskip', 'host', 'Ad removal tools', 'pass', 'comskip, ffmpeg, and ffprobe are installed.'),
+    doctorCheck('host.env', 'host', 'Time zone and network', 'pass', `Time zone ${TIMEZONE}; 192.168.1.20.`),
+  ],
+})
 
 const favouriteIds = (channels) => {
   const existing = channels.filter((c) => c.pinned).map((c) => String(c.id))

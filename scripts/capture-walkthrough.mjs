@@ -10,6 +10,7 @@ const SCROLL_MS = 1600
 const VIEW_REVEAL_MS = 850
 const LIVE_PLAY_MS = 3500
 const POSTER_AFTER_PLAY_S = 2.5
+const TOOLTIP_HOLD_MS = 1800
 
 const installCursor = (page) =>
   page.evaluate(() => {
@@ -117,6 +118,28 @@ const scrollDownAndBack = async (page, { dy, hold = 600 }) => {
   await page.waitForTimeout(400)
 }
 
+const hoverWithCursor = async (page, locator) => {
+  const box = await locator.boundingBox().catch(() => null)
+  if (!box) return false
+  const x = Math.round(box.x + box.width / 2)
+  const y = Math.round(box.y + box.height / 2)
+  await cursorTo(page, x, y)
+  await page.mouse.move(x, y, { steps: 4 })
+  await page.waitForSelector('.epg-tooltip', { timeout: 3000 }).catch(() => {})
+  await page.waitForTimeout(TOOLTIP_HOLD_MS)
+  return true
+}
+
+const runDoctor = async (page) => {
+  const doctorLink = page.locator('a[href="#/doctor"].btn').first()
+  if (!(await clickWithCursor(page, doctorLink))) return
+  await page.waitForSelector('.doctor-row', { timeout: 8000 }).catch(() => {})
+  await page.waitForFunction(() => !document.querySelector('.doctor-row-pending, .doctor-row-active, .doctor-progress'),
+    null, { timeout: 15000 }).catch(() => {})
+  await page.waitForTimeout(900)
+  await scrollDownAndBack(page, { dy: 520, hold: 900 })
+}
+
 const watchLiveBriefly = async (page, watchButton) => {
   if (!(await clickWithCursor(page, watchButton))) return null
   await cursorTo(page, 1240, 760)
@@ -168,9 +191,9 @@ const run = async () => {
   await scrollDownAndBack(page, { dy: 300 })
   const channelsButton = page.locator('.panel-header button', { hasText: 'CHANNELS' })
   if (await clickWithCursor(page, channelsButton)) {
-    await page.waitForSelector('.epg-modal', { timeout: 5000 }).catch(() => {})
+    await page.waitForSelector('.epg-modal:not(.live-modal)', { timeout: 5000 }).catch(() => {})
     await page.waitForTimeout(1200)
-    await clickWithCursor(page, page.locator('.epg-modal-x')).catch(() => {})
+    await clickWithCursor(page, page.locator('.epg-modal:not(.live-modal) .epg-modal-x')).catch(() => {})
     await page.waitForTimeout(500)
   }
 
@@ -178,11 +201,13 @@ const run = async () => {
   await page.waitForSelector('.epg-cell', { timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(1000)
   const onNowCell = onAirCell(page, picks.programme)
+  await hoverWithCursor(page, onNowCell)
   if (await clickWithCursor(page, onNowCell)) {
     await page.waitForSelector('.epg-modal .programme-image.hero img', { timeout: 8000 }).catch(() => {})
     await waitForImages(page, '.epg-modal img')
     await page.waitForTimeout(2200)
     await page.keyboard.press('Escape')
+    await page.mouse.move(0, 0)
     await page.waitForTimeout(500)
   }
   await glideScroll(page, { selector: '.epg-scroll', dx: 420, ms: 2000 })
@@ -193,9 +218,6 @@ const run = async () => {
     await page.waitForSelector('.deck-card', { timeout: 5000 }).catch(() => {})
     await waitForImages(page, '.deck-card .programme-image img')
     await page.waitForTimeout(1600)
-    await searchInput.press('ControlOrMeta+a')
-    await searchInput.press('Delete')
-    await page.waitForTimeout(700)
   }
 
   await clickTab(page, 'shows')
@@ -215,6 +237,7 @@ const run = async () => {
   await page.waitForSelector('.panel-title', { timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(600)
   await scrollDownAndBack(page, { dy: 320 })
+  await runDoctor(page)
 
   await clickTab(page, 'dashboard')
   await page.waitForSelector('.panel-title', { timeout: 8000 }).catch(() => {})
