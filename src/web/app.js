@@ -4228,6 +4228,7 @@ const EpgView = {
                     <span v-if="cellState(p) === 'recording'" class="pill recording">RECORDING</span>
                     <span v-else-if="cellState(p) === 'scheduled'" class="pill scheduled">SCHEDULED</span>
                     <span v-else-if="cellState(p) === 'series'" class="pill done">SERIES</span>
+                    <span v-else-if="cellState(p) === 'recorded'" class="pill skipped">RECORDED</span>
                   </span>
                 </div>
                 <p class="deck-card-meta flex items-center gap-1.5">
@@ -4332,7 +4333,7 @@ const EpgView = {
                   </div>
                   <div class="epg-track" :style="{ width: trackWidth + 'px' }">
                     <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
-                      :class="['epg-cell', cellState(p), { past: p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'with-thumb': cellHasThumb(p) }]"
+                      :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'with-thumb': cellHasThumb(p) }]"
                       :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
                       @click="openProgram(p, ch)">
                       <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
@@ -4344,6 +4345,7 @@ const EpgView = {
                           <span v-if="cellState(p) === 'recording'" class="led-dot sm live"></span>
                           <span v-else-if="cellState(p) === 'scheduled'" class="led-dot sm" style="background:#1eb6ff"></span>
                           <span v-else-if="cellState(p) === 'series'" class="led-dot sm" style="background:#e2b03c"></span>
+                          <span v-else-if="cellState(p) === 'recorded'" class="led-dot sm" style="background:#9a9289"></span>
                           <span v-if="isSeriesScheduled(p)" class="led-dot sm" style="background:#e2b03c"></span>
                           {{ fmtClock(p.start) }}
                         </span>
@@ -4815,6 +4817,7 @@ const EpgView = {
     const seriesKey = (t) => String(t?.seriesLinkId ?? t?.id ?? t?.name ?? '')
 
     const cellState = (p) => {
+      if (p.past) return p.recorded ? 'recorded' : ''
       const scheduled = scheduledByProgramId.value.get(String(p.program_id ?? p.programId))
       if (scheduled && activeRecordingSet.value.has(String(scheduled.programId))) return 'recording'
       if (scheduled) return 'scheduled'
@@ -4835,6 +4838,7 @@ const EpgView = {
         return isSeriesScheduled(p) ? 'series recording scheduled' : 'one-off recording scheduled'
       }
       if (state === 'series') return 'series rule on this show'
+      if (state === 'recorded') return 'recorded'
       return ''
     }
 

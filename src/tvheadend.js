@@ -441,7 +441,7 @@ const removeKeepingHistory = async ({ uuid, rerecords, conn }) => {
   await apiPost('dvr/entry/remove', { uuid }, conn)
 }
 
-const normaliseEvent = (e) => ({
+export const normaliseEvent = (e) => ({
   program_id: e.eventId,
   epg_program_id: e.eventId,
   channel_id: e.channelUuid,
