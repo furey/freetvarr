@@ -12,9 +12,9 @@ imageAlt: 'Leaving Fetch TV? Own your free-to-air setup before the levy.'
 
 Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now charges a one-off levy to keep it working until October 2027. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
-## The pieces you need
+## What you'll need
 
-Once you know the few pieces that do the Fetch box's job, you no longer need Fetch. The arrows show where the TV signal and the guide data go, now and after the switch:
+A few pieces of hardware you own can do the Fetch box's job. The arrows show where the TV signal goes, now and after the switch:
 
 ```mermaid
 flowchart TB
@@ -25,16 +25,14 @@ flowchart TB
   end
   subgraph after["After: hardware you own"]
     direction LR
-    aerial2["Aerial"] --> tuner["Network tuner"] --> router["Router"]
-    router --> app["Tuner app on a<br>TV or phone (Path 1)"]
-    router --> computer["Always-on computer<br>that records (Path 2)"]
-    guide["Free online guide"] --> computer
-    computer --> plex["Plex app on the TV<br>(optional)"]
+    aerial2["Aerial"] --> tuner["Network tuner<br>(on your router)"]
+    tuner --> app["Tuner app on a<br>TV or phone (Path 1)"]
+    tuner --> computer["Always-on computer<br>that records (Path 2)"]
   end
   before ~~~ after
 ```
 
-The pieces:
+You'll need:
 
 1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun is a good one. The Flex Quatro has four tuners inside, so it receives four channels at once.
 2. **Somewhere to store recordings**: a hard drive. A NAS (a small storage box with hard drives that stays on) suits this well, because it can also run the recording software.
@@ -138,7 +136,7 @@ On a phone, the Live TV tab lists every channel with what is on now. Tap a chann
 
 The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few typed commands. The guides linked in [Setting up](#setting-up) show each step.
 
-To use other recording software from [The pieces you need](#the-pieces-you-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
+To use other recording software from [What you'll need](#what-you-ll-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
 
 ## Shopping list
 
