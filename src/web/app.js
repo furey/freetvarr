@@ -137,17 +137,17 @@ const fmtElapsed = ({ at, nowMs }) => {
 }
 
 const plexSummary = (p) => {
-  if (p.triggered) return `plex ✓ (${p.status})`
-  if (p.skipped) return 'plex —'
-  if (p.error) return `plex ✗ ${p.error}`
-  return 'plex ?'
+  if (p.triggered) return { kind: 'mark', label: 'plex', mark: 'done', text: `(${p.status})` }
+  if (p.skipped) return { kind: 'text', text: 'plex —' }
+  if (p.error) return { kind: 'mark', label: 'plex', mark: 'failed', text: p.error }
+  return { kind: 'text', text: 'plex ?' }
 }
 
 const deleteSummary = (d) => {
-  if (d.triggered) return `rm ✓ ${d.removed?.length ?? '?'}`
-  if (d.skipped) return `rm — ${d.reason || ''}`.trim()
-  if (d.error) return `rm ✗ ${d.error}`
-  return 'rm ?'
+  if (d.triggered) return { kind: 'mark', label: 'rm', mark: 'done', text: String(d.removed?.length ?? '?') }
+  if (d.skipped) return { kind: 'text', text: `rm — ${d.reason || ''}`.trim() }
+  if (d.error) return { kind: 'mark', label: 'rm', mark: 'failed', text: d.error }
+  return { kind: 'text', text: 'rm ?' }
 }
 
 const adsSummary = (a) => {
@@ -172,8 +172,8 @@ const summaryParts = (s) => {
   if (s.imported !== undefined) parts.push({ kind: 'import', text: String(s.imported) })
   if (s.skipped !== undefined) parts.push({ kind: 'text', text: `skip ${s.skipped}` })
   if (s.failed) parts.push({ kind: 'text', text: `fail ${s.failed}` })
-  if (s.plex) parts.push({ kind: 'text', text: plexSummary(s.plex) })
-  if (s.delete) parts.push({ kind: 'text', text: deleteSummary(s.delete) })
+  if (s.plex) parts.push(plexSummary(s.plex))
+  if (s.delete) parts.push(deleteSummary(s.delete))
   if (s.ads) parts.push({ kind: 'text', text: adsSummary(s.ads) })
   if (s.message) parts.push({ kind: 'text', text: s.message })
   if (s.errors?.length) {
@@ -207,6 +207,10 @@ const SummaryLine = {
           <svg v-if="p.kind === 'import'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 align-middle text-ink-dim" aria-hidden="true">
             <path d="M8 2.5v7.5M5 7l3 3 3-3M3 13.5h10"/>
           </svg>
+          <template v-if="p.kind === 'mark'">
+            <span>{{ p.label }}</span>
+            <step-mark-icon :state="p.mark" :class="['w-3.5', 'h-3.5', 'align-middle', p.mark === 'done' ? 'text-plex-yellow' : 'text-signal-orange-hi']" />
+          </template>
           <span>{{ p.text }}</span>
         </span>
       </template>
@@ -240,6 +244,58 @@ const ProgrammeImage = {
       <img :src="src" alt="" :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @error="failed = true" />
     </div>
   `,
+}
+
+const ToggleSwitch = {
+  props: { modelValue: Boolean, label: { type: String, default: '' } },
+  emits: ['update:modelValue'],
+  template: `
+    <button type="button" role="switch" :class="['toggle', { on: modelValue }]" :aria-checked="String(modelValue)"
+      @click="$emit('update:modelValue', !modelValue)">
+      <span class="toggle-track" aria-hidden="true"><span class="toggle-knob"></span></span>
+      <span class="toggle-label"><slot>{{ label }}</slot></span>
+    </button>
+  `,
+}
+
+const ChannelIdentity = {
+  props: { channel: { type: Object, required: true }, hasLogo: Boolean, number: { type: String, default: '' } },
+  emits: ['pin'],
+  template: `
+    <button type="button" :class="['epg-pin', { pinned: channel.pinned }]" :aria-pressed="Boolean(channel.pinned)"
+      :title="channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
+      :aria-label="channel.pinned ? 'Remove ' + channel.name + ' from favourites' : 'Add ' + channel.name + ' to favourites'"
+      @click="$emit('pin')"><star-icon /></button>
+    <span class="channel-logo">
+      <img v-if="hasLogo" class="epg-rail-logo" :src="'/api/epg/logo/' + channel.id" alt="" loading="lazy"
+        draggable="false" @error="$event.target.style.display = 'none'" />
+    </span>
+    <span class="channel-name" :title="channel.name">
+      <span v-if="number" class="channel-number">{{ number }}</span>
+      {{ channel.name }}
+    </span>
+  `,
+}
+
+const channelGroupLabel = ({ pinned, anyPinned }) => {
+  if (pinned) return 'Favourites'
+  return anyPinned ? 'Other channels' : 'Channels'
+}
+
+const storedFlag = ({ key, fallback }) => {
+  const read = () => {
+    try {
+      const stored = localStorage.getItem(key)
+      return stored == null ? fallback : stored === '1'
+    } catch {
+      return fallback
+    }
+  }
+  const flag = ref(read())
+  watch(flag, (on) => {
+    try { localStorage.setItem(key, on ? '1' : '0') } catch {}
+  })
+  return flag
 }
 
 const makeStatus = () => {
@@ -617,7 +673,7 @@ const RecordingCard = {
       const current = (props.rec.steps || []).find((st) => st.state !== 'done' && st.detail)
       return current ? `${current.label}: ${current.detail}` : ''
     })
-    return { geometry, phaseLabel, liveLine, metaLine, stepDetail, stepMark, fmtClockTz }
+    return { geometry, phaseLabel, liveLine, metaLine, stepDetail, fmtClockTz }
   },
   template: `
     <article :class="['rec-card', { failed: rec.failed }]">
@@ -627,7 +683,7 @@ const RecordingCard = {
           <img class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + rec.channelId" alt=""
             @error="$event.target.style.display = 'none'" />
           <span class="rec-card-channel">{{ rec.channelName }}</span>
-          <span v-if="rec.failed" class="rec-badge failed">✕ FAILED</span>
+          <span v-if="rec.failed" class="rec-badge failed"><cross-icon /> FAILED</span>
           <span v-else-if="kind === 'active'" class="rec-badge"><span class="led-dot sm live"></span>REC</span>
           <span v-else class="rec-badge ended">ENDED {{ fmtClockTz(rec.endedAt) }}</span>
         </div>
@@ -654,7 +710,7 @@ const RecordingCard = {
           <p v-if="rec.failed" class="rec-error">{{ rec.statusText || 'Recording failed' }}</p>
           <ol class="rec-steps">
             <li v-for="st in rec.steps" :key="st.key" :class="['rec-step', st.state]">
-              <span class="rec-step-mark">{{ stepMark(st.state) }}</span>{{ st.label }}{{ st.percent != null ? ' ' + st.percent + '%' : '' }}
+              <step-mark-icon class="rec-step-mark" :state="st.state" />{{ st.label }}{{ st.percent != null ? ' ' + st.percent + '%' : '' }}
             </li>
           </ol>
           <p v-if="stepDetail" class="rec-card-meta">{{ stepDetail }}</p>
@@ -677,7 +733,14 @@ const RecordingNowPanel = {
   template: `
     <section v-if="cards.length" class="panel rec-panel">
       <header class="panel-header">
-        <span class="panel-title">{{ title }}</span>
+        <span class="panel-heading">
+          <span class="panel-title">{{ title }}</span>
+          <info-button :title="title" doc="guide/tv-guide#on-the-dashboard">
+            <p>One card for each programme TVHeadend is recording now. The orange bar runs from the padded start to the padded stop; the dim ends are the early start and the late finish.</p>
+            <p>The line under the bar shows the file size, bitrate, tuner signal, and errors, as TVHeadend reports them.</p>
+            <p>When a recording stops, its card steps through <strong>Recorded</strong>, <strong>Importing</strong>, <strong>Cutting ads</strong>, and <strong>In Plex</strong>. Importing waits for the next sync. The card goes about ten minutes after the last step.</p>
+          </info-button>
+        </span>
         <span v-if="summary" class="text-xs font-mono uppercase tracking-[0.16em] text-signal-orange">{{ summary }}</span>
       </header>
       <div class="panel-body">
@@ -714,9 +777,6 @@ const recordingLiveLine = (rec) => {
 
 const fmtReading = (value, unit) => unit === '%' ? `${value}%` : `${Number(value).toFixed(1)} ${unit}`
 
-const stepMark = (state) => STEP_MARKS[state] || '○'
-
-const STEP_MARKS = { done: '✓', active: '●', pending: '○', failed: '✕', warn: '!', skipped: '–' }
 const RECORDING_CARDS_MAX = 4
 
 const setDragLock = (on) => {
@@ -726,7 +786,7 @@ const setDragLock = (on) => {
 // Pointer-based drag (not HTML5 drag-and-drop) so reordering works with a
 // finger on iOS as well as a mouse. A pinned row's handle (the guide's rail
 // cell, Live TV's channel cell) is the drag surface; the drag only starts after
-// a small movement threshold so plain clicks and taps (the ★ button) still
+// a small movement threshold so plain clicks and taps (the star button) still
 // register. Rows are hit-tested by their live bounding boxes on every move,
 // and a cloned ghost of the handle follows the pointer.
 const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
@@ -855,11 +915,18 @@ const LiveView = {
     <div class="view-reveal space-y-6">
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">LIVE TV</span>
+          <span class="panel-heading">
+            <span class="panel-title">LIVE TV</span>
+            <info-button title="LIVE TV" doc="guide/live-tv#in-freetvarr">
+              <p>Every channel in TVHeadend, with what is on now and next. Press the TV button on a channel to watch it in the browser.</p>
+              <p>Freetvarr converts the TVHeadend stream into video the browser can play. It needs a free tuner, and a recording always takes the tuner first.</p>
+              <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels.</p>
+            </info-button>
+          </span>
           <div class="flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <button type="button" :class="['btn', 'btn-sm', { 'btn-on': pinnedOnly }]" :aria-pressed="pinnedOnly"
-              @click="pinnedOnly = !pinnedOnly">FAVOURITES ONLY</button>
+            <toggle-switch v-model="pinnedOnly" label="FAVOURITES ONLY" />
+            <toggle-switch v-model="showImages" label="IMAGES" />
             <button type="button" class="btn btn-sm" @click="channelsModal = true" :disabled="!data"><sliders-icon /> CHANNELS</button>
           </div>
         </header>
@@ -875,9 +942,10 @@ const LiveView = {
             <button type="button" class="btn btn-sm" @click="load"><refresh-icon /> RETRY</button>
           </div>
           <p v-else-if="!data" class="text-sm text-ink-dim">Loading channels…</p>
+          <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
           <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
           <div v-for="g in groups" :key="g.key" class="live-group">
-            <div class="live-group-heading">{{ g.label }}</div>
+            <div class="channel-group-heading">{{ g.label }}</div>
             <ul class="live-list">
               <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
                 :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
@@ -886,21 +954,16 @@ const LiveView = {
                   @pointermove="onPinPointerMove"
                   @pointerup="onPinPointerUp"
                   @pointercancel="onPinPointerCancel">
-                  <button type="button" :class="['epg-pin', { pinned: e.channel.pinned }]"
-                    :aria-pressed="e.channel.pinned" :aria-label="e.channel.pinned ? 'Remove ' + e.channel.name + ' from favourites' : 'Add ' + e.channel.name + ' to favourites'"
-                    @click="togglePin(e.channel)">★</button>
-                  <span class="live-row-logo">
-                    <img v-if="e.channel.hasLogo" class="epg-rail-logo" :src="'/api/epg/logo/' + e.channel.id" alt=""
-                      draggable="false" @error="$event.target.style.display = 'none'" />
-                  </span>
-                  <span class="live-row-name" :title="e.channel.name">
-                    <span v-if="e.channel.number != null" class="text-ink-mute">{{ e.channel.number }}</span>
-                    {{ e.channel.name }}
-                  </span>
+                  <channel-identity :channel="e.channel" :has-logo="e.channel.hasLogo"
+                    :number="e.channel.number == null ? '' : String(e.channel.number)" @pin="togglePin(e.channel)" />
                 </div>
                 <div class="live-row-now">
-                  <button v-if="e.now" type="button" class="on-now-open block w-full"
+                  <button v-if="e.now" type="button" class="on-now-open live-now-open"
                     :aria-label="'Show details for ' + e.now.title" @click="openDetails(e, e.now)">
+                    <span v-if="showImages" class="live-now-thumb">
+                      <programme-image v-if="e.now.has_image" :event-id="e.now.program_id" />
+                    </span>
+                    <div class="live-now-text">
                     <span class="block truncate">
                       <span class="text-sm font-semibold text-ink mr-3">{{ e.now.title }}</span>
                       <span v-if="isRecordingChannel(e.channel.id)" class="on-now-rec"><span class="led-dot sm live"></span>REC</span>
@@ -910,6 +973,7 @@ const LiveView = {
                       <div class="progress-track">
                         <div :class="['progress-fill', { rec: isRecordingChannel(e.channel.id) }]" :style="{ width: onNowPercent(e.now) + '%' }"></div>
                       </div>
+                    </div>
                     </div>
                   </button>
                   <span v-else class="text-sm text-ink-mute">No guide data</span>
@@ -941,7 +1005,8 @@ const LiveView = {
     const error = ref('')
     const tvhConfigured = ref(null)
     const filterQ = ref('')
-    const pinnedOnly = ref(false)
+    const pinnedOnly = storedFlag({ key: LIVE_FAVOURITES_ONLY_KEY, fallback: false })
+    const showImages = storedFlag({ key: LIVE_IMAGES_KEY, fallback: true })
     const channelsModal = ref(false)
     let pollTimer = null
     let boundaryTimer = null
@@ -957,15 +1022,17 @@ const LiveView = {
       const entries = (data.value?.entries || []).filter(matchesFilter)
       const pinned = entries.filter((e) => e.channel.pinned)
       const rest = pinnedOnly.value ? [] : entries.filter((e) => !e.channel.pinned)
+      const anyPinned = pinned.length > 0
       return [
-        ...(pinned.length ? [{ key: 'pinned', label: 'Favourites', entries: pinned }] : []),
-        ...(rest.length ? [{ key: 'all', label: pinned.length ? 'All channels' : 'Channels', entries: rest }] : []),
+        ...(anyPinned ? [{ key: 'pinned', label: channelGroupLabel({ pinned: true }), entries: pinned }] : []),
+        ...(rest.length ? [{ key: 'other', label: channelGroupLabel({ pinned: false, anyPinned }), entries: rest }] : []),
       ]
     })
 
+    const favouritesHint = computed(() => pinnedOnly.value && !filterQ.value.trim())
+
     const emptyText = computed(() => {
       if (filterQ.value.trim()) return `No channels or shows match "${filterQ.value.trim()}".`
-      if (pinnedOnly.value) return 'No favourites yet. Tap ☆ next to a channel to add it.'
       return 'No channels to show. Open CHANNELS to unhide some.'
     })
 
@@ -1040,7 +1107,7 @@ const LiveView = {
     })
 
     return {
-      data, error, tvhConfigured, filterQ, pinnedOnly, channelsModal, groups, emptyText,
+      data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, groups, favouritesHint, emptyText,
       load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
       dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
@@ -1053,6 +1120,8 @@ const LiveView = {
 const LIVE_LIST_POLL_MS = 30_000
 const LIVE_BOUNDARY_MIN_MS = 5_000
 const LIVE_BOUNDARY_GRACE_MS = 2_000
+const LIVE_IMAGES_KEY = 'freetvarr.liveImages'
+const LIVE_FAVOURITES_ONLY_KEY = 'freetvarr.liveFavouritesOnly'
 
 const DashboardView = {
   template: `
@@ -1061,7 +1130,14 @@ const DashboardView = {
 
       <section v-if="tvhConfigured" class="panel">
         <header class="panel-header">
-          <span class="panel-title">TV GUIDE</span>
+          <span class="panel-heading">
+            <span class="panel-title">TV GUIDE</span>
+            <info-button title="TV GUIDE" doc="guide/tv-guide#on-the-dashboard">
+              <p>What is on now on your favourite channels, what is on next, and the next recordings TVHeadend has scheduled. All of it comes from TVHeadend.</p>
+              <p>Star a channel in Live TV or the TV Guide to add it here.</p>
+              <p>Tap a programme or a recording to open its details in the TV Guide. The TV button plays the channel live.</p>
+            </info-button>
+          </span>
           <div class="flex items-center gap-4">
             <a href="#/live" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Live TV <arrow-right-icon /></a>
             <a href="#/guide" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Guide <arrow-right-icon /></a>
@@ -1130,7 +1206,14 @@ const DashboardView = {
 
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">SYNC DECK</span>
+          <span class="panel-heading">
+            <span class="panel-title">SYNC DECK</span>
+            <info-button title="SYNC DECK" doc="guide/syncs#dashboard-sync-deck">
+              <p>A sync reads the finished recordings in TVHeadend, imports the episodes of the shows you follow into your media folder, then asks Plex to refresh.</p>
+              <ul><li><strong>STATUS</strong>: idle, or syncing.</li><li><strong>LAST SYNC</strong>: when the last sync ran, and how it went.</li><li><strong>RESULT</strong>: what it imported, or what failed.</li><li><strong>SYNC NOW</strong>: runs a sync at once, without waiting for the schedule.</li></ul>
+              <p>The strip below shows TVHeadend, your followed shows, the last 7 days of recordings, and Plex. Press a cell to open its page.</p>
+            </info-button>
+          </span>
           <span v-if="nextSyncLabel" class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim" :title="'Cron: ' + syncStatus.cron">NEXT SYNC · <span class="text-ink">{{ nextSyncLabel }}</span></span>
         </header>
         <div class="deck-status">
@@ -1166,7 +1249,13 @@ const DashboardView = {
 
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">RECENT SYNCS</span>
+          <span class="panel-heading">
+            <span class="panel-title">RECENT SYNCS</span>
+            <info-button title="RECENT SYNCS" doc="guide/syncs#reading-a-sync">
+              <p>The last few syncs Freetvarr ran, newest first, with what each one imported.</p>
+              <p>A sync is <strong>ok</strong> unless something failed. <strong>See all</strong> opens the Syncs tab with the full history.</p>
+            </info-button>
+          </span>
           <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
         </header>
         <div class="panel-body">
@@ -1399,7 +1488,14 @@ const ShowsView = {
     <div class="view-reveal space-y-6">
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">TRACKED SHOWS · {{ shows.length }}</span>
+          <span class="panel-heading">
+            <span class="panel-title">TRACKED SHOWS · {{ shows.length }}</span>
+            <info-button title="TRACKED SHOWS" doc="guide/following-shows">
+              <p>The shows Freetvarr imports. Each sync checks the finished recordings in TVHeadend and files every episode whose title matches a show here into that show's folder for Plex.</p>
+              <p>TVHeadend decides what records; this list decides what Freetvarr imports. To record a show, set a series recording in the TV Guide.</p>
+              <p>For each show you can turn it off, sync it now, remove the TVHeadend copy after import, or set ad removal. A deleted show keeps the files already imported.</p>
+            </info-button>
+          </span>
           <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
         </header>
         <div class="panel-body">
@@ -1491,7 +1587,14 @@ const ShowsView = {
 
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">TRACK NEW SHOW</span>
+          <span class="panel-heading">
+            <span class="panel-title">TRACK NEW SHOW</span>
+            <info-button title="TRACK NEW SHOW" doc="guide/following-shows#add-a-show">
+              <p>Pick a title TVHeadend has recorded, or type one. A recording goes to the first show whose title match appears in the recording's title.</p>
+              <p>Freetvarr suggests a folder under your media root, and matches folders that are already there. The season template sets the name of each season folder.</p>
+              <p><strong>Auto-remove</strong> deletes the TVHeadend copy after Plex has the file. <strong>Ad removal</strong> finds or cuts the ad breaks, when it is on in Settings.</p>
+            </info-button>
+          </span>
         </header>
         <form class="panel-body" @submit.prevent="add">
           <div class="grid gap-4 md:grid-cols-2">
@@ -1737,7 +1840,14 @@ const SyncsView = {
     <div class="view-reveal space-y-6">
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title" title="Older syncs auto-pruned to keep the latest 500.">SYNCS · {{ filter === 'all' ? 'LATEST' : filter.toUpperCase() }} {{ syncs.length }}</span>
+          <span class="panel-heading">
+            <span class="panel-title" title="Older syncs auto-pruned to keep the latest 500.">SYNCS · {{ filter === 'all' ? 'LATEST' : filter.toUpperCase() }} {{ syncs.length }}</span>
+            <info-button title="SYNCS" doc="guide/syncs">
+              <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
+              <p>Syncs run on the schedule in Settings, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
+              <p>Filter the list by activity. Freetvarr keeps the latest 500 syncs.</p>
+            </info-button>
+          </span>
           <div class="flex items-center gap-3">
             <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
             <span class="text-xs font-mono text-ink-mute" title="History is auto-capped server-side at 500 most recent syncs.">CAP · 500</span>
@@ -1798,7 +1908,7 @@ const SyncsView = {
                 </button>
               </div>
               <p class="deck-card-meta">
-                {{ fmtTime(s.started_at) }}<template v-if="s.finished_at"> → {{ fmtTime(s.finished_at) }}</template>
+                {{ fmtTime(s.started_at) }}<template v-if="s.finished_at"> – {{ fmtTime(s.finished_at) }}</template>
               </p>
               <summary-line :summary="s.summary"/>
             </article>
@@ -1910,7 +2020,14 @@ const RecordingsView = {
     <div class="view-reveal space-y-6">
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">TRACKED RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
+          <span class="panel-heading">
+            <span class="panel-title">TRACKED RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
+            <info-button title="TRACKED RECORDINGS" doc="guide/recordings">
+              <p>Every episode Freetvarr has tried to import from TVHeadend, and the result: <strong>done</strong>, <strong>partial</strong>, <strong>skipped</strong>, or <strong>failed</strong>. The next sync tries a partial import again.</p>
+              <p>A struck-through row is gone from TVHeadend, but the file is still in your media folder.</p>
+              <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
+            </info-button>
+          </span>
           <div class="flex flex-wrap items-center gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
             <button type="button" class="btn btn-sm btn-danger" @click="purgeDeleted"
@@ -1964,13 +2081,13 @@ const RecordingsView = {
           </p>
           <table v-if="recordings.length" class="deck-table hidden md:table">
             <thead><tr>
-              <th class="sortable" @click="toggleSort('show_pattern')">Show{{ sortMarker('show_pattern') }}</th>
-              <th class="sortable" @click="toggleSort('title')">Title{{ sortMarker('title') }}</th>
+              <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
+              <th class="sortable" @click="toggleSort('title')">Title<sort-arrow :dir="sortDirFor('title')" /></th>
               <th>S/E</th>
-              <th class="sortable" @click="toggleSort('size')">Size{{ sortMarker('size') }}</th>
-              <th class="sortable" @click="toggleSort('status')">Status{{ sortMarker('status') }}</th>
+              <th class="sortable" @click="toggleSort('size')">Size<sort-arrow :dir="sortDirFor('size')" /></th>
+              <th class="sortable" @click="toggleSort('status')">Status<sort-arrow :dir="sortDirFor('status')" /></th>
               <th title="Ad break detection/removal status. Hover a pill for break count + minutes.">Ads</th>
-              <th class="sortable" @click="toggleSort('imported_at')">Imported{{ sortMarker('imported_at') }}</th>
+              <th class="sortable" @click="toggleSort('imported_at')">Imported<sort-arrow :dir="sortDirFor('imported_at')" /></th>
               <th></th>
             </tr></thead>
             <tbody>
@@ -2186,10 +2303,7 @@ const RecordingsView = {
       page.value = 1
     }
 
-    const sortMarker = (col) => {
-      if (sortCol.value !== col || !sortDir.value) return ''
-      return sortDir.value === 'desc' ? ' ↓' : ' ↑'
-    }
+    const sortDirFor = (col) => (sortCol.value === col ? sortDir.value : null)
 
     const canDelete = (r) => r.status === 'done' && !r.deleted_from_tvh_at
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
@@ -2347,7 +2461,7 @@ const RecordingsView = {
       canAdScan, adLabel, adTooltip, adScan,
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, purgeDeleted,
-      setStatus, setShow, setSince, setDeleted, toggleSort, sortMarker,
+      setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
       flashText, flashKind,
     }
@@ -2386,7 +2500,13 @@ const SettingsView = {
       <form @submit.prevent="save" class="space-y-6 pb-24">
         <section id="section-tvheadend" class="panel">
           <header class="panel-header">
-            <span class="panel-title">TVHEADEND</span>
+            <span class="panel-heading">
+              <span class="panel-title">TVHEADEND</span>
+              <info-button title="TVHEADEND" doc="guide/tvheadend">
+                <p>The address and login Freetvarr uses for the TVHeadend API. Freetvarr reads the guide, channels, and recordings from it, and sets and cancels recordings.</p>
+                <p><strong>AUTO-DISCOVER</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
+              </info-button>
+            </span>
             <span class="text-xs font-mono text-ink-dim">the recorder</span>
           </header>
           <div class="panel-body grid gap-4 md:grid-cols-3">
@@ -2427,19 +2547,24 @@ const SettingsView = {
               </button>
               <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
             </div>
-            <div class="md:col-span-3 flex items-center gap-3">
-              <input id="del-plex-only" type="checkbox" class="chk" v-model="deleteAfterPlexRefreshOnly" />
-              <label for="del-plex-only" class="text-sm text-ink-dim">
+            <div class="md:col-span-3">
+              <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="toggle-prose">
                 Only remove from TVHeadend after Plex refresh succeeds
                 <span class="text-ink-mute">(recommended — confirms the file is in Plex first)</span>
-              </label>
+              </toggle-switch>
             </div>
           </div>
         </section>
 
         <section id="section-schedule" class="panel">
           <header class="panel-header">
-            <span class="panel-title">SCHEDULE</span>
+            <span class="panel-heading">
+              <span class="panel-title">SCHEDULE</span>
+              <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
+                <p>How often Freetvarr checks TVHeadend for new recordings to import, as a cron rule. <code>*/30 * * * *</code> is every 30 minutes.</p>
+                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the dashboard runs a sync at any time.</p>
+              </info-button>
+            </span>
             <span class="text-xs font-mono text-ink-dim">when Freetvarr syncs</span>
           </header>
           <div class="panel-body">
@@ -2455,7 +2580,13 @@ const SettingsView = {
 
         <section id="section-storage" class="panel">
           <header class="panel-header">
-            <span class="panel-title">STORAGE</span>
+            <span class="panel-heading">
+              <span class="panel-title">STORAGE</span>
+              <info-button title="STORAGE" doc="guide/configuration#the-two-recordings-paths">
+                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, inside the Freetvarr container.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+                <p>When both containers mount the folder at the same path, the two recordings paths are the same. Keep recordings and the media root on one filesystem: imports are then instant hardlinks, not copies.</p>
+              </info-button>
+            </span>
             <span class="text-xs font-mono text-ink-dim">where recordings land</span>
           </header>
           <div class="panel-body space-y-4">
@@ -2502,7 +2633,13 @@ const SettingsView = {
 
         <section id="section-plex" class="panel">
           <header class="panel-header">
-            <span class="panel-title">PLEX</span>
+            <span class="panel-heading">
+              <span class="panel-title">PLEX</span>
+              <info-button title="PLEX" doc="guide/plex">
+                <p>Optional. After a sync imports an episode, Freetvarr asks Plex to refresh the library section, so new episodes show up without a manual scan.</p>
+                <p>Freetvarr needs the Plex address, a token, and the section. Without Plex, Freetvarr still imports and files episodes.</p>
+              </info-button>
+            </span>
             <span class="text-xs font-mono text-ink-dim">post-sync section refresh</span>
           </header>
           <div class="panel-body grid gap-4 md:grid-cols-2">
@@ -2573,16 +2710,22 @@ const SettingsView = {
 
         <section id="section-ad-removal" class="panel">
           <header class="panel-header">
-            <span class="panel-title">AD REMOVAL</span>
+            <span class="panel-heading">
+              <span class="panel-title">AD REMOVAL</span>
+              <info-button title="AD REMOVAL" doc="guide/ad-removal">
+                <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
+                <p>Turn it on here, then set a mode for each show on the Shows tab. <strong>DETECT</strong> only marks the breaks. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Detection is not always right. Use DETECT on a channel first, and check the breaks before you let it cut.</p>
+              </info-button>
+            </span>
             <span class="text-xs font-mono text-ink-dim">comskip · optional</span>
           </header>
           <div class="panel-body space-y-4">
-            <div class="flex items-center gap-3">
-              <input id="ad-removal-enabled" type="checkbox" class="chk" v-model="adRemovalEnabled" />
-              <label for="ad-removal-enabled" class="text-sm text-ink-dim">
+            <div>
+              <toggle-switch v-model="adRemovalEnabled" class="toggle-prose">
                 Enable ad removal
                 <span class="text-ink-mute">(per-show mode is set on the Shows tab)</span>
-              </label>
+              </toggle-switch>
             </div>
             <div class="field-row md:max-w-xs">
               <label class="field-label">Keep <code>.orig</code> backups for (days)</label>
@@ -2972,30 +3115,62 @@ const DOCTOR_GROUPS = [
   { key: 'live',      label: 'LIVE TV'   },
   { key: 'host',      label: 'HOST'      },
 ]
-const DOCTOR_PILLS = { pass: 'ok', warn: 'partial', fail: 'failed', skip: 'skipped' }
+const DOCTOR_PILLS = { pass: 'doctor-pass', warn: 'doctor-warn', fail: 'doctor-fail', skip: 'doctor-skip' }
 const DOCTOR_STATUS_ORDER = ['fail', 'warn', 'pass', 'skip']
 
 const sortDoctorChecks = (checks) => [...checks].sort((a, b) =>
   DOCTOR_STATUS_ORDER.indexOf(a.status) - DOCTOR_STATUS_ORDER.indexOf(b.status))
+
+const DOCTOR_SCAN_MIN_MS = 700
+const DOCTOR_REVEAL_MS = 2200
+const DOCTOR_STEP_MIN_MS = 80
+const DOCTOR_STEP_MAX_MS = 260
+
+const doctorRevealStepMs = (count) =>
+  Math.min(DOCTOR_STEP_MAX_MS, Math.max(DOCTOR_STEP_MIN_MS, DOCTOR_REVEAL_MS / Math.max(1, count)))
+
+const DoctorSpinner = {
+  template: `
+    <svg class="doctor-spinner" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <circle class="doctor-spinner-track" cx="8" cy="8" r="6"/>
+      <circle class="doctor-spinner-arc" cx="8" cy="8" r="6" pathLength="100" stroke-dasharray="28 72"/>
+    </svg>
+  `,
+}
 
 const DoctorView = {
   template: `
     <div class="view-reveal space-y-6">
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">DOCTOR</span>
+          <span class="panel-heading">
+            <span class="panel-title">DOCTOR</span>
+            <info-button title="DOCTOR" doc="guide/doctor">
+              <p>Checks TVHeadend, the guide, the folders, Plex, live TV, and the host, then says what to fix. It only reads; it changes nothing.</p>
+              <ul><li><strong>Pass</strong>: nothing to do.</li><li><strong>Warn</strong>: Freetvarr works, but something costs space, guide data, or picture quality.</li><li><strong>Fail</strong>: something Freetvarr needs is broken. The row says how to fix it.</li><li><strong>Skip</strong>: the check could not run, usually because an earlier check failed.</li></ul>
+              <p><strong>RE-RUN</strong> checks again. Otherwise the results can be up to 15 seconds old.</p>
+            </info-button>
+          </span>
           <div class="flex items-center gap-3">
-            <span v-if="report" class="text-xs font-mono text-ink-dim">ran {{ ranLabel }}, {{ durationLabel }}</span>
+            <span v-if="report && !checking" class="text-xs font-mono text-ink-dim">ran {{ ranLabel }}, {{ durationLabel }}</span>
             <button type="button" class="btn btn-sm" @click="load({ fresh: true })" :disabled="checking">
-              <template v-if="checking">CHECKING…</template><template v-else><refresh-icon /> RE-RUN</template>
+              <template v-if="checking"><doctor-spinner /> CHECKING</template><template v-else><refresh-icon /> RE-RUN</template>
             </button>
           </div>
         </header>
         <div class="panel-body space-y-3">
-          <div v-if="report" class="flex flex-wrap gap-2">
-            <span v-for="s in summaryPills" :key="s.status" :class="['pill', s.pill]">{{ s.count }} {{ s.status }}</span>
+          <div v-if="checking" class="doctor-progress" role="status">
+            <div class="doctor-progress-line">
+              <doctor-spinner class="text-signal-orange" />
+              <span class="status-readout info">{{ progressText }}</span>
+            </div>
+            <div class="progress-track">
+              <div :class="['progress-fill', { indeterminate: phase === 'scanning' }]" :style="phase === 'scanning' ? null : { width: progressPercent + '%' }"></div>
+            </div>
           </div>
-          <p v-else-if="checking" class="status-readout info">Checking TVHeadend, Plex, and the folders…</p>
+          <div v-if="report" class="flex flex-wrap gap-2">
+            <span v-for="s in summaryPills" :key="s.status" :class="['pill', s.pill, { 'doctor-pill-zero': !s.count }]">{{ s.count }} {{ s.status }}</span>
+          </div>
           <p v-if="error" class="status-readout err">Doctor failed: {{ error }}</p>
           <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
             The Doctor reads TVHeadend, Plex, and the folders Freetvarr uses, then lists what needs fixing. It changes nothing.
@@ -3008,18 +3183,24 @@ const DoctorView = {
           <span class="panel-title">{{ g.label }}</span>
         </header>
         <ul class="doctor-list">
-          <li v-for="c in g.checks" :key="c.id" class="doctor-row">
-            <span :class="['pill', 'doctor-pill', pillFor(c.status)]">{{ c.status }}</span>
+          <li v-for="c in g.checks" :key="c.id" :class="['doctor-row', 'doctor-row-' + rowState(c)]">
+            <span v-if="rowState(c) === 'resolved'" :class="['pill', 'doctor-pill', pillFor(c.status)]">{{ c.status }}</span>
+            <span v-else class="pill doctor-pill doctor-pill-pending" :aria-label="rowState(c) === 'active' ? 'Checking' : 'Waiting'">
+              <doctor-spinner v-if="rowState(c) === 'active'" /><template v-else>···</template>
+            </span>
             <div class="min-w-0 space-y-1.5">
-              <div class="text-sm font-semibold text-ink">{{ c.title }}</div>
-              <div class="doctor-detail font-mono text-xs text-ink-dim">{{ c.detail }}</div>
-              <p v-if="needsFix(c) && c.fix" class="text-sm text-ink leading-relaxed">{{ c.fix }}</p>
-              <div v-if="needsFix(c) || c.action" class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-0.5">
-                <a v-if="needsFix(c) && c.doc" :href="docsUrl(c.doc)" target="_blank" rel="noopener noreferrer"
-                  class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Read more <external-link-icon /></a>
-                <a v-if="c.action" :href="c.action.href"
-                  class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">{{ c.action.label }} <arrow-right-icon /></a>
-              </div>
+              <div class="text-sm font-semibold text-ink doctor-row-title">{{ c.title }}</div>
+              <template v-if="rowState(c) === 'resolved'">
+                <div class="doctor-detail font-mono text-xs text-ink-dim">{{ c.detail }}</div>
+                <p v-if="needsFix(c) && c.fix" class="text-sm text-ink leading-relaxed">{{ c.fix }}</p>
+                <div v-if="needsFix(c) || c.action" class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-0.5">
+                  <a v-if="needsFix(c) && c.doc" :href="docsUrl(c.doc)" target="_blank" rel="noopener noreferrer"
+                    class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Read more <external-link-icon /></a>
+                  <a v-if="c.action" :href="c.action.href"
+                    class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">{{ c.action.label }} <arrow-right-icon /></a>
+                </div>
+              </template>
+              <div v-else class="doctor-placeholder" aria-hidden="true"></div>
             </div>
           </li>
         </ul>
@@ -3030,19 +3211,9 @@ const DoctorView = {
     const report = ref(null)
     const checking = ref(false)
     const error = ref('')
-
-    const load = async ({ fresh = false } = {}) => {
-      checking.value = true
-      error.value = ''
-      try {
-        report.value = await api('GET', `/api/doctor${fresh ? '?fresh=1' : ''}`)
-      } catch (err) {
-        error.value = err.message
-      } finally {
-        checking.value = false
-      }
-      await scrollToRouteSection()
-    }
+    const phase = ref('scanning')
+    const revealed = ref(0)
+    let runId = 0
 
     const groups = computed(() => {
       const checks = report.value?.checks || []
@@ -3051,11 +3222,80 @@ const DoctorView = {
         .filter((g) => g.checks.length)
     })
 
+    const orderedChecks = computed(() => groups.value.flatMap((g) => g.checks))
+    const revealOrder = computed(() => new Map(orderedChecks.value.map((c, i) => [c.id, i])))
+
+    const rowState = (c) => {
+      const index = revealOrder.value.get(c.id)
+      if (index < revealed.value) return 'resolved'
+      if (phase.value === 'revealing' && index === revealed.value) return 'active'
+      return 'pending'
+    }
+
+    const isCurrentRun = (id) => id === runId
+
+    const revealRows = async (id) => {
+      const total = orderedChecks.value.length
+      if (prefersReducedMotion()) {
+        revealed.value = total
+        return
+      }
+      const stepMs = doctorRevealStepMs(total)
+      for (let i = 1; i <= total; i += 1) {
+        await wait(stepMs)
+        if (!isCurrentRun(id)) return
+        revealed.value = i
+      }
+    }
+
+    const fetchReport = async ({ fresh, id }) => {
+      const minimumScan = prefersReducedMotion() ? null : wait(DOCTOR_SCAN_MIN_MS)
+      const [result] = await Promise.allSettled([api('GET', `/api/doctor${fresh ? '?fresh=1' : ''}`), minimumScan])
+      if (!isCurrentRun(id)) return false
+      if (result.status === 'rejected') {
+        error.value = result.reason?.message || String(result.reason)
+        return false
+      }
+      report.value = result.value
+      return true
+    }
+
+    const load = async ({ fresh = false } = {}) => {
+      const id = ++runId
+      checking.value = true
+      error.value = ''
+      phase.value = 'scanning'
+      revealed.value = 0
+      const ok = await fetchReport({ fresh, id })
+      if (!isCurrentRun(id)) return
+      if (ok) {
+        phase.value = 'revealing'
+        await scrollToRouteSection()
+        await revealRows(id)
+        if (!isCurrentRun(id)) return
+      } else {
+        revealed.value = orderedChecks.value.length
+      }
+      phase.value = 'done'
+      checking.value = false
+    }
+
+    const resolvedChecks = computed(() => orderedChecks.value.slice(0, revealed.value))
+
     const summaryPills = computed(() => DOCTOR_STATUS_ORDER.map((status) => ({
       status,
       pill: DOCTOR_PILLS[status],
-      count: report.value?.summary?.[status] ?? 0,
+      count: resolvedChecks.value.filter((c) => c.status === status).length,
     })))
+
+    const progressPercent = computed(() => {
+      const total = orderedChecks.value.length
+      return total ? Math.round((revealed.value / total) * 100) : 0
+    })
+
+    const progressText = computed(() => (phase.value === 'scanning'
+      ? 'Checking TVHeadend, Plex, and the folders…'
+      : `Checked ${revealed.value} of ${orderedChecks.value.length}`))
 
     const ranLabel = computed(() => fmtClockTz(Date.parse(report.value.ranAt)))
     const durationLabel = computed(() => `${(report.value.durationMs / 1000).toFixed(1)} s`)
@@ -3066,11 +3306,14 @@ const DoctorView = {
 
     onMounted(load)
     const stopSectionWatch = watch(routeSection, scrollToRouteSection)
-    onUnmounted(stopSectionWatch)
+    onUnmounted(() => {
+      runId += 1
+      stopSectionWatch()
+    })
 
     return {
-      report, checking, error, load, groups, summaryPills,
-      ranLabel, durationLabel, pillFor, needsFix, docsUrl,
+      report, checking, error, phase, load, groups, rowState, summaryPills,
+      progressPercent, progressText, ranLabel, durationLabel, pillFor, needsFix, docsUrl,
     }
   },
 }
@@ -3093,7 +3336,7 @@ const WelcomeView = {
               This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend — Plex is optional.
             </p>
             <p v-if="hasExistingConfig" class="text-xs font-mono text-plex-yellow">
-              ● RETURN VISIT — your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
+              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> RETURN VISIT — your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
             </p>
           </div>
 
@@ -3254,7 +3497,7 @@ const WelcomeView = {
 
           <div v-if="step === 5" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
-              <span class="text-plex-yellow">●</span> You're set.
+              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> You're set.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               Next: head to the <strong class="text-ink">Shows</strong> tab and add your first show. Freetvarr will pick it up on the next sync (every 30 minutes by default).
@@ -3600,10 +3843,12 @@ const WelcomeView = {
 }
 
 const EPG_PX_PER_MIN = 3
-const EPG_RAIL_DEFAULT_PX = 148
+const EPG_RAIL_DEFAULT_PX = 200
 const EPG_RAIL_MIN_PX = 90
-const EPG_RAIL_MAX_PX = 260
+const EPG_RAIL_MAX_PX = 320
 const EPG_RAIL_KEY = 'freetvarr.epgRailPx'
+const EPG_IMAGES_KEY = 'freetvarr.guideImages'
+const EPG_THUMB_MIN_CELL_PX = 150
 const EPG_DRAG_THRESHOLD_PX = 6
 const PIN_LIFT_HOLD_MS = 250
 const EPG_DAY_MIN = 24 * 60
@@ -3623,6 +3868,82 @@ const CHANNEL_SORT_OPTIONS = [
   { key: 'name', label: 'NAME' },
 ]
 
+let infoDialogCount = 0
+
+const InfoButton = {
+  props: {
+    title: { type: String, required: true },
+    doc: { type: String, default: '' },
+  },
+  template: `
+    <button ref="trigger" type="button" class="info-btn" :aria-label="'About ' + title" :title="'About ' + title"
+      :aria-expanded="open" @click="show"><info-icon /></button>
+    <teleport to="body">
+      <transition name="epg-sheet">
+        <div v-if="open" class="epg-modal-backdrop" @click.self="close">
+          <section ref="dialog" class="panel epg-modal info-modal" role="dialog" aria-modal="true"
+            :aria-labelledby="headingId" tabindex="-1">
+            <header class="panel-header">
+              <span :id="headingId" class="panel-title">{{ title }}</span>
+              <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
+            </header>
+            <div class="panel-body info-modal-body">
+              <slot />
+              <div class="epg-modal-actions flex items-center justify-end gap-2">
+                <button type="button" class="btn epg-modal-close mr-auto" @click="close"><cross-icon /> CLOSE</button>
+                <a v-if="doc" :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn btn-sm no-hover-underline">
+                  READ THE DOCS <external-link-icon />
+                </a>
+              </div>
+            </div>
+          </section>
+        </div>
+      </transition>
+    </teleport>
+  `,
+  setup(props) {
+    const open = ref(false)
+    const trigger = ref(null)
+    const dialog = ref(null)
+    const headingId = `info-dialog-${++infoDialogCount}`
+    const docUrl = computed(() => `${DOCS_BASE}${props.doc}`)
+
+    const onKeydown = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      close()
+    }
+
+    const setSheetOpen = (isOpen) => {
+      try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
+    }
+
+    const show = async () => {
+      open.value = true
+      setSheetOpen(true)
+      window.addEventListener('keydown', onKeydown, true)
+      await nextTick()
+      dialog.value?.focus()
+    }
+
+    const close = () => {
+      if (!open.value) return
+      open.value = false
+      setSheetOpen(false)
+      window.removeEventListener('keydown', onKeydown, true)
+      trigger.value?.focus()
+    }
+
+    onUnmounted(() => {
+      if (!open.value) return
+      setSheetOpen(false)
+      window.removeEventListener('keydown', onKeydown, true)
+    })
+
+    return { open, trigger, dialog, headingId, docUrl, show, close }
+  },
+}
+
 const ChannelsModal = {
   props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts'],
   emits: ['close', 'saved'],
@@ -3637,7 +3958,7 @@ const ChannelsModal = {
           <div>
             <label class="field-label">FAVOURITES · SHOWN FIRST, IN THIS ORDER</label>
             <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
-              No favourites yet. Tap the ☆ next to a channel below, in the TV Guide rail, or in Live TV.
+              No favourites yet. Tap the <star-icon class="icon-inline" /> next to a channel below, in the TV Guide rail, or in Live TV.
             </p>
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
@@ -3646,7 +3967,7 @@ const ChannelsModal = {
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === pinnedDraft.length - 1"
                   @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
                 <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">
-                  <span class="text-signal-yellow">★</span> {{ draftName(id) }}
+                  <star-icon class="icon-inline text-signal-yellow" /> {{ draftName(id) }}
                 </span>
                 <button type="button" class="btn btn-sm btn-icon" @click="toggleDraftPin(id)"
                   :aria-label="'Remove ' + draftName(id) + ' from favourites'"><cross-icon /></button>
@@ -3671,12 +3992,12 @@ const ChannelsModal = {
             </p>
           </div>
           <div>
-            <label class="field-label">ALL CHANNELS · ★ FAVOURITE, TICK TO SHOW</label>
+            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW</label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
               <div v-for="ch in channels" :key="ch.id" class="flex items-center gap-2">
                 <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
                   @click="toggleDraftPin(String(ch.id))"
-                  :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'">★</button>
+                  :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"><star-icon /></button>
                 <label class="flex items-center gap-2.5 text-sm cursor-pointer min-w-0"
                   :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
                   <input type="checkbox" class="chk"
@@ -3777,12 +4098,20 @@ const togglePinnedChannel = async ({ pinnedIds, channelId }) => {
 
 const EpgView = {
   template: `
-    <div class="view-reveal space-y-6">
+    <div :class="['view-reveal', 'space-y-6', { 'max-w-[69rem] mx-auto': mode !== 'guide' }]">
       <section class="panel">
         <header class="panel-header">
-          <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · {{ dayTitle }}</template><template v-else> · {{ mode.toUpperCase() }}</template></span>
+          <span class="panel-heading">
+            <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · {{ dayTitle }}</template><template v-else> · {{ mode.toUpperCase() }}</template></span>
+            <info-button title="TV GUIDE" doc="guide/tv-guide">
+              <p>Seven days of programmes from the TVHeadend guide. Click a programme to record it, record the series, or cancel; Freetvarr sends the command to TVHeadend.</p>
+              <p>Blue borders are scheduled, gold borders are series recordings, and orange is recording now. <strong>UPCOMING</strong> lists what will record; <strong>SERIES</strong> lists the series rules.</p>
+              <p>The guide only shows the guide data loaded into TVHeadend.</p>
+            </info-button>
+          </span>
           <div class="flex flex-wrap items-center gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
+            <toggle-switch v-if="mode === 'guide'" v-model="showImages" label="IMAGES" />
             <button type="button" class="btn btn-sm" @click="openChannelsModal" :disabled="!guide"><sliders-icon /> CHANNELS</button>
             <button type="button" class="btn btn-sm" @click="manualRefresh" :disabled="loading"><refresh-icon /> REFRESH</button>
           </div>
@@ -3871,8 +4200,8 @@ const EpgView = {
               </p>
               <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
             </div>
-            <div v-else-if="loading && !guide" class="text-ink-dim font-mono text-sm">▰▰ loading guide…</div>
-            <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 32vw)' }">
+            <div v-else-if="loading && !guide" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> loading guide…</div>
+            <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
               <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
               <div class="epg-scroll" ref="scrollEl">
               <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + trackWidth + 'px)' }">
@@ -3894,28 +4223,26 @@ const EpgView = {
                 <transition-group name="epg-rows" tag="div">
                 <div v-for="ch in visibleChannels" :key="ch.id"
                   v-show="rowShown(ch)"
-                  v-memo="[ch, nowMs, state, railNumWidth, rowShown(ch), firstUnpinnedId === String(ch.id), dropTargetId === String(ch.id), dragPinId === String(ch.id)]"
+                  v-memo="[ch, nowMs, state, railNumWidth, showImages, rowShown(ch), groupHeadings.get(String(ch.id)), dropTargetId === String(ch.id), dragPinId === String(ch.id)]"
                   :data-channel-id="ch.id"
-                  :class="['epg-row', { 'epg-pin-divider': firstUnpinnedId === String(ch.id), pinned: ch.pinned, 'epg-drop-target': dropTargetId === String(ch.id), 'epg-dragging': dragPinId === String(ch.id) }]">
+                  :class="['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === String(ch.id), 'epg-dragging': dragPinId === String(ch.id) }]">
+                  <div v-if="groupHeadings.has(String(ch.id))" class="epg-group-heading">
+                    <span class="channel-group-heading">{{ groupHeadings.get(String(ch.id)) }}</span>
+                  </div>
                   <div class="epg-rail-cell"
                     :title="ch.pinned ? 'Drag to reorder favourites' : null"
                     @pointerdown="onPinPointerDown(ch, $event)"
                     @pointermove="onPinPointerMove"
                     @pointerup="onPinPointerUp"
                     @pointercancel="onPinPointerCancel">
-                    <button type="button" :class="['epg-pin', { pinned: ch.pinned }]"
-                      :title="ch.pinned ? 'Remove from favourites' : 'Add to favourites'"
-                      :aria-label="ch.pinned ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"
-                      @click="togglePin(ch)">★</button>
-                    <span class="epg-rail-num">{{ railNum(ch) }}</span>
-                    <img v-if="ch.logos?.length" class="epg-rail-logo" :src="'/api/epg/logo/' + ch.id" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
-                    <span class="epg-rail-name">{{ ch.name }}</span>
+                    <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
                   </div>
                   <div class="epg-track" :style="{ width: trackWidth + 'px' }">
                     <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
-                      :class="['epg-cell', cellState(p), { past: p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs }]"
+                      :class="['epg-cell', cellState(p), { past: p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'with-thumb': cellHasThumb(p) }]"
                       :style="cellStyle(p)" :title="cellTitle(p)"
                       @click="openProgram(p, ch)">
+                      <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell" />
                       <span v-if="cellState(p) === 'recording'" class="epg-cell-rec-fill" :style="{ width: recordingFillPercent(p) + '%' }"></span>
                       <template v-if="cellWidth(p) > 40">
                         <span class="epg-cell-title">{{ p.title }}</span>
@@ -3939,7 +4266,7 @@ const EpgView = {
 
           <template v-else-if="mode === 'upcoming'">
             <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
-            <div v-else-if="!state" class="text-ink-dim font-mono text-sm">▰▰ contacting TVHeadend…</div>
+            <div v-else-if="!state" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
             <template v-else>
               <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
               <p v-if="upcoming.length === 0" class="text-ink-dim text-sm">Nothing scheduled in TVHeadend.</p>
@@ -3979,7 +4306,7 @@ const EpgView = {
 
           <template v-else>
             <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
-            <div v-else-if="!state" class="text-ink-dim font-mono text-sm">▰▰ contacting TVHeadend…</div>
+            <div v-else-if="!state" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
             <template v-else>
               <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
               <p v-if="seriesTags.length === 0" class="text-ink-dim text-sm">No series recordings set in TVHeadend.</p>
@@ -4160,6 +4487,7 @@ const EpgView = {
     const nowMs = computed(() => Math.floor(now.value.getTime() / 60_000) * 60_000)
 
     const railFilter = ref('')
+    const showImages = storedFlag({ key: EPG_IMAGES_KEY, fallback: true })
 
     const visibleChannels = computed(() =>
       (guide.value?.channels || []).filter((c) => !c.hidden))
@@ -4181,12 +4509,15 @@ const EpgView = {
 
     const rowShown = (ch) => !railMatchIds.value || railMatchIds.value.has(String(ch.id))
 
-    const firstUnpinnedId = computed(() => {
+    const groupHeadings = computed(() => {
       const shown = visibleChannels.value.filter(rowShown)
-      for (let i = 1; i < shown.length; i++) {
-        if (!shown[i].pinned && shown[i - 1].pinned) return String(shown[i].id)
-      }
-      return null
+      const firstPinned = shown.find((c) => c.pinned)
+      const firstOther = shown.find((c) => !c.pinned)
+      const anyPinned = Boolean(firstPinned)
+      return new Map([
+        ...(firstPinned ? [[String(firstPinned.id), channelGroupLabel({ pinned: true })]] : []),
+        ...(firstOther ? [[String(firstOther.id), channelGroupLabel({ pinned: false, anyPinned })]] : []),
+      ])
     })
 
     const pinnedCount = computed(() => visibleChannels.value.filter((c) => c.pinned).length)
@@ -4384,6 +4715,8 @@ const EpgView = {
       const end = Math.min(p.end, guide.value.dayEnd)
       return Math.max(((end - start) / 60_000) * EPG_PX_PER_MIN - 2, 6)
     }
+
+    const cellHasThumb = (p) => showImages.value && p.has_image && cellWidth(p) >= EPG_THUMB_MIN_CELL_PX
 
     const recordingFillPercent = (p) => {
       const span = p.end - p.start
@@ -4804,7 +5137,7 @@ const EpgView = {
       upcoming, seriesTags, seriesKey, cancelUpcoming, cancelSeriesTag, openSeriesTag,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
-      togglePin, rowShown, firstUnpinnedId,
+      togglePin, rowShown, groupHeadings, showImages, cellHasThumb,
       dropTargetId, dragPinId,
       onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
@@ -5128,6 +5461,45 @@ const CheckIcon = {
   `,
 }
 
+const StarIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 1.25l2.03 4.3 4.72.58-3.47 3.25.9 4.67L8 11.75l-4.18 2.3.9-4.67L1.25 6.13l4.72-.58z"/>
+    </svg>
+  `,
+}
+
+const StepMarkIcon = {
+  props: { state: { type: String, default: 'pending' } },
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path v-if="state === 'done'" d="M3 8.5l3.25 3.25L13 5"/>
+      <circle v-else-if="state === 'active'" cx="8" cy="8" r="4" fill="currentColor" stroke="none"/>
+      <path v-else-if="state === 'failed'" d="M4 4l8 8M12 4l-8 8"/>
+      <path v-else-if="state === 'warn'" d="M8 3v6.25M8 12.75v.25"/>
+      <path v-else-if="state === 'skipped'" d="M4 8h8"/>
+      <circle v-else cx="8" cy="8" r="3.75"/>
+    </svg>
+  `,
+}
+
+const SortArrow = {
+  props: { dir: { type: String, default: null } },
+  template: `
+    <arrow-down-icon v-if="dir === 'desc'" class="sort-arrow" />
+    <arrow-up-icon v-else-if="dir === 'asc'" class="sort-arrow" />
+  `,
+}
+
+const SignalBarsIcon = {
+  template: `
+    <svg viewBox="0 0 10 4" class="signal-bars" fill="currentColor" aria-hidden="true">
+      <rect x="0" y="0" width="4" height="4"/>
+      <rect x="5.5" y="0" width="4" height="4"/>
+    </svg>
+  `,
+}
+
 const SearchIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -5173,6 +5545,16 @@ const ExternalLinkIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/>
+    </svg>
+  `,
+}
+
+const InfoIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.25"/>
+      <path d="M8 7.25v4"/>
+      <circle cx="8" cy="4.9" r="0.85" fill="currentColor" stroke="none"/>
     </svg>
   `,
 }
@@ -5364,7 +5746,7 @@ const App = {
                 <rect x="11.5" y="0" width="4" height="3" fill="#e2b03c"/>
               </svg>
               <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">Freetvarr</span>
-              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]"><span class="text-signal-orange">//</span> tvheadend → plex bridge</span>
+              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]"><span class="text-signal-orange">//</span> Self-hosted free-to-air TV</span>
             </a>
             <div class="flex items-center gap-5">
               <a v-if="recordingCount" href="#/dashboard" class="no-hover-underline flex items-center gap-2" :title="recordingCount + ' recording now in TVHeadend'">
@@ -5398,13 +5780,13 @@ const App = {
         <stale-build-banner />
       </header>
 
-      <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-5 md:px-6 md:py-8">
+      <main :class="['flex-1', route === 'guide' ? 'max-w-none' : 'max-w-6xl', 'w-full', 'mx-auto', 'px-4', 'py-5', 'md:px-6', 'md:py-8']">
         <component :is="currentView" :key="route + ':' + refreshTick" />
       </main>
 
       <footer class="border-t border-hairline">
         <div class="max-w-6xl mx-auto px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-ink-mute">
-          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> · tvheadend → plex bridge</span>
+          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> · Self-hosted free-to-air TV</span>
           <a
             href="https://github.com/furey/freetvarr"
             target="_blank"
@@ -5608,11 +5990,20 @@ const app = createApp(App)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
+app.component('toggle-switch', ToggleSwitch)
+app.component('channel-identity', ChannelIdentity)
+app.component('star-icon', StarIcon)
+app.component('step-mark-icon', StepMarkIcon)
+app.component('sort-arrow', SortArrow)
+app.component('signal-bars-icon', SignalBarsIcon)
 app.component('recording-card', RecordingCard)
 app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
+app.component('info-button', InfoButton)
+app.component('info-icon', InfoIcon)
+app.component('doctor-spinner', DoctorSpinner)
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)

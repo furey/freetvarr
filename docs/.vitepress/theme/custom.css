@@ -170,3 +170,50 @@ kbd {
 .vp-doc li {
   text-wrap: pretty;
 }
+
+.vp-doc .product-shot {
+  max-width: 440px;
+  margin: 24px auto;
+}
+
+.vp-doc .product-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.vp-doc .product-shot p,
+.vp-doc .phone-shots p {
+  margin-top: 8px;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.vp-doc .product-shot em,
+.vp-doc .phone-shots em {
+  font-style: normal;
+  color: var(--vp-c-text-3);
+  font-size: 11px;
+}
+
+.vp-doc .phone-shots {
+  margin: 24px auto;
+  max-width: 440px;
+}
+
+.vp-doc .phone-shots__row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.vp-doc .phone-shots__row img {
+  width: calc(50% - 8px);
+  height: auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 16px;
+}

@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Watch live TV in your browser. Sync TVHeadend recordings into Plex.</strong><br/>
-  A self-hosted bridge for free-to-air TV, recorded with a TVHeadend-compatible tuner.
+  A self-hosted companion for TVHeadend and compatible tuner.
 </p>
 
 <p align="center">
@@ -22,6 +22,10 @@
 
 <p align="center">
   Leaving Fetch TV? See the <a href="https://furey.github.io/freetvarr/guide/leaving-fetch">step-by-step guide</a> to owning your setup before the levy.
+</p>
+
+<p align="center">
+  Have a Plex Pass? Plex's own DVR may be all you need. See <a href="#why-not-just-plex-dvr">Why not just Plex DVR</a>.
 </p>
 
 ## Contents
