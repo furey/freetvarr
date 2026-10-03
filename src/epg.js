@@ -25,13 +25,13 @@ import {
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
-  const { dayStart, dayEnd } = guideDayWindow({ startMs: guide.startMs, day })
-  const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: dayEnd, nowMs })
+  const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: guide.startMs, day })
+  const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: spillEnd, nowMs })
     .catch(logHistoryError('load'))
   const programs = {}
   for (const channel of guide.channels) {
     const rows = guide.programsByChannel[String(channel.epgId)] || []
-    const live = rows.filter((p) => p.start < dayEnd && p.end > dayStart)
+    const live = programsInWindow({ rows, fromMs: dayStart, toMs: spillEnd })
     const saved = endedByChannel?.get(String(channel.epgId)) || []
     programs[channel.id] = mergeGuidePrograms({ live, saved }).map((program) => toGuideCell({ program, nowMs }))
   }
@@ -40,6 +40,7 @@ export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
     day,
     dayStart,
     dayEnd,
+    spillEnd,
     fetchedAt: guide.fetchedAt,
     stale: Boolean(guide.stale),
     sort: prefs.sort,
@@ -473,9 +474,13 @@ export const localMidnightMs = (now = new Date()) => {
 
 export const guideDayWindow = ({ startMs, day = 0 }) => {
   const base = new Date(startMs)
-  const dateAt = (offset) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset).getTime()
-  return { dayStart: dateAt(day), dayEnd: dateAt(day + 1) }
+  const dateAt = (offset, minutes = 0) =>
+    new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset, 0, minutes).getTime()
+  return { dayStart: dateAt(day), dayEnd: dateAt(day + 1), spillEnd: dateAt(day + 1, EPG_SPILL_MIN) }
 }
+
+export const programsInWindow = ({ rows, fromMs, toMs }) =>
+  rows.filter((p) => p.start < toMs && p.end > fromMs)
 
 const getCachedGuide = async () => {
   const now = Date.now()
@@ -557,6 +562,7 @@ const programmeImages = createProgrammeImages({
 
 const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
+const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000
 const GUIDE_STALE_RETRY_MS = 60 * 1000

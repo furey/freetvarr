@@ -18,6 +18,8 @@ export const localClockMs = ({ dayStart, hour, timeZone }) => {
 
 export const dayLengthMin = ({ dayStart, dayEnd }) => (dayEnd - dayStart) / MINUTE_MS
 
+export const spillLengthMin = ({ dayStart, spillEnd }) => (spillEnd - dayStart) / MINUTE_MS
+
 export const rulerTickMinutes = ({ dayStart, dayEnd, stepMin }) =>
   Array.from({ length: Math.ceil(dayLengthMin({ dayStart, dayEnd }) / stepMin) }, (_, i) => i * stepMin)
 

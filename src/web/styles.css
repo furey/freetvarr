@@ -1305,6 +1305,27 @@ svg.epg-rail-logo {
   color: #544e47;
 }
 
+.epg-midnight-tick {
+  gap: 0.3rem;
+  border-left: 2px solid #7fd3ff;
+  color: #7fd3ff;
+}
+
+.epg-midnight-tick svg {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+}
+
+.epg-midnight-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(127, 211, 255, 0.55);
+  pointer-events: none;
+}
+
 .epg-row {
   display: flex;
   border-bottom: 1px solid rgba(61, 56, 41, 0.55);
@@ -1575,6 +1596,39 @@ body.epg-drag-lock * {
   height: 1.2em;
 }
 
+.epg-next-day-chip {
+  left: auto;
+  border-color: rgba(30, 182, 255, 0.5);
+  background: #1b2630;
+  color: #7fd3ff;
+}
+
+.epg-guide-end-lane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.epg-guide-end {
+  position: sticky;
+  top: 3.6rem;
+  display: inline-block;
+  margin: 3.6rem 0 0 0.5rem;
+  white-space: nowrap;
+  border: 1px solid #3d3829;
+  border-radius: 999px;
+  background: #28231b;
+  color: #8b837e;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.6rem;
+  pointer-events: none;
+}
+
 .epg-ghost {
   position: fixed;
   left: 0;
@@ -1758,6 +1812,22 @@ body.epg-drag-lock * {
 
 .epg-cell.past {
   opacity: 0.45;
+}
+
+.epg-cell.next-day {
+  opacity: 0.5;
+  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.epg-cell.next-day:hover,
+.epg-cell.next-day:focus-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .epg-cell.next-day {
+    transition: none;
+  }
 }
 
 .epg-cell.on-now {

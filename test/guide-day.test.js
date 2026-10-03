@@ -1,13 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { guideDayWindow, localMidnightMs } from '../src/epg.js'
+import { guideDayWindow, localMidnightMs, programsInWindow } from '../src/epg.js'
+import { mergeGuidePrograms } from '../src/guide-history.js'
 import {
   zoneOffsetMs,
   localDayNumber,
   weekdayOfDayNumber,
   localClockMs,
   dayLengthMin,
+  spillLengthMin,
   rulerTickMinutes,
 } from '../src/web/guide-time.js'
 
@@ -87,4 +89,67 @@ test('localDayNumber: day chips step by calendar date, not by 24 h, across DST s
   const sundayLate = Date.parse('2026-10-04T12:30:00Z')
   assert.equal(localDayNumber({ ms: sundayLate, timeZone: SYDNEY }), today + 1)
   assert.equal(localDayNumber({ ms: sundayLate + HOUR_MS, timeZone: SYDNEY }), today + 2)
+})
+
+test('guideDayWindow: spillEnd is 3am on the next calendar day', () => {
+  const startMs = localMidnightMs(new Date('2026-09-30T12:00:00'))
+  const { dayEnd, spillEnd } = guideDayWindow({ startMs, day: 1 })
+  assert.equal(sydneyClock(spillEnd), 'fri 2 3:00 am')
+  assert.equal((spillEnd - dayEnd) / HOUR_MS, 3)
+})
+
+test('guideDayWindow: the spill into DST start ends at 3am wall clock, two real hours after midnight', () => {
+  const saturday = guideDayWindow({ startMs: localMidnightMs(new Date('2026-10-03T23:30:00')) })
+  assert.equal(sydneyClock(saturday.spillEnd), 'sun 4 3:00 am')
+  assert.equal((saturday.spillEnd - saturday.dayEnd) / HOUR_MS, 2)
+  const labels = rulerTickMinutes({ dayStart: saturday.dayStart, dayEnd: saturday.spillEnd, stepMin: 60 })
+    .map((min) => sydneyHour(saturday.dayStart + min * 60_000))
+  assert.deepEqual(labels.slice(-3), ['11pm', '12am', '1am'])
+})
+
+test('guideDayWindow: the 23 h Sunday spills to 3am Monday', () => {
+  const sunday = guideDayWindow({ startMs: localMidnightMs(new Date('2026-10-04T23:30:00')) })
+  assert.equal((sunday.dayEnd - sunday.dayStart) / HOUR_MS, 23)
+  assert.equal(sydneyClock(sunday.spillEnd), 'mon 5 3:00 am')
+  assert.equal(spillLengthMin(sunday), 26 * 60)
+  const labels = rulerTickMinutes({ dayStart: sunday.dayStart, dayEnd: sunday.spillEnd, stepMin: 60 })
+    .map((min) => sydneyHour(sunday.dayStart + min * 60_000))
+  assert.equal(labels.length, 26)
+  assert.deepEqual(labels.slice(-4), ['11pm', '12am', '1am', '2am'])
+})
+
+test('guideDayWindow: the seventh day spills to 3am after the guide ends', () => {
+  const startMs = localMidnightMs(new Date('2026-10-03T12:00:00'))
+  const last = guideDayWindow({ startMs, day: 6 })
+  assert.equal(sydneyClock(last.dayStart), 'fri 9 12:00 am')
+  assert.equal(sydneyClock(last.spillEnd), 'sat 10 3:00 am')
+})
+
+const programmeAt = ({ from, to, title }) => ({ title, start: Date.parse(from), end: Date.parse(to) })
+
+test('programsInWindow: a programme crossing midnight is listed once, unclipped, alongside next-day programmes', () => {
+  const sunday = guideDayWindow({ startMs: localMidnightMs(new Date('2026-10-04T23:30:00')) })
+  const rows = [
+    programmeAt({ title: 'ended before', from: '2026-10-03T23:00:00+10:00', to: '2026-10-04T00:00:00+11:00' }),
+    programmeAt({ title: 'over dawn', from: '2026-10-04T00:30:00+10:00', to: '2026-10-04T04:00:00+11:00' }),
+    programmeAt({ title: 'late film', from: '2026-10-04T23:00:00+11:00', to: '2026-10-05T01:15:00+11:00' }),
+    programmeAt({ title: 'next day', from: '2026-10-05T01:15:00+11:00', to: '2026-10-05T02:00:00+11:00' }),
+    programmeAt({ title: 'over spill end', from: '2026-10-05T02:30:00+11:00', to: '2026-10-05T04:00:00+11:00' }),
+    programmeAt({ title: 'after spill', from: '2026-10-05T03:00:00+11:00', to: '2026-10-05T04:00:00+11:00' }),
+  ]
+  const shown = programsInWindow({ rows, fromMs: sunday.dayStart, toMs: sunday.spillEnd })
+  assert.deepEqual(shown.map((p) => p.title), ['over dawn', 'late film', 'next day', 'over spill end'])
+  const lateFilm = shown.find((p) => p.title === 'late film')
+  assert.ok(lateFilm.start < sunday.dayEnd && lateFilm.end > sunday.dayEnd)
+  assert.equal(lateFilm.end, Date.parse('2026-10-05T01:15:00+11:00'))
+  assert.deepEqual(shown.filter((p) => p.start >= sunday.dayEnd).map((p) => p.title), ['next day', 'over spill end'])
+})
+
+test('programsInWindow: saved history fills the spill without doubling the midnight-crossing programme', () => {
+  const saturday = guideDayWindow({ startMs: localMidnightMs(new Date('2026-10-03T23:30:00')) })
+  const crossing = programmeAt({ title: 'late film', from: '2026-10-03T23:00:00+10:00', to: '2026-10-04T01:30:00+10:00' })
+  const live = programsInWindow({ rows: [crossing], fromMs: saturday.dayStart, toMs: saturday.spillEnd })
+  const saved = [{ ...crossing }, programmeAt({ title: 'early news', from: '2026-10-03T06:00:00+10:00', to: '2026-10-03T07:00:00+10:00' })]
+  const merged = mergeGuidePrograms({ live, saved })
+  assert.deepEqual(merged.map((p) => p.title), ['early news', 'late film'])
 })
