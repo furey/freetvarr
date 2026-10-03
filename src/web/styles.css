@@ -1247,7 +1247,7 @@ svg.epg-rail-logo {
   width: var(--epg-rail-px, 200px);
   display: flex;
   align-items: center;
-  padding: 0.375rem 0 0.375rem var(--epg-rail-inset);
+  padding: 0.375rem 0.375rem 0.375rem var(--epg-rail-inset);
   background: #28231b;
 }
 
@@ -1341,6 +1341,14 @@ svg.epg-rail-logo {
 
 .epg-heading-track {
   flex: 1;
+}
+
+.epg-heading-row:first-child {
+  height: calc(var(--epg-heading-h) + 0.25rem);
+}
+
+.epg-heading-row:first-child .epg-heading-rail {
+  padding-top: 0.25rem;
 }
 
 .epg-rail-cell .channel-name {
@@ -1537,8 +1545,6 @@ body.epg-drag-lock * {
 
 .epg-corner-filter {
   flex: 1;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
   min-width: 0;
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
