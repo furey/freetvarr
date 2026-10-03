@@ -12,6 +12,7 @@ The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob
 - [Remove after import](#remove-after-import)
 - [Ad removal](#ad-removal)
 - [Live progress indicators](#live-progress-indicators)
+- [Guide days and history](#guide-days-and-history)
 - [Live TV](#live-tv)
 - [Mobile layout](#mobile-layout)
 - [Full environment reference](#full-environment-reference)
@@ -250,6 +251,12 @@ Cleanup is in one place per source. The scan ticker clears its own `setInterval`
 
 The Recordings tab shows each entry as a progress bar with percent and ETA. Its poll is a self-scheduling `setTimeout` that picks the next interval from the rows it just fetched: `RECORDINGS_ACTIVE_POLL_MS` (`2 s`) when any row has a non-null `progress`, otherwise `RECORDINGS_POLL_MS` (`60 s`). After a restart no stale progress remains: the registry starts empty and `resetInterruptedScans` clears any persisted `scanning` row.
 
+## Guide days and history
+
+TVHeadend deletes a guide event once it ends, so on its own the guide has nothing before now. Freetvarr saves every event it fetches into the `guide_history` table (`src/guide-history.js`, migration `0002`), and the scheduler fetches the guide at most once an hour so history builds even when nobody has the app open. Rows that ended before the start of yesterday are pruned on each save. `GET /api/epg/guide` merges saved past events with TVHeadend's live ones (live data wins on overlap) and marks each event `past`; `recorded` means the event had a DVR entry when it was last seen, not that the recording succeeded.
+
+Each guide day is built from calendar dates in the container's `TZ` (`guideDayWindow` in `src/epg.js`, client helpers in `src/web/guide-time.js`), so a daylight-saving day is 23 or 25 hours long and its ruler labels stay right. The window runs from local midnight to 3 am the next day (`spillEnd`); a programme that crosses midnight comes back once, at full width. At midnight the client reloads TODAY. `test/guide-day.test.js` covers the Sydney changes on `2026-10-04` and `2027-04-04`.
+
 ## Live TV
 
 The browser plays live TV as HLS that Freetvarr makes itself. TVHeadend streams MPEG-TS, which no browser plays, and TVHeadend's own transcoding profiles vary by build, so Freetvarr uses the ffmpeg already in its image.
@@ -430,6 +437,7 @@ freetvarr/
 │   ├── db.js               # Knex instance + simple settings get/set
 │   ├── tvheadend.js        # The only module that speaks TVHeadend's JSON API
 │   ├── epg.js              # Guide + recording-state caching, channel prefs, series projection
+│   ├── guide-history.js    # Saves guide events TVHeadend will drop; prunes before yesterday
 │   ├── folder-matcher.js   # Fuse.js wrapper that scans /media/tv
 │   ├── sync.js             # Sync engine; list finished, match shows, hardlink or copy, persist; exports classifyImport / matchShow / buildDestPath / localPathFor for tests
 │   ├── commercials.js      # Ad removal; comskip detect + ffmpeg cut orchestration, pure helpers exported for tests
@@ -437,7 +445,7 @@ freetvarr/
 │   ├── progress.js         # In-memory progress registry + import-bar shim; merged into GET /api/recordings
 │   ├── scheduler.js        # node-cron wiring, reloads on settings change
 │   ├── plex.js             # Plex section refresh + token detection from Preferences.xml
-│   └── web/                # Static UI; Vue 3 SPA (browser ESM) + Tailwind v4 Play CDN (self-hosted), hash-routed, responsive at md/768px, no build step
+│   └── web/                # Static UI (app.js, guide-time.js calendar-day helpers); Vue 3 SPA (browser ESM) + Tailwind v4 Play CDN (self-hosted), hash-routed, responsive at md/768px, no build step
 ├── test/                   # node --test; no extra test deps
 ├── assets/
 │   └── comskip.ini         # Bundled AU free-to-air comskip tuning; /config/comskip.ini overrides
@@ -456,15 +464,15 @@ freetvarr/
 
 ## Scripts
 
-| Script                    | What it does                                                                                   |
-| ------------------------- | ---------------------------------------------------------------------------------------------- |
-| `npm run setup`           | `npm ci --ignore-scripts` → `npm run rebuild:natives` → `npm audit signatures`                 |
-| `npm run rebuild:natives` | Explicitly rebuilds the native deps allow-listed in `package.json` (just `better-sqlite3`)     |
-| `npm run migrate`         | `mkdir -p config && knex migrate:latest`; idempotent, auto-run by `start` / `dev`              |
-| `npm run migrate:refresh` | `rm -f ./config/state.db && mkdir -p config && knex migrate:latest`; dev only                  |
-| `npm start`               | `node --env-file-if-exists=.env src/server.js` (chains `npm run migrate` via `prestart`)       |
-| `npm run dev`             | `node --env-file-if-exists=.env --watch src/server.js` (chains `npm run migrate` via `predev`) |
-| `npm test`                | `node --test 'test/*.test.js'`; Node 24 built-in runner, no extra deps                         |
+| Script                    | What it does                                                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run setup`           | `npm ci --ignore-scripts` → `npm run rebuild:natives` → `npm audit signatures`                                                           |
+| `npm run rebuild:natives` | Explicitly rebuilds the native deps allow-listed in `package.json` (just `better-sqlite3`)                                               |
+| `npm run migrate`         | `mkdir -p config && knex migrate:latest`; idempotent, auto-run by `start` / `dev`                                                        |
+| `npm run migrate:refresh` | `rm -f ./config/state.db && mkdir -p config && knex migrate:latest`; dev only                                                            |
+| `npm start`               | `npm run migrate && node --env-file-if-exists=.env src/server.js` (`.npmrc` sets `ignore-scripts`, so a `prestart` hook would never run) |
+| `npm run dev`             | `npm run migrate && node --env-file-if-exists=.env --watch src/server.js`                                                                |
+| `npm test`                | `node --test 'test/*.test.js'`; Node 24 built-in runner, no extra deps                                                                   |
 
 ## Testing
 
