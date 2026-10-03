@@ -10,7 +10,7 @@ description: >-
 > [!TIP]<br>
 > Already have a Plex Pass? You may not need Freetvarr. Plex's own DVR records free-to-air TV from a network tuner straight into your library, and that is a fine choice. See [Plex DVR instead](/guide/plex-dvr) for when it is enough and what it costs if you don't have a Plex Pass.
 
-TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex cannot read. Freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library under names Plex understands, and pokes Plex to scan. Once Plex confirms the file, it can remove the recording from TVHeadend.
+TVHeadend records free-to-air TV into its recordings folder. By default it names each file after the programme title only, for example `The Block.ts`. Plex's TV library matches a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), and asks Plex to scan. Once Plex confirms the file, it can remove the recording from TVHeadend.
 
 It is also a TV app for your home network: the [Live TV](/guide/live-tv) tab plays any channel in the browser, on a phone or a desktop.
 

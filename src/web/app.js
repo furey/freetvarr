@@ -231,17 +231,65 @@ const ProgressBlock = {
   `,
 }
 
-const ProgrammeImage = {
-  props: ['eventId', 'variant'],
+const ChannelLogo = {
+  props: { channelId: { type: [String, Number], default: null }, hasLogo: Boolean },
   setup(props) {
     const failed = ref(false)
-    watch(() => props.eventId, () => { failed.value = false })
-    const src = computed(() => `/api/epg/image/${encodeURIComponent(props.eventId)}`)
-    return { failed, src }
+    watch(() => props.channelId, () => { failed.value = false })
+    const showsImage = computed(() => props.hasLogo && props.channelId != null && !failed.value)
+    return { failed, showsImage }
   },
   template: `
-    <div v-if="eventId != null && !failed" :class="['programme-image', variant || 'thumb']">
-      <img :src="src" alt="" :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @error="failed = true" />
+    <img v-if="showsImage" class="epg-rail-logo" :src="'/api/epg/logo/' + channelId" alt="" loading="lazy"
+      draggable="false" @error="failed = true" />
+    <tv-icon v-else class="epg-rail-logo channel-logo-fallback" />
+  `,
+}
+
+const imageStatusOf = (img) => {
+  if (!img?.complete) return 'loading'
+  return img.naturalWidth > 0 ? 'loaded' : 'failed'
+}
+
+const ProgrammeImage = {
+  props: {
+    eventId: { type: [String, Number], default: null },
+    variant: { type: String, default: 'thumb' },
+    channelId: { type: [String, Number], default: null },
+    hasLogo: Boolean,
+  },
+  setup(props) {
+    const img = ref(null)
+    const status = ref('loading')
+    const instant = ref(false)
+    const src = computed(() => `/api/epg/image/${encodeURIComponent(props.eventId)}`)
+    const settleFromCache = () => {
+      if (props.eventId == null) {
+        status.value = 'failed'
+        return
+      }
+      const cached = imageStatusOf(img.value)
+      instant.value = cached !== 'loading'
+      status.value = cached
+    }
+    const onLoad = () => { if (status.value === 'loading') status.value = 'loaded' }
+    const onError = () => { status.value = 'failed' }
+    onMounted(settleFromCache)
+    watch(() => props.eventId, async () => {
+      status.value = 'loading'
+      instant.value = false
+      await nextTick()
+      settleFromCache()
+    })
+    return { img, status, instant, src, onLoad, onError }
+  },
+  template: `
+    <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant }]">
+      <img v-if="eventId != null && status !== 'failed'" ref="img" :src="src" alt=""
+        :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
+      <span v-if="status === 'failed'" class="programme-image-fallback">
+        <channel-logo :channel-id="channelId" :has-logo="hasLogo" />
+      </span>
     </div>
   `,
 }
@@ -266,10 +314,7 @@ const ChannelIdentity = {
       :title="channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
       :aria-label="channel.pinned ? 'Remove ' + channel.name + ' from favourites' : 'Add ' + channel.name + ' to favourites'"
       @click="$emit('pin')"><star-icon /></button>
-    <span class="channel-logo">
-      <img v-if="hasLogo" class="epg-rail-logo" :src="'/api/epg/logo/' + channel.id" alt="" loading="lazy"
-        draggable="false" @error="$event.target.style.display = 'none'" />
-    </span>
+    <span class="channel-logo"><channel-logo :channel-id="channel.id" :has-logo="hasLogo" /></span>
     <span class="channel-name" :title="channel.name">
       <span v-if="number" class="channel-number">{{ number }}</span>
       {{ channel.name }}
@@ -296,6 +341,31 @@ const storedFlag = ({ key, fallback }) => {
     try { localStorage.setItem(key, on ? '1' : '0') } catch {}
   })
   return flag
+}
+
+const storedChoice = ({ key, options, fallback }) => {
+  const read = () => {
+    try {
+      const stored = localStorage.getItem(key)
+      return options.includes(stored) ? stored : fallback
+    } catch {
+      return fallback
+    }
+  }
+  const choice = ref(read())
+  watch(choice, (value) => {
+    try { localStorage.setItem(key, value) } catch {}
+  })
+  return choice
+}
+
+const useMediaQuery = (query) => {
+  const list = window.matchMedia(query)
+  const matches = ref(list.matches)
+  const update = () => { matches.value = list.matches }
+  onMounted(() => list.addEventListener('change', update))
+  onUnmounted(() => list.removeEventListener('change', update))
+  return matches
 }
 
 const makeStatus = () => {
@@ -677,11 +747,10 @@ const RecordingCard = {
   },
   template: `
     <article :class="['rec-card', { failed: rec.failed }]">
-      <programme-image v-if="rec.hasImage" :event-id="rec.programId ?? rec.uuid" variant="rec" />
+      <programme-image v-if="rec.hasImage" :event-id="rec.programId ?? rec.uuid" variant="rec" :channel-id="rec.channelId" has-logo />
       <div class="rec-card-body">
         <div class="rec-card-head">
-          <img class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + rec.channelId" alt=""
-            @error="$event.target.style.display = 'none'" />
+          <channel-logo class="shrink-0" :channel-id="rec.channelId" has-logo />
           <span class="rec-card-channel">{{ rec.channelName }}</span>
           <span v-if="rec.failed" class="rec-badge failed"><cross-icon /> FAILED</span>
           <span v-else-if="kind === 'active'" class="rec-badge"><span class="led-dot sm live"></span>REC</span>
@@ -792,6 +861,7 @@ const setDragLock = (on) => {
 const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
   const dragPinId = ref(null)
   const dropTargetId = ref(null)
+  const dropAfter = ref(false)
   let pendingDrag = null
   let liftTimer = null
   let dragDidMove = false
@@ -799,12 +869,26 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
   let ghostDX = 0
   let ghostDY = 0
 
+  const distanceToBox = (clientY, box) => {
+    if (clientY < box.top) return box.top - clientY
+    if (clientY > box.bottom) return clientY - box.bottom
+    return 0
+  }
+
   const pinRowUnderPointer = (clientY) => {
-    for (const el of document.querySelectorAll(rowSelector)) {
-      const box = el.getBoundingClientRect()
-      if (clientY >= box.top && clientY <= box.bottom) return el.dataset.channelId || null
-    }
-    return null
+    const nearest = [...document.querySelectorAll(rowSelector)]
+      .map((el) => ({ el, box: el.getBoundingClientRect() }))
+      .filter(({ box }) => box.height > 0)
+      .reduce((best, row) => {
+        const distance = distanceToBox(clientY, row.box)
+        return !best || distance < best.distance ? { ...row, distance } : best
+      }, null)
+    return nearest?.el.dataset.channelId || null
+  }
+
+  const isBelow = (from, to) => {
+    const order = currentPins()
+    return order.indexOf(from) < order.indexOf(to)
   }
 
   const moveGhost = (e) => {
@@ -858,6 +942,7 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
     moveGhost(e)
     const over = pinRowUnderPointer(e.clientY)
     dropTargetId.value = over && over !== dragPinId.value ? over : null
+    dropAfter.value = Boolean(dropTargetId.value) && isBelow(dragPinId.value, dropTargetId.value)
   }
 
   const onPinPointerUp = async () => {
@@ -870,10 +955,10 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
     const to = dropTargetId.value
     dragPinId.value = null
     dropTargetId.value = null
+    dropAfter.value = false
     if (!from || !to || from === to) return
-    const orig = currentPins()
-    const movingDown = orig.indexOf(from) < orig.indexOf(to)
-    const pins = orig.filter((id) => id !== from)
+    const movingDown = isBelow(from, to)
+    const pins = currentPins().filter((id) => id !== from)
     pins.splice(pins.indexOf(to) + (movingDown ? 1 : 0), 0, from)
     await onReorder(pins)
   }
@@ -886,10 +971,11 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
     dragDidMove = false
     dragPinId.value = null
     dropTargetId.value = null
+    dropAfter.value = false
   }
 
   return {
-    dragPinId, dropTargetId, didDrag: () => dragDidMove,
+    dragPinId, dropTargetId, dropAfter, didDrag: () => dragDidMove,
     onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
   }
 }
@@ -948,7 +1034,7 @@ const LiveView = {
             <div class="channel-group-heading">{{ g.label }}</div>
             <ul class="live-list">
               <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
-                :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
+                :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-drop-after': dropAfter && dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
                 <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
                   @pointerdown="onPinPointerDown(e.channel, $event)"
                   @pointermove="onPinPointerMove"
@@ -961,7 +1047,8 @@ const LiveView = {
                   <button v-if="e.now" type="button" class="on-now-open live-now-open"
                     :aria-label="'Show details for ' + e.now.title" @click="openDetails(e, e.now)">
                     <span v-if="showImages" class="live-now-thumb">
-                      <programme-image v-if="e.now.has_image" :event-id="e.now.program_id" />
+                      <programme-image :event-id="e.now.has_image ? e.now.program_id : null"
+                        :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
                     </span>
                     <div class="live-now-text">
                     <span class="block truncate">
@@ -1109,7 +1196,7 @@ const LiveView = {
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, groups, favouritesHint, emptyText,
       load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
-      dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId,
+      dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
       onPinPointerUp: pinDrag.onPinPointerUp, onPinPointerCancel: pinDrag.onPinPointerCancel,
       isRecordingChannel, onNowPercent, onNowMeta, fmtClockTz, flashText, flashKind,
@@ -1152,8 +1239,7 @@ const DashboardView = {
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">On now · favourites</div>
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
-              <img v-if="e.channel.hasLogo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + e.channel.id" alt=""
-                @error="$event.target.style.display = 'none'" />
+              <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
               <span class="font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate" :title="e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
                 <button v-if="e.now" type="button" class="on-now-open block w-full"
@@ -3842,13 +3928,25 @@ const WelcomeView = {
   },
 }
 
-const EPG_PX_PER_MIN = 3
+const EPG_ZOOM_LEVELS = [
+  { key: 's', pxPerMin: 3, rowRem: 3.4, narrowRowRem: 3, halfHourTicks: false },
+  { key: 'm', pxPerMin: 5, rowRem: 4.4, narrowRowRem: 3.75, halfHourTicks: true },
+  { key: 'l', pxPerMin: 8, rowRem: 5.6, narrowRowRem: 4.75, halfHourTicks: true },
+]
+const EPG_ZOOM_KEY = 'freetvarr.guideZoom'
+const EPG_NOW_ANCHOR = 0.2
+const EPG_NARROW_QUERY = '(max-width: 767px)'
+const EPG_CELL_INSET_PX = 10
+const EPG_CELL_TEXT_MIN_PX = 40
+const EPG_THUMB_TEXT_MIN_PX = 72
+const EPG_TOOLTIP_DELAY_MS = 250
+const EPG_TOOLTIP_GAP_PX = 12
+const EPG_TOOLTIP_EDGE_PX = 8
 const EPG_RAIL_DEFAULT_PX = 200
 const EPG_RAIL_MIN_PX = 90
 const EPG_RAIL_MAX_PX = 320
 const EPG_RAIL_KEY = 'freetvarr.epgRailPx'
 const EPG_IMAGES_KEY = 'freetvarr.guideImages'
-const EPG_THUMB_MIN_CELL_PX = 150
 const EPG_DRAG_THRESHOLD_PX = 6
 const PIN_LIFT_HOLD_MS = 250
 const EPG_DAY_MIN = 24 * 60
@@ -3891,7 +3989,7 @@ const InfoButton = {
               <slot />
               <div class="epg-modal-actions flex items-center justify-end gap-2">
                 <button type="button" class="btn epg-modal-close mr-auto" @click="close"><cross-icon /> CLOSE</button>
-                <a v-if="doc" :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn btn-sm no-hover-underline">
+                <a v-if="doc" :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn no-hover-underline">
                   READ THE DOCS <external-link-icon />
                 </a>
               </div>
@@ -4103,10 +4201,18 @@ const EpgView = {
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · {{ dayTitle }}</template><template v-else> · {{ mode.toUpperCase() }}</template></span>
-            <info-button title="TV GUIDE" doc="guide/tv-guide">
-              <p>Seven days of programmes from the TVHeadend guide. Click a programme to record it, record the series, or cancel; Freetvarr sends the command to TVHeadend.</p>
-              <p>Blue borders are scheduled, gold borders are series recordings, and orange is recording now. <strong>UPCOMING</strong> lists what will record; <strong>SERIES</strong> lists the series rules.</p>
-              <p>The guide only shows the guide data loaded into TVHeadend.</p>
+            <info-button v-if="mode === 'upcoming'" title="TV GUIDE: UPCOMING" doc="guide/tv-guide#recording-a-programme">
+              <p>Everything TVHeadend will record, soonest first. <strong>SCHEDULED</strong> cards are timers set in TVHeadend, marked <strong>SERIES</strong> or <strong>ONE-OFF</strong>. <strong>EXPECTED</strong> cards are episodes your series rules should catch in the next 7 days.</p>
+              <p>Click a card to open the programme, where you can cancel the recording. Search filters the list as you type.</p>
+            </info-button>
+            <info-button v-else-if="mode === 'series'" title="TV GUIDE: SERIES" doc="guide/tv-guide#how-a-series-recording-works">
+              <p>Each card is a series rule in TVHeadend. A rule records every airing of the show on its channel, on any day and at any time, and skips episode numbers it has already recorded.</p>
+              <p>A rule covers one channel only, so an HD simulcast needs its own rule. Click a card to open the show's next airing, where you can cancel the series.</p>
+            </info-button>
+            <info-button v-else title="TV GUIDE: GUIDE" doc="guide/tv-guide#the-grid">
+              <p>Channels run down the page and time runs across; the orange line marks now. The day chips, <strong>NOW</strong>, and <strong>TONIGHT</strong> move through the week, and the zoom buttons change the time scale.</p>
+              <p>Earlier programmes from today are dimmed. Blue borders are scheduled, gold borders are series recordings, and orange is recording now. Hover a programme for its details.</p>
+              <p>Click a programme to record it, record the series, or cancel. A programme on now also offers <strong>WATCH LIVE</strong>.</p>
             </info-button>
           </span>
           <div class="flex flex-wrap items-center gap-3">
@@ -4139,7 +4245,7 @@ const EpgView = {
                 @click="openProgram(p, channelById(p.channelId))"
                 @keydown.enter.prevent="openProgram(p, channelById(p.channelId))"
                 @keydown.space.prevent="openProgram(p, channelById(p.channelId))">
-                <programme-image v-if="p.has_image" :event-id="p.program_id" />
+                <programme-image v-if="p.has_image" :event-id="p.program_id" :channel-id="p.channelId" :has-logo="hasChannelLogo(p.channelId)" />
                 <div class="deck-card-text">
                 <div class="flex items-start justify-between gap-3">
                   <span class="deck-card-title">{{ p.title }}</span>
@@ -4148,10 +4254,11 @@ const EpgView = {
                     <span v-if="cellState(p) === 'recording'" class="pill recording">RECORDING</span>
                     <span v-else-if="cellState(p) === 'scheduled'" class="pill scheduled">SCHEDULED</span>
                     <span v-else-if="cellState(p) === 'series'" class="pill done">SERIES</span>
+                    <span v-else-if="cellState(p) === 'recorded'" class="pill skipped">RECORDED</span>
                   </span>
                 </div>
                 <p class="deck-card-meta flex items-center gap-1.5">
-                  <img v-if="channelById(p.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + p.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
+                  <channel-logo class="shrink-0" :channel-id="p.channelId" :has-logo="hasChannelLogo(p.channelId)" />
                   <span>{{ p.channelName }} · {{ fmtDayTime(p.start) }}–{{ fmtClock(p.end) }}<template v-if="p.episode_title"> · {{ p.episode_title }}</template></span>
                 </p>
                 </div>
@@ -4170,11 +4277,22 @@ const EpgView = {
                     @click="setDay(d.day)">{{ d.label }}</button>
                 </div>
               </div>
-              <div class="flex items-center gap-2 md:ml-auto">
-                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">JUMP</span>
-                <div class="chip-row">
-                  <button type="button" class="btn btn-sm" @click="jumpNow">NOW</button>
-                  <button type="button" class="btn btn-sm" @click="jumpTonight">TONIGHT</button>
+              <div class="flex flex-wrap items-center gap-x-6 gap-y-3 md:ml-auto">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">JUMP</span>
+                  <div class="chip-row">
+                    <button type="button" class="btn btn-sm" @click="jumpNow">NOW</button>
+                    <button type="button" class="btn btn-sm" @click="jumpTonight">TONIGHT</button>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">ZOOM</span>
+                  <div class="chip-row">
+                    <button type="button" class="btn btn-sm btn-icon epg-zoom-btn" aria-label="Zoom out"
+                      :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
+                    <button type="button" class="btn btn-sm btn-icon epg-zoom-btn" aria-label="Zoom in"
+                      :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4202,13 +4320,17 @@ const EpgView = {
             </div>
             <div v-else-if="loading && !guide" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> loading guide…</div>
             <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
+              <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
               <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
-              <div class="epg-scroll" ref="scrollEl">
-              <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + trackWidth + 'px)' }">
+              <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming }]" ref="scrollEl"
+                @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
+                @pointerdown="hideTooltip" @focusin="onGridFocusIn" @focusout="onGridFocusOut">
+              <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
                 <div class="epg-ruler">
                   <div class="epg-ruler-corner">
-                    <input v-model="railFilter" type="search" class="epg-corner-filter"
-                      placeholder="filter…" aria-label="Filter channels by number or name" />
+                    <input v-model="railFilter" type="search" class="field-input epg-corner-filter"
+                      :placeholder="narrow ? 'Filter' : 'Filter channels'" aria-label="Filter channels by number or name" />
+                    <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                     <div class="epg-rail-resizer" title="Drag to resize the channel rail"
                       :style="{ height: railStripH + 'px' }"
                       @pointerdown="onRailResizeDown"
@@ -4217,18 +4339,20 @@ const EpgView = {
                       @pointercancel="onRailResizeUp"></div>
                   </div>
                   <div class="epg-ruler-track" :style="{ width: trackWidth + 'px' }">
-                    <span v-for="t in ticks" :key="t.x" class="epg-tick" :style="{ left: t.x + 'px' }">{{ t.label }}</span>
+                    <span v-for="t in ticks" :key="t.x" :class="['epg-tick', { half: t.half }]" :style="{ left: t.x + 'px' }">{{ t.label }}</span>
                   </div>
                 </div>
                 <transition-group name="epg-rows" tag="div">
-                <div v-for="ch in visibleChannels" :key="ch.id"
-                  v-show="rowShown(ch)"
-                  v-memo="[ch, nowMs, state, railNumWidth, showImages, rowShown(ch), groupHeadings.get(String(ch.id)), dropTargetId === String(ch.id), dragPinId === String(ch.id)]"
-                  :data-channel-id="ch.id"
-                  :class="['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === String(ch.id), 'epg-dragging': dragPinId === String(ch.id) }]">
-                  <div v-if="groupHeadings.has(String(ch.id))" class="epg-group-heading">
-                    <span class="channel-group-heading">{{ groupHeadings.get(String(ch.id)) }}</span>
-                  </div>
+                <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
+                  v-show="shown"
+                  v-memo="[ch, label, shown, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
+                  :data-channel-id="ch?.id"
+                  :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === key, 'epg-drop-after': dropAfter && dropTargetId === key, 'epg-dragging': dragPinId === key }]">
+                  <template v-if="kind === 'heading'">
+                    <div class="epg-heading-rail"><span class="channel-group-heading">{{ label }}</span></div>
+                    <div class="epg-heading-track"></div>
+                  </template>
+                  <template v-else>
                   <div class="epg-rail-cell"
                     :title="ch.pinned ? 'Drag to reorder favourites' : null"
                     @pointerdown="onPinPointerDown(ch, $event)"
@@ -4239,23 +4363,26 @@ const EpgView = {
                   </div>
                   <div class="epg-track" :style="{ width: trackWidth + 'px' }">
                     <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
-                      :class="['epg-cell', cellState(p), { past: p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'with-thumb': cellHasThumb(p) }]"
-                      :style="cellStyle(p)" :title="cellTitle(p)"
+                      :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'with-thumb': cellHasThumb(p) }]"
+                      :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
                       @click="openProgram(p, ch)">
-                      <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell" />
+                      <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
+                        :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" />
                       <span v-if="cellState(p) === 'recording'" class="epg-cell-rec-fill" :style="{ width: recordingFillPercent(p) + '%' }"></span>
-                      <template v-if="cellWidth(p) > 40">
+                      <template v-if="cellShowsText(p)">
                         <span class="epg-cell-title">{{ p.title }}</span>
                         <span class="epg-cell-meta">
                           <span v-if="cellState(p) === 'recording'" class="led-dot sm live"></span>
                           <span v-else-if="cellState(p) === 'scheduled'" class="led-dot sm" style="background:#1eb6ff"></span>
                           <span v-else-if="cellState(p) === 'series'" class="led-dot sm" style="background:#e2b03c"></span>
+                          <span v-else-if="cellState(p) === 'recorded'" class="led-dot sm" style="background:#9a9289"></span>
                           <span v-if="isSeriesScheduled(p)" class="led-dot sm" style="background:#e2b03c"></span>
                           {{ fmtClock(p.start) }}
                         </span>
                       </template>
                     </button>
                   </div>
+                  </template>
                 </div>
                 </transition-group>
                 <div v-if="day === 0 && nowX != null" class="epg-nowline" :style="{ left: 'calc(var(--epg-rail-px) + ' + nowX + 'px)' }"></div>
@@ -4277,7 +4404,7 @@ const EpgView = {
                   @click="openUpcoming(r)"
                   @keydown.enter.prevent="openUpcoming(r)"
                   @keydown.space.prevent="openUpcoming(r)">
-                  <programme-image v-if="r.hasImage" :event-id="r.programId" />
+                  <programme-image v-if="r.hasImage" :event-id="r.programId" :channel-id="r.channelId" :has-logo="hasChannelLogo(r.channelId)" />
                   <div class="deck-card-text">
                   <div class="flex items-start justify-between gap-3">
                     <span class="deck-card-title">{{ r.name }}</span>
@@ -4295,7 +4422,7 @@ const EpgView = {
                     </span>
                   </div>
                   <p class="deck-card-meta flex items-center gap-1.5">
-                    <img v-if="channelById(r.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + r.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
+                    <channel-logo class="shrink-0" :channel-id="r.channelId" :has-logo="hasChannelLogo(r.channelId)" />
                     <span>{{ channelName(r.channelId) }} · {{ fmtDayTime(tsOf(r.startDate)) }}–{{ fmtClock(tsOf(r.endDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template></span>
                   </p>
                   </div>
@@ -4317,14 +4444,14 @@ const EpgView = {
                   @click="openSeriesTag(t)"
                   @keydown.enter.prevent="openSeriesTag(t)"
                   @keydown.space.prevent="openSeriesTag(t)">
-                  <programme-image v-if="t.imageProgramId != null" :event-id="t.imageProgramId" />
+                  <programme-image v-if="t.imageProgramId != null" :event-id="t.imageProgramId" :channel-id="t.channelId" :has-logo="hasChannelLogo(t.channelId)" />
                   <div class="deck-card-text">
                   <div class="flex items-start justify-between gap-3">
                     <span class="deck-card-title">{{ t.name || t.title || seriesKey(t) }}</span>
                     <span class="pill done">SERIES</span>
                   </div>
                   <p class="deck-card-meta flex items-center gap-1.5">
-                    <img v-if="channelById(t.channelId)?.logos?.length" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + t.channelId" alt="" loading="lazy" @error="$event.target.style.display = 'none'" />
+                    <channel-logo class="shrink-0" :channel-id="t.channelId" :has-logo="hasChannelLogo(t.channelId)" />
                     <span>{{ channelName(t.channelId) }}<template v-if="t.episodesToKeep"> · keep {{ t.episodesToKeep }}</template></span>
                   </p>
                   </div>
@@ -4343,7 +4470,8 @@ const EpgView = {
             <span class="panel-title">{{ selected.program.title }}</span>
             <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeModal" aria-label="Close"><cross-icon /></button>
           </header>
-          <programme-image v-if="selected.program.has_image" :key="selected.program.program_id" :event-id="selected.program.program_id" variant="hero" />
+          <programme-image v-if="selected.program.has_image" :key="selected.program.program_id" :event-id="selected.program.program_id" variant="hero"
+            :channel-id="selected.channel?.id ?? selected.program.channelId" :has-logo="hasChannelLogo(selected.channel?.id ?? selected.program.channelId)" />
           <div class="panel-body space-y-4">
             <p class="text-sm font-mono text-ink-dim">
               {{ selected.channel?.name || channelName(selected.program.channelId) }}<template v-if="selected.program.start"> ·
@@ -4427,6 +4555,24 @@ const EpgView = {
       </teleport>
 
       <teleport to="body">
+      <transition name="epg-tip">
+      <div v-if="tooltip" ref="tooltipEl" class="epg-tooltip" aria-hidden="true">
+        <div class="epg-tooltip-title">{{ tooltip.programme.title }}</div>
+        <div v-if="tooltip.programme.episode_title || seLabel(tooltip.programme)" class="epg-tooltip-episode">
+          <span v-if="seLabel(tooltip.programme)" class="epg-tooltip-se">{{ seLabel(tooltip.programme) }}</span>
+          <span v-if="tooltip.programme.episode_title">{{ tooltip.programme.episode_title }}</span>
+        </div>
+        <div class="epg-tooltip-meta">{{ fmtProgrammeRange(tooltip.programme) }} · {{ tooltip.channel.name }}</div>
+        <div v-if="recordingStateText(tooltip.programme)" :class="['epg-tooltip-state', cellState(tooltip.programme)]">
+          <span :class="['led-dot', 'sm', { live: cellState(tooltip.programme) === 'recording' }]"></span>
+          {{ recordingStateText(tooltip.programme) }}
+        </div>
+        <p v-if="tooltip.programme.synopsis" class="epg-tooltip-synopsis">{{ tooltip.programme.synopsis }}</p>
+      </div>
+      </transition>
+      </teleport>
+
+      <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="guide?.channels || []" :hidden-ids="guide?.hiddenIds || []"
         :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts"
@@ -4480,7 +4626,20 @@ const EpgView = {
       } catch { return EPG_RAIL_DEFAULT_PX }
     }
     const railPx = ref(storedRailPx())
-    const trackWidth = EPG_DAY_MIN * EPG_PX_PER_MIN
+
+    const zoom = storedChoice({ key: EPG_ZOOM_KEY, options: EPG_ZOOM_LEVELS.map((l) => l.key), fallback: 'm' })
+    const zoomIndex = computed(() => EPG_ZOOM_LEVELS.findIndex((l) => l.key === zoom.value))
+    const zoomLevel = computed(() => EPG_ZOOM_LEVELS[zoomIndex.value])
+    const pxPerMin = computed(() => zoomLevel.value.pxPerMin)
+    const trackWidth = computed(() => EPG_DAY_MIN * pxPerMin.value)
+    const zooming = ref(false)
+    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+
+    const thumbMinCellPx = computed(() => {
+      const rowRem = narrow.value ? zoomLevel.value.narrowRowRem : zoomLevel.value.rowRem
+      const thumbPx = ((rowRem * 16 - EPG_CELL_INSET_PX) * 16) / 9
+      return Math.round(thumbPx) + EPG_THUMB_TEXT_MIN_PX
+    })
 
     // Minute resolution on purpose: the seconds clock ref would otherwise
     // re-render every grid cell once a second (past/on-now classes read this).
@@ -4509,15 +4668,24 @@ const EpgView = {
 
     const rowShown = (ch) => !railMatchIds.value || railMatchIds.value.has(String(ch.id))
 
-    const groupHeadings = computed(() => {
-      const shown = visibleChannels.value.filter(rowShown)
-      const firstPinned = shown.find((c) => c.pinned)
-      const firstOther = shown.find((c) => !c.pinned)
-      const anyPinned = Boolean(firstPinned)
-      return new Map([
-        ...(firstPinned ? [[String(firstPinned.id), channelGroupLabel({ pinned: true })]] : []),
-        ...(firstOther ? [[String(firstOther.id), channelGroupLabel({ pinned: false, anyPinned })]] : []),
-      ])
+    const railItems = computed(() => {
+      const shownChannels = visibleChannels.value.filter(rowShown)
+      const groupShown = (pinned) => shownChannels.some((c) => Boolean(c.pinned) === pinned)
+      const anyPinned = groupShown(true)
+      const headedGroups = new Set()
+      const groupHeading = (pinned) => ({
+        kind: 'heading',
+        key: pinned ? 'h-fav' : 'h-other',
+        label: channelGroupLabel({ pinned, anyPinned }),
+        shown: groupShown(pinned),
+      })
+      return visibleChannels.value.flatMap((ch) => {
+        const pinned = Boolean(ch.pinned)
+        const entry = { kind: 'channel', key: String(ch.id), shown: rowShown(ch), ch }
+        if (headedGroups.has(pinned)) return [entry]
+        headedGroups.add(pinned)
+        return [groupHeading(pinned), entry]
+      })
     })
 
     const pinnedCount = computed(() => visibleChannels.value.filter((c) => c.pinned).length)
@@ -4529,16 +4697,28 @@ const EpgView = {
 
     const ticks = computed(() => {
       if (!guide.value) return []
-      return Array.from({ length: 24 }, (_, h) => ({
-        x: h * 60 * EPG_PX_PER_MIN,
-        label: fmtClock(guide.value.dayStart + h * 3_600_000),
-      }))
+      const stepMin = zoomLevel.value.halfHourTicks ? 30 : 60
+      return Array.from({ length: EPG_DAY_MIN / stepMin }, (_, i) => {
+        const min = i * stepMin
+        return {
+          x: min * pxPerMin.value,
+          label: fmtClock(guide.value.dayStart + min * 60_000),
+          half: min % 60 !== 0,
+        }
+      })
     })
 
     const nowX = computed(() => {
       if (!guide.value) return null
-      const x = ((nowMs.value - guide.value.dayStart) / 60_000) * EPG_PX_PER_MIN
-      return x >= 0 && x <= trackWidth ? x : null
+      const x = ((nowMs.value - guide.value.dayStart) / 60_000) * pxPerMin.value
+      return x >= 0 && x <= trackWidth.value ? x : null
+    })
+
+    const scrollViewW = ref(0)
+
+    const trackTailPx = computed(() => {
+      if (day.value !== 0 || nowX.value == null) return 0
+      return Math.max(0, Math.ceil(nowX.value + scrollViewW.value * (1 - EPG_NOW_ANCHOR) - trackWidth.value))
     })
 
     const dayChips = computed(() => Array.from({ length: 7 }, (_, d) => {
@@ -4679,9 +4859,12 @@ const EpgView = {
 
     const channelName = (id) => channelById(id)?.name || `channel ${id}`
 
+    const hasChannelLogo = (id) => Boolean(channelById(id)?.logos?.length)
+
     const seriesKey = (t) => String(t?.seriesLinkId ?? t?.id ?? t?.name ?? '')
 
     const cellState = (p) => {
+      if (p.past) return p.recorded ? 'recorded' : ''
       const scheduled = scheduledByProgramId.value.get(String(p.program_id ?? p.programId))
       if (scheduled && activeRecordingSet.value.has(String(scheduled.programId))) return 'recording'
       if (scheduled) return 'scheduled'
@@ -4695,28 +4878,35 @@ const EpgView = {
         && seriesLinkSet.value.has(String(scheduled.seriesLinkId)))
     }
 
-    const cellTitle = (p) => {
+    const recordingStateText = (p) => {
       const state = cellState(p)
-      if (state === 'recording') return `${p.title} · recording now`
+      if (state === 'recording') return 'recording now'
       if (state === 'scheduled') {
-        return `${p.title} · ${isSeriesScheduled(p) ? 'series recording scheduled' : 'one-off recording scheduled'}`
+        return isSeriesScheduled(p) ? 'series recording scheduled' : 'one-off recording scheduled'
       }
-      if (state === 'series') return `${p.title} · series rule on this show`
-      return p.title
+      if (state === 'series') return 'series rule on this show'
+      if (state === 'recorded') return 'recorded'
+      return ''
     }
+
+    const cellTitle = (p) => [p.title, recordingStateText(p)].filter(Boolean).join(' · ')
+
+    const cellKey = (ch, p) => `${ch.id}|${p.program_id}|${p.start}`
 
     const cellX = (t) => {
       const clamped = Math.max(t, guide.value.dayStart)
-      return ((clamped - guide.value.dayStart) / 60_000) * EPG_PX_PER_MIN
+      return ((clamped - guide.value.dayStart) / 60_000) * pxPerMin.value
     }
 
     const cellWidth = (p) => {
       const start = Math.max(p.start, guide.value.dayStart)
       const end = Math.min(p.end, guide.value.dayEnd)
-      return Math.max(((end - start) / 60_000) * EPG_PX_PER_MIN - 2, 6)
+      return Math.max(((end - start) / 60_000) * pxPerMin.value - 2, 6)
     }
 
-    const cellHasThumb = (p) => showImages.value && p.has_image && cellWidth(p) >= EPG_THUMB_MIN_CELL_PX
+    const cellShowsText = (p) => cellWidth(p) > EPG_CELL_TEXT_MIN_PX
+
+    const cellHasThumb = (p) => showImages.value && p.has_image && cellWidth(p) >= thumbMinCellPx.value
 
     const recordingFillPercent = (p) => {
       const span = p.end - p.start
@@ -4758,17 +4948,24 @@ const EpgView = {
       }
     }
 
-    const scrollToMs = async (ms) => {
+    const scrollToMs = async (ms, { anchor = 0 } = {}) => {
       await nextTick()
       if (!scrollEl.value || !guide.value) return
-      const x = ((ms - guide.value.dayStart) / 60_000) * EPG_PX_PER_MIN
-      scrollEl.value.scrollLeft = Math.max(0, x - 60)
+      scrollViewW.value = scrollEl.value.clientWidth
+      await nextTick()
+      const x = ((ms - guide.value.dayStart) / 60_000) * pxPerMin.value
+      const trackWidth = scrollEl.value.clientWidth - railWidthOf(scrollEl.value)
+      const offset = anchor ? trackWidth * anchor : 60
+      scrollEl.value.scrollLeft = Math.max(0, x - offset)
     }
+
+    const scrollToNow = () => scrollToMs(Date.now(), { anchor: EPG_NOW_ANCHOR })
 
     const setDay = async (d) => {
       day.value = d
       await loadDay(d)
-      await scrollToMs(d === 0 ? nowMs.value - 30 * 60_000 : guide.value.dayStart + 18 * 3_600_000)
+      if (d === 0) await scrollToNow()
+      else await scrollToMs(guide.value.dayStart + 18 * 3_600_000)
     }
 
     const setMode = async (m) => {
@@ -4778,19 +4975,52 @@ const EpgView = {
         loadState()
         return
       }
-      await scrollToMs(day.value === 0
-        ? nowMs.value - 30 * 60_000
-        : (guide.value?.dayStart ?? 0) + 18 * 3_600_000)
+      if (day.value === 0) await scrollToNow()
+      else await scrollToMs((guide.value?.dayStart ?? 0) + 18 * 3_600_000)
     }
 
     const jumpNow = async () => {
       if (day.value !== 0) await setDay(0)
-      else await scrollToMs(nowMs.value - 30 * 60_000)
+      else await scrollToNow()
     }
 
     const jumpTonight = async () => {
       if (day.value !== 0) { day.value = 0; await loadDay(0) }
       await scrollToMs(guide.value.dayStart + 19 * 3_600_000)
+    }
+
+    const railWidthOf = (el) => el.querySelector('.epg-ruler-corner')?.offsetWidth || 0
+
+    const firstVisibleRow = (el) => {
+      const top = el.scrollTop + (el.querySelector('.epg-ruler')?.offsetHeight || 0)
+      const row = [...el.querySelectorAll('.epg-row')]
+        .find((r) => r.offsetHeight > 0 && r.offsetTop + r.offsetHeight > top)
+      return row ? { el: row, offset: row.offsetTop - el.scrollTop } : null
+    }
+
+    const captureZoomAnchor = (el) => {
+      const viewW = el.clientWidth - railWidthOf(el)
+      const nowOnScreen = day.value === 0 && nowX.value != null
+        && nowX.value >= el.scrollLeft && nowX.value <= el.scrollLeft + viewW
+      const screenX = nowOnScreen ? nowX.value - el.scrollLeft : viewW / 2
+      return { minutes: (el.scrollLeft + screenX) / pxPerMin.value, screenX, row: firstVisibleRow(el) }
+    }
+
+    const restoreZoomAnchor = (el, { minutes, screenX, row }) => {
+      el.scrollLeft = minutes * pxPerMin.value - screenX
+      if (row) el.scrollTop = row.el.offsetTop - row.offset
+    }
+
+    const changeZoom = async (step) => {
+      const level = EPG_ZOOM_LEVELS[zoomIndex.value + step]
+      if (!level) return
+      const el = scrollEl.value
+      const anchor = el && guide.value ? captureZoomAnchor(el) : null
+      zooming.value = true
+      zoom.value = level.key
+      await nextTick()
+      if (anchor) restoreZoomAnchor(el, anchor)
+      requestAnimationFrame(() => { zooming.value = false })
     }
 
     const manualRefresh = async () => {
@@ -5001,7 +5231,7 @@ const EpgView = {
     }
 
     const pinDrag = usePinDrag({ rowSelector: '.epg-row.pinned', currentPins, onReorder: reorderPins })
-    const { dragPinId, dropTargetId, onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel } = pinDrag
+    const { dragPinId, dropTargetId, dropAfter, onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel } = pinDrag
 
     const isSeriesRec = (r) =>
       r?.seriesLinkId != null && seriesLinkSet.value.has(String(r.seriesLinkId))
@@ -5022,7 +5252,12 @@ const EpgView = {
     const scrollRailTop = () => scrollEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
 
     const railStripH = ref(0)
-    const syncRailStrip = () => { railStripH.value = scrollEl.value?.clientHeight || 0 }
+    const scrollbarW = ref(0)
+    const syncScrollSize = () => {
+      railStripH.value = scrollEl.value?.clientHeight || 0
+      scrollbarW.value = scrollEl.value ? scrollEl.value.offsetWidth - scrollEl.value.clientWidth : 0
+      scrollViewW.value = scrollEl.value?.clientWidth || 0
+    }
 
     let scrollRo = null
     watch(scrollEl, (el, prev) => {
@@ -5030,10 +5265,10 @@ const EpgView = {
       if (scrollRo) { scrollRo.disconnect(); scrollRo = null }
       if (el) {
         el.addEventListener('scroll', updatePinsOffscreen, { passive: true })
-        scrollRo = new ResizeObserver(() => { syncRailStrip(); updatePinsOffscreen() })
+        scrollRo = new ResizeObserver(() => { syncScrollSize(); updatePinsOffscreen() })
         scrollRo.observe(el)
       }
-      syncRailStrip()
+      syncScrollSize()
       updatePinsOffscreen()
     })
     onUnmounted(() => { if (scrollRo) scrollRo.disconnect() })
@@ -5082,6 +5317,134 @@ const EpgView = {
       flash({ msg: 'Channel preferences saved.' })
     }
 
+    const tooltip = ref(null)
+    const tooltipEl = ref(null)
+    const hover = { cell: null, anchor: null, timer: 0, frame: 0, x: 0, y: 0 }
+
+    const programmeByKey = computed(() => {
+      const map = new Map()
+      for (const ch of guide.value?.channels || []) {
+        for (const p of guide.value.programs[ch.id] || []) map.set(cellKey(ch, p), { programme: p, channel: ch })
+      }
+      return map
+    })
+
+    const fmtWeekdayClock = (ms) => `${dateFormat({ weekday: 'short' }).format(new Date(ms))} ${fmtClock(ms)}`
+
+    const fmtProgrammeRange = (p) => {
+      const crossesMidnight = dayKey(p.start) !== dayKey(p.end - 1)
+      return crossesMidnight
+        ? `${fmtWeekdayClock(p.start)}–${fmtWeekdayClock(p.end)}`
+        : `${fmtClock(p.start)}–${fmtClock(p.end)}`
+    }
+
+    const cellIsTruncated = (cell) => {
+      const title = cell.querySelector('.epg-cell-title')
+      if (!title) return true
+      return title.scrollWidth > title.clientWidth + 1
+    }
+
+    const clampToViewport = (value, size, viewport) =>
+      Math.min(Math.max(value, EPG_TOOLTIP_EDGE_PX), viewport - EPG_TOOLTIP_EDGE_PX - size)
+
+    const besidePointer = ({ width, height }) => {
+      const right = hover.x + EPG_TOOLTIP_GAP_PX
+      const below = hover.y + EPG_TOOLTIP_GAP_PX
+      const fitsRight = right + width <= window.innerWidth - EPG_TOOLTIP_EDGE_PX
+      const fitsBelow = below + height <= window.innerHeight - EPG_TOOLTIP_EDGE_PX
+      return {
+        x: fitsRight ? right : hover.x - EPG_TOOLTIP_GAP_PX - width,
+        y: fitsBelow ? below : hover.y - EPG_TOOLTIP_GAP_PX - height,
+      }
+    }
+
+    const besideCell = ({ height }) => {
+      const rect = hover.anchor.getBoundingClientRect()
+      const below = rect.bottom + EPG_TOOLTIP_EDGE_PX
+      const fitsBelow = below + height <= window.innerHeight - EPG_TOOLTIP_EDGE_PX
+      return { x: rect.left, y: fitsBelow ? below : rect.top - EPG_TOOLTIP_EDGE_PX - height }
+    }
+
+    const placeTooltip = () => {
+      hover.frame = 0
+      const el = tooltipEl.value
+      if (!el) return
+      const size = { width: el.offsetWidth, height: el.offsetHeight }
+      const { x, y } = hover.anchor ? besideCell(size) : besidePointer(size)
+      const left = clampToViewport(x, size.width, window.innerWidth)
+      const top = clampToViewport(y, size.height, window.innerHeight)
+      el.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
+    }
+
+    const schedulePlacement = () => {
+      if (!hover.frame) hover.frame = requestAnimationFrame(placeTooltip)
+    }
+
+    const hideTooltip = () => {
+      clearTimeout(hover.timer)
+      cancelAnimationFrame(hover.frame)
+      hover.timer = 0
+      hover.frame = 0
+      tooltip.value = null
+    }
+
+    const forgetHoveredCell = () => {
+      hideTooltip()
+      hover.cell = null
+      hover.anchor = null
+    }
+
+    const showTooltipFor = async (cell) => {
+      const entry = programmeByKey.value.get(cell.dataset.key)
+      if (!entry) return
+      tooltip.value = entry
+      await nextTick()
+      placeTooltip()
+    }
+
+    const enterCell = (cell) => {
+      hideTooltip()
+      hover.cell = cell
+      hover.anchor = null
+      if (!cell || !cellIsTruncated(cell)) return
+      hover.timer = setTimeout(() => showTooltipFor(cell), EPG_TOOLTIP_DELAY_MS)
+    }
+
+    const onGridPointer = (e) => {
+      if (e.pointerType !== 'mouse') return
+      hover.x = e.clientX
+      hover.y = e.clientY
+      const cell = e.target.closest?.('.epg-cell') || null
+      if (cell !== hover.cell) return enterCell(cell)
+      if (tooltip.value && !hover.anchor) schedulePlacement()
+    }
+
+    const onGridPointerOut = (e) => {
+      if (e.pointerType !== 'mouse' || hover.anchor) return
+      if (hover.cell?.contains(e.relatedTarget)) return
+      forgetHoveredCell()
+    }
+
+    const onGridFocusIn = (e) => {
+      const cell = e.target.closest?.('.epg-cell')
+      if (!cell || !cell.matches(':focus-visible') || !cellIsTruncated(cell)) return forgetHoveredCell()
+      hideTooltip()
+      hover.cell = cell
+      hover.anchor = cell
+      showTooltipFor(cell)
+    }
+
+    const onGridFocusOut = () => {
+      if (hover.anchor) forgetHoveredCell()
+    }
+
+    const onAnyScroll = () => {
+      if (hover.anchor && tooltip.value) return schedulePlacement()
+      forgetHoveredCell()
+    }
+
+    watch([selected, channelsModal, zoom, guide, mode], forgetHoveredCell)
+
     let searchTimer = null
     watch(searchQ, () => {
       if (searchTimer) clearTimeout(searchTimer)
@@ -5108,14 +5471,17 @@ const EpgView = {
     let statePollTimer = null
     onMounted(async () => {
       window.addEventListener('keydown', onKeydown)
+      window.addEventListener('scroll', onAnyScroll, { capture: true, passive: true })
       loadState()
       await loadDay(0)
       openHandoff()
-      await scrollToMs(Date.now() - 30 * 60_000)
+      await scrollToNow()
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
     })
     onUnmounted(() => {
       window.removeEventListener('keydown', onKeydown)
+      window.removeEventListener('scroll', onAnyScroll, { capture: true })
+      hideTooltip()
       if (statePollTimer) clearInterval(statePollTimer)
       if (searchTimer) clearTimeout(searchTimer)
     })
@@ -5123,7 +5489,10 @@ const EpgView = {
     return {
       mode, modes, setMode, day, dayChips, dayTitle, setDay,
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
-      scrollEl, railPx, trackWidth, railStripH, railNumWidth, ticks, nowX, nowMs,
+      scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs,
+      zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, changeZoom,
+      tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
+      recordingStateText, fmtProgrammeRange, cellKey, cellShowsText,
       visibleChannels, railNum, railFilter, pinnedCount, pinsOffscreen, scrollRailTop,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled, isSeriesRec, recordingFillPercent,
       jumpNow, jumpTonight, manualRefresh,
@@ -5137,11 +5506,11 @@ const EpgView = {
       upcoming, seriesTags, seriesKey, cancelUpcoming, cancelSeriesTag, openSeriesTag,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
-      togglePin, rowShown, groupHeadings, showImages, cellHasThumb,
-      dropTargetId, dragPinId,
+      togglePin, railItems, narrow, showImages, cellHasThumb,
+      dropTargetId, dropAfter, dragPinId,
       onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
-      channelById, channelName, fmtClock, fmtDayTime, fmtShortRange, seLabel, ratingLabel, tsOf,
+      channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, fmtShortRange, seLabel, ratingLabel, tsOf,
       flashText, flashKind,
     }
   },
@@ -5453,6 +5822,14 @@ const PlusIcon = {
   `,
 }
 
+const MinusIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 8h10"/>
+    </svg>
+  `,
+}
+
 const CheckIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -5584,8 +5961,7 @@ const LivePlayer = {
     <div v-show="live.open" class="epg-modal-backdrop live-backdrop">
       <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
         <header class="panel-header live-header">
-          <img v-if="live.channel?.hasLogo" class="epg-rail-logo shrink-0" :src="'/api/epg/logo/' + live.channel.id" alt=""
-            @error="$event.target.style.display = 'none'" />
+          <channel-logo class="shrink-0" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
           <div class="flex-1 min-w-0">
             <span class="panel-title block truncate">{{ live.channel?.name }}</span>
             <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
@@ -5990,6 +6366,7 @@ const app = createApp(App)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
+app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
 app.component('channel-identity', ChannelIdentity)
 app.component('star-icon', StarIcon)
@@ -6016,6 +6393,7 @@ app.component('arrow-up-icon', ArrowUpIcon)
 app.component('arrow-down-icon', ArrowDownIcon)
 app.component('play-icon', PlayIcon)
 app.component('plus-icon', PlusIcon)
+app.component('minus-icon', MinusIcon)
 app.component('check-icon', CheckIcon)
 app.component('search-icon', SearchIcon)
 app.component('pulse-icon', PulseIcon)

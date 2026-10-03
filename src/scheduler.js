@@ -2,6 +2,7 @@ import cron from 'node-cron'
 
 import { getSetting } from './db.js'
 import { startSync } from './sync.js'
+import { getGuideSnapshot } from './epg.js'
 
 const DEFAULT_CRON = '*/30 * * * *'
 
@@ -32,6 +33,9 @@ const scheduleWith = (expr) => {
   task = cron.schedule(expr, () => {
     startSync({ trigger: 'cron' }).catch((err) => {
       console.error('[scheduler] sync failed:', err.message)
+    })
+    getGuideSnapshot().catch((err) => {
+      console.error('[scheduler] guide refresh failed:', err.message)
     })
   })
   currentExpr = expr
