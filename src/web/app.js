@@ -861,6 +861,7 @@ const setDragLock = (on) => {
 const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
   const dragPinId = ref(null)
   const dropTargetId = ref(null)
+  const dropAfter = ref(false)
   let pendingDrag = null
   let liftTimer = null
   let dragDidMove = false
@@ -868,12 +869,26 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
   let ghostDX = 0
   let ghostDY = 0
 
+  const distanceToBox = (clientY, box) => {
+    if (clientY < box.top) return box.top - clientY
+    if (clientY > box.bottom) return clientY - box.bottom
+    return 0
+  }
+
   const pinRowUnderPointer = (clientY) => {
-    for (const el of document.querySelectorAll(rowSelector)) {
-      const box = el.getBoundingClientRect()
-      if (clientY >= box.top && clientY <= box.bottom) return el.dataset.channelId || null
-    }
-    return null
+    const nearest = [...document.querySelectorAll(rowSelector)]
+      .map((el) => ({ el, box: el.getBoundingClientRect() }))
+      .filter(({ box }) => box.height > 0)
+      .reduce((best, row) => {
+        const distance = distanceToBox(clientY, row.box)
+        return !best || distance < best.distance ? { ...row, distance } : best
+      }, null)
+    return nearest?.el.dataset.channelId || null
+  }
+
+  const isBelow = (from, to) => {
+    const order = currentPins()
+    return order.indexOf(from) < order.indexOf(to)
   }
 
   const moveGhost = (e) => {
@@ -927,6 +942,7 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
     moveGhost(e)
     const over = pinRowUnderPointer(e.clientY)
     dropTargetId.value = over && over !== dragPinId.value ? over : null
+    dropAfter.value = Boolean(dropTargetId.value) && isBelow(dragPinId.value, dropTargetId.value)
   }
 
   const onPinPointerUp = async () => {
@@ -939,10 +955,10 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
     const to = dropTargetId.value
     dragPinId.value = null
     dropTargetId.value = null
+    dropAfter.value = false
     if (!from || !to || from === to) return
-    const orig = currentPins()
-    const movingDown = orig.indexOf(from) < orig.indexOf(to)
-    const pins = orig.filter((id) => id !== from)
+    const movingDown = isBelow(from, to)
+    const pins = currentPins().filter((id) => id !== from)
     pins.splice(pins.indexOf(to) + (movingDown ? 1 : 0), 0, from)
     await onReorder(pins)
   }
@@ -955,10 +971,11 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
     dragDidMove = false
     dragPinId.value = null
     dropTargetId.value = null
+    dropAfter.value = false
   }
 
   return {
-    dragPinId, dropTargetId, didDrag: () => dragDidMove,
+    dragPinId, dropTargetId, dropAfter, didDrag: () => dragDidMove,
     onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
   }
 }
@@ -1017,7 +1034,7 @@ const LiveView = {
             <div class="channel-group-heading">{{ g.label }}</div>
             <ul class="live-list">
               <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
-                :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
+                :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-drop-after': dropAfter && dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
                 <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
                   @pointerdown="onPinPointerDown(e.channel, $event)"
                   @pointermove="onPinPointerMove"
@@ -1179,7 +1196,7 @@ const LiveView = {
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, groups, favouritesHint, emptyText,
       load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
-      dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId,
+      dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
       onPinPointerUp: pinDrag.onPinPointerUp, onPinPointerCancel: pinDrag.onPinPointerCancel,
       isRecordingChannel, onNowPercent, onNowMeta, fmtClockTz, flashText, flashKind,
@@ -4303,6 +4320,7 @@ const EpgView = {
             </div>
             <div v-else-if="loading && !guide" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> loading guide…</div>
             <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
+              <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
               <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
               <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming }]" ref="scrollEl"
                 @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
@@ -4311,7 +4329,7 @@ const EpgView = {
                 <div class="epg-ruler">
                   <div class="epg-ruler-corner">
                     <input v-model="railFilter" type="search" class="field-input epg-corner-filter"
-                      placeholder="Filter" aria-label="Filter channels by number or name" />
+                      :placeholder="narrow ? 'Filter' : 'Filter channels'" aria-label="Filter channels by number or name" />
                     <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                     <div class="epg-rail-resizer" title="Drag to resize the channel rail"
                       :style="{ height: railStripH + 'px' }"
@@ -4325,14 +4343,16 @@ const EpgView = {
                   </div>
                 </div>
                 <transition-group name="epg-rows" tag="div">
-                <div v-for="ch in visibleChannels" :key="ch.id"
-                  v-show="rowShown(ch)"
-                  v-memo="[ch, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, rowShown(ch), groupHeadings.get(String(ch.id)), dropTargetId === String(ch.id), dragPinId === String(ch.id)]"
-                  :data-channel-id="ch.id"
-                  :class="['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === String(ch.id), 'epg-dragging': dragPinId === String(ch.id) }]">
-                  <div v-if="groupHeadings.has(String(ch.id))" class="epg-group-heading">
-                    <span class="channel-group-heading">{{ groupHeadings.get(String(ch.id)) }}</span>
-                  </div>
+                <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
+                  v-show="shown"
+                  v-memo="[ch, label, shown, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
+                  :data-channel-id="ch?.id"
+                  :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === key, 'epg-drop-after': dropAfter && dropTargetId === key, 'epg-dragging': dragPinId === key }]">
+                  <template v-if="kind === 'heading'">
+                    <div class="epg-heading-rail"><span class="channel-group-heading">{{ label }}</span></div>
+                    <div class="epg-heading-track"></div>
+                  </template>
+                  <template v-else>
                   <div class="epg-rail-cell"
                     :title="ch.pinned ? 'Drag to reorder favourites' : null"
                     @pointerdown="onPinPointerDown(ch, $event)"
@@ -4362,6 +4382,7 @@ const EpgView = {
                       </template>
                     </button>
                   </div>
+                  </template>
                 </div>
                 </transition-group>
                 <div v-if="day === 0 && nowX != null" class="epg-nowline" :style="{ left: 'calc(var(--epg-rail-px) + ' + nowX + 'px)' }"></div>
@@ -4647,15 +4668,24 @@ const EpgView = {
 
     const rowShown = (ch) => !railMatchIds.value || railMatchIds.value.has(String(ch.id))
 
-    const groupHeadings = computed(() => {
-      const shown = visibleChannels.value.filter(rowShown)
-      const firstPinned = shown.find((c) => c.pinned)
-      const firstOther = shown.find((c) => !c.pinned)
-      const anyPinned = Boolean(firstPinned)
-      return new Map([
-        ...(firstPinned ? [[String(firstPinned.id), channelGroupLabel({ pinned: true })]] : []),
-        ...(firstOther ? [[String(firstOther.id), channelGroupLabel({ pinned: false, anyPinned })]] : []),
-      ])
+    const railItems = computed(() => {
+      const shownChannels = visibleChannels.value.filter(rowShown)
+      const groupShown = (pinned) => shownChannels.some((c) => Boolean(c.pinned) === pinned)
+      const anyPinned = groupShown(true)
+      const headedGroups = new Set()
+      const groupHeading = (pinned) => ({
+        kind: 'heading',
+        key: pinned ? 'h-fav' : 'h-other',
+        label: channelGroupLabel({ pinned, anyPinned }),
+        shown: groupShown(pinned),
+      })
+      return visibleChannels.value.flatMap((ch) => {
+        const pinned = Boolean(ch.pinned)
+        const entry = { kind: 'channel', key: String(ch.id), shown: rowShown(ch), ch }
+        if (headedGroups.has(pinned)) return [entry]
+        headedGroups.add(pinned)
+        return [groupHeading(pinned), entry]
+      })
     })
 
     const pinnedCount = computed(() => visibleChannels.value.filter((c) => c.pinned).length)
@@ -5201,7 +5231,7 @@ const EpgView = {
     }
 
     const pinDrag = usePinDrag({ rowSelector: '.epg-row.pinned', currentPins, onReorder: reorderPins })
-    const { dragPinId, dropTargetId, onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel } = pinDrag
+    const { dragPinId, dropTargetId, dropAfter, onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel } = pinDrag
 
     const isSeriesRec = (r) =>
       r?.seriesLinkId != null && seriesLinkSet.value.has(String(r.seriesLinkId))
@@ -5222,8 +5252,10 @@ const EpgView = {
     const scrollRailTop = () => scrollEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
 
     const railStripH = ref(0)
+    const scrollbarW = ref(0)
     const syncScrollSize = () => {
       railStripH.value = scrollEl.value?.clientHeight || 0
+      scrollbarW.value = scrollEl.value ? scrollEl.value.offsetWidth - scrollEl.value.clientWidth : 0
       scrollViewW.value = scrollEl.value?.clientWidth || 0
     }
 
@@ -5457,7 +5489,7 @@ const EpgView = {
     return {
       mode, modes, setMode, day, dayChips, dayTitle, setDay,
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
-      scrollEl, railPx, trackWidth, trackTailPx, railStripH, railNumWidth, ticks, nowX, nowMs,
+      scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs,
       zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, changeZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
       recordingStateText, fmtProgrammeRange, cellKey, cellShowsText,
@@ -5474,8 +5506,8 @@ const EpgView = {
       upcoming, seriesTags, seriesKey, cancelUpcoming, cancelSeriesTag, openSeriesTag,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
-      togglePin, rowShown, groupHeadings, showImages, cellHasThumb,
-      dropTargetId, dragPinId,
+      togglePin, railItems, narrow, showImages, cellHasThumb,
+      dropTargetId, dropAfter, dragPinId,
       onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
       channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, fmtShortRange, seLabel, ratingLabel, tsOf,
