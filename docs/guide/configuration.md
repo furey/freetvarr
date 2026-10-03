@@ -7,7 +7,7 @@ description: >-
 
 # Configuration
 
-Config comes in two layers. The `.env` next to your compose file carries deploy-level knobs. Everything else (the TVHeadend URL and login, the Plex token, the schedule) is a runtime setting you edit in the web UI, not via env.
+Freetvarr reads settings from two places. The `.env` next to your compose file holds deploy settings. You set everything else (the TVHeadend URL and login, the Plex token, the schedule) in the web UI.
 
 ## Compose environment
 
@@ -30,7 +30,7 @@ Set these in the `.env` alongside `docker-compose.yml`:
 
 ## The two recordings paths
 
-Freetvarr keeps two settings for one folder, and they are the thing most likely to be wrong:
+Freetvarr keeps two settings for one folder. These are the settings most likely to be wrong:
 
 - **Recordings root** (`recordings_root`, default `/recordings`) is where Freetvarr sees TVHeadend's files, inside the Freetvarr container.
 - **TVHeadend recordings path** (`tvh_recordings_path`, default `/recordings`) is the path TVHeadend reports in the filenames it hands out, inside the TVHeadend container.
@@ -44,11 +44,11 @@ The third path, **media root** (`media_root`, default `/media/tv`), is where fin
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the three storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. The Storage panel shows the paths in use. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the three storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 ![The Settings tab](../img/screenshot-settings.png)
 
 > [!NOTE]<br>
-> `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for their matching runtime settings. The fallback chain is settings DB value → env var → hardcoded default.
+> `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for their matching runtime settings. Freetvarr uses the value in Settings first, then the environment variable, then the built-in default.
 
 The full environment reference, including container-side variables like `DB_PATH`, `PORT`, and `NODE_ENV`, is in the [deep dive](/deep-dive#full-environment-reference).

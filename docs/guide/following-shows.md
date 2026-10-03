@@ -11,7 +11,7 @@ TVHeadend records shows; Freetvarr imports the ones you follow. The Shows tab is
 
 ## Add a show
 
-The first time you open the Shows tab with TVHeadend set up, it pulls the titles TVHeadend has finished recording into a dropdown. On a new install that list is empty, because nothing has recorded yet; type the show's title into the same box instead. Pick or type a title and Freetvarr matches it against the folders already under your media root (even when the names aren't identical) and suggests where to file it. If nothing matches, it suggests a new folder named after the show. Either way, you can change the folder before saving.
+Pick a title TVHeadend has recorded, or type one (on a new install the list is empty). Freetvarr suggests a matching folder under your media root, or a new folder named after the show. You can change the folder before you save.
 
 ![The Shows tab](../img/screenshot-shows.png)
 
@@ -19,7 +19,7 @@ Matching is by name: a recording is claimed by the first followed show whose pat
 
 ## Season template
 
-Each show has a season-folder template that decides where episodes are saved: `{season}`, `{season_padded}` (zero-padded, `01`), or `{season_unpadded}` (`1`). Freetvarr writes to `<media_root>/<dest_folder>/<season>/…`, and it rejects any template that would point outside your media root, so a follow can only ever write inside your library.
+Each show has a season-folder template that decides where episodes are saved: `{season}`, `{season_padded}` (zero-padded, `01`), or `{season_unpadded}` (`1`). Freetvarr writes to `<media_root>/<dest_folder>/<season>/…`, and it rejects any template that would point outside your media root.
 
 ## Filenames
 
@@ -39,17 +39,17 @@ The episode title is dropped when the guide didn't supply one. TVHeadend's own n
 
 ## Import, not download
 
-There is no download step. TVHeadend already wrote the file to a folder Freetvarr can see, so the import is a hardlink when both paths are on one filesystem, and a file copy when they aren't. A hardlink is instant and costs no extra disk; a copy shows a progress bar in [Recordings](/guide/recordings).
+TVHeadend already wrote the file to a folder Freetvarr can see, so there is nothing to download. The import is a hardlink when both folders are on one filesystem, and a copy when they aren't. A hardlink is instant and uses no extra disk; a copy shows its progress in [Recordings](/guide/recordings).
 
 ## Enable, sync, remove
 
-- Toggle a show enabled or disabled; disabled shows are skipped by scheduled syncs.
-- Sync now on a single show imports just its new episodes, without waiting for the schedule.
+- Disable a show to leave it out of scheduled syncs.
+- Sync one show to import its new episodes now.
 - Delete a follow to stop tracking it; imported files stay on disk.
 
 ## Per-show switches
 
-Two options live per show rather than globally:
+These options are set per show:
 
 - **Remove after import**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 - **Ad removal mode**: `off`, `DETECT`, or `CUT`. See [Ad removal](/guide/ad-removal).

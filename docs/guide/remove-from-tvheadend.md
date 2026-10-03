@@ -7,7 +7,7 @@ description: >-
 
 # Remove from TVHeadend
 
-Once an episode is in Plex, the copy in TVHeadend's recordings folder is dead weight. Freetvarr can remove it, but only after Plex has the file. It's optional, and set per show.
+Once an episode is in Plex, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after Plex has the file. This is optional, and you turn it on per show.
 
 ## How it works
 
@@ -20,9 +20,7 @@ For each recording, Freetvarr makes these calls to TVHeadend's DVR API, in this 
 3. `dvr/entry/prevrec/set` marks the entry as previously recorded. The mark survives a TVHeadend restart and stops TVHeadend from re-recording the entry.
 4. `dvr/entry/remove` deletes the file. The entry moves to TVHeadend's **Removed Recordings** tab.
 
-There's no cloud service in the path and no second account to hold; these are authenticated calls on your LAN.
-
-If you're coming from Fetcharr and an Australian Fetch TV box, this is the part that finally works. That box advertised a delete action and then refused every request for it, so Fetcharr had to route deletes through Fetch's cloud and wait on a handshake that often timed out. None of that applies here.
+These calls go straight to TVHeadend on your LAN, with no cloud service involved.
 
 ## Re-records
 
@@ -40,12 +38,12 @@ Remove after import is a per-show switch on the Shows tab. Turn it on for shows 
 
 ## When it removes
 
-A remove is queued only after Plex confirms the imported file. Two guards sit in front of it:
+Freetvarr removes a recording only after Plex confirms the imported file, and only when both of these checks pass:
 
 - **The Plex guard.** If the Plex refresh was attempted and failed, the remove is skipped and the recording stays put. Turn this off with the `delete_after_plex_refresh_only` setting if you run without Plex.
 - **The cut guard.** For a `CUT`-mode show, the TVHeadend copy is the last untouched original once Freetvarr has rewritten the local file. The remove waits for the cut to verify; a failed cut keeps the original ([Ad removal](/guide/ad-removal)).
 
-Removed recordings show as tombstones in [Recordings](/guide/recordings): struck through, dimmed, still re-scannable, and dropped from the list 30 days later.
+Removed recordings stay in [Recordings](/guide/recordings), marked as removed, for 30 days.
 
 ## If a remove fails
 
