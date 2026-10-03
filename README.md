@@ -95,7 +95,7 @@ Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 
 
 ## What Freetvarr is
 
-TVHeadend records free-to-air TV, then the files sit in its recordings folder with names Plex can't read. **Freetvarr** watches TVHeadend on your LAN, picks up new episodes of the shows you mark to follow, files them into your Plex TV library under names Plex understands, pokes Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
+TVHeadend records free-to-air TV into its recordings folder. By default it names each file after the programme title only, for example `The Block.ts`. Plex's TV library matches a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. **Freetvarr** watches TVHeadend on your LAN, picks up new episodes of the shows you mark to follow, files them into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), asks Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
 
 It is also a TV app for your home network. Open the Live TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first.
 
