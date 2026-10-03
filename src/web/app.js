@@ -3917,6 +3917,7 @@ const EPG_ZOOM_LEVELS = [
   { key: 'l', pxPerMin: 8, rowRem: 5.6, narrowRowRem: 4.75, halfHourTicks: true },
 ]
 const EPG_ZOOM_KEY = 'freetvarr.guideZoom'
+const EPG_NOW_ANCHOR = 0.2
 const EPG_NARROW_QUERY = '(max-width: 767px)'
 const EPG_CELL_INSET_PX = 10
 const EPG_CELL_TEXT_MIN_PX = 40
@@ -4596,7 +4597,7 @@ const EpgView = {
     }
     const railPx = ref(storedRailPx())
 
-    const zoom = storedChoice({ key: EPG_ZOOM_KEY, options: EPG_ZOOM_LEVELS.map((l) => l.key), fallback: 's' })
+    const zoom = storedChoice({ key: EPG_ZOOM_KEY, options: EPG_ZOOM_LEVELS.map((l) => l.key), fallback: 'm' })
     const zoomIndex = computed(() => EPG_ZOOM_LEVELS.findIndex((l) => l.key === zoom.value))
     const zoomLevel = computed(() => EPG_ZOOM_LEVELS[zoomIndex.value])
     const pxPerMin = computed(() => zoomLevel.value.pxPerMin)
@@ -4901,17 +4902,22 @@ const EpgView = {
       }
     }
 
-    const scrollToMs = async (ms) => {
+    const scrollToMs = async (ms, { anchor = 0 } = {}) => {
       await nextTick()
       if (!scrollEl.value || !guide.value) return
       const x = ((ms - guide.value.dayStart) / 60_000) * pxPerMin.value
-      scrollEl.value.scrollLeft = Math.max(0, x - 60)
+      const trackWidth = scrollEl.value.clientWidth - railWidthOf(scrollEl.value)
+      const offset = anchor ? trackWidth * anchor : 60
+      scrollEl.value.scrollLeft = Math.max(0, x - offset)
     }
+
+    const scrollToNow = () => scrollToMs(Date.now(), { anchor: EPG_NOW_ANCHOR })
 
     const setDay = async (d) => {
       day.value = d
       await loadDay(d)
-      await scrollToMs(d === 0 ? nowMs.value - 30 * 60_000 : guide.value.dayStart + 18 * 3_600_000)
+      if (d === 0) await scrollToNow()
+      else await scrollToMs(guide.value.dayStart + 18 * 3_600_000)
     }
 
     const setMode = async (m) => {
@@ -4921,14 +4927,13 @@ const EpgView = {
         loadState()
         return
       }
-      await scrollToMs(day.value === 0
-        ? nowMs.value - 30 * 60_000
-        : (guide.value?.dayStart ?? 0) + 18 * 3_600_000)
+      if (day.value === 0) await scrollToNow()
+      else await scrollToMs((guide.value?.dayStart ?? 0) + 18 * 3_600_000)
     }
 
     const jumpNow = async () => {
       if (day.value !== 0) await setDay(0)
-      else await scrollToMs(nowMs.value - 30 * 60_000)
+      else await scrollToNow()
     }
 
     const jumpTonight = async () => {
@@ -5417,7 +5422,7 @@ const EpgView = {
       loadState()
       await loadDay(0)
       openHandoff()
-      await scrollToMs(Date.now() - 30 * 60_000)
+      await scrollToNow()
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
     })
     onUnmounted(() => {
