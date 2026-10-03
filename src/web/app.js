@@ -4312,6 +4312,7 @@ const EpgView = {
                   <div class="epg-ruler-corner">
                     <input v-model="railFilter" type="search" class="field-input epg-corner-filter"
                       placeholder="Filter" aria-label="Filter channels by number or name" />
+                    <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                     <div class="epg-rail-resizer" title="Drag to resize the channel rail"
                       :style="{ height: railStripH + 'px' }"
                       @pointerdown="onRailResizeDown"
