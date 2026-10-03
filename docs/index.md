@@ -6,10 +6,10 @@ hero:
   text: >-
     Live TV in your browser. Recordings in&nbsp;Plex, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span>
   tagline: >-
-    A self-hosted companion for TVHeadend and a TVHeadend-compatible tuner.
+    A self-hosted companion for TVHeadend and compatible tuner.
     Watch any channel live on your phone or desktop, browse a 7-day guide,
-    and schedule recordings. Freetvarr then files new episodes of the shows
-    you follow into your Plex TV library, optionally without the ads.<br><span
+    and schedule recordings. Freetvarr transfers new episodes of shows
+    you follow into your Plex TV library, without the ads.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
     <code>comskip</code></span>
   image:
