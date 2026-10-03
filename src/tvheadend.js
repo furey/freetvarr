@@ -35,6 +35,11 @@ export const testConnection = async ({ url, username, password, persist = true }
   }
 }
 
+export const getServerVersion = async (conn) => {
+  const info = await apiGet('serverinfo', {}, conn)
+  return info?.sw_version || ''
+}
+
 export const detectServers = async ({ hintAddress, env = process.env } = {}) => {
   const envUrl = (env.TVH_URL || '').trim().replace(/\/+$/, '')
   if (envUrl) {

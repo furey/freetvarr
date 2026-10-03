@@ -154,6 +154,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Self-housekeeping**: sync history trims itself to the latest 500 rows; recording rows drop off 30 days after the TVHeadend copy is deleted.
 - **Timezone-aware UI**: the container's `TZ` carries through to the browser, so timestamps show in that zone whatever device hits the page.
 - **Phone-friendly UI**: every view works on a phone.
+- **About panel**: Settings lists the Freetvarr, TVHeadend, and Node versions for bug reports, and says when a newer Freetvarr release is out.
 - **Danger Zone**: a reset in Settings that clears Freetvarr's database and returns to the setup wizard. Imported media files stay.
 - **Authless LAN service**: SQLite-backed, single Docker container, no external runtime dependencies once configured.
 
