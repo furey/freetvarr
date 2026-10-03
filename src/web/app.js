@@ -4184,10 +4184,18 @@ const EpgView = {
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · {{ dayTitle }}</template><template v-else> · {{ mode.toUpperCase() }}</template></span>
-            <info-button title="TV GUIDE" doc="guide/tv-guide">
-              <p>Seven days of programmes from the TVHeadend guide. Click a programme to record it, record the series, or cancel; Freetvarr sends the command to TVHeadend.</p>
-              <p>Blue borders are scheduled, gold borders are series recordings, and orange is recording now. <strong>UPCOMING</strong> lists what will record; <strong>SERIES</strong> lists the series rules.</p>
-              <p>The guide only shows the guide data loaded into TVHeadend.</p>
+            <info-button v-if="mode === 'upcoming'" title="TV GUIDE: UPCOMING" doc="guide/tv-guide#recording-a-programme">
+              <p>Everything TVHeadend will record, soonest first. <strong>SCHEDULED</strong> cards are timers set in TVHeadend, marked <strong>SERIES</strong> or <strong>ONE-OFF</strong>. <strong>EXPECTED</strong> cards are episodes your series rules should catch in the next 7 days.</p>
+              <p>Click a card to open the programme, where you can cancel the recording. Search filters the list as you type.</p>
+            </info-button>
+            <info-button v-else-if="mode === 'series'" title="TV GUIDE: SERIES" doc="guide/tv-guide#how-a-series-recording-works">
+              <p>Each card is a series rule in TVHeadend. A rule records every airing of the show on its channel, on any day and at any time, and skips episode numbers it has already recorded.</p>
+              <p>A rule covers one channel only, so an HD simulcast needs its own rule. Click a card to open the show's next airing, where you can cancel the series.</p>
+            </info-button>
+            <info-button v-else title="TV GUIDE: GUIDE" doc="guide/tv-guide#the-grid">
+              <p>Channels run down the page and time runs across; the orange line marks now. The day chips, <strong>NOW</strong>, and <strong>TONIGHT</strong> move through the week, and the zoom buttons change the time scale.</p>
+              <p>Earlier programmes from today are dimmed. Blue borders are scheduled, gold borders are series recordings, and orange is recording now. Hover a programme for its details.</p>
+              <p>Click a programme to record it, record the series, or cancel. A programme on now also offers <strong>WATCH LIVE</strong>.</p>
             </info-button>
           </span>
           <div class="flex flex-wrap items-center gap-3">
@@ -4299,11 +4307,11 @@ const EpgView = {
               <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming }]" ref="scrollEl"
                 @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
                 @pointerdown="hideTooltip" @focusin="onGridFocusIn" @focusout="onGridFocusOut">
-              <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + trackWidth + 'px)' }">
+              <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
                 <div class="epg-ruler">
                   <div class="epg-ruler-corner">
-                    <input v-model="railFilter" type="search" class="epg-corner-filter"
-                      placeholder="filter…" aria-label="Filter channels by number or name" />
+                    <input v-model="railFilter" type="search" class="field-input epg-corner-filter"
+                      placeholder="Filter" aria-label="Filter channels by number or name" />
                     <div class="epg-rail-resizer" title="Drag to resize the channel rail"
                       :style="{ height: railStripH + 'px' }"
                       @pointerdown="onRailResizeDown"
@@ -4675,6 +4683,13 @@ const EpgView = {
       return x >= 0 && x <= trackWidth.value ? x : null
     })
 
+    const scrollViewW = ref(0)
+
+    const trackTailPx = computed(() => {
+      if (day.value !== 0 || nowX.value == null) return 0
+      return Math.max(0, Math.ceil(nowX.value + scrollViewW.value * (1 - EPG_NOW_ANCHOR) - trackWidth.value))
+    })
+
     const dayChips = computed(() => Array.from({ length: 7 }, (_, d) => {
       if (d === 0) return { day: 0, label: 'TODAY' }
       const date = new Date(Date.now() + d * 86_400_000)
@@ -4905,6 +4920,8 @@ const EpgView = {
     const scrollToMs = async (ms, { anchor = 0 } = {}) => {
       await nextTick()
       if (!scrollEl.value || !guide.value) return
+      scrollViewW.value = scrollEl.value.clientWidth
+      await nextTick()
       const x = ((ms - guide.value.dayStart) / 60_000) * pxPerMin.value
       const trackWidth = scrollEl.value.clientWidth - railWidthOf(scrollEl.value)
       const offset = anchor ? trackWidth * anchor : 60
@@ -5204,7 +5221,10 @@ const EpgView = {
     const scrollRailTop = () => scrollEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
 
     const railStripH = ref(0)
-    const syncRailStrip = () => { railStripH.value = scrollEl.value?.clientHeight || 0 }
+    const syncScrollSize = () => {
+      railStripH.value = scrollEl.value?.clientHeight || 0
+      scrollViewW.value = scrollEl.value?.clientWidth || 0
+    }
 
     let scrollRo = null
     watch(scrollEl, (el, prev) => {
@@ -5212,10 +5232,10 @@ const EpgView = {
       if (scrollRo) { scrollRo.disconnect(); scrollRo = null }
       if (el) {
         el.addEventListener('scroll', updatePinsOffscreen, { passive: true })
-        scrollRo = new ResizeObserver(() => { syncRailStrip(); updatePinsOffscreen() })
+        scrollRo = new ResizeObserver(() => { syncScrollSize(); updatePinsOffscreen() })
         scrollRo.observe(el)
       }
-      syncRailStrip()
+      syncScrollSize()
       updatePinsOffscreen()
     })
     onUnmounted(() => { if (scrollRo) scrollRo.disconnect() })
@@ -5436,7 +5456,7 @@ const EpgView = {
     return {
       mode, modes, setMode, day, dayChips, dayTitle, setDay,
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
-      scrollEl, railPx, trackWidth, railStripH, railNumWidth, ticks, nowX, nowMs,
+      scrollEl, railPx, trackWidth, trackTailPx, railStripH, railNumWidth, ticks, nowX, nowMs,
       zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, changeZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
       recordingStateText, fmtProgrammeRange, cellKey, cellShowsText,
