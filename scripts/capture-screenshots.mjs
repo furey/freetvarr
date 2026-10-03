@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { TIMEZONE, simulatedNow, prepareDemoContext, onAirCell, waitForImages } from './capture-demo-api.mjs'
+import { TIMEZONE, simulatedNow, prepareDemoContext, onAirCell, waitForImages, waitForProgrammeImages } from './capture-demo-api.mjs'
 
 const BASE = process.env.FREETVARR_URL || 'http://localhost:3733'
 const OUT = process.env.SCREENSHOT_OUT || '/work/docs/img'
@@ -75,6 +75,7 @@ const captureAll = async (shots, viewport) => {
   for (const shot of shots) {
     const url = `${BASE}/${shot.hash}`
     console.log(`→ ${url} @ ${viewport.width}×${viewport.height}`)
+    await page.mouse.move(0, 0)
     await page.goto(url, { waitUntil: 'networkidle' })
     await page.waitForSelector(shot.wait, { timeout: 15_000 })
     if (shot.click) {
@@ -83,6 +84,7 @@ const captureAll = async (shots, viewport) => {
     }
     if (shot.prepare) await shot.prepare(page, picks)
     await page.addStyleTag({ content: HIDE_SCROLLBARS })
+    await waitForProgrammeImages(page)
     await page.waitForTimeout(800)
     await waitForAnimationsToSettle(page)
     await page.screenshot({
