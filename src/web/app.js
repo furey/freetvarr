@@ -4098,7 +4098,7 @@ const ChannelsModal = {
               <span class="font-mono text-[0.8rem]">HIDE SD SIMULCASTS</span>
             </label>
             <p class="text-xs text-ink-dim mt-1.5">
-              Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a pinned channel is never hidden.
+              Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a favourite is never hidden.
             </p>
           </div>
           <div>

@@ -14,26 +14,6 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 ## What you'll need
 
-A few pieces of hardware you own can do the Fetch box's job. The arrows show where the TV signal goes, now and after the switch:
-
-```mermaid
-flowchart TB
-  subgraph before["Now: Fetch"]
-    direction LR
-    aerial1["Aerial"] --> fetch["Fetch box<br>(a Mighty records)"] --> tv1["TV"]
-    cloud["Fetch's cloud<br>guide and apps"] --> fetch
-  end
-  subgraph after["After: hardware you own"]
-    direction LR
-    aerial2["Aerial"] --> tuner["Network tuner<br>(on your router)"]
-    tuner --> app["Tuner app on a<br>TV or phone (Path 1)"]
-    tuner --> computer["Always-on computer<br>that records (Path 2)"]
-  end
-  before ~~~ after
-```
-
-You'll need:
-
 1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun is a good one. The Flex Quatro has four tuners inside, so it receives four channels at once.
 2. **Somewhere to store recordings**: a hard drive. A NAS (a small storage box with hard drives that stays on) suits this well, because it can also run the recording software.
 
