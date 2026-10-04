@@ -217,3 +217,51 @@ kbd {
   border: 1px solid var(--vp-c-divider);
   border-radius: 16px;
 }
+
+/* Phones: a 16px side gutter instead of VitePress's 24px. The doubled
+   selectors outrank the default theme's scoped component styles. */
+@media (max-width: 639px) {
+  :root {
+    --phone-gutter: 16px;
+  }
+
+  .VPDoc.VPDoc,
+  .VPFooter.VPFooter,
+  .VPHero.VPHero,
+  .VPFeatures .container.container,
+  .VPHomeContent.VPHomeContent,
+  .VPLocalNav .menu.menu,
+  .VPOutlineDropdown.VPOutlineDropdown {
+    padding-left: var(--phone-gutter);
+    padding-right: var(--phone-gutter);
+  }
+
+  .VPNavBar .wrapper.wrapper {
+    padding-left: var(--phone-gutter);
+  }
+
+  .vp-doc.vp-doc div[class*="language-"],
+  .VPHero .image-bg.image-bg {
+    margin-left: calc(var(--phone-gutter) * -1);
+    margin-right: calc(var(--phone-gutter) * -1);
+  }
+
+  /* Tables: tighter cells, and columns wide enough to read in tables of three
+     or more columns. A wider table scrolls sideways inside its own box. */
+  .vp-doc th,
+  .vp-doc td {
+    padding: 6px 10px;
+  }
+
+  .vp-doc table:has(th:nth-child(3)) :is(th, td) {
+    min-width: 9em;
+  }
+
+  .vp-doc table:has(th:nth-child(4)) :is(th, td) {
+    min-width: 10em;
+  }
+
+  .vp-doc table:has(th:nth-child(3)) :is(th, td):first-child {
+    min-width: 6em;
+  }
+}
