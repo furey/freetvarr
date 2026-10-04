@@ -21,6 +21,8 @@ Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/t
 
 Recordings with no show rule go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **Plex one-off section** in Settings. Other Videos does no online matching, so a sports final or a special keeps its own title.
 
+If you set a movies folder, point a **Movies** library at it and choose that library as the **Plex movies section**.
+
 ## The token
 
 - **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`, which only works when Plex runs on the same host and you've bind-mounted the file (`PLEX_PREFS_PATH`; see [Configuration](/guide/configuration)). Set `PLEX_PREFS_PATH` in `.env` to the host path of the file, then recreate the container with `docker compose up -d freetvarr`.

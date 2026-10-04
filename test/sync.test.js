@@ -12,6 +12,9 @@ import {
   libraryDecision,
   oneOffFilename,
   buildOneOffPath,
+  looksLikeFilm,
+  buildFilmPath,
+  libraryKind,
 } from '../src/sync.js'
 
 test('matchShow: case-insensitive substring match', () => {
@@ -85,6 +88,27 @@ test('buildOneOffPath: files under a folder named after the title, inside the ro
   const p = buildOneOffPath({ item: { title: 'AC/DC: Live', start, ext: 'ts' }, oneOffRoot: '/media/one-offs' })
   assert.equal(p, path.join('/media/one-offs', 'ACDC Live', 'ACDC Live - 2026-10-04 1930.ts'))
   assert.throws(() => buildOneOffPath({ item: { title: '..', start }, oneOffRoot: '/media/one-offs' }))
+})
+
+const film = { title: 'Isle Of Dogs', genres: [20], season: null, episode: null, start: 0, end: 110 * 60_000, ext: 'ts' }
+
+test('looksLikeFilm: a long movie-genre programme with no episode number', () => {
+  assert.equal(looksLikeFilm(film), true)
+  assert.equal(looksLikeFilm({ ...film, season: 5, episode: 6 }), false)
+  assert.equal(looksLikeFilm({ ...film, end: 30 * 60_000 }), false)
+  assert.equal(looksLikeFilm({ ...film, genres: [64] }), false)
+})
+
+test('buildFilmPath: Title (Year) when the guide gives a year, and a copy number on a clash', () => {
+  assert.equal(buildFilmPath({ item: { ...film, year: 2018 }, moviesRoot: '/m' }), path.join('/m', 'Isle Of Dogs (2018)', 'Isle Of Dogs (2018).ts'))
+  assert.equal(buildFilmPath({ item: film, moviesRoot: '/m', copy: 2 }), path.join('/m', 'Isle Of Dogs', 'Isle Of Dogs (2).ts'))
+})
+
+test('libraryKind: a show rule wins, films need a movies folder, the rest are one-offs', () => {
+  assert.equal(libraryKind({ show: { id: 1 }, item: film, moviesRoot: '/m' }), 'tv')
+  assert.equal(libraryKind({ show: null, item: film, moviesRoot: '/m' }), 'film')
+  assert.equal(libraryKind({ show: null, item: film, moviesRoot: '' }), 'oneOff')
+  assert.equal(libraryKind({ show: null, item: { ...film, genres: [64] }, moviesRoot: '/m' }), 'oneOff')
 })
 
 test('episodeFilename: SxxEyy with episode title when numbered', () => {

@@ -2800,6 +2800,13 @@ const SettingsView = {
               <span v-if="oneOffRootStatus" :class="['status-readout', oneOffRootStatusKind]">{{ oneOffRootStatus }}</span>
             </div>
             <div class="field-row">
+              <label class="field-label">Movies folder <span class="text-ink-mute">(inside container, optional)</span></label>
+              <input type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
+              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                Recordings the guide marks as films, with no show rule, go here as <code>Title (Year)/Title (Year).ts</code>. Point a Plex "Movies" library at it.
+              </p>
+            </div>
+            <div class="field-row">
               <toggle-switch v-model="importUnmatched">IMPORT EVERY RECORDING</toggle-switch>
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 On: a recording with no show rule goes to the one-off folder. Off: only recordings that match a show rule, or that you recorded with Add to library on, are imported.
@@ -2908,6 +2915,17 @@ const SettingsView = {
               </select>
               <input v-else type="text" class="field-input" v-model="plexOneOffSectionId"
                 placeholder="section ID of the one-off library" />
+            </div>
+            <div class="field-row md:col-span-2">
+              <label class="field-label">Plex movies section</label>
+              <select v-if="plexSections.length" class="field-input" v-model="plexMoviesSectionId">
+                <option value="">— none —</option>
+                <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
+                  {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
+                </option>
+              </select>
+              <input v-else type="text" class="field-input" v-model="plexMoviesSectionId"
+                placeholder="section ID of the movies library" />
             </div>
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="loadPlexSections" :disabled="plexProbing">
@@ -3038,6 +3056,8 @@ const SettingsView = {
     const oneOffRootStatusKind = ref('ok')
     const importUnmatched = ref(true)
     const plexOneOffSectionId = ref('')
+    const moviesRoot = ref('')
+    const plexMoviesSectionId = ref('')
     const mediaRoot = ref('')
     const mediaRootTesting = ref(false)
     const mediaRootStatus = ref('')
@@ -3079,6 +3099,8 @@ const SettingsView = {
       oneOffRoot.value = s.oneoff_root || ''
       importUnmatched.value = s.import_unmatched !== false
       plexOneOffSectionId.value = s.plex_oneoff_section_id || ''
+      moviesRoot.value = s.movies_root || ''
+      plexMoviesSectionId.value = s.plex_movies_section_id || ''
       deleteAfterPlexRefreshOnly.value = s.delete_after_plex_refresh_only !== false
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
       adOriginalRetentionDays.value = s.ad_original_retention_days || '7'
@@ -3104,6 +3126,8 @@ const SettingsView = {
           oneoff_root: oneOffRoot.value,
           import_unmatched: importUnmatched.value,
           plex_oneoff_section_id: plexOneOffSectionId.value,
+          movies_root: moviesRoot.value,
+          plex_movies_section_id: plexMoviesSectionId.value,
           delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly.value,
           ad_removal_enabled: adRemovalEnabled.value,
           ad_original_retention_days: adOriginalRetentionDays.value,
@@ -3341,7 +3365,7 @@ const SettingsView = {
       nuking, nukeState, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, plexOneOffSectionId,
+      importUnmatched, plexOneOffSectionId, moviesRoot, plexMoviesSectionId,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,
       testTvh, detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate,
@@ -4935,10 +4959,17 @@ const EpgView = {
     const episodesToKeep = ref(0)
     const addToLibrary = ref(true)
     const showRules = ref([])
+    const moviesFolderSet = ref(false)
     const loadShowRules = async () => {
-      const r = await api('GET', '/api/shows').catch(() => ({ shows: [] }))
+      const [r, s] = await Promise.all([
+        api('GET', '/api/shows').catch(() => ({ shows: [] })),
+        api('GET', '/api/settings').catch(() => ({})),
+      ])
       showRules.value = (r.shows || []).filter((rule) => rule.enabled)
+      moviesFolderSet.value = Boolean(s.movies_root)
     }
+    const looksLikeFilm = (p) => p.genre >= 0x10 && p.genre <= 0x1f
+      && p.series_no == null && p.episode_no == null && p.end - p.start >= 75 * 60_000
     const ruleFor = (title) => {
       const t = String(title || '').toLowerCase()
       return showRules.value
@@ -4951,6 +4982,7 @@ const EpgView = {
       if (!addToLibrary.value) return 'Stays in TVHeadend. Freetvarr does not import it.'
       const rule = ruleFor(program.title)
       if (rule) return `Imports to ${rule.dest_folder}, under the "${rule.show_pattern}" show rule.`
+      if (moviesFolderSet.value && looksLikeFilm(program)) return 'The guide lists this as a film, so it imports to the movies folder.'
       return program.series_link
         ? 'RECORD imports this airing to the one-off folder. RECORD SERIES adds a show rule, so episodes import to the TV library.'
         : 'Imports to the one-off folder.'

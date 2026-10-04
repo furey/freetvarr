@@ -44,7 +44,9 @@ The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/me
 
 The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/media/one-offs` in the example compose file) holds recordings that match no [show rule](/guide/following-shows#recordings-with-no-show-rule). On the host it is `${DATA_PATH}/media/one-offs`. Create the host folder first, owned by `PUID:PGID`. If the folder is missing, these recordings show as `skipped` with a note.
 
-**IMPORT EVERY RECORDING** in Settings turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a show rule, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **Plex one-off section**.
+The optional **movies folder** (`movies_root`, or `MOVIES_ROOT`) takes [films](/guide/following-shows#films) with no show rule. Leave it empty to send films to the one-off folder. It must sit inside the same shared mount as the recordings, for example `/data/media/movies`.
+
+**IMPORT EVERY RECORDING** in Settings turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a show rule, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **Plex one-off section**; for films, choose the **Plex movies section**.
 
 ## One shared mount
 
