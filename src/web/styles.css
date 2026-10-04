@@ -441,6 +441,7 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 
 .btn-icon {
+  justify-content: center;
   padding: 0.3rem 0.45rem;
   letter-spacing: 0;
   line-height: 1;
@@ -3164,10 +3165,6 @@ section[id^="section-"] {
 
 .live-zoom-s .live-now-thumb {
   width: 3rem;
-}
-
-.live-zoom-s .live-now-text .progress {
-  display: none;
 }
 
 .live-zoom-l .live-row {
