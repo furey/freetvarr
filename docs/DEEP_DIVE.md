@@ -34,7 +34,7 @@ flowchart TB
 
     subgraph tvh["tvheadend container"]
       tvhsrv["TVHeadend<br>HTTP API on 9981"]
-      rec[("/recordings<br>.ts")]
+      rec[("recordings/<br>.ts")]
     end
 
     plex["Plex Media Server"]
@@ -51,7 +51,7 @@ flowchart TB
       db[("state.db<br>SQLite via Knex")]
     end
 
-    media[("Media library<br>/media/tv")]
+    media[("Media library<br>media/tv")]
   end
 
   xmltv["XMLTV feed<br>e.g. i.mjh.nz/au/&lt;Region&gt;/epg.xml"]
@@ -152,7 +152,9 @@ The sync itself is single-flight: a module-level `inFlight` holds the running sy
 
 `importFile` tries `fs.link` first and falls back to `fs.copyFile` on any error. A hardlink is a second name for the same bytes: instant, no extra disk, and both names stay valid until the last one is removed. TVHeadend's copy is deleted once Plex confirms the file, so a second name is all the import needs.
 
-The fallback exists because a hardlink cannot cross filesystems. Mount `recordings/` and `media/tv` on one volume and every import is a link; put them on separate volumes and every import copies a multi-gigabyte transport stream. Both work; a link is instant and a copy takes minutes.
+The fallback exists because a hardlink cannot cross filesystems, and Linux also refuses one between two bind mounts (`EXDEV`), even when both mounts show one disk. Docker makes each `volumes:` entry a separate bind mount. A container that mounts `recordings/` and `media/tv` as two entries copies every import, a multi-gigabyte transport stream that takes minutes. The example compose file mounts `${DATA_PATH}` once, at `/data`, so both folders sit inside one mount and every import is a link.
+
+The Doctor Hardlinks check makes a real test link from the recordings folder into the media folder and the one-off folder. It reports one disk with separate mounts as a different case from separate disks.
 
 An import whose destination already exists at exactly the source size returns early, so a re-run does nothing.
 
@@ -333,13 +335,14 @@ The rest is iOS Safari fixes in `styles.css`:
 The TVHeadend URL and credentials, the Plex token, and the storage paths are runtime settings; configure them in the web UI (or the first-run wizard), not via env. The env vars below are deploy/runtime knobs only.
 
 > [!NOTE]<br>
-> `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for matching DB-backed settings that can be overridden from the UI at runtime. The fallback chain is *settings DB value → env var → hardcoded default*. The Storage panel in Settings and the wizard's STORAGE step show the effective values and can test each path.
+> `MEDIA_ROOT`, `ONEOFF_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for matching DB-backed settings that can be overridden from the UI at runtime. The fallback chain is *settings DB value → env var → hardcoded default*. The Storage panel in Settings and the wizard's STORAGE step show the effective values and can test each path.
 
 | Variable                 | Notes                                                                                                                                                                                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MEDIA_ROOT`             | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`.                                                                                                                                     |
-| `RECORDINGS_ROOT`        | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`.                                                                                                             |
-| `TVH_RECORDINGS_PATH`    | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`. Only differs from `RECORDINGS_ROOT` if the mounts disagree.                                                  |
+| `MEDIA_ROOT`             | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`; the example compose file sets `/data/media/tv`.                                                                                     |
+| `ONEOFF_ROOT`            | Default for the `oneoff_root` setting: the directory for recordings with no show rule. Defaults to `/media/one-offs`; the example compose file sets `/data/media/one-offs`.                                                                             |
+| `RECORDINGS_ROOT`        | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`; the example compose file sets `/data/recordings`.                                                           |
+| `TVH_RECORDINGS_PATH`    | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`, which is the path in the TVHeadend container. Freetvarr rewrites this prefix to `RECORDINGS_ROOT`.           |
 | `DB_PATH`                | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                                                                   |
 | `PORT`                   | HTTP port inside the container. Defaults to `3733`.                                                                                                                                                                                                     |
 | `NODE_ENV`               | `production` makes the server refuse to start if `CSRF_SECRET` is unset or the dev placeholder. Compose sets this.                                                                                                                                      |
@@ -358,7 +361,7 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `FREETVARR_PORT`  | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `3733`.                                                               |
 | `CONFIG_PATH`     | Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                                                      |
-| `DATA_PATH`       | Host root for the data bind mounts. `/media/tv` is `${DATA_PATH}/media/tv`; `/recordings` is `${DATA_PATH}/recordings` in both containers.                                                 |
+| `DATA_PATH`       | Host root for the data. Holds only `recordings/` and `media/`. Freetvarr mounts it whole at `/data`; TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`.                          |
 | `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the "Auto-detect from local Plex" button can read `PlexOnlineToken`. Drop the mount if Plex isn't on this host. |
 
 ## Docker deployment
@@ -374,17 +377,16 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
 Volumes:
 
-| Service     | Container path               | Host path                  | Purpose                                                                           |
-| ----------- | ---------------------------- | -------------------------- | --------------------------------------------------------------------------------- |
-| `tvheadend` | `/config`                    | `${CONFIG_PATH}/tvheadend` | TVHeadend's own configuration, channels, and DVR entries                          |
-| `tvheadend` | `/recordings`                | `${DATA_PATH}/recordings`  | Where TVHeadend writes `.ts` files                                                |
-| `freetvarr` | `/config`                    | `${CONFIG_PATH}/freetvarr` | SQLite state DB and an optional `comskip.ini` override                            |
-| `freetvarr` | `/recordings`                | `${DATA_PATH}/recordings`  | The same folder, read side. This shared mount is what makes the import a hardlink |
-| `freetvarr` | `/media/tv`                  | `${DATA_PATH}/media/tv`    | Plex TV library, where imports land                                               |
-| `freetvarr` | `/plex-preferences.xml` (ro) | `${PLEX_PREFS_PATH}`       | Optional. Read-only, only for the Auto-detect token button                        |
+| Service     | Container path               | Host path                  | Purpose                                                                                                                                                            |
+| ----------- | ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tvheadend` | `/config`                    | `${CONFIG_PATH}/tvheadend` | TVHeadend's own configuration, channels, and DVR entries                                                                                                           |
+| `tvheadend` | `/recordings`                | `${DATA_PATH}/recordings`  | Where TVHeadend writes `.ts` files                                                                                                                                 |
+| `freetvarr` | `/config`                    | `${CONFIG_PATH}/freetvarr` | SQLite state DB and an optional `comskip.ini` override                                                                                                             |
+| `freetvarr` | `/data`                      | `${DATA_PATH}`             | Recordings at `/data/recordings`, the Plex TV library at `/data/media/tv`, and the one-off folder at `/data/media/one-offs`. One mount makes the import a hardlink |
+| `freetvarr` | `/plex-preferences.xml` (ro) | `${PLEX_PREFS_PATH}`       | Optional. Read-only, only for the Auto-detect token button                                                                                                         |
 
 > [!IMPORTANT]<br>
-> `/recordings` and `/media/tv` should be on one host filesystem. They are two directories under `${DATA_PATH}` for that reason; split them across volumes and every import becomes a full copy.
+> Freetvarr must see the recordings and the media folders through one mount. Linux refuses a hardlink between two bind mounts, so separate mounts make every import a full copy. Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.
 
 ## Security model
 
@@ -446,7 +448,7 @@ freetvarr/
 │   ├── tvheadend.js        # The only module that speaks TVHeadend's JSON API
 │   ├── epg.js              # Guide + recording-state caching, channel prefs, series projection
 │   ├── guide-history.js    # Saves guide events TVHeadend will drop; prunes before yesterday
-│   ├── folder-matcher.js   # Fuse.js wrapper that scans /media/tv
+│   ├── folder-matcher.js   # Fuse.js wrapper that scans the media root
 │   ├── sync.js             # Sync engine; list finished, match shows, hardlink or copy, persist; exports classifyImport / matchShow / buildDestPath / localPathFor for tests
 │   ├── commercials.js      # Ad removal; comskip detect + ffmpeg cut orchestration, pure helpers exported for tests
 │   ├── live-tv.js          # Live TV; stream picking, ffmpeg arguments, tuner preflight, session registry

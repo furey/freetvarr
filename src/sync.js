@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
 
-import { db, getSetting } from './db.js'
+import { db, getSetting, setSetting } from './db.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import {
   fetchProgrammeImage,
@@ -46,6 +46,32 @@ export const libraryDecision = ({ existing, libraryChoice, show, importUnmatched
   if (show || importUnmatched || libraryChoice === 'include') return { action: 'import' }
   return { action: 'hold', reason: HOLD_REASONS.noRule }
 }
+
+export const rebaseFilePaths = async () => {
+  const roots = [
+    { key: 'last_media_root', current: await getMediaRoot() },
+    { key: 'last_oneoff_root', current: await getOneOffRoot() },
+  ]
+  let moved = 0
+  for (const { key, current } of roots) {
+    const previous = await getSetting(key)
+    if (previous === current) continue
+    if (previous) moved += await rebasePrefix({ from: previous, to: current })
+    await setSetting(key, current)
+  }
+  return moved
+}
+
+export const rebasePrefix = ({ from, to }) => {
+  const oldRoot = from.replace(/\/+$/, '')
+  const newRoot = to.replace(/\/+$/, '')
+  return db('recordings')
+    .where('file_path', 'like', `${oldRoot}/%`)
+    .update({ file_path: db.raw('? || substr(file_path, ?)', [newRoot, oldRoot.length + 1]) })
+}
+
+export const resetInterruptedImports = () =>
+  db('recordings').where({ status: 'importing' }).update({ status: 'pending', error: null })
 
 export const getOneOffRoot = async () => {
   const fromSetting = await getSetting('oneoff_root')

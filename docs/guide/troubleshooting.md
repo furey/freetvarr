@@ -50,16 +50,17 @@ The TVHeadend web UI answers `403 Forbidden` to the admin login: the password TV
 
 `TEST PATH` checks a folder inside the Freetvarr container, not on the host.
 
-- **"/recordings does not exist inside the container"**: the compose file doesn't mount a folder at that path. Check the `volumes:` of the `freetvarr` service, then run `docker compose up -d freetvarr` to apply the change.
+- **"/data/recordings does not exist inside the container"**: the compose file doesn't mount a folder at that path. Check the `volumes:` of the `freetvarr` service, then run `docker compose up -d freetvarr` to apply the change.
 - **"is not readable by the container user"** or **"is not writable by the container user"**: the host folder belongs to a different user from `PUID`/`PGID`. Run `ls -ln` on the host folder, then `chown` it to the `PUID:PGID` pair both containers run as. A bind-mount folder that Docker created for you belongs to `root`.
-- **"sits on a different filesystem from the media root, so imports copy each file"**: this is a notice, not a failure. Imports still work. Put `recordings/` and `media/tv` on one filesystem to make them hardlinks.
+- **"is on the same disk as the media root but in a separate mount, so imports copy each file"**: this is a notice, not a failure. Imports still work. Mount one folder that holds both `recordings/` and `media/`, as in [One shared mount](/guide/configuration#one-shared-mount), to make them hardlinks.
+- **"is on a different disk from the media root, so imports copy each file"**: this is a notice, not a failure. Imports still work. Move `recordings/` and `media/` onto one disk, then mount one folder that holds both.
 
 ## CHECK TVHEADEND mismatch
 
 `CHECK TVHEADEND` reads the recording path from TVHeadend's default DVR profile and compares it with the "Recordings folder (as TVHeadend sees it)" field.
 
 - **"TVHeadend has no recording path. Set one in its DVR profile."**: set **Recording system path** on the default profile ([TVHeadend step 7](/guide/tvheadend#_7-set-the-recording-path)).
-- **"TVHeadend records to /x, not /recordings."**: change TVHeadend's path to the container path of its recordings mount (`/recordings` in the example compose), or put TVHeadend's path in the field. The field holds the path TVHeadend uses inside its own container, and that path must be the same host folder Freetvarr mounts. [The two recordings paths](/guide/configuration#the-two-recordings-paths) has the detail.
+- **"TVHeadend records to /x, not /recordings."**: change TVHeadend's path to the container path of its recordings mount (`/recordings` in the example compose), or put TVHeadend's path in the field. The field holds the path TVHeadend uses inside its own container, and that path must be the same host folder Freetvarr mounts, as `recordings_root`. [The two recordings paths](/guide/configuration#the-two-recordings-paths) has the detail.
 
 ## Missing tuner
 
@@ -146,7 +147,7 @@ The error text says which of the two causes it was:
 
 ## Slow imports
 
-- A hardlink import is instant. If an import shows progress, Freetvarr is copying, because the recordings folder and the media library are on different filesystems. Put them on one filesystem to import by hardlink.
+- A hardlink import is instant. If an import shows progress, Freetvarr is copying, because Freetvarr sees the recordings folder and the media library through separate mounts or on different disks. Put both under one mounted folder on one disk to import by hardlink ([One shared mount](/guide/configuration#one-shared-mount)).
 
 ## Repeat recordings
 

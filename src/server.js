@@ -18,6 +18,8 @@ import {
   getRecordingsRoot,
   getTvhRecordingsPath,
   forgetRecordingArtwork,
+  rebaseFilePaths,
+  resetInterruptedImports,
   matchShow,
   createValidFilename,
 } from './sync.js'
@@ -1117,6 +1119,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
     await setSetting('sync_cron', String(body.sync_cron))
     await startScheduler()
   }
+  await rebaseFilePaths()
   res.json({ ok: true })
 })
 
@@ -1239,6 +1242,13 @@ const escapesMediaRoot = (value) =>
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
   await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
+  try {
+    const moved = await rebaseFilePaths()
+    if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
+    await resetInterruptedImports()
+  } catch (err) {
+    console.error('[sync] failed to reconcile recording paths:', err.message)
+  }
   try {
     await recoverInterruptedCuts()
     await resetInterruptedScans()

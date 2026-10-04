@@ -44,7 +44,7 @@ FREETVARR_PORT=3733
 
 `CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts. Every variable is explained in [Configuration](/guide/configuration).
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes recordings there, and Freetvarr reads them from the same folder.
+The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes recordings there, and Freetvarr reads them from the same folder. Freetvarr mounts the whole of `${DATA_PATH}` once, at `/data`, so imports are hardlinks ([One shared mount](/guide/configuration#one-shared-mount)). Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.
 
 Create the host folders before the first start, owned by the user the containers run as. Docker creates a missing bind-mount folder as `root`, and neither container can then write to it:
 
@@ -95,9 +95,9 @@ To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**. The
 If TVHeadend already runs on another host or in another compose project, delete the `tvheadend` service from your `docker-compose.yml` and keep only `freetvarr`. Two things still have to hold:
 
 - **Freetvarr can reach it.** Use `http://<tvheadend-host>:9981` in the wizard, and make sure the Freetvarr host's address falls inside the allowed networks of the TVHeadend user.
-- **Freetvarr can read its recordings.** Mount the folder TVHeadend records into (a NAS share, say) into the Freetvarr container at `/recordings`. If TVHeadend writes to a different path on its side, such as `/mnt/dvr`, put that path in the wizard's "Recordings folder (as TVHeadend sees it)" field. Freetvarr rewrites the one prefix onto the other.
+- **Freetvarr can read its recordings.** Mount the folder TVHeadend records into (a NAS share, say) into the Freetvarr container. Set the recordings root to where Freetvarr sees it, such as `/data/recordings`. Put the path TVHeadend writes to on its side, such as `/recordings` or `/mnt/dvr`, in the wizard's "Recordings folder (as TVHeadend sees it)" field. Freetvarr rewrites the one prefix onto the other.
 
-Delete-after-import still works, because TVHeadend deletes the file itself. Imports copy rather than hardlink when the recordings and the media library sit on different filesystems.
+Delete-after-import still works, because TVHeadend deletes the file itself. Imports copy rather than hardlink unless Freetvarr sees the recordings and the media library through one mount ([One shared mount](/guide/configuration#one-shared-mount)).
 
 ## On a Synology NAS
 
