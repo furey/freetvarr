@@ -13,20 +13,21 @@ Freetvarr reads settings from two places. The `.env` next to your compose file h
 
 Set these in the `.env` alongside `docker-compose.yml`:
 
-| Variable               | Purpose                                                                                                                   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `CONFIG_PATH`          | Host folder for the two containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                      |
-| `DATA_PATH`            | Host folder holding both `recordings/` (TVHeadend's output) and `media/tv` (your Plex TV library)                         |
-| `PLEX_PREFS_PATH`      | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host         |
-| `CSRF_SECRET`          | 32+ random bytes (`openssl rand -hex 32`); required                                                                       |
-| `TZ`                   | Your IANA timezone (e.g. `Australia/Sydney`); the UI renders all timestamps in it                                         |
-| `PUID`/`PGID`          | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services                  |
-| `FREETVARR_PORT`       | Host port to serve on (default `3733`)                                                                                    |
-| `TVH_URL`              | Optional. Fixes the address `AUTO-DISCOVER TVHEADEND` offers; omit to let Freetvarr probe port `9981` on the host         |
-| `LIVE_TV_MAX_SESSIONS` | Optional. How many channels the [live TV](/guide/live-tv#in-freetvarr) player streams at once (default `2`)               |
-| `LIVE_TV_TRANSCODE`    | Optional. How [live TV](/guide/live-tv#video-handling) handles H.264: `auto` (default), `hardware`, `software`, or `copy` |
-| `LIVE_TV_VAAPI_DEVICE` | Optional. The render device for hardware encoding (default `/dev/dri/renderD128`)                                         |
-| `RENDER_GID`           | Only with [`docker-compose.override.yml`](/guide/hardware#hardware-transcoding). The group ID that owns the render device |
+| Variable                 | Purpose                                                                                                                                                  |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONFIG_PATH`            | Host folder for the two containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                     |
+| `DATA_PATH`              | Host folder holding both `recordings/` (TVHeadend's output) and `media/tv` (your Plex TV library)                                                        |
+| `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host                                        |
+| `CSRF_SECRET`            | 32+ random bytes (`openssl rand -hex 32`); required                                                                                                      |
+| `TZ`                     | Your IANA timezone (e.g. `Australia/Sydney`); the UI renders all timestamps in it                                                                        |
+| `PUID`/`PGID`            | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services                                                 |
+| `FREETVARR_PORT`         | Host port to serve on (default `3733`)                                                                                                                   |
+| `TVH_URL`                | Optional. Fixes the address `AUTO-DISCOVER TVHEADEND` offers; omit to let Freetvarr probe port `9981` on the host                                        |
+| `LIVE_TV_MAX_SESSIONS`   | Optional. How many channels the [live TV](/guide/live-tv#stream-handling) player streams at once (default `2`)                                           |
+| `LIVE_TV_BUFFER_MINUTES` | Optional. How many minutes of [live TV](/guide/live-tv#pause-and-rewind) the player can pause and rewind (default `30`, `0` turns it off, maximum `120`) |
+| `LIVE_TV_TRANSCODE`      | Optional. How [live TV](/guide/live-tv#video-handling) handles H.264: `auto` (default), `hardware`, `software`, or `copy`                                |
+| `LIVE_TV_VAAPI_DEVICE`   | Optional. The render device for hardware encoding (default `/dev/dri/renderD128`)                                                                        |
+| `RENDER_GID`             | Only with [`docker-compose.override.yml`](/guide/hardware#hardware-transcoding). The group ID that owns the render device                                |
 
 ## The two recordings paths
 

@@ -13,7 +13,7 @@ A network tuner streams live channels to anything on your LAN, and TVHeadend str
 
 | App                                 | Platforms                                | Points at              | Note                                                                        |
 | ----------------------------------- | ---------------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
-| Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. No captions yet                                                 |
+| Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. No captions yet                  |
 | The tuner's own app, e.g. HDHomeRun | Apple TV, iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                            |
 | Plex live TV                        | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend |
 | Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the guide                                                 |
@@ -28,6 +28,16 @@ Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or pre
 ![The player over the Live TV tab](../img/screenshot-player.png)
 
 Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
+
+## Pause and rewind
+
+Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` to keep more or fewer minutes, or `0` to turn it off.
+
+The buffer starts when you open the channel, so you can rewind only as far back as that. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
+
+Freetvarr keeps the buffer on disk, in the container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2 GB` for each channel that is playing.
+
+## Stream handling
 
 If a channel takes longer than about `15` seconds to start, the player says it is still waiting for a signal. If a stream stops, the player says why (for example, a recording took the tuner), and **RETRY** tunes the channel again.
 
