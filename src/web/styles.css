@@ -3510,10 +3510,17 @@ section[id^="section-"] {
   line-height: 1rem;
 }
 
+@media (max-width: 767px) {
+  .epg-state-line {
+    margin-bottom: 4.5rem;
+  }
+}
+
 .epg-float-cluster {
-  position: absolute;
-  bottom: 0.75rem;
-  z-index: 10;
+  position: fixed;
+  right: 1rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  z-index: 30;
   display: flex;
   align-items: stretch;
   overflow: hidden;

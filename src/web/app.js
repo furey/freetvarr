@@ -5015,8 +5015,8 @@ const EpgView = {
                 <div v-if="day === 0 && nowX != null" class="epg-nowline" :style="{ left: 'calc(var(--epg-rail-px) + ' + nowX + 'px)' }"></div>
               </div>
               </div>
-              <div v-if="narrow" class="epg-float-cluster" role="group" aria-label="Jump and zoom"
-                :style="{ right: 'calc(' + scrollbarW + 'px + 0.5rem)' }">
+              <teleport to="body">
+              <div v-if="narrow && !selected && !channelsModal" class="epg-float-cluster" role="group" aria-label="Jump and zoom">
                 <button type="button" class="epg-float-btn" @click="jumpNow">NOW</button>
                 <button type="button" class="epg-float-btn" @click="jumpTonight">TONIGHT</button>
                 <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom out"
@@ -5024,6 +5024,7 @@ const EpgView = {
                 <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom in"
                   :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
               </div>
+              </teleport>
             </div>
             <p v-if="stateLine" class="epg-state-line font-mono text-ink-mute">{{ stateLine }}</p>
           </template>
