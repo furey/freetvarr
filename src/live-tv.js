@@ -20,6 +20,20 @@ export const LIVE_ROOT = path.join(os.tmpdir(), 'freetvarr-live')
 export const LIVE_FILE_PATTERN = /^(index\.m3u8|seg\d{1,9}\.ts)$/
 export const LIVE_SESSION_PATTERN = /^[a-f0-9]{16}$/
 export const CONFLICT_WINDOW_MS = 60 * 60 * 1000
+export const HLS_SEGMENT_SECONDS = 2
+export const MIN_LIVE_SEGMENTS = 6
+
+export const DEFAULT_LIVE_BUFFER_MINUTES = 30
+export const MAX_LIVE_BUFFER_MINUTES = 120
+
+export const liveBufferMinutesFrom = (value) => {
+  const minutes = Number(value)
+  if (value == null || value === '' || !Number.isFinite(minutes)) return DEFAULT_LIVE_BUFFER_MINUTES
+  return Math.min(MAX_LIVE_BUFFER_MINUTES, Math.max(0, Math.round(minutes)))
+}
+
+export const liveSegmentCount = (bufferMinutes = 0) =>
+  Math.max(MIN_LIVE_SEGMENTS, Math.ceil((bufferMinutes * 60) / HLS_SEGMENT_SECONDS))
 
 export class LiveTvError extends Error {
   constructor(message, { code, status = 409, details = {} } = {}) {
@@ -46,7 +60,7 @@ export const pickStreams = ({ streams = [], languages = [], encoder = COPY_ENCOD
   }
 }
 
-export const ffmpegArgsFor = ({ plan, dir }) => [
+export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS }) => [
   '-hide_banner',
   '-loglevel', 'error',
   ...hardwareDecodeArgs(plan),
@@ -58,8 +72,8 @@ export const ffmpegArgsFor = ({ plan, dir }) => [
   ...videoCodecArgs(plan),
   ...(plan.audio ? ['-c:a', 'aac', '-ac', '2', '-b:a', '128k'] : []),
   '-f', 'hls',
-  '-hls_time', '2',
-  '-hls_list_size', '6',
+  '-hls_time', String(HLS_SEGMENT_SECONDS),
+  '-hls_list_size', String(segmentCount),
   '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
   '-hls_segment_filename', path.join(dir, 'seg%d.ts'),
   path.join(dir, 'index.m3u8'),
@@ -129,6 +143,7 @@ export const createLiveSessions = ({
   newId = () => crypto.randomBytes(8).toString('hex'),
   rootDir = LIVE_ROOT,
   maxSessions = 2,
+  bufferMinutes = 0,
   idleMs = 20_000,
   stallMs = 10_000,
   killGraceMs = 3_000,
@@ -171,7 +186,11 @@ export const createLiveSessions = ({
     ended.delete(channelId)
     try {
       await makeDir(session.dir)
-      session.child = spawnProcess('ffmpeg', ffmpegArgsFor({ plan, dir: session.dir }), {
+      session.child = spawnProcess('ffmpeg', ffmpegArgsFor({
+        plan,
+        dir: session.dir,
+        segmentCount: liveSegmentCount(bufferMinutes),
+      }), {
         stdio: ['pipe', 'ignore', 'pipe'],
       })
     } catch (err) {

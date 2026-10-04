@@ -5755,6 +5755,7 @@ const live = reactive({
   holders: [],
   conflict: null,
   tuningStartedAt: 0,
+  behindSeconds: 0,
 })
 
 let liveVideo = null
@@ -5878,6 +5879,7 @@ const detachLiveVideo = () => {
   liveHls?.destroy()
   liveHls = null
   liveAttached = false
+  live.behindSeconds = 0
   if (!liveVideo) return
   liveVideo.pause()
   clearVideoSource()
@@ -5932,20 +5934,44 @@ const FULLSCREEN_EXIT_RESUME_MS = 1_500
 
 let resumeAfterFullscreenUntil = 0
 
-const resumeAtLiveEdge = () => {
+const resumeAfterFullscreen = () => {
   if (!live.open || live.phase === 'ended' || !liveVideo) return
-  const { seekable } = liveVideo
-  if (seekable.length) liveVideo.currentTime = seekable.end(seekable.length - 1)
   liveVideo.play()?.catch(() => {})
 }
 
 const onLiveFullscreenExit = () => {
   resumeAfterFullscreenUntil = Date.now() + FULLSCREEN_EXIT_RESUME_MS
-  setTimeout(resumeAtLiveEdge, 100)
+  setTimeout(resumeAfterFullscreen, 100)
+}
+
+const liveEdgeOf = (video) => {
+  const { seekable } = video
+  return seekable.length ? seekable.end(seekable.length - 1) : null
+}
+
+const trackBehindLive = () => {
+  const edge = liveVideo && liveEdgeOf(liveVideo)
+  live.behindSeconds = edge == null ? 0 : Math.max(0, edge - liveVideo.currentTime)
+}
+
+const oldestKeptSecond = () => liveHls?.latestLevelDetails?.fragments?.[0]?.start ?? null
+
+const keepSeekInsideBuffer = () => {
+  const oldest = oldestKeptSecond()
+  if (oldest == null) return
+  const floor = oldest + SEEK_FLOOR_MARGIN_S
+  if (liveVideo.currentTime < floor) liveVideo.currentTime = floor
+}
+
+const jumpToLive = () => {
+  if (!liveVideo) return
+  const edge = liveHls?.liveSyncPosition ?? liveEdgeOf(liveVideo)
+  if (edge != null) liveVideo.currentTime = edge
+  liveVideo.play()?.catch(() => {})
 }
 
 const onLivePause = () => {
-  if (Date.now() < resumeAfterFullscreenUntil) setTimeout(resumeAtLiveEdge, 100)
+  if (Date.now() < resumeAfterFullscreenUntil) setTimeout(resumeAfterFullscreen, 100)
 }
 
 const TvIcon = {
@@ -5971,6 +5997,15 @@ const StopIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <rect x="3.5" y="3.5" width="9" height="9" rx="1"/>
+    </svg>
+  `,
+}
+
+const GoLiveIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M3.5 3.5v9l7-4.5z"/>
+      <rect x="11" y="3.5" width="1.75" height="9" rx="0.5"/>
     </svg>
   `,
 }
@@ -6246,7 +6281,10 @@ const LivePlayer = {
               <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
               <button type="button" class="btn" @click="stopLive"><cross-icon /> CLOSE</button>
             </div>
-            <button v-else type="button" class="btn btn-danger shrink-0" @click="stopLive"><stop-icon /> STOP</button>
+            <div v-else class="flex shrink-0 gap-2">
+              <button v-if="isBehindLive" type="button" class="btn" @click="jumpToLive"><go-live-icon /> GO LIVE</button>
+              <button type="button" class="btn btn-danger" @click="stopLive"><stop-icon /> STOP</button>
+            </div>
           </div>
         </div>
       </section>
@@ -6292,15 +6330,18 @@ const LivePlayer = {
       if (phase === 'idle') return showChips('hidden')
     })
 
+    const isBehindLive = computed(() => live.phase === 'live' && live.behindSeconds >= BEHIND_LIVE_SHOWN_S)
+
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
       if (live.phase === 'tuning') {
         const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
         return slow ? 'TUNING… STILL WAITING FOR A SIGNAL' : 'TUNING…'
       }
-      if (!live.conflict) return 'LIVE'
+      const lead = isBehindLive.value ? `${fmtCountdown(live.behindSeconds * 1000)} BEHIND LIVE` : 'LIVE'
+      if (!live.conflict) return lead
       const wait = fmtCountdown(live.conflict.startsAt - now.value.getTime())
-      return `LIVE · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
+      return `${lead} · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
     })
 
     const statusKind = computed(() => {
@@ -6316,6 +6357,8 @@ const LivePlayer = {
       liveVideo = videoEl.value
       liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
       liveVideo.addEventListener('pause', onLivePause)
+      liveVideo.addEventListener('timeupdate', trackBehindLive)
+      liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
       liveVideo.addEventListener('loadeddata', handOffToVideo)
       liveVideo.addEventListener('playing', handOffToVideo)
       window.addEventListener('keydown', onKeydown)
@@ -6326,7 +6369,10 @@ const LivePlayer = {
     })
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
-    return { live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText }
+    return {
+      live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
+      isBehindLive, jumpToLive,
+    }
   },
 }
 
@@ -6337,10 +6383,11 @@ const TUNING_SLOW_MS = 15_000
 const LIVE_HLS_CONFIG = {
   workerPath: '/vendor/hls.worker.js',
   liveSyncDurationCount: 2,
-  liveMaxLatencyDurationCount: 4,
   backBufferLength: 30,
 }
 const LIVE_POLL_PLAYING_MS = 10_000
+const BEHIND_LIVE_SHOWN_S = 10
+const SEEK_FLOOR_MARGIN_S = 4
 
 const VIEW_MAP = {
   dashboard: DashboardView,
@@ -6646,6 +6693,7 @@ app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)
 app.component('stop-icon', StopIcon)
+app.component('go-live-icon', GoLiveIcon)
 app.component('refresh-icon', RefreshIcon)
 app.component('sliders-icon', SlidersIcon)
 app.component('arrow-left-icon', ArrowLeftIcon)

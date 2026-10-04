@@ -55,6 +55,7 @@ import { getRecordingNow, recordingImageSource } from './recording-now.js'
 import {
   LIVE_ROOT,
   LiveTvError,
+  liveBufferMinutesFrom,
   createLiveSessions,
   preflightChannel,
   startLiveChannel,
@@ -76,6 +77,7 @@ const CSRF_SECRET = process.env.CSRF_SECRET || DEV_CSRF_SECRET
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const UNIMPORTED_STATUSES = ['failed', 'skipped']
 const LIVE_TV_MAX_SESSIONS = Math.max(1, Number(process.env.LIVE_TV_MAX_SESSIONS) || 2)
+const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
 const liveEncoderReady = detectLiveEncoder({
   mode: (process.env.LIVE_TV_TRANSCODE || 'auto').trim().toLowerCase(),
   device: process.env.LIVE_TV_VAAPI_DEVICE || DEFAULT_VAAPI_DEVICE,
@@ -584,6 +586,7 @@ const liveSessions = createLiveSessions({
   openUpstream: openUpstreamFor,
   describeStall: describeStallFor,
   maxSessions: LIVE_TV_MAX_SESSIONS,
+  bufferMinutes: LIVE_TV_BUFFER_MINUTES,
 })
 
 const liveLimiter = rateLimit({
