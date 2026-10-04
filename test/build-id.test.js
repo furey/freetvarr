@@ -74,11 +74,6 @@ test('isStaleBuild: the same build, or no build seen yet, is not stale', () => {
   assert.equal(isStaleBuild({ loaded: null, latest: 'bbb' }), false)
 })
 
-test('isStaleBuild: a dismissed build stays hidden until the next one', () => {
-  assert.equal(isStaleBuild({ loaded: 'aaa', latest: 'bbb', dismissed: 'bbb' }), false)
-  assert.equal(isStaleBuild({ loaded: 'aaa', latest: 'ccc', dismissed: 'bbb' }), true)
-})
-
 test('shouldReloadOnPull: a newer build reloads, the same build refreshes in place', () => {
   assert.equal(shouldReloadOnPull({ loaded: 'aaa', latest: 'bbb' }), true)
   assert.equal(shouldReloadOnPull({ loaded: 'aaa', latest: 'aaa' }), false)

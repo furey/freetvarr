@@ -1,4 +1,4 @@
-export const isStaleBuild = ({ loaded, latest, dismissed = null }) =>
-  Boolean(loaded && latest) && latest !== loaded && latest !== dismissed
+export const isStaleBuild = ({ loaded, latest }) =>
+  Boolean(loaded && latest) && latest !== loaded
 
 export const shouldReloadOnPull = ({ loaded, latest }) => isStaleBuild({ loaded, latest })
