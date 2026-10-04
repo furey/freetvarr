@@ -10,7 +10,18 @@ import { doubleCsrf } from 'csrf-csrf'
 
 import { db, getSetting, setSetting } from './db.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
-import { startSync, getActiveSyncId, getMediaRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
+import {
+  startSync,
+  getActiveSyncId,
+  getMediaRoot,
+  getOneOffRoot,
+  getRecordingsRoot,
+  getTvhRecordingsPath,
+  forgetRecordingArtwork,
+  matchShow,
+  createValidFilename,
+} from './sync.js'
+import { findArtwork, saveArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopScheduler } from './scheduler.js'
 import {
   detectPlexTokenFromPreferences,
@@ -63,6 +74,18 @@ import {
   openUpstreamFor,
 } from './live-tv.js'
 import { detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
+import {
+  createPlaybackSessions,
+  playbackCandidates,
+  resolvePlaybackFile,
+  probeRecording,
+  durationFrom,
+  planForFile,
+  resumeStartFor,
+  startOffsetFor,
+  positionFrom,
+  view as playbackView,
+} from './playback.js'
 import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
 
@@ -75,7 +98,8 @@ const PORT = Number(process.env.PORT || 3733)
 const DEV_CSRF_SECRET = 'dev-only-csrf-secret-set-CSRF_SECRET-in-prod'
 const CSRF_SECRET = process.env.CSRF_SECRET || DEV_CSRF_SECRET
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
-const UNIMPORTED_STATUSES = ['failed', 'skipped']
+const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
+const LIBRARY_CHOICES = ['include', 'exclude']
 const LIVE_TV_MAX_SESSIONS = Math.max(1, Number(process.env.LIVE_TV_MAX_SESSIONS) || 2)
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
 const liveEncoderReady = detectLiveEncoder({
@@ -340,7 +364,35 @@ app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, re
   await db('recordings')
     .where({ recording_id: recordingId })
     .update({ purged_at: new Date().toISOString() })
+  await forgetRecordingArtwork(recordingId)
   res.json({ ok: true })
+})
+
+app.post('/api/recordings/:recording_id/library', syncLimiter, doubleCsrfProtection, async (req, res) => {
+  const recordingId = req.params.recording_id
+  const choice = req.body?.choice
+  if (!LIBRARY_CHOICES.includes(choice)) {
+    return res.status(400).json({ error: `choice must be one of ${LIBRARY_CHOICES.join(', ')}` })
+  }
+  const row = await db('recordings').where({ recording_id: recordingId }).first()
+  if (!row) return res.status(404).json({ error: 'recording not found' })
+  if (['done', 'importing'].includes(row.status)) {
+    return res.status(409).json({ error: 'recording is already in the library' })
+  }
+  await db('recordings').where({ recording_id: recordingId }).update({
+    library_choice: choice,
+    ...(choice === 'include' ? { status: 'pending', error: null } : {}),
+  })
+  const sync = choice === 'include' ? await startSync({ trigger: 'manual:import' }) : null
+  res.json({ ok: true, choice, syncId: sync?.syncId ?? null })
+})
+
+app.get('/api/recordings/:recording_id/image', async (req, res) => {
+  const image = await findArtwork({ kind: 'recording', id: req.params.recording_id }).catch(() => null)
+  if (!image) return res.status(404).end()
+  res.setHeader('Content-Type', image.contentType)
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  res.send(image.body)
 })
 
 app.get('/api/recordings', async (req, res) => {
@@ -351,7 +403,7 @@ app.get('/api/recordings', async (req, res) => {
     title: 'recordings.title',
     show_pattern: 'shows.show_pattern',
   }
-  const STATUS_VALUES = ['done', 'partial', 'failed', 'skipped', 'importing']
+  const STATUS_VALUES = ['done', 'partial', 'failed', 'skipped', 'importing', 'not_imported', 'pending']
   const SINCE_INTERVALS = {
     '1h':  '-1 hours',
     '24h': '-24 hours',
@@ -412,8 +464,10 @@ app.get('/api/recordings', async (req, res) => {
 
   const [totalRow, rows] = await Promise.all([totalQuery, rowsQuery])
   const progress = snapshotProgress(rows.map((r) => r.recording_id))
+  const sources = await playbackSourceResolver()
+  const playable = await Promise.all(rows.map(async (r) => Boolean(await sources(r))))
   res.json({
-    recordings: rows.map((r) => ({ ...r, progress: progress[r.recording_id] ?? null })),
+    recordings: rows.map((r, i) => ({ ...r, progress: progress[r.recording_id] ?? null, playable: playable[i] })),
     total: Number(totalRow?.count) || 0,
     page,
     pageSize,
@@ -479,7 +533,7 @@ app.get('/api/epg/image/:eventId', serveImage(({ eventId }) =>
   getProgrammeImage({ eventId, fallbackSource: recordingImageSource(eventId) })))
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
-  const { channel_id, program_id, epg_program_id, lead_time, lag_time } = req.body || {}
+  const { channel_id, program_id, epg_program_id, lead_time, lag_time, add_to_library } = req.body || {}
   if (channel_id == null || program_id == null || epg_program_id == null) {
     return res.status(400).json({ error: 'channel_id, program_id and epg_program_id are required' })
   }
@@ -490,7 +544,9 @@ app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) =
       epgProgramId: epg_program_id,
       ...(lead_time != null ? { leadTime: Number(lead_time) } : {}),
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
+      addToLibrary: add_to_library !== false,
     })
+    saveArtworkFromGuide({ recordingId: result.uuid, eventId: program_id })
     res.json({ ok: true, ...result })
   } catch (err) {
     epgError(res, err, 'record')
@@ -510,7 +566,7 @@ app.post('/api/epg/cancel', epgLimiter, doubleCsrfProtection, async (req, res) =
 app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const {
     series_link, channel_id, epg_program_id, program_id,
-    lead_time, lag_time, episodes_to_keep,
+    lead_time, lag_time, episodes_to_keep, add_show_rule,
   } = req.body || {}
   if (series_link == null || channel_id == null || program_id == null || epg_program_id == null) {
     return res.status(400).json({
@@ -527,11 +583,36 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
       ...(episodes_to_keep != null ? { episodesToKeep: Number(episodes_to_keep) } : {}),
     })
-    res.json({ ok: true, ...result })
+    const showRule = add_show_rule === false ? null : await ensureShowRule(result.title)
+    res.json({ ok: true, ...result, showRule })
   } catch (err) {
     epgError(res, err, 'record-series')
   }
 })
+
+const saveArtworkFromGuide = async ({ recordingId, eventId }) => {
+  const image = await getProgrammeImage({ eventId }).catch(() => null)
+  if (image) await saveArtwork({ kind: 'recording', id: recordingId, image }).catch(() => null)
+}
+
+const ensureShowRule = async (title) => {
+  const shows = await db('shows').where({ enabled: true })
+  const existing = matchShow(shows, title)
+  if (existing) return { created: false, show_pattern: existing.show_pattern, dest_folder: existing.dest_folder }
+  const folders = await listShowFolders(await getMediaRoot()).catch(() => [])
+  const rule = {
+    show_pattern: title.trim(),
+    dest_folder: existingFolderFor({ title, folders }) || createValidFilename(title) || 'Recordings',
+  }
+  await db('shows').insert(rule)
+  return { created: true, ...rule }
+}
+
+const existingFolderFor = ({ title, folders }) => {
+  const wanted = createValidFilename(title).toLowerCase()
+  return folders.find((f) => f.toLowerCase() === wanted)
+    || folders.find((f) => f.toLowerCase().startsWith(`${wanted} (`))
+}
 
 app.post('/api/epg/cancel-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const { program_id, series_link_id } = req.body || {}
@@ -586,7 +667,13 @@ const liveSessions = createLiveSessions({
   openUpstream: openUpstreamFor,
   describeStall: describeStallFor,
   maxSessions: LIVE_TV_MAX_SESSIONS,
+  streamsElsewhere: () => playbackSessions.labels(),
   bufferMinutes: LIVE_TV_BUFFER_MINUTES,
+})
+
+const playbackSessions = createPlaybackSessions({
+  maxSessions: LIVE_TV_MAX_SESSIONS,
+  streamsElsewhere: () => liveSessions.labels(),
 })
 
 const liveLimiter = rateLimit({
@@ -657,6 +744,121 @@ app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
 app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
   const left = await liveSessions.leave(String(req.params.session))
   res.json({ ok: true, left })
+})
+
+const playLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+const playPingLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+const playbackSourceResolver = async () => {
+  const [tvhRecordingsPath, recordingsRoot, mediaRoot, oneOffRoot] = await Promise.all([
+    getTvhRecordingsPath(),
+    getRecordingsRoot(),
+    getMediaRoot(),
+    getOneOffRoot(),
+  ])
+  const roots = [mediaRoot, oneOffRoot, recordingsRoot]
+  return (row) => resolvePlaybackFile({
+    candidates: playbackCandidates({ row, tvhRecordingsPath, recordingsRoot }),
+    roots,
+  })
+}
+
+const probeCache = new Map()
+
+const probeOnce = async (file) => {
+  const { size, mtimeMs } = await fs.stat(file)
+  const key = `${file}|${size}|${mtimeMs}`
+  if (!probeCache.has(key)) {
+    probeCache.clear()
+    probeCache.set(key, probeRecording(file))
+  }
+  return probeCache.get(key).catch((err) => {
+    probeCache.delete(key)
+    throw err
+  })
+}
+
+const recordingLabel = (row) => `"${[row.title, row.episode_title].filter(Boolean).join(': ')}"`
+
+app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection, async (req, res) => {
+  const row = await db('recordings').where({ recording_id: req.params.recording_id }).first()
+  if (!row) return res.status(404).json({ error: 'recording not found' })
+  const file = await (await playbackSourceResolver())(row)
+  if (!file) return res.status(410).json({ error: 'The recording file is not on disk.', code: 'missing' })
+  try {
+    const probe = await probeOnce(file)
+    const duration = durationFrom(probe) ?? row.duration_s ?? null
+    const resumed = req.body?.offset == null
+    const offset = resumed
+      ? resumeStartFor({ savedSeconds: row.playback_position_s, durationSeconds: duration })
+      : startOffsetFor({ seconds: req.body.offset, duration })
+    const plan = planForFile({ probe, encoder: await liveEncoderReady })
+    const replace = typeof req.body?.replace === 'string' ? req.body.replace : null
+    const session = await playbackSessions.start({
+      recordingId: row.recording_id,
+      label: recordingLabel(row),
+      file,
+      offset,
+      duration,
+      plan,
+      replace,
+    })
+    if (session.status === 'ended') {
+      return res.status(500).json({ error: `ffmpeg failed: ${session.reason?.detail || 'unknown error'}`, code: 'ffmpeg' })
+    }
+    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0 })
+  } catch (err) {
+    liveError(res, err, 'play start')
+  }
+})
+
+app.post('/api/recordings/:recording_id/position', playPingLimiter, doubleCsrfProtection, async (req, res) => {
+  const seconds = positionFrom(req.body?.seconds)
+  if (seconds == null) return res.status(400).json({ error: 'seconds must be a number from 0 to 86400' })
+  const n = await db('recordings')
+    .where({ recording_id: req.params.recording_id })
+    .update({ playback_position_s: seconds, played_at: new Date().toISOString() })
+  if (n === 0) return res.status(404).json({ error: 'recording not found' })
+  res.json({ ok: true, seconds })
+})
+
+app.get('/api/play/:session/:file', async (req, res) => {
+  const { session: sessionId, file } = req.params
+  const filePath = playbackSessions.fileFor(sessionId, file)
+  if (!filePath) return res.status(404).json({ error: 'not found' })
+  playbackSessions.touch(sessionId)
+  res.setHeader('Cache-Control', 'no-store')
+  if (file === 'index.m3u8') {
+    const playlist = await playbackSessions.waitForPlaylist(sessionId)
+    if (playlist == null) return res.status(404).json({ error: 'stream not ready' })
+    return res.type('application/vnd.apple.mpegurl').send(playlist)
+  }
+  res.type('video/mp2t')
+  res.sendFile(filePath, (err) => {
+    if (err && !res.headersSent) res.status(404).end()
+  })
+})
+
+app.post('/api/play/:session/heartbeat', playPingLimiter, doubleCsrfProtection, async (req, res) => {
+  const status = await playbackSessions.status(String(req.params.session))
+  if (!status) return res.status(404).json({ error: 'session ended', code: 'gone' })
+  res.json({ ok: true, session: status })
+})
+
+app.delete('/api/play/:session', doubleCsrfProtection, async (req, res) => {
+  const stopped = await playbackSessions.stop(String(req.params.session))
+  res.json({ ok: true, stopped })
 })
 
 const doctorLimiter = rateLimit({
@@ -815,6 +1017,9 @@ app.get('/api/settings', async (req, res) => {
     deleteAfterPlexRefreshOnly,
     plexPrefsPath,
     mediaRoot,
+    oneOffRoot,
+    importUnmatched,
+    plexOneOffSectionId,
     adRemovalEnabled,
     adOriginalRetentionDays,
     comskipIniOverride,
@@ -831,6 +1036,9 @@ app.get('/api/settings', async (req, res) => {
     getSetting('delete_after_plex_refresh_only'),
     getPlexPrefsPath(),
     getMediaRoot(),
+    getOneOffRoot(),
+    getSetting('import_unmatched'),
+    getSetting('plex_oneoff_section_id'),
     getSetting('ad_removal_enabled'),
     getSetting('ad_original_retention_days'),
     comskipIniOverrideExists(),
@@ -852,6 +1060,9 @@ app.get('/api/settings', async (req, res) => {
     plex_tv_section_id: plexTvSectionId,
     plex_prefs_path: plexPrefsPath,
     media_root: mediaRoot,
+    oneoff_root: oneOffRoot,
+    import_unmatched: importUnmatched !== 'false',
+    plex_oneoff_section_id: plexOneOffSectionId,
     // Default true: don't remove from TVHeadend unless Plex confirmed the file is in
     // its library. Safer baseline.
     delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly == null
@@ -881,6 +1092,11 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   await writeString('plex_tv_section_id', body.plex_tv_section_id, { trim: true })
   await writeString('plex_prefs_path', body.plex_prefs_path, { trim: true })
   await writeString('media_root', body.media_root, { trim: true })
+  await writeString('oneoff_root', body.oneoff_root, { trim: true })
+  await writeString('plex_oneoff_section_id', body.plex_oneoff_section_id, { trim: true })
+  if (body.import_unmatched !== undefined) {
+    await setSetting('import_unmatched', body.import_unmatched ? 'true' : 'false')
+  }
   if (body.delete_after_plex_refresh_only !== undefined) {
     await setSetting(
       'delete_after_plex_refresh_only',
@@ -1038,12 +1254,14 @@ const server = app.listen(PORT, async () => {
 
 const liveReaper = setInterval(() => {
   liveSessions.tick().catch((err) => console.error('[live] reaper failed:', err.message))
+  playbackSessions.tick().catch((err) => console.error('[play] reaper failed:', err.message))
 }, LIVE_REAPER_MS)
 
 const shutdown = async () => {
   stopScheduler()
   clearInterval(liveReaper)
   await liveSessions.stopAll().catch(() => {})
+  await playbackSessions.stopAll().catch(() => {})
   server.close()
   await db.destroy()
   process.exit(0)
