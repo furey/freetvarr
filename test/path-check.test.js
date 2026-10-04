@@ -17,8 +17,11 @@ test('checkRecordingsFolder: a readable folder on the media filesystem passes', 
   assert.deepEqual(await checkRecordingsFolder({ recordingsPath: recordings, mediaRoot: media }), {
     ok: true,
     path: recordings,
-    sameFilesystem: true,
+    hardlinks: true,
+    sameDevice: true,
   })
+  assert.deepEqual(await fs.readdir(recordings), [])
+  assert.deepEqual(await fs.readdir(media), [])
 })
 
 test('checkRecordingsFolder: a missing folder fails with a plain reason', async () => {
@@ -42,10 +45,10 @@ test('checkRecordingsFolder: a relative path is rejected', async () => {
   assert.equal(result.error, 'path must be absolute (start with /)')
 })
 
-test('checkRecordingsFolder: an unreadable media root leaves the filesystem check unknown', async () => {
+test('checkRecordingsFolder: an unreadable media root leaves the hardlink check unknown', async () => {
   const root = await tempDir()
   const result = await checkRecordingsFolder({ recordingsPath: root, mediaRoot: path.join(root, 'nope') })
-  assert.equal(result.sameFilesystem, null)
+  assert.equal(result.hardlinks, null)
 })
 
 test('compareRecordingPaths: ignores a trailing slash', () => {

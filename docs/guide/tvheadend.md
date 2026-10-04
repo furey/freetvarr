@@ -45,7 +45,7 @@ services:
       - ${DATA_PATH}/recordings:/recordings
 ```
 
-The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. `/config` holds TVHeadend's own configuration; `/recordings` is where it writes. Remember that path: step 7 sets it as TVHeadend's recording path, and Freetvarr mounts the same host folder at the same path.
+The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. `/config` holds TVHeadend's own configuration; `/recordings` is where it writes. Remember that path: step 7 sets it as TVHeadend's recording path. Freetvarr mounts the same host folder through `${DATA_PATH}`, at `/data/recordings`.
 
 > [!IMPORTANT]<br>
 > Use `network_mode: host` for a tuner TVHeadend finds by network broadcast, such as an HDHomeRun or a SAT>IP server: those broadcasts don't cross Docker's private bridge network. A USB stick or a PCIe card needs no discovery, so you can drop host networking, map `9981` and `9982` as ports, and pass the `/dev/dvb` devices in instead. Under host networking there is no `ports:` mapping; TVHeadend binds `9981` (web UI and API) and `9982` (its own streaming protocol) straight onto the host.
@@ -175,7 +175,7 @@ Switch the view level to Advanced or Expert if the fields are hidden.
 
 Go to **Configuration → Recording → Digital Video Recorder Profiles** and open the default profile (the one with an empty name, listed as `(Default profile)`). Freetvarr records with that profile and reads its path. Set **Recording system path** to `/recordings`, the container path from step 1.
 
-The path is the one inside the TVHeadend container, not the host path. Freetvarr sees the same host folder at its own `/recordings` mount, and the Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
+The path is the one inside the TVHeadend container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. The Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
 
 Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into Plex's library ([Following shows](/guide/following-shows)).
 

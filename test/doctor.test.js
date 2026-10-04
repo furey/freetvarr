@@ -250,6 +250,22 @@ test('runDoctor: an unreachable TVHeadend fails the connection and skips the TVH
   assert.equal(checks['paths.recordings'].status, 'pass')
 })
 
+test('runDoctor: imports that copy across separate mounts on one disk warn and name the fix', async () => {
+  const now = Date.now()
+  const probeHardlink = async () => ({ hardlinks: false, sameDevice: true, code: 'EXDEV' })
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, probeHardlink }))['paths.hardlink']
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /copy each file/)
+  assert.match(check.fix, /separate mounts/)
+})
+
+test('runDoctor: a real link between the test folders passes the hardlink check', async () => {
+  const now = Date.now()
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now }))['paths.hardlink']
+  assert.equal(check.status, 'pass')
+  assert.match(check.detail, /hardlink\.$/)
+})
+
 test('classifyDiskFree: under 2 GB fails, under 20 GB or 10% warns', () => {
   assert.equal(classifyDiskFree({ free: 1 * GB, total: 1000 * GB }), 'fail')
   assert.equal(classifyDiskFree({ free: 15 * GB, total: 50 * GB }), 'warn')

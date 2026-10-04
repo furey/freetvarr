@@ -6,8 +6,8 @@ import path from 'path'
 import { db, getSetting } from './db.js'
 import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { listPlexSections } from './plex.js'
-import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
-import { getMediaRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
+import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
+import { getMediaRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
 
@@ -331,19 +331,26 @@ const LATER_CHECKS = [
     id: 'paths.hardlink',
     group: 'storage',
     title: 'Hardlinks',
-    doc: 'guide/configuration#the-two-recordings-paths',
+    doc: 'guide/configuration#one-shared-mount',
     run: async (ctx) => {
-      const result = await recordingsFolder(ctx)
-      if (!result.ok || result.sameFilesystem == null) {
-        return { status: 'skip', detail: 'Fix the recordings and media folders first.' }
-      }
-      if (result.sameFilesystem) {
-        return { status: 'pass', detail: 'Recordings and media share a filesystem, so imports hardlink.' }
+      const { recordingsRoot } = ctx.settings
+      const targets = [...new Set([ctx.settings.mediaRoot, ctx.settings.oneOffRoot].filter(Boolean))]
+      const probes = await Promise.all(targets.map(async (to) => ({
+        to,
+        ...(await ctx.deps.probeHardlink({ from: recordingsRoot, to })),
+      })))
+      const known = probes.filter((p) => p.hardlinks != null)
+      if (!known.length) return { status: 'skip', detail: 'Fix the recordings and media folders first.' }
+      const copies = known.filter((p) => !p.hardlinks)
+      if (!copies.length) {
+        return { status: 'pass', detail: `Imports from ${recordingsRoot} into ${known.map((p) => p.to).join(' and ')} hardlink.` }
       }
       return {
         status: 'warn',
-        detail: `${ctx.settings.recordingsRoot} and ${ctx.settings.mediaRoot} are on different filesystems.`,
-        fix: 'Recordings and media are on different disks, so imports copy instead of hardlinking, which uses twice the space.',
+        detail: `Imports from ${recordingsRoot} into ${copies.map((p) => p.to).join(' and ')} copy each file.`,
+        fix: copies.some((p) => p.sameDevice)
+          ? 'The folders are on one disk but in separate mounts. Mount one folder that holds both, so imports hardlink and use no extra space.'
+          : 'The folders are on different disks, so each import copies the file and uses twice the space.',
       }
     },
   },
@@ -633,7 +640,7 @@ const networkProblem = (interfaces) => {
 }
 
 const readSettings = async () => {
-  const [mediaRoot, recordingsRoot, tvhRecordingsPath, plexUrl, plexToken, plexSectionId, syncCron, adRemoval] =
+  const [mediaRoot, recordingsRoot, tvhRecordingsPath, plexUrl, plexToken, plexSectionId, syncCron, adRemoval, oneOffRoot] =
     await Promise.all([
       getMediaRoot(),
       getRecordingsRoot(),
@@ -643,9 +650,11 @@ const readSettings = async () => {
       getSetting('plex_tv_section_id'),
       getSetting('sync_cron'),
       getSetting('ad_removal_enabled'),
+      getOneOffRoot(),
     ])
   return {
     mediaRoot,
+    oneOffRoot,
     recordingsRoot,
     tvhRecordingsPath,
     plexUrl: plexUrl || '',
@@ -678,6 +687,7 @@ const defaultDeps = () => ({
   plexSections: listPlexSections,
   checkRecordingsFolder,
   checkMediaRoot,
+  probeHardlink,
   statfs: (folder) => fs.statfs(folder),
   latestSync: readLatestSync,
   schedulerExpression: getSchedulerExpression,

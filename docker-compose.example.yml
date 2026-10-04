@@ -20,11 +20,13 @@
 # directly to ${FREETVARR_PORT} on the host LAN IP, and TVHeadend to its own
 # ports (9981 HTTP, 9982 HTSP).
 #
-# ${DATA_PATH}/recordings is mounted at the SAME container path (/recordings)
-# in both services. TVHeadend writes recordings there and records their paths
-# in its own database; Freetvarr reads those same paths, so the mount point
-# must match exactly between the two containers, on the same filesystem as
-# MEDIA_ROOT, so the Plex import can hardlink the file instead of copying it.
+# TVHeadend mounts ${DATA_PATH}/recordings at /recordings and stores that path
+# in its own database. Freetvarr mounts the whole of ${DATA_PATH} once, at
+# /data, and maps /recordings/... to /data/recordings/... (TVH_RECORDINGS_PATH
+# to RECORDINGS_ROOT). One mount matters: Linux refuses a hardlink between two
+# bind mounts, even on one disk, so separate mounts for recordings and media
+# turn every import into a full copy. Use a ${DATA_PATH} that holds only
+# recordings/ and media/, because Freetvarr can write to all of it.
 #
 # The optional ad-removal feature (Settings → AD REMOVAL) runs comskip inside
 # the Freetvarr container and is CPU-bound: expect minutes of sustained CPU
@@ -55,11 +57,11 @@ services:
       - PORT=${FREETVARR_PORT:-3733}
       - TZ=${TZ:-UTC}
       - DB_PATH=/config/state.db
-      - MEDIA_ROOT=/media/tv
+      - MEDIA_ROOT=/data/media/tv
       # Recordings with no show rule (sport, specials, films). Create the folder
-      # on the host first, owned by PUID:PGID, or Docker creates it as root.
-      - ONEOFF_ROOT=/media/one-offs
-      - RECORDINGS_ROOT=/recordings
+      # on the host first, owned by PUID:PGID.
+      - ONEOFF_ROOT=/data/media/one-offs
+      - RECORDINGS_ROOT=/data/recordings
       - TVH_RECORDINGS_PATH=/recordings
       - LIVE_TV_MAX_SESSIONS=${LIVE_TV_MAX_SESSIONS:-2}
       # Minutes of live TV kept for pause and rewind (0 turns it off, max 120).
@@ -72,9 +74,7 @@ services:
       - PLEX_PREFS_PATH=/plex-preferences.xml
     volumes:
       - ${CONFIG_PATH:?set CONFIG_PATH in your .env}/freetvarr:/config
-      - ${DATA_PATH:?set DATA_PATH in your .env}/media/tv:/media/tv
-      - ${DATA_PATH:?set DATA_PATH in your .env}/media/one-offs:/media/one-offs
-      - ${DATA_PATH:?set DATA_PATH in your .env}/recordings:/recordings
+      - ${DATA_PATH:?set DATA_PATH in your .env}:/data
       # Plex Preferences.xml, read-only, only for the "Auto-detect token" button.
       # Defaults to /dev/null when PLEX_PREFS_PATH is unset, so leaving it blank is
       # safe (the button just degrades). Set it only if Plex runs on this host.
