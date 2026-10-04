@@ -341,6 +341,7 @@ The TVHeadend URL and credentials, the Plex token, and the storage paths are run
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `MEDIA_ROOT`             | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`; the example compose file sets `/data/media/tv`.                                                                                     |
 | `ONEOFF_ROOT`            | Default for the `oneoff_root` setting: the directory for recordings with no show rule. Defaults to `/media/one-offs`; the example compose file sets `/data/media/one-offs`.                                                                             |
+| `MOVIES_ROOT`            | Default for the `movies_root` setting: the directory for films with no show rule, named `Title (Year)`. Empty by default, which sends films to the one-off folder.                                                                                      |
 | `RECORDINGS_ROOT`        | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`; the example compose file sets `/data/recordings`.                                                           |
 | `TVH_RECORDINGS_PATH`    | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`, which is the path in the TVHeadend container. Freetvarr rewrites this prefix to `RECORDINGS_ROOT`.           |
 | `DB_PATH`                | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                                                                   |
@@ -474,15 +475,16 @@ freetvarr/
 
 ## Scripts
 
-| Script                    | What it does                                                                                                                             |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run setup`           | `npm ci --ignore-scripts` → `npm run rebuild:natives` → `npm audit signatures`                                                           |
-| `npm run rebuild:natives` | Explicitly rebuilds the native deps allow-listed in `package.json` (just `better-sqlite3`)                                               |
-| `npm run migrate`         | `mkdir -p config && knex migrate:latest`; idempotent, auto-run by `start` / `dev`                                                        |
-| `npm run migrate:refresh` | `rm -f ./config/state.db && mkdir -p config && knex migrate:latest`; dev only                                                            |
-| `npm start`               | `npm run migrate && node --env-file-if-exists=.env src/server.js` (`.npmrc` sets `ignore-scripts`, so a `prestart` hook would never run) |
-| `npm run dev`             | `npm run migrate && node --env-file-if-exists=.env --watch src/server.js`                                                                |
-| `npm test`                | `node --test 'test/*.test.js'`; Node 24 built-in runner, no extra deps                                                                   |
+| Script                     | What it does                                                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run setup`            | `npm ci --ignore-scripts` → `npm run rebuild:natives` → `npm audit signatures`                                                                |
+| `npm run rebuild:natives`  | Explicitly rebuilds the native deps allow-listed in `package.json` (just `better-sqlite3`)                                                    |
+| `npm run migrate`          | `mkdir -p config && knex migrate:latest`; idempotent, auto-run by `start` / `dev`                                                             |
+| `npm run migrate:refresh`  | `rm -f ./config/state.db && mkdir -p config && knex migrate:latest`; dev only                                                                 |
+| `npm start`                | `npm run migrate && node --env-file-if-exists=.env src/server.js` (`.npmrc` sets `ignore-scripts`, so a `prestart` hook would never run)      |
+| `npm run dev`              | `npm run migrate && node --env-file-if-exists=.env --watch src/server.js`                                                                     |
+| `npm test`                 | `node --test 'test/*.test.js'`; Node 24 built-in runner, no extra deps                                                                        |
+| `npm run test:integration` | Starts a disposable `linuxserver/tvheadend` container with Docker and runs the TVHeadend bootstrap against it; never touches a real TVHeadend |
 
 ## Testing
 
@@ -496,6 +498,9 @@ Node 24's built-in test runner, with no additional test dependencies. Unit tests
 - **Ad removal**: EDL parsing (malformed rows, action filtering), keep-segment maths (clamping, merging, break-at-edge, whole-file-break), cut verification tolerance, comskip.ini resolution, the auto-delete gating matrix, and the scan-estimate maths.
 - **Progress**: registry round-trip, staleness eviction past `PROGRESS_STALE_MS` (via mocked timers), `clearProgress`, and the import shim's percentage and monotonically decreasing ETA.
 - **Live TV**: `pickStreams` (audio description skipped, AC-3-only audio, H.264 deinterlaced and re-encoded (or copied under `LIVE_TV_TRANSCODE=copy`), MPEG-2 and HEVC transcoded with the right height cap), exact ffmpeg arguments with no URL or credentials, `tunerVerdict` (multiplex sharing, idle tuner, none free, recording conflict inside and outside the window, same-multiplex recording), `stallReason`, the file-name pattern against path traversal, and the session registry with a fake clock, fake ffmpeg, and fake upstream: teardown order, the `SIGKILL` fallback, sharing, the session limit, the idle reaper, the stall watchdog, and the ffmpeg error line.
+- **Library routing**: `libraryDecision` (show rule, the RECORD choice, the row choice), longest-pattern `matchShow`, one-off and film paths, film detection, and the stored-path move when a root changes.
+- **Artwork and playback**: the artwork store (safe ids, orphan pruning, image shrinking) and the recording player (path guard, resume rule, seek-or-restart decision, the shared stream limit).
+- **TVHeadend bootstrap**: fresh-instance detection, the ordered plan, abort and rollback before the open entry is removed, and undo. `npm run test:integration` runs the same flow against a real, disposable TVHeadend container.
 - **Folder matcher**: a real on-disk fixture under `os.tmpdir()` exercising `listShowFolders` and `matchShowFolder` against realistic disambiguated folder names.
 
 The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand against real instances, not mocks. Manual smoke test:
