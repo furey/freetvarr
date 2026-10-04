@@ -3101,10 +3101,13 @@ section[id^="section-"] {
 }
 
 .live-row.pinned .live-row-handle {
-  cursor: grab;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+.live-row.pinned .live-row-handle :is(.epg-pin, .channel-logo) {
+  cursor: grab;
   touch-action: none;
 }
 
