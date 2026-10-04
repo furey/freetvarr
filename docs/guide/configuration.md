@@ -16,7 +16,7 @@ Set these in the `.env` alongside `docker-compose.yml`:
 | Variable                 | Purpose                                                                                                                                                  |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CONFIG_PATH`            | Host folder for the two containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                     |
-| `DATA_PATH`              | Host folder holding both `recordings/` (TVHeadend's output) and `media/tv` (your Plex TV library)                                                        |
+| `DATA_PATH`              | Host folder holding `recordings/` (TVHeadend's output), `media/tv` (your TV library), and `media/one-offs` (recordings with no show rule)                |
 | `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host                                        |
 | `CSRF_SECRET`            | 32+ random bytes (`openssl rand -hex 32`); required                                                                                                      |
 | `TZ`                     | Your IANA timezone (e.g. `Australia/Sydney`); the UI renders all timestamps in it                                                                        |
@@ -40,16 +40,22 @@ When both containers mount `${DATA_PATH}/recordings` at `/recordings`, the two a
 
 The third path, **media root** (`media_root`, default `/media/tv`), is where finished episodes land for Plex.
 
+## The one-off folder
+
+The **one-off folder** (`oneoff_root`, default `/media/one-offs`) holds recordings that match no [show rule](/guide/following-shows#recordings-with-no-show-rule). The example compose file mounts `${DATA_PATH}/media/one-offs` there. Create the host folder first, owned by `PUID:PGID`; otherwise Docker creates it owned by root, and Freetvarr cannot write to it. If the folder is missing, these recordings show as `skipped` with a note.
+
+**IMPORT EVERY RECORDING** in Settings turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a show rule, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **Plex one-off section**.
+
 > [!TIP]<br>
-> Put `recordings/` and `media/tv` on the same filesystem. Freetvarr then imports by hardlink, which is instant and costs no extra disk; a cross-filesystem import falls back to a full copy.
+> Put `recordings/`, `media/tv`, and `media/one-offs` on the same filesystem. Freetvarr then imports by hardlink, which is instant and costs no extra disk; a cross-filesystem import falls back to a full copy.
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the three storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 ![The Settings tab](../img/screenshot-settings.png)
 
 > [!NOTE]<br>
-> `MEDIA_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for their matching runtime settings. Freetvarr uses the value in Settings first, then the environment variable, then the built-in default.
+> `MEDIA_ROOT`, `ONEOFF_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for their matching runtime settings. Freetvarr uses the value in Settings first, then the environment variable, then the built-in default.
 
 The full environment reference, including container-side variables like `DB_PATH`, `PORT`, and `NODE_ENV`, is in the [deep dive](/deep-dive#full-environment-reference).

@@ -18,6 +18,7 @@ import {
   spillLengthMin,
   rulerTickMinutes,
 } from '/guide-time.js'
+import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
 
 let csrfToken = null
 
@@ -275,6 +276,7 @@ const imageStatusOf = (img) => {
 const ProgrammeImage = {
   props: {
     eventId: { type: [String, Number], default: null },
+    source: { type: String, default: null },
     variant: { type: String, default: 'thumb' },
     channelId: { type: [String, Number], default: null },
     hasLogo: Boolean,
@@ -283,9 +285,10 @@ const ProgrammeImage = {
     const img = ref(null)
     const status = ref('loading')
     const instant = ref(false)
-    const src = computed(() => `/api/epg/image/${encodeURIComponent(props.eventId)}`)
+    const src = computed(() => props.source
+      ?? (props.eventId != null ? `/api/epg/image/${encodeURIComponent(props.eventId)}` : null))
     const settleFromCache = () => {
-      if (props.eventId == null) {
+      if (src.value == null) {
         status.value = 'failed'
         return
       }
@@ -296,7 +299,7 @@ const ProgrammeImage = {
     const onLoad = () => { if (status.value === 'loading') status.value = 'loaded' }
     const onError = () => { status.value = 'failed' }
     onMounted(settleFromCache)
-    watch(() => props.eventId, async () => {
+    watch(src, async () => {
       status.value = 'loading'
       instant.value = false
       await nextTick()
@@ -306,7 +309,7 @@ const ProgrammeImage = {
   },
   template: `
     <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant }]">
-      <img v-if="eventId != null && status !== 'failed'" ref="img" :src="src" alt=""
+      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" alt=""
         :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
       <span v-if="status === 'failed'" class="programme-image-fallback">
         <channel-logo :channel-id="channelId" :has-logo="hasLogo" />
@@ -487,7 +490,7 @@ const DASHBOARD_POLL_MS = 30_000
 const SYNCS_POLL_MS = 30_000
 const RECORDINGS_POLL_MS = 60_000
 const RECORDINGS_ACTIVE_POLL_MS = 2_000
-const UNIMPORTED_STATUSES = ['failed', 'skipped']
+const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 
 const hashSegments = () => (window.location.hash || '').replace(/^#\/?/, '').toLowerCase().split('/')
 
@@ -2130,7 +2133,8 @@ const RecordingsView = {
           <span class="panel-heading">
             <span class="panel-title">TRACKED RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
             <info-button title="TRACKED RECORDINGS" doc="guide/recordings">
-              <p>Every episode Freetvarr has tried to import from TVHeadend, and the result: <strong>done</strong>, <strong>partial</strong>, <strong>skipped</strong>, or <strong>failed</strong>. The next sync tries a partial import again.</p>
+              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>done</strong>, <strong>partial</strong>, <strong>skipped</strong>, <strong>failed</strong>, or <strong>not imported</strong>. The next sync tries a partial import again.</p>
+              <p>A recording with no show rule goes to the one-off folder. Press <strong>IMPORT</strong> on a recording that is not imported to add it to the library.</p>
               <p>A struck-through row is gone from TVHeadend, but the file is still in your media folder.</p>
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
             </info-button>
@@ -2153,7 +2157,7 @@ const RecordingsView = {
                 <button v-for="opt in statusOptions" :key="opt"
                   type="button"
                   :class="['btn', 'btn-sm', statusFilter === opt ? 'btn-on' : '']"
-                  @click="setStatus(opt)">{{ opt.toUpperCase() }}</button>
+                  @click="setStatus(opt)">{{ statusLabel(opt).toUpperCase() }}</button>
               </div>
             </div>
             <div class="flex items-center gap-2">
@@ -2188,8 +2192,8 @@ const RecordingsView = {
           </p>
           <table v-if="recordings.length" class="deck-table hidden md:table">
             <thead><tr>
+              <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
               <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
-              <th class="sortable" @click="toggleSort('title')">Title<sort-arrow :dir="sortDirFor('title')" /></th>
               <th>S/E</th>
               <th class="sortable" @click="toggleSort('size')">Size<sort-arrow :dir="sortDirFor('size')" /></th>
               <th class="sortable" @click="toggleSort('status')">Status<sort-arrow :dir="sortDirFor('status')" /></th>
@@ -2201,12 +2205,25 @@ const RecordingsView = {
               <tr v-for="r in recordings" :key="r.recording_id"
                 :class="{ tombstone: r.deleted_from_tvh_at }"
                 :title="r.deleted_from_tvh_at ? 'Removed from TVHeadend ' + fmtTime(r.deleted_from_tvh_at) : ''">
-                <td class="font-mono">{{ r.show_pattern || '—' }}</td>
-                <td class="font-mono">{{ r.title }}</td>
+                <td>
+                  <div class="recording-cell">
+                    <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" />
+                    <div class="recording-cell-text">
+                      <span class="font-mono">{{ r.title }}</span>
+                      <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
+                      <span v-if="r.channel_name || r.aired_at" class="recording-cell-channel">
+                        <channel-logo v-if="r.channel_id" :channel-id="r.channel_id" has-logo />
+                        {{ [r.channel_name, r.aired_at ? fmtTime(r.aired_at) : ''].filter(Boolean).join(' · ') }}
+                      </span>
+                      <span v-if="resumeLabel(r)" class="recording-cell-resume">{{ resumeLabel(r) }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="font-mono">{{ showLabel(r) }}</td>
                 <td class="font-mono">{{ se(r) }}</td>
                 <td class="font-mono whitespace-nowrap">{{ fmtBytes(r.size) }}</td>
                 <td>
-                  <span :class="['pill', r.status]">{{ r.status }}</span>
+                  <span :class="['pill', r.status]">{{ statusLabel(r.status) }}</span>
                   <span v-if="r.error" class="block text-xs font-mono text-signal-orange-hi mt-1">{{ r.error }}</span>
                   <progress-block v-if="progressPhase(r) === 'importing'"
                     :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
@@ -2220,6 +2237,15 @@ const RecordingsView = {
                 <td class="font-mono whitespace-nowrap">{{ fmtTime(r.imported_at) }}</td>
                 <td>
                   <div class="flex items-center gap-2">
+                  <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
+                    @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
+                    <play-icon />
+                  </button>
+                  <button v-if="canImport(r)" type="button" class="btn btn-sm"
+                    @click="importRecording(r)" :disabled="importingId === r.recording_id"
+                    title="Add this recording to the library at the next sync.">
+                    {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
+                  </button>
                   <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
                     @click="adScan(r)" :disabled="adScanningId === r.recording_id"
                     title="Scan this recording for ad breaks now (uses the show's ad removal mode; detect-only when the show is off).">
@@ -2251,11 +2277,22 @@ const RecordingsView = {
             <article v-for="r in recordings" :key="r.recording_id"
               :class="['deck-card', 'space-y-2', { tombstone: r.deleted_from_tvh_at }]">
               <div class="flex items-start justify-between gap-3">
-                <span class="deck-card-title">{{ r.title }}</span>
-                <span :class="['pill', r.status]">{{ r.status }}</span>
+                <div class="recording-cell">
+                  <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" />
+                  <div class="recording-cell-text">
+                    <span class="deck-card-title">{{ r.title }}</span>
+                    <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
+                    <span v-if="r.channel_name || r.aired_at" class="recording-cell-channel">
+                      <channel-logo v-if="r.channel_id" :channel-id="r.channel_id" has-logo />
+                      {{ [r.channel_name, r.aired_at ? fmtTime(r.aired_at) : ''].filter(Boolean).join(' · ') }}
+                    </span>
+                    <span v-if="resumeLabel(r)" class="recording-cell-resume">{{ resumeLabel(r) }}</span>
+                  </div>
+                </div>
+                <span :class="['pill', r.status]">{{ statusLabel(r.status) }}</span>
               </div>
               <p class="deck-card-meta">
-                {{ r.show_pattern || '—' }}<template v-if="se(r)"> · {{ se(r) }}</template><template v-if="fmtBytes(r.size)"> · {{ fmtBytes(r.size) }}</template><template v-if="r.imported_at"> · {{ fmtTime(r.imported_at) }}</template>
+                {{ showLabel(r) }}<template v-if="se(r)"> · {{ se(r) }}</template><template v-if="fmtBytes(r.size)"> · {{ fmtBytes(r.size) }}</template><template v-if="r.imported_at"> · imported {{ fmtTime(r.imported_at) }}</template>
               </p>
               <p v-if="r.deleted_from_tvh_at" class="deck-card-meta">
                 removed from TVHeadend {{ fmtTime(r.deleted_from_tvh_at) }}
@@ -2269,7 +2306,15 @@ const RecordingsView = {
                 :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
               <progress-block v-if="isAdProgress(r)"
                 :progress="r.progress" :caption="progressCaption(r)" :bar="hasBar(r)"/>
-              <div v-if="canAdScan(r) || canDelete(r) || canRemove(r)" class="flex items-center justify-end gap-2 pt-1">
+              <div v-if="r.playable || canImport(r) || canAdScan(r) || canDelete(r) || canRemove(r)" class="flex items-center justify-end gap-2 pt-1">
+                <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
+                  @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
+                  <play-icon />
+                </button>
+                <button v-if="canImport(r)" type="button" class="btn btn-sm"
+                  @click="importRecording(r)" :disabled="importingId === r.recording_id">
+                  {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
+                </button>
                 <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
                   @click="adScan(r)" :disabled="adScanningId === r.recording_id">
                   <span v-if="adScanningId === r.recording_id">…</span>
@@ -2312,6 +2357,7 @@ const RecordingsView = {
     const shows = ref([])
     const deletingId = ref(null)
     const removingId = ref(null)
+    const importingId = ref(null)
     const purging = ref(false)
     const adRemovalEnabled = ref(false)
     const adScanningId = ref(null)
@@ -2325,7 +2371,7 @@ const RecordingsView = {
     const sinceFilter = ref('all')
     const deletedFilter = ref('all')
 
-    const statusOptions = ['all', 'done', 'partial', 'failed', 'skipped', 'importing']
+    const statusOptions = ['all', 'done', 'not_imported', 'partial', 'failed', 'skipped', 'importing']
     const sinceOptions = [
       { key: 'all', label: 'ALL' },
       { key: '1h',  label: '1H'  },
@@ -2420,6 +2466,32 @@ const RecordingsView = {
       : "Remove this recording from Freetvarr's history."
         + ' If it is still in TVHeadend, the next sync imports it again.')
     const canAdScan = (r) => adRemovalEnabled.value && r.status === 'done'
+    const canImport = (r) => r.status === 'not_imported' && !r.deleted_from_tvh_at
+    const statusLabel = (status) => status.replace(/_/g, ' ')
+    const showLabel = (r) => r.show_pattern || (r.show_id == null ? 'One-off' : '—')
+    const imageUrl = (r) => (r.image_path ? `/api/recordings/${encodeURIComponent(r.recording_id)}/image` : null)
+
+    const resumeLabel = (r) => {
+      const saved = r.playback_position_s
+      if (!r.playable || !saved) return ''
+      if (r.duration_s && saved >= r.duration_s - RESUME_END_MARGIN_S) return 'Watched'
+      return `Resume at ${fmtPlayTime(saved)}`
+    }
+
+    const playTitle = (r) => (resumeLabel(r).startsWith('Resume') ? `Play (${resumeLabel(r).toLowerCase()})` : 'Play')
+
+    const importRecording = async (r) => {
+      importingId.value = r.recording_id
+      try {
+        await api('POST', `/api/recordings/${encodeURIComponent(r.recording_id)}/library`, { choice: 'include' })
+        flash({ msg: `Importing "${r.title}".` })
+        await refresh()
+      } catch (err) {
+        flash({ msg: `Import failed: ${err.message}`, kind: 'err', ms: 6000 })
+      } finally {
+        importingId.value = null
+      }
+    }
 
     const adLabel = (status) => status.replace(/_/g, ' ')
 
@@ -2563,7 +2635,8 @@ const RecordingsView = {
       recordings, shows, total, page, pageSize, totalPages, rangeLabel,
       sortCol, sortDir, statusFilter, showFilter, sinceFilter, deletedFilter,
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
-      deletingId, removingId, purging, adRemovalEnabled, adScanningId,
+      deletingId, removingId, importingId, purging, adRemovalEnabled, adScanningId,
+      canImport, importRecording, statusLabel, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
       refresh, manualRefresh, canDelete,
       canAdScan, adLabel, adTooltip, adScan,
       progressPhase, isAdProgress, hasBar, progressCaption,
@@ -2690,7 +2763,7 @@ const SettingsView = {
             <span class="panel-heading">
               <span class="panel-title">STORAGE</span>
               <info-button title="STORAGE" doc="guide/configuration#the-two-recordings-paths">
-                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, inside the Freetvarr container.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where recordings with no show rule go, such as sport, specials, and films. Point a separate Plex library at it.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, inside the Freetvarr container.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
                 <p>When both containers mount the folder at the same path, the two recordings paths are the same. Keep recordings and the media root on one filesystem: imports are then instant hardlinks, not copies.</p>
               </info-button>
             </span>
@@ -2709,6 +2782,25 @@ const SettingsView = {
                 <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
               </button>
               <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
+            </div>
+            <div class="field-row">
+              <label class="field-label">One-off folder <span class="text-ink-mute">(inside container)</span></label>
+              <input type="text" class="field-input" v-model="oneOffRoot" placeholder="/media/one-offs" />
+              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                Recordings with no show rule go here, one folder per title. Mount it in <code>docker-compose.yml</code>, and point a Plex "Other Videos" library at it.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="button" class="btn btn-sm" @click="testOneOffRoot" :disabled="oneOffRootTesting">
+                <template v-if="oneOffRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
+              </button>
+              <span v-if="oneOffRootStatus" :class="['status-readout', oneOffRootStatusKind]">{{ oneOffRootStatus }}</span>
+            </div>
+            <div class="field-row">
+              <toggle-switch v-model="importUnmatched">IMPORT EVERY RECORDING</toggle-switch>
+              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                On: a recording with no show rule goes to the one-off folder. Off: only recordings that match a show rule, or that you recorded with Add to library on, are imported.
+              </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2 pt-1">
               <div class="field-row">
@@ -2802,6 +2894,17 @@ const SettingsView = {
               </select>
               <input v-else type="text" class="field-input" v-model="plexSectionId"
                 placeholder="numeric section ID (use Load sections to discover)" />
+            </div>
+            <div class="field-row md:col-span-2">
+              <label class="field-label">Plex one-off section</label>
+              <select v-if="plexSections.length" class="field-input" v-model="plexOneOffSectionId">
+                <option value="">— none —</option>
+                <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
+                  {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
+                </option>
+              </select>
+              <input v-else type="text" class="field-input" v-model="plexOneOffSectionId"
+                placeholder="section ID of the one-off library" />
             </div>
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="loadPlexSections" :disabled="plexProbing">
@@ -2926,6 +3029,12 @@ const SettingsView = {
     const plexStatusKind = ref('ok')
     const saving = ref(false)
     const nuking = ref(false)
+    const oneOffRoot = ref('')
+    const oneOffRootTesting = ref(false)
+    const oneOffRootStatus = ref('')
+    const oneOffRootStatusKind = ref('ok')
+    const importUnmatched = ref(true)
+    const plexOneOffSectionId = ref('')
     const mediaRoot = ref('')
     const mediaRootTesting = ref(false)
     const mediaRootStatus = ref('')
@@ -2964,6 +3073,9 @@ const SettingsView = {
       plexSectionId.value = s.plex_tv_section_id || ''
       plexPrefsPath.value = s.plex_prefs_path || ''
       mediaRoot.value = s.media_root || ''
+      oneOffRoot.value = s.oneoff_root || ''
+      importUnmatched.value = s.import_unmatched !== false
+      plexOneOffSectionId.value = s.plex_oneoff_section_id || ''
       deleteAfterPlexRefreshOnly.value = s.delete_after_plex_refresh_only !== false
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
       adOriginalRetentionDays.value = s.ad_original_retention_days || '7'
@@ -2986,6 +3098,9 @@ const SettingsView = {
           plex_tv_section_id: plexSectionId.value,
           plex_prefs_path: plexPrefsPath.value,
           media_root: mediaRoot.value,
+          oneoff_root: oneOffRoot.value,
+          import_unmatched: importUnmatched.value,
+          plex_oneoff_section_id: plexOneOffSectionId.value,
           delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly.value,
           ad_removal_enabled: adRemovalEnabled.value,
           ad_original_retention_days: adOriginalRetentionDays.value,
@@ -3127,6 +3242,21 @@ const SettingsView = {
       setPlexDiscover(`Selected ${c.name || 'Plex'} at ${c.ip}:${c.port}. Save to persist.`, 'ok', 5000)
     }
 
+    const testOneOffRoot = async () => {
+      oneOffRootTesting.value = true
+      oneOffRootStatus.value = ''
+      try {
+        const r = await api('POST', '/api/media-root-test', { path: oneOffRoot.value || '/media/one-offs' })
+        oneOffRootStatus.value = r.ok ? `OK — ${r.path} is writable.` : r.error
+        oneOffRootStatusKind.value = r.ok ? 'ok' : 'err'
+      } catch (err) {
+        oneOffRootStatus.value = `Test failed: ${err.message}`
+        oneOffRootStatusKind.value = 'err'
+      } finally {
+        oneOffRootTesting.value = false
+      }
+    }
+
     const testMediaRoot = async () => {
       mediaRootTesting.value = true
       mediaRootStatus.value = ''
@@ -3207,6 +3337,8 @@ const SettingsView = {
       status, statusKind, plexStatus, plexStatusKind, saving,
       nuking, nukeState, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
+      oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
+      importUnmatched, plexOneOffSectionId,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,
       testTvh, detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate,
@@ -4683,6 +4815,10 @@ const EpgView = {
                   <option v-for="o in keepOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
                 </select>
               </div>
+              <div class="col-span-2 space-y-1">
+                <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
+                <p class="text-xs font-mono text-ink-mute">{{ libraryNote }}</p>
+              </div>
             </div>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
               <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close"><cross-icon v-if="!hasCancelAction" /> CLOSE</button>
@@ -4794,6 +4930,28 @@ const EpgView = {
     const leadTime = ref(2)
     const lagTime = ref(10)
     const episodesToKeep = ref(0)
+    const addToLibrary = ref(true)
+    const showRules = ref([])
+    const loadShowRules = async () => {
+      const r = await api('GET', '/api/shows').catch(() => ({ shows: [] }))
+      showRules.value = (r.shows || []).filter((rule) => rule.enabled)
+    }
+    const ruleFor = (title) => {
+      const t = String(title || '').toLowerCase()
+      return showRules.value
+        .filter((rule) => t.includes(rule.show_pattern.toLowerCase()))
+        .sort((a, b) => b.show_pattern.length - a.show_pattern.length)[0] || null
+    }
+    const libraryNote = computed(() => {
+      const program = selected.value?.program
+      if (!program) return ''
+      if (!addToLibrary.value) return 'Stays in TVHeadend. Freetvarr does not import it.'
+      const rule = ruleFor(program.title)
+      if (rule) return `Imports to ${rule.dest_folder}, under the "${rule.show_pattern}" show rule.`
+      return program.series_link
+        ? 'RECORD imports this airing to the one-off folder. RECORD SERIES adds a show rule, so episodes import to the TV library.'
+        : 'Imports to the one-off folder.'
+    })
 
     const clampRailPx = (px) => Math.min(EPG_RAIL_MAX_PX, Math.max(EPG_RAIL_MIN_PX, px))
     const storedRailPx = () => {
@@ -5239,10 +5397,12 @@ const EpgView = {
       leadTime.value = 2
       lagTime.value = 10
       episodesToKeep.value = 0
+      addToLibrary.value = true
       cancelChoice.value = false
       modalAction.value = ''
       setModalStatus('')
       selected.value = { program: p, channel }
+      loadShowRules()
     }
 
     const openSeriesTag = (t) => {
@@ -5310,6 +5470,7 @@ const EpgView = {
           epg_program_id: program.epg_program_id,
           lead_time: leadTime.value,
           lag_time: lagTime.value,
+          add_to_library: addToLibrary.value,
         })
         flash({ msg: `Scheduled "${program.title}".` })
         closeModal()
@@ -5327,7 +5488,7 @@ const EpgView = {
       modalBusy.value = true
       modalAction.value = 'record-series'
       try {
-        await api('POST', '/api/epg/record-series', {
+        const result = await api('POST', '/api/epg/record-series', {
           series_link: program.series_link,
           channel_id: channel?.id ?? program.channelId,
           program_id: program.program_id,
@@ -5335,8 +5496,10 @@ const EpgView = {
           lead_time: leadTime.value,
           lag_time: lagTime.value,
           episodes_to_keep: episodesToKeep.value,
+          add_show_rule: addToLibrary.value,
         })
-        flash({ msg: `Series recording set for "${program.title}".` })
+        const ruleNote = result.showRule?.created ? ` Added a show rule; episodes import to ${result.showRule.dest_folder}.` : ''
+        flash({ msg: `Series recording set for "${program.title}".${ruleNote}`, ms: ruleNote ? 6000 : undefined })
         closeModal()
         await loadState({ fresh: true })
       } catch (err) {
@@ -5729,7 +5892,7 @@ const EpgView = {
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind,
-      leadTime, lagTime, episodesToKeep,
+      leadTime, lagTime, episodesToKeep, addToLibrary, libraryNote,
       leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, cancelSelected, cancelSelectedSeries, cancelChoice,
       upcoming, seriesTags, seriesKey, cancelUpcoming, cancelSeriesTag, openSeriesTag,
@@ -5774,6 +5937,7 @@ const liveChannelOf = (channel) => ({
 
 const watchLive = ({ channel, nowTitle }) => {
   if (live.open && live.channel?.id === channel.id && live.phase !== 'ended') return
+  if (playback.open) stopPlayback()
   stopLive()
   Object.assign(live, {
     open: true, channel, nowTitle, sessionId: null,
@@ -6212,6 +6376,32 @@ const PlayIcon = {
   `,
 }
 
+const PauseIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="4" y="3.5" width="2.75" height="9" rx="0.5"/>
+      <rect x="9.25" y="3.5" width="2.75" height="9" rx="0.5"/>
+    </svg>
+  `,
+}
+
+const FullscreenIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2.75 6V2.75H6M10 2.75h3.25V6M13.25 10v3.25H10M6 13.25H2.75V10"/>
+    </svg>
+  `,
+}
+
+const AirplayIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4.5 11.5H3a1.25 1.25 0 0 1-1.25-1.25v-6.5A1.25 1.25 0 0 1 3 2.5h10a1.25 1.25 0 0 1 1.25 1.25v6.5A1.25 1.25 0 0 1 13 11.5h-1.5"/>
+      <path d="M8 9.5l3.25 4h-6.5z" fill="currentColor"/>
+    </svg>
+  `,
+}
+
 const PlusIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -6526,6 +6716,491 @@ const DOUBLE_TAP_MS = 300
 const SKIP_CHAIN_MS = 700
 const SKIP_HINT_MS = 600
 
+const playback = reactive({
+  open: false,
+  recording: null,
+  sessionId: null,
+  offset: 0,
+  duration: 0,
+  position: 0,
+  phase: 'idle',
+  message: '',
+  resumed: false,
+  started: false,
+  paused: true,
+  waiting: false,
+  scrubbing: false,
+  scrubValue: 0,
+  skipHint: null,
+  airplay: false,
+})
+
+let playVideo = null
+let playHls = null
+let playRun = 0
+let playHeartbeatTimer = null
+let playSkipHintTimer = null
+let lastSavedPosition = null
+let autoRestarts = 0
+
+const playRecording = (recording) => {
+  if (live.open) stopLive()
+  stopPlayback()
+  lastSavedPosition = recording.playback_position_s ?? null
+  Object.assign(playback, {
+    open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
+    position: 0, phase: 'starting', message: '', resumed: false, started: false,
+    paused: false, waiting: false, scrubbing: false, skipHint: null,
+  })
+  playVideo?.play()?.catch(() => {})
+  startPlaybackAt(null)
+}
+
+const stopPlayback = () => {
+  if (playback.open) savePlaybackPosition()
+  playRun += 1
+  clearTimeout(playHeartbeatTimer)
+  detachPlayVideo()
+  if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
+  Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })
+}
+
+const startPlaybackAt = async (offset) => {
+  const run = ++playRun
+  const replace = playback.sessionId
+  clearTimeout(playHeartbeatTimer)
+  detachPlayVideo()
+  playback.phase = 'starting'
+  playback.message = ''
+  if (offset != null) playback.position = offset
+  const recordingId = encodeURIComponent(playback.recording.recording_id)
+  try {
+    const r = await api('POST', `/api/recordings/${recordingId}/play`, {
+      ...(offset == null ? {} : { offset }),
+      ...(replace ? { replace } : {}),
+    })
+    if (run !== playRun) {
+      api('DELETE', `/api/play/${r.session.id}`).catch(() => {})
+      return
+    }
+    Object.assign(playback, {
+      sessionId: r.session.id,
+      offset: r.session.offset,
+      duration: r.session.duration || playback.duration,
+      position: r.session.offset,
+      phase: 'playing',
+      waiting: true,
+    })
+    if (offset == null) playback.resumed = Boolean(r.resumed)
+    attachPlayVideo(run, r.session.playlist)
+    schedulePlayHeartbeat(run)
+  } catch (err) {
+    if (run !== playRun) return
+    playback.sessionId = null
+    endPlayback(run, `Error: ${err.message}`)
+  }
+}
+
+const attachPlayVideo = async (run, playlist) => {
+  if (playsNativeHlsOnly(playVideo)) {
+    playVideo.src = playlist
+    playVideo.play()?.catch(() => {})
+    return
+  }
+  const { default: Hls } = await import('/vendor/hls.mjs')
+  if (run !== playRun) return
+  if (!Hls.isSupported()) return endPlayback(run, 'This browser cannot play recordings.')
+  playHls = new Hls(PLAY_HLS_CONFIG)
+  let recovered = false
+  playHls.on(Hls.Events.ERROR, (event, data) => {
+    if (!data.fatal || run !== playRun) return
+    if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !recovered) {
+      recovered = true
+      return playHls.recoverMediaError()
+    }
+    recoverPlayback(run, `Playback failed: ${data.details}`)
+  })
+  playHls.loadSource(playlist)
+  playHls.attachMedia(playVideo)
+  playVideo.play()?.catch(() => {})
+}
+
+const playsNativeHlsOnly = (video) =>
+  !('MediaSource' in window) && video.canPlayType('application/vnd.apple.mpegurl') !== ''
+
+const recoverPlayback = (run, message) => {
+  if (run !== playRun) return
+  if (autoRestarts >= PLAY_MAX_AUTO_RESTARTS) return endPlayback(run, message)
+  autoRestarts += 1
+  playback.sessionId = null
+  startPlaybackAt(Math.floor(playback.position))
+}
+
+const endPlayback = (run, message) => {
+  if (run !== playRun) return
+  clearTimeout(playHeartbeatTimer)
+  detachPlayVideo()
+  if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
+  playback.sessionId = null
+  playback.phase = 'ended'
+  playback.message = message
+}
+
+const detachPlayVideo = () => {
+  playHls?.destroy()
+  playHls = null
+  playback.waiting = false
+  if (!playVideo) return
+  playVideo.pause()
+  playVideo.removeAttribute('src')
+  playVideo.load()
+}
+
+const schedulePlayHeartbeat = (run) => {
+  clearTimeout(playHeartbeatTimer)
+  playHeartbeatTimer = setTimeout(() => playHeartbeat(run), PLAY_HEARTBEAT_MS)
+}
+
+const playHeartbeat = async (run) => {
+  if (run !== playRun || !playback.sessionId) return
+  try {
+    await api('POST', `/api/play/${playback.sessionId}/heartbeat`)
+  } catch (err) {
+    if (run !== playRun) return
+    if (err.status === 404) return onPlaybackSessionGone(run)
+  }
+  if (playback.started && !playback.paused) savePlaybackPosition()
+  schedulePlayHeartbeat(run)
+}
+
+const onPlaybackSessionGone = (run) => {
+  if (run !== playRun) return
+  playback.sessionId = null
+  if (!playback.paused) recoverPlayback(run, 'Stopped: the stream ended.')
+}
+
+const savePlaybackPosition = ({ keepalive = false } = {}) => {
+  const recording = playback.recording
+  if (!recording || !playback.started) return
+  const seconds = Math.round(playback.position)
+  if (seconds === lastSavedPosition) return
+  lastSavedPosition = seconds
+  recording.playback_position_s = seconds
+  const url = `/api/recordings/${encodeURIComponent(recording.recording_id)}/position`
+  if (!keepalive) return api('POST', url, { seconds }).catch(() => {})
+  fetch(url, {
+    method: 'POST',
+    keepalive: true,
+    headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken || '' },
+    body: JSON.stringify({ seconds }),
+  }).catch(() => {})
+}
+
+const producedEndOf = () => {
+  const last = playHls?.latestLevelDetails?.fragments?.at(-1)
+  if (last) return last.start + last.duration
+  const { seekable } = playVideo
+  return seekable.length ? finiteOrNull(seekable.end(seekable.length - 1)) : null
+}
+
+const seekPlaybackTo = (target) => {
+  if (!playback.open || playback.phase === 'ended') return startPlaybackAt(Math.max(0, Math.floor(target)))
+  if (!playback.sessionId || playback.phase !== 'playing') return startPlaybackAt(Math.max(0, Math.floor(target)))
+  const plan = seekPlan({
+    target,
+    offset: playback.offset,
+    producedEnd: producedEndOf(),
+    duration: playback.duration,
+  })
+  if (plan.kind === 'restart') return startPlaybackAt(plan.offset)
+  playVideo.currentTime = plan.time
+  playback.position = playback.offset + plan.time
+  if (playVideo.paused) playVideo.play()?.catch(() => {})
+}
+
+const togglePlayback = () => {
+  if (playback.phase === 'ended') return startPlaybackAt(Math.floor(playback.position))
+  if (!playback.sessionId && playback.phase === 'playing') return startPlaybackAt(Math.floor(playback.position))
+  if (!playVideo || playback.phase !== 'playing') return
+  if (playVideo.ended) return seekPlaybackTo(0)
+  if (playVideo.paused) return playVideo.play()?.catch(() => {})
+  playVideo.pause()
+}
+
+const skipPlaybackBy = (seconds, { label } = {}) => {
+  const side = seconds < 0 ? 'back' : 'forward'
+  const amount = label || `${Math.abs(seconds)} s`
+  playback.skipHint = {
+    side,
+    label: amount,
+    spoken: `${side === 'back' ? 'Back' : 'Forward'} ${amount.replace(' s', ' seconds')}`,
+    key: Date.now(),
+  }
+  clearTimeout(playSkipHintTimer)
+  playSkipHintTimer = setTimeout(() => { playback.skipHint = null }, SKIP_HINT_MS)
+  seekPlaybackTo(playback.position + seconds)
+}
+
+const startPlaybackOver = () => {
+  playback.resumed = false
+  seekPlaybackTo(0)
+}
+
+const playChain = { side: null, total: 0, until: 0 }
+let playLastTap = { side: null, at: 0 }
+let playTapStart = null
+let lastPlayTouchAt = 0
+
+const playSkipSideOf = (touch) => {
+  const box = playVideo.getBoundingClientRect()
+  const x = (touch.clientX - box.left) / box.width
+  if (x < SKIP_ZONE_FRACTION) return 'back'
+  if (x > 1 - SKIP_ZONE_FRACTION) return 'forward'
+  return null
+}
+
+const onPlayTouchStart = (e) => {
+  const touch = e.touches.length === 1 ? e.touches[0] : null
+  playTapStart = touch && e.target === playVideo
+    ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+    : null
+}
+
+const onPlayTouchEnd = (e) => {
+  lastPlayTouchAt = Date.now()
+  const touch = e.changedTouches[0]
+  if (!playTapStart || !touch || playback.phase !== 'playing') return
+  const moved = Math.hypot(touch.clientX - playTapStart.x, touch.clientY - playTapStart.y)
+  const isTap = moved < TAP_MAX_MOVE_PX && Date.now() - playTapStart.at < TAP_MAX_MS
+  playTapStart = null
+  if (!isTap) return
+  const side = playSkipSideOf(touch)
+  if (!side) return
+  const at = Date.now()
+  const chained = playChain.side === side && at < playChain.until
+  const isDoubleTap = playLastTap.side === side && at - playLastTap.at < DOUBLE_TAP_MS
+  playLastTap = { side, at }
+  if (!chained && !isDoubleTap) return
+  playChain.total = chained ? playChain.total + SKIP_STEP_S : SKIP_STEP_S
+  playChain.side = side
+  playChain.until = at + SKIP_CHAIN_MS
+  skipPlaybackBy(side === 'back' ? -SKIP_STEP_S : SKIP_STEP_S, { label: `${playChain.total} s` })
+}
+
+const onPlayFrameClick = (e) => {
+  if (Date.now() - lastPlayTouchAt < PLAY_CLICK_AFTER_TOUCH_MS || e.target !== playVideo) return
+  togglePlayback()
+}
+
+const sendPlaybackBeacon = () => {
+  if (!playback.sessionId) return
+  fetch(`/api/play/${playback.sessionId}`, {
+    method: 'DELETE',
+    keepalive: true,
+    headers: { 'x-csrf-token': csrfToken || '' },
+  }).catch(() => {})
+}
+
+window.addEventListener('pagehide', (event) => {
+  if (!playback.open) return
+  savePlaybackPosition({ keepalive: true })
+  if (!event.persisted) sendPlaybackBeacon()
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (!playback.open) return
+  if (document.visibilityState === 'hidden') return savePlaybackPosition({ keepalive: true })
+  if (playback.sessionId) playHeartbeat(playRun)
+})
+
+const RecordingPlayer = {
+  template: `
+    <teleport to="body">
+    <transition name="epg-sheet">
+    <div v-show="playback.open" class="epg-modal-backdrop live-backdrop">
+      <section class="panel epg-modal live-modal play-modal" role="dialog" aria-label="Recording player">
+        <header class="panel-header live-header">
+          <channel-logo v-if="recording?.channel_id" class="shrink-0" :channel-id="recording.channel_id" has-logo />
+          <div class="flex-1 min-w-0">
+            <span class="panel-title block truncate">{{ recording?.title }}</span>
+            <span v-if="subtitle" class="block truncate text-xs text-ink-dim mt-1">{{ subtitle }}</span>
+          </div>
+          <button type="button" class="btn btn-icon" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
+        </header>
+        <div ref="stageEl" class="play-stage">
+          <div class="live-frame" @touchstart.passive="onPlayTouchStart" @touchend.passive="onPlayTouchEnd" @click="onPlayFrameClick">
+            <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
+            <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
+            <button type="button" class="btn btn-icon live-landscape-close" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
+            <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
+              <skip-back-icon v-if="playback.skipHint.side === 'back'" />
+              <span>{{ playback.skipHint.label }}</span>
+              <skip-forward-icon v-if="playback.skipHint.side === 'forward'" />
+            </div>
+            <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
+          </div>
+          <div class="play-controls">
+            <div class="play-scrub">
+              <span class="play-time">{{ fmtPlayTime(shownPosition) }}</span>
+              <input type="range" class="play-range" min="0" step="1"
+                :max="scrubMax" :value="Math.floor(shownPosition)"
+                :style="{ '--fill': fillPercent }"
+                @input="onScrubInput" @change="onScrubCommit"
+                aria-label="Position">
+              <span class="play-time">{{ fmtPlayTime(playback.duration) }}</span>
+            </div>
+            <div class="play-buttons">
+              <button type="button" class="btn btn-icon" @click="skipPlaybackBy(-10)" aria-label="Back 10 seconds"><skip-back-icon /><span class="play-skip-label">10</span></button>
+              <button type="button" class="btn btn-icon play-toggle" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
+                <play-icon v-if="playback.paused" /><pause-icon v-else />
+              </button>
+              <button type="button" class="btn btn-icon" @click="skipPlaybackBy(10)" aria-label="Forward 10 seconds"><span class="play-skip-label">10</span><skip-forward-icon /></button>
+              <span class="flex-1"></span>
+              <button v-if="playback.resumed" type="button" class="btn btn-sm" @click="startPlaybackOver">START OVER</button>
+              <button v-if="playback.airplay" type="button" class="btn btn-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
+              <button type="button" class="btn btn-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="epg-modal-actions flex items-center justify-between gap-3">
+            <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
+            <div class="flex shrink-0 gap-2">
+              <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
+              <button type="button" class="btn" @click="stopPlayback"><cross-icon /> CLOSE</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    </transition>
+    </teleport>
+  `,
+  setup() {
+    const videoEl = ref(null)
+    const stageEl = ref(null)
+    const recording = computed(() => playback.recording)
+
+    const subtitle = computed(() => {
+      const r = playback.recording
+      if (!r) return ''
+      const aired = r.aired_at ? fmtTime(r.aired_at) : ''
+      return [r.episode_title, r.channel_name, aired].filter(Boolean).join(' · ')
+    })
+
+    const shownPosition = computed(() => (playback.scrubbing ? playback.scrubValue : playback.position))
+    const scrubMax = computed(() => Math.max(1, Math.floor(playback.duration || 0)))
+    const fillPercent = computed(() => `${Math.min(100, (shownPosition.value / scrubMax.value) * 100)}%`)
+
+    const statusText = computed(() => {
+      if (playback.phase === 'ended') return playback.message
+      if (playback.phase === 'starting') {
+        return playback.position > 0 ? `LOADING AT ${fmtPlayTime(playback.position)}…` : 'LOADING…'
+      }
+      if (playback.waiting) return 'BUFFERING…'
+      return playback.paused ? 'PAUSED' : 'PLAYING'
+    })
+
+    const statusKind = computed(() => {
+      if (playback.phase === 'ended') return 'err'
+      return playback.phase === 'playing' && !playback.waiting ? 'ok' : 'info'
+    })
+
+    const overlayText = computed(() => {
+      if (playback.phase === 'ended') return playback.message
+      if (playback.phase === 'starting' || playback.waiting) return statusText.value
+      return ''
+    })
+
+    const onScrubInput = (e) => {
+      playback.scrubbing = true
+      playback.scrubValue = Number(e.target.value)
+    }
+
+    const onScrubCommit = (e) => {
+      playback.scrubbing = false
+      seekPlaybackTo(Number(e.target.value))
+    }
+
+    const toggleFullscreen = () => {
+      if (document.fullscreenElement) return document.exitFullscreen?.().catch(() => {})
+      if (stageEl.value?.requestFullscreen) return stageEl.value.requestFullscreen().catch(() => {})
+      playVideo?.webkitEnterFullscreen?.()
+    }
+
+    const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
+
+    const onTimeUpdate = () => {
+      if (playback.phase !== 'playing') return
+      playback.position = playback.offset + playVideo.currentTime
+    }
+
+    const onPlaying = () => {
+      playback.started = true
+      playback.waiting = false
+      playback.paused = false
+      autoRestarts = 0
+    }
+
+    const onPause = () => {
+      playback.paused = true
+      if (playback.phase === 'playing') savePlaybackPosition()
+    }
+
+    const onEnded = () => {
+      playback.paused = true
+      playback.position = playback.duration || playback.position
+      savePlaybackPosition()
+    }
+
+    const onKeydown = (e) => {
+      if (!playback.open) return
+      if (e.key === 'Escape') return stopPlayback()
+      if (e.target.closest?.('button, select, textarea, input:not(.play-range)')) return
+      if (e.key === ' ' || e.key === 'k') {
+        e.preventDefault()
+        return togglePlayback()
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        skipPlaybackBy(e.key === 'ArrowLeft' ? -SKIP_STEP_S : SKIP_STEP_S)
+      }
+    }
+
+    onMounted(() => {
+      playVideo = videoEl.value
+      playVideo.addEventListener('timeupdate', onTimeUpdate)
+      playVideo.addEventListener('playing', onPlaying)
+      playVideo.addEventListener('play', () => { playback.paused = false })
+      playVideo.addEventListener('pause', onPause)
+      playVideo.addEventListener('waiting', () => { playback.waiting = true })
+      playVideo.addEventListener('ended', onEnded)
+      playVideo.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
+        playback.airplay = e.availability === 'available'
+      })
+      window.addEventListener('keydown', onKeydown)
+    })
+    onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
+    return {
+      playback, recording, subtitle, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
+      statusText, statusKind, overlayText, fmtPlayTime,
+      stopPlayback, togglePlayback, skipPlaybackBy, startPlaybackOver, onScrubInput, onScrubCommit,
+      toggleFullscreen, showAirplay, onPlayTouchStart, onPlayTouchEnd, onPlayFrameClick,
+    }
+  },
+}
+
+const PLAY_HLS_CONFIG = {
+  workerPath: '/vendor/hls.worker.js',
+  startPosition: 0,
+  maxBufferLength: 30,
+  backBufferLength: 60,
+}
+const PLAY_HEARTBEAT_MS = 15_000
+const PLAY_MAX_AUTO_RESTARTS = 2
+const PLAY_CLICK_AFTER_TOUCH_MS = 700
+
 const VIEW_MAP = {
   dashboard: DashboardView,
   live: LiveView,
@@ -6616,6 +7291,7 @@ const App = {
         </div>
       </footer>
       <live-player />
+      <recording-player />
     </div>
   `,
   setup() {
@@ -6819,6 +7495,10 @@ app.component('signal-bars-icon', SignalBarsIcon)
 app.component('recording-card', RecordingCard)
 app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
+app.component('recording-player', RecordingPlayer)
+app.component('pause-icon', PauseIcon)
+app.component('fullscreen-icon', FullscreenIcon)
+app.component('airplay-icon', AirplayIcon)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)

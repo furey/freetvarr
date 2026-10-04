@@ -56,6 +56,9 @@ services:
       - TZ=${TZ:-UTC}
       - DB_PATH=/config/state.db
       - MEDIA_ROOT=/media/tv
+      # Recordings with no show rule (sport, specials, films). Create the folder
+      # on the host first, owned by PUID:PGID, or Docker creates it as root.
+      - ONEOFF_ROOT=/media/one-offs
       - RECORDINGS_ROOT=/recordings
       - TVH_RECORDINGS_PATH=/recordings
       - LIVE_TV_MAX_SESSIONS=${LIVE_TV_MAX_SESSIONS:-2}
@@ -70,6 +73,7 @@ services:
     volumes:
       - ${CONFIG_PATH:?set CONFIG_PATH in your .env}/freetvarr:/config
       - ${DATA_PATH:?set DATA_PATH in your .env}/media/tv:/media/tv
+      - ${DATA_PATH:?set DATA_PATH in your .env}/media/one-offs:/media/one-offs
       - ${DATA_PATH:?set DATA_PATH in your .env}/recordings:/recordings
       # Plex Preferences.xml, read-only, only for the "Auto-detect token" button.
       # Defaults to /dev/null when PLEX_PREFS_PATH is unset, so leaving it blank is
