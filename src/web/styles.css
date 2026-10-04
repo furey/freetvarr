@@ -3213,3 +3213,48 @@ section[id^="section-"] {
 .about-list .about-muted { color: #8b837e; }
 .about-list .about-current { color: #e2b03c; }
 .about-list a.about-update { color: #ffab3d; }
+
+.live-frame {
+  touch-action: manipulation;
+}
+
+.live-skip-hint {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fffcfb;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  transform: translateY(-50%);
+  animation: live-skip-hint-fade 600ms ease-out forwards;
+}
+
+.live-skip-hint.back {
+  left: 12%;
+}
+
+.live-skip-hint.forward {
+  right: 12%;
+}
+
+.live-skip-hint svg {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes live-skip-hint-fade {
+  0%, 50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-skip-hint {
+    animation: none;
+  }
+}
