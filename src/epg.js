@@ -22,6 +22,7 @@ import {
   syncSavedDvrState,
   savedImageFor,
 } from './guide-history.js'
+import { findArtwork, saveArtwork } from './artwork.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -434,7 +435,7 @@ export const recordSeries = async ({ programId, channelId, ...args }) => {
   }
   const result = await enableSeriesTag({ ...args, channelId, title: program.title })
   invalidateRecordingState()
-  return result
+  return { ...result, title: program.title }
 }
 
 export const cancelSeries = async (args) => {
@@ -447,9 +448,11 @@ export const getChannelImage = async ({ channelId } = {}) => {
   const cacheKey = String(channelId)
   const cached = imageCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.value
-  const guide = await getCachedGuide()
-  const channel = guide.channels.find((c) => String(c.id) === String(channelId))
-  const value = await getChannelIcon({ sources: channel?.logos })
+  const guide = await getCachedGuide().catch(() => null)
+  const channel = guide?.channels.find((c) => String(c.id) === String(channelId))
+  const fetched = channel ? await getChannelIcon({ sources: channel.logos }).catch(() => null) : null
+  if (fetched) await saveArtwork({ kind: 'channel', id: cacheKey, image: fetched }).catch(() => null)
+  const value = fetched || await findArtwork({ kind: 'channel', id: cacheKey }).catch(() => null)
   if (!value) return null
   imageCache.set(cacheKey, { value, expiresAt: Date.now() + IMAGE_TTL_MS })
   return value

@@ -180,10 +180,22 @@ test('describeJourney: a failed recording, a failed import, or no show rule sett
   assert.equal(failed.settled, true)
   const importFailed = describeJourney({ outcome: ok, show, row: { status: 'partial', error: 'short copy' } })
   assert.deepEqual(states(importFailed), ['recorded:done', 'importing:failed'])
+  assert.equal(importFailed.steps[1].label, 'Import failed')
   assert.equal(importFailed.settled, true)
-  const noRule = describeJourney({ outcome: ok })
+  const noRule = describeJourney({ outcome: ok, importUnmatched: false })
   assert.deepEqual(states(noRule), ['recorded:done', 'importing:skipped'])
+  assert.equal(noRule.steps[1].label, 'Not imported')
+  assert.match(noRule.steps[1].detail, /No show rule/)
   assert.equal(noRule.settled, true)
+  const keptOut = describeJourney({ outcome: ok, show, libraryChoice: 'exclude' })
+  assert.deepEqual(states(keptOut), ['recorded:done', 'importing:skipped'])
+  assert.match(keptOut.steps[1].detail, /Add to library off/)
+})
+
+test('describeJourney: a one-off with no show rule waits for the sync by default', () => {
+  const journey = describeJourney({ outcome: ok })
+  assert.deepEqual(states(journey), ['recorded:done', 'importing:pending', 'plex:pending'])
+  assert.equal(journey.settled, false)
 })
 
 let server

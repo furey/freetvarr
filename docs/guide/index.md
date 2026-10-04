@@ -28,7 +28,7 @@ If you have a Plex Pass, you may not need Freetvarr. Plex's own DVR records free
 
 ## How it files recordings
 
-TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings of the shows you follow. It files each one into your TV library as `Show/Season 01/Show - S01E02.ts`, or by air date when the guide has no episode number. When the recordings folder and the library are on the same filesystem, the import is a hardlink: it is instant and uses no extra disk space.
+TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings. It files each episode of a show you follow into your TV library as `Show/Season 01/Show - S01E02.ts`, or by air date when the guide has no episode number. A one-off, such as a sports final, goes to a separate folder named after its title. When the recordings folder and the library are on the same filesystem, the import is a hardlink: it is instant and uses no extra disk space.
 
 ## Where it works
 

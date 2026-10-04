@@ -295,6 +295,8 @@ table.deck-table tbody tr.tombstone .progress {
 .pill.failed     { color: #ffab3d; }
 .pill.error      { color: #ffab3d; }
 .pill.skipped    { color: #8b837e; }
+.pill.not_imported { color: #8b837e; }
+.pill.pending    { color: #62cfff; }
 .pill.scanning      { color: #62cfff; }
 .pill.detected      { color: #ffcd00; }
 .pill.no_breaks     { color: #8b837e; }
@@ -3256,5 +3258,196 @@ section[id^="section-"] {
 @media (prefers-reduced-motion: reduce) {
   .live-skip-hint {
     animation: none;
+  }
+}
+
+.recording-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.recording-cell-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.recording-cell-episode {
+  font-size: 0.75rem;
+  color: #b7aea6;
+}
+
+.recording-cell-channel {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #8b837e;
+}
+
+.recording-cell-channel .epg-rail-logo {
+  width: 1.4rem;
+  height: 1rem;
+}
+
+.recording-cell-resume {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #1eb6ff;
+}
+
+.play-stage {
+  position: relative;
+  background: #000;
+}
+
+.play-stage .live-frame {
+  touch-action: manipulation;
+}
+
+.play-caption {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  max-width: calc(100% - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: #b0a89e;
+  pointer-events: none;
+}
+
+.play-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem 0.7rem;
+  background: #0d0b0a;
+}
+
+.play-scrub {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.play-time {
+  flex-shrink: 0;
+  min-width: 3.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #b0a89e;
+  font-variant-numeric: tabular-nums;
+}
+
+.play-time:last-child {
+  text-align: right;
+}
+
+.play-range {
+  --fill: 0%;
+  flex: 1;
+  min-width: 0;
+  height: 1.5rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.play-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #1eb6ff var(--fill), rgba(255, 255, 255, 0.2) var(--fill));
+}
+
+.play-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #1eb6ff var(--fill), rgba(255, 255, 255, 0.2) var(--fill));
+}
+
+.play-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: #fffcfb;
+}
+
+.play-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #fffcfb;
+}
+
+.play-range:focus-visible {
+  outline: 2px solid #1eb6ff;
+  outline-offset: 2px;
+}
+
+.play-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.play-buttons .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 2.75rem;
+  min-height: 2.5rem;
+  justify-content: center;
+}
+
+.play-skip-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.play-stage:fullscreen {
+  display: flex;
+  flex-direction: column;
+}
+
+.play-stage:fullscreen .live-frame {
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
+.play-stage:fullscreen .live-video {
+  object-fit: contain;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .play-modal .play-stage {
+    height: 100%;
+  }
+
+  .play-modal .play-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1.5rem calc(env(safe-area-inset-right, 0px) + 1rem) calc(env(safe-area-inset-bottom, 0px) + 0.5rem) calc(env(safe-area-inset-left, 0px) + 1rem);
+    background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8));
+  }
+
+  .play-modal .play-caption {
+    bottom: 6rem;
   }
 }

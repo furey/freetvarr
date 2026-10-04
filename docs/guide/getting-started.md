@@ -50,9 +50,9 @@ Create the host folders before the first start, owned by the user the containers
 
 ```sh
 mkdir -p /path/to/your/config/tvheadend /path/to/your/config/freetvarr
-mkdir -p /path/to/your/data/recordings /path/to/your/data/media/tv
+mkdir -p /path/to/your/data/recordings /path/to/your/data/media/tv /path/to/your/data/media/one-offs
 sudo chown 1000:1000 /path/to/your/config/tvheadend /path/to/your/config/freetvarr
-sudo chown 1000:1000 /path/to/your/data/recordings /path/to/your/data/media/tv
+sudo chown 1000:1000 /path/to/your/data/recordings /path/to/your/data/media/tv /path/to/your/data/media/one-offs
 ```
 
 Use your own paths from the `.env`, and your own `PUID:PGID` in place of `1000:1000`.

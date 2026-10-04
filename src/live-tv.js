@@ -143,6 +143,7 @@ export const createLiveSessions = ({
   newId = () => crypto.randomBytes(8).toString('hex'),
   rootDir = LIVE_ROOT,
   maxSessions = 2,
+  streamsElsewhere = () => [],
   bufferMinutes = 0,
   idleMs = 20_000,
   stallMs = 10_000,
@@ -152,23 +153,22 @@ export const createLiveSessions = ({
   const sessions = new Map()
   const ended = new Map()
 
-  const start = async ({ channelId, plan }) => {
+  const start = async ({ channelId, plan, label = null }) => {
     const existing = forChannel(channelId)
     if (existing) {
       existing.viewers += 1
       touch(existing.id)
       return { session: existing, shared: true }
     }
-    if (sessions.size >= maxSessions) {
-      throw new LiveTvError(`Live TV is limited to ${maxSessions} channels at once.`, {
-        code: 'max-sessions',
-        details: { channels: [...sessions.values()].map((s) => s.channelId) },
-      })
+    const playing = [...labels(), ...streamsElsewhere()]
+    if (playing.length >= maxSessions) {
+      throw streamLimitError({ maxSessions, playing })
     }
     const id = newId()
     const session = {
       id,
       channelId,
+      label: label || `channel ${channelId}`,
       dir: path.join(rootDir, id),
       userAgent: `Freetvarr-live/${id}`,
       status: 'tuning',
@@ -375,11 +375,19 @@ export const createLiveSessions = ({
 
   const get = (id) => sessions.get(id) || null
 
+  const labels = () => [...sessions.values()].map((s) => `live TV on ${s.label}`)
+
   return {
     start, touch, hold, leave, tick, stopAll, forChannel, statusForChannel,
-    waitForPlaylist, playlistFor, fileFor, get, view, activeCount: () => sessions.size,
+    waitForPlaylist, playlistFor, fileFor, get, view, labels, activeCount: () => sessions.size,
   }
 }
+
+export const streamLimitError = ({ maxSessions, playing }) =>
+  new LiveTvError(
+    `Only ${maxSessions} stream${maxSessions === 1 ? '' : 's'} can play at once. Playing now: ${playing.join(', ')}.`,
+    { code: 'max-sessions', details: { playing } },
+  )
 
 export const view = (session) => ({
   id: session.id,
@@ -431,7 +439,7 @@ export const startLiveChannel = async ({ channelId, sessions, encoder }) => {
     })
   }
   const plan = existing ? null : await planForChannel({ channelId, encoder })
-  const { session, shared } = await sessions.start({ channelId, plan })
+  const { session, shared } = await sessions.start({ channelId, plan, label: verdict?.channel?.name })
   return { session: sessions.view(session), shared, conflict: verdict?.conflict || null }
 }
 
@@ -509,11 +517,11 @@ const h264Plan = (encoder) => {
   return { videoMode: 'copy', heightCap: null, deinterlace: false }
 }
 
-const hardwareDecodeArgs = (plan) => plan.videoMode === 'vaapi'
+export const hardwareDecodeArgs = (plan) => plan.videoMode === 'vaapi'
   ? ['-hwaccel', 'vaapi', '-hwaccel_device', plan.vaapi.device, '-hwaccel_output_format', 'vaapi']
   : []
 
-const videoCodecArgs = (plan) => {
+export const videoCodecArgs = (plan) => {
   if (plan.videoMode === 'copy') return ['-c:v', 'copy']
   if (plan.videoMode === 'vaapi') {
     return [

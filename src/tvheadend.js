@@ -166,8 +166,10 @@ export const scheduleRecording = async ({
   programId,
   leadTime = DEFAULT_LEAD_MINUTES,
   lagTime = DEFAULT_LAG_MINUTES,
+  addToLibrary = true,
 } = {}) => {
   const conn = await resolveConnection()
+  const comment = addToLibrary ? LIBRARY_TAGS.include : LIBRARY_TAGS.exclude
   const skipped = (await listUpcoming(conn))
     .find((e) => !e.enabled && String(e.programId) === String(programId))
   if (skipped) {
@@ -179,7 +181,7 @@ export const scheduleRecording = async ({
   const body = await apiPost('dvr/entry/create_by_event', {
     event_id: programId,
     config_uuid: await defaultDvrConfig(conn),
-    comment: CREATOR_TAG,
+    comment,
   }, conn)
   const uuid = Array.isArray(body?.uuid) ? body.uuid[0] : body?.uuid
   if (!uuid) {
@@ -485,6 +487,9 @@ const normaliseEntry = (e) => {
     parentId: e.parent || null,
     filename: e.filename || null,
     filesize: e.filesize ?? null,
+    image: e.image || null,
+    description: e.disp_description || e.disp_summary || null,
+    libraryChoice: Object.keys(LIBRARY_TAGS).find((choice) => LIBRARY_TAGS[choice] === e.comment) || null,
     errors: e.errors ?? 0,
     dataErrors: e.data_errors ?? 0,
     season,
@@ -573,7 +578,6 @@ export const normaliseRecording = (e) => ({
   startPadded: (e.start_real ?? e.start) * 1000,
   stopPadded: (e.stop_real ?? e.stop) * 1000,
   errorCode: e.errorcode ?? 0,
-  image: e.image || null,
 })
 
 const countTuners = async (conn) => {
@@ -727,6 +731,7 @@ const requestUri = (url) => {
 }
 
 const CREATOR_TAG = 'freetvarr'
+const LIBRARY_TAGS = { include: 'freetvarr: add to library', exclude: 'freetvarr: not for the library' }
 const EVENT_PAGE_SIZE = 2000
 const DEFAULT_PORT = 9981
 const PROBE_TIMEOUT_MS = 1500

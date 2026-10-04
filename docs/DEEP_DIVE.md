@@ -117,11 +117,13 @@ Errors come back as a `TvheadendError` carrying a `stage` (the API path) and a `
 
 ## Import state machine
 
-The sync engine lists `dvr/entry/grid_finished`, matches each entry to a followed show by case-insensitive substring, and runs the match through this decision tree:
+The sync engine lists `dvr/entry/grid_finished` and saves each entry's details (channel, air time, synopsis) on its `recordings` row. It matches the entry to a followed show by case-insensitive substring, longest pattern first, and runs it through this decision tree:
 
 ```mermaid
 flowchart TD
-  entry["Finished DVR entry"] --> donecheck{"recordings row<br>already done, or tombstoned?"}
+  entry["Finished DVR entry"] --> decide{"libraryDecision:<br>import or hold?"}
+  decide -->|hold| held["row: not_imported<br>reason in the error"]
+  decide -->|import| donecheck{"recordings row<br>already done, or tombstoned?"}
   donecheck -->|yes| skip["skip immediately"]
   donecheck -->|no| pathcheck{"filename maps inside<br>recordings_root?"}
   pathcheck -->|no| skiprow["row: skipped<br>error names the path problem"]
@@ -133,13 +135,16 @@ flowchart TD
   classify -->|"shortfall over 1 MB"| partial["row: partial<br>next sync redoes it"]
 ```
 
-1. **Already-done short-circuit.** A `recordings` row with `status='done'`, or one carrying a `deleted_from_tvh_at` tombstone, is skipped without touching the disk.
-2. **Path translation.** `localPathFor` rewrites the filename TVHeadend reported from `tvh_recordings_path` to `recordings_root`. A filename outside that prefix returns `null` and the row is written `skipped` with the reason, because the container cannot see that path.
-3. **Existence check.** A `fs.stat` failure means the recording is still running, or failed, or the mount is wrong. The row goes `skipped` with the path in the error.
-4. **Import.** `buildDestPath` composes `<media_root>/<dest_folder>/<season dir>/<filename>` and throws if the result resolves outside the media root. The file is then hardlinked or copied ([below](#why-the-import-is-a-hardlink)).
-5. **Classify.** `classifyImport({ expectedSize, actualSize })` is a pure function, exported for tests. A shortfall over `1 MB` against the size TVHeadend reported gives `partial` with the byte gap in the error, and the row counts as a failure in the sync summary, not a skip. Anything else gives `done`.
+1. **Library decision.** `libraryDecision` is a pure function, exported for tests. A choice saved on the row (`library_choice`, set by the IMPORT button) wins. Next comes the choice made on RECORD, which TVHeadend keeps in the entry's `comment` field. Otherwise a matched show imports, and an unmatched recording imports to the one-off folder unless `import_unmatched` is `false`.
+2. **Already-done short-circuit.** A `recordings` row with `status='done'`, or one carrying a `deleted_from_tvh_at` tombstone, is skipped without touching the disk.
+3. **Path translation.** `localPathFor` rewrites the filename TVHeadend reported from `tvh_recordings_path` to `recordings_root`. A filename outside that prefix returns `null` and the row is written `skipped` with the reason, because the container cannot see that path.
+4. **Existence check.** A `fs.stat` failure means the recording is still running, or failed, or the mount is wrong. The row goes `skipped` with the path in the error.
+5. **Import.** `buildDestPath` composes `<media_root>/<dest_folder>/<season dir>/<filename>`; for a recording with no show, `buildOneOffPath` composes `<oneoff_root>/<title>/<title> - <date> <time>.ts`. Both throw if the result resolves outside their root, and a missing one-off root gives `skipped`, so nothing lands inside the container's own filesystem. The file is then hardlinked or copied ([below](#why-the-import-is-a-hardlink)).
+6. **Classify.** `classifyImport({ expectedSize, actualSize })` is a pure function, exported for tests. A shortfall over `1 MB` against the size TVHeadend reported gives `partial` with the byte gap in the error, and the row counts as a failure in the sync summary, not a skip. Anything else gives `done`.
 
 A `statusText` from TVHeadend other than `Completed OK` is recorded on the row even when the import succeeded, so a recording with data errors from a weak signal says so.
+
+Each sync also saves the programme image of every scheduled recording to `<config>/artwork/recordings/<uuid>`, because guide image links often expire once the programme airs. Channel logos are saved to `artwork/channels/` whenever one loads. Artwork leaves with its row; an orphan file older than 14 days is pruned.
 
 The sync itself is single-flight: a module-level `inFlight` holds the running sync's ID, and a second request returns that ID rather than starting a second pass.
 
