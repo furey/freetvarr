@@ -3669,3 +3669,9 @@ section[id^="section-"] {
     font-size: 0.66rem;
   }
 }
+
+table.recordings-table thead th,
+table.recordings-table tbody td {
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}
