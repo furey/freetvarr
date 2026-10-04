@@ -41,13 +41,23 @@ The episode title is dropped when the guide didn't supply one. TVHeadend's own n
 
 ## Recordings with no show rule
 
-A recording that matches no show rule, such as a sports final, a special, or a film, goes to the one-off folder (`/data/media/one-offs` in the example compose file). Each title gets its own folder, and the file name carries the air date and start time:
+A recording that matches no show rule, such as a sports final or a special, goes to the one-off folder (`/data/media/one-offs` in the example compose file). Each title gets its own folder, and the file name carries the air date and start time:
 
 ```text
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts
 ```
 
 The one-off folder stays out of the TV library on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. Point a separate library at the folder instead; in Plex, use the **Other Videos** type. See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the Settings switch that turns this off.
+
+## Films
+
+Set a **movies folder** in Settings, and a film with no show rule goes there instead, named the way movie libraries expect:
+
+```text
+Isle Of Dogs (2018)/Isle Of Dogs (2018).ts
+```
+
+Freetvarr treats a recording as a film when the guide gives it a film or drama genre, no season or episode number, and a length of at least 75 minutes. The year appears only when the guide supplies one. Without a movies folder, films go to the one-off folder.
 
 ## Import, not download
 

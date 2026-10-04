@@ -1,12 +1,14 @@
 import fs from 'fs/promises'
 import path from 'path'
+import { spawn } from 'child_process'
 
 import knexConfig from '../knexfile.js'
 
 export const getArtworkRoot = () =>
   process.env.ARTWORK_PATH || path.join(path.dirname(knexConfig.connection.filename), 'artwork')
 
-export const saveArtwork = async ({ kind, id, image, root = getArtworkRoot() }) => {
+export const saveArtwork = async ({ kind, id, image: original, root = getArtworkRoot(), shrink = shrinkImage }) => {
+  const image = kind === 'recording' ? await shrink(original).catch(() => original) : original
   const relative = artworkPath({ kind, id, contentType: image.contentType })
   if (!relative) return null
   const target = path.join(root, relative)
@@ -53,6 +55,45 @@ export const pruneRecordingArtwork = async ({
   return orphans.length
 }
 
+export const shrinkImage = async (image, { maxWidth = MAX_IMAGE_WIDTH, run = runFfmpeg } = {}) => {
+  if (image.body.length <= SMALL_IMAGE_BYTES || image.contentType.includes('svg')) return image
+  const body = await run({
+    input: image.body,
+    args: [
+      '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0',
+      '-vf', `scale='min(${maxWidth},iw)':-2`,
+      '-q:v', '4', '-frames:v', '1', '-f', 'image2', '-c:v', 'mjpeg', 'pipe:1',
+    ],
+  })
+  return body.length > 0 && body.length < image.body.length ? { body, contentType: 'image/jpeg' } : image
+}
+
+export const shrinkStoredArtwork = async ({ root = getArtworkRoot(), shrink = shrinkImage } = {}) => {
+  const dir = path.join(root, KINDS.recording)
+  const names = await fs.readdir(dir).catch(() => [])
+  let shrunk = 0
+  for (const name of names) {
+    const file = path.join(dir, name)
+    const body = await fs.readFile(file).catch(() => null)
+    if (!body || body.length <= SMALL_IMAGE_BYTES) continue
+    const image = await shrink({ body, contentType: contentTypeFor(name) }).catch(() => null)
+    if (!image || image.body === body) continue
+    await saveArtwork({ kind: 'recording', id: path.parse(name).name, image, root, shrink: async (i) => i })
+    shrunk++
+  }
+  return shrunk
+}
+
+const runFfmpeg = ({ input, args }) => new Promise((resolve, reject) => {
+  const child = spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'ignore'] })
+  const chunks = []
+  child.stdout.on('data', (chunk) => chunks.push(chunk))
+  child.on('error', reject)
+  child.on('close', (code) => (code === 0 ? resolve(Buffer.concat(chunks)) : reject(new Error(`ffmpeg exited ${code}`))))
+  child.stdin.on('error', () => {})
+  child.stdin.end(input)
+})
+
 const artworkPath = ({ kind, id, contentType }) => {
   if (!KINDS[kind] || !SAFE_ID.test(String(id))) return null
   return `${KINDS[kind]}/${id}${extensionFor(contentType)}`
@@ -77,6 +118,8 @@ const contentTypeFor = (relative) =>
 
 const KINDS = { recording: 'recordings', channel: 'channels' }
 const ORPHAN_MIN_AGE_MS = 14 * 24 * 60 * 60 * 1000
+const MAX_IMAGE_WIDTH = 960
+const SMALL_IMAGE_BYTES = 150 * 1024
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/
 const EXTENSIONS = {
   'image/jpeg': '.jpg',

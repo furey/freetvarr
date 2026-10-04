@@ -8,8 +8,9 @@ hero:
   tagline: >-
     A self-hosted companion for TVHeadend and compatible tuner.
     Watch any channel live on your phone or desktop, browse a 7-day guide,
-    and schedule recordings. Freetvarr transfers new episodes of shows
-    you follow into your Plex TV library, without the ads.<br><span
+    and schedule recordings. Freetvarr files every recording into your
+    media library, ready to watch on your TV in Plex, Jellyfin, or Infuse,
+    without the ads.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
     <code>comskip</code></span>
   image:

@@ -301,7 +301,8 @@ const plexStep = ({ row, show, ads, activeSyncId, importSync }) => {
   const upstreamBusy = row?.status !== 'done' || ads?.state === 'pending' || ads?.state === 'active'
   if (upstreamBusy) return step({ ...base, state: 'pending' })
   if (!importSync) return step({ ...base, state: activeSyncId ? 'active' : 'pending', detail: 'Refreshing Plex' })
-  const plex = show ? importSync.summary?.plex : importSync.summary?.plexOneOffs
+  const summary = importSync.summary || {}
+  const plex = show ? summary.plex : (summary.plexMovies ?? summary.plexOneOffs)
   if (plex?.triggered) return step({ ...base, state: 'done' })
   if (plex?.skipped) return step({ ...base, state: 'skipped', detail: plex.reason || 'Plex refresh skipped' })
   return step({ ...base, state: 'warn', detail: plex?.error || 'Plex refresh did not run' })

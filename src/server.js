@@ -15,6 +15,7 @@ import {
   getActiveSyncId,
   getMediaRoot,
   getOneOffRoot,
+  getMoviesRoot,
   getRecordingsRoot,
   getTvhRecordingsPath,
   forgetRecordingArtwork,
@@ -23,7 +24,7 @@ import {
   matchShow,
   createValidFilename,
 } from './sync.js'
-import { findArtwork, saveArtwork } from './artwork.js'
+import { findArtwork, saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopScheduler } from './scheduler.js'
 import {
   detectPlexTokenFromPreferences,
@@ -763,13 +764,14 @@ const playPingLimiter = rateLimit({
 })
 
 const playbackSourceResolver = async () => {
-  const [tvhRecordingsPath, recordingsRoot, mediaRoot, oneOffRoot] = await Promise.all([
+  const [tvhRecordingsPath, recordingsRoot, mediaRoot, oneOffRoot, moviesRoot] = await Promise.all([
     getTvhRecordingsPath(),
     getRecordingsRoot(),
     getMediaRoot(),
     getOneOffRoot(),
+    getMoviesRoot(),
   ])
-  const roots = [mediaRoot, oneOffRoot, recordingsRoot]
+  const roots = [mediaRoot, oneOffRoot, moviesRoot, recordingsRoot]
   return (row) => resolvePlaybackFile({
     candidates: playbackCandidates({ row, tvhRecordingsPath, recordingsRoot }),
     roots,
@@ -1022,6 +1024,8 @@ app.get('/api/settings', async (req, res) => {
     oneOffRoot,
     importUnmatched,
     plexOneOffSectionId,
+    moviesRoot,
+    plexMoviesSectionId,
     adRemovalEnabled,
     adOriginalRetentionDays,
     comskipIniOverride,
@@ -1041,6 +1045,8 @@ app.get('/api/settings', async (req, res) => {
     getOneOffRoot(),
     getSetting('import_unmatched'),
     getSetting('plex_oneoff_section_id'),
+    getMoviesRoot(),
+    getSetting('plex_movies_section_id'),
     getSetting('ad_removal_enabled'),
     getSetting('ad_original_retention_days'),
     comskipIniOverrideExists(),
@@ -1065,6 +1071,8 @@ app.get('/api/settings', async (req, res) => {
     oneoff_root: oneOffRoot,
     import_unmatched: importUnmatched !== 'false',
     plex_oneoff_section_id: plexOneOffSectionId,
+    movies_root: moviesRoot,
+    plex_movies_section_id: plexMoviesSectionId,
     // Default true: don't remove from TVHeadend unless Plex confirmed the file is in
     // its library. Safer baseline.
     delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly == null
@@ -1096,6 +1104,8 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   await writeString('media_root', body.media_root, { trim: true })
   await writeString('oneoff_root', body.oneoff_root, { trim: true })
   await writeString('plex_oneoff_section_id', body.plex_oneoff_section_id, { trim: true })
+  await writeString('movies_root', body.movies_root, { trim: true })
+  await writeString('plex_movies_section_id', body.plex_movies_section_id, { trim: true })
   if (body.import_unmatched !== undefined) {
     await setSetting('import_unmatched', body.import_unmatched ? 'true' : 'false')
   }
@@ -1246,6 +1256,7 @@ const server = app.listen(PORT, async () => {
     const moved = await rebaseFilePaths()
     if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
     await resetInterruptedImports()
+    shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
   } catch (err) {
     console.error('[sync] failed to reconcile recording paths:', err.message)
   }
