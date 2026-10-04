@@ -146,7 +146,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **One-off recordings**: a recording that matches no followed show, such as a final or a special, goes to its own folder for a separate Plex library. The RECORD dialog says where each recording will go, and can keep one out of the library.
 - **Recording playback**: play any finished recording in the browser player, with a seek bar and resume from where you stopped.
 - **Saved artwork**: each recording keeps its programme image and channel logo, so the Recordings tab still shows them after the guide moves on.
-- **Hardlink imports**: the recording is already on disk, so the import is a hardlink when the recordings folder and the media library share a filesystem, and a copy when they don't. A hardlink uses no extra disk space.
+- **Hardlink imports**: the recording is already on disk, so the import is a hardlink when Freetvarr sees the recordings folder and the media library through one mount, and a copy when it doesn't. A hardlink uses no extra disk space.
 - **Plex-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the guide gave no episode number.
 - **Short-file detection**: an import more than `1 MB` short of what TVHeadend reported stays `partial`, and the next sync redoes it.
 - **Scheduled + manual sync**: checks TVHeadend on a schedule you set (a cron expression), plus on-demand Sync now for everything or a single show.
@@ -198,7 +198,7 @@ FREETVARR_PORT=3733
 
 `CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts.
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes a recording there, and Freetvarr picks it up from the same folder. Give both the same `PUID`/`PGID` (run `id` on the host to read them), and create the host folders owned by that pair before the first start; Docker creates a missing folder as `root`. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_2-configure) has the commands.
+The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes a recording there, and Freetvarr picks it up from the same folder. Freetvarr mounts the whole of `${DATA_PATH}` once, at `/data`; keep only `recordings/` and `media/` in it, because Freetvarr can write to all of it. Give both the same `PUID`/`PGID` (run `id` on the host to read them), and create the host folders owned by that pair before the first start; Docker creates a missing folder as `root`. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_2-configure) has the commands.
 
 ### 3. Start it
 
@@ -238,7 +238,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 | Variable          | Purpose                                                                                                           |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `CONFIG_PATH`     | Host folder for both containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                 |
-| `DATA_PATH`       | Host folder holding both `recordings/` (TVHeadend's output) and `media/tv` (your Plex TV library)                 |
+| `DATA_PATH`       | Host folder holding `recordings/` (TVHeadend's output) and `media/` (your Plex TV library), and nothing else      |
 | `PLEX_PREFS_PATH` | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host |
 | `CSRF_SECRET`     | 32+ random bytes (`openssl rand -hex 32`); required                                                               |
 | `TZ`              | Your IANA timezone (e.g. `Australia/Sydney`); the UI renders all timestamps in it                                 |
@@ -246,7 +246,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 | `FREETVARR_PORT`  | Host port to serve on (default `3733`)                                                                            |
 | `TVH_URL`         | Optional. Fixes the address AUTO-DISCOVER TVHEADEND offers; omit to let Freetvarr probe port `9981` on the host   |
 
-Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. Mount the recordings folder at `/recordings` in both containers and the two are identical. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
+Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. In the example compose file, TVHeadend sees the folder at `/recordings` and Freetvarr at `/data/recordings`; Freetvarr rewrites the one prefix to the other. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
 **Ad removal** is configured at runtime, not via env: turn it on in Settings → AD REMOVAL (off by default), then pick a per-show mode on the Shows tab. `DETECT` notes where the ad breaks are without touching the file; `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels; drop your own `comskip.ini` into the `/config` bind mount to override it.
 
@@ -288,7 +288,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 
 ### Slow imports
 
-- A hardlink import is instant. A progress bar means Freetvarr is copying, which means the recordings folder and the media library are on different filesystems. Put them on one filesystem and the copy becomes a link.
+- A hardlink import is instant. A progress bar means Freetvarr is copying, which means Freetvarr sees the recordings folder and the media library through separate mounts, or on different disks. Put both under one mount on one disk and the copy becomes a link; see [One shared mount](https://furey.github.io/freetvarr/guide/configuration#one-shared-mount).
 
 ### Permission errors
 

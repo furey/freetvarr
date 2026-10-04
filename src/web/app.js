@@ -425,13 +425,16 @@ const usePathCheck = (request) => {
 const recordingsFolderStatus = async ({ path, mediaRoot }) => {
   const r = await api('POST', '/api/recordings-root-test', { path, media_root: mediaRoot })
   if (!r.ok) return { text: r.error, kind: 'err' }
-  if (r.sameFilesystem === false) {
+  if (r.hardlinks === false) {
+    const where = r.sameDevice
+      ? 'is on the same disk as the media root but in a separate mount'
+      : 'is on a different disk from the media root'
     return {
-      text: `${r.path} is readable, but it sits on a different filesystem from the media root, so imports copy each file instead of hardlinking it.`,
+      text: `${r.path} is readable, but it ${where}, so imports copy each file instead of hardlinking it.`,
       kind: 'info',
     }
   }
-  const hardlinks = r.sameFilesystem ? ' and shares a filesystem with the media root, so imports hardlink' : ''
+  const hardlinks = r.hardlinks ? ', and imports into the media root hardlink' : ''
   return { text: `OK — ${r.path} is readable${hardlinks}.`, kind: 'ok' }
 }
 
