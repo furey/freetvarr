@@ -2198,7 +2198,7 @@ const RecordingsView = {
               </div>
             </template>
           </div>
-          <table v-if="recordings.length" class="deck-table hidden md:table">
+          <table v-if="recordings.length" class="deck-table recordings-table hidden md:table">
             <thead><tr>
               <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
               <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
@@ -2242,7 +2242,7 @@ const RecordingsView = {
                   <progress-block v-if="isAdProgress(r)"
                     :progress="r.progress" :caption="progressCaption(r)" :bar="hasBar(r)"/>
                 </td>
-                <td class="font-mono whitespace-nowrap">{{ fmtTime(r.imported_at) }}</td>
+                <td class="font-mono">{{ fmtTime(r.imported_at) }}</td>
                 <td>
                   <div class="flex items-center gap-2">
                   <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
