@@ -80,7 +80,7 @@ The `LIVE TV` tab lists every channel with what's on now and next, favourites fi
 
 ## On the dashboard
 
-The dashboard's TV Guide panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. Star some channels to fill the panel.
+The dashboard's What's On panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. Star some channels to fill the panel.
 
 While TVHeadend records, a `RECORDING NOW` panel at the top of the dashboard shows each recording's progress, file size, and tuner signal. If TVHeadend reports a recording as failed, the card turns red and shows TVHeadend's reason. After a recording stops, its card follows it through import, ad removal (if on), and into Plex. While anything records, the browser tab title starts with `● REC`.
 
