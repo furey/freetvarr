@@ -16,18 +16,21 @@ export const simulatedNow = () => {
 export const prepareDemoContext = async ({ context, base, simNow }) => {
   const { guide, dayOffset } = await loadSimulatedGuide({ request: context.request, base, simNow })
   const picks = await pickShowcase({ request: context.request, base, guide, simNow })
-  const fixtures = demoFixtures({ simNow, recording: picks.recording })
+  const library = await pickLibrary({ request: context.request, base, guide, simNow })
+  const fixtures = demoFixtures({ simNow, recording: picks.recording, library })
   await context.clock.install({ time: simNow })
   await context.addInitScript((prefs) => {
     try {
       for (const [key, value] of Object.entries(prefs)) localStorage.setItem(key, value)
     } catch {}
   }, DEMO_PREFS)
+  await context.addInitScript(keepRequestsRoutable)
+  context.on('response', reportServerWrites)
   await context.route('**/api/**', refuseUnknownGet)
   await context.route('**/api/epg/logo/**', (route) => route.continue())
   await context.route('**/api/epg/image/**', (route) => route.continue())
   await context.route('**/api/csrf-token', (route) => route.continue())
-  await context.route('**/api/version', (route) => route.continue())
+  await context.route('**/api/version**', (route) => route.continue())
   await context.route('**/api/epg/guide**', rewriteJson(withSimulatedDay({ dayOffset, simNow }), shiftDay(dayOffset)))
   await context.route('**/api/epg/now**', (route) => fulfillJson(route, onNowAt({ guide, simNow, url: route.request().url() })))
   await context.route('**/api/epg/search**', rewriteJson(futureResults(simNow)))
@@ -37,10 +40,11 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/syncs**', (route) => fulfillJson(route, { syncs: fixtures.syncs }))
   await context.route('**/api/shows', (route) => fulfillJson(route, { shows: fixtures.shows }))
   await context.route('**/api/recordings**', (route) => fulfillJson(route, fixtures.recordingsPage))
+  await context.route('**/api/recordings/*/image', recordingImage({ base, imageSources: fixtures.recordingImages }))
   await context.route('**/api/recording-now', (route) => fulfillJson(route, fixtures.recordingNow))
   await context.route('**/api/folder-suggest**', (route) => fulfillJson(route, { match: null, folders: [] }))
   await context.route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
-  await context.route('**/api/**', refuseWrites)
+  await context.route('**/*', refuseWrites)
   await context.route(/\/api\/live(\/|\?|$)/, demoLiveTv())
   return picks
 }
@@ -91,7 +95,23 @@ const SANITISED_SETTINGS = {
   plex_url: 'http://192.168.1.100:32400',
   plex_prefs_path: '/plex-preferences.xml',
   media_root: '/media/tv',
+  oneoff_root: '/media/one-offs',
+  movies_root: '/media/movies',
 }
+
+const SHOW_PROFILES = [
+  { delete_after_import: false, created_at: '2026-07-01 09:12:00' },
+  { delete_after_import: true, created_at: '2026-06-20 18:00:00' },
+  { delete_after_import: false, created_at: '2026-06-11 20:30:00' },
+]
+const LIBRARY_SHOW_COUNT = 3
+const EPISODES_PER_SHOW = 2
+const IMPORT_LAG_MIN = 5
+const SPORT_TITLE = /sport|football|rugby|league|\bAFL\b|\bNRL\b|cricket|tennis|golf|racing|indycar|supercars|netball|soccer|motogp|formula|grand prix/i
+const NEWSY_TITLE = /news|today|sunrise|weather|update|bundle|offer|skincare|shopping/i
+const GENERIC_EPISODE_TITLE = /^(episode \d+|(mon|tues|wednes|thurs|fri|satur|sun)day\b)/i
+const BYTES_PER_SECOND = 920_000
+const AD_FREE_NETWORKS = ['ABC']
 
 const loadSimulatedGuide = async ({ request, base, simNow }) => {
   const today = await fetchGuideDay({ request, base, day: 0 })
@@ -135,6 +155,226 @@ const upNextTitle = ({ guide, simNow }) => {
     .filter((p) => p?.has_image && (p.title || '').length <= SEARCH_TITLE_MAX)
     .map((p) => p.title)
   return titles[0] ?? null
+}
+
+const pickLibrary = async ({ request, base, guide, simNow }) => {
+  const aired = airedWithImage({ guide, simNow })
+  const served = servedImageCheck({ request, base })
+  const episodeGroups = spreadAcrossNetworks(groupByTitle(aired.filter(({ program }) => isEpisode(program))))
+  const episodes = []
+  const shows = []
+  for (const group of episodeGroups) {
+    if (shows.length === LIBRARY_SHOW_COUNT) break
+    const picked = await firstServed({ entries: group, served, count: EPISODES_PER_SHOW })
+    if (!picked.length) continue
+    shows.push({ title: picked[0].program.title, channel: picked[0].channel })
+    const importing = shows.length === LIBRARY_SHOW_COUNT
+    episodes.push(...picked.map((entry, i) => ({ ...entry, show: picked[0].program.title, importing: importing && i === 0 })))
+  }
+  const unclaimed = aired.filter(({ program }) => !shows.some((show) => show.title === program.title) && !isNewsy(program))
+  const [sport] = await firstServed({ entries: unclaimed.filter(({ program }) => isSport(program)), served, count: 1 })
+  const others = unclaimed.filter(({ program }) => program.title !== sport?.program.title && !isSport(program))
+  const [unimported] = await firstServed({ entries: rankOneOffs(others), served, count: 1 })
+  if (shows.length < LIBRARY_SHOW_COUNT) throw new Error(`only ${shows.length} shows with aired episodes before the simulated time`)
+  return {
+    shows,
+    rows: [
+      ...episodes,
+      ...(sport ? [{ ...sport, show: null, oneOff: true }] : []),
+      ...(unimported ? [{ ...unimported, show: null, unimported: true }] : []),
+    ],
+  }
+}
+
+const airedWithImage = ({ guide, simNow }) => {
+  const importedBy = simNow - (LAST_SYNC_AGO_MIN + IMPORT_LAG_MIN) * MINUTE_MS
+  return visibleChannels(guide)
+    .flatMap((channel) => programsOf(guide, channel)
+      .filter((program) => program.has_image && program.end <= importedBy)
+      .map((program) => ({ channel, program })))
+    .sort((a, b) => b.program.end - a.program.end)
+}
+
+const groupByTitle = (entries) => {
+  const groups = new Map()
+  for (const entry of entries) {
+    const key = entry.program.title
+    const episodeKey = `${entry.program.series_no}x${entry.program.episode_no}`
+    const group = groups.get(key) ?? []
+    if (group.length && group[0].channel.id !== entry.channel.id) continue
+    if (!group.some((e) => `${e.program.series_no}x${e.program.episode_no}` === episodeKey)) group.push(entry)
+    groups.set(key, group)
+  }
+  return [...groups.values()].sort((a, b) => groupScore(b) - groupScore(a)
+    || b.length - a.length
+    || b[0].program.end - a[0].program.end)
+}
+
+const spreadAcrossNetworks = (groups) => {
+  const seen = new Set()
+  const firsts = []
+  const rest = []
+  for (const group of groups) {
+    const network = networkOf(group[0].channel)
+    if (seen.has(network)) rest.push(group)
+    else firsts.push(group)
+    seen.add(network)
+  }
+  return [...firsts, ...rest]
+}
+
+const networkOf = (channel) => (channel.name || '').match(/^(ABC|SBS|NITV|7|9|10)/i)?.[1].toUpperCase() ?? channel.name
+
+const groupScore = (group) => {
+  const onFavourite = group.some(({ channel }) => channel.pinned)
+  const named = group.every(({ program }) => program.episode_title && !GENERIC_EPISODE_TITLE.test(program.episode_title))
+  return (onFavourite ? 2 : 0) + (named ? 1 : 0)
+}
+
+const rankOneOffs = (entries) => [
+  ...entries.filter(({ program }) => program.series_no == null),
+  ...entries.filter(({ program }) => program.series_no != null),
+]
+
+const isEpisode = (program) => program.series_no != null && program.series_no < 100
+  && program.episode_no != null && !isNewsy(program) && !isSport(program)
+
+const isSport = (program) => SPORT_TITLE.test(program.title || '')
+
+const isNewsy = (program) => NEWSY_TITLE.test(program.title || '')
+
+const servedImageCheck = ({ request, base }) => {
+  const cache = new Map()
+  return (program) => {
+    if (!cache.has(program.program_id)) {
+      cache.set(program.program_id, request.get(`${base}/api/epg/image/${encodeURIComponent(program.program_id)}`)
+        .then((response) => response.ok() && (response.headers()['content-type'] || '').startsWith('image/'))
+        .catch(() => false))
+    }
+    return cache.get(program.program_id)
+  }
+}
+
+const firstServed = async ({ entries, served, count }) => {
+  const picked = []
+  for (const entry of entries) {
+    if (picked.length === count) break
+    if (await served(entry.program)) picked.push(entry)
+  }
+  return picked
+}
+
+const libraryRecording = ({ row, index, shows, simNow }) => {
+  const { channel, program } = row
+  const show = shows.find((s) => s.show_pattern === row.show) ?? null
+  const durationS = Math.round((program.end - program.start) / 1000)
+  const size = Math.round(durationS * BYTES_PER_SECOND * (0.94 + (index % 4) * 0.03))
+  const episodeTitle = GENERIC_EPISODE_TITLE.test(program.episode_title || '') ? null : program.episode_title || null
+  const importedAt = importSlotAfter({ end: program.end, simNow })
+  const status = rowStatus(row)
+  const tombstone = status === 'done' && show?.delete_after_import
+  const base = {
+    recording_id: `demo-${program.program_id}`,
+    show_id: show?.id ?? null,
+    title: program.title,
+    episode_title: episodeTitle,
+    season: row.show ? program.series_no : null,
+    episode: row.show ? program.episode_no : null,
+    channel_id: channel.id,
+    channel_name: channel.name,
+    aired_at: program.start,
+    duration_s: durationS,
+    image_path: `artwork/demo-${program.program_id}.jpg`,
+    file_path: libraryPath({ program, show }),
+    size,
+    status,
+    error: null,
+    imported_at: status === 'done' ? sqlTime(importedAt) : null,
+    deleted_from_tvh_at: tombstone ? sqlTime(importedAt + 2 * MINUTE_MS) : null,
+    show_pattern: show?.show_pattern ?? null,
+    show_dest_folder: show?.dest_folder ?? null,
+    playable: true,
+    playback_position_s: null,
+    progress: null,
+    ...adFields({ show, status, durationS, importedAt }),
+  }
+  if (status === 'importing') {
+    return { ...base, file_path: null, progress: { phase: 'importing', percent: 47, etaSeconds: 72, etaLabel: '1m 12s', detail: null, startedAt: simNow - 2 * MINUTE_MS } }
+  }
+  if (status === 'not_imported') return { ...base, file_path: null, size }
+  if (index === 0) return { ...base, playback_position_s: Math.round(durationS * 0.38) }
+  return base
+}
+
+const serverOrder = (recordings) => [...recordings].sort((a, b) =>
+  Number(Boolean(a.deleted_from_tvh_at)) - Number(Boolean(b.deleted_from_tvh_at))
+  || (b.imported_at ?? '').localeCompare(a.imported_at ?? ''))
+
+const rowStatus = (row) => {
+  if (row.unimported) return 'not_imported'
+  if (row.importing) return 'importing'
+  return 'done'
+}
+
+const adFields = ({ show, status, durationS, importedAt }) => {
+  if (status !== 'done' || !show || show.ad_removal === 'off') {
+    return { ad_status: null, ad_breaks_json: null, ad_processed_at: null }
+  }
+  const breaks = adBreaks(durationS)
+  return {
+    ad_status: show.ad_removal === 'cut' ? 'cut' : 'detected',
+    ad_breaks_json: JSON.stringify(breaks),
+    ad_processed_at: sqlTime(importedAt + 3 * MINUTE_MS),
+  }
+}
+
+const adBreaks = (durationS) => {
+  const count = Math.max(1, Math.floor(durationS / 900))
+  return Array.from({ length: count }, (_, i) => {
+    const start = Math.round(((i + 1) * durationS) / (count + 1))
+    return { start, end: start + 150 + (i % 2) * 45 }
+  })
+}
+
+const importSlotAfter = ({ end, simNow }) => {
+  const lastSync = simNow - LAST_SYNC_AGO_MIN * MINUTE_MS
+  const slotsBack = Math.floor((lastSync - end - IMPORT_LAG_MIN * MINUTE_MS) / (SYNC_INTERVAL_MIN * MINUTE_MS))
+  return lastSync - Math.max(0, slotsBack) * SYNC_INTERVAL_MIN * MINUTE_MS + MINUTE_MS
+}
+
+const libraryPath = ({ program, show }) => {
+  if (!show) return `${SANITISED_SETTINGS.oneoff_root}/${program.title}/${program.title}.ts`
+  const se = seasonEpisode(program)
+  return `${SANITISED_SETTINGS.media_root}/${show.dest_folder}/Season ${program.series_no}/${show.dest_folder} - ${se}.ts`
+}
+
+const seasonEpisode = (program) => `S${String(program.series_no).padStart(2, '0')}E${String(program.episode_no).padStart(2, '0')}`
+
+const recordingLabel = (recording) => (recording.season != null
+  ? `${recording.title} - ${seasonEpisode({ series_no: recording.season, episode_no: recording.episode })}`
+  : recording.title)
+
+const sqlTime = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ')
+
+const recordingImage = ({ base, imageSources }) => async (route) => {
+  const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').at(-2))
+  const programId = imageSources.get(id)
+  if (programId == null) return route.fulfill({ status: 404, body: '' })
+  const response = await route.fetch({ url: `${base}/api/epg/image/${encodeURIComponent(programId)}` })
+  return route.fulfill({ response })
+}
+
+const keepRequestsRoutable = () => {
+  const fetchRoutable = window.fetch.bind(window)
+  window.fetch = (input, init) => fetchRoutable(input, init?.keepalive ? { ...init, keepalive: false } : init)
+  navigator.sendBeacon = () => true
+}
+
+const reportServerWrites = (response) => {
+  const request = response.request()
+  if (request.method() === 'GET' || request.method() === 'HEAD') return
+  if (!response.headers()['x-freetvarr-build']) return
+  console.log(`  SERVER WRITE ${request.method()} ${new URL(request.url()).pathname}`)
 }
 
 const visibleChannels = (guide) => (guide.channels || []).filter((c) => !c.hidden)
@@ -255,8 +495,8 @@ const activeRecordingCard = ({ recording, simNow }) => {
   }
 }
 
-const demoFixtures = ({ simNow, recording }) => {
-  const sqlTimeAgo = (minutes) => new Date(simNow - minutes * MINUTE_MS).toISOString().slice(0, 19).replace('T', ' ')
+const demoFixtures = ({ simNow, recording, library }) => {
+  const sqlTimeAgo = (minutes) => sqlTime(simNow - minutes * MINUTE_MS)
   const demoSync = ({ id, slot, status = 'ok', summary }) => ({
     id,
     started_at: sqlTimeAgo(LAST_SYNC_AGO_MIN + slot * SYNC_INTERVAL_MIN),
@@ -265,15 +505,24 @@ const demoFixtures = ({ simNow, recording }) => {
     summary_json: JSON.stringify(summary),
     summary,
   })
-  const recordings = [
-    { recording_id: '201', show_id: 1, title: 'Bluey - S03E12 - Family Meeting', season: 3, episode: 12, file_path: '/media/tv/Bluey (2018)/Season 3/Bluey - S03E12.ts', size: 734003200, status: 'done', error: null, imported_at: sqlTimeAgo(LAST_SYNC_AGO_MIN - 1), deleted_from_tvh_at: null, ad_status: 'cut', ad_breaks_json: '[{"start":63.4,"end":210.8}]', ad_processed_at: sqlTimeAgo(LAST_SYNC_AGO_MIN - 3), show_pattern: 'Bluey', show_dest_folder: 'Bluey (2018)', progress: null },
-    { recording_id: '202', show_id: 1, title: 'Bluey - S03E11 - Whale Watching', season: 3, episode: 11, file_path: '/media/tv/Bluey (2018)/Season 3/Bluey - S03E11.ts', size: 712031232, status: 'done', error: null, imported_at: sqlTimeAgo(LAST_SYNC_AGO_MIN - 1), deleted_from_tvh_at: null, ad_status: 'detected', ad_breaks_json: '[{"start":63.4,"end":210.8},{"start":640.2,"end":770.6}]', ad_processed_at: sqlTimeAgo(LAST_SYNC_AGO_MIN - 3), show_pattern: 'Bluey', show_dest_folder: 'Bluey (2018)', progress: null },
-    { recording_id: '203', show_id: 2, title: 'Gardening Australia - S15E20', season: 15, episode: 20, file_path: '/media/tv/Gardening Australia/Season 15/Gardening Australia - S15E20.ts', size: 2952790016, status: 'done', error: null, imported_at: sqlTimeAgo(LAST_SYNC_AGO_MIN + 4 * SYNC_INTERVAL_MIN - 1), deleted_from_tvh_at: sqlTimeAgo(LAST_SYNC_AGO_MIN + 4 * SYNC_INTERVAL_MIN - 2), ad_status: 'no_breaks', ad_breaks_json: null, ad_processed_at: sqlTimeAgo(LAST_SYNC_AGO_MIN + 4 * SYNC_INTERVAL_MIN - 2), show_pattern: 'Gardening Australia', show_dest_folder: 'Gardening Australia', progress: null },
-    { recording_id: '204', show_id: 3, title: 'MasterChef Australia - S16E31', season: 16, episode: 31, file_path: null, size: null, status: 'importing', error: null, imported_at: null, deleted_from_tvh_at: null, ad_status: null, ad_breaks_json: null, ad_processed_at: null, show_pattern: 'MasterChef Australia', show_dest_folder: 'MasterChef Australia', progress: { phase: 'importing', percent: 47, etaSeconds: 72, etaLabel: '1m 12s', detail: '14.8 MB/s', startedAt: simNow - 2 * MINUTE_MS } },
-    { recording_id: '205', show_id: 3, title: 'MasterChef Australia - S16E30', season: 16, episode: 30, file_path: '/media/tv/MasterChef Australia/Season 16/MasterChef Australia - S16E30.ts', size: 1288490188, status: 'partial', error: 'downloaded 1.20 GB of 2.10 GB; next sync resumes', imported_at: sqlTimeAgo(LAST_SYNC_AGO_MIN + 2 * SYNC_INTERVAL_MIN - 1), deleted_from_tvh_at: null, ad_status: null, ad_breaks_json: null, ad_processed_at: null, show_pattern: 'MasterChef Australia', show_dest_folder: 'MasterChef Australia', progress: null },
-    { recording_id: '206', show_id: 1, title: 'Bluey - S03E10 - Onesies', season: 3, episode: 10, file_path: '/media/tv/Bluey (2018)/Season 3/Bluey - S03E10.ts', size: 698351616, status: 'done', error: null, imported_at: sqlTimeAgo(2 * 24 * 60), deleted_from_tvh_at: sqlTimeAgo(2 * 24 * 60 - 40), ad_status: 'cut', ad_breaks_json: '[{"start":58.0,"end":205.0}]', ad_processed_at: sqlTimeAgo(2 * 24 * 60 - 20), show_pattern: 'Bluey', show_dest_folder: 'Bluey (2018)', progress: null },
-  ]
+  const adModes = ['cut', 'detect', 'off']
+  const shows = library.shows.map(({ title, channel }, i) => {
+    const profile = SHOW_PROFILES[i % SHOW_PROFILES.length]
+    const adFree = AD_FREE_NETWORKS.includes(networkOf(channel))
+    return {
+      id: i + 1,
+      show_pattern: title,
+      dest_folder: title,
+      season_template: 'Season {season}',
+      enabled: true,
+      ...profile,
+      ad_removal: adFree ? 'off' : adModes.shift(),
+    }
+  })
+  const recordings = serverOrder(library.rows.map((row, i) => libraryRecording({ row, index: i, shows, simNow })))
+  const partialLabel = recordingLabel(recordings.find((r) => r.status === 'importing') ?? recordings[0])
   return {
+    recordingImages: new Map(library.rows.map((row) => [`demo-${row.program.program_id}`, row.program.program_id])),
     syncStatus: {
       activeSyncId: null,
       cron: `*/${SYNC_INTERVAL_MIN} * * * *`,
@@ -282,15 +531,11 @@ const demoFixtures = ({ simNow, recording }) => {
     syncs: [
       demoSync({ id: 412, slot: 0, summary: { trigger: 'cron', imported: 2, skipped: 0, failed: 0, errors: [], plex: { triggered: true, status: 200 }, ads: { scanned: 2, detected: 1, cut: 1, failed: 0, adSeconds: 278 } } }),
       demoSync({ id: 411, slot: 1, summary: { trigger: 'cron', imported: 0, skipped: 0, failed: 0, errors: [] } }),
-      demoSync({ id: 410, slot: 2, status: 'partial', summary: { trigger: 'manual', imported: 1, skipped: 0, failed: 1, errors: ['MasterChef Australia - S16E30: downloaded 1.20 GB of 2.10 GB; next sync resumes'], plex: { triggered: true, status: 200 } } }),
+      demoSync({ id: 410, slot: 2, status: 'partial', summary: { trigger: 'manual', imported: 1, skipped: 0, failed: 1, errors: [`${partialLabel}: downloaded 1.20 GB of 2.10 GB; next sync resumes`], plex: { triggered: true, status: 200 } } }),
       demoSync({ id: 409, slot: 3, summary: { trigger: 'cron', imported: 0, skipped: 0, failed: 0, errors: [] } }),
       demoSync({ id: 408, slot: 4, summary: { trigger: 'cron', imported: 1, skipped: 0, failed: 0, errors: [], plex: { triggered: true, status: 200 }, delete: { triggered: true, removed: ['3f9c2a1b'] } } }),
     ],
-    shows: [
-      { id: 1, show_pattern: 'Bluey', dest_folder: 'Bluey (2018)', season_template: 'Season {season}', enabled: true, delete_after_import: false, created_at: '2026-07-01 09:12:00', ad_removal: 'cut' },
-      { id: 2, show_pattern: 'Gardening Australia', dest_folder: 'Gardening Australia', season_template: 'Season {season}', enabled: true, delete_after_import: true, created_at: '2026-06-20 18:00:00', ad_removal: 'detect' },
-      { id: 3, show_pattern: 'MasterChef Australia', dest_folder: 'MasterChef Australia', season_template: 'Season {season}', enabled: true, delete_after_import: false, created_at: '2026-06-11 20:30:00', ad_removal: 'off' },
-    ],
+    shows,
     recordingsPage: { recordings, total: recordings.length, page: 1, pageSize: 50 },
     recordingNow: {
       active: recording ? [activeRecordingCard({ recording, simNow })] : [],
@@ -389,6 +634,7 @@ const demoLiveTv = () => {
   return async (route) => {
     const request = route.request()
     const { pathname } = new URL(request.url())
+    if (request.method() === 'POST' && pathname.endsWith('/hold')) return fulfillJson(route, { ok: true })
     if (request.method() === 'POST') {
       session = { channelId: String(request.postDataJSON()?.channel_id || ''), startedAt: Date.now() }
       return fulfillJson(route, { ok: true, session: sessionView(), shared: false, conflict: null })
