@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into Plex.",
   "license": "GPL-3.0-or-later",
@@ -50,6 +50,7 @@
     "start": "npm run migrate && node --env-file-if-exists=.env src/server.js",
     "dev": "npm run migrate && node --env-file-if-exists=.env --watch src/server.js",
     "test": "node --test 'test/*.test.js'",
+    "test:integration": "node --test --test-concurrency=1 'test/integration/*.test.js'",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs"
   },
   "dependencies": {

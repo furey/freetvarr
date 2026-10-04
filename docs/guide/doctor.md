@@ -34,6 +34,10 @@ Checks that TVHeadend accepts the username and password. A `401` means TVHeadend
 
 Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The Doctor cannot test the **Streaming** rights without starting a stream, so it does not check them.
 
+## Open access {#tvh-open}
+
+Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin**: then anyone on that network can change TVHeadend without a login. A fresh linuxserver TVHeadend starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
+
 ## Tuners {#tvh-tuners}
 
 Counts the tuners in TVHeadend's hardware list and the inputs in its status page. It fails when there are none. It warns when a tuner has a link-local `169.254.x.x` address, because that address can change if you move the tuner. See [Missing tuner](/guide/troubleshooting#missing-tuner).
