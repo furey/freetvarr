@@ -1043,14 +1043,15 @@ const LiveView = {
           </span>
           <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <toggle-switch v-if="!narrow" v-model="pinnedOnly" label="FAVOURITES ONLY" />
+            <toggle-switch v-model="pinnedOnly" :aria-label="narrow ? 'Favourites only' : null">
+              <star-icon v-if="narrow" class="icon-inline" /><template v-else>FAVOURITES ONLY</template>
+            </toggle-switch>
             <toggle-switch v-model="showImages" label="IMAGES" />
             <header-button label="Channels" @click="channelsModal = true" :disabled="!data"><sliders-icon /></header-button>
           </div>
         </header>
         <div :class="['panel-body', 'space-y-5', 'live-zoom-' + zoom]">
           <div class="view-controls view-controls-sticky">
-            <icon-toggle v-if="narrow" v-model="pinnedOnly" label="Favourites only"><star-icon /></icon-toggle>
             <input v-model="filterQ" type="search" class="field-input"
               placeholder="Filter channels or shows" aria-label="Filter channels or shows"
               style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
@@ -4656,16 +4657,6 @@ const HeaderButton = {
   },
 }
 
-const IconToggle = {
-  props: { modelValue: Boolean, label: { type: String, required: true } },
-  emits: ['update:modelValue'],
-  template: `
-    <button type="button" :class="['btn', 'btn-sm', 'btn-icon', { 'btn-on': modelValue }]"
-      :aria-pressed="String(modelValue)" :aria-label="label" :title="label"
-      @click="$emit('update:modelValue', !modelValue)"><slot /></button>
-  `,
-}
-
 const ZoomControl = {
   props: {
     index: { type: Number, required: true },
@@ -7895,7 +7886,6 @@ app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
 app.component('filter-sheet', FilterSheet)
 app.component('header-button', HeaderButton)
-app.component('icon-toggle', IconToggle)
 app.component('zoom-control', ZoomControl)
 app.component('filter-icon', FilterIcon)
 app.component('image-icon', ImageIcon)

@@ -3167,10 +3167,6 @@ section[id^="section-"] {
   width: 3rem;
 }
 
-.live-zoom-s .live-now-text .progress {
-  display: none;
-}
-
 .live-zoom-l .live-row {
   padding: 1rem 0;
 }
