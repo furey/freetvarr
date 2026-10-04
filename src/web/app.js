@@ -1283,7 +1283,7 @@ const DashboardView = {
         </div>
         <div v-else class="panel-body space-y-5">
           <div v-if="onNow.length">
-            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">On now · favourites</div>
+            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Now · favourites</div>
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
               <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
