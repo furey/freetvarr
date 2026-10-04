@@ -489,6 +489,8 @@ const normaliseEntry = (e) => {
     filesize: e.filesize ?? null,
     image: e.image || null,
     description: e.disp_description || e.disp_summary || null,
+    genres: Array.isArray(e.genre) ? e.genre : [],
+    year: e.copyright_year > 0 ? e.copyright_year : null,
     libraryChoice: Object.keys(LIBRARY_TAGS).find((choice) => LIBRARY_TAGS[choice] === e.comment) || null,
     errors: e.errors ?? 0,
     dataErrors: e.data_errors ?? 0,
