@@ -9,6 +9,9 @@ import {
   episodeFilename,
   localPathFor,
   createValidFilename,
+  libraryDecision,
+  oneOffFilename,
+  buildOneOffPath,
 } from '../src/sync.js'
 
 test('matchShow: case-insensitive substring match', () => {
@@ -33,6 +36,55 @@ test('matchShow: empty shows list returns undefined', () => {
 test('matchShow: pattern is substring, not whole-word', () => {
   const shows = [{ id: 1, show_pattern: 'Survivor' }]
   assert.equal(matchShow(shows, 'Australian Survivor').id, 1)
+})
+
+test('matchShow: the longest matching pattern wins over the first', () => {
+  const shows = [
+    { id: 1, show_pattern: 'NRL' },
+    { id: 2, show_pattern: 'NRL Grand Final' },
+  ]
+  assert.equal(matchShow(shows, 'NRL Grand Final').id, 2)
+  assert.equal(matchShow(shows, 'NRL Friday Night Football').id, 1)
+})
+
+test('libraryDecision: imports a matched show or, by default, an unmatched one', () => {
+  const show = { id: 1 }
+  assert.equal(libraryDecision({ show, importUnmatched: false }).action, 'import')
+  assert.equal(libraryDecision({ show: null, importUnmatched: true }).action, 'import')
+  const held = libraryDecision({ show: null, importUnmatched: false })
+  assert.equal(held.action, 'hold')
+  assert.match(held.reason, /No show rule/)
+})
+
+test('libraryDecision: the choice made on Record overrides the setting both ways', () => {
+  assert.equal(libraryDecision({ libraryChoice: 'exclude', show: { id: 1 }, importUnmatched: true }).action, 'hold')
+  assert.equal(libraryDecision({ libraryChoice: 'include', show: null, importUnmatched: false }).action, 'import')
+})
+
+test('libraryDecision: a choice saved on the row overrides the choice made on Record', () => {
+  const include = { library_choice: 'include' }
+  assert.equal(libraryDecision({ existing: include, libraryChoice: 'exclude' }).action, 'import')
+  const exclude = { library_choice: 'exclude' }
+  assert.equal(libraryDecision({ existing: exclude, libraryChoice: 'include', show: { id: 1 } }).action, 'hold')
+})
+
+test('oneOffFilename: title, local air date and time, then the episode title', () => {
+  const start = new Date(2026, 9, 4, 19, 30).getTime()
+  assert.equal(
+    oneOffFilename({ title: 'NRL Grand Final', start, ext: 'ts' }),
+    'NRL Grand Final - 2026-10-04 1930.ts',
+  )
+  assert.equal(
+    oneOffFilename({ title: 'Grand Final Night', episode_title: 'Episode 1', start, ext: 'ts' }),
+    'Grand Final Night - 2026-10-04 1930 - Episode 1.ts',
+  )
+})
+
+test('buildOneOffPath: files under a folder named after the title, inside the root', () => {
+  const start = new Date(2026, 9, 4, 19, 30).getTime()
+  const p = buildOneOffPath({ item: { title: 'AC/DC: Live', start, ext: 'ts' }, oneOffRoot: '/media/one-offs' })
+  assert.equal(p, path.join('/media/one-offs', 'ACDC Live', 'ACDC Live - 2026-10-04 1930.ts'))
+  assert.throws(() => buildOneOffPath({ item: { title: '..', start }, oneOffRoot: '/media/one-offs' }))
 })
 
 test('episodeFilename: SxxEyy with episode title when numbered', () => {

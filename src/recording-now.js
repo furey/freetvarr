@@ -7,7 +7,7 @@ import {
   listSubscriptions,
   loadRecording,
 } from './tvheadend.js'
-import { getActiveSyncId, matchShow } from './sync.js'
+import { getActiveSyncId, libraryDecision, matchShow } from './sync.js'
 import { snapshotProgress } from './progress.js'
 
 export const getRecordingNow = async ({ nowMs = Date.now() } = {}) => {
@@ -90,6 +90,8 @@ export const describeJourney = ({
   outcome,
   row = null,
   show = null,
+  libraryChoice = null,
+  importUnmatched = true,
   adRemovalOn = false,
   progress = null,
   activeSyncId = null,
@@ -104,12 +106,12 @@ export const describeJourney = ({
   const recorded = outcome.warning
     ? step({ key: 'recorded', label: 'Recorded', state: 'warn', detail: outcome.warning })
     : step({ key: 'recorded', label: 'Recorded', state: 'done' })
-  const importing = importingStep({ row, show, progress, activeSyncId })
+  const importing = importingStep({ row, show, libraryChoice, importUnmatched, progress, activeSyncId })
   if (importing.state === 'skipped' || importing.state === 'failed') {
     return { settled: true, steps: [recorded, importing] }
   }
   const ads = adsApply({ show, adRemovalOn }) ? adsStep({ row, show, progress, activeSyncId }) : null
-  const plex = plexStep({ row, ads, activeSyncId, importSync })
+  const plex = plexStep({ row, show, ads, activeSyncId, importSync })
   return {
     settled: !IN_PROGRESS_STATES.includes(plex.state),
     steps: [recorded, importing, ads, plex].filter(Boolean),
@@ -184,10 +186,11 @@ const resolveOutcomes = async (conn) => {
 const describeJourneys = async (nowMs) => {
   const ended = [...tracked.values()].filter((t) => t.outcome)
   if (!ended.length) return []
-  const [rows, shows, adRemovalSetting] = await Promise.all([
+  const [rows, shows, adRemovalSetting, importUnmatchedSetting] = await Promise.all([
     db('recordings').whereIn('recording_id', ended.map((t) => t.recording.uuid)),
     db('shows').where({ enabled: true }),
     getSetting('ad_removal_enabled'),
+    getSetting('import_unmatched'),
   ])
   const rowById = new Map(rows.map((r) => [r.recording_id, r]))
   const progress = snapshotProgress(ended.map((t) => t.recording.uuid))
@@ -202,6 +205,8 @@ const describeJourneys = async (nowMs) => {
       outcome: entry.outcome,
       row,
       show,
+      libraryChoice: entry.recording.libraryChoice ?? null,
+      importUnmatched: importUnmatchedSetting !== 'false',
       adRemovalOn: adRemovalSetting === 'true',
       progress: progress[entry.recording.uuid] || null,
       activeSyncId,
@@ -252,10 +257,13 @@ const cardBasics = (recording) => ({
   channelName: recording.channelName,
 })
 
-const importingStep = ({ row, show, progress, activeSyncId }) => {
+const importingStep = ({ row, show, libraryChoice, importUnmatched, progress, activeSyncId }) => {
   const base = { key: 'importing', label: 'Importing' }
-  if (!row && !show) return step({ ...base, state: 'skipped', detail: 'No show rule matches this title' })
-  if (!row) {
+  const decision = libraryDecision({ existing: row, libraryChoice, show, importUnmatched })
+  if (decision.action === 'hold') {
+    return step({ ...base, label: 'Not imported', state: 'skipped', detail: decision.reason })
+  }
+  if (!row || ['pending', 'not_imported'].includes(row.status)) {
     return step({ ...base, state: 'pending', detail: activeSyncId ? 'Sync running' : 'Waiting for the next sync' })
   }
   if (row.status === 'importing') {
@@ -263,7 +271,8 @@ const importingStep = ({ row, show, progress, activeSyncId }) => {
     return step({ ...base, state: 'active', percent, detail: progress?.etaLabel || null })
   }
   if (row.status === 'done') return step({ ...base, state: 'done' })
-  return step({ ...base, state: row.status === 'skipped' ? 'skipped' : 'failed', detail: row.error || row.status })
+  if (row.status === 'skipped') return step({ ...base, label: 'Not imported', state: 'skipped', detail: row.error || null })
+  return step({ ...base, label: 'Import failed', state: 'failed', detail: row.error || row.status })
 }
 
 const adsApply = ({ show, adRemovalOn }) => adRemovalOn && show && show.ad_removal !== 'off'
@@ -287,12 +296,12 @@ const adsStep = ({ row, show, progress, activeSyncId }) => {
   return step({ ...base, state: activeSyncId ? 'pending' : 'skipped' })
 }
 
-const plexStep = ({ row, ads, activeSyncId, importSync }) => {
+const plexStep = ({ row, show, ads, activeSyncId, importSync }) => {
   const base = { key: 'plex', label: 'In Plex' }
   const upstreamBusy = row?.status !== 'done' || ads?.state === 'pending' || ads?.state === 'active'
   if (upstreamBusy) return step({ ...base, state: 'pending' })
   if (!importSync) return step({ ...base, state: activeSyncId ? 'active' : 'pending', detail: 'Refreshing Plex' })
-  const plex = importSync.summary?.plex
+  const plex = show ? importSync.summary?.plex : importSync.summary?.plexOneOffs
   if (plex?.triggered) return step({ ...base, state: 'done' })
   if (plex?.skipped) return step({ ...base, state: 'skipped', detail: plex.reason || 'Plex refresh skipped' })
   return step({ ...base, state: 'warn', detail: plex?.error || 'Plex refresh did not run' })

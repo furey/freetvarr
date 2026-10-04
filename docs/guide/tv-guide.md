@@ -41,6 +41,7 @@ From there:
 
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **RECORD SERIES** creates a TVHeadend autorec rule, with an episodes-to-keep option.
+- **ADD TO LIBRARY** decides what Freetvarr does with the recording. Under the switch, the dialog says where the file will go: the show's folder when a [show rule](/guide/following-shows) matches, or the one-off folder when none does. With the switch off, the recording stays in TVHeadend only. With it on, **RECORD SERIES** also adds a show rule, so the episodes go to the TV library.
 - A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series rule, cancelling asks whether to cancel just that episode or the whole series. Cancelling one episode disables it in TVHeadend instead of deleting it, so the series rule does not schedule it again. Record it later to turn it back on.
 - A programme whose show already has a series rule but no episode scheduled yet shows the rule with a **CANCEL SERIES** action.
 
