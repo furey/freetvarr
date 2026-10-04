@@ -1036,17 +1036,23 @@ const LiveView = {
               <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels.</p>
             </info-button>
           </span>
-          <div class="flex flex-wrap items-center justify-end gap-3">
+          <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <toggle-switch v-model="pinnedOnly" label="FAVOURITES ONLY" />
-            <toggle-switch v-model="showImages" label="IMAGES" />
-            <button type="button" class="btn btn-sm" @click="channelsModal = true" :disabled="!data"><sliders-icon /> CHANNELS</button>
+            <template v-if="!narrow">
+              <toggle-switch v-model="pinnedOnly" label="FAVOURITES ONLY" />
+              <toggle-switch v-model="showImages" label="IMAGES" />
+            </template>
+            <icon-toggle v-else v-model="showImages" label="Images"><image-icon /></icon-toggle>
+            <header-button label="Channels" @click="channelsModal = true" :disabled="!data"><sliders-icon /></header-button>
           </div>
         </header>
         <div class="panel-body space-y-5">
-          <input v-model="filterQ" type="search" class="field-input w-full"
-            placeholder="Filter channels or shows" aria-label="Filter channels or shows"
-            style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
+          <div class="view-controls view-controls-sticky">
+            <input v-model="filterQ" type="search" class="field-input"
+              placeholder="Filter channels or shows" aria-label="Filter channels or shows"
+              style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
+            <icon-toggle v-if="narrow" v-model="pinnedOnly" label="Favourites only"><star-icon /></icon-toggle>
+          </div>
           <p v-if="tvhConfigured === false" class="text-sm text-ink-dim">
             Connect TVHeadend in <a href="#/settings/tvheadend">Settings</a> to watch live TV.
           </p>
@@ -1122,6 +1128,7 @@ const LiveView = {
     const pinnedOnly = storedFlag({ key: LIVE_FAVOURITES_ONLY_KEY, fallback: false })
     const showImages = storedFlag({ key: LIVE_IMAGES_KEY, fallback: true })
     const channelsModal = ref(false)
+    const narrow = useMediaQuery(EPG_NARROW_QUERY)
     let pollTimer = null
     let boundaryTimer = null
 
@@ -1221,7 +1228,7 @@ const LiveView = {
     })
 
     return {
-      data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, groups, favouritesHint, emptyText,
+      data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, narrow, groups, favouritesHint, emptyText,
       load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
       dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
@@ -2134,7 +2141,7 @@ const RecordingsView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">TRACKED RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
+            <span class="panel-title"><template v-if="!narrow">TRACKED </template>RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
             <info-button title="TRACKED RECORDINGS" doc="guide/recordings">
               <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>done</strong>, <strong>partial</strong>, <strong>skipped</strong>, <strong>failed</strong>, or <strong>not imported</strong>. The next sync tries a partial import again.</p>
               <p>A recording with no show rule goes to the one-off folder. Press <strong>IMPORT</strong> on a recording that is not imported to add it to the library.</p>
@@ -2142,57 +2149,57 @@ const RecordingsView = {
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
             </info-button>
           </span>
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <button type="button" class="btn btn-sm btn-danger" @click="purgeDeleted"
+            <header-button class="btn-danger" :label="purging ? 'Purging…' : 'Purge removed'" @click="purgeDeleted"
               :disabled="purging"
-              title="Remove all tombstoned rows from Freetvarr's history (recordings already removed from TVHeadend).">
-              <template v-if="purging">PURGING…</template><template v-else><cross-icon /> PURGE REMOVED</template>
-            </button>
-            <button type="button" class="btn btn-sm" @click="manualRefresh"><refresh-icon /> REFRESH</button>
+              title="Remove all tombstoned rows from Freetvarr's history (recordings already removed from TVHeadend)."><cross-icon /></header-button>
+            <header-button label="Refresh" @click="manualRefresh"><refresh-icon /></header-button>
           </div>
         </header>
         <div class="panel-body space-y-4">
-          <div class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">STATUS</span>
-              <div class="chip-row md:flex-wrap">
-                <button v-for="opt in statusOptions" :key="opt"
-                  type="button"
-                  :class="['btn', 'btn-sm', statusFilter === opt ? 'btn-on' : '']"
-                  @click="setStatus(opt)">{{ statusLabel(opt).toUpperCase() }}</button>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SHOW</span>
-              <select :value="showFilter" @change="setShow($event.target.value)"
-                class="field-input" style="width: auto; min-width: 9rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
-                <option value="all">— any —</option>
+          <template v-if="narrow">
+            <div class="view-controls view-controls-sticky">
+              <select :value="showFilter" @change="setShow($event.target.value)" class="field-input" aria-label="Show">
+                <option value="all">Any show</option>
                 <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
               </select>
+              <filter-sheet title="FILTER RECORDINGS" :count="activeFilters.length" @clear="clearSheetFilters">
+                <div v-for="g in chipGroups" :key="g.key" class="filter-group" role="group" :aria-label="g.label">
+                  <span class="field-label">{{ g.label }}</span>
+                  <div class="filter-chips">
+                    <button v-for="opt in g.options" :key="opt.key" type="button"
+                      :class="['btn', 'btn-sm', g.value === opt.key ? 'btn-on' : '']" :aria-pressed="String(g.value === opt.key)"
+                      @click="g.set(opt.key)">{{ opt.label }}</button>
+                  </div>
+                </div>
+              </filter-sheet>
             </div>
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">WHEN</span>
-              <div class="chip-row md:flex-wrap">
-                <button v-for="opt in sinceOptions" :key="opt.key"
-                  type="button"
-                  :class="['btn', 'btn-sm', sinceFilter === opt.key ? 'btn-on' : '']"
-                  @click="setSince(opt.key)">{{ opt.label }}</button>
+            <div v-if="activeFilters.length" class="active-filters">
+              <button v-for="f in activeFilters" :key="f.key" type="button" class="btn btn-sm btn-on"
+                :aria-label="'Remove filter: ' + f.label" @click="f.clear">{{ f.label }} <cross-icon /></button>
+            </div>
+          </template>
+          <div v-else class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
+            <template v-for="g in chipGroups" :key="g.key">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">{{ g.label }}</span>
+                <div class="chip-row md:flex-wrap">
+                  <button v-for="opt in g.options" :key="opt.key" type="button"
+                    :class="['btn', 'btn-sm', g.value === opt.key ? 'btn-on' : '']" :aria-pressed="String(g.value === opt.key)"
+                    @click="g.set(opt.key)">{{ opt.label }}</button>
+                </div>
               </div>
-            </div>
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">ON TVHEADEND</span>
-              <div class="chip-row md:flex-wrap">
-                <button v-for="opt in deletedOptions" :key="opt.key"
-                  type="button"
-                  :class="['btn', 'btn-sm', deletedFilter === opt.key ? 'btn-on' : '']"
-                  @click="setDeleted(opt.key)">{{ opt.label }}</button>
+              <div v-if="g.key === 'status'" class="flex items-center gap-2">
+                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SHOW</span>
+                <select :value="showFilter" @change="setShow($event.target.value)" aria-label="Show"
+                  class="field-input" style="width: auto; min-width: 9rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
+                  <option value="all">— any —</option>
+                  <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
+                </select>
               </div>
-            </div>
+            </template>
           </div>
-          <p class="text-xs font-mono text-ink-mute">
-            Legend: <span class="tombstone-legend">struck-through + dim</span> = removed from TVHeadend.
-          </p>
           <table v-if="recordings.length" class="deck-table hidden md:table">
             <thead><tr>
               <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
@@ -2446,6 +2453,35 @@ const RecordingsView = {
     const setSince = (v) => { sinceFilter.value = v; page.value = 1 }
     const setDeleted = (v) => { deletedFilter.value = v; page.value = 1 }
 
+    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+
+    const chipGroups = computed(() => [
+      {
+        key: 'status',
+        label: 'STATUS',
+        value: statusFilter.value,
+        set: setStatus,
+        options: statusOptions.map((opt) => ({ key: opt, label: statusLabel(opt).toUpperCase() })),
+      },
+      { key: 'since', label: 'WHEN', value: sinceFilter.value, set: setSince, options: sinceOptions },
+      { key: 'deleted', label: 'ON TVHEADEND', value: deletedFilter.value, set: setDeleted, options: deletedOptions },
+    ])
+
+    const activeFilters = computed(() => chipGroups.value
+      .filter((g) => g.value !== 'all')
+      .map((g) => ({
+        key: g.key,
+        label: g.options.find((opt) => opt.key === g.value)?.label ?? g.value,
+        clear: () => g.set('all'),
+      })))
+
+    const clearSheetFilters = () => {
+      statusFilter.value = 'all'
+      sinceFilter.value = 'all'
+      deletedFilter.value = 'all'
+      page.value = 1
+    }
+
     const toggleSort = (col) => {
       if (sortCol.value !== col) {
         sortCol.value = col
@@ -2645,6 +2681,7 @@ const RecordingsView = {
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, purgeDeleted,
       setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
+      narrow, chipGroups, activeFilters, clearSheetFilters,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
       flashText, flashKind,
     }
@@ -2729,6 +2766,13 @@ const SettingsView = {
                 <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
               </button>
               <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
+            </div>
+            <div v-if="tvhOpenEntryBackupSet" class="field-row md:col-span-3 flex flex-wrap items-center gap-3">
+              <button type="button" class="btn btn-sm" @click="undoTvhSecure" :disabled="tvhUndoing">
+                <template v-if="tvhUndoing">RESTORING…</template><template v-else>RESTORE OPEN ACCESS</template>
+              </button>
+              <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
+              <span v-else class="text-xs text-ink-mute">Undoes the wizard's SECURE TVHEADEND: anyone on your network can change TVHeadend again. The logins stay.</span>
             </div>
             <div class="md:col-span-3">
               <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="toggle-prose">
@@ -3015,6 +3059,22 @@ const SettingsView = {
     const tvhTesting = ref(false)
     const tvhStatus = ref('')
     const tvhStatusKind = ref('ok')
+    const tvhOpenEntryBackupSet = ref(false)
+    const tvhUndoing = ref(false)
+    const [tvhUndoText, tvhUndoKind, setTvhUndo] = makeStatus()
+    const undoTvhSecure = async () => {
+      if (!confirm('Restore open access to TVHeadend? Anyone on your network will be able to change it again.')) return
+      tvhUndoing.value = true
+      try {
+        await api('POST', '/api/tvh-bootstrap/undo')
+        tvhOpenEntryBackupSet.value = false
+        setTvhUndo('Open access restored.', 'ok', 8000)
+      } catch (err) {
+        setTvhUndo(err.message, 'err', 0)
+      } finally {
+        tvhUndoing.value = false
+      }
+    }
     const recordingsRoot = ref('')
     const tvhRecordingsPath = ref('')
     const recordingsCheck = usePathCheck(() => recordingsFolderStatus({
@@ -3086,6 +3146,7 @@ const SettingsView = {
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
+      tvhOpenEntryBackupSet.value = Boolean(s.tvh_open_entry_backup_set)
       recordingsRoot.value = s.recordings_root || ''
       tvhRecordingsPath.value = s.tvh_recordings_path || ''
       syncCron.value = s.sync_cron || ''
@@ -3353,6 +3414,7 @@ const SettingsView = {
 
     return {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
+      tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, undoTvhSecure,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       syncCron, syncCronEffective,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections,
@@ -3611,7 +3673,7 @@ const WelcomeView = {
 
           <div v-if="step === 2" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
-              Freetvarr needs the address of your TVHeadend server. Leave the username and password blank if TVHeadend allows anonymous access.
+              Freetvarr needs the address of your TVHeadend server.
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="detectTvh()" :disabled="tvhDetecting">
@@ -3634,23 +3696,77 @@ const WelcomeView = {
               <label class="field-label">TVHeadend URL</label>
               <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
             </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="field-row">
-                <label class="field-label">Username</label>
-                <input type="text" class="field-input" v-model="tvhUsername" autocomplete="off" />
+            <div v-if="showSecure" class="space-y-4">
+              <p class="text-ink text-sm leading-relaxed">
+                <strong class="text-signal-orange">This TVHeadend has no logins yet</strong>, so anyone on your network can change it. Freetvarr can secure it: it makes an admin login for you and a separate login for itself, then turns off the open access.
+              </p>
+              <div class="grid gap-4 md:grid-cols-3">
+                <div class="field-row">
+                  <label class="field-label">Admin username</label>
+                  <input type="text" class="field-input" v-model="secureAdminUsername" autocomplete="off" :disabled="securing" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Admin password</label>
+                  <input type="password" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Confirm password</label>
+                  <input type="password" class="field-input" v-model="secureAdminConfirm" autocomplete="new-password" :disabled="securing" />
+                </div>
               </div>
               <div class="field-row">
-                <label class="field-label">Password</label>
-                <input type="password" class="field-input" v-model="tvhPassword"
-                  :placeholder="tvhPasswordSet ? '••••• (stored)' : ''" autocomplete="off" />
+                <label class="field-label">Allowed networks</label>
+                <input type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
+                <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses; add any network you sign in to TVHeadend from.
+                </p>
               </div>
+              <p class="text-xs text-ink-mute leading-relaxed">
+                Keep the admin password somewhere safe: you sign in to TVHeadend with it, and Freetvarr does not store it. Freetvarr signs in as <code>freetvarr</code> with a random password it keeps for itself.
+              </p>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
+                  <template v-if="securing">SECURING…</template><template v-else>SECURE TVHEADEND AND CONNECT FREETVARR</template>
+                </button>
+                <button type="button" class="btn-link" @click="useManualLogin" :disabled="securing">I'll set up users myself</button>
+              </div>
+              <span v-if="secureInputProblem" class="status-readout info">{{ secureInputProblem }}</span>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
-                <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
-              </button>
-              <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
+            <ol v-if="secureSteps.length" class="space-y-1 text-sm font-mono">
+              <li v-for="s in secureSteps" :key="s.id" class="flex items-center gap-2">
+                <span :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
+                <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
+              </li>
+            </ol>
+            <div v-if="secureError" class="space-y-1">
+              <p class="status-readout err">{{ secureError }}</p>
+              <p v-if="secureNext" class="text-sm text-ink">{{ secureNext }}</p>
             </div>
+            <p v-if="securedAs" class="status-readout ok">
+              TVHeadend is secured. Sign in to TVHeadend as {{ securedAs }} from now on; Freetvarr signs in as freetvarr.
+            </p>
+            <template v-if="!showSecure">
+              <p v-if="!securedAs" class="text-ink-dim text-sm leading-relaxed">
+                Enter the TVHeadend login Freetvarr should use. Leave both blank if TVHeadend allows anonymous access.
+              </p>
+              <div class="grid gap-4 md:grid-cols-2">
+                <div class="field-row">
+                  <label class="field-label">Username</label>
+                  <input type="text" class="field-input" v-model="tvhUsername" autocomplete="off" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Password</label>
+                  <input type="password" class="field-input" v-model="tvhPassword"
+                    :placeholder="tvhPasswordSet ? '••••• (stored)' : ''" autocomplete="off" />
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
+                  <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
+                </button>
+                <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
+              </div>
+            </template>
           </div>
 
           <div v-if="step === 3" class="space-y-4">
@@ -3782,7 +3898,7 @@ const WelcomeView = {
           <div class="flex items-center gap-3">
             <span v-if="saveStatusText"
               :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
-            <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">A TVHeadend URL is required to continue.</span>
+            <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">{{ advanceHint }}</span>
             <button type="button" class="btn btn-primary" @click="next" :disabled="!canAdvance || saving">
               {{ nextLabel }} <arrow-right-icon />
             </button>
@@ -3897,9 +4013,13 @@ const WelcomeView = {
     })
 
     const canAdvance = computed(() => {
-      if (step.value === 2) return Boolean(tvhUrl.value.trim())
+      if (step.value === 2) return Boolean(tvhUrl.value.trim()) && !showSecure.value
       return true
     })
+
+    const advanceHint = computed(() => (tvhUrl.value.trim()
+      ? 'Secure TVHeadend first, or choose to set up users yourself.'
+      : 'A TVHeadend URL is required to continue.'))
 
     const nextLabel = computed(() => {
       if (step.value === totalSteps) return 'GO TO SHOWS'
@@ -4064,10 +4184,90 @@ const WelcomeView = {
     }
     watch(step, (curr) => {
       if (curr === 2 && !tvhUrl.value.trim()) detectTvh({ quiet: true })
+      if (curr === 2) checkBootstrap()
     })
     watch([tvhUrl, tvhUsername, tvhPassword], () => {
       if (step.value === 2) clearSaveStatus()
     })
+
+    const bootstrap = ref(null)
+    const manualLogin = ref(false)
+    const securing = ref(false)
+    const securedAs = ref('')
+    const secureAdminUsername = ref('admin')
+    const secureAdminPassword = ref('')
+    const secureAdminConfirm = ref('')
+    const securePrefixes = ref('')
+    const secureSteps = ref([])
+    const secureError = ref('')
+    const secureNext = ref('')
+    const showSecure = computed(() => Boolean(bootstrap.value?.fresh) && !manualLogin.value && !securedAs.value)
+    const secureInputProblem = computed(() => bootstrapInputProblem({
+      username: secureAdminUsername.value,
+      password: secureAdminPassword.value,
+      confirm: secureAdminConfirm.value,
+      prefixes: securePrefixes.value,
+    }))
+    const secureReady = computed(() => !secureInputProblem.value)
+
+    let bootstrapCheckTimer = null
+    const checkBootstrap = () => {
+      clearTimeout(bootstrapCheckTimer)
+      const url = tvhUrl.value.trim()
+      if (!url || step.value !== 2) return
+      bootstrapCheckTimer = setTimeout(async () => {
+        const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
+        if (url !== tvhUrl.value.trim()) return
+        bootstrap.value = status
+        if (status?.fresh && !securePrefixes.value) securePrefixes.value = status.suggestedPrefixes.join(', ')
+      }, BOOTSTRAP_CHECK_DELAY_MS)
+    }
+    watch(tvhUrl, () => {
+      bootstrap.value = null
+      checkBootstrap()
+    })
+
+    const useManualLogin = () => {
+      manualLogin.value = true
+      secureSteps.value = []
+      secureError.value = ''
+      secureNext.value = ''
+    }
+
+    const secureTvh = async () => {
+      securing.value = true
+      secureError.value = ''
+      secureNext.value = ''
+      secureSteps.value = (bootstrap.value?.steps || []).map((s) => ({ ...s, status: 'pending' }))
+      const poll = setInterval(async () => {
+        const progress = await api('GET', '/api/tvh-bootstrap/progress').catch(() => null)
+        if (progress?.steps?.length) secureSteps.value = progress.steps
+      }, BOOTSTRAP_POLL_MS)
+      try {
+        const result = await api('POST', '/api/tvh-bootstrap/apply', {
+          url: tvhUrl.value.trim(),
+          admin_username: secureAdminUsername.value.trim(),
+          admin_password: secureAdminPassword.value,
+          prefixes: securePrefixes.value,
+        })
+        secureSteps.value = result.steps
+        securedAs.value = result.adminUsername
+        secureAdminPassword.value = ''
+        secureAdminConfirm.value = ''
+        tvhUsername.value = result.username
+        tvhPassword.value = ''
+        tvhPasswordSet.value = true
+        await testTvh()
+      } catch (err) {
+        if (err.data?.steps) secureSteps.value = err.data.steps
+        secureError.value = err.message
+        secureNext.value = err.data?.next || ''
+        if (err.data?.code === 'not-fresh') manualLogin.value = true
+      } finally {
+        clearInterval(poll)
+        securing.value = false
+      }
+    }
 
     const testTvh = async () => {
       tvhTesting.value = true
@@ -4100,7 +4300,10 @@ const WelcomeView = {
       plexDiscovering, plexCandidates, plexDetectingToken, plexPrefsPath,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
-      back, next, skipToSettings, loadPlexSections, testTvh,
+      back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
+      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureAdminConfirm,
+      securePrefixes, secureSteps, secureError, secureNext, secureInputProblem, secureReady,
+      secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
       discoverPlex, usePlexCandidate, detectPlexToken,
       plexDiscoverText, plexDiscoverKind,
@@ -4110,6 +4313,25 @@ const WelcomeView = {
     }
   },
 }
+
+const bootstrapInputProblem = ({ username, password, confirm, prefixes }) => {
+  if (!username.trim()) return 'Choose an admin username.'
+  if (password.length < BOOTSTRAP_MIN_PASSWORD) return `Choose an admin password of at least ${BOOTSTRAP_MIN_PASSWORD} characters.`
+  if (password !== confirm) return 'The two passwords do not match yet.'
+  if (!prefixes.trim()) return 'Enter at least one allowed network.'
+  return ''
+}
+
+const secureStepDot = (status) => ({
+  pending: 'idle',
+  running: 'live',
+  done: 'bg-plex-yellow',
+  failed: 'bg-signal-orange',
+})[status] || 'idle'
+
+const BOOTSTRAP_CHECK_DELAY_MS = 500
+const BOOTSTRAP_POLL_MS = 400
+const BOOTSTRAP_MIN_PASSWORD = 8
 
 const EPG_ZOOM_LEVELS = [
   { key: 's', pxPerMin: 3, rowRem: 3.4, narrowRowRem: 3, halfHourTicks: false },
@@ -4149,6 +4371,7 @@ const CHANNEL_SORT_OPTIONS = [
 ]
 
 let infoDialogCount = 0
+let filterSheetCount = 0
 
 const LATEST_RELEASE_KEY = 'freetvarr.latest-release'
 const LATEST_RELEASE_TTL_MS = 60 * 60 * 1000
@@ -4324,46 +4547,111 @@ const InfoButton = {
     </teleport>
   `,
   setup(props) {
-    const open = ref(false)
-    const trigger = ref(null)
-    const dialog = ref(null)
     const headingId = `info-dialog-${++infoDialogCount}`
     const docUrl = computed(() => `${DOCS_BASE}${props.doc}`)
-
-    const onKeydown = (e) => {
-      if (e.key !== 'Escape') return
-      e.stopImmediatePropagation()
-      close()
-    }
-
-    const setSheetOpen = (isOpen) => {
-      try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
-    }
-
-    const show = async () => {
-      open.value = true
-      setSheetOpen(true)
-      window.addEventListener('keydown', onKeydown, true)
-      await nextTick()
-      dialog.value?.focus()
-    }
-
-    const close = () => {
-      if (!open.value) return
-      open.value = false
-      setSheetOpen(false)
-      window.removeEventListener('keydown', onKeydown, true)
-      trigger.value?.focus()
-    }
-
-    onUnmounted(() => {
-      if (!open.value) return
-      setSheetOpen(false)
-      window.removeEventListener('keydown', onKeydown, true)
-    })
-
-    return { open, trigger, dialog, headingId, docUrl, show, close }
+    return { ...useSheet(), headingId, docUrl }
   },
+}
+
+const useSheet = () => {
+  const open = ref(false)
+  const trigger = ref(null)
+  const dialog = ref(null)
+
+  const onKeydown = (e) => {
+    if (e.key !== 'Escape') return
+    e.stopImmediatePropagation()
+    close()
+  }
+
+  const setSheetOpen = (isOpen) => {
+    try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
+  }
+
+  const show = async () => {
+    open.value = true
+    setSheetOpen(true)
+    window.addEventListener('keydown', onKeydown, true)
+    await nextTick()
+    dialog.value?.focus()
+  }
+
+  const close = () => {
+    if (!open.value) return
+    open.value = false
+    setSheetOpen(false)
+    window.removeEventListener('keydown', onKeydown, true)
+    trigger.value?.focus()
+  }
+
+  onUnmounted(() => {
+    if (!open.value) return
+    setSheetOpen(false)
+    window.removeEventListener('keydown', onKeydown, true)
+  })
+
+  return { open, trigger, dialog, show, close }
+}
+
+const FilterSheet = {
+  props: {
+    title: { type: String, required: true },
+    count: { type: Number, default: 0 },
+  },
+  emits: ['clear'],
+  template: `
+    <button ref="trigger" type="button" class="btn btn-sm filter-trigger" :aria-expanded="open"
+      :aria-controls="open ? sheetId : null" :aria-label="count ? 'Filters, ' + count + ' active' : 'Filters'" @click="show">
+      <filter-icon /> FILTERS<span v-if="count" class="filter-count" aria-hidden="true">{{ count }}</span>
+    </button>
+    <teleport to="body">
+      <transition name="epg-sheet">
+        <div v-if="open" class="epg-modal-backdrop filter-sheet" @click.self="close">
+          <section :id="sheetId" ref="dialog" class="panel epg-modal" role="dialog" aria-modal="true"
+            :aria-labelledby="headingId" tabindex="-1">
+            <header class="panel-header">
+              <span :id="headingId" class="panel-title">{{ title }}</span>
+              <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
+            </header>
+            <div class="panel-body filter-sheet-body">
+              <slot />
+              <div class="epg-modal-actions flex items-center justify-end gap-2">
+                <button type="button" class="btn mr-auto" :disabled="!count" @click="$emit('clear')"><cross-icon /> CLEAR</button>
+                <button type="button" class="btn btn-primary" @click="close"><check-icon /> DONE</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </transition>
+    </teleport>
+  `,
+  setup() {
+    const id = ++filterSheetCount
+    return { ...useSheet(), sheetId: `filter-sheet-${id}`, headingId: `filter-sheet-title-${id}` }
+  },
+}
+
+const HeaderButton = {
+  props: { label: { type: String, required: true } },
+  template: `
+    <button type="button" :class="['btn', 'btn-sm', { 'btn-icon': narrow }]"
+      :aria-label="narrow ? label : null" :title="narrow ? label : null">
+      <slot /><template v-if="!narrow">{{ label.toUpperCase() }}</template>
+    </button>
+  `,
+  setup() {
+    return { narrow: useMediaQuery(EPG_NARROW_QUERY) }
+  },
+}
+
+const IconToggle = {
+  props: { modelValue: Boolean, label: { type: String, required: true } },
+  emits: ['update:modelValue'],
+  template: `
+    <button type="button" :class="['btn', 'btn-sm', 'btn-icon', { 'btn-on': modelValue }]"
+      :aria-pressed="String(modelValue)" :aria-label="label" :title="label"
+      @click="$emit('update:modelValue', !modelValue)"><slot /></button>
+  `,
 }
 
 const ChannelsModal = {
@@ -4543,23 +4831,30 @@ const EpgView = {
               <p>Click a programme to record it, record the series, or cancel. A programme on now also offers <strong>WATCH LIVE</strong>.</p>
             </info-button>
           </span>
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <toggle-switch v-if="mode === 'guide'" v-model="showImages" label="IMAGES" />
-            <button type="button" class="btn btn-sm" @click="openChannelsModal" :disabled="!guide"><sliders-icon /> CHANNELS</button>
-            <button type="button" class="btn btn-sm" @click="manualRefresh" :disabled="loading"><refresh-icon /> REFRESH</button>
+            <template v-if="mode === 'guide'">
+              <icon-toggle v-if="narrow" v-model="showImages" label="Images"><image-icon /></icon-toggle>
+              <toggle-switch v-else v-model="showImages" label="IMAGES" />
+            </template>
+            <header-button label="Channels" @click="openChannelsModal" :disabled="!guide"><sliders-icon /></header-button>
+            <header-button label="Refresh" @click="manualRefresh" :disabled="loading"><refresh-icon /></header-button>
           </div>
         </header>
         <div class="panel-body space-y-4">
-          <div class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
-            <div class="chip-row md:flex-wrap">
+          <div class="guide-top flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
+            <div class="chip-row mode-tabs md:flex-wrap">
               <button v-for="m in modes" :key="m.key" type="button"
-                :class="['btn', 'btn-sm', mode === m.key ? 'btn-on' : '']"
+                :class="['btn', 'btn-sm', mode === m.key ? 'btn-on' : '']" :aria-pressed="String(mode === m.key)"
                 @click="setMode(m.key)">{{ m.label }}</button>
             </div>
-            <div class="flex-1 min-w-[12rem] md:max-w-xs md:ml-auto">
-              <input v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder"
+            <div :class="['view-controls', 'flex-1', 'min-w-[12rem]', 'md:max-w-xs', 'md:ml-auto', { 'view-controls-sticky': mode !== 'guide' }]">
+              <input v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
                 style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
+              <select v-if="narrow && mode === 'guide'" :value="day" @change="setDay(Number($event.target.value))"
+                class="field-input day-select" aria-label="Day">
+                <option v-for="d in dayChips" :key="d.day" :value="d.day">{{ d.label }}</option>
+              </select>
             </div>
           </div>
 
@@ -4596,7 +4891,7 @@ const EpgView = {
           </template>
 
           <template v-else-if="mode === 'guide'">
-            <div class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
+            <div v-if="!narrow" class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
               <div class="flex items-center gap-2 min-w-0">
                 <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">DAY</span>
                 <div class="chip-row md:flex-wrap">
@@ -4624,7 +4919,6 @@ const EpgView = {
                 </div>
               </div>
             </div>
-            <p v-if="stateLine" class="text-xs font-mono text-ink-mute">{{ stateLine }}</p>
             <p v-if="guide?.stale" class="text-xs font-mono text-plex-yellow">
               Showing the cached guide — TVHeadend did not answer; it refreshes automatically on the next try.
             </p>
@@ -4724,7 +5018,17 @@ const EpgView = {
                 <div v-if="day === 0 && nowX != null" class="epg-nowline" :style="{ left: 'calc(var(--epg-rail-px) + ' + nowX + 'px)' }"></div>
               </div>
               </div>
+              <div v-if="narrow" class="epg-float-cluster" role="group" aria-label="Jump and zoom"
+                :style="{ right: 'calc(' + scrollbarW + 'px + 0.5rem)' }">
+                <button type="button" class="epg-float-btn" @click="jumpNow">NOW</button>
+                <button type="button" class="epg-float-btn" @click="jumpTonight">TONIGHT</button>
+                <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom out"
+                  :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
+                <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom in"
+                  :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
+              </div>
             </div>
+            <p v-if="stateLine" class="epg-state-line font-mono text-ink-mute">{{ stateLine }}</p>
           </template>
 
           <template v-else-if="mode === 'upcoming'">
@@ -5112,7 +5416,9 @@ const EpgView = {
 
     const dayTitle = computed(() => {
       if (!guide.value) return dayChips.value[day.value]?.label || ''
-      return dateFormat({ weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(guide.value.dayStart + 12 * 3_600_000))
+      const weekday = narrow.value ? 'short' : 'long'
+      return dateFormat({ weekday, day: 'numeric', month: 'short' })
+        .format(new Date(guide.value.dayStart + 12 * 3_600_000)).replace(',', '')
     })
 
     const scheduledByProgramId = computed(() => {
@@ -6354,6 +6660,24 @@ const SlidersIcon = {
   `,
 }
 
+const FilterIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2.25 3h11.5l-4.5 5.25v4.5l-2.5 1.25V8.25z"/>
+    </svg>
+  `,
+}
+
+const ImageIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="10" rx="1.5"/>
+      <circle cx="5.75" cy="6.5" r="1.25"/>
+      <path d="M14 10.5 10.5 7 4 13"/>
+    </svg>
+  `,
+}
+
 const ArrowLeftIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -7261,7 +7585,7 @@ const TABS = [
 const App = {
   template: `
     <div class="min-h-dvh flex flex-col">
-      <header class="app-header sticky top-0 z-20 backdrop-blur-md bg-surface-deep/85 border-b border-hairline">
+      <header ref="appHeader" class="app-header sticky top-0 z-20 backdrop-blur-md bg-surface-deep/85 border-b border-hairline">
         <div class="max-w-6xl mx-auto px-4 md:px-6">
           <div class="flex items-center justify-between gap-4 py-3">
             <a href="#/dashboard" class="no-hover-underline flex items-center gap-3 no-underline text-ink">
@@ -7337,8 +7661,18 @@ const App = {
         ?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
     }, { immediate: true })
     const appVersion = computed(() => serverAbout.value.version || '')
+    const appHeader = ref(null)
+    const publishHeaderHeight = () => {
+      document.documentElement.style.setProperty('--app-header-h', `${appHeader.value?.offsetHeight ?? 0}px`)
+    }
+    const headerObserver = new ResizeObserver(publishHeaderHeight)
+    onMounted(() => {
+      publishHeaderHeight()
+      headerObserver.observe(appHeader.value)
+    })
+    onUnmounted(() => headerObserver.disconnect())
     return {
-      route, refreshTick, tabs: TABS, currentView,
+      appHeader, route, refreshTick, tabs: TABS, currentView,
       syncStatus, clockReadout, tzShortName, recordingCount,
       appVersion, releaseUrl,
     }
@@ -7537,6 +7871,11 @@ app.component('airplay-icon', AirplayIcon)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
+app.component('filter-sheet', FilterSheet)
+app.component('header-button', HeaderButton)
+app.component('icon-toggle', IconToggle)
+app.component('filter-icon', FilterIcon)
+app.component('image-icon', ImageIcon)
 app.component('about-panel', AboutPanel)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)

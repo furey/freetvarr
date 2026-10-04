@@ -12,7 +12,7 @@ Freetvarr runs as a single Docker container next to TVHeadend, usually on the sa
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**, matched to your broadcast standard: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. See [Hardware](/guide/hardware) for what to buy and how to wire it in.
-- **TVHeadend.** The compose file below runs it next to Freetvarr, and [step 4](#_4-set-up-tvheadend) sets it up. Already run TVHeadend somewhere else? See [An existing TVHeadend](#an-existing-tvheadend).
+- **TVHeadend.** The compose file below runs it next to Freetvarr, the wizard in [step 4](#_4-run-the-wizard) secures it, and [step 5](#_5-set-up-tvheadend) sets it up. Already run TVHeadend somewhere else? See [An existing TVHeadend](#an-existing-tvheadend).
 - **Docker and Docker Compose** on the host.
 - **The same recordings folder mounted into both containers.** Freetvarr reads the files TVHeadend wrote, so both need to see them.
 - **Plex Media Server** is optional. Freetvarr runs fine without it; you just won't get the automatic library refresh after a sync. See [Plex](/guide/plex).
@@ -72,19 +72,23 @@ The first start builds the Freetvarr image from the repository, which takes a fe
 > [!IMPORTANT]<br>
 > Both services use `network_mode: host`. TVHeadend needs it to discover a network tuner such as an HDHomeRun by network broadcast. With host networking there's no `ports:` mapping: Freetvarr binds `${FREETVARR_PORT}` straight onto the host.
 
-## 4. Set up TVHeadend
-
-Browse to `http://<host-ip>:9981` and work through [TVHeadend](/guide/tvheadend): tuner, channels, guide, recording path, and a user for Freetvarr. Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and a guide.
-
-## 5. Run the wizard
+## 4. Run the wizard
 
 Browse to `http://<host-ip>:3733` (or the port you set in `FREETVARR_PORT`). The first visit opens a setup wizard:
 
-1. **TVHeadend**: its URL (`http://<host-ip>:9981`) and the username and password you made in [step 8 of the TVHeadend setup](/guide/tvheadend#_8-make-a-user-for-freetvarr). If TVHeadend runs on the same host, the wizard usually finds the URL for you. The wizard moves on only when the connection test passes; use `SKIP TO SETTINGS` if TVHeadend is not ready yet. If the test fails, [Troubleshooting](/guide/troubleshooting#tvheadend-401-or-403) explains each error.
+1. **TVHeadend**: its URL, `http://<host-ip>:9981`. If TVHeadend runs on the same host, the wizard usually finds it for you. What comes next depends on TVHeadend:
+   - **A fresh TVHeadend** has no logins yet, and anyone on your network can change it. The wizard asks you to choose an admin username and password, and shows the allowed networks it guessed from this host's addresses; correct them if needed. `SECURE TVHEADEND AND CONNECT FREETVARR` makes your admin login and a separate `freetvarr` login for Freetvarr, then turns off the open access. [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend) explains each step and how to undo it.
+   - **A TVHeadend that already has users**: enter the username and password of the user you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)). To do this on a fresh TVHeadend too, choose `I'll set up users myself`.
+
+   The wizard moves on only when the connection test passes; use `SKIP TO SETTINGS` if TVHeadend is not ready yet. If the test fails, [Troubleshooting](/guide/troubleshooting#tvheadend-401-or-403) explains each error.
 2. **Storage**: where Freetvarr reads recordings from and writes episodes to. With the example compose file, the defaults are already right. `TEST PATH` checks a folder, and `CHECK TVHEADEND` checks that the recordings path matches TVHeadend's. See [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 3. **Plex**: server URL, token, and which library section holds your TV shows. Optional; see [Plex](/guide/plex).
 
 You can change all of it later in Settings, and reopen the wizard from there.
+
+## 5. Set up TVHeadend
+
+Browse to `http://<host-ip>:9981`, sign in with the admin login, and work through [TVHeadend](/guide/tvheadend): tuner, channels, guide, and recording path. Freetvarr can do little until TVHeadend has channels and a guide.
 
 Then mark shows to follow on the Shows tab; see [Following shows](/guide/following-shows).
 

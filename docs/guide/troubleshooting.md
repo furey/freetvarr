@@ -44,7 +44,7 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 ## TVHeadend admin login
 
-The TVHeadend web UI answers `403 Forbidden` to the admin login: the password TVHeadend stored is not the one you are typing. [TVHeadend step 2](/guide/tvheadend#_2-first-run-wizard) says how to reset it with `--noacl`.
+The TVHeadend web UI answers `403 Forbidden` to the admin login: the password TVHeadend stored is not the one you are typing. [Securing by hand](/guide/tvheadend#securing-by-hand) says how to reset it with `--noacl`.
 
 ## TEST PATH failures
 
@@ -123,7 +123,7 @@ TVHeadend records the same episode twice in a row. The DVR profile's **Re-record
 
 ## Setup wizard keeps opening
 
-TVHeadend's first-run wizard opens on every page load. The `wizard` value in **Configuration → General → Base** is still set because the wizard never finished. Open the wizard and finish or cancel it, and the value clears ([TVHeadend step 2](/guide/tvheadend#_2-first-run-wizard)).
+TVHeadend's first-run wizard opens on every page load. The `wizard` value in **Configuration → General → Base** is still set because the wizard never finished. Open the wizard and finish or cancel it, and the value clears ([Securing by hand](/guide/tvheadend#securing-by-hand)).
 
 ## Unimported recordings
 
