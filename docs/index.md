@@ -29,8 +29,8 @@ hero:
 features:
   - title: Live TV
     details: >-
-      Watch any channel in the browser, on a phone or a desktop. See what's on
-      now and next across every channel, with your favourites first.
+      Watch any channel in the browser, on a phone or a desktop, and pause or
+      rewind up to 30 minutes. See what's on now and next across every channel.
     link: /guide/live-tv
     linkText: Watch live
   - title: Free to run
