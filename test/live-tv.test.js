@@ -12,6 +12,8 @@ import {
   LIVE_FILE_PATTERN,
   withoutCutInSegment,
   hasSegments,
+  liveSegmentCount,
+  liveBufferMinutesFrom,
 } from '../src/live-tv.js'
 
 const ABC_SD = [
@@ -224,8 +226,9 @@ test('LIVE_FILE_PATTERN: accepts the playlist and segments only', () => {
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
-const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000 } = {}) => {
+const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes } = {}) => {
   const events = []
+  const spawnArgs = []
   let clock = NOW
   let ids = 0
   const children = []
@@ -238,7 +241,9 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000 } = {}) => {
     removeDir: async (dir) => { events.push(`rm ${dir}`) },
     readText: async () => null,
     killGraceMs,
-    spawnProcess: () => {
+    bufferMinutes,
+    spawnProcess: (command, args) => {
+      spawnArgs.push(args)
       const child = new EventEmitter()
       child.stdin = new PassThrough()
       child.stderr = new PassThrough()
@@ -257,7 +262,7 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000 } = {}) => {
     },
     describeStall: async () => ({ code: 'gone' }),
   })
-  return { sessions, events, children, upstreams, advance: (ms) => { clock += ms } }
+  return { sessions, events, spawnArgs, children, upstreams, advance: (ms) => { clock += ms } }
 }
 
 test('sessions: teardown aborts upstream, then stops ffmpeg, then removes the folder', async () => {
@@ -417,4 +422,73 @@ test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', (
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '/tmp/live/abc/index.m3u8',
   ])
+})
+
+const listSizeOf = (args) => args[args.indexOf('-hls_list_size') + 1]
+
+test('liveSegmentCount: keeps the 6-segment floor when the buffer is off', () => {
+  assert.equal(liveSegmentCount(0), 6)
+  assert.equal(liveSegmentCount(), 6)
+})
+
+test('liveSegmentCount: covers the buffer in 2-second segments', () => {
+  assert.equal(liveSegmentCount(30), 900)
+  assert.equal(liveSegmentCount(1), 30)
+})
+
+test('liveBufferMinutesFrom: defaults to 30 when unset or not a number', () => {
+  assert.equal(liveBufferMinutesFrom(undefined), 30)
+  assert.equal(liveBufferMinutesFrom(''), 30)
+  assert.equal(liveBufferMinutesFrom('lots'), 30)
+})
+
+test('liveBufferMinutesFrom: accepts 0 to turn the buffer off, and caps at 120', () => {
+  assert.equal(liveBufferMinutesFrom('0'), 0)
+  assert.equal(liveBufferMinutesFrom('10'), 10)
+  assert.equal(liveBufferMinutesFrom('500'), 120)
+  assert.equal(liveBufferMinutesFrom('-5'), 0)
+})
+
+test('ffmpegArgsFor: the segment count sets the HLS list size', () => {
+  const plan = pickStreams({ streams: SBS_HD })
+  assert.equal(listSizeOf(ffmpegArgsFor({ plan, dir: '/tmp/live/abc', segmentCount: 900 })), '900')
+})
+
+test('sessions: ffmpeg keeps enough segments for the configured buffer', async () => {
+  const h = fakeHarness({ bufferMinutes: 30 })
+  await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(listSizeOf(h.spawnArgs[0]), '900')
+})
+
+test('sessions: with no buffer, ffmpeg keeps the 6-segment live window', async () => {
+  const h = fakeHarness()
+  await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(listSizeOf(h.spawnArgs[0]), '6')
+})
+
+test('sessions: a held session outlives the idle timeout until the hold expires', async () => {
+  const h = fakeHarness({ bufferMinutes: 1 })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(await h.sessions.hold(session.id), true)
+  h.advance(50_000)
+  h.upstreams[0].write(Buffer.from('ts'))
+  await h.sessions.tick()
+  assert.equal(h.sessions.activeCount(), 1)
+  h.advance(11_000)
+  h.upstreams[0].write(Buffer.from('ts'))
+  await h.sessions.tick()
+  assert.equal(h.sessions.activeCount(), 0)
+})
+
+test('sessions: with no buffer, hold ends the session like leave', async () => {
+  const h = fakeHarness()
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await h.sessions.hold(session.id)
+  assert.equal(h.sessions.activeCount(), 0)
+})
+
+test('sessions: the session view carries the buffer length', async () => {
+  const h = fakeHarness({ bufferMinutes: 30 })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(h.sessions.view(session).bufferSeconds, 1800)
 })

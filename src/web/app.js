@@ -5755,6 +5755,9 @@ const live = reactive({
   holders: [],
   conflict: null,
   tuningStartedAt: 0,
+  behindSeconds: 0,
+  bufferSeconds: 0,
+  skipHint: null,
 })
 
 let liveVideo = null
@@ -5796,6 +5799,7 @@ const startLiveSession = async (run) => {
       return
     }
     live.sessionId = r.session.id
+    live.bufferSeconds = r.session.bufferSeconds || 0
     live.conflict = r.conflict
     if (r.session.status === 'ended') return endLive(run, r.session.reason)
     pollLive(run)
@@ -5878,6 +5882,7 @@ const detachLiveVideo = () => {
   liveHls?.destroy()
   liveHls = null
   liveAttached = false
+  live.behindSeconds = 0
   if (!liveVideo) return
   liveVideo.pause()
   clearVideoSource()
@@ -5919,33 +5924,153 @@ const fmtCountdown = (ms) => {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`
 }
 
-window.addEventListener('pagehide', () => {
+const sendLiveBeacon = ({ method, suffix = '' }) => {
   if (!live.sessionId) return
-  fetch(`/api/live/${live.sessionId}`, {
-    method: 'DELETE',
+  fetch(`/api/live/${live.sessionId}${suffix}`, {
+    method,
     keepalive: true,
     headers: { 'x-csrf-token': csrfToken || '' },
   }).catch(() => {})
+}
+
+window.addEventListener('pagehide', (event) => {
+  if (event.persisted) return sendLiveBeacon({ method: 'POST', suffix: '/hold' })
+  sendLiveBeacon({ method: 'DELETE' })
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') return sendLiveBeacon({ method: 'POST', suffix: '/hold' })
+  if (!live.sessionId) return
+  clearTimeout(livePollTimer)
+  pollLive(liveRun)
 })
 
 const FULLSCREEN_EXIT_RESUME_MS = 1_500
 
 let resumeAfterFullscreenUntil = 0
 
-const resumeAtLiveEdge = () => {
+const resumeAfterFullscreen = () => {
   if (!live.open || live.phase === 'ended' || !liveVideo) return
-  const { seekable } = liveVideo
-  if (seekable.length) liveVideo.currentTime = seekable.end(seekable.length - 1)
   liveVideo.play()?.catch(() => {})
 }
 
 const onLiveFullscreenExit = () => {
   resumeAfterFullscreenUntil = Date.now() + FULLSCREEN_EXIT_RESUME_MS
-  setTimeout(resumeAtLiveEdge, 100)
+  setTimeout(resumeAfterFullscreen, 100)
+}
+
+const finiteOrNull = (seconds) => (Number.isFinite(seconds) ? seconds : null)
+
+const liveEdgeOf = (video) => {
+  const { seekable } = video
+  return seekable.length ? finiteOrNull(seekable.end(seekable.length - 1)) : null
+}
+
+const trackBehindLive = () => {
+  const target = liveVideo?.readyState >= HAVE_CURRENT_DATA ? liveTargetSecond() : null
+  const behind = target == null ? null : finiteOrNull(target - liveVideo.currentTime)
+  live.behindSeconds = behind == null ? 0 : Math.max(0, behind)
+}
+
+const oldestKeptSecond = () => {
+  const fromHls = finiteOrNull(liveHls?.latestLevelDetails?.fragments?.[0]?.start)
+  if (fromHls != null) return fromHls
+  const { seekable } = liveVideo
+  return seekable.length ? finiteOrNull(seekable.start(0)) : null
+}
+
+const liveTargetSecond = () => {
+  const fromHls = finiteOrNull(liveHls?.liveSyncPosition)
+  if (fromHls != null) return fromHls
+  const edge = liveEdgeOf(liveVideo)
+  return edge == null ? null : Math.max(0, edge - NATIVE_LIVE_HOLD_BACK_S)
+}
+
+const keepSeekInsideBuffer = () => {
+  const oldest = oldestKeptSecond()
+  if (oldest == null) return
+  const floor = oldest + SEEK_FLOOR_MARGIN_S
+  if (liveVideo.currentTime < floor) liveVideo.currentTime = floor
+}
+
+const skipChain = { side: null, base: 0, total: 0, until: 0 }
+let lastTap = { side: null, at: 0 }
+let tapStart = null
+let skipHintTimer = null
+
+const skipSideOf = (touch) => {
+  const box = liveVideo.getBoundingClientRect()
+  if (touch.clientY > box.bottom - NATIVE_CONTROL_BAR_PX) return null
+  const x = (touch.clientX - box.left) / box.width
+  if (x < SKIP_ZONE_FRACTION) return 'back'
+  if (x > 1 - SKIP_ZONE_FRACTION) return 'forward'
+  return null
+}
+
+const canSkip = () => live.phase === 'live' && live.bufferSeconds > 0 && liveAttached
+
+const onLiveTouchStart = (e) => {
+  const touch = e.touches.length === 1 ? e.touches[0] : null
+  tapStart = touch && e.target === liveVideo
+    ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+    : null
+}
+
+const onLiveTouchEnd = (e) => {
+  const touch = e.changedTouches[0]
+  if (!tapStart || !touch || !canSkip()) return
+  const moved = Math.hypot(touch.clientX - tapStart.x, touch.clientY - tapStart.y)
+  const isTap = moved < TAP_MAX_MOVE_PX && Date.now() - tapStart.at < TAP_MAX_MS
+  tapStart = null
+  if (!isTap) return
+  const side = skipSideOf(touch)
+  if (!side) return
+  registerTap(side)
+}
+
+const registerTap = (side) => {
+  const at = Date.now()
+  if (skipChain.side === side && at < skipChain.until) return extendSkip(side, at)
+  const isDoubleTap = lastTap.side === side && at - lastTap.at < DOUBLE_TAP_MS
+  lastTap = { side, at }
+  if (!isDoubleTap) return
+  skipChain.side = side
+  skipChain.base = liveVideo.currentTime
+  skipChain.total = 0
+  extendSkip(side, at)
+}
+
+const extendSkip = (side, at) => {
+  skipChain.total += SKIP_STEP_S
+  skipChain.until = at + SKIP_CHAIN_MS
+  const direction = side === 'back' ? -1 : 1
+  const wanted = skipChain.base + direction * skipChain.total
+  const oldest = oldestKeptSecond()
+  const floor = oldest == null ? wanted : oldest + SEEK_FLOOR_MARGIN_S
+  const ceiling = liveTargetSecond() ?? wanted
+  if (wanted <= floor) return applySkip({ side, to: floor, label: 'START' })
+  if (wanted >= ceiling - SKIP_STEP_S / 2) return applySkip({ side, to: ceiling, label: 'LIVE' })
+  applySkip({ side, to: wanted, label: `${skipChain.total} s` })
+}
+
+const applySkip = ({ side, to, label }) => {
+  liveVideo.currentTime = to
+  const spoken = side === 'back' ? `Back ${skipChain.total} seconds` : `Forward ${skipChain.total} seconds`
+  live.skipHint = { side, label, spoken, key: Date.now() }
+  clearTimeout(skipHintTimer)
+  skipHintTimer = setTimeout(() => { live.skipHint = null }, SKIP_HINT_MS)
+  trackBehindLive()
+}
+
+const jumpToLive = () => {
+  if (!liveVideo) return
+  const target = liveTargetSecond()
+  if (target != null) liveVideo.currentTime = target
+  liveVideo.play()?.catch(() => {})
 }
 
 const onLivePause = () => {
-  if (Date.now() < resumeAfterFullscreenUntil) setTimeout(resumeAtLiveEdge, 100)
+  if (Date.now() < resumeAfterFullscreenUntil) setTimeout(resumeAfterFullscreen, 100)
 }
 
 const TvIcon = {
@@ -5971,6 +6096,33 @@ const StopIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <rect x="3.5" y="3.5" width="9" height="9" rx="1"/>
+    </svg>
+  `,
+}
+
+const GoLiveIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M3.5 3.5v9l7-4.5z"/>
+      <rect x="11" y="3.5" width="1.75" height="9" rx="0.5"/>
+    </svg>
+  `,
+}
+
+const SkipBackIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 3.5v9L2 8z"/>
+      <path d="M14 3.5v9L8 8z"/>
+    </svg>
+  `,
+}
+
+const SkipForwardIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M2 3.5v9L8 8z"/>
+      <path d="M8 3.5v9L14 8z"/>
     </svg>
   `,
 }
@@ -6223,7 +6375,7 @@ const LivePlayer = {
           </div>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
-        <div class="live-frame">
+        <div ref="frameEl" class="live-frame" @touchstart.passive="onLiveTouchStart" @touchend.passive="onLiveTouchEnd">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controls></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
@@ -6235,6 +6387,12 @@ const LivePlayer = {
           </div>
           <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
+          <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
+            <skip-back-icon v-if="live.skipHint.side === 'back'" />
+            <span>{{ live.skipHint.label }}</span>
+            <skip-forward-icon v-if="live.skipHint.side === 'forward'" />
+          </div>
+          <span class="sr-only" aria-live="polite">{{ live.skipHint?.spoken || '' }}</span>
         </div>
         <div class="panel-body space-y-3">
           <ul v-if="live.holders.length" class="space-y-1 font-mono text-xs text-ink-dim">
@@ -6246,7 +6404,10 @@ const LivePlayer = {
               <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
               <button type="button" class="btn" @click="stopLive"><cross-icon /> CLOSE</button>
             </div>
-            <button v-else type="button" class="btn btn-danger shrink-0" @click="stopLive"><stop-icon /> STOP</button>
+            <div v-else class="flex shrink-0 gap-2">
+              <button v-if="isBehindLive" type="button" class="btn" @click="jumpToLive"><go-live-icon /> GO LIVE</button>
+              <button type="button" class="btn btn-danger" @click="stopLive"><stop-icon /> STOP</button>
+            </div>
           </div>
         </div>
       </section>
@@ -6256,6 +6417,7 @@ const LivePlayer = {
   `,
   setup() {
     const videoEl = ref(null)
+    const frameEl = ref(null)
     const chips = ref(live.phase === 'tuning' ? 'tuning' : 'hidden')
     const chipsRun = ref(0)
     let chipsTimer = null
@@ -6286,11 +6448,15 @@ const LivePlayer = {
       chipsTimer = setTimeout(animateChipsAway, wait)
     }
 
+    watch(now, trackBehindLive)
+
     watch(() => live.phase, (phase) => {
       if (phase === 'tuning') return showChips('tuning')
       if (phase === 'ended') return showChips('ended')
       if (phase === 'idle') return showChips('hidden')
     })
+
+    const isBehindLive = computed(() => live.phase === 'live' && live.behindSeconds >= BEHIND_LIVE_SHOWN_S)
 
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
@@ -6298,9 +6464,10 @@ const LivePlayer = {
         const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
         return slow ? 'TUNING… STILL WAITING FOR A SIGNAL' : 'TUNING…'
       }
-      if (!live.conflict) return 'LIVE'
+      const lead = isBehindLive.value ? `${fmtCountdown(live.behindSeconds * 1000)} BEHIND LIVE` : 'LIVE'
+      if (!live.conflict) return lead
       const wait = fmtCountdown(live.conflict.startsAt - now.value.getTime())
-      return `LIVE · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
+      return `${lead} · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
     })
 
     const statusKind = computed(() => {
@@ -6316,6 +6483,9 @@ const LivePlayer = {
       liveVideo = videoEl.value
       liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
       liveVideo.addEventListener('pause', onLivePause)
+      liveVideo.addEventListener('seeked', trackBehindLive)
+      liveVideo.addEventListener('pause', trackBehindLive)
+      liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
       liveVideo.addEventListener('loadeddata', handOffToVideo)
       liveVideo.addEventListener('playing', handOffToVideo)
       window.addEventListener('keydown', onKeydown)
@@ -6326,7 +6496,10 @@ const LivePlayer = {
     })
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
-    return { live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText }
+    return {
+      live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
+      isBehindLive, jumpToLive, frameEl, onLiveTouchStart, onLiveTouchEnd,
+    }
   },
 }
 
@@ -6337,10 +6510,21 @@ const TUNING_SLOW_MS = 15_000
 const LIVE_HLS_CONFIG = {
   workerPath: '/vendor/hls.worker.js',
   liveSyncDurationCount: 2,
-  liveMaxLatencyDurationCount: 4,
   backBufferLength: 30,
 }
 const LIVE_POLL_PLAYING_MS = 10_000
+const BEHIND_LIVE_SHOWN_S = 10
+const SEEK_FLOOR_MARGIN_S = 4
+const NATIVE_LIVE_HOLD_BACK_S = 6
+const HAVE_CURRENT_DATA = 2
+const SKIP_STEP_S = 10
+const SKIP_ZONE_FRACTION = 0.4
+const NATIVE_CONTROL_BAR_PX = 48
+const TAP_MAX_MOVE_PX = 10
+const TAP_MAX_MS = 300
+const DOUBLE_TAP_MS = 300
+const SKIP_CHAIN_MS = 700
+const SKIP_HINT_MS = 600
 
 const VIEW_MAP = {
   dashboard: DashboardView,
@@ -6646,6 +6830,9 @@ app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)
 app.component('stop-icon', StopIcon)
+app.component('go-live-icon', GoLiveIcon)
+app.component('skip-back-icon', SkipBackIcon)
+app.component('skip-forward-icon', SkipForwardIcon)
 app.component('refresh-icon', RefreshIcon)
 app.component('sliders-icon', SlidersIcon)
 app.component('arrow-left-icon', ArrowLeftIcon)
