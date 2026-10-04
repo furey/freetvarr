@@ -177,6 +177,8 @@ export const createLiveSessions = ({
       lastSeenAt: now(),
       lastByteAt: now(),
       viewers: 1,
+      heldUntil: 0,
+      bufferSeconds: bufferMinutes * 60,
       controller: new AbortController(),
       child: null,
       errorLines: [],
@@ -293,7 +295,7 @@ export const createLiveSessions = ({
     const work = [...sessions.values()]
       .filter((s) => !s.ending)
       .map((s) => {
-        if (t - s.lastSeenAt > idleMs) return end(s, { code: 'idle' })
+        if (t >= s.heldUntil && t - s.lastSeenAt > idleMs) return end(s, { code: 'idle' })
         if (t - s.lastByteAt > stallMs) return stall(s)
         return null
       })
@@ -304,6 +306,14 @@ export const createLiveSessions = ({
     const session = sessions.get(id)
     if (session && !session.ending) session.lastSeenAt = now()
     return session || null
+  }
+
+  const hold = async (id) => {
+    const session = sessions.get(id)
+    if (!session || session.ending) return false
+    if (!bufferMinutes) return leave(id)
+    session.heldUntil = now() + bufferMinutes * 60_000
+    return true
   }
 
   const leave = async (id) => {
@@ -366,7 +376,7 @@ export const createLiveSessions = ({
   const get = (id) => sessions.get(id) || null
 
   return {
-    start, touch, leave, tick, stopAll, forChannel, statusForChannel,
+    start, touch, hold, leave, tick, stopAll, forChannel, statusForChannel,
     waitForPlaylist, playlistFor, fileFor, get, view, activeCount: () => sessions.size,
   }
 }
@@ -377,6 +387,7 @@ export const view = (session) => ({
   status: session.status,
   reason: session.reason,
   startedAt: session.startedAt,
+  bufferSeconds: session.bufferSeconds ?? 0,
   playlist: `/api/live/${session.id}/index.m3u8`,
 })
 
