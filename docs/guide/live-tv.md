@@ -33,6 +33,10 @@ Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 
 
 Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` to keep more or fewer minutes, or `0` to turn it off.
 
+On a phone or tablet, double-tap the left side of the picture to go back `10` seconds, or the right side to go forward `10` seconds. Keep tapping to skip further. Safari on an iPhone shows no timeline for live TV, so double-tap is the way to rewind there.
+
+If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time; **STOP** frees it at once.
+
 The buffer starts when you open the channel, so you can rewind only as far back as that. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
 
 Freetvarr keeps the buffer on disk, in the container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2 GB` for each channel that is playing.

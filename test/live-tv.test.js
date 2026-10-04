@@ -465,3 +465,30 @@ test('sessions: with no buffer, ffmpeg keeps the 6-segment live window', async (
   await h.sessions.start({ channelId: 'c1', plan: PLAN })
   assert.equal(listSizeOf(h.spawnArgs[0]), '6')
 })
+
+test('sessions: a held session outlives the idle timeout until the hold expires', async () => {
+  const h = fakeHarness({ bufferMinutes: 1 })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(await h.sessions.hold(session.id), true)
+  h.advance(50_000)
+  h.upstreams[0].write(Buffer.from('ts'))
+  await h.sessions.tick()
+  assert.equal(h.sessions.activeCount(), 1)
+  h.advance(11_000)
+  h.upstreams[0].write(Buffer.from('ts'))
+  await h.sessions.tick()
+  assert.equal(h.sessions.activeCount(), 0)
+})
+
+test('sessions: with no buffer, hold ends the session like leave', async () => {
+  const h = fakeHarness()
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await h.sessions.hold(session.id)
+  assert.equal(h.sessions.activeCount(), 0)
+})
+
+test('sessions: the session view carries the buffer length', async () => {
+  const h = fakeHarness({ bufferMinutes: 30 })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(h.sessions.view(session).bufferSeconds, 1800)
+})

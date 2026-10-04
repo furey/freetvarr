@@ -649,6 +649,11 @@ app.get('/api/live/:session/:file', async (req, res) => {
   })
 })
 
+app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
+  const held = await liveSessions.hold(String(req.params.session))
+  res.json({ ok: true, held })
+})
+
 app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
   const left = await liveSessions.leave(String(req.params.session))
   res.json({ ok: true, left })
