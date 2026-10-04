@@ -26,7 +26,7 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
-Freetvarr is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. It runs alongside TVHeadend. You can use any of the other software instead.
+[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. It runs alongside TVHeadend. You can use any of the other software instead.
 
 > [!TIP]<br>
 > If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
@@ -65,18 +65,18 @@ Both paths start with the same network tuner: a small box that takes your aerial
 
 The first path needs no technical skill. The second path means installing and setting up software on a computer; if you have never done that, ask a friend who has.
 
-|                  | Path 1: Watch only                  | Path 2: Watch and record                                                               |
-| ---------------- | ----------------------------------- | -------------------------------------------------------------------------------------- |
-| Cost             | about `A$280–400` once              | about `A$600–1,400` once, or the tuner alone if you already own an always-on computer  |
-| What you get     | Live TV on phones, tablets, and TVs | Live TV in any browser, a 7-day guide, recordings, a Plex library, optional ad removal |
-| Your time        | about `30 minutes`                  | `1–2` evenings                                                                         |
-| Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC                        |
+|                  | Path 1: Watch only                  | Path 2: Watch and record                                                                          |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Cost             | about `A$280–400` once              | about `A$600–1,400` once, or the tuner alone if you already own an always-on computer             |
+| What you get     | Live TV on phones, tablets, and TVs | Everything in Path 1, plus a 7-day guide, recordings to watch on your TV, and optional ad removal |
+| Your time        | about `30 minutes`                  | `1–2` evenings                                                                                    |
+| Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC                                   |
 
 On cost alone, a new Fetch box can come out cheaper. [Staying with Fetch](#staying-with-fetch) has the numbers.
 
 ### Path 1: Watch only
 
-Buy a network tuner, plug in the aerial lead and a network cable from your router, and install the HDHomeRun app on your phone, tablet, or TV. The app finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free.
+Buy a network tuner, plug in the aerial lead and a network cable from your router, and install the HDHomeRun app on your phone, tablet, or TV. The app finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
 
 SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
@@ -84,10 +84,10 @@ SiliconDust also sells a recording service, its [DVR service](https://info.hdhom
 
 This is the author's setup. The tuner sends TV to TVHeadend, free recording software that runs on an always-on computer at home. Freetvarr runs alongside it and gives you:
 
-- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install.
 - A 7-day [TV Guide](/guide/tv-guide), where you record one programme or a whole series.
-- [Recordings](/guide/recordings) filed into a [Plex](/guide/plex) library, so you can watch them in the Plex app on your TV. Plex is optional.
+- [Recordings](/guide/recordings) filed into your TV library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
+- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, live TV still comes from the HDHomeRun app, as in Path 1.
 
 The clip below shows Freetvarr in use.
 

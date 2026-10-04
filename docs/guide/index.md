@@ -1,26 +1,40 @@
 ---
 title: What Freetvarr is
 description: >-
-  Freetvarr is a self-hosted TVHeadend companion: watch live TV in the browser,
-  and file recordings into Plex, named and foldered, on your LAN.
+  Freetvarr records free-to-air TV through TVHeadend and files each episode
+  into your TV library for Plex, Jellyfin, or Kodi. Live TV plays in any browser.
 ---
 
 # What Freetvarr is
 
-> [!TIP]<br>
-> Already have a Plex Pass? You may not need Freetvarr. Plex's own DVR records free-to-air TV from a network tuner straight into your library, and that is a fine choice. See [Plex DVR instead](/guide/plex-dvr) for when it is enough and what it costs if you don't have a Plex Pass.
+Freetvarr records free-to-air TV and files each episode into your TV library. Watch it on your TV in Plex, Jellyfin, Kodi, or another media player, with pause, rewind, and skip.
 
-TVHeadend records free-to-air TV into its recordings folder. By default it names each file after the programme title only, for example `The Block.ts`. Plex's TV library matches a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr watches TVHeadend on your LAN, picks up new episodes of the shows you follow, files them into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), and asks Plex to scan. Once Plex confirms the file, it can remove the recording from TVHeadend.
+<!-- markdownlint-disable-next-line MD033 -->
+<BrowserFrame />
 
-It is also a TV app for your home network: the [Live TV](/guide/live-tv) tab plays any channel in the browser, on a phone or a desktop.
+With it, you can:
 
-If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any tuner TVHeadend can drive counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
+- **[Record from a 7-day guide](/guide/tv-guide)** on your phone or computer: one episode, or every episode of a series.
+- **[Watch recordings in your own player](/guide/following-shows).** Each episode goes into a show and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells it to scan.
+- **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
+- **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install. To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
+- **[Clear out TVHeadend](/guide/remove-from-tvheadend).** If you use Plex, Freetvarr can delete each recording once Plex has the episode.
 
-![The Freetvarr dashboard](../img/screenshot-dashboard.png)
+Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner, and [Getting started](/guide/getting-started) covers the install.
+
+## Plex DVR
+
+If you have a Plex Pass, you may not need Freetvarr. Plex's own DVR records free-to-air TV from a network tuner straight into your Plex library, and that is a fine choice. [Plex DVR instead](/guide/plex-dvr) compares the two and says what Plex DVR costs without a Plex Pass.
+
+## How it files recordings
+
+TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings of the shows you follow. It files each one into your TV library as `Show/Season 01/Show - S01E02.ts`, or by air date when the guide has no episode number. When the recordings folder and the library are on the same filesystem, the import is a hardlink: it is instant and uses no extra disk space.
 
 ## Where it works
 
 Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, New Zealand, UK, Europe), DVB-C and DVB-S, ATSC (United States and Canada), ISDB-T. The tuner model, the guide source, and the mux scan list differ by country, and all of them are TVHeadend settings.
+
+Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
 
 > [!NOTE]<br>
 > These pages use Australian values in their examples (`TZ=Australia/Sydney`, the `au-Sydney` mux list, a Sydney XMLTV feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) say what to pick instead.
