@@ -59,6 +59,8 @@ services:
       - RECORDINGS_ROOT=/recordings
       - TVH_RECORDINGS_PATH=/recordings
       - LIVE_TV_MAX_SESSIONS=${LIVE_TV_MAX_SESSIONS:-2}
+      # Minutes of live TV kept for pause and rewind (0 turns it off, max 120).
+      - LIVE_TV_BUFFER_MINUTES=${LIVE_TV_BUFFER_MINUTES:-30}
       # auto (hardware if available, else software), hardware, software, or copy.
       # See docker-compose.hwaccel.example.yml to enable hardware transcoding.
       - LIVE_TV_TRANSCODE=${LIVE_TV_TRANSCODE:-auto}
