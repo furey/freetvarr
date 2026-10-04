@@ -141,9 +141,10 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Programme images**: the guide and the dashboard show a programme's image when the XMLTV feed supplies one.
 - **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late.
 - **Doctor**: a read-only health check of TVHeadend, the guide, the folders, Plex, and live TV, with the fix and a docs link for each problem.
-- **First-run wizard**: sets up TVHeadend, storage, and Plex. You can reopen it from Settings.
+- **First-run wizard**: sets up TVHeadend, storage, and Plex. On a fresh TVHeadend it creates the admin and Freetvarr logins and closes TVHeadend's open access, with undo. You can reopen it from Settings.
 - **Per-show follow**: pick a show TVHeadend records, match it by name to an existing folder under your media root (even when the names aren't identical), and set a season template.
 - **One-off recordings**: a recording that matches no followed show, such as a final or a special, goes to its own folder for a separate Plex library. The RECORD dialog says where each recording will go, and can keep one out of the library.
+- **Films**: with a movies folder set, a film with no show rule is filed as `Title (Year)` for a Movies library.
 - **Recording playback**: play any finished recording in the browser player, with a seek bar and resume from where you stopped.
 - **Saved artwork**: each recording keeps its programme image and channel logo, so the Recordings tab still shows them after the guide moves on.
 - **Hardlink imports**: the recording is already on disk, so the import is a hardlink when Freetvarr sees the recordings folder and the media library through one mount, and a copy when it doesn't. A hardlink uses no extra disk space.
