@@ -56,7 +56,7 @@ Each channel needs a tuner, unless a tuner already carries its multiplex, in whi
 Stream limits:
 
 - **Two channels at once** by default. Set `LIVE_TV_MAX_SESSIONS` to change it. Viewers of the same channel share one stream.
-- **The stream stops 20 seconds** after the last viewer closes the player or the tab.
+- **The stream stops 20 seconds** after the last viewer closes the player or the tab. A locked phone or a hidden tab keeps it for the buffer length instead ([Pause and rewind](#pause-and-rewind)).
 - **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 
 > [!NOTE]<br>
