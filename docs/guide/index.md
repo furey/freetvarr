@@ -17,7 +17,7 @@ With it, you can:
 - **[Record from a 7-day guide](/guide/tv-guide)** on your phone or computer: one episode, or every episode of a series.
 - **[Watch recordings in your own player](/guide/following-shows).** Each episode goes into a show and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells it to scan.
 - **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
-- **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install. To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
+- **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install, and pause or rewind up to `30` minutes. To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
 - **[Clear out TVHeadend](/guide/remove-from-tvheadend).** If you use Plex, Freetvarr can delete each recording once Plex has the episode.
 
 Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner, and [Getting started](/guide/getting-started) covers the install.
