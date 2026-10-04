@@ -25,7 +25,6 @@ let csrfToken = null
 const BUILD_HEADER = 'X-Freetvarr-Build'
 const loadedBuild = document.querySelector('meta[name="freetvarr-build"]')?.content || null
 const latestBuild = ref(null)
-const dismissedBuild = ref(null)
 
 const noteBuild = (res) => {
   const build = res.headers.get(BUILD_HEADER)
@@ -50,7 +49,6 @@ const releaseUrl = (version) => `${REPO_URL}/tree/${encodeURIComponent(version)}
 const staleBuild = computed(() => isStaleBuild({
   loaded: loadedBuild,
   latest: latestBuild.value,
-  dismissed: dismissedBuild.value,
 }))
 
 const getCsrf = async ({ force = false } = {}) => {
@@ -298,7 +296,13 @@ const ProgrammeImage = {
     }
     const onLoad = () => { if (status.value === 'loading') status.value = 'loaded' }
     const onError = () => { status.value = 'failed' }
-    onMounted(settleFromCache)
+    const fadeInFromCache = () => {
+      const cached = src.value == null ? 'failed' : imageStatusOf(img.value)
+      if (cached !== 'loaded') return settleFromCache()
+      getComputedStyle(img.value).opacity
+      status.value = 'loaded'
+    }
+    onMounted(fadeInFromCache)
     watch(src, async () => {
       status.value = 'loading'
       instant.value = false
@@ -1034,7 +1038,7 @@ const LiveView = {
             <info-button title="LIVE TV" doc="guide/live-tv#in-freetvarr">
               <p>Every channel in TVHeadend, with what is on now and next. Press the TV button on a channel to watch it in the browser.</p>
               <p>Freetvarr converts the TVHeadend stream into video the browser can play. It needs a free tuner, and a recording always takes the tuner first.</p>
-              <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels.</p>
+              <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels. The zoom buttons change how much each row shows.</p>
             </info-button>
           </span>
           <div class="header-actions flex flex-wrap items-center justify-end gap-3">
@@ -1044,12 +1048,13 @@ const LiveView = {
             <header-button label="Channels" @click="channelsModal = true" :disabled="!data"><sliders-icon /></header-button>
           </div>
         </header>
-        <div class="panel-body space-y-5">
+        <div :class="['panel-body', 'space-y-5', 'live-zoom-' + zoom]">
           <div class="view-controls view-controls-sticky">
             <icon-toggle v-if="narrow" v-model="pinnedOnly" label="Favourites only"><star-icon /></icon-toggle>
             <input v-model="filterQ" type="search" class="field-input"
               placeholder="Filter channels or shows" aria-label="Filter channels or shows"
               style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
+            <zoom-control :index="zoomIndex" :count="zoomLevelCount" :show-label="!narrow" @step="changeZoom" />
           </div>
           <p v-if="tvhConfigured === false" class="text-sm text-ink-dim">
             Connect TVHeadend in <a href="#/settings/tvheadend">Settings</a> to watch live TV.
@@ -1083,7 +1088,7 @@ const LiveView = {
                     </span>
                     <div class="live-now-text">
                     <span class="block truncate">
-                      <span class="text-sm font-semibold text-ink mr-3">{{ e.now.title }}</span>
+                      <span class="live-now-title text-sm font-semibold text-ink mr-3">{{ e.now.title }}</span>
                       <span v-if="isRecordingChannel(e.channel.id)" class="on-now-rec"><span class="led-dot sm live"></span>REC</span>
                       <span v-else class="font-mono text-xs text-ink-dim">{{ onNowMeta(e.now) }}</span>
                     </span>
@@ -1125,6 +1130,12 @@ const LiveView = {
     const filterQ = ref('')
     const pinnedOnly = storedFlag({ key: LIVE_FAVOURITES_ONLY_KEY, fallback: false })
     const showImages = storedFlag({ key: LIVE_IMAGES_KEY, fallback: true })
+    const zoom = storedChoice({ key: LIVE_ZOOM_KEY, options: LIVE_ZOOM_LEVELS, fallback: 'm' })
+    const zoomIndex = computed(() => LIVE_ZOOM_LEVELS.indexOf(zoom.value))
+    const changeZoom = (step) => {
+      const level = LIVE_ZOOM_LEVELS[zoomIndex.value + step]
+      if (level) zoom.value = level
+    }
     const channelsModal = ref(false)
     const narrow = useMediaQuery(EPG_NARROW_QUERY)
     let pollTimer = null
@@ -1228,6 +1239,7 @@ const LiveView = {
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, narrow, groups, favouritesHint, emptyText,
       load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
+      zoom, zoomIndex, zoomLevelCount: LIVE_ZOOM_LEVELS.length, changeZoom,
       dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
       onPinPointerUp: pinDrag.onPinPointerUp, onPinPointerCancel: pinDrag.onPinPointerCancel,
@@ -1241,6 +1253,8 @@ const LIVE_BOUNDARY_MIN_MS = 5_000
 const LIVE_BOUNDARY_GRACE_MS = 2_000
 const LIVE_IMAGES_KEY = 'freetvarr.liveImages'
 const LIVE_FAVOURITES_ONLY_KEY = 'freetvarr.liveFavouritesOnly'
+const LIVE_ZOOM_KEY = 'freetvarr.liveZoom'
+const LIVE_ZOOM_LEVELS = ['s', 'm', 'l']
 
 const DashboardView = {
   template: `
@@ -1250,8 +1264,8 @@ const DashboardView = {
       <section v-if="tvhConfigured" class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">TV GUIDE</span>
-            <info-button title="TV GUIDE" doc="guide/tv-guide#on-the-dashboard">
+            <span class="panel-title">WHAT'S ON</span>
+            <info-button title="WHAT'S ON" doc="guide/tv-guide#on-the-dashboard">
               <p>What is on now on your favourite channels, what is on next, and the next recordings TVHeadend has scheduled. All of it comes from TVHeadend.</p>
               <p>Star a channel in Live TV or the TV Guide to add it here.</p>
               <p>Tap a programme or a recording to open its details in the TV Guide. The TV button plays the channel live.</p>
@@ -4652,6 +4666,26 @@ const IconToggle = {
   `,
 }
 
+const ZoomControl = {
+  props: {
+    index: { type: Number, required: true },
+    count: { type: Number, required: true },
+    showLabel: { type: Boolean, default: true },
+  },
+  emits: ['step'],
+  template: `
+    <div class="flex items-center gap-2" role="group" aria-label="Zoom">
+      <span v-if="showLabel" class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">ZOOM</span>
+      <div class="chip-row">
+        <button type="button" class="btn btn-sm btn-icon epg-zoom-btn" aria-label="Zoom out"
+          :disabled="index === 0" @click="$emit('step', -1)"><minus-icon /></button>
+        <button type="button" class="btn btn-sm btn-icon epg-zoom-btn" aria-label="Zoom in"
+          :disabled="index === count - 1" @click="$emit('step', 1)"><plus-icon /></button>
+      </div>
+    </div>
+  `,
+}
+
 const ChannelsModal = {
   props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts'],
   emits: ['close', 'saved'],
@@ -4905,15 +4939,7 @@ const EpgView = {
                     <button type="button" class="btn btn-sm" @click="jumpTonight">TONIGHT</button>
                   </div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">ZOOM</span>
-                  <div class="chip-row">
-                    <button type="button" class="btn btn-sm btn-icon epg-zoom-btn" aria-label="Zoom out"
-                      :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
-                    <button type="button" class="btn btn-sm btn-icon epg-zoom-btn" aria-label="Zoom in"
-                      :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
-                  </div>
-                </div>
+                <zoom-control :index="zoomIndex" :count="zoomLevelCount" @step="changeZoom" />
               </div>
             </div>
             <p v-if="guide?.stale" class="text-xs font-mono text-plex-yellow">
@@ -6896,15 +6922,13 @@ const StaleBuildBanner = {
       <div class="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center gap-3">
         <span class="panel-title hidden sm:inline shrink-0">Update</span>
         <span class="stale-build-text">A new version of Freetvarr is ready.</span>
-        <button type="button" class="btn btn-sm btn-primary shrink-0" @click="reloadPage"><refresh-icon /> RELOAD</button>
-        <button type="button" class="btn btn-icon shrink-0" @click="dismissStaleBuild" aria-label="Dismiss until the next update" title="Dismiss"><cross-icon /></button>
+        <button type="button" class="btn btn-sm btn-primary shrink-0" @click="reloadPage"><refresh-icon /> APPLY &amp; RELOAD</button>
       </div>
     </div>
   `,
   setup() {
     const reloadPage = () => window.location.reload()
-    const dismissStaleBuild = () => { dismissedBuild.value = latestBuild.value }
-    return { staleBuild, reloadPage, dismissStaleBuild }
+    return { staleBuild, reloadPage }
   },
 }
 
@@ -7872,6 +7896,7 @@ app.component('info-button', InfoButton)
 app.component('filter-sheet', FilterSheet)
 app.component('header-button', HeaderButton)
 app.component('icon-toggle', IconToggle)
+app.component('zoom-control', ZoomControl)
 app.component('filter-icon', FilterIcon)
 app.component('image-icon', ImageIcon)
 app.component('about-panel', AboutPanel)

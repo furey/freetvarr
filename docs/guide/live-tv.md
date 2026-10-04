@@ -25,6 +25,8 @@ A network tuner streams live channels to anything on your LAN, and TVHeadend str
 
 Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or press the TV button beside a channel under **On now** on the dashboard. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
 
+The **zoom buttons** above the channel list change the row size. Zoom out for more channels on screen; zoom in for bigger pictures and text. Each browser remembers its zoom.
+
 ![The player over the Live TV tab](../img/screenshot-player.png)
 
 Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
