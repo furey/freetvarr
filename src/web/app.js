@@ -5959,25 +5959,29 @@ const onLiveFullscreenExit = () => {
   setTimeout(resumeAfterFullscreen, 100)
 }
 
+const finiteOrNull = (seconds) => (Number.isFinite(seconds) ? seconds : null)
+
 const liveEdgeOf = (video) => {
   const { seekable } = video
-  return seekable.length ? seekable.end(seekable.length - 1) : null
+  return seekable.length ? finiteOrNull(seekable.end(seekable.length - 1)) : null
 }
 
 const trackBehindLive = () => {
   const target = liveVideo?.readyState >= HAVE_CURRENT_DATA ? liveTargetSecond() : null
-  live.behindSeconds = target == null ? 0 : Math.max(0, target - liveVideo.currentTime)
+  const behind = target == null ? null : finiteOrNull(target - liveVideo.currentTime)
+  live.behindSeconds = behind == null ? 0 : Math.max(0, behind)
 }
 
 const oldestKeptSecond = () => {
-  const fromHls = liveHls?.latestLevelDetails?.fragments?.[0]?.start
+  const fromHls = finiteOrNull(liveHls?.latestLevelDetails?.fragments?.[0]?.start)
   if (fromHls != null) return fromHls
   const { seekable } = liveVideo
-  return seekable.length ? seekable.start(0) : null
+  return seekable.length ? finiteOrNull(seekable.start(0)) : null
 }
 
 const liveTargetSecond = () => {
-  if (liveHls?.liveSyncPosition != null) return liveHls.liveSyncPosition
+  const fromHls = finiteOrNull(liveHls?.liveSyncPosition)
+  if (fromHls != null) return fromHls
   const edge = liveEdgeOf(liveVideo)
   return edge == null ? null : Math.max(0, edge - NATIVE_LIVE_HOLD_BACK_S)
 }
