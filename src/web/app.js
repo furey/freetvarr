@@ -885,7 +885,7 @@ const setDragLock = (on) => {
 // a small movement threshold so plain clicks and taps (the star button) still
 // register. Rows are hit-tested by their live bounding boxes on every move,
 // and a cloned ghost of the handle follows the pointer.
-const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
+const usePinDrag = ({ rowSelector, currentPins, onReorder, grabSelector = null }) => {
   const dragPinId = ref(null)
   const dropTargetId = ref(null)
   const dropAfter = ref(false)
@@ -954,6 +954,7 @@ const usePinDrag = ({ rowSelector, currentPins, onReorder }) => {
   const onPinPointerDown = (ch, e) => {
     if (!ch.pinned) return
     if (e.button !== 0 && e.pointerType === 'mouse') return
+    if (grabSelector && !e.target.closest?.(grabSelector)) return
     pendingDrag = { ch, cell: e.currentTarget, pointerId: e.pointerId, x: e.clientX, y: e.clientY }
     clearTimeout(liftTimer)
     liftTimer = setTimeout(startPinDrag, PIN_LIFT_HOLD_MS)
@@ -1038,20 +1039,17 @@ const LiveView = {
           </span>
           <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <template v-if="!narrow">
-              <toggle-switch v-model="pinnedOnly" label="FAVOURITES ONLY" />
-              <toggle-switch v-model="showImages" label="IMAGES" />
-            </template>
-            <icon-toggle v-else v-model="showImages" label="Images"><image-icon /></icon-toggle>
+            <toggle-switch v-if="!narrow" v-model="pinnedOnly" label="FAVOURITES ONLY" />
+            <toggle-switch v-model="showImages" label="IMAGES" />
             <header-button label="Channels" @click="channelsModal = true" :disabled="!data"><sliders-icon /></header-button>
           </div>
         </header>
         <div class="panel-body space-y-5">
           <div class="view-controls view-controls-sticky">
+            <icon-toggle v-if="narrow" v-model="pinnedOnly" label="Favourites only"><star-icon /></icon-toggle>
             <input v-model="filterQ" type="search" class="field-input"
               placeholder="Filter channels or shows" aria-label="Filter channels or shows"
               style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
-            <icon-toggle v-if="narrow" v-model="pinnedOnly" label="Favourites only"><star-icon /></icon-toggle>
           </div>
           <p v-if="tvhConfigured === false" class="text-sm text-ink-dim">
             Connect TVHeadend in <a href="#/settings/tvheadend">Settings</a> to watch live TV.
@@ -1191,7 +1189,7 @@ const LiveView = {
       }
     }
 
-    const pinDrag = usePinDrag({ rowSelector: '.live-row.pinned', currentPins, onReorder: reorderPins })
+    const pinDrag = usePinDrag({ rowSelector: '.live-row.pinned', currentPins, onReorder: reorderPins, grabSelector: '.epg-pin, .channel-logo' })
 
     const togglePin = async (channel) => {
       if (pinDrag.didDrag()) return
@@ -4834,11 +4832,10 @@ const EpgView = {
           <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
             <template v-if="mode === 'guide'">
-              <icon-toggle v-if="narrow" v-model="showImages" label="Images"><image-icon /></icon-toggle>
-              <toggle-switch v-else v-model="showImages" label="IMAGES" />
+              <toggle-switch v-model="showImages" label="IMAGES" />
             </template>
             <header-button label="Channels" @click="openChannelsModal" :disabled="!guide"><sliders-icon /></header-button>
-            <header-button label="Refresh" @click="manualRefresh" :disabled="loading"><refresh-icon /></header-button>
+            <header-button v-if="!narrow" label="Refresh" @click="manualRefresh" :disabled="loading"><refresh-icon /></header-button>
           </div>
         </header>
         <div class="panel-body space-y-4">
@@ -4849,12 +4846,12 @@ const EpgView = {
                 @click="setMode(m.key)">{{ m.label }}</button>
             </div>
             <div :class="['view-controls', 'flex-1', 'min-w-[12rem]', 'md:max-w-xs', 'md:ml-auto', { 'view-controls-sticky': mode !== 'guide' }]">
-              <input v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
-                style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
               <select v-if="narrow && mode === 'guide'" :value="day" @change="setDay(Number($event.target.value))"
                 class="field-input day-select" aria-label="Day">
                 <option v-for="d in dayChips" :key="d.day" :value="d.day">{{ d.label }}</option>
               </select>
+              <input v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
+                style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
             </div>
           </div>
 
@@ -5185,7 +5182,7 @@ const EpgView = {
                   <span class="btn-label"><record-icon /> RECORD SERIES</span>
                   <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
                 </button>
-                <button type="button" class="btn btn-primary" :class="{ 'is-busy': modalAction === 'record' }" @click="recordSelected" :disabled="modalBusy">
+                <button type="button" :class="['btn', { 'btn-primary': !canWatchLive, 'is-busy': modalAction === 'record' }]" @click="recordSelected" :disabled="modalBusy">
                   <span class="btn-label"><record-icon /> RECORD</span>
                   <span v-if="modalAction === 'record'" class="spinner spinner-overlay"></span>
                 </button>
