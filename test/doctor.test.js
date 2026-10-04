@@ -36,6 +36,7 @@ const healthyRoutes = ({ now }) => ({
   '/api/config/load': () => fixture('config-load'),
   '/api/dvr/config/grid': () => fixture('dvr-config-grid'),
   '/api/hardware/tree': (url) => fixture(url.searchParams.get('uuid') === 'root' ? 'hardware-tree-root' : 'hardware-tree-device'),
+  '/api/access/entry/grid': () => fixture('access-entry-grid'),
 })
 
 const ALLOWED_PATHS = new Set(Object.keys(healthyRoutes({ now: 0 })))
@@ -118,13 +119,13 @@ const runAgainst = async ({ routes, now = Date.now(), timeoutMs, ...overrides })
 
 const byId = (report) => Object.fromEntries(report.checks.map((c) => [c.id, c]))
 
-const TVH_DEPENDENT = ['tvh.rights', 'tvh.tuners', 'tvh.channels', 'guide.depth', 'guide.logos', 'paths.match']
+const TVH_DEPENDENT = ['tvh.rights', 'tvh.open', 'tvh.tuners', 'tvh.channels', 'guide.depth', 'guide.logos', 'paths.match']
 
 test('runDoctor: a healthy setup passes every check it can run, reading TVHeadend with GETs only', async () => {
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 15, warn: 0, fail: 0, skip: 2 })
+  assert.deepEqual(report.summary, { pass: 16, warn: 0, fail: 0, skip: 2 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3-2794~g5ce3ff63c at http:\/\/127\.0\.0\.1:\d+, API version 20\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -168,6 +169,30 @@ test('runDoctor: a 403 on status/inputs alone fails the rights check naming Admi
   assert.match(checks['tvh.rights'].fix, /tick Admin\.$/)
   assert.doesNotMatch(checks['tvh.rights'].fix, /Video recorder/)
   assert.equal(checks['tvh.tuners'].status, 'skip')
+})
+
+test('runDoctor: the open default access entry warns that anyone can change TVHeadend', async () => {
+  const now = Date.now()
+  const open = {
+    entries: [
+      ...fixture('access-entry-grid').entries,
+      { uuid: 'd1', enabled: true, username: '*', prefix: '0.0.0.0/0,::/0', admin: true, comment: 'Default access entry' },
+    ],
+  }
+  const report = await runAgainst({ routes: { ...healthyRoutes({ now }), '/api/access/entry/grid': () => open }, now })
+  const check = byId(report)['tvh.open']
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /0\.0\.0\.0\/0,::\/0/)
+  assert.match(check.detail, /anyone on your network can change TVHeadend/)
+  assert.match(check.fix, /SECURE TVHEADEND/)
+  assert.equal(check.doc, 'guide/tvheadend#_2-secure-tvheadend')
+})
+
+test('runDoctor: an anonymous entry without admin rights passes the open-access check', async () => {
+  const now = Date.now()
+  const viewer = { entries: [{ uuid: 'v1', enabled: true, username: '*', prefix: '192.0.2.0/24', admin: false }] }
+  const report = await runAgainst({ routes: { ...healthyRoutes({ now }), '/api/access/entry/grid': () => viewer }, now })
+  assert.equal(byId(report)['tvh.open'].status, 'pass')
 })
 
 test('runDoctor: an empty hardware tree and no inputs fails the tuner check', async () => {

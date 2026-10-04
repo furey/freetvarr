@@ -41,8 +41,19 @@ import {
   resolveConnection,
   getRecordingStorage,
   getServerVersion as getTvheadendVersion,
+  tvhRead,
+  tvhWrite,
+  verifyLogin as verifyTvheadendLogin,
   TvheadendError,
 } from './tvheadend.js'
+import {
+  applyBootstrap,
+  detectFreshInstance,
+  planBootstrap,
+  suggestLanPrefixes,
+  undoBootstrap,
+  validateBootstrapInput,
+} from './tvheadend-bootstrap.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
 import {
   getGuideDay,
@@ -1029,6 +1040,7 @@ app.get('/api/settings', async (req, res) => {
     adRemovalEnabled,
     adOriginalRetentionDays,
     comskipIniOverride,
+    tvhOpenEntryBackup,
   ] = await Promise.all([
     getSetting('tvh_url'),
     getSetting('tvh_username'),
@@ -1050,11 +1062,13 @@ app.get('/api/settings', async (req, res) => {
     getSetting('ad_removal_enabled'),
     getSetting('ad_original_retention_days'),
     comskipIniOverrideExists(),
+    getSetting(OPEN_ENTRY_BACKUP_KEY),
   ])
   res.json({
     tvh_url: tvhUrl,
     tvh_username: tvhUsername,
     tvh_password_set: Boolean(tvhPassword),
+    tvh_open_entry_backup_set: Boolean(tvhOpenEntryBackup),
     recordings_root: recordingsRoot,
     tvh_recordings_path: tvhRecordingsPath,
     sync_cron: syncCron,
@@ -1154,6 +1168,170 @@ app.post('/api/tvh-detect', syncLimiter, doubleCsrfProtection, async (req, res) 
   const result = await detectTvheadendServers({ hintAddress: req.socket.localAddress })
   res.status(result.ok ? 200 : 502).json(result)
 })
+
+const bootstrapLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+const bootstrapHttp = { get: tvhRead, post: tvhWrite, verifyLogin: verifyTvheadendLogin }
+const OPEN_ENTRY_BACKUP_KEY = 'tvh_open_entry_backup'
+let bootstrapRun = null
+
+const bootstrapUrlFrom = async (raw) => {
+  const url = String(raw ?? (await getSetting('tvh_url')) ?? '').trim().replace(/\/+$/, '')
+  return /^https?:\/\/[^\s/]+/i.test(url) ? url : null
+}
+
+const bootstrapStore = {
+  saveConnection: async ({ url, username, password }) => {
+    await setSetting('tvh_url', url)
+    await setSetting('tvh_username', username)
+    await setSetting('tvh_password', password)
+  },
+  saveOpenEntryBackup: (backup) => setSetting(OPEN_ENTRY_BACKUP_KEY, JSON.stringify(backup)),
+}
+
+const readOpenEntryBackup = async () => {
+  const raw = await getSetting(OPEN_ENTRY_BACKUP_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+const bootstrapStatusLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+app.get('/api/tvh-bootstrap/status', bootstrapStatusLimiter, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  const url = await bootstrapUrlFrom(req.query.url)
+  if (!url) return res.status(400).json({ ok: false, error: 'Enter the TVHeadend URL first, like http://192.168.1.10:9981.' })
+  const suggestedPrefixes = suggestLanPrefixes()
+  try {
+    const status = await detectFreshInstance({ http: bootstrapHttp, url })
+    res.json({
+      ok: true,
+      url,
+      fresh: status.fresh,
+      reason: status.reason,
+      accessEntries: status.accessEntries,
+      suggestedPrefixes,
+      steps: planBootstrap({ lanPrefixes: suggestedPrefixes, adminUsername: 'admin' }).steps,
+      undoAvailable: Boolean(await readOpenEntryBackup()),
+    })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `Freetvarr could not reach TVHeadend at ${url}.` })
+  }
+})
+
+app.get('/api/tvh-bootstrap/progress', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json({ running: Boolean(bootstrapRun?.running), steps: bootstrapRun?.steps || [] })
+})
+
+app.post('/api/tvh-bootstrap/apply', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  const body = req.body || {}
+  const url = await bootstrapUrlFrom(body.url)
+  if (!url) return res.status(400).json({ ok: false, error: 'Enter the TVHeadend URL first, like http://192.168.1.10:9981.' })
+  const input = validateBootstrapInput({
+    adminUsername: body.admin_username,
+    adminPassword: body.admin_password,
+    prefixes: body.prefixes,
+  })
+  if (input.error) return res.status(400).json({ ok: false, error: input.error })
+  if (bootstrapRun?.running) return res.status(409).json({ ok: false, error: 'Freetvarr is already securing TVHeadend.' })
+  bootstrapRun = { running: true, steps: [] }
+  try {
+    const result = await applyBootstrap({
+      http: bootstrapHttp,
+      store: bootstrapStore,
+      url,
+      adminUsername: input.adminUsername,
+      adminPassword: input.adminPassword,
+      prefixes: input.prefixes,
+      onProgress: (steps) => { bootstrapRun.steps = steps },
+    })
+    if (result.ok) {
+      console.log(`[tvh-bootstrap] secured ${url}: created ${input.adminUsername} and freetvarr, removed the open entry`)
+      return res.json(result)
+    }
+    console.warn(`[tvh-bootstrap] stopped at ${result.failedStep} for ${url}: ${result.error}`)
+    res.status(result.code === 'not-fresh' ? 409 : 502).json({ ...result, ...bootstrapFailure(result) })
+  } finally {
+    bootstrapRun.running = false
+  }
+})
+
+app.post('/api/tvh-bootstrap/undo', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  const backup = await readOpenEntryBackup()
+  if (!backup) return res.status(404).json({ ok: false, error: 'There is no saved open entry to restore.' })
+  try {
+    const result = await undoBootstrap({ http: bootstrapHttp, conn: await resolveConnection(), backup })
+    await db('settings').where({ key: OPEN_ENTRY_BACKUP_KEY }).delete()
+    console.log('[tvh-bootstrap] restored the open access entry')
+    res.json(result)
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `TVHeadend did not restore the open entry: ${err.message}` })
+  }
+})
+
+const bootstrapFailure = ({ failedStep, code, rolledBack, error: raw }) => {
+  const error = String(raw).replace(/HTTP (\d+)/g, 'status $1')
+  const unchanged = rolledBack ? ' Freetvarr removed the logins it made, so TVHeadend is as it was.' : ''
+  const messages = {
+    'check-fresh': code === 'not-fresh'
+      ? {
+        error: 'TVHeadend already has logins, so Freetvarr left it alone.',
+        next: 'Enter the login Freetvarr should use instead.',
+      }
+      : {
+        error: `Freetvarr could not reach TVHeadend (${error}).`,
+        next: 'Check the TVHeadend URL, then try again.',
+      },
+    'create-admin': {
+      error: `TVHeadend did not create the admin login (${error}).${unchanged}`,
+      next: 'Check that TVHeadend is running, then try again.',
+    },
+    'create-freetvarr': {
+      error: `TVHeadend did not create the freetvarr login (${error}).${unchanged}`,
+      next: 'Check that TVHeadend is running, then try again.',
+    },
+    'verify-freetvarr': {
+      error: `TVHeadend did not accept the new freetvarr login.${unchanged}`,
+      next: 'Make sure the allowed networks include the address of the Freetvarr host, then try again.',
+    },
+    'verify-admin': {
+      error: `TVHeadend did not accept the new admin login.${unchanged}`,
+      next: 'Make sure the allowed networks include the address of the Freetvarr host, then try again.',
+    },
+    'back-up-open-entry': {
+      error: `Freetvarr could not keep a copy of the open entry (${error}).${unchanged}`,
+      next: 'Try again.',
+    },
+    'save-connection': {
+      error: `Freetvarr could not save its login (${error}).${unchanged}`,
+      next: 'Check that the Freetvarr config folder is writable, then try again.',
+    },
+    'remove-open-entry': {
+      error: 'The new logins work, but TVHeadend kept the open entry.',
+      next: 'In TVHeadend, delete the Default access entry under Configuration → Users → Access Entries.',
+    },
+    'confirm-locked': {
+      error: 'The open entry is gone, but TVHeadend still answers without a login.',
+      next: 'In TVHeadend, look under Configuration → Users → Access Entries for another entry with username *.',
+    },
+  }
+  return messages[failedStep] || { error, next: 'Try again.' }
+}
 
 app.post('/api/plex-detect-token', doubleCsrfProtection, async (req, res) => {
   const result = await detectPlexTokenFromPreferences()

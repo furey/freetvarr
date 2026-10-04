@@ -5,6 +5,7 @@ import path from 'path'
 
 import { db, getSetting } from './db.js'
 import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
+import { findOpenAdminEntries } from './tvheadend-bootstrap.js'
 import { listPlexSections } from './plex.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
@@ -152,6 +153,24 @@ const LATER_CHECKS = [
         status: 'fail',
         detail: `TVHeadend refused ${joinAnd(refused.map((p) => p.path))} (HTTP 403).`,
         fix: `In TVHeadend, open Configuration → Users → Access Entries, edit ${entry}, and tick ${joinAnd(refused.map((p) => p.right))}.`,
+      }
+    },
+  },
+  {
+    id: 'tvh.open',
+    group: 'tvheadend',
+    title: 'Open access',
+    doc: 'guide/tvheadend#_2-secure-tvheadend',
+    needsTvh: true,
+    run: async (ctx) => {
+      const body = await ctx.read('access/entry/grid', { limit: ACCESS_ENTRY_LIMIT })
+      const open = findOpenAdminEntries(body?.entries || [])
+      if (!open.length) return { status: 'pass', detail: 'Every TVHeadend admin needs a login.' }
+      const networks = joinAnd([...new Set(open.map((e) => e.prefix || 'any network'))])
+      return {
+        status: 'warn',
+        detail: `TVHeadend has an access entry with username * and admin rights (${networks}): anyone on your network can change TVHeadend.`,
+        fix: 'On a fresh TVHeadend, run the setup wizard and choose SECURE TVHEADEND. Otherwise make an admin user in TVHeadend, then delete the * entry under Configuration → Users → Access Entries.',
       }
     },
   },
@@ -802,6 +821,7 @@ const UTC_ZONES = ['UTC', 'Etc/UTC', 'Etc/GMT', 'GMT', 'Etc/Universal', 'Univers
 const AD_TOOLS = ['comskip', 'ffmpeg', 'ffprobe']
 const TZ_FIX = 'Set TZ (for example Australia/Sydney) on both services.'
 const RIGHTS_DOC = 'guide/tvheadend#_8-make-a-user-for-freetvarr'
+const ACCESS_ENTRY_LIMIT = 100
 const RIGHT_PROBES = [
   { right: 'Admin', path: 'status/inputs', params: {} },
   { right: 'Video recorder', path: 'dvr/entry/grid_upcoming', params: { limit: 1 } },

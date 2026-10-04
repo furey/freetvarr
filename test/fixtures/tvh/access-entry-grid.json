@@ -1,0 +1,7 @@
+{
+  "entries": [
+    { "uuid": "a1", "enabled": true, "username": "admin", "prefix": "192.0.2.0/24,127.0.0.0/8", "admin": true, "webui": true, "comment": "" },
+    { "uuid": "a2", "enabled": true, "username": "freetvarr", "prefix": "192.0.2.0/24,127.0.0.0/8", "admin": true, "webui": true, "comment": "Created by Freetvarr" }
+  ],
+  "total": 2
+}

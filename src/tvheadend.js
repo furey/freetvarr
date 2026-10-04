@@ -652,6 +652,32 @@ const channelNumber = (raw) => {
 
 export const tvhRead = (path, params = {}, conn) => apiGet(path, params, conn)
 
+export const tvhWrite = (path, form = {}, conn) => apiPost(path, form, conn)
+
+export const verifyLogin = async ({ url, username, password }) => {
+  const prompt = await axios.get(`${url}/login`, {
+    timeout: REQUEST_TIMEOUT_MS,
+    maxRedirects: 0,
+    validateStatus: () => true,
+  })
+  const challenge = prompt.headers['www-authenticate']
+  if (!challenge) return { ok: false, status: prompt.status }
+  const target = apiUrl({ base: url, path: 'serverinfo' })
+  const authorization = authorizationFor({
+    challenge,
+    method: 'get',
+    uri: requestUri(target),
+    username,
+    password,
+  })
+  const res = await axios.get(target, {
+    headers: { Authorization: authorization },
+    timeout: REQUEST_TIMEOUT_MS,
+    validateStatus: () => true,
+  })
+  return { ok: res.status === 200, status: res.status }
+}
+
 const apiGet = async (path, params, conn) => {
   const c = conn || (await resolveConnection())
   return request({ method: 'get', path, params, conn: c })
