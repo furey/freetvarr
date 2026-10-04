@@ -51,7 +51,8 @@ export const rebaseFilePaths = async () => {
   const roots = [
     { key: 'last_media_root', current: await getMediaRoot() },
     { key: 'last_oneoff_root', current: await getOneOffRoot() },
-  ]
+    { key: 'last_movies_root', current: await getMoviesRoot() },
+  ].filter((root) => root.current)
   let moved = 0
   for (const { key, current } of roots) {
     const previous = await getSetting(key)
@@ -72,6 +73,36 @@ export const rebasePrefix = ({ from, to }) => {
 
 export const resetInterruptedImports = () =>
   db('recordings').where({ status: 'importing' }).update({ status: 'pending', error: null })
+
+export const getMoviesRoot = async () => {
+  const fromSetting = await getSetting('movies_root')
+  if (fromSetting != null) return fromSetting.trim()
+  return (process.env.MOVIES_ROOT || '').trim()
+}
+
+export const looksLikeFilm = ({ genres = [], season, episode, start, end }) =>
+  genres.some((g) => g >= FILM_GENRE_MIN && g <= FILM_GENRE_MAX)
+  && season == null
+  && episode == null
+  && end - start >= FILM_MIN_MS
+
+export const filmName = (item) => {
+  const title = createValidFilename(item.title) || 'Film'
+  return item.year ? `${title} (${item.year})` : title
+}
+
+export const buildFilmPath = ({ item, moviesRoot, copy = 1 }) => {
+  const name = filmName(item)
+  const suffix = copy > 1 ? ` (${copy})` : ''
+  const dest = path.join(moviesRoot, name, `${name}${suffix}.${item.ext || 'ts'}`)
+  return guardWithinRoot({ dest, root: moviesRoot })
+}
+
+export const libraryKind = ({ show, item, moviesRoot }) => {
+  if (show) return 'tv'
+  if (moviesRoot && looksLikeFilm(item)) return 'film'
+  return 'oneOff'
+}
 
 export const getOneOffRoot = async () => {
   const fromSetting = await getSetting('oneoff_root')
@@ -185,10 +216,11 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
   const summary = { trigger, imported: 0, skipped: 0, failed: 0, errors: [] }
   if (showId != null) summary.showId = showId
   const deletables = []
-  const imported = { tv: 0, oneOff: 0 }
+  const imported = { tv: 0, oneOff: 0, film: 0 }
   const roots = {
     mediaRoot: await getMediaRoot(),
     oneOffRoot: await getOneOffRoot(),
+    moviesRoot: await getMoviesRoot(),
   }
   const recordingsRoot = await getRecordingsRoot()
   const tvhRecordingsPath = await getTvhRecordingsPath()
@@ -222,9 +254,10 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
         await holdRecording({ item, existing, reason: decision.reason })
         continue
       }
-      const { summaryKey, adResult } = await processItem({ item, show, roots })
+      const kind = libraryKind({ show, item, moviesRoot: roots.moviesRoot })
+      const { summaryKey, adResult } = await processItem({ item, show, kind, roots })
       summary[summaryKey]++
-      if (summaryKey === 'imported') imported[show ? 'tv' : 'oneOff']++
+      if (summaryKey === 'imported') imported[kind]++
       if (adResult) accumulateAdSummary(summary, adResult)
       if (
         summaryKey === 'imported'
@@ -240,7 +273,8 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
   }
 
   if (imported.tv > 0) summary.plex = await notifyPlexSectionRefresh()
-  if (imported.oneOff > 0) summary.plexOneOffs = await refreshOneOffSection()
+  if (imported.oneOff > 0) summary.plexOneOffs = await refreshSection('plex_oneoff_section_id')
+  if (imported.film > 0) summary.plexMovies = await refreshSection('plex_movies_section_id')
   if (deletables.length > 0) summary.delete = await runAutoDelete(deletables, summary.plex)
 
   const finalStatus = summary.failed > 0 ? 'partial' : 'ok'
@@ -261,6 +295,8 @@ const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   channelName: entry.channelName,
   description: entry.description,
   image: entry.image,
+  genres: entry.genres || [],
+  year: entry.year ?? null,
   tvhFilename: entry.filename || null,
   sourcePath: entry.filename
     ? localPathFor({ tvhFilename: entry.filename, tvhRecordingsPath, recordingsRoot })
@@ -329,13 +365,23 @@ const holdRecording = async ({ item, existing, reason }) => {
   })
 }
 
-const refreshOneOffSection = async () => {
-  const sectionId = await getSetting('plex_oneoff_section_id')
-  if (!sectionId) return { skipped: true, reason: 'no Plex library chosen for one-off recordings' }
+const refreshSection = async (key) => {
+  const sectionId = await getSetting(key)
+  if (!sectionId) return { skipped: true, reason: 'no Plex library chosen for these recordings' }
   return notifyPlexSectionRefresh({ sectionId })
 }
 
-const processItem = async ({ item, show, roots }) => {
+const destinationFor = async ({ item, show, kind, roots }) => {
+  if (kind === 'tv') return buildDestPath({ item, show, mediaRoot: roots.mediaRoot })
+  if (kind === 'oneOff') return buildOneOffPath({ item, oneOffRoot: roots.oneOffRoot })
+  for (let copy = 1; ; copy++) {
+    const dest = buildFilmPath({ item, moviesRoot: roots.moviesRoot, copy })
+    const owner = await db('recordings').where({ file_path: dest }).whereNot({ recording_id: item.id }).first()
+    if (!owner) return dest
+  }
+}
+
+const processItem = async ({ item, show, kind, roots }) => {
   const existing = await db('recordings').where({ recording_id: item.id }).first()
   if (existing?.status === 'done') return { summaryKey: 'skipped' }
   if (existing?.deleted_from_tvh_at) return { summaryKey: 'skipped' }
@@ -359,17 +405,16 @@ const processItem = async ({ item, show, roots }) => {
     return { summaryKey: 'skipped' }
   }
 
-  if (!show && !(await isDirectory(roots.oneOffRoot))) {
+  const kindRoot = { oneOff: roots.oneOffRoot, film: roots.moviesRoot }[kind]
+  if (kindRoot && !(await isDirectory(kindRoot))) {
     await upsertRecording({
       item, show, file_path: null, status: 'skipped',
-      error: `one-off folder ${roots.oneOffRoot} not found; mount it or change it in Settings`,
+      error: `${kind === 'film' ? 'movies' : 'one-off'} folder ${kindRoot} not found; mount it or change it in Settings`,
     })
     return { summaryKey: 'skipped' }
   }
 
-  const filePath = show
-    ? buildDestPath({ item, show, mediaRoot: roots.mediaRoot })
-    : buildOneOffPath({ item, oneOffRoot: roots.oneOffRoot })
+  const filePath = await destinationFor({ item, show, kind, roots })
   await upsertRecording({ item, show, file_path: filePath, status: 'importing', error: null })
   await fs.mkdir(path.dirname(filePath), { recursive: true })
 
@@ -539,6 +584,9 @@ const upsertRecording = async ({ item, show, file_path, status, error }) => {
 const DEFAULT_MEDIA_ROOT = '/media/tv'
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const DEFAULT_ONEOFF_ROOT = '/media/one-offs'
+const FILM_GENRE_MIN = 0x10
+const FILM_GENRE_MAX = 0x1f
+const FILM_MIN_MS = 75 * 60 * 1000
 const HOLD_REASONS = {
   excluded: 'Kept out of the library',
   recordedOff: 'Recorded with Add to library off',

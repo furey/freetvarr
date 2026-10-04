@@ -7,7 +7,7 @@ import { db, getSetting } from './db.js'
 import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { listPlexSections } from './plex.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
-import { getMediaRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
+import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
 
@@ -334,7 +334,7 @@ const LATER_CHECKS = [
     doc: 'guide/configuration#one-shared-mount',
     run: async (ctx) => {
       const { recordingsRoot } = ctx.settings
-      const targets = [...new Set([ctx.settings.mediaRoot, ctx.settings.oneOffRoot].filter(Boolean))]
+      const targets = [...new Set([ctx.settings.mediaRoot, ctx.settings.oneOffRoot, ctx.settings.moviesRoot].filter(Boolean))]
       const probes = await Promise.all(targets.map(async (to) => ({
         to,
         ...(await ctx.deps.probeHardlink({ from: recordingsRoot, to })),
@@ -640,7 +640,7 @@ const networkProblem = (interfaces) => {
 }
 
 const readSettings = async () => {
-  const [mediaRoot, recordingsRoot, tvhRecordingsPath, plexUrl, plexToken, plexSectionId, syncCron, adRemoval, oneOffRoot] =
+  const [mediaRoot, recordingsRoot, tvhRecordingsPath, plexUrl, plexToken, plexSectionId, syncCron, adRemoval, oneOffRoot, moviesRoot] =
     await Promise.all([
       getMediaRoot(),
       getRecordingsRoot(),
@@ -651,10 +651,12 @@ const readSettings = async () => {
       getSetting('sync_cron'),
       getSetting('ad_removal_enabled'),
       getOneOffRoot(),
+      getMoviesRoot(),
     ])
   return {
     mediaRoot,
     oneOffRoot,
+    moviesRoot,
     recordingsRoot,
     tvhRecordingsPath,
     plexUrl: plexUrl || '',
