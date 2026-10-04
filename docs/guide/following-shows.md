@@ -41,7 +41,7 @@ The episode title is dropped when the guide didn't supply one. TVHeadend's own n
 
 ## Recordings with no show rule
 
-A recording that matches no show rule, such as a sports final, a special, or a film, goes to the one-off folder (`/media/one-offs` by default). Each title gets its own folder, and the file name carries the air date and start time:
+A recording that matches no show rule, such as a sports final, a special, or a film, goes to the one-off folder (`/data/media/one-offs` in the example compose file). Each title gets its own folder, and the file name carries the air date and start time:
 
 ```text
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts
@@ -51,7 +51,7 @@ The one-off folder stays out of the TV library on purpose. Plex, Jellyfin, and I
 
 ## Import, not download
 
-TVHeadend already wrote the file to a folder Freetvarr can see, so there is nothing to download. The import is a hardlink when both folders are on one filesystem, and a copy when they aren't. A hardlink is instant and uses no extra disk; a copy shows its progress in [Recordings](/guide/recordings).
+TVHeadend already wrote the file to a folder Freetvarr can see, so there is nothing to download. The import is a hardlink when Freetvarr sees both folders through one mount, and a copy when it doesn't ([One shared mount](/guide/configuration#one-shared-mount)). A hardlink is instant and uses no extra disk; a copy shows its progress in [Recordings](/guide/recordings).
 
 ## Enable, sync, remove
 

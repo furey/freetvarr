@@ -1,4 +1,5 @@
 import fs from 'fs/promises'
+import path from 'path'
 
 export const checkRecordingsFolder = async ({ recordingsPath, mediaRoot }) => {
   const probePath = (recordingsPath || '').trim()
@@ -12,11 +13,29 @@ export const checkRecordingsFolder = async ({ recordingsPath, mediaRoot }) => {
     return { ok: false, error: describeAccessError({ err, probePath, need: 'readable' }) }
   }
   if (!stat.isDirectory()) return { ok: false, error: `${probePath} exists but is not a directory` }
-  const mediaStat = await fs.stat(mediaRoot).catch(() => null)
-  return {
-    ok: true,
-    path: probePath,
-    sameFilesystem: mediaStat ? mediaStat.dev === stat.dev : null,
+  const link = await probeHardlink({ from: probePath, to: mediaRoot })
+  return { ok: true, path: probePath, hardlinks: link.hardlinks, sameDevice: link.sameDevice }
+}
+
+export const probeHardlink = async ({ from, to }) => {
+  const [fromStat, toStat] = await Promise.all([fs.stat(from).catch(() => null), fs.stat(to).catch(() => null)])
+  const sameDevice = fromStat && toStat ? fromStat.dev === toStat.dev : null
+  if (!fromStat || !toStat) return { hardlinks: null, sameDevice }
+  const name = `.freetvarr-link-probe-${process.pid}-${Date.now()}`
+  const source = path.join(from, name)
+  const target = path.join(to, name)
+  try {
+    await fs.writeFile(source, '')
+  } catch {
+    return { hardlinks: null, sameDevice }
+  }
+  try {
+    await fs.link(source, target)
+    return { hardlinks: true, sameDevice }
+  } catch (err) {
+    return { hardlinks: err.code === 'EXDEV' ? false : null, sameDevice, code: err.code }
+  } finally {
+    await Promise.all([fs.rm(source, { force: true }), fs.rm(target, { force: true })])
   }
 }
 

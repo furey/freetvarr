@@ -64,7 +64,7 @@ Checks that the media folder exists and that Freetvarr can write to it. When it 
 
 ## Hardlinks {#paths-hardlink}
 
-Checks that the recordings folder and the media folder are on the same filesystem. If they are not, each import copies the file instead of making a hardlink, and every episode uses twice the space. See [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+Makes a real test hardlink from the recordings folder into the media folder and into the one-off folder. If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy goes. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts. For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).
 
 ## Free space {#disk-free}
 
