@@ -279,12 +279,6 @@ table.deck-table tbody tr.tombstone .progress {
   text-decoration: none;
 }
 
-.tombstone-legend {
-  opacity: 0.55;
-  text-decoration: line-through;
-  text-decoration-color: rgba(255, 252, 251, 0.45);
-}
-
 .pill.done       { color: #e2b03c; }
 .pill.importing { color: #62cfff; }
 .pill.scheduled  { color: #62cfff; }
@@ -3449,5 +3443,219 @@ section[id^="section-"] {
 
   .play-modal .play-caption {
     bottom: 6rem;
+  }
+}
+
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.view-controls > .field-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.view-controls > .day-select {
+  flex: none;
+  width: auto;
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: 9999px;
+  background: #1eb6ff;
+  color: #1a1611;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.active-filters .btn svg {
+  width: 1em;
+  height: 1em;
+}
+
+.filter-group + .filter-group {
+  margin-top: 1.25rem;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filter-sheet-body .epg-modal-actions {
+  margin-top: 1.5rem;
+}
+
+.epg-state-line {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.epg-float-cluster {
+  position: absolute;
+  bottom: 0.75rem;
+  z-index: 10;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid #544e47;
+  border-radius: 999px;
+  background: #2e2818;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.epg-float-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 0.8rem;
+  border: 0;
+  background: transparent;
+  color: #fffcfb;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.epg-float-btn + .epg-float-btn {
+  border-left: 1px solid #3d3829;
+}
+
+.epg-float-icon {
+  min-width: 2.75rem;
+  padding: 0;
+}
+
+.epg-float-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.epg-float-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.epg-float-btn:focus-visible {
+  outline: 2px solid #1eb6ff;
+  outline-offset: -2px;
+}
+
+@media (hover: hover) {
+  .epg-float-btn:hover:not(:disabled) {
+    color: #1eb6ff;
+  }
+}
+
+@media (max-width: 767px) {
+  .panel-header:has(> .header-actions) {
+    padding-block: 0.5rem;
+  }
+
+  .header-actions {
+    gap: 0.5rem;
+    margin-left: auto;
+  }
+
+  .header-actions .btn-icon {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .header-actions .btn-icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .view-controls > .field-input,
+  .view-controls > .btn {
+    min-height: 2.75rem;
+  }
+
+  .view-controls > .btn-icon {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .view-controls > .btn-icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .view-controls-sticky {
+    position: sticky;
+    top: var(--app-header-h, 0px);
+    z-index: 10;
+    margin: -0.5rem -1rem 0;
+    padding: 0.5rem 1rem;
+    background: #28231b;
+  }
+
+  .panel-body.space-y-4 > .view-controls-sticky + .active-filters {
+    margin-top: 0.25rem;
+  }
+
+  .panel-body > .guide-top {
+    display: contents;
+  }
+
+  .panel-body > .guide-top > .view-controls {
+    margin-top: 0.75rem;
+  }
+
+  .panel-body > .guide-top > .view-controls-sticky {
+    margin-top: 0.25rem;
+  }
+
+  .mode-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .mode-tabs > .btn {
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  .filter-chips .btn {
+    min-height: 2.75rem;
+  }
+
+  .active-filters .btn {
+    min-height: 2.25rem;
+  }
+
+  .active-filters .btn::before {
+    content: "";
+    position: absolute;
+    inset: -0.25rem 0;
+  }
+
+  .epg-state-line {
+    font-size: 0.66rem;
   }
 }
