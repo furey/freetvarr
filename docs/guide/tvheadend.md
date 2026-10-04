@@ -1,8 +1,8 @@
 ---
 title: TVHeadend
 description: >-
-  Run TVHeadend in Docker, add your tuner, scan your channels, load an
-  XMLTV guide, and make a user for Freetvarr.
+  Run TVHeadend in Docker, secure it, add your tuner, scan your channels,
+  load an XMLTV guide, and check the user Freetvarr signs in as.
 ---
 
 # TVHeadend
@@ -16,7 +16,7 @@ Set it up in this order. Each step depends on the one before it. Any TVHeadend-c
 
 ```mermaid
 flowchart TD
-  a["1. Run the container"] --> b["2. First-run wizard"]
+  a["1. Run the container"] --> b["2. Secure TVHeadend"]
   b --> c["3. Add the tuner"]
   c --> d["4. Scan the muxes"]
   d --> e["5. Map services to channels"]
@@ -55,12 +55,28 @@ Run `docker compose up -d tvheadend`, then open `http://<host-ip>:9981`.
 > [!NOTE]<br>
 > Give TVHeadend and Freetvarr the same `PUID`/`PGID`. Freetvarr imports by hardlink where it can, and it deletes the TVHeadend copy afterwards; both need the same owner on the recordings folder.
 
-## 2. First-run wizard
+## 2. Secure TVHeadend
 
-Recent linuxserver builds do not open the wizard on the first visit. They start with a default access entry that gives anyone on any network full admin rights and no login. Start the wizard yourself: **Configuration → General → Base → Start wizard**. What matters:
+A fresh linuxserver TVHeadend has no logins. It starts with a default access entry, username `*`, that gives anyone on any network full admin rights. Freetvarr's setup wizard replaces that entry with real logins, so run it now: start Freetvarr ([Getting started](/guide/getting-started) step 3) and open its wizard ([step 4](/guide/getting-started#_4-run-the-wizard)).
+
+When the wizard finds a TVHeadend with only the default entry, it asks for three things:
+
+- **An admin username and password.** You sign in to TVHeadend's web UI with these. Freetvarr sends them to TVHeadend once and does not store them.
+- **The allowed networks.** Both logins work only from these address ranges. The wizard fills in one `/24` range for each address of the Freetvarr host, plus `127.0.0.0/8`; a host at `192.168.86.254` gives `192.168.86.0/24`. Add any other network you sign in from.
+- **Confirmation.** `SECURE TVHEADEND AND CONNECT FREETVARR` makes the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
+
+Freetvarr signs in with both new logins before it removes the default entry. If either login fails, it deletes the logins it made and leaves TVHeadend as it found it, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. **Settings → TVHEADEND → RESTORE OPEN ACCESS** puts the default entry back.
+
+Freetvarr changes nothing on a TVHeadend that already has users. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.
+
+Set the interface and EPG languages under **Configuration → General → Base**.
+
+### Securing by hand
+
+Use TVHeadend's own wizard instead if you already set up TVHeadend users, or you do not use Freetvarr's wizard. Recent linuxserver builds do not open it on the first visit. Start it yourself: **Configuration → General → Base → Start wizard**. What matters:
 
 1. **Language.** Set the interface and EPG languages you want.
-2. **Access control.** Set the allowed network prefix to your own LAN. Take it from the host's IP address: a host at `192.168.86.254` gives `192.168.86.0/24`. Then set an admin username and password. Leave the user login empty; step 8 makes the user Freetvarr needs.
+2. **Access control.** Set the allowed network prefix to your own LAN, as above. Then set an admin username and password. Leave the user login empty; step 8 makes the user Freetvarr needs.
 3. **Tuner and network.** The wizard offers to assign a network to each tuner it found. You can skip that here and do it deliberately in step 3.
 4. **Mux scan and service mapping.** Skip both. Steps 4 and 5 cover them.
 
@@ -69,7 +85,7 @@ Recent linuxserver builds do not open the wizard on the first visit. They start 
 Finish or cancel the wizard, even if you configured TVHeadend by hand. An unfinished wizard leaves the `wizard` value set in **Configuration → General → Base**, and the wizard opens again on every page load. Finishing or cancelling it clears the value.
 
 > [!WARNING]<br>
-> The wizard's password field has no confirm box, and a typo or a password manager's autofill leaves you locked out with `403 Forbidden`. To get back in, add `RUN_OPTS=--noacl` to the TVHeadend environment and restart it; that switches off all access checks. Set a new password in **Configuration → Users → Passwords**, then remove `--noacl` and restart again.
+> TVHeadend's password field has no confirm box, and a typo or a password manager's autofill leaves you locked out with `403 Forbidden`. To get back in, add `RUN_OPTS=--noacl` to the TVHeadend environment and restart it; that switches off all access checks. Set a new password in **Configuration → Users → Passwords**, then remove `--noacl` and restart again.
 
 ## 3. Add the tuner
 
@@ -188,14 +204,16 @@ Set **Re-record if errors** (`rerecord-errors`) on the same profile to `0` (off)
 
 ## 8. Make a user for Freetvarr
 
-Freetvarr signs in as an ordinary TVHeadend user. Give it its own. TVHeadend keeps a user in two places: the access entry holds the rights, and a separate password entry holds the password. Make both, with the same username.
+Freetvarr signs in as an ordinary TVHeadend user with its own login. If Freetvarr's wizard secured TVHeadend in [step 2](#_2-secure-tvheadend), it already made this user, `freetvarr`, with the rights in the table below; skip to the table.
+
+If you already set up TVHeadend users, make one for Freetvarr by hand. TVHeadend keeps a user in two places: the access entry holds the rights, and a separate password entry holds the password. Make both, with the same username.
 
 1. **Configuration → Users → Access Entries → Add.**
 2. Tick **Enabled**. Set **Username** to `freetvarr` (or any name you like).
 3. **Allowed networks**: your LAN prefix, the same one as the admin entry (`192.168.86.0/24` for a host at `192.168.86.254`). Freetvarr connects from the host's own LAN address, so that address has to fall inside the prefix.
 4. **Change parameters**: keep **Rights** ticked, or the entry grants nothing.
 5. Tick the rights in the table below, then **Save**.
-6. **Configuration → Users → Passwords → Add.** Tick **Enabled**, enter the same username, and set a password. You type these two into Freetvarr once.
+6. **Configuration → Users → Passwords → Add.** Tick **Enabled**, enter the same username, and set a password. You type these two into Freetvarr's wizard once.
 
 | Right              | Tick                              | Why Freetvarr needs it                                                                                                                       |
 | ------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |

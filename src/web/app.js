@@ -2730,6 +2730,13 @@ const SettingsView = {
               </button>
               <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
             </div>
+            <div v-if="tvhOpenEntryBackupSet" class="field-row md:col-span-3 flex flex-wrap items-center gap-3">
+              <button type="button" class="btn btn-sm" @click="undoTvhSecure" :disabled="tvhUndoing">
+                <template v-if="tvhUndoing">RESTORING…</template><template v-else>RESTORE OPEN ACCESS</template>
+              </button>
+              <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
+              <span v-else class="text-xs text-ink-mute">Undoes the wizard's SECURE TVHEADEND: anyone on your network can change TVHeadend again. The logins stay.</span>
+            </div>
             <div class="md:col-span-3">
               <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="toggle-prose">
                 Only remove from TVHeadend after Plex refresh succeeds
@@ -3015,6 +3022,22 @@ const SettingsView = {
     const tvhTesting = ref(false)
     const tvhStatus = ref('')
     const tvhStatusKind = ref('ok')
+    const tvhOpenEntryBackupSet = ref(false)
+    const tvhUndoing = ref(false)
+    const [tvhUndoText, tvhUndoKind, setTvhUndo] = makeStatus()
+    const undoTvhSecure = async () => {
+      if (!confirm('Restore open access to TVHeadend? Anyone on your network will be able to change it again.')) return
+      tvhUndoing.value = true
+      try {
+        await api('POST', '/api/tvh-bootstrap/undo')
+        tvhOpenEntryBackupSet.value = false
+        setTvhUndo('Open access restored.', 'ok', 8000)
+      } catch (err) {
+        setTvhUndo(err.message, 'err', 0)
+      } finally {
+        tvhUndoing.value = false
+      }
+    }
     const recordingsRoot = ref('')
     const tvhRecordingsPath = ref('')
     const recordingsCheck = usePathCheck(() => recordingsFolderStatus({
@@ -3086,6 +3109,7 @@ const SettingsView = {
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
+      tvhOpenEntryBackupSet.value = Boolean(s.tvh_open_entry_backup_set)
       recordingsRoot.value = s.recordings_root || ''
       tvhRecordingsPath.value = s.tvh_recordings_path || ''
       syncCron.value = s.sync_cron || ''
@@ -3353,6 +3377,7 @@ const SettingsView = {
 
     return {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
+      tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, undoTvhSecure,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       syncCron, syncCronEffective,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections,
@@ -3611,7 +3636,7 @@ const WelcomeView = {
 
           <div v-if="step === 2" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
-              Freetvarr needs the address of your TVHeadend server. Leave the username and password blank if TVHeadend allows anonymous access.
+              Freetvarr needs the address of your TVHeadend server.
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="detectTvh()" :disabled="tvhDetecting">
@@ -3634,23 +3659,77 @@ const WelcomeView = {
               <label class="field-label">TVHeadend URL</label>
               <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
             </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="field-row">
-                <label class="field-label">Username</label>
-                <input type="text" class="field-input" v-model="tvhUsername" autocomplete="off" />
+            <div v-if="showSecure" class="space-y-4">
+              <p class="text-ink text-sm leading-relaxed">
+                <strong class="text-signal-orange">This TVHeadend has no logins yet</strong>, so anyone on your network can change it. Freetvarr can secure it: it makes an admin login for you and a separate login for itself, then turns off the open access.
+              </p>
+              <div class="grid gap-4 md:grid-cols-3">
+                <div class="field-row">
+                  <label class="field-label">Admin username</label>
+                  <input type="text" class="field-input" v-model="secureAdminUsername" autocomplete="off" :disabled="securing" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Admin password</label>
+                  <input type="password" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Confirm password</label>
+                  <input type="password" class="field-input" v-model="secureAdminConfirm" autocomplete="new-password" :disabled="securing" />
+                </div>
               </div>
               <div class="field-row">
-                <label class="field-label">Password</label>
-                <input type="password" class="field-input" v-model="tvhPassword"
-                  :placeholder="tvhPasswordSet ? '••••• (stored)' : ''" autocomplete="off" />
+                <label class="field-label">Allowed networks</label>
+                <input type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
+                <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses; add any network you sign in to TVHeadend from.
+                </p>
               </div>
+              <p class="text-xs text-ink-mute leading-relaxed">
+                Keep the admin password somewhere safe: you sign in to TVHeadend with it, and Freetvarr does not store it. Freetvarr signs in as <code>freetvarr</code> with a random password it keeps for itself.
+              </p>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
+                  <template v-if="securing">SECURING…</template><template v-else>SECURE TVHEADEND AND CONNECT FREETVARR</template>
+                </button>
+                <button type="button" class="btn-link" @click="useManualLogin" :disabled="securing">I'll set up users myself</button>
+              </div>
+              <span v-if="secureInputProblem" class="status-readout info">{{ secureInputProblem }}</span>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
-                <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
-              </button>
-              <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
+            <ol v-if="secureSteps.length" class="space-y-1 text-sm font-mono">
+              <li v-for="s in secureSteps" :key="s.id" class="flex items-center gap-2">
+                <span :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
+                <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
+              </li>
+            </ol>
+            <div v-if="secureError" class="space-y-1">
+              <p class="status-readout err">{{ secureError }}</p>
+              <p v-if="secureNext" class="text-sm text-ink">{{ secureNext }}</p>
             </div>
+            <p v-if="securedAs" class="status-readout ok">
+              TVHeadend is secured. Sign in to TVHeadend as {{ securedAs }} from now on; Freetvarr signs in as freetvarr.
+            </p>
+            <template v-if="!showSecure">
+              <p v-if="!securedAs" class="text-ink-dim text-sm leading-relaxed">
+                Enter the TVHeadend login Freetvarr should use. Leave both blank if TVHeadend allows anonymous access.
+              </p>
+              <div class="grid gap-4 md:grid-cols-2">
+                <div class="field-row">
+                  <label class="field-label">Username</label>
+                  <input type="text" class="field-input" v-model="tvhUsername" autocomplete="off" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Password</label>
+                  <input type="password" class="field-input" v-model="tvhPassword"
+                    :placeholder="tvhPasswordSet ? '••••• (stored)' : ''" autocomplete="off" />
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
+                  <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
+                </button>
+                <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
+              </div>
+            </template>
           </div>
 
           <div v-if="step === 3" class="space-y-4">
@@ -3782,7 +3861,7 @@ const WelcomeView = {
           <div class="flex items-center gap-3">
             <span v-if="saveStatusText"
               :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
-            <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">A TVHeadend URL is required to continue.</span>
+            <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">{{ advanceHint }}</span>
             <button type="button" class="btn btn-primary" @click="next" :disabled="!canAdvance || saving">
               {{ nextLabel }} <arrow-right-icon />
             </button>
@@ -3897,9 +3976,13 @@ const WelcomeView = {
     })
 
     const canAdvance = computed(() => {
-      if (step.value === 2) return Boolean(tvhUrl.value.trim())
+      if (step.value === 2) return Boolean(tvhUrl.value.trim()) && !showSecure.value
       return true
     })
+
+    const advanceHint = computed(() => (tvhUrl.value.trim()
+      ? 'Secure TVHeadend first, or choose to set up users yourself.'
+      : 'A TVHeadend URL is required to continue.'))
 
     const nextLabel = computed(() => {
       if (step.value === totalSteps) return 'GO TO SHOWS'
@@ -4064,10 +4147,90 @@ const WelcomeView = {
     }
     watch(step, (curr) => {
       if (curr === 2 && !tvhUrl.value.trim()) detectTvh({ quiet: true })
+      if (curr === 2) checkBootstrap()
     })
     watch([tvhUrl, tvhUsername, tvhPassword], () => {
       if (step.value === 2) clearSaveStatus()
     })
+
+    const bootstrap = ref(null)
+    const manualLogin = ref(false)
+    const securing = ref(false)
+    const securedAs = ref('')
+    const secureAdminUsername = ref('admin')
+    const secureAdminPassword = ref('')
+    const secureAdminConfirm = ref('')
+    const securePrefixes = ref('')
+    const secureSteps = ref([])
+    const secureError = ref('')
+    const secureNext = ref('')
+    const showSecure = computed(() => Boolean(bootstrap.value?.fresh) && !manualLogin.value && !securedAs.value)
+    const secureInputProblem = computed(() => bootstrapInputProblem({
+      username: secureAdminUsername.value,
+      password: secureAdminPassword.value,
+      confirm: secureAdminConfirm.value,
+      prefixes: securePrefixes.value,
+    }))
+    const secureReady = computed(() => !secureInputProblem.value)
+
+    let bootstrapCheckTimer = null
+    const checkBootstrap = () => {
+      clearTimeout(bootstrapCheckTimer)
+      const url = tvhUrl.value.trim()
+      if (!url || step.value !== 2) return
+      bootstrapCheckTimer = setTimeout(async () => {
+        const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
+        if (url !== tvhUrl.value.trim()) return
+        bootstrap.value = status
+        if (status?.fresh && !securePrefixes.value) securePrefixes.value = status.suggestedPrefixes.join(', ')
+      }, BOOTSTRAP_CHECK_DELAY_MS)
+    }
+    watch(tvhUrl, () => {
+      bootstrap.value = null
+      checkBootstrap()
+    })
+
+    const useManualLogin = () => {
+      manualLogin.value = true
+      secureSteps.value = []
+      secureError.value = ''
+      secureNext.value = ''
+    }
+
+    const secureTvh = async () => {
+      securing.value = true
+      secureError.value = ''
+      secureNext.value = ''
+      secureSteps.value = (bootstrap.value?.steps || []).map((s) => ({ ...s, status: 'pending' }))
+      const poll = setInterval(async () => {
+        const progress = await api('GET', '/api/tvh-bootstrap/progress').catch(() => null)
+        if (progress?.steps?.length) secureSteps.value = progress.steps
+      }, BOOTSTRAP_POLL_MS)
+      try {
+        const result = await api('POST', '/api/tvh-bootstrap/apply', {
+          url: tvhUrl.value.trim(),
+          admin_username: secureAdminUsername.value.trim(),
+          admin_password: secureAdminPassword.value,
+          prefixes: securePrefixes.value,
+        })
+        secureSteps.value = result.steps
+        securedAs.value = result.adminUsername
+        secureAdminPassword.value = ''
+        secureAdminConfirm.value = ''
+        tvhUsername.value = result.username
+        tvhPassword.value = ''
+        tvhPasswordSet.value = true
+        await testTvh()
+      } catch (err) {
+        if (err.data?.steps) secureSteps.value = err.data.steps
+        secureError.value = err.message
+        secureNext.value = err.data?.next || ''
+        if (err.data?.code === 'not-fresh') manualLogin.value = true
+      } finally {
+        clearInterval(poll)
+        securing.value = false
+      }
+    }
 
     const testTvh = async () => {
       tvhTesting.value = true
@@ -4100,7 +4263,10 @@ const WelcomeView = {
       plexDiscovering, plexCandidates, plexDetectingToken, plexPrefsPath,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
-      back, next, skipToSettings, loadPlexSections, testTvh,
+      back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
+      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureAdminConfirm,
+      securePrefixes, secureSteps, secureError, secureNext, secureInputProblem, secureReady,
+      secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
       discoverPlex, usePlexCandidate, detectPlexToken,
       plexDiscoverText, plexDiscoverKind,
@@ -4110,6 +4276,25 @@ const WelcomeView = {
     }
   },
 }
+
+const bootstrapInputProblem = ({ username, password, confirm, prefixes }) => {
+  if (!username.trim()) return 'Choose an admin username.'
+  if (password.length < BOOTSTRAP_MIN_PASSWORD) return `Choose an admin password of at least ${BOOTSTRAP_MIN_PASSWORD} characters.`
+  if (password !== confirm) return 'The two passwords do not match yet.'
+  if (!prefixes.trim()) return 'Enter at least one allowed network.'
+  return ''
+}
+
+const secureStepDot = (status) => ({
+  pending: 'idle',
+  running: 'live',
+  done: 'bg-plex-yellow',
+  failed: 'bg-signal-orange',
+})[status] || 'idle'
+
+const BOOTSTRAP_CHECK_DELAY_MS = 500
+const BOOTSTRAP_POLL_MS = 400
+const BOOTSTRAP_MIN_PASSWORD = 8
 
 const EPG_ZOOM_LEVELS = [
   { key: 's', pxPerMin: 3, rowRem: 3.4, narrowRowRem: 3, halfHourTicks: false },

@@ -50,6 +50,7 @@
     "start": "npm run migrate && node --env-file-if-exists=.env src/server.js",
     "dev": "npm run migrate && node --env-file-if-exists=.env --watch src/server.js",
     "test": "node --test 'test/*.test.js'",
+    "test:integration": "node --test --test-concurrency=1 'test/integration/*.test.js'",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs"
   },
   "dependencies": {
