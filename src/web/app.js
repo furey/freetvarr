@@ -2310,7 +2310,7 @@ const RecordingsView = {
                 </td>
                 <td class="font-mono">{{ fmtTime(r.imported_at) }}</td>
                 <td>
-                  <div class="flex items-center gap-2">
+                  <div class="rec-actions flex items-center gap-2">
                   <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
                     @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
                     <play-icon />
@@ -2380,7 +2380,7 @@ const RecordingsView = {
                 :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
               <progress-block v-if="isAdProgress(r)"
                 :progress="r.progress" :caption="progressCaption(r)" :bar="hasBar(r)"/>
-              <div v-if="r.playable || canImport(r) || canAdScan(r) || canDelete(r) || canRemove(r)" class="flex items-center justify-end gap-2 pt-1">
+              <div v-if="r.playable || canImport(r) || canAdScan(r) || canDelete(r) || canRemove(r)" class="rec-actions flex items-center justify-end gap-2 pt-1">
                 <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
                   @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
                   <play-icon />
@@ -4191,7 +4191,7 @@ const GuideSetupStep = {
         for (const key of Object.keys(picks)) delete picks[key]
         const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
         if (progress) job.value = progress
-        setLinkText(`Linked ${r.linked} channels.`, 'ok', 5000)
+        setLinkText(`Linked ${r.linked} ${r.linked === 1 ? 'channel' : 'channels'}.`, 'ok', 5000)
       } catch (err) {
         setLinkText(err.message, 'err', 0)
       } finally {
