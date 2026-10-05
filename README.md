@@ -209,16 +209,18 @@ docker compose up -d
 
 The TVHeadend URL and login, the Plex token, and the storage paths are runtime settings; configure them in the web UI, not via env. The `.env` next to your compose file only carries deploy-level knobs:
 
-| Variable          | Purpose                                                                                                                                                                                           |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONFIG_PATH`     | Optional. Host folder for both containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                  |
-| `DATA_PATH`       | Optional. Host folder (default `./data`) holding `recordings/` (TVHeadend's output) and `media/` (your Plex TV library), and nothing else                                                         |
-| `PLEX_PREFS_PATH` | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host                                                                                 |
-| `CSRF_SECRET`     | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`                                                                   |
-| `TZ`              | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone (a zone chosen in Settings wins), and applies to TVHeadend when set. TVHeadend otherwise follows the host clock |
-| `PUID`/`PGID`     | Optional. UID and GID to run as (default `1000`); use your own user. Both services use the same pair                                                                                              |
-| `FREETVARR_PORT`  | Host port to serve on (default `3733`)                                                                                                                                                            |
-| `TVH_URL`         | Optional. Fixes the address AUTO-DISCOVER TVHEADEND offers; omit to let Freetvarr probe port `9981` on the host                                                                                   |
+| Variable           | Purpose                                                                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONFIG_PATH`      | Optional. Host folder for both containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                  |
+| `DATA_PATH`        | Optional. Host folder (default `./data`) holding `recordings/` (TVHeadend's output) and `media/` (your Plex TV library), and nothing else                                                         |
+| `PLEX_PREFS_PATH`  | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button, for a Plex on this host that the `plex` profile did not start                                                   |
+| `COMPOSE_PROFILES` | Optional. `plex` adds the Plex service, for a host with no media server yet                                                                                                                       |
+| `PLEX_CLAIM`       | Optional, `plex` profile only. The claim code from `https://plex.tv/claim` (expires after 4 minutes)                                                                                              |
+| `CSRF_SECRET`      | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`                                                                   |
+| `TZ`               | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone (a zone chosen in Settings wins), and applies to TVHeadend when set. TVHeadend otherwise follows the host clock |
+| `PUID`/`PGID`      | Optional. UID and GID to run as (default `1000`); use your own user. Both services use the same pair                                                                                              |
+| `FREETVARR_PORT`   | Host port to serve on (default `3733`)                                                                                                                                                            |
+| `TVH_URL`          | Optional. Fixes the address AUTO-DISCOVER TVHEADEND offers; omit to let Freetvarr probe port `9981` on the host                                                                                   |
 
 Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. In the example compose file, TVHeadend sees the folder at `/recordings` and Freetvarr at `/data/recordings`; Freetvarr rewrites the one prefix to the other. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 

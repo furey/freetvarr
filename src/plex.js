@@ -54,15 +54,8 @@ export const detectPlexTokenFromPreferences = async () => {
   return { ok: true, path, source: 'preferences.xml', token }
 }
 
-export const listPlexSections = async ({ url, token } = {}) => {
-  if (!url || !token) {
-    const cfg = await getConfig()
-    url ??= cfg.url
-    token ??= cfg.token
-  }
-  url = (url || '').replace(/\/$/, '')
-  if (!url || !token) throw new Error('plex_url and plex_token are required')
-
+export const listPlexSections = async (connection = {}) => {
+  const { url, token } = await resolveConnection(connection)
   const res = await axios.get(`${url}/library/sections`, {
     params: { 'X-Plex-Token': token },
     headers: { Accept: 'application/json' },
@@ -80,6 +73,29 @@ export const listPlexSections = async ({ url, token } = {}) => {
     type: d.type,
     locations: [d.Location || []].flat().map((l) => l.path).filter(Boolean),
   }))
+}
+
+export const planPlexLibraries = ({ sections, roots }) =>
+  Object.entries(PLEX_LIBRARY_KINDS)
+    .filter(([kind]) => roots[kind])
+    .map(([kind, spec]) => {
+      const existing = sectionAt(sections, roots[kind])
+      return {
+        kind,
+        name: spec.name,
+        location: roots[kind],
+        existing: existing ? { key: existing.key, title: existing.title } : null,
+      }
+    })
+
+export const createPlexLibraries = async ({ libraries, ...connection }) => {
+  const { url, token } = await resolveConnection(connection)
+  const sections = await listPlexSections({ url, token })
+  const results = []
+  for (const library of libraries) {
+    results.push(await createPlexLibrary({ url, token, sections, library }))
+  }
+  return results
 }
 
 // Plex's GDM ("G'Day Mate") discovery: UDP broadcast on 32414. Servers reply
@@ -144,6 +160,74 @@ export const discoverLocalPlexServers = async () => {
   })
 }
 
+const createPlexLibrary = async ({ url, token, sections, library }) => {
+  const spec = PLEX_LIBRARY_KINDS[library.kind]
+  const name = String(library.name || '').trim()
+  const location = String(library.location || '').trim().replace(/(.)\/+$/, '$1')
+  const result = { kind: library.kind, name, location }
+  if (!spec) return { ...result, status: 'failed', error: `Unknown library kind "${library.kind}"` }
+  if (!name) return { ...result, status: 'failed', error: 'The library needs a name.' }
+  if (!location.startsWith('/')) {
+    return { ...result, status: 'failed', error: 'The folder must be a full path, starting with /.' }
+  }
+  const existing = sectionAt(sections, location)
+  if (existing) return { ...result, status: 'exists', key: existing.key, title: existing.title }
+  if (await plexSeesFolder({ url, token, location }) === false) {
+    return { ...result, status: 'failed', error: `Plex cannot see ${location}. Check the folder Plex mounts.` }
+  }
+  const res = await axios.post(`${url}/library/sections`, null, {
+    params: {
+      name,
+      type: spec.type,
+      agent: spec.agent,
+      scanner: spec.scanner,
+      language: PLEX_LIBRARY_LANGUAGE,
+      location,
+      'X-Plex-Token': token,
+    },
+    headers: { Accept: 'application/json' },
+    timeout: 10000,
+    validateStatus: () => true,
+  })
+  if (res.status === 401) return { ...result, status: 'failed', error: 'Plex rejected the token (401)' }
+  if (res.status >= 400) return { ...result, status: 'failed', error: `Plex HTTP ${res.status}` }
+  const created = [res.data?.MediaContainer?.Directory || []].flat()[0]
+  if (!created?.key) return { ...result, status: 'failed', error: 'Plex did not return the new library.' }
+  return { ...result, status: 'created', key: String(created.key), title: created.title }
+}
+
+const plexSeesFolder = async ({ url, token, location }) => {
+  const parent = location.slice(0, location.lastIndexOf('/')) || '/'
+  const res = await axios.get(
+    `${url}/services/browse/${Buffer.from(parent).toString('base64')}`,
+    {
+      params: { includeFiles: 0, 'X-Plex-Token': token },
+      headers: { Accept: 'application/json' },
+      timeout: 5000,
+      validateStatus: () => true,
+    },
+  ).catch(() => null)
+  if (!res || res.status !== 200 || typeof res.data !== 'object') return null
+  const folders = [res.data?.MediaContainer?.Path || []].flat()
+  return folders.some((folder) => folder.path === location)
+}
+
+const sectionAt = (sections, location) =>
+  sections.find((section) => section.locations.some((path) => samePath(path, location)))
+
+const samePath = (a, b) => a.replace(/(.)\/+$/, '$1') === b.replace(/(.)\/+$/, '$1')
+
+const resolveConnection = async ({ url, token } = {}) => {
+  if (!url || !token) {
+    const cfg = await getConfig()
+    url ||= cfg.url
+    token ||= cfg.token
+  }
+  url = (url || '').replace(/\/$/, '')
+  if (!url || !token) throw new Error('plex_url and plex_token are required')
+  return { url, token }
+}
+
 const resolvePlexPrefsPath = async () => {
   const fromSetting = await getSetting('plex_prefs_path')
   if (fromSetting && fromSetting.trim()) return fromSetting.trim()
@@ -161,6 +245,12 @@ const getConfig = async () => {
 
 const prefsXml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' })
 
-const DEFAULT_PLEX_PREFS_PATH = '/plex-preferences.xml'
+const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
+const PLEX_LIBRARY_KINDS = {
+  tv: { name: 'TV Shows', type: 'show', agent: 'tv.plex.agents.series', scanner: 'Plex TV Series' },
+  oneoff: { name: 'One-offs', type: 'movie', agent: 'tv.plex.agents.none', scanner: 'Plex Video Files' },
+  movies: { name: 'Movies', type: 'movie', agent: 'tv.plex.agents.movie', scanner: 'Plex Movie' },
+}
+const PLEX_LIBRARY_LANGUAGE = 'en-US'
 const GDM_PORT = 32414
 const GDM_TIMEOUT_MS = 2000

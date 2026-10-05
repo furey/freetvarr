@@ -1,0 +1,87 @@
+{
+  "MediaContainer": {
+    "size": 3,
+    "allowSync": false,
+    "title1": "Plex Library",
+    "Directory": [
+      {
+        "allowSync": false,
+        "filters": true,
+        "refreshing": false,
+        "key": "4",
+        "type": "movie",
+        "title": "Movies",
+        "agent": "tv.plex.agents.movie",
+        "scanner": "Plex Movie",
+        "language": "en-US",
+        "metadataAgentProviderGroupId": 1,
+        "uuid": "577eb169-0f71-4165-bd43-6f0d83e1cc97",
+        "updatedAt": 1791242561,
+        "createdAt": 1791242561,
+        "scannedAt": 1791242561,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": -1,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 4,
+            "path": "/data/media/movies"
+          }
+        ]
+      },
+      {
+        "allowSync": false,
+        "filters": true,
+        "refreshing": false,
+        "key": "1",
+        "type": "show",
+        "title": "TV Shows",
+        "agent": "tv.plex.agents.series",
+        "scanner": "Plex TV Series",
+        "language": "en-US",
+        "metadataAgentProviderGroupId": 2,
+        "uuid": "e32b8321-377c-4d99-baac-e898c89c5d99",
+        "updatedAt": 1791242556,
+        "createdAt": 1791242556,
+        "scannedAt": 1791242556,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": -1,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 1,
+            "path": "/data/media/tv"
+          }
+        ]
+      },
+      {
+        "allowSync": false,
+        "filters": true,
+        "refreshing": false,
+        "key": "2",
+        "type": "movie",
+        "title": "One-offs",
+        "agent": "tv.plex.agents.none",
+        "scanner": "Plex Video Files",
+        "language": "en-US",
+        "metadataAgentProviderGroupId": 4,
+        "uuid": "a5f05b8b-7d38-4b68-8638-75c8e98b5f5c",
+        "updatedAt": 1791242556,
+        "createdAt": 1791242556,
+        "scannedAt": 1791242556,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": -1,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 2,
+            "path": "/data/media/one-offs"
+          }
+        ]
+      }
+    ]
+  }
+}

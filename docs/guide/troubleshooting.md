@@ -181,8 +181,9 @@ Episodes import, but Plex doesn't show them.
 
 ## Plex token auto-detect
 
-- It needs Plex's `Preferences.xml` bind-mounted into the container (`PLEX_PREFS_PATH`), which only works when Plex runs on the same host. [Plex](/guide/plex#the-token) lists where the file lives.
-- **"Preferences.xml not found at /plex-preferences.xml"**: `PLEX_PREFS_PATH` is unset or points at the wrong host file, so the mount is empty. Fix the path in `.env` and run `docker compose up -d freetvarr`.
+- It needs Plex's `Preferences.xml` inside the container. The `plex` profile mounts it for you; for another Plex on the same host, set `PLEX_PREFS_PATH`. [Plex](/guide/plex#the-token) lists where the file lives.
+- **"Preferences.xml not found at /plex/Library/…"**: the `plex` profile is not running, and `PLEX_PREFS_PATH` is unset. Start the profile, or set the path in `.env`, then run `docker compose up -d freetvarr`.
+- **"Preferences.xml not found at /plex-preferences.xml"**: `PLEX_PREFS_PATH` points at the wrong host file, so the mount is empty. Fix the path in `.env` and run `docker compose up -d freetvarr`.
 - Paste the token manually instead; grab it from `app.plex.tv` (or Plex's own support article on finding your token).
 
 ## Container name lookups

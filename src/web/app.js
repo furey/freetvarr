@@ -1744,7 +1744,7 @@ const FolderEditor = {
           <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
         </button>
         <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
-        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving"><cross-icon /> {{ removeLabel }}</button>
+        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving">{{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
       <teleport to="body">
@@ -1761,7 +1761,7 @@ const FolderEditor = {
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
               <button type="button" class="btn epg-modal-close mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
-                <template v-if="saving">REMOVING…</template><template v-else><cross-icon /> {{ removeLabel }}</template>
+                <template v-if="saving">REMOVING…</template><template v-else>{{ removeLabel }}</template>
               </button>
             </div>
           </div>
@@ -3270,7 +3270,7 @@ const SettingsView = {
             </div>
             <div class="field-row md:col-span-2">
               <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="plexPrefsPath" placeholder="/plex-preferences.xml" />
+              <input type="text" class="field-input" v-model="plexPrefsPath" placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Container-internal path. Requires a Docker bind-mount targeting this path. Edit if you mount Plex's config at a non-default location.
               </p>
@@ -3317,6 +3317,8 @@ const SettingsView = {
               </button>
               <span v-if="plexStatus" :class="['status-readout', plexStatusKind]">{{ plexStatus }}</span>
             </div>
+            <plex-library-setup :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
+              @created="usePlexLibraries" />
           </div>
         </section>
 
@@ -3439,6 +3441,7 @@ const SettingsView = {
     const plexDiscovering = ref(false)
     const plexCandidates = ref([])
     const plexPrefsPath = ref('')
+    const plexSectionLoads = ref(0)
     const deleteAfterPlexRefreshOnly = ref(true)
     const adRemovalEnabled = ref(false)
     const adOriginalRetentionDays = ref('7')
@@ -3613,6 +3616,7 @@ const SettingsView = {
         if (plexToken.value) body.plex_token = plexToken.value
         const { sections = [] } = await api('POST', '/api/plex-sections', body)
         plexSections.value = sections
+        plexSectionLoads.value++
         if (sections.length === 0) {
           setPlexStatus('Connected to Plex, but no library sections returned.', 'info', 6000)
         } else {
@@ -3623,6 +3627,13 @@ const SettingsView = {
       } finally {
         plexProbing.value = false
       }
+    }
+
+    const usePlexLibraries = (selected) => {
+      if (selected.tv) plexSectionId.value = selected.tv
+      if (selected.oneoff) plexOneOffSectionId.value = selected.oneoff
+      if (selected.movies) plexMoviesSectionId.value = selected.movies
+      loadPlexSections()
     }
 
     const detectPlexToken = async () => {
@@ -3761,7 +3772,7 @@ const SettingsView = {
       tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, undoTvhSecure,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       syncCron, syncCronEffective, timeZone, tzSource,
-      plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections,
+      plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexSectionLoads, usePlexLibraries,
       plexProbing, plexRefreshing, plexDetecting,
       plexTokenStatus, plexTokenStatusKind,
       plexDiscovering, plexCandidates, plexPrefsPath, plexDiscoverText, plexDiscoverKind,
@@ -4011,6 +4022,99 @@ const ManualOption = {
     </div>
   `,
 }
+
+const PlexLibrarySetup = {
+  props: {
+    plexUrl: { type: String, default: '' },
+    plexToken: { type: String, default: '' },
+    loads: { type: Number, default: 0 },
+  },
+  emits: ['created'],
+  template: `
+    <div v-if="missing.length || statusText" class="md:col-span-2 space-y-3 border-t border-hairline pt-4">
+      <template v-if="missing.length">
+        <p class="text-ink text-sm leading-relaxed">
+          Plex has no library for {{ missingSummary }}. Freetvarr can create {{ missing.length === 1 ? 'it' : 'them' }}. Check each name and folder, then press CREATE LIBRARIES.
+        </p>
+        <div v-for="lib in missing" :key="lib.kind" class="grid gap-3 md:grid-cols-2">
+          <div class="field-row">
+            <label class="field-label" :for="'plex-library-name-' + lib.kind">{{ PLEX_LIBRARY_LABELS[lib.kind] }} library name</label>
+            <input :id="'plex-library-name-' + lib.kind" type="text" class="field-input" v-model="lib.name" />
+          </div>
+          <div class="field-row">
+            <label class="field-label" :for="'plex-library-folder-' + lib.kind">Folder <span class="text-ink-mute">(as Plex sees it)</span></label>
+            <input :id="'plex-library-folder-' + lib.kind" type="text" class="field-input" v-model="lib.location" />
+          </div>
+        </div>
+        <p class="text-xs text-ink-mute leading-relaxed">
+          Plex can see your files at a different path from Freetvarr. With the Plex in Freetvarr's compose file, the paths are the same. If Plex runs elsewhere, enter the path that Plex shows when you add a folder to a library.
+        </p>
+      </template>
+      <div class="flex flex-wrap items-center gap-3">
+        <button v-if="missing.length" type="button" class="btn" @click="create" :disabled="creating">
+          <template v-if="creating">CREATING…</template><template v-else><plus-icon /> CREATE LIBRARIES</template>
+        </button>
+        <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
+      </div>
+    </div>
+  `,
+  setup(props, { emit }) {
+    const [statusText, statusKind, setStatus] = makeStatus()
+    const missing = ref([])
+    const creating = ref(false)
+
+    const missingSummary = computed(() => listInWords(missing.value.map((lib) => PLEX_LIBRARY_SUMMARIES[lib.kind])))
+
+    const connection = () => ({
+      plex_url: props.plexUrl,
+      ...(props.plexToken ? { plex_token: props.plexToken } : {}),
+    })
+
+    const loadPlan = async () => {
+      const { libraries = [] } = await api('POST', '/api/plex-libraries', connection()).catch(() => ({}))
+      missing.value = libraries.filter((lib) => !lib.existing)
+    }
+
+    const create = async () => {
+      creating.value = true
+      setStatus('Creating libraries in Plex…', 'info', 0)
+      try {
+        const { results, selected } = await api('POST', '/api/plex-libraries/create', {
+          ...connection(),
+          libraries: missing.value.map(({ kind, name, location }) => ({ kind, name, location })),
+        })
+        const failed = results.filter((r) => r.status === 'failed')
+        setStatus(plexLibraryOutcome(results), failed.length ? 'err' : 'ok', 0)
+        emit('created', selected)
+      } catch (err) {
+        setStatus(`Create failed: ${err.message}`, 'err', 0)
+      } finally {
+        creating.value = false
+      }
+    }
+
+    watch(() => props.loads, loadPlan)
+
+    return { missing, missingSummary, creating, create, statusText, statusKind, PLEX_LIBRARY_LABELS }
+  },
+}
+
+const PLEX_LIBRARY_LABELS = { tv: 'TV', oneoff: 'One-off', movies: 'Movies' }
+const PLEX_LIBRARY_SUMMARIES = { tv: 'TV shows', oneoff: 'one-off recordings', movies: 'movies' }
+
+const listInWords = (items) => {
+  if (items.length < 2) return items[0] || ''
+  if (items.length === 2) return `${items[0]} or ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, or ${items.at(-1)}`
+}
+
+const plexLibraryOutcome = (results) => results
+  .map((r) => {
+    if (r.status === 'created') return `Created ${r.title}.`
+    if (r.status === 'exists') return `${r.location} is already in ${r.title}.`
+    return `${r.name || PLEX_LIBRARY_LABELS[r.kind]}: ${r.error}`
+  })
+  .join(' ')
 
 const ChannelSetupStep = {
   props: {
@@ -4663,7 +4767,7 @@ const WelcomeView = {
 
           <div v-if="step === 6" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
-              <strong>Optional.</strong> Connect to <strong class="text-plex-yellow">Plex</strong> so Freetvarr can trigger a library refresh after each sync. Skip if you don't use Plex.
+              <strong>Optional.</strong> Connect to <strong class="text-plex-yellow">Plex</strong> so Freetvarr can trigger a library refresh after each sync. If Plex has no library for your recordings yet, Freetvarr can create one. Skip if you don't use Plex.
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
@@ -4703,7 +4807,7 @@ const WelcomeView = {
               </div>
               <div class="field-row">
                 <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
-                <input type="text" class="field-input" v-model="plexPrefsPath" placeholder="/plex-preferences.xml" />
+                <input type="text" class="field-input" v-model="plexPrefsPath" placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                   Container-internal path. Requires a Docker bind-mount targeting this path. Edit if you mount Plex's <code>Preferences.xml</code> at a non-default location.
                 </p>
@@ -4725,6 +4829,8 @@ const WelcomeView = {
                 <span v-if="plexSectionsText"
                   :class="['status-readout', plexSectionsKind]">{{ plexSectionsText }}</span>
               </div>
+              <plex-library-setup :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
+                @created="usePlexLibraries" />
             </div>
           </div>
 
@@ -4804,6 +4910,7 @@ const WelcomeView = {
     const plexTokenStatus = ref('')
     const plexTokenStatusKind = ref('ok')
     const plexPrefsPath = ref('')
+    const plexSectionLoads = ref(0)
 
     const setPlexTokenStatus = (msg, kind = 'ok', ms = FLASH_DEFAULT_MS) => {
       plexTokenStatus.value = msg
@@ -4966,6 +5073,7 @@ const WelcomeView = {
         if (plexToken.value) body.plex_token = plexToken.value
         const { sections = [] } = await api('POST', '/api/plex-sections', body)
         plexSections.value = sections
+        plexSectionLoads.value++
         if (!silent || sections.length) {
           setPlexSections(`Loaded ${sections.length} Plex sections.`, 'ok', 5000)
         }
@@ -4974,6 +5082,17 @@ const WelcomeView = {
       } finally {
         plexProbing.value = false
       }
+    }
+
+    const usePlexLibraries = (selected) => {
+      if (selected.tv) plexSectionId.value = selected.tv
+      loadPlexSections({ silent: true })
+    }
+
+    const connectPlexQuietly = async () => {
+      if (plexToken.value || plexTokenSet.value) return loadPlexSections({ silent: true })
+      const r = await api('POST', '/api/plex-detect-token').catch(() => ({}))
+      if (r.ok) plexToken.value = r.token || ''
     }
 
     const discoverPlex = async () => {
@@ -5055,6 +5174,7 @@ const WelcomeView = {
     watch(step, (curr) => {
       if (curr === 2 && !tvhUrl.value.trim()) detectTvh({ quiet: true })
       if (curr === 2) checkBootstrap()
+      if (curr === 6) connectPlexQuietly()
     })
     watch([tvhUrl, tvhUsername, tvhPassword], () => {
       if (step.value === 2) clearSaveStatus()
@@ -5168,7 +5288,7 @@ const WelcomeView = {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
-      plexDiscovering, plexCandidates, plexDetectingToken, plexPrefsPath,
+      plexDiscovering, plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
@@ -8706,6 +8826,7 @@ app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
 app.component('time-zone-field', TimeZoneField)
 app.component('manual-option', ManualOption)
+app.component('plex-library-setup', PlexLibrarySetup)
 app.component('channel-setup-step', ChannelSetupStep)
 app.component('guide-setup-step', GuideSetupStep)
 app.component('channel-identity', ChannelIdentity)
