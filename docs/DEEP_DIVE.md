@@ -358,19 +358,20 @@ The TVHeadend URL and credentials, the Plex token, and the storage paths are run
 
 Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
-| Variable          | Notes                                                                                                                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `FREETVARR_PORT`  | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `3733`.                                                               |
-| `CONFIG_PATH`     | Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                                                      |
-| `DATA_PATH`       | Host root for the data. Holds only `recordings/` and `media/`. Freetvarr mounts it whole at `/data`; TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`.                          |
-| `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the "Auto-detect from local Plex" button can read `PlexOnlineToken`. Drop the mount if Plex isn't on this host. |
+| Variable          | Notes                                                                                                                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FREETVARR_PORT`  | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `3733`.                                                                  |
+| `CONFIG_PATH`     | Optional, default `./config`. Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                           |
+| `DATA_PATH`       | Optional, default `./data`. Host root for the data. Holds only `recordings/` and `media/`. Freetvarr mounts it whole at `/data`; TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`. |
+| `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the "Auto-detect from local Plex" button can read `PlexOnlineToken`. Drop the mount if Plex isn't on this host.    |
 
 ## Docker deployment
 
-- Freetvarr's image is built locally from the repo via compose; nothing is pushed to a registry. TVHeadend comes from `lscr.io/linuxserver/tvheadend`.
+- Compose pulls the Freetvarr image from `ghcr.io/furey/freetvarr`; no clone is needed to run it. TVHeadend comes from `lscr.io/linuxserver/tvheadend`. Contributors build from a clone with `docker-compose.dev.yml`.
 - The Dockerfile inlines `npm ci --ignore-scripts && npm run rebuild:natives` instead of calling `npm run setup`, so the build skips `npm audit signatures`. That step re-queries the registry and enforces `.npmrc`'s `min-release-age=3`, which would block whenever a brand-new dep is in the lockfile. Run `npm run setup` on the host once the newest dep has aged past the threshold; the lockfile's integrity hashes still verify package contents during `npm ci`.
 - Both services use `network_mode: host` (no `ports:` mapping). TVHeadend needs it to discover a network tuner such as an HDHomeRun, which announces itself by UDP broadcast that doesn't traverse Docker's bridge network. Side-effect: neither container is on a Docker bridge network, so they address each other by the host's LAN IP rather than by container name, and so does anything else that wants to reach them.
 - Both run as `${PUID}:${PGID}` (default `1000:1000`). They must match: Freetvarr hardlinks files TVHeadend wrote and deletes them afterwards.
+- A one-shot `init` service (`busybox`) runs first. It makes the subfolders of `CONFIG_PATH` and `DATA_PATH` and gives them to `PUID:PGID`; both other services wait for it with `service_completed_successfully`. Synology's Docker refuses to mount a host folder that does not exist, so `CONFIG_PATH` and `DATA_PATH` themselves must exist first; `install.sh` makes them, and standard Docker creates them itself.
 - `tini` is PID 1 inside the Freetvarr container so `SIGTERM` propagates cleanly.
 - The Docker healthcheck hits `GET /healthz` every `30 s`.
 - The container entrypoint (`docker-entrypoint.sh`) runs `knex migrate:latest` against `/config/state.db` before exec'ing the server, so pending migrations apply on the next start and a fresh host needs no manual migration.
@@ -465,7 +466,9 @@ freetvarr/
 ├── knexfile.js             # Honours DB_PATH env (defaults to ./config/state.db)
 ├── Dockerfile              # node:22-bookworm-slim + tini + comskip + ffmpeg + healthcheck
 ├── docker-entrypoint.sh    # `knex migrate:latest` then `exec node src/server.js`
-├── docker-compose.example.yml  # Both services; copy to docker-compose.yml
+├── docker-compose.example.yml  # Init, TVHeadend, and Freetvarr; download as docker-compose.yml
+├── docker-compose.hwaccel.example.yml  # Optional VAAPI override
+├── install.sh                  # Downloads the compose file, writes .env, starts it
 ├── docker-compose.dev.yml      # Override that builds Freetvarr from the checkout
 ├── .env.example            # Local-dev minimal envs (optional CSRF_SECRET and TZ overrides, PUID/PGID)
 ├── .npmrc                  # Supply-chain hardening
