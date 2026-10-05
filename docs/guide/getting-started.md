@@ -57,16 +57,13 @@ With no `.env`, everything lives in `./config` and `./data` beside the compose f
 
 Use this when you do not want to use SSH.
 
-> [!WARNING]<br>
-> This path is not yet tested end to end. The compose file is the same one tested over SSH.
-
 1. In File Station, make a folder such as `docker/freetvarr`.
 2. Make two subfolders in it: `config` and `data`.
-3. Open Container Manager, choose **Project**, then **Create**.
-4. Choose the folder you made.
-5. Upload the compose file (`docker-compose.example.yml`, saved as `docker-compose.yml`), or paste its content.
-6. Add `PUID` and `PGID` for your DSM user (often `1026` and `100`), as a `.env` in the folder or by editing the values in the compose file.
-7. Build and start the project.
+3. Optional: save a `.env` in the folder with your DSM user's `PUID` and `PGID` (often `1026` and `100`). Container Manager reads it.
+4. Open Container Manager, choose **Project**, then **Create**.
+5. Type a project name and choose the folder you made.
+6. Upload the compose file (`docker-compose.example.yml`), or paste its content. If the folder already holds a `docker-compose.yml`, choose **Use existing docker-compose.yml**.
+7. Tick **Start the project once it is created**, then finish.
 
 Synology's Docker refuses to mount a host folder that does not exist (standard Docker creates it). On Synology, the `config` and `data` folders must exist before the first start. The script makes them; in Option 3, step 2 does.
 

@@ -182,7 +182,7 @@ curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | s
 
 Run it again at any time; it keeps an existing `.env` and compose file. On a Synology NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
 
-To do it by hand, make a folder, save [`docker-compose.example.yml`](https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml) in it as `docker-compose.yml`, then run `docker compose up -d`. Synology Container Manager works too (not yet tested end to end). [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install) has all three paths.
+To do it by hand, make a folder, save [`docker-compose.example.yml`](https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml) in it as `docker-compose.yml`, then run `docker compose up -d`. Synology Container Manager works too, with no SSH. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install) has all three paths.
 
 ### 2. Configure
 
