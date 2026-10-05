@@ -54,16 +54,15 @@ The first visit to `http://<host-ip>:3733` opens the setup wizard:
 1. **Welcome**: confirm your time zone.
 2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password, check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`.
-4. **Storage**: keep the defaults.
-5. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)).
+4. **Guide**: check the guide region, then press `SET UP GUIDE`. Pick a guide for any channel left without one, or leave it. Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
+5. **Storage**: keep the defaults.
+6. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)).
 
 Every value can be changed later in Settings.
 
-## 3. Set up TVHeadend
+## 3. Follow shows
 
-Browse to `http://<host-ip>:9981`, sign in with the admin login, and follow [TVHeadend step 6](/guide/tvheadend#_6-load-the-xmltv-guide) to load the guide and [step 7](/guide/tvheadend#_7-set-the-recording-path) to check the recording path. The wizard already added the tuner and channels.
-
-Then follow shows on the Shows tab ([Following shows](/guide/following-shows)). To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**.
+Follow shows on the Shows tab ([Following shows](/guide/following-shows)). To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**.
 
 ## Configure
 

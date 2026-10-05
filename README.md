@@ -176,13 +176,13 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, channels, storage, Plex.
+The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, channels, guide, storage, Plex.
 
 On a NAS or another remote host, sign in over SSH first. To install by hand or with a NAS container app, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
 
-### Set up TVHeadend
+### Follow shows
 
-Browse to `http://<host-ip>:9981` and load the guide ([TVHeadend step 6](https://furey.github.io/freetvarr/guide/tvheadend#_6-load-the-xmltv-guide)). The wizard already added the tuner and channels. Then follow shows on the Shows tab.
+Follow shows on the Shows tab. To change TVHeadend by hand, see the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend).
 
 ### Configure
 

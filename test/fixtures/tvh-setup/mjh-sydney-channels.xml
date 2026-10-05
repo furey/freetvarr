@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tv SYSTEM "xmltv.dtd">
+<tv source-info-name="matthuisman.nz,xmltv.net,nzxmltv.com">
+  <channel id="mjh-seven-syd">
+    <display-name>Seven</display-name>
+    <lcn>71</lcn>
+    <icon src="https://i.mjh.nz/.images/auto-seven-syd-9608a4.png"/>
+  </channel>
+  <channel id="mjh-7two-syd">
+    <display-name>7two</display-name>
+    <lcn>72</lcn>
+    <icon src="https://i.mjh.nz/.images/auto-7two-syd-701123.png"/>
+  </channel>
+  <channel id="mjh-7mate-syd">
+    <display-name>7mate</display-name>
+    <lcn>74</lcn>
+    <icon src="https://i.mjh.nz/.images/auto-7mate-syd-360d60.png"/>
+  </channel>
+  <channel id="mjh-7flix-syd">
+    <display-name>7flix</display-name>
+    <lcn>76</lcn>
+    <icon src="https://i.mjh.nz/.images/auto-7flix-syd-c6badc.png"/>
+  </channel>
+  <channel id="mjh-channel-9-nsw">
+    <display-name>Channel 9</display-name>
+    <lcn>91</lcn>
+    <icon src="https://imageresizer.static9.net.au/lx1XIWcrYZRtnfJOqvxNn9CshDI=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F09%2F630608%2F9nine-1.png"/>
+  </channel>
+  <channel id="mjh-gem-nsw">
+    <display-name>9Gem</display-name>
+    <lcn>92</lcn>
+    <icon src="https://imageresizer.static9.net.au/d00389KKc5T4o5isRaDE9Pl9DWk=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F08%2F620929%2F9gem-1.png"/>
+  </channel>
+  <channel id="mjh-go-nsw">
+    <display-name>9Go!</display-name>
+    <lcn>93</lcn>
+    <icon src="https://imageresizer.static9.net.au/fcTwzkAJT4q81emfp2kYkgoxlDA=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F03%2F574470%2F9go.png"/>
+  </channel>
+  <channel id="mjh-life-nsw">
+    <display-name>9Life</display-name>
+    <lcn>94</lcn>
+    <icon src="https://imageresizer.static9.net.au/wMK3kBDybfEoN2iqyDDflC91D1U=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F03%2F574472%2F9life.png"/>
+  </channel>
+  <channel id="mjh-rush-nsw">
+    <display-name>9Rush</display-name>
+    <lcn>96</lcn>
+    <icon src="https://imageresizer.static9.net.au/5B2ZDlD8Ji6dCecGQEfwy2U2m4Y=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F03%2F574473%2F9rush.png"/>
+  </channel>
+  <channel id="mjh-channel-9-lismore">
+    <display-name>Channel 9 (Norther Rivers)</display-name>
+    <icon src="https://imageresizer.static9.net.au/lx1XIWcrYZRtnfJOqvxNn9CshDI=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F09%2F630608%2F9nine-1.png"/>
+  </channel>
+  <channel id="mjh-channel-9-newcastle">
+    <display-name>Channel 9 (Newcastle)</display-name>
+    <icon src="https://imageresizer.static9.net.au/lx1XIWcrYZRtnfJOqvxNn9CshDI=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F09%2F630608%2F9nine-1.png"/>
+  </channel>
+  <channel id="mjh-abc-nsw">
+    <display-name>ABC TV</display-name>
+    <lcn>21</lcn>
+    <icon src="https://i.mjh.nz/.images/abc-nsw.png"/>
+  </channel>
+  <channel id="mjh-10-nsw">
+    <display-name>10</display-name>
+    <lcn>10</lcn>
+    <icon src="https://10play.com.au/ip/s3/2025/06/25/b18ae76555d114f7bfaf1c3bfa43dd3f-1384577.png"/>
+  </channel>
+  <channel id="mjh-10bold-nsw">
+    <display-name>10 Drama</display-name>
+    <lcn>12</lcn>
+    <icon src="https://10play.com.au/ip/s3/2025/06/25/66c9f2639a7bca4a6691764a0db801d7-1384581.png"/>
+  </channel>
+  <channel id="mjh-10peach-nsw">
+    <display-name>10 Comedy</display-name>
+    <lcn>11</lcn>
+    <icon src="https://10play.com.au/ip/s3/2025/06/25/443fa2a5bca1191f12efa002a2a8ef85-1384586.png"/>
+  </channel>
+  <channel id="mjh-10shake-nsw">
+    <display-name>Nickelodeon</display-name>
+    <lcn>13</lcn>
+    <icon src="https://10play.com.au/ip/s3/2023/07/31/dc4873abc5ba0fde04b59a78c89e0943-1252731.png"/>
+  </channel>
+  <channel id="mjh-snowy-mountains">
+    <display-name>Snowy Mountains Television</display-name>
+    <icon src="https://i.mjh.nz/.images/smtv.png"/>
+  </channel>
+  <channel id="mjh-seinfeld-fast">
+    <display-name>Seinfeld</display-name>
+    <icon src="https://imageresizer.static9.net.au/yKlUxIHgYC5cpCmL1DYpRCQ6w4o=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F04%2F585342%2Fgroup-61657.png"/>
+  </channel>
+  <channel id="mjh-9crime-fast">
+    <display-name>9Crime</display-name>
+    <icon src="https://imageresizer.static9.net.au/OwBWBtMcLMF5vBP09k6w4LneJQM=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F04%2F585343%2Fgroup-61566.png"/>
+  </channel>
+  <channel id="mjh-the-block-247-fast">
+    <display-name>The Block 24/7</display-name>
+    <icon src="https://imageresizer.static9.net.au/Mj-NaVq7oZgtzt2bf55lkLIfyuQ=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F08%2F623508%2Ftheblock_squircle.png"/>
+  </channel>
+  <channel id="mjh-taronga-247-fast">
+    <display-name>Taronga 24/7</display-name>
+    <icon src="https://imageresizer.static9.net.au/HvEyaXfq57tpzSGiLjqejGDiyA8=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2026%2F06%2F779914%2Ftaronga_squircle.png"/>
+  </channel>
+  <channel id="mjh-bbc-news-fast">
+    <display-name>BBC News</display-name>
+    <icon src="https://imageresizer.static9.net.au/85c0UKHMSSRPXJ2MJ2PXqvUcXok=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2026%2F03%2F763537%2Fbbc_squircle.png"/>
+  </channel>
+  <channel id="mjh-9mysteryparanormal-fast">
+    <display-name>9Mystery&amp;Paranormal</display-name>
+    <icon src="https://imageresizer.static9.net.au/1l9r5t0Fkyry61l_5eKpIxtv0SE=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2025%2F04%2F685323%2Fmp_squircle.png"/>
+  </channel>
+  <channel id="mjh-married-at-first-sight-fast">
+    <display-name>Married At First Sight</display-name>
+    <icon src="https://imageresizer.static9.net.au/OCF69HZLp4AWm0cGB8bvgx4U8mQ=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F04%2F585176%2Fsquircle_mafs.png"/>
+  </channel>
+  <channel id="mjh-bbc-top-gear-247-fast">
+    <display-name>BBC Top Gear</display-name>
+    <icon src="https://imageresizer.static9.net.au/anIncnAgaLBmeroZtHqBIXHpW6c=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F11%2F648316%2Fgroup-61773.png"/>
+  </channel>
+  <channel id="mjh-dance-moms-247-fast">
+    <display-name>Dance Moms 24/7</display-name>
+    <icon src="https://imageresizer.static9.net.au/OKBRw5HKp9hAAVX3XM-A1HrVRug=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F04%2F585178%2Fsquircle_dancemoms.png"/>
+  </channel>
+  <channel id="mjh-lmn-fast">
+    <display-name>LMN</display-name>
+    <icon src="https://imageresizer.static9.net.au/GfA3WNoMOfZbJOqJeq-UrX5nsdk=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F12%2F658518%2Fgroup-61484.png"/>
+  </channel>
+  <channel id="mjh-real-emergency-fast">
+    <display-name>Real Emergency</display-name>
+    <icon src="https://imageresizer.static9.net.au/mEHWZZQZMecm6LaCcdOvOqgSn0Q=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2025%2F10%2F726130%2Frealemergencysquircle.png"/>
+  </channel>
+  <channel id="mjh-h2-fast">
+    <display-name>H2</display-name>
+    <icon src="https://imageresizer.static9.net.au/OxADVUkSO8Xp2ATCSJmMsa0gcDE=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2025%2F04%2F684622%2Fh2_squircle.png"/>
+  </channel>
+  <channel id="mjh-60-minutes-australia-fast">
+    <display-name>60 Minutes Australia</display-name>
+    <icon src="https://imageresizer.static9.net.au/kufGcZyXI7lNm32WrMV86xPNAnk=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F04%2F585173%2Fsquircle_60mins.png"/>
+  </channel>
+  <channel id="mjh-bbc-antiques-roadshow-247-fast">
+    <display-name>BBC Antiques Roadshow</display-name>
+    <icon src="https://imageresizer.static9.net.au/zRjEXK-6iFh-92EKnAZN9rXREkA=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F11%2F648315%2Fgroup-61774.png"/>
+  </channel>
+  <channel id="mjh-bbc-comedy-fast">
+    <display-name>BBC Comedy</display-name>
+    <icon src="https://imageresizer.static9.net.au/2bl6ZyviwjpHCeVoXf8twpEVFjo=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F11%2F648314%2Fgroup-61772.png"/>
+  </channel>
+  <channel id="mjh-bbc-home-garden-fast">
+    <display-name>BBC Home &amp; Garden</display-name>
+    <icon src="https://imageresizer.static9.net.au/RHsGPvwhtEktqfW-Tg4ygRMy1ug=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F11%2F648313%2Fgroup-61771.png"/>
+  </channel>
+  <channel id="mjh-bbc-food-fast">
+    <display-name>BBC Food</display-name>
+    <icon src="https://imageresizer.static9.net.au/fsW8mo_8BA8nztvHgpodxtSmcjo=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F12%2F652517%2Fgroup-61812.png"/>
+  </channel>
+  <channel id="mjh-10-judge-judy">
+    <display-name>Judge Judy</display-name>
+    <icon src="https://10.com.au/ip/s3/2022/09/02/461008ac0d02137f713ec0e4883be6c4-1177265.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-prisoner-cell-block-h">
+    <display-name>Prisoner: Cell Block H</display-name>
+    <icon src="https://10.com.au/ip/s3/2022/09/26/b6430b0f79d6b4c9fc5c6ea295bbae03-1182444.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-eightoutof10cats">
+    <display-name>8 Out Of 10 Cats</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/11/18/03a9b9a1a42bcf2ce1bbb94a8fa47224-1350731.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-forty-eight-hours">
+    <display-name>48 Hours</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/06/28/7dd910de29f31095b69e17f1da8f3f0e-1245997.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-adultanimation">
+    <display-name>Adult Animation</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/03/21/fb3a87d8a0126b81727106f43c2a2aef-1304705.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-grahamnorton">
+    <display-name>The Graham Norton Show</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/07/12/bcb38e1591564d24894210f4abd02423-1248623.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-mtvridiculousness">
+    <display-name>MTV Ridiculousness</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/02/19/6a7d740896d031b59c9d33d0e6dff544-1298686.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-haveyoubeenpayingattention">
+    <display-name>Have You Been Paying Attention?</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/12/17/20963e84ceedc64212b60c21c883e5c4-1356262.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-cheapseats">
+    <display-name>The Cheap Seats</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/08/08/47006754904d1d36520e76157ecbfb41-1390280.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-thankgodyourehere">
+    <display-name>Thank God You're Here</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/08/19/9cde4af8ad28a81defc2e020775ff74f-1390978.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-becker">
+    <display-name>Becker</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/06/28/e0449ed804aaacb1de64f87d94912dd3-1246030.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-aussiedramapopup">
+    <display-name>Rush</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/01/24/082f00086b990e915cd774644d67484c-1213111.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-rookieblue">
+    <display-name>rookie-blue</display-name>
+    <icon src="https://10.com.au/ip/s3/2026/02/01/b4f014a58a872ecca3409d233c38f122-1408366.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-heartland">
+    <display-name>Heartland</display-name>
+    <icon src="https://10.com.au/ip/s3/2026/02/01/8b5e285428d559ef6e3afdeebfe53a5d-1408387.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-diagnosismurder">
+    <display-name>Diagnosis Murder</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/06/28/5f85fc3d794a167630b935cb639abcc3-1246005.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-nexttopmodel">
+    <display-name>Next Top Model</display-name>
+    <icon src="https://10.com.au/ip/s3/2026/08/04/7b46b0620b6c96c6afcd7c47bf356f79-1448048.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-projectrunway">
+    <display-name>Project Runway</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/03/18/9652b72f62d4dcb715e22ec6f972b1e7-1369332.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-masterchef">
+    <display-name>MasterChef</display-name>
+    <icon src="https://10.com.au/ip/s3/2022/09/02/3fff1b47f7c01770b7f0f319770d5362-1177252.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-world-of-survivor">
+    <display-name>World Of Survivor</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/09/24/6a7955dee63fad795d40332b9cfbf8ce-1340644.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-mtv-the-shores">
+    <display-name>MTV The Shores</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/07/11/3901f5c4522a0c36cfed8630ab781a5e-1248401.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-theonlywayisessex">
+    <display-name>The Only Way Is Essex</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/10/21/644463c986545838587c1b800be3da68-1345463.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-undercoverboss">
+    <display-name>Undercover Boss</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/10/21/45e53866fa7cd6757ddf34e52e7a9262-1345397.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-hardcorepawn">
+    <display-name>Hardcore Pawn</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/03/03/1d46b70035ba5c816af46c6d4ee079cd-1366514.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-wicked-tuna">
+    <display-name>Wicked Tuna</display-name>
+    <icon src="https://10.com.au/ip/s3/2022/09/02/2d667eb54bf0119b84b744f9569ee214-1177247.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-embarrassing-bodies">
+    <display-name>Embarrassing Bodies</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/10/21/f315a8cda9494cc30e29fdba87430ff8-1345391.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-highwaythruhell">
+    <display-name>Highway Thru Hell</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/06/19/3c941c6bd357c1bc3acc855f846e842c-1383806.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-cops">
+    <display-name>COPS</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/03/30/6fadf0873ac36ecacdc63ed8bba4cf3d-1371071.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-medical-emergency">
+    <display-name>Medical Emergency</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/06/28/115b6796134f1e983f41c224c31cc7c9-1246084.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-deadlywomen">
+    <display-name>Deadly Women</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/06/19/01e576c63918373cd03aa21ea8566f1e-1383812.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-crime-time">
+    <display-name>Crime Time</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/09/25/c27b803a4128c5b097cd3a23e1be973c-1341004.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-crime-hunters">
+    <display-name>Crime Hunters</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/03/06/cb69de15e7b8989a218ad25b7f6547ef-1301820.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-true-stories">
+    <display-name>True Stories</display-name>
+    <icon src="https://10.com.au/ip/s3/2022/09/22/bf31efb3f5efe008cc774909b0cef282-1181809.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-haunt-tv">
+    <display-name>Haunt TV</display-name>
+    <icon src="https://10.com.au/ip/s3/2023/07/12/8cb62aeb9de0e12611b68059325da0f3-1248632.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-ghosthunters">
+    <display-name>Ghost Hunters</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/02/20/6a0f5d5002748886ee7b1936f996a304-1298978.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-anthonybourdain">
+    <display-name>Anthony Bourdain: Parts Unknown</display-name>
+    <icon src="https://10.com.au/ip/s3/2025/05/26/cbf83588f02110ded81566ecc62e2f0e-1380501.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-wildest">
+    <display-name>Wildest</display-name>
+    <icon src="https://10.com.au/ip/s3/2026/04/28/230f46ab9b55bdb4f98a00f616d8b0a2-1424324.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-shockwave">
+    <display-name>Shockwave</display-name>
+    <icon src="https://10.com.au/ip/s3/2026/03/31/145f61f54f2e66b3bf4a2fefff5b267a-1421437.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-historyandwarfare">
+    <display-name>History &amp; Warfare</display-name>
+    <icon src="https://10.com.au/ip/s3/2026/03/17/5010fc64782edb4842a94d1484f72514-1419388.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-moviesphere">
+    <display-name>Moviesphere</display-name>
+    <icon src="https://10.com.au/ip/s3/2022/12/05/6bb229de8fcf96e206e99ca455fc2267-1202912.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-nick-jr">
+    <display-name>Nick Jr Club</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/06/06/d14509f218578984e3a6f6f34f0ee12c-1319009.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-spongebobsquarepants">
+    <display-name>SpongeBob SquarePants</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/05/27/ee4d9694aa3f7a2fe97b6f18aa773b88-1316803.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-nicktoons">
+    <display-name>NickToons</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/06/04/f2f7c4166d8450351c2ae5d8b28c769e-1318512.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-nicktoons-90s">
+    <display-name>NickToons 90s</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/06/07/a1aaf63737e7d2076759dd850b58471a-1319376.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-nickteen">
+    <display-name>NickTeen</display-name>
+    <icon src="https://10.com.au/ip/s3/2024/06/04/ecc540be818b29d753e036e046028a27-1318595.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-geckotv">
+    <display-name>Gecko TV</display-name>
+    <lcn>17</lcn>
+    <icon src="https://10.com.au/ip/s3/2023/02/23/b81bfc3f4737696257ef326b0e68208e-1219777.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-10-youtv">
+    <display-name>YouTV</display-name>
+    <lcn>16</lcn>
+    <icon src="https://10.com.au/ip/s3/2024/07/10/33f7c16e8ba1628d52844cb45b8eac4f-1326074.png?image-profile=logo"/>
+  </channel>
+  <channel id="mjh-sbs-sbst">
+    <display-name>SBS</display-name>
+    <lcn>30</lcn>
+    <icon src="https://image.pr.sbsod.com/b073959a-a63e-5b6a-a05a-157d615a4b8c"/>
+  </channel>
+  <channel id="mjh-sbs-2syd">
+    <display-name>SBS2</display-name>
+    <lcn>31</lcn>
+    <icon src="https://image.pr.sbsod.com/e7f27bb4-4672-599e-b9b4-a72cfdd8d3ba"/>
+  </channel>
+  <channel id="mjh-sbs-3syd">
+    <display-name>SBS Food</display-name>
+    <lcn>33</lcn>
+    <icon src="https://image.pr.sbsod.com/336c48bb-129d-5348-9d2f-63ab4fe6d493"/>
+  </channel>
+  <channel id="mjh-sbs-5nsw">
+    <display-name>NITV</display-name>
+    <lcn>34</lcn>
+    <icon src="https://image.pr.sbsod.com/00ff96cd-68c3-5219-b792-c0c2faec1fe6"/>
+  </channel>
+  <channel id="mjh-sbs-4syd">
+    <display-name>SBS World Movies</display-name>
+    <lcn>32</lcn>
+    <icon src="https://image.pr.sbsod.com/cc42ae9e-0e64-5bc3-8c71-6f23f42610fb"/>
+  </channel>
+  <channel id="mjh-sbs-sb04">
+    <display-name>Koori Knockout</display-name>
+    <icon src="https://image.pr.sbsod.com/241574b9-51a2-55a5-bef8-a555021dd833"/>
+  </channel>
+  <channel id="mjh-sbs-france24">
+    <display-name>France 24</display-name>
+    <icon src="https://image.pr.sbsod.com/940bda61-531e-5e30-bb1e-69db1cdbb077"/>
+  </channel>
+  <channel id="mjh-sbs-euronews">
+    <display-name>euronews</display-name>
+    <icon src="https://image.pr.sbsod.com/60e599d9-82ed-5eac-b51c-7c23a9bb0c55"/>
+  </channel>
+  <channel id="mjh-sbs-sb02">
+    <display-name>Insight</display-name>
+    <icon src="https://image.pr.sbsod.com/ac68f57a-4655-5dc2-b17e-2ca3505e5e6c"/>
+  </channel>
+  <channel id="mjh-sbs-sb03">
+    <display-name>Dateline</display-name>
+    <icon src="https://image.pr.sbsod.com/8664060f-f5f6-598d-8d6a-8f7f59bc91c1"/>
+  </channel>
+  <channel id="mjh-sbs-sysdata_s_p_a_fifa_6">
+    <display-name>FIFA+</display-name>
+    <icon src="https://image.pr.sbsod.com/82e2f8e9-238d-599f-84e7-891a54026c9f"/>
+  </channel>
+  <channel id="mjh-sbs-sb01">
+    <display-name>The Cook Up</display-name>
+    <icon src="https://image.pr.sbsod.com/82c5d9dc-bda6-5a6b-affa-67f1ba01ff38"/>
+  </channel>
+  <channel id="mjh-sbs-7faa">
+    <display-name>Planet Luke Nguyen</display-name>
+    <icon src="https://image.pr.sbsod.com/6c1ccae0-2ddb-5e67-ae24-a4e42f23b2a0"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-chill">
+    <display-name>SBS Chill</display-name>
+    <lcn>306</lcn>
+    <icon src="https://image.pr.sbsod.com/e7673a4d-8596-5b98-8ed8-04ff7038b458"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-pop-asia">
+    <display-name>SBS PopAsia</display-name>
+    <lcn>307</lcn>
+    <icon src="https://image.pr.sbsod.com/bc85a376-7433-5d0b-9ba8-2b97a744d61b"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-pop-desi">
+    <display-name>SBS South Asian</display-name>
+    <lcn>305</lcn>
+    <icon src="https://image.pr.sbsod.com/4d5e3445-4705-5d55-81cf-3fc64a3ec2ff"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-pop-araby">
+    <display-name>SBS Arabic</display-name>
+    <lcn>304</lcn>
+    <icon src="https://image.pr.sbsod.com/37ad5c21-7dc4-55a9-bfab-0e6d1d8ebcb3"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-radio-1">
+    <display-name>SBS Radio 1</display-name>
+    <lcn>301</lcn>
+    <icon src="https://image.pr.sbsod.com/084f19c8-f6dc-5124-a06a-ebcaf8ef38c6"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-radio-2">
+    <display-name>SBS Radio 2</display-name>
+    <lcn>302</lcn>
+    <icon src="https://image.pr.sbsod.com/7d5749f1-254e-57ca-923d-2b2b1b33821f"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-radio-3">
+    <display-name>SBS Radio 3</display-name>
+    <lcn>303</lcn>
+    <icon src="https://image.pr.sbsod.com/30724f75-f20c-512c-9108-cda06930de39"/>
+  </channel>
+  <channel id="mjh-sbs-sbs-radio-4">
+    <display-name>SBS Radio 4</display-name>
+    <icon src="https://image.pr.sbsod.com/a976dde8-b9e1-5fa1-ac7c-d8431839b02f"/>
+  </channel>
+  <channel id="mjh-abc-kids">
+    <display-name>ABC Kids</display-name>
+    <lcn>22</lcn>
+    <icon src="https://i.mjh.nz/.images/abc-kids.png"/>
+  </channel>
+  <channel id="mjh-abc-tv-plus">
+    <display-name>ABC Family</display-name>
+    <lcn>22</lcn>
+    <icon src="https://cdn.iview.abc.net.au/thumbs/256/7_Family_C-1053_iview_LivestreamOff_2000x2000_new.png"/>
+  </channel>
+  <channel id="mjh-abc-me">
+    <display-name>ABC Entertains</display-name>
+    <lcn>23</lcn>
+    <icon src="https://cdn.iview.abc.net.au/thumbs/256/6_Entertains_C-1054_iview_LivestreamOn_2000x2000_new.png"/>
+  </channel>
+  <channel id="mjh-abc-news">
+    <display-name>ABC NEWS</display-name>
+    <lcn>24</lcn>
+    <icon src="https://i.mjh.nz/.images/abc-news.png"/>
+  </channel>
+  <channel id="mjh-abc-90-seconds-news">
+    <display-name>ABC News in 90 Seconds</display-name>
+    <icon src="https://live-production.wcms.abc-cdn.net.au/144a0dacebeb9f616c1fcd637e3b2cf2?impolicy=wcms_crop_resize&amp;cropH=630&amp;cropW=1119&amp;xPos=10&amp;yPos=0&amp;width=862&amp;height=485"/>
+  </channel>
+  <channel id="mjh-abc-90-seconds-business">
+    <display-name>ABC Business in 90 Seconds</display-name>
+    <icon src="https://live-production.wcms.abc-cdn.net.au/ae76d32898cca0be596b7f23c1bd41f2?impolicy=wcms_crop_resize&amp;cropH=630&amp;cropW=1119&amp;xPos=10&amp;yPos=0&amp;width=862&amp;height=485"/>
+  </channel>
+  <channel id="mjh-abc-90-seconds-sport">
+    <display-name>ABC Sport in 90 Seconds</display-name>
+    <icon src="https://live-production.wcms.abc-cdn.net.au/646cb8a032c847ec21c3de0de881e4cb?impolicy=wcms_crop_resize&amp;cropH=630&amp;cropW=1119&amp;xPos=10&amp;yPos=0&amp;width=862&amp;height=485"/>
+  </channel>
+  <channel id="mjh-abc-90-seconds-weather">
+    <display-name>ABC Weather in 90 Seconds</display-name>
+    <icon src="https://live-production.wcms.abc-cdn.net.au/d376e49724862f104d044ff6467f85d8?impolicy=wcms_crop_resize&amp;cropH=630&amp;cropW=1119&amp;xPos=10&amp;yPos=0&amp;width=862&amp;height=485"/>
+  </channel>
+  <channel id="mjh-sky-racing-1">
+    <display-name>Sky Racing #1</display-name>
+    <icon src="https://i.mjh.nz/.images/sky-racing-1.png"/>
+  </channel>
+  <channel id="mjh-sky-racing-2">
+    <display-name>Sky Racing #2</display-name>
+    <icon src="https://i.mjh.nz/.images/sky-racing-2.png"/>
+  </channel>
+  <channel id="mjh-sky-racing-thoroughbred">
+    <display-name>Sky Racing - Thoroughbred Central</display-name>
+    <icon src="https://i.mjh.nz/.images/sky-racing-thoroughbred.png"/>
+  </channel>
+  <channel id="mjh-bloomberg-tv">
+    <display-name>Bloomberg TV</display-name>
+    <icon src="https://i.mjh.nz/.images/bloomberg-tv.png"/>
+  </channel>
+  <channel id="mjh-sky-news-now">
+    <display-name>Sky News Now</display-name>
+    <icon src="https://i.mjh.nz/.images/sky-news-now.png"/>
+  </channel>
+  <channel id="mjh-good-dot">
+    <display-name>GOOD.</display-name>
+    <icon src="https://i.mjh.nz/.images/good-dot.png"/>
+  </channel>
+  <channel id="mjh-bbc-news">
+    <display-name>BBC News</display-name>
+    <icon src="https://i.mjh.nz/.images/bbc-news.png"/>
+  </channel>
+  <channel id="mjh-redbull-tv">
+    <display-name>Redbull TV</display-name>
+    <icon src="https://i.mjh.nz/.images/redbull-tv.png"/>
+  </channel>
+  <channel id="mjh-al-jazeera">
+    <display-name>Al Jazeera</display-name>
+    <icon src="https://i.mjh.nz/.images/al-jazeera.png"/>
+  </channel>
+  <channel id="mjh-channel-news-asia">
+    <display-name>Channel News Asia (CNA)</display-name>
+    <icon src="https://i.mjh.nz/.images/channel-news-asia.png"/>
+  </channel>
+  <channel id="mjh-dw-news">
+    <display-name>DW English</display-name>
+    <icon src="https://www.dw.com/images/icons/favicon-540x540.png"/>
+  </channel>
