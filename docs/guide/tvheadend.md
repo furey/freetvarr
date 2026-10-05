@@ -129,6 +129,8 @@ The channels land in **Configuration → Channel/EPG → Channels**. Fix the num
 
 ## 6. Load the XMLTV guide
 
+The **Guide** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. Follow this step by hand to choose each setting yourself.
+
 Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and Plex naming work. The Australian feed below is the example; [Outside Australia](#outside-australia) lists the source to use in other countries.
 
 ### Matt Huisman's free feed

@@ -63,6 +63,13 @@ import {
   planChannelSetup,
   suggestChannelSetup,
 } from './tvheadend-setup.js'
+import {
+  applyGuideSetup,
+  inspectGuide,
+  linkChannelsByHand,
+  planGuideSetup,
+  suggestGuide,
+} from './tvheadend-guide.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
 import {
   getGuideDay,
@@ -1465,6 +1472,86 @@ const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
   }
   return messages[code] || byStep[failedStep] || { error, next: 'Try again.' }
 }
+
+let guideRun = null
+
+app.get('/api/tvh-guide/status', bootstrapStatusLimiter, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const inspection = await inspectGuide({ http: setupHttp, conn: await resolveConnection() })
+    res.json({ ok: true, suggestion: suggestGuide({ inspection, timeZone: currentTimeZone() }), job: guideRun })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).`, job: guideRun })
+  }
+})
+
+app.get('/api/tvh-guide/progress', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(guideRun || { running: false, steps: [], result: null })
+})
+
+app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  if (guideRun?.running) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up the guide.' })
+  const url = String(req.body?.url ?? '').trim()
+  if (!/^https?:\/\/[^\s]+$/i.test(url)) {
+    return res.status(400).json({ ok: false, error: 'Enter a guide address that starts with http:// or https://.' })
+  }
+  let conn
+  try {
+    conn = await resolveConnection()
+  } catch (err) {
+    return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
+  }
+  const steps = planGuideSetup().steps.map((step) => ({ ...step, status: 'pending', detail: null }))
+  guideRun = { running: true, steps, result: null }
+  res.status(202).json({ ok: true, steps })
+  const result = await applyGuideSetup({
+    http: setupHttp,
+    conn,
+    url,
+    onProgress: (latest) => { guideRun.steps = latest },
+  }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: guideRun.steps }))
+  if (result.ok) console.log(`[tvh-guide] ${url}: ${result.linked} of ${result.total} channels have a guide`)
+  else console.warn(`[tvh-guide] stopped at ${result.failedStep}: ${result.error}`)
+  guideRun = { running: false, steps: result.steps, result: result.ok ? result : { ...result, ...guideFailure(result) } }
+})
+
+app.post('/api/tvh-guide/links', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  const links = (Array.isArray(req.body?.links) ? req.body.links : [])
+    .map((l) => ({ channelId: String(l?.channel_id || ''), guideId: String(l?.guide_id || '') }))
+    .filter((l) => l.channelId && l.guideId)
+  if (!links.length) return res.json({ ok: true, linked: 0 })
+  try {
+    const result = await linkChannelsByHand({ http: setupHttp, conn: await resolveConnection(), links })
+    if (guideRun?.result?.ok) {
+      const done = new Set(links.map((l) => l.channelId))
+      const unmatched = guideRun.result.unmatched.filter((c) => !done.has(c.id))
+      guideRun.result = { ...guideRun.result, unmatched, linked: guideRun.result.linked + result.linked }
+    }
+    res.json({ ok: true, ...result })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `TVHeadend did not save the guide links (${err.message}).` })
+  }
+})
+
+const guideFailure = ({ code, error }) => ({
+  'no-grabber': {
+    error: 'This TVHeadend cannot download a guide from an address.',
+    next: 'Use the guide that comes with the broadcast, or set up a guide in TVHeadend.',
+  },
+  'feed-unreachable': {
+    error: `${error} Your TV still works; recording by show needs the guide.`,
+    next: 'Check the guide address, then try again.',
+  },
+  'feed-empty': {
+    error: 'The guide address returned no channels.',
+    next: 'Check the guide address, then try again.',
+  },
+  'download-timeout': {
+    error: 'TVHeadend did not finish loading the guide in 5 minutes.',
+    next: 'Try again. If it still fails, check that TVHeadend can reach the guide address.',
+  },
+})[code] || { error, next: 'Try again.' }
 
 app.post('/api/plex-detect-token', doubleCsrfProtection, async (req, res) => {
   const result = await detectPlexTokenFromPreferences()
