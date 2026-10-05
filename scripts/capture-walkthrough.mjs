@@ -76,10 +76,10 @@ const run = async () => {
   const browser = await chromium.launch({ args: ['--font-render-hinting=none'] })
   const context = await browser.newContext({
     viewport: VIEWPORT,
-    deviceScaleFactor: 1,
+    deviceScaleFactor: 2,
     bypassCSP: true,
     timezoneId: TIMEZONE,
-    recordVideo: { dir: OUT, size: VIEWPORT },
+    recordVideo: { dir: OUT, size: { width: VIEWPORT.width * 2, height: VIEWPORT.height * 2 } },
   })
   const picks = await prepareDemoContext({ context, base: BASE, simNow })
   console.log(`programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; search: ${picks.searchTerm}`)

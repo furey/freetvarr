@@ -12,7 +12,7 @@ description: >-
 - A **TVHeadend-compatible tuner**. [Hardware](/guide/hardware) covers the choice.
 - **Docker with Compose v2** on a host that stays on.
 
-The compose file runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional.
+The compose file runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the compose file can run Plex too ([No Plex yet?](/guide/plex#no-plex-yet)).
 
 ## 1. Install
 
@@ -52,14 +52,14 @@ Run the script again at any time. It keeps an existing `.env` and compose file. 
 The first visit to `http://<host-ip>:3733` opens the setup wizard:
 
 <!-- markdownlint-disable-next-line MD033 -->
-<BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" credit="" />
+<BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" credit="" aria-label="A walkthrough of the Freetvarr setup wizard, from the time zone to the ready step" />
 
 1. **Welcome**: confirm your time zone.
 2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password, check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`.
 4. **Guide**: check the guide region, then press `SET UP GUIDE`. Pick a guide for any channel left without one, or leave it. Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
 5. **Storage**: keep the defaults.
-6. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)).
+6. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)). If Plex has no library for your recordings yet, press `CREATE LIBRARIES`.
 
 Every value can be changed later in Settings.
 

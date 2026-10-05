@@ -1,0 +1,29 @@
+{
+  "MediaContainer": {
+    "size": 1,
+    "Directory": [
+      {
+        "key": "5",
+        "type": "show",
+        "title": "TV Shows",
+        "agent": "tv.plex.agents.series",
+        "scanner": "Plex TV Series",
+        "language": "en-US",
+        "metadataAgentProviderGroupId": 2,
+        "uuid": "0d44d62f-f011-4df9-bfed-b608886893c5",
+        "updatedAt": 1791242573,
+        "createdAt": 1791242573,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": -1,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 5,
+            "path": "/data/media/tv"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -17,7 +17,9 @@ Set these in the `.env` alongside `docker-compose.yml`. Every value is optional:
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CONFIG_PATH`            | Optional. Host folder for the two containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                                                                 |
 | `DATA_PATH`              | Optional. Host folder (default `./data`) that holds `recordings/` (TVHeadend's output), `media/tv` (your TV library), and `media/one-offs` (recordings with no series folder), and nothing else. [One shared mount](#one-shared-mount) explains why |
-| `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host                                                                                                                                   |
+| `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button, for a Plex on this host that the `plex` profile did not start; omit otherwise                                                                                     |
+| `COMPOSE_PROFILES`       | Optional. `plex` adds the Plex service to `docker compose up -d` ([No Plex yet?](/guide/plex#no-plex-yet))                                                                                                                                          |
+| `PLEX_CLAIM`             | Optional, `plex` profile only. The claim code from `https://plex.tv/claim`, which signs the new Plex in to your Plex account. A code expires 4 minutes after you get it                                                                             |
 | `CSRF_SECRET`            | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`. See [CSRF secret](#csrf-secret)                                                                                    |
 | `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in the wizard; a zone chosen in Settings wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                                  |
 | `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Both services use the same pair                                                                                 |
@@ -56,9 +58,9 @@ The optional **movies folder** (`movies_root`, or `MOVIES_ROOT`) takes [films](/
 
 ## One shared mount
 
-Freetvarr imports a recording as a hardlink: a second name for the same file. A hardlink is instant and uses no extra disk. Linux refuses a hardlink between two bind mounts, even when both sit on one disk. The refusal is the `EXDEV` error. Freetvarr then copies the whole file.
+Keep the recordings and your library inside one folder, mounted into the container once. Freetvarr then imports each recording instantly and uses no extra disk space. If they sit in two separate mounts, Freetvarr copies every recording instead, which is slower and takes twice the space.
 
-The example compose file avoids this. It mounts `${DATA_PATH}` once, at `/data`, and the recordings, the TV library, and the one-off folder are all folders inside that one mount:
+The example compose file does this. It mounts `${DATA_PATH}` once, at `/data`, and the recordings, the TV library, and the one-off folder are all folders inside it:
 
 ```yaml
     volumes:
@@ -72,7 +74,9 @@ The example compose file avoids this. It mounts `${DATA_PATH}` once, at `/data`,
 
 Keep only `recordings/` and `media/` in `${DATA_PATH}`. Freetvarr can write to everything in the mount.
 
-If your folders live in separate places, mount one parent folder that holds both, or move them under one. The [Doctor](/guide/doctor#paths-hardlink) Hardlinks check makes a real test link and says which case you have.
+If your folders live in separate places, mount one parent folder that holds both, or move them under one. The [Doctor](/guide/doctor#paths-hardlink) Hardlinks check tells you whether imports are instant or copied.
+
+For the technically minded: Freetvarr imports with a hardlink (a second name for the same file), and Linux refuses a hardlink across two mounts with the `EXDEV` error.
 
 When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file paths on startup and when you save Settings. You do not edit the database.
 
