@@ -12,8 +12,11 @@
 #   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # only if Plex runs on this host
 #   TZ=Australia/Sydney                       # overrides the zone chosen in Freetvarr
 #
-# The one-shot `init` service creates the folders and gives them to PUID:PGID
-# before the other services start, so a fresh host needs no mkdir or chown.
+# The one-shot `init` service creates the folders inside CONFIG_PATH and
+# DATA_PATH and gives them to PUID:PGID before the other services start.
+# Synology's Docker refuses to mount a host folder that does not exist, so on a
+# Synology NAS create CONFIG_PATH and DATA_PATH (./config and ./data) first;
+# install.sh does this for you. Standard Docker creates them itself.
 # Freetvarr generates its CSRF secret into its config folder on first start;
 # set CSRF_SECRET only to override it. TVHeadend mounts the host's
 # /etc/localtime, so it follows the host clock's zone; Freetvarr asks for its

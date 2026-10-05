@@ -70,6 +70,10 @@ else
   esac
 fi
 
+config_path="$(sed -n 's/^CONFIG_PATH=//p' .env)"
+data_path="$(sed -n 's/^DATA_PATH=//p' .env)"
+mkdir -p "${config_path:-./config}" "${data_path:-./data}"
+
 docker compose pull
 docker compose up -d
 
