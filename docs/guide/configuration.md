@@ -11,16 +11,16 @@ Freetvarr reads settings from two places. The `.env` next to your compose file h
 
 ## Compose environment
 
-Set these in the `.env` alongside `docker-compose.yml`:
+Set these in the `.env` alongside `docker-compose.yml`. Every value is optional:
 
 | Variable                 | Purpose                                                                                                                                                                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONFIG_PATH`            | Host folder for the two containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                                                                                             |
-| `DATA_PATH`              | Host folder that holds `recordings/` (TVHeadend's output), `media/tv` (your TV library), and `media/one-offs` (recordings with no show rule), and nothing else. [One shared mount](#one-shared-mount) explains why                               |
+| `CONFIG_PATH`            | Optional. Host folder for the two containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                                                              |
+| `DATA_PATH`              | Optional. Host folder (default `./data`) that holds `recordings/` (TVHeadend's output), `media/tv` (your TV library), and `media/one-offs` (recordings with no show rule), and nothing else. [One shared mount](#one-shared-mount) explains why  |
 | `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host                                                                                                                                |
 | `CSRF_SECRET`            | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`. See [CSRF secret](#csrf-secret)                                                                                 |
 | `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Overrides the zone chosen in Freetvarr's settings (the wizard and Settings then show the zone as set by `.env`), and applies to TVHeadend when set. TVHeadend otherwise follows the host clock |
-| `PUID`/`PGID`            | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services                                                                                                                                         |
+| `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Both services use the same pair                                                                              |
 | `FREETVARR_PORT`         | Host port to serve on (default `3733`)                                                                                                                                                                                                           |
 | `TVH_URL`                | Optional. Fixes the address `AUTO-DISCOVER TVHEADEND` offers; omit to let Freetvarr probe port `9981` on the host                                                                                                                                |
 | `LIVE_TV_MAX_SESSIONS`   | Optional. How many channels the [live TV](/guide/live-tv#stream-handling) player streams at once (default `2`)                                                                                                                                   |

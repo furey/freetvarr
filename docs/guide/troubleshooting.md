@@ -51,7 +51,7 @@ The TVHeadend web UI answers `403 Forbidden` to the admin login: the password TV
 `TEST PATH` checks a folder inside the Freetvarr container, not on the host.
 
 - **"/data/recordings does not exist inside the container"**: the compose file doesn't mount a folder at that path. Check the `volumes:` of the `freetvarr` service, then run `docker compose up -d freetvarr` to apply the change.
-- **"is not readable by the container user"** or **"is not writable by the container user"**: the host folder belongs to a different user from `PUID`/`PGID`. Run `ls -ln` on the host folder, then `chown` it to the `PUID:PGID` pair both containers run as. A bind-mount folder that Docker created for you belongs to `root`.
+- **"is not readable by the container user"** or **"is not writable by the container user"**: the host folder belongs to a different user from `PUID`/`PGID`. Run `ls -ln` on the host folder, then `chown` it to the `PUID:PGID` pair both containers run as. The `init` service gives the subfolders of `CONFIG_PATH` and `DATA_PATH` to `PUID:PGID` on every start, so this appears only when you change `PUID`/`PGID` or put other folders in the mount; fix the folder it names.
 - **"is on the same disk as the media root but in a separate mount, so imports copy each file"**: this is a notice, not a failure. Imports still work. Mount one folder that holds both `recordings/` and `media/`, as in [One shared mount](/guide/configuration#one-shared-mount), to make them hardlinks.
 - **"is on a different disk from the media root, so imports copy each file"**: this is a notice, not a failure. Imports still work. Move `recordings/` and `media/` onto one disk, then mount one folder that holds both.
 
