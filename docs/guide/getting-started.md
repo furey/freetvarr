@@ -24,7 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | s
 
 The script writes a `.env` with your user and group, asks you to confirm it, starts both services, and prints the URL of the setup wizard. Open that URL and go to [step 2](#_2-run-the-wizard).
 
-Run the script again at any time. It keeps an existing `.env` and compose file. On a Synology NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
+Run the script again at any time. It keeps an existing `.env` and compose file. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
 
 ### Install: by hand
 
@@ -34,16 +34,18 @@ Run the script again at any time. It keeps an existing `.env` and compose file. 
 4. Start both services: `docker compose up -d`.
 5. Browse to `http://<host-ip>:3733`.
 
-### Install: Synology Container Manager
+### Install: NAS container app
 
-1. In File Station, make a folder such as `docker/freetvarr`.
+1. In the NAS file manager, make a folder such as `docker/freetvarr`.
 2. Make two subfolders in it: `config` and `data`.
-3. Optional: save a `.env` in the folder with your DSM user's `PUID` and `PGID` (often `1026` and `100`).
-4. Open Container Manager, choose **Project**, then **Create**.
-5. Type a project name and choose the folder you made.
-6. Upload [`docker-compose.example.yml`](https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml), or paste its content.
-7. Tick **Start the project once it is created**, then finish.
-8. Browse to `http://<nas-ip>:3733`.
+3. Optional: save a `.env` in the folder with your NAS user's `PUID` and `PGID`.
+4. In the NAS container app, create a Compose project (some apps call it a stack) in the folder you made.
+5. Upload [`docker-compose.example.yml`](https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml), or paste its content.
+6. Start the project.
+7. Browse to `http://<nas-ip>:3733`.
+
+> [!NOTE]<br>
+> The author's NAS is a Synology. On Synology DSM the file manager is File Station, and the container app is Container Manager (**Project → Create**, then tick **Start the project once it is created**). The first DSM user is often `PUID=1026` and `PGID=100`. Docker is at `/usr/local/bin`, which is on the `PATH` only in an SSH login shell.
 
 ## 2. Run the wizard
 
@@ -88,12 +90,12 @@ If TVHeadend already runs on another host or in another compose project:
 
 The Freetvarr host's address must fall inside the allowed networks of the TVHeadend user. See [The two recordings paths](/guide/configuration#the-two-recordings-paths).
 
-## On a Synology NAS
+## On a NAS
 
-- Sign in over SSH before you run the install script or `docker compose`, so `/usr/local/bin` is on the `PATH`.
-- Make the `config` and `data` folders before the first start. The install script does this; in Container Manager, make them in File Station.
-- Set `PUID` and `PGID` to your DSM user's values from `id`; the first DSM user is often `uid=1026`, and the group is usually `gid=100`.
-- Use a network tuner. USB DVB tuners do not work on DSM ([Hardware](/guide/hardware)).
+- Sign in over SSH before you run the install script or `docker compose`, so Docker is on the `PATH`.
+- Make the `config` and `data` folders before the first start. Some NAS Docker builds refuse to mount a folder that does not exist. The install script makes them; with a container app, make them in the NAS file manager.
+- Set `PUID` and `PGID` to your NAS user's values from `id`.
+- Use a network tuner. Most NAS operating systems have no USB DVB drivers ([Hardware](/guide/hardware)).
 
 ## Updating
 
