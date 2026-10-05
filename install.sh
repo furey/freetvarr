@@ -17,7 +17,7 @@ say() { printf '%s\n' "$*"; }
 fail() { say "[install] $*" >&2; exit 1; }
 
 ask() {
-  if [ -r /dev/tty ]; then
+  if { : < /dev/tty; } 2>/dev/null; then
     printf '%s ' "$1" > /dev/tty
     read -r answer < /dev/tty || answer=""
     printf '%s' "$answer"
