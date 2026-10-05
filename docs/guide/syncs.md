@@ -7,7 +7,7 @@ description: >-
 
 # Syncs
 
-A sync is one pass over TVHeadend's finished recordings: list them, match them against your followed shows, import anything new, then refresh Plex if something imported. The Syncs tab is the history of those passes.
+A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if something imported. The Syncs tab is the history of those passes.
 
 ![The Syncs tab](../img/screenshot-syncs.png)
 
@@ -21,7 +21,7 @@ In the iPhone Home Screen app, pull down from the top of a page to reload its da
 
 ## Scheduled and manual
 
-Set a schedule in Settings as a cron expression (the `* * * * *` timing string) and Freetvarr checks TVHeadend on that schedule; changing it takes effect without a restart. You can also Sync now for every enabled show at once, or for a single show from the [Shows tab](/guide/following-shows).
+Set a schedule in Settings as a cron expression (the `* * * * *` timing string) and Freetvarr checks TVHeadend on that schedule; changing it takes effect without a restart. You can also Sync now for every series and title match at once, or for a single series from the [SERIES tab](/guide/series#series-rows).
 
 Only one sync runs at a time. A second request while one runs returns the running sync.
 

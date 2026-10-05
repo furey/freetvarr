@@ -19,6 +19,7 @@ import {
   rulerTickMinutes,
 } from '/guide-time.js'
 import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
+import { findHdSimulcast } from '/simulcast.js'
 
 let csrfToken = null
 
@@ -537,9 +538,10 @@ const SYNC_DOTS = { ok: '#e2b03c', partial: '#ffcd00', error: '#ffab3d', running
 const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
 
-const ROUTES = ['dashboard', 'live', 'guide', 'shows', 'syncs', 'recordings', 'settings', 'doctor', 'welcome']
+const ROUTES = ['dashboard', 'live', 'guide', 'series', 'syncs', 'recordings', 'settings', 'doctor', 'welcome']
 const WELCOME_DISMISSED_KEY = 'freetvarr.welcomeDismissed'
 const DEFAULT_ROUTE = 'dashboard'
+const ROUTE_ALIASES = { shows: 'series' }
 
 const DASHBOARD_POLL_MS = 30_000
 const SYNCS_POLL_MS = 30_000
@@ -550,15 +552,24 @@ const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 const hashSegments = () => (window.location.hash || '').replace(/^#\/?/, '').toLowerCase().split('/')
 
 const parseHash = () => {
-  const [view] = hashSegments()
+  const [segment] = hashSegments()
+  const view = ROUTE_ALIASES[segment] || segment
   return ROUTES.includes(view) ? view : DEFAULT_ROUTE
 }
 
 const parseHashSection = () => hashSegments()[1] || ''
 
+const canonicaliseHash = () => {
+  const [segment, ...rest] = hashSegments()
+  const view = ROUTE_ALIASES[segment]
+  if (view) history.replaceState(null, '', `#/${[view, ...rest].join('/')}`)
+}
+
+canonicaliseHash()
 const route = ref(parseHash())
 const routeSection = ref(parseHashSection())
 window.addEventListener('hashchange', () => {
+  canonicaliseHash()
   route.value = parseHash()
   routeSection.value = parseHashSection()
 })
@@ -1390,9 +1401,9 @@ const DashboardView = {
           <span class="panel-heading">
             <span class="panel-title">SYNC DECK</span>
             <info-button title="SYNC DECK" doc="guide/syncs#dashboard-sync-deck">
-              <p>A sync reads the finished recordings in TVHeadend, imports the episodes of the shows you follow into your media folder, then asks Plex to refresh.</p>
+              <p>A sync reads the finished recordings in TVHeadend, imports them into your library (series episodes into their series folders, single recordings and films into the one-off and movies folders), then asks Plex to refresh.</p>
               <ul><li><strong>STATUS</strong>: idle, or syncing.</li><li><strong>LAST SYNC</strong>: when the last sync ran, and how it went.</li><li><strong>RESULT</strong>: what it imported, or what failed.</li><li><strong>SYNC NOW</strong>: runs a sync at once, without waiting for the schedule.</li></ul>
-              <p>The strip below shows TVHeadend, your followed shows, the last 7 days of recordings, and Plex. Press a cell to open its page.</p>
+              <p>The strip below shows TVHeadend, your series, the last 7 days of recordings, and Plex. Press a cell to open its page.</p>
             </info-button>
           </span>
           <span v-if="nextSyncLabel" class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim" :title="'Cron: ' + syncStatus.cron">NEXT SYNC · <span class="text-ink">{{ nextSyncLabel }}</span></span>
@@ -1475,8 +1486,9 @@ const DashboardView = {
     const shownSyncId = computed(() => syncStatus.value.activeSyncId || heldSyncId.value)
     const recentSyncs = ref([])
     const statsLoaded = ref(false)
-    const showCount = ref(0)
-    const showEnabledCount = ref(0)
+    const seriesCount = ref(0)
+    const outsideLibraryCount = ref(0)
+    const seriesUnavailable = ref(false)
     const recordings7dCount = ref(0)
     const plexConfigured = ref(false)
     const plexHost = ref('')
@@ -1528,16 +1540,17 @@ const DashboardView = {
 
 
     const refresh = async () => {
-      const [syncs, , shows, recordings, settings] = await Promise.all([
+      const [syncs, , series, recordings, settings] = await Promise.all([
         api('GET', '/api/syncs').catch(() => ({ syncs: [] })),
         loadSyncStatus().then(ensureSyncPolling),
-        api('GET', '/api/shows').catch(() => ({ shows: [] })),
+        api('GET', '/api/series').catch((err) => ({ series: [], error: err.message })),
         api('GET', '/api/recordings').catch(() => ({ recordings: [] })),
         api('GET', '/api/settings').catch(() => ({})),
       ])
       recentSyncs.value = (syncs.syncs || []).slice(0, 5)
-      showCount.value = shows.shows?.length || 0
-      showEnabledCount.value = shows.shows?.filter((s) => s.enabled).length || 0
+      seriesCount.value = series.series?.length || 0
+      outsideLibraryCount.value = series.series?.filter((s) => s.savesTo?.kind !== 'library').length || 0
+      seriesUnavailable.value = Boolean(series.error)
       recordings7dCount.value = recordings.recordings?.filter((r) => within7Days(r.imported_at)).length || 0
       plexConfigured.value = Boolean(settings.plex_url && settings.plex_token_set && settings.plex_tv_section_id)
       plexHost.value = hostOf(settings.plex_url)
@@ -1559,10 +1572,12 @@ const DashboardView = {
       return { ...base, health: 'ok', value: bits.join(' · ') || 'reachable' }
     })
 
-    const showsCell = computed(() => {
-      if (!statsLoaded.value) return { label: 'SHOWS', href: '#/shows', value: '—' }
-      if (!showCount.value) return { label: 'SHOWS', href: '#/guide', value: 'follow a show', cta: true }
-      return { label: 'SHOWS', href: '#/shows', value: `${showCount.value} · ${showEnabledCount.value} enabled` }
+    const seriesCell = computed(() => {
+      const base = { label: 'SERIES', href: '#/series' }
+      if (!statsLoaded.value || seriesUnavailable.value) return { ...base, value: '—' }
+      if (!seriesCount.value) return { ...base, href: '#/guide', value: 'record a series', cta: true }
+      const outside = outsideLibraryCount.value ? ` · ${outsideLibraryCount.value} not in library` : ''
+      return { ...base, value: `${seriesCount.value} series${outside}` }
     })
 
     const recordingsCell = computed(() => ({
@@ -1578,7 +1593,7 @@ const DashboardView = {
       return { ...base, health: 'ok', value: plexHost.value || 'connected' }
     })
 
-    const pipeline = computed(() => [tvhCell.value, showsCell.value, recordingsCell.value, plexCell.value])
+    const pipeline = computed(() => [tvhCell.value, seriesCell.value, recordingsCell.value, plexCell.value])
 
     const lastSyncCell = computed(() => {
       const s = deckSync.value
@@ -1670,188 +1685,291 @@ const DashboardView = {
   },
 }
 
-const ShowsView = {
+const mediaRootPrefix = (mediaRoot) => `${(mediaRoot || '/media/tv').replace(/\/+$/, '')}/`
+
+const folderNameFor = (title) => String(title || '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
+
+const FolderEditor = {
+  props: {
+    folder: { type: Object, required: true },
+    folders: { type: Array, default: () => [] },
+    mediaRoot: { type: String, default: '' },
+    adRemovalEnabled: Boolean,
+  },
+  emits: ['saved', 'cancel', 'deleted'],
+  template: `
+    <form class="series-editor space-y-4" @submit.prevent="save">
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="field-row">
+          <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
+          <div class="field-prefixed">
+            <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
+            <input :id="'saves-to-' + folder.id" type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
+          </div>
+          <datalist id="series-media-folders">
+            <option v-for="d in folders" :key="d" :value="d" />
+          </datalist>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Season folders</label>
+          <input type="text" v-model="seasonTemplate" placeholder="Season {season}" class="field-input" />
+        </div>
+        <div class="field-row">
+          <label class="field-label">Recording titles that contain</label>
+          <input type="text" v-model="pattern" class="field-input" />
+          <p class="text-xs text-ink-mute mt-2">Case-insensitive. The longest match wins when two folders match.</p>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Ad removal</label>
+          <select class="field-input" v-model="adRemoval" :disabled="!adRemovalEnabled">
+            <option value="off">OFF</option>
+            <option value="detect">DETECT — report ad breaks only</option>
+            <option value="cut">CUT — remove ad breaks (keeps .orig backup)</option>
+          </select>
+          <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <toggle-switch v-model="deleteAfter">REMOVE FROM TVHEADEND AFTER IMPORT</toggle-switch>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="submit" class="btn btn-primary" :disabled="saving">
+          <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
+        </button>
+        <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
+        <button type="button" class="btn btn-danger ml-auto" @click="remove" :disabled="saving"><trash-icon /> DELETE</button>
+        <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
+      </div>
+    </form>
+  `,
+  setup(props, { emit }) {
+    const [statusText, statusKind, setStatus] = makeStatus()
+    const destFolder = ref(props.folder.dest_folder)
+    const seasonTemplate = ref(props.folder.season_template)
+    const pattern = ref(props.folder.show_pattern)
+    const adRemoval = ref(props.folder.ad_removal || 'off')
+    const deleteAfter = ref(Boolean(props.folder.delete_after_import))
+    const saving = ref(false)
+
+    const save = async () => {
+      if (!destFolder.value.trim() || !pattern.value.trim()) {
+        setStatus('Enter where to save and the title.', 'err', 5000)
+        return
+      }
+      saving.value = true
+      try {
+        await api('PATCH', `/api/shows/${props.folder.id}`, {
+          dest_folder: destFolder.value.trim(),
+          season_template: seasonTemplate.value.trim() || 'Season {season}',
+          show_pattern: pattern.value.trim(),
+          enabled: true,
+          delete_after_import: deleteAfter.value,
+          ...(props.adRemovalEnabled ? { ad_removal: adRemoval.value } : {}),
+        })
+        emit('saved')
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'err', 5000)
+      } finally {
+        saving.value = false
+      }
+    }
+
+    const remove = async () => {
+      if (!confirm(`Delete the settings for "${props.folder.show_pattern}"? Files already in the library stay.`)) return
+      saving.value = true
+      try {
+        await api('DELETE', `/api/shows/${props.folder.id}`)
+        emit('deleted')
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'err', 5000)
+      } finally {
+        saving.value = false
+      }
+    }
+
+    return {
+      destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving,
+      save, remove, statusText, statusKind, mediaRootPrefix,
+    }
+  },
+}
+
+const SeriesView = {
   template: `
     <div class="view-reveal space-y-6">
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">TRACKED SHOWS · {{ shows.length }}</span>
-            <info-button title="TRACKED SHOWS" doc="guide/following-shows">
-              <p>The shows Freetvarr imports. Each sync checks the finished recordings in TVHeadend and files every episode whose title matches a show here into that show's folder for Plex.</p>
-              <p>TVHeadend decides what records; this list decides what Freetvarr imports. To record a show, set a series recording in the TV Guide.</p>
-              <p>For each show you can turn it off, sync it now, remove the TVHeadend copy after import, or set ad removal. A deleted show keeps the files already imported.</p>
+            <span class="panel-title">SERIES · {{ series.length }}</span>
+            <info-button title="SERIES" doc="guide/series">
+              <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
+              <p>To record a new series, open the TV Guide, pick a programme, and press <strong>RECORD SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
+              <p><strong>STOP SERIES</strong> cancels the series recording in TVHeadend. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
+              <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>SET FOLDER</strong> to give it one.</p>
+              <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>STOP SERIES</strong> removes it.</p>
             </info-button>
           </span>
           <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
         </header>
-        <div class="panel-body">
-          <table v-if="shows.length" class="deck-table hidden md:table">
-            <thead><tr>
-              <th>Show pattern</th>
-              <th>Destination</th>
-              <th>Season template</th>
-              <th>Enabled</th>
-              <th title="Remove the recording from TVHeadend after each successful import. TVHeadend keeps the episode in its history, so it does not record it again.">Remove after import</th>
-              <th title="Detect = report ad breaks only; Cut = remove them from the file (keeps a .orig backup).">Ad removal</th>
-              <th></th>
-            </tr></thead>
-            <tbody>
-              <tr v-for="s in shows" :key="s.id">
-                <td class="font-mono text-ink">{{ s.show_pattern }}</td>
-                <td><code>{{ s.dest_folder }}</code></td>
-                <td><code>{{ s.season_template }}</code></td>
-                <td>
-                  <input type="checkbox" class="chk" :checked="s.enabled" @change="toggle(s, $event.target.checked)" />
-                </td>
-                <td>
-                  <input type="checkbox" class="chk" :checked="s.delete_after_import" @change="toggleDeleteAfter(s, $event.target.checked)" />
-                </td>
-                <td>
-                  <select class="field-input" style="width: auto; padding-top: 0.3rem; padding-bottom: 0.3rem;"
-                    :value="s.ad_removal" :disabled="!adRemovalEnabled"
-                    :title="adRemovalEnabled ? '' : 'Enable ad removal in Settings first.'"
-                    @change="setAdRemoval(s, $event.target.value)">
-                    <option value="off">OFF</option>
-                    <option value="detect">DETECT</option>
-                    <option value="cut">CUT</option>
-                  </select>
-                </td>
-                <td>
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <button type="button" class="btn" @click="syncOne(s)"
-                      :disabled="!s.enabled || syncingId === s.id"
-                      :title="s.enabled ? 'Sync just this show now' : 'Enable to sync'">
-                      <template v-if="syncingId === s.id">STARTING…</template><template v-else><play-icon /> SYNC</template>
-                    </button>
-                    <button type="button" class="btn btn-danger" @click="remove(s)">DELETE</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="shows.length" class="md:hidden space-y-3">
-            <article v-for="s in shows" :key="s.id" class="deck-card space-y-3">
-              <span class="deck-card-title">{{ s.show_pattern }}</span>
-              <div class="space-y-1">
-                <p class="deck-card-meta"><span class="deck-card-label">Dest</span> <code>{{ s.dest_folder }}</code></p>
-                <p class="deck-card-meta"><span class="deck-card-label">Seasons</span> <code>{{ s.season_template }}</code></p>
-              </div>
-              <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-                <label class="flex items-center gap-2 cursor-pointer font-mono text-xs uppercase tracking-[0.08em] text-ink-dim">
-                  <input type="checkbox" class="chk" :checked="s.enabled" @change="toggle(s, $event.target.checked)" />
-                  Enabled
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer font-mono text-xs uppercase tracking-[0.08em] text-ink-dim">
-                  <input type="checkbox" class="chk" :checked="s.delete_after_import" @change="toggleDeleteAfter(s, $event.target.checked)" />
-                  Remove after import
-                </label>
-              </div>
-              <div class="flex items-center gap-3">
-                <span class="deck-card-label whitespace-nowrap">Ad removal</span>
-                <select class="field-input flex-1" style="padding-top: 0.3rem; padding-bottom: 0.3rem;"
-                  :value="s.ad_removal" :disabled="!adRemovalEnabled"
-                  @change="setAdRemoval(s, $event.target.value)">
-                  <option value="off">OFF</option>
-                  <option value="detect">DETECT</option>
-                  <option value="cut">CUT</option>
-                </select>
-              </div>
-              <div class="grid grid-cols-2 gap-2 pt-1">
-                <button type="button" class="btn justify-center" @click="syncOne(s)"
-                  :disabled="!s.enabled || syncingId === s.id">
-                  <template v-if="syncingId === s.id">STARTING…</template><template v-else><play-icon /> SYNC</template>
-                </button>
-                <button type="button" class="btn btn-danger justify-center" @click="remove(s)">DELETE</button>
-              </div>
-            </article>
-          </div>
-          <p v-else class="text-ink-dim text-sm">
-            No shows tracked yet — add one below to start tracking.
+        <div class="panel-body space-y-4">
+          <p class="text-sm text-ink-dim leading-relaxed">
+            Series episodes go into their own folder in the TV library. Single recordings and films go to the one-off and movies folders; see <a href="#/recordings">RECORDINGS</a>.
           </p>
+          <div v-if="!loaded" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
+          <template v-else>
+            <p v-if="error" class="text-sm font-mono text-signal-orange-hi">Cannot read the series recordings from TVHeadend: {{ error }}</p>
+            <p v-else-if="stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
+            <p v-if="!error && series.length === 0" class="text-ink-dim text-sm">
+              No series recordings yet. Open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD SERIES</strong>.
+            </p>
+            <div v-else class="space-y-3">
+              <article v-for="s in series" :key="s.key" class="deck-card space-y-3">
+                <div class="deck-card-with-image">
+                  <programme-image v-if="s.imageProgramId != null" :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" />
+                  <div class="deck-card-text">
+                    <div class="flex items-start justify-between gap-3">
+                      <span class="deck-card-title">{{ s.title }}</span>
+                      <span class="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+                        <span v-if="s.recording" class="pill scheduled">RECORDING</span>
+                        <span v-else class="pill skipped">PAUSED</span>
+                      </span>
+                    </div>
+                    <p class="deck-card-meta">{{ channelsOf(s) }}<template v-if="s.episodesToKeep"> · keeps the latest {{ s.episodesToKeep }}</template></p>
+                    <p class="deck-card-meta"><span class="deck-card-label">Next</span> {{ nextAiringLabel(s) }}</p>
+                    <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/recordings">RECORDINGS</a></template></p>
+                  </div>
+                </div>
+                <series-folder-editor v-if="s.folder && editingKey === s.key" :folder="s.folder" :folders="folders"
+                  :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
+                  @saved="onSaved" @deleted="onDeleted" @cancel="editingKey = ''" />
+                <div v-else class="flex flex-wrap items-center gap-2">
+                  <template v-if="s.folder">
+                    <button type="button" class="btn" @click="edit(s.key)"><sliders-icon /> EDIT</button>
+                    <button type="button" class="btn" @click="syncOne(s.folder)"
+                      :disabled="!s.folder.enabled || syncingId === s.folder.id"
+                      :title="s.folder.enabled ? 'Sync just this series now' : 'Press EDIT, then SAVE, to sync this series'">
+                      <template v-if="syncingId === s.folder.id">STARTING…</template><template v-else><play-icon /> SYNC</template>
+                    </button>
+                  </template>
+                  <button v-else type="button" class="btn btn-primary" @click="setFolder(s)" :disabled="busyKey === s.key">
+                    <template v-if="busyKey === s.key">SETTING…</template><template v-else><plus-icon /> SET FOLDER</template>
+                  </button>
+                  <button type="button" class="btn ml-auto" @click="pauseSeries(s, s.recording)" :disabled="busyKey === s.key">
+                    <template v-if="s.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
+                  </button>
+                  <button type="button" class="btn btn-danger" @click="stopSeries(s)" :disabled="busyKey === s.key">
+                    <cross-icon /> STOP SERIES
+                  </button>
+                </div>
+              </article>
+            </div>
+          </template>
         </div>
       </section>
 
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">TRACK NEW SHOW</span>
-            <info-button title="TRACK NEW SHOW" doc="guide/following-shows#add-a-show">
-              <p>Pick a title TVHeadend has recorded, or type one. A recording goes to the first show whose title match appears in the recording's title.</p>
-              <p>Freetvarr suggests a folder under your media root, and matches folders that are already there. The season template sets the name of each season folder.</p>
-              <p><strong>Auto-remove</strong> deletes the TVHeadend copy after Plex has the file. <strong>Ad removal</strong> finds or cuts the ad breaks, when it is on in Settings.</p>
+            <button type="button" class="series-other-toggle panel-title" :aria-expanded="String(othersOpen)" @click="othersOpen = !othersOpen">
+              <chevron-right-icon :class="{ 'rotate-90': othersOpen }" /> TITLE MATCHES · {{ titleMatches.length }}
+            </button>
+            <info-button title="TITLE MATCHES" doc="guide/series#title-matches">
+              <p>A recording whose title contains this text saves to its folder, even without a series recording. This covers a title you typed by hand, such as <code>NRL</code>, or a series you stopped.</p>
+              <p><strong>ADD TITLE</strong> adds one. Freetvarr suggests a folder under your media root, and matches folders that are already there.</p>
             </info-button>
           </span>
         </header>
-        <form class="panel-body" @submit.prevent="add">
-          <div class="grid gap-4 md:grid-cols-2">
-            <div class="field-row">
-              <label class="field-label">Title match</label>
-              <div class="flex flex-wrap items-center gap-2">
-                <input type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. Bluey" class="field-input flex-1 min-w-[12rem]" />
-                <button type="button" class="btn btn-sm" @click="loadTvhShows" :disabled="loadingShows"
-                  title="List the titles TVHeadend has finished recordings for.">
-                  <template v-if="loadingShows">LISTING…</template><template v-else><refresh-icon /> REFRESH TITLES</template>
+        <div v-if="othersOpen" class="panel-body space-y-4">
+          <p class="text-sm text-ink-dim">A recording whose title contains this text saves to its folder, even without a series recording.</p>
+          <p v-if="titleMatches.length === 0" class="text-ink-dim text-sm">None.</p>
+          <div v-else class="space-y-3">
+            <article v-for="f in titleMatches" :key="f.id" class="deck-card space-y-3">
+              <div class="flex items-start justify-between gap-3">
+                <span class="deck-card-title">{{ f.show_pattern }}</span>
+              </div>
+              <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></p>
+              <series-folder-editor v-if="editingKey === 'folder-' + f.id" :folder="f" :folders="folders"
+                :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
+                @saved="onSaved" @deleted="onDeleted" @cancel="editingKey = ''" />
+              <div v-else class="flex flex-wrap items-center gap-2">
+                <button type="button" class="btn" @click="edit('folder-' + f.id)"><sliders-icon /> EDIT</button>
+                <button type="button" class="btn" @click="syncOne(f)" :disabled="!f.enabled || syncingId === f.id"
+                  :title="f.enabled ? 'Sync just this title now' : 'Press EDIT, then SAVE, to sync this title'">
+                  <template v-if="syncingId === f.id">STARTING…</template><template v-else><play-icon /> SYNC</template>
                 </button>
               </div>
-              <datalist id="tvh-shows">
-                <option v-for="fs in tvhShows" :key="fs.id" :value="fs.title" />
-              </datalist>
-              <p class="text-xs text-ink-mute mt-2">
-                Case-insensitive substring of the TVHeadend recording title.
-              </p>
-            </div>
-            <div class="field-row">
-              <label class="field-label">Destination folder under <code>{{ mediaRoot || '/media/tv' }}</code></label>
-              <input type="text" v-model="newFolder" list="media-folders" placeholder="e.g. Bluey (2018)" class="field-input" />
-              <datalist id="media-folders">
-                <option v-for="d in folders" :key="d" :value="d" />
-              </datalist>
-              <p v-if="suggestion" class="text-xs text-ink-dim mt-2">
-                Suggested ({{ suggestionIsNew ? 'new folder' : 'existing' }}):
-                <code>{{ suggestion }}</code>
-                <button type="button" class="btn-link" @click="newFolder = suggestion">use</button>
-              </p>
-            </div>
-            <div class="field-row">
-              <label class="field-label">Season template</label>
-              <input type="text" v-model="newTemplate" placeholder="Season {season}" class="field-input" />
-            </div>
-            <div class="field-row">
-              <span class="field-label">Auto-remove</span>
-              <label class="flex items-center gap-3 cursor-pointer h-[2.5rem]">
-                <input id="new-del-after" type="checkbox" class="chk" v-model="newDeleteAfter" />
-                <span class="font-mono text-sm text-ink-dim">
-                  Remove from TVHeadend after each successful import
-                </span>
-              </label>
-            </div>
-            <div class="field-row">
-              <label class="field-label">Ad removal</label>
-              <select class="field-input" v-model="newAdRemoval" :disabled="!adRemovalEnabled">
-                <option value="off">OFF</option>
-                <option value="detect">DETECT — report ad breaks only</option>
-                <option value="cut">CUT — remove ad breaks (keeps .orig backup)</option>
-              </select>
-              <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">
-                Enable ad removal in Settings to use this.
-              </p>
-            </div>
+            </article>
           </div>
-          <div class="flex flex-wrap items-center gap-3 mt-2">
-            <button type="submit" class="btn btn-primary" :disabled="adding">
-              <template v-if="adding">ADDING…</template><template v-else><plus-icon /> TRACK SHOW</template>
-            </button>
-            <span v-if="formStatusText" :class="['status-readout', formStatusKind]">{{ formStatusText }}</span>
-          </div>
-        </form>
+
+          <form class="space-y-4 pt-2 border-t border-hairline" @submit.prevent="add">
+            <span class="field-label pt-3 block">ADD TITLE</span>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="field-row">
+                <label class="field-label">Recording titles that contain</label>
+                <div class="flex flex-wrap items-center gap-2">
+                  <input type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input flex-1 min-w-[12rem]" />
+                  <button type="button" class="btn btn-sm" @click="loadTvhShows" :disabled="loadingShows"
+                    title="List the titles TVHeadend has finished recordings for.">
+                    <template v-if="loadingShows">LISTING…</template><template v-else><refresh-icon /> REFRESH TITLES</template>
+                  </button>
+                </div>
+                <datalist id="tvh-shows">
+                  <option v-for="fs in tvhShows" :key="fs.id" :value="fs.title" />
+                </datalist>
+                <p class="text-xs text-ink-mute mt-2">Case-insensitive part of the TVHeadend recording title.</p>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="new-saves-to">Saves to</label>
+                <div class="field-prefixed">
+                  <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
+                  <input id="new-saves-to" type="text" v-model="newFolder" list="media-folders" placeholder="e.g. NRL" class="field-input" />
+                </div>
+                <datalist id="media-folders">
+                  <option v-for="d in folders" :key="d" :value="d" />
+                </datalist>
+                <p v-if="suggestion" class="text-xs text-ink-dim mt-2">
+                  Suggested ({{ suggestionIsNew ? 'new folder' : 'existing' }}):
+                  <code>{{ suggestion }}</code>
+                  <button type="button" class="btn-link" @click="newFolder = suggestion">use</button>
+                </p>
+              </div>
+              <div class="field-row">
+                <label class="field-label">Season folders</label>
+                <input type="text" v-model="newTemplate" placeholder="Season {season}" class="field-input" />
+              </div>
+              <div class="field-row">
+                <label class="field-label">Ad removal</label>
+                <select class="field-input" v-model="newAdRemoval" :disabled="!adRemovalEnabled">
+                  <option value="off">OFF</option>
+                  <option value="detect">DETECT — report ad breaks only</option>
+                  <option value="cut">CUT — remove ad breaks (keeps .orig backup)</option>
+                </select>
+                <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
+              </div>
+            </div>
+            <toggle-switch v-model="newDeleteAfter">REMOVE FROM TVHEADEND AFTER IMPORT</toggle-switch>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="submit" class="btn btn-primary" :disabled="adding">
+                <template v-if="adding">ADDING…</template><template v-else><plus-icon /> ADD TITLE</template>
+              </button>
+              <span v-if="formStatusText" :class="['status-readout', formStatusKind]">{{ formStatusText }}</span>
+            </div>
+          </form>
+        </div>
       </section>
     </div>
   `,
   setup() {
     const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
     const [formStatusText, formStatusKind, setFormStatus] = makeStatus()
-    const shows = ref([])
+    const series = ref([])
+    const titleMatches = ref([])
+    const loaded = ref(false)
+    const error = ref('')
+    const stale = ref(false)
+    const othersOpen = ref(false)
+    const editingKey = ref('')
+    const busyKey = ref('')
     const tvhShows = ref([])
     const folders = ref([])
     const newPattern = ref('')
@@ -1865,19 +1983,33 @@ const ShowsView = {
     const loadingShows = ref(false)
     const syncingId = ref(null)
     const mediaRoot = ref('')
-    const tvhUrlSet = ref(false)
     const adRemovalEnabled = ref(false)
 
     const refresh = async () => {
-      const r = await api('GET', '/api/shows')
-      shows.value = r.shows
+      try {
+        const r = await api('GET', '/api/series')
+        series.value = r.series || []
+        titleMatches.value = r.titleMatches || []
+        error.value = r.error || ''
+        stale.value = Boolean(r.stale)
+        if (r.error) othersOpen.value = true
+      } catch (err) {
+        error.value = err.message
+      } finally {
+        loaded.value = true
+      }
     }
 
-    const loadStorageHint = async () => {
+    const loadSettings = async () => {
       const s = await api('GET', '/api/settings').catch(() => ({}))
       mediaRoot.value = s.media_root || ''
-      tvhUrlSet.value = Boolean(s.tvh_url)
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
+    }
+
+    const loadFolders = async (title) => {
+      const r = await api('GET', `/api/folder-suggest?show=${encodeURIComponent(title)}`).catch(() => ({}))
+      folders.value = r.folders || folders.value
+      return r.match?.folder || ''
     }
 
     const suggestFor = async (pattern) => {
@@ -1887,20 +2019,9 @@ const ShowsView = {
         suggestionIsNew.value = false
         return
       }
-      try {
-        const r = await api('GET', `/api/folder-suggest?show=${encodeURIComponent(trimmed)}`)
-        folders.value = r.folders || []
-        if (r.match?.folder) {
-          suggestion.value = r.match.folder
-          suggestionIsNew.value = false
-        } else {
-          suggestion.value = trimmed
-          suggestionIsNew.value = true
-        }
-      } catch {
-        suggestion.value = trimmed
-        suggestionIsNew.value = true
-      }
+      const existing = await loadFolders(trimmed)
+      suggestion.value = existing || folderNameFor(trimmed)
+      suggestionIsNew.value = !existing
     }
 
     let debounceTimer = null
@@ -1909,16 +2030,91 @@ const ShowsView = {
       debounceTimer = setTimeout(() => suggestFor(v), 250)
     })
 
-    onMounted(async () => {
-      await Promise.all([refresh(), loadStorageHint()])
-      if (shows.value.length === 0 && tvhUrlSet.value && !loadingShows.value) {
-        await loadTvhShows()
+    onMounted(() => Promise.all([refresh(), loadSettings()]))
+
+    const channelsOf = (s) => [...new Set(s.autorecs.map((a) => a.channelName).filter(Boolean))].join(' + ')
+      || (s.autorecs.length === 1 ? '1 channel' : `${s.autorecs.length} channels`)
+
+    const nextAiringLabel = (s) => {
+      const next = s.nextAiring
+      if (!next) return 'nothing in the guide for the next 7 days'
+      const at = tsOfMs(next.startDate)
+      const bits = [
+        `${fmtRelativeDay(at)} ${fmtClockTz(at)}`,
+        ...(next.channelName ? [next.channelName] : []),
+        ...(next.episodeTitle ? [next.episodeTitle] : []),
+      ]
+      return bits.join(' · ')
+    }
+
+    const edit = async (key) => {
+      editingKey.value = key
+      if (folders.value.length === 0) await loadFolders('_')
+    }
+
+    const onSaved = async () => {
+      editingKey.value = ''
+      await refresh()
+      flash({ msg: 'Saved.' })
+    }
+
+    const onDeleted = async () => {
+      editingKey.value = ''
+      await refresh()
+      flash({ msg: 'Deleted.' })
+    }
+
+    const setFolder = async (s) => {
+      busyKey.value = s.key
+      try {
+        const destFolder = (await loadFolders(s.title)) || folderNameFor(s.title)
+        await api('POST', '/api/shows', { show_pattern: s.title, dest_folder: destFolder })
+        await refresh()
+        flash({ msg: `Episodes of "${s.title}" save to ${destFolder}. Press EDIT to change it.`, ms: 6000 })
+      } catch (err) {
+        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+      } finally {
+        busyKey.value = ''
       }
-    })
+    }
+
+    const stopSeries = async (s) => {
+      if (!confirm(`Stop recording "${s.title}"? Episodes already recorded stay in TVHeadend, and the library folder stays.`)) return
+      busyKey.value = s.key
+      try {
+        for (const autorec of s.autorecs) {
+          await api('POST', '/api/epg/cancel-series', { series_link_id: autorec.seriesLinkId })
+        }
+        await refresh()
+        flash({ msg: `Stopped the series recording of "${s.title}".` })
+      } catch (err) {
+        flash({ msg: `Stop failed: ${err.message}`, kind: 'err', ms: 8000 })
+        await refresh()
+      } finally {
+        busyKey.value = ''
+      }
+    }
+
+    const pauseSeries = async (s, paused) => {
+      busyKey.value = s.key
+      try {
+        await api('POST', '/api/epg/pause-series', {
+          series_link_ids: s.autorecs.map((a) => a.seriesLinkId),
+          paused,
+        })
+        await refresh()
+        flash({ msg: paused ? `Paused the series recording of "${s.title}".` : `Resumed the series recording of "${s.title}".` })
+      } catch (err) {
+        flash({ msg: `${paused ? 'Pause' : 'Resume'} failed: ${err.message}`, kind: 'err', ms: 8000 })
+        await refresh()
+      } finally {
+        busyKey.value = ''
+      }
+    }
 
     const add = async () => {
       if (!newPattern.value.trim() || !newFolder.value.trim()) {
-        setFormStatus('Title match and folder are required.', 'err', 5000)
+        setFormStatus('Enter the title and where to save.', 'err', 5000)
         return
       }
       adding.value = true
@@ -1945,44 +2141,6 @@ const ShowsView = {
       }
     }
 
-    const toggle = async (s, enabled) => {
-      try {
-        await api('PATCH', `/api/shows/${s.id}`, { enabled })
-        await refresh()
-      } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
-      }
-    }
-
-    const toggleDeleteAfter = async (s, delete_after_import) => {
-      try {
-        await api('PATCH', `/api/shows/${s.id}`, { delete_after_import })
-        await refresh()
-      } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
-      }
-    }
-
-    const setAdRemoval = async (s, ad_removal) => {
-      try {
-        await api('PATCH', `/api/shows/${s.id}`, { ad_removal })
-        await refresh()
-      } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
-      }
-    }
-
-    const remove = async (s) => {
-      if (!confirm(`Delete show "${s.show_pattern}"?`)) return
-      try {
-        await api('DELETE', `/api/shows/${s.id}`)
-        await refresh()
-        flash({ msg: `Removed "${s.show_pattern}".` })
-      } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
-      }
-    }
-
     const loadTvhShows = async () => {
       loadingShows.value = true
       setFormStatus('Listing TVHeadend recordings…', 'info', 0)
@@ -1997,12 +2155,12 @@ const ShowsView = {
       }
     }
 
-    const syncOne = async (s) => {
-      syncingId.value = s.id
+    const syncOne = async (folder) => {
+      syncingId.value = folder.id
       try {
-        const r = await api('POST', '/api/sync', { show_id: s.id })
+        const r = await api('POST', '/api/sync', { show_id: folder.id })
         if (r.alreadyRunning) flash({ msg: 'A sync is already running.', kind: 'info' })
-        else flashUntilSyncDone({ msg: `Started sync #${r.syncId} for "${s.show_pattern}".` })
+        else flashUntilSyncDone({ msg: `Started sync #${r.syncId} for "${folder.show_pattern}".` })
         await loadSyncStatus()
         ensureSyncPolling()
       } catch (err) {
@@ -2013,10 +2171,12 @@ const ShowsView = {
     }
 
     return {
-      shows, tvhShows, folders, mediaRoot,
+      series, titleMatches, loaded, error, stale, othersOpen, editingKey, busyKey,
+      tvhShows, folders, mediaRoot, mediaRootPrefix, adRemovalEnabled,
       newPattern, newFolder, newTemplate, newDeleteAfter, newAdRemoval,
-      suggestion, suggestionIsNew, adding, loadingShows, syncingId, adRemovalEnabled,
-      add, toggle, toggleDeleteAfter, setAdRemoval, remove, loadTvhShows, syncOne,
+      suggestion, suggestionIsNew, adding, loadingShows, syncingId,
+      channelsOf, nextAiringLabel, edit, onSaved, onDeleted, setFolder, pauseSeries, stopSeries,
+      add, loadTvhShows, syncOne,
       flashText, flashKind, formStatusText, formStatusKind,
     }
   },
@@ -2208,10 +2368,10 @@ const RecordingsView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title"><template v-if="!narrow">TRACKED </template>RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
-            <info-button title="TRACKED RECORDINGS" doc="guide/recordings">
+            <span class="panel-title">RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
+            <info-button title="RECORDINGS" doc="guide/recordings">
               <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>done</strong>, <strong>partial</strong>, <strong>skipped</strong>, <strong>failed</strong>, or <strong>not imported</strong>. The next sync tries a partial import again.</p>
-              <p>A recording with no show rule goes to the one-off folder. Press <strong>IMPORT</strong> on a recording that is not imported to add it to the library.</p>
+              <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a recording that is not imported to add it to the library.</p>
               <p>A struck-through row is gone from TVHeadend, but the file is still in your media folder.</p>
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
             </info-button>
@@ -2415,7 +2575,7 @@ const RecordingsView = {
             </article>
           </div>
           <p v-else-if="total === 0" class="text-ink-dim text-sm">
-            {{ hasFiltersApplied ? 'No recordings match the current filters.' : 'No recordings tracked yet.' }}
+            {{ hasFiltersApplied ? 'No recordings match the current filters.' : 'No recordings yet.' }}
           </p>
           <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
             <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
@@ -2856,7 +3016,7 @@ const SettingsView = {
               <span class="panel-title">SCHEDULE</span>
               <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
                 <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file takes priority over this setting.</p>
-                <p>How often Freetvarr checks TVHeadend for new recordings to import, as a cron rule. <code>*/30 * * * *</code> is every 30 minutes.</p>
+                <p>How often Freetvarr checks TVHeadend for new recordings to import, as a cron expression. <code>*/30 * * * *</code> is every 30 minutes.</p>
                 <p>A change applies without a restart. <strong>SYNC NOW</strong> on the dashboard runs a sync at any time.</p>
               </info-button>
             </span>
@@ -2879,7 +3039,7 @@ const SettingsView = {
             <span class="panel-heading">
               <span class="panel-title">STORAGE</span>
               <info-button title="STORAGE" doc="guide/configuration#the-two-recordings-paths">
-                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where recordings with no show rule go, such as sport, specials, and films. Point a separate Plex library at it.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, inside the Freetvarr container.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, inside the Freetvarr container.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
                 <p>When both containers mount the folder at the same path, the two recordings paths are the same. Keep recordings and the media root on one filesystem: imports are then instant hardlinks, not copies.</p>
               </info-button>
             </span>
@@ -2903,7 +3063,7 @@ const SettingsView = {
               <label class="field-label">One-off folder <span class="text-ink-mute">(inside container)</span></label>
               <input type="text" class="field-input" v-model="oneOffRoot" placeholder="/media/one-offs" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Recordings with no show rule go here, one folder per title. Mount it in <code>docker-compose.yml</code>, and point a Plex "Other Videos" library at it.
+                Single recordings go here, one folder per title. Mount it in <code>docker-compose.yml</code>, and point a Plex "Other Videos" library at it.
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -2916,13 +3076,13 @@ const SettingsView = {
               <label class="field-label">Movies folder <span class="text-ink-mute">(inside container, optional)</span></label>
               <input type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Recordings the guide marks as films, with no show rule, go here as <code>Title (Year)/Title (Year).ts</code>. Point a Plex "Movies" library at it.
+                Recordings the guide marks as films, and that match no series folder, go here as <code>Title (Year)/Title (Year).ts</code>. Point a Plex "Movies" library at it.
               </p>
             </div>
             <div class="field-row">
               <toggle-switch v-model="importUnmatched">IMPORT EVERY RECORDING</toggle-switch>
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                On: a recording with no show rule goes to the one-off folder. Off: only recordings that match a show rule, or that you recorded with Add to library on, are imported.
+                On: a recording with no series folder goes to the one-off folder. Off: only series episodes, and recordings you made with Add to library on, are imported.
               </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2 pt-1">
@@ -3058,7 +3218,7 @@ const SettingsView = {
               <span class="panel-title">AD REMOVAL</span>
               <info-button title="AD REMOVAL" doc="guide/ad-removal">
                 <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each show on the Shows tab. <strong>DETECT</strong> only marks the breaks. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Turn it on here, then set a mode for each series on the SERIES tab. <strong>DETECT</strong> only marks the breaks. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
                 <p>Detection is not always right. Use DETECT on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
@@ -3068,7 +3228,7 @@ const SettingsView = {
             <div>
               <toggle-switch v-model="adRemovalEnabled" class="toggle-prose">
                 Enable ad removal
-                <span class="text-ink-mute">(per-show mode is set on the Shows tab)</span>
+                <span class="text-ink-mute">(set the mode for each series on the SERIES tab)</span>
               </toggle-switch>
             </div>
             <div class="field-row md:max-w-xs">
@@ -4234,7 +4394,7 @@ const WelcomeView = {
 
           <div v-if="step === 1" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
-              Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings of shows you follow, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) removes them from TVHeadend afterwards.
+              Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) removes them from TVHeadend afterwards.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend — Plex is optional.
@@ -4465,7 +4625,7 @@ const WelcomeView = {
               <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> You're set.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              Next: head to the <strong class="text-ink">Shows</strong> tab and add your first show. Freetvarr will pick it up on the next sync (every 30 minutes by default).
+              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Finished recordings go into your library on the next sync (every 30 minutes by default).
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads TVHeadend, Plex, and the folders, and changes nothing.
@@ -4618,7 +4778,7 @@ const WelcomeView = {
     })
 
     const nextLabel = computed(() => {
-      if (step.value === totalSteps) return 'GO TO SHOWS'
+      if (step.value === totalSteps) return 'OPEN TV GUIDE'
       if (step.value === 2) return 'SAVE & NEXT'
       if (step.value === 3) return channelState.value.channels ? 'NEXT' : 'SKIP'
       if (step.value === 4) return guideState.value.linked ? 'NEXT' : 'SKIP'
@@ -4652,7 +4812,7 @@ const WelcomeView = {
     const next = async () => {
       if (step.value === totalSteps) {
         dismiss()
-        window.location.hash = '#/shows'
+        window.location.hash = '#/guide'
         return
       }
       clearSaveStatus()
@@ -5431,12 +5591,8 @@ const EpgView = {
           <span class="panel-heading">
             <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · {{ dayTitle }}</template><template v-else> · {{ mode.toUpperCase() }}</template></span>
             <info-button v-if="mode === 'upcoming'" title="TV GUIDE: UPCOMING" doc="guide/tv-guide#recording-a-programme">
-              <p>Everything TVHeadend will record, soonest first. <strong>SCHEDULED</strong> cards are timers set in TVHeadend, marked <strong>SERIES</strong> or <strong>ONE-OFF</strong>. <strong>EXPECTED</strong> cards are episodes your series rules should catch in the next 7 days.</p>
+              <p>Everything TVHeadend will record, soonest first. <strong>SCHEDULED</strong> cards are timers set in TVHeadend, marked <strong>SERIES</strong> or <strong>ONE-OFF</strong>. <strong>EXPECTED</strong> cards are episodes your series recordings should catch in the next 7 days.</p>
               <p>Click a card to open the programme, where you can cancel the recording. Search filters the list as you type.</p>
-            </info-button>
-            <info-button v-else-if="mode === 'series'" title="TV GUIDE: SERIES" doc="guide/tv-guide#how-a-series-recording-works">
-              <p>Each card is a series rule in TVHeadend. A rule records every airing of the show on its channel, on any day and at any time, and skips episode numbers it has already recorded.</p>
-              <p>A rule covers one channel only, so an HD simulcast needs its own rule. Click a card to open the show's next airing, where you can cancel the series.</p>
             </info-button>
             <info-button v-else title="TV GUIDE: GUIDE" doc="guide/tv-guide#the-grid">
               <p>Channels run down the page and time runs across; the orange line marks now. The day chips, <strong>NOW</strong>, and <strong>TONIGHT</strong> move through the week, and the zoom buttons change the time scale.</p>
@@ -5676,34 +5832,6 @@ const EpgView = {
             </template>
           </template>
 
-          <template v-else>
-            <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
-            <div v-else-if="!state" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
-            <template v-else>
-              <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
-              <p v-if="seriesTags.length === 0" class="text-ink-dim text-sm">No series recordings set in TVHeadend.</p>
-              <p v-else-if="seriesTagsFiltered.length === 0" class="text-ink-dim text-sm">No series match “{{ searchQ.trim() }}”.</p>
-              <div v-else class="space-y-3">
-                <article v-for="t in seriesTagsFiltered" :key="seriesKey(t)"
-                  class="deck-card deck-card-clickable deck-card-with-image" role="button" tabindex="0"
-                  @click="openSeriesTag(t)"
-                  @keydown.enter.prevent="openSeriesTag(t)"
-                  @keydown.space.prevent="openSeriesTag(t)">
-                  <programme-image v-if="t.imageProgramId != null" :event-id="t.imageProgramId" :channel-id="t.channelId" :has-logo="hasChannelLogo(t.channelId)" />
-                  <div class="deck-card-text">
-                  <div class="flex items-start justify-between gap-3">
-                    <span class="deck-card-title">{{ t.name || t.title || seriesKey(t) }}</span>
-                    <span class="pill done">SERIES</span>
-                  </div>
-                  <p class="deck-card-meta flex items-center gap-1.5">
-                    <channel-logo class="shrink-0" :channel-id="t.channelId" :has-logo="hasChannelLogo(t.channelId)" />
-                    <span>{{ channelName(t.channelId) }}<template v-if="t.episodesToKeep"> · keep {{ t.episodesToKeep }}</template></span>
-                  </p>
-                  </div>
-                </article>
-              </div>
-            </template>
-          </template>
         </div>
       </section>
 
@@ -5730,7 +5858,7 @@ const EpgView = {
               {{ cellState(selected.program) === 'recording' ? 'Recording now in TVHeadend' : 'Scheduled to record in TVHeadend' }}{{ isSeriesScheduled(selected.program) ? ' (part of a series recording).' : ' (one-off recording).' }}
             </p>
             <p v-else-if="cellState(selected.program) === 'series'" class="text-xs font-mono" style="color:#e2b03c">
-              A series rule records this show in TVHeadend.
+              A series recording in TVHeadend records this show.
             </p>
             <div v-if="canRecord" class="grid grid-cols-2 gap-3">
               <div>
@@ -5753,7 +5881,7 @@ const EpgView = {
               </div>
               <div class="col-span-2 space-y-1">
                 <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
-                <p class="text-xs font-mono text-ink-mute">{{ libraryNote }}</p>
+                <p class="text-xs font-mono text-ink-mute">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/series">SERIES</a>.</template></p>
               </div>
             </div>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
@@ -5804,6 +5932,27 @@ const EpgView = {
       </teleport>
 
       <teleport to="body">
+      <transition name="epg-sheet">
+      <div v-if="hdOffer" class="epg-modal-backdrop" @click.self="hdOffer = null">
+        <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title">
+          <header class="panel-header">
+            <span id="hd-offer-title" class="panel-title">This is the SD channel</span>
+            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="hdOffer = null" aria-label="Close"><cross-icon /></button>
+          </header>
+          <div class="panel-body space-y-4">
+            <p class="text-sm text-ink">{{ hdOffer.channel.name }} shows the same programme in HD.</p>
+            <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
+              <button type="button" class="btn epg-modal-close mr-auto" @click="hdOffer = null">CANCEL</button>
+              <button type="button" class="btn" @click="recordOffered('sd')"><record-icon /> RECORD IN SD</button>
+              <button type="button" class="btn btn-primary" @click="recordOffered('hd')"><record-icon /> RECORD IN HD</button>
+            </div>
+          </div>
+        </section>
+      </div>
+      </transition>
+      </teleport>
+
+      <teleport to="body">
       <transition name="epg-tip">
       <div v-if="tooltip" ref="tooltipEl" class="epg-tooltip" aria-hidden="true">
         <div class="epg-tooltip-title">{{ tooltip.programme.title }}</div>
@@ -5836,7 +5985,6 @@ const EpgView = {
     const modes = [
       { key: 'guide', label: 'GUIDE' },
       { key: 'upcoming', label: 'UPCOMING' },
-      { key: 'series', label: 'SERIES' },
     ]
     const day = ref(0)
     const guide = ref(null)
@@ -5887,14 +6035,16 @@ const EpgView = {
     }
     const libraryNote = computed(() => {
       const program = selected.value?.program
-      if (!program) return ''
-      if (!addToLibrary.value) return 'Stays in TVHeadend. Freetvarr does not import it.'
-      const rule = ruleFor(program.title)
-      if (rule) return `Imports to ${rule.dest_folder}, under the "${rule.show_pattern}" show rule.`
-      if (moviesFolderSet.value && looksLikeFilm(program)) return 'The guide lists this as a film, so it imports to the movies folder.'
-      return program.series_link
-        ? 'RECORD imports this airing to the one-off folder. RECORD SERIES adds a show rule, so episodes import to the TV library.'
-        : 'Imports to the one-off folder.'
+      if (!program) return { text: '' }
+      if (!addToLibrary.value) return { text: 'Stays in TVHeadend. Freetvarr does not import it.' }
+      const folder = ruleFor(program.title)
+      if (folder) return { text: `Episodes go into ${folder.dest_folder} in your TV library.`, changeable: true }
+      if (moviesFolderSet.value && looksLikeFilm(program)) return { text: 'The guide lists this as a film, so it goes to the movies folder.' }
+      if (!program.series_link) return { text: 'Goes to the one-off folder.' }
+      return {
+        text: 'RECORD puts this airing in the one-off folder. RECORD SERIES gives the series its own folder in your TV library.',
+        changeable: true,
+      }
     })
 
     const clampRailPx = (px) => Math.min(EPG_RAIL_MAX_PX, Math.max(EPG_RAIL_MIN_PX, px))
@@ -6077,7 +6227,6 @@ const EpgView = {
 
     const searchPlaceholder = computed(() => {
       if (mode.value === 'upcoming') return 'Filter upcoming…'
-      if (mode.value === 'series') return 'Filter series…'
       return 'Search the next 7 days…'
     })
 
@@ -6088,13 +6237,6 @@ const EpgView = {
       if (!q) return upcoming.value
       return upcoming.value.filter((r) =>
         `${r.name || ''} ${r.episodeTitle || ''} ${channelName(r.channelId) || ''}`.toLowerCase().includes(q))
-    })
-
-    const seriesTagsFiltered = computed(() => {
-      const q = listFilter.value
-      if (!q) return seriesTags.value
-      return seriesTags.value.filter((t) =>
-        `${t.name || t.title || ''} ${channelName(t.channelId) || ''}`.toLowerCase().includes(q))
     })
 
     const canRecord = computed(() =>
@@ -6152,7 +6294,6 @@ const EpgView = {
 
     const hasChannelLogo = (id) => Boolean(channelById(id)?.logos?.length)
 
-    const seriesKey = (t) => String(t?.seriesLinkId ?? t?.id ?? t?.name ?? '')
 
     const cellState = (p) => {
       if (p.past) return p.recorded ? 'recorded' : ''
@@ -6175,7 +6316,7 @@ const EpgView = {
       if (state === 'scheduled') {
         return isSeriesScheduled(p) ? 'series recording scheduled' : 'one-off recording scheduled'
       }
-      if (state === 'series') return 'series rule on this show'
+      if (state === 'series') return 'series recording set'
       if (state === 'recorded') return 'recorded'
       return ''
     }
@@ -6351,22 +6492,6 @@ const EpgView = {
       loadShowRules()
     }
 
-    const openSeriesTag = (t) => {
-      const link = seriesKey(t)
-      const next = upcoming.value.find((r) => String(r.seriesLinkId) === link)
-      if (next) return openUpcoming(next)
-      openProgram({
-        program_id: null,
-        epg_program_id: null,
-        title: t.name || t.title || link,
-        episode_title: null,
-        start: null,
-        end: null,
-        series_link: link,
-        channelId: t.channelId,
-      }, channelById(t.channelId))
-    }
-
     const openUpcoming = (r) => {
       openProgram({
         program_id: r.programId,
@@ -6398,6 +6523,7 @@ const EpgView = {
 
     const closeModal = () => {
       cancelChoice.value = false
+      hdOffer.value = null
       selected.value = null
       if (!returnRoute) return
       const target = returnRoute
@@ -6405,7 +6531,34 @@ const EpgView = {
       window.location.hash = target
     }
 
-    const recordSelected = async () => {
+    const hdOffer = ref(null)
+
+    const offerHdFirst = (action) => {
+      const { program, channel } = selected.value
+      const hd = findHdSimulcast({
+        program,
+        channelId: channel?.id ?? program.channelId,
+        channels: guide.value?.channels,
+        programsByChannel: guide.value?.programs,
+        needsSeriesLink: action === 'record-series',
+      })
+      if (!hd || cellState(hd.program)) return false
+      hdOffer.value = { action, ...hd }
+      return true
+    }
+
+    const recordOffered = (choice) => {
+      const { action, program, channel } = hdOffer.value
+      hdOffer.value = null
+      if (choice === 'hd') selected.value = { program, channel }
+      return action === 'record-series' ? recordSeries() : recordOneOff()
+    }
+
+    const recordSelected = () => offerHdFirst('record') || recordOneOff()
+
+    const recordSelectedSeries = () => offerHdFirst('record-series') || recordSeries()
+
+    const recordOneOff = async () => {
       const { program, channel } = selected.value
       modalBusy.value = true
       modalAction.value = 'record'
@@ -6429,7 +6582,7 @@ const EpgView = {
       }
     }
 
-    const recordSelectedSeries = async () => {
+    const recordSeries = async () => {
       const { program, channel } = selected.value
       modalBusy.value = true
       modalAction.value = 'record-series'
@@ -6444,7 +6597,7 @@ const EpgView = {
           episodes_to_keep: episodesToKeep.value,
           add_show_rule: addToLibrary.value,
         })
-        const ruleNote = result.showRule?.created ? ` Added a show rule; episodes import to ${result.showRule.dest_folder}.` : ''
+        const ruleNote = result.showRule ? ` Episodes go into ${result.showRule.dest_folder}.` : ''
         flash({ msg: `Series recording set for "${program.title}".${ruleNote}`, ms: ruleNote ? 6000 : undefined })
         closeModal()
         await loadState({ fresh: true })
@@ -6502,23 +6655,6 @@ const EpgView = {
       try {
         await api('POST', '/api/epg/cancel', { program_id: r.programId })
         flash({ msg: `Cancelled "${r.name}".` })
-        await loadState({ fresh: true })
-      } catch (err) {
-        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
-      } finally {
-        busyId.value = null
-      }
-    }
-
-    const cancelSeriesTag = async (t) => {
-      if (!confirm(`Cancel the series recording "${t.name || seriesKey(t)}"? Existing recordings stay in TVHeadend.`)) return
-      busyId.value = seriesKey(t)
-      try {
-        await api('POST', '/api/epg/cancel-series', {
-          program_id: t.programId ?? null,
-          series_link_id: t.seriesLinkId ?? t.id,
-        })
-        flash({ msg: `Series recording cancelled.` })
         await loadState({ fresh: true })
       } catch (err) {
         flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
@@ -6801,7 +6937,8 @@ const EpgView = {
 
     const onKeydown = (e) => {
       if (e.key !== 'Escape') return
-      if (selected.value) closeModal()
+      if (hdOffer.value) hdOffer.value = null
+      else if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
     }
 
@@ -6834,14 +6971,14 @@ const EpgView = {
       midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled, isSeriesRec, recordingFillPercent,
       jumpNow, jumpTonight, manualRefresh,
-      searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered, seriesTagsFiltered,
+      searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered,
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, addToLibrary, libraryNote,
       leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
-      recordSelected, recordSelectedSeries, cancelSelected, cancelSelectedSeries, cancelChoice,
-      upcoming, seriesTags, seriesKey, cancelUpcoming, cancelSeriesTag, openSeriesTag,
+      recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries, cancelChoice,
+      upcoming, cancelUpcoming,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, cellHasThumb,
@@ -8167,7 +8304,7 @@ const VIEW_MAP = {
   dashboard: DashboardView,
   live: LiveView,
   guide: EpgView,
-  shows: ShowsView,
+  series: SeriesView,
   syncs: SyncsView,
   recordings: RecordingsView,
   settings: SettingsView,
@@ -8179,7 +8316,7 @@ const TABS = [
   { key: 'dashboard',  label: 'DASHBOARD'  },
   { key: 'live',       label: 'LIVE TV'    },
   { key: 'guide',      label: 'TV GUIDE'   },
-  { key: 'shows',      label: 'SHOWS'      },
+  { key: 'series',     label: 'SERIES'     },
   { key: 'syncs',      label: 'SYNCS'      },
   { key: 'recordings', label: 'RECORDINGS' },
   { key: 'settings',   label: 'SETTINGS'   },
@@ -8478,6 +8615,7 @@ app.component('airplay-icon', AirplayIcon)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
+app.component('series-folder-editor', FolderEditor)
 app.component('filter-sheet', FilterSheet)
 app.component('header-button', HeaderButton)
 app.component('zoom-control', ZoomControl)

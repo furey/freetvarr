@@ -185,7 +185,7 @@ test('describeJourney: a failed recording, a failed import, or no show rule sett
   const noRule = describeJourney({ outcome: ok, importUnmatched: false })
   assert.deepEqual(states(noRule), ['recorded:done', 'importing:skipped'])
   assert.equal(noRule.steps[1].label, 'Not imported')
-  assert.match(noRule.steps[1].detail, /No show rule/)
+  assert.match(noRule.steps[1].detail, /No series folder/)
   assert.equal(noRule.settled, true)
   const keptOut = describeJourney({ outcome: ok, show, libraryChoice: 'exclude' })
   assert.deepEqual(states(keptOut), ['recorded:done', 'importing:skipped'])

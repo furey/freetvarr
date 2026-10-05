@@ -262,6 +262,20 @@ export const disableSeriesTag = async ({ seriesLinkId } = {}) => {
   return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId }
 }
 
+export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => {
+  const connection = conn || (await resolveConnection())
+  const wanted = new Set(seriesLinkIds.map(String))
+  const autorecs = (await listAutorecs(connection))
+    .filter((a) => wanted.has(String(a.seriesLinkId)) || wanted.has(String(a.id)))
+  if (autorecs.length === 0) {
+    throw new TvheadendError('No series recording matches.', { stage: 'series', code: 'not-found' })
+  }
+  for (const autorec of autorecs) {
+    await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, enabled }) }, connection)
+  }
+  return { ok: true, enabled, uuids: autorecs.map((a) => a.id) }
+}
+
 export const removeRecordings = async ({ recordingIds } = {}) => {
   const ids = (recordingIds || []).map(String).filter(Boolean)
   if (ids.length === 0) {

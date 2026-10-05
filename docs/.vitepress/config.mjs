@@ -107,7 +107,7 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'TV Guide', link: '/guide/tv-guide' },
-          { text: 'Following shows', link: '/guide/following-shows' },
+          { text: 'Series', link: '/guide/series' },
           { text: 'Recordings', link: '/guide/recordings' },
           { text: 'Syncs', link: '/guide/syncs' },
           { text: 'Ad removal', link: '/guide/ad-removal' }

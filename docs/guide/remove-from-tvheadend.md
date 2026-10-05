@@ -28,13 +28,13 @@ A TVHeadend DVR profile can re-record a recording that has too many data errors.
 
 ## Duplicate detection
 
-Freetvarr's series recordings use TVHeadend's `Record if different episode number` rule. The kept entries let that rule skip a repeat of an imported episode. The rule needs an episode number on both sides: a repeat that the EPG lists without one still records, and Freetvarr imports it again.
+Freetvarr's series recordings use the TVHeadend `Record if different episode number` setting. The kept entries let that setting skip a repeat of an imported episode. The setting needs an episode number on both sides: a repeat that the EPG lists without one still records, and Freetvarr imports it again.
 
 To let TVHeadend record an episode again, delete its entry in the **Removed Recordings** tab. The entries hold no video, so they use almost no disk.
 
 ## Turn it on
 
-Remove after import is a per-show switch on the Shows tab. Turn it on for shows you're happy to keep only in Plex; leave it off for anything you want a second copy of.
+Remove after import is a per-series switch on the [SERIES tab](/guide/series#edit-a-series-folder). Turn it on for series you are happy to keep only in Plex; leave it off for anything you want a second copy of.
 
 ## When it removes
 

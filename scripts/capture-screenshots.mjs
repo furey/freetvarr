@@ -10,7 +10,7 @@ const LIVE_SHOT_AT_S = 4
 
 const DESKTOP_SHOTS = [
   { hash: '#/dashboard',  file: 'screenshot-dashboard.png',  wait: '.panel-title' },
-  { hash: '#/shows',      file: 'screenshot-shows.png',      wait: '.panel-title' },
+  { hash: '#/series',     file: 'screenshot-series.png',     wait: '.panel-title' },
   { hash: '#/syncs',      file: 'screenshot-syncs.png',      wait: '.panel-title' },
   { hash: '#/recordings', file: 'screenshot-recordings.png', wait: '.panel-title' },
   { hash: '#/settings',   file: 'screenshot-settings.png',   wait: '.panel-title' },
@@ -23,7 +23,7 @@ const DESKTOP_SHOTS = [
 
 const MOBILE_SHOTS = [
   { hash: '#/dashboard',  file: 'screenshot-mobile-dashboard.png',  wait: '.panel-title' },
-  { hash: '#/shows',      file: 'screenshot-mobile-shows.png',      wait: '.panel-title' },
+  { hash: '#/series',     file: 'screenshot-mobile-series.png',     wait: '.panel-title' },
   { hash: '#/recordings', file: 'screenshot-mobile-recordings.png', wait: '.panel-title' },
   { hash: '#/guide',      file: 'screenshot-mobile-guide.png',      wait: '.epg-cell' },
   { hash: '#/live',       file: 'screenshot-mobile-live.png',       wait: '.live-row' },

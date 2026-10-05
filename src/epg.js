@@ -9,6 +9,7 @@ import {
   cancelRecording,
   enableSeriesTag,
   disableSeriesTag,
+  setSeriesTagsEnabled,
   resolveConnection,
   getChannelIcon,
   fetchProgrammeImage,
@@ -237,6 +238,7 @@ export const projectUpcomingRecordings = ({
       endDate: r.endDate,
       episodeTitle: r.episodeTitle || null,
       seriesLinkId: r.seriesLinkId || null,
+      season: r.season ?? null,
       hasImage: Boolean(guide?.imageByEventId?.has(String(r.programId))),
       source: 'timer',
     }))
@@ -274,6 +276,7 @@ export const projectUpcomingRecordings = ({
           seriesLinkId: p.series_link,
           seriesNo: p.series_no ?? null,
           episodeNo: p.episode_no ?? null,
+          season: p.series_no ?? null,
           hasImage: Boolean(p.image),
           source: 'series',
         })
@@ -440,6 +443,12 @@ export const recordSeries = async ({ programId, channelId, ...args }) => {
 
 export const cancelSeries = async (args) => {
   const result = await disableSeriesTag(args)
+  invalidateRecordingState()
+  return result
+}
+
+export const pauseSeries = async ({ seriesLinkIds, paused }) => {
+  const result = await setSeriesTagsEnabled({ seriesLinkIds, enabled: !paused })
   invalidateRecordingState()
   return result
 }
