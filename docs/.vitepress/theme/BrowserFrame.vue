@@ -1,12 +1,13 @@
 <script setup>
 import { withBase } from 'vitepress'
-import { ref, computed, useSlots, onMounted } from 'vue'
+import { ref, computed, useSlots, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   src: { type: String, default: '/demo.mp4' },
   poster: { type: String, default: '/demo-poster.jpg' },
   label: { type: String, default: 'http://freetvarr.lan' },
-  credit: { type: String, default: null }
+  credit: { type: String, default: null },
+  ariaLabel: { type: String, default: 'A walkthrough of the Freetvarr dashboard, live TV, TV guide, series, recordings, syncs, and settings' }
 })
 
 const VIDEO_CREDIT = 'Demo video: Big Buck Bunny, © Blender Foundation, CC BY 3.0'
@@ -16,10 +17,25 @@ const creditText = computed(() => props.credit ?? (showsScreenshot.value ? '' : 
 
 const video = ref(null)
 
+const showControlsInFullscreen = () => {
+  const el = video.value
+  if (!el) return
+  el.controls = document.fullscreenElement === el
+}
+
+const playFullscreen = () => {
+  const el = video.value
+  if (!el) return
+  el.play?.().catch(() => {})
+  if (el.requestFullscreen) return el.requestFullscreen().catch(() => {})
+  el.webkitEnterFullscreen?.()
+}
+
 onMounted(() => {
   const el = video.value
   if (!el) return
   el.muted = true
+  document.addEventListener('fullscreenchange', showControlsInFullscreen)
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')
   if (reduce?.matches) {
     el.removeAttribute('autoplay')
@@ -28,18 +44,32 @@ onMounted(() => {
   }
   el.play?.().catch(() => {})
 })
+
+onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsInFullscreen))
 </script>
 
 <template>
   <figure class="browser-frame__figure">
     <div class="browser-frame">
-      <div class="browser-frame__bar" aria-hidden="true">
-        <span class="browser-frame__dots">
+      <div class="browser-frame__bar">
+        <span class="browser-frame__dots" aria-hidden="true">
           <span class="browser-frame__dot browser-frame__dot--blue"></span>
           <span class="browser-frame__dot browser-frame__dot--orange"></span>
           <span class="browser-frame__dot browser-frame__dot--yellow"></span>
         </span>
-        <span class="browser-frame__url">{{ label }}</span>
+        <span class="browser-frame__url" aria-hidden="true">{{ label }}</span>
+        <button
+          v-if="!showsScreenshot"
+          type="button"
+          class="browser-frame__fullscreen"
+          aria-label="Play the video full screen"
+          title="Full screen"
+          @click="playFullscreen"
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
       </div>
       <div v-if="showsScreenshot" class="browser-frame__shot">
         <slot />
@@ -53,7 +83,8 @@ onMounted(() => {
           muted
           playsinline
           preload="metadata"
-          aria-label="A walkthrough of the Freetvarr dashboard, live TV, TV guide, shows, recordings, syncs, and settings"
+          :aria-label="ariaLabel"
+          @dblclick="playFullscreen"
         >
           <source :src="withBase(src)" type="video/mp4" />
         </video>
@@ -136,6 +167,31 @@ onMounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.browser-frame__fullscreen {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+}
+
+.browser-frame__fullscreen:hover {
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-default-soft);
+}
+
+.browser-frame__screen video:fullscreen {
+  object-fit: contain;
+  background: #000;
 }
 
 .browser-frame__screen {

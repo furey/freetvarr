@@ -31,6 +31,8 @@ import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopSchedu
 import {
   detectPlexTokenFromPreferences,
   listPlexSections,
+  planPlexLibraries,
+  createPlexLibraries,
   notifyPlexSectionRefresh,
   discoverLocalPlexServers,
   getPlexPrefsPath,
@@ -1616,6 +1618,49 @@ app.post('/api/plex-sections', doubleCsrfProtection, async (req, res) => {
     res.status(502).json({ error: err.message })
   }
 })
+
+app.post('/api/plex-libraries', doubleCsrfProtection, async (req, res) => {
+  try {
+    const connection = plexConnectionFrom(req.body)
+    const [sections, tv, oneoff, movies] = await Promise.all([
+      listPlexSections(connection),
+      getMediaRoot(),
+      getOneOffRoot(),
+      getMoviesRoot(),
+    ])
+    res.json({ libraries: planPlexLibraries({ sections, roots: { tv, oneoff, movies } }) })
+  } catch (err) {
+    res.status(502).json({ error: err.message })
+  }
+})
+
+app.post('/api/plex-libraries/create', syncLimiter, doubleCsrfProtection, async (req, res) => {
+  const libraries = Array.isArray(req.body?.libraries) ? req.body.libraries : []
+  if (!libraries.length) return res.status(400).json({ error: 'libraries is required' })
+  try {
+    const results = await createPlexLibraries({ ...plexConnectionFrom(req.body), libraries })
+    const selected = {}
+    for (const { kind, key } of results) {
+      if (!key || !PLEX_SECTION_SETTINGS[kind]) continue
+      await setSetting(PLEX_SECTION_SETTINGS[kind], key)
+      selected[kind] = key
+    }
+    res.json({ results, selected })
+  } catch (err) {
+    res.status(502).json({ error: err.message })
+  }
+})
+
+const plexConnectionFrom = (body = {}) => ({
+  url: body.plex_url ? String(body.plex_url).trim() : undefined,
+  token: body.plex_token ? String(body.plex_token) : undefined,
+})
+
+const PLEX_SECTION_SETTINGS = {
+  tv: 'plex_tv_section_id',
+  oneoff: 'plex_oneoff_section_id',
+  movies: 'plex_movies_section_id',
+}
 
 app.post('/api/plex-refresh', doubleCsrfProtection, async (req, res) => {
   const { plex_url, plex_token, plex_tv_section_id } = req.body || {}

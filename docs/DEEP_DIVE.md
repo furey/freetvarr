@@ -387,6 +387,9 @@ Volumes:
 | `freetvarr` | `/config`                    | `${CONFIG_PATH}/freetvarr` | SQLite state DB and an optional `comskip.ini` override                                                                                                             |
 | `freetvarr` | `/data`                      | `${DATA_PATH}`             | Recordings at `/data/recordings`, the Plex TV library at `/data/media/tv`, and the one-off folder at `/data/media/one-offs`. One mount makes the import a hardlink |
 | `freetvarr` | `/plex-preferences.xml` (ro) | `${PLEX_PREFS_PATH}`       | Optional. Read-only, only for the Auto-detect token button                                                                                                         |
+| `freetvarr` | `/plex` (ro)                 | `${CONFIG_PATH}/plex`      | The `plex` profile's settings folder, read-only, for the Auto-detect token button. Empty without the profile                                                       |
+| `plex`      | `/config`                    | `${CONFIG_PATH}/plex`      | `plex` profile only. Plex's settings and database                                                                                                                  |
+| `plex`      | `/data/media`                | `${DATA_PATH}/media`       | `plex` profile only. The library folders, at the same paths Freetvarr uses                                                                                         |
 
 > [!IMPORTANT]<br>
 > Freetvarr must see the recordings and the media folders through one mount. Linux refuses a hardlink between two bind mounts, so separate mounts make every import a full copy. Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.
