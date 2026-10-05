@@ -51,4 +51,4 @@ You can delete a `failed`, `skipped`, or `not imported` row from Freetvarr's his
 
 ## Filters and time
 
-Filter by `ON TVHEADEND` or `DELETED`, or by time with `WHEN`. Times show in the time zone chosen in Settings (or `TZ` when your `.env` sets it), whatever device you browse from.
+Filter by `ON TVHEADEND` or `DELETED`, or by time with `WHEN`. Times show in the time zone chosen in Settings (or `TZ` from your `.env` until you choose one), whatever device you browse from.

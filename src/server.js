@@ -1174,7 +1174,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   }
   if (timeZone !== undefined) {
     await setSetting('time_zone', timeZone)
-    if (!timeZoneFromEnv()) process.env.TZ = timeZone
+    process.env.TZ = timeZone
     resetGuideCache()
   }
   if (body.sync_cron !== undefined) await setSetting('sync_cron', String(body.sync_cron))
