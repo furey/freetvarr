@@ -1,5 +1,7 @@
 FROM node:24-bookworm-slim
 
+LABEL org.opencontainers.image.source=https://github.com/furey/freetvarr
+
 WORKDIR /app
 
 # Debian (not Alpine) because comskip has no Alpine package. wget must be
