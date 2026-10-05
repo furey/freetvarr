@@ -67,6 +67,90 @@ export const waitForImages = (page, selector) => page.waitForFunction((sel) => {
   return images.length > 0 && images.every((img) => img.complete && img.naturalWidth > 0)
 }, selector, { timeout: 10_000 }).catch(() => console.log(`  images not ready: ${selector}`))
 
+export const installCursor = (page) =>
+  page.evaluate(() => {
+    const c = document.createElement('div')
+    c.id = '__wtc'
+    c.style.cssText =
+      'position:fixed;left:0;top:0;z-index:2147483647;pointer-events:none;' +
+      'transition:transform .6s cubic-bezier(.22,.61,.36,1);transform:translate(-80px,-80px)'
+    c.innerHTML =
+      '<svg width="22" height="22" viewBox="0 0 24 24">' +
+      '<path d="M5 3 L5 19 L9.5 14.5 L12.5 21 L15 20 L12 13.5 L18.5 13.5 Z" ' +
+      'fill="#fffcfb" stroke="#1a1611" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+    document.body.appendChild(c)
+    window.__wt = {
+      x: -80,
+      y: -80,
+      move(x, y) {
+        this.x = x
+        this.y = y
+        c.style.transform = `translate(${x}px,${y}px)`
+      },
+      click() {
+        const r = document.createElement('div')
+        r.style.cssText =
+          `position:fixed;left:${this.x}px;top:${this.y}px;width:10px;height:10px;` +
+          'margin:-5px 0 0 -5px;border-radius:50%;border:2px solid #1eb6ff;' +
+          'z-index:2147483646;pointer-events:none;opacity:.9;' +
+          'transition:transform .5s ease-out,opacity .5s ease-out'
+        document.body.appendChild(r)
+        requestAnimationFrame(() => {
+          r.style.transform = 'scale(4)'
+          r.style.opacity = '0'
+        })
+        setTimeout(() => r.remove(), 600)
+      },
+    }
+  })
+
+export const cursorTo = async (page, x, y) => {
+  await page.evaluate(([x, y]) => window.__wt?.move(x, y), [x, y])
+  await page.waitForTimeout(680)
+}
+
+export const cursorToBox = async (page, locator) => {
+  const box = await locator.boundingBox().catch(() => null)
+  if (!box) return false
+  await cursorTo(page, Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2))
+  return true
+}
+
+export const clickWithCursor = async (page, locator) => {
+  if (!(await cursorToBox(page, locator))) return false
+  await page.waitForTimeout(180)
+  await page.evaluate(() => window.__wt?.click())
+  await locator.click()
+  return true
+}
+
+export const glideScroll = (page, { selector = null, dx = 0, dy = 0, ms = SCROLL_MS }) =>
+  page.evaluate(({ selector, dx, dy, ms }) => new Promise((resolve) => {
+    const el = selector ? document.querySelector(selector) : document.scrollingElement
+    if (!el) return resolve()
+    const clamp = (v, max) => Math.max(0, Math.min(v, max))
+    const from = { x: el.scrollLeft, y: el.scrollTop }
+    const to = {
+      x: clamp(from.x + dx, el.scrollWidth - el.clientWidth),
+      y: clamp(from.y + dy, el.scrollHeight - el.clientHeight),
+    }
+    const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
+    const startedAt = performance.now()
+    const step = () => {
+      const progress = Math.min(1, (performance.now() - startedAt) / ms)
+      const eased = easeInOut(progress)
+      el.scrollTo({
+        left: from.x + (to.x - from.x) * eased,
+        top: from.y + (to.y - from.y) * eased,
+        behavior: 'instant',
+      })
+      if (progress < 1) requestAnimationFrame(step)
+      else resolve()
+    }
+    requestAnimationFrame(step)
+  }), { selector, dx, dy, ms })
+
+const SCROLL_MS = 1600
 const PRIME_TIME = { hour: 19, minute: 45 }
 const LIVE_DEMO_DIR = process.env.LIVE_DEMO_DIR || '/work/scripts/.cache/live-demo'
 const LIVE_SESSION_ID = 'demo-live'
@@ -364,16 +448,21 @@ const recordingImage = ({ base, imageSources }) => async (route) => {
   return route.fulfill({ response })
 }
 
-const keepRequestsRoutable = () => {
+export const keepRequestsRoutable = () => {
   const fetchRoutable = window.fetch.bind(window)
   window.fetch = (input, init) => fetchRoutable(input, init?.keepalive ? { ...init, keepalive: false } : init)
   navigator.sendBeacon = () => true
 }
 
-const reportServerWrites = (response) => {
+export const isServerWrite = (response) => {
+  const method = response.request().method()
+  if (method === 'GET' || method === 'HEAD') return false
+  return Boolean(response.headers()['x-freetvarr-build'])
+}
+
+export const reportServerWrites = (response) => {
+  if (!isServerWrite(response)) return
   const request = response.request()
-  if (request.method() === 'GET' || request.method() === 'HEAD') return
-  if (!response.headers()['x-freetvarr-build']) return
   console.log(`  SERVER WRITE ${request.method()} ${new URL(request.url()).pathname}`)
 }
 
@@ -670,7 +759,7 @@ const fulfillLivePlaylist = async ({ route, liveSince }) => {
   return route.fulfill({ status: 200, contentType: 'application/vnd.apple.mpegurl', headers: { 'Cache-Control': 'no-store' }, body })
 }
 
-const fulfillJson = (route, data) => route.fulfill({
+export const fulfillJson = (route, data) => route.fulfill({
   status: 200,
   contentType: 'application/json',
   body: JSON.stringify(data),
@@ -689,13 +778,13 @@ const rewriteJson = (transform, fetchUrl = (url) => url) => async (route) => {
   return fulfillJson(route, transform(data, url))
 }
 
-const refuseWrites = (route) => {
+export const refuseWrites = (route) => {
   if (route.request().method() === 'GET') return route.fallback()
   console.log(`  blocked ${route.request().method()} ${new URL(route.request().url()).pathname}`)
   return fulfillJson(route, { ok: true })
 }
 
-const refuseUnknownGet = (route) => {
+export const refuseUnknownGet = (route) => {
   console.log(`  refused unstubbed GET ${new URL(route.request().url()).pathname}`)
   return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
 }
