@@ -164,29 +164,29 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 
 ## Prerequisites
 
-- A **TVHeadend-compatible tuner**, matched to your broadcast standard: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. USB tuners don't work on a Synology or QNAP NAS, whose kernels ship no DVB drivers.
-- A **working TVHeadend** with channels scanned, an XMLTV guide loaded, and a user holding admin, streaming, and DVR rights. The [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend) walks all of it.
-- **Docker + Docker Compose** on the host running both.
-- **The same recordings folder mounted into both containers**, so Freetvarr can read what TVHeadend wrote.
-- **Plex Media Server** is optional; Freetvarr runs fine without it, you just won't get the automatic Plex library refresh after a sync.
+- A **TVHeadend-compatible tuner**. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. USB tuners do not work on a Synology or QNAP NAS.
+- **Docker with Compose v2** on a host that stays on.
+- **Plex Media Server** is optional.
 
 ## Quick start
 
-### 1. Install
-
-No clone is needed. Docker pulls the image from `ghcr.io/furey/freetvarr`. The install script checks Docker and Compose v2, makes `./freetvarr`, downloads the compose file, writes a `.env` with your `PUID` and `PGID`, creates the folders, then pulls and starts both services:
+### Install
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-Run it again at any time; it keeps an existing `.env` and compose file. On a Synology NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
+The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, storage, Plex.
 
-To do it by hand, make a folder, save [`docker-compose.example.yml`](https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml) in it as `docker-compose.yml`, then run `docker compose up -d`. Synology Container Manager works too, with no SSH. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install) has all three paths.
+On a Synology NAS, sign in over SSH first. To install by hand or with Synology Container Manager, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
 
-### 2. Configure
+### Set up TVHeadend
 
-Every value in the `.env` is optional. With no `.env`, settings live in `./config`, recordings and your library in `./data`, and `PUID` and `PGID` are `1000`. Set `PUID` and `PGID` to your own user (`id -u`, `id -g`), or the files show an unknown owner in the file manager of the host:
+Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): tuner, channels, guide, and recording path. Then follow shows on the Shows tab.
+
+### Configure
+
+Every value in the `.env` is optional. Set `PUID` and `PGID` to your own user (`id -u` and `id -g`), then run `docker compose up -d`:
 
 ```env
 PUID=1000
@@ -194,38 +194,9 @@ PGID=1000
 CONFIG_PATH=./config
 DATA_PATH=./data
 FREETVARR_PORT=3733
-
-# Optional: only if Plex runs on this host and you want the Auto-detect token
-# button. Leave it out entirely if not (the mount defaults to a no-op).
-# PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml
 ```
 
-Freetvarr asks for your time zone in the wizard and makes its own CSRF secret on first start, so neither needs a setting. TVHeadend follows the host clock's time zone.
-
-The compose file defines three services: `init`, `tvheadend`, and `freetvarr`. A one-shot `init` service makes the subfolders of `CONFIG_PATH` and `DATA_PATH` and gives them to `PUID:PGID`, so you run no `mkdir` or `chown`. TVHeadend writes a recording to `${DATA_PATH}/recordings`, and Freetvarr picks it up from the same folder. Freetvarr mounts the whole of `${DATA_PATH}` once, at `/data`; keep only `recordings/` and `media/` in it, because Freetvarr can write to all of it.
-
-### 3. Check the start
-
-The install script starts both services. Follow the log:
-
-```sh
-docker compose logs -f
-```
-
-> [!IMPORTANT]<br>
-> The example compose uses `network_mode: host` for both services. TVHeadend discovers a network tuner such as an HDHomeRun by broadcasting on the local network, and those broadcasts don't cross Docker's own private bridge network. With host networking there's no `ports:` mapping; each service binds straight onto the host.
-
-### 4. Set up TVHeadend
-
-Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): first-run wizard, add your tuner, scan the predefined muxes for your transmitter, map services to channels, load and link an XMLTV guide for your region, set the recording path to `/recordings`, and make a user for Freetvarr (an access entry for the rights, plus a password entry).
-
-Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and a guide.
-
-### 5. Run the Freetvarr wizard
-
-Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard. The first step asks you to confirm your time zone, pre-filled from your browser; the rest cover TVHeadend, storage, and Plex. Enter the TVHeadend user you just made and press TEST CONNECTION; the wizard does not continue until the connection works. You can change all of it later in Settings.
-
-Freetvarr imports finished recordings on the schedule you set. Follow a show on the Shows tab, or press RECORD SERIES in the guide, to file its episodes into your TV library.
+[Configuration](https://furey.github.io/freetvarr/guide/configuration) covers every variable.
 
 ### Updating
 
@@ -233,8 +204,6 @@ Freetvarr imports finished recordings on the schedule you set. Follow a show on 
 docker compose pull
 docker compose up -d
 ```
-
-This downloads the newest published image (`ghcr.io/furey/freetvarr:latest`) and recreates a container only if its image changed. Your database is left alone, and any pending database updates (migrations) run automatically on the next start.
 
 ## Configuration
 

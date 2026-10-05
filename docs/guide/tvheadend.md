@@ -58,7 +58,7 @@ Run `docker compose up -d tvheadend`, then open `http://<host-ip>:9981`.
 
 ## 2. Secure TVHeadend
 
-A fresh linuxserver TVHeadend has no logins. It starts with a default access entry, username `*`, that gives anyone on any network full admin rights. Freetvarr's setup wizard replaces that entry with real logins, so run it now: start Freetvarr ([Getting started](/guide/getting-started) step 3) and open its wizard ([step 4](/guide/getting-started#_4-run-the-wizard)).
+A fresh linuxserver TVHeadend has no logins. It starts with a default access entry, username `*`, that gives anyone on any network full admin rights. Freetvarr's setup wizard replaces that entry with real logins, so run it now: install Freetvarr ([Getting started](/guide/getting-started#_1-install)) and open its wizard ([step 2](/guide/getting-started#_2-run-the-wizard)).
 
 When the wizard finds a TVHeadend with only the default entry, it asks for three things:
 
