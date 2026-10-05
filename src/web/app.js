@@ -1471,7 +1471,7 @@ const DashboardView = {
     const { flashText, flashKind, flash } = useFlash()
     const starting = ref(false)
     const heldSyncId = ref(null)
-    const heldSyncStartedAt = ref(null)
+    const runningSince = ref({ id: null, at: null })
     const shownSyncId = computed(() => syncStatus.value.activeSyncId || heldSyncId.value)
     const recentSyncs = ref([])
     const statsLoaded = ref(false)
@@ -1491,10 +1491,15 @@ const DashboardView = {
     const lastSync = computed(() => recentSyncs.value[0] || null)
 
     const deckSync = computed(() => {
-      const held = heldSyncId.value
-      if (!held || lastSync.value?.id === held) return lastSync.value
-      return { id: held, status: 'running', started_at: heldSyncStartedAt.value, summary: null }
+      const id = shownSyncId.value
+      if (!id || lastSync.value?.id === id) return lastSync.value
+      const startedAt = runningSince.value.id === id ? runningSince.value.at : null
+      return { id, status: 'running', started_at: startedAt, summary: null }
     })
+
+    const noteRunningSince = (id) => {
+      if (id && runningSince.value.id !== id) runningSince.value = { id, at: new Date().toISOString() }
+    }
 
 
     const loadGuidePanel = async () => {
@@ -1621,7 +1626,7 @@ const DashboardView = {
 
     const holdSyncState = (syncId) => {
       heldSyncId.value = syncId
-      heldSyncStartedAt.value = new Date().toISOString()
+      noteRunningSince(syncId)
       setTimeout(() => { heldSyncId.value = null }, MIN_SYNC_DISPLAY_MS)
     }
 
@@ -1649,6 +1654,7 @@ const DashboardView = {
       if (pollTimer) clearInterval(pollTimer)
     })
     const stopWatch = watch(shownSyncId, (curr) => {
+      noteRunningSince(curr)
       if (!curr || !heldSyncId.value) refresh()
     })
     onUnmounted(stopWatch)
