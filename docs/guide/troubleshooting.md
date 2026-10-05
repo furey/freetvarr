@@ -224,7 +224,14 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 
 ## Wrong timestamps
 
-- Set `TZ` in your `.env` to your IANA timezone; Freetvarr shows every time in that zone, on every device.
+- Freetvarr uses the time zone you chose in the wizard. If Doctor warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings, in the SCHEDULE panel. Freetvarr shows every time in that zone, on every device.
+- A `TZ` in your `.env` overrides the chosen zone. If `TZ` is wrong, correct it (e.g. `Australia/Sydney`) and recreate the containers.
+- TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
+
+## CSRF secret
+
+- **Exit on start with a message about `CONFIG_PATH`**: Freetvarr could not write its `csrf-secret` file. Check that `CONFIG_PATH` is owned by `PUID:PGID`.
+- **Reset the secret**: delete `${CONFIG_PATH}/freetvarr/csrf-secret` and restart Freetvarr. It generates a new one, and browsers get a fresh CSRF token automatically; nothing else breaks.
 
 ## Source install errors
 

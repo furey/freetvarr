@@ -37,7 +37,7 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
 
 > [!NOTE]<br>
-> These pages use Australian values in their examples (`TZ=Australia/Sydney`, the `au-Sydney` mux list, a Sydney XMLTV feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) say what to pick instead.
+> These pages use Australian values in their examples (the `Australia/Sydney` time zone, the `au-Sydney` mux list, a Sydney XMLTV feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) say what to pick instead.
 
 ## What Freetvarr isn't
 

@@ -553,6 +553,8 @@ const recordingsStorageInfo = async () => {
 }
 
 let guideCache = null
+
+export const resetGuideCache = () => { guideCache = null }
 let guideInflight = null
 let stateCache = null
 let stateInflight = null
