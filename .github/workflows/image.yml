@@ -1,0 +1,161 @@
+name: Image
+
+# Build the Docker image natively for amd64 and arm64 and boot each one.
+# Triggers: a release tag (X.Y.Z, no v prefix) builds, tests, and publishes
+# ghcr.io/furey/freetvarr:X.Y.Z and :latest; a push to develop that touches the
+# image inputs, or a manual run, builds and tests without publishing.
+
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    branches: [develop]
+    paths:
+      - Dockerfile
+      - docker-entrypoint.sh
+      - .dockerignore
+      - .npmrc
+      - package.json
+      - package-lock.json
+      - .github/workflows/image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/furey/freetvarr
+  SOURCE: https://github.com/furey/freetvarr
+  PUBLISH: ${{ startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: freetvarr:test
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      - name: Check the tools
+        run: |
+          docker run --rm --entrypoint sh freetvarr:test -c '
+            set -e
+            test -x /app/docker-entrypoint.sh
+            node -e "require(\"better-sqlite3\")"
+            ffmpeg -hide_banner -version | head -1
+            command -v comskip
+          '
+
+      - name: Boot the image
+        run: |
+          docker run -d --name smoke -p 3733:3733 -e DB_PATH=/tmp/freetvarr/state.db freetvarr:test
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3733/healthz; then
+              docker logs smoke
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs smoke
+          exit 1
+
+      - name: Log in to GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push by digest
+        id: push
+        if: env.PUBLISH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: org.opencontainers.image.source=${{ env.SOURCE }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.arch }}
+
+      - name: Record the digest
+        if: env.PUBLISH == 'true'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.push.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload the digest
+        if: env.PUBLISH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download the digests
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag the multi-arch image
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            --annotation "index:org.opencontainers.image.source=${SOURCE}" \
+            --annotation "index:org.opencontainers.image.version=${GITHUB_REF_NAME}" \
+            -t "${IMAGE}:${GITHUB_REF_NAME}" \
+            -t "${IMAGE}:latest" \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Inspect
+        run: docker buildx imagetools inspect "${IMAGE}:${GITHUB_REF_NAME}"
