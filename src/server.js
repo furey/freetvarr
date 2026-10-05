@@ -56,6 +56,20 @@ import {
   undoBootstrap,
   validateBootstrapInput,
 } from './tvheadend-bootstrap.js'
+import {
+  applyChannelSetup,
+  inspectSetup,
+  listTransmitters,
+  planChannelSetup,
+  suggestChannelSetup,
+} from './tvheadend-setup.js'
+import {
+  applyGuideSetup,
+  inspectGuide,
+  linkChannelsByHand,
+  planGuideSetup,
+  suggestGuide,
+} from './tvheadend-guide.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
 import {
   getGuideDay,
@@ -1354,6 +1368,190 @@ const bootstrapFailure = ({ failedStep, code, rolledBack, error: raw }) => {
   }
   return messages[failedStep] || { error, next: 'Try again.' }
 }
+
+const setupHttp = { get: tvhRead, post: tvhWrite }
+let setupRun = null
+
+const readChannelSetup = async () => {
+  const conn = await resolveConnection()
+  const inspection = await inspectSetup({ http: setupHttp, conn })
+  const transmitters = inspection.deliverySystem
+    ? await listTransmitters({ http: setupHttp, conn, scanType: inspection.deliverySystem.scanType })
+    : []
+  const suggestion = suggestChannelSetup({ inspection, transmitters, timeZone: currentTimeZone() })
+  return { conn, inspection, transmitters, suggestion }
+}
+
+app.get('/api/tvh-setup/status', bootstrapStatusLimiter, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const { inspection, transmitters, suggestion } = await readChannelSetup()
+    res.json({
+      ok: true,
+      suggestion,
+      tuners: inspection.tuners,
+      networks: inspection.compatibleNetworks,
+      channels: inspection.channels,
+      recordingNow: inspection.recordingNow,
+      transmitters,
+      job: setupRun,
+    })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).`, job: setupRun })
+  }
+})
+
+app.get('/api/tvh-setup/progress', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(setupRun || { running: false, steps: [], result: null })
+})
+
+app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  if (setupRun?.running) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up channels.' })
+  const body = req.body || {}
+  const tunerIds = Array.isArray(body.tuner_ids) ? body.tuner_ids.map(String) : []
+  const networkId = body.network_id ? String(body.network_id) : null
+  if (!tunerIds.length) return res.status(400).json({ ok: false, error: 'Choose at least one tuner.' })
+  let setup
+  try {
+    setup = await readChannelSetup()
+  } catch (err) {
+    return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
+  }
+  const transmitter = setup.transmitters.find((t) => t.key === body.transmitter_key) || null
+  if (!networkId && !transmitter) return res.status(400).json({ ok: false, error: 'Choose a transmitter.' })
+  const steps = planChannelSetup({ networkId }).steps.map((step) => ({ ...step, status: 'pending', detail: null }))
+  setupRun = { running: true, steps, result: null }
+  res.status(202).json({ ok: true, steps })
+  const result = await applyChannelSetup({
+    http: setupHttp,
+    conn: setup.conn,
+    tunerIds,
+    networkId,
+    transmitter,
+    onProgress: (latest) => { setupRun.steps = latest },
+  }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: setupRun.steps }))
+  const outcome = result.ok ? result : { ...result, ...setupFailure({ ...result, transmitter }) }
+  if (result.ok) console.log(`[tvh-setup] ${result.mapped.ok} channels added on network ${result.networkId}`)
+  else console.warn(`[tvh-setup] stopped at ${result.failedStep}: ${result.error}`)
+  setupRun = { running: false, steps: result.steps, result: outcome }
+})
+
+const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
+  const error = String(raw).replace(/HTTP (\d+)/g, 'status $1')
+  const from = transmitter ? ` from ${transmitter.name}` : ''
+  const messages = {
+    'no-tuner': {
+      error: 'Freetvarr cannot see the chosen tuner now.',
+      next: 'Check that the tuner is on and connected, then press CHECK AGAIN.',
+    },
+    'no-signal': {
+      error: `The tuner received no channels${from}.`,
+      next: 'Check the antenna cable, check that no other app is using the tuner, and pick the transmitter your antenna points at. Then try again.',
+    },
+    'scan-timeout': {
+      error: 'The channel scan did not finish in 30 minutes.',
+      next: 'Live TV or a recording may be using every tuner. Try again when they are free.',
+    },
+    'map-empty': {
+      error: 'No channels could be added, because none of them played during the check.',
+      next: 'Check the antenna cable, then try again.',
+    },
+    'map-timeout': {
+      error: 'Adding channels did not finish in 20 minutes.',
+      next: 'Try again when no tuner is in use.',
+    },
+  }
+  const byStep = {
+    network: { error: `TVHeadend did not set up the TV network (${error}).`, next: 'Try again.' },
+    tuners: { error: `TVHeadend did not turn on the tuners (${error}).`, next: 'Try again.' },
+    recording: {
+      error: `The channels are ready, but Freetvarr could not check the recording settings (${error}).`,
+      next: 'Continue. The Doctor checks the recording settings later.',
+    },
+  }
+  return messages[code] || byStep[failedStep] || { error, next: 'Try again.' }
+}
+
+let guideRun = null
+
+app.get('/api/tvh-guide/status', bootstrapStatusLimiter, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const inspection = await inspectGuide({ http: setupHttp, conn: await resolveConnection() })
+    res.json({ ok: true, suggestion: suggestGuide({ inspection, timeZone: currentTimeZone() }), job: guideRun })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).`, job: guideRun })
+  }
+})
+
+app.get('/api/tvh-guide/progress', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(guideRun || { running: false, steps: [], result: null })
+})
+
+app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  if (guideRun?.running) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up the guide.' })
+  const url = String(req.body?.url ?? '').trim()
+  if (!/^https?:\/\/[^\s]+$/i.test(url)) {
+    return res.status(400).json({ ok: false, error: 'Enter a guide address that starts with http:// or https://.' })
+  }
+  let conn
+  try {
+    conn = await resolveConnection()
+  } catch (err) {
+    return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
+  }
+  const steps = planGuideSetup().steps.map((step) => ({ ...step, status: 'pending', detail: null }))
+  guideRun = { running: true, steps, result: null }
+  res.status(202).json({ ok: true, steps })
+  const result = await applyGuideSetup({
+    http: setupHttp,
+    conn,
+    url,
+    onProgress: (latest) => { guideRun.steps = latest },
+  }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: guideRun.steps }))
+  if (result.ok) console.log(`[tvh-guide] ${url}: ${result.linked} of ${result.total} channels have a guide`)
+  else console.warn(`[tvh-guide] stopped at ${result.failedStep}: ${result.error}`)
+  guideRun = { running: false, steps: result.steps, result: result.ok ? result : { ...result, ...guideFailure(result) } }
+})
+
+app.post('/api/tvh-guide/links', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  const links = (Array.isArray(req.body?.links) ? req.body.links : [])
+    .map((l) => ({ channelId: String(l?.channel_id || ''), guideId: String(l?.guide_id || '') }))
+    .filter((l) => l.channelId && l.guideId)
+  if (!links.length) return res.json({ ok: true, linked: 0 })
+  try {
+    const result = await linkChannelsByHand({ http: setupHttp, conn: await resolveConnection(), links })
+    if (guideRun?.result?.ok) {
+      const done = new Set(links.map((l) => l.channelId))
+      const unmatched = guideRun.result.unmatched.filter((c) => !done.has(c.id))
+      guideRun.result = { ...guideRun.result, unmatched, linked: guideRun.result.linked + result.linked }
+    }
+    res.json({ ok: true, ...result })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `TVHeadend did not save the guide links (${err.message}).` })
+  }
+})
+
+const guideFailure = ({ code, error }) => ({
+  'no-grabber': {
+    error: 'This TVHeadend cannot download a guide from an address.',
+    next: 'Use the guide that comes with the broadcast, or set up a guide in TVHeadend.',
+  },
+  'feed-unreachable': {
+    error: `${error} Your TV still works; recording by show needs the guide.`,
+    next: 'Check the guide address, then try again.',
+  },
+  'feed-empty': {
+    error: 'The guide address returned no channels.',
+    next: 'Check the guide address, then try again.',
+  },
+  'download-timeout': {
+    error: 'TVHeadend did not finish loading the guide in 5 minutes.',
+    next: 'Try again. If it still fails, check that TVHeadend can reach the guide address.',
+  },
+})[code] || { error, next: 'Try again.' }
 
 app.post('/api/plex-detect-token', doubleCsrfProtection, async (req, res) => {
   const result = await detectPlexTokenFromPreferences()

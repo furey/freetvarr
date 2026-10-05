@@ -1,0 +1,48 @@
+{
+  "au": {
+    "name": "Australia",
+    "feeds": [
+      {
+        "region": "Adelaide",
+        "url": "https://i.mjh.nz/au/Adelaide/epg.xml"
+      },
+      {
+        "region": "Brisbane",
+        "url": "https://i.mjh.nz/au/Brisbane/epg.xml"
+      },
+      {
+        "region": "Canberra",
+        "url": "https://i.mjh.nz/au/Canberra/epg.xml"
+      },
+      {
+        "region": "Darwin",
+        "url": "https://i.mjh.nz/au/Darwin/epg.xml"
+      },
+      {
+        "region": "Hobart",
+        "url": "https://i.mjh.nz/au/Hobart/epg.xml"
+      },
+      {
+        "region": "Melbourne",
+        "url": "https://i.mjh.nz/au/Melbourne/epg.xml"
+      },
+      {
+        "region": "Perth",
+        "url": "https://i.mjh.nz/au/Perth/epg.xml"
+      },
+      {
+        "region": "Sydney",
+        "url": "https://i.mjh.nz/au/Sydney/epg.xml"
+      }
+    ]
+  },
+  "nz": {
+    "name": "New Zealand",
+    "feeds": [
+      {
+        "region": "New Zealand",
+        "url": "https://i.mjh.nz/nz/epg.xml"
+      }
+    ]
+  }
+}

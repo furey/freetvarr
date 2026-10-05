@@ -96,7 +96,7 @@ Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 
 
 ## What Freetvarr is
 
-TVHeadend records free-to-air TV into its recordings folder. By default it names each file after the programme title only, for example `The Block.ts`. Plex's TV library matches a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. **Freetvarr** watches TVHeadend on your LAN, picks up every recording it finishes, files episodes of the shows you follow into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
+**Freetvarr** watches TVHeadend on your LAN, picks up every recording it finishes, files episodes of the shows you follow into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
 
 It is also a TV app for your home network. Open the Live TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first. Pause and rewind up to `30` minutes, then jump back to live.
 
@@ -164,7 +164,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 
 ## Prerequisites
 
-- A **TVHeadend-compatible tuner**. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. USB tuners do not work on a Synology or QNAP NAS.
+- A **TVHeadend-compatible tuner**. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
 - **Docker with Compose v2** on a host that stays on.
 - **Plex Media Server** is optional.
 
@@ -176,13 +176,13 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, storage, Plex.
+The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, channels, guide, storage, Plex.
 
-On a Synology NAS, sign in over SSH first. To install by hand or with Synology Container Manager, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
+On a NAS or another remote host, sign in over SSH first. To install by hand or with a NAS container app, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
 
-### Set up TVHeadend
+### Follow shows
 
-Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): tuner, channels, guide, and recording path. Then follow shows on the Shows tab.
+Follow shows on the Shows tab. To change TVHeadend by hand, see the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend).
 
 ### Configure
 
@@ -279,7 +279,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 ### Wrong ad cuts
 
 - Ad detection is never exact. Comskip's accuracy varies by channel.
-- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. A scan uses a lot of CPU: allow about 30 minutes per 75-minute recording on a home NAS.
+- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. A scan uses a lot of CPU: allow about 30 minutes per 75-minute recording on a dual-core Celeron, and less on a faster CPU.
 - Cuts fall on the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which is tuned for Australian channels. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it.
 

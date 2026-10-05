@@ -2310,7 +2310,7 @@ const RecordingsView = {
                 </td>
                 <td class="font-mono">{{ fmtTime(r.imported_at) }}</td>
                 <td>
-                  <div class="flex items-center gap-2">
+                  <div class="rec-actions flex items-center gap-2">
                   <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
                     @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
                     <play-icon />
@@ -2380,7 +2380,7 @@ const RecordingsView = {
                 :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
               <progress-block v-if="isAdProgress(r)"
                 :progress="r.progress" :caption="progressCaption(r)" :bar="hasBar(r)"/>
-              <div v-if="r.playable || canImport(r) || canAdScan(r) || canDelete(r) || canRemove(r)" class="flex items-center justify-end gap-2 pt-1">
+              <div v-if="r.playable || canImport(r) || canAdScan(r) || canDelete(r) || canRemove(r)" class="rec-actions flex items-center justify-end gap-2 pt-1">
                 <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
                   @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
                   <play-icon />
@@ -3723,6 +3723,503 @@ const DoctorView = {
   },
 }
 
+const ManualOption = {
+  props: {
+    href: { type: String, default: '' },
+    label: { type: String, required: true },
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['choose'],
+  template: `
+    <div class="border-t border-hairline pt-3 space-y-1">
+      <p class="field-label">Or, by hand</p>
+      <p class="text-sm text-ink-dim leading-relaxed">
+        <slot />
+        <a v-if="href" class="btn-link" :href="href" target="_blank" rel="noopener">{{ label }}</a>
+        <button v-else type="button" class="btn-link" :disabled="disabled" @click="$emit('choose')">{{ label }}</button>
+      </p>
+    </div>
+  `,
+}
+
+const ChannelSetupStep = {
+  props: {
+    tvhUrl: { type: String, default: '' },
+  },
+  emits: ['state'],
+  template: `
+    <div class="space-y-4">
+      <p v-if="loading && !status" class="status-readout info">Looking for your tuner…</p>
+
+      <div v-else-if="loadError" class="space-y-2">
+        <p class="status-readout err">{{ loadError }}</p>
+        <button type="button" class="btn" @click="refresh"><refresh-icon /> CHECK AGAIN</button>
+      </div>
+
+      <template v-else-if="status">
+        <div v-if="showSteps" class="space-y-3">
+          <ol class="space-y-1 text-sm font-mono">
+            <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
+              <span :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+              <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
+                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
+              </span>
+            </li>
+          </ol>
+          <p v-if="waitingForTuner" class="status-readout info">
+            Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
+          </p>
+          <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
+          <div v-if="result && !result.ok" class="space-y-2">
+            <p class="status-readout err">{{ result.error }}</p>
+            <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
+            <button type="button" class="btn" @click="restart"><refresh-icon /> TRY AGAIN</button>
+          </div>
+        </div>
+
+        <div v-else-if="state === 'no-tuner'" class="space-y-2">
+          <p class="status-readout err">No TV tuner found yet.</p>
+          <p class="text-sm text-ink">Check that the tuner is on and connected to your network, then press CHECK AGAIN.</p>
+          <button type="button" class="btn" @click="refresh" :disabled="loading">
+            <template v-if="loading">CHECKING…</template><template v-else><refresh-icon /> CHECK AGAIN</template>
+          </button>
+        </div>
+
+        <div v-else-if="state === 'unsupported-tuner'" class="space-y-2">
+          <p class="text-sm text-ink">Freetvarr cannot set up this kind of tuner yet. Set up its channels in TVHeadend, then press CHECK AGAIN.</p>
+          <button type="button" class="btn" @click="refresh"><refresh-icon /> CHECK AGAIN</button>
+        </div>
+
+        <div v-else-if="state === 'has-channels' && !editing" class="space-y-2">
+          <p class="status-readout ok">TVHeadend already has {{ status.channels }} channels.</p>
+          <p class="text-sm text-ink-dim">Press NEXT to keep them. To add channels that are missing, scan again.</p>
+          <button type="button" class="btn" @click="editing = true"><search-icon /> SCAN AGAIN</button>
+        </div>
+
+        <div v-else class="space-y-4">
+          <p class="text-ink text-sm leading-relaxed">
+            Freetvarr can scan for channels and add them to TVHeadend. Check the choices below, then press FIND CHANNELS.
+          </p>
+          <div class="field-row">
+            <span class="field-label">Tuners</span>
+            <label v-for="t in tuners" :key="t.id" class="flex items-center gap-2 text-sm text-ink">
+              <input type="checkbox" class="chk" :value="t.id" v-model="tunerIds" />
+              {{ t.name }}
+            </label>
+          </div>
+          <div v-if="networks.length" class="field-row">
+            <label class="field-label" for="channel-network">TV network</label>
+            <select id="channel-network" class="field-input" v-model="networkId">
+              <option v-for="n in networks" :key="n.id" :value="n.id">{{ n.name }} (existing)</option>
+              <option value="">Scan a transmitter instead</option>
+            </select>
+          </div>
+          <template v-if="!networkId">
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="field-row">
+                <label class="field-label" for="channel-country">Country</label>
+                <select id="channel-country" class="field-input" v-model="country">
+                  <option value="">— pick a country —</option>
+                  <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                </select>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="channel-transmitter">Transmitter</label>
+                <select id="channel-transmitter" class="field-input" v-model="transmitterKey" :disabled="!country">
+                  <option value="">— pick a transmitter —</option>
+                  <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ t.name }}</option>
+                </select>
+              </div>
+            </div>
+            <p class="text-xs text-ink-dim">
+              Pick the transmitter your antenna points at.<template v-if="guessed"> Freetvarr guessed it from your time zone.</template>
+            </p>
+          </template>
+          <p v-if="recordingNow" class="status-readout info">{{ recordingNow }}</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="button" class="btn btn-primary" @click="apply" :disabled="!ready || starting">
+              <search-icon /> FIND CHANNELS
+            </button>
+          </div>
+          <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
+          <p class="text-xs text-ink-mute">A scan takes a few minutes. Freetvarr keeps any channels you already have.</p>
+          <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
+            Scan and add channels yourself in TVHeadend, then come back and press NEXT.
+          </manual-option>
+        </div>
+      </template>
+    </div>
+  `,
+  setup(props, { emit }) {
+    const status = ref(null)
+    const loading = ref(false)
+    const loadError = ref('')
+    const editing = ref(false)
+    const tunerIds = ref([])
+    const networkId = ref('')
+    const country = ref('')
+    const transmitterKey = ref('')
+    const guessed = ref(false)
+    const job = ref(null)
+    const starting = ref(false)
+    const applyError = ref('')
+    let pollTimer = null
+    let retryTimer = null
+    let retries = 0
+
+    const state = computed(() => status.value?.suggestion?.state || '')
+    const tuners = computed(() => status.value?.tuners?.filter((t) =>
+      t.deliverySystem === status.value?.suggestion?.deliverySystem?.id) || [])
+    const networks = computed(() => status.value?.networks || [])
+    const countries = computed(() => status.value?.suggestion?.countries || [])
+    const countryTransmitters = computed(() => (status.value?.transmitters || [])
+      .filter((t) => t.country === country.value)
+      .sort((a, b) => a.name.localeCompare(b.name)))
+    const ready = computed(() => tunerIds.value.length > 0 && Boolean(networkId.value || transmitterKey.value))
+    const steps = computed(() => job.value?.steps || [])
+    const result = computed(() => job.value?.result || null)
+    const running = computed(() => Boolean(job.value?.running))
+    const showSteps = computed(() => running.value || Boolean(result.value))
+    const waitingForTuner = computed(() => running.value
+      && Boolean(steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail?.waitingForTuner))
+    const channelCount = computed(() => status.value?.channels || 0)
+    const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
+    const doneText = computed(() => {
+      const added = result.value?.mapped?.ok || 0
+      return added ? `Added ${added} channels.` : 'Every channel the scan found is already in TVHeadend.'
+    })
+
+    watch([running, starting, channelCount], () => {
+      emit('state', { busy: running.value || starting.value, channels: channelCount.value })
+    }, { immediate: true })
+
+    watch(country, (curr, prev) => {
+      if (prev !== undefined && prev !== '' && curr !== prev) {
+        transmitterKey.value = ''
+        guessed.value = false
+      }
+    })
+
+    const prefill = (suggestion) => {
+      tunerIds.value = suggestion?.tunerIds || []
+      networkId.value = suggestion?.networkId || ''
+      country.value = suggestion?.country || ''
+      transmitterKey.value = suggestion?.transmitterKey || ''
+      guessed.value = Boolean(suggestion?.transmitterKey)
+    }
+
+    const refresh = async () => {
+      loading.value = true
+      loadError.value = ''
+      clearTimeout(retryTimer)
+      try {
+        const r = await api('GET', '/api/tvh-setup/status')
+        status.value = r
+        if (r.job) job.value = r.job
+        if (r.job?.running) startPolling()
+        prefill(r.suggestion)
+        if (r.suggestion?.state === 'no-tuner' && retries < NO_TUNER_RETRIES) {
+          retries += 1
+          retryTimer = setTimeout(refresh, NO_TUNER_RETRY_MS)
+        }
+      } catch (err) {
+        loadError.value = err.message
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const startPolling = () => {
+      clearInterval(pollTimer)
+      pollTimer = setInterval(async () => {
+        const progress = await api('GET', '/api/tvh-setup/progress').catch(() => null)
+        if (!progress) return
+        job.value = progress
+        if (!progress.running) {
+          clearInterval(pollTimer)
+          if (progress.result?.ok) await refreshCounts()
+        }
+      }, SETUP_POLL_MS)
+    }
+
+    const refreshCounts = async () => {
+      const r = await api('GET', '/api/tvh-setup/status').catch(() => null)
+      if (r) status.value = r
+    }
+
+    const apply = async () => {
+      starting.value = true
+      applyError.value = ''
+      try {
+        const r = await api('POST', '/api/tvh-setup/apply', {
+          tuner_ids: tunerIds.value,
+          network_id: networkId.value || null,
+          transmitter_key: networkId.value ? null : transmitterKey.value,
+        })
+        job.value = { running: true, steps: r.steps, result: null }
+        startPolling()
+      } catch (err) {
+        applyError.value = err.message
+      } finally {
+        starting.value = false
+      }
+    }
+
+    const restart = () => {
+      job.value = null
+      editing.value = true
+      refresh()
+    }
+
+    const stepDetail = (s) => scanOrMapDetail(s)
+
+    onMounted(refresh)
+    onUnmounted(() => {
+      clearInterval(pollTimer)
+      clearTimeout(retryTimer)
+    })
+
+    return {
+      status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
+      tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
+      steps, result, showSteps, waitingForTuner, doneText, recordingNow,
+      refresh, apply, restart, stepDetail, secureStepDot,
+    }
+  },
+}
+
+const recordingWarning = (recordings) => {
+  if (!recordings.length) return ''
+  const [first] = recordings
+  const until = first.stopMs ? ` until ${fmtClockTz(first.stopMs)}` : ''
+  const what = recordings.length === 1 ? first.title : `${recordings.length} programmes`
+  return `TVHeadend is recording ${what}${until}. A scan now can cause brief glitches in the recording, so you may want to wait.`
+}
+
+const scanOrMapDetail = (step) => {
+  const d = step.detail
+  if (!d) return ''
+  if (step.id === 'scan') {
+    if (!d.frequencies) return 'starting'
+    return `checked ${d.scanned} of ${d.frequencies} frequencies, ${d.services} stations found`
+  }
+  if (step.id === 'map') {
+    if (!d.total) return 'nothing new to add'
+    return `${d.ok + d.fail} of ${d.total} checked, ${d.ok} added`
+  }
+  return ''
+}
+
+const SETUP_POLL_MS = 1500
+const NO_TUNER_RETRY_MS = 15_000
+const NO_TUNER_RETRIES = 3
+
+const GuideSetupStep = {
+  props: {
+    tvhUrl: { type: String, default: '' },
+  },
+  emits: ['state'],
+  template: `
+    <div class="space-y-4">
+      <p v-if="loading && !status" class="status-readout info">Reading the TV guide settings…</p>
+
+      <div v-else-if="loadError" class="space-y-2">
+        <p class="status-readout err">{{ loadError }}</p>
+        <button type="button" class="btn" @click="refresh"><refresh-icon /> CHECK AGAIN</button>
+      </div>
+
+      <template v-else-if="suggestion">
+        <div v-if="showSteps" class="space-y-3">
+          <ol class="space-y-1 text-sm font-mono">
+            <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
+              <span :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+              <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
+                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
+              </span>
+            </li>
+          </ol>
+          <template v-if="result && result.ok">
+            <p class="status-readout ok">{{ result.linked }} of {{ result.total }} channels have a guide.</p>
+            <div v-if="result.unmatched.length" class="space-y-3">
+              <p class="text-sm text-ink">These channels have no guide yet. Pick one for each, or leave them without a guide.</p>
+              <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
+                <label class="text-sm text-ink" :for="'guide-' + c.id">{{ c.name }}<span v-if="c.number" class="text-ink-dim"> · {{ c.number }}</span></label>
+                <select :id="'guide-' + c.id" class="field-input" v-model="picks[c.id]">
+                  <option value="">— no guide —</option>
+                  <option v-for="o in result.options" :key="o.id" :value="o.id">{{ o.name }}</option>
+                </select>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="button" class="btn" @click="saveLinks" :disabled="!pickedCount || savingLinks">
+                  <template v-if="savingLinks">SAVING…</template><template v-else>SAVE LINKS</template>
+                </button>
+                <span v-if="linkText" :class="['status-readout', linkKind]">{{ linkText }}</span>
+              </div>
+            </div>
+          </template>
+          <div v-if="result && !result.ok" class="space-y-2">
+            <p class="status-readout err">{{ result.error }}</p>
+            <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
+            <button type="button" class="btn" @click="restart"><refresh-icon /> TRY AGAIN</button>
+          </div>
+        </div>
+
+        <div v-else-if="!suggestion.available" class="space-y-2">
+          <p class="text-sm text-ink">This TVHeadend cannot download a guide from an address. It uses the guide that comes with the broadcast. Press NEXT.</p>
+        </div>
+
+        <div v-else-if="suggestion.state === 'has-guide' && !editing" class="space-y-2">
+          <p class="status-readout ok">{{ suggestion.linked }} of {{ suggestion.channels }} channels have a guide.</p>
+          <p class="text-sm text-ink-dim break-all">Guide address: {{ suggestion.url }}</p>
+          <p class="text-sm text-ink-dim">Press NEXT to keep it. To link channels that have no guide, or to change the address, set it up again.</p>
+          <button type="button" class="btn" @click="editing = true"><refresh-icon /> SET UP AGAIN</button>
+        </div>
+
+        <div v-else class="space-y-4">
+          <p class="text-ink text-sm leading-relaxed">
+            A guide feed gives Freetvarr a week of listings with episode numbers, so it can record a show by name.
+          </p>
+          <div v-if="suggestion.feeds.length" class="field-row">
+            <label class="field-label" for="guide-feed">Guide</label>
+            <select id="guide-feed" class="field-input" v-model="choice">
+              <option value="">— pick a region —</option>
+              <option v-for="f in suggestion.feeds" :key="f.url" :value="f.url">{{ f.region }}</option>
+              <option :value="OTHER">Another address</option>
+            </select>
+          </div>
+          <p v-else class="text-sm text-ink-dim">
+            Freetvarr has no free guide feed for your country yet. TVHeadend uses the guide that comes with the broadcast. If you have an XMLTV guide address, enter it below.
+          </p>
+          <div v-if="!suggestion.feeds.length || choice === OTHER" class="field-row">
+            <label class="field-label" for="guide-url">Guide address (XMLTV)</label>
+            <input id="guide-url" type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
+              <tv-icon /> SET UP GUIDE
+            </button>
+          </div>
+          <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
+          <p class="text-xs text-ink-mute">Freetvarr keeps the guide links you already have.</p>
+          <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
+            Load a guide yourself in TVHeadend, then come back and press NEXT.
+          </manual-option>
+        </div>
+      </template>
+    </div>
+  `,
+  setup(props, { emit }) {
+    const OTHER = 'other'
+    const status = ref(null)
+    const loading = ref(false)
+    const loadError = ref('')
+    const editing = ref(false)
+    const choice = ref('')
+    const customUrl = ref('')
+    const job = ref(null)
+    const starting = ref(false)
+    const applyError = ref('')
+    const picks = reactive({})
+    const savingLinks = ref(false)
+    const [linkText, linkKind, setLinkText] = makeStatus()
+    let pollTimer = null
+
+    const suggestion = computed(() => status.value?.suggestion || null)
+    const url = computed(() => (choice.value && choice.value !== OTHER ? choice.value : customUrl.value.trim()))
+    const steps = computed(() => job.value?.steps || [])
+    const result = computed(() => job.value?.result || null)
+    const running = computed(() => Boolean(job.value?.running))
+    const showSteps = computed(() => running.value || Boolean(result.value))
+    const linked = computed(() => (result.value?.ok ? result.value.linked : suggestion.value?.linked || 0))
+    const pickedCount = computed(() => Object.values(picks).filter(Boolean).length)
+
+    watch([running, starting, linked], () => {
+      emit('state', { busy: running.value || starting.value, linked: linked.value })
+    }, { immediate: true })
+
+    const prefill = (s) => {
+      const known = (s?.feeds || []).some((f) => f.url === s?.url)
+      choice.value = known ? s.url : s?.url ? OTHER : ''
+      customUrl.value = known ? '' : s?.url || ''
+    }
+
+    const refresh = async () => {
+      loading.value = true
+      loadError.value = ''
+      try {
+        const r = await api('GET', '/api/tvh-guide/status')
+        status.value = r
+        if (r.job) job.value = r.job
+        if (r.job?.running) startPolling()
+        prefill(r.suggestion)
+      } catch (err) {
+        loadError.value = err.message
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const startPolling = () => {
+      clearInterval(pollTimer)
+      pollTimer = setInterval(async () => {
+        const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
+        if (!progress) return
+        job.value = progress
+        if (!progress.running) clearInterval(pollTimer)
+      }, SETUP_POLL_MS)
+    }
+
+    const apply = async () => {
+      starting.value = true
+      applyError.value = ''
+      try {
+        const r = await api('POST', '/api/tvh-guide/apply', { url: url.value })
+        job.value = { running: true, steps: r.steps, result: null }
+        startPolling()
+      } catch (err) {
+        applyError.value = err.message
+      } finally {
+        starting.value = false
+      }
+    }
+
+    const saveLinks = async () => {
+      savingLinks.value = true
+      try {
+        const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
+        const r = await api('POST', '/api/tvh-guide/links', { links })
+        for (const key of Object.keys(picks)) delete picks[key]
+        const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
+        if (progress) job.value = progress
+        setLinkText(`Linked ${r.linked} ${r.linked === 1 ? 'channel' : 'channels'}.`, 'ok', 5000)
+      } catch (err) {
+        setLinkText(err.message, 'err', 0)
+      } finally {
+        savingLinks.value = false
+      }
+    }
+
+    const restart = () => {
+      job.value = null
+      editing.value = true
+      refresh()
+    }
+
+    const stepDetail = (s) => (s.id === 'download' && s.detail?.expected
+      ? `${s.detail.found} of ${s.detail.expected} guide channels loaded`
+      : '')
+
+    onMounted(refresh)
+    onUnmounted(() => clearInterval(pollTimer))
+
+    return {
+      OTHER, status, loading, loadError, editing, suggestion, choice, customUrl, url,
+      steps, result, showSteps, starting, applyError, picks, pickedCount, savingLinks, linkText, linkKind,
+      refresh, apply, saveLinks, restart, stepDetail, secureStepDot,
+    }
+  },
+}
+
 const WelcomeView = {
   template: `
     <div class="view-reveal space-y-6">
@@ -3803,9 +4300,11 @@ const WelcomeView = {
                 <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
                   <template v-if="securing">SECURING…</template><template v-else>SECURE TVHEADEND AND CONNECT FREETVARR</template>
                 </button>
-                <button type="button" class="btn-link" @click="useManualLogin" :disabled="securing">I'll set up users myself</button>
               </div>
               <span v-if="secureInputProblem" class="status-readout info">{{ secureInputProblem }}</span>
+              <manual-option label="Enter a login instead" :disabled="securing" @choose="useManualLogin">
+                Make your own TVHeadend logins, then give Freetvarr the one you made for it.
+              </manual-option>
             </div>
             <ol v-if="secureSteps.length" class="space-y-1 text-sm font-mono">
               <li v-for="s in secureSteps" :key="s.id" class="flex items-center gap-2">
@@ -3844,7 +4343,11 @@ const WelcomeView = {
             </template>
           </div>
 
-          <div v-if="step === 3" class="space-y-4">
+          <channel-setup-step v-if="step === 3" :tvh-url="tvhUrl" @state="channelState = $event" />
+
+          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" @state="guideState = $event" />
+
+          <div v-if="step === 5" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
               Where Freetvarr writes imported episodes inside the container. Leave blank to fall back to <code>MEDIA_ROOT</code> env (default <code>/media/tv</code>).
             </p>
@@ -3888,7 +4391,7 @@ const WelcomeView = {
             </p>
           </div>
 
-          <div v-if="step === 4" class="space-y-4">
+          <div v-if="step === 6" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
               <strong>Optional.</strong> Connect to <strong class="text-plex-yellow">Plex</strong> so Freetvarr can trigger a library refresh after each sync. Skip if you don't use Plex.
             </p>
@@ -3955,7 +4458,7 @@ const WelcomeView = {
             </div>
           </div>
 
-          <div v-if="step === 5" class="space-y-4">
+          <div v-if="step === 7" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
               <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> You're set.
             </p>
@@ -3988,13 +4491,15 @@ const WelcomeView = {
     const [tvhText, tvhKind, setTvhText] = makeStatus()
     const [saveStatusText, saveStatusKind, setSaveStatus, clearSaveStatus] = makeStatus()
     const step = ref(1)
-    const totalSteps = 5
+    const totalSteps = 7
     const STEP_TITLES = {
       1: 'WELCOME',
       2: 'TVHEADEND',
-      3: 'STORAGE',
-      4: 'PLEX',
-      5: 'READY',
+      3: 'CHANNELS',
+      4: 'GUIDE',
+      5: 'STORAGE',
+      6: 'PLEX',
+      7: 'READY',
     }
     const stepTitle = computed(() => STEP_TITLES[step.value] || 'WELCOME')
     const saving = ref(false)
@@ -4094,23 +4599,34 @@ const WelcomeView = {
       sectionAutoLoadTimer = setTimeout(() => loadPlexSections({ silent: true }), 600)
     })
 
+    const channelState = ref({ busy: false, channels: 0 })
+    const guideState = ref({ busy: false, linked: 0 })
+
     const canAdvance = computed(() => {
       if (step.value === 2) return Boolean(tvhUrl.value.trim()) && !showSecure.value
+      if (step.value === 3) return !channelState.value.busy
+      if (step.value === 4) return !guideState.value.busy
       return true
     })
 
-    const advanceHint = computed(() => (tvhUrl.value.trim()
-      ? 'Secure TVHeadend first, or choose to set up users yourself.'
-      : 'A TVHeadend URL is required to continue.'))
+    const advanceHint = computed(() => {
+      if (step.value === 3) return 'Wait for the channel setup to finish.'
+      if (step.value === 4) return 'Wait for the guide setup to finish.'
+      return tvhUrl.value.trim()
+        ? 'Secure TVHeadend first, or choose to set up users yourself.'
+        : 'A TVHeadend URL is required to continue.'
+    })
 
     const nextLabel = computed(() => {
       if (step.value === totalSteps) return 'GO TO SHOWS'
       if (step.value === 2) return 'SAVE & NEXT'
-      if (step.value === 3) {
+      if (step.value === 3) return channelState.value.channels ? 'NEXT' : 'SKIP'
+      if (step.value === 4) return guideState.value.linked ? 'NEXT' : 'SKIP'
+      if (step.value === 5) {
         const hasStorage = mediaRoot.value || recordingsRoot.value || tvhRecordingsPath.value
         return hasStorage ? 'SAVE & NEXT' : 'SKIP'
       }
-      if (step.value === 4) {
+      if (step.value === 6) {
         const hasPlex = plexUrl.value || plexToken.value || plexSectionId.value
         return hasPlex ? 'SAVE & NEXT' : 'SKIP'
       }
@@ -4153,13 +4669,13 @@ const WelcomeView = {
             setSaveStatus('Connection failed. Correct the TVHeadend details to continue.', 'err', 0)
             return
           }
-        } else if (step.value === 3) {
+        } else if (step.value === 5) {
           await api('POST', '/api/settings', {
             media_root: mediaRoot.value,
             recordings_root: recordingsRoot.value,
             tvh_recordings_path: tvhRecordingsPath.value,
           })
-        } else if (step.value === 4) {
+        } else if (step.value === 6) {
           const body = {
             plex_url: plexUrl.value,
             plex_tv_section_id: plexSectionId.value,
@@ -4380,7 +4896,7 @@ const WelcomeView = {
     }
 
     return {
-      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig,
+      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig, channelState, guideState,
       timeZone, tzSource, tzEnv,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
@@ -7945,6 +8461,9 @@ app.component('programme-image', ProgrammeImage)
 app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
 app.component('time-zone-field', TimeZoneField)
+app.component('manual-option', ManualOption)
+app.component('channel-setup-step', ChannelSetupStep)
+app.component('guide-setup-step', GuideSetupStep)
 app.component('channel-identity', ChannelIdentity)
 app.component('star-icon', StarIcon)
 app.component('step-mark-icon', StepMarkIcon)
