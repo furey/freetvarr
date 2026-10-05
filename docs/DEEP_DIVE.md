@@ -374,7 +374,8 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 - `tini` is PID 1 inside the Freetvarr container so `SIGTERM` propagates cleanly.
 - The Docker healthcheck hits `GET /healthz` every `30 s`.
 - The container entrypoint (`docker-entrypoint.sh`) runs `knex migrate:latest` against `/config/state.db` before exec'ing the server, so pending migrations apply on the next start and a fresh host needs no manual migration.
-- `docker compose up -d --build freetvarr` rebuilds the image from the local `Dockerfile` and recreates the container only if its image actually changed; the bind-mounted `/config/state.db` is untouched.
+- Compose pulls `ghcr.io/furey/freetvarr:latest`. Each release tag builds the image natively for `amd64` and `arm64`, boots it, and publishes it as `X.Y.Z` and `latest` (`.github/workflows/image.yml`). `docker compose pull && docker compose up -d` updates; the bind-mounted `/config/state.db` is untouched.
+- To build from a checkout instead, add `docker-compose.dev.yml`: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build freetvarr`.
 
 Volumes:
 
@@ -465,6 +466,7 @@ freetvarr/
 ├── Dockerfile              # node:22-bookworm-slim + tini + comskip + ffmpeg + healthcheck
 ├── docker-entrypoint.sh    # `knex migrate:latest` then `exec node src/server.js`
 ├── docker-compose.example.yml  # Both services; copy to docker-compose.yml
+├── docker-compose.dev.yml      # Override that builds Freetvarr from the checkout
 ├── .env.example            # Local-dev minimal envs (optional CSRF_SECRET and TZ overrides, PUID/PGID)
 ├── .npmrc                  # Supply-chain hardening
 └── package.json
