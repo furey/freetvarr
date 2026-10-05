@@ -135,7 +135,7 @@ Live TV in the browser re-encodes H.264 so that Chrome can play interlaced chann
 
 1. Find the render group on the host: `stat -c %g /dev/dri/renderD128`.
 2. Add that number to `.env`: `RENDER_GID=<number>`.
-3. Copy `docker-compose.hwaccel.example.yml` to `docker-compose.override.yml` beside `docker-compose.yml`. Compose loads the override file by itself.
+3. Download `docker-compose.hwaccel.example.yml` from the repository (`https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.hwaccel.example.yml`) and save it as `docker-compose.override.yml` beside `docker-compose.yml`. Compose loads the override file by itself.
 4. Recreate the container: `docker compose up -d`.
 5. Check the log: `docker compose logs freetvarr | grep "\[live\] video"`. The line says `hardware (VAAPI` when it works.
 

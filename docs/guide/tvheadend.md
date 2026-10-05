@@ -27,7 +27,7 @@ flowchart TD
 
 ## 1. Run the container
 
-The example compose file already defines TVHeadend next to Freetvarr. Do steps 1 and 2 of [Getting started](/guide/getting-started) first (clone the repository, copy `docker-compose.example.yml`, write the `.env`), then come back here. The service looks like this:
+The example compose file already defines TVHeadend next to Freetvarr. Do [step 1 of Getting started](/guide/getting-started#_1-install) first (download the compose file, or run the install script), then come back here. The service looks like this:
 
 ```yaml
 services:
