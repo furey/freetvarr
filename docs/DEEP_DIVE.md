@@ -515,7 +515,7 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 - **Re-open the wizard later**: SETUP WIZARD panel at the top of Settings. Saved values prefill; stored passwords and tokens show as stored, not as their values.
 - **Settings**: save; the cron field reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
 - **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
-- **Series**: the list joins the series recordings in TVHeadend to their folders; SET FOLDER, EDIT, per-series SYNC, PAUSE, RESUME, and STOP SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
+- **Series**: the list joins the series recordings in TVHeadend to their folders; ASSIGN FOLDER, EDIT, UNASSIGN FOLDER, per-series SYNC, PAUSE, RESUME, and STOP SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
 - **Syncs**: run a sync, watch the row appear and finish; clear history; filter by activity type.
 - **Recordings**: a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A tombstoned recording is marked as removed and can still be re-scanned.
 - **Danger Zone**: `NUKE ALL STATE` clears the DB and reloads into the wizard.

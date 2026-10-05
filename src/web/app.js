@@ -1687,6 +1687,10 @@ const DashboardView = {
 
 const mediaRootPrefix = (mediaRoot) => `${(mediaRoot || '/media/tv').replace(/\/+$/, '')}/`
 
+const FOLDER_HINT = 'Type a folder name; matching existing folders are suggested.'
+
+const seasonFolderFor = (season) => `Season ${season == null ? '…' : String(season).padStart(2, '0')}`
+
 const folderNameFor = (title) => String(title || '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
 
 const FolderEditor = {
@@ -1695,6 +1699,8 @@ const FolderEditor = {
     folders: { type: Array, default: () => [] },
     mediaRoot: { type: String, default: '' },
     adRemovalEnabled: Boolean,
+    isSeries: Boolean,
+    importUnmatched: { type: Boolean, default: true },
   },
   emits: ['saved', 'cancel', 'deleted'],
   template: `
@@ -1709,6 +1715,7 @@ const FolderEditor = {
           <datalist id="series-media-folders">
             <option v-for="d in folders" :key="d" :value="d" />
           </datalist>
+          <p class="text-xs text-ink-mute mt-2">{{ FOLDER_HINT }}</p>
         </div>
         <div class="field-row">
           <label class="field-label">Season folders</label>
@@ -1737,9 +1744,31 @@ const FolderEditor = {
           <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
         </button>
         <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
-        <button type="button" class="btn btn-danger ml-auto" @click="remove" :disabled="saving"><trash-icon /> DELETE</button>
+        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving"><cross-icon /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
+      <teleport to="body">
+      <transition name="epg-sheet">
+      <div v-if="confirming" class="epg-modal-backdrop" @click.self="confirming = false">
+        <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" :aria-labelledby="'remove-title-' + folder.id">
+          <header class="panel-header">
+            <span :id="'remove-title-' + folder.id" class="panel-title">{{ removeTitle }}</span>
+            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="confirming = false" aria-label="Close"><cross-icon /></button>
+          </header>
+          <div class="panel-body space-y-4">
+            <p class="text-sm text-ink">{{ removeOutcome }}</p>
+            <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported stay where they are.</p>
+            <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
+              <button type="button" class="btn epg-modal-close mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
+              <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
+                <template v-if="saving">REMOVING…</template><template v-else><cross-icon /> {{ removeLabel }}</template>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+      </transition>
+      </teleport>
     </form>
   `,
   setup(props, { emit }) {
@@ -1750,6 +1779,17 @@ const FolderEditor = {
     const adRemoval = ref(props.folder.ad_removal || 'off')
     const deleteAfter = ref(Boolean(props.folder.delete_after_import))
     const saving = ref(false)
+    const confirming = ref(false)
+    const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
+    const removeTitle = computed(() => (props.isSeries
+      ? `Unassign the folder from ${props.folder.show_pattern}`
+      : `Remove the title match ${props.folder.show_pattern}`))
+    const removeOutcome = computed(() => {
+      const subject = props.isSeries ? 'Future episodes' : 'Future recordings with this title'
+      return props.importUnmatched
+        ? `${subject} save to the one-off folder again.`
+        : `${subject} wait in RECORDINGS until you import them.`
+    })
 
     const save = async () => {
       if (!destFolder.value.trim() || !pattern.value.trim()) {
@@ -1775,12 +1815,13 @@ const FolderEditor = {
     }
 
     const remove = async () => {
-      if (!confirm(`Delete the settings for "${props.folder.show_pattern}"? Files already in the library stay.`)) return
       saving.value = true
       try {
         await api('DELETE', `/api/shows/${props.folder.id}`)
+        confirming.value = false
         emit('deleted')
       } catch (err) {
+        confirming.value = false
         setStatus(`Error: ${err.message}`, 'err', 5000)
       } finally {
         saving.value = false
@@ -1788,8 +1829,8 @@ const FolderEditor = {
     }
 
     return {
-      destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving,
-      save, remove, statusText, statusKind, mediaRootPrefix,
+      destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming,
+      removeLabel, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
 }
@@ -1805,8 +1846,8 @@ const SeriesView = {
               <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
               <p>To record a new series, open the TV Guide, pick a programme, and press <strong>RECORD SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
               <p><strong>STOP SERIES</strong> cancels the series recording in TVHeadend. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
-              <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>SET FOLDER</strong> to give it one.</p>
-              <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>STOP SERIES</strong> removes it.</p>
+              <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>ASSIGN FOLDER</strong> to give it one. <strong>UNASSIGN FOLDER</strong> in the edit form takes it away again. Episodes already imported stay where they are.</p>
+              <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>STOP SERIES</strong> removes it.</p>
             </info-button>
           </span>
           <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
@@ -1830,8 +1871,7 @@ const SeriesView = {
                     <div class="flex items-start justify-between gap-3">
                       <span class="deck-card-title">{{ s.title }}</span>
                       <span class="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
-                        <span v-if="s.recording" class="pill scheduled">RECORDING</span>
-                        <span v-else class="pill skipped">PAUSED</span>
+                        <span v-if="!s.recording" class="pill skipped">PAUSED</span>
                       </span>
                     </div>
                     <p class="deck-card-meta">{{ channelsOf(s) }}<template v-if="s.episodesToKeep"> · keeps the latest {{ s.episodesToKeep }}</template></p>
@@ -1840,7 +1880,7 @@ const SeriesView = {
                   </div>
                 </div>
                 <series-folder-editor v-if="s.folder && editingKey === s.key" :folder="s.folder" :folders="folders"
-                  :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
+                  :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" is-series :import-unmatched="importUnmatched"
                   @saved="onSaved" @deleted="onDeleted" @cancel="editingKey = ''" />
                 <div v-else class="flex flex-wrap items-center gap-2">
                   <template v-if="s.folder">
@@ -1851,8 +1891,8 @@ const SeriesView = {
                       <template v-if="syncingId === s.folder.id">STARTING…</template><template v-else><play-icon /> SYNC</template>
                     </button>
                   </template>
-                  <button v-else type="button" class="btn btn-primary" @click="setFolder(s)" :disabled="busyKey === s.key">
-                    <template v-if="busyKey === s.key">SETTING…</template><template v-else><plus-icon /> SET FOLDER</template>
+                  <button v-else type="button" class="btn btn-primary" @click="openAssign(s)" :disabled="busyKey === s.key">
+                    <plus-icon /> ASSIGN FOLDER
                   </button>
                   <button type="button" class="btn ml-auto" @click="pauseSeries(s, s.recording)" :disabled="busyKey === s.key">
                     <template v-if="s.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
@@ -1870,26 +1910,23 @@ const SeriesView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <button type="button" class="series-other-toggle panel-title" :aria-expanded="String(othersOpen)" @click="othersOpen = !othersOpen">
-              <chevron-right-icon :class="{ 'rotate-90': othersOpen }" /> TITLE MATCHES · {{ titleMatches.length }}
-            </button>
+            <span class="panel-title">TITLE MATCHES · {{ titleMatches.length }}</span>
             <info-button title="TITLE MATCHES" doc="guide/series#title-matches">
               <p>A recording whose title contains this text saves to its folder, even without a series recording. This covers a title you typed by hand, such as <code>NRL</code>, or a series you stopped.</p>
               <p><strong>ADD TITLE</strong> adds one. Freetvarr suggests a folder under your media root, and matches folders that are already there.</p>
             </info-button>
           </span>
         </header>
-        <div v-if="othersOpen" class="panel-body space-y-4">
+        <div class="panel-body space-y-4">
           <p class="text-sm text-ink-dim">A recording whose title contains this text saves to its folder, even without a series recording.</p>
-          <p v-if="titleMatches.length === 0" class="text-ink-dim text-sm">None.</p>
-          <div v-else class="space-y-3">
+          <div v-if="titleMatches.length" class="space-y-3">
             <article v-for="f in titleMatches" :key="f.id" class="deck-card space-y-3">
               <div class="flex items-start justify-between gap-3">
                 <span class="deck-card-title">{{ f.show_pattern }}</span>
               </div>
               <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></p>
               <series-folder-editor v-if="editingKey === 'folder-' + f.id" :folder="f" :folders="folders"
-                :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
+                :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" :import-unmatched="importUnmatched"
                 @saved="onSaved" @deleted="onDeleted" @cancel="editingKey = ''" />
               <div v-else class="flex flex-wrap items-center gap-2">
                 <button type="button" class="btn" @click="edit('folder-' + f.id)"><sliders-icon /> EDIT</button>
@@ -1927,6 +1964,7 @@ const SeriesView = {
                 <datalist id="media-folders">
                   <option v-for="d in folders" :key="d" :value="d" />
                 </datalist>
+                <p class="text-xs text-ink-mute mt-2">{{ FOLDER_HINT }}</p>
                 <p v-if="suggestion" class="text-xs text-ink-dim mt-2">
                   Suggested ({{ suggestionIsNew ? 'new folder' : 'existing' }}):
                   <code>{{ suggestion }}</code>
@@ -1957,6 +1995,49 @@ const SeriesView = {
           </form>
         </div>
       </section>
+
+      <teleport to="body">
+      <transition name="epg-sheet">
+      <div v-if="assigning" class="epg-modal-backdrop" @click.self="closeAssign">
+        <form class="panel epg-modal info-modal" role="dialog" aria-modal="true" aria-labelledby="assign-folder-title" @submit.prevent="assignFolder">
+          <header class="panel-header">
+            <span id="assign-folder-title" class="panel-title">Assign a folder to {{ assigning.title }}</span>
+            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeAssign" aria-label="Close"><cross-icon /></button>
+          </header>
+          <div class="panel-body space-y-4">
+            <p class="text-sm text-ink">Future episodes save to <code>{{ assignPath }}</code>.</p>
+            <div class="field-row">
+              <label class="field-label" for="assign-folder">Folder</label>
+              <div class="field-prefixed">
+                <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
+                <input id="assign-folder" type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
+              </div>
+              <datalist id="assign-media-folders">
+                <option v-for="d in folders" :key="d" :value="d" />
+              </datalist>
+              <p class="text-xs text-ink-mute mt-2">{{ FOLDER_HINT }}</p>
+            </div>
+            <div v-if="folders.length" class="field-row">
+              <label class="field-label" for="assign-existing">Or pick an existing folder</label>
+              <select id="assign-existing" class="field-input" :value="folders.includes(assignDest.trim()) ? assignDest.trim() : ''"
+                @change="assignDest = $event.target.value">
+                <option value="" disabled>Choose a folder…</option>
+                <option v-for="d in folders" :key="d" :value="d">{{ d }}</option>
+              </select>
+            </div>
+            <p class="text-sm text-ink">Episodes already imported stay where they are.</p>
+            <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
+              <button type="button" class="btn epg-modal-close mr-auto" @click="closeAssign" :disabled="busyKey === assigning.key">CANCEL</button>
+              <span v-if="assignStatusText" :class="['status-readout', assignStatusKind]">{{ assignStatusText }}</span>
+              <button type="submit" class="btn btn-primary" :disabled="busyKey === assigning.key">
+                <template v-if="busyKey === assigning.key">ASSIGNING…</template><template v-else><check-icon /> ASSIGN</template>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+      </transition>
+      </teleport>
     </div>
   `,
   setup() {
@@ -1967,7 +2048,6 @@ const SeriesView = {
     const loaded = ref(false)
     const error = ref('')
     const stale = ref(false)
-    const othersOpen = ref(false)
     const editingKey = ref('')
     const busyKey = ref('')
     const tvhShows = ref([])
@@ -1984,6 +2064,10 @@ const SeriesView = {
     const syncingId = ref(null)
     const mediaRoot = ref('')
     const adRemovalEnabled = ref(false)
+    const importUnmatched = ref(true)
+    const assigning = ref(null)
+    const assignDest = ref('')
+    const [assignStatusText, assignStatusKind, setAssignStatus] = makeStatus()
 
     const refresh = async () => {
       try {
@@ -1992,7 +2076,6 @@ const SeriesView = {
         titleMatches.value = r.titleMatches || []
         error.value = r.error || ''
         stale.value = Boolean(r.stale)
-        if (r.error) othersOpen.value = true
       } catch (err) {
         error.value = err.message
       } finally {
@@ -2004,6 +2087,7 @@ const SeriesView = {
       const s = await api('GET', '/api/settings').catch(() => ({}))
       mediaRoot.value = s.media_root || ''
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
+      importUnmatched.value = s.import_unmatched !== false
     }
 
     const loadFolders = async (title) => {
@@ -2061,18 +2145,41 @@ const SeriesView = {
     const onDeleted = async () => {
       editingKey.value = ''
       await refresh()
-      flash({ msg: 'Deleted.' })
+      flash({ msg: 'Removed.' })
     }
 
-    const setFolder = async (s) => {
+    const assignPath = computed(() => {
+      const folder = assignDest.value.trim() || '…'
+      return `${mediaRootPrefix(mediaRoot.value)}${folder}/${seasonFolderFor(assigning.value?.nextAiring?.season)}`
+    })
+
+    const openAssign = async (s) => {
+      assigning.value = s
+      assignDest.value = ''
+      assignDest.value = (await loadFolders(s.title)) || folderNameFor(s.title)
+    }
+
+    const closeAssign = () => {
+      if (busyKey.value === assigning.value?.key) return
+      assigning.value = null
+    }
+
+    const assignFolder = async () => {
+      const s = assigning.value
+      const destFolder = assignDest.value.trim()
+      if (!destFolder) {
+        setAssignStatus('Enter a folder name.', 'err', 5000)
+        return
+      }
       busyKey.value = s.key
       try {
-        const destFolder = (await loadFolders(s.title)) || folderNameFor(s.title)
         await api('POST', '/api/shows', { show_pattern: s.title, dest_folder: destFolder })
+        busyKey.value = ''
+        assigning.value = null
         await refresh()
         flash({ msg: `Episodes of "${s.title}" save to ${destFolder}. Press EDIT to change it.`, ms: 6000 })
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        setAssignStatus(`Error: ${err.message}`, 'err', 5000)
       } finally {
         busyKey.value = ''
       }
@@ -2171,11 +2278,12 @@ const SeriesView = {
     }
 
     return {
-      series, titleMatches, loaded, error, stale, othersOpen, editingKey, busyKey,
-      tvhShows, folders, mediaRoot, mediaRootPrefix, adRemovalEnabled,
+      series, titleMatches, loaded, error, stale, editingKey, busyKey,
+      tvhShows, folders, mediaRoot, mediaRootPrefix, adRemovalEnabled, importUnmatched, FOLDER_HINT,
+      assigning, assignDest, assignPath, assignStatusText, assignStatusKind, openAssign, closeAssign, assignFolder,
       newPattern, newFolder, newTemplate, newDeleteAfter, newAdRemoval,
       suggestion, suggestionIsNew, adding, loadingShows, syncingId,
-      channelsOf, nextAiringLabel, edit, onSaved, onDeleted, setFolder, pauseSeries, stopSeries,
+      channelsOf, nextAiringLabel, edit, onSaved, onDeleted, pauseSeries, stopSeries,
       add, loadTvhShows, syncOne,
       flashText, flashKind, formStatusText, formStatusKind,
     }
