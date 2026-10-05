@@ -657,13 +657,13 @@ const syncError = (sync) => sync.summary?.errors?.[0] || sync.summary?.message |
 
 const timeZoneProblem = ({ zone, source, stored }) => {
   const doc = 'guide/troubleshooting#wrong-timestamps'
+  if (stored && !isKnownTimeZone(stored)) {
+    return { detail: `The time zone setting is ${stored}, which is not a known time zone.`, fix: TZ_SETTINGS_FIX, doc, action: SETTINGS_SCHEDULE }
+  }
   if (source === 'env' && !isKnownTimeZone(zone)) {
     return { detail: `TZ is ${zone}, which is not a known time zone.`, fix: TZ_ENV_FIX, doc }
   }
   if (source === 'env') return null
-  if (stored && !isKnownTimeZone(stored)) {
-    return { detail: `The time zone setting is ${stored}, which is not a known time zone.`, fix: TZ_SETTINGS_FIX, doc, action: SETTINGS_SCHEDULE }
-  }
   if (source === 'system' && UTC_ZONES.includes(zone)) {
     return { detail: 'No time zone is chosen, so Freetvarr runs on UTC.', fix: TZ_SETTINGS_FIX, doc, action: SETTINGS_SCHEDULE }
   }
@@ -832,7 +832,7 @@ const DISK_WARN_SHARE = 0.1
 const LINK_LOCAL = /\b169\.254\.\d+\.\d+/
 const UTC_ZONES = ['UTC', 'Etc/UTC', 'Etc/GMT', 'GMT', 'Etc/Universal', 'Universal', 'Zulu']
 const AD_TOOLS = ['comskip', 'ffmpeg', 'ffprobe']
-const TZ_ENV_FIX = 'Correct TZ in .env (for example Australia/Sydney), or remove it and choose the zone in Settings.'
+const TZ_ENV_FIX = 'Correct TZ in .env (for example Australia/Sydney), or choose the zone in Settings.'
 const TZ_SETTINGS_FIX = 'Choose your time zone in Settings.'
 const ZONE_SOURCES = { env: 'from TZ in .env', setting: 'from Settings', system: 'from the system' }
 const RIGHTS_DOC = 'guide/tvheadend#_8-make-a-user-for-freetvarr'
