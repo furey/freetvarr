@@ -12,27 +12,70 @@ Freetvarr runs as a single Docker container next to TVHeadend, usually on the sa
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**, matched to your broadcast standard: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. See [Hardware](/guide/hardware) for what to buy and how to wire it in.
-- **TVHeadend.** The compose file below runs it next to Freetvarr, the wizard in [step 4](#_4-run-the-wizard) secures it, and [step 5](#_5-set-up-tvheadend) sets it up. Already run TVHeadend somewhere else? See [An existing TVHeadend](#an-existing-tvheadend).
-- **Docker and Docker Compose** on the host.
+- **TVHeadend.** The compose file runs it next to Freetvarr, the wizard in [step 4](#_4-run-the-wizard) secures it, and [step 5](#_5-set-up-tvheadend) sets it up. Already run TVHeadend somewhere else? See [An existing TVHeadend](#an-existing-tvheadend).
+- **Docker with Compose v2** on the host.
 - **The same recordings folder mounted into both containers.** Freetvarr reads the files TVHeadend wrote, so both need to see them.
 - **Plex Media Server** is optional. Freetvarr runs fine without it; you just won't get the automatic library refresh after a sync. See [Plex](/guide/plex).
 
-## 1. Get the code
+## 1. Install
+
+You do not need to clone the repository. Docker pulls the image from `ghcr.io/furey/freetvarr`, and the only file you need is the compose file. Pick one of three ways to get it. Each one starts Freetvarr and TVHeadend.
+
+### Install: Option 1, the script
+
+Run this in the folder where you want a `freetvarr` folder to appear:
 
 ```sh
-git clone https://github.com/furey/freetvarr
-cd freetvarr
+curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
+
+The script does these things, in order:
+
+1. Checks for Docker and Docker Compose v2.
+2. Makes the folder `./freetvarr` (set `FREETVARR_DIR` to use another path).
+3. Downloads the compose file as `docker-compose.yml`.
+4. Writes a `.env` with `PUID` and `PGID` from your user (or the sudo user), and a commented `TZ` line.
+5. Asks whether to start, stop, or edit `.env` first, when a terminal is available.
+6. Creates the config and data folders.
+7. Pulls the images and starts both services.
+8. Prints the URL of the setup wizard.
+
+Run it again at any time. It keeps an existing `.env` and compose file.
+
+On a Synology NAS, sign in over SSH first, so `/usr/local/bin` is on the `PATH`. Run the script with `sudo` if your user cannot reach Docker.
+
+### Install: Option 2, by hand
+
+1. Make a folder and move into it: `mkdir freetvarr && cd freetvarr`.
+2. Download the compose file: `curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml -o docker-compose.yml`.
+3. Optional: write a `.env` with your user and group (`id -u` and `id -g` print them).
+4. Start both services: `docker compose up -d`.
+
+With no `.env`, everything lives in `./config` and `./data` beside the compose file, and `PUID` and `PGID` are both `1000`.
+
+### Install: Option 3, Synology Container Manager
+
+Use this when you do not want to use SSH.
+
+1. In File Station, make a folder such as `docker/freetvarr`.
+2. Make two subfolders in it: `config` and `data`.
+3. Optional: save a `.env` in the folder with your DSM user's `PUID` and `PGID` (often `1026` and `100`). Container Manager reads it.
+4. Open Container Manager, choose **Project**, then **Create**.
+5. Type a project name and choose the folder you made.
+6. Upload the compose file (`docker-compose.example.yml`), or paste its content. If the folder already holds a `docker-compose.yml`, choose **Use existing docker-compose.yml**.
+7. Tick **Start the project once it is created**, then finish.
+
+Synology's Docker refuses to mount a host folder that does not exist (standard Docker creates it). On Synology, the `config` and `data` folders must exist before the first start. The script makes them; in Option 3, step 2 does.
 
 ## 2. Configure
 
-Copy `docker-compose.example.yml` to `docker-compose.yml`, then create a `.env` alongside it with your host paths:
+Every value in the `.env` is optional. These are the defaults. Change a value only when you need to, then run `docker compose up -d` to apply it:
 
 ```ini
-CONFIG_PATH=/path/to/your/config
-DATA_PATH=/path/to/your/data
 PUID=1000
 PGID=1000
+CONFIG_PATH=./config
+DATA_PATH=./data
 FREETVARR_PORT=3733
 
 # Optional: only if Plex runs on this host and you want the Auto-detect token
@@ -40,32 +83,30 @@ FREETVARR_PORT=3733
 # PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml
 ```
 
-`CONFIG_PATH` and `DATA_PATH` are required; compose stops with a clear message if either is missing rather than starting with broken mounts. Freetvarr asks for your time zone in the wizard and makes its own CSRF secret on first start, so neither needs a setting. TVHeadend follows the host clock's time zone. Every variable is explained in [Configuration](/guide/configuration).
+Freetvarr asks for your time zone in the wizard and makes its own CSRF secret on first start, so neither needs a setting. TVHeadend follows the host clock's time zone. Every variable is explained in [Configuration](/guide/configuration).
 
-The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes recordings there, and Freetvarr reads them from the same folder. Freetvarr mounts the whole of `${DATA_PATH}` once, at `/data`, so imports are hardlinks ([One shared mount](/guide/configuration#one-shared-mount)). Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.
+The compose file defines three services: `init`, `tvheadend`, and `freetvarr`. The `init` service runs once before the others. It makes these folders and gives them to `PUID:PGID`, so you do not run `mkdir` or `chown` yourself:
 
-Create the host folders before the first start, owned by the user the containers run as. Docker creates a missing bind-mount folder as `root`, and neither container can then write to it:
+- `config/tvheadend`
+- `config/freetvarr`
+- `data/recordings`
+- `data/media/tv`
+- `data/media/one-offs`
 
-```sh
-mkdir -p /path/to/your/config/tvheadend /path/to/your/config/freetvarr
-mkdir -p /path/to/your/data/recordings /path/to/your/data/media/tv /path/to/your/data/media/one-offs
-sudo chown 1000:1000 /path/to/your/config/tvheadend /path/to/your/config/freetvarr
-sudo chown 1000:1000 /path/to/your/data/recordings /path/to/your/data/media/tv /path/to/your/data/media/one-offs
-```
-
-Use your own paths from the `.env`, and your own `PUID:PGID` in place of `1000:1000`.
+TVHeadend writes recordings to `${DATA_PATH}/recordings`, and Freetvarr reads them from the same folder. Freetvarr mounts the whole of `${DATA_PATH}` once, at `/data`, so imports are hardlinks ([One shared mount](/guide/configuration#one-shared-mount)). Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.
 
 > [!TIP]<br>
-> Set `PUID`/`PGID` to the owner of your host folders, and give both services the same pair. Run `id` as that user on the host to read them: `uid=` is `PUID`, `gid=` is `PGID`. Freetvarr hardlinks the files TVHeadend wrote and deletes them after import, so both containers need the same owner on the recordings folder.
+> Set `PUID` and `PGID` to your own user. Run `id` on the host to read them: `uid=` is `PUID`, `gid=` is `PGID`. A wrong `PUID` is not fatal, because both containers run as the same user and own the folders. But the files then show an unknown owner in the file manager of the host.
 
-## 3. Start it
+## 3. Check the start
+
+Step 1 starts both services. Follow the log to see when Freetvarr is ready:
 
 ```sh
-docker compose up -d
 docker compose logs -f
 ```
 
-The first start builds the Freetvarr image from the repository, which takes a few minutes. The log shows `[entrypoint] starting freetvarr…` when it is ready.
+The log shows `[entrypoint] starting freetvarr…` when it is ready.
 
 > [!IMPORTANT]<br>
 > Both services use `network_mode: host`. TVHeadend needs it to discover a network tuner such as an HDHomeRun by network broadcast. With host networking there's no `ports:` mapping: Freetvarr binds `${FREETVARR_PORT}` straight onto the host.
@@ -95,7 +136,7 @@ To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**. The
 
 ## An existing TVHeadend
 
-If TVHeadend already runs on another host or in another compose project, delete the `tvheadend` service from your `docker-compose.yml` and keep only `freetvarr`. Two things still have to hold:
+If TVHeadend already runs on another host or in another compose project, delete the `tvheadend` service from your `docker-compose.yml`, and remove it from the `depends_on` of `freetvarr`. Keep `init` and `freetvarr`. Two things still have to hold:
 
 - **Freetvarr can reach it.** Use `http://<tvheadend-host>:9981` in the wizard, and make sure the Freetvarr host's address falls inside the allowed networks of the TVHeadend user.
 - **Freetvarr can read its recordings.** Mount the folder TVHeadend records into (a NAS share, say) into the Freetvarr container. Set the recordings root to where Freetvarr sees it, such as `/data/recordings`. Put the path TVHeadend writes to on its side, such as `/recordings` or `/mnt/dvr`, in the wizard's "Recordings folder (as TVHeadend sees it)" field. Freetvarr rewrites the one prefix onto the other.
@@ -107,7 +148,8 @@ Delete-after-import still works, because TVHeadend deletes the file itself. Impo
 > [!NOTE]<br>
 > This section is the author's own host, a Synology DS220+. Skip it on any other Linux host.
 
-- DSM keeps the Docker CLI at `/usr/local/bin/docker`, which is not on the `PATH` of a non-login SSH command. Run `ssh <nas> '/usr/local/bin/docker compose …'`, or sign in first and run it from the shell.
+- DSM keeps the Docker CLI at `/usr/local/bin/docker`, which is not on the `PATH` of a non-login SSH command. Sign in over SSH and run the install script or `docker compose` from that shell, or run `ssh <nas> '/usr/local/bin/docker compose …'`.
+- Synology's Docker refuses to mount a host folder that does not exist, so `config` and `data` must exist before the first start ([Install](#_1-install)). The install script makes them.
 - `scp` fails against DSM's restricted SFTP service. Copy a file off the NAS with `ssh <nas> 'cat <path>' > <local-file>` instead.
 - A DSM user's `id` usually reports `gid=100(users)`, and the first user created is often `uid=1026`. Use your own values for `PUID` and `PGID`.
 - USB DVB tuners do not work on DSM, whose kernel ships no DVB drivers; use a network tuner ([Hardware](/guide/hardware)).
