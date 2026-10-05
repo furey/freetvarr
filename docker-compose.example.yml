@@ -14,8 +14,8 @@
 #
 # The one-shot `init` service creates the folders inside CONFIG_PATH and
 # DATA_PATH and gives them to PUID:PGID before the other services start.
-# Synology's Docker refuses to mount a host folder that does not exist, so on a
-# Synology NAS create CONFIG_PATH and DATA_PATH (./config and ./data) first;
+# Some NAS Docker builds refuse to mount a host folder that does not exist, so
+# on a NAS create CONFIG_PATH and DATA_PATH (./config and ./data) first;
 # install.sh does this for you. Standard Docker creates them itself.
 # Freetvarr generates its CSRF secret into its config folder on first start;
 # set CSRF_SECRET only to override it. TVHeadend mounts the host's

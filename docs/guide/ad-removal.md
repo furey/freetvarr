@@ -31,6 +31,6 @@ Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's o
 
 ## Cost and gating
 
-Scans work the CPU hard: budget roughly 30 minutes per 75-minute recording on NAS-class hardware (the author's measurement on a Synology; faster CPUs finish sooner). Scans run at low priority, so imports still run at full speed. For a `CUT`-mode show, Freetvarr removes the TVHeadend copy only after the cut passes its checks, so a failed cut leaves the original in TVHeadend.
+Scans work the CPU hard: budget roughly 30 minutes per 75-minute recording on NAS-class hardware (the author's measurement on a dual-core Celeron; faster CPUs finish sooner). Scans run at low priority, so imports still run at full speed. For a `CUT`-mode show, Freetvarr removes the TVHeadend copy only after the cut passes its checks, so a failed cut leaves the original in TVHeadend.
 
 Cuts snap to keyframes, so a second or two either side of a break is expected. The full pipeline (verify-then-swap, keep-segment maths, crash recovery) is in the [deep dive](/deep-dive#ad-removal).

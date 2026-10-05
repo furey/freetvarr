@@ -164,7 +164,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 
 ## Prerequisites
 
-- A **TVHeadend-compatible tuner**. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. USB tuners do not work on a Synology or QNAP NAS.
+- A **TVHeadend-compatible tuner**. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
 - **Docker with Compose v2** on a host that stays on.
 - **Plex Media Server** is optional.
 
@@ -178,7 +178,7 @@ curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | s
 
 The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, storage, Plex.
 
-On a Synology NAS, sign in over SSH first. To install by hand or with Synology Container Manager, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
+On a NAS or another remote host, sign in over SSH first. To install by hand or with a NAS container app, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
 
 ### Set up TVHeadend
 
@@ -279,7 +279,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 ### Wrong ad cuts
 
 - Ad detection is never exact. Comskip's accuracy varies by channel.
-- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. A scan uses a lot of CPU: allow about 30 minutes per 75-minute recording on a home NAS.
+- Run the show in `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. A scan uses a lot of CPU: allow about 30 minutes per 75-minute recording on a dual-core Celeron, and less on a faster CPU.
 - Cuts fall on the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount; it overrides the bundled default, which is tuned for Australian channels. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it.
 
