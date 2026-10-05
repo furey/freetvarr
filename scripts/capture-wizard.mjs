@@ -62,10 +62,10 @@ const recordTour = async (browser) => {
   const simNow = simulatedNow()
   const context = await browser.newContext({
     viewport: VIDEO_VIEWPORT,
-    deviceScaleFactor: 1,
+    deviceScaleFactor: 2,
     bypassCSP: true,
     timezoneId: TIMEZONE,
-    recordVideo: { dir: OUT, size: VIDEO_VIEWPORT },
+    recordVideo: { dir: OUT, size: { width: VIDEO_VIEWPORT.width * 2, height: VIDEO_VIEWPORT.height * 2 } },
   })
   await context.clock.install({ time: simNow })
   const { serverWrites } = await prepareWizardContext({ context, timeZone: TIMEZONE, simNow })

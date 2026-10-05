@@ -1,15 +1,21 @@
-# Docker Compose file for Freetvarr and TVHeadend.
+# Docker Compose file for Freetvarr and TVHeadend, with an optional Plex.
 #
 # Save it as `docker-compose.yml` in an empty folder and run `docker compose up -d`.
+# No media server yet? Put COMPOSE_PROFILES=plex and PLEX_CLAIM (below) in the
+# `.env` to add Plex, or run `docker compose --profile plex up -d`.
 # With no `.env` it keeps everything in that folder: settings in ./config,
 # recordings and your library in ./data. Every value below is optional; put
 # any you want to change in a `.env` file beside this one:
 #   PUID=1000                                 # the user that owns the files (`id -u`)
 #   PGID=1000                                 # that user's group (`id -g`)
-#   CONFIG_PATH=./config                      # settings for both services
+#   CONFIG_PATH=./config                      # settings for every service
 #   DATA_PATH=./data                          # recordings/ and media/ (one disk)
 #   FREETVARR_PORT=3733
-#   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # only if Plex runs on this host
+#   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # only for a Plex on this host
+#                                             # that is not the plex profile
+#   COMPOSE_PROFILES=plex                     # adds the plex service
+#   PLEX_CLAIM=claim-xxxxxxxx                 # plex profile only, from
+#                                             # https://plex.tv/claim (expires in 4 minutes)
 #   TZ=Australia/Sydney                       # pre-fills Freetvarr's time zone
 #
 # The one-shot `init` service creates the folders inside CONFIG_PATH and
@@ -23,10 +29,10 @@
 # zone in the setup wizard. TZ sets TVHeadend's zone and pre-fills the wizard;
 # a zone chosen in Freetvarr wins over it.
 #
-# `network_mode: host` is required on both services: network-tuner auto-discovery
+# `network_mode: host` is required on every service: network-tuner auto-discovery
 # (an HDHomeRun, for example) is a UDP broadcast, which does NOT traverse
 # Docker's bridge network. With
-# host networking neither container has a `ports:` mapping — Freetvarr binds
+# host networking no container has a `ports:` mapping — Freetvarr binds
 # directly to ${FREETVARR_PORT} on the host LAN IP, and TVHeadend to its own
 # ports (9981 HTTP, 9982 HTSP).
 #
@@ -37,6 +43,12 @@
 # bind mounts, even on one disk, so separate mounts for recordings and media
 # turn every import into a full copy. Use a ${DATA_PATH} that holds only
 # recordings/ and media/, because Freetvarr can write to all of it.
+#
+# The `plex` profile runs Plex (linuxserver image) on host networking, port
+# 32400. It keeps its settings in ${CONFIG_PATH}/plex and sees the library at
+# /data/media, the same paths Freetvarr uses. Freetvarr mounts that settings
+# folder read-only to read Plex's token, so its setup wizard connects to Plex
+# and creates the Plex libraries for you.
 #
 # The optional ad-removal feature (Settings → AD REMOVAL) runs comskip inside
 # the Freetvarr container and is CPU-bound: expect minutes of sustained CPU
@@ -54,8 +66,8 @@ services:
       - sh
       - -c
       - >-
-        mkdir -p /config/tvheadend /config/freetvarr /data/recordings /data/media/tv /data/media/one-offs &&
-        chown ${PUID:-1000}:${PGID:-1000} /config /config/tvheadend /config/freetvarr /data /data/recordings /data/media /data/media/tv /data/media/one-offs
+        mkdir -p /config/tvheadend /config/freetvarr /config/plex /data/recordings /data/media/tv /data/media/one-offs &&
+        chown ${PUID:-1000}:${PGID:-1000} /config /config/tvheadend /config/freetvarr /config/plex /data /data/recordings /data/media /data/media/tv /data/media/one-offs
 
   tvheadend:
     image: lscr.io/linuxserver/tvheadend:latest
@@ -98,17 +110,40 @@ services:
       # See docker-compose.hwaccel.example.yml to enable hardware transcoding.
       - LIVE_TV_TRANSCODE=${LIVE_TV_TRANSCODE:-auto}
       - CSRF_SECRET
-      # Only set if you want the "Auto-detect from local Plex" button to work:
-      - PLEX_PREFS_PATH=/plex-preferences.xml
+      # Where the "Auto-detect token" button reads Plex's Preferences.xml. Empty
+      # unless PLEX_PREFS_PATH is set, which makes Freetvarr read the plex
+      # profile's settings folder.
+      - PLEX_PREFS_PATH=${PLEX_PREFS_PATH:+/plex-preferences.xml}
     volumes:
       - ${CONFIG_PATH:-./config}/freetvarr:/config
       - ${DATA_PATH:-./data}:/data
-      # Plex Preferences.xml, read-only, only for the "Auto-detect token" button.
-      # Defaults to /dev/null when PLEX_PREFS_PATH is unset, so leaving it blank is
-      # safe (the button just degrades). Set it only if Plex runs on this host.
+      # The plex profile's settings folder, read-only, for the token. Empty
+      # without the profile.
+      - ${CONFIG_PATH:-./config}/plex:/plex:ro
+      # Another Plex on this host: its Preferences.xml, read-only. Defaults to
+      # /dev/null when PLEX_PREFS_PATH is unset, so leaving it blank is safe.
       - ${PLEX_PREFS_PATH:-/dev/null}:/plex-preferences.xml:ro
     depends_on:
       init:
         condition: service_completed_successfully
       tvheadend:
         condition: service_started
+
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    profiles: [plex]
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ
+      - VERSION=docker
+      - PLEX_CLAIM
+    volumes:
+      - ${CONFIG_PATH:-./config}/plex:/config
+      - ${DATA_PATH:-./data}/media:/data/media
