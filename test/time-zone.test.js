@@ -12,14 +12,14 @@ test('isKnownTimeZone: accepts IANA zones and rejects anything else', () => {
   assert.equal(isKnownTimeZone(null), false)
 })
 
-test('resolveTimeZone: .env beats the stored zone, which beats the system', () => {
-  assert.deepEqual(resolveTimeZone({ envTz: 'UTC', stored: 'Australia/Sydney', system: 'Etc/UTC' }), { zone: 'UTC', source: 'env' })
-  assert.deepEqual(resolveTimeZone({ envTz: '', stored: 'Australia/Sydney', system: 'Etc/UTC' }), { zone: 'Australia/Sydney', source: 'setting' })
+test('resolveTimeZone: the stored zone beats .env, which beats the system', () => {
+  assert.deepEqual(resolveTimeZone({ envTz: 'UTC', stored: 'Australia/Sydney', system: 'Etc/UTC' }), { zone: 'Australia/Sydney', source: 'setting' })
+  assert.deepEqual(resolveTimeZone({ envTz: 'UTC', stored: '', system: 'Etc/UTC' }), { zone: 'UTC', source: 'env' })
   assert.deepEqual(resolveTimeZone({ envTz: '', stored: 'Mars/Olympus', system: 'Etc/UTC' }), { zone: 'Etc/UTC', source: 'system' })
 })
 
-test('resolveTimeZone: an unknown .env zone still wins so Doctor can report it', () => {
-  assert.deepEqual(resolveTimeZone({ envTz: 'Nowhere/Land', stored: 'Australia/Sydney', system: 'UTC' }), { zone: 'Nowhere/Land', source: 'env' })
+test('resolveTimeZone: an unknown .env zone with nothing stored still wins so Doctor can report it', () => {
+  assert.deepEqual(resolveTimeZone({ envTz: 'Nowhere/Land', stored: '', system: 'UTC' }), { zone: 'Nowhere/Land', source: 'env' })
 })
 
 test('applyStoredTimeZone: applies a stored zone when .env sets none', async () => {
@@ -29,10 +29,10 @@ test('applyStoredTimeZone: applies a stored zone when .env sets none', async () 
   assert.equal(env.TZ, 'Australia/Perth')
 })
 
-test('applyStoredTimeZone: leaves TZ alone when .env sets it or the stored zone is unknown', async () => {
+test('applyStoredTimeZone: a stored zone replaces TZ from .env, and an unknown one leaves TZ alone', async () => {
   const fromEnv = { TZ: 'UTC' }
   await applyStoredTimeZone({ getSetting: settingsWith('Australia/Perth'), envTz: 'UTC', env: fromEnv })
-  assert.equal(fromEnv.TZ, 'UTC')
+  assert.equal(fromEnv.TZ, 'Australia/Perth')
   const unknown = {}
   await applyStoredTimeZone({ getSetting: settingsWith('Mars/Olympus'), envTz: '', env: unknown })
   assert.equal(unknown.TZ, undefined)

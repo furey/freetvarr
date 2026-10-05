@@ -15,8 +15,8 @@ export const isKnownTimeZone = (zone) => {
 export const currentTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
 export const resolveTimeZone = ({ envTz, stored, system }) => {
-  if (envTz) return { zone: envTz, source: 'env' }
   if (isKnownTimeZone(stored)) return { zone: stored, source: 'setting' }
+  if (envTz) return { zone: envTz, source: 'env' }
   return { zone: system, source: 'system' }
 }
 

@@ -361,8 +361,14 @@ test('host.env: a zone chosen in Settings passes and names its source', async ()
   assert.match(check.detail, /^Time zone Australia\/Sydney \(from Settings\)/)
 })
 
+test('host.env: a zone chosen in Settings beats TZ in .env', async () => {
+  const check = await hostCheck({ envTz: 'Australia/Perth', stored: 'Australia/Sydney' })
+  assert.equal(check.status, 'pass')
+  assert.match(check.detail, /^Time zone Australia\/Sydney \(from Settings\)/)
+})
+
 test('host.env: an unknown TZ in .env warns with the .env fix', async () => {
-  const check = await hostCheck({ envTz: 'Nowhere/Land', stored: 'Australia/Sydney' })
+  const check = await hostCheck({ envTz: 'Nowhere/Land' })
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /TZ is Nowhere\/Land/)
   assert.match(check.fix, /\.env/)
