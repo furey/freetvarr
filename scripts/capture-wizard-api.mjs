@@ -137,6 +137,7 @@ const wizardApi = (sim) => {
     'GET /api/folder-suggest': () => ({ match: null, folders: [] }),
     'GET /api/syncs': () => ({ syncs: [] }),
     'GET /api/shows': () => ({ shows: [] }),
+    'GET /api/series': () => ({ series: [], titleMatches: [], stale: false, error: null }),
     'GET /api/recordings': () => ({ recordings: [], total: 0, page: 1, pageSize: 50 }),
     'POST /api/tvh-detect': () => delay(DISCOVER_DELAY_MS).then(() => discoveredTvheadend(sim)),
     'POST /api/tvh-test': ({ body }) => testConnection({ sim, body }),

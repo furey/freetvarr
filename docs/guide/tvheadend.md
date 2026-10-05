@@ -191,7 +191,7 @@ Some broadcasters send EIT with the wrong UTC offset for dates after a daylight-
 
 ### Saving the guide
 
-TVHeadend holds the guide in memory. The linuxserver build leaves both save options off, so a crash or restart loses the whole guide, and the series rules (autorecs) remove their scheduled recordings until the guide reloads. In **Configuration → Channel/EPG → EPG Grabber**, set:
+TVHeadend holds the guide in memory. The linuxserver build leaves both save options off, so a crash or restart loses the whole guide, and the series recordings (autorecs) remove their scheduled recordings until the guide reloads. In **Configuration → Channel/EPG → EPG Grabber**, set:
 
 - **Periodic save** (`epgdb_periodicsave`) to `1` hour.
 - **Save after import** (`epgdb_saveafterimport`) on.
@@ -204,7 +204,7 @@ Go to **Configuration → Recording → Digital Video Recorder Profiles** and op
 
 The path is the one inside the TVHeadend container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. The Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
 
-Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into Plex's library ([Following shows](/guide/following-shows)).
+Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into Plex's library ([Series](/guide/series)).
 
 Freetvarr also sets these two on each recording it schedules:
 
@@ -226,12 +226,12 @@ If you already set up TVHeadend users, make one for Freetvarr by hand. TVHeadend
 5. Tick the rights in the table below, then **Save**.
 6. **Configuration → Users → Passwords → Add.** Tick **Enabled**, enter the same username, and set a password. You type these two into Freetvarr's wizard once.
 
-| Right              | Tick                              | Why Freetvarr needs it                                                                                                                       |
-| ------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for `CHECK TVHEADEND`)                 |
-| **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series rules, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend |
-| **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                    |
-| **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web UI as this user                                                                                   |
+| Right              | Tick                              | Why Freetvarr needs it                                                                                                                            |
+| ------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for `CHECK TVHEADEND`)                      |
+| **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series recordings, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend |
+| **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                         |
+| **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web UI as this user                                                                                        |
 
 Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, `TEST CONNECTION` still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
 

@@ -49,6 +49,14 @@ test('projectUpcomingRecordings: a real timer wins over its projection (dedupe b
   assert.equal(p1[0].source, 'timer')
 })
 
+test('projectUpcomingRecordings: carries the season of timers and projections', () => {
+  const futureRecordings = [
+    { programId: 'p1', name: 'Back Roads', channelId: 'dvb-abc-hd', startDate: NOW + HOUR, endDate: NOW + 2 * HOUR, seriesLinkId: 'sl-backroads', season: 12, pendingDelete: false },
+  ]
+  const out = projectUpcomingRecordings({ seriesTags, futureRecordings, guide, nowMs: NOW })
+  assert.deepEqual(out.map((r) => [r.programId, r.season]), [['p1', 12], ['p2', 12]])
+})
+
 test('projectUpcomingRecordings: dedupes repeat airings of the same episode, keeping earliest', () => {
   const g = {
     channels: [{ id: 'c', epgId: 1, name: 'C' }],

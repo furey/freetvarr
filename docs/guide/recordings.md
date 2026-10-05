@@ -20,7 +20,7 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 - **partial**: the imported file came up more than `1 MB` short. The next sync redoes it.
 - **skipped**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The error text says which.
 - **failed**: the import hit an error.
-- **not imported**: Freetvarr left the recording in TVHeadend. You recorded it with **ADD TO LIBRARY** off, or it matches no show rule and **IMPORT EVERY RECORDING** is off in Settings. Press **IMPORT** to add it to the library at once.
+- **not imported**: Freetvarr left the recording in TVHeadend. You recorded it with **ADD TO LIBRARY** off, or it matches no series folder and **IMPORT EVERY RECORDING** is off in Settings. Press **IMPORT** to add it to the library at once.
 
 With ad removal on, an ad status also appears: `scanning`, `detected`, `no_breaks`, `cut`, `detect_failed`, or `cut_failed`. See [Ad removal](/guide/ad-removal).
 

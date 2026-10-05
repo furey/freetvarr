@@ -63,9 +63,9 @@ The first visit to `http://<host-ip>:3733` opens the setup wizard:
 
 Every value can be changed later in Settings.
 
-## 3. Follow shows
+## 3. Record something
 
-Follow shows on the Shows tab ([Following shows](/guide/following-shows)). To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**.
+Open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. At the next sync, Freetvarr imports each finished recording into your library ([Series](/guide/series)). To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**.
 
 ## Configure
 
@@ -111,7 +111,7 @@ A Freetvarr tab left open during the update offers **APPLY & RELOAD**.
 
 ## Where next
 
-- [Following shows](/guide/following-shows): pick shows, point them at folders, sync.
 - [TV Guide](/guide/tv-guide): schedule recordings from the browser.
+- [Series](/guide/series): set series folders and sync.
 - [Configuration](/guide/configuration): the full `.env` reference.
 - [Troubleshooting](/guide/troubleshooting): if the connection, an import, or Plex misbehaves.
