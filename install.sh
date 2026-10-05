@@ -37,7 +37,7 @@ host_address() {
   printf '%s' "$address"
 }
 
-command -v docker >/dev/null 2>&1 || fail "docker not found on the PATH. Install Docker first (on Synology, sign in over SSH so /usr/local/bin is on the PATH)."
+command -v docker >/dev/null 2>&1 || fail "docker not found on the PATH. Install Docker first, or sign in over SSH so a NAS Docker is on the PATH."
 docker compose version >/dev/null 2>&1 || fail "docker compose (v2) not found. Install the Docker Compose plugin."
 docker info >/dev/null 2>&1 || fail "cannot reach the Docker daemon. Run this as a user in the docker group, or with sudo."
 

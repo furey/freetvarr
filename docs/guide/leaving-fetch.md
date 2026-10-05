@@ -181,7 +181,7 @@ Do these in order. The times are for someone doing it the first time.
 2. **Order the tuner** ([Shopping list](#shopping-list)). `10 minutes`, then about a week for delivery.
 3. **Wire the tuner** ([Hardware](/guide/hardware)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
 4. **Path 1 stops here**: install the HDHomeRun app and watch. `10 minutes`.
-5. **Set up the NAS or mini PC**, and install Docker (on a Synology, Docker is the Container Manager app). `1–2 hours`.
+5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
 6. **Set up [TVHeadend](/guide/tvheadend)**: channels, guide, and recording folder. One evening, `2–3 hours`.
 7. **Set up Freetvarr** ([Getting started](/guide/getting-started)). `30–60 minutes`.
 8. **Connect [Plex](/guide/plex)** if you use it. `30 minutes`.

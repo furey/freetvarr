@@ -7,7 +7,7 @@ description: >-
 
 # Hardware
 
-Any TVHeadend-compatible tuner works. Freetvarr talks only to TVHeadend and the recordings folder, so a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, and IPTV all work. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange; Synology and QNAP kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in. The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with.
+Any TVHeadend-compatible tuner works. Freetvarr talks only to TVHeadend and the recordings folder, so a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, and IPTV all work. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange; most NAS kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in. The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with.
 
 The broadcast standard where you live decides the model: DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
 
@@ -50,7 +50,7 @@ Anything with `-US` in the model number, and anything branded 4K, is an ATSC tun
 
 ### Why not a USB tuner
 
-A `A$20` Xbox One or Hauppauge USB tuner works on a normal Linux computer. It does not work on a Synology or QNAP NAS: their kernels ship no DVB drivers, so there is no `/dev/dvb` to pass into the container and nothing for TVHeadend to find. A network tuner needs no driver on the NAS. To use a USB tuner anyway, run TVHeadend on a Raspberry Pi and write its recordings to a NAS share instead.
+A `A$20` Xbox One or Hauppauge USB tuner works on a normal Linux computer. It does not work on most NAS units (Synology and QNAP among them): their kernels ship no DVB drivers, so there is no `/dev/dvb` to pass into the container and nothing for TVHeadend to find. A network tuner needs no driver on the NAS. To use a USB tuner anyway, run TVHeadend on a Raspberry Pi and write its recordings to a NAS share instead.
 
 <div class="product-shot">
   <img src="../img/hardware/hauppauge-usb-tuner.webp" alt="A Hauppauge WinTV USB tuner stick with its case removed, showing the aerial socket at one end and the USB plug at the other" width="1000" height="563" loading="lazy">
