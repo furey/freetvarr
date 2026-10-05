@@ -1438,8 +1438,8 @@ const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
       next: 'Check that the tuner is on and connected, then press CHECK AGAIN.',
     },
     'no-signal': {
-      error: `The tuner can't receive any channels${from}.`,
-      next: 'Check the antenna cable, or pick the transmitter your antenna points at, then try again.',
+      error: `The tuner received no channels${from}.`,
+      next: 'Check the antenna cable, check that no other app is using the tuner, and pick the transmitter your antenna points at. Then try again.',
     },
     'scan-timeout': {
       error: 'The channel scan did not finish in 30 minutes.',
