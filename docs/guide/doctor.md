@@ -40,11 +40,11 @@ Reads TVHeadend's access entries. It warns when an enabled entry with username `
 
 ## Tuners {#tvh-tuners}
 
-Counts the tuners in TVHeadend's hardware list and the inputs in its status page. It fails when there are none. It warns when a tuner has a link-local `169.254.x.x` address, because that address can change if you move the tuner. See [Missing tuner](/guide/troubleshooting#missing-tuner).
+Counts the tuners in TVHeadend's hardware list and the inputs in its status page. It fails when there are none, and warns when no tuner is turned on. It also warns when a tuner has a link-local `169.254.x.x` address, because that address can change if you move the tuner. See [Missing tuner](/guide/troubleshooting#missing-tuner).
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0`. See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0`; the **Channels** step of the setup wizard adds them. See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 
