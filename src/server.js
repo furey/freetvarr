@@ -9,6 +9,8 @@ import rateLimit from 'express-rate-limit'
 import { doubleCsrf } from 'csrf-csrf'
 
 import { db, getSetting, setSetting } from './db.js'
+import { resolveCsrfSecret } from './csrf-secret.js'
+import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import {
   startSync,
@@ -68,6 +70,7 @@ import {
   setChannelPrefs,
   getOnNowForPinned,
   getOnNowAll,
+  resetGuideCache,
 } from './epg.js'
 import {
   startManualAdScan,
@@ -107,10 +110,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
 const { version: APP_VERSION } = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'package.json'), 'utf8'))
 const BUILD_ID = await readBuildId({ webRoot: WEB_ROOT, version: APP_VERSION })
+const STARTUP_TIME_ZONE = await applyStoredTimeZone({ getSetting })
+console.log(`[server] time zone ${STARTUP_TIME_ZONE.zone} (${STARTUP_TIME_ZONE.source})`)
 
 const PORT = Number(process.env.PORT || 3733)
-const DEV_CSRF_SECRET = 'dev-only-csrf-secret-set-CSRF_SECRET-in-prod'
-const CSRF_SECRET = process.env.CSRF_SECRET || DEV_CSRF_SECRET
+const CONFIG_DIR = path.dirname(process.env.DB_PATH || path.join(__dirname, '..', 'config', 'state.db'))
+const loadCsrfSecret = async () => {
+  try {
+    const { secret, source, file } = await resolveCsrfSecret({ envSecret: process.env.CSRF_SECRET, configDir: CONFIG_DIR })
+    if (source === 'generated') console.log(`[server] generated a CSRF secret in ${file}`)
+    if (source === 'env' && secret.length < 32) {
+      console.warn(`[server] CSRF_SECRET is only ${secret.length} chars — use at least 32 bytes.`)
+    }
+    return secret
+  } catch (err) {
+    console.error(
+      `[server] cannot save the CSRF secret in ${CONFIG_DIR} (${err.code || err.message}). `
+        + 'Check that the host folder behind CONFIG_PATH is owned by PUID:PGID, or set CSRF_SECRET.',
+    )
+    process.exit(1)
+  }
+}
+const CSRF_SECRET = await loadCsrfSecret()
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 const LIBRARY_CHOICES = ['include', 'exclude']
@@ -124,17 +145,6 @@ const liveEncoderReady = detectLiveEncoder({
   return encoder
 })
 const LIVE_REAPER_MS = 5_000
-
-if (process.env.NODE_ENV === 'production' && CSRF_SECRET === DEV_CSRF_SECRET) {
-  console.error(
-    '[server] CSRF_SECRET must be set when NODE_ENV=production. '
-      + 'Generate one with `openssl rand -hex 32`.',
-  )
-  process.exit(1)
-}
-if (CSRF_SECRET.length < 32) {
-  console.warn(`[server] CSRF_SECRET is only ${CSRF_SECRET.length} chars — use at least 32 bytes.`)
-}
 
 const app = express()
 app.disable('x-powered-by')
@@ -1041,6 +1051,7 @@ app.get('/api/settings', async (req, res) => {
     adOriginalRetentionDays,
     comskipIniOverride,
     tvhOpenEntryBackup,
+    storedTimeZone,
   ] = await Promise.all([
     getSetting('tvh_url'),
     getSetting('tvh_username'),
@@ -1063,6 +1074,7 @@ app.get('/api/settings', async (req, res) => {
     getSetting('ad_original_retention_days'),
     comskipIniOverrideExists(),
     getSetting(OPEN_ENTRY_BACKUP_KEY),
+    getSetting('time_zone'),
   ])
   res.json({
     tvh_url: tvhUrl,
@@ -1076,7 +1088,10 @@ app.get('/api/settings', async (req, res) => {
     // The guide's day boundaries are computed in the server's local zone, so the
     // browser must format times in that same zone. Fall back to the zone the
     // process actually runs in, never a hardcoded UTC.
-    tz: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    tz: currentTimeZone(),
+    time_zone: storedTimeZone || '',
+    tz_source: resolveTimeZone({ envTz: timeZoneFromEnv(), stored: storedTimeZone, system: currentTimeZone() }).source,
+    tz_env: timeZoneFromEnv(),
     plex_url: plexUrl,
     plex_token_set: Boolean(plexToken),
     plex_tv_section_id: plexTvSectionId,
@@ -1101,6 +1116,10 @@ app.get('/api/settings', async (req, res) => {
 
 app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   const body = req.body || {}
+  const timeZone = body.time_zone === undefined ? undefined : String(body.time_zone).trim()
+  if (timeZone !== undefined && !isKnownTimeZone(timeZone)) {
+    return res.status(400).json({ error: `Unknown time zone "${timeZone}"` })
+  }
   const writeString = async (key, value, { trim = false } = {}) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))
@@ -1139,10 +1158,13 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
     }
     await setSetting('ad_original_retention_days', String(days))
   }
-  if (body.sync_cron !== undefined) {
-    await setSetting('sync_cron', String(body.sync_cron))
-    await startScheduler()
+  if (timeZone !== undefined) {
+    await setSetting('time_zone', timeZone)
+    if (!timeZoneFromEnv()) process.env.TZ = timeZone
+    resetGuideCache()
   }
+  if (body.sync_cron !== undefined) await setSetting('sync_cron', String(body.sync_cron))
+  if (body.sync_cron !== undefined || timeZone !== undefined) await startScheduler()
   await rebaseFilePaths()
   res.json({ ok: true })
 })

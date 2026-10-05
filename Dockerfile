@@ -38,9 +38,9 @@ RUN npm install -g npm@11.15.0 \
 
 COPY . .
 
-# Force production mode so a bare `docker run` (without the compose env) still
-# refuses the dev CSRF secret and never serves Express development-mode stack
-# traces. Compose sets the same value; this is the safe default when it doesn't.
+# Force production mode so a bare `docker run` (without the compose env) never
+# serves Express development-mode stack traces. Compose sets the same value;
+# this is the safe default when it doesn't.
 ENV NODE_ENV=production
 
 # /config is bind-mounted at runtime. Create it so the container can boot even

@@ -156,7 +156,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Optional ad removal**: ad detection with comskip, a detect-only mode for checking accuracy, cutting that copies the video across untouched (no re-encode), and a `.orig` backup of every cut file. Off by default; detection accuracy on free-to-air varies by channel, so try detect mode before trusting cuts. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#ad-removal).
 - **Live operation progress**: the Recordings tab shows the progress of each copy, ad scan, and cut. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#live-progress-indicators).
 - **Self-housekeeping**: sync history trims itself to the latest 500 rows; recording rows drop off 30 days after the TVHeadend copy is deleted.
-- **Timezone-aware UI**: the container's `TZ` carries through to the browser, so timestamps show in that zone whatever device hits the page.
+- **Timezone-aware UI**: the wizard asks for your time zone and pre-fills it from the browser. Timestamps show in that zone whatever device hits the page.
 - **Phone-friendly UI**: every view works on a phone.
 - **About panel**: Settings lists the Freetvarr, TVHeadend, and Node versions for bug reports, and says when a newer Freetvarr release is out.
 - **Danger Zone**: a reset in Settings that clears Freetvarr's database and returns to the setup wizard. Imported media files stay.
@@ -186,8 +186,6 @@ Copy `docker-compose.example.yml` to `docker-compose.yml`, then create a `.env` 
 ```env
 CONFIG_PATH=/path/to/your/config
 DATA_PATH=/path/to/your/data
-CSRF_SECRET=paste-openssl-rand-hex-32
-TZ=Australia/Sydney          # example; use your own IANA zone
 PUID=1000
 PGID=1000
 FREETVARR_PORT=3733
@@ -197,7 +195,7 @@ FREETVARR_PORT=3733
 # PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml
 ```
 
-`CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts.
+`CONFIG_PATH` and `DATA_PATH` are required; compose stops with a clear message if either is missing rather than starting with broken mounts. Freetvarr asks for your time zone in the wizard and makes its own CSRF secret on first start, so neither needs a setting. TVHeadend follows the host clock's time zone.
 
 The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes a recording there, and Freetvarr picks it up from the same folder. Freetvarr mounts the whole of `${DATA_PATH}` once, at `/data`; keep only `recordings/` and `media/` in it, because Freetvarr can write to all of it. Give both the same `PUID`/`PGID` (run `id` on the host to read them), and create the host folders owned by that pair before the first start; Docker creates a missing folder as `root`. [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_2-configure) has the commands.
 
@@ -219,7 +217,7 @@ Do this before step 5. Freetvarr can do nothing until TVHeadend has channels and
 
 ### 5. Run the Freetvarr wizard
 
-Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard for TVHeadend, storage, and Plex. Enter the TVHeadend user you just made and press TEST CONNECTION; the wizard does not continue until the connection works. You can change all of it later in Settings.
+Browse to `http://<host-ip>:3733`. The first visit opens a setup wizard. The first step asks you to confirm your time zone, pre-filled from your browser; the rest cover TVHeadend, storage, and Plex. Enter the TVHeadend user you just made and press TEST CONNECTION; the wizard does not continue until the connection works. You can change all of it later in Settings.
 
 Freetvarr imports finished recordings on the schedule you set. Follow a show on the Shows tab, or press RECORD SERIES in the guide, to file its episodes into your TV library.
 
@@ -236,16 +234,16 @@ This rebuilds the image and recreates the container only if the image actually c
 
 The TVHeadend URL and login, the Plex token, and the storage paths are runtime settings; configure them in the web UI, not via env. The `.env` next to your compose file only carries deploy-level knobs:
 
-| Variable          | Purpose                                                                                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `CONFIG_PATH`     | Host folder for both containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                 |
-| `DATA_PATH`       | Host folder holding `recordings/` (TVHeadend's output) and `media/` (your Plex TV library), and nothing else      |
-| `PLEX_PREFS_PATH` | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host |
-| `CSRF_SECRET`     | 32+ random bytes (`openssl rand -hex 32`); required                                                               |
-| `TZ`              | Your IANA timezone (e.g. `Australia/Sydney`); the UI renders all timestamps in it                                 |
-| `PUID`/`PGID`     | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services          |
-| `FREETVARR_PORT`  | Host port to serve on (default `3733`)                                                                            |
-| `TVH_URL`         | Optional. Fixes the address AUTO-DISCOVER TVHEADEND offers; omit to let Freetvarr probe port `9981` on the host   |
+| Variable          | Purpose                                                                                                                                                                            |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONFIG_PATH`     | Host folder for both containers' config; Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                                  |
+| `DATA_PATH`       | Host folder holding `recordings/` (TVHeadend's output) and `media/` (your Plex TV library), and nothing else                                                                       |
+| `PLEX_PREFS_PATH` | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button; omit if Plex is on another host                                                                  |
+| `CSRF_SECRET`     | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`                                                    |
+| `TZ`              | Optional IANA timezone (e.g. `Australia/Sydney`). Overrides the zone chosen in Freetvarr's settings, and applies to TVHeadend when set. TVHeadend otherwise follows the host clock |
+| `PUID`/`PGID`     | UID/GID to run as; match the owner of your bind-mounted folders, and use the same pair for both services                                                                           |
+| `FREETVARR_PORT`  | Host port to serve on (default `3733`)                                                                                                                                             |
+| `TVH_URL`         | Optional. Fixes the address AUTO-DISCOVER TVHEADEND offers; omit to let Freetvarr probe port `9981` on the host                                                                    |
 
 Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. In the example compose file, TVHeadend sees the folder at `/recordings` and Freetvarr at `/data/recordings`; Freetvarr rewrites the one prefix to the other. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
@@ -312,7 +310,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 
 ### Wrong timestamps
 
-- Set `TZ` in your `.env` to your IANA timezone; the UI shows every timestamp in the container's zone, whatever device you're browsing from.
+- Wrong times, or a Doctor warning about the time zone: choose your zone in Settings, in the SCHEDULE panel. Freetvarr shows every timestamp in that zone, whatever device you're browsing from. A `TZ` in your `.env` overrides the chosen zone.
 
 ## Disclaimer
 
