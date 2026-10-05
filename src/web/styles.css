@@ -1244,22 +1244,8 @@ svg.epg-rail-logo {
   border-radius: 0 0.25rem 0.25rem 0;
 }
 
-.series-other-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0;
-  border: 0;
-  background: none;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.series-other-toggle svg {
-  width: 0.85em;
-  height: 0.85em;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
+.field-input[list]::-webkit-calendar-picker-indicator {
+  display: none !important;
 }
 
 .epg-scroll {
