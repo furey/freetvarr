@@ -122,12 +122,14 @@ const tvhTestSummary = (r) => {
 
 const tz = ref('UTC')
 
+const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+
 const dateFormatters = new Map()
 
-const dateFormat = (options) => {
-  const key = `${tz.value}|${JSON.stringify(options)}`
+const dateFormat = (options, timeZone = tz.value) => {
+  const key = `${timeZone}|${JSON.stringify(options)}`
   if (!dateFormatters.has(key)) {
-    dateFormatters.set(key, new Intl.DateTimeFormat('en-AU', { timeZone: tz.value, ...options }))
+    dateFormatters.set(key, new Intl.DateTimeFormat('en-AU', { timeZone, ...options }))
   }
   return dateFormatters.get(key)
 }
@@ -332,6 +334,55 @@ const ToggleSwitch = {
       <span class="toggle-label"><slot>{{ label }}</slot></span>
     </button>
   `,
+}
+
+const TimeZoneField = {
+  props: {
+    modelValue: { type: String, default: '' },
+    source: { type: String, default: 'system' },
+    envValue: { type: String, default: '' },
+    hint: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue'],
+  template: `
+    <div class="field-row">
+      <label class="field-label" for="time-zone-select">TIME ZONE</label>
+      <select id="time-zone-select" class="field-input" :disabled="fromEnv"
+        :value="fromEnv ? envValue : modelValue"
+        @change="$emit('update:modelValue', $event.target.value)">
+        <option v-for="zone in zones" :key="zone" :value="zone">{{ zone }}</option>
+      </select>
+      <p v-if="shownZone" class="text-xs font-mono text-ink-dim mt-2">Now {{ readout }}</p>
+      <p v-if="fromEnv" class="text-xs text-ink-dim mt-2">Set by <code>TZ</code> in your .env file. Remove it there to choose here.</p>
+      <p v-else-if="hint" class="text-xs text-ink-dim mt-2">Pre-filled from this browser. Freetvarr uses it for the guide, recordings, and the sync schedule.</p>
+    </div>
+  `,
+  setup(props) {
+    const nowMs = ref(Date.now())
+    const timer = setInterval(() => (nowMs.value = Date.now()), 15000)
+    onUnmounted(() => clearInterval(timer))
+    const fromEnv = computed(() => props.source === 'env')
+    const shownZone = computed(() => (fromEnv.value ? props.envValue : props.modelValue))
+    const zones = computed(() => {
+      const known = Intl.supportedValuesOf('timeZone')
+      return shownZone.value && !known.includes(shownZone.value)
+        ? [shownZone.value, ...known]
+        : known
+    })
+    const readout = computed(() => {
+      try {
+        const options = { hour: 'numeric', minute: '2-digit', weekday: 'short', day: 'numeric', month: 'short' }
+        const parts = Object.fromEntries(
+          dateFormat(options, shownZone.value).formatToParts(nowMs.value).map((p) => [p.type, p.value]),
+        )
+        const time = `${parts.hour}:${parts.minute} ${parts.dayPeriod}`.toLowerCase()
+        return `${time}, ${parts.weekday} ${parts.day} ${parts.month}`
+      } catch {
+        return shownZone.value
+      }
+    })
+    return { fromEnv, shownZone, zones, readout }
+  },
 }
 
 const ChannelIdentity = {
@@ -2801,13 +2852,15 @@ const SettingsView = {
             <span class="panel-heading">
               <span class="panel-title">SCHEDULE</span>
               <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
+                <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file takes priority over this setting.</p>
                 <p>How often Freetvarr checks TVHeadend for new recordings to import, as a cron rule. <code>*/30 * * * *</code> is every 30 minutes.</p>
                 <p>A change applies without a restart. <strong>SYNC NOW</strong> on the dashboard runs a sync at any time.</p>
               </info-button>
             </span>
-            <span class="text-xs font-mono text-ink-dim">when Freetvarr syncs</span>
+            <span class="text-xs font-mono text-ink-dim">time zone and when Freetvarr syncs</span>
           </header>
-          <div class="panel-body">
+          <div class="panel-body space-y-4">
+            <time-zone-field v-model="timeZone" :source="tzSource" :env-value="tzEnv" />
             <div class="field-row">
               <label class="field-label">Sync cron (5-field, e.g. <code>*/30 * * * *</code>)</label>
               <input type="text" class="field-input" v-model="syncCron" :placeholder="syncCronEffective || '*/30 * * * *'" />
@@ -3055,7 +3108,7 @@ const SettingsView = {
         <div class="settings-save-bar">
           <div class="max-w-6xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-3">
             <span v-if="status" :class="['status-readout', statusKind]">{{ status }}</span>
-            <span v-else class="text-xs font-mono text-ink-mute">Changes apply on save · scheduler reloads if <code>sync_cron</code> changed.</span>
+            <span v-else class="text-xs font-mono text-ink-mute">Changes apply on save · scheduler reloads if <code>sync_cron</code> or the time zone changed.</span>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE SETTINGS</template>
             </button>
@@ -3100,6 +3153,9 @@ const SettingsView = {
     }))
     const syncCron = ref('')
     const syncCronEffective = ref('')
+    const timeZone = ref('')
+    const tzSource = ref('system')
+    const tzEnv = ref('')
     const plexUrl = ref('')
     const plexToken = ref('')
     const plexTokenSet = ref(false)
@@ -3164,6 +3220,9 @@ const SettingsView = {
       tvhRecordingsPath.value = s.tvh_recordings_path || ''
       syncCron.value = s.sync_cron || ''
       syncCronEffective.value = s.sync_cron_effective || ''
+      tzSource.value = s.tz_source || 'system'
+      tzEnv.value = s.tz_env || ''
+      timeZone.value = s.time_zone || s.tz || browserTimeZone()
       if (s.tz) tz.value = s.tz
       plexUrl.value = s.plex_url || ''
       plexTokenSet.value = Boolean(s.plex_token_set)
@@ -3206,9 +3265,11 @@ const SettingsView = {
           ad_removal_enabled: adRemovalEnabled.value,
           ad_original_retention_days: adOriginalRetentionDays.value,
         }
+        if (tzSource.value !== 'env') body.time_zone = timeZone.value
         if (plexToken.value) body.plex_token = plexToken.value
         if (tvhPassword.value) body.tvh_password = tvhPassword.value
         await api('POST', '/api/settings', body)
+        if (tzSource.value !== 'env' && timeZone.value) tz.value = timeZone.value
         if (plexToken.value) {
           plexTokenSet.value = true
           plexToken.value = ''
@@ -3429,7 +3490,7 @@ const SettingsView = {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
       tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, undoTvhSecure,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
-      syncCron, syncCronEffective,
+      syncCron, syncCronEffective, timeZone, tzSource, tzEnv,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections,
       plexProbing, plexRefreshing, plexDetecting,
       plexTokenStatus, plexTokenStatusKind,
@@ -3682,6 +3743,7 @@ const WelcomeView = {
             <p v-if="hasExistingConfig" class="text-xs font-mono text-plex-yellow">
               <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> RETURN VISIT — your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
             </p>
+            <time-zone-field v-model="timeZone" :source="tzSource" :env-value="tzEnv" hint />
           </div>
 
           <div v-if="step === 2" class="space-y-4">
@@ -3953,6 +4015,10 @@ const WelcomeView = {
       fill: (value) => (tvhRecordingsPath.value = value),
     }))
 
+    const timeZone = ref(browserTimeZone())
+    const tzSource = ref('system')
+    const tzEnv = ref('')
+
     const plexUrl = ref('')
     const plexToken = ref('')
     const plexSectionId = ref('')
@@ -3989,6 +4055,9 @@ const WelcomeView = {
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
+      tzSource.value = s.tz_source || 'system'
+      tzEnv.value = s.tz_env || ''
+      timeZone.value = s.time_zone || browserTimeZone() || s.tz || 'UTC'
       recordingsRoot.value = s.recordings_root || ''
       tvhRecordingsPath.value = s.tvh_recordings_path || ''
       mediaRoot.value = s.media_root || ''
@@ -4073,7 +4142,12 @@ const WelcomeView = {
       clearSaveStatus()
       saving.value = true
       try {
-        if (step.value === 2) {
+        if (step.value === 1) {
+          if (tzSource.value !== 'env') {
+            await api('POST', '/api/settings', { time_zone: timeZone.value })
+            if (timeZone.value) tz.value = timeZone.value
+          }
+        } else if (step.value === 2) {
           const connected = await testTvh()
           if (!connected) {
             setSaveStatus('Connection failed. Correct the TVHeadend details to continue.', 'err', 0)
@@ -4307,6 +4381,7 @@ const WelcomeView = {
 
     return {
       step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig,
+      timeZone, tzSource, tzEnv,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
@@ -7869,6 +7944,7 @@ app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
+app.component('time-zone-field', TimeZoneField)
 app.component('channel-identity', ChannelIdentity)
 app.component('star-icon', StarIcon)
 app.component('step-mark-icon', StepMarkIcon)

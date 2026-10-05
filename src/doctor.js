@@ -11,6 +11,7 @@ import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHard
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
+import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -533,16 +534,25 @@ const LATER_CHECKS = [
     title: 'Time zone and network',
     doc: 'guide/troubleshooting#wrong-timestamps',
     run: async (ctx) => {
-      const problems = [timeZoneProblem(ctx.deps.env), networkProblem(ctx.deps.interfaces())].filter(Boolean)
-      const zone = ctx.deps.env.TZ || systemTimeZone()
+      const timeZone = resolveTimeZone({
+        envTz: ctx.deps.envTimeZone(),
+        stored: ctx.settings.timeZone,
+        system: ctx.deps.systemTimeZone(),
+      })
+      const problems = [
+        timeZoneProblem({ ...timeZone, stored: ctx.settings.timeZone }),
+        networkProblem(ctx.deps.interfaces()),
+      ].filter(Boolean)
       if (!problems.length) {
-        return { status: 'pass', detail: `Time zone ${zone}; ${joinAnd(ipv4Addresses(ctx.deps.interfaces()))}.` }
+        const addresses = joinAnd(ipv4Addresses(ctx.deps.interfaces()))
+        return { status: 'pass', detail: `Time zone ${timeZone.zone} (${ZONE_SOURCES[timeZone.source]}); ${addresses}.` }
       }
       return {
         status: 'warn',
         detail: problems.map((p) => p.detail).join(' '),
         fix: problems.map((p) => p.fix).join(' '),
         doc: problems[0].doc,
+        action: problems.find((p) => p.action)?.action,
       }
     },
   },
@@ -638,13 +648,17 @@ const guideReach = ({ lastStopMs, now }) => {
 
 const syncError = (sync) => sync.summary?.errors?.[0] || sync.summary?.message || 'no reason recorded'
 
-const timeZoneProblem = (env) => {
-  const zone = env.TZ || systemTimeZone()
-  if (env.TZ && !isKnownTimeZone(env.TZ)) {
-    return { detail: `TZ is ${env.TZ}, which is not a known time zone.`, fix: TZ_FIX, doc: 'guide/troubleshooting#wrong-timestamps' }
+const timeZoneProblem = ({ zone, source, stored }) => {
+  const doc = 'guide/troubleshooting#wrong-timestamps'
+  if (source === 'env' && !isKnownTimeZone(zone)) {
+    return { detail: `TZ is ${zone}, which is not a known time zone.`, fix: TZ_ENV_FIX, doc }
   }
-  if (UTC_ZONES.includes(zone)) {
-    return { detail: `The time zone is ${zone}.`, fix: TZ_FIX, doc: 'guide/troubleshooting#wrong-timestamps' }
+  if (source === 'env') return null
+  if (stored && !isKnownTimeZone(stored)) {
+    return { detail: `The time zone setting is ${stored}, which is not a known time zone.`, fix: TZ_SETTINGS_FIX, doc, action: SETTINGS_SCHEDULE }
+  }
+  if (source === 'system' && UTC_ZONES.includes(zone)) {
+    return { detail: 'No time zone is chosen, so Freetvarr runs on UTC.', fix: TZ_SETTINGS_FIX, doc, action: SETTINGS_SCHEDULE }
   }
   return null
 }
@@ -683,6 +697,7 @@ const readSettings = async () => {
     plexSectionId: plexSectionId || '',
     syncCron: syncCron || '',
     adRemovalEnabled: adRemoval === 'true',
+    timeZone: (await getSetting('time_zone')) || '',
   }
 }
 
@@ -714,7 +729,8 @@ const defaultDeps = () => ({
   schedulerExpression: getSchedulerExpression,
   liveEncoder: async () => null,
   which: findOnPath,
-  env: process.env,
+  envTimeZone: timeZoneFromEnv,
+  systemTimeZone: currentTimeZone,
   interfaces: () => os.networkInterfaces(),
   uid: () => process.getuid?.() ?? null,
 })
@@ -753,16 +769,6 @@ const ipv4Addresses = (interfaces) => Object.values(interfaces || {})
 
 const isDockerBridgeAddress = (address) => /^172\.(1[6-9]|2\d|3[01])\./.test(address)
 
-const isKnownTimeZone = (zone) => {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: zone })
-    return true
-  } catch {
-    return false
-  }
-}
-
-const systemTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
 const pathSegments = (value) => String(value || '').split(/[/\\]+/).filter(Boolean)
 
@@ -819,7 +825,9 @@ const DISK_WARN_SHARE = 0.1
 const LINK_LOCAL = /\b169\.254\.\d+\.\d+/
 const UTC_ZONES = ['UTC', 'Etc/UTC', 'Etc/GMT', 'GMT', 'Etc/Universal', 'Universal', 'Zulu']
 const AD_TOOLS = ['comskip', 'ffmpeg', 'ffprobe']
-const TZ_FIX = 'Set TZ (for example Australia/Sydney) on both services.'
+const TZ_ENV_FIX = 'Correct TZ in .env (for example Australia/Sydney), or remove it and choose the zone in Settings.'
+const TZ_SETTINGS_FIX = 'Choose your time zone in Settings.'
+const ZONE_SOURCES = { env: 'from TZ in .env', setting: 'from Settings', system: 'from the system' }
 const RIGHTS_DOC = 'guide/tvheadend#_8-make-a-user-for-freetvarr'
 const ACCESS_ENTRY_LIMIT = 100
 const RIGHT_PROBES = [
