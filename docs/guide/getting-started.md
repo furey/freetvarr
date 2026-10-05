@@ -53,14 +53,15 @@ The first visit to `http://<host-ip>:3733` opens the setup wizard:
 
 1. **Welcome**: confirm your time zone.
 2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password, check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
-3. **Storage**: keep the defaults.
-4. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)).
+3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`.
+4. **Storage**: keep the defaults.
+5. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)).
 
 Every value can be changed later in Settings.
 
 ## 3. Set up TVHeadend
 
-Browse to `http://<host-ip>:9981`, sign in with the admin login, and work through [TVHeadend](/guide/tvheadend): tuner, channels, guide, and recording path.
+Browse to `http://<host-ip>:9981`, sign in with the admin login, and follow [TVHeadend step 6](/guide/tvheadend#_6-load-the-xmltv-guide) to load the guide and [step 7](/guide/tvheadend#_7-set-the-recording-path) to check the recording path. The wizard already added the tuner and channels.
 
 Then follow shows on the Shows tab ([Following shows](/guide/following-shows)). To check the whole setup, open **Settings → HEALTH CHECK → RUN DOCTOR**.
 

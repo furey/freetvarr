@@ -90,6 +90,8 @@ Finish or cancel the wizard, even if you configured TVHeadend by hand. An unfini
 
 ## 3. Add the tuner
 
+The **Channels** step of the Freetvarr wizard does steps 3 to 5 for an antenna or cable tuner, and sets **Re-record if errors** from step 7. Follow steps 3 to 5 by hand for a satellite tuner, or to choose each setting yourself.
+
 The linuxserver image is built with `--enable-hdhomerun_client`, so TVHeadend discovers HDHomeRun tuners on the LAN by itself. The author's tuner is an HDHomeRun Flex Quatro, and the screens below follow it.
 
 Go to **Configuration → DVB Inputs → TV adapters**. The four tuners of a Flex Quatro appear as separate entries, each naming the device ID. If nothing appears, TVHeadend is not on the host network; go back to step 1.

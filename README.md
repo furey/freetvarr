@@ -96,7 +96,7 @@ Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 
 
 ## What Freetvarr is
 
-TVHeadend records free-to-air TV into its recordings folder. By default it names each file after the programme title only, for example `The Block.ts`. Plex's TV library matches a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. **Freetvarr** watches TVHeadend on your LAN, picks up every recording it finishes, files episodes of the shows you follow into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
+**Freetvarr** watches TVHeadend on your LAN, picks up every recording it finishes, files episodes of the shows you follow into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
 
 It is also a TV app for your home network. Open the Live TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first. Pause and rewind up to `30` minutes, then jump back to live.
 
@@ -176,13 +176,13 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, storage, Plex.
+The script starts TVHeadend and Freetvarr, then prints the URL of the setup wizard. Open it and work through the steps: time zone, TVHeadend, channels, storage, Plex.
 
 On a NAS or another remote host, sign in over SSH first. To install by hand or with a NAS container app, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
 
 ### Set up TVHeadend
 
-Browse to `http://<host-ip>:9981` and work through the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend): tuner, channels, guide, and recording path. Then follow shows on the Shows tab.
+Browse to `http://<host-ip>:9981` and load the guide ([TVHeadend step 6](https://furey.github.io/freetvarr/guide/tvheadend#_6-load-the-xmltv-guide)). The wizard already added the tuner and channels. Then follow shows on the Shows tab.
 
 ### Configure
 

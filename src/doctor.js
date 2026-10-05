@@ -195,7 +195,14 @@ const LATER_CHECKS = [
           fix: 'No tuner visible. Set network_mode: host on the tvheadend service for a network tuner, or pass /dev/dvb into it for a USB or PCIe tuner.',
         }
       }
-      const detail = `${plural(count, 'tuner')}: ${inputs.join('; ') || 'no input names reported'}.`
+      if (!inputs.length) {
+        return {
+          status: 'warn',
+          detail: `TVHeadend sees ${plural(count, 'tuner')}, but none is turned on.`,
+          fix: 'Run the CHANNELS step of the setup wizard, or turn the tuner on in TVHeadend under Configuration → DVB Inputs → TV adapters.',
+        }
+      }
+      const detail = `${plural(count, 'tuner')}: ${inputs.join('; ')}.`
       if (inputs.some((i) => LINK_LOCAL.test(i))) {
         return {
           status: 'warn',
@@ -220,7 +227,7 @@ const LATER_CHECKS = [
         return {
           status: 'fail',
           detail: 'TVHeadend has no channels.',
-          fix: 'No channels yet. Scan your muxes and map services in TVHeadend.',
+          fix: 'No channels yet. Run the CHANNELS step of the setup wizard, or scan and map services in TVHeadend.',
         }
       }
       return { status: 'pass', detail: `${plural(total, 'channel')} in TVHeadend.` }
