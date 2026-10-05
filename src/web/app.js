@@ -3723,6 +3723,25 @@ const DoctorView = {
   },
 }
 
+const ManualOption = {
+  props: {
+    href: { type: String, default: '' },
+    label: { type: String, required: true },
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['choose'],
+  template: `
+    <div class="border-t border-hairline pt-3 space-y-1">
+      <p class="field-label">Or, by hand</p>
+      <p class="text-sm text-ink-dim leading-relaxed">
+        <slot />
+        <a v-if="href" class="btn-link" :href="href" target="_blank" rel="noopener">{{ label }}</a>
+        <button v-else type="button" class="btn-link" :disabled="disabled" @click="$emit('choose')">{{ label }}</button>
+      </p>
+    </div>
+  `,
+}
+
 const ChannelSetupStep = {
   props: {
     tvhUrl: { type: String, default: '' },
@@ -3821,10 +3840,12 @@ const ChannelSetupStep = {
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!ready || starting">
               <search-icon /> FIND CHANNELS
             </button>
-            <a v-if="tvhUrl" class="btn-link" :href="tvhUrl" target="_blank" rel="noopener">I'll set this up in TVHeadend</a>
           </div>
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
           <p class="text-xs text-ink-mute">A scan takes a few minutes. Freetvarr keeps any channels you already have.</p>
+          <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
+            Scan and add channels yourself in TVHeadend, then come back and press NEXT.
+          </manual-option>
         </div>
       </template>
     </div>
@@ -4077,10 +4098,12 @@ const GuideSetupStep = {
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
               <tv-icon /> SET UP GUIDE
             </button>
-            <a v-if="tvhUrl" class="btn-link" :href="tvhUrl" target="_blank" rel="noopener">I'll set this up in TVHeadend</a>
           </div>
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
           <p class="text-xs text-ink-mute">Freetvarr keeps the guide links you already have.</p>
+          <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
+            Load a guide yourself in TVHeadend, then come back and press NEXT.
+          </manual-option>
         </div>
       </template>
     </div>
@@ -4277,9 +4300,11 @@ const WelcomeView = {
                 <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
                   <template v-if="securing">SECURING…</template><template v-else>SECURE TVHEADEND AND CONNECT FREETVARR</template>
                 </button>
-                <button type="button" class="btn-link" @click="useManualLogin" :disabled="securing">I'll set up users myself</button>
               </div>
               <span v-if="secureInputProblem" class="status-readout info">{{ secureInputProblem }}</span>
+              <manual-option label="Enter a login instead" :disabled="securing" @choose="useManualLogin">
+                Make your own TVHeadend logins, then give Freetvarr the one you made for it.
+              </manual-option>
             </div>
             <ol v-if="secureSteps.length" class="space-y-1 text-sm font-mono">
               <li v-for="s in secureSteps" :key="s.id" class="flex items-center gap-2">
@@ -8436,6 +8461,7 @@ app.component('programme-image', ProgrammeImage)
 app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
 app.component('time-zone-field', TimeZoneField)
+app.component('manual-option', ManualOption)
 app.component('channel-setup-step', ChannelSetupStep)
 app.component('guide-setup-step', GuideSetupStep)
 app.component('channel-identity', ChannelIdentity)
