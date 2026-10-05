@@ -1,10 +1,11 @@
 import { countryForTimeZone } from './zone-countries.js'
 
 export const inspectSetup = async ({ http, conn }) => {
-  const [tuners, networkGrid, channelGrid] = await Promise.all([
+  const [tuners, networkGrid, channelGrid, upcoming] = await Promise.all([
     listTuners({ http, conn }),
     http.get('mpegts/network/grid', { limit: GRID_LIMIT }, conn),
     http.get('channel/grid', { limit: 1 }, conn),
+    http.get('dvr/entry/grid_upcoming', { limit: UPCOMING_LIMIT }, conn),
   ])
   const networks = (networkGrid?.entries || []).map(normaliseNetwork)
   const deliverySystem = primaryDeliverySystem(tuners)
@@ -20,8 +21,13 @@ export const inspectSetup = async ({ http, conn }) => {
     channels: Number(channelGrid?.total ?? channelGrid?.entries?.length ?? 0),
     deliverySystem,
     compatibleNetworks,
+    recordingNow: recordingsInProgress(upcoming?.entries || []),
   }
 }
+
+export const recordingsInProgress = (entries) => entries
+  .filter((e) => String(e.sched_status || '').startsWith('recording'))
+  .map((e) => ({ title: e.disp_title || '', stopMs: Number(e.stop_real || e.stop || 0) * 1000 }))
 
 export const listTransmitters = async ({ http, conn, scanType, attempts = SCANFILE_ATTEMPTS, delayMs = 1000 }) => {
   for (let attempt = 1; ; attempt += 1) {
@@ -417,6 +423,7 @@ const RECEIVED_RESULTS = new Set([1, 3])
 const NON_TV_SERVICE_TYPES = new Set([2, 3, 4, 5, 7, 10, 12])
 const IMAGE_DEFAULT_RERECORD_ERRORS = 10
 const GRID_LIMIT = 100
+const UPCOMING_LIMIT = 1000
 const MUX_LIMIT = 1000
 const SERVICE_LIMIT = 5000
 const POLL_MS = 2000

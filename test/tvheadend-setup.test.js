@@ -28,6 +28,12 @@ const liveTvheadend = () => {
     'mpegts/service/grid': fixture('service-grid'),
     'channel/grid': fixture('channel-grid'),
     'dvr/config/grid': fixture('dvr-config-grid'),
+    'dvr/entry/grid_upcoming': {
+      entries: [
+        { disp_title: 'The Block', sched_status: 'recording', stop_real: 1791200220 },
+        { disp_title: 'Later', sched_status: 'scheduled', stop_real: 1791300000 },
+      ],
+    },
     'service/mapper/status': fixture('mapper-status'),
     'mpegts/input/network_list': { entries: [{ key: NETWORK_ID, val: 'Free-to-air' }] },
   }
@@ -58,6 +64,7 @@ test('inspectSetup reads tuners, networks, and channels from the live fixtures',
   assert.equal(inspection.networks[0].services, 59)
   assert.deepEqual(inspection.compatibleNetworks.map((n) => n.id), [NETWORK_ID])
   assert.ok(inspection.channels > 0)
+  assert.deepEqual(inspection.recordingNow, [{ title: 'The Block', stopMs: 1791200220000 }])
 })
 
 test('parseTransmitters keeps the truncated key and hides country-wide and automatic lists', () => {
@@ -172,6 +179,7 @@ const scriptedTvheadend = ({ scanFrames, mapperFrames, tuner = { enabled: false,
     'mpegts/network/grid': () => ({ entries: networkId ? [network()] : [] }),
     'mpegts/input/network_list': () => ({ entries: networkId ? [{ key: networkId }] : [] }),
     'channel/grid': () => ({ total: 0, entries: [] }),
+    'dvr/entry/grid_upcoming': () => ({ entries: [] }),
     'mpegts/mux/grid': () => {
       const frame = current()
       scanFrame += 1

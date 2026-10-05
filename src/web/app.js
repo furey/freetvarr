@@ -3816,6 +3816,7 @@ const ChannelSetupStep = {
               Pick the transmitter your antenna points at.<template v-if="guessed"> Freetvarr guessed it from your time zone.</template>
             </p>
           </template>
+          <p v-if="recordingNow" class="status-readout info">{{ recordingNow }}</p>
           <div class="flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!ready || starting">
               <search-icon /> FIND CHANNELS
@@ -3861,6 +3862,7 @@ const ChannelSetupStep = {
     const waitingForTuner = computed(() => running.value
       && Boolean(steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail?.waitingForTuner))
     const channelCount = computed(() => status.value?.channels || 0)
+    const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
     const doneText = computed(() => {
       const added = result.value?.mapped?.ok || 0
       return added ? `Added ${added} channels.` : 'Every channel the scan found is already in TVHeadend.'
@@ -3959,10 +3961,18 @@ const ChannelSetupStep = {
     return {
       status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
-      steps, result, showSteps, waitingForTuner, doneText,
+      steps, result, showSteps, waitingForTuner, doneText, recordingNow,
       refresh, apply, restart, stepDetail, secureStepDot,
     }
   },
+}
+
+const recordingWarning = (recordings) => {
+  if (!recordings.length) return ''
+  const [first] = recordings
+  const until = first.stopMs ? ` until ${fmtClockTz(first.stopMs)}` : ''
+  const what = recordings.length === 1 ? first.title : `${recordings.length} programmes`
+  return `TVHeadend is recording ${what}${until}. A scan now can cause brief glitches in the recording, so you may want to wait.`
 }
 
 const scanOrMapDetail = (step) => {

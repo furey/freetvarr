@@ -1385,6 +1385,7 @@ app.get('/api/tvh-setup/status', bootstrapStatusLimiter, async (req, res) => {
       tuners: inspection.tuners,
       networks: inspection.compatibleNetworks,
       channels: inspection.channels,
+      recordingNow: inspection.recordingNow,
       transmitters,
       job: setupRun,
     })
