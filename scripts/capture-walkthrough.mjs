@@ -1,73 +1,18 @@
 import { chromium } from 'playwright'
 import { join } from 'node:path'
 import { rename } from 'node:fs/promises'
-import { TIMEZONE, simulatedNow, prepareDemoContext, onAirCell, waitForImages } from './capture-demo-api.mjs'
+import {
+  TIMEZONE, simulatedNow, prepareDemoContext, onAirCell, waitForImages,
+  installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll,
+} from './capture-demo-api.mjs'
 
 const BASE = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
 const OUT = process.env.WALKTHROUGH_OUT || '/work'
 const VIEWPORT = { width: 1280, height: 800 }
-const SCROLL_MS = 1600
 const VIEW_REVEAL_MS = 850
 const LIVE_PLAY_MS = 3500
 const POSTER_AFTER_PLAY_S = 2.5
 const TOOLTIP_HOLD_MS = 1800
-
-const installCursor = (page) =>
-  page.evaluate(() => {
-    const c = document.createElement('div')
-    c.id = '__wtc'
-    c.style.cssText =
-      'position:fixed;left:0;top:0;z-index:2147483647;pointer-events:none;' +
-      'transition:transform .6s cubic-bezier(.22,.61,.36,1);transform:translate(-80px,-80px)'
-    c.innerHTML =
-      '<svg width="22" height="22" viewBox="0 0 24 24">' +
-      '<path d="M5 3 L5 19 L9.5 14.5 L12.5 21 L15 20 L12 13.5 L18.5 13.5 Z" ' +
-      'fill="#fffcfb" stroke="#1a1611" stroke-width="1.3" stroke-linejoin="round"/></svg>'
-    document.body.appendChild(c)
-    window.__wt = {
-      x: -80,
-      y: -80,
-      move(x, y) {
-        this.x = x
-        this.y = y
-        c.style.transform = `translate(${x}px,${y}px)`
-      },
-      click() {
-        const r = document.createElement('div')
-        r.style.cssText =
-          `position:fixed;left:${this.x}px;top:${this.y}px;width:10px;height:10px;` +
-          'margin:-5px 0 0 -5px;border-radius:50%;border:2px solid #1eb6ff;' +
-          'z-index:2147483646;pointer-events:none;opacity:.9;' +
-          'transition:transform .5s ease-out,opacity .5s ease-out'
-        document.body.appendChild(r)
-        requestAnimationFrame(() => {
-          r.style.transform = 'scale(4)'
-          r.style.opacity = '0'
-        })
-        setTimeout(() => r.remove(), 600)
-      },
-    }
-  })
-
-const cursorTo = async (page, x, y) => {
-  await page.evaluate(([x, y]) => window.__wt?.move(x, y), [x, y])
-  await page.waitForTimeout(680)
-}
-
-const cursorToBox = async (page, locator) => {
-  const box = await locator.boundingBox().catch(() => null)
-  if (!box) return false
-  await cursorTo(page, Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2))
-  return true
-}
-
-const clickWithCursor = async (page, locator) => {
-  if (!(await cursorToBox(page, locator))) return false
-  await page.waitForTimeout(180)
-  await page.evaluate(() => window.__wt?.click())
-  await locator.click()
-  return true
-}
 
 const clickTab = async (page, route) => {
   const link = page.locator(`.tab-strip a[href="#/${route}"]`)
@@ -84,32 +29,6 @@ const clickTab = async (page, route) => {
   ])
   await page.waitForTimeout(VIEW_REVEAL_MS)
 }
-
-const glideScroll = (page, { selector = null, dx = 0, dy = 0, ms = SCROLL_MS }) =>
-  page.evaluate(({ selector, dx, dy, ms }) => new Promise((resolve) => {
-    const el = selector ? document.querySelector(selector) : document.scrollingElement
-    if (!el) return resolve()
-    const clamp = (v, max) => Math.max(0, Math.min(v, max))
-    const from = { x: el.scrollLeft, y: el.scrollTop }
-    const to = {
-      x: clamp(from.x + dx, el.scrollWidth - el.clientWidth),
-      y: clamp(from.y + dy, el.scrollHeight - el.clientHeight),
-    }
-    const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
-    const startedAt = performance.now()
-    const step = () => {
-      const progress = Math.min(1, (performance.now() - startedAt) / ms)
-      const eased = easeInOut(progress)
-      el.scrollTo({
-        left: from.x + (to.x - from.x) * eased,
-        top: from.y + (to.y - from.y) * eased,
-        behavior: 'instant',
-      })
-      if (progress < 1) requestAnimationFrame(step)
-      else resolve()
-    }
-    requestAnimationFrame(step)
-  }), { selector, dx, dy, ms })
 
 const scrollDownAndBack = async (page, { dy, hold = 600 }) => {
   await glideScroll(page, { dy })

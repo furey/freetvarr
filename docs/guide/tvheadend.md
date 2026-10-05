@@ -66,6 +66,12 @@ When the wizard finds a TVHeadend with only the default entry, it asks for three
 - **The allowed networks.** Both logins work only from these address ranges. The wizard fills in one `/24` range for each address of the Freetvarr host, plus `127.0.0.0/8`; a host at `192.168.86.254` gives `192.168.86.0/24`. Add any other network you sign in from.
 - **Confirmation.** `SECURE TVHEADEND AND CONNECT FREETVARR` makes the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/welcome">
+  <img src="../img/screenshot-wizard-secure.png" alt="The wizard's TVHeadend step on a fresh TVHeadend, with the admin username, password, allowed networks, and the SECURE TVHEADEND AND CONNECT FREETVARR button" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 Freetvarr signs in with both new logins before it removes the default entry. If either login fails, it deletes the logins it made and leaves TVHeadend as it found it, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. **Settings → TVHEADEND → RESTORE OPEN ACCESS** puts the default entry back.
 
 Freetvarr changes nothing on a TVHeadend that already has users. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.

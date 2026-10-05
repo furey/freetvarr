@@ -51,6 +51,9 @@ Run the script again at any time. It keeps an existing `.env` and compose file. 
 
 The first visit to `http://<host-ip>:3733` opens the setup wizard:
 
+<!-- markdownlint-disable-next-line MD033 -->
+<BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" credit="" />
+
 1. **Welcome**: confirm your time zone.
 2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password, check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`.
