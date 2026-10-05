@@ -2561,6 +2561,16 @@ body.epg-drag-lock * {
   height: 1.3rem;
 }
 
+@media (pointer: fine) {
+  .rec-actions .btn {
+    min-height: 2.5rem;
+  }
+
+  .rec-actions .btn-icon {
+    min-width: 2.5rem;
+  }
+}
+
 .epg-modal-actions .btn {
   min-height: 2.75rem;
 }
