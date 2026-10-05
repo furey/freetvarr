@@ -82,7 +82,7 @@ const tempFolders = async () => {
   return { recordings, media }
 }
 
-const doctorDeps = async ({ url, ...overrides } = {}) => {
+const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
   const { recordings, media } = await tempFolders()
   return {
     connection: async () => ({ url, username: '', password: '' }),
@@ -95,6 +95,7 @@ const doctorDeps = async ({ url, ...overrides } = {}) => {
       plexSectionId: '',
       syncCron: '',
       adRemovalEnabled: false,
+      timeZone,
     }),
     guide: async () => null,
     latestSync: async () => null,
@@ -102,7 +103,8 @@ const doctorDeps = async ({ url, ...overrides } = {}) => {
     liveEncoder: async () => ({ kind: 'vaapi', reason: 'VAAPI test encode passed on /dev/dri/renderD128' }),
     which: async (tool) => `/usr/bin/${tool}`,
     statfs: async () => ({ bavail: (500 * GB) / 4096, bsize: 4096, blocks: (1000 * GB) / 4096 }),
-    env: { TZ: 'Australia/Sydney' },
+    envTimeZone: () => 'Australia/Sydney',
+    systemTimeZone: () => 'UTC',
     interfaces: () => ({ eth0: [{ family: 'IPv4', address: '192.0.2.5', internal: false }] }),
     uid: () => 1000,
     ...overrides,
@@ -332,4 +334,50 @@ test('isBridgeOnly: true only when every IPv4 address is in 172.16.0.0/12', () =
   assert.equal(isBridgeOnly({ lo: [loopback], eth0: [nic('172.18.0.4')] }), true)
   assert.equal(isBridgeOnly({ eth0: [nic('172.18.0.4')], eth1: [nic('192.168.1.20')] }), false)
   assert.equal(isBridgeOnly({ lo: [loopback] }), false)
+})
+
+const hostCheck = async ({ envTz = '', stored = '', system = 'UTC' }) => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: healthyRoutes({ now }),
+    now,
+    timeZone: stored,
+    envTimeZone: () => envTz,
+    systemTimeZone: () => system,
+  })
+  return byId(report)['host.env']
+}
+
+test('host.env: no zone chosen on a UTC system warns and links to Settings', async () => {
+  const check = await hostCheck({})
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /No time zone is chosen/)
+  assert.equal(check.action.href, '#/settings/schedule')
+})
+
+test('host.env: a zone chosen in Settings passes and names its source', async () => {
+  const check = await hostCheck({ stored: 'Australia/Sydney' })
+  assert.equal(check.status, 'pass')
+  assert.match(check.detail, /^Time zone Australia\/Sydney \(from Settings\)/)
+})
+
+test('host.env: an unknown TZ in .env warns with the .env fix', async () => {
+  const check = await hostCheck({ envTz: 'Nowhere/Land', stored: 'Australia/Sydney' })
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /TZ is Nowhere\/Land/)
+  assert.match(check.fix, /\.env/)
+  assert.equal(check.action, undefined)
+})
+
+test('host.env: TZ set to UTC in .env is a deliberate choice and passes', async () => {
+  const check = await hostCheck({ envTz: 'UTC' })
+  assert.equal(check.status, 'pass')
+  assert.match(check.detail, /\(from TZ in \.env\)/)
+})
+
+test('host.env: an unknown stored zone warns and links to Settings', async () => {
+  const check = await hostCheck({ stored: 'Mars/Olympus', system: 'Australia/Perth' })
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /setting is Mars\/Olympus/)
+  assert.equal(check.action.href, '#/settings/schedule')
 })

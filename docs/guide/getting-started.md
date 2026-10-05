@@ -31,8 +31,6 @@ Copy `docker-compose.example.yml` to `docker-compose.yml`, then create a `.env` 
 ```ini
 CONFIG_PATH=/path/to/your/config
 DATA_PATH=/path/to/your/data
-CSRF_SECRET=paste-openssl-rand-hex-32
-TZ=Australia/Sydney          # example; use your own IANA zone
 PUID=1000
 PGID=1000
 FREETVARR_PORT=3733
@@ -42,7 +40,7 @@ FREETVARR_PORT=3733
 # PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml
 ```
 
-`CONFIG_PATH`, `DATA_PATH`, and `CSRF_SECRET` are required; compose stops with a clear message if any is missing rather than starting with broken mounts. Every variable is explained in [Configuration](/guide/configuration).
+`CONFIG_PATH` and `DATA_PATH` are required; compose stops with a clear message if either is missing rather than starting with broken mounts. Freetvarr asks for your time zone in the wizard and makes its own CSRF secret on first start, so neither needs a setting. TVHeadend follows the host clock's time zone. Every variable is explained in [Configuration](/guide/configuration).
 
 The compose file defines two services, `tvheadend` and `freetvarr`. They share `${DATA_PATH}/recordings`: TVHeadend writes recordings there, and Freetvarr reads them from the same folder. Freetvarr mounts the whole of `${DATA_PATH}` once, at `/data`, so imports are hardlinks ([One shared mount](/guide/configuration#one-shared-mount)). Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.
 
@@ -76,13 +74,14 @@ The first start builds the Freetvarr image from the repository, which takes a fe
 
 Browse to `http://<host-ip>:3733` (or the port you set in `FREETVARR_PORT`). The first visit opens a setup wizard:
 
-1. **TVHeadend**: its URL, `http://<host-ip>:9981`. If TVHeadend runs on the same host, the wizard usually finds it for you. What comes next depends on TVHeadend:
+1. **Welcome**: your time zone, pre-filled from your browser. Confirm it or pick another. It sets the guide days, the dates in recording file names, and the sync schedule. Change it later in Settings, in the SCHEDULE panel.
+2. **TVHeadend**: its URL, `http://<host-ip>:9981`. If TVHeadend runs on the same host, the wizard usually finds it for you. What comes next depends on TVHeadend:
    - **A fresh TVHeadend** has no logins yet, and anyone on your network can change it. The wizard asks you to choose an admin username and password, and shows the allowed networks it guessed from this host's addresses; correct them if needed. `SECURE TVHEADEND AND CONNECT FREETVARR` makes your admin login and a separate `freetvarr` login for Freetvarr, then turns off the open access. [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend) explains each step and how to undo it.
    - **A TVHeadend that already has users**: enter the username and password of the user you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)). To do this on a fresh TVHeadend too, choose `I'll set up users myself`.
 
    The wizard moves on only when the connection test passes; use `SKIP TO SETTINGS` if TVHeadend is not ready yet. If the test fails, [Troubleshooting](/guide/troubleshooting#tvheadend-401-or-403) explains each error.
-2. **Storage**: where Freetvarr reads recordings from and writes episodes to. With the example compose file, the defaults are already right. `TEST PATH` checks a folder, and `CHECK TVHEADEND` checks that the recordings path matches TVHeadend's. See [the two recordings paths](/guide/configuration#the-two-recordings-paths).
-3. **Plex**: server URL, token, and which library section holds your TV shows. Optional; see [Plex](/guide/plex).
+3. **Storage**: where Freetvarr reads recordings from and writes episodes to. With the example compose file, the defaults are already right. `TEST PATH` checks a folder, and `CHECK TVHEADEND` checks that the recordings path matches TVHeadend's. See [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+4. **Plex**: server URL, token, and which library section holds your TV shows. Optional; see [Plex](/guide/plex).
 
 You can change all of it later in Settings, and reopen the wizard from there.
 
@@ -116,11 +115,11 @@ Delete-after-import still works, because TVHeadend deletes the file itself. Impo
 ## Updating
 
 ```sh
-git pull
-docker compose up -d --build freetvarr
+docker compose pull
+docker compose up -d
 ```
 
-This rebuilds the image and recreates the container only if the image actually changed. Your database is left alone, and any pending database updates (migrations) run automatically on the next start.
+This downloads the newest published image (`ghcr.io/furey/freetvarr:latest`) and recreates a container only if its image changed. Your database is left alone, and any pending database updates (migrations) run automatically on the next start.
 
 A Freetvarr tab left open during the update says a new version is ready. Press **APPLY & RELOAD** when it suits you; live TV keeps playing until you do.
 
