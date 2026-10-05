@@ -219,7 +219,11 @@ test('applyChannelSetup creates the network, turns on the tuner, scans, maps TV 
       { services: 12, muxes: [[0, 1], [3, 0]] },
       { services: 20, muxes: [[0, 1], [0, 2]] },
     ],
-    mapperFrames: [{ total: 1, ok: 0, fail: 0, ignore: 0, active: 'tv1' }, { total: 1, ok: 1, fail: 0, ignore: 0 }],
+    mapperFrames: [
+      { total: 0, ok: 0, fail: 0, ignore: 0 },
+      { total: 1, ok: 0, fail: 0, ignore: 0, active: 'tv1' },
+      { total: 1, ok: 1, fail: 0, ignore: 0 },
+    ],
   })
   const progress = []
   const result = await applyChannelSetup({

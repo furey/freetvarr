@@ -356,7 +356,12 @@ const mapChannels = async ({ http, conn, networkId, report, wait, pollMs, limitM
   for (;;) {
     const status = await http.get('service/mapper/status', {}, conn)
     const counts = { total: Number(status?.total || 0), ok: Number(status?.ok || 0), fail: Number(status?.fail || 0) }
-    report(counts)
+    const started = counts.total > 0 || Boolean(status?.active)
+    if (started) report(counts)
+    if (!started && now() - startedAt < MAP_START_GRACE_MS) {
+      await wait(pollMs)
+      continue
+    }
     if (isMapperFinished(status)) {
       if (counts.ok === 0) throw new SetupError('TVHeadend could not add any channels.', 'map-empty', counts)
       return counts
@@ -418,3 +423,4 @@ const POLL_MS = 2000
 const STALL_MS = 60_000
 const SCAN_LIMIT_MS = 30 * 60_000
 const MAP_LIMIT_MS = 20 * 60_000
+const MAP_START_GRACE_MS = 15_000
