@@ -1210,6 +1210,58 @@ svg.epg-rail-logo {
   color: #544e47;
 }
 
+.series-editor {
+  border-top: 1px dashed #3d3829;
+  padding-top: 0.9rem;
+}
+
+.field-prefixed {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.field-prefix {
+  display: block;
+  flex-shrink: 0;
+  align-content: center;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  color: #8b837e;
+  background: #14110d;
+  border: 1px solid #3d3829;
+  border-right: 0;
+  border-radius: 0.25rem 0 0 0.25rem;
+}
+
+.field-prefixed .field-input {
+  min-width: 0;
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.series-other-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.series-other-toggle svg {
+  width: 0.85em;
+  height: 0.85em;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
 .epg-scroll {
   --epg-rail-inset: 0px;
   overflow: auto;

@@ -201,7 +201,7 @@ const tourPlex = async (page) => {
 
 const tourReady = async (page) => {
   await page.waitForTimeout(1000)
-  await cursorToBox(page, page.locator('.panel-body .btn-primary', { hasText: 'GO TO SHOWS' }))
+  await cursorToBox(page, page.locator('.panel-body .btn-primary', { hasText: 'OPEN TV GUIDE' }))
   await page.waitForTimeout(2200)
 }
 

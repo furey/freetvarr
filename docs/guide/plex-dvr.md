@@ -45,7 +45,7 @@ Plex DVR suits you if most of these are true:
 
 - **One app for everything.** Live TV and recordings play in every Plex app, the Apple TV app included ([Watching live TV](https://support.plex.tv/articles/115007689648-watching-live-tv/)).
 - **No import step.** Recordings go straight into the Plex library you choose.
-- **Flexible series rules.** Record all episodes or new ones only, limit to one channel, keep only the latest few, or delete after watching ([Setting up recordings](https://support.plex.tv/articles/226074728-setting-up-recordings/)).
+- **Flexible series options.** Record all episodes or new ones only, limit to one channel, keep only the latest few, or delete after watching ([Setting up recordings](https://support.plex.tv/articles/226074728-setting-up-recordings/)).
 - **Ad skipping without touching the file.** By default Plex marks the ad breaks and the player offers a Skip button, so a wrong detection costs nothing ([Removing commercials](https://support.plex.tv/articles/115003944134-removing-commercials/)).
 - **Watching away from home**, with Plex's remote access and a Plex Pass.
 

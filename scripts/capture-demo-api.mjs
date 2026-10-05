@@ -39,6 +39,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/sync-status', (route) => fulfillJson(route, fixtures.syncStatus))
   await context.route('**/api/syncs**', (route) => fulfillJson(route, { syncs: fixtures.syncs }))
   await context.route('**/api/shows', (route) => fulfillJson(route, { shows: fixtures.shows }))
+  await context.route('**/api/series', (route) => fulfillJson(route, fixtures.series))
   await context.route('**/api/recordings**', (route) => fulfillJson(route, fixtures.recordingsPage))
   await context.route('**/api/recordings/*/image', recordingImage({ base, imageSources: fixtures.recordingImages }))
   await context.route('**/api/recording-now', (route) => fulfillJson(route, fixtures.recordingNow))
@@ -429,7 +430,12 @@ const importSlotAfter = ({ end, simNow }) => {
 const libraryPath = ({ program, show }) => {
   if (!show) return `${SANITISED_SETTINGS.oneoff_root}/${program.title}/${program.title}.ts`
   const se = seasonEpisode(program)
-  return `${SANITISED_SETTINGS.media_root}/${show.dest_folder}/Season ${program.series_no}/${show.dest_folder} - ${se}.ts`
+  return `${seasonPath({ show, season: program.series_no })}/${show.dest_folder} - ${se}.ts`
+}
+
+const seasonPath = ({ show, season }) => {
+  const seasonDir = season == null ? 'Season …' : `Season ${String(season).padStart(2, '0')}`
+  return `${SANITISED_SETTINGS.media_root}/${show.dest_folder}/${seasonDir}`
 }
 
 const seasonEpisode = (program) => `S${String(program.series_no).padStart(2, '0')}E${String(program.episode_no).padStart(2, '0')}`
@@ -625,6 +631,7 @@ const demoFixtures = ({ simNow, recording, library }) => {
       demoSync({ id: 408, slot: 4, summary: { trigger: 'cron', imported: 1, skipped: 0, failed: 0, errors: [], plex: { triggered: true, status: 200 }, delete: { triggered: true, removed: ['3f9c2a1b'] } } }),
     ],
     shows,
+    series: demoSeries({ shows, library, simNow }),
     recordingsPage: { recordings, total: recordings.length, page: 1, pageSize: 50 },
     recordingNow: {
       active: recording ? [activeRecordingCard({ recording, simNow })] : [],
@@ -634,6 +641,43 @@ const demoFixtures = ({ simNow, recording, library }) => {
     doctor: doctorReport(simNow),
   }
 }
+
+const demoSeries = ({ shows, library, simNow }) => ({
+  series: shows.map((folder, i) => {
+    const { channel } = library.shows[i]
+    const season = library.rows.find((row) => row.program.title === folder.show_pattern)?.program.series_no
+    const startDate = simNow + (i + 1) * DAY_MS
+    return {
+      key: folder.show_pattern.toLowerCase(),
+      title: folder.show_pattern,
+      recording: true,
+      episodesToKeep: 0,
+      imageProgramId: null,
+      autorecs: [{
+        id: `demo-autorec-${folder.id}`,
+        seriesLinkId: `demo-series-${folder.id}`,
+        channelId: channel.id,
+        channelName: channel.name,
+        enabled: true,
+        episodesToKeep: 0,
+      }],
+      nextAiring: {
+        programId: null,
+        startDate,
+        endDate: startDate + 60 * MINUTE_MS,
+        episodeTitle: null,
+        channelId: channel.id,
+        channelName: channel.name,
+        expected: true,
+      },
+      folder,
+      savesTo: { kind: 'library', path: seasonPath({ show: folder, season }) },
+    }
+  }),
+  titleMatches: [],
+  stale: false,
+  error: null,
+})
 
 const doctorCheck = (id, group, title, status, detail, extra = {}) => ({ id, group, title, status, detail, fix: '', doc: null, ...extra })
 

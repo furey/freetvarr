@@ -15,7 +15,7 @@ Freetvarr records free-to-air TV and files each episode into your TV library. Wa
 With it, you can:
 
 - **[Record from a 7-day guide](/guide/tv-guide)** on your phone or computer: one episode, or every episode of a series.
-- **[Watch recordings in your own player](/guide/following-shows).** Each episode goes into a show and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells it to scan.
+- **[Watch recordings in your own player](/guide/series).** Each episode goes into a series and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells it to scan.
 - **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
 - **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install, and pause or rewind up to `30` minutes. To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
 - **[Clear out TVHeadend](/guide/remove-from-tvheadend).** If you use Plex, Freetvarr can delete each recording once Plex has the episode.
@@ -28,7 +28,7 @@ If you have a Plex Pass, you may not need Freetvarr. Plex's own DVR records free
 
 ## How it files recordings
 
-TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings. It files each episode of a show you follow into your TV library as `Show/Season 01/Show - S01E02.ts`, or by air date when the guide has no episode number. A one-off, such as a sports final, goes to a separate folder named after its title. When Freetvarr sees the recordings folder and the library through one mount, the import is a hardlink: it is instant and uses no extra disk space.
+TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings. It files each episode of a series into your TV library as `Show/Season 01/Show - S01E02.ts`, or by air date when the guide has no episode number. A one-off, such as a sports final, goes to a separate folder named after its title. When Freetvarr sees the recordings folder and the library through one mount, the import is a hardlink: it is instant and uses no extra disk space.
 
 ## Where it works
 
@@ -60,7 +60,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 - **[TVHeadend](/guide/tvheadend)**: the recorder itself, from Docker container to scanned channels and a working guide.
 - **[Getting started](/guide/getting-started)**: run Freetvarr with Docker and walk the first-run wizard.
 - **[TV Guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
-- **[Following shows](/guide/following-shows)**: mark shows to follow and point them at library folders.
+- **[Series](/guide/series)**: record a series and set its library folder.
 - **[Recordings](/guide/recordings)** and **[Syncs](/guide/syncs)**: watch imports happen and read the status of each one.
 - **[Ad removal](/guide/ad-removal)**: the optional comskip detect/cut pass.
 - **[Plex](/guide/plex)**, **[Remove from TVHeadend](/guide/remove-from-tvheadend)**, and **[Live TV](/guide/live-tv)**: the optional extras.

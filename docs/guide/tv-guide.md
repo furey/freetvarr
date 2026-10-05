@@ -7,7 +7,7 @@ description: >-
 
 # TV Guide
 
-The TV Guide tab is a 7-day programme guide. Click a programme to record it, cancel it, or set a series recording in TVHeadend. Add [following shows](/guide/following-shows), and Freetvarr files each episode of that series into Plex after TVHeadend records it.
+The TV Guide tab is a 7-day programme guide. Click a programme to record it, cancel it, or record a whole [series](/guide/series) in TVHeadend. Freetvarr files each recording into your library after TVHeadend records it.
 
 The guide is only as good as what you loaded into TVHeadend. With the XMLTV feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
 
@@ -19,7 +19,7 @@ Channels run down the page and time runs across. The guide opens at the current 
 
 - The **day chips** switch between today and the next six days; `NOW` and `TONIGHT` jump within the day.
 - The **zoom buttons** change the time scale. Each browser remembers its zoom.
-- **Search** covers all 7 days on the grid, and filters the list on `UPCOMING` and `SERIES`.
+- **Search** covers all 7 days on the grid, and filters the list on `UPCOMING`.
 - The **filter box** above the channels narrows them by name or number.
 - Cell borders show recording state: blue for scheduled, gold for a series recording, orange for recording now.
 - Programmes that ended earlier today stay in the grid. TVHeadend drops a programme once it ends, but Freetvarr keeps its own copy.
@@ -40,20 +40,14 @@ Click a cell to open its detail: the programme image, synopsis, rating, season a
 From there:
 
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
-- **RECORD SERIES** creates a TVHeadend autorec rule, with an episodes-to-keep option.
-- **ADD TO LIBRARY** decides what Freetvarr does with the recording. Under the switch, the dialog says where the file will go: the show's folder when a [show rule](/guide/following-shows) matches, or the one-off folder when none does. With the switch off, the recording stays in TVHeadend only. With it on, **RECORD SERIES** also adds a show rule, so the episodes go to the TV library.
-- A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series rule, cancelling asks whether to cancel just that episode or the whole series. Cancelling one episode disables it in TVHeadend instead of deleting it, so the series rule does not schedule it again. Record it later to turn it back on.
-- A programme whose show already has a series rule but no episode scheduled yet shows the rule with a **CANCEL SERIES** action.
+- **RECORD SERIES** makes a series recording in TVHeadend, with an episodes-to-keep option. See [How a series recording works](/guide/series#how-a-series-recording-works).
+- **ADD TO LIBRARY** decides what Freetvarr does with the recording. Under the switch, the dialog says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. With the switch off, the recording stays in TVHeadend only. With it on, **RECORD SERIES** also makes the series folder, so the episodes go to the TV library. To change a folder later, open [SERIES](/guide/series).
+- A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series recording, cancelling asks whether to cancel just that episode or the whole series. Cancelling one episode disables it in TVHeadend instead of deleting it, so the series recording does not schedule it again. Record it later to turn it back on.
+- A programme whose series is already recording, with no episode scheduled yet, shows a **CANCEL SERIES** action.
 
-The **UPCOMING** view lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series rules will catch over the next 7 days. **SERIES** lists the rules themselves. Click a card in either view to record or cancel.
+Many networks show the same programme on an SD channel and an HD channel, such as 7 Sydney and 7HD Sydney. If you press **RECORD** or **RECORD SERIES** on the SD channel and the guide has the same programme at the same time on an HD channel, Freetvarr asks whether to record the HD channel instead. Your padding, episodes-to-keep, and **ADD TO LIBRARY** choices carry over.
 
-## How a series recording works
-
-A series in Freetvarr is one TVHeadend autorec rule. It matches on **title plus channel**, across all days and all start times, and it skips an episode whose episode number it has already recorded. Episodes-to-keep maps to TVHeadend's own maximum-count field, so TVHeadend prunes the oldest itself.
-
-This has two effects:
-
-- **A rule belongs to one channel.** An SD channel and its HD simulcast are separate channels, so a series set on the HD channel does not cover SD airings. - **Duplicate detection needs episode numbers.** XMLTV feeds carry them inconsistently, so your guide source decides what you get. Where they're missing, TVHeadend records every airing.
+The **UPCOMING** view lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. Click a card to record or cancel. The [SERIES](/guide/series) tab lists the series recordings themselves.
 
 ## Favourites
 
@@ -82,7 +76,7 @@ The `LIVE TV` tab lists every channel with what's on now and next, favourites fi
 
 The dashboard's What's On panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. Star some channels to fill the panel.
 
-While TVHeadend records, a `RECORDING NOW` panel at the top of the dashboard shows each recording's progress, file size, and tuner signal. If TVHeadend reports a recording as failed, the card turns red and shows TVHeadend's reason. After a recording stops, its card follows it through import, ad removal (if on), and into Plex. While anything records, the browser tab title starts with `● REC`.
+While TVHeadend records, a `RECORDING NOW` panel at the top of the dashboard shows each recording's progress, file size, and tuner signal. If TVHeadend reports a recording as failed, the card turns red and shows TVHeadend's reason. After a recording stops, its card shows it through import, ad removal (if on), and into Plex. While anything records, the browser tab title starts with `● REC`.
 
 ## Caching
 

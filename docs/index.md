@@ -46,11 +46,12 @@ features:
       series-record in TVHeadend, with favourite channels.
     link: /guide/tv-guide
     linkText: Browse and record
-  - title: Per-show follow
+  - title: Series folders
     details: >-
-      Pick a show TVHeadend records, match it to a folder under your media root,
-      set a season template, and Freetvarr imports new episodes on your schedule.
-    link: /guide/following-shows
+      Record a series from the TV Guide, match it to a folder under your media
+      root, set a season template, and Freetvarr imports new episodes on your
+      schedule.
+    link: /guide/series
     linkText: Set it up
   - title: Hardlink imports
     details: >-

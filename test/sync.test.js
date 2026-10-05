@@ -56,7 +56,7 @@ test('libraryDecision: imports a matched show or, by default, an unmatched one',
   assert.equal(libraryDecision({ show: null, importUnmatched: true }).action, 'import')
   const held = libraryDecision({ show: null, importUnmatched: false })
   assert.equal(held.action, 'hold')
-  assert.match(held.reason, /No show rule/)
+  assert.match(held.reason, /No series folder/)
 })
 
 test('libraryDecision: the choice made on Record overrides the setting both ways', () => {

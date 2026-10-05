@@ -167,14 +167,18 @@ export const buildOneOffPath = ({ item, oneOffRoot }) => {
 }
 
 export const buildDestPath = ({ item, show, mediaRoot }) => {
-  const seasonRaw = item.season != null ? String(item.season) : '0'
-  const seasonPadded = seasonRaw.padStart(2, '0')
-  const seasonDir = (show.season_template || 'Season {season}')
+  const seasonDir = seasonFolderName({ template: show.season_template, season: item.season ?? 0 })
+  const dest = path.join(mediaRoot, show.dest_folder, seasonDir, episodeFilename({ item, show }))
+  return guardWithinRoot({ dest, root: mediaRoot, label: `${show.dest_folder}/${seasonDir}` })
+}
+
+export const seasonFolderName = ({ template, season }) => {
+  const seasonRaw = String(season)
+  const seasonPadded = /^\d+$/.test(seasonRaw) ? seasonRaw.padStart(2, '0') : seasonRaw
+  return (template || 'Season {season}')
     .replaceAll('{season}', seasonPadded)
     .replaceAll('{season_padded}', seasonPadded)
     .replaceAll('{season_unpadded}', seasonRaw)
-  const dest = path.join(mediaRoot, show.dest_folder, seasonDir, episodeFilename({ item, show }))
-  return guardWithinRoot({ dest, root: mediaRoot, label: `${show.dest_folder}/${seasonDir}` })
 }
 
 const guardWithinRoot = ({ dest, root, label = dest }) => {
@@ -590,7 +594,7 @@ const FILM_MIN_MS = 75 * 60 * 1000
 const HOLD_REASONS = {
   excluded: 'Kept out of the library',
   recordedOff: 'Recorded with Add to library off',
-  noRule: 'No show rule, and Import every recording is off',
+  noRule: 'No series folder for this title, and Import every recording is off',
 }
 const SIZE_TOLERANCE_BYTES = 1_000_000
 const PROGRESS_TICK_MS = 1000
