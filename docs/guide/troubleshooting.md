@@ -225,7 +225,7 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 ## Wrong timestamps
 
 - Freetvarr uses the time zone you chose in the wizard. If Doctor warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings, in the SCHEDULE panel. Freetvarr shows every time in that zone, on every device.
-- A `TZ` in your `.env` overrides the chosen zone. If `TZ` is wrong, correct it (e.g. `Australia/Sydney`) and recreate the containers.
+- A `TZ` in your `.env` only pre-fills the zone; the zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings, or correct `TZ` (e.g. `Australia/Sydney`) and recreate the containers.
 - TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
 
 ## CSRF secret

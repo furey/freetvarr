@@ -10,7 +10,7 @@
 #   DATA_PATH=./data                          # recordings/ and media/ (one disk)
 #   FREETVARR_PORT=3733
 #   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # only if Plex runs on this host
-#   TZ=Australia/Sydney                       # overrides the zone chosen in Freetvarr
+#   TZ=Australia/Sydney                       # pre-fills Freetvarr's time zone
 #
 # The one-shot `init` service creates the folders inside CONFIG_PATH and
 # DATA_PATH and gives them to PUID:PGID before the other services start.
@@ -20,7 +20,8 @@
 # Freetvarr generates its CSRF secret into its config folder on first start;
 # set CSRF_SECRET only to override it. TVHeadend mounts the host's
 # /etc/localtime, so it follows the host clock's zone; Freetvarr asks for its
-# zone in the setup wizard. Set TZ only to override both.
+# zone in the setup wizard. TZ sets TVHeadend's zone and pre-fills the wizard;
+# a zone chosen in Freetvarr wins over it.
 #
 # `network_mode: host` is required on both services: network-tuner auto-discovery
 # (an HDHomeRun, for example) is a UDP broadcast, which does NOT traverse
