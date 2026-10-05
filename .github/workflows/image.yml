@@ -75,7 +75,7 @@ jobs:
 
       - name: Boot the image
         run: |
-          docker run -d --name smoke -p 3733:3733 -e DB_PATH=/tmp/freetvarr/state.db freetvarr:test
+          docker run -d --name smoke -p 3733:3733 -e DB_PATH=/config/state.db freetvarr:test
           for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3733/healthz; then
               docker logs smoke
