@@ -52,7 +52,7 @@ services:
 
   freetvarr:
     container_name: freetvarr
-    build: .
+    image: ghcr.io/furey/freetvarr:latest
     restart: unless-stopped
     network_mode: host
     user: "${PUID:-1000}:${PGID:-1000}"

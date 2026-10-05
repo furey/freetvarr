@@ -1,0 +1,8 @@
+# Build Freetvarr from this checkout instead of pulling the published image.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build freetvarr
+
+services:
+  freetvarr:
+    image: freetvarr:dev
+    build: .

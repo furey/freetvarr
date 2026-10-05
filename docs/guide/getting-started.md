@@ -115,11 +115,11 @@ Delete-after-import still works, because TVHeadend deletes the file itself. Impo
 ## Updating
 
 ```sh
-git pull
-docker compose up -d --build freetvarr
+docker compose pull
+docker compose up -d
 ```
 
-This rebuilds the image and recreates the container only if the image actually changed. Your database is left alone, and any pending database updates (migrations) run automatically on the next start.
+This downloads the newest published image (`ghcr.io/furey/freetvarr:latest`) and recreates a container only if its image changed. Your database is left alone, and any pending database updates (migrations) run automatically on the next start.
 
 A Freetvarr tab left open during the update says a new version is ready. Press **APPLY & RELOAD** when it suits you; live TV keeps playing until you do.
 
