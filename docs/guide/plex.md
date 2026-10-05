@@ -19,7 +19,7 @@ Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/t
 
 ## The one-off library
 
-Recordings with no show rule go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **Plex one-off section** in Settings. Other Videos does no online matching, so a sports final or a special keeps its own title.
+Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **Plex one-off section** in Settings. Other Videos does no online matching, so a sports final or a special keeps its own title.
 
 If you set a movies folder, point a **Movies** library at it and choose that library as the **Plex movies section**.
 
@@ -46,7 +46,7 @@ A recording is only removed from TVHeadend after Plex confirms the file ([Remove
 
 ## Where the files land
 
-Imports write under your media root using each show's folder and season template ([Following shows](/guide/following-shows)); Plex reads them as an ordinary TV library.
+Imports write under your media root using each series folder and season template ([Series](/guide/series)); Plex reads them as an ordinary TV library.
 
 > [!NOTE]<br>
 > Episodes stay `.ts`, the raw broadcast format. Plex plays them, but seeking is slow, because a transport stream has no index. If that bothers you, run the files through Tdarr or similar to remux them to `.mkv` after Freetvarr is done with them.

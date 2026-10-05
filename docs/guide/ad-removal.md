@@ -14,7 +14,7 @@ Free-to-air recordings come with their ad breaks. Freetvarr can find those break
 
 ## Turn it on
 
-Turn on ad removal in Settings → AD REMOVAL, then pick a mode for each show on the Shows tab. Both must be on.
+Turn on ad removal in Settings → AD REMOVAL, then pick a mode for each series on the [SERIES tab](/guide/series#edit-a-series-folder). Both must be on.
 
 ## Modes
 

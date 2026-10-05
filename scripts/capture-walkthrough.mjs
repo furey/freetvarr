@@ -139,7 +139,7 @@ const run = async () => {
     await page.waitForTimeout(1600)
   }
 
-  await clickTab(page, 'shows')
+  await clickTab(page, 'series')
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(1500)
 

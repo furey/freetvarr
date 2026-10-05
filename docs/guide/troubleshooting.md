@@ -112,10 +112,10 @@ Recordings on the days after a daylight-saving change start an hour early or lat
 
 ## Scheduled recordings vanished
 
-Upcoming recordings from series rules disappear after TVHeadend crashes or restarts, and return when the guide reloads. The autorec purge removes its scheduled entries while the guide is empty, and with both save options off the guide is empty after a restart.
+Upcoming recordings from series recordings disappear after TVHeadend crashes or restarts, and return when the guide reloads. The autorec purge removes its scheduled entries while the guide is empty, and with both save options off the guide is empty after a restart.
 
 - Turn on periodic save and save after import ([Saving the guide](/guide/tvheadend#saving-the-guide)).
-- Press **Re-run internal EPG grabbers** to reload the guide now; the rules schedule again from it.
+- Press **Re-run internal EPG grabbers** to reload the guide now; the series recordings schedule again from it.
 
 ## Duplicate episode recordings
 
@@ -129,8 +129,8 @@ TVHeadend's first-run wizard opens on every page load. The `wizard` value in **C
 
 TVHeadend finished a recording, but nothing appears on the Recordings tab or in Plex.
 
-- **No followed show matches it.** Freetvarr imports only recordings whose title contains the pattern of a followed show ([Following shows](/guide/following-shows)). Add a follow for it.
-- **The show is disabled.** Scheduled syncs skip a disabled show.
+- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series](/guide/series)). Press **RECORD SERIES** in the TV Guide, or use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
+- **The folder is off.** Scheduled syncs skip a series folder that is switched off.
 - **The sync hasn't run yet.** The default schedule is every `30` minutes (`*/30 * * * *`). Press Sync now to run one at once.
 - **It came in as `skipped` or `partial`.** See the next two sections.
 

@@ -81,6 +81,7 @@ import {
   cancelProgram,
   recordSeries,
   cancelSeries,
+  pauseSeries,
   setChannelPrefs,
   getOnNowForPinned,
   getOnNowAll,
@@ -119,6 +120,7 @@ import {
 } from './playback.js'
 import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
+import { getSeries } from './series.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -665,6 +667,19 @@ app.post('/api/epg/cancel-series', epgLimiter, doubleCsrfProtection, async (req,
   }
 })
 
+app.post('/api/epg/pause-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
+  const { series_link_ids, paused } = req.body || {}
+  if (!Array.isArray(series_link_ids) || series_link_ids.length === 0) {
+    return res.status(400).json({ error: 'series_link_ids must be a non-empty array' })
+  }
+  if (typeof paused !== 'boolean') return res.status(400).json({ error: 'paused must be true or false' })
+  try {
+    res.json(await pauseSeries({ seriesLinkIds: series_link_ids, paused }))
+  } catch (err) {
+    epgError(res, err, 'pause-series')
+  }
+})
+
 app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
   const { pinned_ids, hidden_ids, sort, hide_sd_simulcasts } = req.body || {}
   if (pinned_ids != null && !Array.isArray(pinned_ids)) {
@@ -917,6 +932,10 @@ app.get('/api/doctor', doctorLimiter, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
+})
+
+app.get('/api/series', async (req, res) => {
+  res.json(await getSeries())
 })
 
 app.get('/api/shows', async (req, res) => {

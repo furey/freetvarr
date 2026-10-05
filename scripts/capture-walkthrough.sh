@@ -6,7 +6,7 @@ set -euo pipefail
 # A Playwright container drives a scripted cursor tour of the tabs against a
 # running freetvarr at a simulated prime time (19:45 tonight in TZ, or set
 # SIMULATED_NOW). Guide, search, logo, and programme-image GETs come from the
-# real server; settings are masked; syncs, shows, recordings, and recording-now
+# real server; settings are masked; syncs, series, recordings, and recording-now
 # are synthetic fixtures; live TV plays a Big Buck Bunny clip (Blender
 # Foundation, CC BY 3.0) prepared by capture-live-clip.sh, so no live session
 # starts on the server; every non-GET is answered locally and never reaches
