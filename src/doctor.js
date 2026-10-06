@@ -795,7 +795,7 @@ const fmtStamp = (ms) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const fmtGb = (bytes) => `${(bytes / GB).toFixed(bytes < 10 * GB ? 1 : 0)} GB`
+const fmtGb = (bytes) => `${(bytes / GB).toFixed(bytes < 10 * GB ? 1 : 0)}GB`
 
 const fmtSeconds = (ms) => `${Number((ms / 1000).toFixed(2))} s`
 
