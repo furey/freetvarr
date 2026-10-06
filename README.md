@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Watch live TV in your browser. Sync TVHeadend recordings into Plex.</strong><br/>
+  <strong>Watch live TV in your browser. Sync TVHeadend recordings into your media library.</strong><br/>
   A self-hosted companion for TVHeadend and compatible tuner.
 </p>
 
@@ -96,11 +96,11 @@ Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 
 
 ## What Freetvarr is
 
-**Freetvarr** watches TVHeadend on your LAN, picks up every recording it finishes, files episodes of each series you record into your Plex TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan, and optionally removes the TVHeadend copy once Plex confirms the file.
+**Freetvarr** watches TVHeadend on your LAN, picks up every recording it finishes, files episodes of each series you record into your TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan if you use it, and optionally removes the TVHeadend copy once Plex confirms the file.
 
 It is also a TV app for your home network. Open the Live TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first. Pause and rewind up to `30` minutes, then jump back to live.
 
-If your media stack is tuner → TVHeadend → Plex, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in Plex named and foldered. Any TVHeadend-compatible tuner counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
+If your media stack is tuner → TVHeadend → media library, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in your library named and foldered. Any TVHeadend-compatible tuner counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
 
 It's a fork of [Fetcharr](https://github.com/furey/fetcharr) with the recorder replaced. When Fetch TV announced its Gen 3 Extended Service Levy, the author swapped Fetcharr's Fetch pieces for TVHeadend one at a time to get his new HDHomeRun working. Only after all that did he notice that his own Plex Pass already covered [Plex DVR](https://furey.github.io/freetvarr/guide/plex-dvr). Without a Plex Pass, a tuner you own and a free guide cost nothing per year. See [Leaving Fetch TV](https://furey.github.io/freetvarr/guide/leaving-fetch), and [From Fetcharr](https://furey.github.io/freetvarr/guide/from-fetcharr) if you ran Fetcharr.
 
@@ -112,9 +112,9 @@ Tested with an HDHomeRun Flex Quatro; the [hardware guide](https://furey.github.
 
 ## Why not just TVHeadend
 
-TVHeadend on its own covers most of the job. Its web UI has the guide, one-off and series recording with padding and duplicate detection, and a filename template that can write Plex-readable paths (`$t/Season $s/$t - S$sE$e.$x`) straight into the library folder; its DVR post-processor hook can run a script that calls Plex's refresh URL or comskip. If that is enough, use it and skip Freetvarr.
+TVHeadend on its own covers most of the job. Its web UI has the guide, one-off and series recording with padding and duplicate detection, and a filename template that can write library-ready paths (`$t/Season $s/$t - S$sE$e.$x`) straight into the library folder; its DVR post-processor hook can run a script that calls Plex's refresh URL or comskip. If that is enough, use it and skip Freetvarr.
 
-Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and dashboard, series folders with fuzzy matching to the folders Plex already has, the Plex refresh and delete-after-confirm loop, the comskip detect/cut pipeline with a verified swap and `.orig` rollback, live progress, and a sync history you can read. It is a convenience layer on TVHeadend, not a replacement for it.
+Freetvarr adds the parts TVHeadend leaves to you: a phone-friendly guide and dashboard, series folders with fuzzy matching to the folders your library already has, the Plex refresh and delete-after-confirm loop, the comskip detect/cut pipeline with a verified swap and `.orig` rollback, live progress, and a sync history you can read. It is a convenience layer on TVHeadend, not a replacement for it.
 
 ## Why not just Plex DVR
 
@@ -143,12 +143,12 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Doctor**: a read-only health check of TVHeadend, the guide, the folders, Plex, and live TV, with the fix and a docs link for each problem.
 - **First-run wizard**: sets up TVHeadend, channels, the guide, storage, and Plex. On a fresh TVHeadend it creates the admin and Freetvarr logins and closes TVHeadend's open access, with undo. It scans for channels and links the free guide feed for Australia and New Zealand. You can reopen it from Settings.
 - **Series folders**: each series you record gets a folder under your media root, matched by name to an existing folder (even when the names are not identical), with a season template.
-- **One-off recordings**: a recording that matches no series folder, such as a final or a special, goes to its own folder for a separate Plex library. The RECORD dialog says where each recording will go, and can keep one out of the library.
+- **One-off recordings**: a recording that matches no series folder, such as a final or a special, goes to its own folder for a separate library. The RECORD dialog says where each recording will go, and can keep one out of the library.
 - **Films**: with a movies folder set, a film with no series folder is filed as `Title (Year)` for a Movies library.
 - **Recording playback**: play any finished recording in the browser player, with a seek bar and resume from where you stopped.
 - **Saved artwork**: each recording keeps its programme image and channel logo, so the Recordings tab still shows them after the guide moves on.
 - **Hardlink imports**: the recording is already on disk, so the import is a hardlink when Freetvarr sees the recordings folder and the media library through one mount, and a copy when it doesn't. A hardlink uses no extra disk space.
-- **Plex-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the guide gave no episode number.
+- **Library-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the guide gave no episode number.
 - **Short-file detection**: an import more than `1 MB` short of what TVHeadend reported stays `partial`, and the next sync redoes it.
 - **Scheduled + manual sync**: checks TVHeadend on a schedule you choose (every 15 minutes, 30 minutes, or hour, or your own cron expression), plus on-demand Sync now for everything or a single show.
 - **Plex integration**: section refresh after every sync that imported something, plus a Refresh Plex now button. With no Plex yet, the compose file can run one (`COMPOSE_PROFILES=plex`), and the wizard creates its TV, one-off, and movie libraries.
@@ -212,7 +212,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 | Variable           | Purpose                                                                                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CONFIG_PATH`      | Optional. Host folder for both containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                  |
-| `DATA_PATH`        | Optional. Host folder (default `./data`) holding `recordings/` (TVHeadend's output) and `media/` (your Plex TV library), and nothing else                                                         |
+| `DATA_PATH`        | Optional. Host folder (default `./data`) holding `recordings/` (TVHeadend's output) and `media/` (your TV library), and nothing else                                                              |
 | `PLEX_PREFS_PATH`  | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button, for a Plex on this host that the `plex` profile did not start                                                   |
 | `COMPOSE_PROFILES` | Optional. `plex` adds the Plex service, for a host with no media server yet                                                                                                                       |
 | `PLEX_CLAIM`       | Optional, `plex` profile only. The claim code from `https://plex.tv/claim` (expires after 4 minutes)                                                                                              |
