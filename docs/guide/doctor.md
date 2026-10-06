@@ -7,7 +7,7 @@ description: >-
 
 # Doctor
 
-The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **Settings → HEALTH CHECK → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or at `#/doctor` in the address bar.
+The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **Settings → HELP → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or at `#/doctor` in the address bar.
 
 The Doctor only reads. It sends `GET` requests to TVHeadend and Plex, and it looks at folders without writing to them. It never saves settings, changes TVHeadend, refreshes Plex, or starts a test encode.
 
