@@ -139,9 +139,9 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **TV Guide**: a 7-day programme guide. Schedule, cancel, and series-record in TVHeadend, search the week, and put your favourite channels first. Freetvarr keeps the programmes that already aired today (TVHeadend drops them), and each day runs on to 3 am so late-night viewing isn't cut off at midnight.
 - **Recording Now panel**: the dashboard shows each active recording and its signal health, then shows it through import, ad cutting, and the Plex refresh.
 - **Programme images**: the guide and the dashboard show a programme's image when the XMLTV feed supplies one.
-- **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late.
+- **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late. The SERIES tab pauses, resumes, or stops each one and shows where its episodes save. Recording on an SD channel offers the HD simulcast instead.
 - **Doctor**: a read-only health check of TVHeadend, the guide, the folders, Plex, and live TV, with the fix and a docs link for each problem.
-- **First-run wizard**: sets up TVHeadend, storage, and Plex. On a fresh TVHeadend it creates the admin and Freetvarr logins and closes TVHeadend's open access, with undo. You can reopen it from Settings.
+- **First-run wizard**: sets up TVHeadend, channels, the guide, storage, and Plex. On a fresh TVHeadend it creates the admin and Freetvarr logins and closes TVHeadend's open access, with undo. It scans for channels and links the free guide feed for Australia and New Zealand. You can reopen it from Settings.
 - **Series folders**: each series you record gets a folder under your media root, matched by name to an existing folder (even when the names are not identical), with a season template.
 - **One-off recordings**: a recording that matches no series folder, such as a final or a special, goes to its own folder for a separate Plex library. The RECORD dialog says where each recording will go, and can keep one out of the library.
 - **Films**: with a movies folder set, a film with no series folder is filed as `Title (Year)` for a Movies library.
@@ -151,7 +151,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Plex-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the guide gave no episode number.
 - **Short-file detection**: an import more than `1 MB` short of what TVHeadend reported stays `partial`, and the next sync redoes it.
 - **Scheduled + manual sync**: checks TVHeadend on a schedule you choose (every 15 minutes, 30 minutes, or hour, or your own cron expression), plus on-demand Sync now for everything or a single show.
-- **Plex integration**: section refresh after every sync that imported something, plus a Refresh Plex now button.
+- **Plex integration**: section refresh after every sync that imported something, plus a Refresh Plex now button. With no Plex yet, the compose file can run one (`COMPOSE_PROFILES=plex`), and the wizard creates its TV, one-off, and movie libraries.
 - **Remove after import**: once Plex confirms its copy, Freetvarr can delete the recording's file from TVHeadend.
 - **Optional ad removal**: ad detection with comskip, a detect-only mode for checking accuracy, cutting that copies the video across untouched (no re-encode), and a `.orig` backup of every cut file. Off by default; detection accuracy on free-to-air varies by channel, so try detect mode before trusting cuts. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#ad-removal).
 - **Live operation progress**: the Recordings tab shows the progress of each copy, ad scan, and cut. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#live-progress-indicators).
