@@ -123,6 +123,7 @@ import {
 import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
 import { getSeries } from './series.js'
+import { listSyncs, syncPageParams } from './sync-history.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -286,26 +287,12 @@ app.get('/api/sync-status', (req, res) => {
 })
 
 app.get('/api/syncs', async (req, res) => {
-  const filterClause = SYNC_ACTIVITY_FILTERS[req.query.filter] || null
-  const q = db('syncs').orderBy('started_at', 'desc').limit(20)
-  if (filterClause) q.whereRaw(filterClause)
-  const rows = await q
+  const { syncs, total } = await listSyncs({ db, ...syncPageParams(req.query) })
   res.json({
-    syncs: rows.map((r) => ({ ...r, summary: safeJson(r.summary_json) })),
+    syncs: syncs.map((r) => ({ ...r, summary: safeJson(r.summary_json) })),
+    total,
   })
 })
-
-const SYNC_ACTIVITY_FILTERS = {
-  imports: `json_extract(summary_json, '$.imported') > 0`,
-  fails: `status IN ('error', 'partial')`,
-  deletes: `json_extract(summary_json, '$.delete.triggered') = 1`,
-  empty: `status = 'ok'`
-    + ` AND coalesce(json_extract(summary_json, '$.imported'), 0) = 0`
-    + ` AND coalesce(json_extract(summary_json, '$.failed'), 0) = 0`
-    + ` AND coalesce(json_extract(summary_json, '$.delete.triggered'), 0) = 0`,
-  manual: `json_extract(summary_json, '$.trigger') LIKE 'manual%'`,
-  cron: `json_extract(summary_json, '$.trigger') = 'cron'`,
-}
 
 app.delete('/api/syncs', doubleCsrfProtection, async (req, res) => {
   const activeId = getActiveSyncId()

@@ -273,16 +273,28 @@ table.deck-table tbody tr.active {
   white-space: nowrap;
 }
 
-table.deck-table tbody tr.tombstone td {
-  opacity: 0.55;
-  text-decoration: line-through;
-  text-decoration-color: rgba(255, 252, 251, 0.45);
-  text-decoration-thickness: 1px;
+.pill.not-in-tvh-chip {
+  color: #8b837e;
+  border-style: dashed;
 }
-table.deck-table tbody tr.tombstone .pill,
-table.deck-table tbody tr.tombstone .btn,
-table.deck-table tbody tr.tombstone .progress {
-  text-decoration: none;
+
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pill-group.stacked {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.pill-group.end {
+  justify-content: flex-end;
+  flex-shrink: 0;
+  max-width: 60%;
 }
 
 .pill.done       { color: #e2b03c; }
@@ -1088,16 +1100,6 @@ a.icon-link {
   border-color: rgba(30, 182, 255, 0.7);
   background: rgba(30, 182, 255, 0.06);
   outline: none;
-}
-
-.deck-card.tombstone {
-  opacity: 0.55;
-}
-
-.deck-card.tombstone .deck-card-title {
-  text-decoration: line-through;
-  text-decoration-color: rgba(255, 252, 251, 0.45);
-  text-decoration-thickness: 1px;
 }
 
 .deck-card .progress {
@@ -3111,6 +3113,25 @@ section[id^="section-"] {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   color: #8b837e;
+}
+
+.settings-disclosure > summary {
+  list-style: none;
+}
+
+.settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-disclosure > summary::before {
+  content: "\25B6";
+  display: inline-block;
+  margin-right: 0.5em;
+  font-size: 0.75em;
+}
+
+.settings-disclosure[open] > summary::before {
+  content: "\25BC";
 }
 
 .settings-disclosure > summary:hover,

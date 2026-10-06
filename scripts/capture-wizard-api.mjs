@@ -135,7 +135,7 @@ const wizardApi = (sim) => {
     'GET /api/sync-status': () => ({ activeSyncId: null, cron: '*/30 * * * *', nextRunAt: nextHalfHour(sim.now()) }),
     'GET /api/recording-now': () => ({ active: [], journeys: [], fetchedAt: sim.now() }),
     'GET /api/folder-suggest': () => ({ match: null, folders: [] }),
-    'GET /api/syncs': () => ({ syncs: [] }),
+    'GET /api/syncs': () => ({ syncs: [], total: 0 }),
     'GET /api/shows': () => ({ shows: [] }),
     'GET /api/series': () => ({ series: [], titleMatches: [], stale: false, error: null }),
     'GET /api/recordings': () => ({ recordings: [], total: 0, page: 1, pageSize: 50 }),
