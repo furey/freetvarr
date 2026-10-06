@@ -68,13 +68,13 @@ When the wizard finds a TVHeadend with only the default entry, it asks for three
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/welcome">
-  <img src="../img/screenshot-wizard-secure.png" alt="The wizard's TVHeadend step for the TVHeadend that came with Freetvarr, with the admin username, password, allowed networks, and the SECURE TVHEADEND AND CONNECT FREETVARR button" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-wizard-secure.png" alt="The wizard's TVHeadend step when Freetvarr installed TVHeadend, with the admin username, password, allowed networks, and the SECURE TVHEADEND AND CONNECT FREETVARR button" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
 Freetvarr signs in with both new logins before it removes the default entry. If either login fails, it deletes the logins it made and leaves TVHeadend as it found it, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. **Settings → TVHEADEND → RESTORE OPEN ACCESS** puts the default entry back.
 
-If you already run your own TVHeadend with its own logins, Freetvarr changes nothing on it. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.
+If you installed TVHeadend yourself and it has logins, Freetvarr changes nothing on it. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.
 
 Set the interface and EPG languages under **Configuration → General → Base**.
 
