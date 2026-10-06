@@ -10,10 +10,9 @@ const props = defineProps({
   ariaLabel: { type: String, default: 'A walkthrough of the Freetvarr dashboard, live TV, TV guide, series, recordings, syncs, and settings' }
 })
 
-const VIDEO_CREDIT = 'Demo video: Big Buck Bunny, © Blender Foundation, CC BY 3.0'
 const slots = useSlots()
 const showsScreenshot = computed(() => Boolean(slots.default))
-const creditText = computed(() => props.credit ?? (showsScreenshot.value ? '' : VIDEO_CREDIT))
+const creditText = computed(() => props.credit ?? '')
 
 const video = ref(null)
 
@@ -107,7 +106,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsI
   margin-top: 8px;
   color: var(--vp-c-text-3);
   font-size: 11px;
-  text-align: right;
+  text-align: center;
   white-space: nowrap;
 }
 
