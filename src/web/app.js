@@ -109,7 +109,7 @@ const fmtBytes = (n) => {
     v /= 1024
     i++
   }
-  return `${v.toFixed(1)} ${units[i]}`
+  return `${v.toFixed(1)}${units[i]}`
 }
 
 const tvhDetectSummary = (c) => {
@@ -146,11 +146,14 @@ const toIso = (s) => (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.rep
 
 const fmtTime = (s) => {
   if (!s) return ''
-  const iso = toIso(s)
-  return dateFormat({
-    day: '2-digit', month: '2-digit', year: '2-digit',
+  const date = new Date(toIso(s))
+  const parts = Object.fromEntries(dateFormat({
+    day: 'numeric', month: 'short', year: 'numeric',
     hour: 'numeric', minute: '2-digit', hour12: true,
-  }).format(new Date(iso)).replace(', ', ' ').replace(/\s(am|pm)$/, '$1')
+  }).formatToParts(date).map((p) => [p.type, p.value]))
+  const thisYear = dateFormat({ year: 'numeric' }).format(new Date())
+  const day = parts.year === thisYear ? `${parts.day} ${parts.month}` : `${parts.day} ${parts.month} ${parts.year}`
+  return `${day} ${parts.hour}:${parts.minute}${parts.dayPeriod.toLowerCase()}`
 }
 
 const fmtAgo = ({ at, nowMs }) => {
@@ -936,7 +939,7 @@ const recordingBarGeometry = ({ rec, nowMs }) => {
 const recordingLiveLine = (rec) => {
   const bits = []
   if (rec.filesize) bits.push(fmtBytes(rec.filesize))
-  if (rec.bitsPerSecond) bits.push(`${(rec.bitsPerSecond / 1_000_000).toFixed(1)} Mb/s`)
+  if (rec.bitsPerSecond) bits.push(`${(rec.bitsPerSecond / 1_000_000).toFixed(1)}Mb/s`)
   if (rec.signal != null) bits.push(`signal ${fmtReading(rec.signal, rec.signalUnit)}`)
   if (rec.snr != null) bits.push(`SNR ${fmtReading(rec.snr, rec.snrUnit)}`)
   const errors = (rec.errors || 0) + (rec.dataErrors || 0)
@@ -1552,7 +1555,7 @@ const DashboardView = {
 
     const refresh = async () => {
       const [syncs, , series, recordings, settings] = await Promise.all([
-        api('GET', '/api/syncs').catch(() => ({ syncs: [] })),
+        api('GET', '/api/syncs?pageSize=5').catch(() => ({ syncs: [] })),
         loadSyncStatus().then(ensureSyncPolling),
         api('GET', '/api/series').catch((err) => ({ series: [], error: err.message })),
         api('GET', '/api/recordings').catch(() => ({ recordings: [] })),
@@ -1881,7 +1884,7 @@ const SeriesView = {
                   <div class="deck-card-text">
                     <div class="flex items-start justify-between gap-3">
                       <span class="deck-card-title">{{ s.title }}</span>
-                      <span class="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+                      <span class="pill-group end">
                         <span v-if="!s.recording" class="pill skipped">PAUSED</span>
                       </span>
                     </div>
@@ -2307,16 +2310,16 @@ const SyncsView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title" title="Older syncs auto-pruned to keep the latest 500.">SYNCS · {{ filter === 'all' ? 'LATEST' : filter.toUpperCase() }} {{ syncs.length }}</span>
+            <span class="panel-title" title="Freetvarr keeps the latest 500 syncs and deletes older ones.">SYNCS · <template v-if="filter !== 'all'">{{ filterLabel }} · </template>{{ rangeLabel }} of {{ total }}</span>
             <info-button title="SYNCS" doc="guide/syncs">
               <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
               <p>Syncs run on the schedule in Settings, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
-              <p>Filter the list by activity. Freetvarr keeps the latest 500 syncs.</p>
+              <p>Filter the list by activity. The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs.</p>
             </info-button>
           </span>
           <div class="flex items-center gap-3">
             <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
-            <span class="text-xs font-mono text-ink-mute" title="History is auto-capped server-side at 500 most recent syncs.">CAP · 500</span>
+            <span class="text-xs font-mono text-ink-mute" title="Freetvarr keeps the latest 500 syncs and deletes older ones.">CAP · 500</span>
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
           </div>
         </header>
@@ -2328,7 +2331,7 @@ const SyncsView = {
               <template v-else><play-icon /> SYNC NOW</template>
             </button>
             <button type="button" class="btn" @click="manualRefresh"><refresh-icon /> REFRESH</button>
-            <button type="button" class="btn btn-danger" @click="clearAll" :disabled="!syncs.length"><cross-icon /> CLEAR HISTORY</button>
+            <button type="button" class="btn btn-danger" @click="clearAll" :disabled="!total"><cross-icon /> CLEAR HISTORY</button>
           </div>
 
           <div class="flex items-center gap-2 min-w-0">
@@ -2379,9 +2382,16 @@ const SyncsView = {
               <summary-line :summary="s.summary"/>
             </article>
           </div>
-          <p v-else class="text-ink-dim text-sm">
+          <p v-else-if="total === 0" class="text-ink-dim text-sm">
             {{ filter === 'all' ? 'No syncs yet.' : 'No syncs match the current filter.' }}
           </p>
+          <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
+            <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
+            <div class="flex items-center gap-2">
+              <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> PREV</button>
+              <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">NEXT <arrow-right-icon /></button>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -2391,6 +2401,9 @@ const SyncsView = {
     const syncs = ref([])
     const starting = ref(false)
     const filter = ref('all')
+    const total = ref(0)
+    const page = ref(1)
+    const pageSize = ref(50)
     const filterOptions = [
       { key: 'all',       label: 'ALL' },
       { key: 'manual',    label: 'MANUAL' },
@@ -2401,17 +2414,34 @@ const SyncsView = {
       { key: 'empty',     label: 'EMPTY' },
     ]
 
+    const filterLabel = computed(() => filterOptions.find((opt) => opt.key === filter.value)?.label ?? '')
+
+    const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+
+    const rangeLabel = computed(() => {
+      if (total.value === 0) return '0'
+      const start = (page.value - 1) * pageSize.value + 1
+      const end = Math.min(total.value, page.value * pageSize.value)
+      return `${start}–${end}`
+    })
+
     const refresh = async () => {
-      const qs = filter.value === 'all' ? '' : `?filter=${filter.value}`
-      const r = await api('GET', `/api/syncs${qs}`)
+      const params = new URLSearchParams({
+        page: String(page.value),
+        pageSize: String(pageSize.value),
+      })
+      if (filter.value !== 'all') params.set('filter', filter.value)
+      const r = await api('GET', `/api/syncs?${params}`)
       syncs.value = r.syncs
+      total.value = r.total
+      if (page.value > 1 && r.syncs.length === 0) page.value = 1
     }
 
     const manualRefresh = async () => {
       try {
         await refresh()
-        const label = filter.value === 'all' ? 'syncs' : `${filter.value} syncs`
-        flash({ msg: `Refreshed — ${syncs.value.length} ${label}.` })
+        const label = filter.value === 'all' ? 'sync' : `${filterLabel.value.toLowerCase()} sync`
+        flash({ msg: `Refreshed — ${total.value} ${label}${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
         flash({ msg: `Refresh failed: ${err.message}`, kind: 'err', ms: 6000 })
       }
@@ -2419,7 +2449,7 @@ const SyncsView = {
 
     const setFilter = (v) => {
       filter.value = v
-      refresh()
+      page.value = 1
     }
 
     const syncNow = async () => {
@@ -2468,12 +2498,14 @@ const SyncsView = {
     onUnmounted(() => {
       if (pollTimer) clearInterval(pollTimer)
     })
+    watch([page, filter], refresh)
     const stopWatch = watch(() => syncStatus.value.activeSyncId, refresh)
     onUnmounted(stopWatch)
 
     return {
       syncs, syncStatus, starting,
-      filter, filterOptions, setFilter,
+      filter, filterOptions, filterLabel, setFilter,
+      total, page, pageSize, totalPages, rangeLabel,
       syncNow, refresh, manualRefresh, removeSync, clearAll,
       fmtTime,
       flashText, flashKind,
@@ -2489,17 +2521,17 @@ const RecordingsView = {
           <span class="panel-heading">
             <span class="panel-title">RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
             <info-button title="RECORDINGS" doc="guide/recordings">
-              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>done</strong>, <strong>partial</strong>, <strong>skipped</strong>, <strong>failed</strong>, or <strong>not imported</strong>. The next sync tries a partial import again.</p>
+              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>imported</strong>, <strong>partial</strong>, <strong>skipped</strong>, <strong>failed</strong>, or <strong>not imported</strong>. The next sync tries a partial import again.</p>
               <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a recording that is not imported to add it to the library.</p>
-              <p>A struck-through row is gone from TVHeadend, but the file is still in your media folder.</p>
+              <p><strong>NOT IN TVHEADEND</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
             </info-button>
           </span>
           <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <header-button class="btn-danger" :label="purging ? 'Purging…' : 'Purge removed'" @click="purgeDeleted"
-              :disabled="purging"
-              title="Remove all tombstoned rows from Freetvarr's history (recordings already removed from TVHeadend)."><cross-icon /></header-button>
+            <header-button class="btn-danger" :label="clearing ? 'Clearing…' : 'Clear from list'" @click="clearNotInTvh"
+              :disabled="clearing"
+              title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library."><cross-icon /></header-button>
             <header-button label="Refresh" @click="manualRefresh"><refresh-icon /></header-button>
           </div>
         </header>
@@ -2546,7 +2578,7 @@ const RecordingsView = {
               </div>
             </template>
           </div>
-          <table v-if="recordings.length" class="deck-table recordings-table hidden md:table">
+          <table v-if="recordings.length" class="deck-table recordings-table hidden lg:table">
             <thead><tr>
               <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
               <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
@@ -2559,8 +2591,7 @@ const RecordingsView = {
             </tr></thead>
             <tbody>
               <tr v-for="r in recordings" :key="r.recording_id"
-                :class="{ tombstone: r.deleted_from_tvh_at }"
-                :title="r.deleted_from_tvh_at ? 'Removed from TVHeadend ' + fmtTime(r.deleted_from_tvh_at) : ''">
+                :class="{ 'not-in-tvh': r.deleted_from_tvh_at }">
                 <td>
                   <div class="recording-cell">
                     <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" />
@@ -2579,7 +2610,10 @@ const RecordingsView = {
                 <td class="font-mono">{{ se(r) }}</td>
                 <td class="font-mono whitespace-nowrap">{{ fmtBytes(r.size) }}</td>
                 <td>
-                  <span :class="['pill', r.status]">{{ statusLabel(r.status) }}</span>
+                  <span class="pill-group stacked">
+                    <span :class="['pill', r.status]">{{ statusLabel(r.status) }}</span>
+                    <span v-if="r.deleted_from_tvh_at" class="pill not-in-tvh-chip" :title="notInTvhTitle(r)">NOT IN TVHEADEND</span>
+                  </span>
                   <span v-if="r.error" class="block text-xs font-mono text-signal-orange-hi mt-1">{{ r.error }}</span>
                   <progress-block v-if="progressPhase(r) === 'importing'"
                     :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
@@ -2629,9 +2663,9 @@ const RecordingsView = {
               </tr>
             </tbody>
           </table>
-          <div v-if="recordings.length" class="md:hidden space-y-3">
+          <div v-if="recordings.length" class="lg:hidden space-y-3">
             <article v-for="r in recordings" :key="r.recording_id"
-              :class="['deck-card', 'space-y-2', { tombstone: r.deleted_from_tvh_at }]">
+              :class="['deck-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at }]">
               <div class="flex items-start justify-between gap-3">
                 <div class="recording-cell">
                   <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" />
@@ -2650,14 +2684,13 @@ const RecordingsView = {
               <p class="deck-card-meta">
                 {{ showLabel(r) }}<template v-if="se(r)"> · {{ se(r) }}</template><template v-if="fmtBytes(r.size)"> · {{ fmtBytes(r.size) }}</template><template v-if="r.imported_at"> · imported {{ fmtTime(r.imported_at) }}</template>
               </p>
-              <p v-if="r.deleted_from_tvh_at" class="deck-card-meta">
-                removed from TVHeadend {{ fmtTime(r.deleted_from_tvh_at) }}
-              </p>
               <p v-if="r.error" class="text-xs font-mono text-signal-orange-hi">{{ r.error }}</p>
-              <div v-if="r.ad_status" class="flex flex-wrap items-center gap-2">
-                <span :class="['pill', r.ad_status]">{{ adLabel(r.ad_status) }}</span>
-                <span v-if="adTooltip(r)" class="deck-card-meta">{{ adTooltip(r) }}</span>
+              <div v-if="r.deleted_from_tvh_at || r.ad_status" class="pill-group">
+                <span v-if="r.deleted_from_tvh_at" class="pill not-in-tvh-chip" :title="notInTvhTitle(r)">NOT IN TVHEADEND</span>
+                <span v-if="r.ad_status" :class="['pill', r.ad_status]" :title="adTooltip(r)">{{ adLabel(r.ad_status) }}</span>
               </div>
+              <p v-if="r.deleted_from_tvh_at" class="deck-card-meta">removed {{ fmtTime(r.deleted_from_tvh_at) }}</p>
+              <p v-if="r.ad_status && adTooltip(r)" class="deck-card-meta">{{ adTooltip(r) }}</p>
               <progress-block v-if="progressPhase(r) === 'importing'"
                 :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
               <progress-block v-if="isAdProgress(r)"
@@ -2714,7 +2747,7 @@ const RecordingsView = {
     const deletingId = ref(null)
     const removingId = ref(null)
     const importingId = ref(null)
-    const purging = ref(false)
+    const clearing = ref(false)
     const adRemovalEnabled = ref(false)
     const adScanningId = ref(null)
     const total = ref(0)
@@ -2737,9 +2770,9 @@ const RecordingsView = {
       { key: '90d', label: '90D' },
     ]
     const deletedOptions = [
-      { key: 'all',      label: 'ALL'      },
-      { key: 'on_tvh', label: 'ON TVH' },
-      { key: 'deleted',  label: 'REMOVED'  },
+      { key: 'all',     label: 'ALL'              },
+      { key: 'on_tvh',  label: 'IN TVHEADEND'     },
+      { key: 'deleted', label: 'NOT IN TVHEADEND' },
     ]
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
@@ -2810,7 +2843,7 @@ const RecordingsView = {
         options: statusOptions.map((opt) => ({ key: opt, label: statusLabel(opt).toUpperCase() })),
       },
       { key: 'since', label: 'WHEN', value: sinceFilter.value, set: setSince, options: sinceOptions },
-      { key: 'deleted', label: 'ON TVHEADEND', value: deletedFilter.value, set: setDeleted, options: deletedOptions },
+      { key: 'deleted', label: 'TVHEADEND', value: deletedFilter.value, set: setDeleted, options: deletedOptions },
     ])
 
     const activeFilters = computed(() => chipGroups.value
@@ -2847,12 +2880,14 @@ const RecordingsView = {
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
       || UNIMPORTED_STATUSES.includes(r.status)
     const removeTitle = (r) => (r.deleted_from_tvh_at
-      ? "Remove this tombstone from Freetvarr's history."
+      ? 'Remove this row from the list. The file stays in your library.'
       : "Remove this recording from Freetvarr's history."
         + ' If it is still in TVHeadend, the next sync imports it again.')
+    const notInTvhTitle = (r) => `TVHeadend deleted its copy ${fmtTime(r.deleted_from_tvh_at)}.`
+      + ' The episode is still in your library.'
     const canAdScan = (r) => adRemovalEnabled.value && r.status === 'done'
     const canImport = (r) => r.status === 'not_imported' && !r.deleted_from_tvh_at
-    const statusLabel = (status) => status.replace(/_/g, ' ')
+    const statusLabel = (status) => (status === 'done' ? 'imported' : status.replace(/_/g, ' '))
     const showLabel = (r) => r.show_pattern || (r.show_id == null ? 'One-off' : '—')
     const imageUrl = (r) => (r.image_path ? `/api/recordings/${encodeURIComponent(r.recording_id)}/image` : null)
 
@@ -2959,10 +2994,11 @@ const RecordingsView = {
     }
 
     const removeRecording = async (r) => {
-      const note = r.deleted_from_tvh_at
-        ? ''
-        : '\n\nIf it is still in TVHeadend, the next sync imports it again.'
-      if (!confirm(`Remove "${r.title}" from Freetvarr's history?${note}`)) return
+      const prompt = r.deleted_from_tvh_at
+        ? `Remove "${r.title}" from this list?\n\nThe file stays in your library.`
+        : `Remove "${r.title}" from Freetvarr's history?`
+          + '\n\nIf it is still in TVHeadend, the next sync imports it again.'
+      if (!confirm(prompt)) return
       removingId.value = r.recording_id
       try {
         await api('DELETE', `/api/recordings/${encodeURIComponent(r.recording_id)}`)
@@ -2975,17 +3011,19 @@ const RecordingsView = {
       }
     }
 
-    const purgeDeleted = async () => {
-      if (!confirm('Purge all tombstoned recordings from Freetvarr\'s history?')) return
-      purging.value = true
+    const clearNotInTvh = async () => {
+      const prompt = 'Clear every recording no longer in TVHeadend from this list?\n\n'
+        + 'The files stay in your library.'
+      if (!confirm(prompt)) return
+      clearing.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
-        flash({ msg: `Purged ${r.deleted} tombstone${r.deleted === 1 ? '' : 's'}.` })
+        flash({ msg: `Cleared ${r.deleted} row${r.deleted === 1 ? '' : 's'} from the list.` })
         await refresh()
       } catch (err) {
-        flash({ msg: `Purge failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Clear failed: ${err.message}`, kind: 'err', ms: 6000 })
       } finally {
-        purging.value = false
+        clearing.value = false
       }
     }
 
@@ -3020,12 +3058,12 @@ const RecordingsView = {
       recordings, shows, total, page, pageSize, totalPages, rangeLabel,
       sortCol, sortDir, statusFilter, showFilter, sinceFilter, deletedFilter,
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
-      deletingId, removingId, importingId, purging, adRemovalEnabled, adScanningId,
+      deletingId, removingId, importingId, clearing, adRemovalEnabled, adScanningId,
       canImport, importRecording, statusLabel, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
       refresh, manualRefresh, canDelete,
       canAdScan, adLabel, adTooltip, adScan,
       progressPhase, isAdProgress, hasBar, progressCaption,
-      deleteFromTvh, removeRecording, canRemove, removeTitle, purgeDeleted,
+      deleteFromTvh, removeRecording, canRemove, removeTitle, notInTvhTitle, clearNotInTvh,
       setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
       narrow, chipGroups, activeFilters, clearSheetFilters,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
@@ -3232,6 +3270,12 @@ const SettingsView = {
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.
               </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="button" class="btn btn-sm" @click="testMoviesRoot" :disabled="moviesRootTesting || !moviesRoot.trim()">
+                <template v-if="moviesRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
+              </button>
+              <span v-if="moviesRootStatus" :class="['status-readout', moviesRootStatusKind]">{{ moviesRootStatus }}</span>
             </div>
             <div class="settings-block">
               <span class="settings-block-title">LIBRARY RULES</span>
@@ -3591,6 +3635,9 @@ const SettingsView = {
     const importUnmatched = ref(true)
     const plexOneOffSectionId = ref('')
     const moviesRoot = ref('')
+    const moviesRootTesting = ref(false)
+    const moviesRootStatus = ref('')
+    const moviesRootStatusKind = ref('ok')
     const plexMoviesSectionId = ref('')
     const mediaRoot = ref('')
     const mediaRootTesting = ref(false)
@@ -3842,6 +3889,21 @@ const SettingsView = {
       }
     }
 
+    const testMoviesRoot = async () => {
+      moviesRootTesting.value = true
+      moviesRootStatus.value = ''
+      try {
+        const r = await api('POST', '/api/media-root-test', { path: moviesRoot.value })
+        moviesRootStatus.value = r.ok ? `OK — ${r.path} is writable.` : r.error
+        moviesRootStatusKind.value = r.ok ? 'ok' : 'err'
+      } catch (err) {
+        moviesRootStatus.value = `Test failed: ${err.message}`
+        moviesRootStatusKind.value = 'err'
+      } finally {
+        moviesRootTesting.value = false
+      }
+    }
+
     const testMediaRoot = async () => {
       mediaRootTesting.value = true
       mediaRootStatus.value = ''
@@ -3929,7 +3991,8 @@ const SettingsView = {
       resetting, resetError, resetFreetvarr, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, plexOneOffSectionId, moviesRoot, plexMoviesSectionId,
+      importUnmatched, plexOneOffSectionId, plexMoviesSectionId,
+      moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,
       testTvh, detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate,
@@ -3974,6 +4037,7 @@ const DoctorSpinner = {
 const DoctorView = {
   template: `
     <div class="view-reveal space-y-6">
+      <a href="#/settings/help" class="btn btn-sm no-hover-underline"><arrow-left-icon /> SETTINGS</a>
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
@@ -4001,7 +4065,7 @@ const DoctorView = {
               <div :class="['progress-fill', { indeterminate: phase === 'scanning' }]" :style="phase === 'scanning' ? null : { width: progressPercent + '%' }"></div>
             </div>
           </div>
-          <div v-if="report" class="flex flex-wrap gap-2">
+          <div v-if="report" class="pill-group">
             <span v-for="s in summaryPills" :key="s.status" :class="['pill', s.pill, { 'doctor-pill-zero': !s.count }]">{{ s.count }} {{ s.status }}</span>
           </div>
           <p v-if="error" class="status-readout err">Doctor failed: {{ error }}</p>
@@ -6006,7 +6070,7 @@ const EpgView = {
                 <div class="deck-card-text">
                 <div class="flex items-start justify-between gap-3">
                   <span class="deck-card-title">{{ p.title }}</span>
-                  <span class="flex items-center gap-1.5 shrink-0">
+                  <span class="pill-group end">
                     <span v-if="isSeriesScheduled(p)" class="pill done">SERIES</span>
                     <span v-if="cellState(p) === 'recording'" class="pill recording">RECORDING</span>
                     <span v-else-if="cellState(p) === 'scheduled'" class="pill scheduled">SCHEDULED</span>
@@ -6175,7 +6239,7 @@ const EpgView = {
                   <div class="deck-card-text">
                   <div class="flex items-start justify-between gap-3">
                     <span class="deck-card-title">{{ r.name }}</span>
-                    <span class="flex items-center gap-1.5 shrink-0">
+                    <span class="pill-group end">
                       <template v-if="r.source === 'series'">
                         <span class="pill done">SERIES</span>
                         <span class="pill">EXPECTED</span>
@@ -8678,6 +8742,8 @@ const VIEW_MAP = {
   welcome: WelcomeView,
 }
 
+const TAB_FOR_ROUTE = { doctor: 'settings' }
+
 const TABS = [
   { key: 'dashboard',  label: 'DASHBOARD'  },
   { key: 'live',       label: 'LIVE TV'    },
@@ -8726,8 +8792,8 @@ const App = {
           <nav class="tab-strip">
             <a v-for="t in tabs" :key="t.key"
               :href="'#/' + t.key"
-              :data-active="route === t.key"
-              :class="['tab-led', 'block', 'whitespace-nowrap', 'px-1', 'py-2', 'font-mono', 'text-sm', 'tracking-[0.2em]', route === t.key ? 'text-ink' : 'text-ink-dim hover:text-ink']">
+              :data-active="isActiveTab(t.key)"
+              :class="['tab-led', 'block', 'whitespace-nowrap', 'px-1', 'py-2', 'font-mono', 'text-sm', 'tracking-[0.2em]', isActiveTab(t.key) ? 'text-ink' : 'text-ink-dim hover:text-ink']">
               {{ t.label }}
             </a>
           </nav>
@@ -8761,6 +8827,7 @@ const App = {
   `,
   setup() {
     const currentView = computed(() => VIEW_MAP[route.value] || DashboardView)
+    const isActiveTab = (key) => (TAB_FOR_ROUTE[route.value] || route.value) === key
     watch(route, async () => {
       await nextTick()
       document.querySelector('.tab-strip [data-active="true"]')
@@ -8778,7 +8845,7 @@ const App = {
     })
     onUnmounted(() => headerObserver.disconnect())
     return {
-      appHeader, route, refreshTick, tabs: TABS, currentView,
+      appHeader, route, refreshTick, tabs: TABS, currentView, isActiveTab,
       syncStatus, clockReadout, tzShortName, recordingCount,
       appVersion, releaseUrl,
     }

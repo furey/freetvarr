@@ -2,7 +2,7 @@
 title: Recordings
 description: >-
   Every finished recording with its image, channel, and import outcome, plus
-  live progress bars, re-scans, and markers for recordings removed from
+  live progress bars, re-scans, and a marker for recordings no longer in
   TVHeadend.
 ---
 
@@ -16,7 +16,7 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 
 ## Statuses
 
-- **done**: imported, and the file on disk matches the size TVHeadend reported.
+- **imported**: the file on disk matches the size TVHeadend reported.
 - **partial**: the imported file came up more than `1 MB` short. The next sync redoes it.
 - **skipped**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The error text says which.
 - **failed**: the import hit an error.
@@ -41,9 +41,11 @@ A hardlink import is instant. A copy between filesystems, an ad scan, or a cut t
 
 Re-run an ad scan or cut on a file you have already imported. This does not touch TVHeadend.
 
-## Tombstones
+## Not in TVHeadend
 
-A recording removed from TVHeadend shows struck through (a tombstone). The file is still in your Plex library, so you can still re-scan or re-cut it. Tombstones leave the list 30 days after the removal.
+A recording that TVHeadend has deleted shows a `NOT IN TVHEADEND` marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
+
+These rows leave the list 30 days after the removal. To remove them sooner, press **Clear from list**. To remove one row, press its delete button. Both remove rows from the list only; the files stay in your library.
 
 ## Failed rows
 
@@ -51,4 +53,4 @@ You can delete a `failed`, `skipped`, or `not imported` row from Freetvarr's his
 
 ## Filters and time
 
-Filter by `ON TVHEADEND` or `DELETED`, or by time with `WHEN`. Times show in the time zone chosen in Settings (or `TZ` from your `.env` until you choose one), whatever device you browse from.
+Filter by `IN TVHEADEND` or `NOT IN TVHEADEND`, or by time with `WHEN`. Times show in the time zone chosen in Settings (or `TZ` from your `.env` until you choose one), whatever device you browse from.

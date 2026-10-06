@@ -31,6 +31,6 @@ Each row shows what the pass did: imports, failures, removals, or nothing (empty
 
 ## History
 
-Sync history keeps the latest 500 rows. Clear individual rows or the whole history from the tab, and filter by activity: `IMPORTS` / `FAILS` / `DELETES` / `EMPTY`.
+Sync history keeps the latest 500 rows. The tab shows 50 per page; use `PREV` and `NEXT` to see older syncs. Clear individual rows or the whole history from the tab, and filter by activity: `MANUAL` / `CRON` / `IMPORTS` / `FAILS` / `REMOVALS` / `EMPTY`.
 
 After each sync, Freetvarr trims the history, drops removed recordings older than 30 days, and deletes expired `.orig` backups from ad cutting.
