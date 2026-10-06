@@ -143,8 +143,8 @@ Broadcast guide data in Australia runs about a day ahead and carries thin metada
 
 [Matt Huisman](https://i.mjh.nz/au/) publishes free Australian XMLTV per region, updated daily. The regions are `Adelaide`, `Brisbane`, `Canberra`, `Darwin`, `Hobart`, `Melbourne`, `Perth`, and `Sydney`. Each has:
 
-| URL                                       | What it is                                       |
-| ----------------------------------------- | ------------------------------------------------ |
+| URL                                       | What it is                                      |
+| ----------------------------------------- | ----------------------------------------------- |
 | `https://i.mjh.nz/au/<Region>/epg.xml`    | The guide, plain XML (about `6.6MB` for Sydney) |
 | `https://i.mjh.nz/au/<Region>/epg.xml.gz` | The same file gzipped (about `700KB`)           |
 
