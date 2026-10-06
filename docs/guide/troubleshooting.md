@@ -131,7 +131,7 @@ TVHeadend finished a recording, but nothing appears on the Recordings tab or in 
 
 - **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series](/guide/series)). Press **RECORD SERIES** in the TV Guide, or use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.
-- **The sync hasn't run yet.** The default schedule is every `30` minutes (`*/30 * * * *`). Press Sync now to run one at once.
+- **The sync hasn't run yet.** The default **Sync schedule** is `Every 30 minutes`. Press Sync now to run one at once.
 - **It came in as `skipped` or `partial`.** See the next two sections.
 
 ## Skipped recordings
@@ -242,4 +242,4 @@ Running Freetvarr from source (`npm start`) rather than in Docker fails at `bett
 
 ## Reporting a bug
 
-Open an issue on [GitHub](https://github.com/furey/freetvarr/issues) with what you did, what you expected, and what happened. Include your versions: **Settings → About** lists the Freetvarr, TVHeadend, and Node versions, and **COPY** puts them on the clipboard. The same panel says whether a newer Freetvarr release is out.
+Open an issue on [GitHub](https://github.com/furey/freetvarr/issues) with what you did, what you expected, and what happened. Include your versions: **VERSIONS** in **Settings → HELP** lists the Freetvarr, TVHeadend, and Node versions, and **COPY** puts them on the clipboard. It also says whether a newer Freetvarr release is out.

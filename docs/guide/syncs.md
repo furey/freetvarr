@@ -21,7 +21,7 @@ In the iPhone Home Screen app, pull down from the top of a page to reload its da
 
 ## Scheduled and manual
 
-Set a schedule in Settings as a cron expression (the `* * * * *` timing string) and Freetvarr checks TVHeadend on that schedule; changing it takes effect without a restart. You can also Sync now for every series and title match at once, or for a single series from the [SERIES tab](/guide/series#series-rows).
+Choose how often Freetvarr checks TVHeadend in Settings → SCHEDULE, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. `Custom` opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. You can also Sync now for every series and title match at once, or for a single series from the [SERIES tab](/guide/series#series-rows).
 
 Only one sync runs at a time. A second request while one runs returns the running sync.
 

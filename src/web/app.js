@@ -20,6 +20,13 @@ import {
 } from '/guide-time.js'
 import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
 import { findHdSimulcast } from '/simulcast.js'
+import {
+  CUSTOM_SYNC_SCHEDULE,
+  DEFAULT_SYNC_CRON,
+  SYNC_SCHEDULE_PRESETS,
+  normaliseCron,
+  syncSchedulePreset,
+} from '/sync-schedule.js'
 
 let csrfToken = null
 
@@ -574,11 +581,15 @@ window.addEventListener('hashchange', () => {
   routeSection.value = parseHashSection()
 })
 
+const ROUTE_SECTION_ALIASES = { about: 'help' }
+
+const routeSectionId = () => ROUTE_SECTION_ALIASES[routeSection.value] || routeSection.value
+
 const scrollToRouteSection = async () => {
   if (!routeSection.value) return
   await nextTick()
   const behavior = document.visibilityState === 'visible' ? 'smooth' : 'auto'
-  document.getElementById(`section-${routeSection.value}`)?.scrollIntoView({ behavior, block: 'start' })
+  document.getElementById(`section-${routeSectionId()}`)?.scrollIntoView({ behavior, block: 'start' })
 }
 
 const guideHandoff = ref(null)
@@ -3023,36 +3034,101 @@ const RecordingsView = {
   },
 }
 
+const SETTINGS_SECTIONS = [
+  { id: 'tvheadend', label: 'TVHeadend' },
+  { id: 'storage', label: 'Storage' },
+  { id: 'plex', label: 'Plex' },
+  { id: 'schedule', label: 'Schedule' },
+  { id: 'ad-removal', label: 'Ad removal' },
+  { id: 'help', label: 'Help' },
+  { id: 'danger-zone', label: 'Reset' },
+]
+const SETTINGS_SECTION_GAP_PX = 24
+const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
+
+const isCustomPlexPrefsPath = (path) => Boolean(path) && path !== DEFAULT_PLEX_PREFS_PATH
+
+const isScrolledToBottom = () =>
+  window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4
+
+const sectionTop = (id) => document.getElementById(`section-${id}`)?.getBoundingClientRect().top
+
+const sectionInView = (id) => {
+  const top = sectionTop(id)
+  return top !== undefined && top < window.innerHeight
+}
+
+const sectionOnScreen = (navBottom) => {
+  const line = navBottom + SETTINGS_SECTION_GAP_PX
+  const lastId = SETTINGS_SECTIONS.at(-1).id
+  if (isScrolledToBottom()) {
+    const routed = SETTINGS_SECTIONS.find(({ id }) => id === routeSectionId())
+    return routed && sectionInView(routed.id) ? routed.id : lastId
+  }
+  return SETTINGS_SECTIONS.reduce((current, { id }) => {
+    const top = sectionTop(id)
+    return top !== undefined && top <= line ? id : current
+  }, SETTINGS_SECTIONS[0].id)
+}
+
+const revealActiveLink = (nav) => {
+  const link = nav?.querySelector('[data-active="true"]')
+  if (!link) return
+  const start = link.offsetLeft - SETTINGS_SECTION_GAP_PX
+  const end = link.offsetLeft + link.offsetWidth + SETTINGS_SECTION_GAP_PX
+  if (start < nav.scrollLeft) nav.scrollLeft = start
+  else if (end > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = end - nav.clientWidth
+}
+
+const useSettingsSections = () => {
+  const sectionNav = ref(null)
+  const activeSection = ref(SETTINGS_SECTIONS[0].id)
+  let frame = 0
+  const publishNavHeight = () => {
+    document.documentElement.style.setProperty('--settings-nav-h', `${sectionNav.value?.offsetHeight ?? 0}px`)
+  }
+  const navObserver = new ResizeObserver(publishNavHeight)
+  const trackSection = () => {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(() => {
+      activeSection.value = sectionOnScreen(sectionNav.value?.getBoundingClientRect().bottom ?? 0)
+    })
+  }
+  const openSection = (event, id) => {
+    if (routeSectionId() !== id) return
+    event.preventDefault()
+    scrollToRouteSection()
+  }
+  onMounted(() => {
+    publishNavHeight()
+    navObserver.observe(sectionNav.value)
+    window.addEventListener('scroll', trackSection, { passive: true })
+    window.addEventListener('resize', trackSection, { passive: true })
+    trackSection()
+  })
+  onUnmounted(() => {
+    navObserver.disconnect()
+    cancelAnimationFrame(frame)
+    window.removeEventListener('scroll', trackSection)
+    window.removeEventListener('resize', trackSection)
+    document.documentElement.style.removeProperty('--settings-nav-h')
+  })
+  watch(activeSection, async () => {
+    await nextTick()
+    revealActiveLink(sectionNav.value)
+  })
+  return { sections: SETTINGS_SECTIONS, sectionNav, activeSection, openSection }
+}
+
 const SettingsView = {
   template: `
-    <div class="view-reveal space-y-6">
-      <div class="grid gap-6 lg:grid-cols-2">
-      <section class="panel">
-        <header class="panel-header">
-          <span class="panel-title">SETUP WIZARD</span>
-          <span class="text-xs font-mono text-ink-dim">re-walk the first-run flow</span>
-        </header>
-        <div class="panel-body flex flex-wrap items-center justify-between gap-4">
-          <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
-            Re-open the guided setup at any time. Already-saved values prefill — including a <code>••••• (stored)</code> hint for the Plex token and the TVHeadend password — so you can tweak one step without retyping the rest. To wipe captured data first, use <strong class="text-ink">NUKE ALL STATE</strong> in the Danger Zone below.
-          </p>
-          <button type="button" class="btn" @click="reopenWizard"><refresh-icon /> REOPEN WIZARD</button>
-        </div>
-      </section>
-      <section class="panel">
-        <header class="panel-header">
-          <span class="panel-title">HEALTH CHECK</span>
-          <span class="text-xs font-mono text-ink-dim">read-only</span>
-        </header>
-        <div class="panel-body flex flex-wrap items-center justify-between gap-4">
-          <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
-            The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix. It changes nothing.
-          </p>
-          <a href="#/doctor" class="btn no-hover-underline"><pulse-icon /> RUN DOCTOR</a>
-        </div>
-      </section>
-      </div>
-      <form @submit.prevent="save" class="space-y-6 pb-24">
+    <div class="view-reveal settings-page space-y-6 pb-24">
+      <nav ref="sectionNav" class="settings-sections" aria-label="Settings sections">
+        <a v-for="s in sections" :key="s.id" :href="'#/settings/' + s.id"
+          :data-active="activeSection === s.id" :aria-current="activeSection === s.id ? 'location' : null"
+          class="settings-section-link" @click="openSection($event, s.id)">{{ s.label }}</a>
+      </nav>
+      <form id="settings-form" @submit.prevent="save" class="space-y-6">
         <section id="section-tvheadend" class="panel">
           <header class="panel-header">
             <span class="panel-heading">
@@ -3070,7 +3146,7 @@ const SettingsView = {
                 <template v-if="tvhDetecting">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER TVHEADEND</template>
               </button>
               <span v-if="tvhDiscoverText" :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
-              <span v-else class="text-xs font-mono text-ink-dim">port 9981 · this host</span>
+              <span v-else class="text-xs font-mono text-ink-dim">looks on this computer, port 9981</span>
             </div>
             <div v-if="tvhCandidates.length > 1" class="md:col-span-3">
               <p class="text-sm text-ink-dim mb-2">Multiple TVHeadend servers found — pick one:</p>
@@ -3109,36 +3185,6 @@ const SettingsView = {
               <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
               <span v-else class="text-xs text-ink-mute">Undoes the wizard's SECURE TVHEADEND: anyone on your network can change TVHeadend again. The logins stay.</span>
             </div>
-            <div class="md:col-span-3">
-              <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="toggle-prose">
-                Only remove from TVHeadend after Plex refresh succeeds
-                <span class="text-ink-mute">(recommended — confirms the file is in Plex first)</span>
-              </toggle-switch>
-            </div>
-          </div>
-        </section>
-
-        <section id="section-schedule" class="panel">
-          <header class="panel-header">
-            <span class="panel-heading">
-              <span class="panel-title">SCHEDULE</span>
-              <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
-                <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file takes priority over this setting.</p>
-                <p>How often Freetvarr checks TVHeadend for new recordings to import, as a cron expression. <code>*/30 * * * *</code> is every 30 minutes.</p>
-                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the dashboard runs a sync at any time.</p>
-              </info-button>
-            </span>
-            <span class="text-xs font-mono text-ink-dim">time zone and when Freetvarr syncs</span>
-          </header>
-          <div class="panel-body space-y-4">
-            <time-zone-field v-model="timeZone" :source="tzSource" />
-            <div class="field-row">
-              <label class="field-label">Sync cron (5-field, e.g. <code>*/30 * * * *</code>)</label>
-              <input type="text" class="field-input" v-model="syncCron" :placeholder="syncCronEffective || '*/30 * * * *'" />
-              <p v-if="!syncCron && syncCronEffective" class="text-xs text-ink-dim mt-2">
-                Currently running on <code>{{ syncCronEffective }}</code> (scheduler default).
-              </p>
-            </div>
           </div>
         </section>
 
@@ -3147,18 +3193,18 @@ const SettingsView = {
             <span class="panel-heading">
               <span class="panel-title">STORAGE</span>
               <info-button title="STORAGE" doc="guide/configuration#the-two-recordings-paths">
-                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, inside the Freetvarr container.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
-                <p>When both containers mount the folder at the same path, the two recordings paths are the same. Keep recordings and the media root on one filesystem: imports are then instant hardlinks, not copies.</p>
+                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+                <p>When both apps see the folder at the same path, the two recordings paths are the same. Keep the recordings and the media root inside one shared folder: imports are then instant and use no extra disk space.</p>
               </info-button>
             </span>
-            <span class="text-xs font-mono text-ink-dim">where recordings land</span>
+            <span class="text-xs font-mono text-ink-dim">where recordings go</span>
           </header>
           <div class="panel-body space-y-4">
             <div class="field-row">
               <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
               <input type="text" class="field-input" v-model="mediaRoot" placeholder="/media/tv" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Container-internal directory where Freetvarr writes imported episodes. In Docker, this must match a bind-mount target in your <code>docker-compose.yml</code> — changing it without updating compose will silently fail. Bare-metal: an absolute path you own and can write to.
+                The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -3171,7 +3217,7 @@ const SettingsView = {
               <label class="field-label">One-off folder <span class="text-ink-mute">(inside container)</span></label>
               <input type="text" class="field-input" v-model="oneOffRoot" placeholder="/media/one-offs" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Single recordings go here, one folder per title. Mount it in <code>docker-compose.yml</code>, and point a Plex "Other Videos" library at it.
+                Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -3184,13 +3230,14 @@ const SettingsView = {
               <label class="field-label">Movies folder <span class="text-ink-mute">(inside container, optional)</span></label>
               <input type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Recordings the guide marks as films, and that match no series folder, go here as <code>Title (Year)/Title (Year).ts</code>. Point a Plex "Movies" library at it.
+                Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.
               </p>
             </div>
-            <div class="field-row">
+            <div class="settings-block">
+              <span class="settings-block-title">LIBRARY RULES</span>
               <toggle-switch v-model="importUnmatched">IMPORT EVERY RECORDING</toggle-switch>
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                On: a recording with no series folder goes to the one-off folder. Off: only series episodes, and recordings you made with Add to library on, are imported.
+                On: a recording that matches no series goes to the one-off folder, or to the movies folder if it is a film. Off: Freetvarr imports only your series, and recordings you made with ADD TO LIBRARY on. The others stay in TVHeadend; you can import them from the RECORDINGS tab.
               </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2 pt-1">
@@ -3216,7 +3263,7 @@ const SettingsView = {
               </div>
             </div>
             <p class="text-xs text-ink-mute leading-relaxed">
-              Both containers must mount the same folder; Freetvarr rewrites TVHeadend's file paths onto its own mount, then hardlinks or copies the file.
+              TVHeadend and Freetvarr must share this folder. Each can see it at a different path; enter the path each one sees.
             </p>
           </div>
         </section>
@@ -3230,7 +3277,7 @@ const SettingsView = {
                 <p>Freetvarr needs the Plex address, a token, and the section. Without Plex, Freetvarr still imports and files episodes.</p>
               </info-button>
             </span>
-            <span class="text-xs font-mono text-ink-dim">post-sync section refresh</span>
+            <span class="text-xs font-mono text-ink-dim">updates Plex after each sync</span>
           </header>
           <div class="panel-body grid gap-4 md:grid-cols-2">
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
@@ -3238,7 +3285,7 @@ const SettingsView = {
                 <template v-if="plexDiscovering">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER PLEX</template>
               </button>
               <span v-if="plexDiscoverText" :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
-              <span v-else class="text-xs font-mono text-ink-dim">GDM · LAN broadcast</span>
+              <span v-else class="text-xs font-mono text-ink-dim">looks on your home network</span>
             </div>
             <div v-if="plexCandidates.length > 1" class="md:col-span-2">
               <p class="text-sm text-ink-dim mb-2">Multiple Plex servers found — pick one:</p>
@@ -3257,7 +3304,7 @@ const SettingsView = {
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex token</label>
               <input type="password" class="field-input" v-model="plexToken"
-                :placeholder="plexTokenSet ? '••••• (stored)' : 'X-Plex-Token'" autocomplete="off" />
+                :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
               <div class="mt-2 flex flex-wrap items-center gap-3">
                 <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetecting">
                   <template v-if="plexDetecting">DETECTING…</template><template v-else><bolt-icon /> AUTO-DETECT TOKEN</template>
@@ -3265,16 +3312,21 @@ const SettingsView = {
                 <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
               </div>
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Reads <code>PlexOnlineToken</code> from <code>Preferences.xml</code> at the path below. Requires Plex to run on the same host as Freetvarr with its config dir bind-mounted into the container. URL doesn't have to be localhost — works even if Plex was discovered as a LAN IP.
+                AUTO-DETECT TOKEN reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file.
               </p>
             </div>
-            <div class="field-row md:col-span-2">
-              <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="plexPrefsPath" placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
-              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Container-internal path. Requires a Docker bind-mount targeting this path. Edit if you mount Plex's config at a non-default location.
-              </p>
-            </div>
+            <details class="settings-disclosure md:col-span-2" :open="plexPrefsOpen">
+              <summary>Token not found?</summary>
+              <div class="settings-disclosure-body space-y-2">
+                <p class="text-xs text-ink-mute leading-relaxed">
+                  If you installed Plex yourself, share the folder that holds its <code>Preferences.xml</code> with Freetvarr in <code>docker-compose.yml</code>, then enter the path Freetvarr sees below. Or paste the token from Plex; <a href="https://furey.github.io/freetvarr/guide/plex#the-token" target="_blank" rel="noopener noreferrer">the Plex guide</a> says where to find it.
+                </p>
+                <div class="field-row">
+                  <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
+                  <input type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
+                </div>
+              </div>
+            </details>
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex TV section</label>
               <select v-if="plexSections.length" class="field-input" v-model="plexSectionId">
@@ -3284,7 +3336,7 @@ const SettingsView = {
                 </option>
               </select>
               <input v-else type="text" class="field-input" v-model="plexSectionId"
-                placeholder="numeric section ID (use Load sections to discover)" />
+                placeholder="section number; LOAD SECTIONS lists them" />
             </div>
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex one-off section</label>
@@ -3295,7 +3347,7 @@ const SettingsView = {
                 </option>
               </select>
               <input v-else type="text" class="field-input" v-model="plexOneOffSectionId"
-                placeholder="section ID of the one-off library" />
+                placeholder="section number of the one-off library" />
             </div>
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex movies section</label>
@@ -3306,11 +3358,11 @@ const SettingsView = {
                 </option>
               </select>
               <input v-else type="text" class="field-input" v-model="plexMoviesSectionId"
-                placeholder="section ID of the movies library" />
+                placeholder="section number of the movies library" />
             </div>
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
               <button type="button" class="btn" @click="loadPlexSections" :disabled="plexProbing">
-                <template v-if="plexProbing">PROBING…</template><template v-else><download-icon /> LOAD SECTIONS</template>
+                <template v-if="plexProbing">LOADING…</template><template v-else><download-icon /> LOAD SECTIONS</template>
               </button>
               <button type="button" class="btn" @click="refreshPlexNow" :disabled="plexRefreshing">
                 <template v-if="plexRefreshing">REFRESHING…</template><template v-else><refresh-icon /> REFRESH PLEX NOW</template>
@@ -3319,6 +3371,46 @@ const SettingsView = {
             </div>
             <plex-library-setup :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
               @created="usePlexLibraries" />
+            <div class="md:col-span-2">
+              <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="toggle-prose">
+                Wait for Plex before removing recordings from TVHeadend
+                <span class="text-ink-mute">(recommended: if Plex does not answer, the recording stays in TVHeadend)</span>
+              </toggle-switch>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-schedule" class="panel">
+          <header class="panel-header">
+            <span class="panel-heading">
+              <span class="panel-title">SCHEDULE</span>
+              <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
+                <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file only fills in the first choice; the zone you save here wins.</p>
+                <p>How often Freetvarr checks TVHeadend for new recordings to import. <strong>Custom</strong> takes a cron expression, such as <code>0 */2 * * *</code> for every two hours.</p>
+                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the dashboard runs a sync at any time.</p>
+              </info-button>
+            </span>
+            <span class="text-xs font-mono text-ink-dim">time zone and when Freetvarr syncs</span>
+          </header>
+          <div class="panel-body space-y-4">
+            <time-zone-field v-model="timeZone" :source="tzSource" />
+            <div class="field-row md:max-w-xs">
+              <label class="field-label" for="settings-sync-schedule">Sync schedule</label>
+              <select id="settings-sync-schedule" class="field-input" v-model="syncSchedule">
+                <option v-for="preset in syncSchedulePresets" :key="preset.cron" :value="preset.cron">{{ preset.label }}</option>
+                <option :value="customSyncSchedule">Custom</option>
+              </select>
+            </div>
+            <div v-if="syncSchedule === customSyncSchedule" class="field-row">
+              <label class="field-label" for="settings-sync-cron">Custom schedule <span class="text-ink-mute">(cron)</span></label>
+              <input id="settings-sync-cron" type="text" class="field-input" v-model="syncCron" placeholder="0 */2 * * *" />
+              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                Five fields: minute, hour, day of month, month, day of week. <code>0 */2 * * *</code> is every two hours.
+              </p>
+              <p v-if="syncCronEffective && syncCronEffective !== syncCron.trim()" class="text-xs text-ink-dim mt-2">
+                Freetvarr syncs on <code>{{ syncCronEffective }}</code> until you save a valid schedule.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -3332,7 +3424,7 @@ const SettingsView = {
                 <p>Detection is not always right. Use DETECT on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
-            <span class="text-xs font-mono text-ink-dim">comskip · optional</span>
+            <span class="text-xs font-mono text-ink-dim">optional</span>
           </header>
           <div class="panel-body space-y-4">
             <div>
@@ -3342,52 +3434,86 @@ const SettingsView = {
               </toggle-switch>
             </div>
             <div class="field-row md:max-w-xs">
-              <label class="field-label">Keep <code>.orig</code> backups for (days)</label>
+              <label class="field-label">Keep the original after a cut for (days)</label>
               <input type="number" min="1" class="field-input" v-model="adOriginalRetentionDays" />
             </div>
             <p class="text-xs font-mono text-ink-dim">
-              comskip.ini: <code>{{ comskipIniOverride ? '/config/comskip.ini (override)' : 'bundled AU free-to-air default' }}</code>
+              Detection settings: <code>{{ comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air' }}</code>
             </p>
             <p class="text-xs text-ink-mute leading-relaxed">
-              Detection runs comskip on each imported recording and is CPU-heavy — expect minutes per episode. CUT mode rewrites the file (keyframe stream-copy, no transcode) and keeps the original as <code>&lt;file&gt;.ts.orig</code> until the retention window lapses. Detection accuracy varies by channel; trial DETECT mode before trusting CUT.
+              Finding the ads uses a lot of processor time: expect several minutes for each episode. CUT saves the recording again without the ads, at the same picture quality, and keeps the original as <code>&lt;file&gt;.ts.orig</code> for the days above. Detection works better on some channels than others, so try DETECT before you use CUT.
             </p>
           </div>
         </section>
+      </form>
 
-        <about-panel />
+      <div class="settings-save-bar">
+        <div class="max-w-6xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+          <span v-if="status" :class="['status-readout', statusKind]">{{ status }}</span>
+          <span v-else class="hidden sm:inline text-xs font-mono text-ink-mute">Changes apply when you save.</span>
+          <button type="submit" form="settings-form" class="btn btn-primary ml-auto" :disabled="saving">
+            <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE SETTINGS</template>
+          </button>
+        </div>
+      </div>
 
-        <section id="section-danger-zone" class="panel">
-          <header class="panel-header">
-            <span class="panel-title">DANGER ZONE</span>
-            <span class="text-xs font-mono text-ink-dim">irreversible</span>
-          </header>
-          <div class="panel-body space-y-4">
-            <div>
-              <p class="text-sm text-ink leading-relaxed">
-                Wipe all settings, shows, recordings history, and sync history from Freetvarr's database. The next time you open Freetvarr, the setup wizard fires from scratch.
-              </p>
-              <p class="text-xs text-ink-mute leading-relaxed mt-2">
-                Your imported video files in <code>{{ mediaRoot || '/media/tv' }}</code> are <strong>not touched</strong> — only Freetvarr's own bookkeeping is cleared. Refused while a sync is running.
+      <section id="section-help" class="panel">
+        <header class="panel-header">
+          <span class="panel-heading">
+            <span class="panel-title">HELP</span>
+            <info-button title="HELP" doc="guide/troubleshooting#reporting-a-bug">
+              <p><strong>REOPEN WIZARD</strong> walks the first-run setup again, with your saved values filled in.</p>
+              <p><strong>RUN DOCTOR</strong> checks your setup and says what to fix. It changes nothing.</p>
+              <p>The versions Freetvarr is running with. Include them when you report a bug. <strong>COPY</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser.</p>
+            </info-button>
+          </span>
+          <span class="text-xs font-mono text-ink-dim">setup, checks, and versions</span>
+        </header>
+        <div class="panel-body help-rows">
+          <div class="help-row">
+            <div class="max-w-2xl">
+              <span class="settings-block-title">SETUP WIZARD</span>
+              <p class="text-sm text-ink-dim leading-relaxed">
+                Open the guided setup again. Your saved values are filled in, and a saved password or token shows as <code>••••• (stored)</code>, so you can change one step without typing the rest again.
               </p>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn btn-danger" @click="nukeState" :disabled="nuking">
-                <template v-if="nuking">NUKING…</template><template v-else><trash-icon /> NUKE ALL STATE</template>
-              </button>
-            </div>
+            <button type="button" class="btn" @click="reopenWizard"><refresh-icon /> REOPEN WIZARD</button>
           </div>
-        </section>
+          <div class="help-row">
+            <div class="max-w-2xl">
+              <span class="settings-block-title">HEALTH CHECK</span>
+              <p class="text-sm text-ink-dim leading-relaxed">
+                The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix. It changes nothing.
+              </p>
+            </div>
+            <a href="#/doctor" class="btn no-hover-underline"><pulse-icon /> RUN DOCTOR</a>
+          </div>
+          <versions-row />
+        </div>
+      </section>
 
-        <div class="settings-save-bar">
-          <div class="max-w-6xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-            <span v-if="status" :class="['status-readout', statusKind]">{{ status }}</span>
-            <span v-else class="text-xs font-mono text-ink-mute">Changes apply on save · scheduler reloads if <code>sync_cron</code> or the time zone changed.</span>
-            <button type="submit" class="btn btn-primary" :disabled="saving">
-              <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE SETTINGS</template>
+      <section id="section-danger-zone" class="panel settings-reset">
+        <header class="panel-header">
+          <span class="panel-title">RESET</span>
+          <span class="text-xs font-mono text-ink-dim">cannot be undone</span>
+        </header>
+        <div class="panel-body space-y-4">
+          <div>
+            <p class="text-sm text-ink leading-relaxed">
+              Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard starts from the beginning.
+            </p>
+            <p class="text-xs text-ink-mute leading-relaxed mt-2">
+              Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders stay where they are, and so do the recordings and settings in TVHeadend. You cannot reset while a sync is running.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="button" class="btn btn-danger" @click="resetFreetvarr" :disabled="resetting">
+              <template v-if="resetting">RESETTING…</template><template v-else><trash-icon /> RESET FREETVARR</template>
             </button>
+            <span v-if="resetError" class="status-readout err">{{ resetError }}</span>
           </div>
         </div>
-      </form>
+      </section>
     </div>
   `,
   setup() {
@@ -3426,6 +3552,10 @@ const SettingsView = {
     }))
     const syncCron = ref('')
     const syncCronEffective = ref('')
+    const syncSchedule = ref(DEFAULT_SYNC_CRON)
+    watch(syncSchedule, (schedule) => {
+      if (schedule !== CUSTOM_SYNC_SCHEDULE) syncCron.value = schedule
+    })
     const timeZone = ref('')
     const tzSource = ref('system')
     const plexUrl = ref('')
@@ -3441,6 +3571,7 @@ const SettingsView = {
     const plexDiscovering = ref(false)
     const plexCandidates = ref([])
     const plexPrefsPath = ref('')
+    const plexPrefsOpen = ref(false)
     const plexSectionLoads = ref(0)
     const deleteAfterPlexRefreshOnly = ref(true)
     const adRemovalEnabled = ref(false)
@@ -3451,7 +3582,8 @@ const SettingsView = {
     const plexStatus = ref('')
     const plexStatusKind = ref('ok')
     const saving = ref(false)
-    const nuking = ref(false)
+    const resetting = ref(false)
+    const resetError = ref('')
     const oneOffRoot = ref('')
     const oneOffRootTesting = ref(false)
     const oneOffRootStatus = ref('')
@@ -3491,8 +3623,10 @@ const SettingsView = {
       tvhOpenEntryBackupSet.value = Boolean(s.tvh_open_entry_backup_set)
       recordingsRoot.value = s.recordings_root || ''
       tvhRecordingsPath.value = s.tvh_recordings_path || ''
-      syncCron.value = s.sync_cron || ''
       syncCronEffective.value = s.sync_cron_effective || ''
+      const storedCron = normaliseCron(s.sync_cron) || syncCronEffective.value || DEFAULT_SYNC_CRON
+      syncSchedule.value = syncSchedulePreset(storedCron)
+      syncCron.value = storedCron
       tzSource.value = s.tz_source || 'system'
       timeZone.value = s.time_zone || s.tz || browserTimeZone()
       if (s.tz) tz.value = s.tz
@@ -3500,6 +3634,7 @@ const SettingsView = {
       plexTokenSet.value = Boolean(s.plex_token_set)
       plexSectionId.value = s.plex_tv_section_id || ''
       plexPrefsPath.value = s.plex_prefs_path || ''
+      plexPrefsOpen.value = isCustomPlexPrefsPath(plexPrefsPath.value)
       mediaRoot.value = s.media_root || ''
       oneOffRoot.value = s.oneoff_root || ''
       importUnmatched.value = s.import_unmatched !== false
@@ -3552,11 +3687,18 @@ const SettingsView = {
           tvhPassword.value = ''
         }
         flash({ msg: 'Saved.' })
+        await refreshSyncSchedule()
       } catch (err) {
         flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
       } finally {
         saving.value = false
       }
+    }
+
+    const refreshSyncSchedule = async () => {
+      const fresh = await api('GET', '/api/settings').catch(() => null)
+      if (fresh) syncCronEffective.value = fresh.sync_cron_effective || ''
+      await loadSyncStatus()
     }
 
     const tvhDetecting = ref(false)
@@ -3623,7 +3765,7 @@ const SettingsView = {
           setPlexStatus(`Loaded ${sections.length} Plex sections.`)
         }
       } catch (err) {
-        setPlexStatus(`Plex probe failed: ${err.message}`, 'err', 8000)
+        setPlexStatus(`Could not reach Plex: ${err.message}`, 'err', 8000)
       } finally {
         plexProbing.value = false
       }
@@ -3661,11 +3803,11 @@ const SettingsView = {
     const discoverPlex = async () => {
       plexDiscovering.value = true
       plexCandidates.value = []
-      setPlexDiscover('Broadcasting GDM (~2s)…', 'info', 0)
+      setPlexDiscover('Searching your network (~2s)…', 'info', 0)
       try {
         const { servers = [] } = await api('POST', '/api/discover-plex')
         if (servers.length === 0) {
-          setPlexDiscover('No Plex servers found on the LAN.', 'err', 5000)
+          setPlexDiscover('No Plex server found on your network.', 'err', 5000)
         } else if (servers.length === 1) {
           usePlexCandidate(servers[0])
         } else {
@@ -3720,22 +3862,24 @@ const SettingsView = {
       }
     }
 
-    const nukeState = async () => {
+    const resetFreetvarr = async () => {
       const mediaPath = mediaRoot.value || '/media/tv'
-      const prompt = 'NUKE ALL STATE?\n\n'
-        + 'This deletes every setting, show, recording entry, and sync from Freetvarr\'s database.\n\n'
-        + `Your imported video files in ${mediaPath} are NOT touched.\n\n`
+      const prompt = 'Reset Freetvarr?\n\n'
+        + 'This deletes Freetvarr\'s settings, series, list of recordings, and sync history.\n\n'
+        + `Your video files in ${mediaPath} and the other library folders stay where they are, `
+        + 'and so do the recordings and settings in TVHeadend.\n\n'
         + 'This cannot be undone. Continue?'
       if (!confirm(prompt)) return
-      nuking.value = true
+      resetting.value = true
+      resetError.value = ''
       try {
-        await api('POST', '/api/nuke-state')
+        await api('POST', '/api/reset')
         try { localStorage.removeItem(WELCOME_DISMISSED_KEY) } catch { /* private mode */ }
         window.location.hash = '#/welcome'
         window.location.reload()
       } catch (err) {
-        flash({ msg: `Nuke failed: ${err.message}`, kind: 'err', ms: 6000 })
-        nuking.value = false
+        resetError.value = `Reset failed: ${err.message}`
+        resetting.value = false
       }
     }
 
@@ -3771,15 +3915,18 @@ const SettingsView = {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
       tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, undoTvhSecure,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
-      syncCron, syncCronEffective, timeZone, tzSource,
+      syncCron, syncCronEffective, syncSchedule, timeZone, tzSource,
+      syncSchedulePresets: SYNC_SCHEDULE_PRESETS, customSyncSchedule: CUSTOM_SYNC_SCHEDULE,
+      ...useSettingsSections(),
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexSectionLoads, usePlexLibraries,
       plexProbing, plexRefreshing, plexDetecting,
       plexTokenStatus, plexTokenStatusKind,
-      plexDiscovering, plexCandidates, plexPrefsPath, plexDiscoverText, plexDiscoverKind,
+      plexDiscovering, plexCandidates, plexPrefsPath, plexPrefsOpen, plexDiscoverText, plexDiscoverKind,
+      defaultPlexPrefsPath: DEFAULT_PLEX_PREFS_PATH,
       deleteAfterPlexRefreshOnly,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
-      nuking, nukeState, reopenWizard,
+      resetting, resetError, resetFreetvarr, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
       importUnmatched, plexOneOffSectionId, moviesRoot, plexMoviesSectionId,
@@ -4047,7 +4194,7 @@ const PlexLibrarySetup = {
           </div>
         </div>
         <p class="text-xs text-ink-mute leading-relaxed">
-          Plex can see your files at a different path from Freetvarr. With the Plex in Freetvarr's compose file, the paths are the same. If Plex runs elsewhere, enter the path that Plex shows when you add a folder to a library.
+          Plex can see your files at a different path from Freetvarr. With the Plex in Freetvarr's compose file, the paths are the same. If you installed Plex yourself, enter the path that Plex shows when you add a folder to a library.
         </p>
       </template>
       <div class="flex flex-wrap items-center gap-3">
@@ -5078,7 +5225,7 @@ const WelcomeView = {
           setPlexSections(`Loaded ${sections.length} Plex sections.`, 'ok', 5000)
         }
       } catch (err) {
-        if (!silent) setPlexSections(`Plex probe failed: ${err.message}`, 'err', 5000)
+        if (!silent) setPlexSections(`Could not reach Plex: ${err.message}`, 'err', 5000)
       } finally {
         plexProbing.value = false
       }
@@ -5098,11 +5245,11 @@ const WelcomeView = {
     const discoverPlex = async () => {
       plexDiscovering.value = true
       plexCandidates.value = []
-      setPlexDiscover('Broadcasting GDM (~2s)…', 'info', 0)
+      setPlexDiscover('Searching your network (~2s)…', 'info', 0)
       try {
         const { servers = [] } = await api('POST', '/api/discover-plex')
         if (servers.length === 0) {
-          setPlexDiscover('No Plex servers found on the LAN.', 'err', 5000)
+          setPlexDiscover('No Plex server found on your network.', 'err', 5000)
         } else if (servers.length === 1) {
           usePlexCandidate(servers[0])
         } else {
@@ -5410,20 +5557,11 @@ const copyText = async (text) => {
   if (!copied) throw new Error('Copy failed')
 }
 
-const AboutPanel = {
+const VersionsRow = {
   template: `
-    <section id="section-about" class="panel">
-      <header class="panel-header">
-        <span class="panel-heading">
-          <span class="panel-title">ABOUT</span>
-          <info-button title="ABOUT" doc="guide/troubleshooting#reporting-a-bug">
-            <p>The versions Freetvarr is running with. Include them when you report a bug.</p>
-            <p><strong>COPY</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser.</p>
-          </info-button>
-        </span>
-        <span class="text-xs font-mono text-ink-dim">versions</span>
-      </header>
-      <div class="panel-body flex flex-wrap items-end justify-between gap-4">
+    <div class="help-row">
+      <div>
+        <span class="settings-block-title">VERSIONS</span>
         <dl class="about-list">
           <dt>FREETVARR</dt>
           <dd>
@@ -5442,13 +5580,13 @@ const AboutPanel = {
           <dt>NODE</dt>
           <dd>{{ about.node || '…' }}</dd>
         </dl>
-        <button type="button" class="btn" @click="copyAbout" :disabled="!about.version">
-          <template v-if="copyState === 'copied'"><check-icon /> COPIED</template>
-          <template v-else-if="copyState === 'failed'"><cross-icon /> COPY FAILED</template>
-          <template v-else><copy-icon /> COPY</template>
-        </button>
       </div>
-    </section>
+      <button type="button" class="btn" @click="copyAbout" :disabled="!about.version">
+        <template v-if="copyState === 'copied'"><check-icon /> COPIED</template>
+        <template v-else-if="copyState === 'failed'"><cross-icon /> COPY FAILED</template>
+        <template v-else><copy-icon /> COPY</template>
+      </button>
+    </div>
   `,
   setup() {
     const tvheadendLoaded = ref(false)
@@ -8850,7 +8988,7 @@ app.component('header-button', HeaderButton)
 app.component('zoom-control', ZoomControl)
 app.component('filter-icon', FilterIcon)
 app.component('image-icon', ImageIcon)
-app.component('about-panel', AboutPanel)
+app.component('versions-row', VersionsRow)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
 app.component('doctor-spinner', DoctorSpinner)

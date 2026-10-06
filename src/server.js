@@ -1579,9 +1579,9 @@ app.post('/api/plex-detect-token', doubleCsrfProtection, async (req, res) => {
   res.status(result.ok ? 200 : 502).json(result)
 })
 
-app.post('/api/nuke-state', doubleCsrfProtection, async (req, res) => {
+app.post('/api/reset', doubleCsrfProtection, async (req, res) => {
   if (getActiveSyncId()) {
-    return res.status(409).json({ error: 'cannot nuke while a sync is running' })
+    return res.status(409).json({ error: 'Freetvarr cannot reset while a sync is running.' })
   }
   await db.transaction(async (trx) => {
     await trx('recordings').delete()
@@ -1592,7 +1592,7 @@ app.post('/api/nuke-state', doubleCsrfProtection, async (req, res) => {
   try {
     await startScheduler()
   } catch (err) {
-    console.warn('[nuke] scheduler restart failed:', err.message)
+    console.warn('[reset] scheduler restart failed:', err.message)
   }
   res.json({ ok: true })
 })

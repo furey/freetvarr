@@ -17,7 +17,7 @@ Set these in the `.env` alongside `docker-compose.yml`. Every value is optional:
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CONFIG_PATH`            | Optional. Host folder for the two containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                                                                 |
 | `DATA_PATH`              | Optional. Host folder (default `./data`) that holds `recordings/` (TVHeadend's output), `media/tv` (your TV library), and `media/one-offs` (recordings with no series folder), and nothing else. [One shared mount](#one-shared-mount) explains why |
-| `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button, for a Plex on this host that the `plex` profile did not start; omit otherwise                                                                                     |
+| `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button, for a Plex you installed yourself on the same computer; omit otherwise                                                                                            |
 | `COMPOSE_PROFILES`       | Optional. `plex` adds the Plex service to `docker compose up -d` ([No Plex yet?](/guide/plex#no-plex-yet))                                                                                                                                          |
 | `PLEX_CLAIM`             | Optional, `plex` profile only. The claim code from `https://plex.tv/claim`, which signs the new Plex in to your Plex account. A code expires 4 minutes after you get it                                                                             |
 | `CSRF_SECRET`            | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`. See [CSRF secret](#csrf-secret)                                                                                    |
@@ -54,7 +54,7 @@ The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/med
 
 The optional **movies folder** (`movies_root`, or `MOVIES_ROOT`) takes [films](/guide/series#films) with no series folder. Leave it empty to send films to the one-off folder. It must sit inside the same shared mount as the recordings, for example `/data/media/movies`.
 
-**IMPORT EVERY RECORDING** in Settings turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **Plex one-off section**; for films, choose the **Plex movies section**.
+**IMPORT EVERY RECORDING**, under **LIBRARY RULES** in Settings → STORAGE, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **Plex one-off section**; for films, choose the **Plex movies section**.
 
 ## One shared mount
 
@@ -82,7 +82,7 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Settings (or the first-run wizard) and stored in the database. The bar under the tabs on the Settings page jumps to each part: **TVHeadend**, **Storage**, **Plex**, **Schedule**, **Ad removal**, **Help**, and **Reset**. Press **SAVE SETTINGS** to keep your changes. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 ![The Settings tab](../img/screenshot-settings.png)
 

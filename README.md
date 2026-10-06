@@ -150,7 +150,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Hardlink imports**: the recording is already on disk, so the import is a hardlink when Freetvarr sees the recordings folder and the media library through one mount, and a copy when it doesn't. A hardlink uses no extra disk space.
 - **Plex-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the guide gave no episode number.
 - **Short-file detection**: an import more than `1 MB` short of what TVHeadend reported stays `partial`, and the next sync redoes it.
-- **Scheduled + manual sync**: checks TVHeadend on a schedule you set (a cron expression), plus on-demand Sync now for everything or a single show.
+- **Scheduled + manual sync**: checks TVHeadend on a schedule you choose (every 15 minutes, 30 minutes, or hour, or your own cron expression), plus on-demand Sync now for everything or a single show.
 - **Plex integration**: section refresh after every sync that imported something, plus a Refresh Plex now button.
 - **Remove after import**: once Plex confirms its copy, Freetvarr can delete the recording's file from TVHeadend.
 - **Optional ad removal**: ad detection with comskip, a detect-only mode for checking accuracy, cutting that copies the video across untouched (no re-encode), and a `.orig` backup of every cut file. Off by default; detection accuracy on free-to-air varies by channel, so try detect mode before trusting cuts. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#ad-removal).
@@ -158,8 +158,8 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Self-housekeeping**: sync history trims itself to the latest 500 rows; recording rows drop off 30 days after the TVHeadend copy is deleted.
 - **Timezone-aware UI**: the wizard asks for your time zone and pre-fills it from the browser. Timestamps show in that zone whatever device hits the page.
 - **Phone-friendly UI**: every view works on a phone.
-- **About panel**: Settings lists the Freetvarr, TVHeadend, and Node versions for bug reports, and says when a newer Freetvarr release is out.
-- **Danger Zone**: a reset in Settings that clears Freetvarr's database and returns to the setup wizard. Imported media files stay.
+- **Help panel**: Settings reopens the setup wizard, runs the Doctor, and lists the Freetvarr, TVHeadend, and Node versions for bug reports. It also says when a newer Freetvarr release is out.
+- **Reset**: **RESET FREETVARR** in Settings deletes Freetvarr's settings, series, list of recordings, and sync history, then returns to the setup wizard. Your video files and TVHeadend stay as they are.
 - **Authless LAN service**: SQLite-backed, single Docker container, no external runtime dependencies once configured.
 
 ## Prerequisites
