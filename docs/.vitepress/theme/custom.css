@@ -156,7 +156,13 @@ kbd {
 
 @media (max-width: 959px) {
   .VPHero .image {
-    margin-top: 2rem;
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero.VPHero {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 40px);
   }
 }
 
