@@ -123,7 +123,7 @@ The sync engine lists `dvr/entry/grid_finished` and saves each entry's details (
 flowchart TD
   entry["Finished DVR entry"] --> decide{"libraryDecision:<br>import or hold?"}
   decide -->|hold| held["row: not_imported<br>reason in the error"]
-  decide -->|import| donecheck{"recordings row<br>already done, or tombstoned?"}
+  decide -->|import| donecheck{"recordings row<br>already done, or<br>not in TVHeadend?"}
   donecheck -->|yes| skip["skip immediately"]
   donecheck -->|no| pathcheck{"filename maps inside<br>recordings_root?"}
   pathcheck -->|no| skiprow["row: skipped<br>error names the path problem"]
@@ -136,7 +136,7 @@ flowchart TD
 ```
 
 1. **Library decision.** `libraryDecision` is a pure function, exported for tests. A choice saved on the row (`library_choice`, set by the IMPORT button) wins. Next comes the choice made on RECORD, which TVHeadend keeps in the entry's `comment` field. Otherwise a recording that matches a series folder imports, and an unmatched recording imports to the one-off folder unless `import_unmatched` is `false`.
-2. **Already-done short-circuit.** A `recordings` row with `status='done'`, or one carrying a `deleted_from_tvh_at` tombstone, is skipped without touching the disk.
+2. **Already-done short-circuit.** A `recordings` row with `status='done'`, or one with `deleted_from_tvh_at` set (not in TVHeadend), is skipped without touching the disk.
 3. **Path translation.** `localPathFor` rewrites the filename TVHeadend reported from `tvh_recordings_path` to `recordings_root`. A filename outside that prefix returns `null` and the row is written `skipped` with the reason, because the container cannot see that path.
 4. **Existence check.** A `fs.stat` failure means the recording is still running, or failed, or the mount is wrong. The row goes `skipped` with the path in the error.
 5. **Import.** `buildDestPath` composes `<media_root>/<dest_folder>/<season dir>/<filename>`; for a recording with no series folder, `buildOneOffPath` composes `<oneoff_root>/<title>/<title> - <date> <time>.ts`. Both throw if the result resolves outside their root, and a missing one-off root gives `skipped`, so nothing lands inside the container's own filesystem. The file is then hardlinked or copied ([below](#why-the-import-is-a-hardlink)).
@@ -519,8 +519,8 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 - **Settings**: the section bar jumps to each panel and `#/settings/<id>` links scroll to one (`about` opens HELP); save; a **Sync schedule** change reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
 - **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
 - **Series**: the list joins the series recordings in TVHeadend to their folders; ASSIGN FOLDER, EDIT, UNASSIGN FOLDER, per-series SYNC, PAUSE, RESUME, and STOP SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
-- **Syncs**: run a sync, watch the row appear and finish; clear history; filter by activity type.
-- **Recordings**: a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A tombstoned recording is marked as removed and can still be re-scanned.
+- **Syncs**: run a sync, watch the row appear and finish; page through the history `50` rows at a time; clear history; filter by activity type.
+- **Recordings**: a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; CLEAR FROM LIST hides those rows and leaves the files.
 - **Reset**: `RESET FREETVARR` (in the RESET panel, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.
 
 ## Screenshots

@@ -37,7 +37,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/epg/state**', rewriteJson(sanitiseState({ simNow, recording: picks.recording })))
   await context.route('**/api/settings', rewriteJson(maskSettings))
   await context.route('**/api/sync-status', (route) => fulfillJson(route, fixtures.syncStatus))
-  await context.route('**/api/syncs**', (route) => fulfillJson(route, { syncs: fixtures.syncs }))
+  await context.route('**/api/syncs**', (route) => fulfillJson(route, { syncs: fixtures.syncs, total: fixtures.syncs.length }))
   await context.route('**/api/shows', (route) => fulfillJson(route, { shows: fixtures.shows }))
   await context.route('**/api/series', (route) => fulfillJson(route, fixtures.series))
   await context.route('**/api/recordings**', (route) => fulfillJson(route, fixtures.recordingsPage))
@@ -357,7 +357,7 @@ const libraryRecording = ({ row, index, shows, simNow }) => {
   const episodeTitle = GENERIC_EPISODE_TITLE.test(program.episode_title || '') ? null : program.episode_title || null
   const importedAt = importSlotAfter({ end: program.end, simNow })
   const status = rowStatus(row)
-  const tombstone = status === 'done' && show?.delete_after_import
+  const notInTvh = status === 'done' && show?.delete_after_import
   const base = {
     recording_id: `demo-${program.program_id}`,
     show_id: show?.id ?? null,
@@ -375,7 +375,7 @@ const libraryRecording = ({ row, index, shows, simNow }) => {
     status,
     error: null,
     imported_at: status === 'done' ? sqlTime(importedAt) : null,
-    deleted_from_tvh_at: tombstone ? sqlTime(importedAt + 2 * MINUTE_MS) : null,
+    deleted_from_tvh_at: notInTvh ? sqlTime(importedAt + 2 * MINUTE_MS) : null,
     show_pattern: show?.show_pattern ?? null,
     show_dest_folder: show?.dest_folder ?? null,
     playable: true,
