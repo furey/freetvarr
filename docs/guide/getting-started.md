@@ -55,9 +55,9 @@ The first visit to `http://<host-ip>:3733` opens the setup wizard:
 <BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" credit="" aria-label="A walkthrough of the Freetvarr setup wizard, from the time zone to the ready step" />
 
 1. **Welcome**: confirm your time zone.
-2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password, check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
+2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password (press the eye button to check what you typed), check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`. If the wizard finds no tuner, enter the tuner's address and press `USE THIS ADDRESS`.
-4. **Guide**: check the guide region, then press `SET UP GUIDE`. Pick a guide for any channel left without one, or leave it. Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
+4. **Guide**: check the guide region, then press `SET UP GUIDE`. For any channel left without a guide, the wizard pre-selects its best guess; check each one or choose **No guide**, then press `SAVE & NEXT`. Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
 5. **Storage**: Freetvarr checks the recordings folder and the TV library folder. If the checks pass, press `NEXT`. If a check fails, do what the message says, or change the folders under **Advanced: change folders**.
 6. **Plex**: optional. Freetvarr looks for Plex and its token. If it connects, check the TV library, press `CREATE LIBRARIES` if Plex has no library for your recordings yet, then press `NEXT`. Without Plex, press `SKIP`. To enter the Plex address and token yourself, open **Advanced: connect Plex by hand** ([Plex](/guide/plex)).
 
@@ -65,7 +65,7 @@ Every value can be changed later in Settings.
 
 ## 3. Record something
 
-Open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. At the next sync, Freetvarr imports each finished recording into your library ([Series](/guide/series)). To check the whole setup, open **Settings → HELP → RUN DOCTOR**.
+Open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in **Settings → SCHEDULE**) and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **Settings → HELP → RUN DOCTOR**.
 
 ## Configure
 

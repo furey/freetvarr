@@ -1,10 +1,10 @@
 import { countryForTimeZone } from './zone-countries.js'
 
 export const inspectSetup = async ({ http, conn }) => {
-  const [tuners, networkGrid, channelGrid, upcoming] = await Promise.all([
+  const [tuners, networkGrid, channels, upcoming] = await Promise.all([
     listTuners({ http, conn }),
     http.get('mpegts/network/grid', { limit: GRID_LIMIT }, conn),
-    http.get('channel/grid', { limit: 1 }, conn),
+    countChannels({ http, conn }),
     http.get('dvr/entry/grid_upcoming', { limit: UPCOMING_LIMIT }, conn),
   ])
   const networks = (networkGrid?.entries || []).map(normaliseNetwork)
@@ -18,7 +18,7 @@ export const inspectSetup = async ({ http, conn }) => {
   return {
     tuners,
     networks,
-    channels: Number(channelGrid?.total ?? channelGrid?.entries?.length ?? 0),
+    channels,
     deliverySystem,
     compatibleNetworks,
     recordingNow: recordingsInProgress(upcoming?.entries || []),
@@ -102,6 +102,16 @@ export const summariseScan = ({ network, muxes }) => {
   }
 }
 
+export const tunersInUseElsewhere = ({ inputs, tuners }) => {
+  const names = new Set(tuners.map((t) => t.name))
+  return inputs.filter((i) => names.has(i.input) && Number(i.weight || 0) >= OTHER_USE_WEIGHT).length
+}
+
+export const isWaitingForTuner = ({ summary, inputs, tuners }) => summary.active === 0
+  && summary.queued > 0
+  && tuners.length > 0
+  && tunersInUseElsewhere({ inputs, tuners }) >= tuners.length
+
 export const isTvService = (service) => !NON_TV_SERVICE_TYPES.has(Number(service.dvb_servicetype))
 
 export const unmappedTvServices = ({ services, muxIds }) => services
@@ -167,7 +177,6 @@ export const applyChannelSetup = async ({
   transmitter,
   onProgress = () => {},
   pollMs = POLL_MS,
-  stallMs = STALL_MS,
   scanLimitMs = SCAN_LIMIT_MS,
   mapLimitMs = MAP_LIMIT_MS,
   now = Date.now,
@@ -194,11 +203,11 @@ export const applyChannelSetup = async ({
       http,
       conn,
       network,
+      tuners,
       rescan: network.existing && network.services === 0,
       report: (detail) => progress.detail('scan', detail),
       wait,
       pollMs,
-      stallMs,
       limitMs: scanLimitMs,
       now,
     }))
@@ -212,8 +221,17 @@ export const applyChannelSetup = async ({
       limitMs: mapLimitMs,
       now,
     }))
+    const channels = await countChannels({ http, conn })
     await run('recording', () => checkRecordingProfile({ http, conn }))
-    return { ok: true, networkId: network.id, scan, mapped, steps: progress.steps() }
+    return {
+      ok: true,
+      networkId: network.id,
+      scan,
+      mapped,
+      channels,
+      channelsBefore: inspection.channels,
+      steps: progress.steps(),
+    }
   } catch (err) {
     if (current) progress.fail(current)
     return {
@@ -334,20 +352,13 @@ const attachTuners = async ({ http, conn, tuners, networkId }) => {
   }
 }
 
-const scanNetwork = async ({ http, conn, network, rescan, report, wait, pollMs, stallMs, limitMs, now }) => {
+const scanNetwork = async ({ http, conn, network, tuners, rescan, report, wait, pollMs, limitMs, now }) => {
   if (rescan) await http.post('mpegts/network/scan', { uuid: network.id }, conn)
   const startedAt = now()
-  let lastChange = now()
-  let lastSignature = ''
   for (;;) {
     const summary = await readScan({ http, conn, networkId: network.id })
-    const signature = `${summary.scanned}/${summary.active}/${summary.services}`
-    if (signature !== lastSignature) {
-      lastSignature = signature
-      lastChange = now()
-    }
-    const waitingForTuner = summary.active === 0 && now() - lastChange >= stallMs
-    report({ ...summary, waitingForTuner })
+    const inputs = summary.active === 0 && summary.queued > 0 ? await readInputs({ http, conn }) : []
+    report({ ...summary, waitingForTuner: isWaitingForTuner({ summary, inputs, tuners }) })
     if (summary.finished) {
       if (summary.services === 0) {
         throw new SetupError('The scan found no channels.', 'no-signal', summary)
@@ -367,6 +378,16 @@ const readScan = async ({ http, conn, networkId }) => {
   const entry = (networks?.entries || []).find((n) => n.uuid === networkId)
   if (!entry) throw new SetupError('The TV network disappeared from TVHeadend.', 'no-network')
   return summariseScan({ network: normaliseNetwork(entry), muxes: muxes?.entries || [] })
+}
+
+const readInputs = async ({ http, conn }) => {
+  const body = await http.get('status/inputs', {}, conn).catch(() => null)
+  return body?.entries || []
+}
+
+export const countChannels = async ({ http, conn }) => {
+  const body = await http.get('channel/grid', { limit: 1 }, conn)
+  return Number(body?.total ?? body?.entries?.length ?? 0)
 }
 
 const mapChannels = async ({ http, conn, networkId, report, wait, pollMs, limitMs, now }) => {
@@ -460,7 +481,7 @@ const UPCOMING_LIMIT = 1000
 const MUX_LIMIT = 1000
 const SERVICE_LIMIT = 5000
 const POLL_MS = 2000
-const STALL_MS = 60_000
+const OTHER_USE_WEIGHT = 10
 const SCAN_LIMIT_MS = 30 * 60_000
 const MAP_LIMIT_MS = 20 * 60_000
 const MAP_START_GRACE_MS = 15_000

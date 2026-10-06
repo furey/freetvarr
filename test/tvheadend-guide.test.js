@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 
 import {
   applyGuideSetup,
+  guessGuideChannel,
   matchGuideChannels,
   parseFeedChannels,
   suggestGuide,
@@ -150,7 +151,7 @@ test('applyGuideSetup turns on the feed, keeps the guide saved, waits for it, an
   assert.equal(result.ok, true, JSON.stringify(result))
   assert.equal(result.linked, 2)
   assert.equal(result.total, 3)
-  assert.deepEqual(result.unmatched, [{ id: 'cx', name: 'Shopping', number: 99 }])
+  assert.deepEqual(result.unmatched, [{ id: 'cx', name: 'Shopping', number: 99, guess: null }])
   assert.deepEqual(result.options.map((o) => o.name), ['ABC TV', 'Seven'])
   const [grabber, config, rerun, ...links] = http.writes
   assert.deepEqual(JSON.parse(grabber.form.node), { uuid: 'mod-url', enabled: true, args: FEED_URL, priority: 3 })
@@ -186,4 +187,26 @@ test('applyGuideSetup reports a guide that never loads', async () => {
   })
   assert.equal(result.code, 'download-timeout')
   assert.equal(result.failedStep, 'download')
+})
+
+const guessFor = (name, guideNames) => guessGuideChannel({
+  channel: { name },
+  candidates: guideNames.map((n, i) => ({ id: `g${i}`, name: n, feed: null })),
+})
+
+test('guessGuideChannel matches a name after normalising case, spaces, punctuation, HD, and region', () => {
+  assert.equal(guessFor('ABCTV', ['SBS', 'ABC TV']), 'g1')
+  assert.equal(guessFor('Nine HD', ['Nine']), 'g0')
+  assert.equal(guessFor('7mate', ['7Mate Sydney']), 'g0')
+  assert.equal(guessFor('SBS-One', ['SBS One']), 'g0')
+})
+
+test('guessGuideChannel never guesses a timeshift channel', () => {
+  assert.equal(guessFor('10 HD +1', ['10 HD +1', '10']), null)
+  assert.equal(guessFor('Nine +2', ['Nine']), null)
+})
+
+test('guessGuideChannel skips a name that matches no guide channel or several', () => {
+  assert.equal(guessFor('Extra', ['SBS', 'ABC TV']), null)
+  assert.equal(guessFor('ABC', ['ABC Sydney', 'ABC Melbourne']), null)
 })

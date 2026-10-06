@@ -15,3 +15,11 @@ export const syncSchedulePreset = (cron) => {
     [candidate.cron, ...candidate.aliases].includes(expression))
   return preset ? preset.cron : CUSTOM_SYNC_SCHEDULE
 }
+
+export const describeSyncSchedule = (cron) => {
+  const expression = normaliseCron(cron)
+  const preset = SYNC_SCHEDULE_PRESETS.find((candidate) =>
+    [candidate.cron, ...candidate.aliases].includes(expression))
+  if (!preset) return expression ? `Schedule: ${expression}.` : ''
+  return `Runs ${preset.label.charAt(0).toLowerCase()}${preset.label.slice(1)}.`
+}

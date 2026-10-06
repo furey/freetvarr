@@ -140,7 +140,7 @@ test('planBootstrap: verifies both logins before it removes the open entry', () 
     'confirm-locked',
   ])
   assert.ok(ids.indexOf('verify-admin') < ids.indexOf('remove-open-entry'))
-  assert.equal(plan.steps[1].label, 'Create the boss login')
+  assert.equal(plan.steps[1].label, 'Make your admin login')
 })
 
 test('applyBootstrap: creates both users, saves the login and backup, and removes the open entry', async () => {
