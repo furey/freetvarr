@@ -122,19 +122,16 @@ const fmtBytes = (n) => {
 }
 
 const tvhDetectSummary = (c) => {
-  const where = c.version ? `TVHeadend ${c.version}` : 'TVHeadend'
   const auth = c.needsAuth ? ' (asks for a login)' : ''
   const loop = c.loopback ? '. Only loopback answered. Use a LAN IP so logos and live TV load in the browser' : ''
-  return `Found ${where} at ${c.url}${auth}${loop}.`
+  return `Found TVHeadend at ${c.url}${auth}${loop}.`
 }
 
 const tvhTestSummary = (r) => {
   const bits = []
-  if (r.version) bits.push(`v${r.version}`)
-  if (r.apiVersion != null) bits.push(`api ${r.apiVersion}`)
-  bits.push(`${r.channels} channel${r.channels === 1 ? '' : 's'}`)
-  bits.push(`${r.tuners} tuner${r.tuners === 1 ? '' : 's'}`)
-  return `Connected to TVHeadend ${bits.join(' · ')}.`
+  if (r.channels) bits.push(`${r.channels} channel${r.channels === 1 ? '' : 's'}`)
+  if (r.tuners) bits.push(`${r.tuners} tuner${r.tuners === 1 ? '' : 's'}`)
+  return bits.length ? `Connected to TVHeadend · ${bits.join(' · ')}.` : 'Connected to TVHeadend.'
 }
 
 const tz = ref('UTC')
@@ -4895,10 +4892,10 @@ const WelcomeView = {
 
           <div v-if="step === 1" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
-              Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) removes them from TVHeadend afterwards.
+              Freetvarr gives you a TV guide, records shows and series, and lets you watch live and recorded TV on any screen. Recordings are saved into your media library.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend. Plex is optional.
+              Setup takes about two minutes. The only step you must finish is connecting to TVHeadend, the program that runs your tuner. Plex is optional.
             </p>
             <p v-if="hasExistingConfig" class="text-xs font-mono text-plex-yellow">
               <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> RETURN VISIT: your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
@@ -4935,18 +4932,17 @@ const WelcomeView = {
               <p class="text-ink text-sm leading-relaxed">
                 <strong class="text-signal-orange">This TVHeadend has no logins yet</strong>, so anyone on your network can change it. Freetvarr can secure it: it makes an admin login for you and a separate login for itself, then turns off the open access.
               </p>
-              <div class="grid gap-4 md:grid-cols-3">
+              <div class="grid gap-4 md:grid-cols-2">
                 <div class="field-row">
                   <label class="field-label">Admin username</label>
                   <input type="text" class="field-input" v-model="secureAdminUsername" autocomplete="off" :disabled="securing" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Admin password</label>
-                  <input type="password" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
-                </div>
-                <div class="field-row">
-                  <label class="field-label">Confirm password</label>
-                  <input type="password" class="field-input" v-model="secureAdminConfirm" autocomplete="new-password" :disabled="securing" />
+                  <div class="flex items-center gap-2">
+                    <input ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
+                    <button type="button" class="btn btn-sm btn-icon" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
+                  </div>
                 </div>
               </div>
               <div class="field-row">
@@ -5640,7 +5636,8 @@ const WelcomeView = {
     const securedAs = ref('')
     const secureAdminUsername = ref('admin')
     const secureAdminPassword = ref('')
-    const secureAdminConfirm = ref('')
+    const secureShowPassword = ref(false)
+    const secureAdminPasswordInput = ref(null)
     const securePrefixes = ref('')
     const secureSteps = ref([])
     const secureError = ref('')
@@ -5649,7 +5646,6 @@ const WelcomeView = {
     const secureInputProblem = computed(() => bootstrapInputProblem({
       username: secureAdminUsername.value,
       password: secureAdminPassword.value,
-      confirm: secureAdminConfirm.value,
       prefixes: securePrefixes.value,
     }))
     const secureReady = computed(() => !secureInputProblem.value)
@@ -5669,6 +5665,11 @@ const WelcomeView = {
     watch(tvhUrl, () => {
       bootstrap.value = null
       checkBootstrap()
+    })
+    watch(showSecure, async (visible) => {
+      if (!visible) return
+      await nextTick()
+      secureAdminPasswordInput.value?.focus()
     })
 
     const useManualLogin = () => {
@@ -5697,7 +5698,6 @@ const WelcomeView = {
         secureSteps.value = result.steps
         securedAs.value = result.adminUsername
         secureAdminPassword.value = ''
-        secureAdminConfirm.value = ''
         tvhUsername.value = result.username
         tvhPassword.value = ''
         tvhPasswordSet.value = true
@@ -5748,7 +5748,7 @@ const WelcomeView = {
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
-      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureAdminConfirm,
+      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
       securePrefixes, secureSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
@@ -5760,10 +5760,9 @@ const WelcomeView = {
   },
 }
 
-const bootstrapInputProblem = ({ username, password, confirm, prefixes }) => {
+const bootstrapInputProblem = ({ username, password, prefixes }) => {
   if (!username.trim()) return 'Choose an admin username.'
   if (password.length < BOOTSTRAP_MIN_PASSWORD) return `Choose an admin password of at least ${BOOTSTRAP_MIN_PASSWORD} characters.`
-  if (password !== confirm) return 'The two passwords do not match yet.'
   if (!prefixes.trim()) return 'Enter at least one allowed network.'
   return ''
 }
@@ -8321,6 +8320,25 @@ const SignalBarsIcon = {
   `,
 }
 
+const EyeIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/>
+      <circle cx="8" cy="8" r="2"/>
+    </svg>
+  `,
+}
+
+const EyeOffIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/>
+      <circle cx="8" cy="8" r="2"/>
+      <path d="M2.5 13.5l11-11"/>
+    </svg>
+  `,
+}
+
 const SearchIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -9383,6 +9401,8 @@ app.component('image-icon', ImageIcon)
 app.component('versions-row', VersionsRow)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
+app.component('eye-icon', EyeIcon)
+app.component('eye-off-icon', EyeOffIcon)
 app.component('doctor-spinner', DoctorSpinner)
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)

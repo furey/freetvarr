@@ -62,7 +62,7 @@ A fresh linuxserver TVHeadend has no logins. It starts with a default access ent
 
 When the wizard finds a TVHeadend with only the default entry, it asks for three things:
 
-- **An admin username and password.** You sign in to TVHeadend's web UI with these. Freetvarr sends them to TVHeadend once and does not store them.
+- **An admin username and password.** You sign in to TVHeadend's web UI with these. Freetvarr sends them to TVHeadend once and does not store them. The password has one field with a show and hide button, so check it for typos before you continue.
 - **The allowed networks.** Both logins work only from these address ranges. The wizard fills in one `/24` range for each address of the Freetvarr host, plus `127.0.0.0/8`; a host at `192.168.86.254` gives `192.168.86.0/24`. Add any other network you sign in from.
 - **Confirmation.** `SECURE TVHEADEND AND CONNECT FREETVARR` makes the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
 
