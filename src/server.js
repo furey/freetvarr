@@ -1471,7 +1471,7 @@ const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
   const messages = {
     'no-tuner': {
       error: 'Freetvarr cannot see the chosen tuner now.',
-      next: 'Check that the tuner is on and connected, then press CHECK AGAIN.',
+      next: 'Check that the tuner is on and connected, then press TRY AGAIN.',
     },
     'no-signal': {
       error: `The tuner received no channels${from}.`,
@@ -1479,7 +1479,7 @@ const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
     },
     'scan-timeout': {
       error: 'The channel scan did not finish in 30 minutes.',
-      next: 'Live TV or a recording may be using every tuner. Try again when they are free.',
+      next: 'Check the antenna cable and that the tuner is on, then press TRY AGAIN. If live TV or a recording was using every tuner, wait until one is free.',
     },
     'map-empty': {
       error: 'No channels could be added, because none of them played during the check.',

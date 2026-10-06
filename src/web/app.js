@@ -4342,6 +4342,9 @@ const ChannelSetupStep = {
           <p v-if="waitingForTuner" class="status-readout info">
             Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
           </p>
+          <p v-else-if="scanStarting" class="status-readout info">
+            <span class="spinner"></span> Starting the scan. The first channels can take a minute.
+          </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
@@ -4351,14 +4354,17 @@ const ChannelSetupStep = {
         </div>
 
         <div v-else-if="state === 'no-tuner'" class="space-y-4">
-          <div class="space-y-2">
+          <p v-if="addressSaved" class="status-readout info">
+            <span class="spinner"></span> Looking for the tuner at {{ addressSaved }}. This can take a minute.
+          </p>
+          <div v-else class="space-y-2">
             <p class="status-readout err">No TV tuner found yet.</p>
             <p v-if="dockerVm" class="text-sm text-ink">
               Docker on a Mac or Windows PC cannot find a network tuner by itself. Enter the tuner's address below.
             </p>
             <p v-else class="text-sm text-ink">Check that the tuner is on and connected to your network, then press CHECK AGAIN.</p>
             <p v-if="savedAddress" class="text-sm text-ink-dim">TVHeadend looks for a tuner at {{ savedAddress }}.</p>
-            <button type="button" class="btn" @click="refresh" :disabled="loading">
+            <button v-if="!dockerVm" type="button" class="btn" @click="refresh" :disabled="loading">
               <template v-if="loading">CHECKING…</template><template v-else><refresh-icon /> CHECK AGAIN</template>
             </button>
           </div>
@@ -4376,11 +4382,10 @@ const ChannelSetupStep = {
             <p class="text-xs text-ink-dim">
               Find the tuner's address in your router's list of devices, or in the tuner's own app.<template v-if="dockerVm"> This computer's address is the one other devices on your network use to reach this Mac or PC.<template v-if="hostGuessed"> Freetvarr guessed it from the address in your browser.</template></template>
             </p>
-            <button type="submit" class="btn btn-primary" :disabled="savingAddress || !tunerAddress">
+            <button type="submit" class="btn btn-primary" :disabled="savingAddress || Boolean(addressSaved) || !tunerAddress">
               <search-icon /> USE THIS ADDRESS
             </button>
             <p v-if="addressError" class="status-readout err">{{ addressError }}</p>
-            <p v-if="addressSaved" class="status-readout info">Looking for the tuner at {{ addressSaved }}…</p>
           </form>
           <button v-else type="button" class="btn-link" @click="addressOpen = true">Enter the tuner's address</button>
         </div>
@@ -4444,7 +4449,7 @@ const ChannelSetupStep = {
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
           <p class="text-xs text-ink-mute">A scan takes a few minutes. Freetvarr keeps any channels you already have.</p>
           <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
-            Scan and add channels yourself in TVHeadend, then come back and press NEXT.
+            Scan and add channels yourself in TVHeadend, then come back here.
           </manual-option>
         </div>
       </template>
@@ -4489,17 +4494,27 @@ const ChannelSetupStep = {
     const result = computed(() => job.value?.result || null)
     const running = computed(() => Boolean(job.value?.running))
     const showSteps = computed(() => running.value || Boolean(result.value))
-    const waitingForTuner = computed(() => running.value
-      && Boolean(steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail?.waitingForTuner))
+    const runningScan = computed(() => (running.value
+      ? steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail || null
+      : null))
+    const waitingForTuner = computed(() => Boolean(runningScan.value?.waitingForTuner))
+    const scanStarting = computed(() => Boolean(runningScan.value)
+      && !runningScan.value.scanned && !runningScan.value.active)
     const channelCount = computed(() => status.value?.channels || 0)
     const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
-    const doneText = computed(() => {
-      const added = result.value?.mapped?.ok || 0
-      return added ? `Added ${added} channels.` : 'Every channel the scan found is already in TVHeadend.'
+    const doneText = computed(() => channelsAddedText(result.value))
+    const actionShown = computed(() => {
+      if (!status.value || loadError.value || showSteps.value) return false
+      if (state.value === 'no-tuner') return addressOpen.value
+      return state.value !== 'unsupported-tuner' && (state.value !== 'has-channels' || editing.value)
     })
 
-    watch([running, starting, channelCount], () => {
-      emit('state', { busy: running.value || starting.value, channels: channelCount.value })
+    watch([running, starting, channelCount, actionShown], () => {
+      emit('state', {
+        busy: running.value || starting.value,
+        channels: channelCount.value,
+        actionShown: actionShown.value,
+      })
     }, { immediate: true })
 
     watch(country, (curr, prev) => {
@@ -4624,7 +4639,7 @@ const ChannelSetupStep = {
     return {
       status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
-      steps, result, showSteps, waitingForTuner, doneText, recordingNow,
+      steps, result, showSteps, waitingForTuner, scanStarting, doneText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
@@ -4640,16 +4655,24 @@ const recordingWarning = (recordings) => {
   return `TVHeadend is recording ${what}${until}. A scan now can cause brief glitches in the recording, so you may want to wait.`
 }
 
+const channelsAddedText = (result) => {
+  const total = result?.channels || 0
+  const added = total - (result?.channelsBefore || 0)
+  if (added <= 0) return 'Every channel the scan found is already in TVHeadend.'
+  if (added === total) return `Added ${total} channels.`
+  return `Added ${added} channels. TVHeadend now has ${total}.`
+}
+
 const scanOrMapDetail = (step) => {
   const d = step.detail
   if (!d) return ''
   if (step.id === 'scan') {
     if (!d.frequencies) return 'starting'
-    return `checked ${d.scanned} of ${d.frequencies} frequencies, ${d.services} stations found`
+    return `${d.scanned} of ${d.frequencies} done`
   }
   if (step.id === 'map') {
     if (!d.total) return 'nothing new to add'
-    return `${d.ok + d.fail} of ${d.total} checked, ${d.ok} added`
+    return `${Math.round(((d.ok + d.fail) / d.total) * 100)}% done`
   }
   return ''
 }
@@ -5166,7 +5189,7 @@ const WelcomeView = {
             <span v-if="saveStatusText"
               :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
             <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">{{ advanceHint }}</span>
-            <button type="button" :class="['btn', nextIsPrimary && 'btn-primary']" @click="next" :disabled="!canAdvance || saving">
+            <button type="button" :class="['btn', { 'btn-primary': nextIsPrimary }]" @click="next" :disabled="!canAdvance || saving">
               {{ nextLabel }} <arrow-right-icon />
             </button>
           </div>
@@ -5342,7 +5365,7 @@ const WelcomeView = {
       sectionAutoLoadTimer = setTimeout(() => loadPlexSections({ silent: true }), 600)
     })
 
-    const channelState = ref({ busy: false, channels: 0 })
+    const channelState = ref({ busy: false, channels: 0, actionShown: false })
     const guideStep = ref(null)
     const guideState = ref({ busy: false, linked: 0, pending: 0 })
 
@@ -5398,7 +5421,11 @@ const WelcomeView = {
       return 'NEXT'
     })
 
-    const nextIsPrimary = computed(() => !(step.value === 4 && nextLabel.value === 'SKIP'))
+    const nextIsPrimary = computed(() => {
+      if (step.value === 3) return channelState.value.channels > 0 && !channelState.value.actionShown
+      if (step.value === 4) return nextLabel.value !== 'SKIP'
+      return true
+    })
 
     const dismiss = () => {
       try { localStorage.setItem(WELCOME_DISMISSED_KEY, '1') } catch { /* private mode */ }
