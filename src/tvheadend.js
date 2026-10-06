@@ -47,7 +47,7 @@ export const detectServers = async ({ hintAddress, env = process.env } = {}) => 
   }
   const urls = rankCandidates({ interfaces: os.networkInterfaces(), hintAddress })
   const probes = await Promise.all(urls.map(probeServer))
-  const candidates = preferLanOverLoopback(probes.filter(Boolean))
+  const candidates = dropAliasDuplicates(preferLanOverLoopback(probes.filter(Boolean)))
   if (!candidates.length) {
     return {
       ok: false,
@@ -787,7 +787,7 @@ const probeServer = async (url) => {
   }
   const loopback = isLoopback(new URL(url).hostname)
   if (res.status === 200 && res.data && typeof res.data === 'object' && 'sw_version' in res.data) {
-    return { url, version: res.data.sw_version || '', needsAuth: false, loopback }
+    return { url, version: res.data.sw_version || '', needsAuth: false, loopback, fingerprint: JSON.stringify(res.data) }
   }
   const realm = String(res.headers['www-authenticate'] || '')
   if (res.status === 401 && /tvheadend/i.test(realm)) return { url, version: '', needsAuth: true, loopback }
@@ -797,6 +797,18 @@ const probeServer = async (url) => {
 const preferLanOverLoopback = (found) => {
   const lan = found.filter((c) => !c.loopback)
   return lan.length ? lan : found
+}
+
+const HOST_ALIASES = ['host.docker.internal', 'tvheadend', 'localhost']
+const isHostAlias = (url) => HOST_ALIASES.includes(new URL(url).hostname)
+
+export const dropAliasDuplicates = (found) => {
+  const numericFingerprints = new Set(
+    found.filter((c) => c.fingerprint && !isHostAlias(c.url)).map((c) => c.fingerprint),
+  )
+  return found
+    .filter((c) => !(c.fingerprint && isHostAlias(c.url) && numericFingerprints.has(c.fingerprint)))
+    .map(({ fingerprint, ...candidate }) => candidate)
 }
 
 const normaliseAddress = (address) => String(address || '').replace(/^::ffff:/, '').trim()
