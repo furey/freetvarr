@@ -492,7 +492,7 @@ const recordingsFolderStatus = async ({ path, mediaRoot }) => {
       kind: 'info',
     }
   }
-  const hardlinks = r.hardlinks ? ', and imports into the media root hardlink' : ''
+  const hardlinks = r.hardlinks ? '. Recordings can move into the TV library folder instantly, without copying' : ''
   return { text: `${r.path} is readable${hardlinks}.`, kind: 'ok' }
 }
 
@@ -4698,19 +4698,13 @@ const GuideSetupStep = {
             </div>
             <p v-else class="status-readout ok">{{ result.linked }} of {{ result.total }} channels have a guide.</p>
             <div v-if="result.unmatched.length" class="space-y-3">
-              <p class="text-sm text-ink">These channels have no guide yet. Pick one for each, or leave them without a guide.</p>
+              <p class="text-sm text-ink">These channels have no guide yet. Check each pick, or choose No guide. NEXT saves your choices.</p>
               <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
                 <label class="text-sm text-ink" :for="'guide-' + c.id">{{ c.name }}<span v-if="c.number" class="text-ink-dim"> · {{ c.number }}</span></label>
                 <select :id="'guide-' + c.id" class="field-input" v-model="picks[c.id]">
                   <option value="">No guide</option>
                   <option v-for="o in result.options" :key="o.id" :value="o.id">{{ o.name }}</option>
                 </select>
-              </div>
-              <div class="flex flex-wrap items-center gap-3">
-                <button type="button" class="btn" @click="saveLinks" :disabled="!pickedCount || savingLinks">
-                  <template v-if="savingLinks">SAVING…</template><template v-else>SAVE LINKS</template>
-                </button>
-                <span v-if="linkText" :class="['status-readout', linkKind]">{{ linkText }}</span>
               </div>
             </div>
           </template>
@@ -4765,7 +4759,7 @@ const GuideSetupStep = {
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
           <p v-if="suggestion.linked" class="text-xs text-ink-mute">Freetvarr keeps the guide links you already have.</p>
           <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
-            Load a guide yourself in TVHeadend, then come back and press NEXT.
+            Load a guide yourself in TVHeadend, then come back here.
           </manual-option>
         </div>
       </template>
@@ -4783,8 +4777,6 @@ const GuideSetupStep = {
     const starting = ref(false)
     const applyError = ref('')
     const picks = reactive({})
-    const savingLinks = ref(false)
-    const [linkText, linkKind, setLinkText] = makeStatus()
     let pollTimer = null
 
     const suggestion = computed(() => status.value?.suggestion || null)
@@ -4796,8 +4788,12 @@ const GuideSetupStep = {
     const linked = computed(() => (result.value?.ok ? result.value.linked : suggestion.value?.linked || 0))
     const pickedCount = computed(() => Object.values(picks).filter(Boolean).length)
 
-    watch([running, starting, linked], () => {
-      emit('state', { busy: running.value || starting.value, linked: linked.value })
+    watch([running, starting, linked, pickedCount], () => {
+      emit('state', { busy: running.value || starting.value, linked: linked.value, pending: pickedCount.value })
+    }, { immediate: true })
+
+    watch(() => result.value?.unmatched, (unmatched) => {
+      for (const c of unmatched || []) if (!(c.id in picks)) picks[c.id] = c.guess || ''
     }, { immediate: true })
 
     const prefill = (s) => {
@@ -4847,19 +4843,12 @@ const GuideSetupStep = {
     }
 
     const saveLinks = async () => {
-      savingLinks.value = true
-      try {
-        const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
-        const r = await api('POST', '/api/tvh-guide/links', { links })
-        for (const key of Object.keys(picks)) delete picks[key]
-        const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
-        if (progress) job.value = progress
-        setLinkText(`Linked ${r.linked} ${r.linked === 1 ? 'channel' : 'channels'}.`, 'ok', 5000)
-      } catch (err) {
-        setLinkText(err.message, 'err', 0)
-      } finally {
-        savingLinks.value = false
-      }
+      if (!pickedCount.value) return
+      const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
+      await api('POST', '/api/tvh-guide/links', { links })
+      for (const { channel_id } of links) delete picks[channel_id]
+      const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
+      if (progress) job.value = progress
     }
 
     const restart = () => {
@@ -4877,7 +4866,7 @@ const GuideSetupStep = {
 
     return {
       OTHER, status, loading, loadError, editing, suggestion, choice, customUrl, url,
-      steps, result, showSteps, starting, applyError, picks, pickedCount, savingLinks, linkText, linkKind,
+      steps, result, showSteps, starting, applyError, picks, pickedCount,
       refresh, apply, saveLinks, restart, stepDetail, secureStepDot,
     }
   },
@@ -5008,7 +4997,7 @@ const WelcomeView = {
 
           <channel-setup-step v-if="step === 3" :tvh-url="tvhUrl" @state="channelState = $event" />
 
-          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" @state="guideState = $event" @back="step = 3" />
+          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" ref="guideStep" @state="guideState = $event" @back="step = 3" />
 
           <div v-if="step === 5" class="space-y-4">
             <p v-if="storageChecking" class="status-readout info">Checking the folders…</p>
@@ -5030,7 +5019,7 @@ const WelcomeView = {
               <summary>Advanced: change folders</summary>
               <div class="settings-disclosure-body space-y-4">
                 <p class="text-xs text-ink-mute leading-relaxed">
-                  Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too.
+                  Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too. The data folder is the one that <code>DATA_PATH</code> sets in <code>.env</code>.
                 </p>
                 <div class="field-row">
                   <label class="field-label">TV library folder</label>
@@ -5167,10 +5156,10 @@ const WelcomeView = {
               </ul>
             </div>
             <p class="text-ink-dim text-sm leading-relaxed">
-              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Finished recordings go into your library on the next sync (every 30 minutes by default).
+              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Freetvarr checks for finished recordings every 30 minutes and adds them to your library.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads TVHeadend, Plex, and the folders, and changes nothing.
+              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }}, and changes nothing.
             </p>
           </div>
 
@@ -5181,7 +5170,7 @@ const WelcomeView = {
             <span v-if="saveStatusText"
               :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
             <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">{{ advanceHint }}</span>
-            <button type="button" class="btn btn-primary" @click="next" :disabled="!canAdvance || saving">
+            <button type="button" :class="['btn', nextIsPrimary && 'btn-primary']" @click="next" :disabled="!canAdvance || saving">
               {{ nextLabel }} <arrow-right-icon />
             </button>
           </div>
@@ -5358,7 +5347,8 @@ const WelcomeView = {
     })
 
     const channelState = ref({ busy: false, channels: 0 })
-    const guideState = ref({ busy: false, linked: 0 })
+    const guideStep = ref(null)
+    const guideState = ref({ busy: false, linked: 0, pending: 0 })
 
     const readySkipped = computed(() => {
       if (!channelState.value.channels) {
@@ -5394,12 +5384,16 @@ const WelcomeView = {
     })
 
     const plexWillSave = computed(() => plexConnected.value || plexEditedByHand.value)
+    const plexIsSetUp = computed(() => plexWillSave.value || Boolean(saved.plexUrl))
 
     const nextLabel = computed(() => {
       if (step.value === totalSteps) return 'OPEN TV GUIDE'
       if (step.value === 2) return 'SAVE & NEXT'
       if (step.value === 3) return channelState.value.channels ? 'NEXT' : 'SKIP'
-      if (step.value === 4) return guideState.value.linked ? 'NEXT' : 'SKIP'
+      if (step.value === 4) {
+        if (guideState.value.pending) return 'SAVE & NEXT'
+        return guideState.value.linked ? 'NEXT' : 'SKIP'
+      }
       if (step.value === 5) return Object.keys(storageChanges.value).length ? 'SAVE & NEXT' : 'NEXT'
       if (step.value === 6) {
         if (plexConnected.value) return 'NEXT'
@@ -5407,6 +5401,8 @@ const WelcomeView = {
       }
       return 'NEXT'
     })
+
+    const nextIsPrimary = computed(() => !(step.value === 4 && nextLabel.value === 'SKIP'))
 
     const dismiss = () => {
       try { localStorage.setItem(WELCOME_DISMISSED_KEY, '1') } catch { /* private mode */ }
@@ -5469,6 +5465,8 @@ const WelcomeView = {
             setSaveStatus('Connection failed. Correct the TVHeadend details to continue.', 'err', 0)
             return
           }
+        } else if (step.value === 4) {
+          await guideStep.value?.saveLinks()
         } else if (step.value === 5) {
           await saveStorage()
         } else if (step.value === 6) {
@@ -5737,7 +5735,7 @@ const WelcomeView = {
     }
 
     return {
-      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig, channelState, guideState, readySkipped,
+      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, nextIsPrimary, plexIsSetUp, guideStep, hasExistingConfig, channelState, guideState, readySkipped,
       timeZone, tzSource,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
@@ -5776,7 +5774,7 @@ const changedSettings = (entries) => Object.fromEntries(
 
 const storageSummaryText = ({ mediaRoot, recordingsRoot }) => {
   const inDataFolder = [mediaRoot, recordingsRoot].every((folder) => isInsideFolder({ folder, root: COMPOSE_DATA_ROOT }))
-  if (inDataFolder) return 'Recordings and your TV library are saved in your data folder (the data folder next to docker-compose.yml, unless you set DATA_PATH).'
+  if (inDataFolder) return 'Recordings and your TV library are saved in the data folder inside the folder you installed Freetvarr to.'
   return `Freetvarr reads recordings from ${recordingsRoot} and saves your TV library to ${mediaRoot}.`
 }
 
