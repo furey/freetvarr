@@ -26,7 +26,7 @@ The compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex t
 5. In the wizard's Plex step (or Settings → PLEX), keep the URL `http://127.0.0.1:32400`. Freetvarr fills in the token.
 6. Check the library names and folders, then press `CREATE LIBRARIES`.
 
-Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a movies folder, it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings.
+Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a movies folder, it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings. Each library uses the language and rating system of the country from your time zone.
 
 Plex keeps its settings in `${CONFIG_PATH}/plex` and reads your library at `/data/media`, the same paths as Freetvarr. To finish the Plex setup (for example, to name the server), open `http://<host-ip>:32400/web`.
 

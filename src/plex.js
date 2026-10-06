@@ -5,6 +5,8 @@ import axios from 'axios'
 import { XMLParser } from 'fast-xml-parser'
 
 import { getSetting, setSetting } from './db.js'
+import { currentTimeZone } from './time-zone.js'
+import { countryForTimeZone } from './zone-countries.js'
 
 export const notifyPlexSectionRefresh = async (overrides = {}) => {
   const saved = await getConfig()
@@ -88,12 +90,18 @@ export const planPlexLibraries = ({ sections, roots }) =>
       }
     })
 
-export const createPlexLibraries = async ({ libraries, ...connection }) => {
+export const plexLibraryLocale = (timeZone) => {
+  const code = countryForTimeZone(timeZone).toUpperCase()
+  const country = code === 'UK' ? 'GB' : code
+  return { language: PLEX_LIBRARY_LANGUAGES[country] || DEFAULT_PLEX_LIBRARY_LANGUAGE, country }
+}
+
+export const createPlexLibraries = async ({ libraries, timeZone = currentTimeZone(), ...connection }) => {
   const { url, token } = await resolveConnection(connection)
   const sections = await listPlexSections({ url, token })
   const results = []
   for (const library of libraries) {
-    results.push(await createPlexLibrary({ url, token, sections, library }))
+    results.push(await createPlexLibrary({ url, token, sections, library, locale: plexLibraryLocale(timeZone) }))
   }
   return results
 }
@@ -160,7 +168,7 @@ export const discoverLocalPlexServers = async () => {
   })
 }
 
-const createPlexLibrary = async ({ url, token, sections, library }) => {
+const createPlexLibrary = async ({ url, token, sections, library, locale }) => {
   const spec = PLEX_LIBRARY_KINDS[library.kind]
   const name = String(library.name || '').trim()
   const location = String(library.location || '').trim().replace(/(.)\/+$/, '$1')
@@ -181,7 +189,8 @@ const createPlexLibrary = async ({ url, token, sections, library }) => {
       type: spec.type,
       agent: spec.agent,
       scanner: spec.scanner,
-      language: PLEX_LIBRARY_LANGUAGE,
+      language: locale.language,
+      ...(locale.country && { 'prefs[country]': locale.country }),
       location,
       'X-Plex-Token': token,
     },
@@ -251,6 +260,7 @@ const PLEX_LIBRARY_KINDS = {
   oneoff: { name: 'One-offs', type: 'movie', agent: 'tv.plex.agents.none', scanner: 'Plex Video Files' },
   movies: { name: 'Movies', type: 'movie', agent: 'tv.plex.agents.movie', scanner: 'Plex Movie' },
 }
-const PLEX_LIBRARY_LANGUAGE = 'en-US'
+const DEFAULT_PLEX_LIBRARY_LANGUAGE = 'en-US'
+const PLEX_LIBRARY_LANGUAGES = { AU: 'en-AU', NZ: 'en-AU', CA: 'en-CA', GB: 'en-GB', IE: 'en-GB' }
 const GDM_PORT = 32414
 const GDM_TIMEOUT_MS = 2000

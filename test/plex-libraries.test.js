@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import http from 'node:http'
 
-import { createPlexLibraries, listPlexSections, planPlexLibraries } from '../src/plex.js'
+import { createPlexLibraries, listPlexSections, planPlexLibraries, plexLibraryLocale } from '../src/plex.js'
 
 const TOKEN = 'test-token'
 
@@ -85,6 +85,7 @@ test('createPlexLibraries: sends the Plex agent and scanner for each kind', asyn
     const results = await createPlexLibraries({
       url,
       token: TOKEN,
+      timeZone: 'America/New_York',
       libraries: [
         { kind: 'tv', name: 'TV Shows', location: '/data/media/tv' },
         { kind: 'oneoff', name: 'One-offs', location: '/data/media/one-offs/' },
@@ -97,10 +98,48 @@ test('createPlexLibraries: sends the Plex agent and scanner for each kind', asyn
       { kind: 'movies', status: 'created', key: '13' },
     ])
     assert.deepEqual(posts.map((p) => Object.fromEntries([...p].filter(([k]) => k !== 'X-Plex-Token'))), [
-      { name: 'TV Shows', type: 'show', agent: 'tv.plex.agents.series', scanner: 'Plex TV Series', language: 'en-US', location: '/data/media/tv' },
-      { name: 'One-offs', type: 'movie', agent: 'tv.plex.agents.none', scanner: 'Plex Video Files', language: 'en-US', location: '/data/media/one-offs' },
-      { name: 'Movies', type: 'movie', agent: 'tv.plex.agents.movie', scanner: 'Plex Movie', language: 'en-US', location: '/data/media/movies' },
+      { name: 'TV Shows', type: 'show', agent: 'tv.plex.agents.series', scanner: 'Plex TV Series', language: 'en-US', 'prefs[country]': 'US', location: '/data/media/tv' },
+      { name: 'One-offs', type: 'movie', agent: 'tv.plex.agents.none', scanner: 'Plex Video Files', language: 'en-US', 'prefs[country]': 'US', location: '/data/media/one-offs' },
+      { name: 'Movies', type: 'movie', agent: 'tv.plex.agents.movie', scanner: 'Plex Movie', language: 'en-US', 'prefs[country]': 'US', location: '/data/media/movies' },
     ])
+  }, { titles: [] })
+})
+
+test('plexLibraryLocale: maps the time zone country to a Plex language and certification country', () => {
+  const locale = (zone) => plexLibraryLocale(zone)
+  assert.deepEqual(locale('Australia/Sydney'), { language: 'en-AU', country: 'AU' })
+  assert.deepEqual(locale('Pacific/Auckland'), { language: 'en-AU', country: 'NZ' })
+  assert.deepEqual(locale('America/Toronto'), { language: 'en-CA', country: 'CA' })
+  assert.deepEqual(locale('Europe/London'), { language: 'en-GB', country: 'GB' })
+  assert.deepEqual(locale('Europe/Dublin'), { language: 'en-GB', country: 'IE' })
+  assert.deepEqual(locale('America/New_York'), { language: 'en-US', country: 'US' })
+  assert.deepEqual(locale('Europe/Paris'), { language: 'en-US', country: 'FR' })
+  assert.deepEqual(locale('UTC'), { language: 'en-US', country: '' })
+})
+
+test('createPlexLibraries: sends language and prefs[country] from the time zone', async () => {
+  await withPlex(async ({ url, posts }) => {
+    await createPlexLibraries({
+      url,
+      token: TOKEN,
+      timeZone: 'Australia/Melbourne',
+      libraries: [{ kind: 'oneoff', name: 'One-offs', location: '/data/media/one-offs' }],
+    })
+    assert.equal(posts[0].get('language'), 'en-AU')
+    assert.equal(posts[0].get('prefs[country]'), 'AU')
+  }, { titles: [] })
+})
+
+test('createPlexLibraries: omits prefs[country] when the time zone has no country', async () => {
+  await withPlex(async ({ url, posts }) => {
+    await createPlexLibraries({
+      url,
+      token: TOKEN,
+      timeZone: 'UTC',
+      libraries: [{ kind: 'tv', name: 'TV Shows', location: '/data/media/tv' }],
+    })
+    assert.equal(posts[0].get('language'), 'en-US')
+    assert.equal(posts[0].has('prefs[country]'), false)
   }, { titles: [] })
 })
 
