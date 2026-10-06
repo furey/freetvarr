@@ -4353,12 +4353,39 @@ const ChannelSetupStep = {
           </div>
         </div>
 
-        <div v-else-if="state === 'no-tuner'" class="space-y-2">
-          <p class="status-readout err">No TV tuner found yet.</p>
-          <p class="text-sm text-ink">Check that the tuner is on and connected to your network, then press CHECK AGAIN.</p>
-          <button type="button" class="btn" @click="refresh" :disabled="loading">
-            <template v-if="loading">CHECKING…</template><template v-else><refresh-icon /> CHECK AGAIN</template>
-          </button>
+        <div v-else-if="state === 'no-tuner'" class="space-y-4">
+          <div class="space-y-2">
+            <p class="status-readout err">No TV tuner found yet.</p>
+            <p v-if="dockerVm" class="text-sm text-ink">
+              Docker on a Mac or Windows PC cannot find a network tuner by itself. Enter the tuner's address below.
+            </p>
+            <p v-else class="text-sm text-ink">Check that the tuner is on and connected to your network, then press CHECK AGAIN.</p>
+            <p v-if="savedAddress" class="text-sm text-ink-dim">TVHeadend looks for a tuner at {{ savedAddress }}.</p>
+            <button type="button" class="btn" @click="refresh" :disabled="loading">
+              <template v-if="loading">CHECKING…</template><template v-else><refresh-icon /> CHECK AGAIN</template>
+            </button>
+          </div>
+          <form v-if="addressOpen" class="space-y-3 border-t border-hairline pt-3" @submit.prevent="saveAddress">
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="field-row">
+                <label class="field-label" for="tuner-address">Tuner address</label>
+                <input id="tuner-address" type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
+              </div>
+              <div v-if="dockerVm" class="field-row">
+                <label class="field-label" for="tuner-host-address">This computer's address</label>
+                <input id="tuner-host-address" type="text" inputmode="decimal" class="field-input" v-model="hostAddress" placeholder="e.g. 192.168.1.20" />
+              </div>
+            </div>
+            <p class="text-xs text-ink-dim">
+              Find the tuner's address in your router's list of devices, or in the tuner's own app.<template v-if="dockerVm"> This computer's address is the one other devices on your network use to reach this Mac or PC.<template v-if="hostGuessed"> Freetvarr guessed it from the address in your browser.</template></template>
+            </p>
+            <button type="submit" class="btn btn-primary" :disabled="savingAddress || !tunerAddress">
+              <search-icon /> USE THIS ADDRESS
+            </button>
+            <p v-if="addressError" class="status-readout err">{{ addressError }}</p>
+            <p v-if="addressSaved" class="status-readout info">Looking for the tuner at {{ addressSaved }}…</p>
+          </form>
+          <button v-else type="button" class="btn-link" @click="addressOpen = true">Enter the tuner's address</button>
         </div>
 
         <div v-else-if="state === 'unsupported-tuner'" class="space-y-2">
@@ -4439,11 +4466,20 @@ const ChannelSetupStep = {
     const job = ref(null)
     const starting = ref(false)
     const applyError = ref('')
+    const tunerAddress = ref('')
+    const hostAddress = ref('')
+    const hostGuessed = ref(false)
+    const addressOpen = ref(false)
+    const savingAddress = ref(false)
+    const addressError = ref('')
+    const addressSaved = ref('')
     let pollTimer = null
     let retryTimer = null
     let retries = 0
 
     const state = computed(() => status.value?.suggestion?.state || '')
+    const dockerVm = computed(() => status.value?.dockerVm || null)
+    const savedAddress = computed(() => status.value?.tunerAddress?.address || '')
     const tuners = computed(() => status.value?.tuners?.filter((t) =>
       t.deliverySystem === status.value?.suggestion?.deliverySystem?.id) || [])
     const networks = computed(() => status.value?.networks || [])
@@ -4484,6 +4520,15 @@ const ChannelSetupStep = {
       guessed.value = Boolean(suggestion?.transmitterKey)
     }
 
+    const prefillAddress = (r) => {
+      if (r.dockerVm) addressOpen.value = true
+      if (!tunerAddress.value) tunerAddress.value = r.tunerAddress?.address || ''
+      if (hostAddress.value) return
+      const guess = browserLanAddress()
+      hostAddress.value = r.tunerAddress?.hostAddress || guess
+      hostGuessed.value = !r.tunerAddress?.hostAddress && Boolean(guess)
+    }
+
     const refresh = async () => {
       loading.value = true
       loadError.value = ''
@@ -4494,9 +4539,14 @@ const ChannelSetupStep = {
         if (r.job) job.value = r.job
         if (r.job?.running) startPolling()
         prefill(r.suggestion)
+        if (r.suggestion?.state === 'no-tuner') prefillAddress(r)
+        else addressSaved.value = ''
         if (r.suggestion?.state === 'no-tuner' && retries < NO_TUNER_RETRIES) {
           retries += 1
           retryTimer = setTimeout(refresh, NO_TUNER_RETRY_MS)
+        } else if (addressSaved.value) {
+          addressError.value = `No tuner answered at ${addressSaved.value}. Check the address, then press USE THIS ADDRESS again.`
+          addressSaved.value = ''
         }
       } catch (err) {
         loadError.value = err.message
@@ -4541,6 +4591,25 @@ const ChannelSetupStep = {
       }
     }
 
+    const saveAddress = async () => {
+      savingAddress.value = true
+      addressError.value = ''
+      addressSaved.value = ''
+      try {
+        const r = await api('POST', '/api/tvh-setup/tuner-address', {
+          address: tunerAddress.value,
+          host_address: dockerVm.value ? hostAddress.value : null,
+        })
+        addressSaved.value = r.address
+        retries = 0
+        retryTimer = setTimeout(refresh, TUNER_ADDRESS_CHECK_MS)
+      } catch (err) {
+        addressError.value = err.message
+      } finally {
+        savingAddress.value = false
+      }
+    }
+
     const restart = () => {
       job.value = null
       editing.value = true
@@ -4559,7 +4628,9 @@ const ChannelSetupStep = {
       status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
       steps, result, showSteps, waitingForTuner, doneText, recordingNow,
-      refresh, apply, restart, stepDetail, secureStepDot,
+      dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
+      savingAddress, addressError, addressSaved,
+      refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
     }
   },
 }
@@ -4586,9 +4657,15 @@ const scanOrMapDetail = (step) => {
   return ''
 }
 
+const browserLanAddress = () => {
+  const host = window.location.hostname
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host) && !host.startsWith('127.') ? host : ''
+}
+
 const SETUP_POLL_MS = 1500
 const NO_TUNER_RETRY_MS = 15_000
 const NO_TUNER_RETRIES = 3
+const TUNER_ADDRESS_CHECK_MS = 5000
 
 const GuideSetupStep = {
   props: {

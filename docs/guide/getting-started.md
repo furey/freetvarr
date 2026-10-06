@@ -10,7 +10,7 @@ description: >-
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. [Hardware](/guide/hardware) covers the choice.
-- **Docker with Compose v2** on a host that stays on.
+- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac or Windows PC cannot find a network tuner on their own; enter the tuner's address in the wizard's `CHANNELS` step instead ([Missing tuner](/guide/troubleshooting#missing-tuner)).
 
 The compose file runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the compose file can run Plex too ([No Plex yet?](/guide/plex#no-plex-yet)).
 
@@ -56,7 +56,7 @@ The first visit to `http://<host-ip>:3733` opens the setup wizard:
 
 1. **Welcome**: confirm your time zone.
 2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password, check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
-3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`.
+3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`. If the wizard finds no tuner, enter the tuner's address and press `USE THIS ADDRESS`.
 4. **Guide**: check the guide region, then press `SET UP GUIDE`. Pick a guide for any channel left without one, or leave it. Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
 5. **Storage**: keep the defaults.
 6. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)). If Plex has no library for your recordings yet, press `CREATE LIBRARIES`.
