@@ -359,6 +359,8 @@ const startChannelSetup = ({ sim, body }) => {
       networkId: plan.networkId,
       scan: scanDetail(1),
       mapped: mapDetail(1),
+      channels: sim.fixtures.channelGrid.entries.length,
+      channelsBefore: 0,
       steps: finished,
     }),
   })
@@ -409,7 +411,12 @@ const guideSetupPlan = ({ modules, fixtures, timeZone }) => {
     present: guideChannels.filter((g) => wanted.has(g.xmltvId)).length,
     linked: new Set(matched.links.map((l) => l.channelId)).size,
     total: channels.length,
-    unmatched: matched.unmatched.map(({ id, name, number }) => ({ id, name, number })),
+    unmatched: matched.unmatched.map(({ id, name, number }) => ({
+      id,
+      name,
+      number,
+      guess: modules.guessGuideChannel({ channel: { name }, candidates: guideChannels }),
+    })),
     options: guideChannels.map((g) => ({ id: g.id, name: g.name })).sort((a, b) => a.name.localeCompare(b.name)),
   }
 }
