@@ -9,6 +9,7 @@ import {
 const BASE = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
 const OUT = process.env.WALKTHROUGH_OUT || '/work'
 const VIEWPORT = { width: 1280, height: 800 }
+const DEVICE_SCALE = 2
 const VIEW_REVEAL_MS = 850
 const LIVE_PLAY_MS = 3500
 const POSTER_AFTER_PLAY_S = 2.5
@@ -73,13 +74,15 @@ const watchLiveBriefly = async (page, watchButton) => {
 const run = async () => {
   const simNow = simulatedNow()
   console.log(`simulated now: ${new Date(simNow).toString()}`)
-  const browser = await chromium.launch({ args: ['--font-render-hinting=none'] })
+  const browser = await chromium.launch({
+    args: ['--font-render-hinting=none', `--force-device-scale-factor=${DEVICE_SCALE}`],
+  })
   const context = await browser.newContext({
     viewport: VIEWPORT,
-    deviceScaleFactor: 2,
+    deviceScaleFactor: DEVICE_SCALE,
     bypassCSP: true,
     timezoneId: TIMEZONE,
-    recordVideo: { dir: OUT, size: { width: VIEWPORT.width * 2, height: VIEWPORT.height * 2 } },
+    recordVideo: { dir: OUT, size: { width: VIEWPORT.width * DEVICE_SCALE, height: VIEWPORT.height * DEVICE_SCALE } },
   })
   const picks = await prepareDemoContext({ context, base: BASE, simNow })
   console.log(`programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; search: ${picks.searchTerm}`)

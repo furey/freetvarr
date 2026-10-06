@@ -9,6 +9,7 @@ const OUT = process.env.WIZARD_OUT || '/work'
 const STILL_OUT = process.env.WIZARD_STILL_OUT || '/work/docs/img'
 const ONLY = (process.env.WIZARD_ONLY || '').trim()
 const VIDEO_VIEWPORT = { width: 1280, height: 800 }
+const DEVICE_SCALE = 2
 const STILL_VIEWPORT = { width: 1280, height: 936 }
 const STILL_FILE = 'screenshot-wizard-secure.png'
 const TYPE_DELAY_MS = 50
@@ -22,7 +23,9 @@ const GUIDE_PICKS = [
 ]
 
 const run = async () => {
-  const browser = await chromium.launch({ args: ['--font-render-hinting=none'] })
+  const browser = await chromium.launch({
+    args: ['--font-render-hinting=none', `--force-device-scale-factor=${DEVICE_SCALE}`],
+  })
   const serverWrites = []
   if (ONLY !== 'video') serverWrites.push(...await captureSecureStill(browser))
   if (ONLY !== 'still') serverWrites.push(...await recordTour(browser))
@@ -36,7 +39,7 @@ const run = async () => {
 
 const captureSecureStill = async (browser) => {
   const simNow = simulatedNow()
-  const context = await browser.newContext({ viewport: STILL_VIEWPORT, deviceScaleFactor: 2, timezoneId: TIMEZONE })
+  const context = await browser.newContext({ viewport: STILL_VIEWPORT, deviceScaleFactor: DEVICE_SCALE, timezoneId: TIMEZONE })
   await context.clock.install({ time: simNow })
   const { serverWrites } = await prepareWizardContext({ context, timeZone: TIMEZONE, simNow })
   const page = await context.newPage()
@@ -62,10 +65,10 @@ const recordTour = async (browser) => {
   const simNow = simulatedNow()
   const context = await browser.newContext({
     viewport: VIDEO_VIEWPORT,
-    deviceScaleFactor: 2,
+    deviceScaleFactor: DEVICE_SCALE,
     bypassCSP: true,
     timezoneId: TIMEZONE,
-    recordVideo: { dir: OUT, size: { width: VIDEO_VIEWPORT.width * 2, height: VIDEO_VIEWPORT.height * 2 } },
+    recordVideo: { dir: OUT, size: { width: VIDEO_VIEWPORT.width * DEVICE_SCALE, height: VIDEO_VIEWPORT.height * DEVICE_SCALE } },
   })
   await context.clock.install({ time: simNow })
   const { serverWrites } = await prepareWizardContext({ context, timeZone: TIMEZONE, simNow })
