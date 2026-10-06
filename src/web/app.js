@@ -4655,6 +4655,11 @@ const recordingWarning = (recordings) => {
   return `TVHeadend is recording ${what}${until}. A scan now can cause brief glitches in the recording, so you may want to wait.`
 }
 
+const syncFrequency = (cron) => {
+  const preset = SYNC_SCHEDULE_PRESETS.find((p) => p.cron === syncSchedulePreset(cron))
+  return preset ? preset.label.toLowerCase() : 'on your sync schedule'
+}
+
 const channelsAddedText = (result) => {
   const total = result?.channels || 0
   const added = total - (result?.channelsBefore || 0)
@@ -5175,7 +5180,7 @@ const WelcomeView = {
               </ul>
             </div>
             <p class="text-ink-dim text-sm leading-relaxed">
-              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Freetvarr checks for finished recordings every 30 minutes and adds them to your library.
+              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }}, and changes nothing.
@@ -5262,6 +5267,8 @@ const WelcomeView = {
     const saved = reactive({
       mediaRoot: '', recordingsRoot: '', tvhRecordingsPath: '', plexUrl: '', plexSectionId: '', plexPrefsPath: '',
     })
+    const syncCron = ref(DEFAULT_SYNC_CRON)
+    const syncFrequencyText = computed(() => syncFrequency(syncCron.value))
 
     const hasExistingConfig = computed(() =>
       Boolean(tvhUrl.value || tvhPasswordSet.value || saved.plexUrl || plexTokenSet.value || saved.plexSectionId),
@@ -5272,6 +5279,7 @@ const WelcomeView = {
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
+      syncCron.value = s.sync_cron_effective || DEFAULT_SYNC_CRON
       tzSource.value = s.tz_source || 'system'
       timeZone.value = s.time_zone || s.tz_env || browserTimeZone() || s.tz || 'UTC'
       recordingsRoot.value = s.recordings_root || ''
@@ -5762,7 +5770,7 @@ const WelcomeView = {
     }
 
     return {
-      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, nextIsPrimary, plexIsSetUp, guideStep, hasExistingConfig, channelState, guideState, readySkipped,
+      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, nextIsPrimary, plexIsSetUp, syncFrequencyText, guideStep, hasExistingConfig, channelState, guideState, readySkipped,
       timeZone, tzSource,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
