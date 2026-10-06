@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into your media library.",
   "license": "GPL-3.0-or-later",
