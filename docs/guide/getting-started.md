@@ -65,7 +65,7 @@ Every value can be changed later in Settings.
 
 ## 3. Record something
 
-Open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **Settings → HELP → RUN DOCTOR**.
+Open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in **Settings → SCHEDULE**) and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **Settings → HELP → RUN DOCTOR**.
 
 ## Configure
 
