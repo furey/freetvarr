@@ -36,6 +36,7 @@ import {
   normaliseCron,
   syncSchedulePreset,
 } from '/sync-schedule.js'
+import { withBrowserNetwork } from '/lan-network.js'
 
 let csrfToken = null
 
@@ -3494,7 +3495,7 @@ const SettingsView = {
             <span class="panel-title">HELP</span>
             <info-button title="HELP" doc="guide/troubleshooting#reporting-a-bug">
               <p><strong>REOPEN WIZARD</strong> walks the first-run setup again, with your saved values filled in.</p>
-              <p><strong>RUN DOCTOR</strong> checks your setup and says what to fix. It changes nothing.</p>
+              <p><strong>RUN DOCTOR</strong> checks your setup and says what to fix.</p>
               <p>The versions Freetvarr is running with. Include them when you report a bug. <strong>COPY</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser.</p>
             </info-button>
           </span>
@@ -3514,7 +3515,7 @@ const SettingsView = {
             <div class="max-w-2xl">
               <span class="settings-block-title">HEALTH CHECK</span>
               <p class="text-sm text-ink-dim leading-relaxed">
-                The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix. It changes nothing.
+                The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix.
               </p>
             </div>
             <a href="#/doctor" class="btn no-hover-underline"><pulse-icon /> RUN DOCTOR</a>
@@ -4031,7 +4032,7 @@ const DoctorView = {
           <span class="panel-heading">
             <span class="panel-title">DOCTOR</span>
             <info-button title="DOCTOR" doc="guide/doctor">
-              <p>Checks TVHeadend, the guide, the folders, Plex, live TV, and the host, then says what to fix. It only reads; it changes nothing.</p>
+              <p>Checks TVHeadend, the guide, the folders, Plex, live TV, and the host, then says what to fix.</p>
               <ul><li><strong>Pass</strong>: nothing to do.</li><li><strong>Warn</strong>: Freetvarr works, but something costs space, guide data, or picture quality.</li><li><strong>Fail</strong>: something Freetvarr needs is broken. The row says how to fix it.</li><li><strong>Skip</strong>: the check could not run, usually because an earlier check failed.</li></ul>
               <p><strong>RE-RUN</strong> checks again. Otherwise the results can be up to 15 seconds old.</p>
             </info-button>
@@ -4058,7 +4059,7 @@ const DoctorView = {
           </div>
           <p v-if="error" class="status-readout err">Doctor failed: {{ error }}</p>
           <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
-            The Doctor reads TVHeadend, Plex, and the folders Freetvarr uses, then lists what needs fixing. It changes nothing.
+            The Doctor checks TVHeadend, Plex, and the folders Freetvarr uses, then lists what needs fixing.
           </p>
         </div>
       </section>
@@ -4966,7 +4967,7 @@ const WelcomeView = {
                 <label class="field-label">Allowed networks</label>
                 <input type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
                 <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses; add any network you sign in to TVHeadend from.
+                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses and this browser's network; add any network you sign in to TVHeadend from.
                 </p>
               </div>
               <p class="text-xs text-ink-mute leading-relaxed">
@@ -5183,7 +5184,7 @@ const WelcomeView = {
               Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }}, and changes nothing.
+              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It checks {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }} and lists anything to fix.
             </p>
           </div>
 
@@ -5692,7 +5693,12 @@ const WelcomeView = {
         const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
         if (url !== tvhUrl.value.trim()) return
         bootstrap.value = status
-        if (status?.fresh && !securePrefixes.value) securePrefixes.value = status.suggestedPrefixes.join(', ')
+        if (status?.fresh && !securePrefixes.value) {
+          securePrefixes.value = withBrowserNetwork({
+            prefixes: status.suggestedPrefixes,
+            host: window.location.hostname,
+          }).join(', ')
+        }
       }, BOOTSTRAP_CHECK_DELAY_MS)
     }
     watch(tvhUrl, () => {
