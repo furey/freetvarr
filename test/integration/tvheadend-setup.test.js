@@ -8,8 +8,11 @@ import {
   createNetwork,
   inspectSetup,
   listTransmitters,
+  readTunerAddress,
+  saveTunerAddress,
   suggestChannelSetup,
   summariseScan,
+  tunerAddressConfig,
 } from '../../src/tvheadend-setup.js'
 import { dockerAvailable, eventually, startTvheadend } from './tvheadend-container.js'
 
@@ -46,4 +49,20 @@ test('channel setup reads a tuner-less TVHeadend, creates a network from a scan 
   const profiles = await tvhRead('dvr/config/grid', {}, conn)
   assert.equal(profiles.entries.find((c) => c.name === '')['rerecord-errors'], 0)
   assert.deepEqual(await checkRecordingProfile({ http, conn }), { changed: false })
+})
+
+test('a tuner address saves to TVHeadend and leaves the other settings alone', { timeout: 300_000 }, async (t) => {
+  if (!(await dockerAvailable())) return t.skip('docker is not available')
+  const tvh = await startTvheadend()
+  t.after(() => tvh.stop())
+  const http = { get: tvhRead, post: tvhWrite }
+  const conn = { url: tvh.url, username: '', password: '' }
+
+  assert.deepEqual(await readTunerAddress({ http, conn }), { address: '', hostAddress: '' })
+  const { node } = tunerAddressConfig({ address: '192.0.2.10', hostAddress: '192.0.2.20', dockerVm: 'OrbStack' })
+  await saveTunerAddress({ http, conn, node })
+  assert.deepEqual(await readTunerAddress({ http, conn }), { address: '192.0.2.10', hostAddress: '192.0.2.20' })
+  const params = (await tvhRead('config/load', {}, conn)).entries[0].params
+  assert.equal(params.find((p) => p.id === 'local_port').value, 9983)
+  assert.equal(params.find((p) => p.id === 'server_name').value, 'Tvheadend')
 })

@@ -11,8 +11,10 @@ import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHard
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
+import { formatDiskSize } from './web/size-format.js'
 import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
 import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
+import { detectDockerVm } from './docker-host.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -189,13 +191,7 @@ const LATER_CHECKS = [
       ])
       const inputs = (body?.entries || []).map((i) => i.input).filter(Boolean)
       const count = walked ?? inputs.length
-      if (!count) {
-        return {
-          status: 'fail',
-          detail: 'TVHeadend sees no tuner.',
-          fix: 'No tuner visible. Set network_mode: host on the tvheadend service for a network tuner, or pass /dev/dvb into it for a USB or PCIe tuner.',
-        }
-      }
+      if (!count) return { status: 'fail', detail: 'TVHeadend sees no tuner.', ...noTunerFix(ctx.deps) }
       if (!inputs.length) {
         return {
           status: 'warn',
@@ -241,10 +237,13 @@ const LATER_CHECKS = [
     doc: 'guide/troubleshooting#empty-guide',
     needsTvh: true,
     run: async (ctx) => {
-      const [body, guide] = await Promise.all([
+      const [body, guide, channelGrid] = await Promise.all([
         ctx.read('epg/events/grid', { sort: 'stop', dir: 'DESC', limit: 1 }),
         settleWithin(ctx.deps.guide(), ctx.timeoutMs / 2),
+        ctx.read('channel/grid', { limit: 1 }),
       ])
+      const channelTotal = Number(channelGrid?.total ?? channelGrid?.entries?.length ?? 0)
+      if (!channelTotal) return { status: 'skip', detail: NO_CHANNELS_YET }
       const lastStop = body?.entries?.[0]?.stop
       const lastStopMs = lastStop ? lastStop * 1000 : null
       const coverage = guide ? guideCoverage({ guide, now: ctx.now }) : null
@@ -279,6 +278,7 @@ const LATER_CHECKS = [
       const params = config?.entries?.[0]?.params || []
       const param = (id) => params.find((p) => p.id === id)?.value
       const channels = (grid?.entries || []).filter((c) => c.enabled !== false)
+      if (!channels.length) return { status: 'skip', detail: NO_CHANNELS_YET }
       const withIcon = channels.filter((c) => c.icon_public_url).length
       const detail = `${share(withIcon, channels.length)} a TVHeadend icon.`
       if (param('prefer_picon') && !param('piconpath')) {
@@ -399,7 +399,7 @@ const LATER_CHECKS = [
       return {
         status: worst.status,
         detail: `${detail}.`,
-        fix: `${fmtGb(worst.free)} free on ${worst.folder}. Recordings will fail when it fills.`,
+        fix: `${formatDiskSize(worst.free)} free on ${worst.folder}. Recordings will fail when it fills.`,
       }
     },
   },
@@ -454,7 +454,7 @@ const LATER_CHECKS = [
   },
   {
     id: 'sync.health',
-    group: 'plex',
+    group: 'syncs',
     title: 'Syncs',
     doc: 'guide/syncs',
     run: async (ctx) => {
@@ -553,7 +553,9 @@ const LATER_CHECKS = [
       ].filter(Boolean)
       if (!problems.length) {
         const addresses = joinAnd(ipv4Addresses(ctx.deps.interfaces()))
-        return { status: 'pass', detail: `Time zone ${timeZone.zone} (${ZONE_SOURCES[timeZone.source]}); ${addresses}.` }
+        const vm = ctx.deps.dockerVm()
+        const where = vm ? `; Docker runs in a virtual machine (${vm})` : ''
+        return { status: 'pass', detail: `Time zone ${timeZone.zone} (${ZONE_SOURCES[timeZone.source]}); ${addresses}${where}.` }
       }
       return {
         status: 'warn',
@@ -645,8 +647,8 @@ const diskReading = async ({ folder, statfs }) => {
 }
 
 const describeDisk = ({ folder, free, total }) => total > 0
-  ? `${fmtGb(free)} free on ${folder} (${Math.round((free / total) * 100)}%)`
-  : `${fmtGb(free)} free on ${folder}`
+  ? `${formatDiskSize(free)} free on ${folder} (${Math.round((free / total) * 100)}%)`
+  : `${formatDiskSize(free)} free on ${folder}`
 
 const guideReach = ({ lastStopMs, now }) => {
   if (!lastStopMs) return 'The guide has no programmes.'
@@ -669,6 +671,23 @@ const timeZoneProblem = ({ zone, source, stored }) => {
     return { detail: 'No time zone is chosen, so Freetvarr runs on UTC.', fix: TZ_SETTINGS_FIX, doc, action: SETTINGS_SCHEDULE }
   }
   return null
+}
+
+const noTunerFix = ({ dockerVm, interfaces }) => {
+  const vm = dockerVm()
+  if (vm) {
+    return {
+      fix: `Docker on a Mac or Windows PC (${vm}) cannot find a network tuner by itself. Enter the tuner's address in the CHANNELS step of the setup wizard, or run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi).`,
+      action: OPEN_WIZARD,
+    }
+  }
+  const network = isBridgeOnly(interfaces())
+    ? 'Set network_mode: host on the tvheadend and freetvarr services.'
+    : 'Check that the tuner is on and connected to your network.'
+  return {
+    fix: `${network} Or enter the tuner's address in the CHANNELS step of the setup wizard. For a USB or PCIe tuner, pass /dev/dvb into the tvheadend service.`,
+    action: OPEN_WIZARD,
+  }
 }
 
 const networkProblem = (interfaces) => {
@@ -740,6 +759,7 @@ const defaultDeps = () => ({
   envTimeZone: timeZoneFromEnv,
   systemTimeZone: currentTimeZone,
   interfaces: () => os.networkInterfaces(),
+  dockerVm: () => detectDockerVm(),
   uid: () => process.getuid?.() ?? null,
 })
 
@@ -801,7 +821,6 @@ const fmtStamp = (ms) => {
   return `${date} ${formatClock(ms, timeZone)}`
 }
 
-const fmtGb = (bytes) => `${(bytes / GB).toFixed(bytes < 10 * GB ? 1 : 0)}GB`
 
 const fmtSeconds = (ms) => formatSeconds(ms / 1000)
 
@@ -832,6 +851,7 @@ const GUIDE_FAIL_MS = 12 * HOUR_MS
 const GUIDE_WARN_MS = 48 * HOUR_MS
 const GUIDE_EMPTY_SHARE = 0.25
 const GB = 1e9
+const NO_CHANNELS_YET = 'No channels yet.'
 const DISK_FAIL_BYTES = 2 * GB
 const DISK_WARN_BYTES = 20 * GB
 const DISK_WARN_SHARE = 0.1
@@ -852,3 +872,4 @@ const SETTINGS_STORAGE = { label: 'Open settings', href: '#/settings/storage' }
 const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
 const OPEN_SYNCS = { label: 'Open syncs', href: '#/syncs' }
+const OPEN_WIZARD = { label: 'Open setup wizard', href: '#/welcome' }

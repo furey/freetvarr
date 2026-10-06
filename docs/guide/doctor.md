@@ -48,11 +48,11 @@ Counts TVHeadend's channels. It fails at `0`; the **Channels** step of the setup
 
 ## Guide depth {#guide-depth}
 
-Finds the last programme in TVHeadend's guide and counts the channels with nothing in the next `24` hours. It fails when the guide ends within `12` hours. It warns when the guide ends within `48` hours, or when more than a quarter of the channels are empty. See [Empty guide](/guide/troubleshooting#empty-guide).
+Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the last programme in TVHeadend's guide and counts the channels with nothing in the next `24` hours. It fails when the guide ends within `12` hours. It warns when the guide ends within `48` hours, or when more than a quarter of the channels are empty. See [Empty guide](/guide/troubleshooting#empty-guide).
 
 ## Channel logos {#guide-logos}
 
-Counts the channels that have a TVHeadend icon. It warns when **Prefer picons over channel icons** is on but no **Picon path** is set, because TVHeadend then reports no icon at all. See [Missing channel logos](/guide/troubleshooting#missing-channel-logos).
+Counts the channels that have a TVHeadend icon. It skips when there are no channels. It warns when **Prefer picons over channel icons** is on but no **Picon path** is set, because TVHeadend then reports no icon at all. See [Missing channel logos](/guide/troubleshooting#missing-channel-logos).
 
 ## Recordings folder {#paths-recordings}
 
@@ -72,7 +72,7 @@ Makes a real test hardlink from the recordings folder into the media folder and 
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Recordings fail when the disk fills.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills.
 
 ## Plex library {#plex-reach}
 
@@ -80,7 +80,7 @@ Lists Plex's library sections. It skips when Plex is not set up. It fails when P
 
 ## Syncs {#sync-health}
 
-Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. See [Syncs](/guide/syncs).
+Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. It works without Plex, so it has its own **SYNCS** group on the Doctor page. See [Syncs](/guide/syncs).
 
 ## Live TV encoder {#live-encoder}
 
