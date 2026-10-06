@@ -262,7 +262,7 @@ The Recordings tab shows each entry as a progress bar with percent and ETA. Its 
 
 TVHeadend deletes a guide event once it ends, so on its own the guide has nothing before now. Freetvarr saves every event it fetches into the `guide_history` table (`src/guide-history.js`, migration `0002`), and the scheduler fetches the guide at most once an hour so history builds even when nobody has the app open. Rows that ended before the start of yesterday are pruned on each save. `GET /api/epg/guide` merges saved past events with TVHeadend's live ones (live data wins on overlap) and marks each event `past`; `recorded` means the event had a DVR entry when it was last seen, not that the recording succeeded.
 
-Each guide day is built from calendar dates in Freetvarr's time zone (`guideDayWindow` in `src/epg.js`, client helpers in `src/web/guide-time.js`), so a daylight-saving day is 23 or 25 hours long and its ruler labels stay right. The window runs from local midnight to 3 am the next day (`spillEnd`); a programme that crosses midnight comes back once, at full width. At midnight the client reloads TODAY. `test/guide-day.test.js` covers the Sydney changes on `2026-10-04` and `2027-04-04`.
+Each guide day is built from calendar dates in Freetvarr's time zone (`guideDayWindow` in `src/epg.js`, client helpers in `src/web/guide-time.js`), so a daylight-saving day is 23 or 25 hours long and its ruler labels stay right. The window runs from local midnight to 3am the next day (`spillEnd`); a programme that crosses midnight comes back once, at full width. At midnight the client reloads TODAY. `test/guide-day.test.js` covers the Sydney changes on `2026-10-04` and `2027-04-04`.
 
 ## Live TV
 
