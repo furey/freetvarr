@@ -72,7 +72,7 @@ Makes a real test hardlink from the recordings folder into the media folder and 
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk; the real limit is your computer's own disk.
 
 ## Plex library {#plex-reach}
 
@@ -84,7 +84,7 @@ Reads the last finished sync and the sync schedule. It warns when the last sync 
 
 ## Live TV encoder {#live-encoder}
 
-Reports the video encoder Freetvarr chose for live TV when it started. It fails when `ffmpeg` is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes. See [Hardware transcoding](/guide/hardware#hardware-transcoding).
+Reports the video encoder Freetvarr chose for live TV when it started. It fails when `ffmpeg` is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes, and so does Docker on a Mac or Windows PC, which cannot use the graphics chip. See [Hardware transcoding](/guide/hardware#hardware-transcoding).
 
 ## Ad removal tools {#ads-comskip}
 
