@@ -23,7 +23,7 @@ The compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex t
    ```
 
 4. Start the services: `docker compose up -d`.
-5. In the wizard's Plex step (or Settings → PLEX), keep the URL `http://127.0.0.1:32400`. Freetvarr fills in the token.
+5. Open the wizard's Plex step. Freetvarr finds Plex and its token itself. In Settings → PLEX instead, enter the URL `http://127.0.0.1:32400` and press `AUTO-DETECT TOKEN`.
 6. Check the library names and folders, then press `CREATE LIBRARIES`.
 
 Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a movies folder, it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings. Each library uses the language and rating system of the country from your time zone.
@@ -37,7 +37,9 @@ If the claim code expired before Plex started, Plex runs without an account and 
 
 ## Point Freetvarr at Plex
 
-In Settings (or the wizard's Plex step), set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. Auto-discover finds Plex servers on your network.
+The wizard's Plex step looks for Plex servers on your network and reads the token from Plex's settings file. When it connects, it picks the TV library that reads Freetvarr's TV folder; check it, or pick another. If it finds no Plex, press `SKIP`. If it finds Plex but no token, open **Advanced: connect Plex by hand** and paste the token ([The token](#the-token)).
+
+In Settings → PLEX, set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. `AUTO-DISCOVER PLEX` finds Plex servers on your network.
 
 ## Create the libraries
 

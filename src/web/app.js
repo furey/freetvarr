@@ -493,7 +493,7 @@ const recordingsFolderStatus = async ({ path, mediaRoot }) => {
     }
   }
   const hardlinks = r.hardlinks ? ', and imports into the media root hardlink' : ''
-  return { text: `OK — ${r.path} is readable${hardlinks}.`, kind: 'ok' }
+  return { text: `${r.path} is readable${hardlinks}.`, kind: 'ok' }
 }
 
 const tvhRecordingsPathStatus = async ({ path, fill }) => {
@@ -505,7 +505,7 @@ const tvhRecordingsPathStatus = async ({ path, fill }) => {
     fill(r.tvhPath)
     return { text: `Filled in from TVHeadend: ${r.tvhPath}. Save to keep it.`, kind: 'ok' }
   }
-  if (r.matches) return { text: `OK — TVHeadend records to ${r.tvhPath}.`, kind: 'ok' }
+  if (r.matches) return { text: `TVHeadend records to ${r.tvhPath}.`, kind: 'ok' }
   return { text: `TVHeadend records to ${r.tvhPath}, not ${r.configured}.`, kind: 'err' }
 }
 
@@ -3230,7 +3230,7 @@ const SettingsView = {
           <div class="panel-body space-y-4">
             <div class="field-row">
               <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="mediaRoot" placeholder="/media/tv" />
+              <input type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.
               </p>
@@ -3243,7 +3243,7 @@ const SettingsView = {
             </div>
             <div class="field-row">
               <label class="field-label">One-off folder <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="oneOffRoot" placeholder="/media/one-offs" />
+              <input type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.
               </p>
@@ -3277,7 +3277,7 @@ const SettingsView = {
             <div class="grid gap-4 md:grid-cols-2 pt-1">
               <div class="field-row">
                 <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
+                <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
                     <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -3322,7 +3322,7 @@ const SettingsView = {
               <span v-else class="text-xs font-mono text-ink-dim">looks on your home network</span>
             </div>
             <div v-if="plexCandidates.length > 1" class="md:col-span-2">
-              <p class="text-sm text-ink-dim mb-2">Multiple Plex servers found — pick one:</p>
+              <p class="text-sm text-ink-dim mb-2">Freetvarr found more than one Plex server. Pick yours:</p>
               <ul class="space-y-2">
                 <li v-for="c in plexCandidates" :key="c.ip + ':' + c.port">
                   <button type="button" class="btn" @click="usePlexCandidate(c)">
@@ -3849,7 +3849,7 @@ const SettingsView = {
           usePlexCandidate(servers[0])
         } else {
           plexCandidates.value = servers
-          setPlexDiscover(`Found ${servers.length} Plex servers — choose one below.`, 'info', 5000)
+          setPlexDiscover(`Found ${servers.length} Plex servers. Choose one below.`, 'info', 5000)
         }
       } catch (err) {
         setPlexDiscover(`Plex discovery failed: ${err.message}`, 'err', 5000)
@@ -3869,7 +3869,7 @@ const SettingsView = {
       oneOffRootStatus.value = ''
       try {
         const r = await api('POST', '/api/media-root-test', { path: oneOffRoot.value || '/media/one-offs' })
-        oneOffRootStatus.value = r.ok ? `OK — ${r.path} is writable.` : r.error
+        oneOffRootStatus.value = r.ok ? `${r.path} is writable.` : r.error
         oneOffRootStatusKind.value = r.ok ? 'ok' : 'err'
       } catch (err) {
         oneOffRootStatus.value = `Test failed: ${err.message}`
@@ -3884,7 +3884,7 @@ const SettingsView = {
       moviesRootStatus.value = ''
       try {
         const r = await api('POST', '/api/media-root-test', { path: moviesRoot.value })
-        moviesRootStatus.value = r.ok ? `OK — ${r.path} is writable.` : r.error
+        moviesRootStatus.value = r.ok ? `${r.path} is writable.` : r.error
         moviesRootStatusKind.value = r.ok ? 'ok' : 'err'
       } catch (err) {
         moviesRootStatus.value = `Test failed: ${err.message}`
@@ -3900,7 +3900,7 @@ const SettingsView = {
       try {
         const r = await api('POST', '/api/media-root-test', { path: mediaRoot.value })
         if (r.ok) {
-          mediaRootStatus.value = `OK — ${r.path} is writable.`
+          mediaRootStatus.value = `${r.path} is writable.`
           mediaRootStatusKind.value = 'ok'
         } else {
           mediaRootStatus.value = r.error
@@ -4923,62 +4923,83 @@ const WelcomeView = {
           <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" @state="guideState = $event" />
 
           <div v-if="step === 5" class="space-y-4">
-            <p class="text-ink text-sm leading-relaxed">
-              Where Freetvarr writes imported episodes inside the container. Leave blank to fall back to <code>MEDIA_ROOT</code> env (default <code>/media/tv</code>).
-            </p>
-            <div class="field-row">
-              <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="mediaRoot" placeholder="/media/tv" />
-              <div class="flex flex-wrap items-center gap-3 mt-2">
-                <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
-                  <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
-                </button>
-                <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
+            <p v-if="storageChecking" class="status-readout info">Checking the folders…</p>
+            <template v-else-if="storageChecked">
+              <template v-if="!storageProblems.length">
+                <p class="text-ink text-sm leading-relaxed">{{ storageSummary }}</p>
+                <p class="status-readout ok">The folder checks passed.</p>
+              </template>
+              <div v-for="p in storageProblems" :key="p.text" class="space-y-1">
+                <p class="status-readout err">{{ p.text }}</p>
+                <p class="text-sm text-ink leading-relaxed">{{ p.fix }}</p>
               </div>
-              <p class="text-xs text-ink-mute mt-2 leading-relaxed">
-                Must match a bind-mount target in your <code>docker-compose.yml</code> — changing it without updating compose will silently fail.
-              </p>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="field-row">
-                <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/recordings" />
-                <div class="flex flex-wrap items-center gap-3 mt-2">
-                  <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
-                    <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
-                  </button>
-                  <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
+              <p v-for="note in storageNotes" :key="note" class="status-readout info">{{ note }}</p>
+              <button v-if="storageProblems.length" type="button" class="btn btn-sm" @click="checkStorage">
+                <refresh-icon /> CHECK AGAIN
+              </button>
+            </template>
+            <details class="settings-disclosure" :open="storageAdvancedOpen" @toggle="storageAdvancedOpen = $event.target.open">
+              <summary>Advanced: change folders</summary>
+              <div class="settings-disclosure-body space-y-4">
+                <p class="text-xs text-ink-mute leading-relaxed">
+                  Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too.
+                </p>
+                <div class="field-row">
+                  <label class="field-label">TV library folder</label>
+                  <input type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
+                  <div class="flex flex-wrap items-center gap-3 mt-2">
+                    <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
+                      <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
+                    </button>
+                    <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
+                  </div>
                 </div>
-              </div>
-              <div class="field-row">
-                <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
-                <div class="flex flex-wrap items-center gap-3 mt-2">
-                  <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
-                    <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
-                  </button>
-                  <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
+                <div class="grid gap-4 md:grid-cols-2">
+                  <div class="field-row">
+                    <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
+                    <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
+                    <div class="flex flex-wrap items-center gap-3 mt-2">
+                      <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
+                        <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
+                      </button>
+                      <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
+                    </div>
+                  </div>
+                  <div class="field-row">
+                    <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
+                    <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                    <div class="flex flex-wrap items-center gap-3 mt-2">
+                      <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
+                        <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
+                      </button>
+                      <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
+                    </div>
+                  </div>
                 </div>
+                <p class="text-xs text-ink-mute leading-relaxed">
+                  TVHeadend and Freetvarr share the recordings folder. Each can see it at a different path.
+                </p>
               </div>
-            </div>
-            <p class="text-xs text-ink-mute leading-relaxed">
-              Both containers must mount the same folder; Freetvarr rewrites TVHeadend's file paths onto its own mount.
-            </p>
+            </details>
           </div>
 
           <div v-if="step === 6" class="space-y-4">
-            <p class="text-ink text-sm leading-relaxed">
-              <strong>Optional.</strong> Connect to <strong class="text-plex-yellow">Plex</strong> so Freetvarr can trigger a library refresh after each sync. If Plex has no library for your recordings yet, Freetvarr can create one. Skip if you don't use Plex.
-            </p>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
-                <template v-if="plexDiscovering">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER PLEX</template>
-              </button>
-              <span v-if="plexDiscoverText"
-                :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
-            </div>
-            <div v-if="plexCandidates.length > 1" class="space-y-2">
-              <p class="text-sm text-ink-dim">Multiple Plex servers found — pick one:</p>
+            <p v-if="plexChecking" class="status-readout info">Looking for Plex…</p>
+            <template v-else-if="plexConnected">
+              <p class="text-ink text-sm leading-relaxed">Connected to <strong class="text-plex-yellow">Plex</strong> at {{ plexUrl }}.</p>
+              <div v-if="plexShowSections.length" class="field-row">
+                <label class="field-label" for="wizard-plex-tv-library">TV library</label>
+                <select id="wizard-plex-tv-library" class="field-input" v-model="plexSectionId">
+                  <option value="">Pick a library</option>
+                  <option v-for="sec in plexShowSections" :key="sec.key" :value="sec.key">{{ sec.title }}</option>
+                </select>
+                <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                  After each sync, Freetvarr asks Plex to refresh this library.
+                </p>
+              </div>
+            </template>
+            <div v-else-if="plexCandidates.length > 1" class="space-y-2">
+              <p class="text-sm text-ink-dim">Freetvarr found more than one Plex server. Pick yours:</p>
               <ul class="space-y-2">
                 <li v-for="c in plexCandidates" :key="c.ip + ':' + c.port">
                   <button type="button" class="btn" @click="usePlexCandidate(c)">
@@ -4987,52 +5008,61 @@ const WelcomeView = {
                 </li>
               </ul>
             </div>
-            <div class="grid gap-4">
-              <div class="field-row">
-                <label class="field-label">Plex URL</label>
-                <input type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
-              </div>
-              <div class="field-row">
-                <label class="field-label">Plex token</label>
-                <input type="password" class="field-input" v-model="plexToken"
-                  :placeholder="plexTokenSet ? '••••• (stored)' : 'X-Plex-Token'" autocomplete="off" />
-                <div class="mt-2 flex flex-wrap items-center gap-3">
-                  <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
-                    <template v-if="plexDetectingToken">DETECTING…</template><template v-else><bolt-icon /> AUTO-DETECT TOKEN</template>
-                  </button>
-                  <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
-                </div>
-                <p class="text-xs text-ink-mute mt-2 leading-relaxed">
-                  Reads <code>PlexOnlineToken</code> from Plex's <code>Preferences.xml</code> at the path below. Requires Plex to run on the same host as Freetvarr, with its config directory bind-mounted into the container. The URL field above isn't checked — if Plex's IP is your LAN address but Plex is on this machine, this still works.
-                </p>
-              </div>
-              <div class="field-row">
-                <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
-                <input type="text" class="field-input" v-model="plexPrefsPath" placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
-                <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                  Container-internal path. Requires a Docker bind-mount targeting this path. Edit if you mount Plex's <code>Preferences.xml</code> at a non-default location.
-                </p>
-              </div>
-              <div class="field-row">
-                <label class="field-label">Plex TV section</label>
-                <select v-if="plexSections.length" class="field-input" v-model="plexSectionId">
-                  <option value="">— pick a section —</option>
-                  <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
-                    {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
-                  </option>
-                </select>
-                <input v-else type="text" class="field-input" v-model="plexSectionId" placeholder="numeric section ID" />
-              </div>
-              <div class="flex flex-wrap items-center gap-3">
-                <button type="button" class="btn" @click="loadPlexSections" :disabled="plexProbing">
-                  <template v-if="plexProbing">PROBING…</template><template v-else><download-icon /> LOAD SECTIONS</template>
-                </button>
-                <span v-if="plexSectionsText"
-                  :class="['status-readout', plexSectionsKind]">{{ plexSectionsText }}</span>
-              </div>
-              <plex-library-setup :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
-                @created="usePlexLibraries" />
+            <div v-else-if="plexProblem" class="space-y-2">
+              <p class="status-readout err">{{ plexProblem.text }}</p>
+              <p class="text-sm text-ink leading-relaxed">{{ plexProblem.fix }} <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a> has the details.</p>
+              <button type="button" class="btn btn-sm" @click="findPlex"><refresh-icon /> CHECK AGAIN</button>
             </div>
+            <template v-else>
+              <p class="text-ink text-sm leading-relaxed">
+                Freetvarr works without Plex. Recordings still go into your TV library folder for any media player.
+              </p>
+              <p class="text-ink-dim text-sm leading-relaxed">
+                To add Plex, see <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a>.
+              </p>
+            </template>
+            <plex-library-setup v-if="!plexChecking" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
+              @created="usePlexLibraries" />
+            <details class="settings-disclosure" :open="plexAdvancedOpen" @toggle="plexAdvancedOpen = $event.target.open">
+              <summary>Advanced: connect Plex by hand</summary>
+              <div class="settings-disclosure-body space-y-4">
+                <div class="field-row">
+                  <label class="field-label">Plex address</label>
+                  <input type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" @input="plexEditedByHand = true" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Plex token</label>
+                  <input type="password" class="field-input" v-model="plexToken" @input="plexEditedByHand = true"
+                    :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
+                  <div class="mt-2 flex flex-wrap items-center gap-3">
+                    <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
+                      <template v-if="plexDetectingToken">DETECTING…</template><template v-else><bolt-icon /> AUTO-DETECT TOKEN</template>
+                    </button>
+                    <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
+                  </div>
+                  <p class="text-xs text-ink-mute mt-2 leading-relaxed">
+                    AUTO-DETECT TOKEN reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file. For another Plex, enter the path to its <code>Preferences.xml</code> below, or paste the token from Plex.
+                  </p>
+                </div>
+                <div class="field-row">
+                  <label class="field-label">Preferences.xml path <span class="text-ink-mute">(as Freetvarr sees it)</span></label>
+                  <input type="text" class="field-input" v-model="plexPrefsPath" @input="plexEditedByHand = true"
+                    placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
+                </div>
+                <div v-if="!plexShowSections.length" class="field-row">
+                  <label class="field-label">TV library number</label>
+                  <input type="text" class="field-input" v-model="plexSectionId" @input="plexEditedByHand = true"
+                    placeholder="CONNECT lists your libraries" />
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <button type="button" class="btn" @click="loadPlexSections()" :disabled="plexProbing || !plexUrl.trim()">
+                    <template v-if="plexProbing">CONNECTING…</template><template v-else><pulse-icon /> CONNECT</template>
+                  </button>
+                  <span v-if="plexSectionsText"
+                    :class="['status-readout', plexSectionsKind]">{{ plexSectionsText }}</span>
+                </div>
+              </div>
+            </details>
           </div>
 
           <div v-if="step === 7" class="space-y-4">
@@ -5063,7 +5093,6 @@ const WelcomeView = {
     </div>
   `,
   setup() {
-    const [plexDiscoverText, plexDiscoverKind, setPlexDiscover] = makeStatus()
     const [plexSectionsText, plexSectionsKind, setPlexSections] = makeStatus()
     const [tvhText, tvhKind, setTvhText] = makeStatus()
     const [saveStatusText, saveStatusKind, setSaveStatus, clearSaveStatus] = makeStatus()
@@ -5105,7 +5134,6 @@ const WelcomeView = {
     const plexSectionId = ref('')
     const plexSections = ref([])
     const plexProbing = ref(false)
-    const plexDiscovering = ref(false)
     const plexCandidates = ref([])
     const plexDetectingToken = ref(false)
     const plexTokenStatus = ref('')
@@ -5126,10 +5154,12 @@ const WelcomeView = {
     const mediaRootStatus = ref('')
     const mediaRootStatusKind = ref('ok')
 
+    const saved = reactive({
+      mediaRoot: '', recordingsRoot: '', tvhRecordingsPath: '', plexUrl: '', plexSectionId: '', plexPrefsPath: '',
+    })
+
     const hasExistingConfig = computed(() =>
-      Boolean(tvhUrl.value || tvhPasswordSet.value
-        || plexUrl.value !== 'http://127.0.0.1:32400'
-        || plexTokenSet.value || plexSectionId.value),
+      Boolean(tvhUrl.value || tvhPasswordSet.value || saved.plexUrl || plexTokenSet.value || saved.plexSectionId),
     )
 
     onMounted(async () => {
@@ -5142,10 +5172,18 @@ const WelcomeView = {
       recordingsRoot.value = s.recordings_root || ''
       tvhRecordingsPath.value = s.tvh_recordings_path || ''
       mediaRoot.value = s.media_root || ''
-      plexUrl.value = s.plex_url || 'http://127.0.0.1:32400'
+      plexUrl.value = s.plex_url || ''
       plexTokenSet.value = Boolean(s.plex_token_set)
       plexSectionId.value = s.plex_tv_section_id || ''
       plexPrefsPath.value = s.plex_prefs_path || ''
+      Object.assign(saved, {
+        mediaRoot: mediaRoot.value,
+        recordingsRoot: recordingsRoot.value,
+        tvhRecordingsPath: tvhRecordingsPath.value,
+        plexUrl: plexUrl.value,
+        plexSectionId: plexSectionId.value,
+        plexPrefsPath: plexPrefsPath.value,
+      })
     })
 
     const testMediaRoot = async () => {
@@ -5154,7 +5192,7 @@ const WelcomeView = {
       try {
         const r = await api('POST', '/api/media-root-test', { path: mediaRoot.value })
         if (r.ok) {
-          mediaRootStatus.value = `OK — ${r.path} is writable.`
+          mediaRootStatus.value = `${r.path} is writable.`
           mediaRootStatusKind.value = 'ok'
         } else {
           mediaRootStatus.value = r.error
@@ -5168,10 +5206,57 @@ const WelcomeView = {
       }
     }
 
+    const storageChecking = ref(false)
+    const storageChecked = ref(false)
+    const storageProblems = ref([])
+    const storageNotes = ref([])
+    const storageAdvancedOpen = ref(false)
+    const storageSummary = computed(() => storageSummaryText({
+      mediaRoot: mediaRoot.value,
+      recordingsRoot: recordingsRoot.value,
+    }))
+    const storageChanges = computed(() => changedSettings([
+      ['media_root', mediaRoot.value, saved.mediaRoot],
+      ['recordings_root', recordingsRoot.value, saved.recordingsRoot],
+      ['tvh_recordings_path', tvhRecordingsPath.value, saved.tvhRecordingsPath],
+    ]))
+
+    const checkStorage = async () => {
+      storageChecking.value = true
+      const folders = {
+        mediaRoot: mediaRoot.value,
+        recordingsRoot: recordingsRoot.value,
+        tvhRecordingsPath: tvhRecordingsPath.value,
+      }
+      const [library, recordings, tvh] = await Promise.all([
+        api('POST', '/api/media-root-test', { path: folders.mediaRoot }).catch(failedCheck),
+        api('POST', '/api/recordings-root-test', { path: folders.recordingsRoot, media_root: folders.mediaRoot })
+          .catch(failedCheck),
+        api('POST', '/api/tvh-recordings-path-check', { path: folders.tvhRecordingsPath }).catch(failedCheck),
+      ])
+      if (tvh.ok && !tvh.configured && tvh.tvhPath) tvhRecordingsPath.value = tvh.tvhPath
+      const outcome = storageCheckOutcome({ folders, library, recordings, tvh })
+      storageProblems.value = outcome.problems
+      storageNotes.value = outcome.notes
+      storageAdvancedOpen.value = outcome.problems.length > 0
+      storageChecked.value = true
+      storageChecking.value = false
+    }
+
+    const plexChecking = ref(false)
+    const plexConnected = ref(false)
+    const plexProblem = ref(null)
+    const plexAdvancedOpen = ref(false)
+    const plexEditedByHand = ref(false)
+    const plexDocsUrl = `${DOCS_BASE}guide/plex`
+    const plexShowSections = computed(() => plexSections.value.filter((sec) => sec.type === 'show'))
+    const hasPlexToken = () => Boolean(plexToken.value || plexTokenSet.value)
+
     let sectionAutoLoadTimer = null
     watch([plexUrl, plexToken], ([url, token]) => {
+      plexConnected.value = false
       clearTimeout(sectionAutoLoadTimer)
-      if (!url || !token || plexSections.value.length) return
+      if (!url || !token || plexChecking.value) return
       sectionAutoLoadTimer = setTimeout(() => loadPlexSections({ silent: true }), 600)
     })
 
@@ -5193,18 +5278,17 @@ const WelcomeView = {
         : 'A TVHeadend URL is required to continue.'
     })
 
+    const plexWillSave = computed(() => plexConnected.value || plexEditedByHand.value)
+
     const nextLabel = computed(() => {
       if (step.value === totalSteps) return 'OPEN TV GUIDE'
       if (step.value === 2) return 'SAVE & NEXT'
       if (step.value === 3) return channelState.value.channels ? 'NEXT' : 'SKIP'
       if (step.value === 4) return guideState.value.linked ? 'NEXT' : 'SKIP'
-      if (step.value === 5) {
-        const hasStorage = mediaRoot.value || recordingsRoot.value || tvhRecordingsPath.value
-        return hasStorage ? 'SAVE & NEXT' : 'SKIP'
-      }
+      if (step.value === 5) return Object.keys(storageChanges.value).length ? 'SAVE & NEXT' : 'NEXT'
       if (step.value === 6) {
-        const hasPlex = plexUrl.value || plexToken.value || plexSectionId.value
-        return hasPlex ? 'SAVE & NEXT' : 'SKIP'
+        if (plexConnected.value) return 'NEXT'
+        return plexEditedByHand.value ? 'SAVE & NEXT' : 'SKIP'
       }
       return 'NEXT'
     })
@@ -5223,6 +5307,32 @@ const WelcomeView = {
         clearSaveStatus()
         step.value--
       }
+    }
+
+    const saveStorage = async () => {
+      if (!Object.keys(storageChanges.value).length) return
+      await api('POST', '/api/settings', storageChanges.value)
+      Object.assign(saved, {
+        mediaRoot: mediaRoot.value,
+        recordingsRoot: recordingsRoot.value,
+        tvhRecordingsPath: tvhRecordingsPath.value,
+      })
+    }
+
+    const savePlex = async () => {
+      if (!plexWillSave.value) return
+      const body = {
+        plex_url: plexUrl.value,
+        plex_tv_section_id: plexSectionId.value,
+        ...changedSettings([['plex_prefs_path', plexPrefsPath.value, saved.plexPrefsPath]]),
+        ...(plexToken.value ? { plex_token: plexToken.value } : {}),
+      }
+      await api('POST', '/api/settings', body)
+      Object.assign(saved, {
+        plexUrl: plexUrl.value,
+        plexSectionId: plexSectionId.value,
+        plexPrefsPath: plexPrefsPath.value,
+      })
     }
 
     const next = async () => {
@@ -5245,19 +5355,9 @@ const WelcomeView = {
             return
           }
         } else if (step.value === 5) {
-          await api('POST', '/api/settings', {
-            media_root: mediaRoot.value,
-            recordings_root: recordingsRoot.value,
-            tvh_recordings_path: tvhRecordingsPath.value,
-          })
+          await saveStorage()
         } else if (step.value === 6) {
-          const body = {
-            plex_url: plexUrl.value,
-            plex_tv_section_id: plexSectionId.value,
-            plex_prefs_path: plexPrefsPath.value,
-          }
-          if (plexToken.value) body.plex_token = plexToken.value
-          await api('POST', '/api/settings', body)
+          await savePlex()
         }
         step.value++
       } catch (err) {
@@ -5267,18 +5367,25 @@ const WelcomeView = {
       }
     }
 
+    const fetchPlexSections = async () => {
+      const body = { plex_url: plexUrl.value }
+      if (plexToken.value) body.plex_token = plexToken.value
+      const { sections = [] } = await api('POST', '/api/plex-sections', body)
+      plexSections.value = sections
+      plexSectionLoads.value++
+      plexConnected.value = true
+      plexProblem.value = null
+      if (!plexSectionId.value) plexSectionId.value = guessPlexTvSection({ sections, mediaRoot: mediaRoot.value })
+      return sections
+    }
+
     const loadPlexSections = async ({ silent = false } = {}) => {
       plexProbing.value = true
       try {
-        const body = { plex_url: plexUrl.value }
-        if (plexToken.value) body.plex_token = plexToken.value
-        const { sections = [] } = await api('POST', '/api/plex-sections', body)
-        plexSections.value = sections
-        plexSectionLoads.value++
-        if (!silent || sections.length) {
-          setPlexSections(`Loaded ${sections.length} Plex sections.`, 'ok', 5000)
-        }
+        const sections = await fetchPlexSections()
+        if (!silent) setPlexSections(`Connected. Plex has ${sections.length} libraries.`, 'ok', 5000)
       } catch (err) {
+        plexConnected.value = false
         if (!silent) setPlexSections(`Could not reach Plex: ${err.message}`, 'err', 5000)
       } finally {
         plexProbing.value = false
@@ -5290,37 +5397,67 @@ const WelcomeView = {
       loadPlexSections({ silent: true })
     }
 
-    const connectPlexQuietly = async () => {
-      if (plexToken.value || plexTokenSet.value) return loadPlexSections({ silent: true })
-      const r = await api('POST', '/api/plex-detect-token').catch(() => ({}))
-      if (r.ok) plexToken.value = r.token || ''
-    }
-
-    const discoverPlex = async () => {
-      plexDiscovering.value = true
-      plexCandidates.value = []
-      setPlexDiscover('Searching your network (~2s)…', 'info', 0)
+    const connectPlexAt = async ({ url, guessed = false }) => {
+      const before = plexUrl.value
+      plexUrl.value = url
       try {
-        const { servers = [] } = await api('POST', '/api/discover-plex')
-        if (servers.length === 0) {
-          setPlexDiscover('No Plex server found on your network.', 'err', 5000)
-        } else if (servers.length === 1) {
-          usePlexCandidate(servers[0])
-        } else {
-          plexCandidates.value = servers
-          setPlexDiscover(`Found ${servers.length} Plex servers — choose one below.`, 'info', 5000)
-        }
+        await fetchPlexSections()
+        return {}
       } catch (err) {
-        setPlexDiscover(`Plex discovery failed: ${err.message}`, 'err', 5000)
-      } finally {
-        plexDiscovering.value = false
+        if (guessed) plexUrl.value = before
+        return { problem: plexUnreachableProblem({ url, error: err.message }) }
       }
     }
 
-    const usePlexCandidate = (c) => {
-      plexUrl.value = `http://${c.ip}:${c.port}`
+    const connectFoundPlex = async (url) => {
+      if (hasPlexToken()) return connectPlexAt({ url })
+      plexUrl.value = url
+      return { problem: plexNoTokenProblem(url) }
+    }
+
+    const detectPlexTokenQuietly = async () => {
+      const r = await api('POST', '/api/plex-detect-token').catch(() => ({}))
+      if (!r.ok) return
+      plexToken.value = r.token || ''
+      plexTokenSet.value = true
+    }
+
+    const discoverPlexServers = () => api('POST', '/api/discover-plex')
+      .then((r) => r.servers || [])
+      .catch(() => [])
+
+    const locatePlex = async () => {
+      if (plexUrl.value && hasPlexToken()) return connectPlexAt({ url: plexUrl.value })
+      const [, servers] = await Promise.all([detectPlexTokenQuietly(), discoverPlexServers()])
+      if (servers.length > 1) {
+        plexCandidates.value = servers
+        return {}
+      }
+      if (servers.length === 1) return connectFoundPlex(plexServerUrl(servers[0]))
+      if (hasPlexToken()) return connectPlexAt({ url: LOCAL_PLEX_URL, guessed: true })
+      return {}
+    }
+
+    const runPlexCheck = async (task) => {
+      plexChecking.value = true
+      plexProblem.value = null
+      try {
+        const { problem = null } = await task()
+        plexProblem.value = problem
+        plexAdvancedOpen.value = Boolean(problem)
+      } finally {
+        plexChecking.value = false
+      }
+    }
+
+    const findPlex = () => {
       plexCandidates.value = []
-      setPlexDiscover(`Selected ${c.name || 'Plex'} at ${c.ip}:${c.port}.`, 'ok', 5000)
+      return runPlexCheck(locatePlex)
+    }
+
+    const usePlexCandidate = (c) => {
+      plexCandidates.value = []
+      return runPlexCheck(() => connectFoundPlex(plexServerUrl(c)))
     }
 
     const detectPlexToken = async () => {
@@ -5375,7 +5512,8 @@ const WelcomeView = {
     watch(step, (curr) => {
       if (curr === 2 && !tvhUrl.value.trim()) detectTvh({ quiet: true })
       if (curr === 2) checkBootstrap()
-      if (curr === 6) connectPlexQuietly()
+      if (curr === 5) checkStorage()
+      if (curr === 6) findPlex()
     })
     watch([tvhUrl, tvhUsername, tvhPassword], () => {
       if (step.value === 2) clearSaveStatus()
@@ -5489,7 +5627,9 @@ const WelcomeView = {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
-      plexDiscovering, plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
+      plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
+      plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, plexShowSections, findPlex,
+      storageChecking, storageChecked, storageProblems, storageNotes, storageAdvancedOpen, storageSummary, checkStorage,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
@@ -5497,8 +5637,7 @@ const WelcomeView = {
       securePrefixes, secureSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
-      discoverPlex, usePlexCandidate, detectPlexToken,
-      plexDiscoverText, plexDiscoverKind,
+      usePlexCandidate, detectPlexToken,
       plexSectionsText, plexSectionsKind,
       tvhText, tvhKind,
       saveStatusText, saveStatusKind,
@@ -5513,6 +5652,100 @@ const bootstrapInputProblem = ({ username, password, confirm, prefixes }) => {
   if (!prefixes.trim()) return 'Enter at least one allowed network.'
   return ''
 }
+
+const failedCheck = (err) => ({ ok: false, problem: 'request', error: err.message })
+
+const changedSettings = (entries) => Object.fromEntries(
+  entries.filter(([, value, savedValue]) => value !== savedValue).map(([key, value]) => [key, value]),
+)
+
+const storageSummaryText = ({ mediaRoot, recordingsRoot }) => {
+  const inDataFolder = [mediaRoot, recordingsRoot].every((folder) => isInsideFolder({ folder, root: COMPOSE_DATA_ROOT }))
+  if (inDataFolder) return 'Recordings and your TV library are saved in the data folder next to docker-compose.yml.'
+  return `Freetvarr reads recordings from ${recordingsRoot} and saves your TV library to ${mediaRoot}.`
+}
+
+const storageCheckOutcome = ({ folders, library, recordings, tvh }) => {
+  const problems = [
+    folderProblem({ result: library, path: folders.mediaRoot, name: 'TV library folder', access: 'save to' }),
+    folderProblem({ result: recordings, path: folders.recordingsRoot, name: 'recordings folder', access: 'read' }),
+    tvhFolderProblem({ result: tvh, configured: folders.tvhRecordingsPath }),
+  ].filter(Boolean)
+  const notes = recordings.ok && recordings.hardlinks === false ? [COPY_IMPORT_NOTE] : []
+  return { problems, notes }
+}
+
+const folderProblem = ({ result, path, name, access }) => {
+  if (result.ok) return null
+  const changeIt = `Change the ${name} under Advanced: change folders.`
+  const problems = {
+    empty: { text: `The ${name} is blank.`, fix: changeIt },
+    relative: { text: `The ${name} must start with /.`, fix: changeIt },
+    'not-folder': { text: `${path} is a file, not a folder.`, fix: changeIt },
+    missing: {
+      text: `Your ${name} ${path} does not exist.`,
+      fix: `Check that docker-compose.yml shares this folder with Freetvarr, then run docker compose up -d. Or change the ${name} under Advanced: change folders.`,
+    },
+    denied: {
+      text: `Freetvarr cannot ${access} your ${name} ${path}.`,
+      fix: 'Set PUID and PGID in .env to the owner of the data folder, then run docker compose up -d.',
+    },
+    request: { text: `Freetvarr could not check your ${name}: ${withoutFullStop(result.error)}.`, fix: 'Press CHECK AGAIN.' },
+  }
+  return problems[result.problem]
+    || { text: `Freetvarr cannot ${access} your ${name} ${path}: ${withoutFullStop(result.error)}.`, fix: changeIt }
+}
+
+const tvhFolderProblem = ({ result, configured }) => {
+  if (!result.ok) {
+    return {
+      text: 'Freetvarr could not ask TVHeadend where it saves recordings.',
+      fix: 'Go BACK to the TVHeadend step and press TEST CONNECTION.',
+    }
+  }
+  if (!result.tvhPath) {
+    return {
+      text: 'TVHeadend has no folder set for recordings.',
+      fix: 'In TVHeadend, set the recording path in the DVR profile, then press CHECK AGAIN.',
+    }
+  }
+  if (result.matches || !result.configured) return null
+  return {
+    text: `TVHeadend saves recordings to ${result.tvhPath}, but Freetvarr expects ${configured}.`,
+    fix: `Set the recording path in TVHeadend's DVR profile to ${configured}, or change the folders under Advanced: change folders.`,
+  }
+}
+
+const guessPlexTvSection = ({ sections, mediaRoot }) => sections
+  .find((sec) => sec.type === 'show' && (sec.locations || []).some((folder) => sameFolder(folder, mediaRoot)))
+  ?.key || ''
+
+const plexServerUrl = (server) => `http://${server.ip}:${server.port}`
+
+const plexNoTokenProblem = (url) => ({
+  text: `Found Plex at ${url}, but Freetvarr could not find its token.`,
+  fix: 'Paste the token under Advanced: connect Plex by hand.',
+})
+
+const plexUnreachableProblem = ({ url, error }) => ({
+  text: `Freetvarr could not connect to Plex at ${url}: ${withoutFullStop(error)}.`,
+  fix: 'Check that Plex is running, then press CHECK AGAIN. SKIP leaves your Plex settings as they are.',
+})
+
+const isInsideFolder = ({ folder, root }) => {
+  const path = withoutTrailingSlash(folder)
+  return path === root || path.startsWith(`${root}/`)
+}
+
+const sameFolder = (a, b) => withoutTrailingSlash(a) === withoutTrailingSlash(b)
+
+const withoutTrailingSlash = (path) => String(path || '').trim().replace(/(.)\/+$/, '$1')
+
+const withoutFullStop = (text) => String(text || '').trim().replace(/\.+$/, '')
+
+const COMPOSE_DATA_ROOT = '/data'
+const LOCAL_PLEX_URL = 'http://127.0.0.1:32400'
+const COPY_IMPORT_NOTE = 'Recordings and your TV library are on different disks or mounts, so each import makes a full copy of the recording.'
 
 const secureStepDot = (status) => ({
   pending: 'idle',
