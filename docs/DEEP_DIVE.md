@@ -363,7 +363,7 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 | `FREETVARR_PORT`  | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `3733`.                                                                  |
 | `CONFIG_PATH`     | Optional, default `./config`. Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                           |
 | `DATA_PATH`       | Optional, default `./data`. Host root for the data. Holds only `recordings/` and `media/`. Freetvarr mounts it whole at `/data`; TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`. |
-| `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the "Auto-detect from local Plex" button can read `PlexOnlineToken`. Drop the mount if Plex isn't on this host.    |
+| `PLEX_PREFS_PATH` | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the `AUTO-DETECT TOKEN` button can read `PlexOnlineToken`. Drop the mount if Plex is on a different computer.      |
 
 ## Docker deployment
 
@@ -515,13 +515,13 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 
 - `npm run dev`, hit `http://localhost:3733`.
 - **First visit** (with empty settings): auto-redirects to the setup wizard. Walks the time zone (WELCOME; pre-filled from the browser, or from `TZ` when it is set) → TVHeadend (URL, user, TEST CONNECTION; SAVE & NEXT runs the same test and stays on the step until it passes) → storage (three paths, with TEST PATH and CHECK TVHEADEND) → Plex → ready.
-- **Re-open the wizard later**: SETUP WIZARD panel at the top of Settings. Saved values prefill; stored passwords and tokens show as stored, not as their values.
-- **Settings**: save; the cron field reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
+- **Re-open the wizard later**: REOPEN WIZARD in the HELP panel near the end of Settings. Saved values prefill; stored passwords and tokens show as stored, not as their values.
+- **Settings**: the section bar jumps to each panel and `#/settings/<id>` links scroll to one (`about` opens HELP); save; a **Sync schedule** change reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
 - **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
 - **Series**: the list joins the series recordings in TVHeadend to their folders; ASSIGN FOLDER, EDIT, UNASSIGN FOLDER, per-series SYNC, PAUSE, RESUME, and STOP SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
 - **Syncs**: run a sync, watch the row appear and finish; clear history; filter by activity type.
 - **Recordings**: a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A tombstoned recording is marked as removed and can still be re-scanned.
-- **Danger Zone**: `NUKE ALL STATE` clears the DB and reloads into the wizard.
+- **Reset**: `RESET FREETVARR` (in the RESET panel, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.
 
 ## Screenshots
 

@@ -57,7 +57,7 @@ If you set a movies folder, point a **Movies** library at it and choose that lib
 
 ## The token
 
-- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and the wizard does this for you. For another Plex on the same host, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the container with `docker compose up -d freetvarr`.
+- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and the wizard does this for you. If you installed Plex yourself on the same computer, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the container with `docker compose up -d freetvarr`. If you share the file with Freetvarr at another path, open **Token not found?** in Settings → PLEX and enter the path Freetvarr sees.
 - Otherwise **paste the token manually**; grab it from `app.plex.tv` or Plex's own support article on finding your token.
 
 Where `Preferences.xml` lives depends on how Plex is installed:
@@ -74,7 +74,7 @@ Auto-detect fails with `PlexOnlineToken attribute not found` when that Plex serv
 
 After any sync that imported a file, Freetvarr refreshes the configured section so new episodes appear without waiting for Plex's own scan interval. Press `REFRESH PLEX NOW` in Settings to refresh at any time.
 
-A recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)).
+A recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)). The **Wait for Plex before removing recordings from TVHeadend** switch at the end of Settings → PLEX controls this; leave it on.
 
 ## Where the files land
 
