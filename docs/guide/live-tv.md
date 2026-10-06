@@ -41,7 +41,7 @@ If you lock the phone or switch to another app, Freetvarr keeps the channel and 
 
 The buffer starts when you open the channel, so you can rewind only as far back as that. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
 
-Freetvarr keeps the buffer on disk, in the container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2 GB` for each channel that is playing.
+Freetvarr keeps the buffer on disk, in the container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2GB` for each channel that is playing.
 
 ## Stream handling
 

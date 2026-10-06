@@ -131,8 +131,8 @@ flowchart TD
   statcheck -->|no| skipmissing["row: skipped<br>check the recordings mount"]
   statcheck -->|yes| imp["row: importing<br>hardlink, else copy"]
   imp --> classify{"classifyImport"}
-  classify -->|"shortfall within 1 MB"| ok["row: done<br>store on-disk size"]
-  classify -->|"shortfall over 1 MB"| partial["row: partial<br>next sync redoes it"]
+  classify -->|"shortfall within 1MB"| ok["row: done<br>store on-disk size"]
+  classify -->|"shortfall over 1MB"| partial["row: partial<br>next sync redoes it"]
 ```
 
 1. **Library decision.** `libraryDecision` is a pure function, exported for tests. A choice saved on the row (`library_choice`, set by the IMPORT button) wins. Next comes the choice made on RECORD, which TVHeadend keeps in the entry's `comment` field. Otherwise a recording that matches a series folder imports, and an unmatched recording imports to the one-off folder unless `import_unmatched` is `false`.
@@ -140,7 +140,7 @@ flowchart TD
 3. **Path translation.** `localPathFor` rewrites the filename TVHeadend reported from `tvh_recordings_path` to `recordings_root`. A filename outside that prefix returns `null` and the row is written `skipped` with the reason, because the container cannot see that path.
 4. **Existence check.** A `fs.stat` failure means the recording is still running, or failed, or the mount is wrong. The row goes `skipped` with the path in the error.
 5. **Import.** `buildDestPath` composes `<media_root>/<dest_folder>/<season dir>/<filename>`; for a recording with no series folder, `buildOneOffPath` composes `<oneoff_root>/<title>/<title> - <date> <time>.ts`. Both throw if the result resolves outside their root, and a missing one-off root gives `skipped`, so nothing lands inside the container's own filesystem. The file is then hardlinked or copied ([below](#why-the-import-is-a-hardlink)).
-6. **Classify.** `classifyImport({ expectedSize, actualSize })` is a pure function, exported for tests. A shortfall over `1 MB` against the size TVHeadend reported gives `partial` with the byte gap in the error, and the row counts as a failure in the sync summary, not a skip. Anything else gives `done`.
+6. **Classify.** `classifyImport({ expectedSize, actualSize })` is a pure function, exported for tests. A shortfall over `1MB` against the size TVHeadend reported gives `partial` with the byte gap in the error, and the row counts as a failure in the sync summary, not a skip. Anything else gives `done`.
 
 A `statusText` from TVHeadend other than `Completed OK` is recorded on the row even when the import succeeded, so a recording with data errors from a weak signal says so.
 
@@ -226,7 +226,7 @@ Sync housekeeping deletes `.orig` backups after `ad_original_retention_days` (de
 
 **Manual scans**: `POST /api/recordings/:recording_id/ad-scan` (re)processes an already-imported recording using the show's mode (detect-only when the show is `off`), so existing files can be trialled without re-importing. The endpoint responds `202` immediately and processes in the background; the UI polls the recordings list for the resulting `ad_status`. Both entry points (this endpoint and the sync loop's inline call) share one single-flight guard, a module-level `Set` keyed by recording ID inside `processRecordingAds`. A given recording is therefore only ever processed by one `comskip`/`ffmpeg` pipeline at a time; the endpoint returns `409` if that recording is already in flight. Different recordings may still process concurrently.
 
-Comskip is CPU-bound; expect roughly half an hour for a 75-minute 1080i broadcast `.ts` (`~2.7 GB`) on NAS-class hardware. The scan timeout scales with the recording's duration (1.5× realtime, 60-minute floor, 6-hour cap) so a long recording isn't killed mid-scan and misreported as producing no EDL. It runs under `nice -n 10` so a scan does not slow a concurrent import. Per-recording statuses (`scanning`, `detected`, `no_breaks`, `cut`, `detect_failed`, `cut_failed`) surface on the Recordings tab. A scan interrupted by a restart leaves no stuck `scanning` row: startup resets any in-flight status back to unscanned.
+Comskip is CPU-bound; expect roughly half an hour for a 75-minute 1080i broadcast `.ts` (`~2.7GB`) on NAS-class hardware. The scan timeout scales with the recording's duration (1.5× realtime, 60-minute floor, 6-hour cap) so a long recording isn't killed mid-scan and misreported as producing no EDL. It runs under `nice -n 10` so a scan does not slow a concurrent import. Per-recording statuses (`scanning`, `detected`, `no_breaks`, `cut`, `detect_failed`, `cut_failed`) surface on the Recordings tab. A scan interrupted by a restart leaves no stuck `scanning` row: startup resets any in-flight status back to unscanned.
 
 ## Live progress indicators
 
@@ -240,7 +240,7 @@ The registry is a module-level `Map` keyed by recording ID, shared by every requ
   percent: number | null,   // 0..100, or null when the phase is indeterminate
   etaSeconds: number | null,
   etaLabel: string | null,  // preformatted with pretty-ms; the SPA has no build step
-  detail: string | null,    // '12.4 MB/s', 'segment 2/5', '18s elapsed'
+  detail: string | null,    // '12.4MB/s', 'segment 2/5', '18s elapsed'
   startedAt: number,
   updatedAt: number,
 }
