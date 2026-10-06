@@ -102,7 +102,7 @@ const freshSettings = (timeZone) => ({
   tvh_username: '',
   tvh_password_set: false,
   tvh_open_entry_backup_set: false,
-  recordings_root: '/recordings',
+  recordings_root: '/data/recordings',
   tvh_recordings_path: '/recordings',
   sync_cron: null,
   sync_cron_effective: '*/30 * * * *',
@@ -114,8 +114,8 @@ const freshSettings = (timeZone) => ({
   plex_token_set: false,
   plex_tv_section_id: null,
   plex_prefs_path: '/plex-preferences.xml',
-  media_root: '/media/tv',
-  oneoff_root: '/media/one-offs',
+  media_root: '/data/media/tv',
+  oneoff_root: '/data/media/one-offs',
   import_unmatched: true,
   plex_oneoff_section_id: null,
   movies_root: '/media/movies',
@@ -488,7 +488,7 @@ const detectPlexToken = (sim) => {
 
 const plexSections = () => [
   { key: '1', title: 'Movies', type: 'movie', locations: ['/media/movies'] },
-  { key: '2', title: 'TV Shows', type: 'show', locations: ['/media/tv'] },
+  { key: '2', title: 'TV Shows', type: 'show', locations: ['/data/media/tv'] },
 ]
 
 const startJob = ({ steps, phases, result = () => null }) => ({ steps, phases, result, startedAt: Date.now() })

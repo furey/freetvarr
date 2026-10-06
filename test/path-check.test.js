@@ -30,6 +30,7 @@ test('checkRecordingsFolder: a missing folder fails with a plain reason', async 
   const result = await checkRecordingsFolder({ recordingsPath: missing, mediaRoot: root })
   assert.equal(result.ok, false)
   assert.equal(result.error, `${missing} does not exist inside the container`)
+  assert.equal(result.problem, 'missing')
 })
 
 test('checkRecordingsFolder: a file is not a folder', async () => {
@@ -38,11 +39,13 @@ test('checkRecordingsFolder: a file is not a folder', async () => {
   await fs.writeFile(file, '')
   const result = await checkRecordingsFolder({ recordingsPath: file, mediaRoot: root })
   assert.equal(result.error, `${file} exists but is not a directory`)
+  assert.equal(result.problem, 'not-folder')
 })
 
 test('checkRecordingsFolder: a relative path is rejected', async () => {
   const result = await checkRecordingsFolder({ recordingsPath: 'recordings', mediaRoot: '/tmp' })
   assert.equal(result.error, 'path must be absolute (start with /)')
+  assert.equal(result.problem, 'relative')
 })
 
 test('checkRecordingsFolder: an unreadable media root leaves the hardlink check unknown', async () => {
@@ -82,6 +85,7 @@ test('checkMediaRoot: a missing folder fails with a plain reason', async () => {
   const missing = path.join(root, 'nope')
   assert.deepEqual(await checkMediaRoot(missing), {
     ok: false,
+    problem: 'missing',
     error: `${missing} does not exist inside the container`,
   })
 })
@@ -93,6 +97,7 @@ test('checkMediaRoot: a read-only folder is not writable', { skip: process.getui
   await fs.chmod(root, 0o755)
   assert.equal(result.ok, false)
   assert.equal(result.error, `${root} is not writable by the container user`)
+  assert.equal(result.problem, 'denied')
   assert.equal(result.ownerUid, process.getuid())
 })
 

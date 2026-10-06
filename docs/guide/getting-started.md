@@ -58,8 +58,8 @@ The first visit to `http://<host-ip>:3733` opens the setup wizard:
 2. **TVHeadend**: on a fresh TVHeadend, choose an admin username and password, check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR`. On a TVHeadend that already has users, enter the login you made for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS`. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT`. If the wizard finds no tuner, enter the tuner's address and press `USE THIS ADDRESS`.
 4. **Guide**: check the guide region, then press `SET UP GUIDE`. Pick a guide for any channel left without one, or leave it. Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
-5. **Storage**: keep the defaults.
-6. **Plex**: optional. Enter the server URL and token, and choose the TV library ([Plex](/guide/plex)). If Plex has no library for your recordings yet, press `CREATE LIBRARIES`.
+5. **Storage**: Freetvarr checks the recordings folder and the TV library folder. If the checks pass, press `NEXT`. If a check fails, do what the message says, or change the folders under **Advanced: change folders**.
+6. **Plex**: optional. Freetvarr looks for Plex and its token. If it connects, check the TV library, press `CREATE LIBRARIES` if Plex has no library for your recordings yet, then press `NEXT`. Without Plex, press `SKIP`. To enter the Plex address and token yourself, open **Advanced: connect Plex by hand** ([Plex](/guide/plex)).
 
 Every value can be changed later in Settings.
 
@@ -89,7 +89,7 @@ If TVHeadend already runs on another host or in another compose project:
 2. Remove `tvheadend` from the `depends_on` of `freetvarr`.
 3. Mount the folder TVHeadend records into (a NAS share, say) into the Freetvarr container.
 4. In the wizard, enter `http://<tvheadend-host>:9981` and the login you made for Freetvarr.
-5. On the Storage step, set the recordings root to where Freetvarr sees the folder, and set "Recordings folder (as TVHeadend sees it)" to the path TVHeadend writes to.
+5. On the Storage step, open **Advanced: change folders**. Set "Recordings folder (as Freetvarr sees it)" to where Freetvarr sees the folder, and set "Recordings folder (as TVHeadend sees it)" to the path TVHeadend writes to. Press `CHECK TVHEADEND` to compare it with TVHeadend.
 
 The Freetvarr host's address must fall inside the allowed networks of the TVHeadend user. See [The two recordings paths](/guide/configuration#the-two-recordings-paths).
 

@@ -170,35 +170,21 @@ const pickGuide = async (page, { channel, guide }) => {
 }
 
 const tourStorage = async (page) => {
+  await page.waitForSelector('.status-readout.ok:has-text("The folder checks passed")', { timeout: 10_000 })
   await page.waitForTimeout(700)
-  const testButtons = page.locator('.panel-body .btn-sm')
-  await tap(page, testButtons.nth(0))
-  await page.waitForSelector('.status-readout.ok:has-text("writable")', { timeout: 10_000 })
-  await page.waitForTimeout(700)
-  await tap(page, testButtons.nth(1))
-  await page.waitForSelector('.status-readout.ok:has-text("readable")', { timeout: 10_000 })
-  await page.waitForTimeout(700)
-  await tap(page, testButtons.nth(2))
-  await page.waitForSelector('.status-readout.ok:has-text("TVHeadend records to")', { timeout: 10_000 })
-  await page.waitForTimeout(1000)
+  await cursorToBox(page, page.locator('.panel-body .settings-disclosure > summary', { hasText: 'Advanced' }))
+  await page.waitForTimeout(1200)
   await pressNext(page, 'PLEX')
 }
 
 const tourPlex = async (page) => {
-  await page.waitForTimeout(700)
-  await tap(page, page.locator('.panel-body .btn', { hasText: 'AUTO-DISCOVER PLEX' }))
-  await page.waitForSelector('.status-readout.ok:has-text("Selected")', { timeout: 10_000 })
-  await page.waitForTimeout(500)
-  await tap(page, page.locator('.panel-body .btn-sm', { hasText: 'AUTO-DETECT TOKEN' }))
-  await page.waitForSelector('.status-readout.ok:has-text("Token detected")', { timeout: 10_000 })
-  const section = page.locator('.panel-body select.field-input')
-  await section.waitFor({ timeout: 10_000 })
+  await page.waitForSelector('text=Connected to Plex', { timeout: 15_000 })
+  const library = page.locator('#wizard-plex-tv-library')
+  await library.waitFor({ timeout: 10_000 })
   await page.waitForTimeout(600)
-  await revealLocator(page, section)
-  await clickRing(page, section)
-  await page.waitForTimeout(300)
-  await section.selectOption('2')
-  await page.waitForTimeout(900)
+  await revealLocator(page, library)
+  await cursorToBox(page, library)
+  await page.waitForTimeout(1200)
   await pressNext(page, 'READY')
 }
 
