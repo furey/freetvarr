@@ -1338,7 +1338,7 @@ const bootstrapFailure = ({ failedStep, code, rolledBack, error: raw }) => {
   const messages = {
     'check-fresh': code === 'not-fresh'
       ? {
-        error: 'TVHeadend already has logins, so Freetvarr left it alone.',
+        error: 'TVHeadend already has logins.',
         next: 'Enter the login Freetvarr should use instead.',
       }
       : {

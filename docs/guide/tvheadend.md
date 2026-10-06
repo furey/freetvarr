@@ -72,7 +72,7 @@ When the wizard finds a TVHeadend with only the default entry, it asks for three
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Freetvarr signs in with both new logins before it removes the default entry. If either login fails, it deletes the logins it made and leaves TVHeadend as it found it, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. **Settings → TVHEADEND → RESTORE OPEN ACCESS** puts the default entry back.
+Freetvarr signs in with both new logins before it removes the default entry. If either login fails, it deletes the logins it made and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. **Settings → TVHEADEND → RESTORE OPEN ACCESS** puts the default entry back.
 
 If you installed TVHeadend yourself, the wizard asks for the login you made for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.
 
