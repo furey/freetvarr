@@ -63,7 +63,10 @@ import {
   inspectSetup,
   listTransmitters,
   planChannelSetup,
+  readTunerAddress,
+  saveTunerAddress,
   suggestChannelSetup,
+  tunerAddressConfig,
 } from './tvheadend-setup.js'
 import {
   applyGuideSetup,
@@ -122,6 +125,7 @@ import {
 } from './playback.js'
 import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
+import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
 
@@ -388,7 +392,7 @@ app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, re
   if (!row) return res.status(404).json({ error: 'recording not found' })
   const isUnimported = UNIMPORTED_STATUSES.includes(row.status)
   if (!row.deleted_from_tvh_at && !isUnimported) {
-    return res.status(409).json({ error: 'recording still in TVHeadend — remove it there first' })
+    return res.status(409).json({ error: 'recording still in TVHeadend. Remove it there first.' })
   }
   await db('recordings')
     .where({ recording_id: recordingId })
@@ -1393,7 +1397,7 @@ const readChannelSetup = async () => {
 app.get('/api/tvh-setup/status', bootstrapStatusLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
-    const { inspection, transmitters, suggestion } = await readChannelSetup()
+    const { conn, inspection, transmitters, suggestion } = await readChannelSetup()
     res.json({
       ok: true,
       suggestion,
@@ -1402,6 +1406,8 @@ app.get('/api/tvh-setup/status', bootstrapStatusLimiter, async (req, res) => {
       channels: inspection.channels,
       recordingNow: inspection.recordingNow,
       transmitters,
+      dockerVm: detectDockerVm(),
+      tunerAddress: inspection.tuners.length ? null : await readTunerAddress({ http: setupHttp, conn }).catch(() => null),
       job: setupRun,
     })
   } catch (err) {
@@ -1412,6 +1418,20 @@ app.get('/api/tvh-setup/status', bootstrapStatusLimiter, async (req, res) => {
 app.get('/api/tvh-setup/progress', (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.json(setupRun || { running: false, steps: [], result: null })
+})
+
+app.post('/api/tvh-setup/tuner-address', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  const body = req.body || {}
+  const config = tunerAddressConfig({ address: body.address, hostAddress: body.host_address, dockerVm: detectDockerVm() })
+  if (config.error) return res.status(400).json({ ok: false, error: config.error, field: config.field })
+  try {
+    const conn = await resolveConnection()
+    await saveTunerAddress({ http: setupHttp, conn, node: config.node })
+    console.log(`[tvh-setup] TVHeadend now looks for a tuner at ${config.node.hdhomerun_ip}`)
+    res.json({ ok: true, address: config.node.hdhomerun_ip })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `TVHeadend did not save the tuner address (${err.message}).` })
+  }
 })
 
 app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {

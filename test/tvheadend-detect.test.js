@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { rankCandidates, detectServers } from '../src/tvheadend.js'
+import { rankCandidates, detectServers, dropAliasDuplicates } from '../src/tvheadend.js'
 
 const iface = (address, internal = false) => [{ family: 'IPv4', address, internal }]
 
@@ -47,4 +47,29 @@ test('detectServers: TVH_URL short-circuits probing', async () => {
   const r = await detectServers({ env: { TVH_URL: 'http://tvh.lan:9981/' } })
   assert.equal(r.source, 'env')
   assert.deepEqual(r.candidates.map((c) => c.url), ['http://tvh.lan:9981'])
+})
+
+test('dropAliasDuplicates: drops an alias host that answers like a numeric address', () => {
+  const info = '{"sw_version":"4.3"}'
+  const found = [
+    { url: 'http://192.168.139.2:9981', version: '4.3', fingerprint: info },
+    { url: 'http://host.docker.internal:9981', version: '4.3', fingerprint: info },
+  ]
+  assert.deepEqual(dropAliasDuplicates(found).map((c) => c.url), ['http://192.168.139.2:9981'])
+})
+
+test('dropAliasDuplicates: keeps an alias host with different server info', () => {
+  const found = [
+    { url: 'http://192.168.139.2:9981', version: '4.3', fingerprint: 'a' },
+    { url: 'http://host.docker.internal:9981', version: '4.2', fingerprint: 'b' },
+  ]
+  assert.equal(dropAliasDuplicates(found).length, 2)
+})
+
+test('dropAliasDuplicates: keeps two numeric addresses', () => {
+  const found = [
+    { url: 'http://192.168.1.2:9981', version: '4.3', fingerprint: 'a' },
+    { url: 'http://10.0.0.2:9981', version: '4.3', fingerprint: 'a' },
+  ]
+  assert.equal(dropAliasDuplicates(found).length, 2)
 })
