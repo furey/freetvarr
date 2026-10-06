@@ -106,6 +106,7 @@ const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
     envTimeZone: () => 'Australia/Sydney',
     systemTimeZone: () => 'UTC',
     interfaces: () => ({ eth0: [{ family: 'IPv4', address: '192.0.2.5', internal: false }] }),
+    dockerVm: () => null,
     uid: () => 1000,
     ...overrides,
   }
@@ -209,8 +210,38 @@ test('runDoctor: an empty hardware tree and no inputs fails the tuner check', as
   })
   const tuners = byId(report)['tvh.tuners']
   assert.equal(tuners.status, 'fail')
-  assert.match(tuners.fix, /network_mode: host/)
+  assert.doesNotMatch(tuners.fix, /network_mode/)
+  assert.match(tuners.fix, /tuner's address in the CHANNELS step/)
+  assert.equal(tuners.action.href, '#/welcome')
   assert.equal(tuners.doc, 'guide/troubleshooting#missing-tuner')
+})
+
+const NO_TUNER_ROUTES = {
+  '/api/hardware/tree': () => [],
+  '/api/status/inputs': () => ({ entries: [], totalCount: 0 }),
+}
+
+test('runDoctor: no tuner on bridge networking asks for network_mode: host', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: { ...healthyRoutes({ now }), ...NO_TUNER_ROUTES },
+    interfaces: () => ({ eth0: [{ family: 'IPv4', address: '172.18.0.3', internal: false }] }),
+    now,
+  })
+  assert.match(byId(report)['tvh.tuners'].fix, /^Set network_mode: host/)
+})
+
+test('runDoctor: no tuner in a Docker VM says a Mac or Windows PC cannot find a network tuner', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: { ...healthyRoutes({ now }), ...NO_TUNER_ROUTES },
+    dockerVm: () => 'OrbStack',
+    now,
+  })
+  const checks = byId(report)
+  assert.match(checks['tvh.tuners'].fix, /Mac or Windows PC \(OrbStack\) cannot find a network tuner/)
+  assert.doesNotMatch(checks['tvh.tuners'].fix, /network_mode/)
+  assert.match(checks['host.env'].detail, /Docker runs in a virtual machine \(OrbStack\)\.$/)
 })
 
 test('runDoctor: a tuner on a link-local address warns', async () => {

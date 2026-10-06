@@ -165,7 +165,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
-- **Docker with Compose v2** on a host that stays on.
+- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac or Windows PC cannot find a network tuner on their own; enter the tuner's address in the setup wizard's CHANNELS step instead.
 - **Plex Media Server** is optional.
 
 ## Quick start
@@ -251,6 +251,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 ### No tuner found
 
 - The TVHeadend container has to run with host networking (the example compose already does this). It discovers a network tuner such as an HDHomeRun by broadcasting on the local network, and those broadcasts don't reach across Docker's own private network.
+- On a Mac or Windows PC, Docker Desktop and OrbStack cannot find a network tuner on their own. In the setup wizard's CHANNELS step, enter the tuner's address and this computer's address, then press USE THIS ADDRESS. On Linux, use **Enter the tuner's address** in the same step for a tuner on another subnet.
 - On an HDHomeRun, check the tuner itself at `http://<hdhr-ip>/tuners.html`; that page is HDHomeRun-only. Nothing there is a power or aerial problem, not a TVHeadend one.
 - On any other tuner, open TVHeadend's Configuration → DVB Inputs → TV adapters. An empty list means TVHeadend sees no tuner at all: check the USB passthrough, the driver, or the SAT>IP/IPTV settings.
 

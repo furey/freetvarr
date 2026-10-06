@@ -116,6 +116,39 @@ export const isMapperFinished = (status) => {
   return !status?.active && settled >= total
 }
 
+export const tunerAddressConfig = ({ address, hostAddress, dockerVm }) => {
+  const tuner = String(address ?? '').trim()
+  if (!isLanAddress(tuner)) {
+    return { field: 'address', error: `Enter the tuner's address as four numbers with dots, for example 192.168.1.50.` }
+  }
+  if (!dockerVm) return { node: { hdhomerun_ip: tuner } }
+  const host = String(hostAddress ?? '').trim()
+  if (!isLanAddress(host)) {
+    return { field: 'hostAddress', error: `Enter this computer's address as four numbers with dots, for example 192.168.1.20.` }
+  }
+  if (host === tuner) return { field: 'hostAddress', error: 'The tuner and this computer cannot have the same address.' }
+  return { node: { hdhomerun_ip: tuner, local_ip: host, local_port: TUNER_STREAM_PORT } }
+}
+
+export const isLanAddress = (value) => {
+  const octets = String(value).match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)?.slice(1).map(Number)
+  if (!octets || octets.some((o) => o > 255)) return false
+  const [first] = octets
+  return first !== 0 && first !== 127 && first < 224
+}
+
+export const readTunerAddress = async ({ http, conn }) => {
+  const body = await http.get('config/load', {}, conn)
+  const params = body?.entries?.[0]?.params || []
+  const value = (id) => params.find((p) => p.id === id)?.value
+  return { address: value('hdhomerun_ip') || '', hostAddress: value('local_ip') || '' }
+}
+
+export const saveTunerAddress = ({ http, conn, node }) =>
+  http.post('config/save', { node: JSON.stringify(node) }, conn)
+
+export const TUNER_STREAM_PORT = 9983
+
 export const planChannelSetup = ({ networkId }) => ({
   steps: [
     { id: 'network', label: networkId ? 'Use the existing TV network' : 'Create the TV network' },
