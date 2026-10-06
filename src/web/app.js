@@ -3177,7 +3177,7 @@ const SettingsView = {
               <span v-else class="text-xs font-mono text-ink-dim">looks on this computer, port 9981</span>
             </div>
             <div v-if="tvhCandidates.length > 1" class="md:col-span-3">
-              <p class="text-sm text-ink-dim mb-2">Multiple TVHeadend servers found — pick one:</p>
+              <p class="text-sm text-ink-dim mb-2">Several TVHeadend servers answered. Pick one:</p>
               <ul class="space-y-2">
                 <li v-for="c in tvhCandidates" :key="c.url">
                   <button type="button" class="btn" @click="useTvhCandidate(c)">
@@ -3997,6 +3997,7 @@ const DOCTOR_GROUPS = [
   { key: 'guide',     label: 'GUIDE'     },
   { key: 'storage',   label: 'STORAGE'   },
   { key: 'plex',      label: 'PLEX'      },
+  { key: 'syncs',     label: 'SYNCS'     },
   { key: 'live',      label: 'LIVE TV'   },
   { key: 'host',      label: 'HOST'      },
 ]
@@ -4593,7 +4594,7 @@ const GuideSetupStep = {
   props: {
     tvhUrl: { type: String, default: '' },
   },
-  emits: ['state'],
+  emits: ['state', 'back'],
   template: `
     <div class="space-y-4">
       <p v-if="loading && !status" class="status-readout info">Reading the TV guide settings…</p>
@@ -4614,7 +4615,11 @@ const GuideSetupStep = {
             </li>
           </ol>
           <template v-if="result && result.ok">
-            <p class="status-readout ok">{{ result.linked }} of {{ result.total }} channels have a guide.</p>
+            <div v-if="!result.total" class="space-y-2">
+              <p class="status-readout err">There are no channels yet, so there is nothing to link a guide to.</p>
+              <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> BACK TO CHANNELS</button>
+            </div>
+            <p v-else class="status-readout ok">{{ result.linked }} of {{ result.total }} channels have a guide.</p>
             <div v-if="result.unmatched.length" class="space-y-3">
               <p class="text-sm text-ink">These channels have no guide yet. Pick one for each, or leave them without a guide.</p>
               <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
@@ -4637,6 +4642,12 @@ const GuideSetupStep = {
             <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
             <button type="button" class="btn" @click="restart"><refresh-icon /> TRY AGAIN</button>
           </div>
+        </div>
+
+        <div v-else-if="!suggestion.channels" class="space-y-2">
+          <p class="status-readout err">There are no channels yet, so there is nothing to link a guide to.</p>
+          <p class="text-sm text-ink">Go back to CHANNELS and scan for channels first. Then come back here to set up the guide.</p>
+          <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> BACK TO CHANNELS</button>
         </div>
 
         <div v-else-if="!suggestion.available" class="space-y-2">
@@ -4675,7 +4686,7 @@ const GuideSetupStep = {
             </button>
           </div>
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
-          <p class="text-xs text-ink-mute">Freetvarr keeps the guide links you already have.</p>
+          <p v-if="suggestion.linked" class="text-xs text-ink-mute">Freetvarr keeps the guide links you already have.</p>
           <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
             Load a guide yourself in TVHeadend, then come back and press NEXT.
           </manual-option>
@@ -4801,7 +4812,7 @@ const WelcomeView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">{{ stepTitle }} · STEP {{ step }} / {{ totalSteps }}</span>
-          <button type="button" class="btn-link link-arrow" @click="skipToSettings">SKIP TO SETTINGS <arrow-right-icon /></button>
+          <button v-if="step < totalSteps" type="button" class="btn-link link-arrow" @click="skipToSettings">SKIP TO SETTINGS <arrow-right-icon /></button>
         </header>
         <div class="panel-body space-y-4">
 
@@ -4830,7 +4841,7 @@ const WelcomeView = {
                 :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
             </div>
             <div v-if="tvhCandidates.length > 1" class="space-y-2">
-              <p class="text-sm text-ink-dim">Multiple TVHeadend servers found — pick one:</p>
+              <p class="text-sm text-ink-dim">Several TVHeadend servers answered. Pick one:</p>
               <ul class="space-y-2">
                 <li v-for="c in tvhCandidates" :key="c.url">
                   <button type="button" class="btn" @click="useTvhCandidate(c)">
@@ -4920,7 +4931,7 @@ const WelcomeView = {
 
           <channel-setup-step v-if="step === 3" :tvh-url="tvhUrl" @state="channelState = $event" />
 
-          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" @state="guideState = $event" />
+          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" @state="guideState = $event" @back="step = 3" />
 
           <div v-if="step === 5" class="space-y-4">
             <p class="text-ink text-sm leading-relaxed">
@@ -5036,9 +5047,18 @@ const WelcomeView = {
           </div>
 
           <div v-if="step === 7" class="space-y-4">
-            <p class="text-ink text-base leading-relaxed">
+            <p v-if="!readySkipped.length" class="text-ink text-base leading-relaxed">
               <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> You're set.
             </p>
+            <div v-else class="space-y-2">
+              <p class="text-ink text-base leading-relaxed">Setup is not finished yet.</p>
+              <ul class="space-y-1 text-sm text-ink-dim">
+                <li v-for="item in readySkipped" :key="item.step">
+                  {{ item.text }}
+                  <button type="button" class="btn-link" @click="step = item.step">{{ item.action }}</button>
+                </li>
+              </ul>
+            </div>
             <p class="text-ink-dim text-sm leading-relaxed">
               Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Finished recordings go into your library on the next sync (every 30 minutes by default).
             </p>
@@ -5177,6 +5197,24 @@ const WelcomeView = {
 
     const channelState = ref({ busy: false, channels: 0 })
     const guideState = ref({ busy: false, linked: 0 })
+
+    const readySkipped = computed(() => {
+      if (!channelState.value.channels) {
+        return [{
+          step: 3,
+          text: 'No channels yet. The TV Guide stays empty until you scan for channels.',
+          action: 'GO TO CHANNELS',
+        }]
+      }
+      if (!guideState.value.linked) {
+        return [{
+          step: 4,
+          text: 'No guide linked yet. Freetvarr cannot record a show by name without one.',
+          action: 'GO TO GUIDE',
+        }]
+      }
+      return []
+    })
 
     const canAdvance = computed(() => {
       if (step.value === 2) return Boolean(tvhUrl.value.trim()) && !showSecure.value
@@ -5484,7 +5522,7 @@ const WelcomeView = {
     }
 
     return {
-      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig, channelState, guideState,
+      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig, channelState, guideState, readySkipped,
       timeZone, tzSource,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
