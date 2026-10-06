@@ -152,7 +152,7 @@ const fmtTime = (s) => {
     hour: 'numeric', minute: '2-digit', hour12: true,
   }).formatToParts(date).map((p) => [p.type, p.value]))
   const thisYear = dateFormat({ year: 'numeric' }).format(new Date())
-  const day = parts.year === thisYear ? `${parts.day} ${parts.month}` : `${parts.day} ${parts.month} ${parts.year}`
+  const day = parts.year === thisYear ? `${parts.day}\u00a0${parts.month}` : `${parts.day}\u00a0${parts.month}\u00a0${parts.year}`
   return `${day} ${parts.hour}:${parts.minute}${parts.dayPeriod.toLowerCase()}`
 }
 
