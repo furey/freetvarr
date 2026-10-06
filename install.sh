@@ -32,6 +32,13 @@ host_zone() {
 }
 
 host_address() {
+  address=""
+  if [ "$(uname -s)" = "Darwin" ]; then
+    address="$(ipconfig getifaddr en0 2>/dev/null || true)"
+    [ -n "$address" ] || address="$(ipconfig getifaddr en1 2>/dev/null || true)"
+    printf '%s' "$address"
+    return 0
+  fi
   address="$(hostname -I 2>/dev/null | awk '{print $1}')"
   [ -n "$address" ] || address="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
   printf '%s' "$address"
