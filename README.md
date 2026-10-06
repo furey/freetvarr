@@ -149,7 +149,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Saved artwork**: each recording keeps its programme image and channel logo, so the Recordings tab still shows them after the guide moves on.
 - **Hardlink imports**: the recording is already on disk, so the import is a hardlink when Freetvarr sees the recordings folder and the media library through one mount, and a copy when it doesn't. A hardlink uses no extra disk space.
 - **Library-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the guide gave no episode number.
-- **Short-file detection**: an import more than `1 MB` short of what TVHeadend reported stays `partial`, and the next sync redoes it.
+- **Short-file detection**: an import more than `1MB` short of what TVHeadend reported stays `partial`, and the next sync redoes it.
 - **Scheduled + manual sync**: checks TVHeadend on a schedule you choose (every 15 minutes, 30 minutes, or hour, or your own cron expression), plus on-demand Sync now for everything or a single show.
 - **Plex integration**: section refresh after every sync that imported something, plus a Refresh Plex now button. With no Plex yet, the compose file can run one (`COMPOSE_PROFILES=plex`), and the wizard creates its TV, one-off, and movie libraries.
 - **Remove after import**: once Plex confirms its copy, Freetvarr can delete the recording's file from TVHeadend.
@@ -260,7 +260,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 
 ### `partial` recordings
 
-- The imported file came up more than `1 MB` short of what TVHeadend reported. The next sync redoes the import. If it stays short, the source is short; check TVHeadend's own status for that entry, which usually reports data errors from a weak signal.
+- The imported file came up more than `1MB` short of what TVHeadend reported. The next sync redoes the import. If it stays short, the source is short; check TVHeadend's own status for that entry, which usually reports data errors from a weak signal.
 
 ### Slow imports
 

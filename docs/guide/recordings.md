@@ -17,7 +17,7 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 ## Statuses
 
 - **imported**: the file on disk matches the size TVHeadend reported.
-- **partial**: the imported file came up more than `1 MB` short. The next sync redoes it.
+- **partial**: the imported file came up more than `1MB` short. The next sync redoes it.
 - **skipped**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The error text says which.
 - **failed**: the import hit an error.
 - **not imported**: Freetvarr left the recording in TVHeadend. You recorded it with **ADD TO LIBRARY** off, or it matches no series folder and **IMPORT EVERY RECORDING** is off in Settings. Press **IMPORT** to add it to the library at once.

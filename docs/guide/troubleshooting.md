@@ -143,7 +143,7 @@ The error text says which of the two causes it was:
 
 ## Partial recordings
 
-- The imported file came up more than `1 MB` short of what TVHeadend reported. The next sync redoes the import. If it stays `partial`, the source itself is short: check TVHeadend's own status for that entry, which usually reports data errors from a weak signal.
+- The imported file came up more than `1MB` short of what TVHeadend reported. The next sync redoes the import. If it stays `partial`, the source itself is short: check TVHeadend's own status for that entry, which usually reports data errors from a weak signal.
 
 ## Slow imports
 

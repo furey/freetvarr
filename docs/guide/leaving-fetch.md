@@ -26,7 +26,7 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
-[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. It runs alongside TVHeadend. You can use any of the other software instead.
+[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. Its install includes TVHeadend, and its setup wizard sets it up for you: logins, channels, and the guide. It can install Plex too. If you already run TVHeadend or Plex, it uses yours. You can use any of the other software instead.
 
 > [!TIP]<br>
 > If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
@@ -145,12 +145,12 @@ Everything in Path 1, plus an always-on computer and somewhere to store recordin
 | Item                                     | Why                                                                                                                                                          | Price                  | Where to buy                                                                                                                                                               |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Synology DS225+ NAS                      | Runs TVHeadend, Freetvarr, and Plex, and holds the recordings. Its Intel graphics chip converts live TV for the browser and leaves the processor almost idle | `A$549–620`, no drives | [Amazon AU](https://www.amazon.com.au/dp/B0FC2888KF?tag=freetvarr-22), [Umart](https://www.umart.com.au/brand/synology-271)                                                |
-| NAS hard drive, 4 TB                     | Room for about `650–1,300` hours of HD                                                                                                                       | `A$330–360`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
-| NAS hard drive, 8 TB                     | Twice that                                                                                                                                                   | `A$590–640`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
+| NAS hard drive, 4TB                     | Room for about `650–1,300` hours of HD                                                                                                                       | `A$330–360`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
+| NAS hard drive, 8TB                     | Twice that                                                                                                                                                   | `A$590–640`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
 | Or: a mini PC with an Intel N150 or N100 | Cheaper than a NAS. Runs Linux and Docker; its Intel graphics chip converts live TV for the browser                                                          | about `A$290–370`      | [Amazon AU, Beelink EQ14](https://www.amazon.com.au/dp/B0G1M7C1V9?tag=freetvarr-22), [Amazon AU, GMKtec G3 Plus](https://www.amazon.com.au/dp/B0FKYPD8JR?tag=freetvarr-22) |
 | Or, with a mini PC: a USB tuner          | Cheaper than a network tuner, but it works only plugged into the Linux computer that runs TVHeadend, not a NAS                                               | `A$100–190`            | [PB Tech, Hauppauge WinTV-dualHD](https://www.pbtech.com/au/product/TVNHGR1590/Hauppauge-WinTV-dualHD-Dual-Tuner-DVB-TT2C-Digital)                                         |
 
-An hour of HD free-to-air takes about `3–6 GB` on disk, and SD about half that. Plex is free for watching your own library at home; see [Plex's plans](https://www.plex.tv/en-au/plans/) for what its paid tier adds.
+An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that. Plex is free for watching your own library at home; see [Plex's plans](https://www.plex.tv/en-au/plans/) for what its paid tier adds.
 
 > [!NOTE]<br>
 > The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. Any always-on computer that runs Docker works; the [Hardware](/guide/hardware) guide has the details.
@@ -164,7 +164,7 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 3. Find the box. Type `npx fetchtv` and press Enter. If it asks to install, answer yes. It searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
 4. If it finds nothing, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 5. List your recordings: `npx fetchtv shows --ip=192.168.1.50`, with your box's address in place of the example.
-6. Check that the computer has enough free space. Each hour of HD takes about `3–6 GB`.
+6. Check that the computer has enough free space. Each hour of HD takes about `3–6GB`.
 7. Copy everything: `npx fetchtv recordings --ip=192.168.1.50 --save=./fetch-recordings`.
 
 The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again: it skips the files it already copied.
@@ -248,8 +248,8 @@ On cost alone, a new Fetch box can come out cheaper than either path. Fetch's pr
 | Box              | Price                                  | Records          | Three years with Fetch Access |
 | ---------------- | -------------------------------------- | ---------------- | ----------------------------- |
 | Mini Gen 5       | `A$149` for Gen 3 owners (RRP `A$199`) | No               | about `A$300`                 |
-| Mighty Gen 4     | `A$659`                                | Yes, `1 TB` disk | about `A$840`                 |
-| Mighty Gen 4 Pro | `A$799` pre-order (RRP `A$999`)        | Yes, `2 TB` disk | about `A$980`                 |
+| Mighty Gen 4     | `A$659`                                | Yes, `1TB` disk | about `A$840`                 |
+| Mighty Gen 4 Pro | `A$799` pre-order (RRP `A$999`)        | Yes, `2TB` disk | about `A$980`                 |
 
 Every new box needs Fetch Access at `A$4.99` a month (`A$59.88` a year). Fetch Access includes Movie Box, 30+ streamed channels, and games; apps such as Netflix cost extra. Gen 3 owners who buy the Mini also get `A$29.94` of credit, which is six months of Fetch Access. The offer ends on `31 October 2026`.
 
