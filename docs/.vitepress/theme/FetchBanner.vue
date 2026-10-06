@@ -20,6 +20,7 @@ import { withBase } from 'vitepress'
   align-items: center;
   gap: 10px;
   max-width: 100%;
+  margin-top: 32px;
   margin-bottom: 24px;
   padding: 8px 14px;
   border: 1px solid var(--vp-c-brand-soft);
@@ -67,6 +68,7 @@ import { withBase } from 'vitepress'
 
 @media (min-width: 960px) {
   .fetch-banner {
+    margin-top: 0;
     font-size: 13px;
   }
 

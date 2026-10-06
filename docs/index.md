@@ -53,7 +53,7 @@ features:
   - title: Hardlink imports
     details: >-
       Recordings are already on disk, so the import is a hardlink, not a
-      download: instant, and no second copy of a 3 GB transport stream.
+      download: instant, and no second copy of a 3GB transport stream.
     link: /deep-dive#import-state-machine
     linkText: The state machine
   - title: Plex integration
