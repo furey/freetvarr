@@ -92,7 +92,7 @@
   <br/><em>Mobile</em>
 </p>
 
-Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
+Big Buck Bunny © Blender Foundation (CC BY 3.0)
 
 ## What Freetvarr is
 

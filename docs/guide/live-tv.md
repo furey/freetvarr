@@ -29,8 +29,6 @@ The **zoom buttons** above the channel list change the row size. Zoom out for mo
 
 ![The player over the Live TV tab](../img/screenshot-player.png)
 
-Video in the screenshots and demo: Big Buck Bunny, © Blender Foundation, CC BY 3.0.
-
 ## Pause and rewind
 
 Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` to keep more or fewer minutes, or `0` to turn it off.
