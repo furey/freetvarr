@@ -36,14 +36,14 @@ export const planBootstrap = ({ lanPrefixes, adminUsername }) => {
   return {
     prefix,
     steps: [
-      { id: 'check-fresh', label: 'Check TVHeadend has no logins yet' },
-      { id: 'create-admin', label: `Create the ${adminUsername} login`, user: adminUsername },
-      { id: 'create-freetvarr', label: `Create the ${FREETVARR_USERNAME} login`, user: FREETVARR_USERNAME },
-      { id: 'verify-freetvarr', label: `Sign in as ${FREETVARR_USERNAME}`, user: FREETVARR_USERNAME },
-      { id: 'verify-admin', label: `Sign in as ${adminUsername}`, user: adminUsername },
-      { id: 'back-up-open-entry', label: 'Keep a copy of the open entry for undo' },
-      { id: 'save-connection', label: `Save the ${FREETVARR_USERNAME} login in Freetvarr` },
-      { id: 'remove-open-entry', label: 'Remove the open entry' },
+      { id: 'check-fresh', label: 'Check TVHeadend is open to anyone' },
+      { id: 'create-admin', label: 'Make your admin login', user: adminUsername },
+      { id: 'create-freetvarr', label: "Make Freetvarr's own login", user: FREETVARR_USERNAME },
+      { id: 'verify-freetvarr', label: "Test Freetvarr's login", user: FREETVARR_USERNAME },
+      { id: 'verify-admin', label: 'Test your admin login', user: adminUsername },
+      { id: 'back-up-open-entry', label: 'Keep a copy of the open access settings, in case you undo' },
+      { id: 'save-connection', label: "Save Freetvarr's login" },
+      { id: 'remove-open-entry', label: 'Turn off open access' },
       { id: 'confirm-locked', label: 'Check TVHeadend now asks for a login' },
     ],
   }
