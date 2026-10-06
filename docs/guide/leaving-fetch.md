@@ -196,6 +196,8 @@ Do these in order. The times are for someone doing it the first time.
 5. Choose **Yes, cancel my service**, on or before `31 October 2026`. This cancels every box on the account, so you do not need to remove the boxes one at a time first.
 6. Unplug the Fetch box.
 
+After you cancel, signing in to the Fetch account shows "User is disabled".
+
 Fetch pays any refund to the card on file. If Fetch owes you money, check your card under **Update Billing Details** before you cancel.
 
 If you got Fetch through your internet provider, cancel through that provider instead. Ask it whether you must return the box.
