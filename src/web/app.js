@@ -122,19 +122,16 @@ const fmtBytes = (n) => {
 }
 
 const tvhDetectSummary = (c) => {
-  const where = c.version ? `TVHeadend ${c.version}` : 'TVHeadend'
   const auth = c.needsAuth ? ' (asks for a login)' : ''
   const loop = c.loopback ? '. Only loopback answered. Use a LAN IP so logos and live TV load in the browser' : ''
-  return `Found ${where} at ${c.url}${auth}${loop}.`
+  return `Found TVHeadend at ${c.url}${auth}${loop}.`
 }
 
 const tvhTestSummary = (r) => {
   const bits = []
-  if (r.version) bits.push(`v${r.version}`)
-  if (r.apiVersion != null) bits.push(`api ${r.apiVersion}`)
-  bits.push(`${r.channels} channel${r.channels === 1 ? '' : 's'}`)
-  bits.push(`${r.tuners} tuner${r.tuners === 1 ? '' : 's'}`)
-  return `Connected to TVHeadend ${bits.join(' · ')}.`
+  if (r.channels) bits.push(`${r.channels} channel${r.channels === 1 ? '' : 's'}`)
+  if (r.tuners) bits.push(`${r.tuners} tuner${r.tuners === 1 ? '' : 's'}`)
+  return bits.length ? `Connected to TVHeadend · ${bits.join(' · ')}.` : 'Connected to TVHeadend.'
 }
 
 const tz = ref('UTC')
@@ -492,7 +489,7 @@ const recordingsFolderStatus = async ({ path, mediaRoot }) => {
       kind: 'info',
     }
   }
-  const hardlinks = r.hardlinks ? ', and imports into the media root hardlink' : ''
+  const hardlinks = r.hardlinks ? '. Recordings can move into the TV library folder instantly, without copying' : ''
   return { text: `${r.path} is readable${hardlinks}.`, kind: 'ok' }
 }
 
@@ -4345,6 +4342,9 @@ const ChannelSetupStep = {
           <p v-if="waitingForTuner" class="status-readout info">
             Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
           </p>
+          <p v-else-if="scanStarting" class="status-readout info">
+            <span class="spinner"></span> Starting the scan. The first channels can take a minute.
+          </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
@@ -4354,14 +4354,17 @@ const ChannelSetupStep = {
         </div>
 
         <div v-else-if="state === 'no-tuner'" class="space-y-4">
-          <div class="space-y-2">
+          <p v-if="addressSaved" class="status-readout info">
+            <span class="spinner"></span> Looking for the tuner at {{ addressSaved }}. This can take a minute.
+          </p>
+          <div v-else class="space-y-2">
             <p class="status-readout err">No TV tuner found yet.</p>
             <p v-if="dockerVm" class="text-sm text-ink">
               Docker on a Mac or Windows PC cannot find a network tuner by itself. Enter the tuner's address below.
             </p>
             <p v-else class="text-sm text-ink">Check that the tuner is on and connected to your network, then press CHECK AGAIN.</p>
             <p v-if="savedAddress" class="text-sm text-ink-dim">TVHeadend looks for a tuner at {{ savedAddress }}.</p>
-            <button type="button" class="btn" @click="refresh" :disabled="loading">
+            <button v-if="!dockerVm" type="button" class="btn" @click="refresh" :disabled="loading">
               <template v-if="loading">CHECKING…</template><template v-else><refresh-icon /> CHECK AGAIN</template>
             </button>
           </div>
@@ -4379,11 +4382,10 @@ const ChannelSetupStep = {
             <p class="text-xs text-ink-dim">
               Find the tuner's address in your router's list of devices, or in the tuner's own app.<template v-if="dockerVm"> This computer's address is the one other devices on your network use to reach this Mac or PC.<template v-if="hostGuessed"> Freetvarr guessed it from the address in your browser.</template></template>
             </p>
-            <button type="submit" class="btn btn-primary" :disabled="savingAddress || !tunerAddress">
+            <button type="submit" class="btn btn-primary" :disabled="savingAddress || Boolean(addressSaved) || !tunerAddress">
               <search-icon /> USE THIS ADDRESS
             </button>
             <p v-if="addressError" class="status-readout err">{{ addressError }}</p>
-            <p v-if="addressSaved" class="status-readout info">Looking for the tuner at {{ addressSaved }}…</p>
           </form>
           <button v-else type="button" class="btn-link" @click="addressOpen = true">Enter the tuner's address</button>
         </div>
@@ -4447,7 +4449,7 @@ const ChannelSetupStep = {
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
           <p class="text-xs text-ink-mute">A scan takes a few minutes. Freetvarr keeps any channels you already have.</p>
           <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
-            Scan and add channels yourself in TVHeadend, then come back and press NEXT.
+            Scan and add channels yourself in TVHeadend, then come back here.
           </manual-option>
         </div>
       </template>
@@ -4492,17 +4494,27 @@ const ChannelSetupStep = {
     const result = computed(() => job.value?.result || null)
     const running = computed(() => Boolean(job.value?.running))
     const showSteps = computed(() => running.value || Boolean(result.value))
-    const waitingForTuner = computed(() => running.value
-      && Boolean(steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail?.waitingForTuner))
+    const runningScan = computed(() => (running.value
+      ? steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail || null
+      : null))
+    const waitingForTuner = computed(() => Boolean(runningScan.value?.waitingForTuner))
+    const scanStarting = computed(() => Boolean(runningScan.value)
+      && !runningScan.value.scanned && !runningScan.value.active)
     const channelCount = computed(() => status.value?.channels || 0)
     const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
-    const doneText = computed(() => {
-      const added = result.value?.mapped?.ok || 0
-      return added ? `Added ${added} channels.` : 'Every channel the scan found is already in TVHeadend.'
+    const doneText = computed(() => channelsAddedText(result.value))
+    const actionShown = computed(() => {
+      if (!status.value || loadError.value || showSteps.value) return false
+      if (state.value === 'no-tuner') return addressOpen.value
+      return state.value !== 'unsupported-tuner' && (state.value !== 'has-channels' || editing.value)
     })
 
-    watch([running, starting, channelCount], () => {
-      emit('state', { busy: running.value || starting.value, channels: channelCount.value })
+    watch([running, starting, channelCount, actionShown], () => {
+      emit('state', {
+        busy: running.value || starting.value,
+        channels: channelCount.value,
+        actionShown: actionShown.value,
+      })
     }, { immediate: true })
 
     watch(country, (curr, prev) => {
@@ -4627,7 +4639,7 @@ const ChannelSetupStep = {
     return {
       status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
-      steps, result, showSteps, waitingForTuner, doneText, recordingNow,
+      steps, result, showSteps, waitingForTuner, scanStarting, doneText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
@@ -4643,16 +4655,29 @@ const recordingWarning = (recordings) => {
   return `TVHeadend is recording ${what}${until}. A scan now can cause brief glitches in the recording, so you may want to wait.`
 }
 
+const syncFrequency = (cron) => {
+  const preset = SYNC_SCHEDULE_PRESETS.find((p) => p.cron === syncSchedulePreset(cron))
+  return preset ? preset.label.toLowerCase() : 'on your sync schedule'
+}
+
+const channelsAddedText = (result) => {
+  const total = result?.channels || 0
+  const added = total - (result?.channelsBefore || 0)
+  if (added <= 0) return 'Every channel the scan found is already in TVHeadend.'
+  if (added === total) return `Added ${total} channels.`
+  return `Added ${added} channels. TVHeadend now has ${total}.`
+}
+
 const scanOrMapDetail = (step) => {
   const d = step.detail
   if (!d) return ''
   if (step.id === 'scan') {
     if (!d.frequencies) return 'starting'
-    return `checked ${d.scanned} of ${d.frequencies} frequencies, ${d.services} stations found`
+    return `${d.scanned} of ${d.frequencies} done`
   }
   if (step.id === 'map') {
     if (!d.total) return 'nothing new to add'
-    return `${d.ok + d.fail} of ${d.total} checked, ${d.ok} added`
+    return `${Math.round(((d.ok + d.fail) / d.total) * 100)}% done`
   }
   return ''
 }
@@ -4698,19 +4723,13 @@ const GuideSetupStep = {
             </div>
             <p v-else class="status-readout ok">{{ result.linked }} of {{ result.total }} channels have a guide.</p>
             <div v-if="result.unmatched.length" class="space-y-3">
-              <p class="text-sm text-ink">These channels have no guide yet. Pick one for each, or leave them without a guide.</p>
+              <p class="text-sm text-ink">These channels have no guide yet. Check each pick, or choose No guide. NEXT saves your choices.</p>
               <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
                 <label class="text-sm text-ink" :for="'guide-' + c.id">{{ c.name }}<span v-if="c.number" class="text-ink-dim"> · {{ c.number }}</span></label>
                 <select :id="'guide-' + c.id" class="field-input" v-model="picks[c.id]">
                   <option value="">No guide</option>
                   <option v-for="o in result.options" :key="o.id" :value="o.id">{{ o.name }}</option>
                 </select>
-              </div>
-              <div class="flex flex-wrap items-center gap-3">
-                <button type="button" class="btn" @click="saveLinks" :disabled="!pickedCount || savingLinks">
-                  <template v-if="savingLinks">SAVING…</template><template v-else>SAVE LINKS</template>
-                </button>
-                <span v-if="linkText" :class="['status-readout', linkKind]">{{ linkText }}</span>
               </div>
             </div>
           </template>
@@ -4765,7 +4784,7 @@ const GuideSetupStep = {
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
           <p v-if="suggestion.linked" class="text-xs text-ink-mute">Freetvarr keeps the guide links you already have.</p>
           <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
-            Load a guide yourself in TVHeadend, then come back and press NEXT.
+            Load a guide yourself in TVHeadend, then come back here.
           </manual-option>
         </div>
       </template>
@@ -4783,8 +4802,6 @@ const GuideSetupStep = {
     const starting = ref(false)
     const applyError = ref('')
     const picks = reactive({})
-    const savingLinks = ref(false)
-    const [linkText, linkKind, setLinkText] = makeStatus()
     let pollTimer = null
 
     const suggestion = computed(() => status.value?.suggestion || null)
@@ -4796,8 +4813,12 @@ const GuideSetupStep = {
     const linked = computed(() => (result.value?.ok ? result.value.linked : suggestion.value?.linked || 0))
     const pickedCount = computed(() => Object.values(picks).filter(Boolean).length)
 
-    watch([running, starting, linked], () => {
-      emit('state', { busy: running.value || starting.value, linked: linked.value })
+    watch([running, starting, linked, pickedCount], () => {
+      emit('state', { busy: running.value || starting.value, linked: linked.value, pending: pickedCount.value })
+    }, { immediate: true })
+
+    watch(() => result.value?.unmatched, (unmatched) => {
+      for (const c of unmatched || []) if (!(c.id in picks)) picks[c.id] = c.guess || ''
     }, { immediate: true })
 
     const prefill = (s) => {
@@ -4847,19 +4868,12 @@ const GuideSetupStep = {
     }
 
     const saveLinks = async () => {
-      savingLinks.value = true
-      try {
-        const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
-        const r = await api('POST', '/api/tvh-guide/links', { links })
-        for (const key of Object.keys(picks)) delete picks[key]
-        const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
-        if (progress) job.value = progress
-        setLinkText(`Linked ${r.linked} ${r.linked === 1 ? 'channel' : 'channels'}.`, 'ok', 5000)
-      } catch (err) {
-        setLinkText(err.message, 'err', 0)
-      } finally {
-        savingLinks.value = false
-      }
+      if (!pickedCount.value) return
+      const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
+      await api('POST', '/api/tvh-guide/links', { links })
+      for (const { channel_id } of links) delete picks[channel_id]
+      const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
+      if (progress) job.value = progress
     }
 
     const restart = () => {
@@ -4877,7 +4891,7 @@ const GuideSetupStep = {
 
     return {
       OTHER, status, loading, loadError, editing, suggestion, choice, customUrl, url,
-      steps, result, showSteps, starting, applyError, picks, pickedCount, savingLinks, linkText, linkKind,
+      steps, result, showSteps, starting, applyError, picks, pickedCount,
       refresh, apply, saveLinks, restart, stepDetail, secureStepDot,
     }
   },
@@ -4895,10 +4909,10 @@ const WelcomeView = {
 
           <div v-if="step === 1" class="space-y-4">
             <p class="text-ink text-base leading-relaxed">
-              Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) removes them from TVHeadend afterwards.
+              Freetvarr gives you a TV guide, records shows and series, and lets you watch live and recorded TV on any screen. Recordings are saved into your media library.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend. Plex is optional.
+              Setup takes about two minutes. The only step you must finish is connecting to TVHeadend, the program that runs your tuner. Plex is optional.
             </p>
             <p v-if="hasExistingConfig" class="text-xs font-mono text-plex-yellow">
               <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> RETURN VISIT: your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
@@ -4935,18 +4949,17 @@ const WelcomeView = {
               <p class="text-ink text-sm leading-relaxed">
                 <strong class="text-signal-orange">This TVHeadend has no logins yet</strong>, so anyone on your network can change it. Freetvarr can secure it: it makes an admin login for you and a separate login for itself, then turns off the open access.
               </p>
-              <div class="grid gap-4 md:grid-cols-3">
+              <div class="grid gap-4 md:grid-cols-2">
                 <div class="field-row">
                   <label class="field-label">Admin username</label>
                   <input type="text" class="field-input" v-model="secureAdminUsername" autocomplete="off" :disabled="securing" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Admin password</label>
-                  <input type="password" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
-                </div>
-                <div class="field-row">
-                  <label class="field-label">Confirm password</label>
-                  <input type="password" class="field-input" v-model="secureAdminConfirm" autocomplete="new-password" :disabled="securing" />
+                  <div class="flex items-center gap-2">
+                    <input ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
+                    <button type="button" class="btn btn-sm btn-icon" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
+                  </div>
                 </div>
               </div>
               <div class="field-row">
@@ -5008,7 +5021,7 @@ const WelcomeView = {
 
           <channel-setup-step v-if="step === 3" :tvh-url="tvhUrl" @state="channelState = $event" />
 
-          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" @state="guideState = $event" @back="step = 3" />
+          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" ref="guideStep" @state="guideState = $event" @back="step = 3" />
 
           <div v-if="step === 5" class="space-y-4">
             <p v-if="storageChecking" class="status-readout info">Checking the folders…</p>
@@ -5030,7 +5043,7 @@ const WelcomeView = {
               <summary>Advanced: change folders</summary>
               <div class="settings-disclosure-body space-y-4">
                 <p class="text-xs text-ink-mute leading-relaxed">
-                  Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too.
+                  Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too. The data folder is the one that <code>DATA_PATH</code> sets in <code>.env</code>.
                 </p>
                 <div class="field-row">
                   <label class="field-label">TV library folder</label>
@@ -5167,10 +5180,10 @@ const WelcomeView = {
               </ul>
             </div>
             <p class="text-ink-dim text-sm leading-relaxed">
-              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Finished recordings go into your library on the next sync (every 30 minutes by default).
+              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads TVHeadend, Plex, and the folders, and changes nothing.
+              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It reads {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }}, and changes nothing.
             </p>
           </div>
 
@@ -5181,7 +5194,7 @@ const WelcomeView = {
             <span v-if="saveStatusText"
               :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
             <span v-else-if="!canAdvance" class="text-xs text-signal-yellow font-mono">{{ advanceHint }}</span>
-            <button type="button" class="btn btn-primary" @click="next" :disabled="!canAdvance || saving">
+            <button type="button" :class="['btn', { 'btn-primary': nextIsPrimary }]" @click="next" :disabled="!canAdvance || saving">
               {{ nextLabel }} <arrow-right-icon />
             </button>
           </div>
@@ -5254,6 +5267,8 @@ const WelcomeView = {
     const saved = reactive({
       mediaRoot: '', recordingsRoot: '', tvhRecordingsPath: '', plexUrl: '', plexSectionId: '', plexPrefsPath: '',
     })
+    const syncCron = ref(DEFAULT_SYNC_CRON)
+    const syncFrequencyText = computed(() => syncFrequency(syncCron.value))
 
     const hasExistingConfig = computed(() =>
       Boolean(tvhUrl.value || tvhPasswordSet.value || saved.plexUrl || plexTokenSet.value || saved.plexSectionId),
@@ -5264,6 +5279,7 @@ const WelcomeView = {
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
+      syncCron.value = s.sync_cron_effective || DEFAULT_SYNC_CRON
       tzSource.value = s.tz_source || 'system'
       timeZone.value = s.time_zone || s.tz_env || browserTimeZone() || s.tz || 'UTC'
       recordingsRoot.value = s.recordings_root || ''
@@ -5357,8 +5373,9 @@ const WelcomeView = {
       sectionAutoLoadTimer = setTimeout(() => loadPlexSections({ silent: true }), 600)
     })
 
-    const channelState = ref({ busy: false, channels: 0 })
-    const guideState = ref({ busy: false, linked: 0 })
+    const channelState = ref({ busy: false, channels: 0, actionShown: false })
+    const guideStep = ref(null)
+    const guideState = ref({ busy: false, linked: 0, pending: 0 })
 
     const readySkipped = computed(() => {
       if (!channelState.value.channels) {
@@ -5394,18 +5411,28 @@ const WelcomeView = {
     })
 
     const plexWillSave = computed(() => plexConnected.value || plexEditedByHand.value)
+    const plexIsSetUp = computed(() => plexWillSave.value || Boolean(saved.plexUrl))
 
     const nextLabel = computed(() => {
       if (step.value === totalSteps) return 'OPEN TV GUIDE'
       if (step.value === 2) return 'SAVE & NEXT'
       if (step.value === 3) return channelState.value.channels ? 'NEXT' : 'SKIP'
-      if (step.value === 4) return guideState.value.linked ? 'NEXT' : 'SKIP'
+      if (step.value === 4) {
+        if (guideState.value.pending) return 'SAVE & NEXT'
+        return guideState.value.linked ? 'NEXT' : 'SKIP'
+      }
       if (step.value === 5) return Object.keys(storageChanges.value).length ? 'SAVE & NEXT' : 'NEXT'
       if (step.value === 6) {
         if (plexConnected.value) return 'NEXT'
         return plexEditedByHand.value ? 'SAVE & NEXT' : 'SKIP'
       }
       return 'NEXT'
+    })
+
+    const nextIsPrimary = computed(() => {
+      if (step.value === 3) return channelState.value.channels > 0 && !channelState.value.actionShown
+      if (step.value === 4) return nextLabel.value !== 'SKIP'
+      return true
     })
 
     const dismiss = () => {
@@ -5469,6 +5496,8 @@ const WelcomeView = {
             setSaveStatus('Connection failed. Correct the TVHeadend details to continue.', 'err', 0)
             return
           }
+        } else if (step.value === 4) {
+          await guideStep.value?.saveLinks()
         } else if (step.value === 5) {
           await saveStorage()
         } else if (step.value === 6) {
@@ -5640,7 +5669,8 @@ const WelcomeView = {
     const securedAs = ref('')
     const secureAdminUsername = ref('admin')
     const secureAdminPassword = ref('')
-    const secureAdminConfirm = ref('')
+    const secureShowPassword = ref(false)
+    const secureAdminPasswordInput = ref(null)
     const securePrefixes = ref('')
     const secureSteps = ref([])
     const secureError = ref('')
@@ -5649,7 +5679,6 @@ const WelcomeView = {
     const secureInputProblem = computed(() => bootstrapInputProblem({
       username: secureAdminUsername.value,
       password: secureAdminPassword.value,
-      confirm: secureAdminConfirm.value,
       prefixes: securePrefixes.value,
     }))
     const secureReady = computed(() => !secureInputProblem.value)
@@ -5669,6 +5698,11 @@ const WelcomeView = {
     watch(tvhUrl, () => {
       bootstrap.value = null
       checkBootstrap()
+    })
+    watch(showSecure, async (visible) => {
+      if (!visible) return
+      await nextTick()
+      secureAdminPasswordInput.value?.focus()
     })
 
     const useManualLogin = () => {
@@ -5697,7 +5731,6 @@ const WelcomeView = {
         secureSteps.value = result.steps
         securedAs.value = result.adminUsername
         secureAdminPassword.value = ''
-        secureAdminConfirm.value = ''
         tvhUsername.value = result.username
         tvhPassword.value = ''
         tvhPasswordSet.value = true
@@ -5737,7 +5770,7 @@ const WelcomeView = {
     }
 
     return {
-      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, hasExistingConfig, channelState, guideState, readySkipped,
+      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, nextIsPrimary, plexIsSetUp, syncFrequencyText, guideStep, hasExistingConfig, channelState, guideState, readySkipped,
       timeZone, tzSource,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
@@ -5748,7 +5781,7 @@ const WelcomeView = {
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
-      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureAdminConfirm,
+      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
       securePrefixes, secureSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
@@ -5760,10 +5793,9 @@ const WelcomeView = {
   },
 }
 
-const bootstrapInputProblem = ({ username, password, confirm, prefixes }) => {
+const bootstrapInputProblem = ({ username, password, prefixes }) => {
   if (!username.trim()) return 'Choose an admin username.'
   if (password.length < BOOTSTRAP_MIN_PASSWORD) return `Choose an admin password of at least ${BOOTSTRAP_MIN_PASSWORD} characters.`
-  if (password !== confirm) return 'The two passwords do not match yet.'
   if (!prefixes.trim()) return 'Enter at least one allowed network.'
   return ''
 }
@@ -5776,7 +5808,7 @@ const changedSettings = (entries) => Object.fromEntries(
 
 const storageSummaryText = ({ mediaRoot, recordingsRoot }) => {
   const inDataFolder = [mediaRoot, recordingsRoot].every((folder) => isInsideFolder({ folder, root: COMPOSE_DATA_ROOT }))
-  if (inDataFolder) return 'Recordings and your TV library are saved in your data folder (the data folder next to docker-compose.yml, unless you set DATA_PATH).'
+  if (inDataFolder) return 'Recordings and your TV library are saved in the data folder inside the folder you installed Freetvarr to.'
   return `Freetvarr reads recordings from ${recordingsRoot} and saves your TV library to ${mediaRoot}.`
 }
 
@@ -8321,6 +8353,25 @@ const SignalBarsIcon = {
   `,
 }
 
+const EyeIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/>
+      <circle cx="8" cy="8" r="2"/>
+    </svg>
+  `,
+}
+
+const EyeOffIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/>
+      <circle cx="8" cy="8" r="2"/>
+      <path d="M2.5 13.5l11-11"/>
+    </svg>
+  `,
+}
+
 const SearchIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -9383,6 +9434,8 @@ app.component('image-icon', ImageIcon)
 app.component('versions-row', VersionsRow)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
+app.component('eye-icon', EyeIcon)
+app.component('eye-off-icon', EyeOffIcon)
 app.component('doctor-spinner', DoctorSpinner)
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
