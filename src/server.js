@@ -392,7 +392,7 @@ app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, re
   if (!row) return res.status(404).json({ error: 'recording not found' })
   const isUnimported = UNIMPORTED_STATUSES.includes(row.status)
   if (!row.deleted_from_tvh_at && !isUnimported) {
-    return res.status(409).json({ error: 'recording still in TVHeadend — remove it there first' })
+    return res.status(409).json({ error: 'recording still in TVHeadend. Remove it there first.' })
   }
   await db('recordings')
     .where({ recording_id: recordingId })

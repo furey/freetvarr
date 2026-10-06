@@ -124,7 +124,7 @@ const fmtBytes = (n) => {
 const tvhDetectSummary = (c) => {
   const where = c.version ? `TVHeadend ${c.version}` : 'TVHeadend'
   const auth = c.needsAuth ? ' (asks for a login)' : ''
-  const loop = c.loopback ? ' — only loopback answered; use a LAN IP so logos and live TV load in the browser' : ''
+  const loop = c.loopback ? '. Only loopback answered. Use a LAN IP so logos and live TV load in the browser' : ''
   return `Found ${where} at ${c.url}${auth}${loop}.`
 }
 
@@ -134,7 +134,7 @@ const tvhTestSummary = (r) => {
   if (r.apiVersion != null) bits.push(`api ${r.apiVersion}`)
   bits.push(`${r.channels} channel${r.channels === 1 ? '' : 's'}`)
   bits.push(`${r.tuners} tuner${r.tuners === 1 ? '' : 's'}`)
-  return `Connected — TVHeadend ${bits.join(' · ')}.`
+  return `Connected to TVHeadend ${bits.join(' · ')}.`
 }
 
 const tz = ref('UTC')
@@ -171,14 +171,14 @@ const fmtElapsed = ({ at, nowMs }) => {
 
 const plexSummary = (p) => {
   if (p.triggered) return { kind: 'mark', label: 'plex', mark: 'done', text: `(${p.status})` }
-  if (p.skipped) return { kind: 'text', text: 'plex —' }
+  if (p.skipped) return { kind: 'text', text: 'plex: skipped' }
   if (p.error) return { kind: 'mark', label: 'plex', mark: 'failed', text: p.error }
   return { kind: 'text', text: 'plex ?' }
 }
 
 const deleteSummary = (d) => {
   if (d.triggered) return { kind: 'mark', label: 'rm', mark: 'done', text: String(d.removed?.length ?? '?') }
-  if (d.skipped) return { kind: 'text', text: `rm — ${d.reason || ''}`.trim() }
+  if (d.skipped) return { kind: 'text', text: `rm: ${d.reason || ''}`.trim() }
   if (d.error) return { kind: 'mark', label: 'rm', mark: 'failed', text: d.error }
   return { kind: 'text', text: 'rm ?' }
 }
@@ -1565,7 +1565,7 @@ const DashboardView = {
 
     const tvhCell = computed(() => {
       const base = { label: 'TVHEADEND', href: '#/settings/tvheadend' }
-      if (!statsLoaded.value) return { ...base, value: '—' }
+      if (!statsLoaded.value) return { ...base, value: '...' }
       if (!tvhConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
       if (!tvhReachable.value) return { ...base, href: '#/doctor/tvheadend', health: 'err', value: 'unreachable' }
       const s = tvhState.value
@@ -1578,7 +1578,7 @@ const DashboardView = {
 
     const seriesCell = computed(() => {
       const base = { label: 'SERIES', href: '#/series' }
-      if (!statsLoaded.value || seriesUnavailable.value) return { ...base, value: '—' }
+      if (!statsLoaded.value || seriesUnavailable.value) return { ...base, value: '...' }
       if (!seriesCount.value) return { ...base, href: '#/guide', value: 'record a series', cta: true }
       const outside = outsideLibraryCount.value ? ` · ${outsideLibraryCount.value} not in library` : ''
       return { ...base, value: `${seriesCount.value} series${outside}` }
@@ -1587,12 +1587,12 @@ const DashboardView = {
     const recordingsCell = computed(() => ({
       label: 'RECORDINGS 7D',
       href: '#/recordings',
-      value: statsLoaded.value ? `${recordings7dCount.value} imported` : '—',
+      value: statsLoaded.value ? `${recordings7dCount.value} imported` : '...',
     }))
 
     const plexCell = computed(() => {
       const base = { label: 'PLEX', href: '#/settings/plex' }
-      if (!statsLoaded.value) return { ...base, value: '—' }
+      if (!statsLoaded.value) return { ...base, value: '...' }
       if (!plexConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
       return { ...base, health: 'ok', value: plexHost.value || 'connected' }
     })
@@ -1615,7 +1615,7 @@ const DashboardView = {
         return { key: `flash-${flashText.value}`, label: 'NOTICE', value: flashText.value, tone: flashKind.value, title: flashText.value }
       }
       const s = deckSync.value
-      if (!s) return { key: 'none', label: 'RESULT', value: '—', tone: 'deck-cell-dim' }
+      if (!s) return { key: 'none', label: 'RESULT', value: 'none', tone: 'deck-cell-dim' }
       if (s.status === 'running') return { key: `run-${s.id}`, label: 'RESULT', value: 'in progress', tone: 'deck-cell-dim' }
       const sum = s.summary || {}
       const errors = (sum.errors || []).join('\n')
@@ -1734,8 +1734,8 @@ const FolderEditor = {
           <label class="field-label">Ad removal</label>
           <select class="field-input" v-model="adRemoval" :disabled="!adRemovalEnabled">
             <option value="off">OFF</option>
-            <option value="detect">DETECT — report ad breaks only</option>
-            <option value="cut">CUT — remove ad breaks (keeps .orig backup)</option>
+            <option value="detect">DETECT: report ad breaks only</option>
+            <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
           </select>
           <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
         </div>
@@ -1863,7 +1863,7 @@ const SeriesView = {
           <div v-if="!loaded" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
           <template v-else>
             <p v-if="error" class="text-sm font-mono text-signal-orange-hi">Cannot read the series recordings from TVHeadend: {{ error }}</p>
-            <p v-else-if="stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
+            <p v-else-if="stale" class="text-xs font-mono text-plex-yellow">TVHeadend is not answering. This is its last known state.</p>
             <p v-if="!error && series.length === 0" class="text-ink-dim text-sm">
               No series recordings yet. Open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD SERIES</strong>.
             </p>
@@ -1983,8 +1983,8 @@ const SeriesView = {
                 <label class="field-label">Ad removal</label>
                 <select class="field-input" v-model="newAdRemoval" :disabled="!adRemovalEnabled">
                   <option value="off">OFF</option>
-                  <option value="detect">DETECT — report ad breaks only</option>
-                  <option value="cut">CUT — remove ad breaks (keeps .orig backup)</option>
+                  <option value="detect">DETECT: report ad breaks only</option>
+                  <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
                 </select>
                 <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
               </div>
@@ -2367,7 +2367,7 @@ const SyncsView = {
                 </button>
               </div>
               <p class="deck-card-meta">
-                {{ fmtTime(s.started_at) }}<template v-if="s.finished_at"> – {{ fmtTime(s.finished_at) }}</template>
+                {{ fmtTime(s.started_at) }}<template v-if="s.finished_at"> to {{ fmtTime(s.finished_at) }}</template>
               </p>
               <summary-line :summary="s.summary"/>
             </article>
@@ -2431,7 +2431,7 @@ const SyncsView = {
       try {
         await refresh()
         const label = filter.value === 'all' ? 'sync' : `${filterLabel.value.toLowerCase()} sync`
-        flash({ msg: `Refreshed — ${total.value} ${label}${total.value === 1 ? '' : 's'}.` })
+        flash({ msg: `Refreshed ${total.value} ${label}${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
         flash({ msg: `Refresh failed: ${err.message}`, kind: 'err', ms: 6000 })
       }
@@ -2562,7 +2562,7 @@ const RecordingsView = {
                 <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SHOW</span>
                 <select :value="showFilter" @change="setShow($event.target.value)" aria-label="Show"
                   class="field-input" style="width: auto; min-width: 9rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
-                  <option value="all">— any —</option>
+                  <option value="all">Any</option>
                   <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
                 </select>
               </div>
@@ -2610,7 +2610,7 @@ const RecordingsView = {
                 </td>
                 <td>
                   <span v-if="r.ad_status" :class="['pill', r.ad_status]" :title="adTooltip(r)">{{ adLabel(r.ad_status) }}</span>
-                  <span v-else-if="!progressPhase(r)" class="text-ink-mute">—</span>
+                  <span v-else-if="!progressPhase(r)" class="text-ink-mute">none</span>
                   <progress-block v-if="isAdProgress(r)"
                     :progress="r.progress" :caption="progressCaption(r)" :bar="hasBar(r)"/>
                 </td>
@@ -2784,7 +2784,7 @@ const RecordingsView = {
     const manualRefresh = async () => {
       try {
         await refresh()
-        flash({ msg: `Refreshed — ${total.value} recording${total.value === 1 ? '' : 's'}.` })
+        flash({ msg: `Refreshed ${total.value} recording${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
         flash({ msg: `Refresh failed: ${err.message}`, kind: 'err', ms: 6000 })
       }
@@ -2878,7 +2878,7 @@ const RecordingsView = {
     const canAdScan = (r) => adRemovalEnabled.value && r.status === 'done'
     const canImport = (r) => r.status === 'not_imported' && !r.deleted_from_tvh_at
     const statusLabel = (status) => (status === 'done' ? 'imported' : status.replace(/_/g, ' '))
-    const showLabel = (r) => r.show_pattern || (r.show_id == null ? 'One-off' : '—')
+    const showLabel = (r) => r.show_pattern || (r.show_id == null ? 'One-off' : 'none')
     const imageUrl = (r) => (r.image_path ? `/api/recordings/${encodeURIComponent(r.recording_id)}/image` : null)
 
     const resumeLabel = (r) => {
@@ -2948,7 +2948,7 @@ const RecordingsView = {
       adScanningId.value = r.recording_id
       try {
         await api('POST', `/api/recordings/${encodeURIComponent(r.recording_id)}/ad-scan`)
-        flash({ msg: `Ad scan started for "${r.title}" — can take minutes.` })
+        flash({ msg: `Ad scan started for "${r.title}". This can take minutes.` })
         await refresh()
       } catch (err) {
         flash({ msg: `Ad scan failed: ${err.message}`, kind: 'err', ms: 6000 })
@@ -3364,7 +3364,7 @@ const SettingsView = {
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex TV section</label>
               <select v-if="plexSections.length" class="field-input" v-model="plexSectionId">
-                <option value="">— pick a section —</option>
+                <option value="">Pick a section</option>
                 <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
@@ -3375,7 +3375,7 @@ const SettingsView = {
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex one-off section</label>
               <select v-if="plexSections.length" class="field-input" v-model="plexOneOffSectionId">
-                <option value="">— none —</option>
+                <option value="">None</option>
                 <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
@@ -3386,7 +3386,7 @@ const SettingsView = {
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex movies section</label>
               <select v-if="plexSections.length" class="field-input" v-model="plexMoviesSectionId">
-                <option value="">— none —</option>
+                <option value="">None</option>
                 <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
@@ -4422,14 +4422,14 @@ const ChannelSetupStep = {
               <div class="field-row">
                 <label class="field-label" for="channel-country">Country</label>
                 <select id="channel-country" class="field-input" v-model="country">
-                  <option value="">— pick a country —</option>
+                  <option value="">Pick a country</option>
                   <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.name }}</option>
                 </select>
               </div>
               <div class="field-row">
                 <label class="field-label" for="channel-transmitter">Transmitter</label>
                 <select id="channel-transmitter" class="field-input" v-model="transmitterKey" :disabled="!country">
-                  <option value="">— pick a transmitter —</option>
+                  <option value="">Pick a transmitter</option>
                   <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ t.name }}</option>
                 </select>
               </div>
@@ -4702,7 +4702,7 @@ const GuideSetupStep = {
               <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
                 <label class="text-sm text-ink" :for="'guide-' + c.id">{{ c.name }}<span v-if="c.number" class="text-ink-dim"> · {{ c.number }}</span></label>
                 <select :id="'guide-' + c.id" class="field-input" v-model="picks[c.id]">
-                  <option value="">— no guide —</option>
+                  <option value="">No guide</option>
                   <option v-for="o in result.options" :key="o.id" :value="o.id">{{ o.name }}</option>
                 </select>
               </div>
@@ -4745,7 +4745,7 @@ const GuideSetupStep = {
           <div v-if="suggestion.feeds.length" class="field-row">
             <label class="field-label" for="guide-feed">Guide</label>
             <select id="guide-feed" class="field-input" v-model="choice">
-              <option value="">— pick a region —</option>
+              <option value="">Pick a region</option>
               <option v-for="f in suggestion.feeds" :key="f.url" :value="f.url">{{ f.region }}</option>
               <option :value="OTHER">Another address</option>
             </select>
@@ -4898,10 +4898,10 @@ const WelcomeView = {
               Freetvarr watches <strong class="text-signal-orange">TVHeadend</strong> for new recordings, imports them into your <strong class="text-plex-yellow">Plex</strong> library, and (optionally) removes them from TVHeadend afterwards.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend — Plex is optional.
+              This wizard takes about two minutes. The only required step is pointing Freetvarr at TVHeadend. Plex is optional.
             </p>
             <p v-if="hasExistingConfig" class="text-xs font-mono text-plex-yellow">
-              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> RETURN VISIT — your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
+              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> RETURN VISIT: your existing settings are prefilled. Leave a field as-is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
             </p>
             <time-zone-field v-model="timeZone" :source="tzSource" hint />
           </div>
@@ -6448,7 +6448,7 @@ const EpgView = {
               </div>
             </div>
             <p v-if="guide?.stale" class="text-xs font-mono text-plex-yellow">
-              Showing the cached guide — TVHeadend did not answer; it refreshes automatically on the next try.
+              Showing the cached guide. TVHeadend did not answer. It refreshes automatically on the next try.
             </p>
             <div v-if="errorCode === 'no-url'" class="space-y-3">
               <p class="text-sm text-ink">Set the TVHeadend URL in Settings.</p>
@@ -6564,7 +6564,7 @@ const EpgView = {
             <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
             <div v-else-if="!state" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
             <template v-else>
-              <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is unreachable right now — showing its last known state.</p>
+              <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is not answering. This is its last known state.</p>
               <p v-if="upcoming.length === 0" class="text-ink-dim text-sm">Nothing scheduled in TVHeadend.</p>
               <p v-else-if="upcomingFiltered.length === 0" class="text-ink-dim text-sm">No upcoming recordings match “{{ searchQ.trim() }}”.</p>
               <div v-else class="space-y-3">
@@ -6658,7 +6658,7 @@ const EpgView = {
               <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
               <template v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'">
                 <template v-if="isSeriesScheduled(selected.program) && cancelChoice">
-                  <span class="text-xs font-mono text-ink-mute">This is part of a series recording — cancel what?</span>
+                  <span class="text-xs font-mono text-ink-mute">This is part of a series recording. Cancel what?</span>
                   <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-episode' }" @click="cancelSelected" :disabled="modalBusy">
                     <span class="btn-label"><cross-icon /> THIS EPISODE</span>
                     <span v-if="modalAction === 'cancel-episode'" class="spinner spinner-overlay"></span>

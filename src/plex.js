@@ -49,7 +49,7 @@ export const detectPlexTokenFromPreferences = async () => {
     return {
       ok: false,
       path,
-      reason: 'PlexOnlineToken attribute not found — has Plex been signed in to plex.tv?',
+      reason: 'PlexOnlineToken attribute not found. Has Plex been signed in to plex.tv?',
     }
   }
   await setSetting('plex_token', token)
