@@ -387,3 +387,31 @@ test('host.env: an unknown stored zone warns and links to Settings', async () =>
   assert.match(check.detail, /setting is Mars\/Olympus/)
   assert.equal(check.action.href, '#/settings/schedule')
 })
+
+test('runDoctor: with no channels, guide depth and channel logos skip with No channels yet', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: { ...healthyRoutes({ now }), '/api/channel/grid': () => ({ entries: [], total: 0 }) },
+    now,
+  })
+  const checks = byId(report)
+  for (const id of ['guide.depth', 'guide.logos']) {
+    assert.equal(checks[id].status, 'skip', id)
+    assert.equal(checks[id].detail, 'No channels yet.', id)
+  }
+  assert.equal(checks['tvh.channels'].status, 'fail')
+})
+
+test('runDoctor: the Syncs check sits in its own group, apart from Plex', async () => {
+  const now = Date.now()
+  const checks = byId(await runAgainst({ routes: healthyRoutes({ now }), now }))
+  assert.equal(checks['sync.health'].group, 'syncs')
+  assert.equal(checks['plex.reach'].group, 'plex')
+})
+
+test('runDoctor: free space over 1000GB reads as TB', async () => {
+  const now = Date.now()
+  const statfs = async () => ({ bavail: (30249 * GB) / 4096, bsize: 4096, blocks: (250000 * GB) / 4096 })
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, statfs }))['disk.free']
+  assert.match(check.detail, /30\.2TB free/)
+})
