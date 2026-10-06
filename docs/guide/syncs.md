@@ -7,7 +7,7 @@ description: >-
 
 # Syncs
 
-A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if something imported. The Syncs tab is the history of those passes.
+A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. The Syncs tab is the history of those passes.
 
 ![The Syncs tab](../img/screenshot-syncs.png)
 

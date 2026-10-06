@@ -76,7 +76,7 @@ Each folder has a season template that decides where episodes are saved: `{seaso
 
 ## Filenames
 
-Freetvarr renames every file as it imports it, into the shape Plex reads:
+Freetvarr renames every file as it imports it, into the shape your library reads:
 
 ```text
 Show Name - S01E02 - Episode Title.ts

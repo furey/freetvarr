@@ -137,7 +137,7 @@ The channels land in **Configuration → Channel/EPG → Channels**. Fix the num
 
 The **Guide** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. Follow this step by hand to choose each setting yourself.
 
-Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and Plex naming work. The Australian feed below is the example; [Outside Australia](#outside-australia) lists the source to use in other countries.
+Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and episode naming work. The Australian feed below is the example; [Outside Australia](#outside-australia) lists the source to use in other countries.
 
 ### Matt Huisman's free feed
 
@@ -204,7 +204,7 @@ Go to **Configuration → Recording → Digital Video Recorder Profiles** and op
 
 The path is the one inside the TVHeadend container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. The Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
 
-Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into Plex's library ([Series](/guide/series)).
+Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series](/guide/series)).
 
 Freetvarr also sets these two on each recording it schedules:
 
