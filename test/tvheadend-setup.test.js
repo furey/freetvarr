@@ -7,8 +7,12 @@ import {
   inspectSetup,
   isMapperFinished,
   parseTransmitters,
+  isLanAddress,
   pickTransmitter,
+  readTunerAddress,
+  saveTunerAddress,
   suggestChannelSetup,
+  tunerAddressConfig,
   summariseScan,
   unmappedTvServices,
 } from '../src/tvheadend-setup.js'
@@ -317,4 +321,46 @@ test('applyChannelSetup refuses tuners that are not in TVHeadend', async () => {
   assert.equal(result.ok, false)
   assert.equal(result.code, 'no-tuner')
   assert.deepEqual(http.writes, [])
+})
+
+test('isLanAddress accepts an IPv4 device address and refuses the rest', () => {
+  for (const ok of ['192.168.1.50', '10.0.0.2', '172.16.4.9', '169.254.12.34']) assert.equal(isLanAddress(ok), true, ok)
+  for (const bad of ['', '192.168.1', '192.168.1.256', '127.0.0.1', '0.0.0.0', '224.0.0.1', '255.255.255.255', 'hdhomerun.local', '192.168.1.50:5004', ' 192.168.1.50']) {
+    assert.equal(isLanAddress(bad), false, bad)
+  }
+})
+
+test('tunerAddressConfig sets only the tuner address on Linux', () => {
+  assert.deepEqual(tunerAddressConfig({ address: ' 192.168.1.50 ', dockerVm: null }), { node: { hdhomerun_ip: '192.168.1.50' } })
+})
+
+test('tunerAddressConfig in a Docker VM also points the tuner at this computer on a fixed port', () => {
+  assert.deepEqual(
+    tunerAddressConfig({ address: '192.168.1.50', hostAddress: '192.168.1.20', dockerVm: 'OrbStack' }),
+    { node: { hdhomerun_ip: '192.168.1.50', local_ip: '192.168.1.20', local_port: 9983 } },
+  )
+})
+
+test('tunerAddressConfig names the field with a bad address', () => {
+  assert.equal(tunerAddressConfig({ address: 'tuner', dockerVm: null }).field, 'address')
+  assert.match(tunerAddressConfig({ address: '', dockerVm: null }).error, /four numbers with dots/)
+  assert.equal(tunerAddressConfig({ address: '192.168.1.50', hostAddress: '', dockerVm: 'OrbStack' }).field, 'hostAddress')
+  assert.match(
+    tunerAddressConfig({ address: '192.168.1.50', hostAddress: '192.168.1.50', dockerVm: 'OrbStack' }).error,
+    /same address/,
+  )
+})
+
+test('saveTunerAddress posts the node to config/save and readTunerAddress reads it back', async () => {
+  const posts = []
+  const http = {
+    post: async (path, form, conn) => { posts.push({ path, form, conn }); return {} },
+    get: async (path) => {
+      assert.equal(path, 'config/load')
+      return { entries: [{ params: [{ id: 'hdhomerun_ip', value: '192.168.1.50' }, { id: 'local_ip', value: '' }] }] }
+    },
+  }
+  await saveTunerAddress({ http, conn: CONN, node: { hdhomerun_ip: '192.168.1.50' } })
+  assert.deepEqual(posts, [{ path: 'config/save', form: { node: '{"hdhomerun_ip":"192.168.1.50"}' }, conn: CONN }])
+  assert.deepEqual(await readTunerAddress({ http, conn: CONN }), { address: '192.168.1.50', hostAddress: '' })
 })

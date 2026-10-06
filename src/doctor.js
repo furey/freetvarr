@@ -13,6 +13,7 @@ import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
 import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
 import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
+import { detectDockerVm } from './docker-host.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -189,13 +190,7 @@ const LATER_CHECKS = [
       ])
       const inputs = (body?.entries || []).map((i) => i.input).filter(Boolean)
       const count = walked ?? inputs.length
-      if (!count) {
-        return {
-          status: 'fail',
-          detail: 'TVHeadend sees no tuner.',
-          fix: 'No tuner visible. Set network_mode: host on the tvheadend service for a network tuner, or pass /dev/dvb into it for a USB or PCIe tuner.',
-        }
-      }
+      if (!count) return { status: 'fail', detail: 'TVHeadend sees no tuner.', ...noTunerFix(ctx.deps) }
       if (!inputs.length) {
         return {
           status: 'warn',
@@ -553,7 +548,9 @@ const LATER_CHECKS = [
       ].filter(Boolean)
       if (!problems.length) {
         const addresses = joinAnd(ipv4Addresses(ctx.deps.interfaces()))
-        return { status: 'pass', detail: `Time zone ${timeZone.zone} (${ZONE_SOURCES[timeZone.source]}); ${addresses}.` }
+        const vm = ctx.deps.dockerVm()
+        const where = vm ? `; Docker runs in a virtual machine (${vm})` : ''
+        return { status: 'pass', detail: `Time zone ${timeZone.zone} (${ZONE_SOURCES[timeZone.source]}); ${addresses}${where}.` }
       }
       return {
         status: 'warn',
@@ -671,6 +668,23 @@ const timeZoneProblem = ({ zone, source, stored }) => {
   return null
 }
 
+const noTunerFix = ({ dockerVm, interfaces }) => {
+  const vm = dockerVm()
+  if (vm) {
+    return {
+      fix: `Docker on a Mac or Windows PC (${vm}) cannot find a network tuner by itself. Enter the tuner's address in the CHANNELS step of the setup wizard, or run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi).`,
+      action: OPEN_WIZARD,
+    }
+  }
+  const network = isBridgeOnly(interfaces())
+    ? 'Set network_mode: host on the tvheadend and freetvarr services.'
+    : 'Check that the tuner is on and connected to your network.'
+  return {
+    fix: `${network} Or enter the tuner's address in the CHANNELS step of the setup wizard. For a USB or PCIe tuner, pass /dev/dvb into the tvheadend service.`,
+    action: OPEN_WIZARD,
+  }
+}
+
 const networkProblem = (interfaces) => {
   if (!isBridgeOnly(interfaces)) return null
   return {
@@ -740,6 +754,7 @@ const defaultDeps = () => ({
   envTimeZone: timeZoneFromEnv,
   systemTimeZone: currentTimeZone,
   interfaces: () => os.networkInterfaces(),
+  dockerVm: () => detectDockerVm(),
   uid: () => process.getuid?.() ?? null,
 })
 
@@ -852,3 +867,4 @@ const SETTINGS_STORAGE = { label: 'Open settings', href: '#/settings/storage' }
 const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
 const OPEN_SYNCS = { label: 'Open syncs', href: '#/syncs' }
+const OPEN_WIZARD = { label: 'Open setup wizard', href: '#/welcome' }
