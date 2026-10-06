@@ -11,6 +11,7 @@ import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHard
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
+import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
 import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
@@ -251,7 +252,7 @@ const LATER_CHECKS = [
       const status = classifyGuideDepth({ lastStopMs, now: ctx.now, emptyShare })
       const detail = [
         guideReach({ lastStopMs, now: ctx.now }),
-        ...(coverage?.channels ? [`${share(coverage.empty, coverage.channels)} nothing in the next 24 h.`] : []),
+        ...(coverage?.channels ? [`${share(coverage.empty, coverage.channels)} nothing in the next ${formatHours(24)}.`] : []),
       ].join(' ')
       if (status === 'pass') return { status, detail }
       const shortGuide = !lastStopMs || lastStopMs - ctx.now < GUIDE_WARN_MS
@@ -650,7 +651,7 @@ const describeDisk = ({ folder, free, total }) => total > 0
 const guideReach = ({ lastStopMs, now }) => {
   if (!lastStopMs) return 'The guide has no programmes.'
   if (lastStopMs <= now) return `The guide ended at ${fmtStamp(lastStopMs)}.`
-  return `The guide runs ${Math.round((lastStopMs - now) / HOUR_MS)} h ahead, to ${fmtStamp(lastStopMs)}.`
+  return `The guide runs ${formatHours(Math.round((lastStopMs - now) / HOUR_MS))} ahead, to ${fmtStamp(lastStopMs)}.`
 }
 
 const syncError = (sync) => sync.summary?.errors?.[0] || sync.summary?.message || 'no reason recorded'
@@ -790,14 +791,19 @@ const parseDbTime = (value) => {
 
 const fmtStamp = (ms) => {
   if (!Number.isFinite(ms)) return 'at an unknown time'
-  const d = new Date(ms)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const timeZone = currentTimeZone()
+  const dateParts = (at) => Object.fromEntries(
+    new Intl.DateTimeFormat('en-AU', { timeZone, day: 'numeric', month: 'short', year: 'numeric' })
+      .formatToParts(new Date(at)).map((p) => [p.type, p.value]),
+  )
+  const { day, month, year } = dateParts(ms)
+  const date = year === dateParts(Date.now()).year ? `${day} ${month}` : `${day} ${month} ${year}`
+  return `${date} ${formatClock(ms, timeZone)}`
 }
 
 const fmtGb = (bytes) => `${(bytes / GB).toFixed(bytes < 10 * GB ? 1 : 0)}GB`
 
-const fmtSeconds = (ms) => `${Number((ms / 1000).toFixed(2))} s`
+const fmtSeconds = (ms) => formatSeconds(ms / 1000)
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 

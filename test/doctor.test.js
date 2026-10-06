@@ -249,7 +249,7 @@ test('runDoctor: a guide ending in 6 h fails and one ending in 30 h warns', asyn
   const six = await depthAt(6)
   const thirty = await depthAt(30)
   assert.equal(six.status, 'fail')
-  assert.match(six.detail, /runs 6 h ahead/)
+  assert.match(six.detail, /runs 6 hrs ahead/)
   assert.match(six.fix, /Enable an XMLTV grabber/)
   assert.equal(thirty.status, 'warn')
 })
@@ -264,7 +264,7 @@ test('runDoctor: a route that never answers fails within the time budget', async
   })
   const depth = byId(report)['guide.depth']
   assert.equal(depth.status, 'fail')
-  assert.equal(depth.detail, 'No answer within 0.05 s.')
+  assert.equal(depth.detail, 'No answer within 0.05s.')
   assert.ok(Date.now() - started < 2000)
 })
 
@@ -309,7 +309,7 @@ test('classifyGuideDepth: under 12 h fails, under 48 h or a quarter of channels 
   assert.equal(classifyGuideDepth({ lastStopMs: now + 100 * HOUR_MS, now, emptyShare: 0.1 }), 'pass')
 })
 
-test('guideCoverage: counts channels with nothing in the next 24 h', () => {
+test('guideCoverage: counts channels with nothing in the next 24 hrs', () => {
   const now = 1_000_000_000_000
   const guide = {
     channels: [{ epgId: 'a' }, { epgId: 'b' }, { epgId: 'c' }],
