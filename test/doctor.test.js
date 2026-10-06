@@ -129,7 +129,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
   assert.deepEqual(report.summary, { pass: 16, warn: 0, fail: 0, skip: 2 })
-  assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3-2794~g5ce3ff63c at http:\/\/127\.0\.0\.1:\d+, API version 20\.$/)
+  assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
   assert.deepEqual(['plex.reach', 'ads.comskip', 'live.encoder'].map((id) => checks[id].status), ['skip', 'skip', 'pass'])
@@ -445,4 +445,61 @@ test('runDoctor: free space over 1000GB reads as TB', async () => {
   const statfs = async () => ({ bavail: (30249 * GB) / 4096, bsize: 4096, blocks: (250000 * GB) / 4096 })
   const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, statfs }))['disk.free']
   assert.match(check.detail, /30\.2TB free/)
+})
+
+const encoderCheck = async ({ liveEncoder, dockerVm = () => null }) => {
+  const now = Date.now()
+  return byId(await runAgainst({ routes: healthyRoutes({ now }), now, liveEncoder, dockerVm }))['live.encoder']
+}
+
+const SOFTWARE_FALLBACK = { kind: 'software', reason: '/dev/dri/renderD128 is not usable (not found)' }
+
+test('live.encoder: software fallback on Linux warns to pass /dev/dri', async () => {
+  const check = await encoderCheck({ liveEncoder: async () => SOFTWARE_FALLBACK })
+  assert.equal(check.status, 'warn')
+  assert.match(check.fix, /Pass \/dev\/dri/)
+})
+
+test('live.encoder: software fallback in a Docker VM passes with plain detail', async () => {
+  const check = await encoderCheck({ liveEncoder: async () => SOFTWARE_FALLBACK, dockerVm: () => 'OrbStack' })
+  assert.equal(check.status, 'pass')
+  assert.equal(check.detail, 'Live TV uses the processor. Docker on a Mac or Windows PC cannot use the graphics chip.')
+  assert.equal(check.fix, '')
+})
+
+test('disk.free: a Docker VM says the figure is the virtual disk', async () => {
+  const now = Date.now()
+  const report = await runAgainst({ routes: healthyRoutes({ now }), now, dockerVm: () => 'OrbStack' })
+  assert.match(byId(report)['disk.free'].detail, /\. This is Docker's virtual disk\. Real space is limited by the disk of your Mac or PC\.$/)
+})
+
+test('disk.free: no virtual disk note outside a Docker VM', async () => {
+  const now = Date.now()
+  const report = await runAgainst({ routes: healthyRoutes({ now }), now })
+  assert.doesNotMatch(byId(report)['disk.free'].detail, /virtual disk/)
+})
+
+test('sync.health: a finished sync reads in plain words', async () => {
+  const now = Date.now()
+  const latestSync = async () => ({ id: 1, status: 'ok', finished_at: '2026-10-06 12:30:00', summary: {} })
+  const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
+  assert.match(sync.detail, /^Last sync finished .+\. Runs every 30 minutes\.$/)
+  assert.doesNotMatch(sync.detail, /#1|\*\/30/)
+})
+
+test('sync.health: a schedule with no plain description falls back to the cron text', async () => {
+  const now = Date.now()
+  const report = await runAgainst({ routes: healthyRoutes({ now }), now, schedulerExpression: () => '5 4 * * 1' })
+  assert.match(byId(report)['sync.health'].detail, /Schedule: 5 4 \* \* 1\.$/)
+})
+
+test('host.env: a Docker VM omits its internal address', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: healthyRoutes({ now }),
+    interfaces: () => ({ eth0: [{ family: 'IPv4', address: '192.168.139.2', internal: false }] }),
+    dockerVm: () => 'OrbStack',
+    now,
+  })
+  assert.doesNotMatch(byId(report)['host.env'].detail, /192\.168\.139\.2/)
 })

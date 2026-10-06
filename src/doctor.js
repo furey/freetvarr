@@ -14,6 +14,7 @@ import { getGuideSnapshot } from './epg.js'
 import { formatDiskSize } from './web/size-format.js'
 import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
 import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
+import { describeSyncSchedule } from './web/sync-schedule.js'
 import { detectDockerVm } from './docker-host.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
@@ -109,7 +110,7 @@ const TVH_REACH = {
     }
     ctx.tvhAnswered = true
     if (!info) return { status: 'pass', detail: `TVHeadend answers at ${ctx.conn.url}.` }
-    const detail = `TVHeadend ${info.sw_version || '(unknown version)'} at ${ctx.conn.url}, API version ${info.api_version ?? 'unknown'}.`
+    const detail = `TVHeadend ${tvhVersion(info.sw_version)} at ${ctx.conn.url}.`
     if (Number(info.api_version) < MIN_API_VERSION) {
       return { status: 'warn', detail, fix: 'This TVHeadend is older than Freetvarr expects. Update it to a current 4.3 build.' }
     }
@@ -251,7 +252,7 @@ const LATER_CHECKS = [
       const status = classifyGuideDepth({ lastStopMs, now: ctx.now, emptyShare })
       const detail = [
         guideReach({ lastStopMs, now: ctx.now }),
-        ...(coverage?.channels ? [`${share(coverage.empty, coverage.channels)} nothing in the next ${formatHours(24)}.`] : []),
+        ...(coverage?.channels ? [guideListings(coverage)] : []),
       ].join(' ')
       if (status === 'pass') return { status, detail }
       const shortGuide = !lastStopMs || lastStopMs - ctx.now < GUIDE_WARN_MS
@@ -394,11 +395,12 @@ const LATER_CHECKS = [
       if (!readings.length) return { status: 'skip', detail: 'Neither folder can be read.' }
       const graded = readings.map((r) => ({ ...r, status: classifyDiskFree(r) }))
       const worst = graded.reduce((a, b) => (STATUS_RANK[b.status] < STATUS_RANK[a.status] ? b : a))
-      const detail = graded.map(describeDisk).join('; ')
-      if (worst.status === 'pass') return { status: 'pass', detail: `${detail}.` }
+      const vm = ctx.deps.dockerVm()
+      const detail = `${graded.map(describeDisk).join('; ')}.${vm ? VIRTUAL_DISK_NOTE : ''}`
+      if (worst.status === 'pass') return { status: 'pass', detail }
       return {
         status: worst.status,
-        detail: `${detail}.`,
+        detail,
         fix: `${formatDiskSize(worst.free)} free on ${worst.folder}. Recordings will fail when it fills.`,
       }
     },
@@ -471,7 +473,7 @@ const LATER_CHECKS = [
           action: SETTINGS_SCHEDULE,
         }
       }
-      const schedule = expression ? ` Schedule: ${expression}.` : ''
+      const schedule = expression ? ` ${describeSyncSchedule(expression)}` : ''
       if (!last) return { status: 'pass', detail: `No syncs yet.${schedule}` }
       if (last.status === 'error') {
         return {
@@ -489,7 +491,7 @@ const LATER_CHECKS = [
           action: OPEN_SYNCS,
         }
       }
-      return { status: 'pass', detail: `Sync #${last.id} finished ${fmtStamp(parseDbTime(last.finished_at))}.${schedule}` }
+      return { status: 'pass', detail: `Last sync finished ${fmtStamp(parseDbTime(last.finished_at))}.${schedule}` }
     },
   },
   {
@@ -512,6 +514,7 @@ const LATER_CHECKS = [
       if (encoder.reason === 'LIVE_TV_TRANSCODE=software') {
         return { status: 'pass', detail: 'Software encoding, as LIVE_TV_TRANSCODE sets.' }
       }
+      if (ctx.deps.dockerVm()) return { status: 'pass', detail: DOCKER_VM_ENCODER_DETAIL }
       return {
         status: 'warn',
         detail: `Software encoding: ${encoder.reason}.`,
@@ -552,10 +555,12 @@ const LATER_CHECKS = [
         networkProblem(ctx.deps.interfaces()),
       ].filter(Boolean)
       if (!problems.length) {
-        const addresses = joinAnd(ipv4Addresses(ctx.deps.interfaces()))
+        const zone = `Time zone ${timeZone.zone} (${ZONE_SOURCES[timeZone.source]})`
         const vm = ctx.deps.dockerVm()
-        const where = vm ? `; Docker runs in a virtual machine (${vm})` : ''
-        return { status: 'pass', detail: `Time zone ${timeZone.zone} (${ZONE_SOURCES[timeZone.source]}); ${addresses}${where}.` }
+        const where = vm
+          ? `Docker runs in a virtual machine (${vm})`
+          : joinAnd(ipv4Addresses(ctx.deps.interfaces()))
+        return { status: 'pass', detail: `${zone}; ${where}.` }
       }
       return {
         status: 'warn',
@@ -649,6 +654,16 @@ const diskReading = async ({ folder, statfs }) => {
 const describeDisk = ({ folder, free, total }) => total > 0
   ? `${formatDiskSize(free)} free on ${folder} (${Math.round((free / total) * 100)}%)`
   : `${formatDiskSize(free)} free on ${folder}`
+
+const VIRTUAL_DISK_NOTE = " This is Docker's virtual disk. Real space is limited by the disk of your Mac or PC."
+
+const DOCKER_VM_ENCODER_DETAIL = 'Live TV uses the processor. Docker on a Mac or Windows PC cannot use the graphics chip.'
+
+const tvhVersion = (swVersion) => String(swVersion || '').match(/^\d+\.\d+/)?.[0] || swVersion || '(unknown version)'
+
+const guideListings = ({ empty, channels }) => empty === 0
+  ? `Every channel has listings for the next ${formatHours(24)}.`
+  : `${empty} of ${plural(channels, 'channel')} ${empty === 1 ? 'has' : 'have'} no listings in the next ${formatHours(24)}.`
 
 const guideReach = ({ lastStopMs, now }) => {
   if (!lastStopMs) return 'The guide has no programmes.'
