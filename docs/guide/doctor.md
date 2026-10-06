@@ -72,7 +72,7 @@ Makes a real test hardlink from the recordings folder into the media folder and 
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20 GB` or `10%` free, and fails under `2 GB`. Recordings fail when the disk fills.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Recordings fail when the disk fills.
 
 ## Plex library {#plex-reach}
 

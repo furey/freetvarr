@@ -145,8 +145,8 @@ Broadcast guide data in Australia runs about a day ahead and carries thin metada
 
 | URL                                       | What it is                                       |
 | ----------------------------------------- | ------------------------------------------------ |
-| `https://i.mjh.nz/au/<Region>/epg.xml`    | The guide, plain XML (about `6.6 MB` for Sydney) |
-| `https://i.mjh.nz/au/<Region>/epg.xml.gz` | The same file gzipped (about `700 KB`)           |
+| `https://i.mjh.nz/au/<Region>/epg.xml`    | The guide, plain XML (about `6.6MB` for Sydney) |
+| `https://i.mjh.nz/au/<Region>/epg.xml.gz` | The same file gzipped (about `700KB`)           |
 
 The linuxserver image ships a small grabber called **XMLTV URL grabber** (`/usr/bin/tv_grab_url`). It takes the feed URL as its argument and runs `curl` on it, so no script install is needed.
 
