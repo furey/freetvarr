@@ -60,6 +60,14 @@ export const matchGuideChannels = ({ channels, guideChannels, feedChannels, serv
   return { links, unmatched }
 }
 
+export const guessGuideChannel = ({ channel, candidates }) => {
+  if (isTimeshiftName(channel.name)) return null
+  const key = looseKey(channel.name)
+  if (!key) return null
+  const matches = candidates.filter((g) => feedNames(g).some((n) => looseKey(n) === key))
+  return matches.length === 1 ? matches[0].id : null
+}
+
 export const applyGuideLinks = async ({ http, conn, links, guideChannels }) => {
   const additions = new Map()
   for (const { channelId, guideId } of links) additions.set(guideId, [...(additions.get(guideId) || []), channelId])
@@ -130,10 +138,17 @@ export const applyGuideSetup = async ({
       await applyGuideLinks({ http, conn, links: matched.links, guideChannels })
       const linkedIds = new Set(matched.links.map((l) => l.channelId))
       const alreadyLinked = channels.filter((c) => !linkedIds.has(c.id) && isLinked({ channel: c, guideChannels }))
+      const byFeedId = new Map(feedChannels.map((f) => [f.id, f]))
+      const candidates = guideChannels.map((g) => ({ ...g, feed: byFeedId.get(g.xmltvId) || null }))
       return {
         linked: linkedIds.size + alreadyLinked.length,
         total: channels.length,
-        unmatched: matched.unmatched.map(({ id, name, number }) => ({ id, name, number })),
+        unmatched: matched.unmatched.map(({ id, name, number }) => ({
+          id,
+          name,
+          number,
+          guess: guessGuideChannel({ channel: { name }, candidates }),
+        })),
         options: guideChannelOptions(guideChannels),
       }
     })
@@ -279,6 +294,14 @@ const normaliseName = ({ name, noise }) => {
   return (kept.length ? kept : all).join('')
 }
 
+const isTimeshiftName = (name) => TIMESHIFT_NAME.test(String(name).trim())
+
+const looseKey = (name) => {
+  const all = tokens(name).filter((t) => !LOOSE_NOISE.has(t))
+  const withoutRegion = all.length > 1 && REGION_WORDS.has(all.at(-1)) ? all.slice(0, -1) : all
+  return withoutRegion.join('')
+}
+
 const tokens = (name) => String(name)
   .toLowerCase()
   .replace(/([a-z0-9])(hd)\b/g, '$1 $2')
@@ -330,6 +353,12 @@ const XMLTV_PRIORITY = 3
 const ALWAYS_NOISE = ['hd', 'the', 'channel', 'tv']
 const COMMON_TOKEN_MIN = 3
 const COMMON_TOKEN_SHARE = 0.25
+const TIMESHIFT_NAME = /\+\s*\d+\s*(hd)?$/i
+const LOOSE_NOISE = new Set(['hd', 'the', 'channel'])
+const REGION_WORDS = new Set([
+  'sydney', 'melbourne', 'brisbane', 'adelaide', 'perth', 'hobart', 'darwin', 'canberra',
+  'auckland', 'wellington', 'christchurch',
+])
 const GRID_LIMIT = 5000
 const POLL_MS = 3000
 const DOWNLOAD_LIMIT_MS = 5 * 60_000
