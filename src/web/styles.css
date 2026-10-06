@@ -1337,7 +1337,6 @@ svg.epg-rail-logo {
   font-family: var(--font-mono);
   font-size: 0.66rem;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: #8b837e;
   white-space: nowrap;
 }

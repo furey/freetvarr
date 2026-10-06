@@ -21,6 +21,15 @@ import {
 import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
 import { findHdSimulcast } from '/simulcast.js'
 import {
+  dateFormat as cachedDateFormat,
+  formatClock,
+  formatClockSeconds,
+  formatDate,
+  formatHours,
+  formatMinutes,
+  formatSeconds,
+} from '/time-format.js'
+import {
   CUSTOM_SYNC_SCHEDULE,
   DEFAULT_SYNC_CRON,
   SYNC_SCHEDULE_PRESETS,
@@ -132,15 +141,7 @@ const tz = ref('UTC')
 
 const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || ''
 
-const dateFormatters = new Map()
-
-const dateFormat = (options, timeZone = tz.value) => {
-  const key = `${timeZone}|${JSON.stringify(options)}`
-  if (!dateFormatters.has(key)) {
-    dateFormatters.set(key, new Intl.DateTimeFormat('en-AU', { timeZone, ...options }))
-  }
-  return dateFormatters.get(key)
-}
+const dateFormat = (options, timeZone = tz.value) => cachedDateFormat(options, timeZone)
 
 const toIso = (s) => (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s)
 
@@ -149,18 +150,17 @@ const fmtTime = (s) => {
   const date = new Date(toIso(s))
   const parts = Object.fromEntries(dateFormat({
     day: 'numeric', month: 'short', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true,
   }).formatToParts(date).map((p) => [p.type, p.value]))
   const thisYear = dateFormat({ year: 'numeric' }).format(new Date())
   const day = parts.year === thisYear ? `${parts.day}\u00a0${parts.month}` : `${parts.day}\u00a0${parts.month}\u00a0${parts.year}`
-  return `${day} ${parts.hour}:${parts.minute}${parts.dayPeriod.toLowerCase()}`
+  return `${day} ${formatClock(date.getTime(), tz.value)}`
 }
 
 const fmtAgo = ({ at, nowMs }) => {
   const mins = Math.floor((nowMs - Date.parse(toIso(at))) / 60_000)
   if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins} min ago`
-  if (mins < 1440) return `${Math.floor(mins / 60)} h ago`
+  if (mins < 60) return `${formatMinutes(mins)} ago`
+  if (mins < 1440) return `${formatHours(Math.floor(mins / 60))} ago`
   return fmtTime(at)
 }
 
@@ -379,12 +379,7 @@ const TimeZoneField = {
     })
     const readout = computed(() => {
       try {
-        const options = { hour: 'numeric', minute: '2-digit', weekday: 'short', day: 'numeric', month: 'short' }
-        const parts = Object.fromEntries(
-          dateFormat(options, props.modelValue).formatToParts(nowMs.value).map((p) => [p.type, p.value]),
-        )
-        const time = `${parts.hour}:${parts.minute} ${parts.dayPeriod}`.toLowerCase()
-        return `${time}, ${parts.weekday} ${parts.day} ${parts.month}`
+        return `${formatDate(nowMs.value, props.modelValue)} ${formatClock(nowMs.value, props.modelValue)}`
       } catch {
         return props.modelValue
       }
@@ -769,12 +764,7 @@ const APP_TITLE = 'Freetvarr'
 const RECORDING_NOW_FAST_POLL_MS = 5_000
 const RECORDING_NOW_IDLE_POLL_MS = 45_000
 
-const clockReadout = computed(() => dateFormat({
-  hour12: true,
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-}).format(now.value))
+const clockReadout = computed(() => formatClockSeconds(now.value.getTime(), tz.value))
 
 const tzShortName = computed(() => {
   try {
@@ -810,7 +800,7 @@ const hostOf = (url) => {
 
 const HEALTH_COLOURS = { ok: '#e2b03c', err: '#ff8a00', off: '#544e47' }
 
-const fmtClockTz = (ms) => dateFormat({ hour: 'numeric', minute: '2-digit' }).format(new Date(ms)).replace(/\s/g, '').toLowerCase()
+const fmtClockTz = (ms) => formatClock(ms, tz.value)
 
 const dayKey = (ms) => dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
 
@@ -818,7 +808,7 @@ const fmtRelativeDay = (ms) => {
   const daysAhead = localDayNumber({ ms, timeZone: tz.value }) - localDayNumber({ ms: Date.now(), timeZone: tz.value })
   if (daysAhead === 0) return 'Today'
   if (daysAhead === 1) return 'Tomorrow'
-  return dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(ms)).replace(',', '')
+  return formatDate(ms, tz.value)
 }
 
 const tsOfMs = (v) => {
@@ -837,7 +827,7 @@ const RecordingCard = {
     const phaseLabel = computed(() => {
       if (props.rec.phase !== 'programme') return props.rec.phase
       const mins = Math.max(0, Math.ceil((props.rec.stop - now.value.getTime()) / 60_000))
-      return `${mins} min left`
+      return `${formatMinutes(mins)} left`
     })
     const liveLine = computed(() => recordingLiveLine(props.rec))
     const metaLine = computed(() =>
@@ -1098,7 +1088,7 @@ const onNowPercent = (p) => {
 
 const onNowMeta = (p) => {
   const mins = Math.max(0, Math.ceil((p.end - now.value.getTime()) / 60_000))
-  return `${fmtClockTz(p.start)} · ${mins} min${mins === 1 ? '' : 's'} remaining`
+  return `${fmtClockTz(p.start)} · ${formatMinutes(mins)} remaining`
 }
 
 const LiveView = {
@@ -1420,7 +1410,7 @@ const DashboardView = {
               <p>The strip below shows TVHeadend, your series, the last 7 days of recordings, and Plex. Press a cell to open its page.</p>
             </info-button>
           </span>
-          <span v-if="nextSyncLabel" class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim" :title="'Cron: ' + syncStatus.cron">NEXT SYNC · <span class="text-ink">{{ nextSyncLabel }}</span></span>
+          <span v-if="nextSyncLabel" class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim" :title="'Cron: ' + syncStatus.cron">NEXT SYNC · <span class="text-ink normal-case">{{ nextSyncLabel }}</span></span>
         </header>
         <div class="deck-status">
           <div class="deck-cell deck-cell-status">
@@ -1643,7 +1633,7 @@ const DashboardView = {
       if (!at) return ''
       const mins = Math.ceil((at - now.value.getTime()) / 60_000)
       if (mins <= 0) return 'due'
-      if (mins < 60) return `in ${mins} min`
+      if (mins < 60) return `in ${formatMinutes(mins)}`
       return `at ${fmtClockTz(at)}`
     })
 
@@ -2948,7 +2938,7 @@ const RecordingsView = {
       try {
         const breaks = JSON.parse(r.ad_breaks_json)
         const secs = breaks.reduce((sum, b) => sum + (b.end - b.start), 0)
-        return `${breaks.length} break${breaks.length === 1 ? '' : 's'} · ${(secs / 60).toFixed(1)} min of ads`
+        return `${breaks.length} break${breaks.length === 1 ? '' : 's'} · ${formatMinutes(Number((secs / 60).toFixed(1)))} of ads`
       } catch {
         return ''
       }
@@ -4195,7 +4185,7 @@ const DoctorView = {
       : `Checked ${revealed.value} of ${orderedChecks.value.length}`))
 
     const ranLabel = computed(() => fmtClockTz(Date.parse(report.value.ranAt)))
-    const durationLabel = computed(() => `${(report.value.durationMs / 1000).toFixed(1)} s`)
+    const durationLabel = computed(() => formatSeconds(report.value.durationMs / 1000, 1))
 
     const pillFor = (status) => DOCTOR_PILLS[status]
     const needsFix = (c) => c.status === 'fail' || c.status === 'warn'
@@ -6019,7 +6009,7 @@ const EpgView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · {{ dayTitle }}</template><template v-else> · {{ mode.toUpperCase() }}</template></span>
+            <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · <span class="normal-case">{{ dayTitle }}</span></template><template v-else> · {{ mode.toUpperCase() }}</template></span>
             <info-button v-if="mode === 'upcoming'" title="TV GUIDE: UPCOMING" doc="guide/tv-guide#recording-a-programme">
               <p>Everything TVHeadend will record, soonest first. <strong>SCHEDULED</strong> cards are timers set in TVHeadend, marked <strong>SERIES</strong> or <strong>ONE-OFF</strong>. <strong>EXPECTED</strong> cards are episodes your series recordings should catch in the next 7 days.</p>
               <p>Click a card to open the programme, where you can cancel the recording. Search filters the list as you type.</p>
@@ -6095,7 +6085,7 @@ const EpgView = {
                 <div class="chip-row md:flex-wrap">
                   <button v-for="d in dayChips" :key="d.day" type="button"
                     :class="['btn', 'btn-sm', day === d.day ? 'btn-on' : '']"
-                    @click="setDay(d.day)">{{ d.label }}</button>
+                    @click="setDay(d.day)"><span class="normal-case">{{ d.label }}</span></button>
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-x-6 gap-y-3 md:ml-auto">
@@ -6294,13 +6284,13 @@ const EpgView = {
               <div>
                 <label class="field-label">START EARLY</label>
                 <select v-model.number="leadTime" class="field-input">
-                  <option v-for="m in leadOptions" :key="m" :value="m">{{ m }} MIN</option>
+                  <option v-for="m in leadOptions" :key="m" :value="m">{{ minutesLabel(m) }}</option>
                 </select>
               </div>
               <div>
                 <label class="field-label">RUN LATE</label>
                 <select v-model.number="lagTime" class="field-input">
-                  <option v-for="m in lagOptions" :key="m" :value="m">{{ m }} MIN</option>
+                  <option v-for="m in lagOptions" :key="m" :value="m">{{ minutesLabel(m) }}</option>
                 </select>
               </div>
               <div v-if="selected.program.series_link" class="col-span-2">
@@ -6586,24 +6576,20 @@ const EpgView = {
 
     const dayChips = computed(() => Array.from({ length: 7 }, (_, d) => {
       if (d === 0) return { day: 0, label: 'TODAY' }
-      return { day: d, label: weekdayOfDayNumber(todayNumber.value + d).toUpperCase() }
+      return { day: d, label: weekdayOfDayNumber(todayNumber.value + d) }
     }))
 
     const noonOf = (ms) => new Date(ms + 12 * 3_600_000)
     const nextDayNoon = computed(() => noonOf(guide.value?.dayEnd ?? 0))
-    const nextDayLabel = computed(() =>
-      dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(nextDayNoon.value).replace(',', '').toUpperCase())
-    const nextDayWeekday = computed(() => dateFormat({ weekday: 'short' }).format(nextDayNoon.value).toUpperCase())
-    const nextDayLongLabel = computed(() =>
-      dateFormat({ weekday: 'long', day: 'numeric', month: 'long' }).format(nextDayNoon.value).replace(',', ''))
-    const lastDayLabel = computed(() =>
-      dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(noonOf(guide.value?.dayStart ?? 0)).replace(',', ''))
+    const nextDayLabel = computed(() => formatDate(nextDayNoon.value.getTime(), tz.value))
+    const nextDayWeekday = computed(() => dateFormat({ weekday: 'short' }).format(nextDayNoon.value))
+    const nextDayLongLabel = computed(() => formatDate(nextDayNoon.value.getTime(), tz.value, { long: true }))
+    const lastDayLabel = computed(() => formatDate(noonOf(guide.value?.dayStart ?? 0).getTime(), tz.value))
 
     const dayTitle = computed(() => {
       if (!guide.value) return dayChips.value[day.value]?.label || ''
       const weekday = narrow.value ? 'short' : 'long'
-      return dateFormat({ weekday, day: 'numeric', month: 'short' })
-        .format(new Date(guide.value.dayStart + 12 * 3_600_000)).replace(',', '')
+      return formatDate(guide.value.dayStart + 12 * 3_600_000, tz.value, { weekday })
     })
 
     const scheduledByProgramId = computed(() => {
@@ -6692,18 +6678,9 @@ const EpgView = {
     const tsOf = tsOfMs
     const fmtClock = fmtClockTz
 
-    const fmtDayTime = (ms) => dateFormat({
-      weekday: 'short', day: 'numeric', month: 'short',
-      hour: 'numeric', minute: '2-digit',
-    }).format(new Date(ms)).toLowerCase().replace(/\s(am|pm)$/, '$1')
+    const fmtDayTime = (ms) => `${formatDate(ms, tz.value)} ${fmtClock(ms)}`
 
-    const fmtShortRange = (start, end) => {
-      const day = dateFormat({ weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(start)).toLowerCase().replace(',', '')
-      const from = fmtClock(start).replace(':00', '')
-      const to = fmtClock(end).replace(':00', '')
-      const trimmed = from.slice(-2) === to.slice(-2) ? from.replace(/(am|pm)$/, '') : from
-      return `${day} @ ${trimmed}–${to}`
-    }
+    const fmtShortRange = (start, end) => `${fmtDayTime(start)}–${fmtClock(end)}`
 
     const ratingLabel = (p) => {
       const r = p?.rating
@@ -7406,7 +7383,7 @@ const EpgView = {
       canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, addToLibrary, libraryNote,
-      leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
+      minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries, cancelChoice,
       upcoming, cancelUpcoming,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
@@ -7727,7 +7704,7 @@ const extendSkip = (side, at) => {
   const ceiling = liveTargetSecond() ?? wanted
   if (wanted <= floor) return applySkip({ side, to: floor, label: 'START' })
   if (wanted >= ceiling - SKIP_STEP_S / 2) return applySkip({ side, to: ceiling, label: 'LIVE' })
-  applySkip({ side, to: wanted, label: `${skipChain.total} s` })
+  applySkip({ side, to: wanted, label: formatSeconds(skipChain.total) })
 }
 
 const applySkip = ({ side, to, label }) => {
@@ -8458,11 +8435,11 @@ const togglePlayback = () => {
 
 const skipPlaybackBy = (seconds, { label } = {}) => {
   const side = seconds < 0 ? 'back' : 'forward'
-  const amount = label || `${Math.abs(seconds)} s`
+  const amount = label || formatSeconds(Math.abs(seconds))
   playback.skipHint = {
     side,
     label: amount,
-    spoken: `${side === 'back' ? 'Back' : 'Forward'} ${amount.replace(' s', ' seconds')}`,
+    spoken: `${side === 'back' ? 'Back' : 'Forward'} ${amount.replace(/s$/, ' seconds')}`,
     key: Date.now(),
   }
   clearTimeout(playSkipHintTimer)
@@ -8513,7 +8490,7 @@ const onPlayTouchEnd = (e) => {
   playChain.total = chained ? playChain.total + SKIP_STEP_S : SKIP_STEP_S
   playChain.side = side
   playChain.until = at + SKIP_CHAIN_MS
-  skipPlaybackBy(side === 'back' ? -SKIP_STEP_S : SKIP_STEP_S, { label: `${playChain.total} s` })
+  skipPlaybackBy(side === 'back' ? -SKIP_STEP_S : SKIP_STEP_S, { label: formatSeconds(playChain.total) })
 }
 
 const onPlayFrameClick = (e) => {
