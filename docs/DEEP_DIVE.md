@@ -216,7 +216,7 @@ The feature is double-gated: a global `ad_removal_enabled` setting (Settings →
 4. Any caught failure at any step leaves the original file in place and marks the row `cut_failed`; the sync carries on. The one gap the rollback can't cover is a process death *between* the two renames of the swap; that would leave no file at the real path. `recoverInterruptedCuts` on startup closes it: for any recording row whose `file_path` is missing on disk but whose `<file>.ts.orig` exists, it renames the `.orig` back, so the next start repairs a crash mid-swap.
 
 > [!NOTE]<br>
-> The cut rewrites the file in the Plex library, not the TVHeadend copy. TVHeadend's own entry still points at its original file, and deleting through `dvr/entry/remove` removes that one.
+> The cut rewrites the file in your library, not the TVHeadend copy. TVHeadend's own entry still points at its original file, and deleting through `dvr/entry/remove` removes that one.
 
 Sync housekeeping deletes `.orig` backups after `ad_original_retention_days` (default 7). Until then, renaming the `.orig` back undoes a bad cut.
 
@@ -380,16 +380,16 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 
 Volumes:
 
-| Service     | Container path               | Host path                  | Purpose                                                                                                                                                            |
-| ----------- | ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tvheadend` | `/config`                    | `${CONFIG_PATH}/tvheadend` | TVHeadend's own configuration, channels, and DVR entries                                                                                                           |
-| `tvheadend` | `/recordings`                | `${DATA_PATH}/recordings`  | Where TVHeadend writes `.ts` files                                                                                                                                 |
-| `freetvarr` | `/config`                    | `${CONFIG_PATH}/freetvarr` | SQLite state DB and an optional `comskip.ini` override                                                                                                             |
-| `freetvarr` | `/data`                      | `${DATA_PATH}`             | Recordings at `/data/recordings`, the Plex TV library at `/data/media/tv`, and the one-off folder at `/data/media/one-offs`. One mount makes the import a hardlink |
-| `freetvarr` | `/plex-preferences.xml` (ro) | `${PLEX_PREFS_PATH}`       | Optional. Read-only, only for the Auto-detect token button                                                                                                         |
-| `freetvarr` | `/plex` (ro)                 | `${CONFIG_PATH}/plex`      | The `plex` profile's settings folder, read-only, for the Auto-detect token button. Empty without the profile                                                       |
-| `plex`      | `/config`                    | `${CONFIG_PATH}/plex`      | `plex` profile only. Plex's settings and database                                                                                                                  |
-| `plex`      | `/data/media`                | `${DATA_PATH}/media`       | `plex` profile only. The library folders, at the same paths Freetvarr uses                                                                                         |
+| Service     | Container path               | Host path                  | Purpose                                                                                                                                                       |
+| ----------- | ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tvheadend` | `/config`                    | `${CONFIG_PATH}/tvheadend` | TVHeadend's own configuration, channels, and DVR entries                                                                                                      |
+| `tvheadend` | `/recordings`                | `${DATA_PATH}/recordings`  | Where TVHeadend writes `.ts` files                                                                                                                            |
+| `freetvarr` | `/config`                    | `${CONFIG_PATH}/freetvarr` | SQLite state DB and an optional `comskip.ini` override                                                                                                        |
+| `freetvarr` | `/data`                      | `${DATA_PATH}`             | Recordings at `/data/recordings`, the TV library at `/data/media/tv`, and the one-off folder at `/data/media/one-offs`. One mount makes the import a hardlink |
+| `freetvarr` | `/plex-preferences.xml` (ro) | `${PLEX_PREFS_PATH}`       | Optional. Read-only, only for the Auto-detect token button                                                                                                    |
+| `freetvarr` | `/plex` (ro)                 | `${CONFIG_PATH}/plex`      | The `plex` profile's settings folder, read-only, for the Auto-detect token button. Empty without the profile                                                  |
+| `plex`      | `/config`                    | `${CONFIG_PATH}/plex`      | `plex` profile only. Plex's settings and database                                                                                                             |
+| `plex`      | `/data/media`                | `${DATA_PATH}/media`       | `plex` profile only. The library folders, at the same paths Freetvarr uses                                                                                    |
 
 > [!IMPORTANT]<br>
 > Freetvarr must see the recordings and the media folders through one mount. Linux refuses a hardlink between two bind mounts, so separate mounts make every import a full copy. Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.

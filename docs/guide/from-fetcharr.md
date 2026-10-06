@@ -9,7 +9,7 @@ description: >-
 
 If you ran [Fetcharr](https://github.com/furey/fetcharr) against a Fetch TV box, the notes below cover the move. If you never used Fetcharr, read [Leaving Fetch TV](/guide/leaving-fetch) instead; it covers the levy, saving your recordings, the tuner, and cancelling.
 
-Freetvarr is Fetcharr with the recorder swapped out. The web UI, the shows, the Plex pipeline, and the ad removal are the same. TVHeadend and a TVHeadend-compatible tuner replace the Fetch box.
+Freetvarr is Fetcharr with the recorder swapped out. The web UI, the shows, the filing pipeline, and the ad removal are the same. TVHeadend and a TVHeadend-compatible tuner replace the Fetch box.
 
 ## The database
 
@@ -17,7 +17,7 @@ Your Fetcharr database does not carry over; Freetvarr starts clean. Set up TVHea
 
 ## Library folders
 
-Recreate each series folder on the [SERIES](/guide/series) tab. The titles now come from TVHeadend, so a title can differ slightly from Fetch's. Point each series at the folder it already uses under your media root, and nothing in Plex moves. For a title with no series recording, use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
+Recreate each series folder on the [SERIES](/guide/series) tab. The titles now come from TVHeadend, so a title can differ slightly from Fetch's. Point each series at the folder it already uses under your media root, and nothing in your library moves. For a title with no series recording, use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
 
 ## Series recordings
 
