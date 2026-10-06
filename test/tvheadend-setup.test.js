@@ -14,6 +14,8 @@ import {
   suggestChannelSetup,
   tunerAddressConfig,
   summariseScan,
+  tunersInUseElsewhere,
+  isWaitingForTuner,
   unmappedTvServices,
 } from '../src/tvheadend-setup.js'
 import { countryForTimeZone } from '../src/zone-countries.js'
@@ -163,9 +165,17 @@ test('isMapperFinished waits for the active service and every queued result', ()
   assert.equal(isMapperFinished({ total: 10, ok: 7, fail: 1, ignore: 2 }), true)
 })
 
-const scriptedTvheadend = ({ scanFrames, mapperFrames, tuner = { enabled: false, networks: [] }, rerecord = 10 }) => {
+const scriptedTvheadend = ({
+  scanFrames,
+  mapperFrames,
+  tuner = { enabled: false, networks: [] },
+  rerecord = 10,
+  inputs = [],
+  channelsAfter = 0,
+}) => {
   const writes = []
   let networkId = null
+  let mapped = false
   let scanFrame = 0
   let mapperFrame = 0
   const frontend = {
@@ -182,7 +192,8 @@ const scriptedTvheadend = ({ scanFrames, mapperFrames, tuner = { enabled: false,
     'hardware/tree': (p) => (p.uuid === 'root' ? [{ uuid: 'dev', text: 'HDHomeRun', leaf: 0 }] : [frontend]),
     'mpegts/network/grid': () => ({ entries: networkId ? [network()] : [] }),
     'mpegts/input/network_list': () => ({ entries: networkId ? [{ key: networkId }] : [] }),
-    'channel/grid': () => ({ total: 0, entries: [] }),
+    'channel/grid': () => ({ total: mapped ? channelsAfter : 0, entries: [] }),
+    'status/inputs': () => ({ entries: inputs }),
     'dvr/entry/grid_upcoming': () => ({ entries: [] }),
     'mpegts/mux/grid': () => {
       const frame = current()
@@ -208,6 +219,7 @@ const scriptedTvheadend = ({ scanFrames, mapperFrames, tuner = { enabled: false,
     get: async (path, params = {}) => reads[path](params),
     post: async (path, form) => {
       writes.push({ path, form })
+      if (path === 'service/mapper/save') mapped = true
       if (path === 'mpegts/network/create') {
         networkId = 'net1'
         return { uuid: networkId }
@@ -236,6 +248,7 @@ test('applyChannelSetup creates the network, turns on the tuner, scans, maps TV 
       { total: 1, ok: 0, fail: 0, ignore: 0, active: 'tv1' },
       { total: 1, ok: 1, fail: 0, ignore: 0 },
     ],
+    channelsAfter: 1,
   })
   const progress = []
   const result = await applyChannelSetup({
@@ -252,6 +265,7 @@ test('applyChannelSetup creates the network, turns on the tuner, scans, maps TV 
   assert.equal(result.scan.services, 20)
   assert.equal(result.scan.received, 1)
   assert.deepEqual(result.mapped, { total: 1, ok: 1, fail: 0 })
+  assert.deepEqual({ before: result.channelsBefore, after: result.channels }, { before: 0, after: 1 })
   const paths = http.writes.map((w) => w.path)
   assert.deepEqual(paths, ['mpegts/network/create', 'idnode/save', 'service/mapper/save', 'idnode/save'])
   const create = http.writes[0].form
@@ -267,8 +281,9 @@ test('applyChannelSetup creates the network, turns on the tuner, scans, maps TV 
 test('applyChannelSetup reuses a network, keeps a user-set rerecord value, and skips a scan that has services', async () => {
   const http = scriptedTvheadend({
     scanFrames: [{ services: 20, muxes: [[0, 1], [0, 1]] }],
-    mapperFrames: [{ total: 1, ok: 1, fail: 0, ignore: 0 }],
+    mapperFrames: [{ total: 3, ok: 3, fail: 0, ignore: 0 }],
     rerecord: 3,
+    channelsAfter: 2,
   })
   await http.post('mpegts/network/create', {})
   http.writes.length = 0
@@ -277,6 +292,8 @@ test('applyChannelSetup reuses a network, keeps a user-set rerecord value, and s
   })
   assert.equal(result.ok, true, JSON.stringify(result))
   assert.deepEqual(http.writes.map((w) => w.path), ['idnode/save', 'service/mapper/save'])
+  assert.equal(result.mapped.ok, 3)
+  assert.equal(result.channels, 2, 'TVHeadend merges same-name services into one channel')
 })
 
 test('applyChannelSetup reports a scan with no channels as no-signal', async () => {
@@ -293,10 +310,11 @@ test('applyChannelSetup reports a scan with no channels as no-signal', async () 
   assert.equal(result.steps.find((s) => s.id === 'scan').status, 'failed')
 })
 
-test('applyChannelSetup flags a stalled scan as waiting for a tuner, then times out', async () => {
+const queuedScan = async ({ inputs }) => {
   const http = scriptedTvheadend({
     scanFrames: [{ services: 0, muxes: [[1, 0], [1, 0]] }],
     mapperFrames: [{ total: 0, ok: 0, fail: 0, ignore: 0 }],
+    inputs,
   })
   const details = []
   const result = await applyChannelSetup({
@@ -306,13 +324,45 @@ test('applyChannelSetup flags a stalled scan as waiting for a tuner, then times 
     networkId: null,
     transmitter,
     pollMs: 0,
-    stallMs: 5000,
     scanLimitMs: 20_000,
     onProgress: (steps) => details.push(steps.find((s) => s.id === 'scan').detail),
     ...fastClock(),
   })
+  return { result, details: details.filter(Boolean) }
+}
+
+test('applyChannelSetup says the scan waits for a tuner only while live TV or a recording holds it', async () => {
+  const { result, details } = await queuedScan({ inputs: [{ uuid: 'mmi1', input: 'Tuner #0', subs: 1, weight: 300 }] })
   assert.equal(result.code, 'scan-timeout')
-  assert.ok(details.some((d) => d?.waitingForTuner === true))
+  assert.ok(details.length > 0)
+  assert.ok(details.every((d) => d.waitingForTuner === true))
+})
+
+test('applyChannelSetup does not claim a busy tuner while the first tune is slow', async () => {
+  const idle = await queuedScan({ inputs: [{ uuid: 'fe1', input: 'Tuner #0', subs: 0, weight: 0 }] })
+  assert.ok(idle.details.every((d) => d.waitingForTuner === false))
+  const scanning = await queuedScan({ inputs: [{ uuid: 'mmi1', input: 'Tuner #0', subs: 1, weight: 6 }] })
+  assert.ok(scanning.details.every((d) => d.waitingForTuner === false))
+})
+
+test('tunersInUseElsewhere matches the chosen tuners by name and ignores scan and guide use', () => {
+  const inputs = fixture('status-inputs').entries
+  const tuners = fixture('hardware-device').map((n) => ({ id: n.uuid, name: n.text }))
+  assert.equal(tunersInUseElsewhere({ inputs, tuners }), 1, 'Tuner #0 is recording at weight 300')
+  assert.equal(tunersInUseElsewhere({ inputs: inputs.map((i) => ({ ...i, weight: 5 })), tuners }), 0)
+  assert.equal(tunersInUseElsewhere({ inputs, tuners: tuners.slice(1) }), 0)
+})
+
+test('isWaitingForTuner needs a queued scan, nothing active, and every chosen tuner in use', () => {
+  const tuners = [{ name: 'A' }, { name: 'B' }]
+  const busy = [{ input: 'A', weight: 150 }, { input: 'B', weight: 300 }]
+  const summary = { active: 0, queued: 3 }
+  assert.equal(isWaitingForTuner({ summary, inputs: busy, tuners }), true)
+  assert.equal(isWaitingForTuner({ summary, inputs: busy.slice(0, 1), tuners }), false)
+  assert.equal(isWaitingForTuner({ summary: { active: 1, queued: 3 }, inputs: busy, tuners }), false)
+  assert.equal(isWaitingForTuner({ summary: { active: 0, queued: 0 }, inputs: busy, tuners }), false)
+  assert.equal(isWaitingForTuner({ summary, inputs: [], tuners }), false)
+  assert.equal(isWaitingForTuner({ summary, inputs: busy, tuners: [] }), false)
 })
 
 test('applyChannelSetup refuses tuners that are not in TVHeadend', async () => {
