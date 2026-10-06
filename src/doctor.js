@@ -175,7 +175,7 @@ const LATER_CHECKS = [
       return {
         status: 'warn',
         detail: `TVHeadend has an access entry with username * and admin rights (${networks}): anyone on your network can change TVHeadend.`,
-        fix: 'On a fresh TVHeadend, run the setup wizard and choose SECURE TVHEADEND. Otherwise make an admin user in TVHeadend, then delete the * entry under Configuration → Users → Access Entries.',
+        fix: 'If TVHeadend came with Freetvarr, run the setup wizard and choose SECURE TVHEADEND. If you run your own TVHeadend, make an admin user in TVHeadend, then delete the * entry under Configuration → Users → Access Entries.',
       }
     },
   },
