@@ -4,13 +4,10 @@ layout: home
 hero:
   name: Freetvarr
   text: >-
-    Live TV in your browser. Recordings in&nbsp;Plex, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span>
+    Live TV in your browser. Recordings in your library, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span>
   tagline: >-
-    A self-hosted companion for TVHeadend and compatible tuner.
-    Watch any channel live on your phone or desktop, browse a 7-day guide,
-    and schedule recordings. Freetvarr files every recording into your
-    media library, ready to watch on your TV
-    without the ads.<br><span
+    Self-hosted TV for any TVHeadend-compatible tuner. Watch live,
+    browse the guide, and record straight into your media library.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
     <code>comskip</code></span>
   image:

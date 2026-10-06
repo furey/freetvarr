@@ -46,7 +46,7 @@ Freetvarr keeps two settings for one folder. These are the settings most likely 
 
 In the example compose file, TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`, and Freetvarr mounts `${DATA_PATH}` at `/data`. TVHeadend reports `/recordings/...` and Freetvarr sees the same file at `/data/recordings/...`, so the two settings differ and you never touch them. Freetvarr rewrites every TVHeadend filename from the second path to the first; a file outside that prefix is skipped with a note saying so.
 
-The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/media/tv` in the example compose file), is where finished episodes land for Plex.
+The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/media/tv` in the example compose file), is where Freetvarr files finished episodes for your media library.
 
 ## The one-off folder
 

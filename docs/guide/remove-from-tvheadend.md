@@ -7,7 +7,7 @@ description: >-
 
 # Remove from TVHeadend
 
-Once an episode is in Plex, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after Plex has the file. This is optional, and you turn it on per show.
+Once an episode is in your library, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after Plex has the file. This is optional, and you turn it on per show.
 
 ## How it works
 
@@ -34,7 +34,7 @@ To let TVHeadend record an episode again, delete its entry in the **Removed Reco
 
 ## Turn it on
 
-Remove after import is a per-series switch on the [SERIES tab](/guide/series#edit-a-series-folder). Turn it on for series you are happy to keep only in Plex; leave it off for anything you want a second copy of.
+Remove after import is a per-series switch on the [SERIES tab](/guide/series#edit-a-series-folder). Turn it on for series you are happy to keep only in your library; leave it off for anything you want a second copy of.
 
 ## When it removes
 
