@@ -36,6 +36,7 @@ import {
   normaliseCron,
   syncSchedulePreset,
 } from '/sync-schedule.js'
+import { withBrowserNetwork } from '/lan-network.js'
 
 let csrfToken = null
 
@@ -4966,7 +4967,7 @@ const WelcomeView = {
                 <label class="field-label">Allowed networks</label>
                 <input type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
                 <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses; add any network you sign in to TVHeadend from.
+                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses and this browser's network; add any network you sign in to TVHeadend from.
                 </p>
               </div>
               <p class="text-xs text-ink-mute leading-relaxed">
@@ -5692,7 +5693,12 @@ const WelcomeView = {
         const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
         if (url !== tvhUrl.value.trim()) return
         bootstrap.value = status
-        if (status?.fresh && !securePrefixes.value) securePrefixes.value = status.suggestedPrefixes.join(', ')
+        if (status?.fresh && !securePrefixes.value) {
+          securePrefixes.value = withBrowserNetwork({
+            prefixes: status.suggestedPrefixes,
+            host: window.location.hostname,
+          }).join(', ')
+        }
       }, BOOTSTRAP_CHECK_DELAY_MS)
     }
     watch(tvhUrl, () => {
