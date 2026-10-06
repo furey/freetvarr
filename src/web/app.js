@@ -5776,7 +5776,7 @@ const changedSettings = (entries) => Object.fromEntries(
 
 const storageSummaryText = ({ mediaRoot, recordingsRoot }) => {
   const inDataFolder = [mediaRoot, recordingsRoot].every((folder) => isInsideFolder({ folder, root: COMPOSE_DATA_ROOT }))
-  if (inDataFolder) return 'Recordings and your TV library are saved in the data folder next to docker-compose.yml.'
+  if (inDataFolder) return 'Recordings and your TV library are saved in your data folder (the data folder next to docker-compose.yml, unless you set DATA_PATH).'
   return `Freetvarr reads recordings from ${recordingsRoot} and saves your TV library to ${mediaRoot}.`
 }
 
