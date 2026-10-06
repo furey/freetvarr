@@ -36,7 +36,7 @@ To watch live TV only, you need just the tuner and its free app. The drive and t
 | Job                 | Fetch box                          | Replacement                                                                     |
 | ------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
 | Live free-to-air TV | Fetch's guide and remote           | A network tuner and its free app (Path 1), or Freetvarr in any browser (Path 2) |
-| Recording           | Mighty only, through Fetch's cloud | TVHeadend, free recording software, on an always-on computer (Path 2)           |
+| Recording           | Mighty only, to its own hard drive | TVHeadend, free recording software, on an always-on computer (Path 2)           |
 | 7-day guide         | Fetch's cloud                      | A free online guide for your city, loaded into TVHeadend (Path 2)               |
 | Streaming apps      | Netflix, Stan, Disney+, and others | The apps on your smart TV, or a streaming stick ([FAQ](#streaming-apps))        |
 
@@ -51,7 +51,7 @@ The facts below come from Fetch's [Extended Service Levy](https://news.fetchtv.c
 - **When**: Fetch charges the card on file on `1 November 2026` unless you cancel by `31 October 2026`.
 - **What it buys**: service to `31 October 2027`. Fetch says it will "endeavour" to support Gen 3 boxes after that, but it makes no promise.
 - **If you do not pay**: Fetch suspends the account. A suspended Mighty loses "making or viewing recordings".
-- **If you cancel**: Fetch says a cancelled box "cannot be reactivated in the future by you or anyone else".
+- **If you cancel**: Fetch says a cancelled box "cannot be reactivated in the future by you or anyone else". The box stops working completely, free-to-air TV included.
 - **Apps**: Fetch removes some apps from Gen 3 boxes whether you pay or not. [CyberShack reports](https://cybershack.com.au/consumer-advice/fetch-tv-gen-3/) that the Mini loses Netflix, Paramount+, SBS On Demand, and Hayu, and the Mighty loses Paramount+.
 
 Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at `$4.99` a month.
@@ -145,8 +145,8 @@ Everything in Path 1, plus an always-on computer and somewhere to store recordin
 | Item                                     | Why                                                                                                                                                          | Price                  | Where to buy                                                                                                                                                               |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Synology DS225+ NAS                      | Runs TVHeadend, Freetvarr, and Plex, and holds the recordings. Its Intel graphics chip converts live TV for the browser and leaves the processor almost idle | `A$549–620`, no drives | [Amazon AU](https://www.amazon.com.au/dp/B0FC2888KF?tag=freetvarr-22), [Umart](https://www.umart.com.au/brand/synology-271)                                                |
-| NAS hard drive, 4TB                     | Room for about `650–1,300` hours of HD                                                                                                                       | `A$330–360`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
-| NAS hard drive, 8TB                     | Twice that                                                                                                                                                   | `A$590–640`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
+| NAS hard drive, 4TB                      | Room for about `650–1,300` hours of HD                                                                                                                       | `A$330–360`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
+| NAS hard drive, 8TB                      | Twice that                                                                                                                                                   | `A$590–640`            | [Scorptec, Seagate IronWolf](https://www.scorptec.com.au/brand/seagate)                                                                                                    |
 | Or: a mini PC with an Intel N150 or N100 | Cheaper than a NAS. Runs Linux and Docker; its Intel graphics chip converts live TV for the browser                                                          | about `A$290–370`      | [Amazon AU, Beelink EQ14](https://www.amazon.com.au/dp/B0G1M7C1V9?tag=freetvarr-22), [Amazon AU, GMKtec G3 Plus](https://www.amazon.com.au/dp/B0FKYPD8JR?tag=freetvarr-22) |
 | Or, with a mini PC: a USB tuner          | Cheaper than a network tuner, but it works only plugged into the Linux computer that runs TVHeadend, not a NAS                                               | `A$100–190`            | [PB Tech, Hauppauge WinTV-dualHD](https://www.pbtech.com/au/product/TVNHGR1590/Hauppauge-WinTV-dualHD-Dual-Tuner-DVB-TT2C-Digital)                                         |
 
@@ -191,9 +191,14 @@ Do these in order. The times are for someone doing it the first time.
 
 1. Move the aerial lead from the Fetch box to the tuner. Some homes have a small power box for an aerial amplifier (a masthead amplifier power injector) between the wall socket and the Fetch box. If yours does, leave it in place and plug the tuner into its TV port.
 2. Watch and record for a week. Check that every channel you watch works.
-3. Cancel the Fetch service in the self-service portal on the Fetch website, on or before `31 October 2026`.
-4. Remove your card from the Fetch account, so Fetch cannot charge it again.
-5. Unplug the Fetch box.
+3. Sign in to [Fetch account management](https://www.fetchtv.com.au/manage/account). Your username is your email address, in lower case.
+4. Choose **Cancel Service** under **Packages** in the left menu.
+5. Choose **Yes, cancel my service**, on or before `31 October 2026`. This cancels every box on the account, so you do not need to remove the boxes one at a time first.
+6. Unplug the Fetch box.
+
+Fetch pays any refund to the card on file. If Fetch owes you money, check your card under **Update Billing Details** before you cancel.
+
+If you got Fetch through your internet provider, cancel through that provider instead. Ask it whether you must return the box.
 
 To keep the Fetch box running during the test week, use a two-way TV splitter: it connects both boxes to one aerial lead. Each side gets less signal, so skip it if your reception is already weak. If your home has an amplifier power injector, put the splitter after it, on its TV port, so the amplifier keeps its power:
 
@@ -245,9 +250,9 @@ If the Fetch box gets a clear picture now, the tuner will too: it uses the same 
 
 On cost alone, a new Fetch box can come out cheaper than either path. Fetch's prices, from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in October 2026:
 
-| Box              | Price                                  | Records          | Three years with Fetch Access |
-| ---------------- | -------------------------------------- | ---------------- | ----------------------------- |
-| Mini Gen 5       | `A$149` for Gen 3 owners (RRP `A$199`) | No               | about `A$300`                 |
+| Box              | Price                                  | Records         | Three years with Fetch Access |
+| ---------------- | -------------------------------------- | --------------- | ----------------------------- |
+| Mini Gen 5       | `A$149` for Gen 3 owners (RRP `A$199`) | No              | about `A$300`                 |
 | Mighty Gen 4     | `A$659`                                | Yes, `1TB` disk | about `A$840`                 |
 | Mighty Gen 4 Pro | `A$799` pre-order (RRP `A$999`)        | Yes, `2TB` disk | about `A$980`                 |
 
