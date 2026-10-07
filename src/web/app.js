@@ -20,6 +20,7 @@ import {
 } from '/guide-time.js'
 import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
 import { findHdSimulcast } from '/simulcast.js'
+import { revealStepMs, isStepResolved, pacedSteps } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
@@ -38,6 +39,7 @@ import {
 } from '/sync-schedule.js'
 import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
+import { wizardSkipPrompt } from '/wizard-skip.js'
 import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
 
 let csrfToken = null
@@ -3009,9 +3011,7 @@ const RecordingsView = {
     }
 
     const clearNotInTvh = async () => {
-      const settings = await api('GET', '/api/settings').catch(() => ({}))
-      const plexConfigured = Boolean(settings.plex_url && settings.plex_token_set && settings.plex_tv_section_id)
-      if (!confirm(clearListPrompt({ count: clearable.value, plexConfigured }))) return
+      if (!confirm(clearListPrompt(clearable.value))) return
       clearing.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
@@ -3212,7 +3212,7 @@ const SettingsView = {
               <ul class="space-y-2">
                 <li v-for="c in tvhCandidates" :key="c.url">
                   <button type="button" class="btn" @click="useTvhCandidate(c)">
-                    Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}
+                    Use {{ c.url }}
                   </button>
                 </li>
               </ul>
@@ -4042,12 +4042,6 @@ const sortDoctorChecks = (checks) => [...checks].sort((a, b) =>
   DOCTOR_STATUS_ORDER.indexOf(a.status) - DOCTOR_STATUS_ORDER.indexOf(b.status))
 
 const DOCTOR_SCAN_MIN_MS = 700
-const DOCTOR_REVEAL_MS = 2200
-const DOCTOR_STEP_MIN_MS = 80
-const DOCTOR_STEP_MAX_MS = 260
-
-const doctorRevealStepMs = (count) =>
-  Math.min(DOCTOR_STEP_MAX_MS, Math.max(DOCTOR_STEP_MIN_MS, DOCTOR_REVEAL_MS / Math.max(1, count)))
 
 const DoctorSpinner = {
   template: `
@@ -4161,7 +4155,7 @@ const DoctorView = {
         revealed.value = total
         return
       }
-      const stepMs = doctorRevealStepMs(total)
+      const stepMs = revealStepMs(total)
       for (let i = 1; i <= total; i += 1) {
         await wait(stepMs)
         if (!isCurrentRun(id)) return
@@ -4369,7 +4363,8 @@ const ChannelSetupStep = {
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
             <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
+              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -4379,7 +4374,7 @@ const ChannelSetupStep = {
             Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
           </p>
           <p v-else-if="scanStarting" class="status-readout info">
-            <span class="spinner"></span> Starting the scan. The first channels can take a minute.
+            <span class="spinner"></span> {{ scanLine }}
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <div v-if="result && !result.ok" class="space-y-2">
@@ -4534,8 +4529,10 @@ const ChannelSetupStep = {
       ? steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail || null
       : null))
     const waitingForTuner = computed(() => Boolean(runningScan.value?.waitingForTuner))
-    const scanStarting = computed(() => Boolean(runningScan.value)
-      && !runningScan.value.scanned && !runningScan.value.active)
+    const scanStarting = computed(() => Boolean(runningScan.value) && !runningScan.value.scanned)
+    const scanLine = computed(() => (runningScan.value?.active
+      ? 'Scanning. The first channels can take a few minutes.'
+      : 'Starting the scan. The first channels can take a minute.'))
     const channelCount = computed(() => status.value?.channels || 0)
     const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
     const doneText = computed(() => channelsAddedText(result.value))
@@ -4675,7 +4672,7 @@ const ChannelSetupStep = {
     return {
       status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
-      steps, result, showSteps, waitingForTuner, scanStarting, doneText, recordingNow,
+      steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
@@ -4746,7 +4743,8 @@ const GuideSetupStep = {
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
             <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
+              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -4939,7 +4937,7 @@ const WelcomeView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">{{ stepTitle }} · STEP {{ step }} / {{ totalSteps }}</span>
-          <button v-if="step < totalSteps" type="button" class="btn-link link-arrow" @click="skipToSettings">SKIP TO SETTINGS <arrow-right-icon /></button>
+          <button v-if="step < totalSteps" type="button" class="btn-link link-arrow" @click="skipToSettings">FINISH LATER <arrow-right-icon /></button>
         </header>
         <div class="panel-body space-y-4">
 
@@ -4972,7 +4970,7 @@ const WelcomeView = {
               <ul class="space-y-2">
                 <li v-for="c in tvhCandidates" :key="c.url">
                   <button type="button" class="btn" @click="useTvhCandidate(c)">
-                    Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}
+                    Use {{ c.url }}
                   </button>
                 </li>
               </ul>
@@ -5018,9 +5016,10 @@ const WelcomeView = {
                 Make your own TVHeadend logins, then give Freetvarr the one you made for it.
               </manual-option>
             </div>
-            <ol v-if="secureSteps.length" class="space-y-1 text-sm font-mono">
-              <li v-for="s in secureSteps" :key="s.id" class="flex items-center gap-2">
-                <span :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
+            <ol v-if="secureShownSteps.length" class="space-y-1 text-sm font-mono">
+              <li v-for="s in secureShownSteps" :key="s.id" class="flex items-center gap-2">
+                <span v-if="s.status === 'running'" class="step-spinner shrink-0"></span>
+              <span v-else :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
                 <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
               </li>
             </ol>
@@ -5204,7 +5203,7 @@ const WelcomeView = {
 
           <div v-if="step === 7" class="space-y-4">
             <p v-if="!readySkipped.length" class="text-ink text-base leading-relaxed">
-              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> You're set.
+              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> Setup is done. Freetvarr is ready to record.
             </p>
             <div v-else class="space-y-2">
               <p class="text-ink text-base leading-relaxed">Setup is not finished yet.</p>
@@ -5261,6 +5260,7 @@ const WelcomeView = {
     const tvhPassword = ref('')
     const tvhPasswordSet = ref(false)
     const tvhTesting = ref(false)
+    const tvhConnected = ref(false)
     const recordingsRoot = ref('')
     const tvhRecordingsPath = ref('')
     const recordingsCheck = usePathCheck(() => recordingsFolderStatus({
@@ -5313,6 +5313,7 @@ const WelcomeView = {
     onMounted(async () => {
       const s = await api('GET', '/api/settings').catch(() => ({}))
       tvhUrl.value = s.tvh_url || ''
+      tvhConnected.value = Boolean(s.tvh_url)
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
       syncCron.value = s.sync_cron_effective || DEFAULT_SYNC_CRON
@@ -5476,6 +5477,7 @@ const WelcomeView = {
     }
 
     const skipToSettings = () => {
+      if (!confirm(wizardSkipPrompt({ tvhConnected: tvhConnected.value }))) return
       dismiss()
       window.location.hash = '#/settings'
     }
@@ -5709,6 +5711,9 @@ const WelcomeView = {
     const secureAdminPasswordInput = ref(null)
     const securePrefixes = ref('')
     const secureSteps = ref([])
+    const secureRevealed = ref(0)
+    const secureShownSteps = computed(() =>
+      pacedSteps({ steps: secureSteps.value, revealed: secureRevealed.value }))
     const secureError = ref('')
     const secureNext = ref('')
     const showSecure = computed(() => Boolean(bootstrap.value?.fresh) && !manualLogin.value && !securedAs.value)
@@ -5749,18 +5754,41 @@ const WelcomeView = {
     const useManualLogin = () => {
       manualLogin.value = true
       secureSteps.value = []
+      secureRevealed.value = 0
       secureError.value = ''
       secureNext.value = ''
+    }
+
+    const revealSecureSteps = async (isSettled) => {
+      if (!prefersReducedMotion()) {
+        const stepMs = revealStepMs(secureSteps.value.length)
+        while (secureRevealed.value < secureSteps.value.length) {
+          const shownAt = Date.now()
+          while (!isStepResolved(secureSteps.value[secureRevealed.value])) {
+            if (isSettled()) break
+            await wait(BOOTSTRAP_REVEAL_POLL_MS)
+          }
+          const step = secureSteps.value[secureRevealed.value]
+          if (!isStepResolved(step)) break
+          await wait(Math.max(0, stepMs - (Date.now() - shownAt)))
+          secureRevealed.value += 1
+          if (step.status === 'failed') break
+        }
+      }
+      secureRevealed.value = secureSteps.value.length
     }
 
     const secureTvh = async () => {
       securing.value = true
       secureError.value = ''
       secureNext.value = ''
+      secureRevealed.value = 0
       secureSteps.value = (bootstrap.value?.steps || []).map((s) => ({ ...s, status: 'pending' }))
+      let settled = false
+      const reveal = revealSecureSteps(() => settled)
       const poll = setInterval(async () => {
         const progress = await api('GET', '/api/tvh-bootstrap/progress').catch(() => null)
-        if (progress?.steps?.length) secureSteps.value = progress.steps
+        if (!settled && progress?.steps?.length) secureSteps.value = progress.steps
       }, BOOTSTRAP_POLL_MS)
       try {
         const result = await api('POST', '/api/tvh-bootstrap/apply', {
@@ -5769,7 +5797,9 @@ const WelcomeView = {
           admin_password: secureAdminPassword.value,
           prefixes: securePrefixes.value,
         })
+        settled = true
         secureSteps.value = result.steps
+        await reveal
         securedAs.value = result.adminUsername
         secureAdminPassword.value = ''
         tvhUsername.value = result.username
@@ -5777,7 +5807,9 @@ const WelcomeView = {
         tvhPasswordSet.value = true
         await testTvh()
       } catch (err) {
+        settled = true
         if (err.data?.steps) secureSteps.value = err.data.steps
+        await reveal
         secureError.value = err.message
         secureNext.value = err.data?.next || ''
         if (err.data?.code === 'not-fresh') manualLogin.value = true
@@ -5801,6 +5833,7 @@ const WelcomeView = {
           tvhPassword.value = ''
         }
         setTvhText(tvhTestSummary(r), 'ok', 8000)
+        tvhConnected.value = true
         return true
       } catch (err) {
         setTvhText(`Failed: ${err.message}`, 'err', 0)
@@ -5823,7 +5856,7 @@ const WelcomeView = {
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
       showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
-      securePrefixes, secureSteps, secureError, secureNext, secureInputProblem, secureReady,
+      securePrefixes, secureShownSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
       usePlexCandidate, detectPlexToken,
@@ -5944,6 +5977,7 @@ const secureStepDot = (status) => ({
 
 const BOOTSTRAP_CHECK_DELAY_MS = 500
 const BOOTSTRAP_POLL_MS = 400
+const BOOTSTRAP_REVEAL_POLL_MS = 50
 const BOOTSTRAP_MIN_PASSWORD = 8
 
 const EPG_ZOOM_LEVELS = [
@@ -6080,8 +6114,9 @@ const TvAppsPanel = {
           <span class="panel-title">WATCH ON YOUR TV</span>
           <info-button title="WATCH ON YOUR TV" doc="guide/tv-apps">
             <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
-            <p><strong>MAKE A TV LOGIN</strong> makes a TVHeadend login that can only watch. It cannot change TVHeadend or your recordings.</p>
-            <p>Copy each address into the app. The setup guide has the steps for each app.</p>
+            <p v-if="!login.authCode"><strong>MAKE A TV LOGIN</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
+            <p v-else>Your TV login can only watch TV. It cannot change your settings or your recordings.</p>
+            <p>Copy each detail into the app. The setup guide has the steps for each app.</p>
           </info-button>
         </span>
         <span class="text-xs font-mono text-ink-dim">live TV in Jellyfin or Kodi</span>
@@ -6090,10 +6125,10 @@ const TvAppsPanel = {
         <p v-if="!tvhUrl" class="text-sm text-ink-dim">Set the TVHeadend URL above first.</p>
         <template v-else-if="!login.authCode">
           <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
-            TV apps sign in to TVHeadend with their own login. Freetvarr makes one that can only watch, and keeps its password here so you can copy it.
+            A TV app needs its own login to get your channels. Press MAKE A TV LOGIN, and Freetvarr will make a login that can only watch TV. It then shows the details to copy into the app.
           </p>
           <div class="flex flex-wrap items-end gap-3">
-            <div class="field-row">
+            <div class="field-row mb-0!">
               <label class="field-label" for="tv-login-name">Login name</label>
               <input id="tv-login-name" type="text" class="field-input" v-model="name" autocomplete="off" />
             </div>
@@ -6125,7 +6160,7 @@ const TvAppsPanel = {
           </template>
           <p v-else class="text-sm text-ink-dim">Enter the network address of the computer that runs TVHeadend.</p>
           <p class="text-xs text-ink-mute leading-relaxed max-w-2xl">
-            Anyone on your home network with these addresses can watch your channels, but they cannot change TVHeadend or your recordings.
+            Anyone on your home network with these details can watch your channels. They cannot change your settings or your recordings.
           </p>
         </template>
       </div>
@@ -6409,6 +6444,7 @@ const ChannelsModal = {
             <info-button title="Channels" doc="guide/tv-guide#favourites">
               <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
               <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
+              <p>The GUIDE list sets where a channel's listings come from. Pick No guide to remove its listings. A new pick can take a minute to show in the TV Guide.</p>
             </info-button>
           </span>
           <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
@@ -6449,13 +6485,22 @@ const ChannelsModal = {
             </p>
           </div>
           <div>
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, PICK A GUIDE</label>
+            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the guide links…</p>
+            <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
+            <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
+              Set up the guide first to pick a guide for each channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
+            </p>
+            <div class="grid grid-cols-1 gap-y-2">
+              <div v-if="showGuideColumn" class="flex items-center gap-2">
+                <span class="flex-1"></span>
+                <span class="w-40 sm:w-64 shrink-0 font-mono text-[0.7rem] tracking-[0.14em] text-ink-mute">GUIDE</span>
+              </div>
               <div v-for="ch in channels" :key="ch.id" class="flex items-center gap-2">
                 <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
                   @click="toggleDraftPin(String(ch.id))"
                   :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"><star-icon /></button>
-                <label class="flex items-center gap-2.5 text-sm cursor-pointer min-w-0"
+                <label class="flex flex-1 items-center gap-2.5 text-sm cursor-pointer min-w-0"
                   :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
                   <input type="checkbox" class="chk"
                     :checked="!hiddenDraft.has(String(ch.id))"
@@ -6466,13 +6511,20 @@ const ChannelsModal = {
                     {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
                   </span>
                 </label>
+                <select v-if="showGuideColumn && String(ch.id) in guideDraft" class="field-input w-40 sm:w-64 shrink-0"
+                  v-model="guideDraft[String(ch.id)]" :aria-label="'Guide for ' + ch.name">
+                  <option value="">No guide</option>
+                  <option v-for="o in guideLinks.options" :key="o.id" :value="o.id">{{ o.name }}</option>
+                </select>
+                <span v-else-if="showGuideColumn" class="w-40 sm:w-64 shrink-0"></span>
               </div>
             </div>
           </div>
+          <p v-if="guideStatusText" :class="['status-readout', guideStatusKind, 'text-right']">{{ guideStatusText }}</p>
           <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
             <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
             <button type="button" class="btn btn-sm" @click="$emit('close')">CANCEL</button>
-            <button type="button" class="btn btn-sm btn-primary" @click="save" :disabled="savingPrefs">
+            <button type="button" class="btn btn-sm btn-primary" @click="save" :disabled="savingPrefs || guideLoading">
               {{ savingPrefs ? 'SAVING…' : 'SAVE' }}
             </button>
           </div>
@@ -6487,9 +6539,31 @@ const ChannelsModal = {
     const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
     const savingPrefs = ref(false)
     const [statusText, statusKind, setStatus] = makeStatus()
+    const [guideStatusText, guideStatusKind, setGuideStatus] = makeStatus()
+    const guideLinks = ref(null)
+    const guideLoading = ref(true)
+    const guideLoadError = ref('')
+    const guideSaved = ref({})
+    const guideDraft = reactive({})
+    const showGuideColumn = computed(() => Boolean(guideLinks.value?.ready))
+
+    const loadGuideLinks = async () => {
+      try {
+        const links = await api('GET', '/api/tvh-guide/links')
+        const picks = Object.fromEntries(links.channels.map((c) => [String(c.id), c.guideIds[0] || '']))
+        guideSaved.value = picks
+        Object.assign(guideDraft, picks)
+        guideLinks.value = links
+      } catch (err) {
+        guideLoadError.value = `Freetvarr could not read the guide links: ${err.message}`
+      } finally {
+        guideLoading.value = false
+      }
+    }
 
     onMounted(() => {
       try { document.body.classList.add('sheet-open') } catch { /* ignore */ }
+      loadGuideLinks()
     })
     onUnmounted(() => {
       try { document.body.classList.remove('sheet-open') } catch { /* ignore */ }
@@ -6523,8 +6597,7 @@ const ChannelsModal = {
       hiddenDraft.value = next
     }
 
-    const save = async () => {
-      savingPrefs.value = true
+    const savePrefs = async () => {
       try {
         await api('PUT', '/api/epg/channel-prefs', {
           pinned_ids: pinnedDraft.value,
@@ -6532,17 +6605,43 @@ const ChannelsModal = {
           sort: sortDraft.value,
           hide_sd_simulcasts: hideSdDraft.value,
         })
-        emit('saved')
+        return true
       } catch (err) {
         setStatus(`Save failed: ${err.message}`, 'err', 8000)
-      } finally {
-        savingPrefs.value = false
+        return false
       }
+    }
+
+    const changedGuideLinks = () => Object.entries(guideDraft)
+      .filter(([id, guideId]) => guideSaved.value[id] !== guideId)
+      .map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
+
+    const saveGuideLinks = async () => {
+      const links = changedGuideLinks()
+      if (!links.length) return true
+      try {
+        await api('POST', '/api/tvh-guide/links', { links })
+        guideSaved.value = { ...guideDraft }
+        return true
+      } catch (err) {
+        setGuideStatus(`Guide links not saved: ${err.message}`, 'err', 0)
+        return false
+      }
+    }
+
+    const save = async () => {
+      savingPrefs.value = true
+      const prefsSaved = await savePrefs()
+      if (prefsSaved) setStatus('Channels saved.', 'ok')
+      const linksSaved = await saveGuideLinks()
+      savingPrefs.value = false
+      if (prefsSaved && linksSaved) emit('saved')
     }
 
     return {
       CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, savingPrefs,
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
+      guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
     }
   },
 }

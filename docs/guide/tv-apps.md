@@ -34,15 +34,15 @@ Freetvarr then fills in **TVHeadend address for TV apps** with the address your 
 Jellyfin has its own TVHeadend plugin, but each plugin release suits only some Jellyfin versions. The tuner and guide addresses below work with any recent Jellyfin.
 
 1. Open Jellyfin in a browser and sign in as an administrator.
-2. Open **Dashboard → Live TV**.
-3. Under **Tuner Devices**, press **+**.
+2. Open the user menu (top right), then **Dashboard → Live TV**.
+3. Under **Tuner Devices**, press **Add Tuner Device**.
 4. Set **Tuner Type** to **M3U Tuner**.
 5. In Freetvarr, press `COPY` beside **Tuner (M3U) URL**.
 6. Paste it into **File or URL**, then press **Save**.
-7. Under **TV Guide Data Providers**, press **+** and choose **XMLTV**.
+7. Under **TV Guide Data Providers**, press **Add Provider** and choose **XMLTV**.
 8. In Freetvarr, press `COPY` beside **Guide (XMLTV) URL**.
 9. Paste it into **File or URL**, then press **Save**.
-10. Press **Refresh Guide Data** at the top of the Live TV page.
+10. Press **Refresh Guide Data**, beside **Add Provider**, and wait for the progress bar to finish.
 
 Open **Live TV** in any Jellyfin app on your TV, tablet, or phone. The channels show TVHeadend's channel names and logos, and the guide fills in after the refresh.
 

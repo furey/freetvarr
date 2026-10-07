@@ -72,6 +72,7 @@ import {
   applyGuideSetup,
   inspectGuide,
   linkChannelsByHand,
+  readGuideLinks,
   planGuideSetup,
   suggestGuide,
 } from './tvheadend-guide.js'
@@ -90,7 +91,7 @@ import {
   setChannelPrefs,
   getOnNowForPinned,
   getOnNowAll,
-  resetGuideCache,
+  clearGuideCache,
 } from './epg.js'
 import {
   startManualAdScan,
@@ -169,6 +170,7 @@ const liveEncoderReady = detectLiveEncoder({
   return encoder
 })
 const LIVE_REAPER_MS = 5_000
+const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000
 
 const app = express()
 app.disable('x-powered-by')
@@ -1212,7 +1214,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   if (timeZone !== undefined) {
     await setSetting('time_zone', timeZone)
     process.env.TZ = timeZone
-    resetGuideCache()
+    clearGuideCache()
   }
   if (body.sync_cron !== undefined) await setSetting('sync_cron', String(body.sync_cron))
   if (body.sync_cron !== undefined || timeZone !== undefined) await startScheduler()
@@ -1238,7 +1240,9 @@ app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) =>
 })
 
 app.post('/api/tvh-detect', syncLimiter, doubleCsrfProtection, async (req, res) => {
-  const result = await detectTvheadendServers({ hintAddress: req.socket.localAddress })
+  const result = await detectTvheadendServers({
+    hintAddresses: [req.hostname, req.socket.localAddress],
+  })
   res.status(result.ok ? 200 : 502).json(result)
 })
 
@@ -1558,6 +1562,11 @@ const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
 
 let guideRun = null
 
+const refreshGuideAfterLinks = () => {
+  clearGuideCache()
+  setTimeout(clearGuideCache, GUIDE_IMPORT_SETTLE_MS).unref()
+}
+
 app.get('/api/tvh-guide/status', bootstrapStatusLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
@@ -1594,20 +1603,32 @@ app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (
     url,
     onProgress: (latest) => { guideRun.steps = latest },
   }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: guideRun.steps }))
+  if (result.ok) refreshGuideAfterLinks()
   if (result.ok) console.log(`[tvh-guide] ${url}: ${result.linked} of ${result.total} channels have a guide`)
   else console.warn(`[tvh-guide] stopped at ${result.failedStep}: ${result.error}`)
   guideRun = { running: false, steps: result.steps, result: result.ok ? result : { ...result, ...guideFailure(result) } }
 })
 
+app.get('/api/tvh-guide/links', bootstrapStatusLimiter, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const links = await readGuideLinks({ http: setupHttp, conn: await resolveConnection() })
+    res.json({ ok: true, ready: links.options.length > 0, ...links })
+  } catch (err) {
+    res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
+  }
+})
+
 app.post('/api/tvh-guide/links', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
   const links = (Array.isArray(req.body?.links) ? req.body.links : [])
     .map((l) => ({ channelId: String(l?.channel_id || ''), guideId: String(l?.guide_id || '') }))
-    .filter((l) => l.channelId && l.guideId)
-  if (!links.length) return res.json({ ok: true, linked: 0 })
+    .filter((l) => l.channelId)
+  if (!links.length) return res.json({ ok: true, linked: 0, saved: 0 })
   try {
     const result = await linkChannelsByHand({ http: setupHttp, conn: await resolveConnection(), links })
+    if (result.saved) refreshGuideAfterLinks()
     if (guideRun?.result?.ok) {
-      const done = new Set(links.map((l) => l.channelId))
+      const done = new Set(links.filter((l) => l.guideId).map((l) => l.channelId))
       const unmatched = guideRun.result.unmatched.filter((c) => !done.has(c.id))
       guideRun.result = { ...guideRun.result, unmatched, linked: guideRun.result.linked + result.linked }
     }

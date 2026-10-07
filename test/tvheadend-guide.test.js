@@ -5,8 +5,11 @@ import { readFileSync } from 'node:fs'
 import {
   applyGuideSetup,
   guessGuideChannel,
+  linkChannelsByHand,
   matchGuideChannels,
   parseFeedChannels,
+  planGuideRelinks,
+  readGuideLinks,
   suggestGuide,
 } from '../src/tvheadend-guide.js'
 
@@ -153,10 +156,12 @@ test('applyGuideSetup turns on the feed, keeps the guide saved, waits for it, an
   assert.equal(result.total, 3)
   assert.deepEqual(result.unmatched, [{ id: 'cx', name: 'Shopping', number: 99, guess: null }])
   assert.deepEqual(result.options.map((o) => o.name), ['ABC TV', 'Seven'])
-  const [grabber, config, rerun, ...links] = http.writes
+  const [grabber, config, rerun, ...rest] = http.writes
+  const links = rest.slice(0, -1)
   assert.deepEqual(JSON.parse(grabber.form.node), { uuid: 'mod-url', enabled: true, args: FEED_URL, priority: 3 })
   assert.deepEqual(JSON.parse(config.form.node), { epgdb_periodicsave: 1, epgdb_saveafterimport: true })
   assert.equal(rerun.path, 'epggrab/internal/rerun')
+  assert.equal(rest.at(-1).path, 'epggrab/internal/rerun')
   assert.deepEqual(links.map((l) => JSON.parse(l.form.node)).sort((a, b) => a.uuid.localeCompare(b.uuid)), [
     { uuid: 'g-abc', channels: ['cabc'] },
     { uuid: 'g-seven', channels: ['c7'] },
@@ -167,7 +172,12 @@ test('applyGuideSetup leaves a running feed and the user\'s save settings alone'
   const http = fakeTvheadend({ grabber: { enabled: true, args: FEED_URL }, periodicSave: 6, saveAfterImport: true })
   const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, pollMs: 0, ...clock() })
   assert.equal(result.ok, true)
-  assert.deepEqual(http.writes.map((w) => w.path), ['epggrab/internal/rerun', 'idnode/save', 'idnode/save'])
+  assert.deepEqual(http.writes.map((w) => w.path), [
+    'epggrab/internal/rerun',
+    'idnode/save',
+    'idnode/save',
+    'epggrab/internal/rerun',
+  ])
 })
 
 test('applyGuideSetup stops before any write when the feed cannot be downloaded', async () => {
@@ -201,6 +211,11 @@ test('guessGuideChannel matches a name after normalising case, spaces, punctuati
   assert.equal(guessFor('SBS-One', ['SBS One']), 'g0')
 })
 
+test('guessGuideChannel matches the tuner name SBS ONE to the guide name SBS', () => {
+  assert.equal(guessFor('SBS ONE', ['SBS', 'SBS2', 'SBS Food']), 'g0')
+  assert.equal(guessFor('SBS ONE', ['SBS One', 'SBS']), null)
+})
+
 test('guessGuideChannel never guesses a timeshift channel', () => {
   assert.equal(guessFor('10 HD +1', ['10 HD +1', '10']), null)
   assert.equal(guessFor('Nine +2', ['Nine']), null)
@@ -209,4 +224,109 @@ test('guessGuideChannel never guesses a timeshift channel', () => {
 test('guessGuideChannel skips a name that matches no guide channel or several', () => {
   assert.equal(guessFor('Extra', ['SBS', 'ABC TV']), null)
   assert.equal(guessFor('ABC', ['ABC Sydney', 'ABC Melbourne']), null)
+})
+
+const SBS_ONE = 'e52f8028f3bbf341a4f0569d3048c652'
+const SBS_ONE_HD = 'd99743202e23fc6b31e6178a6b4f6660'
+const SBS_FOOD_TUNER = 'f0fea174eab751be6f9ed01979f532ee'
+const GUIDE_SBS = '372852f9071bc5e13cca726b90ac1e83'
+const GUIDE_SBS_FOOD = '8227ec4eaed70a97feb2aef3065116ae'
+
+const linkedGuide = () => fixture('epggrab-channel-grid').entries
+  .map((g) => ({ id: g.uuid, moduleId: g.modid, xmltvId: g.id, name: g.name, channels: g.channels }))
+
+const relink = (links, guideChannels = linkedGuide()) => planGuideRelinks({ guideChannels, links })
+
+test('planGuideRelinks moves a channel from one guide channel to another', () => {
+  assert.deepEqual(relink([{ channelId: SBS_ONE, guideId: GUIDE_SBS_FOOD }]), [
+    { guideId: GUIDE_SBS, channels: [SBS_ONE_HD] },
+    { guideId: GUIDE_SBS_FOOD, channels: [SBS_FOOD_TUNER, SBS_ONE] },
+  ])
+})
+
+test('planGuideRelinks removes the link for No guide', () => {
+  assert.deepEqual(relink([{ channelId: SBS_ONE, guideId: '' }]), [{ guideId: GUIDE_SBS, channels: [SBS_ONE_HD] }])
+})
+
+test('planGuideRelinks saves nothing when the pick is the current link', () => {
+  assert.deepEqual(relink([{ channelId: SBS_ONE, guideId: GUIDE_SBS }]), [])
+})
+
+test('planGuideRelinks lets an SD and HD pair share one guide channel', () => {
+  const saves = relink([
+    { channelId: SBS_ONE, guideId: GUIDE_SBS_FOOD },
+    { channelId: SBS_ONE_HD, guideId: GUIDE_SBS_FOOD },
+  ])
+  assert.deepEqual(saves, [
+    { guideId: GUIDE_SBS, channels: [] },
+    { guideId: GUIDE_SBS_FOOD, channels: [SBS_FOOD_TUNER, SBS_ONE, SBS_ONE_HD] },
+  ])
+})
+
+test('planGuideRelinks collapses a channel linked to two guide channels to the one picked', () => {
+  const guideChannels = linkedGuide()
+    .map((g) => (g.id === GUIDE_SBS_FOOD ? { ...g, channels: [...g.channels, SBS_ONE] } : g))
+  assert.deepEqual(relink([{ channelId: SBS_ONE, guideId: GUIDE_SBS }], guideChannels), [
+    { guideId: GUIDE_SBS_FOOD, channels: [SBS_FOOD_TUNER] },
+  ])
+})
+
+const fixtureTvheadend = () => {
+  const writes = []
+  const reads = {
+    'epggrab/module/list': () => fixture('epggrab-module-list'),
+    'idnode/load': () => fixture('epggrab-url-module'),
+    'epggrab/channel/grid': () => fixture('epggrab-channel-grid'),
+    'channel/grid': () => fixture('channel-grid'),
+  }
+  return {
+    writes,
+    get: async (path) => reads[path](),
+    post: async (path, form) => {
+      writes.push({ path, form })
+      return {}
+    },
+  }
+}
+
+test('readGuideLinks lists every enabled channel with its guide links and the guide options', async () => {
+  const links = await readGuideLinks({ http: fixtureTvheadend(), conn: CONN })
+  assert.equal(links.channels.length, 35)
+  assert.deepEqual(links.channels.find((c) => c.id === SBS_ONE), {
+    id: SBS_ONE,
+    name: 'SBS ONE',
+    number: 3,
+    guideIds: [GUIDE_SBS],
+  })
+  assert.deepEqual(links.channels.find((c) => c.name === 'Extra').guideIds, [])
+  assert.equal(links.options.length, 175)
+  assert.deepEqual(Object.keys(links.options[0]), ['id', 'name'])
+  assert.ok(links.options.every((o, i) => i === 0 || links.options[i - 1].name.localeCompare(o.name) <= 0))
+})
+
+test('linkChannelsByHand replaces a link, then re-runs the guide grabber', async () => {
+  const http = fixtureTvheadend()
+  const result = await linkChannelsByHand({
+    http,
+    conn: CONN,
+    links: [{ channelId: SBS_ONE, guideId: GUIDE_SBS_FOOD }],
+  })
+  assert.deepEqual(result, { linked: 1, saved: 2 })
+  assert.deepEqual(http.writes.map((w) => w.path), ['idnode/save', 'idnode/save', 'epggrab/internal/rerun'])
+  assert.deepEqual(JSON.parse(http.writes[0].form.node), { uuid: GUIDE_SBS, channels: [SBS_ONE_HD] })
+})
+
+test('linkChannelsByHand skips unknown channels and guide channels, and writes nothing unchanged', async () => {
+  const http = fixtureTvheadend()
+  const result = await linkChannelsByHand({
+    http,
+    conn: CONN,
+    links: [
+      { channelId: SBS_ONE, guideId: GUIDE_SBS },
+      { channelId: 'nope', guideId: GUIDE_SBS },
+      { channelId: SBS_ONE_HD, guideId: 'unknown-guide' },
+    ],
+  })
+  assert.deepEqual(result, { linked: 1, saved: 0 })
+  assert.deepEqual(http.writes, [])
 })

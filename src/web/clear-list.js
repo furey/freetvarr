@@ -1,11 +1,10 @@
-export const clearListPrompt = ({ count, plexConfigured }) => {
+export const clearListPrompt = (count) => {
   const one = count === 1
-  const noun = one ? 'recording' : 'recordings'
-  const copies = one ? 'its copy' : 'its copies'
-  const files = one ? 'The file stays' : 'The files stay'
-  const plexClause = plexConfigured ? `, and Plex still shows ${one ? 'it' : 'them'}` : ''
-  return `Hide ${count} ${noun} from this list?\n\n`
-    + `TVHeadend deleted ${copies}. ${files} in your library${plexClause}.`
+  return `Hide ${count} ${one ? 'recording' : 'recordings'} that TVHeadend no longer has from this list?\n\n`
+    + `${one ? 'The recording file stays' : 'The recording files stay'} in your media library. `
+    + `Your media player (e.g. Plex or Kodi) still shows ${one ? 'it' : 'them'}.\n\n`
+    + `To delete ${one ? 'it' : 'them'} for good, delete ${one ? 'it' : 'them'} in your media player `
+    + 'or from your library folder.'
 }
 
 export const clearedListMessage = (count) =>
