@@ -24,6 +24,7 @@ import {
   savedImageFor,
 } from './guide-history.js'
 import { findArtwork, saveArtwork } from './artwork.js'
+import { createGuideCache } from './guide-cache.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -494,28 +495,7 @@ export const guideDayWindow = ({ startMs, day = 0 }) => {
 export const programsInWindow = ({ rows, fromMs, toMs }) =>
   rows.filter((p) => p.start < toMs && p.end > fromMs)
 
-const getCachedGuide = async () => {
-  const now = Date.now()
-  const startMs = localMidnightMs()
-  if (guideCache && guideCache.startMs === startMs && guideCache.expiresAt > now) {
-    return guideCache
-  }
-  if (guideInflight) return guideInflight
-  guideInflight = loadGuide(startMs)
-    .then((guide) => {
-      guideCache = guide
-      return guide
-    })
-    .catch((err) => {
-      if (guideCache && guideCache.startMs === startMs) {
-        guideCache = { ...guideCache, stale: true, expiresAt: Date.now() + GUIDE_STALE_RETRY_MS }
-        return guideCache
-      }
-      throw err
-    })
-    .finally(() => { guideInflight = null })
-  return guideInflight
-}
+const getCachedGuide = () => guideCache.get(localMidnightMs())
 
 const loadGuide = async (startMs) => {
   const conn = await resolveConnection()
@@ -545,7 +525,7 @@ const loadGuide = async (startMs) => {
     programsByChannel,
     imageByEventId,
     fetchedAt: Date.now(),
-    expiresAt: Date.now() + GUIDE_TTL_MS,
+    expiresAt: Date.now() + (events.length ? GUIDE_TTL_MS : GUIDE_EMPTY_TTL_MS),
   }
 }
 
@@ -561,10 +541,8 @@ const recordingsStorageInfo = async () => {
   }
 }
 
-let guideCache = null
+export const clearGuideCache = () => guideCache.clear()
 
-export const resetGuideCache = () => { guideCache = null }
-let guideInflight = null
 let stateCache = null
 let stateInflight = null
 let stateFailedUntil = 0
@@ -580,10 +558,12 @@ const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000
 const GUIDE_STALE_RETRY_MS = 60 * 1000
+const GUIDE_EMPTY_TTL_MS = 60 * 1000
 const STATE_TTL_MS = 45 * 1000
 const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const SEARCH_RESULT_CAP = 100
+const guideCache = createGuideCache({ load: loadGuide, staleRetryMs: GUIDE_STALE_RETRY_MS })
 
 const episodeKey = (p) => `${p.series_link}|${p.series_no}x${p.episode_no}`
 
