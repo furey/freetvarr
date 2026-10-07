@@ -4362,7 +4362,8 @@ const ChannelSetupStep = {
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
             <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
+              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -4372,7 +4373,7 @@ const ChannelSetupStep = {
             Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
           </p>
           <p v-else-if="scanStarting" class="status-readout info">
-            <span class="spinner"></span> Starting the scan. The first channels can take a minute.
+            <span class="spinner"></span> {{ scanLine }}
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <div v-if="result && !result.ok" class="space-y-2">
@@ -4527,8 +4528,10 @@ const ChannelSetupStep = {
       ? steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail || null
       : null))
     const waitingForTuner = computed(() => Boolean(runningScan.value?.waitingForTuner))
-    const scanStarting = computed(() => Boolean(runningScan.value)
-      && !runningScan.value.scanned && !runningScan.value.active)
+    const scanStarting = computed(() => Boolean(runningScan.value) && !runningScan.value.scanned)
+    const scanLine = computed(() => (runningScan.value?.active
+      ? 'Scanning. The first channels can take a few minutes.'
+      : 'Starting the scan. The first channels can take a minute.'))
     const channelCount = computed(() => status.value?.channels || 0)
     const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
     const doneText = computed(() => channelsAddedText(result.value))
@@ -4668,7 +4671,7 @@ const ChannelSetupStep = {
     return {
       status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
-      steps, result, showSteps, waitingForTuner, scanStarting, doneText, recordingNow,
+      steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
@@ -4739,7 +4742,8 @@ const GuideSetupStep = {
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
             <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
+              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -5013,7 +5017,8 @@ const WelcomeView = {
             </div>
             <ol v-if="secureShownSteps.length" class="space-y-1 text-sm font-mono">
               <li v-for="s in secureShownSteps" :key="s.id" class="flex items-center gap-2">
-                <span :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
+                <span v-if="s.status === 'running'" class="step-spinner shrink-0"></span>
+              <span v-else :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
                 <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
               </li>
             </ol>
