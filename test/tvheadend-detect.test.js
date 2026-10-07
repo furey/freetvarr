@@ -7,7 +7,7 @@ const iface = (address, internal = false) => [{ family: 'IPv4', address, interna
 
 test('rankCandidates: browser-facing address comes first, then LAN, then fallbacks', () => {
   const urls = rankCandidates({
-    hintAddress: '::ffff:192.168.1.5',
+    hintAddresses: ['::ffff:192.168.1.5'],
     interfaces: {
       lo: iface('127.0.0.1', true),
       en0: iface('192.168.1.5'),
@@ -25,7 +25,7 @@ test('rankCandidates: browser-facing address comes first, then LAN, then fallbac
 
 test('rankCandidates: skips docker bridges, link-local, IPv6, and a loopback hint', () => {
   const urls = rankCandidates({
-    hintAddress: '127.0.0.1',
+    hintAddresses: ['127.0.0.1'],
     interfaces: {
       docker0: iface('172.17.0.1'),
       awdl0: iface('169.254.3.3'),
@@ -34,6 +34,18 @@ test('rankCandidates: skips docker bridges, link-local, IPv6, and a loopback hin
   })
   assert.deepEqual(urls.slice(0, 2), ['http://192.168.0.2:9981', 'http://tvheadend:9981'])
   assert.equal(urls.at(-1), 'http://127.0.0.1:9981')
+})
+
+test('rankCandidates: hints rank first in the order given and skip loopback', () => {
+  const urls = rankCandidates({
+    hintAddresses: ['192.168.86.246', '127.0.0.1', '192.168.215.1'],
+    interfaces: { eth0: [{ family: 'IPv4', address: '192.168.139.2', internal: false }] },
+  })
+  assert.deepEqual(urls.slice(0, 3), [
+    'http://192.168.86.246:9981',
+    'http://192.168.215.1:9981',
+    'http://192.168.139.2:9981',
+  ])
 })
 
 test('rankCandidates: public addresses rank after private ones', () => {
@@ -66,10 +78,27 @@ test('dropAliasDuplicates: keeps an alias host with different server info', () =
   assert.equal(dropAliasDuplicates(found).length, 2)
 })
 
-test('dropAliasDuplicates: keeps two numeric addresses', () => {
+test('dropAliasDuplicates: collapses numeric addresses with the same fingerprint to the first', () => {
+  const found = [
+    { url: 'http://192.168.86.246:9981', version: '4.3', fingerprint: 'a' },
+    { url: 'http://192.168.139.2:9981', version: '4.3', fingerprint: 'a' },
+    { url: 'http://192.168.215.1:9981', version: '4.3', fingerprint: 'a' },
+  ]
+  assert.deepEqual(dropAliasDuplicates(found).map((c) => c.url), ['http://192.168.86.246:9981'])
+})
+
+test('dropAliasDuplicates: keeps numeric addresses with different fingerprints', () => {
   const found = [
     { url: 'http://192.168.1.2:9981', version: '4.3', fingerprint: 'a' },
-    { url: 'http://10.0.0.2:9981', version: '4.3', fingerprint: 'a' },
+    { url: 'http://10.0.0.2:9981', version: '4.3', fingerprint: 'b' },
+  ]
+  assert.equal(dropAliasDuplicates(found).length, 2)
+})
+
+test('dropAliasDuplicates: keeps servers that need auth', () => {
+  const found = [
+    { url: 'http://192.168.1.2:9981', version: '', needsAuth: true },
+    { url: 'http://10.0.0.2:9981', version: '', needsAuth: true },
   ]
   assert.equal(dropAliasDuplicates(found).length, 2)
 })
