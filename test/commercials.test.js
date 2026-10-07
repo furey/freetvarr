@@ -1,5 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 
 import {
   parseEdl,
@@ -10,6 +13,9 @@ import {
   shouldQueueAutoDelete,
   expectedScanMs,
   computeScanPercent,
+  skipMarkerPath,
+  formatSkipMarkers,
+  syncSkipMarkers,
 } from '../src/commercials.js'
 
 test('parseEdl: happy path with tab-separated action 0 rows', () => {
@@ -227,3 +233,55 @@ test('shouldQueueAutoDelete: cut mode allows delete only on cut or no_breaks', (
   assert.equal(shouldQueueAutoDelete({ show, adResult: { status: 'detect_failed' } }), false)
   assert.equal(shouldQueueAutoDelete({ show, adResult: null }), false)
 })
+
+const withEpisode = async (run) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-edl-'))
+  const filePath = path.join(dir, 'Show - S01E02.ts')
+  try {
+    await fs.writeFile(filePath, 'video')
+    await run({ filePath, markerPath: path.join(dir, 'Show - S01E02.edl') })
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true })
+  }
+}
+
+test('skipMarkerPath: swaps the video extension for .edl beside the file', () => {
+  assert.equal(skipMarkerPath('/media/TV/Show/Season 1/Show - S01E02.ts'), '/media/TV/Show/Season 1/Show - S01E02.edl')
+})
+
+test('formatSkipMarkers: writes Kodi commercial-break rows (action 3)', () => {
+  assert.equal(
+    formatSkipMarkers([{ start: 0, end: 12.345 }, { start: 900.5, end: 1080 }]),
+    '0.00\t12.35\t3\n900.50\t1080.00\t3\n',
+  )
+})
+
+test('formatSkipMarkers: round-trips through parseEdl', () => {
+  const breaks = [{ start: 10, end: 20.5 }, { start: 30.25, end: 40 }]
+  assert.deepEqual(
+    parseEdl(formatSkipMarkers(breaks)).map(({ start, end }) => ({ start, end })),
+    breaks,
+  )
+})
+
+test('syncSkipMarkers: detected writes the .edl and leaves the video alone', () => withEpisode(async ({ filePath, markerPath }) => {
+  await syncSkipMarkers({ filePath, status: 'detected', breaks: [{ start: 60, end: 240 }] })
+  assert.equal(await fs.readFile(markerPath, 'utf8'), '60.00\t240.00\t3\n')
+  assert.equal(await fs.readFile(filePath, 'utf8'), 'video')
+}))
+
+test('syncSkipMarkers: cut and no_breaks remove a stale .edl', () => withEpisode(async ({ filePath, markerPath }) => {
+  for (const status of ['cut', 'no_breaks']) {
+    await fs.writeFile(markerPath, 'stale')
+    await syncSkipMarkers({ filePath, status, breaks: [] })
+    await assert.rejects(fs.access(markerPath))
+  }
+}))
+
+test('syncSkipMarkers: a failed scan keeps the existing .edl', () => withEpisode(async ({ filePath, markerPath }) => {
+  for (const status of ['detect_failed', 'cut_failed']) {
+    await fs.writeFile(markerPath, 'earlier')
+    await syncSkipMarkers({ filePath, status, breaks: [] })
+    assert.equal(await fs.readFile(markerPath, 'utf8'), 'earlier')
+  }
+}))
