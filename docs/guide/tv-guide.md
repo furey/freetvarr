@@ -59,10 +59,29 @@ The `CHANNELS` button above the grid opens these settings:
 - **Sort other channels by**: TVHeadend order, channel number, or name.
 - **Hide SD simulcasts**: hides an SD channel when its HD twin is in the lineup. SD-only channels stay.
 - **All channels**: untick a channel to hide it. Favourites are always shown.
+- **Guide**: pick where each channel gets its listings. See [Channel guide](#channel-guide).
 
 Press `SAVE` to apply the changes.
 
 ![The CHANNELS dialog](../img/screenshot-channels.png)
+
+## Channel guide
+
+Each channel takes its listings from one channel in the guide feed. The setup wizard links them for you. If a channel shows the wrong programmes, or none, change its link here:
+
+1. Press `CHANNELS` above the grid.
+2. In the `GUIDE` list next to the channel, pick the guide channel that matches it.
+3. Press `SAVE`.
+
+Pick **No guide** to remove a channel's listings. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
+
+Freetvarr saves the link in TVHeadend and asks TVHeadend to load the guide again. The new listings can take a minute or two to show. Press `REFRESH` if they do not.
+
+If the `GUIDE` lists are missing, the guide is not set up yet. Open the setup wizard and go to its `GUIDE` step.
+
+A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's link, that channel gets different programmes, so its series recordings can catch different episodes. Check the `UPCOMING` view after the change.
+
+If saving the guide links fails, the dialog says so on its own line. Your favourites and hidden channels are still saved.
 
 ## On a phone
 

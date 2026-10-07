@@ -87,9 +87,16 @@ The TV Guide shows channels but no programmes, or only about a day of them.
 
 - Without an XMLTV feed you get only what the broadcast signal carries. In Australia that is about a day of thin data; UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
 - The TVHeadend log says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. Link them under **Configuration → Channel/EPG → EPG Grabber Channels**, then press **Re-run internal EPG grabbers**.
-- With the feed loaded but one channel blank, that channel isn't linked to a feed channel. Fix it on the same screen.
+- With the feed loaded but one channel blank, that channel isn't linked to a feed channel. See [Wrong programmes on a channel](#wrong-programmes-on-a-channel).
 - After installing a grabber script, restart TVHeadend. It looks for grabbers at startup only, so a running instance never sees a new one.
-- Freetvarr holds the guide for an hour. Press `REFRESH` on the TV Guide after you fix TVHeadend.
+- Freetvarr holds the guide for an hour, or a minute when it has no programmes. It loads the guide again after guide setup and after a guide link change. Press `REFRESH` on the TV Guide after you fix TVHeadend.
+
+## Wrong programmes on a channel
+
+The TV Guide shows another channel's programmes on a channel, or no programmes on one channel while others have them. The channel is linked to the wrong guide channel, or to none.
+
+- Press `CHANNELS` on the TV Guide and pick the right guide channel in the `GUIDE` list. See [Channel guide](/guide/tv-guide#channel-guide).
+- Series recordings match on title and channel, so check the `UPCOMING` view after you change a link.
 
 ## Missing channel logos
 
