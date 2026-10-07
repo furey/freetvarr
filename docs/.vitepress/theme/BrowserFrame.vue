@@ -7,6 +7,7 @@ const props = defineProps({
   poster: { type: String, default: '/demo-poster.jpg' },
   label: { type: String, default: 'http://freetvarr.lan' },
   credit: { type: String, default: null },
+  phone: { type: Boolean, default: false },
   ariaLabel: { type: String, default: 'A walkthrough of the Freetvarr dashboard, live TV, TV guide, series, recordings, syncs, and settings' }
 })
 
@@ -49,7 +50,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsI
 
 <template>
   <figure class="browser-frame__figure">
-    <div class="browser-frame">
+    <div class="browser-frame" :class="{ 'browser-frame--phone': phone }">
       <div class="browser-frame__bar">
         <span class="browser-frame__dots" aria-hidden="true">
           <span class="browser-frame__dot browser-frame__dot--blue"></span>
@@ -136,6 +137,21 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsI
   padding: 10px 14px;
   background: var(--vp-c-bg-elv);
   border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.browser-frame--phone .browser-frame__dots {
+  display: none;
+}
+
+.browser-frame--phone .browser-frame__bar {
+  justify-content: center;
+  padding: 8px 10px;
+}
+
+.browser-frame--phone .browser-frame__url {
+  position: static;
+  transform: none;
+  max-width: 100%;
 }
 
 .browser-frame__dots {

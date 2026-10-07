@@ -23,13 +23,21 @@ To watch with the guide in Jellyfin or Kodi on your TV, copy the addresses from 
 
 ## In Freetvarr
 
-![The Live TV tab](../img/screenshot-live.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/live">
+  <img src="../img/screenshot-live.png" alt="The Live TV tab" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or press the TV button beside a channel under **Now** in the dashboard's **What's On** panel. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
 
 The **zoom buttons** above the channel list change the row size. Zoom out for more channels on screen; zoom in for bigger pictures and text. Each browser remembers its zoom.
 
-![The player over the Live TV tab](../img/screenshot-player.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/live">
+  <img src="../img/screenshot-player.png" alt="The player over the Live TV tab" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 ## Pause and rewind
 
