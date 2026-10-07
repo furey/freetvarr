@@ -66,7 +66,7 @@ Press `SAVE` to apply the changes.
 
 ## On a phone
 
-The guide works in a phone browser, and you can reorder favourites by touch. On iOS, add Freetvarr to the Home Screen (Share → Add to Home Screen) to run it full-screen. In that app, pull down from the top of a page to refresh it; see [Pull to refresh](/guide/syncs#pull-to-refresh).
+The guide works in a phone browser, and you can reorder favourites by touch. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-add-it-to-your-home-screen). In that app, pull down from the top of a page to refresh it; see [Pull to refresh](/guide/syncs#pull-to-refresh).
 
 ## Live TV page
 
