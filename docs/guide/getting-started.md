@@ -22,11 +22,31 @@ Run this in the folder where you want a `freetvarr` folder to appear:
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-The script writes a `.env` with your user and group, asks you to confirm it, starts both services, and prints the URL of the setup wizard. Open that URL and go to [step 2](#_2-run-the-wizard).
+The script makes the `freetvarr` folder, downloads the compose file, and writes a `.env` with your user and group. It then shows the `.env` and asks one question:
 
-Run the script again at any time. It keeps an existing `.env` and compose file. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
+```text
+[install] wrote .env:
+    PUID=501
+    PGID=20
+    # TZ=Australia/Sydney
+Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]
+```
+
+`PUID` and `PGID` are the user and group that own the files Freetvarr writes, such as your recordings. Your numbers will differ from the example. Press `Enter` (or type `Y`) to accept. This is right for most people.
+
+Type `e` if the files must belong to a different user. On a NAS, for example, use the `PUID` and `PGID` of the user that owns your media share. The script opens the `.env` in a text editor (`vi`, unless you set `EDITOR`). In `vi`, press `i` to type, then `Esc`, then `:wq` and `Enter` to save. The script then starts the services.
+
+Type `n` to stop without starting anything. Edit the `.env` in the `freetvarr` folder, then run `docker compose up -d` in that folder.
+
+The first start downloads the images, which takes a few minutes. The script then prints the URL of the setup wizard. Open that URL and go to [step 2](#_2-run-the-wizard).
+
+Run the script again at any time. It keeps an existing `.env` and compose file, and it does not ask the question again. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
+
+The script is the quickest way, but you have two other ways to install: [by hand](#install-by-hand) or with a [NAS container app](#install-nas-container-app). Both start the same services.
 
 ### Install: by hand
+
+Use this instead of the script if you prefer to run each command yourself, or if you want to check the compose file first.
 
 1. Make a folder and move into it: `mkdir freetvarr && cd freetvarr`.
 2. Download the compose file: `curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml -o docker-compose.yml`.
@@ -35,6 +55,8 @@ Run the script again at any time. It keeps an existing `.env` and compose file. 
 5. Browse to `http://<host-ip>:3733`.
 
 ### Install: NAS container app
+
+Use this instead of the script if your NAS has no SSH access, or if you prefer to manage Freetvarr in the NAS container app.
 
 1. In the NAS file manager, make a folder such as `docker/freetvarr`.
 2. Make two subfolders in it: `config` and `data`.
