@@ -106,13 +106,18 @@ Recording works like the record button on the Fetch remote. Open a programme in 
 
 On a phone, open the Live TV tab and tap a channel. The browser plays it, with no app to install.
 
-<div class="phone-shots">
-  <div class="phone-shots__row">
+<!-- markdownlint-disable MD033 -->
+<div class="phone-frames">
+  <BrowserFrame phone label="freetvarr.lan/#/live">
     <img src="../img/screenshot-mobile-live.png" alt="The Live TV tab on a phone, listing channels with the programme on now" width="780" height="1688" loading="lazy">
+  </BrowserFrame>
+  <BrowserFrame phone label="freetvarr.lan/#/live">
     <img src="../img/screenshot-mobile-player.png" alt="The live TV player on a phone, playing a channel" width="780" height="1688" loading="lazy">
-  </div>
-  <p>Live TV on a phone: the channel list, then the player.</p>
+  </BrowserFrame>
 </div>
+<!-- markdownlint-enable MD033 -->
+
+Live TV on a phone: the channel list, then the player.
 
 The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few typed commands. The guides linked in [Setting up](#setting-up) show each step.
 
