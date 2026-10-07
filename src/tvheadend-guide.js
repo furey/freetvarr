@@ -69,16 +69,25 @@ export const guessGuideChannel = ({ channel, candidates }) => {
   return matches.length === 1 ? matches[0].id : null
 }
 
+export const planGuideRelinks = ({ guideChannels, links }) => {
+  const moving = new Set(links.map((l) => l.channelId))
+  return guideChannels
+    .map((g) => {
+      const kept = g.channels.filter((id) => !moving.has(id))
+      const added = links.filter((l) => l.guideId === g.id).map((l) => l.channelId)
+      return { guideId: g.id, before: g.channels, channels: [...new Set([...kept, ...added])] }
+    })
+    .filter(({ before, channels }) => !sameMembers(before, channels))
+    .map(({ guideId, channels }) => ({ guideId, channels }))
+}
+
 export const applyGuideLinks = async ({ http, conn, links, guideChannels }) => {
-  const additions = new Map()
-  for (const { channelId, guideId } of links) additions.set(guideId, [...(additions.get(guideId) || []), channelId])
-  for (const [guideId, channelIds] of additions) {
-    const existing = guideChannels.find((g) => g.id === guideId)?.channels || []
-    await http.post('idnode/save', {
-      node: JSON.stringify({ uuid: guideId, channels: [...new Set([...existing, ...channelIds])] }),
-    }, conn)
+  const saves = planGuideRelinks({ guideChannels, links })
+  for (const { guideId, channels } of saves) {
+    await http.post('idnode/save', { node: JSON.stringify({ uuid: guideId, channels }) }, conn)
   }
-  return { linked: new Set(links.map((l) => l.channelId)).size }
+  if (saves.length) await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+  return { linked: new Set(links.filter((l) => l.guideId).map((l) => l.channelId)).size, saved: saves.length }
 }
 
 export const planGuideSetup = () => ({
@@ -166,11 +175,32 @@ export const applyGuideSetup = async ({
   }
 }
 
+export const readGuideLinks = async ({ http, conn }) => {
+  const inspection = await inspectGuide({ http, conn })
+  return {
+    channels: inspection.channels.map((c) => ({
+      id: c.id,
+      name: c.name,
+      number: c.number,
+      guideIds: linkedGuideIds({ channel: c, guideChannels: inspection.guideChannels }),
+    })),
+    options: guideChannelOptions(inspection.guideChannels),
+  }
+}
+
 export const linkChannelsByHand = async ({ http, conn, links }) => {
   const inspection = await inspectGuide({ http, conn })
   const known = new Set(inspection.guideChannels.map((g) => g.id))
-  const valid = links.filter((l) => known.has(l.guideId) && inspection.channels.some((c) => c.id === l.channelId))
-  return applyGuideLinks({ http, conn, links: valid, guideChannels: inspection.guideChannels })
+  const channelIds = new Set(inspection.channels.map((c) => c.id))
+  const valid = links.filter((l) => (l.guideId === '' || known.has(l.guideId)) && channelIds.has(l.channelId))
+  const guideChannels = inspection.guideChannels.map((g) => ({
+    ...g,
+    channels: [...new Set([
+      ...g.channels,
+      ...inspection.channels.filter((c) => c.guide.includes(g.id)).map((c) => c.id),
+    ])],
+  }))
+  return applyGuideLinks({ http, conn, links: valid, guideChannels })
 }
 
 export const fetchFeedChannels = async (url) => {
@@ -270,8 +300,13 @@ const listServiceLcns = async ({ http, conn }) => {
   return new Map((body?.entries || []).filter((s) => Number(s.lcn) > 0).map((s) => [s.uuid, Number(s.lcn)]))
 }
 
-const isLinked = ({ channel, guideChannels }) =>
-  guideChannels.some((g) => g.channels.includes(channel.id) || channel.guide?.includes(g.id))
+const isLinked = ({ channel, guideChannels }) => linkedGuideIds({ channel, guideChannels }).length > 0
+
+const linkedGuideIds = ({ channel, guideChannels }) => guideChannels
+  .filter((g) => g.channels.includes(channel.id) || channel.guide?.includes(g.id))
+  .map((g) => g.id)
+
+const sameMembers = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
 
 const guideChannelOptions = (guideChannels) => guideChannels
   .map((g) => ({ id: g.id, name: g.name }))
