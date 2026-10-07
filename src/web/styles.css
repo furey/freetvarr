@@ -92,6 +92,23 @@ html {
   animation: spinner-rotate 0.6s linear infinite;
 }
 
+.step-spinner {
+  display: inline-block;
+  position: relative;
+  width: 0.4rem;
+  height: 0.4rem;
+}
+
+.step-spinner::before {
+  content: '';
+  position: absolute;
+  inset: -0.25rem;
+  border: 2px solid #ff8a00;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-rotate 0.6s linear infinite;
+}
+
 .spinner-overlay {
   position: absolute;
   top: 50%;
@@ -110,7 +127,8 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner { animation-duration: 1.6s; }
+  .spinner,
+  .step-spinner::before { animation-duration: 1.6s; }
 }
 
 .signal-boot {
