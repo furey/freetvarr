@@ -69,28 +69,16 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 
 It works on a phone, too.
 
-<div class="freetvarr-mobile-shots">
-
-![Dashboard on a phone](../img/screenshot-mobile-dashboard.png)
-![The TV Guide on a phone](../img/screenshot-mobile-guide.png)
-![Live TV on a phone](../img/screenshot-mobile-live.png)
-
+<!-- markdownlint-disable MD033 -->
+<div class="phone-frames">
+  <BrowserFrame phone label="freetvarr.lan/#/dashboard">
+    <img src="../img/screenshot-mobile-dashboard.png" alt="Dashboard on a phone" width="780" height="1688" loading="lazy">
+  </BrowserFrame>
+  <BrowserFrame phone label="freetvarr.lan/#/guide">
+    <img src="../img/screenshot-mobile-guide.png" alt="The TV Guide on a phone" width="780" height="1688" loading="lazy">
+  </BrowserFrame>
+  <BrowserFrame phone label="freetvarr.lan/#/live">
+    <img src="../img/screenshot-mobile-live.png" alt="Live TV on a phone" width="780" height="1688" loading="lazy">
+  </BrowserFrame>
 </div>
-
-<style>
-.freetvarr-mobile-shots {
-  margin-top: 1.5rem;
-}
-.freetvarr-mobile-shots p {
-  display: flex;
-  gap: 12px;
-  margin: 0;
-}
-.freetvarr-mobile-shots img {
-  flex: 1 1 0;
-  min-width: 0;
-  width: 100%;
-  border-radius: 10px;
-  border: 1px solid var(--vp-c-divider);
-}
-</style>
+<!-- markdownlint-enable MD033 -->
