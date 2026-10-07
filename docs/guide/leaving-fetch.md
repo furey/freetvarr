@@ -68,7 +68,7 @@ The first path needs no technical skill. The second path means installing and se
 |                  | Path 1: Watch only                  | Path 2: Watch and record                                                                          |
 | ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Cost             | about `A$280–400` once              | about `A$600–1,400` once, or the tuner alone if you already own an always-on computer             |
-| What you get     | Live TV on phones, tablets, and TVs | Everything in Path 1, plus a 7-day guide, recordings to watch on your TV, and optional ad removal |
+| What you get     | Live TV on TVs, tablets, and phones | Everything in Path 1, plus a 7-day guide, recordings to watch on your TV, and optional ad removal |
 | Your time        | about `30 minutes`                  | `1–2` evenings                                                                                    |
 | Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC                                   |
 
@@ -76,7 +76,9 @@ On cost alone, a new Fetch box can come out cheaper. [Staying with Fetch](#stayi
 
 ### Path 1: Watch only
 
-Buy a network tuner, plug in the aerial lead and a network cable from your router, and install the HDHomeRun app on your phone, tablet, or TV. The app finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
+Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays it on your TV, tablet, or phone (e.g. the HDHomeRun app, Kodi, or VLC). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
+
+Add Path 2 later and the TV apps get TVHeadend's 7-day guide too: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)).
 
 SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
@@ -87,7 +89,7 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 - A 7-day [TV Guide](/guide/tv-guide), where you record one programme or a whole series.
 - [Recordings](/guide/recordings) filed into your TV library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
-- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, live TV still comes from the HDHomeRun app, as in Path 1.
+- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, watch live TV with the 7-day guide in Jellyfin or Kodi: Freetvarr shows the addresses to copy into the app ([TV apps](/guide/tv-apps)).
 
 The clip below shows Freetvarr in use.
 
@@ -115,6 +117,8 @@ On a phone, open the Live TV tab and tap a channel. The browser plays it, with n
 The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few typed commands. The guides linked in [Setting up](#setting-up) show each step.
 
 To use other recording software from [What you'll need](#what-you-ll-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
+
+[Channels DVR](https://getchannels.com/dvr-server/) is paid recording software with its own apps for Apple TV, Fire TV, Google TV, and phones. It costs `US$8` a month or `US$80` a year after a free month, and its apps stop working if you stop paying; your recordings stay on your drive. It has no Australian guide of its own, so you load a free one (e.g. the guide Freetvarr uses). It has no app for Roku or most smart TVs.
 
 ## Shopping list
 
@@ -169,9 +173,25 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 
 The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again: it skips the files it already copied.
 
-To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. If you will use Plex, add `--for-plex` to name the files the way Plex expects. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
+To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option. Leave out `--for-plex`: it stops the whole copy if any recording has no season and episode number, such as a film.
 
-The files play in VLC (a free video player), and Plex can read them too. On Path 2, copy them into your Plex TV folder.
+The files play in VLC (a free video player).
+
+### Adding them to your library
+
+On Path 2, Plex and Jellyfin can show your Fetch recordings next to your new ones. The names `fetchtv` gives already suit them: a folder for each show, and file names that start with the season and episode (e.g. `Gogglebox Australia/S20 E8 - Episode 8 of Season 20 - Thu 03 Oct.ts`). You do not rename anything.
+
+Once the NAS and Freetvarr are set up, open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac) and drag each folder out of `fetch-recordings` into one of the folders inside Freetvarr's `media` folder:
+
+| Fetch folder                                                                   | Goes into                                                                         |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| A series, with file names that start with a season and episode (e.g. `S20 E8`) | `tv`                                                                              |
+| A film                                                                         | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
+| Anything else, such as a news bulletin or a sports final                       | `one-offs`                                                                        |
+
+Plex and Jellyfin find the new files on their next library scan. To start one now in Plex, choose **Scan Library Files** from the library's menu.
+
+If the NAS is already running when you save, you can copy straight into it and skip the drag. Use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac), and add `--exclude=` with the name of each film or news show to leave it out. Then save those with `--show=` into `movies` or `one-offs`.
 
 ## Setting up
 
@@ -180,12 +200,13 @@ Do these in order. The times are for someone doing it the first time.
 1. **[Save your Fetch recordings](#saving-your-fetch-recordings)**. `15 minutes`, plus a few hours of copying.
 2. **Order the tuner** ([Shopping list](#shopping-list)). `10 minutes`, then about a week for delivery.
 3. **Wire the tuner** ([Hardware](/guide/hardware)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
-4. **Path 1 stops here**: install the HDHomeRun app and watch. `10 minutes`.
+4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch. `10 minutes`.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
 6. **Set up [TVHeadend](/guide/tvheadend)**: channels, guide, and recording folder. One evening, `2–3 hours`.
 7. **Set up Freetvarr** ([Getting started](/guide/getting-started)). `30–60 minutes`.
 8. **Connect [Plex](/guide/plex)** if you use it. `30 minutes`.
-9. **Watch [Live TV](/guide/live-tv)** in the browser to check it all works. `5 minutes`.
+9. **[Add your Fetch recordings](#adding-them-to-your-library)** to the library. `15 minutes`, plus copying time.
+10. **Watch [Live TV](/guide/live-tv)** in the browser to check it all works. `5 minutes`.
 
 ## Switching over
 
@@ -196,7 +217,7 @@ Do these in order. The times are for someone doing it the first time.
 5. Choose **Yes, cancel my service**, on or before `31 October 2026`. This cancels every box on the account, so you do not need to remove the boxes one at a time first.
 6. Unplug the Fetch box.
 
-After you cancel, signing in to the Fetch account shows "User is disabled".
+After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so `fetchtv` finds none. **Continue** leads to "Enter your Activation Code", which a cancelled account cannot supply.
 
 Fetch pays any refund to the card on file. If Fetch owes you money, check your card under **Update Billing Details** before you cancel.
 

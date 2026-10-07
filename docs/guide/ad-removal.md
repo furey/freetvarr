@@ -18,8 +18,18 @@ Turn on ad removal in Settings → AD REMOVAL, then pick a mode for each series 
 
 ## Modes
 
-- **DETECT** notes where the breaks are and saves that against the recording, without touching the file. Use it to check how accurate comskip is on your channels.
+- **DETECT** leaves the video as it is. It saves where the breaks are against the recording, and in a `.edl` file beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate comskip is on your channels, or to skip the ads instead of cutting them.
 - **CUT** removes the breaks by copying the video across untouched (no re-encoding; the output stays `.ts`) and keeps the original as `<file>.ts.orig`.
+
+## Skip instead of cut
+
+A cut that goes wrong loses part of the show. A skip that goes wrong costs nothing: you rewind. `DETECT` gives you skips in the players that read the `.edl` file:
+
+- **Kodi** skips each break once, by itself, when it plays the video from your library folder. Rewind to watch a break.
+- **Jellyfin** needs a plugin that reads `.edl` files (e.g. [EDL to Media Segments](https://github.com/VTRunner/EdlToMediaSegments)), then shows the breaks as commercials you can skip.
+- **Plex**, **VLC**, and **Infuse** do not read `.edl` files. Plex skips ads only in recordings made by its own DVR. For these players, use `CUT`.
+
+If you rename or move a video by hand, rename or move its `.edl` with it. A later `CUT` or a scan that finds no breaks deletes the `.edl`.
 
 ## Backups and retention
 

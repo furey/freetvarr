@@ -37,6 +37,7 @@ import {
   syncSchedulePreset,
 } from '/sync-schedule.js'
 import { withBrowserNetwork } from '/lan-network.js'
+import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
 
 let csrfToken = null
 
@@ -1732,7 +1733,7 @@ const FolderEditor = {
           <label class="field-label">Ad removal</label>
           <select class="field-input" v-model="adRemoval" :disabled="!adRemovalEnabled">
             <option value="off">OFF</option>
-            <option value="detect">DETECT: report ad breaks only</option>
+            <option value="detect">DETECT: mark ad breaks so Kodi can skip them</option>
             <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
           </select>
           <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
@@ -1981,7 +1982,7 @@ const SeriesView = {
                 <label class="field-label">Ad removal</label>
                 <select class="field-input" v-model="newAdRemoval" :disabled="!adRemovalEnabled">
                   <option value="off">OFF</option>
-                  <option value="detect">DETECT: report ad breaks only</option>
+                  <option value="detect">DETECT: mark ad breaks so Kodi can skip them</option>
                   <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
                 </select>
                 <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
@@ -3066,6 +3067,7 @@ const SETTINGS_SECTIONS = [
   { id: 'plex', label: 'Plex' },
   { id: 'schedule', label: 'Schedule' },
   { id: 'ad-removal', label: 'Ad removal' },
+  { id: 'tv-apps', label: 'TV apps' },
   { id: 'help', label: 'Help' },
   { id: 'danger-zone', label: 'Reset' },
 ]
@@ -3452,7 +3454,7 @@ const SettingsView = {
               <span class="panel-title">AD REMOVAL</span>
               <info-button title="AD REMOVAL" doc="guide/ad-removal">
                 <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each series on the SERIES tab. <strong>DETECT</strong> only marks the breaks. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Turn it on here, then set a mode for each series on the SERIES tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
                 <p>Detection is not always right. Use DETECT on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
@@ -3488,6 +3490,8 @@ const SettingsView = {
           </button>
         </div>
       </div>
+
+      <tv-apps-panel :tvh-url="tvhUrl" />
 
       <section id="section-help" class="panel">
         <header class="panel-header">
@@ -5996,6 +6000,135 @@ const copyText = async (text) => {
   scratch.remove()
   if (!copied) throw new Error('Copy failed')
 }
+
+const CopyRow = {
+  props: {
+    label: { type: String, required: true },
+    value: { type: String, default: '' },
+  },
+  template: `
+    <div class="copy-row">
+      <span class="field-label">{{ label }}</span>
+      <code class="copy-row-value">{{ value }}</code>
+      <button type="button" class="btn btn-sm" @click="copy" :disabled="!value">
+        <template v-if="state === 'copied'"><check-icon /> COPIED</template>
+        <template v-else-if="state === 'failed'"><cross-icon /> COPY FAILED</template>
+        <template v-else><copy-icon /> COPY</template>
+      </button>
+    </div>
+  `,
+  setup(props) {
+    const state = ref('')
+    let timer = null
+    const flash = (next) => {
+      state.value = next
+      clearTimeout(timer)
+      timer = setTimeout(() => { state.value = '' }, COPIED_FLASH_MS)
+    }
+    const copy = async () => {
+      try {
+        await copyText(props.value)
+        flash('copied')
+      } catch {
+        flash('failed')
+      }
+    }
+    onUnmounted(() => clearTimeout(timer))
+    return { state, copy }
+  },
+}
+
+const TvAppsPanel = {
+  props: {
+    tvhUrl: { type: String, default: '' },
+  },
+  template: `
+    <section id="section-tv-apps" class="panel">
+      <header class="panel-header">
+        <span class="panel-heading">
+          <span class="panel-title">WATCH ON YOUR TV</span>
+          <info-button title="WATCH ON YOUR TV" doc="guide/tv-apps">
+            <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
+            <p><strong>MAKE A TV LOGIN</strong> makes a TVHeadend login that can only watch. It cannot change TVHeadend or your recordings.</p>
+            <p>Copy each address into the app. The setup guide has the steps for each app.</p>
+          </info-button>
+        </span>
+        <span class="text-xs font-mono text-ink-dim">live TV in Jellyfin or Kodi</span>
+      </header>
+      <div class="panel-body space-y-4">
+        <p v-if="!tvhUrl" class="text-sm text-ink-dim">Set the TVHeadend URL above first.</p>
+        <template v-else-if="!login.authCode">
+          <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
+            TV apps sign in to TVHeadend with their own login. Freetvarr makes one that can only watch, and keeps its password here so you can copy it.
+          </p>
+          <div class="flex flex-wrap items-end gap-3">
+            <div class="field-row">
+              <label class="field-label" for="tv-login-name">Login name</label>
+              <input id="tv-login-name" type="text" class="field-input" v-model="name" autocomplete="off" />
+            </div>
+            <button type="button" class="btn" @click="makeLogin" :disabled="making">
+              <template v-if="making">MAKING…</template><template v-else><tv-icon /> MAKE A TV LOGIN</template>
+            </button>
+          </div>
+          <p v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</p>
+        </template>
+        <template v-else>
+          <div class="field-row md:max-w-sm">
+            <label class="field-label" for="tv-apps-host">TVHeadend address for TV apps</label>
+            <input id="tv-apps-host" type="text" class="field-input" v-model="host" placeholder="e.g. 192.168.1.10" autocomplete="off" />
+          </div>
+          <template v-if="addresses">
+            <div>
+              <span class="settings-block-title">JELLYFIN</span>
+              <copy-row label="Tuner (M3U) URL" :value="addresses.playlist" />
+              <copy-row label="Guide (XMLTV) URL" :value="addresses.guide" />
+            </div>
+            <div>
+              <span class="settings-block-title">KODI (TVHEADEND HTSP CLIENT)</span>
+              <copy-row label="Hostname" :value="addresses.host" />
+              <copy-row label="HTTP port" :value="addresses.httpPort" />
+              <copy-row label="HTSP port" :value="addresses.htspPort" />
+              <copy-row label="Username" :value="login.username" />
+              <copy-row label="Password" :value="login.password" />
+            </div>
+          </template>
+          <p v-else class="text-sm text-ink-dim">Enter the network address of the computer that runs TVHeadend.</p>
+          <p class="text-xs text-ink-mute leading-relaxed max-w-2xl">
+            Anyone on your home network with these addresses can watch your channels, but they cannot change TVHeadend or your recordings.
+          </p>
+        </template>
+      </div>
+    </section>
+  `,
+  setup(props) {
+    const login = ref({})
+    const name = ref(DEFAULT_TV_LOGIN_NAME)
+    const host = ref('')
+    const making = ref(false)
+    const [statusText, statusKind, setStatus] = makeStatus()
+    const prefillHost = () => {
+      host.value = tvAppsHost({ tvhUrl: props.tvhUrl, browserHost: window.location.hostname })
+    }
+    const addresses = computed(() => tvAppsAddresses({ tvhUrl: props.tvhUrl, host: host.value, authCode: login.value.authCode }))
+    const makeLogin = async () => {
+      making.value = true
+      try {
+        login.value = await api('POST', '/api/tv-login', { username: name.value })
+      } catch (err) {
+        setStatus(err.message, 'err', 0)
+      } finally {
+        making.value = false
+      }
+    }
+    watch(() => props.tvhUrl, prefillHost, { immediate: true })
+    onMounted(async () => {
+      login.value = await api('GET', '/api/tv-login').catch(() => ({}))
+    })
+    return { login, name, host, making, statusText, statusKind, addresses, makeLogin }
+  },
+}
+
+const DEFAULT_TV_LOGIN_NAME = 'tv'
 
 const VersionsRow = {
   template: `
@@ -9438,6 +9571,8 @@ app.component('zoom-control', ZoomControl)
 app.component('filter-icon', FilterIcon)
 app.component('image-icon', ImageIcon)
 app.component('versions-row', VersionsRow)
+app.component('copy-row', CopyRow)
+app.component('tv-apps-panel', TvAppsPanel)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
 app.component('eye-icon', EyeIcon)
