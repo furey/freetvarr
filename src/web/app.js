@@ -6124,7 +6124,7 @@ const TvAppsPanel = {
         <p v-if="!tvhUrl" class="text-sm text-ink-dim">Set the TVHeadend URL above first.</p>
         <template v-else-if="!login.authCode">
           <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
-            A TV app needs its own login to get your channels. Press MAKE A TV LOGIN. Freetvarr makes a login that can only watch TV, then shows the details to copy into the app.
+            A TV app needs its own login to get your channels. Press MAKE A TV LOGIN, and Freetvarr will make a login that can only watch TV. It then shows the details to copy into the app.
           </p>
           <div class="flex flex-wrap items-end gap-3">
             <div class="field-row mb-0!">
