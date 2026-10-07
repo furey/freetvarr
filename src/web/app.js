@@ -3212,7 +3212,7 @@ const SettingsView = {
               <ul class="space-y-2">
                 <li v-for="c in tvhCandidates" :key="c.url">
                   <button type="button" class="btn" @click="useTvhCandidate(c)">
-                    Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}
+                    Use {{ c.url }}
                   </button>
                 </li>
               </ul>
@@ -4972,7 +4972,7 @@ const WelcomeView = {
               <ul class="space-y-2">
                 <li v-for="c in tvhCandidates" :key="c.url">
                   <button type="button" class="btn" @click="useTvhCandidate(c)">
-                    Use {{ c.url }}{{ c.version ? ' (v' + c.version + ')' : '' }}
+                    Use {{ c.url }}
                   </button>
                 </li>
               </ul>
