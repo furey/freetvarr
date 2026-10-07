@@ -83,6 +83,7 @@ html {
 
 .spinner {
   display: inline-block;
+  vertical-align: -0.175em;
   width: 0.9em;
   height: 0.9em;
   border: 2px solid currentColor;
