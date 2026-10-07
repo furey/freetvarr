@@ -6114,7 +6114,7 @@ const TvAppsPanel = {
           <span class="panel-title">WATCH ON YOUR TV</span>
           <info-button title="WATCH ON YOUR TV" doc="guide/tv-apps">
             <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
-            <p><strong>MAKE A TV LOGIN</strong> makes a TVHeadend login that can only watch. It cannot change TVHeadend or your recordings.</p>
+            <p><strong>MAKE A TV LOGIN</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
             <p>Copy each address into the app. The setup guide has the steps for each app.</p>
           </info-button>
         </span>
@@ -6124,10 +6124,10 @@ const TvAppsPanel = {
         <p v-if="!tvhUrl" class="text-sm text-ink-dim">Set the TVHeadend URL above first.</p>
         <template v-else-if="!login.authCode">
           <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
-            TV apps sign in to TVHeadend with their own login. Freetvarr makes one that can only watch, and keeps its password here so you can copy it.
+            A TV app needs its own login to get your channels. Press MAKE A TV LOGIN. Freetvarr makes a login that can only watch TV, then shows the details to copy into the app.
           </p>
           <div class="flex flex-wrap items-end gap-3">
-            <div class="field-row">
+            <div class="field-row mb-0!">
               <label class="field-label" for="tv-login-name">Login name</label>
               <input id="tv-login-name" type="text" class="field-input" v-model="name" autocomplete="off" />
             </div>
@@ -6159,7 +6159,7 @@ const TvAppsPanel = {
           </template>
           <p v-else class="text-sm text-ink-dim">Enter the network address of the computer that runs TVHeadend.</p>
           <p class="text-xs text-ink-mute leading-relaxed max-w-2xl">
-            Anyone on your home network with these addresses can watch your channels, but they cannot change TVHeadend or your recordings.
+            Anyone on your home network with these details can watch your channels. They cannot change your settings or your recordings.
           </p>
         </template>
       </div>
