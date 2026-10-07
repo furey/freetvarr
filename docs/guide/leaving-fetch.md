@@ -217,7 +217,7 @@ Do these in order. The times are for someone doing it the first time.
 5. Choose **Yes, cancel my service**, on or before `31 October 2026`. This cancels every box on the account, so you do not need to remove the boxes one at a time first.
 6. Unplug the Fetch box.
 
-After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so `fetchtv` finds none.
+After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so `fetchtv` finds none. **Continue** leads to "Enter your Activation Code", which a cancelled account cannot supply.
 
 Fetch pays any refund to the card on file. If Fetch owes you money, check your card under **Update Billing Details** before you cancel.
 
