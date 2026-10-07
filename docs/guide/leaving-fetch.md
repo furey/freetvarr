@@ -171,9 +171,25 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 
 The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again: it skips the files it already copied.
 
-To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. If you will use Plex, add `--for-plex` to name the files the way Plex expects. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
+To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option. Leave out `--for-plex`: it stops the whole copy if any recording has no season and episode number, such as a film.
 
-The files play in VLC (a free video player), and Plex can read them too. On Path 2, copy them into your Plex TV folder.
+The files play in VLC (a free video player).
+
+### Adding them to your library
+
+On Path 2, Plex and Jellyfin can show your Fetch recordings next to your new ones. The names `fetchtv` gives already suit them: a folder for each show, and file names that start with the season and episode (e.g. `Gogglebox Australia/S20 E8 - Episode 8 of Season 20 - Thu 03 Oct.ts`). You do not rename anything.
+
+Once the NAS and Freetvarr are set up, open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac) and drag each folder out of `fetch-recordings` into one of the folders inside Freetvarr's `media` folder:
+
+| Fetch folder                                                                   | Goes into                                                                         |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| A series, with file names that start with a season and episode (e.g. `S20 E8`) | `tv`                                                                              |
+| A film                                                                         | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
+| Anything else, such as a news bulletin or a sports final                       | `one-offs`                                                                        |
+
+Plex and Jellyfin find the new files on their next library scan. To start one now in Plex, choose **Scan Library Files** from the library's menu.
+
+If the NAS is already running when you save, you can copy straight into it and skip the drag. Use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac), and add `--exclude=` with the name of each film or news show to leave it out. Then save those with `--show=` into `movies` or `one-offs`.
 
 ## Setting up
 
@@ -187,7 +203,8 @@ Do these in order. The times are for someone doing it the first time.
 6. **Set up [TVHeadend](/guide/tvheadend)**: channels, guide, and recording folder. One evening, `2–3 hours`.
 7. **Set up Freetvarr** ([Getting started](/guide/getting-started)). `30–60 minutes`.
 8. **Connect [Plex](/guide/plex)** if you use it. `30 minutes`.
-9. **Watch [Live TV](/guide/live-tv)** in the browser to check it all works. `5 minutes`.
+9. **[Add your Fetch recordings](#adding-them-to-your-library)** to the library. `15 minutes`, plus copying time.
+10. **Watch [Live TV](/guide/live-tv)** in the browser to check it all works. `5 minutes`.
 
 ## Switching over
 
