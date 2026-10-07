@@ -24,7 +24,11 @@ curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | s
 
 <BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" label="Terminal" credit="" aria-label="The one-line install in a terminal, from the curl command to the address of the setup wizard" />
 
-The script makes the `freetvarr` folder, downloads the compose file, and writes a `.env` with your user and group. It then shows the `.env` and asks one question:
+The script makes the `freetvarr` folder, downloads the compose file, writes a `.env`, and asks one question. Press `Enter` to accept the defaults; most people do. The first start downloads the images, which takes a few minutes. The script then prints the URL of the setup wizard. Open that URL and go to [step 2](#_2-run-the-wizard).
+
+::: details Install script options
+
+The script shows the `.env` it wrote and asks one question:
 
 ```text
 [install] wrote .env:
@@ -40,9 +44,9 @@ Type `e` if the files must belong to a different user. On a NAS, for example, us
 
 Type `n` to stop without starting anything. Edit the `.env` in the `freetvarr` folder, then run `docker compose up -d` in that folder.
 
-The first start downloads the images, which takes a few minutes. The script then prints the URL of the setup wizard. Open that URL and go to [step 2](#_2-run-the-wizard).
-
 Run the script again at any time. It keeps an existing `.env` and compose file, and it does not ask the question again. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
+
+:::
 
 The script is the quickest way, but you have two other ways to install: [by hand](#install-by-hand) or with a [NAS container app](#install-nas-container-app). Both start the same services.
 
