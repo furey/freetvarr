@@ -40,12 +40,12 @@ export const getServerVersion = async (conn) => {
   return info?.sw_version || ''
 }
 
-export const detectServers = async ({ hintAddress, env = process.env } = {}) => {
+export const detectServers = async ({ hintAddresses = [], env = process.env } = {}) => {
   const envUrl = (env.TVH_URL || '').trim().replace(/\/+$/, '')
   if (envUrl) {
     return { ok: true, source: 'env', candidates: [{ url: envUrl, version: '', needsAuth: false, loopback: false }] }
   }
-  const urls = rankCandidates({ interfaces: os.networkInterfaces(), hintAddress })
+  const urls = rankCandidates({ interfaces: os.networkInterfaces(), hintAddresses })
   const probes = await Promise.all(urls.map(probeServer))
   const candidates = dropAliasDuplicates(preferLanOverLoopback(probes.filter(Boolean)))
   if (!candidates.length) {
@@ -59,8 +59,8 @@ export const detectServers = async ({ hintAddress, env = process.env } = {}) => 
   return { ok: true, source: 'probe', candidates }
 }
 
-export const rankCandidates = ({ interfaces = {}, hintAddress = '', port = DEFAULT_PORT } = {}) => {
-  const hint = normaliseAddress(hintAddress)
+export const rankCandidates = ({ interfaces = {}, hintAddresses = [], port = DEFAULT_PORT } = {}) => {
+  const hints = hintAddresses.map(normaliseAddress).filter((a) => a && !isLoopback(a))
   const hostAddresses = Object.values(interfaces)
     .flat()
     .filter((i) => i && (i.family === 'IPv4' || i.family === 4) && !i.internal)
@@ -68,7 +68,7 @@ export const rankCandidates = ({ interfaces = {}, hintAddress = '', port = DEFAU
     .filter((a) => !isDockerBridge(a) && !isLinkLocal(a))
     .sort((a, b) => Number(isPrivate(b)) - Number(isPrivate(a)))
   const ordered = [
-    ...(hint && !isLoopback(hint) ? [hint] : []),
+    ...hints,
     ...hostAddresses,
     'tvheadend',
     'host.docker.internal',
@@ -806,12 +806,19 @@ export const dropAliasDuplicates = (found) => {
   const numericFingerprints = new Set(
     found.filter((c) => c.fingerprint && !isHostAlias(c.url)).map((c) => c.fingerprint),
   )
+  const seenFingerprints = new Set()
   return found
     .filter((c) => !(c.fingerprint && isHostAlias(c.url) && numericFingerprints.has(c.fingerprint)))
+    .filter((c) => {
+      if (!c.fingerprint) return true
+      if (seenFingerprints.has(c.fingerprint)) return false
+      seenFingerprints.add(c.fingerprint)
+      return true
+    })
     .map(({ fingerprint, ...candidate }) => candidate)
 }
 
-const normaliseAddress = (address) => String(address || '').replace(/^::ffff:/, '').trim()
+const normaliseAddress = (address) => String(address || '').replace(/^::ffff:/, '').replace(/^\[(.*)\]$/, '$1').trim()
 const isLoopback = (a) => a === '127.0.0.1' || a === '::1' || a === 'localhost'
 const isLinkLocal = (a) => a.startsWith('169.254.')
 const isDockerBridge = (a) => /^172\.(1[7-9]|2\d|3[01])\./.test(a)
