@@ -39,6 +39,7 @@ import {
 } from '/sync-schedule.js'
 import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
+import { wizardSkipPrompt } from '/wizard-skip.js'
 import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
 
 let csrfToken = null
@@ -4936,7 +4937,7 @@ const WelcomeView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-title">{{ stepTitle }} · STEP {{ step }} / {{ totalSteps }}</span>
-          <button v-if="step < totalSteps" type="button" class="btn-link link-arrow" @click="skipToSettings">SKIP TO SETTINGS <arrow-right-icon /></button>
+          <button v-if="step < totalSteps" type="button" class="btn-link link-arrow" @click="skipToSettings">FINISH LATER <arrow-right-icon /></button>
         </header>
         <div class="panel-body space-y-4">
 
@@ -5259,6 +5260,7 @@ const WelcomeView = {
     const tvhPassword = ref('')
     const tvhPasswordSet = ref(false)
     const tvhTesting = ref(false)
+    const tvhConnected = ref(false)
     const recordingsRoot = ref('')
     const tvhRecordingsPath = ref('')
     const recordingsCheck = usePathCheck(() => recordingsFolderStatus({
@@ -5311,6 +5313,7 @@ const WelcomeView = {
     onMounted(async () => {
       const s = await api('GET', '/api/settings').catch(() => ({}))
       tvhUrl.value = s.tvh_url || ''
+      tvhConnected.value = Boolean(s.tvh_url)
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
       syncCron.value = s.sync_cron_effective || DEFAULT_SYNC_CRON
@@ -5474,6 +5477,7 @@ const WelcomeView = {
     }
 
     const skipToSettings = () => {
+      if (!confirm(wizardSkipPrompt({ tvhConnected: tvhConnected.value }))) return
       dismiss()
       window.location.hash = '#/settings'
     }
@@ -5829,6 +5833,7 @@ const WelcomeView = {
           tvhPassword.value = ''
         }
         setTvhText(tvhTestSummary(r), 'ok', 8000)
+        tvhConnected.value = true
         return true
       } catch (err) {
         setTvhText(`Failed: ${err.message}`, 'err', 0)
