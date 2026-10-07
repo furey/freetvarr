@@ -22,6 +22,8 @@ Run this in the folder where you want a `freetvarr` folder to appear:
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
+<BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" label="Terminal" credit="" aria-label="The one-line install in a terminal, from the curl command to the address of the setup wizard" />
+
 The script makes the `freetvarr` folder, downloads the compose file, and writes a `.env` with your user and group. It then shows the `.env` and asks one question:
 
 ```text
