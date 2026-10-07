@@ -128,6 +128,7 @@ import { getDoctorReport } from './doctor.js'
 import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
+import { createTvLogin, TvLoginError } from './tv-login.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -1331,6 +1332,36 @@ app.post('/api/tvh-bootstrap/undo', bootstrapLimiter, doubleCsrfProtection, asyn
     res.status(502).json({ ok: false, error: `TVHeadend did not restore the open entry: ${err.message}` })
   }
 })
+
+app.get('/api/tv-login', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(await readTvLogin())
+})
+
+app.post('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
+  try {
+    const login = await createTvLogin({
+      http: bootstrapHttp,
+      conn: await resolveConnection(),
+      username: req.body?.username,
+      fallbackPrefix: suggestLanPrefixes().join(','),
+    })
+    await Promise.all(Object.entries(TV_LOGIN_KEYS).map(([field, key]) => setSetting(key, login[field])))
+    console.log(`[tv-login] made the watch-only TVHeadend login ${login.username}`)
+    res.json({ ok: true, ...login })
+  } catch (err) {
+    if (err instanceof TvLoginError) return res.status(err.code === 'taken' ? 409 : 400).json({ ok: false, error: err.message, code: err.code })
+    res.status(502).json({ ok: false, error: `TVHeadend did not make the TV login: ${err.message}` })
+  }
+})
+
+const TV_LOGIN_KEYS = { username: 'tv_login_username', password: 'tv_login_password', authCode: 'tv_login_auth_code' }
+
+const readTvLogin = async () => {
+  const entries = await Promise.all(Object.entries(TV_LOGIN_KEYS).map(async ([field, key]) => [field, (await getSetting(key)) || '']))
+  const login = Object.fromEntries(entries)
+  return login.username && login.authCode ? login : {}
+}
 
 const bootstrapFailure = ({ failedStep, code, rolledBack, error: raw }) => {
   const error = String(raw).replace(/HTTP (\d+)/g, 'status $1')

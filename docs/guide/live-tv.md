@@ -9,6 +9,8 @@ description: >-
 
 A network tuner streams live channels to anything on your LAN, and TVHeadend streams from any tuner it drives. None of it costs anything. Freetvarr has its own player for a quick look in the browser; the apps below suit an evening on the couch and need no Freetvarr at all.
 
+To watch with the guide in Jellyfin or Kodi on your TV, copy the addresses from Settings → WATCH ON YOUR TV; [TV apps](/guide/tv-apps) has the steps.
+
 ## The options
 
 | App                                 | Platforms                                | Points at              | Note                                                                        |
@@ -16,8 +18,8 @@ A network tuner streams live channels to anything on your LAN, and TVHeadend str
 | Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. No captions yet                  |
 | The tuner's own app, e.g. HDHomeRun | Apple TV, iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                            |
 | Plex live TV                        | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend |
-| Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the guide                                                 |
-| Kodi + TVHeadend PVR add-on         | Apple TV, Android, Shield                | TVHeadend              | Full guide, and it renders captions                                         |
+| Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the guide. [TV apps](/guide/tv-apps) sets it up           |
+| Kodi + TVHeadend PVR add-on         | Apple TV, Android, Shield                | TVHeadend              | Full guide, and it renders captions. [TV apps](/guide/tv-apps) sets it up   |
 
 ## In Freetvarr
 
@@ -88,7 +90,7 @@ If an HD channel fails in Chrome, see [Playback failed on HD channels](/guide/tr
 
 ## The tuner's own app
 
-The author uses the HDHomeRun app, which finds the tuner by itself. The app talks to the tuner directly and skips TVHeadend, so it competes with recordings for tuners. A USB or PCIe tuner has no app of its own, so watch it through TVHeadend with Jellyfin or Kodi instead.
+The author uses the HDHomeRun app, which finds the tuner by itself. The app talks to the tuner directly and skips TVHeadend, so it competes with recordings for tuners. A USB or PCIe tuner has no app of its own, so watch it through TVHeadend with Jellyfin or Kodi instead ([TV apps](/guide/tv-apps)).
 
 ## Plex
 
