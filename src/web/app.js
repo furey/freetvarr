@@ -6114,8 +6114,9 @@ const TvAppsPanel = {
           <span class="panel-title">WATCH ON YOUR TV</span>
           <info-button title="WATCH ON YOUR TV" doc="guide/tv-apps">
             <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
-            <p><strong>MAKE A TV LOGIN</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
-            <p>Copy each address into the app. The setup guide has the steps for each app.</p>
+            <p v-if="!login.authCode"><strong>MAKE A TV LOGIN</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
+            <p v-else>Your TV login can only watch TV. It cannot change your settings or your recordings.</p>
+            <p>Copy each detail into the app. The setup guide has the steps for each app.</p>
           </info-button>
         </span>
         <span class="text-xs font-mono text-ink-dim">live TV in Jellyfin or Kodi</span>
