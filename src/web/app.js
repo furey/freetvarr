@@ -3009,9 +3009,7 @@ const RecordingsView = {
     }
 
     const clearNotInTvh = async () => {
-      const settings = await api('GET', '/api/settings').catch(() => ({}))
-      const plexConfigured = Boolean(settings.plex_url && settings.plex_token_set && settings.plex_tv_section_id)
-      if (!confirm(clearListPrompt({ count: clearable.value, plexConfigured }))) return
+      if (!confirm(clearListPrompt(clearable.value))) return
       clearing.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
