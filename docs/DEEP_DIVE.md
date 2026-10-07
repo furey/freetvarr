@@ -520,7 +520,7 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 - **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
 - **Series**: the list joins the series recordings in TVHeadend to their folders; ASSIGN FOLDER, EDIT, UNASSIGN FOLDER, per-series SYNC, PAUSE, RESUME, and STOP SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
 - **Syncs**: run a sync, watch the row appear and finish; page through the history `50` rows at a time; clear history; filter by activity type.
-- **Recordings**: a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; CLEAR FROM LIST hides those rows and leaves the files.
+- **Recordings**: a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; CLEAR FROM LIST hides those rows and leaves the files; UNDO restores them for `10 s` after.
 - **Reset**: `RESET FREETVARR` (in the RESET panel, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.
 
 ## Screenshots

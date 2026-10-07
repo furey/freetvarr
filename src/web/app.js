@@ -38,6 +38,7 @@ import {
 } from '/sync-schedule.js'
 import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
+import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
 
 let csrfToken = null
 
@@ -538,6 +539,7 @@ const useFlash = () => {
 }
 
 const FLASH_DEFAULT_MS = 4500
+const UNDO_WINDOW_MS = 10_000
 const SYNC_DOTS = { ok: '#e2b03c', partial: '#ffcd00', error: '#ffab3d', running: '#62cfff' }
 const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
@@ -2518,8 +2520,10 @@ const RecordingsView = {
           </span>
           <div class="header-actions flex flex-wrap items-center justify-end gap-3">
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <header-button class="btn-danger" :label="clearing ? 'Clearing…' : 'Clear from list'" @click="clearNotInTvh"
-              :disabled="clearing"
+            <header-button v-if="undoIds.length" label="Undo" @click="undoClear" :disabled="restoring"
+              title="Puts the cleared rows back in this list."><arrow-left-icon /></header-button>
+            <header-button :label="clearing ? 'Clearing…' : 'Clear from list'" @click="clearNotInTvh"
+              :disabled="clearing || clearable === 0"
               title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library."><cross-icon /></header-button>
             <header-button label="Refresh" @click="manualRefresh"><refresh-icon /></header-button>
           </div>
@@ -2748,6 +2752,9 @@ const RecordingsView = {
     const showFilter = ref('all')
     const sinceFilter = ref('all')
     const deletedFilter = ref('all')
+    const clearable = ref(0)
+    const undoIds = ref([])
+    const restoring = ref(false)
 
     const statusOptions = ['all', 'done', 'not_imported', 'partial', 'failed', 'skipped', 'importing']
     const sinceOptions = [
@@ -2803,6 +2810,7 @@ const RecordingsView = {
       const r = await api('GET', `/api/recordings?${params}`)
       recordings.value = r.recordings
       total.value = r.total
+      clearable.value = r.clearable ?? 0
       if (page.value > 1 && r.recordings.length === 0) page.value = 1
     }
 
@@ -3001,18 +3009,40 @@ const RecordingsView = {
     }
 
     const clearNotInTvh = async () => {
-      const prompt = 'Clear every recording no longer in TVHeadend from this list?\n\n'
-        + 'The files stay in your library.'
-      if (!confirm(prompt)) return
+      const settings = await api('GET', '/api/settings').catch(() => ({}))
+      const plexConfigured = Boolean(settings.plex_url && settings.plex_token_set && settings.plex_tv_section_id)
+      if (!confirm(clearListPrompt({ count: clearable.value, plexConfigured }))) return
       clearing.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
-        flash({ msg: `Cleared ${r.deleted} row${r.deleted === 1 ? '' : 's'} from the list.` })
+        flash({ msg: clearedListMessage(r.deleted), ms: UNDO_WINDOW_MS })
+        offerUndo(r.ids)
         await refresh()
       } catch (err) {
         flash({ msg: `Clear failed: ${err.message}`, kind: 'err', ms: 6000 })
       } finally {
         clearing.value = false
+      }
+    }
+
+    let undoTimer = null
+    const offerUndo = (ids) => {
+      clearTimeout(undoTimer)
+      undoIds.value = ids
+      undoTimer = setTimeout(() => (undoIds.value = []), UNDO_WINDOW_MS)
+    }
+
+    const undoClear = async () => {
+      restoring.value = true
+      try {
+        const r = await api('POST', '/api/recordings/restore', { ids: undoIds.value })
+        offerUndo([])
+        flash({ msg: restoredListMessage(r.restored) })
+        await refresh()
+      } catch (err) {
+        flash({ msg: `Undo failed: ${err.message}`, kind: 'err', ms: 6000 })
+      } finally {
+        restoring.value = false
       }
     }
 
@@ -3053,6 +3083,7 @@ const RecordingsView = {
       canAdScan, adLabel, adTooltip, adScan,
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, notInTvhTitle, clearNotInTvh,
+      clearable, undoIds, restoring, undoClear,
       setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
       narrow, chipGroups, activeFilters, clearSheetFilters,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
