@@ -35,6 +35,9 @@ export const processRecordingAds = async ({ filePath, mode, recordingId }) => {
     }
     await fs.rm(workdir, { recursive: true, force: true }).catch(() => {})
     await fs.rmdir(path.dirname(workdir)).catch(() => {})
+    await syncSkipMarkers({ filePath, status, breaks }).catch((err) => {
+      console.error(`[ads] ${path.basename(filePath)}: failed to update skip markers: ${err.message}`)
+    })
     await db('recordings').where({ recording_id: recordingId }).update({
       ad_status: status,
       ad_breaks_json: breaks.length ? JSON.stringify(breaks) : null,
@@ -100,6 +103,20 @@ export const parseEdl = (text) => {
     .filter(([, , action]) => action === 0 || action === 3)
     .map(([start, end, action]) => ({ start, end, action }))
     .filter(({ start, end }) => start >= 0 && end > start)
+}
+
+export const skipMarkerPath = (filePath) =>
+  path.join(path.dirname(filePath), `${path.basename(filePath, path.extname(filePath))}.edl`)
+
+export const formatSkipMarkers = (breaks) =>
+  breaks
+    .map(({ start, end }) => `${start.toFixed(2)}\t${end.toFixed(2)}\t${EDL_COMMERCIAL_BREAK}\n`)
+    .join('')
+
+export const syncSkipMarkers = async ({ filePath, status, breaks }) => {
+  const markerPath = skipMarkerPath(filePath)
+  if (status === 'detected') return fs.writeFile(markerPath, formatSkipMarkers(breaks))
+  if (STALE_MARKER_STATUSES.includes(status)) return fs.rm(markerPath, { force: true })
 }
 
 export const computeKeepSegments = ({ breaks, duration }) => {
@@ -303,6 +320,8 @@ const DEFAULT_COMSKIP_INI = path.join(__dirname, '..', 'assets', 'comskip.ini')
 
 const WORKDIR_NAME = '.freetvarr-adcut'
 const ORIG_SUFFIX = '.orig'
+const EDL_COMMERCIAL_BREAK = 3
+const STALE_MARKER_STATUSES = ['cut', 'no_breaks']
 const DEFAULT_ORIG_RETENTION_DAYS = 7
 const MIN_COMSKIP_TIMEOUT_MS = 60 * 60 * 1000
 const MAX_COMSKIP_TIMEOUT_MS = 6 * 60 * 60 * 1000

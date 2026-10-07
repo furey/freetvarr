@@ -1732,7 +1732,7 @@ const FolderEditor = {
           <label class="field-label">Ad removal</label>
           <select class="field-input" v-model="adRemoval" :disabled="!adRemovalEnabled">
             <option value="off">OFF</option>
-            <option value="detect">DETECT: report ad breaks only</option>
+            <option value="detect">DETECT: mark ad breaks so Kodi can skip them</option>
             <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
           </select>
           <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
@@ -1981,7 +1981,7 @@ const SeriesView = {
                 <label class="field-label">Ad removal</label>
                 <select class="field-input" v-model="newAdRemoval" :disabled="!adRemovalEnabled">
                   <option value="off">OFF</option>
-                  <option value="detect">DETECT: report ad breaks only</option>
+                  <option value="detect">DETECT: mark ad breaks so Kodi can skip them</option>
                   <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
                 </select>
                 <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
@@ -3452,7 +3452,7 @@ const SettingsView = {
               <span class="panel-title">AD REMOVAL</span>
               <info-button title="AD REMOVAL" doc="guide/ad-removal">
                 <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each series on the SERIES tab. <strong>DETECT</strong> only marks the breaks. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Turn it on here, then set a mode for each series on the SERIES tab. <strong>DETECT</strong> leaves the video as it is and saves the breaks in a <code>.edl</code> file beside it, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
                 <p>Detection is not always right. Use DETECT on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
