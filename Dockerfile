@@ -1,6 +1,8 @@
 FROM node:24-bookworm-slim
 
 LABEL org.opencontainers.image.source=https://github.com/furey/freetvarr
+LABEL dev.orbstack.icon=https://raw.githubusercontent.com/furey/freetvarr/main/src/web/icon-512.png
+LABEL net.unraid.docker.icon=https://raw.githubusercontent.com/furey/freetvarr/main/src/web/icon-512.png
 
 WORKDIR /app
 
