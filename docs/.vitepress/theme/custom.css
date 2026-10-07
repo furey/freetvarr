@@ -189,8 +189,7 @@ kbd {
   border-radius: 8px;
 }
 
-.vp-doc .product-shot p,
-.vp-doc .phone-shots p {
+.vp-doc .product-shot p {
   margin-top: 8px;
   color: var(--vp-c-text-2);
   font-size: 13px;
@@ -199,29 +198,24 @@ kbd {
   text-wrap: pretty;
 }
 
-.vp-doc .product-shot em,
-.vp-doc .phone-shots em {
+.vp-doc .product-shot em {
   font-style: normal;
   color: var(--vp-c-text-3);
   font-size: 11px;
 }
 
-.vp-doc .phone-shots {
-  margin: 24px auto;
-  max-width: 440px;
-}
-
-.vp-doc .phone-shots__row {
+.vp-doc .phone-frames {
   display: flex;
   gap: 16px;
   justify-content: center;
+  align-items: flex-start;
+  margin: 24px 0;
 }
 
-.vp-doc .phone-shots__row img {
-  width: calc(50% - 8px);
-  height: auto;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 16px;
+.vp-doc .phone-frames > * {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 260px;
 }
 
 /* Phones: a 16px side gutter instead of VitePress's 24px. The doubled

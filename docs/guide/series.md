@@ -9,7 +9,11 @@ description: >-
 
 A series has two parts: a series recording in TVHeadend and a folder in your TV library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync. The SERIES tab lists both parts together.
 
-![The SERIES tab](../img/screenshot-series.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/series">
+  <img src="../img/screenshot-series.png" alt="The SERIES tab" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 ## Add a series
 

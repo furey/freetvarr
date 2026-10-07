@@ -9,7 +9,11 @@ description: >-
 
 A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. The Syncs tab is the history of those passes.
 
-![The Syncs tab](../img/screenshot-syncs.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/syncs">
+  <img src="../img/screenshot-syncs.png" alt="The Syncs tab" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 ## Dashboard sync deck
 

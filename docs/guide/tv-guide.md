@@ -11,7 +11,11 @@ The TV Guide tab is a 7-day programme guide. Click a programme to record it, can
 
 The guide is only as good as what you loaded into TVHeadend. With the XMLTV feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
 
-![The TV Guide tab](../img/screenshot-guide.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/guide">
+  <img src="../img/screenshot-guide.png" alt="The TV Guide tab" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 ## The grid
 
@@ -35,7 +39,11 @@ Each day's grid runs to 3am the next morning, so a late film stays on the same p
 
 Click a cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV feed; a guide fed only by the broadcast has none.
 
-![A programme's detail dialog with its image, synopsis, and RECORD buttons](../img/screenshot-programme.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/guide">
+  <img src="../img/screenshot-programme.png" alt="A programme's detail dialog with its image, synopsis, and RECORD buttons" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 From there:
 
@@ -63,7 +71,11 @@ The `CHANNELS` button above the grid opens these settings:
 
 Press `SAVE` to apply the changes.
 
-![The CHANNELS dialog](../img/screenshot-channels.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/guide">
+  <img src="../img/screenshot-channels.png" alt="The CHANNELS dialog" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 ## Channel guide
 
