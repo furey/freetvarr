@@ -6443,6 +6443,7 @@ const ChannelsModal = {
             <info-button title="Channels" doc="guide/tv-guide#favourites">
               <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
               <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
+              <p>The GUIDE list sets where a channel's listings come from. Pick No guide to remove its listings. A new pick can take a minute to show in the TV Guide.</p>
             </info-button>
           </span>
           <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
@@ -6483,13 +6484,22 @@ const ChannelsModal = {
             </p>
           </div>
           <div>
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, PICK A GUIDE</label>
+            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the guide links…</p>
+            <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
+            <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
+              Set up the guide first to pick a guide for each channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
+            </p>
+            <div class="grid grid-cols-1 gap-y-2">
+              <div v-if="showGuideColumn" class="flex items-center gap-2">
+                <span class="flex-1"></span>
+                <span class="w-40 sm:w-64 shrink-0 font-mono text-[0.7rem] tracking-[0.14em] text-ink-mute">GUIDE</span>
+              </div>
               <div v-for="ch in channels" :key="ch.id" class="flex items-center gap-2">
                 <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
                   @click="toggleDraftPin(String(ch.id))"
                   :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"><star-icon /></button>
-                <label class="flex items-center gap-2.5 text-sm cursor-pointer min-w-0"
+                <label class="flex flex-1 items-center gap-2.5 text-sm cursor-pointer min-w-0"
                   :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
                   <input type="checkbox" class="chk"
                     :checked="!hiddenDraft.has(String(ch.id))"
@@ -6500,13 +6510,20 @@ const ChannelsModal = {
                     {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
                   </span>
                 </label>
+                <select v-if="showGuideColumn && String(ch.id) in guideDraft" class="field-input w-40 sm:w-64 shrink-0"
+                  v-model="guideDraft[String(ch.id)]" :aria-label="'Guide for ' + ch.name">
+                  <option value="">No guide</option>
+                  <option v-for="o in guideLinks.options" :key="o.id" :value="o.id">{{ o.name }}</option>
+                </select>
+                <span v-else-if="showGuideColumn" class="w-40 sm:w-64 shrink-0"></span>
               </div>
             </div>
           </div>
+          <p v-if="guideStatusText" :class="['status-readout', guideStatusKind, 'text-right']">{{ guideStatusText }}</p>
           <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
             <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
             <button type="button" class="btn btn-sm" @click="$emit('close')">CANCEL</button>
-            <button type="button" class="btn btn-sm btn-primary" @click="save" :disabled="savingPrefs">
+            <button type="button" class="btn btn-sm btn-primary" @click="save" :disabled="savingPrefs || guideLoading">
               {{ savingPrefs ? 'SAVING…' : 'SAVE' }}
             </button>
           </div>
@@ -6521,9 +6538,31 @@ const ChannelsModal = {
     const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
     const savingPrefs = ref(false)
     const [statusText, statusKind, setStatus] = makeStatus()
+    const [guideStatusText, guideStatusKind, setGuideStatus] = makeStatus()
+    const guideLinks = ref(null)
+    const guideLoading = ref(true)
+    const guideLoadError = ref('')
+    const guideSaved = ref({})
+    const guideDraft = reactive({})
+    const showGuideColumn = computed(() => Boolean(guideLinks.value?.ready))
+
+    const loadGuideLinks = async () => {
+      try {
+        const links = await api('GET', '/api/tvh-guide/links')
+        const picks = Object.fromEntries(links.channels.map((c) => [String(c.id), c.guideIds[0] || '']))
+        guideSaved.value = picks
+        Object.assign(guideDraft, picks)
+        guideLinks.value = links
+      } catch (err) {
+        guideLoadError.value = `Freetvarr could not read the guide links: ${err.message}`
+      } finally {
+        guideLoading.value = false
+      }
+    }
 
     onMounted(() => {
       try { document.body.classList.add('sheet-open') } catch { /* ignore */ }
+      loadGuideLinks()
     })
     onUnmounted(() => {
       try { document.body.classList.remove('sheet-open') } catch { /* ignore */ }
@@ -6557,8 +6596,7 @@ const ChannelsModal = {
       hiddenDraft.value = next
     }
 
-    const save = async () => {
-      savingPrefs.value = true
+    const savePrefs = async () => {
       try {
         await api('PUT', '/api/epg/channel-prefs', {
           pinned_ids: pinnedDraft.value,
@@ -6566,17 +6604,43 @@ const ChannelsModal = {
           sort: sortDraft.value,
           hide_sd_simulcasts: hideSdDraft.value,
         })
-        emit('saved')
+        return true
       } catch (err) {
         setStatus(`Save failed: ${err.message}`, 'err', 8000)
-      } finally {
-        savingPrefs.value = false
+        return false
       }
+    }
+
+    const changedGuideLinks = () => Object.entries(guideDraft)
+      .filter(([id, guideId]) => guideSaved.value[id] !== guideId)
+      .map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
+
+    const saveGuideLinks = async () => {
+      const links = changedGuideLinks()
+      if (!links.length) return true
+      try {
+        await api('POST', '/api/tvh-guide/links', { links })
+        guideSaved.value = { ...guideDraft }
+        return true
+      } catch (err) {
+        setGuideStatus(`Guide links not saved: ${err.message}`, 'err', 0)
+        return false
+      }
+    }
+
+    const save = async () => {
+      savingPrefs.value = true
+      const prefsSaved = await savePrefs()
+      if (prefsSaved) setStatus('Channels saved.', 'ok')
+      const linksSaved = await saveGuideLinks()
+      savingPrefs.value = false
+      if (prefsSaved && linksSaved) emit('saved')
     }
 
     return {
       CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, savingPrefs,
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
+      guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
     }
   },
 }
