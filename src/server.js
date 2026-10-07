@@ -1238,7 +1238,9 @@ app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) =>
 })
 
 app.post('/api/tvh-detect', syncLimiter, doubleCsrfProtection, async (req, res) => {
-  const result = await detectTvheadendServers({ hintAddress: req.socket.localAddress })
+  const result = await detectTvheadendServers({
+    hintAddresses: [req.hostname, req.socket.localAddress],
+  })
   res.status(result.ok ? 200 : 502).json(result)
 })
 
