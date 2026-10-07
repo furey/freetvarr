@@ -116,6 +116,8 @@ The always-on computer is a NAS (a small storage box with hard drives) or a mini
 
 To use other recording software from [What you'll need](#what-you-ll-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
 
+[Channels DVR](https://getchannels.com/dvr-server/) is paid recording software with its own apps for Apple TV, Fire TV, Google TV, and phones. It costs `US$8` a month or `US$80` a year after a free month, and its apps stop working if you stop paying; your recordings stay on your drive. It has no Australian guide of its own, so you load a free one (e.g. the guide Freetvarr uses). It has no app for Roku or most smart TVs.
+
 ## Shopping list
 
 Some links below are affiliate links: as an Amazon Associate I earn from qualifying purchases, at no extra cost to you.
