@@ -3158,6 +3158,36 @@ section[id^="section-"] {
   border-top: 1px dashed #3d3829;
 }
 
+.copy-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+}
+
+.copy-row + .copy-row {
+  border-top: 1px dashed #3d3829;
+}
+
+.copy-row .field-label {
+  margin: 0;
+}
+
+.copy-row-value {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .copy-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .copy-row .field-label {
+    grid-column: 1 / -1;
+  }
+}
+
 .settings-page.space-y-6 > .settings-reset {
   margin-top: 4rem;
   border-color: rgba(255, 138, 0, 0.35);
