@@ -68,7 +68,7 @@ The first path needs no technical skill. The second path means installing and se
 |                  | Path 1: Watch only                  | Path 2: Watch and record                                                                          |
 | ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Cost             | about `A$280–400` once              | about `A$600–1,400` once, or the tuner alone if you already own an always-on computer             |
-| What you get     | Live TV on phones, tablets, and TVs | Everything in Path 1, plus a 7-day guide, recordings to watch on your TV, and optional ad removal |
+| What you get     | Live TV on TVs, tablets, and phones | Everything in Path 1, plus a 7-day guide, recordings to watch on your TV, and optional ad removal |
 | Your time        | about `30 minutes`                  | `1–2` evenings                                                                                    |
 | Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC                                   |
 
@@ -76,7 +76,7 @@ On cost alone, a new Fetch box can come out cheaper. [Staying with Fetch](#stayi
 
 ### Path 1: Watch only
 
-Buy a network tuner, plug in the aerial lead and a network cable from your router, and install the HDHomeRun app on your phone, tablet, or TV. The app finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
+Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays it on your TV, tablet, or phone (e.g. the HDHomeRun app, Kodi, or VLC). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
 
 SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
@@ -87,7 +87,7 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 - A 7-day [TV Guide](/guide/tv-guide), where you record one programme or a whole series.
 - [Recordings](/guide/recordings) filed into your TV library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
-- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, live TV still comes from the HDHomeRun app, as in Path 1.
+- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, live TV still comes from a player app, as in Path 1.
 
 The clip below shows Freetvarr in use.
 
@@ -180,7 +180,7 @@ Do these in order. The times are for someone doing it the first time.
 1. **[Save your Fetch recordings](#saving-your-fetch-recordings)**. `15 minutes`, plus a few hours of copying.
 2. **Order the tuner** ([Shopping list](#shopping-list)). `10 minutes`, then about a week for delivery.
 3. **Wire the tuner** ([Hardware](/guide/hardware)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
-4. **Path 1 stops here**: install the HDHomeRun app and watch. `10 minutes`.
+4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch. `10 minutes`.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
 6. **Set up [TVHeadend](/guide/tvheadend)**: channels, guide, and recording folder. One evening, `2–3 hours`.
 7. **Set up Freetvarr** ([Getting started](/guide/getting-started)). `30–60 minutes`.
