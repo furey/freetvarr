@@ -380,11 +380,28 @@ app.delete('/api/recordings', doubleCsrfProtection, async (req, res) => {
   if (req.query.deleted !== 'true') {
     return res.status(400).json({ error: 'refusing bulk delete without ?deleted=true' })
   }
-  const n = await db('recordings')
+  const ids = await db('recordings')
     .whereNotNull('deleted_from_tvh_at')
     .whereNull('purged_at')
-    .update({ purged_at: new Date().toISOString() })
-  res.json({ ok: true, deleted: n })
+    .pluck('recording_id')
+  if (ids.length) {
+    await db('recordings')
+      .whereIn('recording_id', ids)
+      .update({ purged_at: new Date().toISOString() })
+  }
+  res.json({ ok: true, deleted: ids.length, ids })
+})
+
+app.post('/api/recordings/restore', doubleCsrfProtection, async (req, res) => {
+  const ids = req.body?.ids
+  const isIdList = Array.isArray(ids) && ids.length > 0 && ids.every((id) => typeof id === 'string')
+  if (!isIdList) return res.status(400).json({ error: 'ids must be a non-empty list of recording ids' })
+  const restored = await db('recordings')
+    .whereIn('recording_id', ids)
+    .whereNotNull('deleted_from_tvh_at')
+    .whereNotNull('purged_at')
+    .update({ purged_at: null })
+  res.json({ ok: true, restored })
 })
 
 app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, res) => {
@@ -496,13 +513,20 @@ app.get('/api/recordings', async (req, res) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize)
 
-  const [totalRow, rows] = await Promise.all([totalQuery, rowsQuery])
+  const clearableQuery = db('recordings')
+    .whereNotNull('deleted_from_tvh_at')
+    .whereNull('purged_at')
+    .count({ count: 'recording_id' })
+    .first()
+
+  const [totalRow, rows, clearableRow] = await Promise.all([totalQuery, rowsQuery, clearableQuery])
   const progress = snapshotProgress(rows.map((r) => r.recording_id))
   const sources = await playbackSourceResolver()
   const playable = await Promise.all(rows.map(async (r) => Boolean(await sources(r))))
   res.json({
     recordings: rows.map((r, i) => ({ ...r, progress: progress[r.recording_id] ?? null, playable: playable[i] })),
     total: Number(totalRow?.count) || 0,
+    clearable: Number(clearableRow?.count) || 0,
     page,
     pageSize,
   })

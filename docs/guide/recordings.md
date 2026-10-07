@@ -45,7 +45,7 @@ Re-run an ad scan or cut on a file you have already imported. This does not touc
 
 A recording that TVHeadend has deleted shows a `NOT IN TVHEADEND` marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
 
-These rows leave the list 30 days after the removal. To remove them sooner, press **Clear from list**. To remove one row, press its delete button. Both remove rows from the list only; the files stay in your library.
+These rows leave the list 30 days after the removal. To remove them sooner, press **Clear from list**; it asks first and gives the number of rows it hides, across every page and filter. For 10 seconds after a clear, **Undo** puts the rows back. To remove one row, press its delete button. Both remove rows from the list only; the files stay in your library.
 
 ## Failed rows
 
