@@ -12,7 +12,11 @@ The Recordings tab lists every recording TVHeadend has finished, with its progra
 
 Freetvarr saves each programme image while the recording is still scheduled, because guide image links often stop working once the programme has aired. A recording with no saved image shows its channel logo.
 
-![The Recordings tab](../img/screenshot-recordings.png)
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/recordings">
+  <img src="../img/screenshot-recordings.png" alt="The Recordings tab" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 ## Statuses
 
