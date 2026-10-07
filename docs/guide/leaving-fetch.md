@@ -78,6 +78,8 @@ On cost alone, a new Fetch box can come out cheaper. [Staying with Fetch](#stayi
 
 Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays it on your TV, tablet, or phone (e.g. the HDHomeRun app, Kodi, or VLC). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
 
+Add Path 2 later and the TV apps get TVHeadend's 7-day guide too: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)).
+
 SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
 ### Path 2: Watch and record
@@ -87,7 +89,7 @@ This is the author's setup. The tuner sends TV to TVHeadend, free recording soft
 - A 7-day [TV Guide](/guide/tv-guide), where you record one programme or a whole series.
 - [Recordings](/guide/recordings) filed into your TV library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
-- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, live TV still comes from a player app, as in Path 1.
+- [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, watch live TV with the 7-day guide in Jellyfin or Kodi: Freetvarr shows the addresses to copy into the app ([TV apps](/guide/tv-apps)).
 
 The clip below shows Freetvarr in use.
 
