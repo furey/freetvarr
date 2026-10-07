@@ -20,6 +20,7 @@ import {
 } from '/guide-time.js'
 import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
 import { findHdSimulcast } from '/simulcast.js'
+import { revealStepMs, isStepResolved, pacedSteps } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
@@ -4042,12 +4043,6 @@ const sortDoctorChecks = (checks) => [...checks].sort((a, b) =>
   DOCTOR_STATUS_ORDER.indexOf(a.status) - DOCTOR_STATUS_ORDER.indexOf(b.status))
 
 const DOCTOR_SCAN_MIN_MS = 700
-const DOCTOR_REVEAL_MS = 2200
-const DOCTOR_STEP_MIN_MS = 80
-const DOCTOR_STEP_MAX_MS = 260
-
-const doctorRevealStepMs = (count) =>
-  Math.min(DOCTOR_STEP_MAX_MS, Math.max(DOCTOR_STEP_MIN_MS, DOCTOR_REVEAL_MS / Math.max(1, count)))
 
 const DoctorSpinner = {
   template: `
@@ -4161,7 +4156,7 @@ const DoctorView = {
         revealed.value = total
         return
       }
-      const stepMs = doctorRevealStepMs(total)
+      const stepMs = revealStepMs(total)
       for (let i = 1; i <= total; i += 1) {
         await wait(stepMs)
         if (!isCurrentRun(id)) return
@@ -5018,8 +5013,8 @@ const WelcomeView = {
                 Make your own TVHeadend logins, then give Freetvarr the one you made for it.
               </manual-option>
             </div>
-            <ol v-if="secureSteps.length" class="space-y-1 text-sm font-mono">
-              <li v-for="s in secureSteps" :key="s.id" class="flex items-center gap-2">
+            <ol v-if="secureShownSteps.length" class="space-y-1 text-sm font-mono">
+              <li v-for="s in secureShownSteps" :key="s.id" class="flex items-center gap-2">
                 <span :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
                 <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
               </li>
@@ -5709,6 +5704,9 @@ const WelcomeView = {
     const secureAdminPasswordInput = ref(null)
     const securePrefixes = ref('')
     const secureSteps = ref([])
+    const secureRevealed = ref(0)
+    const secureShownSteps = computed(() =>
+      pacedSteps({ steps: secureSteps.value, revealed: secureRevealed.value }))
     const secureError = ref('')
     const secureNext = ref('')
     const showSecure = computed(() => Boolean(bootstrap.value?.fresh) && !manualLogin.value && !securedAs.value)
@@ -5749,18 +5747,41 @@ const WelcomeView = {
     const useManualLogin = () => {
       manualLogin.value = true
       secureSteps.value = []
+      secureRevealed.value = 0
       secureError.value = ''
       secureNext.value = ''
+    }
+
+    const revealSecureSteps = async (isSettled) => {
+      if (!prefersReducedMotion()) {
+        const stepMs = revealStepMs(secureSteps.value.length)
+        while (secureRevealed.value < secureSteps.value.length) {
+          const shownAt = Date.now()
+          while (!isStepResolved(secureSteps.value[secureRevealed.value])) {
+            if (isSettled()) break
+            await wait(BOOTSTRAP_REVEAL_POLL_MS)
+          }
+          const step = secureSteps.value[secureRevealed.value]
+          if (!isStepResolved(step)) break
+          await wait(Math.max(0, stepMs - (Date.now() - shownAt)))
+          secureRevealed.value += 1
+          if (step.status === 'failed') break
+        }
+      }
+      secureRevealed.value = secureSteps.value.length
     }
 
     const secureTvh = async () => {
       securing.value = true
       secureError.value = ''
       secureNext.value = ''
+      secureRevealed.value = 0
       secureSteps.value = (bootstrap.value?.steps || []).map((s) => ({ ...s, status: 'pending' }))
+      let settled = false
+      const reveal = revealSecureSteps(() => settled)
       const poll = setInterval(async () => {
         const progress = await api('GET', '/api/tvh-bootstrap/progress').catch(() => null)
-        if (progress?.steps?.length) secureSteps.value = progress.steps
+        if (!settled && progress?.steps?.length) secureSteps.value = progress.steps
       }, BOOTSTRAP_POLL_MS)
       try {
         const result = await api('POST', '/api/tvh-bootstrap/apply', {
@@ -5769,7 +5790,9 @@ const WelcomeView = {
           admin_password: secureAdminPassword.value,
           prefixes: securePrefixes.value,
         })
+        settled = true
         secureSteps.value = result.steps
+        await reveal
         securedAs.value = result.adminUsername
         secureAdminPassword.value = ''
         tvhUsername.value = result.username
@@ -5777,7 +5800,9 @@ const WelcomeView = {
         tvhPasswordSet.value = true
         await testTvh()
       } catch (err) {
+        settled = true
         if (err.data?.steps) secureSteps.value = err.data.steps
+        await reveal
         secureError.value = err.message
         secureNext.value = err.data?.next || ''
         if (err.data?.code === 'not-fresh') manualLogin.value = true
@@ -5823,7 +5848,7 @@ const WelcomeView = {
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
       showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
-      securePrefixes, secureSteps, secureError, secureNext, secureInputProblem, secureReady,
+      securePrefixes, secureShownSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
       usePlexCandidate, detectPlexToken,
@@ -5944,6 +5969,7 @@ const secureStepDot = (status) => ({
 
 const BOOTSTRAP_CHECK_DELAY_MS = 500
 const BOOTSTRAP_POLL_MS = 400
+const BOOTSTRAP_REVEAL_POLL_MS = 50
 const BOOTSTRAP_MIN_PASSWORD = 8
 
 const EPG_ZOOM_LEVELS = [
