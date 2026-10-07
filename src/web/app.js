@@ -5203,7 +5203,7 @@ const WelcomeView = {
 
           <div v-if="step === 7" class="space-y-4">
             <p v-if="!readySkipped.length" class="text-ink text-base leading-relaxed">
-              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> You're set.
+              <span class="led-dot sm bg-plex-yellow align-middle mr-1"></span> Setup is done. Freetvarr is ready to record.
             </p>
             <div v-else class="space-y-2">
               <p class="text-ink text-base leading-relaxed">Setup is not finished yet.</p>
