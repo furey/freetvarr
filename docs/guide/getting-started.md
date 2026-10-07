@@ -67,6 +67,20 @@ Every value can be changed later in Settings.
 
 Open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in **Settings → SCHEDULE**) and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **Settings → HELP → RUN DOCTOR**.
 
+## 4. Add it to your Home Screen
+
+On a tablet or phone, add Freetvarr to the Home Screen. It then opens full-screen from its own icon, like an app.
+
+On an iPad or iPhone:
+
+1. Open `http://<host-ip>:3733` in Safari.
+2. Tap the Share button.
+3. Tap **Add to Home Screen**, then **Add**.
+
+On Android, open the address in Chrome, tap the `⋮` menu, then tap **Add to Home screen**.
+
+In the Home Screen app, pull down from the top of a page to refresh it ([Pull to refresh](/guide/syncs#pull-to-refresh)).
+
 ## Configure
 
 Every value in the `.env` is optional. These are the defaults:
