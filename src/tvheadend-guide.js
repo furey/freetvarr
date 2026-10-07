@@ -64,7 +64,8 @@ export const guessGuideChannel = ({ channel, candidates }) => {
   if (isTimeshiftName(channel.name)) return null
   const key = looseKey(channel.name)
   if (!key) return null
-  const matches = candidates.filter((g) => feedNames(g).some((n) => looseKey(n) === key))
+  const keys = new Set([key, LOOSE_ALIASES[key]].filter(Boolean))
+  const matches = candidates.filter((g) => feedNames(g).some((n) => keys.has(looseKey(n))))
   return matches.length === 1 ? matches[0].id : null
 }
 
@@ -355,6 +356,7 @@ const COMMON_TOKEN_MIN = 3
 const COMMON_TOKEN_SHARE = 0.25
 const TIMESHIFT_NAME = /\+\s*\d+\s*(hd)?$/i
 const LOOSE_NOISE = new Set(['hd', 'the', 'channel'])
+const LOOSE_ALIASES = { sbsone: 'sbs' }
 const REGION_WORDS = new Set([
   'sydney', 'melbourne', 'brisbane', 'adelaide', 'perth', 'hobart', 'darwin', 'canberra',
   'auckland', 'wellington', 'christchurch',

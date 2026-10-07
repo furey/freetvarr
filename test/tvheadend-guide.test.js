@@ -201,6 +201,11 @@ test('guessGuideChannel matches a name after normalising case, spaces, punctuati
   assert.equal(guessFor('SBS-One', ['SBS One']), 'g0')
 })
 
+test('guessGuideChannel matches the tuner name SBS ONE to the guide name SBS', () => {
+  assert.equal(guessFor('SBS ONE', ['SBS', 'SBS2', 'SBS Food']), 'g0')
+  assert.equal(guessFor('SBS ONE', ['SBS One', 'SBS']), null)
+})
+
 test('guessGuideChannel never guesses a timeshift channel', () => {
   assert.equal(guessFor('10 HD +1', ['10 HD +1', '10']), null)
   assert.equal(guessFor('Nine +2', ['Nine']), null)
