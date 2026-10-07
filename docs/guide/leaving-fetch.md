@@ -173,7 +173,7 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 
 The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again: it skips the files it already copied.
 
-To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option. Leave out `--for-plex`: it stops the whole copy if any recording has no season and episode number, such as a film.
+To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
 
 The files play in VLC (a free video player).
 
