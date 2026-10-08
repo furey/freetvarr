@@ -358,10 +358,10 @@ app.post(
       return res.status(409).json({ error: 'recording is not imported' })
     }
     if (!row.file_path) return res.status(409).json({ error: 'recording has no file path' })
-    try {
-      await fs.access(row.file_path)
-    } catch {
-      return res.status(409).json({ error: 'recording file missing on disk' })
+    if (!(await isLibraryFilePresent(row.file_path))) {
+      return res.status(409).json({
+        error: 'the library file is gone. Something outside Freetvarr replaced or removed it.',
+      })
     }
     const show = row.show_id
       ? await db('shows').where({ id: row.show_id }).first()
@@ -524,9 +524,17 @@ app.get('/api/recordings', async (req, res) => {
   const [totalRow, rows, clearableRow] = await Promise.all([totalQuery, rowsQuery, clearableQuery])
   const progress = snapshotProgress(rows.map((r) => r.recording_id))
   const sources = await playbackSourceResolver()
-  const playable = await Promise.all(rows.map(async (r) => Boolean(await sources(r))))
+  const [playable, libraryFilePresent] = await Promise.all([
+    Promise.all(rows.map(async (r) => Boolean(await sources(r)))),
+    Promise.all(rows.map((r) => isLibraryFilePresent(r.file_path))),
+  ])
   res.json({
-    recordings: rows.map((r, i) => ({ ...r, progress: progress[r.recording_id] ?? null, playable: playable[i] })),
+    recordings: rows.map((r, i) => ({
+      ...r,
+      progress: progress[r.recording_id] ?? null,
+      playable: playable[i],
+      library_file_present: libraryFilePresent[i],
+    })),
     total: Number(totalRow?.count) || 0,
     clearable: Number(clearableRow?.count) || 0,
     page,
@@ -832,6 +840,16 @@ const playPingLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
 })
+
+const isLibraryFilePresent = async (filePath) => {
+  if (!filePath) return false
+  try {
+    await fs.access(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
 
 const playbackSourceResolver = async () => {
   const [tvhRecordingsPath, recordingsRoot, mediaRoot, oneOffRoot, moviesRoot] = await Promise.all([
