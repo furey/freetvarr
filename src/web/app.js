@@ -18,7 +18,8 @@ import {
   spillLengthMin,
   rulerTickMinutes,
 } from '/guide-time.js'
-import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
+import { findSeriesLink } from '/series-link.js'
+import { seekPlan, adBreakAt, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
 import {
   DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
 } from '/double-tap.js'
@@ -2340,7 +2341,9 @@ const SeriesView = {
 
     onMounted(() => Promise.all([refresh(), loadSettings()]))
 
-    const channelsOf = (s) => [...new Set(s.autorecs.map((a) => a.channelName).filter(Boolean))].join(' + ')
+    const channelsOf = (s) => s.autorecs.some((a) => a.anyChannel)
+      ? 'Any channel'
+      : [...new Set(s.autorecs.map((a) => a.channelName).filter(Boolean))].join(' + ')
       || (s.autorecs.length === 1 ? '1 channel' : `${s.autorecs.length} channels`)
 
     const nextAiringLabel = (s) => {
@@ -7249,6 +7252,10 @@ const EpgView = {
                   <option v-for="o in keepOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
                 </select>
               </div>
+              <div v-if="selected.program.series_link" class="col-span-2 space-y-1">
+                <toggle-switch v-model="anyChannel">RECORD ON ANY CHANNEL</toggle-switch>
+                <p class="text-xs font-mono text-ink-mute">Off: the series recording covers {{ selected.channel?.name || channelName(selected.program.channelId) }} only. On: it records the show on whichever channel airs it.</p>
+              </div>
               <div class="col-span-2 space-y-1">
                 <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
                 <p class="text-xs font-mono text-ink-mute">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/series">SERIES</a>.</template></p>
@@ -7384,6 +7391,7 @@ const EpgView = {
     const leadTime = ref(2)
     const lagTime = ref(10)
     const episodesToKeep = ref(0)
+    const anyChannel = ref(false)
     const addToLibrary = ref(true)
     const showRules = ref([])
     const moviesFolderSet = ref(false)
@@ -7657,7 +7665,7 @@ const EpgView = {
       const scheduled = scheduledByProgramId.value.get(String(p.program_id ?? p.programId))
       if (scheduled && activeRecordingSet.value.has(String(scheduled.programId))) return 'recording'
       if (scheduled) return 'scheduled'
-      if (p.series_link != null && seriesLinkSet.value.has(String(p.series_link))) return 'series'
+      if (findSeriesLink({ links: seriesLinkSet.value, seriesLink: p.series_link })) return 'series'
       return ''
     }
 
@@ -7841,6 +7849,7 @@ const EpgView = {
       leadTime.value = 2
       lagTime.value = 10
       episodesToKeep.value = 0
+      anyChannel.value = false
       addToLibrary.value = true
       cancelChoice.value = false
       modalAction.value = ''
@@ -7914,7 +7923,7 @@ const EpgView = {
 
     const recordSelected = () => offerHdFirst('record') || recordOneOff()
 
-    const recordSelectedSeries = () => offerHdFirst('record-series') || recordSeries()
+    const recordSelectedSeries = () => (!anyChannel.value && offerHdFirst('record-series')) || recordSeries()
 
     const recordOneOff = async () => {
       const { program, channel } = selected.value
@@ -7953,6 +7962,7 @@ const EpgView = {
           lead_time: leadTime.value,
           lag_time: lagTime.value,
           episodes_to_keep: episodesToKeep.value,
+          any_channel: anyChannel.value,
           add_show_rule: addToLibrary.value,
         })
         const ruleNote = result.showRule ? ` Episodes go into ${result.showRule.dest_folder}.` : ''
@@ -7994,7 +8004,7 @@ const EpgView = {
       try {
         await api('POST', '/api/epg/cancel-series', {
           program_id: rec?.programId ?? null,
-          series_link_id: rec?.seriesLinkId ?? program.series_link,
+          series_link_id: rec?.seriesLinkId ?? findSeriesLink({ links: seriesLinkSet.value, seriesLink: program.series_link }) ?? program.series_link,
         })
         flash({ msg: `Series recording cancelled.` })
         closeModal()
@@ -8335,7 +8345,7 @@ const EpgView = {
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind,
-      leadTime, lagTime, episodesToKeep, addToLibrary, libraryNote,
+      leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries, cancelChoice,
       upcoming, cancelUpcoming,
@@ -9248,6 +9258,7 @@ const playback = reactive({
   scrubValue: 0,
   skipHint: null,
   airplay: false,
+  adBreaks: [],
 })
 
 let playVideo = null
@@ -9264,7 +9275,7 @@ const playRecording = (recording) => {
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
-    paused: false, waiting: false, scrubbing: false, skipHint: null,
+    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [],
   })
   playVideo?.play()?.catch(() => {})
   startPlaybackAt(null)
@@ -9307,6 +9318,7 @@ const startPlaybackAt = async (offset) => {
       waiting: true,
     })
     if (offset == null) playback.resumed = Boolean(r.resumed)
+    playback.adBreaks = r.adBreaks || []
     attachPlayVideo(run, r.session.playlist)
     schedulePlayHeartbeat(run)
   } catch (err) {
@@ -9457,6 +9469,11 @@ const skipPlayback = ({ side, total, base }) => {
   seekPlaybackTo(to)
 }
 
+const skipCurrentAd = () => {
+  const current = adBreakAt({ breaks: playback.adBreaks, time: playback.position })
+  if (current) seekPlaybackTo(current.end)
+}
+
 const startPlaybackOver = () => {
   playback.resumed = false
   seekPlaybackTo(0)
@@ -9546,6 +9563,7 @@ const RecordingPlayer = {
               <span>{{ playback.skipHint.label }}</span>
             </div>
             <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
+            <button v-if="inAdBreak" type="button" class="btn play-skip-ad" @click="skipCurrentAd">SKIP AD</button>
           </div>
           <div class="play-controls">
             <div class="play-scrub">
@@ -9593,6 +9611,9 @@ const RecordingPlayer = {
       const aired = r.aired_at ? fmtTime(r.aired_at) : ''
       return [r.episode_title, r.channel_name, aired].filter(Boolean).join(' · ')
     })
+
+    const inAdBreak = computed(() =>
+      playback.phase === 'playing' && adBreakAt({ breaks: playback.adBreaks, time: playback.position }) !== null)
 
     const shownPosition = computed(() => (playback.scrubbing ? playback.scrubValue : playback.position))
     const scrubMax = computed(() => Math.max(1, Math.floor(playback.duration || 0)))
@@ -9690,7 +9711,7 @@ const RecordingPlayer = {
 
     return {
       playback, recording, subtitle, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
-      statusText, statusKind, overlayText, fmtPlayTime,
+      statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
       toggleFullscreen, showAirplay, onPlayPointerDown, onPlayPointerUp,
     }

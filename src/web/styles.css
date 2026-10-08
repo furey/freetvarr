@@ -3734,6 +3734,14 @@ section[id^="section-"] {
   pointer-events: none;
 }
 
+.play-skip-ad {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.15em;
+}
+
 .play-controls {
   display: flex;
   flex-direction: column;
@@ -3853,6 +3861,10 @@ section[id^="section-"] {
   }
 
   .play-modal .play-caption {
+    bottom: 6rem;
+  }
+
+  .play-modal .play-skip-ad {
     bottom: 6rem;
   }
 }

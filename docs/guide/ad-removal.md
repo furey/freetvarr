@@ -29,6 +29,8 @@ A cut that goes wrong loses part of the show. A skip that goes wrong costs nothi
 - **Jellyfin** needs a plugin that reads `.edl` files (e.g. [EDL to Media Segments](https://github.com/VTRunner/EdlToMediaSegments)), then shows the breaks as commercials you can skip.
 - **Plex**, **VLC**, and **Infuse** do not read `.edl` files. Plex skips ads only in recordings made by its own DVR. For these players, use `CUT`.
 
+**Freetvarr's own player** also reads the `.edl` file. While you watch a recording inside a break, a **SKIP AD** button appears at the bottom right of the picture. Press it to jump to the end of the break. Freetvarr never skips by itself. A recording with no `.edl` file, or one cut by `CUT` mode, shows no button.
+
 If you rename or move a video by hand, rename or move its `.edl` with it. A later `CUT` or a scan that finds no breaks deletes the `.edl`.
 
 ## Backups and retention
