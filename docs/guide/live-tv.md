@@ -7,9 +7,9 @@ description: >-
 
 # Live TV
 
-A network tuner streams live channels to anything on your LAN, and TVHeadend streams from any tuner it drives. None of it costs anything. Freetvarr has its own player for a quick look in the browser; the apps below suit an evening on the couch and need no Freetvarr at all.
+A network tuner streams live channels to any device on your home network, and TVHeadend streams from any tuner it controls. None of it costs anything. Freetvarr has its own player for a quick look in a browser. The apps below suit an evening on the couch and need no Freetvarr at all.
 
-To watch with the guide in Jellyfin or Kodi on your TV, copy the addresses from Settings → WATCH ON YOUR TV; [TV apps](/guide/tv-apps) has the steps.
+To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's **Settings → WATCH ON YOUR TV** ([TV apps](/guide/tv-apps) has the steps).
 
 ## The options
 
@@ -18,7 +18,7 @@ To watch with the guide in Jellyfin or Kodi on your TV, copy the addresses from 
 | Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. No captions yet                  |
 | The tuner's own app, e.g. HDHomeRun | Apple TV, iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                            |
 | Plex live TV                        | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend |
-| Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the guide. [TV apps](/guide/tv-apps) sets it up           |
+| Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up        |
 | Kodi + TVHeadend PVR add-on         | Apple TV, Android, Shield                | TVHeadend              | Full guide, and it renders captions. [TV apps](/guide/tv-apps) sets it up   |
 
 ## In Freetvarr
@@ -29,7 +29,7 @@ To watch with the guide in Jellyfin or Kodi on your TV, copy the addresses from 
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Open a programme that is on air in the TV Guide and press **WATCH LIVE**, or press the TV button beside a channel under **Now** in the dashboard's **What's On** panel. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
+In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**, or press the TV button beside a channel under **Now** in the dashboard's **What's On** panel. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
 
 The **zoom buttons** above the channel list change the row size. Zoom out for more channels on screen; zoom in for bigger pictures and text. Each browser remembers its zoom.
 
@@ -41,15 +41,15 @@ The **zoom buttons** above the channel list change the row size. Zoom out for mo
 
 ## Pause and rewind
 
-Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` to keep more or fewer minutes, or `0` to turn it off.
+Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` to keep more or fewer minutes, or `0` to turn it off.
 
 On a phone or tablet, double-tap the left side of the picture to go back `10` seconds, or the right side to go forward `10` seconds. Keep tapping to skip further. Safari on an iPhone shows no timeline for live TV, so double-tap is the way to rewind there.
 
-If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time; **STOP** frees it at once.
+If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (press **STOP** to free it at once).
 
 The buffer starts when you open the channel, so you can rewind only as far back as that. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
 
-Freetvarr keeps the buffer on disk, in the container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2GB` for each channel that is playing.
+Freetvarr keeps the buffer on disk, in the Freetvarr Docker container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2GB` for each channel that is playing.
 
 ## Stream handling
 
@@ -61,11 +61,11 @@ Freetvarr gets the channel from TVHeadend and converts it with ffmpeg into a str
 - **MPEG-2 or HEVC video** is re-encoded to H.264 in software, because browsers cannot play MPEG-2. Standard-definition channels stay at `576` lines; HD channels in those formats drop to `540` lines to keep the CPU load down.
 - **Audio** becomes stereo, in TVHeadend's default language, without the audio-description track.
 
-Each channel needs a tuner, unless a tuner already carries its multiplex, in which case the two share it. If every tuner is busy, the player says what is using each one. If a recording in the next hour needs the tuner, the player warns you; when the recording starts, it takes the tuner.
+Each channel needs a tuner, unless a tuner already carries its multiplex, in which case the two share it. If every tuner is busy, the player says what is using each one. If a recording in the next hour needs the tuner, the player warns you. When the recording starts, the recording takes the tuner and the live stream stops.
 
 Stream limits:
 
-- **Two channels at once** by default. Set `LIVE_TV_MAX_SESSIONS` to change it. Viewers of the same channel share one stream.
+- **Two channels at once** by default. Set `LIVE_TV_MAX_SESSIONS` in the `.env` to change it. Viewers of the same channel share one stream.
 - **The stream stops 20 seconds** after the last viewer closes the player or the tab. A locked phone or a hidden tab keeps it for the buffer length instead ([Pause and rewind](#pause-and-rewind)).
 - **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 
@@ -85,9 +85,9 @@ At startup Freetvarr reads `LIVE_TV_TRANSCODE` and picks one method:
 | `software`       | Always software: `yadif` and `libx264`, capped at `540` lines. Costs much more CPU                         |
 | `copy`           | The old behaviour: H.264 passes through untouched. Safari plays it; Chrome cannot play interlaced channels |
 
-Hardware means VAAPI on Intel Quick Sync or AMD, set up as in [Hardware transcoding](/guide/hardware#hardware-transcoding). The result is capped at `720` lines. The device defaults to `/dev/dri/renderD128`; set `LIVE_TV_VAAPI_DEVICE` to use another. NVIDIA (NVENC) is not supported, so an NVIDIA host uses software.
+Hardware means VAAPI on Intel Quick Sync or AMD, set up as in [Hardware transcoding](/guide/hardware#hardware-transcoding). The result is capped at `720` lines. The device defaults to `/dev/dri/renderD128`; set `LIVE_TV_VAAPI_DEVICE` in the `.env` to use another. NVIDIA (NVENC) is not supported, so an NVIDIA host uses software.
 
-Freetvarr logs the choice and the reason on a line that starts with `[live] video`. Read it with `docker compose logs freetvarr | grep "\[live\] video"`.
+Freetvarr logs the choice and the reason on a line that starts with `[live] video`. To read it, run `docker compose logs freetvarr | grep "\[live\] video"` in a terminal in the `freetvarr` folder.
 
 > [!NOTE]<br>
 > The author's NAS (Synology DS220+, Intel Celeron J4025 with two cores) re-encodes `1080i` to `720p` in hardware at about `6.5x` real time, using about `5%` of one core. Software at `720p` ran at only `1.36x` real time on both cores, which is why the software path caps at `540` lines.
@@ -102,7 +102,7 @@ The author uses the HDHomeRun app, which finds the tuner by itself. The app talk
 
 ## Plex
 
-Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass only to *record* through Plex, and TVHeadend and Freetvarr already do that for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi against TVHeadend instead.
+Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass only to *record* through Plex, and TVHeadend and Freetvarr already do that for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi connected to TVHeadend instead.
 
 ## Captions
 
@@ -116,4 +116,4 @@ Captions arrive either as Teletext or as DVB subtitles, and your broadcaster dec
 
 ## Tuner budget
 
-Recording and watching share your tuners. The author's Flex Quatro has four tuners, so recording three overlapping programmes leaves one tuner for live TV. TVHeadend reports what's in use under **Status → Stream**.
+Recording and watching share your tuners. The author's Flex Quatro has four tuners, so recording three overlapping programmes leaves one tuner for live TV. In TVHeadend's web interface, **Status → Stream** shows what is using each tuner.
