@@ -222,14 +222,16 @@ export const cancelAction = ({ schedStatus, autorecId }) => {
 }
 
 export const enableSeriesTag = async ({
-  seriesLink,
+  seriesLink: requestedLink,
   channelId,
   title,
+  anyChannel = false,
   leadTime = DEFAULT_LEAD_MINUTES,
   lagTime = DEFAULT_LAG_MINUTES,
   episodesToKeep = 0,
 } = {}) => {
   const conn = await resolveConnection()
+  const seriesLink = anyChannel ? seriesKey({ channelId: '', title }) : requestedLink
   const existing = (await listAutorecs(conn)).find((a) => a.seriesLinkId === seriesLink)
   if (existing) return { ok: true, uuid: existing.id, seriesLinkId: seriesLink, existed: true }
   const body = await apiPost('dvr/autorec/create', {
@@ -238,7 +240,7 @@ export const enableSeriesTag = async ({
       name: title,
       title,
       fulltext: false,
-      channel: channelId,
+      channel: anyChannel ? '' : channelId,
       start: 'Any',
       start_window: 'Any',
       weekdays: [1, 2, 3, 4, 5, 6, 7],
