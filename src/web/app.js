@@ -5018,7 +5018,7 @@ const WelcomeView = {
                 <label class="field-label">Allowed networks</label>
                 <input v-no-autofill type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
                 <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses and this browser's network; add any network you sign in to TVHeadend from.
+                  Both logins work only from these networks. Freetvarr guessed them from this computer's networks and this browser's network; add any network you sign in to TVHeadend from.
                 </p>
               </div>
               <p class="text-xs text-ink-mute leading-relaxed">
@@ -5028,8 +5028,8 @@ const WelcomeView = {
                 <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
                   <template v-if="securing">SECURING…</template><template v-else>SECURE TVHEADEND AND CONNECT FREETVARR</template>
                 </button>
+                <span v-if="secureInputProblem" class="text-xs text-signal-yellow font-mono">{{ secureInputProblem }}</span>
               </div>
-              <span v-if="secureInputProblem" class="status-readout info">{{ secureInputProblem }}</span>
               <manual-option label="Enter a login instead" :disabled="securing" @choose="useManualLogin">
                 Make your own TVHeadend logins, then give Freetvarr the one you made for it.
               </manual-option>
