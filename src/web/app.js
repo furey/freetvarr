@@ -405,18 +405,22 @@ const TimeZoneField = {
   },
 }
 
+const OFF_AIR_MESSAGE = "This channel isn't broadcasting right now."
+
 const ChannelIdentity = {
   props: { channel: { type: Object, required: true }, hasLogo: Boolean, number: { type: String, default: '' } },
   emits: ['pin'],
+  setup: () => ({ OFF_AIR_MESSAGE }),
   template: `
     <button type="button" :class="['epg-pin', { pinned: channel.pinned }]" :aria-pressed="Boolean(channel.pinned)"
       :title="channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
       :aria-label="channel.pinned ? 'Remove ' + channel.name + ' from favourites' : 'Add ' + channel.name + ' to favourites'"
       @click="$emit('pin')"><star-icon /></button>
     <span class="channel-logo"><channel-logo :channel-id="channel.id" :has-logo="hasLogo" /></span>
-    <span class="channel-name" :title="channel.name">
+    <span class="channel-name" :title="channel.offAir ? OFF_AIR_MESSAGE : channel.name">
       <span v-if="number" class="channel-number">{{ number }}</span>
       {{ channel.name }}
+      <span v-if="channel.offAir" class="off-air-note">OFF AIR</span>
     </span>
   `,
 }
@@ -1153,7 +1157,7 @@ const LiveView = {
             <ul class="live-list">
               <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
                 :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-drop-after': dropAfter && dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
-                <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
+                <div :class="['live-row-handle', { 'off-air': e.channel.offAir }]" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
                   @pointerdown="onPinPointerDown(e.channel, $event)"
                   @pointermove="onPinPointerMove"
                   @pointerup="onPinPointerUp"
@@ -1187,7 +1191,7 @@ const LiveView = {
                   :aria-label="'Show details for ' + e.next.title" @click="openDetails(e, e.next)">
                   next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
                 </button>
-                <button type="button" class="btn btn-sm btn-icon btn-watch live-row-watch" title="Watch live"
+                <button type="button" class="btn btn-sm btn-icon btn-watch live-row-watch" :title="e.channel.offAir ? OFF_AIR_MESSAGE : 'Watch live'"
                   :aria-label="'Watch ' + e.channel.name + ' live'"
                   @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
               </li>
@@ -1320,7 +1324,7 @@ const LiveView = {
 
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, narrow, groups, favouritesHint, emptyText,
-      load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
+      OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
       zoom, zoomIndex, zoomLevelCount: LIVE_ZOOM_LEVELS.length, changeZoom,
       dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
@@ -1368,7 +1372,7 @@ const DashboardView = {
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
               <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
-              <span class="font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate" :title="e.channel.name">{{ e.channel.name }}</span>
+              <span :class="['font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate', { 'off-air': e.channel.offAir }]" :title="e.channel.offAir ? OFF_AIR_MESSAGE : e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
                 <button v-if="e.now" type="button" class="on-now-open block w-full"
                   :aria-label="'Show details for ' + e.now.title"
@@ -1391,7 +1395,7 @@ const DashboardView = {
                 @click="openInGuide({ channelId: e.channel.id, program: e.next })">
                 next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
               </button>
-              <button type="button" class="btn btn-sm btn-icon btn-watch shrink-0" title="Watch live"
+              <button type="button" class="btn btn-sm btn-icon btn-watch shrink-0" :title="e.channel.offAir ? OFF_AIR_MESSAGE : 'Watch live'"
                 :aria-label="'Watch ' + e.channel.name + ' live'"
                 @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
             </div>
@@ -1701,7 +1705,7 @@ const DashboardView = {
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, fmtRelativeDay, tsOfMs,
       isRecordingChannel, loadGuidePanel,
-      watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
+      OFF_AIR_MESSAGE, watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
       flashText, flashKind,
     }
   },
@@ -6877,7 +6881,7 @@ const EpgView = {
                     <div class="epg-heading-track"></div>
                   </template>
                   <template v-else>
-                  <div class="epg-rail-cell"
+                  <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]"
                     :title="ch.pinned ? 'Drag to reorder favourites' : null"
                     @pointerdown="onPinPointerDown(ch, $event)"
                     @pointermove="onPinPointerMove"
