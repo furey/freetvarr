@@ -1347,7 +1347,7 @@ const LiveView = {
             <button type="button" class="btn btn-sm" @click="load"><refresh-icon /> RETRY</button>
           </div>
           <p v-else-if="!data" class="text-sm text-ink-dim">Loading channels…</p>
-          <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
+          <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. Tap&nbsp;<star-icon class="icon-inline" />&nbsp;next to a channel to add it.</p>
           <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
           <div v-for="g in groups" :key="g.key" class="live-group">
             <div class="channel-group-heading">{{ g.label }}</div>
@@ -6720,7 +6720,7 @@ const ChannelsModal = {
           <div>
             <label class="field-label">FAVOURITES · SHOWN FIRST, IN THIS ORDER</label>
             <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
-              No favourites yet. Tap the <star-icon class="icon-inline" /> next to a channel below, in the TV Guide rail, or in Live TV.
+              No favourites yet. Tap the&nbsp;<star-icon class="icon-inline" />&nbsp;next to a channel below, in the TV Guide rail, or in Live TV.
             </p>
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
@@ -6752,15 +6752,15 @@ const ChannelsModal = {
             </p>
           </div>
           <p class="text-xs text-ink-dim">
-            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, press <pencil-icon class="icon-inline" /> and pick the guide channel that matches it.
+            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, press&nbsp;<pencil-icon class="icon-inline" />&nbsp;and pick the guide channel that matches it.
           </p>
           </div>
           <div class="channels-list">
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" /> FIX LISTINGS</label>
+            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" />&nbsp;FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" />&nbsp;CHANGE LISTINGS</label>
             <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the listings…</p>
             <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
-              Set up the TV guide first to fix the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
+              Set up the TV guide first to change the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
             <div class="grid grid-cols-1 gap-y-2">
               <div v-for="ch in channels" :key="ch.id" class="flex flex-col gap-1.5"
@@ -6785,7 +6785,7 @@ const ChannelsModal = {
                     <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
                       :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
                     <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
-                      :title="'Fix listings for ' + ch.name" :aria-label="'Fix listings for ' + ch.name"><pencil-icon /></button>
+                      :title="'Change listings for ' + ch.name" :aria-label="'Change listings for ' + ch.name"><pencil-icon /></button>
                   </template>
                 </div>
                 <div v-if="editingId === String(ch.id)" class="flex items-center gap-2 pl-6">
