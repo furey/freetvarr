@@ -128,7 +128,8 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .spinner,
-  .step-spinner::before { animation-duration: 1.6s; }
+  .step-spinner::before,
+  .status-readout.busy::before { animation-duration: 1.6s; }
 }
 
 .signal-boot {
@@ -950,6 +951,22 @@ code {
 .status-readout.ok  { color: #e2b03c; }
 .status-readout.err { color: #ffab3d; }
 .status-readout.info{ color: #b0a89e; }
+.status-readout.busy { color: var(--color-ink); }
+
+.status-readout.busy::before {
+  content: '';
+  display: inline-block;
+  vertical-align: -0.175em;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.5em;
+  border: 2px solid #ff8a00;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-rotate 0.6s linear infinite;
+}
+
+.doctor-progress-line .status-readout.busy::before { display: none; }
 
 .settings-save-bar {
   position: fixed;

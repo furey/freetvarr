@@ -488,7 +488,7 @@ const usePathCheck = (request) => {
   const [text, kind, set] = makeStatus()
   const run = async () => {
     checking.value = true
-    set('Checking…', 'info', 0)
+    set('Checking…', 'busy', 0)
     try {
       const result = await request()
       set(result.text, result.kind, 0)
@@ -1736,7 +1736,7 @@ const FolderEditor = {
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
           <div class="field-prefixed">
             <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-            <input v-no-autofill :id="'saves-to-' + folder.id" type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
+            <input v-no-autofill :id="'saves-to-' + folder.id" v-autofocus type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
           </div>
           <datalist id="series-media-folders">
             <option v-for="d in folders" :key="d" :value="d" />
@@ -2038,7 +2038,7 @@ const SeriesView = {
               <label class="field-label" for="assign-folder">Folder</label>
               <div class="field-prefixed">
                 <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-                <input v-no-autofill id="assign-folder" type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
+                <input v-no-autofill id="assign-folder" v-autofocus type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
               </div>
               <datalist id="assign-media-folders">
                 <option v-for="d in folders" :key="d" :value="d" />
@@ -2278,7 +2278,7 @@ const SeriesView = {
 
     const loadTvhShows = async () => {
       loadingShows.value = true
-      setFormStatus('Listing TVHeadend recordings…', 'info', 0)
+      setFormStatus('Listing TVHeadend recordings…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-shows')
         tvhShows.value = r.shows
@@ -3804,7 +3804,7 @@ const SettingsView = {
     const detectTvh = async () => {
       tvhDetecting.value = true
       tvhCandidates.value = []
-      setTvhDiscover('Scanning this host (~2s)…', 'info', 0)
+      setTvhDiscover('Scanning this host (~2s)…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-detect')
         if (r.candidates.length === 1) useTvhCandidate(r.candidates[0])
@@ -3822,7 +3822,7 @@ const SettingsView = {
     const testTvh = async () => {
       tvhTesting.value = true
       tvhStatus.value = 'Contacting TVHeadend…'
-      tvhStatusKind.value = 'info'
+      tvhStatusKind.value = 'busy'
       try {
         const r = await api('POST', '/api/tvh-test', {
           tvh_url: tvhUrl.value,
@@ -3895,7 +3895,7 @@ const SettingsView = {
     const discoverPlex = async () => {
       plexDiscovering.value = true
       plexCandidates.value = []
-      setPlexDiscover('Searching your network (~2s)…', 'info', 0)
+      setPlexDiscover('Searching your network (~2s)…', 'busy', 0)
       try {
         const { servers = [] } = await api('POST', '/api/discover-plex')
         if (servers.length === 0) {
@@ -4099,7 +4099,7 @@ const DoctorView = {
           <div v-if="checking" class="doctor-progress" role="status">
             <div class="doctor-progress-line">
               <doctor-spinner class="text-signal-orange" />
-              <span class="status-readout info">{{ progressText }}</span>
+              <span class="status-readout busy">{{ progressText }}</span>
             </div>
             <div class="progress-track">
               <div :class="['progress-fill', { indeterminate: phase === 'scanning' }]" :style="phase === 'scanning' ? null : { width: progressPercent + '%' }"></div>
@@ -4328,7 +4328,7 @@ const PlexLibrarySetup = {
 
     const create = async () => {
       creating.value = true
-      setStatus('Creating libraries in Plex…', 'info', 0)
+      setStatus('Creating libraries in Plex…', 'busy', 0)
       try {
         const { results, selected } = await api('POST', '/api/plex-libraries/create', {
           ...connection(),
@@ -4374,7 +4374,7 @@ const ChannelSetupStep = {
   emits: ['state'],
   template: `
     <div class="space-y-4">
-      <p v-if="loading && !status" class="status-readout info">Looking for your tuner…</p>
+      <p v-if="loading && !status" class="status-readout busy">Looking for your tuner…</p>
 
       <div v-else-if="loadError" class="space-y-2">
         <p class="status-readout err">{{ loadError }}</p>
@@ -4395,8 +4395,8 @@ const ChannelSetupStep = {
           <p v-if="waitingForTuner" class="status-readout info">
             Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
           </p>
-          <p v-else-if="scanStarting" class="status-readout info">
-            <span class="spinner"></span> {{ scanLine }}
+          <p v-else-if="scanStarting" class="status-readout busy">
+            {{ scanLine }}
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <div v-if="result && !result.ok" class="space-y-2">
@@ -4407,8 +4407,8 @@ const ChannelSetupStep = {
         </div>
 
         <div v-else-if="state === 'no-tuner'" class="space-y-4">
-          <p v-if="addressSaved" class="status-readout info">
-            <span class="spinner"></span> Looking for the tuner at {{ addressSaved }}. This can take a minute.
+          <p v-if="addressSaved" class="status-readout busy">
+            Looking for the tuner at {{ addressSaved }}. This can take a minute.
           </p>
           <div v-else class="space-y-2">
             <p class="status-readout err">No TV tuner found yet.</p>
@@ -4425,7 +4425,7 @@ const ChannelSetupStep = {
             <div class="grid gap-4 md:grid-cols-2">
               <div class="field-row">
                 <label class="field-label" for="tuner-address">Tuner address</label>
-                <input v-no-autofill id="tuner-address" type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
+                <input v-no-autofill id="tuner-address" v-autofocus type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
               </div>
               <div v-if="dockerVm" class="field-row">
                 <label class="field-label" for="tuner-host-address">This computer's address</label>
@@ -4754,7 +4754,7 @@ const GuideSetupStep = {
   emits: ['state', 'back'],
   template: `
     <div class="space-y-4">
-      <p v-if="loading && !status" class="status-readout info">Reading the TV guide settings…</p>
+      <p v-if="loading && !status" class="status-readout busy">Reading the TV guide settings…</p>
 
       <div v-else-if="loadError" class="space-y-2">
         <p class="status-readout err">{{ loadError }}</p>
@@ -4830,7 +4830,7 @@ const GuideSetupStep = {
           </p>
           <div v-if="!suggestion.feeds.length || choice === OTHER" class="field-row">
             <label class="field-label" for="guide-url">Guide address (XMLTV)</label>
-            <input v-no-autofill id="guide-url" type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
+            <input v-no-autofill id="guide-url" v-autofocus type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
           </div>
           <div class="flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
@@ -5062,7 +5062,7 @@ const WelcomeView = {
               <div class="grid gap-4 md:grid-cols-2">
                 <div class="field-row">
                   <label class="field-label">Username</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" />
+                  <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" v-autofocus="manualLogin" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Password</label>
@@ -5084,7 +5084,7 @@ const WelcomeView = {
           <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" ref="guideStep" @state="guideState = $event" @back="step = 3" />
 
           <div v-if="step === 5" class="space-y-4">
-            <p v-if="storageChecking" class="status-readout info">Checking the folders…</p>
+            <p v-if="storageChecking" class="status-readout busy">Checking the folders…</p>
             <template v-else-if="storageChecked">
               <template v-if="!storageProblems.length">
                 <p class="text-ink text-sm leading-relaxed">{{ storageSummary }}</p>
@@ -5100,7 +5100,7 @@ const WelcomeView = {
               </button>
             </template>
             <details class="settings-disclosure" :open="storageAdvancedOpen" @toggle="storageAdvancedOpen = $event.target.open">
-              <summary>Advanced: change folders</summary>
+              <summary @click="focusFirstFieldOnOpen">Advanced: change folders</summary>
               <div class="settings-disclosure-body space-y-4">
                 <p class="text-xs text-ink-mute leading-relaxed">
                   Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too. The data folder is the one that <code>DATA_PATH</code> sets in <code>.env</code>.
@@ -5145,7 +5145,7 @@ const WelcomeView = {
           </div>
 
           <div v-if="step === 6" class="space-y-4">
-            <p v-if="plexChecking" class="status-readout info">Looking for Plex…</p>
+            <p v-if="plexChecking" class="status-readout busy">Looking for Plex…</p>
             <template v-else-if="plexConnected">
               <p class="text-ink text-sm leading-relaxed">Connected to <strong class="text-plex-yellow">Plex</strong> at {{ plexUrl }}.</p>
               <div v-if="plexShowSections.length" class="field-row">
@@ -5185,7 +5185,7 @@ const WelcomeView = {
             <plex-library-setup v-if="!plexChecking" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
               @created="usePlexLibraries" />
             <details class="settings-disclosure" :open="plexAdvancedOpen" @toggle="plexAdvancedOpen = $event.target.open">
-              <summary>Advanced: connect Plex by hand</summary>
+              <summary @click="focusFirstFieldOnOpen">Advanced: connect Plex by hand</summary>
               <div class="settings-disclosure-body space-y-4">
                 <div class="field-row">
                   <label class="field-label">Plex address</label>
@@ -5700,7 +5700,7 @@ const WelcomeView = {
       tvhDetecting.value = true
       tvhAutoScanning.value = quiet
       tvhCandidates.value = []
-      setTvhDiscover('Scanning this host (~2s)…', 'info', 0)
+      setTvhDiscover('Scanning this host (~2s)…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-detect')
         if (r.candidates.length === 1) useTvhCandidate(r.candidates[0])
@@ -5786,6 +5786,12 @@ const WelcomeView = {
       secureAdminPasswordInput.value?.focus()
     }
 
+    const focusFirstFieldOnOpen = (event) => {
+      const disclosure = event.currentTarget.parentElement
+      if (disclosure.open) return
+      requestAnimationFrame(() => disclosure.querySelector('input')?.focus())
+    }
+
     const useManualLogin = () => {
       manualLogin.value = true
       secureSteps.value = []
@@ -5856,7 +5862,7 @@ const WelcomeView = {
 
     const testTvh = async () => {
       tvhTesting.value = true
-      setTvhText('Contacting TVHeadend…', 'info', 0)
+      setTvhText('Contacting TVHeadend…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-test', {
           tvh_url: tvhUrl.value.trim(),
@@ -5887,6 +5893,7 @@ const WelcomeView = {
       plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
       plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, plexShowSections, findPlex,
       storageChecking, storageChecked, storageProblems, storageNotes, storageAdvancedOpen, storageSummary, checkStorage,
+      focusFirstFieldOnOpen, manualLogin,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
@@ -9801,6 +9808,11 @@ app.component('info-icon', InfoIcon)
 app.component('eye-icon', EyeIcon)
 app.component('eye-off-icon', EyeOffIcon)
 app.component('doctor-spinner', DoctorSpinner)
+app.directive('autofocus', {
+  mounted: (el, binding) => {
+    if (binding.value !== false) el.focus()
+  },
+})
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)
