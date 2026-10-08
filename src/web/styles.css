@@ -3590,11 +3590,6 @@ section[id^="section-"] {
   right: 12%;
 }
 
-.live-skip-hint svg {
-  width: 16px;
-  height: 16px;
-}
-
 @keyframes live-skip-hint-fade {
   0%, 50% { opacity: 1; }
   100% { opacity: 0; }
@@ -3756,11 +3751,6 @@ section[id^="section-"] {
   min-width: 2.75rem;
   min-height: 2.5rem;
   justify-content: center;
-}
-
-.play-skip-label {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
 }
 
 .play-stage:fullscreen {
