@@ -4405,6 +4405,7 @@ const ChannelSetupStep = {
             {{ scanLine }}
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
+          <p v-if="favouritesText" class="text-sm text-ink">{{ favouritesText }}</p>
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
             <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
@@ -4564,6 +4565,7 @@ const ChannelSetupStep = {
     const channelCount = computed(() => status.value?.channels || 0)
     const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
     const doneText = computed(() => channelsAddedText(result.value))
+    const favouritesText = computed(() => defaultFavouritesText(result.value))
     const actionShown = computed(() => {
       if (!status.value || loadError.value || showSteps.value) return false
       if (state.value === 'no-tuner') return addressOpen.value
@@ -4700,7 +4702,7 @@ const ChannelSetupStep = {
     return {
       transmitterLabel, status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
-      steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, recordingNow,
+      steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, favouritesText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
@@ -4727,6 +4729,12 @@ const channelsAddedText = (result) => {
   if (added <= 0) return 'Every channel the scan found is already in TVHeadend.'
   if (added === total) return `Added ${total} channels.`
   return `Added ${added} channels. TVHeadend now has ${total}.`
+}
+
+const defaultFavouritesText = (result) => {
+  const names = (result?.ok && result.favourites || []).map((f) => f.name)
+  if (!names.length) return ''
+  return `Favourites: ${names.join(', ')}. To change them, press CHANNELS in the TV Guide.`
 }
 
 const scanOrMapDetail = (step) => {
