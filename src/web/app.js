@@ -1779,7 +1779,7 @@ const FolderEditor = {
           </header>
           <div class="panel-body space-y-4">
             <p class="text-sm text-ink">{{ removeOutcome }}</p>
-            <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported stay where they are.</p>
+            <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
               <button type="button" class="btn epg-modal-close mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
@@ -1807,10 +1807,12 @@ const FolderEditor = {
       ? `Unassign the folder from ${props.folder.show_pattern}`
       : `Remove the title match ${props.folder.show_pattern}`))
     const removeOutcome = computed(() => {
-      const subject = props.isSeries ? 'Future episodes' : 'Future recordings with this title'
+      const condition = props.isSeries
+        ? 'If you unassign this series folder, future episodes'
+        : 'If you remove this title match, future recordings with this title'
       return props.importUnmatched
-        ? `${subject} save to the one-off folder again.`
-        : `${subject} wait in RECORDINGS until you import them.`
+        ? `${condition} will save to the one-off folder again.`
+        : `${condition} will wait in RECORDINGS until you import them.`
     })
 
     const save = async () => {
@@ -2208,7 +2210,7 @@ const SeriesView = {
     }
 
     const stopSeries = async (s) => {
-      if (!confirm(`Stop recording "${s.title}"? Episodes already recorded stay in TVHeadend, and the library folder stays.`)) return
+      if (!confirm(`Stop recording "${s.title}"? Episodes already recorded will stay in TVHeadend, and the library folder will stay.`)) return
       busyKey.value = s.key
       try {
         for (const autorec of s.autorecs) {
@@ -2658,7 +2660,7 @@ const RecordingsView = {
                   </button>
                   <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
                     @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id"
-                    title="Remove this recording from TVHeadend. TVHeadend deletes the file and keeps the episode in its history. Irreversible.">
+                    title="Remove this recording from TVHeadend. TVHeadend will delete the file and keep the episode in its history. You cannot undo this.">
                     <span v-if="deletingId === r.recording_id">…</span>
                     <trash-icon v-else />
                   </button>
@@ -2895,9 +2897,9 @@ const RecordingsView = {
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
       || UNIMPORTED_STATUSES.includes(r.status)
     const removeTitle = (r) => (r.deleted_from_tvh_at
-      ? 'Remove this row from the list. The file stays in your library.'
+      ? 'Remove this row from the list. The file will stay in your library.'
       : "Remove this recording from Freetvarr's history."
-        + ' If it is still in TVHeadend, the next sync imports it again.')
+        + ' If it is still in TVHeadend, the next sync will import it again.')
     const notInTvhTitle = (r) => `TVHeadend deleted its copy ${fmtTime(r.deleted_from_tvh_at)}.`
       + ' The episode is still in your library.'
     const canAdScan = (r) => canAdScanRecording({ adRemovalEnabled: adRemovalEnabled.value, recording: r })
@@ -2984,8 +2986,8 @@ const RecordingsView = {
 
     const deleteFromTvh = async (r) => {
       const prompt = `Remove "${r.title}" from TVHeadend?\n\n`
-        + 'TVHeadend deletes the recording file and keeps the episode in its history,'
-        + ' so it does not record it again. This is irreversible.'
+        + 'TVHeadend will delete the recording file and keep the episode in its history,'
+        + ' so it will not record it again. You cannot undo this.'
       if (!confirm(prompt)) return
       deletingId.value = r.recording_id
       try {
@@ -3010,9 +3012,9 @@ const RecordingsView = {
 
     const removeRecording = async (r) => {
       const prompt = r.deleted_from_tvh_at
-        ? `Remove "${r.title}" from this list?\n\nThe file stays in your library.`
+        ? `Remove "${r.title}" from this list?\n\nThe file will stay in your library.`
         : `Remove "${r.title}" from Freetvarr's history?`
-          + '\n\nIf it is still in TVHeadend, the next sync imports it again.'
+          + '\n\nIf it is still in TVHeadend, the next sync will import it again.'
       if (!confirm(prompt)) return
       removingId.value = r.recording_id
       try {
@@ -3583,10 +3585,10 @@ const SettingsView = {
         <div class="panel-body space-y-4">
           <div>
             <p class="text-sm text-ink leading-relaxed">
-              Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard starts from the beginning.
+              Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard will start from the beginning.
             </p>
             <p class="text-xs text-ink-mute leading-relaxed mt-2">
-              Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders stay where they are, and so do the recordings and settings in TVHeadend. You cannot reset while a sync is running.
+              Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders will stay where they are, and so will the recordings and settings in TVHeadend. You cannot reset while a sync is running.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
@@ -3966,9 +3968,9 @@ const SettingsView = {
     const resetFreetvarr = async () => {
       const mediaPath = mediaRoot.value || '/media/tv'
       const prompt = 'Reset Freetvarr?\n\n'
-        + 'This deletes Freetvarr\'s settings, series, list of recordings, and sync history.\n\n'
-        + `Your video files in ${mediaPath} and the other library folders stay where they are, `
-        + 'and so do the recordings and settings in TVHeadend.\n\n'
+        + 'This will delete Freetvarr\'s settings, series, list of recordings, and sync history.\n\n'
+        + `Your video files in ${mediaPath} and the other library folders will stay where they are, `
+        + 'and so will the recordings and settings in TVHeadend.\n\n'
         + 'This cannot be undone. Continue?'
       if (!confirm(prompt)) return
       resetting.value = true
