@@ -58,6 +58,26 @@ test('saveGuidePrograms: upserts by channel and start, keeping the guide shape',
   assert.equal(saved.image, 'https://example.test/a.jpg')
 })
 
+test('saveGuidePrograms: replaces saved programmes a newer guide moved or dropped', async () => {
+  await saveGuidePrograms({
+    programs: [
+      programme({ program_id: 1, start: T0 - 60 * MIN }),
+      programme({ program_id: 2, start: T0 }),
+      programme({ program_id: 3, start: T0 + 30 * MIN }),
+    ],
+    nowMs: T0,
+  })
+  await saveGuidePrograms({
+    programs: [
+      programme({ program_id: 4, start: T0 + 2 * MIN }),
+      programme({ program_id: 5, start: T0 + 32 * MIN }),
+    ],
+    nowMs: T0,
+  })
+  const ended = await loadEndedProgramsByChannel({ fromMs: T0 - 60 * MIN, toMs: T0 + 24 * 60 * MIN, nowMs: T0 + 24 * 60 * MIN })
+  assert.deepEqual(ended.get(CHANNEL).map((p) => p.program_id), [1, 4, 5])
+})
+
 test('saveGuidePrograms: prunes programmes that ended before the start of yesterday', async () => {
   const cutoff = startOfYesterdayMs(T0)
   await db('guide_programs').insert([
