@@ -8246,6 +8246,7 @@ const liveReasonText = (reason) => {
   if (reason.code === 'idle') return 'Stopped: nobody was watching.'
   if (reason.code === 'shutdown') return 'Stopped: Freetvarr restarted.'
   if (reason.code === 'no-tuner') return 'No free tuner.'
+  if (reason.code === 'no-source') return "Stopped: TVHeadend can't tune this channel. It isn't broadcasting, or every tuner is busy."
   if (reason.code === 'ffmpeg') return `ffmpeg failed${detail}`
   if (reason.code === 'upstream') return `TVHeadend refused the stream${detail}`
   if (reason.code === 'playback') return `Playback failed${detail}`
@@ -8255,6 +8256,7 @@ const liveReasonText = (reason) => {
 
 const liveStartErrorText = (err) => {
   if (err.code === 'no-tuner') return 'No free tuner. Every tuner is busy on another multiplex:'
+  if (err.code === 'off-air') return err.message
   return `Error: ${err.message}`
 }
 
