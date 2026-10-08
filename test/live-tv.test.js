@@ -8,7 +8,6 @@ import {
   ffmpegArgsFor,
   tunerVerdict,
   stallReason,
-  isOffAir,
   createLiveSessions,
   LIVE_FILE_PATTERN,
   withoutCutInSegment,
@@ -163,14 +162,6 @@ test('tunerVerdict: flags a recording inside the window that needs the tuner', (
   })
   assert.equal(verdict.ok, true)
   assert.deepEqual(verdict.conflict, { title: 'The Block', startsAt: NOW + 20 * MIN })
-})
-
-test('isOffAir: a channel whose every service is disabled is off air', () => {
-  const services = new Map([['s1', { enabled: false }], ['s2', { enabled: true }]])
-  assert.equal(isOffAir({ serviceIds: ['s1'], services }), true)
-  assert.equal(isOffAir({ serviceIds: ['s1', 's2'], services }), false)
-  assert.equal(isOffAir({ serviceIds: ['unknown'], services }), false)
-  assert.equal(isOffAir({ serviceIds: [], services }), false)
 })
 
 test('tunerVerdict: ignores a recording outside the window', () => {

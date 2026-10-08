@@ -4016,3 +4016,19 @@ table.recordings-table tbody td {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
 }
+
+.off-air .channel-logo {
+  opacity: 0.45;
+}
+
+.off-air .channel-name {
+  color: #8b837e;
+}
+
+.off-air-note {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: #8b837e;
+}
