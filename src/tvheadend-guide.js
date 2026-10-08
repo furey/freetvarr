@@ -160,7 +160,7 @@ export const applyGuideSetup = async ({
           number,
           guess: guessGuideChannel({ channel: { name }, candidates, linked }),
         })),
-        options: guideChannelOptions(guideChannels),
+        options: guideChannelOptions(candidates),
       }
     })
     return { ok: true, ...outcome, steps: progress.steps() }
@@ -310,7 +310,7 @@ const linkedGuideIds = ({ channel, guideChannels }) => guideChannels
 const sameMembers = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
 
 const guideChannelOptions = (guideChannels) => guideChannels
-  .map((g) => ({ id: g.id, name: g.name }))
+  .map((g) => ({ id: g.id, name: g.name, ...(g.feed?.lcn ? { number: g.feed.lcn } : {}) }))
   .sort((a, b) => a.name.localeCompare(b.name))
 
 const feedNames = (g) => [g.name, ...(g.feed?.names || [])].filter(Boolean)
