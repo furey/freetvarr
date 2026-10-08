@@ -219,6 +219,20 @@ const summaryParts = (s) => {
   return parts
 }
 
+const noAutofillAttrs = {
+  'data-1p-ignore': '',
+  'data-lpignore': 'true',
+  'data-bwignore': '',
+  'data-form-type': 'other'
+}
+
+const noAutofill = {
+  mounted: (el, { modifiers }) => {
+    el.setAttribute('autocomplete', modifiers['new-password'] ? 'new-password' : 'off')
+    Object.entries(noAutofillAttrs).forEach(([name, value]) => el.setAttribute(name, value))
+  }
+}
+
 const SummaryLine = {
   props: ['summary'],
   computed: {
@@ -1119,7 +1133,7 @@ const LiveView = {
         </header>
         <div :class="['panel-body', 'space-y-5', 'live-zoom-' + zoom]">
           <div class="view-controls view-controls-sticky">
-            <input v-model="filterQ" type="search" class="field-input"
+            <input v-no-autofill v-model="filterQ" type="search" class="field-input"
               placeholder="Filter channels or shows" aria-label="Filter channels or shows"
               style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
             <zoom-control :index="zoomIndex" :count="zoomLevelCount" :show-label="!narrow" @step="changeZoom" />
@@ -1718,7 +1732,7 @@ const FolderEditor = {
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
           <div class="field-prefixed">
             <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-            <input :id="'saves-to-' + folder.id" type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
+            <input v-no-autofill :id="'saves-to-' + folder.id" type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
           </div>
           <datalist id="series-media-folders">
             <option v-for="d in folders" :key="d" :value="d" />
@@ -1727,11 +1741,11 @@ const FolderEditor = {
         </div>
         <div class="field-row">
           <label class="field-label">Season folders</label>
-          <input type="text" v-model="seasonTemplate" placeholder="Season {season}" class="field-input" />
+          <input v-no-autofill type="text" v-model="seasonTemplate" placeholder="Season {season}" class="field-input" />
         </div>
         <div class="field-row">
           <label class="field-label">Recording titles that contain</label>
-          <input type="text" v-model="pattern" class="field-input" />
+          <input v-no-autofill type="text" v-model="pattern" class="field-input" />
           <p class="text-xs text-ink-mute mt-2">Case-insensitive. The longest match wins when two folders match.</p>
         </div>
         <div class="field-row">
@@ -1952,7 +1966,7 @@ const SeriesView = {
               <div class="field-row">
                 <label class="field-label">Recording titles that contain</label>
                 <div class="flex flex-wrap items-center gap-2">
-                  <input type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input flex-1 min-w-[12rem]" />
+                  <input v-no-autofill type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input flex-1 min-w-[12rem]" />
                   <button type="button" class="btn btn-sm" @click="loadTvhShows" :disabled="loadingShows"
                     title="List the titles TVHeadend has finished recordings for.">
                     <template v-if="loadingShows">LISTING…</template><template v-else><refresh-icon /> REFRESH TITLES</template>
@@ -1967,7 +1981,7 @@ const SeriesView = {
                 <label class="field-label" for="new-saves-to">Saves to</label>
                 <div class="field-prefixed">
                   <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-                  <input id="new-saves-to" type="text" v-model="newFolder" list="media-folders" placeholder="e.g. NRL" class="field-input" />
+                  <input v-no-autofill id="new-saves-to" type="text" v-model="newFolder" list="media-folders" placeholder="e.g. NRL" class="field-input" />
                 </div>
                 <datalist id="media-folders">
                   <option v-for="d in folders" :key="d" :value="d" />
@@ -1981,7 +1995,7 @@ const SeriesView = {
               </div>
               <div class="field-row">
                 <label class="field-label">Season folders</label>
-                <input type="text" v-model="newTemplate" placeholder="Season {season}" class="field-input" />
+                <input v-no-autofill type="text" v-model="newTemplate" placeholder="Season {season}" class="field-input" />
               </div>
               <div class="field-row">
                 <label class="field-label">Ad removal</label>
@@ -2018,7 +2032,7 @@ const SeriesView = {
               <label class="field-label" for="assign-folder">Folder</label>
               <div class="field-prefixed">
                 <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-                <input id="assign-folder" type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
+                <input v-no-autofill id="assign-folder" type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
               </div>
               <datalist id="assign-media-folders">
                 <option v-for="d in folders" :key="d" :value="d" />
@@ -3221,15 +3235,15 @@ const SettingsView = {
             </div>
             <div class="field-row md:col-span-3">
               <label class="field-label">TVHeadend URL</label>
-              <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
+              <input v-no-autofill type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
             </div>
             <div class="field-row">
               <label class="field-label">Username</label>
-              <input type="text" class="field-input" v-model="tvhUsername" placeholder="blank if TVHeadend is open" autocomplete="off" />
+              <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" placeholder="blank if TVHeadend is open" />
             </div>
             <div class="field-row">
               <label class="field-label">Password</label>
-              <input type="password" class="field-input" v-model="tvhPassword"
+              <input v-no-autofill type="password" class="field-input" v-model="tvhPassword"
                 :placeholder="tvhPasswordSet ? '••••• (stored)' : 'blank if TVHeadend is open'" autocomplete="off" />
               <p class="text-xs text-ink-mute mt-1">Blank keeps the stored password.</p>
             </div>
@@ -3263,7 +3277,7 @@ const SettingsView = {
           <div class="panel-body space-y-4">
             <div class="field-row">
               <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
+              <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.
               </p>
@@ -3276,7 +3290,7 @@ const SettingsView = {
             </div>
             <div class="field-row">
               <label class="field-label">One-off folder <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
+              <input v-no-autofill type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.
               </p>
@@ -3289,7 +3303,7 @@ const SettingsView = {
             </div>
             <div class="field-row">
               <label class="field-label">Movies folder <span class="text-ink-mute">(inside container, optional)</span></label>
-              <input type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
+              <input v-no-autofill type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.
               </p>
@@ -3310,7 +3324,7 @@ const SettingsView = {
             <div class="grid gap-4 md:grid-cols-2 pt-1">
               <div class="field-row">
                 <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
+                <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
                     <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -3320,7 +3334,7 @@ const SettingsView = {
               </div>
               <div class="field-row">
                 <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
                     <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
@@ -3366,11 +3380,11 @@ const SettingsView = {
             </div>
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex URL</label>
-              <input type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
+              <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
             </div>
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex token</label>
-              <input type="password" class="field-input" v-model="plexToken"
+              <input v-no-autofill type="password" class="field-input" v-model="plexToken"
                 :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
               <div class="mt-2 flex flex-wrap items-center gap-3">
                 <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetecting">
@@ -3390,7 +3404,7 @@ const SettingsView = {
                 </p>
                 <div class="field-row">
                   <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
-                  <input type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
+                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
                 </div>
               </div>
             </details>
@@ -3402,7 +3416,7 @@ const SettingsView = {
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
               </select>
-              <input v-else type="text" class="field-input" v-model="plexSectionId"
+              <input v-no-autofill v-else type="text" class="field-input" v-model="plexSectionId"
                 placeholder="section number; LOAD SECTIONS lists them" />
             </div>
             <div class="field-row md:col-span-2">
@@ -3413,7 +3427,7 @@ const SettingsView = {
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
               </select>
-              <input v-else type="text" class="field-input" v-model="plexOneOffSectionId"
+              <input v-no-autofill v-else type="text" class="field-input" v-model="plexOneOffSectionId"
                 placeholder="section number of the one-off library" />
             </div>
             <div class="field-row md:col-span-2">
@@ -3424,7 +3438,7 @@ const SettingsView = {
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
               </select>
-              <input v-else type="text" class="field-input" v-model="plexMoviesSectionId"
+              <input v-no-autofill v-else type="text" class="field-input" v-model="plexMoviesSectionId"
                 placeholder="section number of the movies library" />
             </div>
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
@@ -3470,7 +3484,7 @@ const SettingsView = {
             </div>
             <div v-if="syncSchedule === customSyncSchedule" class="field-row">
               <label class="field-label" for="settings-sync-cron">Custom schedule <span class="text-ink-mute">(cron)</span></label>
-              <input id="settings-sync-cron" type="text" class="field-input" v-model="syncCron" placeholder="0 */2 * * *" />
+              <input v-no-autofill id="settings-sync-cron" type="text" class="field-input" v-model="syncCron" placeholder="0 */2 * * *" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Five fields: minute, hour, day of month, month, day of week. <code>0 */2 * * *</code> is every two hours.
               </p>
@@ -3502,7 +3516,7 @@ const SettingsView = {
             </div>
             <div class="field-row md:max-w-xs">
               <label class="field-label">Keep the original after a cut for (days)</label>
-              <input type="number" min="1" class="field-input" v-model="adOriginalRetentionDays" />
+              <input v-no-autofill type="number" min="1" class="field-input" v-model="adOriginalRetentionDays" />
             </div>
             <p class="text-xs font-mono text-ink-dim">
               Detection settings: <code>{{ comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air' }}</code>
@@ -4270,11 +4284,11 @@ const PlexLibrarySetup = {
         <div v-for="lib in missing" :key="lib.kind" class="grid gap-3 md:grid-cols-2">
           <div class="field-row">
             <label class="field-label" :for="'plex-library-name-' + lib.kind">{{ PLEX_LIBRARY_LABELS[lib.kind] }} library name</label>
-            <input :id="'plex-library-name-' + lib.kind" type="text" class="field-input" v-model="lib.name" />
+            <input v-no-autofill :id="'plex-library-name-' + lib.kind" type="text" class="field-input" v-model="lib.name" />
           </div>
           <div class="field-row">
             <label class="field-label" :for="'plex-library-folder-' + lib.kind">Folder <span class="text-ink-mute">(as Plex sees it)</span></label>
-            <input :id="'plex-library-folder-' + lib.kind" type="text" class="field-input" v-model="lib.location" />
+            <input v-no-autofill :id="'plex-library-folder-' + lib.kind" type="text" class="field-input" v-model="lib.location" />
           </div>
         </div>
         <p class="text-xs text-ink-mute leading-relaxed">
@@ -4405,11 +4419,11 @@ const ChannelSetupStep = {
             <div class="grid gap-4 md:grid-cols-2">
               <div class="field-row">
                 <label class="field-label" for="tuner-address">Tuner address</label>
-                <input id="tuner-address" type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
+                <input v-no-autofill id="tuner-address" type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
               </div>
               <div v-if="dockerVm" class="field-row">
                 <label class="field-label" for="tuner-host-address">This computer's address</label>
-                <input id="tuner-host-address" type="text" inputmode="decimal" class="field-input" v-model="hostAddress" placeholder="e.g. 192.168.1.20" />
+                <input v-no-autofill id="tuner-host-address" type="text" inputmode="decimal" class="field-input" v-model="hostAddress" placeholder="e.g. 192.168.1.20" />
               </div>
             </div>
             <p class="text-xs text-ink-dim">
@@ -4810,7 +4824,7 @@ const GuideSetupStep = {
           </p>
           <div v-if="!suggestion.feeds.length || choice === OTHER" class="field-row">
             <label class="field-label" for="guide-url">Guide address (XMLTV)</label>
-            <input id="guide-url" type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
+            <input v-no-autofill id="guide-url" type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
           </div>
           <div class="flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
@@ -4979,7 +4993,7 @@ const WelcomeView = {
             </div>
             <div class="field-row">
               <label class="field-label">TVHeadend URL</label>
-              <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
+              <input v-no-autofill type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
             </div>
             <div v-if="showSecure" class="space-y-4">
               <p class="text-ink text-sm leading-relaxed">
@@ -4988,19 +5002,19 @@ const WelcomeView = {
               <div class="grid gap-4 md:grid-cols-2">
                 <div class="field-row">
                   <label class="field-label">Admin username</label>
-                  <input type="text" class="field-input" v-model="secureAdminUsername" autocomplete="off" :disabled="securing" />
+                  <input v-no-autofill type="text" class="field-input" v-model="secureAdminUsername" :disabled="securing" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Admin password</label>
                   <div class="flex items-center gap-2">
-                    <input ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
+                    <input v-no-autofill.new-password ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" :disabled="securing" />
                     <button type="button" class="btn btn-sm btn-icon" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
                   </div>
                 </div>
               </div>
               <div class="field-row">
                 <label class="field-label">Allowed networks</label>
-                <input type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
+                <input v-no-autofill type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
                 <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                   Both logins work only from these networks. Freetvarr guessed them from this host's addresses and this browser's network; add any network you sign in to TVHeadend from.
                 </p>
@@ -5039,11 +5053,11 @@ const WelcomeView = {
               <div class="grid gap-4 md:grid-cols-2">
                 <div class="field-row">
                   <label class="field-label">Username</label>
-                  <input type="text" class="field-input" v-model="tvhUsername" autocomplete="off" />
+                  <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Password</label>
-                  <input type="password" class="field-input" v-model="tvhPassword"
+                  <input v-no-autofill type="password" class="field-input" v-model="tvhPassword"
                     :placeholder="tvhPasswordSet ? '••••• (stored)' : ''" autocomplete="off" />
                 </div>
               </div>
@@ -5084,7 +5098,7 @@ const WelcomeView = {
                 </p>
                 <div class="field-row">
                   <label class="field-label">TV library folder</label>
-                  <input type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
+                  <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
                   <div class="flex flex-wrap items-center gap-3 mt-2">
                     <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
                       <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -5095,7 +5109,7 @@ const WelcomeView = {
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                    <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
+                    <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
                     <div class="flex flex-wrap items-center gap-3 mt-2">
                       <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
                         <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -5105,7 +5119,7 @@ const WelcomeView = {
                   </div>
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                    <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                    <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
                     <div class="flex flex-wrap items-center gap-3 mt-2">
                       <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
                         <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
@@ -5166,11 +5180,11 @@ const WelcomeView = {
               <div class="settings-disclosure-body space-y-4">
                 <div class="field-row">
                   <label class="field-label">Plex address</label>
-                  <input type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" @input="plexEditedByHand = true" />
+                  <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" @input="plexEditedByHand = true" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Plex token</label>
-                  <input type="password" class="field-input" v-model="plexToken" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="password" class="field-input" v-model="plexToken" @input="plexEditedByHand = true"
                     :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
                   <div class="mt-2 flex flex-wrap items-center gap-3">
                     <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
@@ -5184,12 +5198,12 @@ const WelcomeView = {
                 </div>
                 <div class="field-row">
                   <label class="field-label">Preferences.xml path <span class="text-ink-mute">(as Freetvarr sees it)</span></label>
-                  <input type="text" class="field-input" v-model="plexPrefsPath" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath" @input="plexEditedByHand = true"
                     placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 </div>
                 <div v-if="!plexShowSections.length" class="field-row">
                   <label class="field-label">TV library number</label>
-                  <input type="text" class="field-input" v-model="plexSectionId" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexSectionId" @input="plexEditedByHand = true"
                     placeholder="CONNECT lists your libraries" />
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
@@ -6132,7 +6146,7 @@ const TvAppsPanel = {
           <div class="flex flex-wrap items-end gap-3">
             <div class="field-row mb-0!">
               <label class="field-label" for="tv-login-name">Login name</label>
-              <input id="tv-login-name" type="text" class="field-input" v-model="name" autocomplete="off" />
+              <input v-no-autofill id="tv-login-name" type="text" class="field-input" v-model="name" />
             </div>
             <button type="button" class="btn" @click="makeLogin" :disabled="making">
               <template v-if="making">MAKING…</template><template v-else><tv-icon /> MAKE A TV LOGIN</template>
@@ -6143,7 +6157,7 @@ const TvAppsPanel = {
         <template v-else>
           <div class="field-row md:max-w-sm">
             <label class="field-label" for="tv-apps-host">TVHeadend address for TV apps</label>
-            <input id="tv-apps-host" type="text" class="field-input" v-model="host" placeholder="e.g. 192.168.1.10" autocomplete="off" />
+            <input v-no-autofill id="tv-apps-host" type="text" class="field-input" v-model="host" placeholder="e.g. 192.168.1.10" />
           </div>
           <template v-if="addresses">
             <div>
@@ -6731,7 +6745,7 @@ const EpgView = {
                 class="field-input day-select" aria-label="Day">
                 <option v-for="d in dayChips" :key="d.day" :value="d.day">{{ d.label }}</option>
               </select>
-              <input v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
+              <input v-no-autofill v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
                 style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
             </div>
           </div>
@@ -6823,7 +6837,7 @@ const EpgView = {
               <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
                 <div class="epg-ruler">
                   <div class="epg-ruler-corner">
-                    <input v-model="railFilter" type="search" class="field-input epg-corner-filter"
+                    <input v-no-autofill v-model="railFilter" type="search" class="field-input epg-corner-filter"
                       :placeholder="narrow ? 'Filter' : 'Filter channels'" aria-label="Filter channels by number or name" />
                     <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                     <div class="epg-rail-resizer" title="Drag to resize the channel rail"
@@ -9718,6 +9732,7 @@ const installPullToRefresh = ({ onRefresh }) => {
 installPullToRefresh({ onRefresh: refreshFromPull })
 
 const app = createApp(App)
+app.directive('no-autofill', noAutofill)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
