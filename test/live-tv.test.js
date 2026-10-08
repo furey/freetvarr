@@ -8,6 +8,7 @@ import {
   ffmpegArgsFor,
   tunerVerdict,
   stallReason,
+  isOffAir,
   createLiveSessions,
   LIVE_FILE_PATTERN,
   withoutCutInSegment,
@@ -164,6 +165,14 @@ test('tunerVerdict: flags a recording inside the window that needs the tuner', (
   assert.deepEqual(verdict.conflict, { title: 'The Block', startsAt: NOW + 20 * MIN })
 })
 
+test('isOffAir: a channel whose every service is disabled is off air', () => {
+  const services = new Map([['s1', { enabled: false }], ['s2', { enabled: true }]])
+  assert.equal(isOffAir({ serviceIds: ['s1'], services }), true)
+  assert.equal(isOffAir({ serviceIds: ['s1', 's2'], services }), false)
+  assert.equal(isOffAir({ serviceIds: ['unknown'], services }), false)
+  assert.equal(isOffAir({ serviceIds: [], services }), false)
+})
+
 test('tunerVerdict: ignores a recording outside the window', () => {
   const verdict = tunerVerdict({
     channelMux: 'C',
@@ -226,7 +235,7 @@ test('LIVE_FILE_PATTERN: accepts the playlist and segments only', () => {
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
-const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes } = {}) => {
+const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError } = {}) => {
   const events = []
   const spawnArgs = []
   let clock = NOW
@@ -255,6 +264,7 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes } =
       return child
     },
     openUpstream: async ({ signal }) => {
+      if (upstreamError) throw upstreamError
       signal.addEventListener('abort', () => events.push('abort'))
       const upstream = new PassThrough()
       upstreams.push(upstream)
@@ -491,4 +501,13 @@ test('sessions: the session view carries the buffer length', async () => {
   const h = fakeHarness({ bufferMinutes: 30 })
   const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
   assert.equal(h.sessions.view(session).bufferSeconds, 1800)
+})
+
+test('sessions: an upstream with no input source ends with a no-source reason', async () => {
+  const upstreamError = Object.assign(new Error('TVHeadend closed the stream.'), { code: 'no-source' })
+  const h = fakeHarness({ upstreamError })
+  await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await new Promise((resolve) => setImmediate(resolve))
+  const status = await h.sessions.statusForChannel('c1')
+  assert.equal(status.reason.code, 'no-source')
 })
