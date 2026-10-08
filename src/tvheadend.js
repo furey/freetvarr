@@ -344,6 +344,7 @@ export const listServiceMuxes = async (conn) => {
   const value = new Map((body?.entries || []).map((s) => [s.uuid, {
     muxId: s.multiplex_uuid,
     muxName: muxDisplayName({ multiplex: s.multiplex, network: s.network }),
+    enabled: s.enabled !== false,
   }]))
   serviceMuxCache = { value, expiresAt: Date.now() + SERVICE_MUX_TTL_MS }
   return value
@@ -397,12 +398,19 @@ export const openChannelStream = async ({ channelId, signal, userAgent, conn } =
     signal,
     timeout: 0,
     headers: { 'User-Agent': userAgent },
-  }, c)
+  }, c).catch((err) => { throw streamRequestError(err) })
   if (res.status === 200) return res.data
   res.data?.destroy?.()
   const code = streamFailureCode(res.status)
   throw new TvheadendError(`TVHeadend refused the stream (HTTP ${res.status}).`, {
     stage: 'stream', status: res.status, code,
+  })
+}
+
+export const streamRequestError = (err) => {
+  if (err?.code !== 'ECONNRESET') return err
+  return new TvheadendError('TVHeadend closed the stream before sending any video.', {
+    stage: 'stream', code: 'no-source',
   })
 }
 
