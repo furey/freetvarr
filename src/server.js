@@ -130,6 +130,7 @@ import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
+import { transmitterLabel } from './web/transmitter-label.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -1544,7 +1545,7 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
 
 const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
   const error = String(raw).replace(/HTTP (\d+)/g, 'status $1')
-  const from = transmitter ? ` from ${transmitter.name}` : ''
+  const from = transmitter ? ` from ${transmitterLabel(transmitter.name)}` : ''
   const messages = {
     'no-tuner': {
       error: 'Freetvarr cannot see the chosen tuner now.',
