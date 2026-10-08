@@ -6495,7 +6495,7 @@ const ChannelsModal = {
             </p>
             <div class="grid grid-cols-1 gap-y-2">
               <div v-for="ch in channels" :key="ch.id" class="flex flex-col gap-1.5"
-                @keydown.esc.stop="cancelGuideEdit">
+                @keydown.esc="onRowEscape">
                 <div class="flex items-center gap-2">
                   <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
                     @click="toggleDraftPin(String(ch.id))"
@@ -6519,7 +6519,7 @@ const ChannelsModal = {
                   </template>
                 </div>
                 <div v-if="editingId === String(ch.id)" class="flex items-center gap-2 pl-6">
-                  <select class="field-input flex-1 min-w-0" v-model="editValue"
+                  <select :ref="focusOnMount" class="field-input flex-1 min-w-0" v-model="editValue"
                     :aria-label="'Guide for ' + ch.name" @keydown.enter.prevent="confirmGuideEdit">
                     <option value="">No guide</option>
                     <option v-for="o in guideLinks.options" :key="o.id" :value="o.id">{{ o.name }}</option>
@@ -6569,6 +6569,17 @@ const ChannelsModal = {
       editValue.value = guideDraft[String(ch.id)]
     }
     const cancelGuideEdit = () => { editingId.value = null }
+    const onRowEscape = (e) => {
+      if (editingId.value === null) return
+      e.stopPropagation()
+      cancelGuideEdit()
+    }
+    let focusedSelect = null
+    const focusOnMount = (el) => {
+      if (!el || el === focusedSelect) return
+      focusedSelect = el
+      el.focus()
+    }
     const confirmGuideEdit = () => {
       if (editingId.value === null) return
       guideDraft[editingId.value] = editValue.value
@@ -6671,6 +6682,7 @@ const ChannelsModal = {
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
       editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
+      onRowEscape, focusOnMount,
     }
   },
 }
