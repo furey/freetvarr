@@ -18,7 +18,10 @@ import {
   spillLengthMin,
   rulerTickMinutes,
 } from '/guide-time.js'
-import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
+import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
+import {
+  DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
+} from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
@@ -8387,73 +8390,85 @@ const keepSeekInsideBuffer = () => {
   if (liveVideo.currentTime < floor) liveVideo.currentTime = floor
 }
 
-const skipChain = { side: null, base: 0, total: 0, until: 0 }
-let lastTap = { side: null, at: 0 }
-let tapStart = null
-let skipHintTimer = null
-
-const skipSideOf = (touch) => {
-  const box = liveVideo.getBoundingClientRect()
-  if (touch.clientY > box.bottom - NATIVE_CONTROL_BAR_PX) return null
-  const x = (touch.clientX - box.left) / box.width
-  if (x < SKIP_ZONE_FRACTION) return 'back'
-  if (x > 1 - SKIP_ZONE_FRACTION) return 'forward'
-  return null
+const createSkipHintFlasher = (target) => {
+  let timer = null
+  return ({ side, seconds }) => {
+    target.skipHint = { side, label: skipLabel({ side, seconds }), spoken: skipSpoken({ side, seconds }), key: Date.now() }
+    clearTimeout(timer)
+    timer = setTimeout(() => { target.skipHint = null }, SKIP_HINT_MS)
+  }
 }
+
+const flashLiveSkipHint = createSkipHintFlasher(live)
+
+let liveTapState = emptyTapState()
+let liveTapStart = null
 
 const canSkip = () => live.phase === 'live' && live.bufferSeconds > 0 && liveAttached
 
-const onLiveTouchStart = (e) => {
-  const touch = e.touches.length === 1 ? e.touches[0] : null
-  tapStart = touch && e.target === liveVideo
-    ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+const tapZoneOf = ({ video, event, bottomInsetPx }) => {
+  const box = video.getBoundingClientRect()
+  return zoneOf({
+    x: event.clientX - box.left,
+    y: event.clientY - box.top,
+    width: box.width,
+    height: box.height,
+    bottomInsetPx,
+  })
+}
+
+const onLivePointerDown = (e) => {
+  liveTapStart = e.isPrimary && e.target === liveVideo
+    ? { x: e.clientX, y: e.clientY, at: Date.now() }
     : null
 }
 
-const onLiveTouchEnd = (e) => {
-  const touch = e.changedTouches[0]
-  if (!tapStart || !touch || !canSkip()) return
-  const moved = Math.hypot(touch.clientX - tapStart.x, touch.clientY - tapStart.y)
-  const isTap = moved < TAP_MAX_MOVE_PX && Date.now() - tapStart.at < TAP_MAX_MS
-  tapStart = null
-  if (!isTap) return
-  const side = skipSideOf(touch)
-  if (!side) return
-  registerTap(side)
+const onLivePointerUp = (e) => {
+  const start = liveTapStart
+  liveTapStart = null
+  if (!start || !canSkip()) return
+  const tap = {
+    startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
+    ms: Date.now() - start.at, pointerType: e.pointerType,
+  }
+  if (!isTap(tap)) return
+  const side = tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })
+  skipLive(registerLiveTap({ side, force: false }))
 }
 
-const registerTap = (side) => {
-  const at = Date.now()
-  if (skipChain.side === side && at < skipChain.until) return extendSkip(side, at)
-  const isDoubleTap = lastTap.side === side && at - lastTap.at < DOUBLE_TAP_MS
-  lastTap = { side, at }
-  if (!isDoubleTap) return
-  skipChain.side = side
-  skipChain.base = liveVideo.currentTime
-  skipChain.total = 0
-  extendSkip(side, at)
+const onLiveDoubleClick = (e) => {
+  if (e.target !== liveVideo || !canSkip()) return
+  if (!tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })) return
+  e.preventDefault()
+  e.stopPropagation()
 }
 
-const extendSkip = (side, at) => {
-  skipChain.total += SKIP_STEP_S
-  skipChain.until = at + SKIP_CHAIN_MS
-  const direction = side === 'back' ? -1 : 1
-  const wanted = skipChain.base + direction * skipChain.total
+const registerLiveTap = ({ side, force }) => {
+  const step = registerTap(liveTapState, { side, at: Date.now(), position: liveVideo.currentTime, force })
+  liveTapState = step.state
+  return step.result
+}
+
+const skipLive = (result) => {
+  if (result.kind !== 'skip') return
   const oldest = oldestKeptSecond()
-  const floor = oldest == null ? wanted : oldest + SEEK_FLOOR_MARGIN_S
-  const ceiling = liveTargetSecond() ?? wanted
-  if (wanted <= floor) return applySkip({ side, to: floor, label: 'START' })
-  if (wanted >= ceiling - SKIP_STEP_S / 2) return applySkip({ side, to: ceiling, label: 'LIVE' })
-  applySkip({ side, to: wanted, label: formatSeconds(skipChain.total) })
+  const direction = result.side === 'back' ? -1 : 1
+  const { to, applied } = clampSkip({
+    base: result.base,
+    delta: direction * result.total,
+    floor: oldest == null ? null : oldest + SEEK_FLOOR_MARGIN_S,
+    ceiling: liveTargetSecond(),
+  })
+  if (!applied) return
+  liveVideo.currentTime = to
+  flashLiveSkipHint({ side: result.side, seconds: applied })
+  trackBehindLive()
 }
 
-const applySkip = ({ side, to, label }) => {
-  liveVideo.currentTime = to
-  const spoken = side === 'back' ? `Back ${skipChain.total} seconds` : `Forward ${skipChain.total} seconds`
-  live.skipHint = { side, label, spoken, key: Date.now() }
-  clearTimeout(skipHintTimer)
-  skipHintTimer = setTimeout(() => { live.skipHint = null }, SKIP_HINT_MS)
-  trackBehindLive()
+const skipLiveByKey = (side) => {
+  if (!canSkip()) return false
+  skipLive(registerLiveTap({ side, force: true }))
+  return true
 }
 
 const jumpToLive = () => {
@@ -8499,24 +8514,6 @@ const GoLiveIcon = {
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <path d="M3.5 3.5v9l7-4.5z"/>
       <rect x="11" y="3.5" width="1.75" height="9" rx="0.5"/>
-    </svg>
-  `,
-}
-
-const SkipBackIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M8 3.5v9L2 8z"/>
-      <path d="M14 3.5v9L8 8z"/>
-    </svg>
-  `,
-}
-
-const SkipForwardIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M2 3.5v9L8 8z"/>
-      <path d="M8 3.5v9L14 8z"/>
     </svg>
   `,
 }
@@ -8838,7 +8835,7 @@ const LivePlayer = {
           </div>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
-        <div ref="frameEl" class="live-frame" @touchstart.passive="onLiveTouchStart" @touchend.passive="onLiveTouchEnd">
+        <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @dblclick.capture="onLiveDoubleClick">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controls></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
@@ -8851,9 +8848,7 @@ const LivePlayer = {
           <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
-            <skip-back-icon v-if="live.skipHint.side === 'back'" />
             <span>{{ live.skipHint.label }}</span>
-            <skip-forward-icon v-if="live.skipHint.side === 'forward'" />
           </div>
           <span class="sr-only" aria-live="polite">{{ live.skipHint?.spoken || '' }}</span>
         </div>
@@ -8939,7 +8934,11 @@ const LivePlayer = {
     })
 
     const onKeydown = (e) => {
-      if (e.key === 'Escape' && live.open) stopLive()
+      if (!live.open) return
+      if (e.key === 'Escape') return stopLive()
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.target.closest?.('button, select, textarea, input')) return
+      if (skipLiveByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
     }
 
     onMounted(() => {
@@ -8961,7 +8960,7 @@ const LivePlayer = {
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
     return {
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, onLiveTouchStart, onLiveTouchEnd,
+      isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveDoubleClick,
     }
   },
 }
@@ -8980,13 +8979,7 @@ const BEHIND_LIVE_SHOWN_S = 10
 const SEEK_FLOOR_MARGIN_S = 4
 const NATIVE_LIVE_HOLD_BACK_S = 6
 const HAVE_CURRENT_DATA = 2
-const SKIP_STEP_S = 10
-const SKIP_ZONE_FRACTION = 0.4
 const NATIVE_CONTROL_BAR_PX = 48
-const TAP_MAX_MOVE_PX = 10
-const TAP_MAX_MS = 300
-const DOUBLE_TAP_MS = 300
-const SKIP_CHAIN_MS = 700
 const SKIP_HINT_MS = 600
 
 const playback = reactive({
@@ -9012,7 +9005,6 @@ let playVideo = null
 let playHls = null
 let playRun = 0
 let playHeartbeatTimer = null
-let playSkipHintTimer = null
 let lastSavedPosition = null
 let autoRestarts = 0
 
@@ -9033,6 +9025,7 @@ const stopPlayback = () => {
   if (playback.open) savePlaybackPosition()
   playRun += 1
   clearTimeout(playHeartbeatTimer)
+  clearTimeout(playSingleTapTimer)
   detachPlayVideo()
   if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
   Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })
@@ -9200,18 +9193,19 @@ const togglePlayback = () => {
   playVideo.pause()
 }
 
-const skipPlaybackBy = (seconds, { label } = {}) => {
-  const side = seconds < 0 ? 'back' : 'forward'
-  const amount = label || formatSeconds(Math.abs(seconds))
-  playback.skipHint = {
-    side,
-    label: amount,
-    spoken: `${side === 'back' ? 'Back' : 'Forward'} ${amount.replace(/s$/, ' seconds')}`,
-    key: Date.now(),
-  }
-  clearTimeout(playSkipHintTimer)
-  playSkipHintTimer = setTimeout(() => { playback.skipHint = null }, SKIP_HINT_MS)
-  seekPlaybackTo(playback.position + seconds)
+const flashPlaybackSkipHint = createSkipHintFlasher(playback)
+
+const skipPlayback = ({ side, total, base }) => {
+  const direction = side === 'back' ? -1 : 1
+  const { to, applied } = clampSkip({
+    base,
+    delta: direction * total,
+    floor: 0,
+    ceiling: playback.duration ? playback.duration - SEEK_EDGE_MARGIN_S : null,
+  })
+  if (!applied) return
+  flashPlaybackSkipHint({ side, seconds: applied })
+  seekPlaybackTo(to)
 }
 
 const startPlaybackOver = () => {
@@ -9219,50 +9213,44 @@ const startPlaybackOver = () => {
   seekPlaybackTo(0)
 }
 
-const playChain = { side: null, total: 0, until: 0 }
-let playLastTap = { side: null, at: 0 }
+let playTapState = emptyTapState()
 let playTapStart = null
-let lastPlayTouchAt = 0
+let playSingleTapTimer = null
 
-const playSkipSideOf = (touch) => {
-  const box = playVideo.getBoundingClientRect()
-  const x = (touch.clientX - box.left) / box.width
-  if (x < SKIP_ZONE_FRACTION) return 'back'
-  if (x > 1 - SKIP_ZONE_FRACTION) return 'forward'
-  return null
+const registerPlayTap = ({ side, force }) => {
+  const step = registerTap(playTapState, { side, at: Date.now(), position: playback.position, force })
+  playTapState = step.state
+  return step.result
 }
 
-const onPlayTouchStart = (e) => {
-  const touch = e.touches.length === 1 ? e.touches[0] : null
-  playTapStart = touch && e.target === playVideo
-    ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+const onPlayPointerDown = (e) => {
+  playTapStart = e.isPrimary && e.target === playVideo
+    ? { x: e.clientX, y: e.clientY, at: Date.now() }
     : null
 }
 
-const onPlayTouchEnd = (e) => {
-  lastPlayTouchAt = Date.now()
-  const touch = e.changedTouches[0]
-  if (!playTapStart || !touch || playback.phase !== 'playing') return
-  const moved = Math.hypot(touch.clientX - playTapStart.x, touch.clientY - playTapStart.y)
-  const isTap = moved < TAP_MAX_MOVE_PX && Date.now() - playTapStart.at < TAP_MAX_MS
+const onPlayPointerUp = (e) => {
+  const start = playTapStart
   playTapStart = null
-  if (!isTap) return
-  const side = playSkipSideOf(touch)
-  if (!side) return
-  const at = Date.now()
-  const chained = playChain.side === side && at < playChain.until
-  const isDoubleTap = playLastTap.side === side && at - playLastTap.at < DOUBLE_TAP_MS
-  playLastTap = { side, at }
-  if (!chained && !isDoubleTap) return
-  playChain.total = chained ? playChain.total + SKIP_STEP_S : SKIP_STEP_S
-  playChain.side = side
-  playChain.until = at + SKIP_CHAIN_MS
-  skipPlaybackBy(side === 'back' ? -SKIP_STEP_S : SKIP_STEP_S, { label: formatSeconds(playChain.total) })
+  if (!start || playback.phase !== 'playing') return
+  const tap = {
+    startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
+    ms: Date.now() - start.at, pointerType: e.pointerType,
+  }
+  if (!isTap(tap)) return
+  const side = tapZoneOf({ video: playVideo, event: e, bottomInsetPx: 0 })
+  const result = registerPlayTap({ side, force: false })
+  const togglesOnSingleTap = e.pointerType !== 'touch'
+  clearTimeout(playSingleTapTimer)
+  if (result.kind === 'skip') return skipPlayback(result)
+  if (!togglesOnSingleTap) return
+  if (result.kind === 'center') return togglePlayback()
+  playSingleTapTimer = setTimeout(togglePlayback, DOUBLE_TAP_MS)
 }
 
-const onPlayFrameClick = (e) => {
-  if (Date.now() - lastPlayTouchAt < PLAY_CLICK_AFTER_TOUCH_MS || e.target !== playVideo) return
-  togglePlayback()
+const skipPlaybackByKey = (side) => {
+  const result = registerPlayTap({ side, force: true })
+  if (result.kind === 'skip') skipPlayback(result)
 }
 
 const sendPlaybackBeacon = () => {
@@ -9301,14 +9289,12 @@ const RecordingPlayer = {
           <button type="button" class="btn btn-icon" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
         </header>
         <div ref="stageEl" class="play-stage">
-          <div class="live-frame" @touchstart.passive="onPlayTouchStart" @touchend.passive="onPlayTouchEnd" @click="onPlayFrameClick">
+          <div class="live-frame" @pointerdown="onPlayPointerDown" @pointerup="onPlayPointerUp">
             <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
             <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
             <button type="button" class="btn btn-icon live-landscape-close" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
             <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
-              <skip-back-icon v-if="playback.skipHint.side === 'back'" />
               <span>{{ playback.skipHint.label }}</span>
-              <skip-forward-icon v-if="playback.skipHint.side === 'forward'" />
             </div>
             <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
           </div>
@@ -9323,11 +9309,9 @@ const RecordingPlayer = {
               <span class="play-time">{{ fmtPlayTime(playback.duration) }}</span>
             </div>
             <div class="play-buttons">
-              <button type="button" class="btn btn-icon" @click="skipPlaybackBy(-10)" aria-label="Back 10 seconds"><skip-back-icon /><span class="play-skip-label">10</span></button>
               <button type="button" class="btn btn-icon play-toggle" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
                 <play-icon v-if="playback.paused" /><pause-icon v-else />
               </button>
-              <button type="button" class="btn btn-icon" @click="skipPlaybackBy(10)" aria-label="Forward 10 seconds"><span class="play-skip-label">10</span><skip-forward-icon /></button>
               <span class="flex-1"></span>
               <button v-if="playback.resumed" type="button" class="btn btn-sm" @click="startPlaybackOver">START OVER</button>
               <button v-if="playback.airplay" type="button" class="btn btn-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
@@ -9436,7 +9420,7 @@ const RecordingPlayer = {
       }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault()
-        skipPlaybackBy(e.key === 'ArrowLeft' ? -SKIP_STEP_S : SKIP_STEP_S)
+        skipPlaybackByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')
       }
     }
 
@@ -9458,8 +9442,8 @@ const RecordingPlayer = {
     return {
       playback, recording, subtitle, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
       statusText, statusKind, overlayText, fmtPlayTime,
-      stopPlayback, togglePlayback, skipPlaybackBy, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, showAirplay, onPlayTouchStart, onPlayTouchEnd, onPlayFrameClick,
+      stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
+      toggleFullscreen, showAirplay, onPlayPointerDown, onPlayPointerUp,
     }
   },
 }
@@ -9472,7 +9456,6 @@ const PLAY_HLS_CONFIG = {
 }
 const PLAY_HEARTBEAT_MS = 15_000
 const PLAY_MAX_AUTO_RESTARTS = 2
-const PLAY_CLICK_AFTER_TOUCH_MS = 700
 
 const VIEW_MAP = {
   dashboard: DashboardView,
@@ -9818,8 +9801,6 @@ app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)
 app.component('stop-icon', StopIcon)
 app.component('go-live-icon', GoLiveIcon)
-app.component('skip-back-icon', SkipBackIcon)
-app.component('skip-forward-icon', SkipForwardIcon)
 app.component('refresh-icon', RefreshIcon)
 app.component('sliders-icon', SlidersIcon)
 app.component('arrow-left-icon', ArrowLeftIcon)

@@ -45,7 +45,7 @@ The **zoom buttons** above the channel list change the row size. Zoom out for mo
 
 Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` to keep more or fewer minutes, or `0` to turn it off.
 
-On a phone or tablet, double-tap the left side of the picture to go back `10` seconds, or the right side to go forward `10` seconds. Keep tapping to skip further. Safari on an iPhone shows no timeline for live TV, so double-tap is the way to rewind there.
+To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further. On a computer, the left and right arrow keys skip `10` seconds too. Skipping stops at the start of the buffer and at live. Safari on an iPhone shows no timeline for live TV, so double-tap is the way to rewind there.
 
 If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (press **STOP** to free it at once).
 
