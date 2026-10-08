@@ -13,12 +13,54 @@ FREETVARR_DIR="${FREETVARR_DIR:-$PWD/freetvarr}"
 FREETVARR_REF="${FREETVARR_REF:-main}"
 COMPOSE_URL="https://raw.githubusercontent.com/furey/freetvarr/${FREETVARR_REF}/docker-compose.example.yml"
 
+use_colour() { [ -t "$1" ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != "dumb" ]; }
+
+use_utf8() {
+  case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+    *[Uu][Tt][Ff]-8*|*[Uu][Tt][Ff]8*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+paint() { printf '\033[%sm' "$1"; }
+
+setup_colour() {
+  RESET="" BOLD="" DIM="" ACCENT="" BLUE="" YELLOW="" GREEN="" LINK=""
+  use_colour 1 || return 0
+  orange=33
+  case "${TERM:-}:${COLORTERM:-}" in *256color*|*truecolor*|*24bit*) orange="38;5;208" ;; esac
+  RESET="$(paint 0)" BOLD="$(paint 1)" DIM="$(paint 2)" ACCENT="$(paint "1;$orange")"
+  BLUE="$(paint 36)" YELLOW="$(paint 93)" GREEN="$(paint 32)"
+  LINK="$(paint "1;4;$orange")"
+}
+
+setup_colour
+if use_colour 2; then ERR_RED="$(paint 31)" ERR_RESET="$(paint 0)"; else ERR_RED="" ERR_RESET=""; fi
+
 say() { printf '%s\n' "$*"; }
-fail() { say "[install] $*" >&2; exit 1; }
+info() { printf '%s[install]%s %s\n' "$DIM" "$RESET" "$*"; }
+ok() { printf '%s[install]%s %s%s%s\n' "$DIM" "$RESET" "$GREEN" "$*" "$RESET"; }
+warn() { printf '%s[install]%s %s%s%s\n' "$DIM" "$RESET" "$YELLOW" "$*" "$RESET"; }
+fail() { printf '%s[install] %s%s\n' "$ERR_RED" "$*" "$ERR_RESET" >&2; exit 1; }
+
+banner() {
+  if use_utf8; then
+    printf ' %s▄▄▄%s %s▄▄▄%s %s▄▄▄%s\n' "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET"
+    printf ' %s███%s %s███%s %s███%s  %sFREETVARR%s\n' \
+      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$BOLD" "$RESET"
+    printf ' %s▀▀▀%s %s▀▀▀%s %s▀▀▀%s  %sby James Furey · https://about.me/jamesfurey%s\n' \
+      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$DIM" "$RESET"
+  else
+    printf ' %s###%s %s###%s %s###%s  %sFREETVARR%s\n' \
+      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$BOLD" "$RESET"
+    printf '              %sby James Furey - https://about.me/jamesfurey%s\n' "$DIM" "$RESET"
+  fi
+  say ""
+}
 
 ask() {
   if (exec < /dev/tty) 2>/dev/null; then
-    printf '%s ' "$1" > /dev/tty
+    printf '%s%s%s ' "$BOLD" "$1" "$RESET" > /dev/tty
     read -r answer < /dev/tty || answer=""
     printf '%s' "$answer"
   fi
@@ -48,19 +90,20 @@ command -v docker >/dev/null 2>&1 || fail "docker not found on the PATH. Install
 docker compose version >/dev/null 2>&1 || fail "docker compose (v2) not found. Install the Docker Compose plugin."
 docker info >/dev/null 2>&1 || fail "cannot reach the Docker daemon. Run this as a user in the docker group, or with sudo."
 
+banner
 mkdir -p "$FREETVARR_DIR"
 cd "$FREETVARR_DIR"
-say "[install] folder: $FREETVARR_DIR"
+info "folder: $FREETVARR_DIR"
 
 if [ -f docker-compose.yml ]; then
-  say "[install] keeping the existing docker-compose.yml"
+  info "keeping the existing docker-compose.yml"
 else
   curl -fsSL "$COMPOSE_URL" -o docker-compose.yml || fail "could not download $COMPOSE_URL"
-  say "[install] downloaded docker-compose.yml"
+  ok "downloaded docker-compose.yml"
 fi
 
 if [ -f .env ]; then
-  say "[install] keeping the existing .env"
+  info "keeping the existing .env"
 else
   zone="$(host_zone || true)"
   {
@@ -68,11 +111,11 @@ else
     say "PGID=${SUDO_GID:-$(id -g)}"
     say "# TZ=${zone:-Australia/Sydney}"
   } > .env
-  say "[install] wrote .env:"
+  ok "wrote .env:"
   sed 's/^/    /' .env
   answer="$(ask 'Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]')"
   case "$answer" in
-    n|N) say "[install] stopped. Edit $FREETVARR_DIR/.env, then run: docker compose up -d"; exit 0 ;;
+    n|N) warn "stopped. Edit $FREETVARR_DIR/.env, then run: docker compose up -d"; exit 0 ;;
     e|E) "${EDITOR:-vi}" .env < /dev/tty > /dev/tty ;;
   esac
 fi
@@ -87,5 +130,7 @@ docker compose up -d
 port="$(sed -n 's/^FREETVARR_PORT=//p' .env)"
 address="$(host_address || true)"
 say ""
-say "[install] Freetvarr is starting. Open http://${address:-<this-host-ip>}:${port:-3733} to run the setup wizard."
-say "[install] To update later: cd $FREETVARR_DIR && docker compose pull && docker compose up -d"
+url="http://${address:-<this-host-ip>}:${port:-3733}"
+printf '%s[install]%s %sFreetvarr is starting.%s Open %s%s%s to run the setup wizard.\n' \
+  "$DIM" "$RESET" "$GREEN" "$RESET" "$LINK" "$url" "$RESET"
+info "To update later: cd $FREETVARR_DIR && docker compose pull && docker compose up -d"
