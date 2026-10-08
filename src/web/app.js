@@ -23,6 +23,7 @@ import {
   DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
+import { liveRecordButton, nowProgramFor } from '/live-record.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
@@ -632,6 +633,8 @@ const scrollToRouteSection = async () => {
 
 const guideHandoff = ref(null)
 const refreshTick = ref(0)
+
+const recordDialogOverPlayer = ref(false)
 
 const openInGuide = (handoff) => {
   guideHandoff.value = handoff
@@ -7031,7 +7034,7 @@ const EpgView = {
 
       <teleport to="body">
       <transition name="epg-sheet">
-      <div v-if="selected" class="epg-modal-backdrop" @click.self="closeModal">
+      <div v-if="selected" class="epg-modal-backdrop is-over-player" @click.self="closeModal">
         <section class="panel epg-modal">
           <header class="panel-header">
             <span class="panel-title">{{ selected.program.title }}</span>
@@ -7127,7 +7130,7 @@ const EpgView = {
 
       <teleport to="body">
       <transition name="epg-sheet">
-      <div v-if="hdOffer" class="epg-modal-backdrop" @click.self="hdOffer = null">
+      <div v-if="hdOffer" class="epg-modal-backdrop is-over-player" @click.self="hdOffer = null">
         <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title">
           <header class="panel-header">
             <span id="hd-offer-title" class="panel-title">This is the SD channel</span>
@@ -7703,6 +7706,7 @@ const EpgView = {
     }
 
     const closeModal = () => {
+      recordDialogOverPlayer.value = false
       cancelChoice.value = false
       hdOffer.value = null
       selected.value = null
@@ -8122,6 +8126,8 @@ const EpgView = {
       else if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
     }
+
+    watch(guideHandoff, (handoff) => handoff && openHandoff())
 
     let statePollTimer = null
     onMounted(async () => {
@@ -8897,6 +8903,7 @@ const LivePlayer = {
             </div>
             <div v-else class="flex shrink-0 gap-2">
               <button v-if="isBehindLive" type="button" class="btn" @click="jumpToLive"><go-live-icon /> GO LIVE</button>
+              <button type="button" class="btn" :disabled="recordButton.disabled" :title="recordButton.title" @click="recordFromLive"><record-icon /> {{ recordButton.label }}</button>
               <button type="button" class="btn btn-danger" @click="stopLive"><stop-icon /> STOP</button>
             </div>
           </div>
@@ -8967,7 +8974,7 @@ const LivePlayer = {
     })
 
     const onKeydown = (e) => {
-      if (!live.open) return
+      if (!live.open || recordDialogOverPlayer.value) return
       if (e.key === 'Escape') return stopLive()
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       if (e.target.closest?.('button, select, textarea, input')) return
@@ -8991,7 +8998,43 @@ const LivePlayer = {
     })
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+
+    const nowProgram = ref(null)
+
+    const loadNowProgram = async () => {
+      const channelId = live.channel?.id
+      nowProgram.value = null
+      if (!channelId) return
+      const result = await api('GET', '/api/epg/now?all=1').catch(() => null)
+      if (live.channel?.id !== channelId) return
+      nowProgram.value = nowProgramFor({ entries: result?.entries, channelId })
+    }
+
+    watch(() => live.open && live.channel?.id, (id) => id && loadNowProgram(), { immediate: true })
+
+    watch(now, () => {
+      const program = nowProgram.value
+      if (live.open && program && program.end <= now.value.getTime()) loadNowProgram()
+    })
+
+    const recordButton = computed(() => liveRecordButton({
+      program: nowProgram.value,
+      nowMs: now.value.getTime(),
+      recording: isRecordingChannel(live.channel?.id),
+    }))
+
+    const recordFromLive = () => {
+      if (recordButton.value.disabled) return
+      recordDialogOverPlayer.value = true
+      openInGuide({
+        channelId: live.channel.id,
+        program: nowProgram.value,
+        returnTo: window.location.hash || '#/dashboard',
+      })
+    }
+
     return {
+      recordButton, recordFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
       isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveDoubleClick,
     }

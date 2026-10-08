@@ -41,6 +41,12 @@ The **zoom buttons** above the channel list change the row size. Zoom out for mo
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
+## Record from the player
+
+Press **RECORD** in the player to record the programme on now. The button opens the same dialog as the TV Guide, with **RECORD** for this airing, **RECORD SERIES** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. A recording starts from the moment you press the button, so the part that already aired is not included.
+
+If the guide has no listing for what is on now, the button is dimmed. While the programme records, the button reads **REC**. Press it to open the dialog, which offers to stop the recording.
+
 ## Pause and rewind
 
 Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` to keep more or fewer minutes, or `0` to turn it off.
