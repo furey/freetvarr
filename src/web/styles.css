@@ -2250,6 +2250,10 @@ body.epg-drag-lock * {
   padding: 1rem;
 }
 
+.epg-modal-backdrop.is-over-player {
+  z-index: 41;
+}
+
 .epg-modal-backdrop::before {
   content: '';
   position: fixed;
