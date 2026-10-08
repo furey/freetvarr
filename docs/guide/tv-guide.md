@@ -82,14 +82,17 @@ Press `SAVE` to apply the changes.
 Each channel takes its listings from one channel in the guide feed. The setup wizard links them for you. If a channel shows the wrong programmes, or none, change its link here:
 
 1. Press `CHANNELS` above the grid.
-2. In the `GUIDE` list next to the channel, pick the guide channel that matches it.
-3. Press `SAVE`.
+2. Press the pencil next to the channel. The row shows its guide in a list.
+3. Pick the guide channel that matches it, then press the tick (or `Enter`). Press the cross (or `Esc`) to keep the current guide.
+4. Press `SAVE`.
+
+A guide you changed shows in the accent colour until you press `SAVE`. Opening another channel's pencil drops an unconfirmed pick.
 
 Pick **No guide** to remove a channel's listings. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
 
 Freetvarr saves the link in TVHeadend and asks TVHeadend to load the guide again. The new listings can take a minute or two to show. Press `REFRESH` if they do not.
 
-If the `GUIDE` lists are missing, the guide is not set up yet. Open the setup wizard and go to its `GUIDE` step.
+If the pencils are missing, the guide is not set up yet. Open the setup wizard and go to its `GUIDE` step.
 
 A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's link, that channel gets different programmes, so its series recordings can catch different episodes. Check the `UPCOMING` view after the change.
 
