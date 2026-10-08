@@ -20,7 +20,7 @@ import {
 } from '/guide-time.js'
 import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
 import { findHdSimulcast } from '/simulcast.js'
-import { revealStepMs, isStepResolved, pacedSteps } from '/paced-reveal.js'
+import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
@@ -5001,7 +5001,7 @@ const WelcomeView = {
               <label class="field-label">TVHeadend URL</label>
               <input v-no-autofill type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
             </div>
-            <div v-if="showSecure" class="space-y-4">
+            <div v-if="showSecure && !secureStepsVisible" class="space-y-4">
               <p class="text-ink text-sm leading-relaxed">
                 <strong class="text-signal-orange">This TVHeadend has no logins yet</strong>, so anyone on your network can change it. Freetvarr can secure it: it makes an admin login for you and a separate login for itself, then turns off the open access.
               </p>
@@ -5038,7 +5038,7 @@ const WelcomeView = {
                 Make your own TVHeadend logins, then give Freetvarr the one you made for it.
               </manual-option>
             </div>
-            <ol v-if="secureShownSteps.length" class="space-y-1 text-sm font-mono">
+            <ol v-if="secureStepsVisible" class="space-y-1 text-sm font-mono">
               <li v-for="s in secureShownSteps" :key="s.id" class="flex items-center gap-2">
                 <span v-if="s.status === 'running'" class="step-spinner shrink-0"></span>
               <span v-else :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
@@ -5048,6 +5048,9 @@ const WelcomeView = {
             <div v-if="secureError" class="space-y-1">
               <p class="status-readout err">{{ secureError }}</p>
               <p v-if="secureNext" class="text-sm text-ink">{{ secureNext }}</p>
+              <button v-if="showSecure && !securing" type="button" class="btn btn-sm" @click="backToSecureForm">
+                BACK TO THE FORM
+              </button>
             </div>
             <p v-if="securedAs" class="status-readout ok">
               TVHeadend is secured. Sign in to TVHeadend as {{ securedAs }} from now on; Freetvarr signs in as freetvarr.
@@ -5737,6 +5740,7 @@ const WelcomeView = {
     const secureShownSteps = computed(() =>
       pacedSteps({ steps: secureSteps.value, revealed: secureRevealed.value }))
     const secureError = ref('')
+    const secureStepsVisible = computed(() => secureShownSteps.value.length > 0)
     const secureNext = ref('')
     const showSecure = computed(() => Boolean(bootstrap.value?.fresh) && !manualLogin.value && !securedAs.value)
     const secureInputProblem = computed(() => bootstrapInputProblem({
@@ -5773,6 +5777,15 @@ const WelcomeView = {
       secureAdminPasswordInput.value?.focus()
     })
 
+    const backToSecureForm = async () => {
+      secureSteps.value = []
+      secureRevealed.value = 0
+      secureError.value = ''
+      secureNext.value = ''
+      await nextTick()
+      secureAdminPasswordInput.value?.focus()
+    }
+
     const useManualLogin = () => {
       manualLogin.value = true
       secureSteps.value = []
@@ -5783,7 +5796,7 @@ const WelcomeView = {
 
     const revealSecureSteps = async (isSettled) => {
       if (!prefersReducedMotion()) {
-        const stepMs = revealStepMs(secureSteps.value.length)
+        const stepMs = revealStepMs(secureSteps.value.length, SECURE_REVEAL_PACING)
         while (secureRevealed.value < secureSteps.value.length) {
           const shownAt = Date.now()
           while (!isStepResolved(secureSteps.value[secureRevealed.value])) {
@@ -5877,7 +5890,7 @@ const WelcomeView = {
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
-      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
+      showSecure, secureStepsVisible, backToSecureForm, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
       securePrefixes, secureShownSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
