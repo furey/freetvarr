@@ -22,11 +22,11 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
      <p>A two-bay NAS (Synology DS223j). It holds two hard drives and stays on all the time.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Synology_Disk_Station_DS223J_-_NAS-Server.jpg">DYVER</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
    </div>
 
-3. **Recording software** on a computer that stays on, such as the NAS. It follows the TV guide and records what you ask for. Free options include TVHeadend and Jellyfin. Paid options include Plex's own recording feature (it needs a Plex Pass subscription), Channels DVR, and SiliconDust's own recording service.
+3. **Recording software** on a computer that stays on, such as the NAS. It reads the TV guide and records the programmes you choose. Free options include TVHeadend and Jellyfin. Paid options include Plex's own recording feature (it needs a Plex Pass subscription), Channels DVR, and SiliconDust's own recording service.
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
-[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. Its install includes TVHeadend, and its setup wizard sets it up for you: logins, channels, and the guide. It can install Plex too. If you already run TVHeadend or Plex, it uses yours. You can use any of the other software instead.
+[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's setup wizard sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
 
 > [!TIP]<br>
 > If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
@@ -76,11 +76,11 @@ On cost alone, a new Fetch box can come out cheaper. [Staying with Fetch](#stayi
 
 ### Path 1: Watch only
 
-Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays it on your TV, tablet, or phone (e.g. the HDHomeRun app, Kodi, or VLC). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
+Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays live TV from the tuner on your TV, tablet, or phone (e.g. the HDHomeRun app, Kodi, or VLC). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short TV guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
 
 Add Path 2 later and the TV apps get TVHeadend's 7-day guide too: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)).
 
-SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
+SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer TV guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
 ### Path 2: Watch and record
 
@@ -96,7 +96,7 @@ The clip below shows Freetvarr in use.
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Recording works like the record button on the Fetch remote. Open a programme in the TV Guide, then press **RECORD** for one episode or **RECORD SERIES** for every episode.
+Recording works like the record button on the Fetch remote. In Freetvarr's TV Guide, click a programme to open it, then press **RECORD** for one episode or **RECORD SERIES** for every episode.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -104,7 +104,7 @@ Recording works like the record button on the Fetch remote. Open a programme in 
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-On a phone, open the Live TV tab and tap a channel. The browser plays it, with no app to install.
+On a phone, open Freetvarr in the browser, open the Live TV tab, and tap a channel. The browser plays the channel, with no app to install.
 
 <!-- markdownlint-disable MD033 -->
 <div class="phone-frames">
@@ -119,11 +119,11 @@ On a phone, open the Live TV tab and tap a channel. The browser plays it, with n
 
 Live TV on a phone: the channel list, then the player.
 
-The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few typed commands. The guides linked in [Setting up](#setting-up) show each step.
+The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few commands typed in a terminal. The guides linked in [Setting up](#setting-up) show each step.
 
 To use other recording software from [What you'll need](#what-you-ll-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
 
-[Channels DVR](https://getchannels.com/dvr-server/) is paid recording software with its own apps for Apple TV, Fire TV, Google TV, and phones. It costs `US$8` a month or `US$80` a year after a free month, and its apps stop working if you stop paying; your recordings stay on your drive. It has no Australian guide of its own, so you load a free one (e.g. the guide Freetvarr uses). It has no app for Roku or most smart TVs.
+[Channels DVR](https://getchannels.com/dvr-server/) is paid recording software with its own apps for Apple TV, Fire TV, Google TV, and phones. It costs `US$8` a month or `US$80` a year after a free month, and its apps stop working if you stop paying; your recordings stay on your drive. It has no Australian guide of its own, so you load a free one (e.g. the TV guide Freetvarr uses). It has no app for Roku or most smart TVs.
 
 ## Shopping list
 
@@ -170,13 +170,13 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 
 1. Install Node.js, the free software that runs the tool. Download the LTS installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **PowerShell** on Windows.
-3. Find the box. Type `npx fetchtv` and press Enter. If it asks to install, answer yes. It searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
-4. If it finds nothing, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
-5. List your recordings: `npx fetchtv shows --ip=192.168.1.50`, with your box's address in place of the example.
-6. Check that the computer has enough free space. Each hour of HD takes about `3–6GB`.
-7. Copy everything: `npx fetchtv recordings --ip=192.168.1.50 --save=./fetch-recordings`.
+3. Find the box. In the terminal, type `npx fetchtv` and press Enter. If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
+4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
+5. List your recordings. In the terminal, run `npx fetchtv shows --ip=192.168.1.50`, with your box's IP address in place of the example.
+6. Check that the computer has enough free disk space. Each hour of HD takes about `3–6GB`.
+7. Copy every recording. In the terminal, run `npx fetchtv recordings --ip=192.168.1.50 --save=./fetch-recordings`, with your box's IP address in place of the example.
 
-The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again: it skips the files it already copied.
+The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again (the tool skips the files it already copied).
 
 To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
 
@@ -194,9 +194,9 @@ Once the NAS and Freetvarr are set up, open the NAS's shared folder from your co
 | A film                                                                         | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
 | Anything else, such as a news bulletin or a sports final                       | `one-offs`                                                                        |
 
-Plex and Jellyfin find the new files on their next library scan. To start one now in Plex, choose **Scan Library Files** from the library's menu.
+Plex and Jellyfin find the new files on their next library scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex.
 
-If the NAS is already running when you save, you can copy straight into it and skip the drag. Use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac), and add `--exclude=` with the name of each film or news show to leave it out. Then save those with `--show=` into `movies` or `one-offs`.
+If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac), and add `--exclude=` with the name of each film or news show to leave it out. Then save those with `--show=` into `movies` or `one-offs`.
 
 ## Setting up
 
@@ -205,13 +205,13 @@ Do these in order. The times are for someone doing it the first time.
 1. **[Save your Fetch recordings](#saving-your-fetch-recordings)**. `15 minutes`, plus a few hours of copying.
 2. **Order the tuner** ([Shopping list](#shopping-list)). `10 minutes`, then about a week for delivery.
 3. **Wire the tuner** ([Hardware](/guide/hardware)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
-4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch. `10 minutes`.
+4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch live TV. `10 minutes`.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
-6. **Set up [TVHeadend](/guide/tvheadend)**: channels, guide, and recording folder. One evening, `2–3 hours`.
+6. **Set up [TVHeadend](/guide/tvheadend)**: channels, TV guide, and recording folder. One evening, `2–3 hours`.
 7. **Set up Freetvarr** ([Getting started](/guide/getting-started)). `30–60 minutes`.
 8. **Connect [Plex](/guide/plex)** if you use it. `30 minutes`.
 9. **[Add your Fetch recordings](#adding-them-to-your-library)** to the library. `15 minutes`, plus copying time.
-10. **Watch [Live TV](/guide/live-tv)** in the browser to check it all works. `5 minutes`.
+10. **Watch [Live TV](/guide/live-tv)** in Freetvarr in a browser to check that the whole setup works. `5 minutes`.
 
 ## Switching over
 
@@ -264,15 +264,15 @@ You need one only for Path 2. Path 1 needs no computer at all. For Path 2, any a
 
 ### Watching away from home
 
-Freetvarr works only on your home network and has no sign-in, so never make it reachable from the internet. To watch away from home, connect your phone to your home network with a VPN (a private, encrypted link) such as [Tailscale](https://tailscale.com) or WireGuard; Freetvarr then works as if you were at home.
+Freetvarr works only on your home network and has no sign-in, so never make it reachable from the internet. To watch away from home, connect your phone to your home network with a VPN (a private, encrypted link) such as [Tailscale](https://tailscale.com) or WireGuard. Freetvarr then works as if you were at home.
 
 ### Captions
 
-Freetvarr's browser player has no captions yet. Australian channels send captions in an older format called Teletext. The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them. If you need captions, watch through one of those; see [Captions](/guide/live-tv#captions).
+Freetvarr's browser player has no captions yet. Australian channels send captions in an older format called Teletext. The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them. If you need captions, watch through one of those (see [Captions](/guide/live-tv#captions)).
 
 ### Your aerial
 
-If the Fetch box gets a clear picture now, the tuner will too: it uses the same aerial lead. After setup, the tuner's status page shows signal strength for each channel; [Checking the signal](/guide/hardware#checking-the-signal) explains how to read it.
+If the Fetch box gets a clear picture now, the tuner will too: it uses the same aerial lead. After setup, the tuner's status page shows signal strength for each channel ([Checking the signal](/guide/hardware#checking-the-signal) explains how to open and read it).
 
 ### Staying with Fetch
 
