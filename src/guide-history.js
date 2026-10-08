@@ -3,6 +3,13 @@ import { db } from './db.js'
 export const saveGuidePrograms = async ({ programs = [], nowMs = Date.now() } = {}) => {
   const rows = programs.map(toSavedRow)
   await db.transaction(async (trx) => {
+    for (const { channelId, fromMs, toMs } of snapshotSpans(rows)) {
+      await trx('guide_programs')
+        .where('channel_id', channelId)
+        .andWhere('end', '>', fromMs)
+        .andWhere('start', '<', toMs)
+        .delete()
+    }
     for (const chunk of chunksOf(rows, UPSERT_CHUNK_SIZE)) {
       await trx('guide_programs').insert(chunk).onConflict(['channel_id', 'start']).merge()
     }
@@ -78,6 +85,17 @@ const fromSavedRow = (row) => ({
   dvr_state: row.dvr_state,
   dvr_uuid: row.dvr_uuid,
 })
+
+const snapshotSpans = (rows) => {
+  const spans = new Map()
+  for (const { channel_id, start, end } of rows) {
+    const span = spans.get(channel_id)
+    spans.set(channel_id, span
+      ? { channelId: channel_id, fromMs: Math.min(span.fromMs, start), toMs: Math.max(span.toMs, end) }
+      : { channelId: channel_id, fromMs: start, toMs: end })
+  }
+  return spans.values()
+}
 
 const overlaps = (a, b) => a.start < b.end && b.start < a.end
 
