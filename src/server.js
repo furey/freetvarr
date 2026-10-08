@@ -95,6 +95,8 @@ import {
 } from './epg.js'
 import {
   startManualAdScan,
+  parseEdl,
+  skipMarkerPath,
   comskipIniOverrideExists,
   resetInterruptedScans,
   recoverInterruptedCuts,
@@ -635,7 +637,7 @@ app.post('/api/epg/cancel', epgLimiter, doubleCsrfProtection, async (req, res) =
 app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const {
     series_link, channel_id, epg_program_id, program_id,
-    lead_time, lag_time, episodes_to_keep, add_show_rule,
+    lead_time, lag_time, episodes_to_keep, add_show_rule, any_channel,
   } = req.body || {}
   if (series_link == null || channel_id == null || program_id == null || epg_program_id == null) {
     return res.status(400).json({
@@ -648,6 +650,7 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       channelId: channel_id,
       epgProgramId: epg_program_id,
       programId: program_id,
+      anyChannel: any_channel === true,
       ...(lead_time != null ? { leadTime: Number(lead_time) } : {}),
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
       ...(episodes_to_keep != null ? { episodesToKeep: Number(episodes_to_keep) } : {}),
@@ -882,6 +885,11 @@ const probeOnce = async (file) => {
   })
 }
 
+const adBreaksFor = async (file) => {
+  const text = await fs.readFile(skipMarkerPath(file), 'utf8').catch(() => null)
+  return parseEdl(text).map(({ start, end }) => ({ start, end }))
+}
+
 const recordingLabel = (row) => `"${[row.title, row.episode_title].filter(Boolean).join(': ')}"`
 
 app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection, async (req, res) => {
@@ -910,7 +918,8 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
     if (session.status === 'ended') {
       return res.status(500).json({ error: `ffmpeg failed: ${session.reason?.detail || 'unknown error'}`, code: 'ffmpeg' })
     }
-    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0 })
+    const adBreaks = await adBreaksFor(file)
+    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0, adBreaks })
   } catch (err) {
     liveError(res, err, 'play start')
   }

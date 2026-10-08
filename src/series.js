@@ -88,6 +88,7 @@ const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames
       seriesLinkId: a.seriesLinkId,
       channelId: a.channelId,
       channelName: channelNames.get(String(a.channelId)) || null,
+      anyChannel: !a.channelId,
       enabled: a.enabled,
       episodesToKeep: a.episodesToKeep || 0,
     })),
