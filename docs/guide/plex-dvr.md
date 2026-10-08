@@ -79,14 +79,14 @@ Sources: Plex's [Live TV & DVR](https://support.plex.tv/articles/225877347-live-
 
 Plex's own guide is [Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/). In short, for an Australian HDHomeRun:
 
-1. Give the tuner a fixed IP address with a DHCP reservation in your router.
-2. In Plex Web, open **Settings → Live TV & DVR** and press **DVR Setup**.
+1. In your router's settings, give the tuner a fixed IP address with a DHCP reservation.
+2. In Plex's web app in a browser, open **Settings → Live TV & DVR** and press **DVR Setup**.
 3. Pick the tuner, choose **Antenna**, and choose any country.
 4. Press **Have an XMLTV program guide on your server? Click here to use that instead.**
-5. Enter your region's guide, such as `https://i.mjh.nz/au/Sydney/epg.xml`, and give it a name.
+5. Enter the address of your region's XMLTV guide, such as `https://i.mjh.nz/au/Sydney/epg.xml`, and give it a name.
 6. Check the channel list, untick the channels you don't want, and continue.
 7. In **DVR Settings**, set the padding (`2` minutes before and `10` after suits free-to-air) and set **Remove Commercials** to **Detect commercials and mark for skip**.
-8. Open a show in the guide and press **Record**.
+8. In Plex's TV guide, open a show and press **Record**.
 
 > [!WARNING]<br>
 > Plex expects to have the tuner to itself ([Supported tuners](https://support.plex.tv/articles/225877427-supported-dvr-tuners-and-antennas/)). Don't record from Plex DVR and TVHeadend on the same tuner at the same time. To try Plex DVR, pause TVHeadend's recordings first.
