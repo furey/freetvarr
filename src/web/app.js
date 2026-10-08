@@ -6439,19 +6439,21 @@ const ChannelsModal = {
   emits: ['close', 'saved'],
   template: `
     <div class="epg-modal-backdrop" @click.self="$emit('close')">
-      <section class="panel epg-modal">
+      <section class="panel epg-modal channels-modal">
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">CHANNELS</span>
             <info-button title="Channels" doc="guide/tv-guide#favourites">
               <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
               <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
-              <p>The pencil next to a channel sets where its listings come from. Tick to keep the pick, or cross to drop it. Pick No guide to remove its listings. A new pick can take a minute to show in the TV Guide.</p>
+              <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the TV Guide.</p>
             </info-button>
           </span>
           <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
         </header>
-        <div class="panel-body space-y-5">
+        <div class="panel-body channels-body">
+          <div class="channels-grid">
+          <div class="channels-settings space-y-5">
           <div>
             <label class="field-label">FAVOURITES · SHOWN FIRST, IN THIS ORDER</label>
             <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
@@ -6460,11 +6462,11 @@ const ChannelsModal = {
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === 0"
-                  @click="movePin(i, -1)" :aria-label="'Move ' + draftName(id) + ' up'"><arrow-up-icon /></button>
+                  @click="movePin(i, -1)" :title="'Move up'" :aria-label="'Move ' + draftName(id) + ' up'"><arrow-up-icon /></button>
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === pinnedDraft.length - 1"
-                  @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
+                  @click="movePin(i, 1)" :title="'Move down'" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
                 <button type="button" class="epg-pin pinned" @click="toggleDraftPin(id)"
-                  :aria-label="'Remove ' + draftName(id) + ' from favourites'"><star-icon /></button>
+                  title="Remove from favourites" :aria-label="'Remove ' + draftName(id) + ' from favourites'"><star-icon /></button>
                 <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">{{ draftName(id) }}</span>
               </li>
             </ul>
@@ -6486,12 +6488,16 @@ const ChannelsModal = {
               Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a favourite is never hidden.
             </p>
           </div>
-          <div>
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" /> CHANGE GUIDE</label>
-            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the guide links…</p>
+          <p class="text-xs text-ink-dim">
+            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, press <pencil-icon class="icon-inline" /> and pick the guide channel that matches it.
+          </p>
+          </div>
+          <div class="channels-list">
+            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" /> FIX LISTINGS</label>
+            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the listings…</p>
             <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
-              Set up the guide first to pick a guide for each channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
+              Set up the TV guide first to fix the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
             <div class="grid grid-cols-1 gap-y-2">
               <div v-for="ch in channels" :key="ch.id" class="flex flex-col gap-1.5"
@@ -6499,6 +6505,7 @@ const ChannelsModal = {
                 <div class="flex items-center gap-2">
                   <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
                     @click="toggleDraftPin(String(ch.id))"
+                    :title="pinnedDraft.includes(String(ch.id)) ? 'Remove from favourites' : 'Add to favourites'"
                     :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"><star-icon /></button>
                   <label class="flex flex-1 items-center gap-2.5 text-sm cursor-pointer min-w-0"
                     :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
@@ -6515,22 +6522,23 @@ const ChannelsModal = {
                     <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
                       :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
                     <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
-                      :aria-label="'Change guide for ' + ch.name"><pencil-icon /></button>
+                      :title="'Fix listings for ' + ch.name" :aria-label="'Fix listings for ' + ch.name"><pencil-icon /></button>
                   </template>
                 </div>
                 <div v-if="editingId === String(ch.id)" class="flex items-center gap-2 pl-6">
                   <select :ref="focusOnMount" class="field-input flex-1 min-w-0" v-model="editValue"
-                    :aria-label="'Guide for ' + ch.name" @keydown.enter.prevent="confirmGuideEdit">
-                    <option value="">No guide</option>
+                    :aria-label="'Listings for ' + ch.name" @keydown.enter.prevent="confirmGuideEdit">
+                    <option value="">No listings</option>
                     <option v-for="o in guideLinks.options" :key="o.id" :value="o.id">{{ o.name }}</option>
                   </select>
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="confirmGuideEdit"
-                    aria-label="Use this guide"><check-icon /></button>
+                    title="Use these listings" aria-label="Use these listings"><check-icon /></button>
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="cancelGuideEdit"
-                    aria-label="Keep the current guide"><cross-icon /></button>
+                    title="Keep the current listings" aria-label="Keep the current listings"><cross-icon /></button>
                 </div>
               </div>
             </div>
+          </div>
           </div>
           <p v-if="guideStatusText" :class="['status-readout', guideStatusKind, 'text-right']">{{ guideStatusText }}</p>
           <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
@@ -6562,7 +6570,7 @@ const ChannelsModal = {
     const editValue = ref('')
 
     const guideNameFor = (guideId) =>
-      guideLinks.value?.options.find((o) => o.id === guideId)?.name || 'No guide'
+      guideLinks.value?.options.find((o) => o.id === guideId)?.name || 'No listings'
     const isGuideChanged = (ch) => guideDraft[String(ch.id)] !== guideSaved.value[String(ch.id)]
     const startGuideEdit = (ch) => {
       editingId.value = String(ch.id)
@@ -6594,7 +6602,7 @@ const ChannelsModal = {
         Object.assign(guideDraft, picks)
         guideLinks.value = links
       } catch (err) {
-        guideLoadError.value = `Freetvarr could not read the guide links: ${err.message}`
+        guideLoadError.value = `Freetvarr could not read the listings: ${err.message}`
       } finally {
         guideLoading.value = false
       }
@@ -6663,7 +6671,7 @@ const ChannelsModal = {
         guideSaved.value = { ...guideDraft }
         return true
       } catch (err) {
-        setGuideStatus(`Guide links not saved: ${err.message}`, 'err', 0)
+        setGuideStatus(`Listings not saved: ${err.message}`, 'err', 0)
         return false
       }
     }
