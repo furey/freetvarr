@@ -96,7 +96,13 @@ test('suggestGuide picks the feed for the time zone city and keeps a feed the us
   assert.equal(kept.state, 'has-guide')
 })
 
-const fakeTvheadend = ({ grabber = { enabled: false, args: '' }, periodicSave = 0, saveAfterImport = false, loadAfter = 1 }) => {
+const fakeTvheadend = ({
+  grabber = { enabled: false, args: '' },
+  periodicSave = 0,
+  saveAfterImport = false,
+  loadAfter = 1,
+  extraChannels = [],
+}) => {
   const writes = []
   let gridReads = 0
   const moduleId = 'mod-url'
@@ -124,6 +130,7 @@ const fakeTvheadend = ({ grabber = { enabled: false, args: '' }, periodicSave = 
         { uuid: 'c7', name: '7 Sydney', number: 7, services: ['s7'] },
         { uuid: 'cabc', name: 'ABC TV', number: 2, services: ['s2'] },
         { uuid: 'cx', name: 'Shopping', number: 99, services: [] },
+        ...extraChannels,
       ],
     }),
     'mpegts/service/grid': () => ({ entries: [{ uuid: 's7', lcn: 71 }, { uuid: 's2', lcn: 21 }] }),
@@ -165,6 +172,21 @@ test('applyGuideSetup turns on the feed, keeps the guide saved, waits for it, an
   assert.deepEqual(links.map((l) => JSON.parse(l.form.node)).sort((a, b) => a.uuid.localeCompare(b.uuid)), [
     { uuid: 'g-abc', channels: ['cabc'] },
     { uuid: 'g-seven', channels: ['c7'] },
+  ])
+})
+
+test('applyGuideSetup pre-selects the guide of a simulcast and leaves a timeshift channel without one', async () => {
+  const http = fakeTvheadend({
+    extraChannels: [
+      { uuid: 'c70', name: '7 Sydney', number: 70, services: [] },
+      { uuid: 'c14', name: '10 HD +1', number: 14, services: [] },
+    ],
+  })
+  const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, pollMs: 0, ...clock() })
+  assert.deepEqual(result.unmatched.map(({ id, guess }) => [id, guess]), [
+    ['cx', null],
+    ['c70', 'g-seven'],
+    ['c14', null],
   ])
 })
 
@@ -213,7 +235,7 @@ test('guessGuideChannel matches a name after normalising case, spaces, punctuati
 
 test('guessGuideChannel matches the tuner name SBS ONE to the guide name SBS', () => {
   assert.equal(guessFor('SBS ONE', ['SBS', 'SBS2', 'SBS Food']), 'g0')
-  assert.equal(guessFor('SBS ONE', ['SBS One', 'SBS']), null)
+  assert.equal(guessFor('SBS ONE', ['SBS One', 'SBS']), 'g0')
 })
 
 test('guessGuideChannel never guesses a timeshift channel', () => {
@@ -224,6 +246,64 @@ test('guessGuideChannel never guesses a timeshift channel', () => {
 test('guessGuideChannel skips a name that matches no guide channel or several', () => {
   assert.equal(guessFor('Extra', ['SBS', 'ABC TV']), null)
   assert.equal(guessFor('ABC', ['ABC Sydney', 'ABC Melbourne']), null)
+})
+
+const SYDNEY_FEED = [
+  'Seven', '7two', '7mate', '7flix', '7Bravo', 'Channel 9', '9Gem', '9Go!', '9Life', '9Rush',
+  '10', '10 Drama', '10 Comedy', 'ABC TV', 'ABC Kids/ABC Family', 'ABC Entertains', 'ABC NEWS',
+  'SBS', 'SBS2', 'SBS Food', 'SBS World Movies',
+]
+
+const sydneyGuess = (name, linked = []) => guessGuideChannel({
+  channel: { name },
+  candidates: SYDNEY_FEED.map((n) => ({ id: n, name: n, feed: null })),
+  linked,
+})
+
+test('guessGuideChannel picks the network\'s main feed channel for a big five simulcast', () => {
+  assert.equal(sydneyGuess('7 Sydney'), 'Seven')
+  assert.equal(sydneyGuess('7 HD Sydney'), 'Seven')
+  assert.equal(sydneyGuess('Nine HD'), 'Channel 9')
+  assert.equal(sydneyGuess('9 Sydney'), 'Channel 9')
+  assert.equal(sydneyGuess('TEN HD'), '10')
+  assert.equal(sydneyGuess('10 HD'), '10')
+  assert.equal(sydneyGuess('ABCTV'), 'ABC TV')
+  assert.equal(sydneyGuess('ABC HD'), 'ABC TV')
+  assert.equal(sydneyGuess('SBS ONE'), 'SBS')
+  assert.equal(sydneyGuess('SBS HD'), 'SBS')
+})
+
+test('guessGuideChannel keeps each multichannel on its own feed channel', () => {
+  assert.equal(sydneyGuess('7two'), '7two')
+  assert.equal(sydneyGuess('7mate HD'), '7mate')
+  assert.equal(sydneyGuess('7flix Sydney'), '7flix')
+  assert.equal(sydneyGuess('9Gem HD'), '9Gem')
+  assert.equal(sydneyGuess('9Go!'), '9Go!')
+  assert.equal(sydneyGuess('10 Drama'), '10 Drama')
+  assert.equal(sydneyGuess('ABC NEWS'), 'ABC NEWS')
+  assert.equal(sydneyGuess('SBS Food'), 'SBS Food')
+})
+
+test('guessGuideChannel gives no guide to a channel the feed does not carry', () => {
+  assert.equal(sydneyGuess('Extra'), null)
+  assert.equal(sydneyGuess('10 HD +1'), null)
+  assert.equal(sydneyGuess('7 Sydney +1', [{ name: '7 Sydney', guideId: 'Seven' }]), null)
+  assert.equal(sydneyGuess('7plus'), null)
+})
+
+test('guessGuideChannel gives a channel the guide of a linked channel with the same name', () => {
+  const candidates = [{ id: 'g-seven', name: 'Seven', feed: null }, { id: 'g-7two', name: '7two', feed: null }]
+  const guess = (name, linked) => guessGuideChannel({ channel: { name }, candidates, linked })
+  assert.equal(guess('Prime7 Sydney', [{ name: 'Prime7', guideId: 'g-seven' }]), 'g-seven')
+  assert.equal(guess('Prime7', [{ name: 'Prime7 HD', guideId: 'g-seven' }, { name: 'Prime 7', guideId: 'g-7two' }]), null)
+  assert.equal(guess('Prime7', [{ name: 'Prime7 Two', guideId: 'g-7two' }]), null)
+})
+
+test('guessGuideChannel matches the network name in either form', () => {
+  assert.equal(guessFor('Seven', ['7 Sydney']), 'g0')
+  assert.equal(guessFor('Channel 9', ['Nine']), 'g0')
+  assert.equal(guessFor('10', ['TEN']), 'g0')
+  assert.equal(guessFor('7 Sydney', ['Seven Sydney', 'Seven Melbourne']), null)
 })
 
 const SBS_ONE = 'e52f8028f3bbf341a4f0569d3048c652'

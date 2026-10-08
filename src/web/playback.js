@@ -17,3 +17,8 @@ export const fmtPlayTime = (seconds) => {
   const secs = String(total % 60).padStart(2, '0')
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${secs}` : `${minutes}:${secs}`
 }
+
+export const AD_BREAK_TOLERANCE_S = 0.5
+
+export const adBreakAt = ({ breaks, time, tolerance = AD_BREAK_TOLERANCE_S }) =>
+  (breaks || []).find(({ start, end }) => time >= start - tolerance && time < end - tolerance) || null

@@ -78,9 +78,10 @@ export const rankCandidates = ({ interfaces = {}, hintAddresses = [], port = DEF
 }
 
 export const listChannels = async (conn) => {
-  const [body, epgIconsByChannel] = await Promise.all([
+  const [body, epgIconsByChannel, services] = await Promise.all([
     apiGet('channel/grid', { limit: 1000, sort: 'number', dir: 'ASC' }, conn),
     listEpgIconsByChannel(conn).catch(() => new Map()),
+    listServiceMuxes(conn).catch(() => new Map()),
   ])
   return (body?.entries || [])
     .filter((c) => c.enabled !== false)
@@ -94,8 +95,12 @@ export const listChannels = async (conn) => {
       recordable: true,
       logos: channelLogoSources({ channel: c, epgIcons: epgIconsByChannel.get(c.uuid) }),
       serviceIds: c.services || [],
+      offAir: isOffAir({ serviceIds: c.services || [], services }),
     }))
 }
+
+export const isOffAir = ({ serviceIds = [], services }) =>
+  serviceIds.length > 0 && serviceIds.every((id) => services.get(id)?.enabled === false)
 
 export const indexEpgIconsByChannel = (epgChannels = []) => {
   const index = new Map()
@@ -217,14 +222,16 @@ export const cancelAction = ({ schedStatus, autorecId }) => {
 }
 
 export const enableSeriesTag = async ({
-  seriesLink,
+  seriesLink: requestedLink,
   channelId,
   title,
+  anyChannel = false,
   leadTime = DEFAULT_LEAD_MINUTES,
   lagTime = DEFAULT_LAG_MINUTES,
   episodesToKeep = 0,
 } = {}) => {
   const conn = await resolveConnection()
+  const seriesLink = anyChannel ? seriesKey({ channelId: '', title }) : requestedLink
   const existing = (await listAutorecs(conn)).find((a) => a.seriesLinkId === seriesLink)
   if (existing) return { ok: true, uuid: existing.id, seriesLinkId: seriesLink, existed: true }
   const body = await apiPost('dvr/autorec/create', {
@@ -233,7 +240,7 @@ export const enableSeriesTag = async ({
       name: title,
       title,
       fulltext: false,
-      channel: channelId,
+      channel: anyChannel ? '' : channelId,
       start: 'Any',
       start_window: 'Any',
       weekdays: [1, 2, 3, 4, 5, 6, 7],
@@ -344,6 +351,7 @@ export const listServiceMuxes = async (conn) => {
   const value = new Map((body?.entries || []).map((s) => [s.uuid, {
     muxId: s.multiplex_uuid,
     muxName: muxDisplayName({ multiplex: s.multiplex, network: s.network }),
+    enabled: s.enabled !== false,
   }]))
   serviceMuxCache = { value, expiresAt: Date.now() + SERVICE_MUX_TTL_MS }
   return value
@@ -397,12 +405,19 @@ export const openChannelStream = async ({ channelId, signal, userAgent, conn } =
     signal,
     timeout: 0,
     headers: { 'User-Agent': userAgent },
-  }, c)
+  }, c).catch((err) => { throw streamRequestError(err) })
   if (res.status === 200) return res.data
   res.data?.destroy?.()
   const code = streamFailureCode(res.status)
   throw new TvheadendError(`TVHeadend refused the stream (HTTP ${res.status}).`, {
     stage: 'stream', status: res.status, code,
+  })
+}
+
+export const streamRequestError = (err) => {
+  if (err?.code !== 'ECONNRESET') return err
+  return new TvheadendError('TVHeadend closed the stream before sending any video.', {
+    stage: 'stream', code: 'no-source',
   })
 }
 

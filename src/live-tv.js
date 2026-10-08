@@ -9,6 +9,7 @@ import {
   getTunerStatus,
   listSubscriptions,
   listServiceMuxes,
+  isOffAir,
   getChannelServiceInfo,
   getDefaultLanguages,
   openChannelStream,
@@ -244,7 +245,7 @@ export const createLiveSessions = ({
     } catch (err) {
       if (session.ending) return
       end(session, {
-        code: err.code === 'no-tuner' ? 'no-tuner' : 'upstream',
+        code: UPSTREAM_REASONS.has(err.code) ? err.code : 'upstream',
         detail: err.message,
       })
     }
@@ -409,6 +410,9 @@ export const preflightChannel = async ({ channelId, now = Date.now() }) => {
     listSubscriptions(conn).catch(() => []),
     getRecordingState().catch(() => ({ futureRecordings: [] })),
   ])
+  if (isOffAir({ serviceIds: channel.serviceIds, services: muxes })) {
+    return { ok: false, code: 'off-air', channel: { id: channel.id, name: channel.name } }
+  }
   const muxOfChannel = (id) => {
     const c = channels.find((ch) => String(ch.id) === String(id))
     return muxes.get(c?.serviceIds?.[0])?.muxName || null
@@ -433,7 +437,7 @@ export const startLiveChannel = async ({ channelId, sessions, encoder }) => {
   const existing = sessions.forChannel(channelId)
   const verdict = existing ? null : await preflightChannel({ channelId })
   if (verdict && !verdict.ok) {
-    throw new LiveTvError('Every tuner is busy on another multiplex.', {
+    throw new LiveTvError(LIVE_REFUSALS[verdict.code], {
       code: verdict.code,
       details: { holders: verdict.holders, conflict: verdict.conflict },
     })
@@ -556,3 +560,8 @@ const SD_HEIGHT_CAP = 576
 const HD_TRANSCODE_HEIGHT_CAP = 540
 const COPY_ENCODER = { kind: 'copy' }
 const MAX_ERROR_LINES = 20
+const LIVE_REFUSALS = {
+  'off-air': "This channel isn't broadcasting right now, so TVHeadend can't tune it.",
+  'no-tuner': 'Every tuner is busy on another multiplex.',
+}
+const UPSTREAM_REASONS = new Set(['no-tuner', 'no-source'])

@@ -60,13 +60,13 @@ export const matchGuideChannels = ({ channels, guideChannels, feedChannels, serv
   return { links, unmatched }
 }
 
-export const guessGuideChannel = ({ channel, candidates }) => {
+export const guessGuideChannel = ({ channel, candidates, linked = [] }) => {
   if (isTimeshiftName(channel.name)) return null
   const key = looseKey(channel.name)
   if (!key) return null
-  const keys = new Set([key, LOOSE_ALIASES[key]].filter(Boolean))
-  const matches = candidates.filter((g) => feedNames(g).some((n) => keys.has(looseKey(n))))
-  return matches.length === 1 ? matches[0].id : null
+  return guessByName({ key, candidates })
+    || guessBySibling({ key, linked })
+    || guessByNetwork({ key, candidates })
 }
 
 export const planGuideRelinks = ({ guideChannels, links }) => {
@@ -150,6 +150,7 @@ export const applyGuideSetup = async ({
       const alreadyLinked = channels.filter((c) => !linkedIds.has(c.id) && isLinked({ channel: c, guideChannels }))
       const byFeedId = new Map(feedChannels.map((f) => [f.id, f]))
       const candidates = guideChannels.map((g) => ({ ...g, feed: byFeedId.get(g.xmltvId) || null }))
+      const linked = linkedChannels({ channels, guideChannels, links: matched.links })
       return {
         linked: linkedIds.size + alreadyLinked.length,
         total: channels.length,
@@ -157,9 +158,9 @@ export const applyGuideSetup = async ({
           id,
           name,
           number,
-          guess: guessGuideChannel({ channel: { name }, candidates }),
+          guess: guessGuideChannel({ channel: { name }, candidates, linked }),
         })),
-        options: guideChannelOptions(guideChannels),
+        options: guideChannelOptions(candidates),
       }
     })
     return { ok: true, ...outcome, steps: progress.steps() }
@@ -309,7 +310,7 @@ const linkedGuideIds = ({ channel, guideChannels }) => guideChannels
 const sameMembers = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
 
 const guideChannelOptions = (guideChannels) => guideChannels
-  .map((g) => ({ id: g.id, name: g.name }))
+  .map((g) => ({ id: g.id, name: g.name, ...(g.feed?.lcn ? { number: g.feed.lcn } : {}) }))
   .sort((a, b) => a.name.localeCompare(b.name))
 
 const feedNames = (g) => [g.name, ...(g.feed?.names || [])].filter(Boolean)
@@ -329,6 +330,30 @@ const normaliseName = ({ name, noise }) => {
   const kept = all.filter((t) => !noise.has(t))
   return (kept.length ? kept : all).join('')
 }
+
+const guessByName = ({ key, candidates }) =>
+  onlyId(candidates.filter((g) => feedNames(g).some((n) => looseKey(n) === key)))
+
+const guessBySibling = ({ key, linked }) => {
+  const guideIds = new Set(linked.filter((c) => looseKey(c.name) === key).map((c) => c.guideId))
+  return guideIds.size === 1 ? [...guideIds][0] : null
+}
+
+const guessByNetwork = ({ key, candidates }) => {
+  const network = NETWORK_KEYS[key]
+  if (!network) return null
+  return onlyId(candidates.filter((g) => feedNames(g).some((n) => NETWORK_KEYS[looseKey(n)] === network)))
+}
+
+const onlyId = (matches) => (matches.length === 1 ? matches[0].id : null)
+
+const linkedChannels = ({ channels, guideChannels, links }) => channels
+  .map((c) => {
+    const added = links.filter((l) => l.channelId === c.id).map((l) => l.guideId)
+    const guideIds = added.length ? added : linkedGuideIds({ channel: c, guideChannels })
+    return { name: c.name, guideId: guideIds.length === 1 ? guideIds[0] : null }
+  })
+  .filter((c) => c.guideId)
 
 const isTimeshiftName = (name) => TIMESHIFT_NAME.test(String(name).trim())
 
@@ -391,7 +416,18 @@ const COMMON_TOKEN_MIN = 3
 const COMMON_TOKEN_SHARE = 0.25
 const TIMESHIFT_NAME = /\+\s*\d+\s*(hd)?$/i
 const LOOSE_NOISE = new Set(['hd', 'the', 'channel'])
-const LOOSE_ALIASES = { sbsone: 'sbs' }
+const NETWORK_KEYS = {
+  abc: 'abc',
+  abctv: 'abc',
+  seven: 'seven',
+  7: 'seven',
+  nine: 'nine',
+  9: 'nine',
+  ten: 'ten',
+  10: 'ten',
+  sbs: 'sbs',
+  sbsone: 'sbs',
+}
 const REGION_WORDS = new Set([
   'sydney', 'melbourne', 'brisbane', 'adelaide', 'perth', 'hobart', 'darwin', 'canberra',
   'auckland', 'wellington', 'christchurch',
