@@ -45,6 +45,8 @@ A hardlink import is instant. A copy between filesystems, an ad scan, or a cut t
 
 Re-run an ad scan or cut on a file you have already imported. This does not touch TVHeadend.
 
+The ad scan button is greyed out when the library file is gone, for example after another app replaced or removed it.
+
 ## Not in TVHeadend
 
 A recording that TVHeadend has deleted shows a `NOT IN TVHEADEND` marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
