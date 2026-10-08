@@ -1,13 +1,13 @@
 ---
 title: Doctor
 description: >-
-  A read-only health check of TVHeadend, the guide, the folders, Plex, live TV,
+  A read-only health check of TVHeadend, the TV guide, the folders, Plex, live TV,
   and the host, with the fix for each problem it finds.
 ---
 
 # Doctor
 
-The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **Settings → HELP → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or at `#/doctor` in the address bar.
+The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **Settings → HELP → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or by adding `#/doctor` to Freetvarr's address in the browser's address bar.
 
 The Doctor only reads. It sends `GET` requests to TVHeadend and Plex, and it looks at folders without writing to them. It never saves settings, changes TVHeadend, refreshes Plex, or starts a test encode.
 
@@ -20,7 +20,7 @@ Each check gets one of these results:
 
 Failing rows come first. Press `RE-RUN` to check again. A check that gets no answer in `8` seconds fails.
 
-From a source checkout, `npm run doctor` prints the same checks in the terminal. It reads the settings from the database, so run it on the machine that runs Freetvarr.
+From a source checkout, `npm run doctor` outputs the same checks in the terminal. It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
 
 ## Connection {#tvh-reach}
 
@@ -32,11 +32,11 @@ Checks that TVHeadend accepts the username and password. A `401` means TVHeadend
 
 ## User rights {#tvh-rights}
 
-Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The Doctor cannot test the **Streaming** rights without starting a stream, so it does not check them.
+Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the TVHeadend access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The Doctor cannot test the **Streaming** rights without starting a stream, so it does not check them.
 
 ## Open access {#tvh-open}
 
-Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin**: then anyone on that network can change TVHeadend without a login. A fresh linuxserver TVHeadend starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
+Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh linuxserver TVHeadend starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
 
 ## Tuners {#tvh-tuners}
 
@@ -44,11 +44,11 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0`; the **Channels** step of the setup wizard adds them. See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0` (the **Channels** step of the setup wizard adds them). See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 
-Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the last programme in TVHeadend's guide and counts the channels with nothing in the next `24` hours. It fails when the guide ends within `12` hours. It warns when the guide ends within `48` hours, or when more than a quarter of the channels are empty. See [Empty guide](/guide/troubleshooting#empty-guide).
+Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the last programme in TVHeadend's TV guide and counts the channels with nothing in the next `24` hours. It fails when the TV guide ends within `12` hours. It warns when the TV guide ends within `48` hours, or when more than a quarter of the channels are empty. See [Empty guide](/guide/troubleshooting#empty-guide).
 
 ## Channel logos {#guide-logos}
 
@@ -56,7 +56,7 @@ Counts the channels that have a TVHeadend icon. It skips when there are no chann
 
 ## Recordings folder {#paths-recordings}
 
-Checks that the recordings folder exists inside the Freetvarr container and is readable. See [TEST PATH failures](/guide/troubleshooting#test-path-failures).
+Checks that the recordings folder exists inside the Freetvarr Docker container and is readable. See [TEST PATH failures](/guide/troubleshooting#test-path-failures).
 
 ## TVHeadend recording path {#paths-match}
 
@@ -68,11 +68,11 @@ Checks that the media folder exists and that Freetvarr can write to it. When it 
 
 ## Hardlinks {#paths-hardlink}
 
-Makes a real test hardlink from the recordings folder into the media folder and into the one-off folder. If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy goes. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts. For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).
+Makes a real test hardlink from the recordings folder into the media folder and into the one-off folder. If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy is deleted. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts. For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk; the real limit is your computer's own disk.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk. The real limit is your computer's own disk.
 
 ## Plex library {#plex-reach}
 
@@ -92,4 +92,4 @@ Runs only when ad removal is on. It checks that `comskip`, `ffmpeg`, and `ffprob
 
 ## Time zone and network {#host-env}
 
-Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the guide and recordings then show the wrong times. Choose your zone in Settings, in the SCHEDULE panel, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).
+Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings, in the SCHEDULE panel, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).

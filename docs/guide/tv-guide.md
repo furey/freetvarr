@@ -7,9 +7,9 @@ description: >-
 
 # TV Guide
 
-The TV Guide tab is a 7-day programme guide. Click a programme to record it, cancel it, or record a whole [series](/guide/series) in TVHeadend. Freetvarr files each recording into your library after TVHeadend records it.
+The TV Guide tab is a 7-day programme guide. Click a programme to record it, cancel it, or record a whole [series](/guide/series) in TVHeadend. Freetvarr imports each recording into your library after TVHeadend records it.
 
-The guide is only as good as what you loaded into TVHeadend. With the XMLTV feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
+The TV Guide shows only the listings you loaded into TVHeadend. With the XMLTV guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -19,7 +19,7 @@ The guide is only as good as what you loaded into TVHeadend. With the XMLTV feed
 
 ## The grid
 
-Channels run down the page and time runs across. The guide opens at the current half hour.
+Channels run down the page and time runs across. The TV Guide opens at the current half hour.
 
 - The **day chips** switch between today and the next six days; `NOW` and `TONIGHT` jump within the day.
 - The **zoom buttons** change the time scale. Each browser remembers its zoom.
@@ -37,7 +37,7 @@ Each day's grid runs to 3am the next morning, so a late film stays on the same p
 
 ## Recording a programme
 
-Click a cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV feed; a guide fed only by the broadcast has none.
+Click a programme's cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV guide feed (a TV guide fed only by the broadcast has none).
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -48,18 +48,18 @@ Click a cell to open its detail: the programme image, synopsis, rating, season a
 From there:
 
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
-- **RECORD SERIES** makes a series recording in TVHeadend, with an episodes-to-keep option. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **ADD TO LIBRARY** decides what Freetvarr does with the recording. Under the switch, the dialog says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. With the switch off, the recording stays in TVHeadend only. With it on, **RECORD SERIES** also makes the series folder, so the episodes go to the TV library. To change a folder later, open [SERIES](/guide/series).
-- A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series recording, cancelling asks whether to cancel just that episode or the whole series. Cancelling one episode disables it in TVHeadend instead of deleting it, so the series recording does not schedule it again. Record it later to turn it back on.
+- **RECORD SERIES** creates a series recording in TVHeadend, with an episodes-to-keep option. See [How a series recording works](/guide/series#how-a-series-recording-works).
+- **ADD TO LIBRARY** decides what Freetvarr does with the recording. Under the switch, the dialog says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. With the switch off, the recording stays in TVHeadend only. With it on, **RECORD SERIES** also creates the series folder, so the episodes go to the TV library. To change a folder later, open [SERIES](/guide/series).
+- A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series recording, cancelling asks whether to cancel just that episode or the whole series. Cancelling one episode disables it in TVHeadend instead of deleting it, so the series recording does not schedule it again. To turn it back on, open the episode later and press **RECORD**.
 - A programme whose series is already recording, with no episode scheduled yet, shows a **CANCEL SERIES** action.
 
-Many networks show the same programme on an SD channel and an HD channel, such as 7 Sydney and 7HD Sydney. If you press **RECORD** or **RECORD SERIES** on the SD channel and the guide has the same programme at the same time on an HD channel, Freetvarr asks whether to record the HD channel instead. Your padding, episodes-to-keep, and **ADD TO LIBRARY** choices carry over.
+Many networks show the same programme on an SD channel and an HD channel, such as 7 Sydney and 7HD Sydney. If you press **RECORD** or **RECORD SERIES** on the SD channel and the TV guide has the same programme at the same time on an HD channel, Freetvarr asks whether to record the HD channel instead. Your padding, episodes-to-keep, and **ADD TO LIBRARY** choices carry over.
 
-The **UPCOMING** view lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. Click a card to record or cancel. The [SERIES](/guide/series) tab lists the series recordings themselves.
+The **UPCOMING** view lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. Click a card to open the programme, then record it or cancel its recording. The [SERIES](/guide/series) tab lists the series recordings themselves.
 
 ## Favourites
 
-Press the star next to a channel to make it a favourite. Favourites sit at the top of the grid. To reorder them, hold a favourite until it lifts, then drag it. This also works on the Live TV page.
+Press the star next to a channel to make it a favourite. Favourites sit at the top of the grid. To reorder them, hold a favourite until it lifts, then drag it. Reordering also works on the Live TV page.
 
 The `CHANNELS` button above the grid opens a wide dialog on a computer. The channel list is on the left and the settings are on the right. On a phone, the settings come first and the list follows. The settings are:
 
@@ -79,20 +79,20 @@ Press `SAVE` to apply the changes.
 
 ## Channel listings
 
-Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the `GUIDE` step of the setup wizard. The wizard links them for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
+Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the `GUIDE` step of the setup wizard. The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
 
-1. Press `CHANNELS` above the grid.
+1. In the TV Guide, press `CHANNELS` above the grid.
 2. Press the pencil next to the channel (**Fix listings**). The row shows a list of guide channels.
 3. Pick the guide channel that matches it, then press the tick (**Use these listings**, or `Enter`). Press the cross (**Keep the current listings**, or `Esc`) to keep the current pick.
-4. Press `SAVE`.
+4. Press `SAVE` to save the new listings.
 
 Each row shows the name of its guide channel, or `No listings`. A row you changed is marked until you press `SAVE`. Opening another channel's pencil drops an unconfirmed pick.
 
 Pick **No listings** to remove a channel's shows. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
 
-Freetvarr saves the pick in TVHeadend and asks TVHeadend to load the guide again. The new listings can take a minute or two to show. Press `REFRESH` if they do not.
+Freetvarr saves the pick in TVHeadend and asks TVHeadend to load the TV guide again. The new listings can take a minute or two to show. Press `REFRESH` if they do not.
 
-If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and go to its `GUIDE` step.
+If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and proceed to its `GUIDE` step.
 
 A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's listings, that channel gets different programmes, so its series recordings can catch different episodes. Check the `UPCOMING` view after the change.
 
@@ -100,7 +100,7 @@ If saving the listings fails, the dialog says so on its own line. Your favourite
 
 ## On a phone
 
-The guide works in a phone browser, and you can reorder favourites by touch. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-add-it-to-your-home-screen). In that app, pull down from the top of a page to refresh it; see [Pull to refresh](/guide/syncs#pull-to-refresh).
+The TV Guide works in a phone browser, and you can reorder favourites by touch. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-add-it-to-your-home-screen). In that Home Screen app, pull down from the top of a page to refresh it (see [Pull to refresh](/guide/syncs#pull-to-refresh)).
 
 ## Live TV page
 
@@ -108,10 +108,10 @@ The `LIVE TV` tab lists every channel with what's on now and next, favourites fi
 
 ## On the dashboard
 
-The dashboard's What's On panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. Star some channels to fill the panel.
+The dashboard's What's On panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. To fill the panel, press the star next to some channels in the TV Guide.
 
 While TVHeadend records, a `RECORDING NOW` panel at the top of the dashboard shows each recording's progress, file size, and tuner signal. If TVHeadend reports a recording as failed, the card turns red and shows TVHeadend's reason. After a recording stops, its card shows it through import, ad removal (if on), and into your library. While anything records, the browser tab title starts with `● REC`.
 
 ## Caching
 
-Freetvarr holds the guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. Press `REFRESH` to fetch them again. If TVHeadend stops answering, the guide shows its cached copy with a note, and updates when TVHeadend is back.
+Freetvarr keeps a copy of the TV guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. Press `REFRESH` to fetch them again. If TVHeadend stops answering, the TV Guide shows its cached copy with a note, and updates when TVHeadend is back.
