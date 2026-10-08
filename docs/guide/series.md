@@ -25,9 +25,19 @@ Freetvarr creates the library folder at the same time, unless you turn **ADD TO 
 
 Matching is by title: a recording goes to the folder whose title appears in the recording's title. When more than one folder matches, the longest title wins, so `NRL Grand Final` beats `NRL`.
 
+## Record on any channel
+
+Turn on **RECORD ON ANY CHANNEL** in the programme window before you press **RECORD SERIES**. The series recording then matches on title alone, and records the show on whichever channel airs it. It is off by default.
+
+Use it for a show that moves between channels, such as a series that airs on 7 one season and on 7mate the next. The SERIES tab shows `Any channel` where it normally shows the channel names.
+
+An episode that airs on two channels records once. The series recording skips an episode whose episode number it has already recorded, on any channel. This needs episode numbers in your TV guide, as in [How a series recording works](#how-a-series-recording-works). Where they are missing, TVHeadend records every airing, so the same episode can record twice.
+
+To change the setting on an existing series, stop the series recording and record the series again.
+
 ## How a series recording works
 
-A series recording is one TVHeadend autorec entry. It matches on **title plus channel**, across all days and all start times. It skips an episode whose episode number it has already recorded. The **episodes to keep** option maps to the maximum-count field of TVHeadend, so TVHeadend removes the oldest episodes itself.
+A series recording is one TVHeadend autorec entry. It matches on **title plus channel** (or on title alone, with [any channel](#record-on-any-channel)), across all days and all start times. It skips an episode whose episode number it has already recorded. The **episodes to keep** option maps to the maximum-count field of TVHeadend, so TVHeadend removes the oldest episodes itself.
 
 - **One channel**: an SD channel and its HD simulcast are separate channels, so a series recording on the HD channel does not cover SD airings. The SERIES tab shows both as one series.
 - **Episode numbers**: duplicate detection needs them. XMLTV feeds carry them inconsistently, so your TV guide source decides what you get. Where they are missing, TVHeadend records every airing.
