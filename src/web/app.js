@@ -502,11 +502,22 @@ const usePathCheck = (request) => {
       checking.value = false
     }
   }
-  return reactive({ checking, text, kind, run })
+  const begin = () => {
+    checking.value = true
+    set('Checking…', 'busy', 0)
+  }
+  const show = (result) => {
+    set(result.text, result.kind, 0)
+    checking.value = false
+  }
+  const clear = () => (text.value = '')
+  return reactive({ checking, text, kind, run, begin, show, clear })
 }
 
-const recordingsFolderStatus = async ({ path, mediaRoot }) => {
-  const r = await api('POST', '/api/recordings-root-test', { path, media_root: mediaRoot })
+const recordingsFolderStatus = async ({ path, mediaRoot }) =>
+  describeRecordingsFolder(await api('POST', '/api/recordings-root-test', { path, media_root: mediaRoot }))
+
+const describeRecordingsFolder = (r) => {
   if (!r.ok) return { text: r.error, kind: 'err' }
   if (r.hardlinks === false) {
     const where = r.sameDevice
@@ -521,8 +532,11 @@ const recordingsFolderStatus = async ({ path, mediaRoot }) => {
   return { text: `${r.path} is readable${hardlinks}.`, kind: 'ok' }
 }
 
-const tvhRecordingsPathStatus = async ({ path, fill }) => {
-  const r = await api('POST', '/api/tvh-recordings-path-check', { path })
+const tvhRecordingsPathStatus = async ({ path, fill }) =>
+  describeTvhRecordingsPath({ r: await api('POST', '/api/tvh-recordings-path-check', { path }), fill })
+
+const describeTvhRecordingsPath = ({ r, fill }) => {
+  if (r.ok === false) return { text: r.error, kind: 'err' }
   if (!r.tvhPath) {
     return { text: 'TVHeadend has no recording path. Set one in its DVR profile.', kind: 'err' }
   }
@@ -5117,7 +5131,7 @@ const WelcomeView = {
                 </p>
                 <div class="field-row">
                   <label class="field-label">TV library folder</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
+                  <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" @input="clearStaleLibraryStatus" placeholder="/data/media/tv" />
                   <div class="flex flex-wrap items-center gap-3 mt-2">
                     <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
                       <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -5128,7 +5142,7 @@ const WelcomeView = {
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                    <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
+                    <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" @input="recordingsCheck.clear" placeholder="/data/recordings" />
                     <div class="flex flex-wrap items-center gap-3 mt-2">
                       <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
                         <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -5138,7 +5152,7 @@ const WelcomeView = {
                   </div>
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                    <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                    <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" @input="tvhPathCheck.clear" placeholder="/recordings" />
                     <div class="flex flex-wrap items-center gap-3 mt-2">
                       <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
                         <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
@@ -5371,18 +5385,16 @@ const WelcomeView = {
       })
     })
 
+    const showMediaRootResult = (r) => {
+      mediaRootStatus.value = r.ok ? `${r.path} is writable.` : r.error
+      mediaRootStatusKind.value = r.ok ? 'ok' : 'err'
+    }
+
     const testMediaRoot = async () => {
       mediaRootTesting.value = true
       mediaRootStatus.value = ''
       try {
-        const r = await api('POST', '/api/media-root-test', { path: mediaRoot.value })
-        if (r.ok) {
-          mediaRootStatus.value = `${r.path} is writable.`
-          mediaRootStatusKind.value = 'ok'
-        } else {
-          mediaRootStatus.value = r.error
-          mediaRootStatusKind.value = 'err'
-        }
+        showMediaRootResult(await api('POST', '/api/media-root-test', { path: mediaRoot.value }))
       } catch (err) {
         mediaRootStatus.value = `Test failed: ${err.message}`
         mediaRootStatusKind.value = 'err'
@@ -5406,8 +5418,18 @@ const WelcomeView = {
       ['tvh_recordings_path', tvhRecordingsPath.value, saved.tvhRecordingsPath],
     ]))
 
+    const clearStaleLibraryStatus = () => {
+      mediaRootStatus.value = ''
+      recordingsCheck.clear()
+    }
+
     const checkStorage = async () => {
       storageChecking.value = true
+      mediaRootTesting.value = true
+      mediaRootStatus.value = 'Checking…'
+      mediaRootStatusKind.value = 'busy'
+      recordingsCheck.begin()
+      tvhPathCheck.begin()
       const folders = {
         mediaRoot: mediaRoot.value,
         recordingsRoot: recordingsRoot.value,
@@ -5420,6 +5442,10 @@ const WelcomeView = {
         api('POST', '/api/tvh-recordings-path-check', { path: folders.tvhRecordingsPath }).catch(failedCheck),
       ])
       if (tvh.ok && !tvh.configured && tvh.tvhPath) tvhRecordingsPath.value = tvh.tvhPath
+      showMediaRootResult(library)
+      mediaRootTesting.value = false
+      recordingsCheck.show(describeRecordingsFolder(recordings))
+      tvhPathCheck.show(describeTvhRecordingsPath({ r: tvh, fill: (value) => (tvhRecordingsPath.value = value) }))
       const outcome = storageCheckOutcome({ folders, library, recordings, tvh })
       storageProblems.value = outcome.problems
       storageNotes.value = outcome.notes
@@ -5902,7 +5928,7 @@ const WelcomeView = {
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
       plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
       plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, plexShowSections, findPlex,
-      storageChecking, storageChecked, storageProblems, storageNotes, storageAdvancedOpen, storageSummary, checkStorage,
+      storageChecking, storageChecked, storageProblems, storageNotes, storageAdvancedOpen, storageSummary, checkStorage, clearStaleLibraryStatus,
       focusFirstFieldOnOpen, manualLogin,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
