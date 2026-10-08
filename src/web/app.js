@@ -6446,7 +6446,7 @@ const ChannelsModal = {
             <info-button title="Channels" doc="guide/tv-guide#favourites">
               <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
               <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
-              <p>The GUIDE list sets where a channel's listings come from. Pick No guide to remove its listings. A new pick can take a minute to show in the TV Guide.</p>
+              <p>The pencil next to a channel sets where its listings come from. Tick to keep the pick, or cross to drop it. Pick No guide to remove its listings. A new pick can take a minute to show in the TV Guide.</p>
             </info-button>
           </span>
           <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
@@ -6487,38 +6487,48 @@ const ChannelsModal = {
             </p>
           </div>
           <div>
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, PICK A GUIDE</label>
+            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" /> CHANGE GUIDE</label>
             <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the guide links…</p>
             <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
               Set up the guide first to pick a guide for each channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
             <div class="grid grid-cols-1 gap-y-2">
-              <div v-if="showGuideColumn" class="flex items-center gap-2">
-                <span class="flex-1"></span>
-                <span class="w-40 sm:w-64 shrink-0 font-mono text-[0.7rem] tracking-[0.14em] text-ink-mute">GUIDE</span>
-              </div>
-              <div v-for="ch in channels" :key="ch.id" class="flex items-center gap-2">
-                <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
-                  @click="toggleDraftPin(String(ch.id))"
-                  :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"><star-icon /></button>
-                <label class="flex flex-1 items-center gap-2.5 text-sm cursor-pointer min-w-0"
-                  :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
-                  <input type="checkbox" class="chk"
-                    :checked="!hiddenDraft.has(String(ch.id))"
-                    :disabled="pinnedDraft.includes(String(ch.id))"
-                    @change="toggleHidden(ch)" />
-                  <span class="font-mono text-[0.8rem] truncate">
-                    <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
-                    {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
-                  </span>
-                </label>
-                <select v-if="showGuideColumn && String(ch.id) in guideDraft" class="field-input w-40 sm:w-64 shrink-0"
-                  v-model="guideDraft[String(ch.id)]" :aria-label="'Guide for ' + ch.name">
-                  <option value="">No guide</option>
-                  <option v-for="o in guideLinks.options" :key="o.id" :value="o.id">{{ o.name }}</option>
-                </select>
-                <span v-else-if="showGuideColumn" class="w-40 sm:w-64 shrink-0"></span>
+              <div v-for="ch in channels" :key="ch.id" class="flex flex-col gap-1.5"
+                @keydown.esc.stop="cancelGuideEdit">
+                <div class="flex items-center gap-2">
+                  <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
+                    @click="toggleDraftPin(String(ch.id))"
+                    :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"><star-icon /></button>
+                  <label class="flex flex-1 items-center gap-2.5 text-sm cursor-pointer min-w-0"
+                    :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
+                    <input type="checkbox" class="chk shrink-0"
+                      :checked="!hiddenDraft.has(String(ch.id))"
+                      :disabled="pinnedDraft.includes(String(ch.id))"
+                      @change="toggleHidden(ch)" />
+                    <span class="font-mono text-[0.8rem] truncate">
+                      <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
+                      {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
+                    </span>
+                  </label>
+                  <template v-if="showGuideColumn && String(ch.id) in guideDraft">
+                    <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
+                      :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
+                    <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
+                      :aria-label="'Change guide for ' + ch.name"><pencil-icon /></button>
+                  </template>
+                </div>
+                <div v-if="editingId === String(ch.id)" class="flex items-center gap-2 pl-6">
+                  <select class="field-input flex-1 min-w-0" v-model="editValue"
+                    :aria-label="'Guide for ' + ch.name" @keydown.enter.prevent="confirmGuideEdit">
+                    <option value="">No guide</option>
+                    <option v-for="o in guideLinks.options" :key="o.id" :value="o.id">{{ o.name }}</option>
+                  </select>
+                  <button type="button" class="btn btn-sm btn-icon shrink-0" @click="confirmGuideEdit"
+                    aria-label="Use this guide"><check-icon /></button>
+                  <button type="button" class="btn btn-sm btn-icon shrink-0" @click="cancelGuideEdit"
+                    aria-label="Keep the current guide"><cross-icon /></button>
+                </div>
               </div>
             </div>
           </div>
@@ -6548,6 +6558,22 @@ const ChannelsModal = {
     const guideSaved = ref({})
     const guideDraft = reactive({})
     const showGuideColumn = computed(() => Boolean(guideLinks.value?.ready))
+    const editingId = ref(null)
+    const editValue = ref('')
+
+    const guideNameFor = (guideId) =>
+      guideLinks.value?.options.find((o) => o.id === guideId)?.name || 'No guide'
+    const isGuideChanged = (ch) => guideDraft[String(ch.id)] !== guideSaved.value[String(ch.id)]
+    const startGuideEdit = (ch) => {
+      editingId.value = String(ch.id)
+      editValue.value = guideDraft[String(ch.id)]
+    }
+    const cancelGuideEdit = () => { editingId.value = null }
+    const confirmGuideEdit = () => {
+      if (editingId.value === null) return
+      guideDraft[editingId.value] = editValue.value
+      editingId.value = null
+    }
 
     const loadGuideLinks = async () => {
       try {
@@ -6644,6 +6670,7 @@ const ChannelsModal = {
       CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, savingPrefs,
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
+      editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
     }
   },
 }
@@ -8585,6 +8612,14 @@ const CheckIcon = {
   `,
 }
 
+const PencilIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2.5 13.5l.75-3.25 7.5-7.5 2.5 2.5-7.5 7.5zM9.5 4l2.5 2.5"/>
+    </svg>
+  `,
+}
+
 const StarIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -9729,6 +9764,7 @@ app.component('play-icon', PlayIcon)
 app.component('plus-icon', PlusIcon)
 app.component('minus-icon', MinusIcon)
 app.component('check-icon', CheckIcon)
+app.component('pencil-icon', PencilIcon)
 app.component('search-icon', SearchIcon)
 app.component('pulse-icon', PulseIcon)
 app.component('bolt-icon', BoltIcon)
