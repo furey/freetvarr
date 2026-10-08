@@ -85,7 +85,7 @@ Press `SAVE` to apply the changes.
 Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the `GUIDE` step of the setup wizard. The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
 
 1. In the TV Guide, press `CHANNELS` above the grid.
-2. Press the pencil next to the channel (**Fix listings**). The row shows the current guide channel in a box you can type in.
+2. Press the pencil next to the channel (**Change listings**). The row shows the current guide channel in a box you can type in.
 3. Type part of the guide channel's name to find it (`7` finds Seven and 7two), then pick the one that matches. The arrow keys and `Enter` also work, and `Esc` closes the list. Press the tick (**Use these listings**, or `Enter` with the list closed). Press the cross (**Keep the current listings**, or `Esc`) to keep the current pick.
 4. Press `SAVE` to save the new listings.
 
