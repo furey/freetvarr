@@ -20,6 +20,7 @@ import {
 } from '/guide-time.js'
 import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
 import { findHdSimulcast } from '/simulcast.js'
+import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
@@ -2340,7 +2341,7 @@ const SyncsView = {
         <div class="panel-body space-y-4">
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
-              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span> SYNC RUNNING…</template>
+              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span>SYNC RUNNING…</template>
               <template v-else-if="starting">STARTING…</template>
               <template v-else><play-icon /> SYNC NOW</template>
             </button>
@@ -4384,9 +4385,11 @@ const ChannelSetupStep = {
       <template v-else-if="status">
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
-            <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
-              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+            <li v-for="s in steps" :key="s.id" class="step-row">
+              <span class="step-marker">
+                <span v-if="s.status === 'running'" class="step-spinner"></span>
+                <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
+              </span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -4468,7 +4471,7 @@ const ChannelSetupStep = {
           <div v-if="networks.length" class="field-row">
             <label class="field-label" for="channel-network">TV network</label>
             <select id="channel-network" class="field-input" v-model="networkId">
-              <option v-for="n in networks" :key="n.id" :value="n.id">{{ n.name }} (existing)</option>
+              <option v-for="n in networks" :key="n.id" :value="n.id">{{ transmitterLabel(n.name) }} (existing)</option>
               <option value="">Scan a transmitter instead</option>
             </select>
           </div>
@@ -4485,7 +4488,7 @@ const ChannelSetupStep = {
                 <label class="field-label" for="channel-transmitter">Transmitter</label>
                 <select id="channel-transmitter" class="field-input" v-model="transmitterKey" :disabled="!country">
                   <option value="">Pick a transmitter</option>
-                  <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ t.name }}</option>
+                  <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ transmitterLabel(t.name) }}</option>
                 </select>
               </div>
             </div>
@@ -4692,7 +4695,7 @@ const ChannelSetupStep = {
     })
 
     return {
-      status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
+      transmitterLabel, status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
       steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
@@ -4764,9 +4767,11 @@ const GuideSetupStep = {
       <template v-else-if="suggestion">
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
-            <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
-              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+            <li v-for="s in steps" :key="s.id" class="step-row">
+              <span class="step-marker">
+                <span v-if="s.status === 'running'" class="step-spinner"></span>
+                <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
+              </span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -5039,9 +5044,11 @@ const WelcomeView = {
               </manual-option>
             </div>
             <ol v-if="secureStepsVisible" class="space-y-1 text-sm font-mono">
-              <li v-for="s in secureShownSteps" :key="s.id" class="flex items-center gap-2">
-                <span v-if="s.status === 'running'" class="step-spinner shrink-0"></span>
-              <span v-else :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
+              <li v-for="s in secureShownSteps" :key="s.id" class="step-row">
+                <span class="step-marker">
+                  <span v-if="s.status === 'running'" class="step-spinner"></span>
+                  <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
+                </span>
                 <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
               </li>
             </ol>

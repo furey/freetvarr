@@ -81,32 +81,51 @@ html {
   }
 }
 
-.spinner {
-  display: inline-block;
-  vertical-align: -0.175em;
-  width: 0.9em;
-  height: 0.9em;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: spinner-rotate 0.6s linear infinite;
+:root {
+  --spinner-size: 0.9em;
+  --spinner-gap: 0.5em;
+  --spinner-colour: currentColor;
 }
 
-.step-spinner {
-  display: inline-block;
-  position: relative;
-  width: 0.4rem;
-  height: 0.4rem;
-}
-
-.step-spinner::before {
+.spinner,
+.step-spinner,
+.status-readout.busy::before {
   content: '';
-  position: absolute;
-  inset: -0.25rem;
-  border: 2px solid #ff8a00;
+  display: inline-block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  vertical-align: -0.175em;
+  width: var(--spinner-size);
+  height: var(--spinner-size);
+  border: 2px solid var(--spinner-colour);
   border-right-color: transparent;
   border-radius: 50%;
   animation: spinner-rotate 0.6s linear infinite;
+}
+
+.spinner:not(.spinner-overlay),
+.status-readout.busy::before {
+  margin-right: var(--spinner-gap);
+}
+
+.step-spinner,
+.status-readout.busy::before {
+  --spinner-colour: #ff8a00;
+}
+
+.step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spinner-gap);
+}
+
+.step-marker {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--spinner-size);
+  height: 1lh;
 }
 
 .spinner-overlay {
@@ -128,7 +147,7 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .spinner,
-  .step-spinner::before,
+  .step-spinner,
   .status-readout.busy::before { animation-duration: 1.6s; }
 }
 
@@ -852,8 +871,8 @@ code {
 }
 
 .doctor-spinner {
-  width: 1rem;
-  height: 1rem;
+  width: var(--spinner-size);
+  height: var(--spinner-size);
   flex-shrink: 0;
   animation: spinner-rotate 0.9s linear infinite;
 }
@@ -869,7 +888,7 @@ code {
 .doctor-progress-line {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--spinner-gap);
   margin-bottom: 0.6rem;
 }
 
@@ -888,11 +907,6 @@ code {
 
 .doctor-row-active .doctor-pill-pending {
   color: #ff8a00;
-}
-
-.doctor-pill-pending .doctor-spinner {
-  width: 0.8rem;
-  height: 0.8rem;
 }
 
 .doctor-row-pending .doctor-row-title {
@@ -952,19 +966,6 @@ code {
 .status-readout.err { color: #ffab3d; }
 .status-readout.info{ color: #b0a89e; }
 .status-readout.busy { color: var(--color-ink); }
-
-.status-readout.busy::before {
-  content: '';
-  display: inline-block;
-  vertical-align: -0.175em;
-  width: 0.9em;
-  height: 0.9em;
-  margin-right: 0.5em;
-  border: 2px solid #ff8a00;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: spinner-rotate 0.6s linear infinite;
-}
 
 .doctor-progress-line .status-readout.busy::before { display: none; }
 
