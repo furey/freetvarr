@@ -43,6 +43,7 @@ import {
   removeRecordings as removeTvhRecordings,
   listFinished,
   resolveConnection,
+  listChannels,
   getRecordingStorage,
   getServerVersion as getTvheadendVersion,
   tvhRead,
@@ -77,6 +78,8 @@ import {
   suggestGuide,
 } from './tvheadend-guide.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
+import { applyDefaultFavourites } from './default-favourites.js'
+import { countryForTimeZone } from './zone-countries.js'
 import {
   getGuideDay,
   searchGuide,
@@ -89,6 +92,7 @@ import {
   cancelSeries,
   pauseSeries,
   setChannelPrefs,
+  getChannelPrefs,
   getOnNowForPinned,
   getOnNowAll,
   clearGuideCache,
@@ -1537,11 +1541,31 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
     transmitter,
     onProgress: (latest) => { setupRun.steps = latest },
   }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: setupRun.steps }))
-  const outcome = result.ok ? result : { ...result, ...setupFailure({ ...result, transmitter }) }
+  const outcome = result.ok
+    ? { ...result, favourites: await defaultFavouritesAfterScan(setup.conn) }
+    : { ...result, ...setupFailure({ ...result, transmitter }) }
   if (result.ok) console.log(`[tvh-setup] ${result.mapped.ok} channels added on network ${result.networkId}`)
   else console.warn(`[tvh-setup] stopped at ${result.failedStep}: ${result.error}`)
   setupRun = { running: false, steps: result.steps, result: outcome }
 })
+
+const defaultFavouritesAfterScan = async (conn) => {
+  try {
+    const favourites = await applyDefaultFavourites({
+      country: countryForTimeZone(currentTimeZone()),
+      listChannels: () => listChannels(conn),
+      getChannelPrefs,
+      setChannelPrefs,
+      getSetting,
+      setSetting,
+    })
+    if (favourites.length) console.log(`[tvh-setup] favourites set to ${favourites.map((f) => f.name).join(', ')}`)
+    return favourites
+  } catch (err) {
+    console.warn(`[tvh-setup] could not set the default favourites: ${err.message}`)
+    return []
+  }
+}
 
 const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
   const error = String(raw).replace(/HTTP (\d+)/g, 'status $1')
