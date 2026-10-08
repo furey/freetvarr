@@ -78,9 +78,10 @@ export const rankCandidates = ({ interfaces = {}, hintAddresses = [], port = DEF
 }
 
 export const listChannels = async (conn) => {
-  const [body, epgIconsByChannel] = await Promise.all([
+  const [body, epgIconsByChannel, services] = await Promise.all([
     apiGet('channel/grid', { limit: 1000, sort: 'number', dir: 'ASC' }, conn),
     listEpgIconsByChannel(conn).catch(() => new Map()),
+    listServiceMuxes(conn).catch(() => new Map()),
   ])
   return (body?.entries || [])
     .filter((c) => c.enabled !== false)
@@ -94,8 +95,12 @@ export const listChannels = async (conn) => {
       recordable: true,
       logos: channelLogoSources({ channel: c, epgIcons: epgIconsByChannel.get(c.uuid) }),
       serviceIds: c.services || [],
+      offAir: isOffAir({ serviceIds: c.services || [], services }),
     }))
 }
+
+export const isOffAir = ({ serviceIds = [], services }) =>
+  serviceIds.length > 0 && serviceIds.every((id) => services.get(id)?.enabled === false)
 
 export const indexEpgIconsByChannel = (epgChannels = []) => {
   const index = new Map()
