@@ -2266,6 +2266,63 @@ body.epg-drag-lock * {
   background: #28231b;
 }
 
+.channels-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.channels-body .epg-modal-actions {
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .epg-modal.channels-modal {
+    max-width: 60rem;
+    height: 85vh;
+    height: 85svh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .channels-modal > .channels-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .channels-modal .channels-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    gap: 1.5rem;
+  }
+
+  .channels-modal .channels-list {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .channels-modal .channels-settings {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .channels-modal .channels-list,
+  .channels-modal .channels-settings {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+
+  .channels-modal .channels-body .epg-modal-actions {
+    margin-top: 0;
+  }
+}
+
 .epg-sheet-enter-active,
 .epg-sheet-leave-active {
   transition: opacity 0.2s ease;
