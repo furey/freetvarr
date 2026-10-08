@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { revealStepMs, isStepResolved, pacedSteps } from '../src/web/paced-reveal.js'
+import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '../src/web/paced-reveal.js'
 
 const steps = (...statuses) => statuses.map((status, i) => ({ id: `s${i}`, label: `Step ${i}`, status }))
 
@@ -16,6 +16,17 @@ test('revealStepMs: caps a short list at 260 ms a step', () => {
 
 test('revealStepMs: floors a long list at 80 ms a step', () => {
   assert.equal(revealStepMs(100), 80)
+})
+
+test('revealStepMs: secure pacing gives nine steps about 444 ms each', () => {
+  const ms = revealStepMs(9, SECURE_REVEAL_PACING)
+  assert.ok(ms >= 350 && ms <= 500)
+  assert.ok(Math.abs(ms * 9 - 4000) < 1)
+})
+
+test('revealStepMs: secure pacing keeps every step between 350 and 500 ms', () => {
+  assert.equal(revealStepMs(3, SECURE_REVEAL_PACING), 500)
+  assert.equal(revealStepMs(100, SECURE_REVEAL_PACING), 350)
 })
 
 test('isStepResolved: true only for done and failed', () => {

@@ -7,13 +7,13 @@ description: >-
 
 # From Fetcharr
 
-If you ran [Fetcharr](https://github.com/furey/fetcharr) against a Fetch TV box, the notes below cover the move. If you never used Fetcharr, read [Leaving Fetch TV](/guide/leaving-fetch) instead; it covers the levy, saving your recordings, the tuner, and cancelling.
+If you ran [Fetcharr](https://github.com/furey/fetcharr) against a Fetch TV box, the notes below cover the move. If you never used Fetcharr, read [Leaving Fetch TV](/guide/leaving-fetch) instead. That page covers the levy, saving your recordings, the tuner, and cancelling.
 
-Freetvarr is Fetcharr with the recorder swapped out. The web UI, the shows, the filing pipeline, and the ad removal are the same. TVHeadend and a TVHeadend-compatible tuner replace the Fetch box.
+Freetvarr is Fetcharr with the recorder swapped out. The web interface, the shows, the filing pipeline, and the ad removal are the same. TVHeadend and a TVHeadend-compatible tuner replace the Fetch box.
 
 ## The database
 
-Your Fetcharr database does not carry over; Freetvarr starts clean. Set up TVHeadend and Freetvarr as in [Leaving Fetch TV](/guide/leaving-fetch#setting-up), then come back here.
+Your Fetcharr database does not carry over. Freetvarr starts with an empty database. Set up TVHeadend and Freetvarr as in [Leaving Fetch TV](/guide/leaving-fetch#setting-up), then come back here.
 
 ## Library folders
 
@@ -21,7 +21,7 @@ Recreate each series folder on the [SERIES](/guide/series) tab. The titles now c
 
 ## Series recordings
 
-Set your series recordings again from the [TV Guide](/guide/tv-guide). A Fetch series tag has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry that matches on title and channel.
+In Freetvarr's [TV Guide](/guide/tv-guide), press **RECORD SERIES** on each series again. A Fetch series tag has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry that matches on title and channel.
 
 ## What changed
 

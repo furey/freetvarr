@@ -10,7 +10,7 @@ description: >-
 
 The Recordings tab lists every recording TVHeadend has finished, with its programme image, channel, and air time, and what Freetvarr did with it.
 
-Freetvarr saves each programme image while the recording is still scheduled, because guide image links often stop working once the programme has aired. A recording with no saved image shows its channel logo.
+Freetvarr saves each programme image while the recording is still scheduled, because TV guide image links often stop working once the programme has aired. A recording with no saved image shows its channel logo.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/recordings">
@@ -21,19 +21,19 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 ## Statuses
 
 - **imported**: the file on disk matches the size TVHeadend reported.
-- **partial**: the imported file came up more than `1MB` short. The next sync redoes it.
-- **skipped**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The error text says which.
+- **partial**: the imported file came up more than `1MB` short. The next sync imports it again.
+- **skipped**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The row's error text says which.
 - **failed**: the import hit an error.
 - **not imported**: Freetvarr left the recording in TVHeadend. You recorded it with **ADD TO LIBRARY** off, or it matches no series folder and **IMPORT EVERY RECORDING** is off in Settings. Press **IMPORT** to add it to the library at once.
 
 With ad removal on, an ad status also appears: `scanning`, `detected`, `no_breaks`, `cut`, `detect_failed`, or `cut_failed`. See [Ad removal](/guide/ad-removal).
 
 > [!NOTE]<br>
-> A recording still in progress shows as `skipped`. The next sync after TVHeadend finishes it imports it, up to ten minutes after the programme ends because of the padding.
+> A recording still in progress shows as `skipped`. The first sync after TVHeadend finishes the recording imports it, up to ten minutes after the programme ends because of the padding.
 
 ## Playback
 
-Press **PLAY** on a finished recording to watch it in Freetvarr's player, in any browser, on a phone or a computer. The player uses the imported file, or the TVHeadend copy when the recording is not imported. Freetvarr remembers where you stopped and starts there next time, with a button to start over. On an iPhone, AirPlay sends it to an Apple TV.
+Press **PLAY** on a finished recording to watch it in Freetvarr's player, in any browser, on a phone or a computer. The player uses the imported file, or the TVHeadend copy when the recording is not imported. Freetvarr remembers where you stopped and starts there next time, with a button to start over. To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further. On a computer, the left and right arrow keys skip `10` seconds too. If ad detection found breaks in the recording (see [Ad removal](/guide/ad-removal)), a **SKIP AD** button appears at the bottom right of the picture while you watch a break. Press it to jump to the end of the break. On an iPhone, use AirPlay to send the recording to an Apple TV.
 
 The player converts the file as it plays, the same way it converts [live TV](/guide/live-tv#stream-handling), so live channels and recordings share the `LIVE_TV_MAX_SESSIONS` limit. A recording still in progress cannot be played until it finishes. On the TV itself, a media player that reads your library (Plex, Jellyfin, Kodi, or Infuse) is still the better way to watch.
 
@@ -43,7 +43,7 @@ A hardlink import is instant. A copy between filesystems, an ad scan, or a cut t
 
 ## Re-scan and re-cut
 
-Re-run an ad scan or cut on a file you have already imported. This does not touch TVHeadend.
+On the Recordings tab, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend.
 
 The ad scan button is greyed out when the library file is gone, for example after another app replaced or removed it.
 
@@ -51,7 +51,7 @@ The ad scan button is greyed out when the library file is gone, for example afte
 
 A recording that TVHeadend has deleted shows a `NOT IN TVHEADEND` marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
 
-These rows leave the list 30 days after the removal. To remove them sooner, press **Clear from list**; it asks first and gives the number of rows it hides, across every page and filter. For 10 seconds after a clear, **Undo** puts the rows back. To remove one row, press its delete button. Both remove rows from the list only; the files stay in your library.
+These rows leave the list 30 days after the removal. To remove them sooner, press **Clear from list**. Freetvarr asks for confirmation first and states the number of rows it hides, across every page and filter. For 10 seconds after a clear, **Undo** puts the rows back. To remove one row, press its delete button. Both remove rows from the list only (the files stay in your library).
 
 ## Failed rows
 

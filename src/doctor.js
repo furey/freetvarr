@@ -652,7 +652,7 @@ const diskReading = async ({ folder, statfs }) => {
 }
 
 const describeDisk = ({ folder, free, total }) => total > 0
-  ? `${formatDiskSize(free)} free on ${folder} (${Math.round((free / total) * 100)}%)`
+  ? `${formatDiskSize(free)} free on ${folder} (${Math.round((free / total) * 100)}% of the disk)`
   : `${formatDiskSize(free)} free on ${folder}`
 
 const VIRTUAL_DISK_NOTE = " This is Docker's virtual disk. Real space is limited by the disk of your Mac or PC."

@@ -43,6 +43,7 @@ import {
   removeRecordings as removeTvhRecordings,
   listFinished,
   resolveConnection,
+  listChannels,
   getRecordingStorage,
   getServerVersion as getTvheadendVersion,
   tvhRead,
@@ -77,6 +78,8 @@ import {
   suggestGuide,
 } from './tvheadend-guide.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
+import { applyDefaultFavourites } from './default-favourites.js'
+import { countryForTimeZone } from './zone-countries.js'
 import {
   getGuideDay,
   searchGuide,
@@ -89,12 +92,15 @@ import {
   cancelSeries,
   pauseSeries,
   setChannelPrefs,
+  getChannelPrefs,
   getOnNowForPinned,
   getOnNowAll,
   clearGuideCache,
 } from './epg.js'
 import {
   startManualAdScan,
+  parseEdl,
+  skipMarkerPath,
   comskipIniOverrideExists,
   resetInterruptedScans,
   recoverInterruptedCuts,
@@ -130,6 +136,7 @@ import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
+import { transmitterLabel } from './web/transmitter-label.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -634,7 +641,7 @@ app.post('/api/epg/cancel', epgLimiter, doubleCsrfProtection, async (req, res) =
 app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const {
     series_link, channel_id, epg_program_id, program_id,
-    lead_time, lag_time, episodes_to_keep, add_show_rule,
+    lead_time, lag_time, episodes_to_keep, add_show_rule, any_channel,
   } = req.body || {}
   if (series_link == null || channel_id == null || program_id == null || epg_program_id == null) {
     return res.status(400).json({
@@ -647,6 +654,7 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       channelId: channel_id,
       epgProgramId: epg_program_id,
       programId: program_id,
+      anyChannel: any_channel === true,
       ...(lead_time != null ? { leadTime: Number(lead_time) } : {}),
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
       ...(episodes_to_keep != null ? { episodesToKeep: Number(episodes_to_keep) } : {}),
@@ -881,6 +889,11 @@ const probeOnce = async (file) => {
   })
 }
 
+const adBreaksFor = async (file) => {
+  const text = await fs.readFile(skipMarkerPath(file), 'utf8').catch(() => null)
+  return parseEdl(text).map(({ start, end }) => ({ start, end }))
+}
+
 const recordingLabel = (row) => `"${[row.title, row.episode_title].filter(Boolean).join(': ')}"`
 
 app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection, async (req, res) => {
@@ -909,7 +922,8 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
     if (session.status === 'ended') {
       return res.status(500).json({ error: `ffmpeg failed: ${session.reason?.detail || 'unknown error'}`, code: 'ffmpeg' })
     }
-    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0 })
+    const adBreaks = await adBreaksFor(file)
+    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0, adBreaks })
   } catch (err) {
     liveError(res, err, 'play start')
   }
@@ -1536,15 +1550,35 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
     transmitter,
     onProgress: (latest) => { setupRun.steps = latest },
   }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: setupRun.steps }))
-  const outcome = result.ok ? result : { ...result, ...setupFailure({ ...result, transmitter }) }
+  const outcome = result.ok
+    ? { ...result, favourites: await defaultFavouritesAfterScan(setup.conn) }
+    : { ...result, ...setupFailure({ ...result, transmitter }) }
   if (result.ok) console.log(`[tvh-setup] ${result.mapped.ok} channels added on network ${result.networkId}`)
   else console.warn(`[tvh-setup] stopped at ${result.failedStep}: ${result.error}`)
   setupRun = { running: false, steps: result.steps, result: outcome }
 })
 
+const defaultFavouritesAfterScan = async (conn) => {
+  try {
+    const favourites = await applyDefaultFavourites({
+      country: countryForTimeZone(currentTimeZone()),
+      listChannels: () => listChannels(conn),
+      getChannelPrefs,
+      setChannelPrefs,
+      getSetting,
+      setSetting,
+    })
+    if (favourites.length) console.log(`[tvh-setup] favourites set to ${favourites.map((f) => f.name).join(', ')}`)
+    return favourites
+  } catch (err) {
+    console.warn(`[tvh-setup] could not set the default favourites: ${err.message}`)
+    return []
+  }
+}
+
 const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
   const error = String(raw).replace(/HTTP (\d+)/g, 'status $1')
-  const from = transmitter ? ` from ${transmitter.name}` : ''
+  const from = transmitter ? ` from ${transmitterLabel(transmitter.name)}` : ''
   const messages = {
     'no-tuner': {
       error: 'Freetvarr cannot see the chosen tuner now.',

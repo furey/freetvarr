@@ -18,9 +18,16 @@ import {
   spillLengthMin,
   rulerTickMinutes,
 } from '/guide-time.js'
-import { seekPlan, fmtPlayTime, RESUME_END_MARGIN_S } from '/playback.js'
+import { findSeriesLink } from '/series-link.js'
+import { seekPlan, adBreakAt, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
+import {
+  DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
+} from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
-import { revealStepMs, isStepResolved, pacedSteps } from '/paced-reveal.js'
+import { liveRecordButton, nowProgramFor } from '/live-record.js'
+import { filterOptions, optionLabel, nextIndex } from '/typeahead.js'
+import { transmitterLabel } from '/transmitter-label.js'
+import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
@@ -219,6 +226,194 @@ const summaryParts = (s) => {
   return parts
 }
 
+const noAutofillAttrs = {
+  'data-1p-ignore': '',
+  'data-lpignore': 'true',
+  'data-bwignore': '',
+  'data-form-type': 'other'
+}
+
+const noAutofill = {
+  mounted: (el, { modifiers }) => {
+    el.setAttribute('autocomplete', modifiers['new-password'] ? 'new-password' : 'off')
+    Object.entries(noAutofillAttrs).forEach(([name, value]) => el.setAttribute(name, value))
+  }
+}
+
+const COMBOBOX_LIST_MAX_PX = 256
+const COMBOBOX_LIST_MIN_PX = 140
+const COMBOBOX_VIEWPORT_GAP_PX = 8
+let comboboxCount = 0
+
+const GuideCombobox = {
+  props: {
+    modelValue: { type: String, default: '' },
+    options: { type: Array, default: () => [] },
+    noneLabel: { type: String, required: true },
+    inputId: { type: String, default: '' },
+    label: { type: String, default: '' },
+    autofocus: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue', 'confirm'],
+  template: `
+    <div class="combobox">
+      <input v-no-autofill ref="input" :id="inputId || null" type="text" class="field-input combobox-input"
+        role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+        :aria-label="label || null" :aria-expanded="open ? 'true' : 'false'" :aria-controls="listId"
+        :aria-activedescendant="open && active >= 0 ? optionId(active) : null"
+        spellcheck="false" autocapitalize="off" :value="text"
+        @input="onInput" @keydown="onKeydown" @click="show" @focus="$event.target.select()" @blur="close" />
+      <teleport to="body">
+        <ul v-show="open" ref="list" :id="listId" role="listbox" class="combobox-list" :style="listStyle"
+          :aria-label="label || null" @mousedown.prevent>
+          <li v-for="(o, i) in shown" :key="o.id" :id="optionId(i)" role="option"
+            :aria-selected="o.id === modelValue ? 'true' : 'false'"
+            :class="['combobox-option', { active: i === active, selected: o.id === modelValue, none: o.id === '' }]"
+            @mousemove="active = i" @click="choose(o)">
+            <span class="combobox-option-name">{{ o.name }}</span>
+            <span v-if="o.number" class="combobox-option-number">{{ o.number }}</span>
+          </li>
+          <li v-if="typed && shown.length === 1" class="combobox-empty" role="presentation">No channel matches</li>
+        </ul>
+      </teleport>
+    </div>
+  `,
+  setup(props, { emit }) {
+    comboboxCount += 1
+    const listId = `combobox-list-${comboboxCount}`
+    const input = ref(null)
+    const list = ref(null)
+    const open = ref(false)
+    const typed = ref(false)
+    const active = ref(-1)
+    const listStyle = ref({})
+    const currentLabel = computed(() =>
+      optionLabel({ options: props.options, value: props.modelValue, noneLabel: props.noneLabel }))
+    const text = ref(currentLabel.value)
+    const noneOption = computed(() => ({ id: '', name: props.noneLabel }))
+    const shown = computed(() => [
+      noneOption.value,
+      ...(typed.value ? filterOptions({ options: props.options, query: text.value }) : props.options),
+    ])
+
+    const optionId = (i) => `${listId}-option-${i}`
+
+    const placeList = () => {
+      const box = input.value?.getBoundingClientRect()
+      if (!box) return
+      const below = window.innerHeight - box.bottom - COMBOBOX_VIEWPORT_GAP_PX
+      const above = box.top - COMBOBOX_VIEWPORT_GAP_PX
+      const goesBelow = below >= COMBOBOX_LIST_MIN_PX || below >= above
+      const room = goesBelow ? below : above
+      listStyle.value = {
+        left: `${box.left}px`,
+        width: `${box.width}px`,
+        maxHeight: `${Math.max(80, Math.min(COMBOBOX_LIST_MAX_PX, room))}px`,
+        ...(goesBelow
+          ? { top: `${box.bottom + 2}px` }
+          : { bottom: `${window.innerHeight - box.top + 2}px` }),
+      }
+    }
+
+    const scrollActiveIntoView = async () => {
+      await nextTick()
+      document.getElementById(optionId(active.value))?.scrollIntoView({ block: 'nearest' })
+    }
+
+    const setActive = (index) => {
+      active.value = index
+      scrollActiveIntoView()
+    }
+
+    const currentIndex = () => Math.max(0, shown.value.findIndex((o) => o.id === props.modelValue))
+
+    const show = () => {
+      if (open.value) return
+      open.value = true
+      placeList()
+      setActive(currentIndex())
+    }
+
+    const close = () => {
+      open.value = false
+      typed.value = false
+      text.value = currentLabel.value
+      active.value = -1
+    }
+
+    const choose = (option) => {
+      emit('update:modelValue', option.id)
+      open.value = false
+      typed.value = false
+      text.value = option.id === '' ? props.noneLabel : option.name
+      active.value = -1
+    }
+
+    const onInput = (e) => {
+      text.value = e.target.value
+      typed.value = true
+      if (!open.value) {
+        open.value = true
+        placeList()
+      }
+      setActive(shown.value.length > 1 ? 1 : 0)
+    }
+
+    const move = (delta) => {
+      if (!open.value) return show()
+      setActive(nextIndex({ current: active.value, delta, length: shown.value.length }))
+    }
+
+    const onEnter = (e) => {
+      e.preventDefault()
+      if (!open.value) return emit('confirm')
+      const option = shown.value[active.value]
+      if (option) choose(option)
+    }
+
+    const onEscape = (e) => {
+      if (!open.value) return
+      e.preventDefault()
+      e.stopPropagation()
+      close()
+    }
+
+    const keyHandlers = {
+      ArrowDown: (e) => { e.preventDefault(); move(1) },
+      ArrowUp: (e) => { e.preventDefault(); move(-1) },
+      Enter: onEnter,
+      Escape: onEscape,
+      Tab: close,
+    }
+
+    const onKeydown = (e) => keyHandlers[e.key]?.(e)
+
+    watch(currentLabel, (label) => {
+      if (!typed.value) text.value = label
+    })
+
+    watch(open, (isOpen) => {
+      const method = isOpen ? 'addEventListener' : 'removeEventListener'
+      window[method]('scroll', placeList, true)
+      window[method]('resize', placeList)
+    })
+
+    onMounted(() => {
+      if (!props.autofocus) return
+      input.value?.focus()
+    })
+    onUnmounted(() => {
+      window.removeEventListener('scroll', placeList, true)
+      window.removeEventListener('resize', placeList)
+    })
+
+    return {
+      input, list, listId, open, typed, active, text, shown, listStyle,
+      optionId, show, close, choose, onInput, onKeydown,
+    }
+  },
+}
+
 const SummaryLine = {
   props: ['summary'],
   computed: {
@@ -391,18 +586,22 @@ const TimeZoneField = {
   },
 }
 
+const OFF_AIR_MESSAGE = "This channel isn't broadcasting right now."
+
 const ChannelIdentity = {
   props: { channel: { type: Object, required: true }, hasLogo: Boolean, number: { type: String, default: '' } },
   emits: ['pin'],
+  setup: () => ({ OFF_AIR_MESSAGE }),
   template: `
     <button type="button" :class="['epg-pin', { pinned: channel.pinned }]" :aria-pressed="Boolean(channel.pinned)"
       :title="channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
       :aria-label="channel.pinned ? 'Remove ' + channel.name + ' from favourites' : 'Add ' + channel.name + ' to favourites'"
       @click="$emit('pin')"><star-icon /></button>
     <span class="channel-logo"><channel-logo :channel-id="channel.id" :has-logo="hasLogo" /></span>
-    <span class="channel-name" :title="channel.name">
+    <span class="channel-name" :title="channel.offAir ? OFF_AIR_MESSAGE : channel.name">
       <span v-if="number" class="channel-number">{{ number }}</span>
       {{ channel.name }}
+      <span v-if="channel.offAir" class="off-air-note">OFF AIR</span>
     </span>
   `,
 }
@@ -470,7 +669,7 @@ const usePathCheck = (request) => {
   const [text, kind, set] = makeStatus()
   const run = async () => {
     checking.value = true
-    set('Checking…', 'info', 0)
+    set('Checking…', 'busy', 0)
     try {
       const result = await request()
       set(result.text, result.kind, 0)
@@ -480,11 +679,22 @@ const usePathCheck = (request) => {
       checking.value = false
     }
   }
-  return reactive({ checking, text, kind, run })
+  const begin = () => {
+    checking.value = true
+    set('Checking…', 'busy', 0)
+  }
+  const show = (result) => {
+    set(result.text, result.kind, 0)
+    checking.value = false
+  }
+  const clear = () => (text.value = '')
+  return reactive({ checking, text, kind, run, begin, show, clear })
 }
 
-const recordingsFolderStatus = async ({ path, mediaRoot }) => {
-  const r = await api('POST', '/api/recordings-root-test', { path, media_root: mediaRoot })
+const recordingsFolderStatus = async ({ path, mediaRoot }) =>
+  describeRecordingsFolder(await api('POST', '/api/recordings-root-test', { path, media_root: mediaRoot }))
+
+const describeRecordingsFolder = (r) => {
   if (!r.ok) return { text: r.error, kind: 'err' }
   if (r.hardlinks === false) {
     const where = r.sameDevice
@@ -499,8 +709,11 @@ const recordingsFolderStatus = async ({ path, mediaRoot }) => {
   return { text: `${r.path} is readable${hardlinks}.`, kind: 'ok' }
 }
 
-const tvhRecordingsPathStatus = async ({ path, fill }) => {
-  const r = await api('POST', '/api/tvh-recordings-path-check', { path })
+const tvhRecordingsPathStatus = async ({ path, fill }) =>
+  describeTvhRecordingsPath({ r: await api('POST', '/api/tvh-recordings-path-check', { path }), fill })
+
+const describeTvhRecordingsPath = ({ r, fill }) => {
+  if (r.ok === false) return { text: r.error, kind: 'err' }
   if (!r.tvhPath) {
     return { text: 'TVHeadend has no recording path. Set one in its DVR profile.', kind: 'err' }
   }
@@ -596,6 +809,8 @@ const scrollToRouteSection = async () => {
 
 const guideHandoff = ref(null)
 const refreshTick = ref(0)
+
+const recordDialogOverPlayer = ref(false)
 
 const openInGuide = (handoff) => {
   guideHandoff.value = handoff
@@ -1119,7 +1334,7 @@ const LiveView = {
         </header>
         <div :class="['panel-body', 'space-y-5', 'live-zoom-' + zoom]">
           <div class="view-controls view-controls-sticky">
-            <input v-model="filterQ" type="search" class="field-input"
+            <input v-no-autofill v-model="filterQ" type="search" class="field-input"
               placeholder="Filter channels or shows" aria-label="Filter channels or shows"
               style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
             <zoom-control :index="zoomIndex" :count="zoomLevelCount" :show-label="!narrow" @step="changeZoom" />
@@ -1139,7 +1354,7 @@ const LiveView = {
             <ul class="live-list">
               <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
                 :class="['live-row', { pinned: e.channel.pinned, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-drop-after': dropAfter && dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
-                <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
+                <div :class="['live-row-handle', { 'off-air': e.channel.offAir }]" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
                   @pointerdown="onPinPointerDown(e.channel, $event)"
                   @pointermove="onPinPointerMove"
                   @pointerup="onPinPointerUp"
@@ -1173,7 +1388,7 @@ const LiveView = {
                   :aria-label="'Show details for ' + e.next.title" @click="openDetails(e, e.next)">
                   next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
                 </button>
-                <button type="button" class="btn btn-sm btn-icon btn-watch live-row-watch" title="Watch live"
+                <button type="button" class="btn btn-sm btn-icon btn-watch live-row-watch" :title="e.channel.offAir ? OFF_AIR_MESSAGE : 'Watch live'"
                   :aria-label="'Watch ' + e.channel.name + ' live'"
                   @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
               </li>
@@ -1306,7 +1521,7 @@ const LiveView = {
 
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, narrow, groups, favouritesHint, emptyText,
-      load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
+      OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
       zoom, zoomIndex, zoomLevelCount: LIVE_ZOOM_LEVELS.length, changeZoom,
       dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
@@ -1354,7 +1569,7 @@ const DashboardView = {
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
               <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
-              <span class="font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate" :title="e.channel.name">{{ e.channel.name }}</span>
+              <span :class="['font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate', { 'off-air': e.channel.offAir }]" :title="e.channel.offAir ? OFF_AIR_MESSAGE : e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
                 <button v-if="e.now" type="button" class="on-now-open block w-full"
                   :aria-label="'Show details for ' + e.now.title"
@@ -1377,7 +1592,7 @@ const DashboardView = {
                 @click="openInGuide({ channelId: e.channel.id, program: e.next })">
                 next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
               </button>
-              <button type="button" class="btn btn-sm btn-icon btn-watch shrink-0" title="Watch live"
+              <button type="button" class="btn btn-sm btn-icon btn-watch shrink-0" :title="e.channel.offAir ? OFF_AIR_MESSAGE : 'Watch live'"
                 :aria-label="'Watch ' + e.channel.name + ' live'"
                 @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
             </div>
@@ -1687,7 +1902,7 @@ const DashboardView = {
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, fmtRelativeDay, tsOfMs,
       isRecordingChannel, loadGuidePanel,
-      watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
+      OFF_AIR_MESSAGE, watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
       flashText, flashKind,
     }
   },
@@ -1718,7 +1933,7 @@ const FolderEditor = {
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
           <div class="field-prefixed">
             <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-            <input :id="'saves-to-' + folder.id" type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
+            <input v-no-autofill :id="'saves-to-' + folder.id" v-autofocus type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
           </div>
           <datalist id="series-media-folders">
             <option v-for="d in folders" :key="d" :value="d" />
@@ -1727,11 +1942,11 @@ const FolderEditor = {
         </div>
         <div class="field-row">
           <label class="field-label">Season folders</label>
-          <input type="text" v-model="seasonTemplate" placeholder="Season {season}" class="field-input" />
+          <input v-no-autofill type="text" v-model="seasonTemplate" placeholder="Season {season}" class="field-input" />
         </div>
         <div class="field-row">
           <label class="field-label">Recording titles that contain</label>
-          <input type="text" v-model="pattern" class="field-input" />
+          <input v-no-autofill type="text" v-model="pattern" class="field-input" />
           <p class="text-xs text-ink-mute mt-2">Case-insensitive. The longest match wins when two folders match.</p>
         </div>
         <div class="field-row">
@@ -1765,7 +1980,7 @@ const FolderEditor = {
           </header>
           <div class="panel-body space-y-4">
             <p class="text-sm text-ink">{{ removeOutcome }}</p>
-            <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported stay where they are.</p>
+            <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
               <button type="button" class="btn epg-modal-close mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
@@ -1793,10 +2008,12 @@ const FolderEditor = {
       ? `Unassign the folder from ${props.folder.show_pattern}`
       : `Remove the title match ${props.folder.show_pattern}`))
     const removeOutcome = computed(() => {
-      const subject = props.isSeries ? 'Future episodes' : 'Future recordings with this title'
+      const condition = props.isSeries
+        ? 'If you unassign this series folder, future episodes'
+        : 'If you remove this title match, future recordings with this title'
       return props.importUnmatched
-        ? `${subject} save to the one-off folder again.`
-        : `${subject} wait in RECORDINGS until you import them.`
+        ? `${condition} will save to the one-off folder again.`
+        : `${condition} will wait in RECORDINGS until you import them.`
     })
 
     const save = async () => {
@@ -1952,7 +2169,7 @@ const SeriesView = {
               <div class="field-row">
                 <label class="field-label">Recording titles that contain</label>
                 <div class="flex flex-wrap items-center gap-2">
-                  <input type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input flex-1 min-w-[12rem]" />
+                  <input v-no-autofill type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input flex-1 min-w-[12rem]" />
                   <button type="button" class="btn btn-sm" @click="loadTvhShows" :disabled="loadingShows"
                     title="List the titles TVHeadend has finished recordings for.">
                     <template v-if="loadingShows">LISTING…</template><template v-else><refresh-icon /> REFRESH TITLES</template>
@@ -1967,7 +2184,7 @@ const SeriesView = {
                 <label class="field-label" for="new-saves-to">Saves to</label>
                 <div class="field-prefixed">
                   <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-                  <input id="new-saves-to" type="text" v-model="newFolder" list="media-folders" placeholder="e.g. NRL" class="field-input" />
+                  <input v-no-autofill id="new-saves-to" type="text" v-model="newFolder" list="media-folders" placeholder="e.g. NRL" class="field-input" />
                 </div>
                 <datalist id="media-folders">
                   <option v-for="d in folders" :key="d" :value="d" />
@@ -1981,7 +2198,7 @@ const SeriesView = {
               </div>
               <div class="field-row">
                 <label class="field-label">Season folders</label>
-                <input type="text" v-model="newTemplate" placeholder="Season {season}" class="field-input" />
+                <input v-no-autofill type="text" v-model="newTemplate" placeholder="Season {season}" class="field-input" />
               </div>
               <div class="field-row">
                 <label class="field-label">Ad removal</label>
@@ -2018,7 +2235,7 @@ const SeriesView = {
               <label class="field-label" for="assign-folder">Folder</label>
               <div class="field-prefixed">
                 <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-                <input id="assign-folder" type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
+                <input v-no-autofill id="assign-folder" v-autofocus type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
               </div>
               <datalist id="assign-media-folders">
                 <option v-for="d in folders" :key="d" :value="d" />
@@ -2124,7 +2341,9 @@ const SeriesView = {
 
     onMounted(() => Promise.all([refresh(), loadSettings()]))
 
-    const channelsOf = (s) => [...new Set(s.autorecs.map((a) => a.channelName).filter(Boolean))].join(' + ')
+    const channelsOf = (s) => s.autorecs.some((a) => a.anyChannel)
+      ? 'Any channel'
+      : [...new Set(s.autorecs.map((a) => a.channelName).filter(Boolean))].join(' + ')
       || (s.autorecs.length === 1 ? '1 channel' : `${s.autorecs.length} channels`)
 
     const nextAiringLabel = (s) => {
@@ -2194,7 +2413,7 @@ const SeriesView = {
     }
 
     const stopSeries = async (s) => {
-      if (!confirm(`Stop recording "${s.title}"? Episodes already recorded stay in TVHeadend, and the library folder stays.`)) return
+      if (!confirm(`Stop recording "${s.title}"? Episodes already recorded will stay in TVHeadend, and the library folder will stay.`)) return
       busyKey.value = s.key
       try {
         for (const autorec of s.autorecs) {
@@ -2258,7 +2477,7 @@ const SeriesView = {
 
     const loadTvhShows = async () => {
       loadingShows.value = true
-      setFormStatus('Listing TVHeadend recordings…', 'info', 0)
+      setFormStatus('Listing TVHeadend recordings…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-shows')
         tvhShows.value = r.shows
@@ -2320,7 +2539,7 @@ const SyncsView = {
         <div class="panel-body space-y-4">
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
-              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span> SYNC RUNNING…</template>
+              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span>SYNC RUNNING…</template>
               <template v-else-if="starting">STARTING…</template>
               <template v-else><play-icon /> SYNC NOW</template>
             </button>
@@ -2644,7 +2863,7 @@ const RecordingsView = {
                   </button>
                   <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
                     @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id"
-                    title="Remove this recording from TVHeadend. TVHeadend deletes the file and keeps the episode in its history. Irreversible.">
+                    title="Remove this recording from TVHeadend. TVHeadend will delete the file and keep the episode in its history. You cannot undo this.">
                     <span v-if="deletingId === r.recording_id">…</span>
                     <trash-icon v-else />
                   </button>
@@ -2881,9 +3100,9 @@ const RecordingsView = {
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
       || UNIMPORTED_STATUSES.includes(r.status)
     const removeTitle = (r) => (r.deleted_from_tvh_at
-      ? 'Remove this row from the list. The file stays in your library.'
+      ? 'Remove this row from the list. The file will stay in your library.'
       : "Remove this recording from Freetvarr's history."
-        + ' If it is still in TVHeadend, the next sync imports it again.')
+        + ' If it is still in TVHeadend, the next sync will import it again.')
     const notInTvhTitle = (r) => `TVHeadend deleted its copy ${fmtTime(r.deleted_from_tvh_at)}.`
       + ' The episode is still in your library.'
     const canAdScan = (r) => canAdScanRecording({ adRemovalEnabled: adRemovalEnabled.value, recording: r })
@@ -2970,8 +3189,8 @@ const RecordingsView = {
 
     const deleteFromTvh = async (r) => {
       const prompt = `Remove "${r.title}" from TVHeadend?\n\n`
-        + 'TVHeadend deletes the recording file and keeps the episode in its history,'
-        + ' so it does not record it again. This is irreversible.'
+        + 'TVHeadend will delete the recording file and keep the episode in its history,'
+        + ' so it will not record it again. You cannot undo this.'
       if (!confirm(prompt)) return
       deletingId.value = r.recording_id
       try {
@@ -2996,9 +3215,9 @@ const RecordingsView = {
 
     const removeRecording = async (r) => {
       const prompt = r.deleted_from_tvh_at
-        ? `Remove "${r.title}" from this list?\n\nThe file stays in your library.`
+        ? `Remove "${r.title}" from this list?\n\nThe file will stay in your library.`
         : `Remove "${r.title}" from Freetvarr's history?`
-          + '\n\nIf it is still in TVHeadend, the next sync imports it again.'
+          + '\n\nIf it is still in TVHeadend, the next sync will import it again.'
       if (!confirm(prompt)) return
       removingId.value = r.recording_id
       try {
@@ -3221,15 +3440,15 @@ const SettingsView = {
             </div>
             <div class="field-row md:col-span-3">
               <label class="field-label">TVHeadend URL</label>
-              <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
+              <input v-no-autofill type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
             </div>
             <div class="field-row">
               <label class="field-label">Username</label>
-              <input type="text" class="field-input" v-model="tvhUsername" placeholder="blank if TVHeadend is open" autocomplete="off" />
+              <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" placeholder="blank if TVHeadend is open" />
             </div>
             <div class="field-row">
               <label class="field-label">Password</label>
-              <input type="password" class="field-input" v-model="tvhPassword"
+              <input v-no-autofill type="password" class="field-input" v-model="tvhPassword"
                 :placeholder="tvhPasswordSet ? '••••• (stored)' : 'blank if TVHeadend is open'" autocomplete="off" />
               <p class="text-xs text-ink-mute mt-1">Blank keeps the stored password.</p>
             </div>
@@ -3263,7 +3482,7 @@ const SettingsView = {
           <div class="panel-body space-y-4">
             <div class="field-row">
               <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
+              <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.
               </p>
@@ -3276,7 +3495,7 @@ const SettingsView = {
             </div>
             <div class="field-row">
               <label class="field-label">One-off folder <span class="text-ink-mute">(inside container)</span></label>
-              <input type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
+              <input v-no-autofill type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.
               </p>
@@ -3289,7 +3508,7 @@ const SettingsView = {
             </div>
             <div class="field-row">
               <label class="field-label">Movies folder <span class="text-ink-mute">(inside container, optional)</span></label>
-              <input type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
+              <input v-no-autofill type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.
               </p>
@@ -3310,7 +3529,7 @@ const SettingsView = {
             <div class="grid gap-4 md:grid-cols-2 pt-1">
               <div class="field-row">
                 <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
+                <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
                     <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -3320,7 +3539,7 @@ const SettingsView = {
               </div>
               <div class="field-row">
                 <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                   <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
                     <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
@@ -3366,11 +3585,11 @@ const SettingsView = {
             </div>
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex URL</label>
-              <input type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
+              <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
             </div>
             <div class="field-row md:col-span-2">
               <label class="field-label">Plex token</label>
-              <input type="password" class="field-input" v-model="plexToken"
+              <input v-no-autofill type="password" class="field-input" v-model="plexToken"
                 :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
               <div class="mt-2 flex flex-wrap items-center gap-3">
                 <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetecting">
@@ -3390,7 +3609,7 @@ const SettingsView = {
                 </p>
                 <div class="field-row">
                   <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
-                  <input type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
+                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
                 </div>
               </div>
             </details>
@@ -3402,7 +3621,7 @@ const SettingsView = {
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
               </select>
-              <input v-else type="text" class="field-input" v-model="plexSectionId"
+              <input v-no-autofill v-else type="text" class="field-input" v-model="plexSectionId"
                 placeholder="section number; LOAD SECTIONS lists them" />
             </div>
             <div class="field-row md:col-span-2">
@@ -3413,7 +3632,7 @@ const SettingsView = {
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
               </select>
-              <input v-else type="text" class="field-input" v-model="plexOneOffSectionId"
+              <input v-no-autofill v-else type="text" class="field-input" v-model="plexOneOffSectionId"
                 placeholder="section number of the one-off library" />
             </div>
             <div class="field-row md:col-span-2">
@@ -3424,7 +3643,7 @@ const SettingsView = {
                   {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                 </option>
               </select>
-              <input v-else type="text" class="field-input" v-model="plexMoviesSectionId"
+              <input v-no-autofill v-else type="text" class="field-input" v-model="plexMoviesSectionId"
                 placeholder="section number of the movies library" />
             </div>
             <div class="md:col-span-2 flex flex-wrap items-center gap-3">
@@ -3470,7 +3689,7 @@ const SettingsView = {
             </div>
             <div v-if="syncSchedule === customSyncSchedule" class="field-row">
               <label class="field-label" for="settings-sync-cron">Custom schedule <span class="text-ink-mute">(cron)</span></label>
-              <input id="settings-sync-cron" type="text" class="field-input" v-model="syncCron" placeholder="0 */2 * * *" />
+              <input v-no-autofill id="settings-sync-cron" type="text" class="field-input" v-model="syncCron" placeholder="0 */2 * * *" />
               <p class="text-xs text-ink-mute mt-1 leading-relaxed">
                 Five fields: minute, hour, day of month, month, day of week. <code>0 */2 * * *</code> is every two hours.
               </p>
@@ -3502,7 +3721,7 @@ const SettingsView = {
             </div>
             <div class="field-row md:max-w-xs">
               <label class="field-label">Keep the original after a cut for (days)</label>
-              <input type="number" min="1" class="field-input" v-model="adOriginalRetentionDays" />
+              <input v-no-autofill type="number" min="1" class="field-input" v-model="adOriginalRetentionDays" />
             </div>
             <p class="text-xs font-mono text-ink-dim">
               Detection settings: <code>{{ comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air' }}</code>
@@ -3569,10 +3788,10 @@ const SettingsView = {
         <div class="panel-body space-y-4">
           <div>
             <p class="text-sm text-ink leading-relaxed">
-              Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard starts from the beginning.
+              Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard will start from the beginning.
             </p>
             <p class="text-xs text-ink-mute leading-relaxed mt-2">
-              Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders stay where they are, and so do the recordings and settings in TVHeadend. You cannot reset while a sync is running.
+              Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders will stay where they are, and so will the recordings and settings in TVHeadend. You cannot reset while a sync is running.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
@@ -3784,7 +4003,7 @@ const SettingsView = {
     const detectTvh = async () => {
       tvhDetecting.value = true
       tvhCandidates.value = []
-      setTvhDiscover('Scanning this host (~2s)…', 'info', 0)
+      setTvhDiscover('Scanning this host (~2s)…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-detect')
         if (r.candidates.length === 1) useTvhCandidate(r.candidates[0])
@@ -3802,7 +4021,7 @@ const SettingsView = {
     const testTvh = async () => {
       tvhTesting.value = true
       tvhStatus.value = 'Contacting TVHeadend…'
-      tvhStatusKind.value = 'info'
+      tvhStatusKind.value = 'busy'
       try {
         const r = await api('POST', '/api/tvh-test', {
           tvh_url: tvhUrl.value,
@@ -3875,7 +4094,7 @@ const SettingsView = {
     const discoverPlex = async () => {
       plexDiscovering.value = true
       plexCandidates.value = []
-      setPlexDiscover('Searching your network (~2s)…', 'info', 0)
+      setPlexDiscover('Searching your network (~2s)…', 'busy', 0)
       try {
         const { servers = [] } = await api('POST', '/api/discover-plex')
         if (servers.length === 0) {
@@ -3952,9 +4171,9 @@ const SettingsView = {
     const resetFreetvarr = async () => {
       const mediaPath = mediaRoot.value || '/media/tv'
       const prompt = 'Reset Freetvarr?\n\n'
-        + 'This deletes Freetvarr\'s settings, series, list of recordings, and sync history.\n\n'
-        + `Your video files in ${mediaPath} and the other library folders stay where they are, `
-        + 'and so do the recordings and settings in TVHeadend.\n\n'
+        + 'This will delete Freetvarr\'s settings, series, list of recordings, and sync history.\n\n'
+        + `Your video files in ${mediaPath} and the other library folders will stay where they are, `
+        + 'and so will the recordings and settings in TVHeadend.\n\n'
         + 'This cannot be undone. Continue?'
       if (!confirm(prompt)) return
       resetting.value = true
@@ -4079,7 +4298,7 @@ const DoctorView = {
           <div v-if="checking" class="doctor-progress" role="status">
             <div class="doctor-progress-line">
               <doctor-spinner class="text-signal-orange" />
-              <span class="status-readout info">{{ progressText }}</span>
+              <span class="status-readout busy">{{ progressText }}</span>
             </div>
             <div class="progress-track">
               <div :class="['progress-fill', { indeterminate: phase === 'scanning' }]" :style="phase === 'scanning' ? null : { width: progressPercent + '%' }"></div>
@@ -4270,11 +4489,11 @@ const PlexLibrarySetup = {
         <div v-for="lib in missing" :key="lib.kind" class="grid gap-3 md:grid-cols-2">
           <div class="field-row">
             <label class="field-label" :for="'plex-library-name-' + lib.kind">{{ PLEX_LIBRARY_LABELS[lib.kind] }} library name</label>
-            <input :id="'plex-library-name-' + lib.kind" type="text" class="field-input" v-model="lib.name" />
+            <input v-no-autofill :id="'plex-library-name-' + lib.kind" type="text" class="field-input" v-model="lib.name" />
           </div>
           <div class="field-row">
             <label class="field-label" :for="'plex-library-folder-' + lib.kind">Folder <span class="text-ink-mute">(as Plex sees it)</span></label>
-            <input :id="'plex-library-folder-' + lib.kind" type="text" class="field-input" v-model="lib.location" />
+            <input v-no-autofill :id="'plex-library-folder-' + lib.kind" type="text" class="field-input" v-model="lib.location" />
           </div>
         </div>
         <p class="text-xs text-ink-mute leading-relaxed">
@@ -4308,7 +4527,7 @@ const PlexLibrarySetup = {
 
     const create = async () => {
       creating.value = true
-      setStatus('Creating libraries in Plex…', 'info', 0)
+      setStatus('Creating libraries in Plex…', 'busy', 0)
       try {
         const { results, selected } = await api('POST', '/api/plex-libraries/create', {
           ...connection(),
@@ -4354,7 +4573,7 @@ const ChannelSetupStep = {
   emits: ['state'],
   template: `
     <div class="space-y-4">
-      <p v-if="loading && !status" class="status-readout info">Looking for your tuner…</p>
+      <p v-if="loading && !status" class="status-readout busy">Looking for your tuner…</p>
 
       <div v-else-if="loadError" class="space-y-2">
         <p class="status-readout err">{{ loadError }}</p>
@@ -4364,9 +4583,11 @@ const ChannelSetupStep = {
       <template v-else-if="status">
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
-            <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
-              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+            <li v-for="s in steps" :key="s.id" class="step-row">
+              <span class="step-marker">
+                <span v-if="s.status === 'running'" class="step-spinner"></span>
+                <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
+              </span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -4375,10 +4596,11 @@ const ChannelSetupStep = {
           <p v-if="waitingForTuner" class="status-readout info">
             Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
           </p>
-          <p v-else-if="scanStarting" class="status-readout info">
-            <span class="spinner"></span> {{ scanLine }}
+          <p v-else-if="scanStarting" class="status-readout busy">
+            {{ scanLine }}
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
+          <p v-if="favouritesText" class="text-sm text-ink">{{ favouritesText }}</p>
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
             <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
@@ -4387,8 +4609,8 @@ const ChannelSetupStep = {
         </div>
 
         <div v-else-if="state === 'no-tuner'" class="space-y-4">
-          <p v-if="addressSaved" class="status-readout info">
-            <span class="spinner"></span> Looking for the tuner at {{ addressSaved }}. This can take a minute.
+          <p v-if="addressSaved" class="status-readout busy">
+            Looking for the tuner at {{ addressSaved }}. This can take a minute.
           </p>
           <div v-else class="space-y-2">
             <p class="status-readout err">No TV tuner found yet.</p>
@@ -4405,11 +4627,11 @@ const ChannelSetupStep = {
             <div class="grid gap-4 md:grid-cols-2">
               <div class="field-row">
                 <label class="field-label" for="tuner-address">Tuner address</label>
-                <input id="tuner-address" type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
+                <input v-no-autofill id="tuner-address" v-autofocus type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
               </div>
               <div v-if="dockerVm" class="field-row">
                 <label class="field-label" for="tuner-host-address">This computer's address</label>
-                <input id="tuner-host-address" type="text" inputmode="decimal" class="field-input" v-model="hostAddress" placeholder="e.g. 192.168.1.20" />
+                <input v-no-autofill id="tuner-host-address" type="text" inputmode="decimal" class="field-input" v-model="hostAddress" placeholder="e.g. 192.168.1.20" />
               </div>
             </div>
             <p class="text-xs text-ink-dim">
@@ -4448,7 +4670,7 @@ const ChannelSetupStep = {
           <div v-if="networks.length" class="field-row">
             <label class="field-label" for="channel-network">TV network</label>
             <select id="channel-network" class="field-input" v-model="networkId">
-              <option v-for="n in networks" :key="n.id" :value="n.id">{{ n.name }} (existing)</option>
+              <option v-for="n in networks" :key="n.id" :value="n.id">{{ transmitterLabel(n.name) }} (existing)</option>
               <option value="">Scan a transmitter instead</option>
             </select>
           </div>
@@ -4465,7 +4687,7 @@ const ChannelSetupStep = {
                 <label class="field-label" for="channel-transmitter">Transmitter</label>
                 <select id="channel-transmitter" class="field-input" v-model="transmitterKey" :disabled="!country">
                   <option value="">Pick a transmitter</option>
-                  <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ t.name }}</option>
+                  <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ transmitterLabel(t.name) }}</option>
                 </select>
               </div>
             </div>
@@ -4538,6 +4760,7 @@ const ChannelSetupStep = {
     const channelCount = computed(() => status.value?.channels || 0)
     const recordingNow = computed(() => recordingWarning(status.value?.recordingNow || []))
     const doneText = computed(() => channelsAddedText(result.value))
+    const favouritesText = computed(() => defaultFavouritesText(result.value))
     const actionShown = computed(() => {
       if (!status.value || loadError.value || showSteps.value) return false
       if (state.value === 'no-tuner') return addressOpen.value
@@ -4672,9 +4895,9 @@ const ChannelSetupStep = {
     })
 
     return {
-      status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
+      transmitterLabel, status, loading, loadError, editing, state, tuners, networks, countries, countryTransmitters,
       tunerIds, networkId, country, transmitterKey, guessed, ready, starting, applyError,
-      steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, recordingNow,
+      steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, favouritesText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
@@ -4701,6 +4924,12 @@ const channelsAddedText = (result) => {
   if (added <= 0) return 'Every channel the scan found is already in TVHeadend.'
   if (added === total) return `Added ${total} channels.`
   return `Added ${added} channels. TVHeadend now has ${total}.`
+}
+
+const defaultFavouritesText = (result) => {
+  const names = (result?.ok && result.favourites || []).map((f) => f.name)
+  if (!names.length) return ''
+  return `Favourites: ${names.join(', ')}. To change them, press CHANNELS in the TV Guide.`
 }
 
 const scanOrMapDetail = (step) => {
@@ -4734,7 +4963,7 @@ const GuideSetupStep = {
   emits: ['state', 'back'],
   template: `
     <div class="space-y-4">
-      <p v-if="loading && !status" class="status-readout info">Reading the TV guide settings…</p>
+      <p v-if="loading && !status" class="status-readout busy">Reading the TV guide settings…</p>
 
       <div v-else-if="loadError" class="space-y-2">
         <p class="status-readout err">{{ loadError }}</p>
@@ -4744,9 +4973,11 @@ const GuideSetupStep = {
       <template v-else-if="suggestion">
         <div v-if="showSteps" class="space-y-3">
           <ol class="space-y-1 text-sm font-mono">
-            <li v-for="s in steps" :key="s.id" class="flex items-start gap-2">
-              <span v-if="s.status === 'running'" class="step-spinner shrink-0 mt-1.5"></span>
-              <span v-else :class="['led-dot', 'sm', 'shrink-0', 'mt-1.5', secureStepDot(s.status)]"></span>
+            <li v-for="s in steps" :key="s.id" class="step-row">
+              <span class="step-marker">
+                <span v-if="s.status === 'running'" class="step-spinner"></span>
+                <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
+              </span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
@@ -4762,10 +4993,8 @@ const GuideSetupStep = {
               <p class="text-sm text-ink">These channels have no guide yet. Check each pick, or choose No guide. NEXT saves your choices.</p>
               <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
                 <label class="text-sm text-ink" :for="'guide-' + c.id">{{ c.name }}<span v-if="c.number" class="text-ink-dim"> · {{ c.number }}</span></label>
-                <select :id="'guide-' + c.id" class="field-input" v-model="picks[c.id]">
-                  <option value="">No guide</option>
-                  <option v-for="o in result.options" :key="o.id" :value="o.id">{{ o.name }}</option>
-                </select>
+                <guide-combobox :input-id="'guide-' + c.id" v-model="picks[c.id]" :options="result.options"
+                  none-label="No guide" :label="'Guide for ' + c.name" />
               </div>
             </div>
           </template>
@@ -4810,7 +5039,7 @@ const GuideSetupStep = {
           </p>
           <div v-if="!suggestion.feeds.length || choice === OTHER" class="field-row">
             <label class="field-label" for="guide-url">Guide address (XMLTV)</label>
-            <input id="guide-url" type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
+            <input v-no-autofill id="guide-url" v-autofocus type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
           </div>
           <div class="flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
@@ -4979,30 +5208,30 @@ const WelcomeView = {
             </div>
             <div class="field-row">
               <label class="field-label">TVHeadend URL</label>
-              <input type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
+              <input v-no-autofill type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
             </div>
-            <div v-if="showSecure" class="space-y-4">
+            <div v-if="showSecure && !secureStepsVisible" class="space-y-4">
               <p class="text-ink text-sm leading-relaxed">
                 <strong class="text-signal-orange">This TVHeadend has no logins yet</strong>, so anyone on your network can change it. Freetvarr can secure it: it makes an admin login for you and a separate login for itself, then turns off the open access.
               </p>
               <div class="grid gap-4 md:grid-cols-2">
                 <div class="field-row">
                   <label class="field-label">Admin username</label>
-                  <input type="text" class="field-input" v-model="secureAdminUsername" autocomplete="off" :disabled="securing" />
+                  <input v-no-autofill type="text" class="field-input" v-model="secureAdminUsername" :disabled="securing" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Admin password</label>
                   <div class="flex items-center gap-2">
-                    <input ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" autocomplete="new-password" :disabled="securing" />
+                    <input v-no-autofill.new-password ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" :disabled="securing" />
                     <button type="button" class="btn btn-sm btn-icon" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
                   </div>
                 </div>
               </div>
               <div class="field-row">
                 <label class="field-label">Allowed networks</label>
-                <input type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
+                <input v-no-autofill type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
                 <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                  Both logins work only from these networks. Freetvarr guessed them from this host's addresses and this browser's network; add any network you sign in to TVHeadend from.
+                  Both logins work only from these networks. Freetvarr guessed them from this computer's networks and this browser's network; add any network you sign in to TVHeadend from.
                 </p>
               </div>
               <p class="text-xs text-ink-mute leading-relaxed">
@@ -5012,22 +5241,27 @@ const WelcomeView = {
                 <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
                   <template v-if="securing">SECURING…</template><template v-else>SECURE TVHEADEND AND CONNECT FREETVARR</template>
                 </button>
+                <span v-if="secureInputProblem" class="text-xs text-signal-yellow font-mono">{{ secureInputProblem }}</span>
               </div>
-              <span v-if="secureInputProblem" class="status-readout info">{{ secureInputProblem }}</span>
               <manual-option label="Enter a login instead" :disabled="securing" @choose="useManualLogin">
                 Make your own TVHeadend logins, then give Freetvarr the one you made for it.
               </manual-option>
             </div>
-            <ol v-if="secureShownSteps.length" class="space-y-1 text-sm font-mono">
-              <li v-for="s in secureShownSteps" :key="s.id" class="flex items-center gap-2">
-                <span v-if="s.status === 'running'" class="step-spinner shrink-0"></span>
-              <span v-else :class="['led-dot', 'sm', 'shrink-0', secureStepDot(s.status)]"></span>
+            <ol v-if="secureStepsVisible" class="space-y-1 text-sm font-mono">
+              <li v-for="s in secureShownSteps" :key="s.id" class="step-row">
+                <span class="step-marker">
+                  <span v-if="s.status === 'running'" class="step-spinner"></span>
+                  <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
+                </span>
                 <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
               </li>
             </ol>
             <div v-if="secureError" class="space-y-1">
               <p class="status-readout err">{{ secureError }}</p>
               <p v-if="secureNext" class="text-sm text-ink">{{ secureNext }}</p>
+              <button v-if="showSecure && !securing" type="button" class="btn btn-sm" @click="backToSecureForm">
+                BACK TO THE FORM
+              </button>
             </div>
             <p v-if="securedAs" class="status-readout ok">
               TVHeadend is secured. Sign in to TVHeadend as {{ securedAs }} from now on; Freetvarr signs in as freetvarr.
@@ -5039,11 +5273,11 @@ const WelcomeView = {
               <div class="grid gap-4 md:grid-cols-2">
                 <div class="field-row">
                   <label class="field-label">Username</label>
-                  <input type="text" class="field-input" v-model="tvhUsername" autocomplete="off" />
+                  <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" v-autofocus="manualLogin" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Password</label>
-                  <input type="password" class="field-input" v-model="tvhPassword"
+                  <input v-no-autofill type="password" class="field-input" v-model="tvhPassword"
                     :placeholder="tvhPasswordSet ? '••••• (stored)' : ''" autocomplete="off" />
                 </div>
               </div>
@@ -5061,7 +5295,7 @@ const WelcomeView = {
           <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" ref="guideStep" @state="guideState = $event" @back="step = 3" />
 
           <div v-if="step === 5" class="space-y-4">
-            <p v-if="storageChecking" class="status-readout info">Checking the folders…</p>
+            <p v-if="storageChecking" class="status-readout busy">Checking the folders…</p>
             <template v-else-if="storageChecked">
               <template v-if="!storageProblems.length">
                 <p class="text-ink text-sm leading-relaxed">{{ storageSummary }}</p>
@@ -5077,14 +5311,14 @@ const WelcomeView = {
               </button>
             </template>
             <details class="settings-disclosure" :open="storageAdvancedOpen" @toggle="storageAdvancedOpen = $event.target.open">
-              <summary>Advanced: change folders</summary>
+              <summary @click="focusFirstFieldOnOpen">Advanced: change folders</summary>
               <div class="settings-disclosure-body space-y-4">
                 <p class="text-xs text-ink-mute leading-relaxed">
                   Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too. The data folder is the one that <code>DATA_PATH</code> sets in <code>.env</code>.
                 </p>
                 <div class="field-row">
                   <label class="field-label">TV library folder</label>
-                  <input type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
+                  <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" @input="clearStaleLibraryStatus" placeholder="/data/media/tv" />
                   <div class="flex flex-wrap items-center gap-3 mt-2">
                     <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
                       <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -5095,7 +5329,7 @@ const WelcomeView = {
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                    <input type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
+                    <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" @input="recordingsCheck.clear" placeholder="/data/recordings" />
                     <div class="flex flex-wrap items-center gap-3 mt-2">
                       <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
                         <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
@@ -5105,7 +5339,7 @@ const WelcomeView = {
                   </div>
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                    <input type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                    <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" @input="tvhPathCheck.clear" placeholder="/recordings" />
                     <div class="flex flex-wrap items-center gap-3 mt-2">
                       <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
                         <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
@@ -5122,7 +5356,7 @@ const WelcomeView = {
           </div>
 
           <div v-if="step === 6" class="space-y-4">
-            <p v-if="plexChecking" class="status-readout info">Looking for Plex…</p>
+            <p v-if="plexChecking" class="status-readout busy">Looking for Plex…</p>
             <template v-else-if="plexConnected">
               <p class="text-ink text-sm leading-relaxed">Connected to <strong class="text-plex-yellow">Plex</strong> at {{ plexUrl }}.</p>
               <div v-if="plexShowSections.length" class="field-row">
@@ -5162,15 +5396,15 @@ const WelcomeView = {
             <plex-library-setup v-if="!plexChecking" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
               @created="usePlexLibraries" />
             <details class="settings-disclosure" :open="plexAdvancedOpen" @toggle="plexAdvancedOpen = $event.target.open">
-              <summary>Advanced: connect Plex by hand</summary>
+              <summary @click="focusFirstFieldOnOpen">Advanced: connect Plex by hand</summary>
               <div class="settings-disclosure-body space-y-4">
                 <div class="field-row">
                   <label class="field-label">Plex address</label>
-                  <input type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" @input="plexEditedByHand = true" />
+                  <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" @input="plexEditedByHand = true" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Plex token</label>
-                  <input type="password" class="field-input" v-model="plexToken" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="password" class="field-input" v-model="plexToken" @input="plexEditedByHand = true"
                     :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
                   <div class="mt-2 flex flex-wrap items-center gap-3">
                     <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
@@ -5184,12 +5418,12 @@ const WelcomeView = {
                 </div>
                 <div class="field-row">
                   <label class="field-label">Preferences.xml path <span class="text-ink-mute">(as Freetvarr sees it)</span></label>
-                  <input type="text" class="field-input" v-model="plexPrefsPath" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath" @input="plexEditedByHand = true"
                     placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 </div>
                 <div v-if="!plexShowSections.length" class="field-row">
                   <label class="field-label">TV library number</label>
-                  <input type="text" class="field-input" v-model="plexSectionId" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexSectionId" @input="plexEditedByHand = true"
                     placeholder="CONNECT lists your libraries" />
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
@@ -5338,18 +5572,16 @@ const WelcomeView = {
       })
     })
 
+    const showMediaRootResult = (r) => {
+      mediaRootStatus.value = r.ok ? `${r.path} is writable.` : r.error
+      mediaRootStatusKind.value = r.ok ? 'ok' : 'err'
+    }
+
     const testMediaRoot = async () => {
       mediaRootTesting.value = true
       mediaRootStatus.value = ''
       try {
-        const r = await api('POST', '/api/media-root-test', { path: mediaRoot.value })
-        if (r.ok) {
-          mediaRootStatus.value = `${r.path} is writable.`
-          mediaRootStatusKind.value = 'ok'
-        } else {
-          mediaRootStatus.value = r.error
-          mediaRootStatusKind.value = 'err'
-        }
+        showMediaRootResult(await api('POST', '/api/media-root-test', { path: mediaRoot.value }))
       } catch (err) {
         mediaRootStatus.value = `Test failed: ${err.message}`
         mediaRootStatusKind.value = 'err'
@@ -5373,8 +5605,18 @@ const WelcomeView = {
       ['tvh_recordings_path', tvhRecordingsPath.value, saved.tvhRecordingsPath],
     ]))
 
+    const clearStaleLibraryStatus = () => {
+      mediaRootStatus.value = ''
+      recordingsCheck.clear()
+    }
+
     const checkStorage = async () => {
       storageChecking.value = true
+      mediaRootTesting.value = true
+      mediaRootStatus.value = 'Checking…'
+      mediaRootStatusKind.value = 'busy'
+      recordingsCheck.begin()
+      tvhPathCheck.begin()
       const folders = {
         mediaRoot: mediaRoot.value,
         recordingsRoot: recordingsRoot.value,
@@ -5387,6 +5629,10 @@ const WelcomeView = {
         api('POST', '/api/tvh-recordings-path-check', { path: folders.tvhRecordingsPath }).catch(failedCheck),
       ])
       if (tvh.ok && !tvh.configured && tvh.tvhPath) tvhRecordingsPath.value = tvh.tvhPath
+      showMediaRootResult(library)
+      mediaRootTesting.value = false
+      recordingsCheck.show(describeRecordingsFolder(recordings))
+      tvhPathCheck.show(describeTvhRecordingsPath({ r: tvh, fill: (value) => (tvhRecordingsPath.value = value) }))
       const outcome = storageCheckOutcome({ folders, library, recordings, tvh })
       storageProblems.value = outcome.problems
       storageNotes.value = outcome.notes
@@ -5677,7 +5923,7 @@ const WelcomeView = {
       tvhDetecting.value = true
       tvhAutoScanning.value = quiet
       tvhCandidates.value = []
-      setTvhDiscover('Scanning this host (~2s)…', 'info', 0)
+      setTvhDiscover('Scanning this host (~2s)…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-detect')
         if (r.candidates.length === 1) useTvhCandidate(r.candidates[0])
@@ -5717,6 +5963,7 @@ const WelcomeView = {
     const secureShownSteps = computed(() =>
       pacedSteps({ steps: secureSteps.value, revealed: secureRevealed.value }))
     const secureError = ref('')
+    const secureStepsVisible = computed(() => secureShownSteps.value.length > 0)
     const secureNext = ref('')
     const showSecure = computed(() => Boolean(bootstrap.value?.fresh) && !manualLogin.value && !securedAs.value)
     const secureInputProblem = computed(() => bootstrapInputProblem({
@@ -5753,6 +6000,21 @@ const WelcomeView = {
       secureAdminPasswordInput.value?.focus()
     })
 
+    const backToSecureForm = async () => {
+      secureSteps.value = []
+      secureRevealed.value = 0
+      secureError.value = ''
+      secureNext.value = ''
+      await nextTick()
+      secureAdminPasswordInput.value?.focus()
+    }
+
+    const focusFirstFieldOnOpen = (event) => {
+      const disclosure = event.currentTarget.parentElement
+      if (disclosure.open) return
+      requestAnimationFrame(() => disclosure.querySelector('input')?.focus())
+    }
+
     const useManualLogin = () => {
       manualLogin.value = true
       secureSteps.value = []
@@ -5763,7 +6025,7 @@ const WelcomeView = {
 
     const revealSecureSteps = async (isSettled) => {
       if (!prefersReducedMotion()) {
-        const stepMs = revealStepMs(secureSteps.value.length)
+        const stepMs = revealStepMs(secureSteps.value.length, SECURE_REVEAL_PACING)
         while (secureRevealed.value < secureSteps.value.length) {
           const shownAt = Date.now()
           while (!isStepResolved(secureSteps.value[secureRevealed.value])) {
@@ -5823,7 +6085,7 @@ const WelcomeView = {
 
     const testTvh = async () => {
       tvhTesting.value = true
-      setTvhText('Contacting TVHeadend…', 'info', 0)
+      setTvhText('Contacting TVHeadend…', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-test', {
           tvh_url: tvhUrl.value.trim(),
@@ -5853,11 +6115,12 @@ const WelcomeView = {
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
       plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
       plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, plexShowSections, findPlex,
-      storageChecking, storageChecked, storageProblems, storageNotes, storageAdvancedOpen, storageSummary, checkStorage,
+      storageChecking, storageChecked, storageProblems, storageNotes, storageAdvancedOpen, storageSummary, checkStorage, clearStaleLibraryStatus,
+      focusFirstFieldOnOpen, manualLogin,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
-      showSecure, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
+      showSecure, secureStepsVisible, backToSecureForm, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
       securePrefixes, secureShownSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
@@ -6132,7 +6395,7 @@ const TvAppsPanel = {
           <div class="flex flex-wrap items-end gap-3">
             <div class="field-row mb-0!">
               <label class="field-label" for="tv-login-name">Login name</label>
-              <input id="tv-login-name" type="text" class="field-input" v-model="name" autocomplete="off" />
+              <input v-no-autofill id="tv-login-name" type="text" class="field-input" v-model="name" />
             </div>
             <button type="button" class="btn" @click="makeLogin" :disabled="making">
               <template v-if="making">MAKING…</template><template v-else><tv-icon /> MAKE A TV LOGIN</template>
@@ -6143,7 +6406,7 @@ const TvAppsPanel = {
         <template v-else>
           <div class="field-row md:max-w-sm">
             <label class="field-label" for="tv-apps-host">TVHeadend address for TV apps</label>
-            <input id="tv-apps-host" type="text" class="field-input" v-model="host" placeholder="e.g. 192.168.1.10" autocomplete="off" />
+            <input v-no-autofill id="tv-apps-host" type="text" class="field-input" v-model="host" placeholder="e.g. 192.168.1.10" />
           </div>
           <template v-if="addresses">
             <div>
@@ -6439,19 +6702,21 @@ const ChannelsModal = {
   emits: ['close', 'saved'],
   template: `
     <div class="epg-modal-backdrop" @click.self="$emit('close')">
-      <section class="panel epg-modal">
+      <section class="panel epg-modal channels-modal">
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">CHANNELS</span>
             <info-button title="Channels" doc="guide/tv-guide#favourites">
               <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
               <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
-              <p>The pencil next to a channel sets where its listings come from. Tick to keep the pick, or cross to drop it. Pick No guide to remove its listings. A new pick can take a minute to show in the TV Guide.</p>
+              <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the TV Guide.</p>
             </info-button>
           </span>
           <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
         </header>
-        <div class="panel-body space-y-5">
+        <div class="panel-body channels-body">
+          <div class="channels-grid">
+          <div class="channels-settings space-y-5">
           <div>
             <label class="field-label">FAVOURITES · SHOWN FIRST, IN THIS ORDER</label>
             <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
@@ -6460,11 +6725,11 @@ const ChannelsModal = {
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === 0"
-                  @click="movePin(i, -1)" :aria-label="'Move ' + draftName(id) + ' up'"><arrow-up-icon /></button>
+                  @click="movePin(i, -1)" :title="'Move up'" :aria-label="'Move ' + draftName(id) + ' up'"><arrow-up-icon /></button>
                 <button type="button" class="btn btn-sm btn-icon" :disabled="i === pinnedDraft.length - 1"
-                  @click="movePin(i, 1)" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
+                  @click="movePin(i, 1)" :title="'Move down'" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
                 <button type="button" class="epg-pin pinned" @click="toggleDraftPin(id)"
-                  :aria-label="'Remove ' + draftName(id) + ' from favourites'"><star-icon /></button>
+                  title="Remove from favourites" :aria-label="'Remove ' + draftName(id) + ' from favourites'"><star-icon /></button>
                 <span class="font-mono text-[0.8rem] flex-1 min-w-0 truncate">{{ draftName(id) }}</span>
               </li>
             </ul>
@@ -6486,12 +6751,16 @@ const ChannelsModal = {
               Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a favourite is never hidden.
             </p>
           </div>
-          <div>
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" /> CHANGE GUIDE</label>
-            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the guide links…</p>
+          <p class="text-xs text-ink-dim">
+            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, press <pencil-icon class="icon-inline" /> and pick the guide channel that matches it.
+          </p>
+          </div>
+          <div class="channels-list">
+            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" /> FIX LISTINGS</label>
+            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the listings…</p>
             <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
-              Set up the guide first to pick a guide for each channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
+              Set up the TV guide first to fix the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
             <div class="grid grid-cols-1 gap-y-2">
               <div v-for="ch in channels" :key="ch.id" class="flex flex-col gap-1.5"
@@ -6499,6 +6768,7 @@ const ChannelsModal = {
                 <div class="flex items-center gap-2">
                   <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
                     @click="toggleDraftPin(String(ch.id))"
+                    :title="pinnedDraft.includes(String(ch.id)) ? 'Remove from favourites' : 'Add to favourites'"
                     :aria-label="pinnedDraft.includes(String(ch.id)) ? 'Remove ' + ch.name + ' from favourites' : 'Add ' + ch.name + ' to favourites'"><star-icon /></button>
                   <label class="flex flex-1 items-center gap-2.5 text-sm cursor-pointer min-w-0"
                     :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null">
@@ -6515,22 +6785,21 @@ const ChannelsModal = {
                     <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
                       :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
                     <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
-                      :aria-label="'Change guide for ' + ch.name"><pencil-icon /></button>
+                      :title="'Fix listings for ' + ch.name" :aria-label="'Fix listings for ' + ch.name"><pencil-icon /></button>
                   </template>
                 </div>
                 <div v-if="editingId === String(ch.id)" class="flex items-center gap-2 pl-6">
-                  <select :ref="focusOnMount" class="field-input flex-1 min-w-0" v-model="editValue"
-                    :aria-label="'Guide for ' + ch.name" @keydown.enter.prevent="confirmGuideEdit">
-                    <option value="">No guide</option>
-                    <option v-for="o in guideLinks.options" :key="o.id" :value="o.id">{{ o.name }}</option>
-                  </select>
+                  <guide-combobox class="flex-1 min-w-0" v-model="editValue" :options="guideLinks.options"
+                    none-label="No listings" :label="'Listings for ' + ch.name" autofocus
+                    @confirm="confirmGuideEdit" />
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="confirmGuideEdit"
-                    aria-label="Use this guide"><check-icon /></button>
+                    title="Use these listings" aria-label="Use these listings"><check-icon /></button>
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="cancelGuideEdit"
-                    aria-label="Keep the current guide"><cross-icon /></button>
+                    title="Keep the current listings" aria-label="Keep the current listings"><cross-icon /></button>
                 </div>
               </div>
             </div>
+          </div>
           </div>
           <p v-if="guideStatusText" :class="['status-readout', guideStatusKind, 'text-right']">{{ guideStatusText }}</p>
           <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
@@ -6562,7 +6831,7 @@ const ChannelsModal = {
     const editValue = ref('')
 
     const guideNameFor = (guideId) =>
-      guideLinks.value?.options.find((o) => o.id === guideId)?.name || 'No guide'
+      guideLinks.value?.options.find((o) => o.id === guideId)?.name || 'No listings'
     const isGuideChanged = (ch) => guideDraft[String(ch.id)] !== guideSaved.value[String(ch.id)]
     const startGuideEdit = (ch) => {
       editingId.value = String(ch.id)
@@ -6573,12 +6842,6 @@ const ChannelsModal = {
       if (editingId.value === null) return
       e.stopPropagation()
       cancelGuideEdit()
-    }
-    let focusedSelect = null
-    const focusOnMount = (el) => {
-      if (!el || el === focusedSelect) return
-      focusedSelect = el
-      el.focus()
     }
     const confirmGuideEdit = () => {
       if (editingId.value === null) return
@@ -6594,7 +6857,7 @@ const ChannelsModal = {
         Object.assign(guideDraft, picks)
         guideLinks.value = links
       } catch (err) {
-        guideLoadError.value = `Freetvarr could not read the guide links: ${err.message}`
+        guideLoadError.value = `Freetvarr could not read the listings: ${err.message}`
       } finally {
         guideLoading.value = false
       }
@@ -6663,7 +6926,7 @@ const ChannelsModal = {
         guideSaved.value = { ...guideDraft }
         return true
       } catch (err) {
-        setGuideStatus(`Guide links not saved: ${err.message}`, 'err', 0)
+        setGuideStatus(`Listings not saved: ${err.message}`, 'err', 0)
         return false
       }
     }
@@ -6682,7 +6945,7 @@ const ChannelsModal = {
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
       editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
-      onRowEscape, focusOnMount,
+      onRowEscape,
     }
   },
 }
@@ -6731,7 +6994,7 @@ const EpgView = {
                 class="field-input day-select" aria-label="Day">
                 <option v-for="d in dayChips" :key="d.day" :value="d.day">{{ d.label }}</option>
               </select>
-              <input v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
+              <input v-no-autofill v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
                 style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
             </div>
           </div>
@@ -6823,7 +7086,7 @@ const EpgView = {
               <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
                 <div class="epg-ruler">
                   <div class="epg-ruler-corner">
-                    <input v-model="railFilter" type="search" class="field-input epg-corner-filter"
+                    <input v-no-autofill v-model="railFilter" type="search" class="field-input epg-corner-filter"
                       :placeholder="narrow ? 'Filter' : 'Filter channels'" aria-label="Filter channels by number or name" />
                     <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                     <div class="epg-rail-resizer" title="Drag to resize the channel rail"
@@ -6853,7 +7116,7 @@ const EpgView = {
                     <div class="epg-heading-track"></div>
                   </template>
                   <template v-else>
-                  <div class="epg-rail-cell"
+                  <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]"
                     :title="ch.pinned ? 'Drag to reorder favourites' : null"
                     @pointerdown="onPinPointerDown(ch, $event)"
                     @pointermove="onPinPointerMove"
@@ -6947,7 +7210,7 @@ const EpgView = {
 
       <teleport to="body">
       <transition name="epg-sheet">
-      <div v-if="selected" class="epg-modal-backdrop" @click.self="closeModal">
+      <div v-if="selected" class="epg-modal-backdrop is-over-player" @click.self="closeModal">
         <section class="panel epg-modal">
           <header class="panel-header">
             <span class="panel-title">{{ selected.program.title }}</span>
@@ -6988,6 +7251,10 @@ const EpgView = {
                 <select v-model.number="episodesToKeep" class="field-input">
                   <option v-for="o in keepOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
                 </select>
+              </div>
+              <div v-if="selected.program.series_link" class="col-span-2 space-y-1">
+                <toggle-switch v-model="anyChannel">RECORD ON ANY CHANNEL</toggle-switch>
+                <p class="text-xs font-mono text-ink-mute">Off: the series recording covers {{ selected.channel?.name || channelName(selected.program.channelId) }} only. On: it records the show on whichever channel airs it.</p>
               </div>
               <div class="col-span-2 space-y-1">
                 <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
@@ -7043,7 +7310,7 @@ const EpgView = {
 
       <teleport to="body">
       <transition name="epg-sheet">
-      <div v-if="hdOffer" class="epg-modal-backdrop" @click.self="hdOffer = null">
+      <div v-if="hdOffer" class="epg-modal-backdrop is-over-player" @click.self="hdOffer = null">
         <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title">
           <header class="panel-header">
             <span id="hd-offer-title" class="panel-title">This is the SD channel</span>
@@ -7124,6 +7391,7 @@ const EpgView = {
     const leadTime = ref(2)
     const lagTime = ref(10)
     const episodesToKeep = ref(0)
+    const anyChannel = ref(false)
     const addToLibrary = ref(true)
     const showRules = ref([])
     const moviesFolderSet = ref(false)
@@ -7397,7 +7665,7 @@ const EpgView = {
       const scheduled = scheduledByProgramId.value.get(String(p.program_id ?? p.programId))
       if (scheduled && activeRecordingSet.value.has(String(scheduled.programId))) return 'recording'
       if (scheduled) return 'scheduled'
-      if (p.series_link != null && seriesLinkSet.value.has(String(p.series_link))) return 'series'
+      if (findSeriesLink({ links: seriesLinkSet.value, seriesLink: p.series_link })) return 'series'
       return ''
     }
 
@@ -7581,6 +7849,7 @@ const EpgView = {
       leadTime.value = 2
       lagTime.value = 10
       episodesToKeep.value = 0
+      anyChannel.value = false
       addToLibrary.value = true
       cancelChoice.value = false
       modalAction.value = ''
@@ -7619,6 +7888,7 @@ const EpgView = {
     }
 
     const closeModal = () => {
+      recordDialogOverPlayer.value = false
       cancelChoice.value = false
       hdOffer.value = null
       selected.value = null
@@ -7653,7 +7923,7 @@ const EpgView = {
 
     const recordSelected = () => offerHdFirst('record') || recordOneOff()
 
-    const recordSelectedSeries = () => offerHdFirst('record-series') || recordSeries()
+    const recordSelectedSeries = () => (!anyChannel.value && offerHdFirst('record-series')) || recordSeries()
 
     const recordOneOff = async () => {
       const { program, channel } = selected.value
@@ -7692,6 +7962,7 @@ const EpgView = {
           lead_time: leadTime.value,
           lag_time: lagTime.value,
           episodes_to_keep: episodesToKeep.value,
+          any_channel: anyChannel.value,
           add_show_rule: addToLibrary.value,
         })
         const ruleNote = result.showRule ? ` Episodes go into ${result.showRule.dest_folder}.` : ''
@@ -7733,7 +8004,7 @@ const EpgView = {
       try {
         await api('POST', '/api/epg/cancel-series', {
           program_id: rec?.programId ?? null,
-          series_link_id: rec?.seriesLinkId ?? program.series_link,
+          series_link_id: rec?.seriesLinkId ?? findSeriesLink({ links: seriesLinkSet.value, seriesLink: program.series_link }) ?? program.series_link,
         })
         flash({ msg: `Series recording cancelled.` })
         closeModal()
@@ -8039,6 +8310,8 @@ const EpgView = {
       else if (channelsModal.value) channelsModal.value = false
     }
 
+    watch(guideHandoff, (handoff) => handoff && openHandoff())
+
     let statePollTimer = null
     onMounted(async () => {
       window.addEventListener('keydown', onKeydown)
@@ -8072,7 +8345,7 @@ const EpgView = {
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind,
-      leadTime, lagTime, episodesToKeep, addToLibrary, libraryNote,
+      leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries, cancelChoice,
       upcoming, cancelUpcoming,
@@ -8246,6 +8519,7 @@ const liveReasonText = (reason) => {
   if (reason.code === 'idle') return 'Stopped: nobody was watching.'
   if (reason.code === 'shutdown') return 'Stopped: Freetvarr restarted.'
   if (reason.code === 'no-tuner') return 'No free tuner.'
+  if (reason.code === 'no-source') return "Stopped: TVHeadend can't tune this channel. It isn't broadcasting, or every tuner is busy."
   if (reason.code === 'ffmpeg') return `ffmpeg failed${detail}`
   if (reason.code === 'upstream') return `TVHeadend refused the stream${detail}`
   if (reason.code === 'playback') return `Playback failed${detail}`
@@ -8255,6 +8529,7 @@ const liveReasonText = (reason) => {
 
 const liveStartErrorText = (err) => {
   if (err.code === 'no-tuner') return 'No free tuner. Every tuner is busy on another multiplex:'
+  if (err.code === 'off-air') return err.message
   return `Error: ${err.message}`
 }
 
@@ -8337,73 +8612,85 @@ const keepSeekInsideBuffer = () => {
   if (liveVideo.currentTime < floor) liveVideo.currentTime = floor
 }
 
-const skipChain = { side: null, base: 0, total: 0, until: 0 }
-let lastTap = { side: null, at: 0 }
-let tapStart = null
-let skipHintTimer = null
-
-const skipSideOf = (touch) => {
-  const box = liveVideo.getBoundingClientRect()
-  if (touch.clientY > box.bottom - NATIVE_CONTROL_BAR_PX) return null
-  const x = (touch.clientX - box.left) / box.width
-  if (x < SKIP_ZONE_FRACTION) return 'back'
-  if (x > 1 - SKIP_ZONE_FRACTION) return 'forward'
-  return null
+const createSkipHintFlasher = (target) => {
+  let timer = null
+  return ({ side, seconds }) => {
+    target.skipHint = { side, label: skipLabel({ side, seconds }), spoken: skipSpoken({ side, seconds }), key: Date.now() }
+    clearTimeout(timer)
+    timer = setTimeout(() => { target.skipHint = null }, SKIP_HINT_MS)
+  }
 }
+
+const flashLiveSkipHint = createSkipHintFlasher(live)
+
+let liveTapState = emptyTapState()
+let liveTapStart = null
 
 const canSkip = () => live.phase === 'live' && live.bufferSeconds > 0 && liveAttached
 
-const onLiveTouchStart = (e) => {
-  const touch = e.touches.length === 1 ? e.touches[0] : null
-  tapStart = touch && e.target === liveVideo
-    ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+const tapZoneOf = ({ video, event, bottomInsetPx }) => {
+  const box = video.getBoundingClientRect()
+  return zoneOf({
+    x: event.clientX - box.left,
+    y: event.clientY - box.top,
+    width: box.width,
+    height: box.height,
+    bottomInsetPx,
+  })
+}
+
+const onLivePointerDown = (e) => {
+  liveTapStart = e.isPrimary && e.target === liveVideo
+    ? { x: e.clientX, y: e.clientY, at: Date.now() }
     : null
 }
 
-const onLiveTouchEnd = (e) => {
-  const touch = e.changedTouches[0]
-  if (!tapStart || !touch || !canSkip()) return
-  const moved = Math.hypot(touch.clientX - tapStart.x, touch.clientY - tapStart.y)
-  const isTap = moved < TAP_MAX_MOVE_PX && Date.now() - tapStart.at < TAP_MAX_MS
-  tapStart = null
-  if (!isTap) return
-  const side = skipSideOf(touch)
-  if (!side) return
-  registerTap(side)
+const onLivePointerUp = (e) => {
+  const start = liveTapStart
+  liveTapStart = null
+  if (!start || !canSkip()) return
+  const tap = {
+    startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
+    ms: Date.now() - start.at, pointerType: e.pointerType,
+  }
+  if (!isTap(tap)) return
+  const side = tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })
+  skipLive(registerLiveTap({ side, force: false }))
 }
 
-const registerTap = (side) => {
-  const at = Date.now()
-  if (skipChain.side === side && at < skipChain.until) return extendSkip(side, at)
-  const isDoubleTap = lastTap.side === side && at - lastTap.at < DOUBLE_TAP_MS
-  lastTap = { side, at }
-  if (!isDoubleTap) return
-  skipChain.side = side
-  skipChain.base = liveVideo.currentTime
-  skipChain.total = 0
-  extendSkip(side, at)
+const onLiveDoubleClick = (e) => {
+  if (e.target !== liveVideo || !canSkip()) return
+  if (!tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })) return
+  e.preventDefault()
+  e.stopPropagation()
 }
 
-const extendSkip = (side, at) => {
-  skipChain.total += SKIP_STEP_S
-  skipChain.until = at + SKIP_CHAIN_MS
-  const direction = side === 'back' ? -1 : 1
-  const wanted = skipChain.base + direction * skipChain.total
+const registerLiveTap = ({ side, force }) => {
+  const step = registerTap(liveTapState, { side, at: Date.now(), position: liveVideo.currentTime, force })
+  liveTapState = step.state
+  return step.result
+}
+
+const skipLive = (result) => {
+  if (result.kind !== 'skip') return
   const oldest = oldestKeptSecond()
-  const floor = oldest == null ? wanted : oldest + SEEK_FLOOR_MARGIN_S
-  const ceiling = liveTargetSecond() ?? wanted
-  if (wanted <= floor) return applySkip({ side, to: floor, label: 'START' })
-  if (wanted >= ceiling - SKIP_STEP_S / 2) return applySkip({ side, to: ceiling, label: 'LIVE' })
-  applySkip({ side, to: wanted, label: formatSeconds(skipChain.total) })
+  const direction = result.side === 'back' ? -1 : 1
+  const { to, applied } = clampSkip({
+    base: result.base,
+    delta: direction * result.total,
+    floor: oldest == null ? null : oldest + SEEK_FLOOR_MARGIN_S,
+    ceiling: liveTargetSecond(),
+  })
+  if (!applied) return
+  liveVideo.currentTime = to
+  flashLiveSkipHint({ side: result.side, seconds: applied })
+  trackBehindLive()
 }
 
-const applySkip = ({ side, to, label }) => {
-  liveVideo.currentTime = to
-  const spoken = side === 'back' ? `Back ${skipChain.total} seconds` : `Forward ${skipChain.total} seconds`
-  live.skipHint = { side, label, spoken, key: Date.now() }
-  clearTimeout(skipHintTimer)
-  skipHintTimer = setTimeout(() => { live.skipHint = null }, SKIP_HINT_MS)
-  trackBehindLive()
+const skipLiveByKey = (side) => {
+  if (!canSkip()) return false
+  skipLive(registerLiveTap({ side, force: true }))
+  return true
 }
 
 const jumpToLive = () => {
@@ -8449,24 +8736,6 @@ const GoLiveIcon = {
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <path d="M3.5 3.5v9l7-4.5z"/>
       <rect x="11" y="3.5" width="1.75" height="9" rx="0.5"/>
-    </svg>
-  `,
-}
-
-const SkipBackIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M8 3.5v9L2 8z"/>
-      <path d="M14 3.5v9L8 8z"/>
-    </svg>
-  `,
-}
-
-const SkipForwardIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M2 3.5v9L8 8z"/>
-      <path d="M8 3.5v9L14 8z"/>
     </svg>
   `,
 }
@@ -8788,7 +9057,7 @@ const LivePlayer = {
           </div>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
-        <div ref="frameEl" class="live-frame" @touchstart.passive="onLiveTouchStart" @touchend.passive="onLiveTouchEnd">
+        <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @dblclick.capture="onLiveDoubleClick">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controls></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
@@ -8801,9 +9070,7 @@ const LivePlayer = {
           <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
-            <skip-back-icon v-if="live.skipHint.side === 'back'" />
             <span>{{ live.skipHint.label }}</span>
-            <skip-forward-icon v-if="live.skipHint.side === 'forward'" />
           </div>
           <span class="sr-only" aria-live="polite">{{ live.skipHint?.spoken || '' }}</span>
         </div>
@@ -8819,6 +9086,7 @@ const LivePlayer = {
             </div>
             <div v-else class="flex shrink-0 gap-2">
               <button v-if="isBehindLive" type="button" class="btn" @click="jumpToLive"><go-live-icon /> GO LIVE</button>
+              <button type="button" class="btn" :disabled="recordButton.disabled" :title="recordButton.title" @click="recordFromLive"><record-icon /> {{ recordButton.label }}</button>
               <button type="button" class="btn btn-danger" @click="stopLive"><stop-icon /> STOP</button>
             </div>
           </div>
@@ -8889,7 +9157,11 @@ const LivePlayer = {
     })
 
     const onKeydown = (e) => {
-      if (e.key === 'Escape' && live.open) stopLive()
+      if (!live.open || recordDialogOverPlayer.value) return
+      if (e.key === 'Escape') return stopLive()
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.target.closest?.('button, select, textarea, input')) return
+      if (skipLiveByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
     }
 
     onMounted(() => {
@@ -8909,9 +9181,45 @@ const LivePlayer = {
     })
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+
+    const nowProgram = ref(null)
+
+    const loadNowProgram = async () => {
+      const channelId = live.channel?.id
+      nowProgram.value = null
+      if (!channelId) return
+      const result = await api('GET', '/api/epg/now?all=1').catch(() => null)
+      if (live.channel?.id !== channelId) return
+      nowProgram.value = nowProgramFor({ entries: result?.entries, channelId })
+    }
+
+    watch(() => live.open && live.channel?.id, (id) => id && loadNowProgram(), { immediate: true })
+
+    watch(now, () => {
+      const program = nowProgram.value
+      if (live.open && program && program.end <= now.value.getTime()) loadNowProgram()
+    })
+
+    const recordButton = computed(() => liveRecordButton({
+      program: nowProgram.value,
+      nowMs: now.value.getTime(),
+      recording: isRecordingChannel(live.channel?.id),
+    }))
+
+    const recordFromLive = () => {
+      if (recordButton.value.disabled) return
+      recordDialogOverPlayer.value = true
+      openInGuide({
+        channelId: live.channel.id,
+        program: nowProgram.value,
+        returnTo: window.location.hash || '#/dashboard',
+      })
+    }
+
     return {
+      recordButton, recordFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, onLiveTouchStart, onLiveTouchEnd,
+      isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveDoubleClick,
     }
   },
 }
@@ -8930,13 +9238,7 @@ const BEHIND_LIVE_SHOWN_S = 10
 const SEEK_FLOOR_MARGIN_S = 4
 const NATIVE_LIVE_HOLD_BACK_S = 6
 const HAVE_CURRENT_DATA = 2
-const SKIP_STEP_S = 10
-const SKIP_ZONE_FRACTION = 0.4
 const NATIVE_CONTROL_BAR_PX = 48
-const TAP_MAX_MOVE_PX = 10
-const TAP_MAX_MS = 300
-const DOUBLE_TAP_MS = 300
-const SKIP_CHAIN_MS = 700
 const SKIP_HINT_MS = 600
 
 const playback = reactive({
@@ -8956,13 +9258,13 @@ const playback = reactive({
   scrubValue: 0,
   skipHint: null,
   airplay: false,
+  adBreaks: [],
 })
 
 let playVideo = null
 let playHls = null
 let playRun = 0
 let playHeartbeatTimer = null
-let playSkipHintTimer = null
 let lastSavedPosition = null
 let autoRestarts = 0
 
@@ -8973,7 +9275,7 @@ const playRecording = (recording) => {
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
-    paused: false, waiting: false, scrubbing: false, skipHint: null,
+    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [],
   })
   playVideo?.play()?.catch(() => {})
   startPlaybackAt(null)
@@ -8983,6 +9285,7 @@ const stopPlayback = () => {
   if (playback.open) savePlaybackPosition()
   playRun += 1
   clearTimeout(playHeartbeatTimer)
+  clearTimeout(playSingleTapTimer)
   detachPlayVideo()
   if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
   Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })
@@ -9015,6 +9318,7 @@ const startPlaybackAt = async (offset) => {
       waiting: true,
     })
     if (offset == null) playback.resumed = Boolean(r.resumed)
+    playback.adBreaks = r.adBreaks || []
     attachPlayVideo(run, r.session.playlist)
     schedulePlayHeartbeat(run)
   } catch (err) {
@@ -9150,18 +9454,24 @@ const togglePlayback = () => {
   playVideo.pause()
 }
 
-const skipPlaybackBy = (seconds, { label } = {}) => {
-  const side = seconds < 0 ? 'back' : 'forward'
-  const amount = label || formatSeconds(Math.abs(seconds))
-  playback.skipHint = {
-    side,
-    label: amount,
-    spoken: `${side === 'back' ? 'Back' : 'Forward'} ${amount.replace(/s$/, ' seconds')}`,
-    key: Date.now(),
-  }
-  clearTimeout(playSkipHintTimer)
-  playSkipHintTimer = setTimeout(() => { playback.skipHint = null }, SKIP_HINT_MS)
-  seekPlaybackTo(playback.position + seconds)
+const flashPlaybackSkipHint = createSkipHintFlasher(playback)
+
+const skipPlayback = ({ side, total, base }) => {
+  const direction = side === 'back' ? -1 : 1
+  const { to, applied } = clampSkip({
+    base,
+    delta: direction * total,
+    floor: 0,
+    ceiling: playback.duration ? playback.duration - SEEK_EDGE_MARGIN_S : null,
+  })
+  if (!applied) return
+  flashPlaybackSkipHint({ side, seconds: applied })
+  seekPlaybackTo(to)
+}
+
+const skipCurrentAd = () => {
+  const current = adBreakAt({ breaks: playback.adBreaks, time: playback.position })
+  if (current) seekPlaybackTo(current.end)
 }
 
 const startPlaybackOver = () => {
@@ -9169,50 +9479,44 @@ const startPlaybackOver = () => {
   seekPlaybackTo(0)
 }
 
-const playChain = { side: null, total: 0, until: 0 }
-let playLastTap = { side: null, at: 0 }
+let playTapState = emptyTapState()
 let playTapStart = null
-let lastPlayTouchAt = 0
+let playSingleTapTimer = null
 
-const playSkipSideOf = (touch) => {
-  const box = playVideo.getBoundingClientRect()
-  const x = (touch.clientX - box.left) / box.width
-  if (x < SKIP_ZONE_FRACTION) return 'back'
-  if (x > 1 - SKIP_ZONE_FRACTION) return 'forward'
-  return null
+const registerPlayTap = ({ side, force }) => {
+  const step = registerTap(playTapState, { side, at: Date.now(), position: playback.position, force })
+  playTapState = step.state
+  return step.result
 }
 
-const onPlayTouchStart = (e) => {
-  const touch = e.touches.length === 1 ? e.touches[0] : null
-  playTapStart = touch && e.target === playVideo
-    ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+const onPlayPointerDown = (e) => {
+  playTapStart = e.isPrimary && e.target === playVideo
+    ? { x: e.clientX, y: e.clientY, at: Date.now() }
     : null
 }
 
-const onPlayTouchEnd = (e) => {
-  lastPlayTouchAt = Date.now()
-  const touch = e.changedTouches[0]
-  if (!playTapStart || !touch || playback.phase !== 'playing') return
-  const moved = Math.hypot(touch.clientX - playTapStart.x, touch.clientY - playTapStart.y)
-  const isTap = moved < TAP_MAX_MOVE_PX && Date.now() - playTapStart.at < TAP_MAX_MS
+const onPlayPointerUp = (e) => {
+  const start = playTapStart
   playTapStart = null
-  if (!isTap) return
-  const side = playSkipSideOf(touch)
-  if (!side) return
-  const at = Date.now()
-  const chained = playChain.side === side && at < playChain.until
-  const isDoubleTap = playLastTap.side === side && at - playLastTap.at < DOUBLE_TAP_MS
-  playLastTap = { side, at }
-  if (!chained && !isDoubleTap) return
-  playChain.total = chained ? playChain.total + SKIP_STEP_S : SKIP_STEP_S
-  playChain.side = side
-  playChain.until = at + SKIP_CHAIN_MS
-  skipPlaybackBy(side === 'back' ? -SKIP_STEP_S : SKIP_STEP_S, { label: formatSeconds(playChain.total) })
+  if (!start || playback.phase !== 'playing') return
+  const tap = {
+    startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
+    ms: Date.now() - start.at, pointerType: e.pointerType,
+  }
+  if (!isTap(tap)) return
+  const side = tapZoneOf({ video: playVideo, event: e, bottomInsetPx: 0 })
+  const result = registerPlayTap({ side, force: false })
+  const togglesOnSingleTap = e.pointerType !== 'touch'
+  clearTimeout(playSingleTapTimer)
+  if (result.kind === 'skip') return skipPlayback(result)
+  if (!togglesOnSingleTap) return
+  if (result.kind === 'center') return togglePlayback()
+  playSingleTapTimer = setTimeout(togglePlayback, DOUBLE_TAP_MS)
 }
 
-const onPlayFrameClick = (e) => {
-  if (Date.now() - lastPlayTouchAt < PLAY_CLICK_AFTER_TOUCH_MS || e.target !== playVideo) return
-  togglePlayback()
+const skipPlaybackByKey = (side) => {
+  const result = registerPlayTap({ side, force: true })
+  if (result.kind === 'skip') skipPlayback(result)
 }
 
 const sendPlaybackBeacon = () => {
@@ -9251,16 +9555,15 @@ const RecordingPlayer = {
           <button type="button" class="btn btn-icon" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
         </header>
         <div ref="stageEl" class="play-stage">
-          <div class="live-frame" @touchstart.passive="onPlayTouchStart" @touchend.passive="onPlayTouchEnd" @click="onPlayFrameClick">
+          <div class="live-frame" @pointerdown="onPlayPointerDown" @pointerup="onPlayPointerUp">
             <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
             <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
             <button type="button" class="btn btn-icon live-landscape-close" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
             <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
-              <skip-back-icon v-if="playback.skipHint.side === 'back'" />
               <span>{{ playback.skipHint.label }}</span>
-              <skip-forward-icon v-if="playback.skipHint.side === 'forward'" />
             </div>
             <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
+            <button v-if="inAdBreak" type="button" class="btn play-skip-ad" @click="skipCurrentAd">SKIP AD</button>
           </div>
           <div class="play-controls">
             <div class="play-scrub">
@@ -9273,11 +9576,9 @@ const RecordingPlayer = {
               <span class="play-time">{{ fmtPlayTime(playback.duration) }}</span>
             </div>
             <div class="play-buttons">
-              <button type="button" class="btn btn-icon" @click="skipPlaybackBy(-10)" aria-label="Back 10 seconds"><skip-back-icon /><span class="play-skip-label">10</span></button>
               <button type="button" class="btn btn-icon play-toggle" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
                 <play-icon v-if="playback.paused" /><pause-icon v-else />
               </button>
-              <button type="button" class="btn btn-icon" @click="skipPlaybackBy(10)" aria-label="Forward 10 seconds"><span class="play-skip-label">10</span><skip-forward-icon /></button>
               <span class="flex-1"></span>
               <button v-if="playback.resumed" type="button" class="btn btn-sm" @click="startPlaybackOver">START OVER</button>
               <button v-if="playback.airplay" type="button" class="btn btn-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
@@ -9310,6 +9611,9 @@ const RecordingPlayer = {
       const aired = r.aired_at ? fmtTime(r.aired_at) : ''
       return [r.episode_title, r.channel_name, aired].filter(Boolean).join(' · ')
     })
+
+    const inAdBreak = computed(() =>
+      playback.phase === 'playing' && adBreakAt({ breaks: playback.adBreaks, time: playback.position }) !== null)
 
     const shownPosition = computed(() => (playback.scrubbing ? playback.scrubValue : playback.position))
     const scrubMax = computed(() => Math.max(1, Math.floor(playback.duration || 0)))
@@ -9386,7 +9690,7 @@ const RecordingPlayer = {
       }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault()
-        skipPlaybackBy(e.key === 'ArrowLeft' ? -SKIP_STEP_S : SKIP_STEP_S)
+        skipPlaybackByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')
       }
     }
 
@@ -9407,9 +9711,9 @@ const RecordingPlayer = {
 
     return {
       playback, recording, subtitle, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
-      statusText, statusKind, overlayText, fmtPlayTime,
-      stopPlayback, togglePlayback, skipPlaybackBy, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, showAirplay, onPlayTouchStart, onPlayTouchEnd, onPlayFrameClick,
+      statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
+      stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
+      toggleFullscreen, showAirplay, onPlayPointerDown, onPlayPointerUp,
     }
   },
 }
@@ -9422,7 +9726,6 @@ const PLAY_HLS_CONFIG = {
 }
 const PLAY_HEARTBEAT_MS = 15_000
 const PLAY_MAX_AUTO_RESTARTS = 2
-const PLAY_CLICK_AFTER_TOUCH_MS = 700
 
 const VIEW_MAP = {
   dashboard: DashboardView,
@@ -9718,12 +10021,14 @@ const installPullToRefresh = ({ onRefresh }) => {
 installPullToRefresh({ onRefresh: refreshFromPull })
 
 const app = createApp(App)
+app.directive('no-autofill', noAutofill)
 app.component('summary-line', SummaryLine)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
 app.component('time-zone-field', TimeZoneField)
+app.component('guide-combobox', GuideCombobox)
 app.component('manual-option', ManualOption)
 app.component('plex-library-setup', PlexLibrarySetup)
 app.component('channel-setup-step', ChannelSetupStep)
@@ -9757,13 +10062,16 @@ app.component('info-icon', InfoIcon)
 app.component('eye-icon', EyeIcon)
 app.component('eye-off-icon', EyeOffIcon)
 app.component('doctor-spinner', DoctorSpinner)
+app.directive('autofocus', {
+  mounted: (el, binding) => {
+    if (binding.value !== false) el.focus()
+  },
+})
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
 app.component('record-icon', RecordIcon)
 app.component('stop-icon', StopIcon)
 app.component('go-live-icon', GoLiveIcon)
-app.component('skip-back-icon', SkipBackIcon)
-app.component('skip-forward-icon', SkipForwardIcon)
 app.component('refresh-icon', RefreshIcon)
 app.component('sliders-icon', SlidersIcon)
 app.component('arrow-left-icon', ArrowLeftIcon)

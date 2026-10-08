@@ -1,6 +1,7 @@
 import fs from 'fs/promises'
 
 import { getSetting, setSetting } from './db.js'
+import { anyChannelLinkFor } from './web/series-link.js'
 import {
   listChannels,
   listEvents,
@@ -163,6 +164,7 @@ export const getOnNowForPinned = async ({ nowMs = Date.now() } = {}) => {
         name: channel.name,
         number: channel.number ?? null,
         hasLogo: channel.logos.length > 0,
+        offAir: Boolean(channel.offAir),
       },
       now,
       next,
@@ -199,6 +201,7 @@ export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
         name: channel.name,
         number: channel.number ?? null,
         hasLogo: channel.logos.length > 0,
+        offAir: Boolean(channel.offAir),
         pinned: channel.pinned,
       },
       now: now && toBrowserProgram(now),
@@ -258,8 +261,9 @@ export const projectUpcomingRecordings = ({
         .sort((a, b) => a.start - b.start)
       for (const p of rows) {
         if (p.start <= nowMs || p.series_link == null) continue
-        const tag = tagByLink.get(String(p.series_link))
-        if (!tag || String(tag.channelId) !== String(channel.id)) continue
+        const tag = tagByLink.get(String(p.series_link)) || tagByLink.get(anyChannelLinkFor(p.series_link))
+        if (!tag) continue
+        if (tag.channelId && String(tag.channelId) !== String(channel.id)) continue
         if (timerProgramIds.has(String(p.program_id))) continue
         if (p.series_no != null && p.episode_no != null) {
           const key = episodeKey(p)
@@ -565,7 +569,7 @@ const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const SEARCH_RESULT_CAP = 100
 const guideCache = createGuideCache({ load: loadGuide, staleRetryMs: GUIDE_STALE_RETRY_MS })
 
-const episodeKey = (p) => `${p.series_link}|${p.series_no}x${p.episode_no}`
+const episodeKey = (p) => `${anyChannelLinkFor(p.series_link) ?? p.series_link}|${p.series_no}x${p.episode_no}`
 
 const scheduledEpisodeKeys = ({ guide, programIds }) => new Set(
   Object.values(guide.programsByChannel || {})
