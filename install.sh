@@ -53,7 +53,7 @@ banner() {
   else
     printf ' %s###%s %s###%s %s###%s  %sFREETVARR%s\n' \
       "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$BOLD" "$RESET"
-    printf '                 %sby James Furey - https://about.me/jamesfurey%s\n' "$DIM" "$RESET"
+    printf '              %sby James Furey - https://about.me/jamesfurey%s\n' "$DIM" "$RESET"
   fi
   say ""
 }
