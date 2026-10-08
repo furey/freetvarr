@@ -41,6 +41,7 @@ import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
 import { wizardSkipPrompt } from '/wizard-skip.js'
 import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
+import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 
 let csrfToken = null
 
@@ -2632,8 +2633,8 @@ const RecordingsView = {
                     {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
                   </button>
                   <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                    @click="adScan(r)" :disabled="adScanningId === r.recording_id"
-                    title="Scan this recording for ad breaks now (uses the show's ad removal mode; detect-only when the show is off).">
+                    @click="adScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
+                    :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
                     <span v-if="adScanningId === r.recording_id">…</span>
                     <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <circle cx="4" cy="4.5" r="1.75"/>
@@ -2700,7 +2701,8 @@ const RecordingsView = {
                   {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
                 </button>
                 <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                  @click="adScan(r)" :disabled="adScanningId === r.recording_id">
+                  @click="adScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
+                  :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
                   <span v-if="adScanningId === r.recording_id">…</span>
                   <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="4" cy="4.5" r="1.75"/>
@@ -2884,7 +2886,7 @@ const RecordingsView = {
         + ' If it is still in TVHeadend, the next sync imports it again.')
     const notInTvhTitle = (r) => `TVHeadend deleted its copy ${fmtTime(r.deleted_from_tvh_at)}.`
       + ' The episode is still in your library.'
-    const canAdScan = (r) => adRemovalEnabled.value && r.status === 'done'
+    const canAdScan = (r) => canAdScanRecording({ adRemovalEnabled: adRemovalEnabled.value, recording: r })
     const canImport = (r) => r.status === 'not_imported' && !r.deleted_from_tvh_at
     const statusLabel = (status) => (status === 'done' ? 'imported' : status.replace(/_/g, ' '))
     const showLabel = (r) => r.show_pattern || (r.show_id == null ? 'One-off' : 'none')
@@ -3080,7 +3082,7 @@ const RecordingsView = {
       deletingId, removingId, importingId, clearing, adRemovalEnabled, adScanningId,
       canImport, importRecording, statusLabel, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
       refresh, manualRefresh, canDelete,
-      canAdScan, adLabel, adTooltip, adScan,
+      canAdScan, isAdScanBlocked, adScanTitle, adLabel, adTooltip, adScan,
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, notInTvhTitle, clearNotInTvh,
       clearable, undoIds, restoring, undoClear,
