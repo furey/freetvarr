@@ -61,13 +61,13 @@ The **UPCOMING** view lists what will record: the recordings TVHeadend has sched
 
 Press the star next to a channel to make it a favourite. Favourites sit at the top of the grid. To reorder them, hold a favourite until it lifts, then drag it. This also works on the Live TV page.
 
-The `CHANNELS` button above the grid opens these settings:
+The `CHANNELS` button above the grid opens a wide dialog on a computer. The channel list is on the left and the settings are on the right. On a phone, the settings come first and the list follows. The settings are:
 
 - **Favourites**: reorder or remove them.
 - **Sort other channels by**: TVHeadend order, channel number, or name.
 - **Hide SD simulcasts**: hides an SD channel when its HD twin is in the lineup. SD-only channels stay.
 - **All channels**: untick a channel to hide it. Favourites are always shown.
-- **Guide**: pick where each channel gets its listings. See [Channel guide](#channel-guide).
+- **Listings**: fix the shows of a channel that has the wrong ones, or none. See [Channel listings](#channel-listings).
 
 Press `SAVE` to apply the changes.
 
@@ -77,26 +77,26 @@ Press `SAVE` to apply the changes.
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-## Channel guide
+## Channel listings
 
-Each channel takes its listings from one channel in the guide feed. The setup wizard links them for you. If a channel shows the wrong programmes, or none, change its link here:
+Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the `GUIDE` step of the setup wizard. The wizard links them for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
 
 1. Press `CHANNELS` above the grid.
-2. Press the pencil next to the channel. The row shows its guide in a list.
-3. Pick the guide channel that matches it, then press the tick (or `Enter`). Press the cross (or `Esc`) to keep the current guide.
+2. Press the pencil next to the channel (**Fix listings**). The row shows a list of guide channels.
+3. Pick the guide channel that matches it, then press the tick (**Use these listings**, or `Enter`). Press the cross (**Keep the current listings**, or `Esc`) to keep the current pick.
 4. Press `SAVE`.
 
-A guide you changed shows in the accent colour until you press `SAVE`. Opening another channel's pencil drops an unconfirmed pick.
+Each row shows the name of its guide channel, or `No listings`. A row you changed is marked until you press `SAVE`. Opening another channel's pencil drops an unconfirmed pick.
 
-Pick **No guide** to remove a channel's listings. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
+Pick **No listings** to remove a channel's shows. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
 
-Freetvarr saves the link in TVHeadend and asks TVHeadend to load the guide again. The new listings can take a minute or two to show. Press `REFRESH` if they do not.
+Freetvarr saves the pick in TVHeadend and asks TVHeadend to load the guide again. The new listings can take a minute or two to show. Press `REFRESH` if they do not.
 
-If the pencils are missing, the guide is not set up yet. Open the setup wizard and go to its `GUIDE` step.
+If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and go to its `GUIDE` step.
 
-A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's link, that channel gets different programmes, so its series recordings can catch different episodes. Check the `UPCOMING` view after the change.
+A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's listings, that channel gets different programmes, so its series recordings can catch different episodes. Check the `UPCOMING` view after the change.
 
-If saving the guide links fails, the dialog says so on its own line. Your favourites and hidden channels are still saved.
+If saving the listings fails, the dialog says so on its own line. Your favourites and hidden channels are still saved.
 
 ## On a phone
 
