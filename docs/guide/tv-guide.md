@@ -29,6 +29,7 @@ Channels run down the page and time runs across. The guide opens at the current 
 - Programmes that ended earlier today stay in the grid. TVHeadend drops a programme once it ends, but Freetvarr keeps its own copy.
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
 - Drag the right edge of the channel list to make it wider or narrower.
+- A dimmed channel with **OFF AIR** beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
 - Channels whose names end in `HD` carry an `HD` label, so you can tell an HD simulcast from its SD twin.
 
 ## After midnight

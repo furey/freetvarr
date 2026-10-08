@@ -9,6 +9,7 @@ import {
   getTunerStatus,
   listSubscriptions,
   listServiceMuxes,
+  isOffAir,
   getChannelServiceInfo,
   getDefaultLanguages,
   openChannelStream,
@@ -123,9 +124,6 @@ export const stallReason = ({ subscriptions = [], userAgent, sessionStartedAt = 
   if (own) return { code: 'no-input', detail: own.state }
   return { code: 'gone' }
 }
-
-export const isOffAir = ({ serviceIds = [], services }) =>
-  serviceIds.length > 0 && serviceIds.every((id) => services.get(id)?.enabled === false)
 
 export const holdersByInput = ({ inputs = [], subscriptions = [] }) =>
   inputs.map((i) => ({
