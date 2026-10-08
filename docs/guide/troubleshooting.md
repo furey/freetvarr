@@ -95,7 +95,7 @@ The TV Guide shows channels but no programmes, or only about a day of them.
 
 The TV Guide shows another channel's programmes on a channel, or no programmes on one channel while others have them. The channel is linked to the wrong guide channel, or to none.
 
-- Press `CHANNELS` on the TV Guide and pick the right guide channel in the `GUIDE` list. See [Channel guide](/guide/tv-guide#channel-guide).
+- Press `CHANNELS` on the TV Guide and press the pencil (**Fix listings**) next to the channel and pick the matching guide channel. See [Channel listings](/guide/tv-guide#channel-listings).
 - Series recordings match on title and channel, so check the `UPCOMING` view after you change a link.
 
 ## Missing channel logos
