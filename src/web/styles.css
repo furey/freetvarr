@@ -4138,3 +4138,38 @@ table.recordings-table tbody td {
   letter-spacing: 0.08em;
   color: #8b837e;
 }
+
+@media (max-width: 767px) {
+  main.main-guide {
+    padding-top: 0.5rem;
+  }
+
+  .panel-guide > .panel-header {
+    padding: 0.25rem 0.5rem;
+    row-gap: 0.25rem;
+  }
+
+  .panel-guide > .panel-header .header-actions {
+    gap: 0.25rem;
+  }
+
+  .panel-guide > .panel-body {
+    padding: 0.5rem;
+  }
+
+  .panel-guide > .panel-body.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.5rem;
+  }
+
+  .panel-guide > .panel-body > .guide-top > .view-controls {
+    margin-top: 0;
+  }
+
+  main .panel-guide .panel-body .epg-scroll {
+    margin-inline: -0.5rem;
+  }
+
+  .panel-guide .epg-grid-edge {
+    margin-right: -0.5rem;
+  }
+}
