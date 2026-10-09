@@ -1,11 +1,13 @@
 import { chromium } from 'playwright'
 import { join } from 'node:path'
-import { rename } from 'node:fs/promises'
 import { TIMEZONE, simulatedNow, installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll } from './capture-demo-api.mjs'
 import { ADMIN_PASSWORD, prepareWizardContext } from './capture-wizard-api.mjs'
+import { startScreencast } from './capture-screencast.mjs'
+import { startLoopback } from './capture-loopback.mjs'
 
-const BASE = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
-const OUT = process.env.WIZARD_OUT || '/work'
+const SERVER_URL = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
+const BASE = await startLoopback({ target: SERVER_URL })
+const FRAMES_DIR = process.env.WIZARD_FRAMES || '/work/scripts/.cache/frames/wizard'
 const STILL_OUT = process.env.WIZARD_STILL_OUT || '/work/docs/img'
 const ONLY = (process.env.WIZARD_ONLY || '').trim()
 const VIDEO_VIEWPORT = { width: 1280, height: 800 }
@@ -67,12 +69,12 @@ const recordTour = async (browser) => {
     deviceScaleFactor: DEVICE_SCALE,
     bypassCSP: true,
     timezoneId: TIMEZONE,
-    recordVideo: { dir: OUT, size: { width: VIDEO_VIEWPORT.width * DEVICE_SCALE, height: VIDEO_VIEWPORT.height * DEVICE_SCALE } },
   })
   await context.clock.install({ time: simNow })
   const { serverWrites } = await prepareWizardContext({ context, timeZone: TIMEZONE, simNow })
   const page = await context.newPage()
-  const startedAt = Date.now()
+  const screencast = await startScreencast({ page, dir: FRAMES_DIR })
+  const { startedAt } = screencast
   await openWizard(page)
   await page.addStyleTag({ content: HIDE_SCROLLBARS })
   await installCursor(page)
@@ -87,13 +89,8 @@ const recordTour = async (browser) => {
   await tourPlex(page)
   await tourReady(page)
 
-  const video = page.video()
+  await screencast.stop()
   await context.close()
-  if (video) {
-    const dest = join(OUT, 'wizard.webm')
-    await rename(await video.path(), dest)
-    console.log(`TOUR_WEBM=${dest}`)
-  }
   console.log(`TOUR_TRIM=${((settledAt - startedAt) / 1000 + 0.4).toFixed(1)}`)
   console.log(`TOUR_POSTER=${((channelsDoneAt - startedAt) / 1000 + POSTER_AFTER_CHANNELS_S).toFixed(1)}`)
   return serverWrites
