@@ -155,13 +155,14 @@ const tourGuide = async (page) => {
 }
 
 const pickGuide = async (page, { channel, guide }) => {
-  const select = page.locator('.panel-body div.grid', { has: page.locator('label', { hasText: new RegExp(`^${channel}\\b`) }) })
-    .locator('select')
-  if (!(await select.count())) return console.log(`  no unmatched channel ${channel}`)
-  await revealLocator(page, select)
-  await clickRing(page, select)
-  await page.waitForTimeout(300)
-  await select.selectOption({ label: guide })
+  const input = page.locator('.panel-body div.grid', { has: page.locator('label', { hasText: new RegExp(`^${channel}\\b`) }) })
+    .locator('input.combobox-input')
+  if (!(await input.count())) return console.log(`  no unmatched channel ${channel}`)
+  await revealLocator(page, input)
+  await clickRing(page, input)
+  await input.click()
+  await page.waitForTimeout(500)
+  await page.locator('.combobox-list:visible .combobox-option', { hasText: new RegExp(`^${guide}$`) }).first().click()
   await page.waitForTimeout(700)
 }
 
