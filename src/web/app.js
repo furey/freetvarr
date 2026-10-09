@@ -6969,7 +6969,7 @@ const togglePinnedChannel = async ({ pinnedIds, channelId }) => {
 const EpgView = {
   template: `
     <div :class="['view-reveal', 'space-y-6', { 'max-w-[69rem] mx-auto': mode !== 'guide' }]">
-      <section class="panel">
+      <section :class="['panel', { 'panel-guide': mode === 'guide' }]">
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · <span class="normal-case">{{ dayTitle }}</span></template><template v-else> · {{ mode.toUpperCase() }}</template></span>
@@ -9808,7 +9808,7 @@ const App = {
         <stale-build-banner />
       </header>
 
-      <main :class="['flex-1', route === 'guide' ? 'max-w-none' : 'max-w-6xl', 'w-full', 'mx-auto', 'px-4', 'py-5', 'md:px-6', 'md:py-8']">
+      <main :class="['flex-1', route === 'guide' ? 'max-w-none main-guide' : 'max-w-6xl', 'w-full', 'mx-auto', 'px-4', 'py-5', 'md:px-6', 'md:py-8']">
         <component :is="currentView" :key="route + ':' + refreshTick" />
       </main>
 
