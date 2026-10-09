@@ -25,13 +25,22 @@ use_utf8() {
 paint() { printf '\033[%sm' "$1"; }
 
 setup_colour() {
-  RESET="" BOLD="" DIM="" ACCENT="" BLUE="" YELLOW="" GREEN="" LINK=""
+  RESET="" BOLD="" DIM="" ACCENT="" YELLOW="" GREEN="" LINK=""
+  CHIP_BLUE="" CHIP_ORANGE="" CHIP_YELLOW="" PLATE=""
   use_colour 1 || return 0
-  orange=33
-  case "${TERM:-}:${COLORTERM:-}" in *256color*|*truecolor*|*24bit*) orange="38;5;208" ;; esac
+  orange=33 chip_blue=36 chip_orange=33 chip_yellow=93 plate=40
+  case "${TERM:-}:${COLORTERM:-}" in
+    *truecolor*|*24bit*)
+      orange="38;5;208" chip_blue="38;2;30;182;255" chip_orange="38;2;255;138;0"
+      chip_yellow="38;2;226;176;60" plate="48;2;26;22;17" ;;
+    *256color*)
+      orange="38;5;208" chip_blue="38;5;39" chip_orange="38;5;208"
+      chip_yellow="38;5;178" plate="48;5;234" ;;
+  esac
   RESET="$(paint 0)" BOLD="$(paint 1)" DIM="$(paint 2)" ACCENT="$(paint "1;$orange")"
-  BLUE="$(paint 36)" YELLOW="$(paint 93)" GREEN="$(paint 32)"
-  LINK="$(paint "1;4;$orange")"
+  YELLOW="$(paint 93)" GREEN="$(paint 32)" LINK="$(paint "1;4;$orange")"
+  CHIP_BLUE="$(paint "$chip_blue")" CHIP_ORANGE="$(paint "$chip_orange")"
+  CHIP_YELLOW="$(paint "$chip_yellow")" PLATE="$(paint "$plate")"
 }
 
 setup_colour
@@ -45,17 +54,19 @@ fail() { printf '%s[install] %s%s\n' "$ERR_RED" "$*" "$ERR_RESET" >&2; exit 1; }
 
 banner() {
   if use_utf8; then
-    printf ' %s▄▄▄%s %s▄▄▄%s %s▄▄▄%s\n' "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET"
-    printf ' %s███%s %s███%s %s███%s  %sFREETVARR%s\n' \
-      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$BOLD" "$RESET"
-    printf ' %s▀▀▀%s %s▀▀▀%s %s▀▀▀%s  %sby James Furey · https://about.me/jamesfurey%s\n' \
-      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$DIM" "$RESET"
+    chips "▄▄▄" "$BOLD" "FREETVARR"
+    chips "▀▀▀" "$DIM" "by James Furey · https://about.me/jamesfurey"
   else
     printf ' %s###%s %s###%s %s###%s  %sFREETVARR%s\n' \
-      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$BOLD" "$RESET"
+      "$CHIP_BLUE" "$RESET" "$CHIP_ORANGE" "$RESET" "$CHIP_YELLOW" "$RESET" "$BOLD" "$RESET"
     printf '              %sby James Furey - https://about.me/jamesfurey%s\n' "$DIM" "$RESET"
   fi
   say ""
+}
+
+chips() {
+  printf ' %s  %s%s %s%s %s%s  %s  %s%s%s\n' "$PLATE" "$CHIP_BLUE" "$1" "$CHIP_ORANGE" "$1" \
+    "$CHIP_YELLOW" "$1" "$RESET" "$2" "$3" "$RESET"
 }
 
 ask() {
