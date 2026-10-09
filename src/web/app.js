@@ -42,6 +42,7 @@ import {
   CUSTOM_SYNC_SCHEDULE,
   DEFAULT_SYNC_CRON,
   SYNC_SCHEDULE_PRESETS,
+  describeSyncFrequency,
   normaliseCron,
   syncSchedulePreset,
 } from '/sync-schedule.js'
@@ -2533,12 +2534,12 @@ const SyncsView = {
             </info-button>
           </span>
           <div class="flex items-center gap-3">
-            <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
-            <span class="text-xs font-mono text-ink-mute" title="Freetvarr keeps the latest 500 syncs and deletes older ones.">CAP · 500</span>
+            <span class="hidden md:inline text-xs text-ink-dim" title="Freetvarr deletes syncs older than the latest 500."><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template> The list keeps the last 500.</span>
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
           </div>
         </header>
         <div class="panel-body space-y-4">
+          <p class="md:hidden text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template> The list keeps the last 500.</p>
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
               <template v-if="syncStatus.activeSyncId"><span class="spinner"></span>SYNC RUNNING…</template>
@@ -2619,6 +2620,7 @@ const SyncsView = {
     const total = ref(0)
     const page = ref(1)
     const pageSize = ref(50)
+    const scheduleFrequency = computed(() => describeSyncFrequency(syncStatus.value.cron))
     const filterOptions = [
       { key: 'all',       label: 'ALL' },
       { key: 'manual',    label: 'MANUAL' },
@@ -2718,7 +2720,7 @@ const SyncsView = {
     onUnmounted(stopWatch)
 
     return {
-      syncs, syncStatus, starting,
+      syncs, syncStatus, scheduleFrequency, starting,
       filter, filterOptions, filterLabel, setFilter,
       total, page, pageSize, totalPages, rangeLabel,
       syncNow, refresh, manualRefresh, removeSync, clearAll,

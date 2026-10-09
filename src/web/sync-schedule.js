@@ -23,3 +23,33 @@ export const describeSyncSchedule = (cron) => {
   if (!preset) return expression ? `Schedule: ${expression}.` : ''
   return `Runs ${preset.label.charAt(0).toLowerCase()}${preset.label.slice(1)}.`
 }
+
+const plural = (count, unit) => count === 1 ? unit : `${unit}s`
+
+const clockText = (hour, minute) => {
+  const suffix = hour < 12 ? 'am' : 'pm'
+  const clockHour = hour % 12 || 12
+  return `${clockHour}:${String(minute).padStart(2, '0')}${suffix}`
+}
+
+export const describeSyncFrequency = (cron) => {
+  const expression = normaliseCron(cron)
+  const preset = SYNC_SCHEDULE_PRESETS.find((candidate) =>
+    [candidate.cron, ...candidate.aliases].includes(expression))
+  if (preset) return preset.label.charAt(0).toLowerCase() + preset.label.slice(1)
+  const everyMinutes = expression.match(/^\*\/(\d{1,2}) \* \* \* \*$/)
+  if (everyMinutes && Number(everyMinutes[1]) > 0 && Number(everyMinutes[1]) < 60) {
+    const step = Number(everyMinutes[1])
+    return `every ${step} ${plural(step, 'minute')}`
+  }
+  const everyHours = expression.match(/^0 \*\/(\d{1,2}) \* \* \*$/)
+  if (everyHours && Number(everyHours[1]) > 0 && Number(everyHours[1]) < 24) {
+    const step = Number(everyHours[1])
+    return step === 1 ? 'every hour' : `every ${step} hours`
+  }
+  const daily = expression.match(/^(\d{1,2}) (\d{1,2}) \* \* \*$/)
+  if (daily && Number(daily[1]) < 60 && Number(daily[2]) < 24) {
+    return `daily at ${clockText(Number(daily[2]), Number(daily[1]))}`
+  }
+  return ''
+}
