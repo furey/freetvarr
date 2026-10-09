@@ -3,7 +3,7 @@ Output install.webm
 Set Shell "bash"
 Set FontSize 20
 Set Width 1280
-Set Height 800
+Set Height 960
 Set Padding 44
 Set LineHeight 1.3
 Set TypingSpeed 38ms
@@ -26,5 +26,5 @@ Sleep 1.2s
 Type "Y"
 Sleep 400ms
 Enter
-Wait+Screen@30s /To update later/
+Wait+Screen@30s /update later/
 Sleep 3.5s
