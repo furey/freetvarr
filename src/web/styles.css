@@ -4071,6 +4071,11 @@ section[id^="section-"] {
 }
 
 @media (max-width: 767px) {
+  .panel-header {
+    min-height: calc(3.25rem + 1px);
+    align-content: center;
+  }
+
   .panel-header:has(> .header-actions) {
     padding-block: 0.25rem;
   }
