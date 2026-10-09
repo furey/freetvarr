@@ -103,7 +103,7 @@ const TVH_REACH = {
     if (info?.unreachable) {
       return {
         status: 'fail',
-        detail: `${info.unreachable.message}.`,
+        detail: withFullStop(info.unreachable.message),
         fix: `Freetvarr can't reach TVHeadend at ${ctx.conn.url}. Check the address, or use AUTO-DISCOVER in Settings.`,
         action: SETTINGS_TVHEADEND,
       }
@@ -302,7 +302,7 @@ const LATER_CHECKS = [
       if (result.ok) return { status: 'pass', detail: `${result.path} is readable.` }
       return {
         status: 'fail',
-        detail: `${result.error}.`,
+        detail: withFullStop(result.error),
         fix: 'Mount the same folder TVHeadend writes to.',
         action: SETTINGS_STORAGE,
       }
@@ -350,7 +350,7 @@ const LATER_CHECKS = [
       if (result.ok) return { status: 'pass', detail: `${result.path} is writable.` }
       return {
         status: 'fail',
-        detail: `${result.error}.`,
+        detail: withFullStop(result.error),
         fix: mediaFolderFix({ result, mediaRoot: ctx.settings.mediaRoot, uid: ctx.deps.uid() }),
         action: SETTINGS_STORAGE,
       }
@@ -420,7 +420,7 @@ const LATER_CHECKS = [
       if (sections.error) {
         return {
           status: 'fail',
-          detail: `${sections.error.message}.`,
+          detail: withFullStop(sections.error.message),
           fix: 'Check the Plex address and token in Settings.',
           action: SETTINGS_PLEX,
         }
@@ -478,7 +478,7 @@ const LATER_CHECKS = [
       if (last.status === 'error') {
         return {
           status: 'warn',
-          detail: `The last sync failed: ${syncError(last)}.`,
+          detail: `The last sync failed: ${withFullStop(syncError(last))}`,
           fix: 'Open Syncs to read the full error.',
           action: OPEN_SYNCS,
         }
@@ -594,7 +594,7 @@ const failureFrom = (err) => {
       doc: RIGHTS_DOC,
     }
   }
-  return { status: 'fail', detail: `${err?.message || err}.` }
+  return { status: 'fail', detail: withFullStop(String(err?.message || err)) }
 }
 
 const skipped = (spec) => ({
@@ -670,6 +670,8 @@ const guideReach = ({ lastStopMs, now }) => {
   if (lastStopMs <= now) return `The guide ended at ${fmtStamp(lastStopMs)}.`
   return `The guide runs ${formatHours(Math.round((lastStopMs - now) / HOUR_MS))} ahead, to ${fmtStamp(lastStopMs)}.`
 }
+
+const withFullStop = (message) => (/[.!?]$/.test(String(message).trim()) ? message : `${message}.`)
 
 const syncError = (sync) => sync.summary?.errors?.[0] || sync.summary?.message || 'no reason recorded'
 
