@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 const JPEG_QUALITY = 90
 const CONCAT_FILE = 'frames.ffconcat'
+const TIMESTAMP_RATE = 1000
 
 export const startScreencast = async ({ page, dir }) => {
   await rm(dir, { recursive: true, force: true })
@@ -38,7 +39,9 @@ const concatList = ({ frames, stoppedAt }) => {
   const entries = frames.map(({ file }, i) => {
     const endsAt = i + 1 < frames.length ? frames[i + 1].at : stoppedAt
     const startsAt = i === 0 ? 0 : frames[i].at
-    return `file ${file}\nduration ${(Math.max(1, endsAt - startsAt) / 1000).toFixed(4)}`
+    return `${frameEntry(file)}\nduration ${(Math.max(1, endsAt - startsAt) / 1000).toFixed(4)}`
   })
-  return ['ffconcat version 1.0', ...entries, `file ${frames.at(-1).file}`, ''].join('\n')
+  return ['ffconcat version 1.0', ...entries, frameEntry(frames.at(-1).file), ''].join('\n')
 }
+
+const frameEntry = (file) => `file ${file}\noption framerate ${TIMESTAMP_RATE}`
