@@ -30,7 +30,7 @@ Channels run down the page and time runs across. The TV Guide opens at the curre
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
 - Drag the right edge of the channel list to make it wider or narrower.
 - A dimmed channel with **OFF AIR** beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
-- Channels whose names end in `HD` carry an `HD` label, so you can tell an HD simulcast from its SD twin.
+- Each channel in the CHANNELS dialog shows `HD` or `SD` after its name, read from the TV service type that TVHeadend reports. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin, even when both have the same name.
 
 ## After midnight
 

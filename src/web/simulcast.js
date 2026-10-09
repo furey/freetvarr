@@ -3,13 +3,16 @@ export const SIMULCAST_START_TOLERANCE_MS = 2 * 60 * 1000
 export const isHdChannelName = (name = '') =>
   /(^|[^A-Za-z])hd($|[^A-Za-z])/i.test(name) || /HD($|[^A-Za-z])/.test(name)
 
+export const isHdChannel = (channel) =>
+  typeof channel.hd === 'boolean' ? channel.hd : isHdChannelName(channel.name)
+
 export const findHdSimulcast = ({ program, channelId, channels = [], programsByChannel = {}, needsSeriesLink = false }) => {
   const pressed = channels.find((c) => String(c.id) === String(channelId))
-  if (!pressed || !program || isHdChannelName(pressed.name)) return null
+  if (!pressed || !program || isHdChannel(pressed)) return null
   const title = normaliseTitle(program.title)
   if (!title) return null
   const matches = channels
-    .filter((c) => String(c.id) !== String(channelId) && isHdChannelName(c.name))
+    .filter((c) => String(c.id) !== String(channelId) && isHdChannel(c))
     .map((channel) => ({
       channel,
       program: (programsByChannel[channel.id] || []).find((p) =>
