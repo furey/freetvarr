@@ -78,6 +78,15 @@ test('saveGuidePrograms: replaces saved programmes a newer guide moved or droppe
   assert.deepEqual(ended.get(CHANNEL).map((p) => p.program_id), [1, 4, 5])
 })
 
+test('saveGuidePrograms: lets other work run between chunks of a large guide', async () => {
+  const programs = Array.from({ length: 2000 }, (_, i) => programme({ program_id: i, start: T0 + i * 30 * MIN }))
+  let ranDuringSave = false
+  setImmediate(() => { ranDuringSave = true })
+  await saveGuidePrograms({ programs, nowMs: T0 })
+  assert.equal(ranDuringSave, true)
+  assert.equal((await db('guide_programs').count({ n: '*' }))[0].n, 2000)
+})
+
 test('saveGuidePrograms: prunes programmes that ended before the start of yesterday', async () => {
   const cutoff = startOfYesterdayMs(T0)
   await db('guide_programs').insert([

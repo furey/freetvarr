@@ -37,7 +37,7 @@ COPY package.json package-lock.json .npmrc ./
 # newest dep ages past the threshold; the lockfile's integrity hashes still
 # verify package contents during `npm ci`.
 RUN npm install -g npm@11.15.0 \
- && npm ci --ignore-scripts \
+ && npm ci --omit=dev --ignore-scripts \
  && npm run rebuild:natives
 
 COPY . .

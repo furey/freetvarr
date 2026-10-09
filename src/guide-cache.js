@@ -4,11 +4,20 @@ export const createGuideCache = ({ load, staleRetryMs, now = Date.now }) => {
   let generation = 0
 
   const get = async (startMs) => {
-    if (cached && cached.startMs === startMs && cached.expiresAt > now()) return cached
-    if (inflight) return inflight
+    const isSameDay = cached?.startMs === startMs
+    if (isSameDay && cached.expiresAt > now()) return cached
+    const reload = reloadFor(startMs)
+    if (!isSameDay) return reload
+    reload.catch(() => {})
+    return cached
+  }
+
+  const reloadFor = (startMs) => {
+    if (inflight?.startMs === startMs) return inflight.promise
+    generation += 1
     const started = generation
     const isCurrent = () => started === generation
-    const run = load(startMs)
+    const promise = load(startMs)
       .then((guide) => {
         if (isCurrent()) cached = guide
         return guide
@@ -19,10 +28,10 @@ export const createGuideCache = ({ load, staleRetryMs, now = Date.now }) => {
         return cached
       })
       .finally(() => {
-        if (inflight === run) inflight = null
+        if (inflight?.promise === promise) inflight = null
       })
-    inflight = run
-    return run
+    inflight = { startMs, promise }
+    return promise
   }
 
   const clear = () => {

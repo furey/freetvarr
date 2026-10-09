@@ -476,14 +476,30 @@ const ChannelLogo = {
     const failed = ref(false)
     watch(() => props.channelId, () => { failed.value = false })
     const showsImage = computed(() => props.hasLogo && props.channelId != null && !failed.value)
-    return { failed, showsImage }
+    const logoUrl = computed(() => `/api/epg/logo/${encodeURIComponent(props.channelId)}`)
+    const src = computed(() => `${logoUrl.value}?w=${CHANNEL_LOGO_WIDTHS[0]}`)
+    const srcset = computed(() => densitySrcset({ url: logoUrl.value, widths: CHANNEL_LOGO_WIDTHS }))
+    return { failed, showsImage, src, srcset }
   },
   template: `
-    <img v-if="showsImage" class="epg-rail-logo" :src="'/api/epg/logo/' + channelId" alt="" loading="lazy"
+    <img v-if="showsImage" class="epg-rail-logo" :src="src" :srcset="srcset" alt="" loading="lazy"
       draggable="false" @error="failed = true" />
     <tv-icon v-else class="epg-rail-logo channel-logo-fallback" />
   `,
 }
+
+const CHANNEL_LOGO_WIDTHS = [96, 192]
+
+const PROGRAMME_IMAGE_WIDTHS = {
+  thumb: [192],
+  cell: [192],
+  rec: [384, 768],
+  hero: [768],
+}
+
+const densitySrcset = ({ url, widths }) => (widths.length > 1
+  ? widths.map((width, index) => `${url}?w=${width} ${index + 1}x`).join(', ')
+  : null)
 
 const imageStatusOf = (img) => {
   if (!img?.complete) return 'loading'
@@ -502,8 +518,15 @@ const ProgrammeImage = {
     const img = ref(null)
     const status = ref('loading')
     const instant = ref(false)
+    const guideImageUrl = computed(() => (props.eventId != null
+      ? `/api/epg/image/${encodeURIComponent(props.eventId)}`
+      : null))
+    const guideImageWidths = computed(() => PROGRAMME_IMAGE_WIDTHS[props.variant] || PROGRAMME_IMAGE_WIDTHS.thumb)
     const src = computed(() => props.source
-      ?? (props.eventId != null ? `/api/epg/image/${encodeURIComponent(props.eventId)}` : null))
+      ?? (guideImageUrl.value ? `${guideImageUrl.value}?w=${guideImageWidths.value[0]}` : null))
+    const srcset = computed(() => (props.source == null && guideImageUrl.value
+      ? densitySrcset({ url: guideImageUrl.value, widths: guideImageWidths.value })
+      : null))
     const settleFromCache = () => {
       if (src.value == null) {
         status.value = 'failed'
@@ -528,11 +551,11 @@ const ProgrammeImage = {
       await nextTick()
       settleFromCache()
     })
-    return { img, status, instant, src, onLoad, onError }
+    return { img, status, instant, src, srcset, onLoad, onError }
   },
   template: `
     <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant }]">
-      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" alt=""
+      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" :srcset="srcset" alt=""
         :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
       <span v-if="status === 'failed'" class="programme-image-fallback">
         <channel-logo :channel-id="channelId" :has-logo="hasLogo" />
@@ -1974,7 +1997,7 @@ const FolderEditor = {
           <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
         </button>
         <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
-        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving">{{ removeLabel }}</button>
+        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
       <teleport to="body">
@@ -1991,7 +2014,7 @@ const FolderEditor = {
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
               <button type="button" class="btn epg-modal-close mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
-                <template v-if="saving">REMOVING…</template><template v-else>{{ removeLabel }}</template>
+                <template v-if="saving">REMOVING…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
               </button>
             </div>
           </div>
@@ -2011,6 +2034,7 @@ const FolderEditor = {
     const saving = ref(false)
     const confirming = ref(false)
     const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
+    const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
     const removeTitle = computed(() => (props.isSeries
       ? `Unassign the folder from ${props.folder.show_pattern}`
       : `Remove the title match ${props.folder.show_pattern}`))
@@ -2062,7 +2086,7 @@ const FolderEditor = {
 
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming,
-      removeLabel, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
+      removeLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
 }
@@ -2130,7 +2154,7 @@ const SeriesView = {
                     <template v-if="s.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
                   </button>
                   <button type="button" class="btn btn-danger" @click="stopSeries(s)" :disabled="busyKey === s.key">
-                    <cross-icon /> STOP SERIES
+                    <stop-icon /> STOP SERIES
                   </button>
                 </div>
               </article>
@@ -6919,8 +6943,7 @@ const ChannelsModal = {
           </div>
           <div class="channels-list">
             <label class="field-label">ALL CHANNELS · <span class="whitespace-nowrap"><star-icon class="icon-inline" />&nbsp;FAVOURITE,</span> TICK TO SHOW, <span class="whitespace-nowrap"><pencil-icon class="icon-inline" />&nbsp;CHANGE GUIDE SOURCE</span></label>
-            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the listings…</p>
-            <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
+            <p v-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
               Set up the TV guide first to change the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
@@ -6947,7 +6970,12 @@ const ChannelsModal = {
                       </span>
                     </span>
                   </label>
-                  <template v-if="showGuideColumn && String(ch.id) in guideDraft">
+                  <template v-if="guideLoading">
+                    <span class="font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem] text-ink-mute">Reading…</span>
+                    <button type="button" class="btn btn-sm btn-icon shrink-0" disabled
+                      title="Reading the listings" aria-label="Reading the listings"><pencil-icon /></button>
+                  </template>
+                  <template v-else-if="showGuideColumn && String(ch.id) in guideDraft">
                     <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
                       :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
                     <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
@@ -9144,6 +9172,16 @@ const MinusIcon = {
   `,
 }
 
+const UnlinkIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+      <path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      <path d="M8 2v3M2 8h3M16 19v3M19 16h3"/>
+    </svg>
+  `,
+}
+
 const CheckIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -10341,6 +10379,7 @@ app.component('arrow-down-icon', ArrowDownIcon)
 app.component('play-icon', PlayIcon)
 app.component('plus-icon', PlusIcon)
 app.component('minus-icon', MinusIcon)
+app.component('unlink-icon', UnlinkIcon)
 app.component('check-icon', CheckIcon)
 app.component('pencil-icon', PencilIcon)
 app.component('search-icon', SearchIcon)
