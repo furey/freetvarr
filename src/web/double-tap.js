@@ -41,6 +41,12 @@ export const registerTap = (state, { side, at, position, force = false }) => {
   }
 }
 
+export const nativeClickPlan = ({ tap, pointerType }) => {
+  if (tap === 'skip') return 'swallow'
+  if (tap === 'first' && pointerType === 'mouse') return 'toggle-later'
+  return 'pass'
+}
+
 export const clampSkip = ({ base, delta, floor = null, ceiling = null }) => {
   const wanted = base + delta
   const lowest = floor ?? wanted
