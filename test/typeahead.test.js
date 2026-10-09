@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { filterOptions, optionLabel, nextIndex } from '../src/web/typeahead.js'
+import { filterOptions, optionLabel, nextIndex, nextChoosableIndex, isChoosable } from '../src/web/typeahead.js'
 
 const options = [
   { id: 'a', name: 'ABC Kids' },
@@ -73,4 +73,23 @@ test('nextIndex wraps and starts at the ends', () => {
   assert.equal(nextIndex({ current: 2, delta: 1, length: 3 }), 0)
   assert.equal(nextIndex({ current: 0, delta: -1, length: 3 }), 2)
   assert.equal(nextIndex({ current: 0, delta: 1, length: 0 }), -1)
+})
+
+const withEmpty = [
+  { id: '', name: 'No listings' },
+  { id: 'n', name: 'ABC Business in 90 Seconds', empty: true },
+  { id: 'a', name: 'ABC NEWS' },
+  { id: 'b', name: 'ABC Business', empty: true },
+]
+
+test('filterOptions lists guide channels with no shows after the ones with shows', () => {
+  assert.deepEqual(filterOptions({ options: withEmpty.slice(1), query: 'abc' }).map((o) => o.id), ['a', 'n', 'b'])
+})
+
+test('nextChoosableIndex skips guide channels with no shows', () => {
+  assert.equal(isChoosable(withEmpty[1]), false)
+  assert.equal(nextChoosableIndex({ options: withEmpty, current: 0, delta: 1 }), 2)
+  assert.equal(nextChoosableIndex({ options: withEmpty, current: 2, delta: 1 }), 0)
+  assert.equal(nextChoosableIndex({ options: withEmpty, current: 0, delta: -1 }), 2)
+  assert.equal(nextChoosableIndex({ options: [withEmpty[1]], current: -1, delta: 1 }), -1)
 })

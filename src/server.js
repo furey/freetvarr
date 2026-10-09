@@ -76,6 +76,7 @@ import {
   readGuideLinks,
   planGuideSetup,
   suggestGuide,
+  waitForNewListings,
 } from './tvheadend-guide.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
@@ -262,7 +263,12 @@ const readTvheadendVersion = async () => {
 
 app.get('/api/version', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
-  const about = { version: APP_VERSION, build: BUILD_ID, node: process.version }
+  const about = {
+    version: APP_VERSION,
+    build: BUILD_ID,
+    node: process.version,
+    uptimeSeconds: Math.floor(process.uptime()),
+  }
   if (req.query.tvheadend !== '1') return res.json(about)
   res.json({ ...about, tvheadend: await readTvheadendVersion() })
 })
@@ -569,7 +575,7 @@ app.get('/api/epg/guide', async (req, res) => {
     return res.status(400).json({ error: 'day must be an integer 0–6' })
   }
   try {
-    res.json(await getGuideDay({ day }))
+    res.json({ ...await getGuideDay({ day }), loadingListings: listingsImport?.channelIds || [] })
   } catch (err) {
     epgError(res, err, 'guide')
   }
@@ -717,7 +723,7 @@ app.post('/api/epg/pause-series', epgLimiter, doubleCsrfProtection, async (req, 
 })
 
 app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
-  const { pinned_ids, hidden_ids, sort, hide_sd_simulcasts } = req.body || {}
+  const { pinned_ids, hidden_ids, sort, hide_sd_simulcasts, hide_sd_channels } = req.body || {}
   if (pinned_ids != null && !Array.isArray(pinned_ids)) {
     return res.status(400).json({ error: 'pinned_ids must be an array' })
   }
@@ -732,6 +738,7 @@ app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
     ...(hidden_ids != null ? { hiddenIds: hidden_ids } : {}),
     ...(sort != null ? { sort } : {}),
     ...(hide_sd_simulcasts != null ? { hideSdSimulcasts: Boolean(hide_sd_simulcasts) } : {}),
+    ...(hide_sd_channels != null ? { hideSdChannels: Boolean(hide_sd_channels) } : {}),
   })
   res.json({ ok: true, ...prefs })
 })
@@ -1614,9 +1621,22 @@ const setupFailure = ({ failedStep, code, error: raw, transmitter }) => {
 
 let guideRun = null
 
+let listingsImport = null
+
 const refreshGuideAfterLinks = () => {
   clearGuideCache()
   setTimeout(clearGuideCache, GUIDE_IMPORT_SETTLE_MS).unref()
+}
+
+const refreshGuideWhenListingsArrive = async ({ conn, channelIds }) => {
+  clearGuideCache()
+  if (!channelIds.length) return
+  const run = { channelIds }
+  listingsImport = run
+  const arrived = await waitForNewListings({ http: setupHttp, conn, channelIds }).catch(() => false)
+  if (!arrived) console.warn(`[tvh-guide] new listings did not arrive for ${channelIds.length} channel(s)`)
+  if (listingsImport === run) listingsImport = null
+  clearGuideCache()
 }
 
 app.get('/api/tvh-guide/status', bootstrapStatusLimiter, async (req, res) => {
@@ -1677,8 +1697,9 @@ app.post('/api/tvh-guide/links', bootstrapLimiter, doubleCsrfProtection, async (
     .filter((l) => l.channelId)
   if (!links.length) return res.json({ ok: true, linked: 0, saved: 0 })
   try {
-    const result = await linkChannelsByHand({ http: setupHttp, conn: await resolveConnection(), links })
-    if (result.saved) refreshGuideAfterLinks()
+    const conn = await resolveConnection()
+    const result = await linkChannelsByHand({ http: setupHttp, conn, links })
+    if (result.saved) refreshGuideWhenListingsArrive({ conn, channelIds: result.loading })
     if (guideRun?.result?.ok) {
       const done = new Set(links.filter((l) => l.guideId).map((l) => l.channelId))
       const unmatched = guideRun.result.unmatched.filter((c) => !done.has(c.id))

@@ -22,10 +22,11 @@ import { findSeriesLink } from '/series-link.js'
 import { seekPlan, adBreakAt, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
 import {
   DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
+  nativeClickPlan,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { liveRecordButton, nowProgramFor } from '/live-record.js'
-import { filterOptions, optionLabel, nextIndex } from '/typeahead.js'
+import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
@@ -36,11 +37,13 @@ import {
   formatHours,
   formatMinutes,
   formatSeconds,
+  formatUptime,
 } from '/time-format.js'
 import {
   CUSTOM_SYNC_SCHEDULE,
   DEFAULT_SYNC_CRON,
   SYNC_SCHEDULE_PRESETS,
+  describeSyncFrequency,
   normaliseCron,
   syncSchedulePreset,
 } from '/sync-schedule.js'
@@ -267,10 +270,10 @@ const GuideCombobox = {
         <ul v-show="open" ref="list" :id="listId" role="listbox" class="combobox-list" :style="listStyle"
           :aria-label="label || null" @mousedown.prevent>
           <li v-for="(o, i) in shown" :key="o.id" :id="optionId(i)" role="option"
-            :aria-selected="o.id === modelValue ? 'true' : 'false'"
-            :class="['combobox-option', { active: i === active, selected: o.id === modelValue, none: o.id === '' }]"
+            :aria-selected="o.id === modelValue ? 'true' : 'false'" :aria-disabled="o.empty ? 'true' : null"
+            :class="['combobox-option', { active: i === active, selected: o.id === modelValue, none: o.id === '', empty: o.empty }]"
             @mousemove="active = i" @click="choose(o)">
-            <span class="combobox-option-name">{{ o.name }}</span>
+            <span class="combobox-option-name">{{ o.name }}<span v-if="o.empty" class="combobox-option-note"> (no shows in this guide)</span></span>
             <span v-if="o.number" class="combobox-option-number">{{ o.number }}</span>
           </li>
           <li v-if="typed && shown.length === 1" class="combobox-empty" role="presentation">No channel matches</li>
@@ -342,6 +345,7 @@ const GuideCombobox = {
     }
 
     const choose = (option) => {
+      if (!isChoosable(option)) return
       emit('update:modelValue', option.id)
       open.value = false
       typed.value = false
@@ -361,7 +365,7 @@ const GuideCombobox = {
 
     const move = (delta) => {
       if (!open.value) return show()
-      setActive(nextIndex({ current: active.value, delta, length: shown.value.length }))
+      setActive(nextChoosableIndex({ options: shown.value, current: active.value, delta }))
     }
 
     const onEnter = (e) => {
@@ -1347,7 +1351,7 @@ const LiveView = {
             <button type="button" class="btn btn-sm" @click="load"><refresh-icon /> RETRY</button>
           </div>
           <p v-else-if="!data" class="text-sm text-ink-dim">Loading channels…</p>
-          <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
+          <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. <span class="whitespace-nowrap">Tap <star-icon class="icon-inline" /> next</span> to a channel to add it.</p>
           <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
           <div v-for="g in groups" :key="g.key" class="live-group">
             <div class="channel-group-heading">{{ g.label }}</div>
@@ -1399,7 +1403,7 @@ const LiveView = {
       <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="data?.channels || []" :hidden-ids="data?.hiddenIds || []"
-        :sort="data?.sort" :hide-sd-simulcasts="data?.hideSdSimulcasts"
+        :sort="data?.sort" :hide-sd-simulcasts="data?.hideSdSimulcasts" :hide-sd-channels="data?.hideSdChannels"
         @close="channelsModal = false" @saved="onChannelPrefsSaved" />
       </transition>
       </teleport>
@@ -1499,7 +1503,7 @@ const LiveView = {
     const onChannelPrefsSaved = async () => {
       channelsModal.value = false
       await load()
-      flash({ msg: 'Channel preferences saved.' })
+      flash({ msg: CHANNELS_SAVED_TEXT })
     }
 
     const openDetails = (e, program) => openInGuide({ channelId: e.channel.id, program, returnTo: '#/live' })
@@ -2531,12 +2535,12 @@ const SyncsView = {
             </info-button>
           </span>
           <div class="flex items-center gap-3">
-            <span v-if="syncStatus.cron" class="text-xs font-mono text-ink-dim">CRON · <code>{{ syncStatus.cron }}</code></span>
-            <span class="text-xs font-mono text-ink-mute" title="Freetvarr keeps the latest 500 syncs and deletes older ones.">CAP · 500</span>
+            <span class="hidden md:inline text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></span>
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
           </div>
         </header>
         <div class="panel-body space-y-4">
+          <p v-if="scheduleFrequency || syncStatus.cron" class="md:hidden text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></p>
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
               <template v-if="syncStatus.activeSyncId"><span class="spinner"></span>SYNC RUNNING…</template>
@@ -2617,6 +2621,7 @@ const SyncsView = {
     const total = ref(0)
     const page = ref(1)
     const pageSize = ref(50)
+    const scheduleFrequency = computed(() => describeSyncFrequency(syncStatus.value.cron))
     const filterOptions = [
       { key: 'all',       label: 'ALL' },
       { key: 'manual',    label: 'MANUAL' },
@@ -2716,7 +2721,7 @@ const SyncsView = {
     onUnmounted(stopWatch)
 
     return {
-      syncs, syncStatus, starting,
+      syncs, syncStatus, scheduleFrequency, starting,
       filter, filterOptions, filterLabel, setFilter,
       total, page, pageSize, totalPages, rangeLabel,
       syncNow, refresh, manualRefresh, removeSync, clearAll,
@@ -2942,8 +2947,9 @@ const RecordingsView = {
               </div>
             </article>
           </div>
-          <p v-else-if="total === 0" class="text-ink-dim text-sm">
-            {{ hasFiltersApplied ? 'No recordings match the current filters.' : 'No recordings yet.' }}
+          <p v-else-if="total === 0 && hasFiltersApplied" class="text-ink-dim text-sm pt-3">No recordings match the current filters.</p>
+          <p v-else-if="total === 0" class="text-ink-dim text-sm pt-3">
+            No recordings yet. To make a recording, open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD</strong> or <strong>RECORD SERIES</strong>. Recordings show here once TVHeadend starts them.
           </p>
           <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
             <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
@@ -6267,6 +6273,9 @@ const EPG_IMAGES_KEY = 'freetvarr.guideImages'
 const EPG_DRAG_THRESHOLD_PX = 6
 const PIN_LIFT_HOLD_MS = 250
 const EPG_STATE_POLL_MS = 60_000
+const LISTINGS_REFRESH_MS = 10_000
+const LISTINGS_LOADING_TEXT = 'Loading the new listings. This can take a couple of minutes.'
+const CHANNELS_SAVED_TEXT = 'Channel preferences saved.'
 const EPG_SEARCH_DEBOUNCE_MS = 300
 const EPG_LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15]
 const EPG_LAG_OPTIONS = [0, 5, 10, 15, 30, 60]
@@ -6288,6 +6297,7 @@ let filterSheetCount = 0
 const LATEST_RELEASE_KEY = 'freetvarr.latest-release'
 const LATEST_RELEASE_TTL_MS = 60 * 60 * 1000
 const COPIED_FLASH_MS = 2000
+const ANY_CHANNEL_HINT = 'Records this series whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again.'
 
 const readCachedLatestRelease = () => {
   try {
@@ -6479,6 +6489,8 @@ const VersionsRow = {
           </dd>
           <dt>BUILD</dt>
           <dd>{{ about.build || '…' }}</dd>
+          <dt>UPTIME</dt>
+          <dd>{{ uptimeText }}</dd>
           <dt>TVHEADEND</dt>
           <dd :class="{ 'about-muted': !about.tvheadend }">{{ tvheadendText }}</dd>
           <dt>NODE</dt>
@@ -6502,6 +6514,15 @@ const VersionsRow = {
       if (about.value.tvheadend) return about.value.tvheadend
       return tvheadendLoaded.value ? 'not connected' : '…'
     })
+    const uptimeFetchedAt = ref(Date.now())
+    const nowMs = ref(Date.now())
+    let uptimeTimer = null
+    watch(() => about.value.uptimeSeconds, () => { uptimeFetchedAt.value = Date.now() })
+    const uptimeText = computed(() => {
+      if (about.value.uptimeSeconds == null) return '…'
+      const elapsedSeconds = Math.max(0, (nowMs.value - uptimeFetchedAt.value) / 1000)
+      return formatUptime(about.value.uptimeSeconds + elapsedSeconds)
+    })
     const updateText = computed(() => ({
       checking: 'Checking…',
       current: 'Up to date',
@@ -6510,6 +6531,7 @@ const VersionsRow = {
     const aboutLines = () => [
       `Freetvarr ${about.value.version}`,
       `Build ${about.value.build}`,
+      `Uptime ${uptimeText.value}`,
       `TVHeadend ${about.value.tvheadend || 'not connected'}`,
       `Node ${about.value.node}`,
     ].join('\n')
@@ -6542,9 +6564,13 @@ const VersionsRow = {
     onMounted(() => {
       loadTvheadendVersion()
       checkForUpdate()
+      uptimeTimer = setInterval(() => { nowMs.value = Date.now() }, 1000)
     })
-    onUnmounted(() => clearTimeout(copyTimer))
-    return { about, update, updateText, tvheadendText, copyState, copyAbout, releaseUrl }
+    onUnmounted(() => {
+      clearTimeout(copyTimer)
+      clearInterval(uptimeTimer)
+    })
+    return { about, update, updateText, uptimeText, tvheadendText, copyState, copyAbout, releaseUrl }
   },
 }
 
@@ -6698,7 +6724,7 @@ const ZoomControl = {
 }
 
 const ChannelsModal = {
-  props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts'],
+  props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts', 'hideSdChannels'],
   emits: ['close', 'saved'],
   template: `
     <div class="epg-modal-backdrop" @click.self="$emit('close')">
@@ -6720,7 +6746,7 @@ const ChannelsModal = {
           <div>
             <label class="field-label">FAVOURITES · SHOWN FIRST, IN THIS ORDER</label>
             <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
-              No favourites yet. Tap the <star-icon class="icon-inline" /> next to a channel below, in the TV Guide rail, or in Live TV.
+              No favourites yet. Tap the <span class="whitespace-nowrap"><star-icon class="icon-inline" /> next</span> to a channel below, in the TV Guide rail, or in Live TV.
             </p>
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
@@ -6744,26 +6770,36 @@ const ChannelsModal = {
           </div>
           <div>
             <label class="flex items-center gap-2.5 text-sm cursor-pointer">
-              <input type="checkbox" class="chk" v-model="hideSdDraft" />
+              <input type="checkbox" class="chk" :checked="hideSdChannelsDraft || hideSdDraft"
+                :disabled="hideSdChannelsDraft" @change="hideSdDraft = $event.target.checked" />
               <span class="font-mono text-[0.8rem]">HIDE SD SIMULCASTS</span>
             </label>
             <p class="text-xs text-ink-dim mt-1.5">
-              Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a favourite is never hidden.
+              Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a favourite is never hidden. <template v-if="hideSdChannelsDraft">HIDE SD CHANNELS already hides these.</template>
+            </p>
+          </div>
+          <div>
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+              <input type="checkbox" class="chk" v-model="hideSdChannelsDraft" />
+              <span class="font-mono text-[0.8rem]">HIDE SD CHANNELS</span>
+            </label>
+            <p class="text-xs text-ink-dim mt-1.5">
+              Shows only HD channels. SD-only channels (for example 7flix) are hidden too. Applies to the grid, search, and Live TV; a favourite is never hidden.
             </p>
           </div>
           <p class="text-xs text-ink-dim">
-            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, press <pencil-icon class="icon-inline" /> and pick the guide channel that matches it.
+            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, <span class="whitespace-nowrap">press <pencil-icon class="icon-inline" /> and</span> pick the guide channel that matches it.
           </p>
           </div>
           <div class="channels-list">
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" /> FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" /> FIX LISTINGS</label>
+            <label class="field-label">ALL CHANNELS · <span class="whitespace-nowrap"><star-icon class="icon-inline" />&nbsp;FAVOURITE,</span> TICK TO SHOW, <span class="whitespace-nowrap"><pencil-icon class="icon-inline" />&nbsp;CHANGE GUIDE SOURCE</span></label>
             <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the listings…</p>
             <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
-              Set up the TV guide first to fix the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
+              Set up the TV guide first to change the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
             <div class="grid grid-cols-1 gap-y-2">
-              <div v-for="ch in channels" :key="ch.id" class="flex flex-col gap-1.5"
+              <div v-for="ch in listedChannels" :key="ch.id" class="flex flex-col gap-1.5"
                 @keydown.esc="onRowEscape">
                 <div class="flex items-center gap-2">
                   <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
@@ -6776,16 +6812,20 @@ const ChannelsModal = {
                       :checked="!hiddenDraft.has(String(ch.id))"
                       :disabled="pinnedDraft.includes(String(ch.id))"
                       @change="toggleHidden(ch)" />
-                    <span class="font-mono text-[0.8rem] truncate">
-                      <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
-                      {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
+                    <span class="flex items-center gap-1.5 min-w-0">
+                      <span :class="['pill pill-format pill-slot shrink-0', ch.hd ? 'pill-hd' : 'pill-sd']"
+                        :title="ch.hd ? 'High definition' : 'Standard definition'">{{ ch.hd ? 'HD' : 'SD' }}</span>
+                      <span class="font-mono text-[0.8rem] truncate">
+                        <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
+                        {{ ch.name }}
+                      </span>
                     </span>
                   </label>
                   <template v-if="showGuideColumn && String(ch.id) in guideDraft">
                     <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
                       :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
                     <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
-                      :title="'Fix listings for ' + ch.name" :aria-label="'Fix listings for ' + ch.name"><pencil-icon /></button>
+                      :title="'Change guide source for ' + ch.name" :aria-label="'Change guide source for ' + ch.name"><pencil-icon /></button>
                   </template>
                 </div>
                 <div v-if="editingId === String(ch.id)" class="flex items-center gap-2 pl-6">
@@ -6793,9 +6833,9 @@ const ChannelsModal = {
                     none-label="No listings" :label="'Listings for ' + ch.name" autofocus
                     @confirm="confirmGuideEdit" />
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="confirmGuideEdit"
-                    title="Use these listings" aria-label="Use these listings"><check-icon /></button>
+                    title="Use this guide source" aria-label="Use this guide source"><check-icon /></button>
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="cancelGuideEdit"
-                    title="Keep the current listings" aria-label="Keep the current listings"><cross-icon /></button>
+                    title="Keep the current guide source" aria-label="Keep the current guide source"><cross-icon /></button>
                 </div>
               </div>
             </div>
@@ -6818,6 +6858,10 @@ const ChannelsModal = {
     const hiddenDraft = ref(new Set((props.hiddenIds || []).map(String)))
     const sortDraft = ref(props.sort || 'default')
     const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
+    const hideSdChannelsDraft = ref(Boolean(props.hideSdChannels))
+    const listedChannels = computed(() => (hideSdChannelsDraft.value
+      ? props.channels.filter((c) => c.hd || pinnedDraft.value.includes(String(c.id)))
+      : props.channels))
     const savingPrefs = ref(false)
     const [statusText, statusKind, setStatus] = makeStatus()
     const [guideStatusText, guideStatusKind, setGuideStatus] = makeStatus()
@@ -6906,6 +6950,7 @@ const ChannelsModal = {
           hidden_ids: [...hiddenDraft.value],
           sort: sortDraft.value,
           hide_sd_simulcasts: hideSdDraft.value,
+          hide_sd_channels: hideSdChannelsDraft.value,
         })
         return true
       } catch (err) {
@@ -6920,14 +6965,14 @@ const ChannelsModal = {
 
     const saveGuideLinks = async () => {
       const links = changedGuideLinks()
-      if (!links.length) return true
+      if (!links.length) return { saved: true, listingsLoading: false }
       try {
-        await api('POST', '/api/tvh-guide/links', { links })
+        const result = await api('POST', '/api/tvh-guide/links', { links })
         guideSaved.value = { ...guideDraft }
-        return true
+        return { saved: true, listingsLoading: Boolean(result.loading?.length) }
       } catch (err) {
         setGuideStatus(`Listings not saved: ${err.message}`, 'err', 0)
-        return false
+        return { saved: false, listingsLoading: false }
       }
     }
 
@@ -6935,13 +6980,13 @@ const ChannelsModal = {
       savingPrefs.value = true
       const prefsSaved = await savePrefs()
       if (prefsSaved) setStatus('Channels saved.', 'ok')
-      const linksSaved = await saveGuideLinks()
+      const links = await saveGuideLinks()
       savingPrefs.value = false
-      if (prefsSaved && linksSaved) emit('saved')
+      if (prefsSaved && links.saved) emit('saved', { listingsLoading: links.listingsLoading })
     }
 
     return {
-      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, savingPrefs,
+      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, hideSdChannelsDraft, listedChannels, savingPrefs,
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
       editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
@@ -6959,7 +7004,7 @@ const togglePinnedChannel = async ({ pinnedIds, channelId }) => {
 const EpgView = {
   template: `
     <div :class="['view-reveal', 'space-y-6', { 'max-w-[69rem] mx-auto': mode !== 'guide' }]">
-      <section class="panel">
+      <section :class="['panel', { 'panel-guide': mode === 'guide' }]">
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · <span class="normal-case">{{ dayTitle }}</span></template><template v-else> · {{ mode.toUpperCase() }}</template></span>
@@ -7108,7 +7153,7 @@ const EpgView = {
                 <transition-group name="epg-rows" tag="div">
                 <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
                   v-show="shown"
-                  v-memo="[ch, label, shown, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
+                  v-memo="[ch, label, shown, loadingIds.has(ch?.id), loadingNoteMaxPx, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
                   :data-channel-id="ch?.id"
                   :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === key, 'epg-drop-after': dropAfter && dropTargetId === key, 'epg-dragging': dragPinId === key }]">
                   <template v-if="kind === 'heading'">
@@ -7125,6 +7170,9 @@ const EpgView = {
                     <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
                   </div>
                   <div class="epg-track" :style="{ width: trackWidth + 'px' }">
+                    <span v-if="loadingIds.has(ch.id)" class="epg-loading-note" role="status"
+                      :title="LISTINGS_LOADING_TEXT"
+                      :style="{ left: (nowX ?? 0) + 8 + 'px', maxWidth: loadingNoteMaxPx + 'px' }">{{ LISTINGS_LOADING_TEXT }}</span>
                     <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
                       :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'next-day': p.start >= guide.dayEnd, 'with-thumb': cellHasThumb(p) }]"
                       :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
@@ -7253,8 +7301,8 @@ const EpgView = {
                 </select>
               </div>
               <div v-if="selected.program.series_link" class="col-span-2 space-y-1">
-                <toggle-switch v-model="anyChannel">RECORD ON ANY CHANNEL</toggle-switch>
-                <p class="text-xs font-mono text-ink-mute">Off: the series recording covers {{ selected.channel?.name || channelName(selected.program.channelId) }} only. On: it records the show on whichever channel airs it.</p>
+                <toggle-switch v-model="anyChannel" :title="ANY_CHANNEL_HINT">RECORD ON ANY CHANNEL</toggle-switch>
+                <p class="text-xs font-mono text-ink-mute">{{ ANY_CHANNEL_HINT }}</p>
               </div>
               <div class="col-span-2 space-y-1">
                 <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
@@ -7350,7 +7398,7 @@ const EpgView = {
       <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="guide?.channels || []" :hidden-ids="guide?.hiddenIds || []"
-        :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts"
+        :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts" :hide-sd-channels="guide?.hideSdChannels"
         @close="channelsModal = false" @saved="onChannelPrefsSaved" />
       </transition>
       </teleport>
@@ -7524,6 +7572,10 @@ const EpgView = {
     })
 
     const scrollViewW = ref(0)
+
+    const loadingIds = computed(() => new Set(guide.value?.loadingListings || []))
+
+    const loadingNoteMaxPx = computed(() => Math.max(scrollViewW.value - railPx.value - 24, 120))
 
     const trackTailPx = computed(() => {
       if (day.value !== 0 || nowX.value == null) return 0
@@ -8149,8 +8201,27 @@ const EpgView = {
     const onChannelPrefsSaved = async () => {
       channelsModal.value = false
       await reloadGuide()
-      flash({ msg: 'Channel preferences saved.' })
+      flash({ msg: CHANNELS_SAVED_TEXT })
     }
+
+    let listingsTimer = null
+    const refreshWhileListingsLoad = () => {
+      clearTimeout(listingsTimer)
+      if (!guide.value?.loadingListings?.length) return
+      listingsTimer = setTimeout(async () => {
+        const d = day.value
+        try {
+          const g = await api('GET', `/api/epg/guide?day=${d}`)
+          if (!g.loadingListings?.length) guideByDay.clear()
+          guideByDay.set(d, g)
+          if (day.value === d) guide.value = g
+        } catch {
+          refreshWhileListingsLoad()
+        }
+      }, LISTINGS_REFRESH_MS)
+    }
+    watch(guide, refreshWhileListingsLoad)
+    onUnmounted(() => clearTimeout(listingsTimer))
 
     const tooltip = ref(null)
     const tooltipEl = ref(null)
@@ -8331,7 +8402,8 @@ const EpgView = {
     })
 
     return {
-      mode, modes, setMode, day, dayChips, dayTitle, setDay,
+      mode, modes, setMode, day, dayChips, dayTitle, setDay, LISTINGS_LOADING_TEXT,
+      loadingIds, loadingNoteMaxPx,
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
       scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs,
       zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, changeZoom,
@@ -8345,7 +8417,7 @@ const EpgView = {
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind,
-      leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
+      leadTime, lagTime, episodesToKeep, anyChannel, ANY_CHANNEL_HINT, addToLibrary, libraryNote,
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries, cancelChoice,
       upcoming, cancelUpcoming,
@@ -8625,6 +8697,8 @@ const flashLiveSkipHint = createSkipHintFlasher(live)
 
 let liveTapState = emptyTapState()
 let liveTapStart = null
+let liveClickPlan = 'pass'
+let liveSingleClickTimer = null
 
 const canSkip = () => live.phase === 'live' && live.bufferSeconds > 0 && liveAttached
 
@@ -8648,6 +8722,7 @@ const onLivePointerDown = (e) => {
 const onLivePointerUp = (e) => {
   const start = liveTapStart
   liveTapStart = null
+  liveClickPlan = 'pass'
   if (!start || !canSkip()) return
   const tap = {
     startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
@@ -8655,7 +8730,25 @@ const onLivePointerUp = (e) => {
   }
   if (!isTap(tap)) return
   const side = tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })
-  skipLive(registerLiveTap({ side, force: false }))
+  const result = registerLiveTap({ side, force: false })
+  liveClickPlan = nativeClickPlan({ tap: result.kind, pointerType: e.pointerType })
+  clearTimeout(liveSingleClickTimer)
+  skipLive(result)
+}
+
+const onLiveClick = (e) => {
+  const plan = liveClickPlan
+  liveClickPlan = 'pass'
+  if (plan === 'pass' || e.target !== liveVideo) return
+  e.preventDefault()
+  e.stopPropagation()
+  if (plan === 'toggle-later') liveSingleClickTimer = setTimeout(toggleLivePause, DOUBLE_TAP_MS)
+}
+
+const toggleLivePause = () => {
+  if (!liveAttached) return
+  if (liveVideo.paused) return liveVideo.play()?.catch(() => {})
+  liveVideo.pause()
 }
 
 const onLiveDoubleClick = (e) => {
@@ -9057,7 +9150,7 @@ const LivePlayer = {
           </div>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
-        <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @dblclick.capture="onLiveDoubleClick">
+        <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @click.capture="onLiveClick" @dblclick.capture="onLiveDoubleClick">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controls></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
@@ -9219,7 +9312,7 @@ const LivePlayer = {
     return {
       recordButton, recordFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveDoubleClick,
+      isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveClick, onLiveDoubleClick,
     }
   },
 }
@@ -9239,7 +9332,7 @@ const SEEK_FLOOR_MARGIN_S = 4
 const NATIVE_LIVE_HOLD_BACK_S = 6
 const HAVE_CURRENT_DATA = 2
 const NATIVE_CONTROL_BAR_PX = 48
-const SKIP_HINT_MS = 600
+const SKIP_HINT_MS = 1_600
 
 const playback = reactive({
   open: false,
@@ -9798,7 +9891,7 @@ const App = {
         <stale-build-banner />
       </header>
 
-      <main :class="['flex-1', route === 'guide' ? 'max-w-none' : 'max-w-6xl', 'w-full', 'mx-auto', 'px-4', 'py-5', 'md:px-6', 'md:py-8']">
+      <main :class="['flex-1', route === 'guide' ? 'max-w-none main-guide' : 'max-w-6xl', 'w-full', 'mx-auto', 'px-4', 'py-5', 'md:px-6', 'md:py-8']">
         <component :is="currentView" :key="route + ':' + refreshTick" />
       </main>
 

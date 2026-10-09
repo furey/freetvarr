@@ -91,12 +91,25 @@ export const listChannels = async (conn) => {
       number: channelNumber(c.number),
       name: c.name || '',
       description: '',
-      hd: /hd$/i.test((c.name || '').trim()),
+      hd: isHdChannel({ name: c.name, serviceIds: c.services || [], services }),
       recordable: true,
       logos: channelLogoSources({ channel: c, epgIcons: epgIconsByChannel.get(c.uuid) }),
       serviceIds: c.services || [],
       offAir: isOffAir({ serviceIds: c.services || [], services }),
     }))
+}
+
+const HD_SERVICE_TYPES = new Set([0x11, 0x19, 0x1f])
+const SD_SERVICE_TYPES = new Set([0x01, 0x16])
+
+export const isHdChannel = ({ name = '', serviceIds = [], services = new Map() }) => {
+  const types = serviceIds
+    .map((id) => services.get(id))
+    .filter((service) => service && service.enabled !== false)
+    .map((service) => service.serviceType)
+  if (types.some((type) => HD_SERVICE_TYPES.has(type))) return true
+  if (types.some((type) => SD_SERVICE_TYPES.has(type))) return false
+  return /hd$/i.test((name || '').trim())
 }
 
 export const isOffAir = ({ serviceIds = [], services }) =>
@@ -352,6 +365,7 @@ export const listServiceMuxes = async (conn) => {
     muxId: s.multiplex_uuid,
     muxName: muxDisplayName({ multiplex: s.multiplex, network: s.network }),
     enabled: s.enabled !== false,
+    serviceType: s.dvb_servicetype,
   }]))
   serviceMuxCache = { value, expiresAt: Date.now() + SERVICE_MUX_TTL_MS }
   return value
