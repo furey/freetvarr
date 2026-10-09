@@ -22,6 +22,21 @@ export const formatMinutes = (count, { long = false } = {}) => {
 
 export const formatHours = (count) => `${count} hr${count === 1 ? '' : 's'}`
 
+export const formatUptime = (seconds) => {
+  const totalMinutes = Math.floor(seconds / 60)
+  if (totalMinutes < 1) return 'under a minute'
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+  const hoursText = hours > 0 ? formatHours(hours) : ''
+  const parts = days > 0
+    ? [formatDays(days), hoursText]
+    : [hoursText, minutes > 0 ? formatMinutes(minutes) : '']
+  return parts.filter(Boolean).join(' ')
+}
+
+const formatDays = (count) => `${count} day${count === 1 ? '' : 's'}`
+
 export const stripDayPeriodSpace = (text) => text.replace(/[\s  ]+(am|pm)$/i, (_, period) => period.toLowerCase())
 
 export const dateFormat = (options, timeZone) => {
