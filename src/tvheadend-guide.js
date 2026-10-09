@@ -93,6 +93,35 @@ export const applyGuideLinks = async ({ http, conn, links, guideChannels, dropLi
   return { linked: new Set(links.filter((l) => l.guideId).map((l) => l.channelId)).size, saved: saves.length }
 }
 
+export const readTimeshifts = async ({ http, conn, feedChannels }) => {
+  const [module, guideChannels, channels] = await Promise.all([
+    findUrlGrabber({ http, conn }),
+    listGuideChannels({ http, conn }),
+    listTvChannels({ http, conn }),
+  ])
+  const own = module ? guideChannels.filter((g) => g.moduleId === module.key) : []
+  return findTimeshifts({ channels, guideChannels: own, feedChannels })
+}
+
+export const findTimeshifts = ({ channels, guideChannels, feedChannels }) => {
+  const candidates = feedChannels.map((f) => ({ id: f.id, name: f.names[0] || f.id, feed: f }))
+  const linked = linkedFeedChannels({ channels, guideChannels })
+  const shifts = new Map()
+  for (const channel of channels) {
+    const hours = timeshiftHours(channel.name)
+    if (!hours || feedCarries({ channel, feedChannels })) continue
+    const baseId = guessGuideChannel({ channel: { name: timeshiftBaseName(channel.name) }, candidates, linked })
+    if (!baseId) continue
+    const id = `${baseId}${TIMESHIFT_ID_SUFFIX}${hours}`
+    const shift = shifts.get(id) || { id, baseId, hours, names: [], lcn: channel.number }
+    shift.names.push(channel.name)
+    shifts.set(id, shift)
+  }
+  return [...shifts.values()]
+}
+
+export const shiftedFeedChannels = (shifts) => shifts.map(({ id, names, lcn }) => ({ id, names, lcn }))
+
 export const planGuideSetup = () => ({
   steps: [
     { id: 'feed', label: 'Turn on the guide feed' },
@@ -108,8 +137,10 @@ export const applyGuideSetup = async ({
   fetchFeed = fetchFeedChannels,
   countProgrammes = countFeedProgrammes,
   onProgress = () => {},
+  shiftedFeed = null,
   pollMs = POLL_MS,
   limitMs = DOWNLOAD_LIMIT_MS,
+  feedRequestLimitMs = FEED_REQUEST_LIMIT_MS,
   now = Date.now,
 }) => {
   const progress = createProgress({ steps: planGuideSetup().steps, onProgress })
@@ -122,17 +153,24 @@ export const applyGuideSetup = async ({
     return result
   }
   try {
-    const feedChannels = await run('feed', async () => {
+    const { feedChannels, grabberUrl } = await run('feed', async () => {
       const module = await findUrlGrabber({ http, conn })
       if (!module) throw new GuideError('This TVHeadend has no guide download by URL.', 'no-grabber')
       const listed = await fetchFeed(url).catch((err) => {
         throw new GuideError(`Freetvarr could not download the guide (${err.message}).`, 'feed-unreachable')
       })
       if (!listed.length) throw new GuideError('The guide address returned no channels.', 'feed-empty')
-      await enableGrabber({ http, conn, module, url })
-      await keepGuideSaved({ http, conn })
+      const shifts = shiftedFeed ? await readTimeshifts({ http, conn, feedChannels: listed }) : []
+      if (shifts.length) {
+        const reached = await pointGrabberAtShiftedFeed({ http, conn, module, url, shiftedFeed, limitMs: feedRequestLimitMs, now })
+        if (reached) return { feedChannels: [...listed, ...shiftedFeedChannels(shifts)], grabberUrl: shiftedFeed.url }
+        await enableGrabber({ http, conn, module: { ...module, enabled: true, url: shiftedFeed.url }, url })
+      } else {
+        await enableGrabber({ http, conn, module, url })
+        await keepGuideSaved({ http, conn })
+      }
       await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
-      return listed
+      return { feedChannels: listed, grabberUrl: url }
     })
     const guideChannels = await run('download', () => waitForGuideChannels({
       http,
@@ -154,10 +192,11 @@ export const applyGuideSetup = async ({
       const alreadyLinked = channels.filter((c) => !linkedIds.has(c.id) && isLinked({ channel: c, guideChannels }))
       const byFeedId = new Map(feedChannels.map((f) => [f.id, f]))
       const candidates = guideChannels.map((g) => ({ ...g, feed: byFeedId.get(g.xmltvId) || null }))
-      const counts = await countProgrammes(url).catch(() => null)
+      const counts = await countProgrammes(grabberUrl).catch(() => null)
       const pickable = counts ? candidates.filter((g) => counts.get(g.xmltvId)) : candidates
       const linked = linkedChannels({ channels, guideChannels, links: matched.links })
       return {
+        grabberUrl,
         linked: linkedIds.size + alreadyLinked.length,
         total: channels.length,
         unmatched: matched.unmatched.map(({ id, name, number }) => ({
@@ -259,10 +298,12 @@ export const createProgrammeCounter = ({
   }
 }
 
-export const fetchProgrammeCounts = async (url, { nowMs = Date.now() } = {}) => {
+export const fetchProgrammeCounts = async (url, { nowMs = Date.now() } = {}) =>
+  tallyProgrammeStream({ stream: await openFeedStream(url), nowMs })
+
+export const openFeedStream = async (url) => {
   const response = await axios.get(url, { responseType: 'stream', timeout: FEED_TIMEOUT_MS, maxRedirects: 5 })
-  const stream = GZIP_URL.test(url) ? response.data.pipe(zlib.createGunzip()) : response.data
-  return tallyProgrammeStream({ stream, nowMs })
+  return GZIP_URL.test(url) ? response.data.pipe(zlib.createGunzip()) : response.data
 }
 
 export const countUpcomingProgrammes = ({ xml, nowMs, counts = new Map() }) => {
@@ -324,6 +365,15 @@ const enableGrabber = async ({ http, conn, module, url }) => {
   await http.post('idnode/save', {
     node: JSON.stringify({ uuid: module.id, enabled: true, args: url, priority: XMLTV_PRIORITY }),
   }, conn)
+}
+
+const pointGrabberAtShiftedFeed = async ({ http, conn, module, url, shiftedFeed, limitMs, now }) => {
+  await shiftedFeed.useSource(url)
+  await enableGrabber({ http, conn, module, url: shiftedFeed.url })
+  await keepGuideSaved({ http, conn })
+  const since = now()
+  await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+  return shiftedFeed.waitForRequest({ since, limitMs })
 }
 
 const keepGuideSaved = async ({ http, conn }) => {
@@ -484,6 +534,19 @@ const linkedChannels = ({ channels, guideChannels, links }) => channels
 
 const isTimeshiftName = (name) => TIMESHIFT_NAME.test(String(name).trim())
 
+const timeshiftHours = (name) => Number(String(name).trim().match(TIMESHIFT_NAME)?.[1]) || 0
+
+const timeshiftBaseName = (name) => String(name).trim().replace(TIMESHIFT_NAME, '').trim()
+
+const feedCarries = ({ channel, feedChannels }) => feedChannels.some((f) =>
+  (channel.number && f.lcn === channel.number) || f.names.some((n) => looseKey(n) === looseKey(channel.name)))
+
+const linkedFeedChannels = ({ channels, guideChannels }) => {
+  const xmltvIds = new Map(guideChannels.map((g) => [g.id, g.xmltvId]))
+  return linkedChannels({ channels, guideChannels, links: [] })
+    .map((c) => ({ name: c.name, guideId: xmltvIds.get(c.guideId) }))
+}
+
 const looseKey = (name) => {
   const all = tokens(name).filter((t) => !LOOSE_NOISE.has(t))
   const withoutRegion = all.length > 1 && REGION_WORDS.has(all.at(-1)) ? all.slice(0, -1) : all
@@ -541,7 +604,8 @@ const XMLTV_PRIORITY = 3
 const ALWAYS_NOISE = ['hd', 'the', 'channel', 'tv']
 const COMMON_TOKEN_MIN = 3
 const COMMON_TOKEN_SHARE = 0.25
-const TIMESHIFT_NAME = /\+\s*\d+\s*(hd)?$/i
+const TIMESHIFT_NAME = /\+\s*(\d+)\s*(hd)?$/i
+const TIMESHIFT_ID_SUFFIX = '.plus'
 const LOOSE_NOISE = new Set(['hd', 'the', 'channel'])
 const NETWORK_KEYS = {
   abc: 'abc',
@@ -562,6 +626,7 @@ const REGION_WORDS = new Set([
 const GRID_LIMIT = 5000
 const POLL_MS = 3000
 const DOWNLOAD_LIMIT_MS = 5 * 60_000
+const FEED_REQUEST_LIMIT_MS = 150_000
 const FEED_TIMEOUT_MS = 30_000
 const FEED_HEAD_BYTES = 2 * 1024 * 1024
 const PROGRAMME_TAG = '<programme'

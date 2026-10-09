@@ -76,9 +76,19 @@ import {
   linkChannelsByHand,
   readGuideLinks,
   planGuideSetup,
+  readTimeshifts,
   suggestGuide,
   waitForNewListings,
 } from './tvheadend-guide.js'
+import {
+  GUIDE_FEED_PATH,
+  GUIDE_SOURCE_KEY,
+  createRequestWatch,
+  guideFeedUrl,
+  isGuideFeedUrl,
+  localAddressToward,
+  serveShiftedFeed,
+} from './guide-feed.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -1644,10 +1654,60 @@ const refreshGuideWhenListingsArrive = async ({ conn, channelIds }) => {
   clearGuideCache()
 }
 
+const guideFeedRequests = createRequestWatch()
+
+const guideFeedLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+app.get(GUIDE_FEED_PATH, guideFeedLimiter, async (req, res) => {
+  guideFeedRequests.note()
+  const sourceUrl = await getSetting(GUIDE_SOURCE_KEY)
+  if (!sourceUrl) return res.status(404).type('text/plain').send('Freetvarr has no guide address yet.')
+  try {
+    await serveShiftedFeed({ sourceUrl, res, planShifts: timeshiftsForFeed })
+  } catch (err) {
+    console.warn(`[guide-feed] could not serve the guide from ${sourceUrl}: ${err.message}`)
+    if (res.headersSent) return res.destroy()
+    res.status(502).type('text/plain').send(`Freetvarr could not download the guide (${err.message}).`)
+  }
+})
+
+const timeshiftsForFeed = async (feedChannels) => {
+  try {
+    return await readTimeshifts({ http: setupHttp, conn: await resolveConnection(), feedChannels })
+  } catch (err) {
+    console.warn(`[guide-feed] serving the guide without +1 channels: ${err.message}`)
+    return []
+  }
+}
+
+const shiftedFeedFor = async (conn) => {
+  try {
+    return {
+      url: guideFeedUrl({ address: await localAddressToward(conn.url), port: PORT }),
+      useSource: (url) => setSetting(GUIDE_SOURCE_KEY, url),
+      waitForRequest: guideFeedRequests.waitSince,
+    }
+  } catch (err) {
+    console.warn(`[tvh-guide] +1 channels get no guide: Freetvarr found no address TVHeadend can reach (${err.message})`)
+    return null
+  }
+}
+
+const withGuideSource = async (inspection) => {
+  if (!isGuideFeedUrl(inspection.module?.url)) return inspection
+  const source = await getSetting(GUIDE_SOURCE_KEY)
+  return source ? { ...inspection, module: { ...inspection.module, url: source } } : inspection
+}
+
 app.get('/api/tvh-guide/status', bootstrapStatusLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
-    const inspection = await inspectGuide({ http: setupHttp, conn: await resolveConnection() })
+    const inspection = await withGuideSource(await inspectGuide({ http: setupHttp, conn: await resolveConnection() }))
     res.json({ ok: true, suggestion: suggestGuide({ inspection, timeZone: currentTimeZone() }), job: guideRun })
   } catch (err) {
     res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).`, job: guideRun })
@@ -1678,10 +1738,11 @@ app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (
     http: setupHttp,
     conn,
     url,
+    shiftedFeed: await shiftedFeedFor(conn),
     onProgress: (latest) => { guideRun.steps = latest },
   }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: guideRun.steps }))
   if (result.ok) refreshGuideAfterLinks()
-  if (result.ok) console.log(`[tvh-guide] ${url}: ${result.linked} of ${result.total} channels have a guide`)
+  if (result.ok) console.log(`[tvh-guide] ${result.grabberUrl}: ${result.linked} of ${result.total} channels have a guide`)
   else console.warn(`[tvh-guide] stopped at ${result.failedStep}: ${result.error}`)
   guideRun = { running: false, steps: result.steps, result: result.ok ? result : { ...result, ...guideFailure(result) } }
 })

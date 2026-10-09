@@ -14,6 +14,7 @@ import {
   parseFeedChannels,
   parseXmltvTime,
   planGuideRelinks,
+  findTimeshifts,
   readGuideLinks,
   suggestGuide,
   waitForNewListings,
@@ -111,6 +112,7 @@ const fakeTvheadend = ({
   saveAfterImport = false,
   loadAfter = 1,
   extraChannels = [],
+  extraGuideChannels = [],
 }) => {
   const writes = []
   let gridReads = 0
@@ -118,6 +120,7 @@ const fakeTvheadend = ({
   const feedEntries = [
     { uuid: 'g-seven', modid: '/usr/bin/tv_grab_url', id: 'mjh-seven-syd', name: 'Seven', channels: [] },
     { uuid: 'g-abc', modid: '/usr/bin/tv_grab_url', id: 'mjh-abc-syd', name: 'ABC TV', channels: [] },
+    ...extraGuideChannels,
   ]
   const reads = {
     'epggrab/module/list': () => ({ entries: [{ uuid: moduleId, title: 'Internal: XMLTV: XMLTV URL grabber' }] }),
@@ -239,6 +242,134 @@ test('applyGuideSetup reports a guide that never loads', async () => {
   })
   assert.equal(result.code, 'download-timeout')
   assert.equal(result.failedStep, 'download')
+})
+
+const SHIFTED_FEED_URL = 'http://127.0.0.1:3733/guide/xmltv.xml'
+
+const tenFeed = async () => [...await feed(), { id: 'mjh-10-syd', names: ['10'], lcn: 10 }]
+
+const withTenPlusOne = () => fakeTvheadend({
+  extraChannels: [
+    { uuid: 'c10', name: '10 HD', number: 10, services: [] },
+    { uuid: 'c14', name: '10 HD +1', number: 14, services: [] },
+  ],
+  extraGuideChannels: [
+    { uuid: 'g-ten', modid: '/usr/bin/tv_grab_url', id: 'mjh-10-syd', name: '10', channels: [] },
+    { uuid: 'g-ten-plus1', modid: '/usr/bin/tv_grab_url', id: 'mjh-10-syd.plus1', name: '10 HD +1', channels: [] },
+  ],
+})
+
+const shiftedFeedReached = (reached) => {
+  const sources = []
+  return {
+    sources,
+    url: SHIFTED_FEED_URL,
+    useSource: async (url) => { sources.push(url) },
+    waitForRequest: async () => reached,
+  }
+}
+
+const grabberArgs = (writes) => writes
+  .filter((w) => w.path === 'idnode/save' && JSON.parse(w.form.node).uuid === 'mod-url')
+  .map((w) => JSON.parse(w.form.node).args)
+
+test('applyGuideSetup points TVHeadend at the shifted feed and links a +1 channel to its own listings', async () => {
+  const http = withTenPlusOne()
+  const shiftedFeed = shiftedFeedReached(true)
+  const counted = []
+  const result = await applyGuideSetup({
+    http,
+    conn: CONN,
+    url: FEED_URL,
+    fetchFeed: tenFeed,
+    countProgrammes: async (url) => { counted.push(url); return null },
+    shiftedFeed,
+    pollMs: 0,
+    ...clock(),
+  })
+  assert.equal(result.ok, true, JSON.stringify(result))
+  assert.equal(result.grabberUrl, SHIFTED_FEED_URL)
+  assert.deepEqual(shiftedFeed.sources, [FEED_URL])
+  assert.deepEqual(grabberArgs(http.writes), [SHIFTED_FEED_URL])
+  assert.deepEqual(counted, [SHIFTED_FEED_URL])
+  assert.deepEqual(result.unmatched.map((c) => c.id), ['cx'])
+  const tenPlusOne = http.writes.find((w) => w.form.node && JSON.parse(w.form.node).uuid === 'g-ten-plus1')
+  assert.deepEqual(JSON.parse(tenPlusOne.form.node).channels, ['c14'])
+})
+
+test('applyGuideSetup goes back to the guide address when TVHeadend never asks for the shifted feed', async () => {
+  const http = withTenPlusOne()
+  const result = await applyGuideSetup({
+    http,
+    conn: CONN,
+    url: FEED_URL,
+    fetchFeed: tenFeed,
+    countProgrammes: noCounts,
+    shiftedFeed: shiftedFeedReached(false),
+    pollMs: 0,
+    ...clock(),
+  })
+  assert.equal(result.ok, true, JSON.stringify(result))
+  assert.equal(result.grabberUrl, FEED_URL)
+  assert.deepEqual(grabberArgs(http.writes), [SHIFTED_FEED_URL, FEED_URL])
+  assert.deepEqual(result.unmatched.map((c) => [c.id, c.guess]), [['cx', null], ['c14', null]])
+})
+
+test('applyGuideSetup uses the guide address directly when no channel is a +1 channel', async () => {
+  const http = fakeTvheadend({})
+  const shiftedFeed = shiftedFeedReached(true)
+  const result = await applyGuideSetup({
+    http, conn: CONN, url: FEED_URL, fetchFeed: feed, countProgrammes: noCounts, shiftedFeed, pollMs: 0, ...clock(),
+  })
+  assert.equal(result.grabberUrl, FEED_URL)
+  assert.deepEqual(shiftedFeed.sources, [])
+  assert.deepEqual(grabberArgs(http.writes), [FEED_URL])
+})
+
+test('findTimeshifts gives 10 HD +1 the listings of 10, one hour later', () => {
+  const shifts = findTimeshifts({
+    channels: liveChannels(),
+    guideChannels: linkedGuide(),
+    feedChannels: parseFeedChannels(feedXml),
+  })
+  assert.deepEqual(shifts, [{ id: 'mjh-10-nsw.plus1', baseId: 'mjh-10-nsw', hours: 1, names: ['10 HD +1'], lcn: 14 }])
+})
+
+test('findTimeshifts reads the hours from the name and uses the guide of a linked channel with the same name', () => {
+  const shifts = findTimeshifts({
+    channels: [
+      { id: 'c9', name: 'Nine HD', number: 9, guide: [] },
+      { id: 'c92', name: 'Nine HD +2', number: 92, guide: [] },
+    ],
+    guideChannels: [{ id: 'g-wide-bay', xmltvId: 'mjh-nine-wide-bay', name: 'Channel 9', channels: ['c9'] }],
+    feedChannels: [
+      { id: 'mjh-nine-wide-bay', names: ['Channel 9'], lcn: 91 },
+      { id: 'mjh-nine-mackay', names: ['Channel 9'], lcn: 81 },
+    ],
+  })
+  assert.deepEqual(shifts.map(({ baseId, hours, lcn }) => [baseId, hours, lcn]), [['mjh-nine-wide-bay', 2, 92]])
+})
+
+test('findTimeshifts leaves a +1 channel the feed already carries', () => {
+  const channels = [{ id: 'c14', name: '10 HD +1', number: 14, guide: [] }]
+  const tenFeedChannel = { id: 'mjh-10', names: ['10'], lcn: 10 }
+  const byNumber = [tenFeedChannel, { id: 'mjh-10-plus', names: ['10 Plus One'], lcn: 14 }]
+  const byName = [tenFeedChannel, { id: 'mjh-10-plus', names: ['10 +1'], lcn: null }]
+  assert.deepEqual(findTimeshifts({ channels, guideChannels: [], feedChannels: byNumber }), [])
+  assert.deepEqual(findTimeshifts({ channels, guideChannels: [], feedChannels: byName }), [])
+  assert.equal(findTimeshifts({ channels, guideChannels: [], feedChannels: [tenFeedChannel] }).length, 1)
+})
+
+test('findTimeshifts puts two +1 channels of one network on one shifted guide channel', () => {
+  const shifts = findTimeshifts({
+    channels: [
+      { id: 'c14', name: '10 HD +1', number: 14, guide: [] },
+      { id: 'c15', name: '10 +1', number: 15, guide: [] },
+    ],
+    guideChannels: [],
+    feedChannels: [{ id: 'mjh-10', names: ['10'], lcn: 10 }],
+  })
+  assert.deepEqual(shifts, [{ id: 'mjh-10.plus1', baseId: 'mjh-10', hours: 1, names: ['10 HD +1', '10 +1'], lcn: 14 }])
 })
 
 const guessFor = (name, guideNames) => guessGuideChannel({
