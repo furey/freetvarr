@@ -1,18 +1,20 @@
 import { db } from './db.js'
 
 export const saveGuidePrograms = async ({ programs = [], nowMs = Date.now() } = {}) => {
-  const rows = programs.map(toSavedRow)
   await db.transaction(async (trx) => {
-    for (const { channelId, fromMs, toMs } of snapshotSpans(rows)) {
+    for (const { channelId, fromMs, toMs } of snapshotSpans(programs)) {
+      await yieldToEventLoop()
       await trx('guide_programs')
         .where('channel_id', channelId)
         .andWhere('end', '>', fromMs)
         .andWhere('start', '<', toMs)
         .delete()
     }
-    for (const chunk of chunksOf(rows, UPSERT_CHUNK_SIZE)) {
-      await trx('guide_programs').insert(chunk).onConflict(['channel_id', 'start']).merge()
+    for (const chunk of chunksOf(programs, UPSERT_CHUNK_SIZE)) {
+      await yieldToEventLoop()
+      await trx('guide_programs').insert(chunk.map(toSavedRow)).onConflict(['channel_id', 'start']).merge()
     }
+    await yieldToEventLoop()
     await trx('guide_programs').where('end', '<', startOfYesterdayMs(nowMs)).delete()
   })
 }
@@ -27,8 +29,7 @@ export const loadEndedProgramsByChannel = async ({ fromMs, toMs, nowMs = Date.no
     .orderBy('start')
   for (const row of rows) {
     const program = fromSavedRow(row)
-    const key = String(program.channel_id)
-    byChannel.set(key, [...(byChannel.get(key) || []), program])
+    programsFor({ byChannel, channelId: String(program.channel_id) }).push(program)
   }
   return byChannel
 }
@@ -86,9 +87,16 @@ const fromSavedRow = (row) => ({
   dvr_uuid: row.dvr_uuid,
 })
 
-const snapshotSpans = (rows) => {
+const programsFor = ({ byChannel, channelId }) => {
+  if (!byChannel.has(channelId)) byChannel.set(channelId, [])
+  return byChannel.get(channelId)
+}
+
+const snapshotSpans = (programs) => {
   const spans = new Map()
-  for (const { channel_id, start, end } of rows) {
+  for (const program of programs) {
+    const { start, end } = program
+    const channel_id = String(program.channel_id)
     const span = spans.get(channel_id)
     spans.set(channel_id, span
       ? { channelId: channel_id, fromMs: Math.min(span.fromMs, start), toMs: Math.max(span.toMs, end) }
@@ -103,5 +111,7 @@ const chunksOf = (items, size) => Array.from(
   { length: Math.ceil(items.length / size) },
   (_, i) => items.slice(i * size, (i + 1) * size),
 )
+
+const yieldToEventLoop = () => new Promise(setImmediate)
 
 const UPSERT_CHUNK_SIZE = 500
