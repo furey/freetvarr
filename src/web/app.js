@@ -4668,7 +4668,7 @@ const ChannelSetupStep = {
           </p>
           <div class="field-row">
             <span class="field-label">Tuners</span>
-            <label v-for="t in tuners" :key="t.id" class="flex items-center gap-2 text-sm text-ink">
+            <label v-for="t in tuners" :key="t.id" class="flex items-center gap-2 text-sm text-ink py-1">
               <input type="checkbox" class="chk" :value="t.id" v-model="tunerIds" />
               {{ t.name }}
             </label>
@@ -4943,7 +4943,7 @@ const scanOrMapDetail = (step) => {
   if (!d) return ''
   if (step.id === 'scan') {
     if (!d.frequencies) return 'starting'
-    return `${d.scanned} of ${d.frequencies} done`
+    return d.scanned ? `${d.scanned} of ${d.frequencies}` : ''
   }
   if (step.id === 'map') {
     if (!d.total) return 'nothing new to add'
