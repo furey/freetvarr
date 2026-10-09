@@ -255,7 +255,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 ### No tuner found
 
 - The TVHeadend Docker container has to run with host networking (the example Docker compose file already does this). It discovers a network tuner such as an HDHomeRun by broadcasting on the local network, and those broadcasts don't reach across Docker's own private network.
-- On a Mac or Windows PC, Docker Desktop and OrbStack cannot find a network tuner on their own. In the setup wizard's CHANNELS step, enter the tuner's IP address and this computer's IP address, then press USE THIS ADDRESS. On Linux, use **Enter the tuner's address** in the same step for a tuner on another subnet.
+- On a Mac, Docker Desktop and OrbStack cannot find a network tuner on their own. In the setup wizard's CHANNELS step, enter the tuner's IP address and this computer's IP address, then press USE THIS ADDRESS. On Linux, use **Enter the tuner's address** in the same step for a tuner on another subnet.
 - On an HDHomeRun, open `http://<hdhr-ip>/tuners.html` in a browser to check the tuner itself (that page is HDHomeRun-only). If the page shows nothing, the problem is power or the aerial, not TVHeadend.
 - On any other tuner, open Configuration → DVB Inputs → TV adapters in TVHeadend's web interface. An empty list means TVHeadend sees no tuner at all: check the USB passthrough, the driver, or the SAT>IP/IPTV settings.
 
