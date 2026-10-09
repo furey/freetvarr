@@ -1,13 +1,14 @@
 import { chromium } from 'playwright'
-import { join } from 'node:path'
-import { rename } from 'node:fs/promises'
 import {
   TIMEZONE, simulatedNow, prepareDemoContext, onAirCell, waitForImages,
   installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll,
 } from './capture-demo-api.mjs'
+import { startScreencast } from './capture-screencast.mjs'
+import { startLoopback } from './capture-loopback.mjs'
 
-const BASE = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
-const OUT = process.env.WALKTHROUGH_OUT || '/work'
+const SERVER_URL = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
+const BASE = await startLoopback({ target: SERVER_URL })
+const FRAMES_DIR = process.env.WALKTHROUGH_FRAMES || '/work/scripts/.cache/frames/walkthrough'
 const VIEWPORT = { width: 1280, height: 800 }
 const DEVICE_SCALE = 2
 const VIEW_REVEAL_MS = 850
@@ -82,13 +83,13 @@ const run = async () => {
     deviceScaleFactor: DEVICE_SCALE,
     bypassCSP: true,
     timezoneId: TIMEZONE,
-    recordVideo: { dir: OUT, size: { width: VIEWPORT.width * DEVICE_SCALE, height: VIEWPORT.height * DEVICE_SCALE } },
   })
   const picks = await prepareDemoContext({ context, base: BASE, simNow })
   console.log(`programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; search: ${picks.searchTerm}`)
 
   const page = await context.newPage()
-  const startedAt = Date.now()
+  const screencast = await startScreencast({ page, dir: FRAMES_DIR })
+  const { startedAt } = screencast
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.tab-strip a[href="#/dashboard"]', { timeout: 20000 })
   await page.waitForSelector('.panel-title', { timeout: 20000 })
@@ -168,13 +169,8 @@ const run = async () => {
   await scrollDownAndBack(page, { dy: 360 })
   await page.waitForTimeout(400)
 
-  const video = page.video()
+  await screencast.stop()
   await context.close()
-  if (video) {
-    const dest = join(OUT, 'walkthrough.webm')
-    await rename(await video.path(), dest)
-    console.log(`TOUR_WEBM=${dest}`)
-  }
   await browser.close()
   const trim = (settledAt - startedAt) / 1000 + 0.4
   console.log(`TOUR_TRIM=${trim.toFixed(1)}`)
