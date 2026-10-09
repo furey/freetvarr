@@ -28,7 +28,7 @@ import { findHdSimulcast } from '/simulcast.js'
 import { liveRecordButton, nowProgramFor } from '/live-record.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
-import { revealStepMs, isStepResolved, pacedSteps, shownJob, SECURE_REVEAL_PACING } from '/paced-reveal.js'
+import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
@@ -4590,7 +4590,7 @@ const usePacedJob = (job) => {
     revealing = true
     try {
       while (job.value && revealed.value < job.value.steps.length) {
-        const stepMs = revealStepMs(job.value.steps.length, SECURE_REVEAL_PACING)
+        const stepMs = revealStepMs(job.value.steps.length, STEP_PACING)
         const shownAt = Date.now()
         while (job.value?.running && !isStepResolved(stepAtCursor())) await wait(BOOTSTRAP_REVEAL_POLL_MS)
         const step = stepAtCursor()
@@ -4643,7 +4643,7 @@ const ChannelSetupStep = {
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
-              <span v-if="running && s.status === 'running'" class="hold-music">
+              <span v-if="s.id === 'scan' && s.status === 'running'" class="hold-music">
                 <music-notes-icon :class="['hold-music-notes', { 'is-audible': musicAudible }]" />
                 <button type="button" class="hold-music-toggle" @click="toggleMusic"
                   :aria-label="musicToggleLabel" :title="musicToggleLabel">
@@ -4769,9 +4769,11 @@ const ChannelSetupStep = {
         </div>
       </template>
 
-      <p v-if="showSteps" :class="['hold-music-credit text-xs text-ink-dim', { 'is-audible': musicAudible }]">
+      <div v-if="showSteps" :class="['hold-music-credit', { 'is-audible': musicAudible }]">
+        <p class="hold-music-credit-text text-xs text-ink-dim">
         Music: "Local Forecast – Elevator" by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
-      </p>
+        </p>
+      </div>
     </div>
   `,
   setup(props, { emit }) {
@@ -4925,6 +4927,10 @@ const ChannelSetupStep = {
       if (r) status.value = r
     }
 
+    const unlockMusicUnlessMuted = () => {
+      if (!musicMuted.value) holdMusic.unlock()
+    }
+
     const startMusicUnlessMuted = () => {
       if (!musicMuted.value) holdMusic.start()
     }
@@ -4938,12 +4944,15 @@ const ChannelSetupStep = {
 
     const musicToggleLabel = computed(() => holdMusicToggleLabel(musicAudible.value))
 
-    watch(running, (isRunning) => {
-      if (!isRunning) holdMusic.stop()
+    const scanStepRunning = computed(() => steps.value.some((s) => s.id === 'scan' && s.status === 'running'))
+
+    watch(scanStepRunning, (isRunning) => {
+      if (isRunning) startMusicUnlessMuted()
+      else holdMusic.stop()
     })
 
     const apply = async () => {
-      startMusicUnlessMuted()
+      unlockMusicUnlessMuted()
       starting.value = true
       applyError.value = ''
       try {
@@ -6148,7 +6157,7 @@ const WelcomeView = {
 
     const revealSecureSteps = async (isSettled) => {
       if (!prefersReducedMotion()) {
-        const stepMs = revealStepMs(secureSteps.value.length, SECURE_REVEAL_PACING)
+        const stepMs = revealStepMs(secureSteps.value.length, STEP_PACING)
         while (secureRevealed.value < secureSteps.value.length) {
           const shownAt = Date.now()
           while (!isStepResolved(secureSteps.value[secureRevealed.value])) {
