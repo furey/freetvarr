@@ -1974,7 +1974,7 @@ const FolderEditor = {
           <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
         </button>
         <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
-        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving">{{ removeLabel }}</button>
+        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
       <teleport to="body">
@@ -1991,7 +1991,7 @@ const FolderEditor = {
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
               <button type="button" class="btn epg-modal-close mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
-                <template v-if="saving">REMOVING…</template><template v-else>{{ removeLabel }}</template>
+                <template v-if="saving">REMOVING…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
               </button>
             </div>
           </div>
@@ -2011,6 +2011,7 @@ const FolderEditor = {
     const saving = ref(false)
     const confirming = ref(false)
     const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
+    const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
     const removeTitle = computed(() => (props.isSeries
       ? `Unassign the folder from ${props.folder.show_pattern}`
       : `Remove the title match ${props.folder.show_pattern}`))
@@ -2062,7 +2063,7 @@ const FolderEditor = {
 
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming,
-      removeLabel, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
+      removeLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
 }
@@ -2130,7 +2131,7 @@ const SeriesView = {
                     <template v-if="s.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
                   </button>
                   <button type="button" class="btn btn-danger" @click="stopSeries(s)" :disabled="busyKey === s.key">
-                    <cross-icon /> STOP SERIES
+                    <stop-icon /> STOP SERIES
                   </button>
                 </div>
               </article>
@@ -9148,6 +9149,16 @@ const MinusIcon = {
   `,
 }
 
+const UnlinkIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+      <path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      <path d="M8 2v3M2 8h3M16 19v3M19 16h3"/>
+    </svg>
+  `,
+}
+
 const CheckIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -10345,6 +10356,7 @@ app.component('arrow-down-icon', ArrowDownIcon)
 app.component('play-icon', PlayIcon)
 app.component('plus-icon', PlusIcon)
 app.component('minus-icon', MinusIcon)
+app.component('unlink-icon', UnlinkIcon)
 app.component('check-icon', CheckIcon)
 app.component('pencil-icon', PencilIcon)
 app.component('search-icon', SearchIcon)
