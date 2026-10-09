@@ -23,17 +23,26 @@ export const formatMinutes = (count, { long = false } = {}) => {
 export const formatHours = (count) => `${count} hr${count === 1 ? '' : 's'}`
 
 export const formatUptime = (seconds) => {
-  const totalMinutes = Math.floor(seconds / 60)
-  if (totalMinutes < 1) return 'under a minute'
-  const days = Math.floor(totalMinutes / 1440)
-  const hours = Math.floor((totalMinutes % 1440) / 60)
-  const minutes = totalMinutes % 60
-  const hoursText = hours > 0 ? formatHours(hours) : ''
-  const parts = days > 0
-    ? [formatDays(days), hoursText]
-    : [hoursText, minutes > 0 ? formatMinutes(minutes) : '']
-  return parts.filter(Boolean).join(' ')
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const remainder = totalSeconds % 60
+  if (days > 0) {
+    return [
+      formatDays(days),
+      hours > 0 ? formatHours(hours) : '',
+      minutes > 0 ? formatMinutes(minutes) : '',
+    ].filter(Boolean).join(' ')
+  }
+  if (totalSeconds < 60) return formatSecs(remainder)
+  const paddedSecs = formatSecs(remainder, { pad: true })
+  if (hours === 0) return `${formatMinutes(minutes)} ${paddedSecs}`
+  return `${formatHours(hours)} ${formatMinutes(minutes)} ${paddedSecs}`
 }
+
+const formatSecs = (count, { pad = false } = {}) =>
+  `${pad ? String(count).padStart(2, '0') : count} sec${count === 1 ? '' : 's'}`
 
 const formatDays = (count) => `${count} day${count === 1 ? '' : 's'}`
 
