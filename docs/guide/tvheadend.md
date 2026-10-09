@@ -135,7 +135,7 @@ The channels appear in **Configuration → Channel/EPG → Channels**. Fix the n
 
 ## 6. Load the XMLTV guide
 
-The **Guide** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. Follow this step by hand to choose each setting yourself.
+The **Guide** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
 
 Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and episode naming work. The Australian feed below is the example. [Outside Australia](#outside-australia) lists the source to use in other countries.
 
@@ -178,6 +178,14 @@ TVHeadend also bundles the `tv_grab_*` grabbers, so a national XMLTV service you
 The feed's channel names and your scanned channel names rarely match. The mjh feed calls a channel `Seven`, `9Gem`, or `ABC TV`; the broadcast calls it `7 Sydney`, `9GemHD Sydney`, or `ABCTV`. TVHeadend links a feed channel only when the names match, so in the author's Sydney setup it linked none, and every channel needed a hand link. The first guide fetch reports `broadcasts tot= 0` in the log until the links exist.
 
 In TVHeadend's web interface, go to **Configuration → Channel/EPG → EPG Grabber Channels**. Each row is a channel the feed offers. The **Channels** column is the TVHeadend channel it feeds. Set it for every channel you watch, then press **Re-run internal EPG grabbers** again. Some broadcast channels have no row in the feed at all (in Sydney these are SBS WorldWatch, Extra, and 10 HD +1).
+
+### +1 channels
+
+The mjh feed has no +1 channels. For each channel whose name ends in `+1` or `+2`, Freetvarr serves TVHeadend a copy of the feed at `http://<freetvarr-host>:3733/guide/xmltv.xml`. The copy adds a guide channel with the name of the +1 channel and its channel number. That guide channel lists every programme of the main channel, one or two hours later. Freetvarr downloads the feed you chose each time TVHeadend asks for the copy.
+
+The wizard sets **Extra arguments** of the XMLTV URL grabber to that address, then links the +1 channel to its guide channel. If TVHeadend does not ask for the copy within `150` seconds, the wizard sets **Extra arguments** back to the feed address, and +1 channels stay without listings. To use the copy without the wizard, set **Extra arguments** to the Freetvarr address, press **Re-run internal EPG grabbers**, and link the +1 channel to its new row in **EPG Grabber Channels**.
+
+If Freetvarr is stopped when TVHeadend downloads the guide, TVHeadend keeps the listings it has until the next download. If a +1 channel leaves out a programme that the main channel shows, the copy still lists that programme.
 
 Check the result in TVHeadend's **Electronic Program Guide** tab. Every channel you care about should show seven days of programmes with names. A channel showing nothing is an unlinked row here.
 
