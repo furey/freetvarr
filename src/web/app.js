@@ -50,6 +50,9 @@ import {
 import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
 import { wizardSkipPrompt } from '/wizard-skip.js'
+import {
+  createHoldMusic, holdMusicToggleLabel, loadHoldMusicMuted, saveHoldMusicMuted, HOLD_MUSIC_SRC,
+} from '/hold-music.js'
 import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 
@@ -4597,6 +4600,13 @@ const ChannelSetupStep = {
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
                 {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
               </span>
+              <span v-if="running && s.status === 'running'" class="hold-music">
+                <music-notes-icon :class="['hold-music-notes', { 'is-audible': musicAudible }]" />
+                <button type="button" class="hold-music-toggle" @click="toggleMusic"
+                  :aria-label="musicToggleLabel" :title="musicToggleLabel">
+                  <speaker-icon v-if="musicAudible" /><speaker-muted-icon v-else />
+                </button>
+              </span>
             </li>
           </ol>
           <p v-if="waitingForTuner" class="status-readout info">
@@ -4714,6 +4724,10 @@ const ChannelSetupStep = {
           </manual-option>
         </div>
       </template>
+
+      <p v-if="showSteps" :class="['hold-music-credit text-xs text-ink-dim', { 'is-audible': musicAudible }]">
+        Music: "Local Forecast – Elevator" by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+      </p>
     </div>
   `,
   setup(props, { emit }) {
@@ -4736,6 +4750,12 @@ const ChannelSetupStep = {
     const savingAddress = ref(false)
     const addressError = ref('')
     const addressSaved = ref('')
+    const musicAudible = ref(false)
+    const musicMuted = ref(loadHoldMusicMuted(localStorage))
+    const holdMusic = createHoldMusic({
+      makeAudio: () => new Audio(HOLD_MUSIC_SRC),
+      onAudibleChange: (audible) => { musicAudible.value = audible },
+    })
     let pollTimer = null
     let retryTimer = null
     let retries = 0
@@ -4849,7 +4869,25 @@ const ChannelSetupStep = {
       if (r) status.value = r
     }
 
+    const startMusicUnlessMuted = () => {
+      if (!musicMuted.value) holdMusic.start()
+    }
+
+    const toggleMusic = () => {
+      musicMuted.value = musicAudible.value
+      saveHoldMusicMuted(localStorage, musicMuted.value)
+      if (musicMuted.value) holdMusic.stop()
+      else holdMusic.start()
+    }
+
+    const musicToggleLabel = computed(() => holdMusicToggleLabel(musicAudible.value))
+
+    watch(running, (isRunning) => {
+      if (!isRunning) holdMusic.stop()
+    })
+
     const apply = async () => {
+      startMusicUnlessMuted()
       starting.value = true
       applyError.value = ''
       try {
@@ -4861,6 +4899,7 @@ const ChannelSetupStep = {
         job.value = { running: true, steps: r.steps, result: null }
         startPolling()
       } catch (err) {
+        holdMusic.stop()
         applyError.value = err.message
       } finally {
         starting.value = false
@@ -4898,6 +4937,7 @@ const ChannelSetupStep = {
     onUnmounted(() => {
       clearInterval(pollTimer)
       clearTimeout(retryTimer)
+      holdMusic.stop()
     })
 
     return {
@@ -4907,6 +4947,7 @@ const ChannelSetupStep = {
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
+      running, musicAudible, musicToggleLabel, toggleMusic,
     }
   },
 }
@@ -8833,6 +8874,43 @@ const GoLiveIcon = {
   `,
 }
 
+const MusicNotesIcon = {
+  template: `
+    <svg viewBox="0 0 24 16" fill="currentColor" aria-hidden="true">
+      <g class="hold-music-note">
+        <ellipse cx="3.6" cy="12.6" rx="2.4" ry="1.8"/>
+        <rect x="5.2" y="3" width="1.2" height="9.6"/>
+        <path d="M5.2 3h1.2l3.4 2.6-1 1.1-2.4-1.8z"/>
+      </g>
+      <g class="hold-music-note">
+        <ellipse cx="13.6" cy="11.6" rx="2.2" ry="1.7"/>
+        <ellipse cx="20.6" cy="10.2" rx="2.2" ry="1.7"/>
+        <rect x="15" y="2.6" width="1.1" height="9"/>
+        <rect x="22" y="1.2" width="1.1" height="9"/>
+        <path d="M15 2.6 23.1 1.2v2L15 4.6z"/>
+      </g>
+    </svg>
+  `,
+}
+
+const SpeakerIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/>
+      <path d="M10.5 5.75a3.2 3.2 0 0 1 0 4.5M12.5 3.75a6 6 0 0 1 0 8.5"/>
+    </svg>
+  `,
+}
+
+const SpeakerMutedIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/>
+      <path d="M10.5 6l4 4M14.5 6l-4 4"/>
+    </svg>
+  `,
+}
+
 const CrossIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -10162,6 +10240,9 @@ app.directive('autofocus', {
 })
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
+app.component('music-notes-icon', MusicNotesIcon)
+app.component('speaker-icon', SpeakerIcon)
+app.component('speaker-muted-icon', SpeakerMutedIcon)
 app.component('record-icon', RecordIcon)
 app.component('stop-icon', StopIcon)
 app.component('go-live-icon', GoLiveIcon)
