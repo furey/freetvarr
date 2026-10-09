@@ -8,6 +8,7 @@ import {
   clampSkip,
   skipLabel,
   skipSpoken,
+  nativeClickPlan,
   DOUBLE_TAP_MS,
   SKIP_CHAIN_MS,
 } from '../src/web/double-tap.js'
@@ -116,4 +117,16 @@ test('skipLabel and skipSpoken describe the accumulated skip', () => {
   assert.equal(skipLabel({ side: 'forward', seconds: 10 }), '+10 ▶︎')
   assert.equal(skipSpoken({ side: 'back', seconds: 30 }), 'Back 30 seconds')
   assert.equal(skipSpoken({ side: 'forward', seconds: 10 }), 'Forward 10 seconds')
+})
+
+test('nativeClickPlan swallows the clicks of a skip so native controls never see a double click', () => {
+  assert.equal(nativeClickPlan({ tap: 'skip', pointerType: 'mouse' }), 'swallow')
+  assert.equal(nativeClickPlan({ tap: 'skip', pointerType: 'touch' }), 'swallow')
+})
+
+test('nativeClickPlan defers a first mouse click in a side third and passes everything else', () => {
+  assert.equal(nativeClickPlan({ tap: 'first', pointerType: 'mouse' }), 'toggle-later')
+  assert.equal(nativeClickPlan({ tap: 'first', pointerType: 'touch' }), 'pass')
+  assert.equal(nativeClickPlan({ tap: 'first', pointerType: 'pen' }), 'pass')
+  assert.equal(nativeClickPlan({ tap: 'center', pointerType: 'mouse' }), 'pass')
 })

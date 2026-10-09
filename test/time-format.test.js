@@ -7,6 +7,7 @@ import {
   formatSeconds,
   formatMinutes,
   formatHours,
+  formatUptime,
   stripDayPeriodSpace,
 } from '../src/web/time-format.js'
 
@@ -82,3 +83,28 @@ test('formatSeconds trims trailing zeros', () => {
   assert.equal(formatSeconds(3, 1), '3s')
   assert.equal(formatSeconds(0.2), '0.2s')
 })
+
+test('formatUptime: seconds only below a minute', () => {
+  assert.equal(formatUptime(0), '0 secs')
+  assert.equal(formatUptime(1), '1 sec')
+  assert.equal(formatUptime(45.9), '45 secs')
+})
+
+test('formatUptime: minutes with padded seconds', () => {
+  assert.equal(formatUptime(60), '1 min 00 secs')
+  assert.equal(formatUptime(12 * 60 + 5), '12 mins 05 secs')
+  assert.equal(formatUptime(45 * 60 + 1), '45 mins 01 sec')
+})
+
+test('formatUptime: hours with minutes and padded seconds', () => {
+  assert.equal(formatUptime(2 * 3600 + 15 * 60 + 5), '2 hrs 15 mins 05 secs')
+  assert.equal(formatUptime(3600), '1 hr 0 mins 00 secs')
+  assert.equal(formatUptime(3600 + 60 + 30), '1 hr 1 min 30 secs')
+})
+
+test('formatUptime: days drop seconds', () => {
+  assert.equal(formatUptime(3 * 86400 + 4 * 3600 + 15 * 60 + 5), '3 days 4 hrs 15 mins')
+  assert.equal(formatUptime(86400), '1 day')
+  assert.equal(formatUptime(2 * 86400 + 59 * 60), '2 days 59 mins')
+})
+

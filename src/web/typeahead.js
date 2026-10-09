@@ -5,7 +5,7 @@ export const filterOptions = ({ options, query }) => {
   return options
     .map((option, index) => ({ option, index, rank: rankOption({ option, terms, phrase }) }))
     .filter(({ rank }) => rank !== null)
-    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .sort((a, b) => emptyLast(a.option, b.option) || a.rank - b.rank || a.index - b.index)
     .map(({ option }) => option)
 }
 
@@ -17,6 +17,19 @@ export const nextIndex = ({ current, delta, length }) => {
   if (current < 0) return delta > 0 ? 0 : length - 1
   return (current + delta + length) % length
 }
+
+export const isChoosable = (option) => Boolean(option) && !option.empty
+
+export const nextChoosableIndex = ({ options, current, delta }) => {
+  let index = current
+  for (let step = 0; step < options.length; step += 1) {
+    index = nextIndex({ current: index, delta, length: options.length })
+    if (isChoosable(options[index])) return index
+  }
+  return current
+}
+
+const emptyLast = (a, b) => Number(Boolean(a.empty)) - Number(Boolean(b.empty))
 
 const RANK_EXACT = 0
 const RANK_PREFIX = 1

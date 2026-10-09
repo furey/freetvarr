@@ -1,3 +1,5 @@
+import zlib from 'node:zlib'
+
 import axios from 'axios'
 
 import { countryForTimeZone } from './zone-countries.js'
@@ -81,12 +83,13 @@ export const planGuideRelinks = ({ guideChannels, links }) => {
     .map(({ guideId, channels }) => ({ guideId, channels }))
 }
 
-export const applyGuideLinks = async ({ http, conn, links, guideChannels }) => {
+export const applyGuideLinks = async ({ http, conn, links, guideChannels, dropListingsOf = [] }) => {
   const saves = planGuideRelinks({ guideChannels, links })
   for (const { guideId, channels } of saves) {
     await http.post('idnode/save', { node: JSON.stringify({ uuid: guideId, channels }) }, conn)
   }
-  if (saves.length) await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+  for (const channelId of dropListingsOf) await dropChannelListings({ http, conn, channelId })
+  if (saves.length || dropListingsOf.length) await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
   return { linked: new Set(links.filter((l) => l.guideId).map((l) => l.channelId)).size, saved: saves.length }
 }
 
@@ -176,8 +179,11 @@ export const applyGuideSetup = async ({
   }
 }
 
-export const readGuideLinks = async ({ http, conn }) => {
+export const readGuideLinks = async ({ http, conn, countProgrammes = countFeedProgrammes }) => {
   const inspection = await inspectGuide({ http, conn })
+  const counts = inspection.module?.url
+    ? await countProgrammes(inspection.module.url).catch(() => null)
+    : null
   return {
     channels: inspection.channels.map((c) => ({
       id: c.id,
@@ -185,7 +191,7 @@ export const readGuideLinks = async ({ http, conn }) => {
       number: c.number,
       guideIds: linkedGuideIds({ channel: c, guideChannels: inspection.guideChannels }),
     })),
-    options: guideChannelOptions(inspection.guideChannels),
+    options: guideChannelOptions(inspection.guideChannels, counts),
   }
 }
 
@@ -201,7 +207,80 @@ export const linkChannelsByHand = async ({ http, conn, links }) => {
       ...inspection.channels.filter((c) => c.guide.includes(g.id)).map((c) => c.id),
     ])],
   }))
-  return applyGuideLinks({ http, conn, links: valid, guideChannels })
+  const moved = changedLinks({ links: valid, channels: inspection.channels, guideChannels })
+  const result = await applyGuideLinks({
+    http,
+    conn,
+    links: valid,
+    guideChannels,
+    dropListingsOf: moved.map((l) => l.channelId),
+  })
+  return { ...result, loading: moved.filter((l) => l.guideId).map((l) => l.channelId) }
+}
+
+export const waitForNewListings = async ({
+  http,
+  conn,
+  channelIds,
+  pollMs = LISTINGS_POLL_MS,
+  limitMs = LISTINGS_LIMIT_MS,
+  now = Date.now,
+}) => {
+  const startedAt = now()
+  let previous = new Map()
+  for (;;) {
+    const counts = new Map(await Promise.all(channelIds.map(async (channelId) =>
+      [channelId, await countChannelEvents({ http, conn, channelId })])))
+    if (channelIds.every((id) => counts.get(id) > 0 && counts.get(id) === previous.get(id))) return true
+    if (now() - startedAt >= limitMs) return false
+    previous = counts
+    await sleep(pollMs)
+  }
+}
+
+export const createProgrammeCounter = ({
+  count = fetchProgrammeCounts,
+  ttlMs = PROGRAMME_COUNT_TTL_MS,
+  waitMs = PROGRAMME_COUNT_WAIT_MS,
+  now = Date.now,
+} = {}) => {
+  const cache = new Map()
+  return (url) => {
+    const cached = cache.get(url)
+    if (!cached || cached.expiresAt <= now()) {
+      const counts = count(url)
+      cache.set(url, { counts, expiresAt: now() + ttlMs })
+      counts.catch(() => cache.delete(url))
+    }
+    return resultWithin({ promise: cache.get(url).counts, ms: waitMs })
+  }
+}
+
+export const fetchProgrammeCounts = async (url, { nowMs = Date.now() } = {}) => {
+  const response = await axios.get(url, { responseType: 'stream', timeout: FEED_TIMEOUT_MS, maxRedirects: 5 })
+  const stream = GZIP_URL.test(url) ? response.data.pipe(zlib.createGunzip()) : response.data
+  return tallyProgrammeStream({ stream, nowMs })
+}
+
+export const countUpcomingProgrammes = ({ xml, nowMs, counts = new Map() }) => {
+  for (const [, attributes] of String(xml).matchAll(/<programme\b([^>]*)>/g)) {
+    const channel = attributes.match(/\bchannel="([^"]*)"/)?.[1]
+    if (!channel) continue
+    const stop = parseXmltvTime(attributes.match(/\bstop="([^"]*)"/)?.[1])
+    if (stop !== null && stop <= nowMs) continue
+    const id = decodeEntities(channel).replace(/\//g, '#')
+    counts.set(id, (counts.get(id) || 0) + 1)
+  }
+  return counts
+}
+
+export const parseXmltvTime = (value) => {
+  const match = String(value ?? '').match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?\s*(?:([+-])(\d{2})(\d{2}))?/)
+  if (!match) return null
+  const [, year, month, day, hour, minute, second = '0', sign, offsetHours = '0', offsetMinutes = '0'] = match
+  const utc = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second))
+  const offsetMs = (Number(offsetHours) * 60 + Number(offsetMinutes)) * 60_000
+  return sign === '-' ? utc + offsetMs : utc - offsetMs
 }
 
 export const fetchFeedChannels = async (url) => {
@@ -309,9 +388,54 @@ const linkedGuideIds = ({ channel, guideChannels }) => guideChannels
 
 const sameMembers = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
 
-const guideChannelOptions = (guideChannels) => guideChannels
-  .map((g) => ({ id: g.id, name: g.name, ...(g.feed?.lcn ? { number: g.feed.lcn } : {}) }))
-  .sort((a, b) => a.name.localeCompare(b.name))
+const guideChannelOptions = (guideChannels, counts = null) => guideChannels
+  .map((g) => ({
+    id: g.id,
+    name: g.name,
+    ...(g.feed?.lcn ? { number: g.feed.lcn } : {}),
+    ...(counts && !counts.get(g.xmltvId) ? { empty: true } : {}),
+  }))
+  .sort((a, b) => Number(Boolean(a.empty)) - Number(Boolean(b.empty)) || a.name.localeCompare(b.name))
+
+const changedLinks = ({ links, channels, guideChannels }) => {
+  const byId = new Map(channels.map((c) => [c.id, c]))
+  return links.filter((l) => !sameMembers(
+    linkedGuideIds({ channel: byId.get(l.channelId), guideChannels }),
+    l.guideId ? [l.guideId] : [],
+  ))
+}
+
+const dropChannelListings = ({ http, conn, channelId }) => http.post('idnode/save', {
+  node: JSON.stringify({ uuid: channelId, epgauto: false, epg_parent: NOT_A_CHANNEL }),
+}, conn)
+
+const countChannelEvents = async ({ http, conn, channelId }) =>
+  Number((await http.get('epg/events/grid', { channel: channelId, limit: 1 }, conn))?.totalCount) || 0
+
+const tallyProgrammeStream = ({ stream, nowMs }) => new Promise((resolve, reject) => {
+  const counts = new Map()
+  let pending = ''
+  stream.setEncoding('utf8')
+  stream.on('data', (chunk) => {
+    pending += chunk
+    const cut = pending.lastIndexOf(PROGRAMME_TAG)
+    if (cut < 0) pending = pending.slice(-PROGRAMME_TAG.length)
+    if (cut <= 0) return
+    countUpcomingProgrammes({ xml: pending.slice(0, cut), nowMs, counts })
+    pending = pending.slice(cut)
+  })
+  stream.on('end', () => resolve(countUpcomingProgrammes({ xml: pending, nowMs, counts })))
+  stream.on('error', reject)
+})
+
+const resultWithin = ({ promise, ms }) => new Promise((resolve, reject) => {
+  const timer = setTimeout(() => resolve(null), ms)
+  timer.unref?.()
+  promise.then(
+    (value) => { clearTimeout(timer); resolve(value) },
+    (err) => { clearTimeout(timer); reject(err) },
+  )
+})
 
 const feedNames = (g) => [g.name, ...(g.feed?.names || [])].filter(Boolean)
 
@@ -437,3 +561,11 @@ const POLL_MS = 3000
 const DOWNLOAD_LIMIT_MS = 5 * 60_000
 const FEED_TIMEOUT_MS = 30_000
 const FEED_HEAD_BYTES = 2 * 1024 * 1024
+const PROGRAMME_TAG = '<programme'
+const GZIP_URL = /\.gz(?:$|\?)/i
+const PROGRAMME_COUNT_TTL_MS = 30 * 60_000
+const PROGRAMME_COUNT_WAIT_MS = 10_000
+const NOT_A_CHANNEL = 'none'
+const LISTINGS_POLL_MS = 3000
+const LISTINGS_LIMIT_MS = 5 * 60_000
+const countFeedProgrammes = createProgrammeCounter()
