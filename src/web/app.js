@@ -5153,7 +5153,7 @@ const GuideSetupStep = {
       refresh()
     }
 
-    const stepDetail = (s) => (s.id === 'download' && s.detail?.expected
+    const stepDetail = (s) => (s.id === 'download' && s.detail?.expected && s.detail.found
       ? `${s.detail.found} of ${s.detail.expected} guide channels loaded`
       : '')
 
