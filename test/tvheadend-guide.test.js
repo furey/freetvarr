@@ -80,10 +80,29 @@ test('matchGuideChannels adds the missing feed of a time-shared LCN and keeps ot
     guideChannels,
     feedChannels: parseFeedChannels(feedXml),
     serviceLcns: liveServiceLcns(),
-  }).links.map((l) => names.get(l.guideId))
-  assert.deepEqual(matchWith(['ABC Family']), ['ABC Kids'])
+  }).links.map((l) => names.get(l.guideId)).sort()
+  assert.deepEqual(matchWith(['ABC Family']), ['ABC Family', 'ABC Kids'])
   assert.deepEqual(matchWith(['ABC Family', 'ABC Kids']), [])
   assert.deepEqual(matchWith(['ABC TV']), [], 'a hand-picked guide stays the only link')
+})
+
+test('planGuideRelinks keeps the existing feed when a time-shared LCN gains its second feed', () => {
+  const { guideChannels } = liveGuide()
+  const idOf = (name) => guideChannels.find((g) => g.name === name).id
+  const linkedToFamily = guideChannels.map((g) => (g.name === 'ABC Family' ? { ...g, channels: [ABC_KIDS_FAMILY] } : g))
+  const channel = liveChannels().find((c) => c.id === ABC_KIDS_FAMILY)
+  const { links } = matchGuideChannels({
+    channels: [channel],
+    guideChannels: linkedToFamily,
+    feedChannels: parseFeedChannels(feedXml),
+    serviceLcns: liveServiceLcns(),
+  })
+  const saves = planGuideRelinks({ guideChannels: linkedToFamily, links })
+  const linkedAfter = linkedToFamily
+    .map((g) => saves.find((s) => s.guideId === g.id)?.channels ?? g.channels)
+    .map((channels, i) => (channels.includes(ABC_KIDS_FAMILY) ? linkedToFamily[i].id : null))
+    .filter(Boolean)
+  assert.deepEqual(linkedAfter.sort(), [idOf('ABC Family'), idOf('ABC Kids')].sort())
 })
 
 test('matchGuideChannels falls back to names with no wrong links when no channel has a number', () => {
