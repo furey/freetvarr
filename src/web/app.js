@@ -28,7 +28,7 @@ import { findHdSimulcast } from '/simulcast.js'
 import { liveRecordButton, nowProgramFor } from '/live-record.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
-import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
+import { revealStepMs, isStepResolved, pacedSteps, shownJob, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
@@ -4578,6 +4578,46 @@ const plexLibraryOutcome = (results) => results
 
 const holdMusicAudioContext = audioContextOnce(window)
 
+const usePacedJob = (job) => {
+  const revealed = ref(0)
+  let revealing = false
+  const shown = computed(() => shownJob({ job: job.value, revealed: revealed.value }))
+
+  const stepAtCursor = () => job.value?.steps[revealed.value]
+
+  const reveal = async () => {
+    if (revealing) return
+    revealing = true
+    try {
+      while (job.value && revealed.value < job.value.steps.length) {
+        const stepMs = revealStepMs(job.value.steps.length, SECURE_REVEAL_PACING)
+        const shownAt = Date.now()
+        while (job.value?.running && !isStepResolved(stepAtCursor())) await wait(BOOTSTRAP_REVEAL_POLL_MS)
+        const step = stepAtCursor()
+        if (!isStepResolved(step)) break
+        await wait(Math.max(0, stepMs - (Date.now() - shownAt)))
+        revealed.value += 1
+        if (step.status === 'failed') break
+      }
+    } finally {
+      revealing = false
+    }
+    showAll()
+  }
+
+  const showAll = () => {
+    revealed.value = job.value?.steps.length || 0
+  }
+
+  const begin = () => {
+    revealed.value = 0
+    if (prefersReducedMotion()) return showAll()
+    reveal()
+  }
+
+  return { shown, begin, showAll }
+}
+
 const ChannelSetupStep = {
   props: {
     tvhUrl: { type: String, default: '' },
@@ -4620,6 +4660,7 @@ const ChannelSetupStep = {
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <p v-if="favouritesText" class="text-sm text-ink">{{ favouritesText }}</p>
+          <button v-if="result && result.ok" type="button" class="btn" @click="restart"><search-icon /> SCAN AGAIN</button>
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
             <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
@@ -4744,6 +4785,8 @@ const ChannelSetupStep = {
     const transmitterKey = ref('')
     const guessed = ref(false)
     const job = ref(null)
+    const paced = usePacedJob(job)
+    let jobDismissed = false
     const starting = ref(false)
     const applyError = ref('')
     const tunerAddress = ref('')
@@ -4775,9 +4818,9 @@ const ChannelSetupStep = {
       .filter((t) => t.country === country.value)
       .sort((a, b) => a.name.localeCompare(b.name)))
     const ready = computed(() => tunerIds.value.length > 0 && Boolean(networkId.value || transmitterKey.value))
-    const steps = computed(() => job.value?.steps || [])
-    const result = computed(() => job.value?.result || null)
-    const running = computed(() => Boolean(job.value?.running))
+    const steps = computed(() => paced.shown.value.steps)
+    const result = computed(() => paced.shown.value.result)
+    const running = computed(() => paced.shown.value.running)
     const showSteps = computed(() => running.value || Boolean(result.value))
     const runningScan = computed(() => (running.value
       ? steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail || null
@@ -4829,6 +4872,16 @@ const ChannelSetupStep = {
       hostGuessed.value = !r.tunerAddress?.hostAddress && Boolean(guess)
     }
 
+    const adoptJob = (serverJob) => {
+      if (!serverJob) return
+      if (!serverJob.running && (jobDismissed || job.value)) return
+      const wasRunning = Boolean(job.value?.running)
+      job.value = serverJob
+      if (!serverJob.running) return paced.showAll()
+      startPolling()
+      if (!wasRunning) paced.begin()
+    }
+
     const refresh = async () => {
       loading.value = true
       loadError.value = ''
@@ -4836,8 +4889,7 @@ const ChannelSetupStep = {
       try {
         const r = await api('GET', '/api/tvh-setup/status')
         status.value = r
-        if (r.job) job.value = r.job
-        if (r.job?.running) startPolling()
+        adoptJob(r.job)
         prefill(r.suggestion)
         if (r.suggestion?.state === 'no-tuner') prefillAddress(r)
         else addressSaved.value = ''
@@ -4900,7 +4952,9 @@ const ChannelSetupStep = {
           network_id: networkId.value || null,
           transmitter_key: networkId.value ? null : transmitterKey.value,
         })
+        jobDismissed = false
         job.value = { running: true, steps: r.steps, result: null }
+        paced.begin()
         startPolling()
       } catch (err) {
         holdMusic.stop()
@@ -4930,6 +4984,7 @@ const ChannelSetupStep = {
     }
 
     const restart = () => {
+      jobDismissed = true
       job.value = null
       editing.value = true
       refresh()
@@ -5115,6 +5170,8 @@ const GuideSetupStep = {
     const choice = ref('')
     const customUrl = ref('')
     const job = ref(null)
+    const paced = usePacedJob(job)
+    let jobDismissed = false
     const starting = ref(false)
     const applyError = ref('')
     const picks = reactive({})
@@ -5122,9 +5179,9 @@ const GuideSetupStep = {
 
     const suggestion = computed(() => status.value?.suggestion || null)
     const url = computed(() => (choice.value && choice.value !== OTHER ? choice.value : customUrl.value.trim()))
-    const steps = computed(() => job.value?.steps || [])
-    const result = computed(() => job.value?.result || null)
-    const running = computed(() => Boolean(job.value?.running))
+    const steps = computed(() => paced.shown.value.steps)
+    const result = computed(() => paced.shown.value.result)
+    const running = computed(() => paced.shown.value.running)
     const showSteps = computed(() => running.value || Boolean(result.value))
     const linked = computed(() => (result.value?.ok ? result.value.linked : suggestion.value?.linked || 0))
     const pickedCount = computed(() => Object.values(picks).filter(Boolean).length)
@@ -5143,14 +5200,23 @@ const GuideSetupStep = {
       customUrl.value = known ? '' : s?.url || ''
     }
 
+    const adoptJob = (serverJob) => {
+      if (!serverJob) return
+      if (!serverJob.running && (jobDismissed || job.value)) return
+      const wasRunning = Boolean(job.value?.running)
+      job.value = serverJob
+      if (!serverJob.running) return paced.showAll()
+      startPolling()
+      if (!wasRunning) paced.begin()
+    }
+
     const refresh = async () => {
       loading.value = true
       loadError.value = ''
       try {
         const r = await api('GET', '/api/tvh-guide/status')
         status.value = r
-        if (r.job) job.value = r.job
-        if (r.job?.running) startPolling()
+        adoptJob(r.job)
         prefill(r.suggestion)
       } catch (err) {
         loadError.value = err.message
@@ -5174,7 +5240,9 @@ const GuideSetupStep = {
       applyError.value = ''
       try {
         const r = await api('POST', '/api/tvh-guide/apply', { url: url.value })
+        jobDismissed = false
         job.value = { running: true, steps: r.steps, result: null }
+        paced.begin()
         startPolling()
       } catch (err) {
         applyError.value = err.message
@@ -5193,6 +5261,7 @@ const GuideSetupStep = {
     }
 
     const restart = () => {
+      jobDismissed = true
       job.value = null
       editing.value = true
       refresh()
