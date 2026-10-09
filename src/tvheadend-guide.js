@@ -106,6 +106,7 @@ export const applyGuideSetup = async ({
   conn,
   url,
   fetchFeed = fetchFeedChannels,
+  countProgrammes = countFeedProgrammes,
   onProgress = () => {},
   pollMs = POLL_MS,
   limitMs = DOWNLOAD_LIMIT_MS,
@@ -153,6 +154,8 @@ export const applyGuideSetup = async ({
       const alreadyLinked = channels.filter((c) => !linkedIds.has(c.id) && isLinked({ channel: c, guideChannels }))
       const byFeedId = new Map(feedChannels.map((f) => [f.id, f]))
       const candidates = guideChannels.map((g) => ({ ...g, feed: byFeedId.get(g.xmltvId) || null }))
+      const counts = await countProgrammes(url).catch(() => null)
+      const pickable = counts ? candidates.filter((g) => counts.get(g.xmltvId)) : candidates
       const linked = linkedChannels({ channels, guideChannels, links: matched.links })
       return {
         linked: linkedIds.size + alreadyLinked.length,
@@ -161,9 +164,9 @@ export const applyGuideSetup = async ({
           id,
           name,
           number,
-          guess: guessGuideChannel({ channel: { name }, candidates, linked }),
+          guess: guessGuideChannel({ channel: { name }, candidates: pickable, linked }),
         })),
-        options: guideChannelOptions(candidates),
+        options: guideChannelOptions(candidates, counts),
       }
     })
     return { ok: true, ...outcome, steps: progress.steps() }
