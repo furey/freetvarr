@@ -71,6 +71,21 @@ test('matchGuideChannels links by service LCN, then by name, and links both feed
   assert.deepEqual(unmatched.map((c) => c.name).sort(), ['10 HD +1', 'ABCTV', 'Extra', 'SBS ONE', 'SBS WorldWatch'])
 })
 
+test('matchGuideChannels adds the missing feed of a time-shared LCN and keeps other existing links', () => {
+  const { guideChannels } = liveGuide()
+  const names = new Map(guideChannels.map((g) => [g.id, g.name]))
+  const idOf = (name) => guideChannels.find((g) => g.name === name).id
+  const matchWith = (linkedNames) => matchGuideChannels({
+    channels: liveChannels().filter((c) => c.id === ABC_KIDS_FAMILY).map((c) => ({ ...c, guide: linkedNames.map(idOf) })),
+    guideChannels,
+    feedChannels: parseFeedChannels(feedXml),
+    serviceLcns: liveServiceLcns(),
+  }).links.map((l) => names.get(l.guideId))
+  assert.deepEqual(matchWith(['ABC Family']), ['ABC Kids'])
+  assert.deepEqual(matchWith(['ABC Family', 'ABC Kids']), [])
+  assert.deepEqual(matchWith(['ABC TV']), [], 'a hand-picked guide stays the only link')
+})
+
 test('matchGuideChannels falls back to names with no wrong links when no channel has a number', () => {
   const { guideChannels, handLinks } = liveGuide()
   const channels = liveChannels().map((c) => ({ ...c, number: null, services: [] }))

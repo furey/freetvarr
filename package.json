@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "1.17.9",
+  "version": "1.17.10",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into your media library.",
   "license": "GPL-3.0-or-later",
@@ -49,6 +49,7 @@
     "migrate:refresh": "rm -f ./config/state.db && mkdir -p config && knex migrate:latest",
     "start": "npm run migrate && node --env-file-if-exists=.env src/server.js",
     "dev": "npm run migrate && node --env-file-if-exists=.env --watch src/server.js",
+    "build:css": "tailwindcss -i src/tailwind.css -o src/web/tailwind.css --minify",
     "test": "node --test 'test/*.test.js'",
     "test:integration": "node --test --test-concurrency=1 'test/integration/*.test.js'",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs"
@@ -68,6 +69,10 @@
     "knex": "^3.1.0",
     "node-cron": "^4.2.1",
     "pretty-ms": "^9.0.0",
+    "sharp": "0.35.5",
     "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.0"
   }
 }

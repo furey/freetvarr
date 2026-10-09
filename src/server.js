@@ -96,8 +96,10 @@ import {
   getGuideDay,
   searchGuide,
   getRecordingState,
-  getChannelImage,
+  getChannelThumbnail,
   getProgrammeImage,
+  getProgrammeThumbnail,
+  prepareThumbnailCache,
   recordProgram,
   cancelProgram,
   recordSeries,
@@ -119,6 +121,7 @@ import {
 } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { getRecordingNow, recordingImageSource } from './recording-now.js'
+import { CHANNEL_LOGO_WIDTHS, PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
 import {
   LIVE_ROOT,
   LiveTvError,
@@ -142,7 +145,7 @@ import {
   positionFrom,
   view as playbackView,
 } from './playback.js'
-import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
+import { BUILD_HEADER, cacheControlFor, readBuildId, stampAssetUrls, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
 import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
@@ -190,6 +193,8 @@ const liveEncoderReady = detectLiveEncoder({
 })
 const LIVE_REAPER_MS = 5_000
 const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000
+const IMAGE_MAX_AGE_S = 24 * 60 * 60
+const MISSING_IMAGE_MAX_AGE_S = 60 * 60
 
 const app = express()
 app.disable('x-powered-by')
@@ -608,21 +613,34 @@ app.get('/api/epg/state', async (req, res) => {
   }
 })
 
-const serveImage = (loadImage) => async (req, res) => {
+const sendMissingImage = (res) => {
+  res.setHeader('Cache-Control', `public, max-age=${MISSING_IMAGE_MAX_AGE_S}`)
+  res.status(404).end()
+}
+
+const serveImage = ({ widths, loadImage }) => async (req, res) => {
+  const width = thumbnailWidthFrom({ requested: req.query.w, allowed: widths })
+  if (width === null) return res.status(400).json({ error: `w must be one of ${widths.join(', ')}` })
   try {
-    const image = await loadImage(req.params)
-    if (!image) return res.status(404).end()
+    const image = await loadImage({ ...req.params, width })
+    if (!image) return sendMissingImage(res)
     res.setHeader('Content-Type', image.contentType)
-    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
     res.send(image.body)
   } catch {
-    res.status(404).end()
+    sendMissingImage(res)
   }
 }
 
-app.get('/api/epg/logo/:channelId', serveImage(({ channelId }) => getChannelImage({ channelId })))
-app.get('/api/epg/image/:eventId', serveImage(({ eventId }) =>
-  getProgrammeImage({ eventId, fallbackSource: recordingImageSource(eventId) })))
+app.get('/api/epg/logo/:channelId', serveImage({
+  widths: CHANNEL_LOGO_WIDTHS,
+  loadImage: ({ channelId, width }) => getChannelThumbnail({ channelId, width }),
+}))
+app.get('/api/epg/image/:eventId', serveImage({
+  widths: PROGRAMME_IMAGE_WIDTHS,
+  loadImage: ({ eventId, width }) =>
+    getProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+}))
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const { channel_id, program_id, epg_program_id, lead_time, lag_time, add_to_library } = req.body || {}
@@ -1894,17 +1912,17 @@ app.post('/api/plex-refresh', doubleCsrfProtection, async (req, res) => {
   res.json(result)
 })
 
-app.get('/vendor/vue.esm-browser.prod.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'node_modules', 'vue', 'dist', 'vue.esm-browser.prod.js'))
-})
+const cacheControlForRequest = (req) => cacheControlFor({ requestedBuild: req.query.v, build: BUILD_ID })
 
-app.get('/vendor/hls.mjs', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'node_modules', 'hls.js', 'dist', 'hls.light.min.mjs'))
-})
+const sendVendorFile = (...segments) => (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'node_modules', ...segments), {
+    headers: { 'Cache-Control': cacheControlForRequest(req) },
+  })
+}
 
-app.get('/vendor/hls.worker.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'node_modules', 'hls.js', 'dist', 'hls.worker.js'))
-})
+app.get('/vendor/vue.esm-browser.prod.js', sendVendorFile('vue', 'dist', 'vue.esm-browser.prod.js'))
+app.get('/vendor/hls.mjs', sendVendorFile('hls.js', 'dist', 'hls.light.min.mjs'))
+app.get('/vendor/hls.worker.js', sendVendorFile('hls.js', 'dist', 'hls.worker.js'))
 
 app.get(['/', '/index.html'], async (req, res) => {
   const html = await fs.readFile(path.join(WEB_ROOT, 'index.html'), 'utf8')
@@ -1912,7 +1930,17 @@ app.get(['/', '/index.html'], async (req, res) => {
   res.type('html').send(stampIndexHtml({ html, build: BUILD_ID }))
 })
 
-app.use(express.static(WEB_ROOT, { index: false }))
+app.get(/^\/[\w.-]+\.js$/, async (req, res, next) => {
+  const source = await fs.readFile(path.join(WEB_ROOT, req.path), 'utf8').catch(() => null)
+  if (source === null) return next()
+  res.setHeader('Cache-Control', cacheControlForRequest(req))
+  res.type('js').send(stampAssetUrls({ text: source, build: BUILD_ID }))
+})
+
+app.use(express.static(WEB_ROOT, {
+  index: false,
+  setHeaders: (res) => res.setHeader('Cache-Control', cacheControlForRequest(res.req)),
+}))
 
 // Terminal error handler: return the message only, never a stack trace, and never
 // fall through to Express' development-mode handler (which leaks node_modules paths
@@ -1941,6 +1969,7 @@ const server = app.listen(PORT, async () => {
     if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
     await resetInterruptedImports()
     shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
+    prepareThumbnailCache()
   } catch (err) {
     console.error('[sync] failed to reconcile recording paths:', err.message)
   }

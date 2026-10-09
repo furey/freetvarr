@@ -114,6 +114,13 @@ test('getProgrammeImage: rejects an upstream answer that is not an image', async
   assert.equal(await epg.getProgrammeImage({ eventId: '103' }), null)
 })
 
+test('getProgrammeThumbnail: unknown and imageless events give nothing; an unreadable image comes back as is', async () => {
+  assert.equal(await epg.getProgrammeThumbnail({ eventId: '999', width: 192 }), null)
+  assert.equal(await epg.getProgrammeThumbnail({ eventId: '104', width: 192 }), null)
+  const image = await epg.getProgrammeThumbnail({ eventId: '101', width: 192 })
+  assert.deepEqual(image.body, JPEG)
+})
+
 test('createProgrammeImages: evicts the least recently used image past the entry limit', async () => {
   const fetched = []
   const images = createProgrammeImages({
@@ -127,7 +134,7 @@ test('createProgrammeImages: evicts the least recently used image past the entry
   await images.imageFor('b')
   await images.imageFor('a')
   await images.imageFor('c')
-  assert.deepEqual(images.stats(), { entries: 2, bytes: 20 })
+  assert.deepEqual(images.stats(), { entries: 2, bytes: 20, misses: 0 })
   await images.imageFor('a')
   await images.imageFor('b')
   assert.deepEqual(fetched, ['a', 'b', 'c', 'b'])
@@ -141,27 +148,57 @@ test('createProgrammeImages: stays under the byte limit and skips an image large
   })
   await images.imageFor('small')
   await images.imageFor('medium')
-  assert.deepEqual(images.stats(), { entries: 2, bytes: 90 })
+  assert.deepEqual(images.stats(), { entries: 2, bytes: 90, misses: 0 })
   const huge = await images.imageFor('huge')
   assert.equal(huge.body.length, 200)
-  assert.deepEqual(images.stats(), { entries: 2, bytes: 90 })
+  assert.deepEqual(images.stats(), { entries: 2, bytes: 90, misses: 0 })
   sizes.large = 70
   await images.imageFor('large')
-  assert.deepEqual(images.stats(), { entries: 1, bytes: 70 })
+  assert.deepEqual(images.stats(), { entries: 1, bytes: 70, misses: 0 })
 })
 
-test('createProgrammeImages: shares one fetch between concurrent requests and caches no failure', async () => {
+test('createProgrammeImages: shares one fetch between concurrent requests', async () => {
   let calls = 0
   const images = createProgrammeImages({
+    fetchImage: async () => {
+      calls += 1
+      return { body: Buffer.alloc(1), contentType: 'image/png' }
+    },
+  })
+  const [first, second] = await Promise.all([images.imageFor('x'), images.imageFor('x')])
+  assert.equal(first, second)
+  assert.equal(calls, 1)
+  assert.equal(await images.imageFor(null), null)
+})
+
+test('createProgrammeImages: remembers a miss until it expires, then asks upstream again', async () => {
+  let clock = 1_000
+  let calls = 0
+  const images = createProgrammeImages({
+    missTtlMs: 500,
+    now: () => clock,
     fetchImage: async () => {
       calls += 1
       return calls === 1 ? null : { body: Buffer.alloc(1), contentType: 'image/png' }
     },
   })
-  const [first, second] = await Promise.all([images.imageFor('x'), images.imageFor('x')])
-  assert.equal(first, null)
-  assert.equal(second, null)
+  assert.equal(await images.imageFor('x'), null)
+  assert.equal(await images.imageFor('x'), null)
   assert.equal(calls, 1)
+  assert.equal(images.stats().misses, 1)
+  clock += 500
   assert.equal((await images.imageFor('x')).contentType, 'image/png')
-  assert.equal(await images.imageFor(null), null)
+  assert.equal(calls, 2)
+  assert.equal(images.stats().misses, 0)
+})
+
+test('createProgrammeImages: a failed fetch counts as a miss and the miss list stays bounded', async () => {
+  const images = createProgrammeImages({
+    maxMisses: 2,
+    fetchImage: async () => { throw new Error('upstream down') },
+  })
+  await images.imageFor('a')
+  await images.imageFor('b')
+  await images.imageFor('c')
+  assert.equal(images.stats().misses, 2)
 })

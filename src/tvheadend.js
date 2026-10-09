@@ -131,23 +131,17 @@ export const channelLogoSources = ({ channel, epgIcons = [] }) =>
 
 export const listEvents = async ({ startMs, endMs, conn } = {}) => {
   const events = []
-  for (let offset = 0; ; offset += EVENT_PAGE_SIZE) {
-    const body = await apiGet('epg/events/grid', {
-      start: offset,
-      limit: EVENT_PAGE_SIZE,
-      sort: 'start',
-      dir: 'ASC',
-    }, conn)
-    const page = body?.entries || []
-    for (const e of page) {
-      const start = e.start * 1000
-      const end = e.stop * 1000
-      if (end <= startMs) continue
-      if (start >= endMs) return events
-      events.push(normaliseEvent(e))
-    }
-    if (page.length < EVENT_PAGE_SIZE) return events
+  const collectPage = (page) => collectEventsInWindow({ page, events, startMs, endMs })
+  const readPage = (index) => readEventPage({ index, conn })
+  const firstPage = await readPage(0)
+  if (collectPage(firstPage.entries)) return events
+  const pageCount = eventPageCount(firstPage.totalCount)
+  for (let index = 1; index < pageCount; index += EVENT_PAGE_CONCURRENCY) {
+    const indexes = pageIndexesFrom({ index, pageCount })
+    const pages = await Promise.all(indexes.map(readPage))
+    if (pages.some((page) => collectPage(page.entries))) return events
   }
+  return events
 }
 
 export const getEvent = async ({ eventId, conn } = {}) => {
@@ -721,6 +715,34 @@ export const verifyLogin = async ({ url, username, password }) => {
   return { ok: res.status === 200, status: res.status }
 }
 
+const readEventPage = async ({ index, conn }) => {
+  const body = await apiGet('epg/events/grid', {
+    start: index * EVENT_PAGE_SIZE,
+    limit: EVENT_PAGE_SIZE,
+    sort: 'start',
+    dir: 'ASC',
+  }, conn)
+  return { entries: body?.entries || [], totalCount: body?.totalCount }
+}
+
+const collectEventsInWindow = ({ page, events, startMs, endMs }) => {
+  for (const e of page) {
+    if (e.stop * 1000 <= startMs) continue
+    if (e.start * 1000 >= endMs) return true
+    events.push(normaliseEvent(e))
+  }
+  return page.length < EVENT_PAGE_SIZE
+}
+
+const eventPageCount = (totalCount) => Number.isFinite(totalCount)
+  ? Math.ceil(totalCount / EVENT_PAGE_SIZE)
+  : Infinity
+
+const pageIndexesFrom = ({ index, pageCount }) => Array.from(
+  { length: Math.min(EVENT_PAGE_CONCURRENCY, pageCount - index) },
+  (_, offset) => index + offset,
+)
+
 const apiGet = async (path, params, conn) => {
   const c = conn || (await resolveConnection())
   return request({ method: 'get', path, params, conn: c })
@@ -804,6 +826,7 @@ const requestUri = (url) => {
 const CREATOR_TAG = 'freetvarr'
 const LIBRARY_TAGS = { include: 'freetvarr: add to library', exclude: 'freetvarr: not for the library' }
 const EVENT_PAGE_SIZE = 2000
+const EVENT_PAGE_CONCURRENCY = 4
 const DEFAULT_PORT = 9981
 const PROBE_TIMEOUT_MS = 1500
 

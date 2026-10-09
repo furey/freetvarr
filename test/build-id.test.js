@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
-import { computeBuildId, readBuildId, stampIndexHtml } from '../src/build-id.js'
+import { cacheControlFor, computeBuildId, readBuildId, stampAssetUrls, stampIndexHtml } from '../src/build-id.js'
 import { isStaleBuild, shouldReloadOnPull } from '../src/web/stale-build.js'
 
 const files = [
@@ -48,20 +48,51 @@ test('readBuildId: hashes the shipped html, js, and css files only', async () =>
   assert.notEqual(await readBuildId({ webRoot: root, version: '1.0.2' }), before)
 })
 
-test('stampIndexHtml: adds the build meta tag and versions the app.js and styles.css urls', () => {
+test('stampIndexHtml: adds the build meta tag and versions the script and stylesheet urls', () => {
   const html = [
     '<meta charset="utf-8" />',
     '<link rel="modulepreload" href="/app.js" />',
     '<link rel="modulepreload" href="/vendor/vue.esm-browser.prod.js" />',
+    '<link rel="preload" href="/fonts/inter-variable.woff2" as="font" />',
+    '<link rel="stylesheet" href="/tailwind.css" />',
     '<link rel="stylesheet" href="/styles.css" />',
+    '<link rel="icon" href="/favicon.svg" />',
     '<script type="module" src="/app.js"></script>',
   ].join('\n')
   const stamped = stampIndexHtml({ html, build: 'abc123' })
   assert.match(stamped, /<meta name="freetvarr-build" content="abc123" \/>/)
   assert.match(stamped, /href="\/app\.js\?v=abc123"/)
   assert.match(stamped, /src="\/app\.js\?v=abc123"/)
+  assert.match(stamped, /href="\/vendor\/vue\.esm-browser\.prod\.js\?v=abc123"/)
+  assert.match(stamped, /href="\/tailwind\.css\?v=abc123"/)
   assert.match(stamped, /href="\/styles\.css\?v=abc123"/)
-  assert.match(stamped, /href="\/vendor\/vue\.esm-browser\.prod\.js"/)
+  assert.match(stamped, /href="\/fonts\/inter-variable\.woff2"/)
+  assert.match(stamped, /href="\/favicon\.svg"/)
+})
+
+test('stampAssetUrls: versions module imports, dynamic imports, and worker paths', () => {
+  const source = [
+    "import { ref } from '/vendor/vue.esm-browser.prod.js'",
+    "import { isStaleBuild } from '/stale-build.js'",
+    "const { default: Hls } = await import('/vendor/hls.mjs')",
+    "const config = { workerPath: '/vendor/hls.worker.js' }",
+    "fetch('/api/settings')",
+    "link.href = '/favicon.svg'",
+  ].join('\n')
+  assert.equal(stampAssetUrls({ text: source, build: 'abc123' }), [
+    "import { ref } from '/vendor/vue.esm-browser.prod.js?v=abc123'",
+    "import { isStaleBuild } from '/stale-build.js?v=abc123'",
+    "const { default: Hls } = await import('/vendor/hls.mjs?v=abc123')",
+    "const config = { workerPath: '/vendor/hls.worker.js?v=abc123' }",
+    "fetch('/api/settings')",
+    "link.href = '/favicon.svg'",
+  ].join('\n'))
+})
+
+test('cacheControlFor: only the current build is immutable', () => {
+  assert.equal(cacheControlFor({ requestedBuild: 'abc123', build: 'abc123' }), 'public, max-age=31536000, immutable')
+  assert.equal(cacheControlFor({ requestedBuild: 'old456', build: 'abc123' }), 'no-cache')
+  assert.equal(cacheControlFor({ requestedBuild: undefined, build: 'abc123' }), 'no-cache')
 })
 
 test('isStaleBuild: a different server build is stale', () => {
