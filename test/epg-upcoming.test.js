@@ -135,6 +135,23 @@ test('orderChannels: hideSdSimulcasts hides SD twins but never pinned ones', () 
   assert.equal(by['pin-sd'], false)
 })
 
+test('orderChannels: hideSdChannels hides every non-HD channel but never pinned ones', () => {
+  const channels = [
+    { id: 'hd', name: '10 HD', hd: true },
+    { id: 'sd', name: '10', hd: false },
+    { id: 'only-sd', name: '7flix', hd: false },
+    { id: 'pin-sd', name: 'Pinned SD', hd: false },
+  ]
+  const out = orderChannels({ channels, pinnedIds: ['pin-sd'], hideSdChannels: true })
+  const by = Object.fromEntries(out.map((c) => [c.id, c.hidden]))
+  assert.deepEqual(by, { 'pin-sd': false, hd: false, sd: true, 'only-sd': true })
+})
+
+test('orderChannels: hideSdChannels off leaves SD-only channels visible', () => {
+  const channels = [{ id: 'only-sd', name: '7flix', hd: false }]
+  assert.equal(orderChannels({ channels })[0].hidden, false)
+})
+
 test('projectUpcomingRecordings and withSeriesImages: flag programme images without exposing URLs', async () => {
   const { withSeriesImages } = await import('../src/epg.js')
   const g = {
