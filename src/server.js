@@ -96,8 +96,10 @@ import {
   getGuideDay,
   searchGuide,
   getRecordingState,
-  getChannelImage,
+  getChannelThumbnail,
   getProgrammeImage,
+  getProgrammeThumbnail,
+  prepareThumbnailCache,
   recordProgram,
   cancelProgram,
   recordSeries,
@@ -119,6 +121,7 @@ import {
 } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { getRecordingNow, recordingImageSource } from './recording-now.js'
+import { CHANNEL_LOGO_WIDTHS, PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
 import {
   LIVE_ROOT,
   LiveTvError,
@@ -190,6 +193,8 @@ const liveEncoderReady = detectLiveEncoder({
 })
 const LIVE_REAPER_MS = 5_000
 const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000
+const IMAGE_MAX_AGE_S = 24 * 60 * 60
+const MISSING_IMAGE_MAX_AGE_S = 60 * 60
 
 const app = express()
 app.disable('x-powered-by')
@@ -608,21 +613,34 @@ app.get('/api/epg/state', async (req, res) => {
   }
 })
 
-const serveImage = (loadImage) => async (req, res) => {
+const sendMissingImage = (res) => {
+  res.setHeader('Cache-Control', `public, max-age=${MISSING_IMAGE_MAX_AGE_S}`)
+  res.status(404).end()
+}
+
+const serveImage = ({ widths, loadImage }) => async (req, res) => {
+  const width = thumbnailWidthFrom({ requested: req.query.w, allowed: widths })
+  if (width === null) return res.status(400).json({ error: `w must be one of ${widths.join(', ')}` })
   try {
-    const image = await loadImage(req.params)
-    if (!image) return res.status(404).end()
+    const image = await loadImage({ ...req.params, width })
+    if (!image) return sendMissingImage(res)
     res.setHeader('Content-Type', image.contentType)
-    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
     res.send(image.body)
   } catch {
-    res.status(404).end()
+    sendMissingImage(res)
   }
 }
 
-app.get('/api/epg/logo/:channelId', serveImage(({ channelId }) => getChannelImage({ channelId })))
-app.get('/api/epg/image/:eventId', serveImage(({ eventId }) =>
-  getProgrammeImage({ eventId, fallbackSource: recordingImageSource(eventId) })))
+app.get('/api/epg/logo/:channelId', serveImage({
+  widths: CHANNEL_LOGO_WIDTHS,
+  loadImage: ({ channelId, width }) => getChannelThumbnail({ channelId, width }),
+}))
+app.get('/api/epg/image/:eventId', serveImage({
+  widths: PROGRAMME_IMAGE_WIDTHS,
+  loadImage: ({ eventId, width }) =>
+    getProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+}))
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const { channel_id, program_id, epg_program_id, lead_time, lag_time, add_to_library } = req.body || {}
@@ -1941,6 +1959,7 @@ const server = app.listen(PORT, async () => {
     if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
     await resetInterruptedImports()
     shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
+    prepareThumbnailCache()
   } catch (err) {
     console.error('[sync] failed to reconcile recording paths:', err.message)
   }

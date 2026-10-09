@@ -476,14 +476,30 @@ const ChannelLogo = {
     const failed = ref(false)
     watch(() => props.channelId, () => { failed.value = false })
     const showsImage = computed(() => props.hasLogo && props.channelId != null && !failed.value)
-    return { failed, showsImage }
+    const logoUrl = computed(() => `/api/epg/logo/${encodeURIComponent(props.channelId)}`)
+    const src = computed(() => `${logoUrl.value}?w=${CHANNEL_LOGO_WIDTHS[0]}`)
+    const srcset = computed(() => densitySrcset({ url: logoUrl.value, widths: CHANNEL_LOGO_WIDTHS }))
+    return { failed, showsImage, src, srcset }
   },
   template: `
-    <img v-if="showsImage" class="epg-rail-logo" :src="'/api/epg/logo/' + channelId" alt="" loading="lazy"
+    <img v-if="showsImage" class="epg-rail-logo" :src="src" :srcset="srcset" alt="" loading="lazy"
       draggable="false" @error="failed = true" />
     <tv-icon v-else class="epg-rail-logo channel-logo-fallback" />
   `,
 }
+
+const CHANNEL_LOGO_WIDTHS = [96, 192]
+
+const PROGRAMME_IMAGE_WIDTHS = {
+  thumb: [192],
+  cell: [192],
+  rec: [384, 768],
+  hero: [768],
+}
+
+const densitySrcset = ({ url, widths }) => (widths.length > 1
+  ? widths.map((width, index) => `${url}?w=${width} ${index + 1}x`).join(', ')
+  : null)
 
 const imageStatusOf = (img) => {
   if (!img?.complete) return 'loading'
@@ -502,8 +518,15 @@ const ProgrammeImage = {
     const img = ref(null)
     const status = ref('loading')
     const instant = ref(false)
+    const guideImageUrl = computed(() => (props.eventId != null
+      ? `/api/epg/image/${encodeURIComponent(props.eventId)}`
+      : null))
+    const guideImageWidths = computed(() => PROGRAMME_IMAGE_WIDTHS[props.variant] || PROGRAMME_IMAGE_WIDTHS.thumb)
     const src = computed(() => props.source
-      ?? (props.eventId != null ? `/api/epg/image/${encodeURIComponent(props.eventId)}` : null))
+      ?? (guideImageUrl.value ? `${guideImageUrl.value}?w=${guideImageWidths.value[0]}` : null))
+    const srcset = computed(() => (props.source == null && guideImageUrl.value
+      ? densitySrcset({ url: guideImageUrl.value, widths: guideImageWidths.value })
+      : null))
     const settleFromCache = () => {
       if (src.value == null) {
         status.value = 'failed'
@@ -528,11 +551,11 @@ const ProgrammeImage = {
       await nextTick()
       settleFromCache()
     })
-    return { img, status, instant, src, onLoad, onError }
+    return { img, status, instant, src, srcset, onLoad, onError }
   },
   template: `
     <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant }]">
-      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" alt=""
+      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" :srcset="srcset" alt=""
         :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
       <span v-if="status === 'failed'" class="programme-image-fallback">
         <channel-logo :channel-id="channelId" :has-logo="hasLogo" />

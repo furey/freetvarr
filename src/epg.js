@@ -17,6 +17,7 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
+import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom } from './image-thumbnails.js'
 import {
   saveGuidePrograms,
   loadEndedProgramsByChannel,
@@ -474,17 +475,42 @@ export const getChannelImage = async ({ channelId } = {}) => {
   const fetched = channel ? await getChannelIcon({ sources: channel.logos }).catch(() => null) : null
   if (fetched) await saveArtwork({ kind: 'channel', id: cacheKey, image: fetched }).catch(() => null)
   const value = fetched || await findArtwork({ kind: 'channel', id: cacheKey }).catch(() => null)
-  if (!value) return null
-  imageCache.set(cacheKey, { value, expiresAt: Date.now() + IMAGE_TTL_MS })
+  if (!value && !guide) return null
+  const ttlMs = value ? IMAGE_TTL_MS : IMAGE_MISS_TTL_MS
+  imageCache.set(cacheKey, { value, expiresAt: Date.now() + ttlMs })
   return value
 }
 
-export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
+export const getChannelThumbnail = async ({ channelId, width } = {}) => {
   const guide = await getCachedGuide().catch(() => null)
-  const source = guide?.imageByEventId.get(String(eventId))
+  const channel = guide?.channels.find((c) => String(c.id) === String(channelId))
+  return thumbnailStore.thumbnailFor({
+    key: `channel:${channelId}:${(channel?.logos || []).join('|')}`,
+    width,
+    loadOriginal: () => getChannelImage({ channelId }),
+  })
+}
+
+export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) =>
+  programmeImages.imageFor(await programmeImageSource({ eventId, fallbackSource }))
+
+export const getProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
+  const source = await programmeImageSource({ eventId, fallbackSource })
+  if (!source) return null
+  return thumbnailStore.thumbnailFor({
+    key: `programme:${source}`,
+    width,
+    loadOriginal: () => programmeImages.imageFor(source),
+  })
+}
+
+export const prepareThumbnailCache = () => thumbnailStore.prepare()
+
+const programmeImageSource = async ({ eventId, fallbackSource }) => {
+  const guide = await getCachedGuide().catch(() => null)
+  return guide?.imageByEventId.get(String(eventId))
     || fallbackSource
     || await savedImageFor({ programId: eventId }).catch(logHistoryError('image'))
-  return programmeImages.imageFor(source)
 }
 export const listGuideChannels = async () => (await getCachedGuide()).channels
 
@@ -562,6 +588,10 @@ const imageCache = new Map()
 const programmeImages = createProgrammeImages({
   fetchImage: (source) => fetchProgrammeImage({ source }),
 })
+const thumbnailStore = createThumbnailStore({
+  dir: getThumbnailRoot(),
+  maxBytes: imageCacheBytesFrom(process.env.IMAGE_CACHE_MAX_MB),
+})
 
 const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
@@ -573,6 +603,7 @@ const GUIDE_EMPTY_TTL_MS = 60 * 1000
 const STATE_TTL_MS = 45 * 1000
 const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
+const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
 const SEARCH_RESULT_CAP = 100
 const guideCache = createGuideCache({ load: loadGuide, staleRetryMs: GUIDE_STALE_RETRY_MS })
 
