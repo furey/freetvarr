@@ -36,6 +36,7 @@ import {
   formatHours,
   formatMinutes,
   formatSeconds,
+  formatUptime,
 } from '/time-format.js'
 import {
   CUSTOM_SYNC_SCHEDULE,
@@ -6479,6 +6480,8 @@ const VersionsRow = {
           </dd>
           <dt>BUILD</dt>
           <dd>{{ about.build || '…' }}</dd>
+          <dt>FREETVARR UPTIME</dt>
+          <dd>{{ uptimeText }}</dd>
           <dt>TVHEADEND</dt>
           <dd :class="{ 'about-muted': !about.tvheadend }">{{ tvheadendText }}</dd>
           <dt>NODE</dt>
@@ -6502,6 +6505,8 @@ const VersionsRow = {
       if (about.value.tvheadend) return about.value.tvheadend
       return tvheadendLoaded.value ? 'not connected' : '…'
     })
+    const uptimeText = computed(() =>
+      about.value.uptimeSeconds == null ? '…' : formatUptime(about.value.uptimeSeconds))
     const updateText = computed(() => ({
       checking: 'Checking…',
       current: 'Up to date',
@@ -6510,6 +6515,7 @@ const VersionsRow = {
     const aboutLines = () => [
       `Freetvarr ${about.value.version}`,
       `Build ${about.value.build}`,
+      `Freetvarr uptime ${uptimeText.value}`,
       `TVHeadend ${about.value.tvheadend || 'not connected'}`,
       `Node ${about.value.node}`,
     ].join('\n')
@@ -6544,7 +6550,7 @@ const VersionsRow = {
       checkForUpdate()
     })
     onUnmounted(() => clearTimeout(copyTimer))
-    return { about, update, updateText, tvheadendText, copyState, copyAbout, releaseUrl }
+    return { about, update, updateText, uptimeText, tvheadendText, copyState, copyAbout, releaseUrl }
   },
 }
 
