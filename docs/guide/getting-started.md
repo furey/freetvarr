@@ -38,11 +38,11 @@ After a banner with the Freetvarr name and author credit, the script outputs the
 Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]
 ```
 
-`PUID` and `PGID` are the user and group that own the files Freetvarr writes, such as your recordings. Your numbers will differ from the example. Press `Enter` (or type `Y`) to accept and start the Docker containers. This is right for most people.
+`PUID` and `PGID` are the user and group that own the files Freetvarr writes, such as your recordings. Your numbers will differ from the example. Press `Enter` (or `Y`) to accept and start the Docker containers. This is right for most people.
 
-Type `e` if the files must belong to a different user. On a NAS, for example, use the `PUID` and `PGID` of the user that owns your media share. The script opens its `.env` in a text editor (`vi`, unless you set `EDITOR`). In `vi`, press `i` to type, then `Esc`, then `:wq` and `Enter` to save and close the file. The script then starts the Docker containers.
+Press `e` if the files must belong to a different user. On a NAS, for example, use the `PUID` and `PGID` of the user that owns your media share. The script opens its `.env` in a text editor (`vi`, unless you set `EDITOR`). In `vi`, press `i` to type, then `Esc`, then `:wq` and `Enter` to save and close the file. The script then starts the Docker containers.
 
-Type `n` to stop without starting anything. Edit the `.env` in the `freetvarr` folder, then run `docker compose up -d` in a terminal in that folder to start the Docker containers.
+Press `n` (or `Esc`) to stop without starting anything. Edit the `.env` in the `freetvarr` folder, then run `docker compose up -d` in a terminal in that folder to start the Docker containers.
 
 Run the script again at any time. It keeps an existing `.env` and Docker compose file, and it does not ask about file ownership again. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
 
