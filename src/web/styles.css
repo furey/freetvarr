@@ -319,6 +319,12 @@ table.deck-table tbody tr.active {
   letter-spacing: 0.04em;
 }
 
+.pill.pill-format.pill-slot {
+  display: inline-block;
+  width: 1.9rem;
+  text-align: center;
+}
+
 .pill.pill-hd {
   color: #62cfff;
   background: rgba(30, 182, 255, 0.14);

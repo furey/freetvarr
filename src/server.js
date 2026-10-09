@@ -723,7 +723,7 @@ app.post('/api/epg/pause-series', epgLimiter, doubleCsrfProtection, async (req, 
 })
 
 app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
-  const { pinned_ids, hidden_ids, sort, hide_sd_simulcasts } = req.body || {}
+  const { pinned_ids, hidden_ids, sort, hide_sd_simulcasts, hide_sd_channels } = req.body || {}
   if (pinned_ids != null && !Array.isArray(pinned_ids)) {
     return res.status(400).json({ error: 'pinned_ids must be an array' })
   }
@@ -738,6 +738,7 @@ app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
     ...(hidden_ids != null ? { hiddenIds: hidden_ids } : {}),
     ...(sort != null ? { sort } : {}),
     ...(hide_sd_simulcasts != null ? { hideSdSimulcasts: Boolean(hide_sd_simulcasts) } : {}),
+    ...(hide_sd_channels != null ? { hideSdChannels: Boolean(hide_sd_channels) } : {}),
   })
   res.json({ ok: true, ...prefs })
 })
