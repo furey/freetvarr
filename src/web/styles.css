@@ -128,6 +128,101 @@ html {
   height: 1lh;
 }
 
+.hold-music {
+  display: inline-flex;
+  align-items: center;
+  gap: 1ch;
+  height: 1lh;
+  margin-left: 1ch;
+  vertical-align: top;
+  color: var(--color-ink-dim);
+}
+
+.hold-music-fade-enter-active { transition: opacity 2s; }
+.hold-music-fade-leave-active { transition: opacity 3s; }
+.hold-music-fade-enter-from,
+.hold-music-fade-leave-to { opacity: 0; }
+
+.hold-music-notes {
+  width: 1.5em;
+  height: 1em;
+  opacity: 0.45;
+  transition: opacity 2s;
+}
+
+.hold-music-notes.is-audible { opacity: 1; }
+
+.hold-music-notes.is-audible .hold-music-note {
+  animation: hold-music-bob 1.4s ease-in-out infinite;
+}
+
+.hold-music-notes.is-audible .hold-music-note + .hold-music-note {
+  animation-delay: -0.7s;
+}
+
+@keyframes hold-music-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.hold-music-toggle {
+  display: inline-flex;
+  padding: 0.1em;
+  border: none;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hold-music-toggle svg {
+  width: 1em;
+  height: 1em;
+}
+
+@media (hover: hover) {
+  .hold-music-toggle:hover { color: var(--color-ink); }
+}
+
+.hold-music-credit {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0 !important;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 3s, grid-template-rows 0.5s 3s, visibility 0s 3.5s;
+}
+
+.hold-music-credit.is-audible {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows 0.5s, opacity 2s 0.4s, visibility 0s;
+}
+
+.hold-music-credit-text {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.hold-music-credit-text::before {
+  content: '';
+  display: block;
+  height: 1rem;
+}
+
+.hold-music-credit a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hold-music-credit,
+  .hold-music-credit.is-audible,
+  .hold-music-fade-enter-active,
+  .hold-music-fade-leave-active { transition: none; }
+  .hold-music-notes.is-audible .hold-music-note { animation: none; }
+}
+
 .spinner-overlay {
   position: absolute;
   top: 50%;

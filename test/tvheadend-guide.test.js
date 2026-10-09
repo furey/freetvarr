@@ -161,9 +161,11 @@ const clock = () => {
   return { now: () => (t += 1000) }
 }
 
+const noCounts = async () => null
+
 test('applyGuideSetup turns on the feed, keeps the guide saved, waits for it, and links by number', async () => {
   const http = fakeTvheadend({})
-  const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, pollMs: 0, ...clock() })
+  const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, countProgrammes: noCounts, pollMs: 0, ...clock() })
   assert.equal(result.ok, true, JSON.stringify(result))
   assert.equal(result.linked, 2)
   assert.equal(result.total, 3)
@@ -188,7 +190,7 @@ test('applyGuideSetup pre-selects the guide of a simulcast and leaves a timeshif
       { uuid: 'c14', name: '10 HD +1', number: 14, services: [] },
     ],
   })
-  const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, pollMs: 0, ...clock() })
+  const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, countProgrammes: noCounts, pollMs: 0, ...clock() })
   assert.deepEqual(result.unmatched.map(({ id, guess }) => [id, guess]), [
     ['cx', null],
     ['c70', 'g-seven'],
@@ -198,7 +200,7 @@ test('applyGuideSetup pre-selects the guide of a simulcast and leaves a timeshif
 
 test('applyGuideSetup leaves a running feed and the user\'s save settings alone', async () => {
   const http = fakeTvheadend({ grabber: { enabled: true, args: FEED_URL }, periodicSave: 6, saveAfterImport: true })
-  const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, pollMs: 0, ...clock() })
+  const result = await applyGuideSetup({ http, conn: CONN, url: FEED_URL, fetchFeed: feed, countProgrammes: noCounts, pollMs: 0, ...clock() })
   assert.equal(result.ok, true)
   assert.deepEqual(http.writes.map((w) => w.path), [
     'epggrab/internal/rerun',
@@ -206,6 +208,15 @@ test('applyGuideSetup leaves a running feed and the user\'s save settings alone'
     'idnode/save',
     'epggrab/internal/rerun',
   ])
+})
+
+test('applyGuideSetup marks guide channels with no shows and lists them last', async () => {
+  const http = fakeTvheadend({})
+  const countProgrammes = async () => new Map([['mjh-abc-syd', 12]])
+  const result = await applyGuideSetup({
+    http, conn: CONN, url: FEED_URL, fetchFeed: feed, countProgrammes, pollMs: 0, ...clock(),
+  })
+  assert.deepEqual(result.options.map((o) => [o.name, Boolean(o.empty)]), [['ABC TV', false], ['Seven', true]])
 })
 
 test('applyGuideSetup stops before any write when the feed cannot be downloaded', async () => {
@@ -221,7 +232,7 @@ test('applyGuideSetup stops before any write when the feed cannot be downloaded'
 test('applyGuideSetup reports a guide that never loads', async () => {
   const http = fakeTvheadend({ loadAfter: Infinity })
   const result = await applyGuideSetup({
-    http, conn: CONN, url: FEED_URL, fetchFeed: feed, pollMs: 0, limitMs: 5000, ...clock(),
+    http, conn: CONN, url: FEED_URL, fetchFeed: feed, pollMs: 0, limitMs: 5000, countProgrammes: noCounts, ...clock(),
   })
   assert.equal(result.code, 'download-timeout')
   assert.equal(result.failedStep, 'download')
