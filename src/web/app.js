@@ -5451,11 +5451,11 @@ const WelcomeView = {
               <div class="settings-disclosure-body space-y-4">
                 <div class="field-row">
                   <label class="field-label">Plex address</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" @input="plexEditedByHand = true" />
+                  <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Plex token</label>
-                  <input v-no-autofill type="password" class="field-input" v-model="plexToken" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="password" class="field-input" v-model="plexToken"
                     :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
                   <div class="mt-2 flex flex-wrap items-center gap-3">
                     <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
@@ -5469,12 +5469,12 @@ const WelcomeView = {
                 </div>
                 <div class="field-row">
                   <label class="field-label">Preferences.xml path <span class="text-ink-mute">(as Freetvarr sees it)</span></label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath"
                     placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 </div>
                 <div v-if="!plexShowSections.length" class="field-row">
                   <label class="field-label">TV library number</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexSectionId" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexSectionId"
                     placeholder="CONNECT lists your libraries" />
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
@@ -5696,7 +5696,8 @@ const WelcomeView = {
     const plexConnected = ref(false)
     const plexProblem = ref(null)
     const plexAdvancedOpen = ref(false)
-    const plexEditedByHand = ref(false)
+    const plexEditedByHand = computed(() =>
+      [plexUrl.value, plexToken.value, plexSectionId.value].some((field) => String(field ?? '').trim()))
     const plexDocsUrl = `${DOCS_BASE}guide/plex`
     const plexShowSections = computed(() => plexSections.value.filter((sec) => sec.type === 'show'))
     const hasPlexToken = () => Boolean(plexToken.value || plexTokenSet.value)

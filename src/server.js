@@ -295,7 +295,7 @@ app.post('/api/sync', syncLimiter, doubleCsrfProtection, async (req, res) => {
     })
     res.status(result.alreadyRunning ? 200 : 202).json(result)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    res.status(err.code === 'no-url' ? 400 : 500).json({ error: err.message })
   }
 })
 
