@@ -9942,7 +9942,7 @@ const App = {
                 <rect x="11.5" y="0" width="4" height="3" fill="#e2b03c"/>
               </svg>
               <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">Freetvarr</span>
-              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]">// Self-hosted free-to-air TV</span>
+              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]">Self-hosted free-to-air TV</span>
             </a>
             <div class="flex items-center gap-5">
               <a v-if="recordingCount" href="#/dashboard" class="no-hover-underline flex items-center gap-2" :title="recordingCount + ' recording now in TVHeadend'">
