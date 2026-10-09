@@ -6919,8 +6919,7 @@ const ChannelsModal = {
           </div>
           <div class="channels-list">
             <label class="field-label">ALL CHANNELS · <span class="whitespace-nowrap"><star-icon class="icon-inline" />&nbsp;FAVOURITE,</span> TICK TO SHOW, <span class="whitespace-nowrap"><pencil-icon class="icon-inline" />&nbsp;CHANGE GUIDE SOURCE</span></label>
-            <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the listings…</p>
-            <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
+            <p v-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
               Set up the TV guide first to change the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
@@ -6947,7 +6946,12 @@ const ChannelsModal = {
                       </span>
                     </span>
                   </label>
-                  <template v-if="showGuideColumn && String(ch.id) in guideDraft">
+                  <template v-if="guideLoading">
+                    <span class="font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem] text-ink-mute">Reading…</span>
+                    <button type="button" class="btn btn-sm btn-icon shrink-0" disabled
+                      title="Reading the listings" aria-label="Reading the listings"><pencil-icon /></button>
+                  </template>
+                  <template v-else-if="showGuideColumn && String(ch.id) in guideDraft">
                     <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
                       :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
                     <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
