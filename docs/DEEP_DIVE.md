@@ -368,11 +368,12 @@ Compose-only env (set in `.env` alongside `docker-compose.yml`):
 ## Docker deployment
 
 - Compose pulls the Freetvarr image from `ghcr.io/furey/freetvarr`; no clone is needed to run it. TVHeadend comes from `lscr.io/linuxserver/tvheadend`. Contributors build from a clone with `docker-compose.dev.yml`.
-- The Dockerfile inlines `npm ci --ignore-scripts && npm run rebuild:natives` instead of calling `npm run setup`, so the build skips `npm audit signatures`. That step re-queries the registry and enforces `.npmrc`'s `min-release-age=3`, which would block whenever a brand-new dep is in the lockfile. Run `npm run setup` on the host once the newest dep has aged past the threshold; the lockfile's integrity hashes still verify package contents during `npm ci`.
+- The Dockerfile inlines `npm ci --omit=dev --ignore-scripts && npm run rebuild:natives` instead of calling `npm run setup`, so the build skips `npm audit signatures`. That step re-queries the registry and enforces `.npmrc`'s `min-release-age=3`, which would block whenever a brand-new dep is in the lockfile. Run `npm run setup` on the host once the newest dep has aged past the threshold; the lockfile's integrity hashes still verify package contents during `npm ci`.
 - Both services use `network_mode: host` (no `ports:` mapping). TVHeadend needs it to discover a network tuner such as an HDHomeRun, which announces itself by UDP broadcast that doesn't traverse Docker's bridge network. Side-effect: neither container is on a Docker bridge network, so they address each other by the host's LAN IP rather than by container name, and so does anything else that wants to reach them.
 - Both run as `${PUID}:${PGID}` (default `1000:1000`). They must match: Freetvarr hardlinks files TVHeadend wrote and deletes them afterwards.
 - A one-shot `init` service (`busybox`) runs first. It makes the subfolders of `CONFIG_PATH` and `DATA_PATH` and gives them to `PUID:PGID`; both other services wait for it with `service_completed_successfully`. Some Docker builds (Synology's among them) refuse to mount a host folder that does not exist, so `CONFIG_PATH` and `DATA_PATH` themselves must exist first; `install.sh` makes them, and standard Docker creates them itself.
 - `tini` is PID 1 inside the Freetvarr container so `SIGTERM` propagates cleanly.
+- The image skips dev dependencies (the Tailwind CLI), because `src/web/tailwind.css` is committed.
 - The Docker healthcheck hits `GET /healthz` every `30 s`.
 - The container entrypoint (`docker-entrypoint.sh`) runs `knex migrate:latest` against `/config/state.db` before exec'ing the server, so pending migrations apply on the next start and a fresh host needs no manual migration.
 - Compose pulls `ghcr.io/furey/freetvarr:latest`. Each release tag builds the image natively for `amd64` and `arm64`, boots it, and publishes it as `X.Y.Z` and `latest` (`.github/workflows/image.yml`). `docker compose pull && docker compose up -d` updates; the bind-mounted `/config/state.db` is untouched.
@@ -461,7 +462,7 @@ freetvarr/
 │   ├── progress.js         # In-memory progress registry + import-bar shim; merged into GET /api/recordings
 │   ├── scheduler.js        # node-cron wiring, reloads on settings change
 │   ├── plex.js             # Plex section refresh + token detection from Preferences.xml
-│   └── web/                # Static UI (app.js, guide-time.js calendar-day helpers); Vue 3 SPA (browser ESM) + Tailwind v4 Play CDN (self-hosted), hash-routed, responsive at md/768px, no build step
+│   └── web/                # Static UI (app.js, guide-time.js calendar-day helpers); Vue 3 SPA (browser ESM) + Tailwind v4 (prebuilt tailwind.css), hash-routed, responsive at md/768px, no bundler
 ├── test/                   # node --test; no extra test deps
 ├── assets/
 │   └── comskip.ini         # Bundled AU free-to-air comskip tuning; /config/comskip.ini overrides
@@ -479,7 +480,9 @@ freetvarr/
 ```
 
 > [!NOTE]<br>
-> `src/web/styles.css` is a plain, unlayered stylesheet, while the Tailwind browser build emits its utilities inside `@layer utilities`. Unlayered rules beat layered ones no matter the specificity, so a bare element selector in `styles.css` (`a { color: #62cfff }`) overrides any Tailwind colour utility applied to an `<a>`. To restyle a link, add a class to `styles.css` or move the utility onto an inner `<span>`.
+> `src/web/tailwind.css` is built from `src/tailwind.css` (the `@theme` colour and font tokens) by `npm run build:css`, which scans `src/web` for class names. The file is committed, and `npm test` fails when it is stale, so run `npm run build:css` after you add a Tailwind class.
+>
+> `src/web/styles.css` is a plain, unlayered stylesheet, while Tailwind emits its utilities inside `@layer utilities`. Unlayered rules beat layered ones no matter the specificity, so a bare element selector in `styles.css` (`a { color: #62cfff }`) overrides any Tailwind colour utility applied to an `<a>`. To restyle a link, add a class to `styles.css` or move the utility onto an inner `<span>`.
 
 ## Scripts
 
@@ -491,6 +494,7 @@ freetvarr/
 | `npm run migrate:refresh`  | `rm -f ./config/state.db && mkdir -p config && knex migrate:latest`; dev only                                                                 |
 | `npm start`                | `npm run migrate && node --env-file-if-exists=.env src/server.js` (`.npmrc` sets `ignore-scripts`, so a `prestart` hook would never run)      |
 | `npm run dev`              | `npm run migrate && node --env-file-if-exists=.env --watch src/server.js`                                                                     |
+| `npm run build:css`        | Rebuilds `src/web/tailwind.css` from `src/tailwind.css` with the Tailwind CLI; run it after you add or remove a Tailwind class                |
 | `npm test`                 | `node --test 'test/*.test.js'`; Node 24 built-in runner, no extra deps                                                                        |
 | `npm run test:integration` | Starts a disposable `linuxserver/tvheadend` container with Docker and runs the TVHeadend bootstrap against it; never touches a real TVHeadend |
 

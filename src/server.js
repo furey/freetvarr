@@ -145,7 +145,7 @@ import {
   positionFrom,
   view as playbackView,
 } from './playback.js'
-import { BUILD_HEADER, readBuildId, stampIndexHtml } from './build-id.js'
+import { BUILD_HEADER, cacheControlFor, readBuildId, stampAssetUrls, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
 import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
@@ -1912,17 +1912,17 @@ app.post('/api/plex-refresh', doubleCsrfProtection, async (req, res) => {
   res.json(result)
 })
 
-app.get('/vendor/vue.esm-browser.prod.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'node_modules', 'vue', 'dist', 'vue.esm-browser.prod.js'))
-})
+const cacheControlForRequest = (req) => cacheControlFor({ requestedBuild: req.query.v, build: BUILD_ID })
 
-app.get('/vendor/hls.mjs', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'node_modules', 'hls.js', 'dist', 'hls.light.min.mjs'))
-})
+const sendVendorFile = (...segments) => (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'node_modules', ...segments), {
+    headers: { 'Cache-Control': cacheControlForRequest(req) },
+  })
+}
 
-app.get('/vendor/hls.worker.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'node_modules', 'hls.js', 'dist', 'hls.worker.js'))
-})
+app.get('/vendor/vue.esm-browser.prod.js', sendVendorFile('vue', 'dist', 'vue.esm-browser.prod.js'))
+app.get('/vendor/hls.mjs', sendVendorFile('hls.js', 'dist', 'hls.light.min.mjs'))
+app.get('/vendor/hls.worker.js', sendVendorFile('hls.js', 'dist', 'hls.worker.js'))
 
 app.get(['/', '/index.html'], async (req, res) => {
   const html = await fs.readFile(path.join(WEB_ROOT, 'index.html'), 'utf8')
@@ -1930,7 +1930,17 @@ app.get(['/', '/index.html'], async (req, res) => {
   res.type('html').send(stampIndexHtml({ html, build: BUILD_ID }))
 })
 
-app.use(express.static(WEB_ROOT, { index: false }))
+app.get(/^\/[\w.-]+\.js$/, async (req, res, next) => {
+  const source = await fs.readFile(path.join(WEB_ROOT, req.path), 'utf8').catch(() => null)
+  if (source === null) return next()
+  res.setHeader('Cache-Control', cacheControlForRequest(req))
+  res.type('js').send(stampAssetUrls({ text: source, build: BUILD_ID }))
+})
+
+app.use(express.static(WEB_ROOT, {
+  index: false,
+  setHeaders: (res) => res.setHeader('Cache-Control', cacheControlForRequest(res.req)),
+}))
 
 // Terminal error handler: return the message only, never a stack trace, and never
 // fall through to Express' development-mode handler (which leaks node_modules paths

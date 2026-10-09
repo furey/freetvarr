@@ -22,9 +22,17 @@ export const computeBuildId = ({ version, files }) => {
   return hash.digest('hex').slice(0, BUILD_ID_LENGTH)
 }
 
-export const stampIndexHtml = ({ html, build }) => html
-  .replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n    <meta name="freetvarr-build" content="${build}" />`)
-  .replace(/(href|src)="\/(app\.js|styles\.css)"/g, `$1="/$2?v=${build}"`)
+export const stampIndexHtml = ({ html, build }) => stampAssetUrls({
+  text: html.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n    <meta name="freetvarr-build" content="${build}" />`),
+  build,
+})
+
+export const stampAssetUrls = ({ text, build }) => text.replace(SCRIPT_AND_STYLE_URL, `$1$2?v=${build}$1`)
+
+export const cacheControlFor = ({ requestedBuild, build }) => requestedBuild === build
+  ? 'public, max-age=31536000, immutable'
+  : 'no-cache'
 
 const SHIPPED_EXTENSIONS = ['.html', '.js', '.css']
 const BUILD_ID_LENGTH = 12
+const SCRIPT_AND_STYLE_URL = /(["'])(\/(?:vendor\/)?[\w.-]+\.(?:m?js|css))\1/g
