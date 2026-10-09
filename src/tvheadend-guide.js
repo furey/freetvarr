@@ -47,9 +47,13 @@ export const matchGuideChannels = ({ channels, guideChannels, feedChannels, serv
   const links = []
   const unmatched = []
   for (const channel of channels) {
-    if (isLinked({ channel, guideChannels })) continue
     const numbers = new Set([channel.number, ...(channel.services || []).map((s) => serviceLcns.get(s))].filter(Boolean))
     const byNumber = candidates.filter((g) => g.feed?.lcn && numbers.has(g.feed.lcn))
+    const linkedIds = linkedGuideIds({ channel, guideChannels })
+    if (linkedIds.length) {
+      for (const g of missingTimeShares({ byNumber, linkedIds })) links.push({ channelId: channel.id, guideId: g.id, by: 'number' })
+      continue
+    }
     const key = nameKey(channel.name)
     const byName = byNumber.length ? [] : candidates.filter((g) => key && feedNames(g).some((n) => nameKey(n) === key))
     const matches = byNumber.length ? byNumber : byName
@@ -431,6 +435,13 @@ const listTvChannels = async ({ http, conn }) => {
 const listServiceLcns = async ({ http, conn }) => {
   const body = await http.get('mpegts/service/grid', { limit: GRID_LIMIT }, conn)
   return new Map((body?.entries || []).filter((s) => Number(s.lcn) > 0).map((s) => [s.uuid, Number(s.lcn)]))
+}
+
+const missingTimeShares = ({ byNumber, linkedIds }) => {
+  const matchedIds = byNumber.map((g) => g.id)
+  const keepsManualChoice = !linkedIds.every((id) => matchedIds.includes(id))
+  if (byNumber.length < 2 || keepsManualChoice) return []
+  return byNumber.filter((g) => !linkedIds.includes(g.id))
 }
 
 const isLinked = ({ channel, guideChannels }) => linkedGuideIds({ channel, guideChannels }).length > 0
