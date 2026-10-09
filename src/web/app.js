@@ -4942,7 +4942,7 @@ const scanOrMapDetail = (step) => {
   const d = step.detail
   if (!d) return ''
   if (step.id === 'scan') {
-    if (!d.frequencies) return 'starting'
+    if (!d.frequencies) return ''
     return d.scanned ? `${d.scanned} of ${d.frequencies}` : ''
   }
   if (step.id === 'map') {
