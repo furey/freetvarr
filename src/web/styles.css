@@ -130,12 +130,18 @@ html {
 
 .hold-music {
   display: inline-flex;
-  flex-shrink: 0;
   align-items: center;
-  gap: 0.35em;
+  gap: 1ch;
   height: 1lh;
+  margin-left: 1ch;
+  vertical-align: top;
   color: var(--color-ink-dim);
 }
+
+.hold-music-fade-enter-active { transition: opacity 2s; }
+.hold-music-fade-leave-active { transition: opacity 3s; }
+.hold-music-fade-enter-from,
+.hold-music-fade-leave-to { opacity: 0; }
 
 .hold-music-notes {
   width: 1.5em;
@@ -196,7 +202,12 @@ html {
 .hold-music-credit-text {
   min-height: 0;
   overflow: hidden;
-  padding-top: 1rem;
+}
+
+.hold-music-credit-text::before {
+  content: '';
+  display: block;
+  height: 1rem;
 }
 
 .hold-music-credit a {
@@ -206,7 +217,9 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .hold-music-credit,
-  .hold-music-credit.is-audible { transition: none; }
+  .hold-music-credit.is-audible,
+  .hold-music-fade-enter-active,
+  .hold-music-fade-leave-active { transition: none; }
   .hold-music-notes.is-audible .hold-music-note { animation: none; }
 }
 
