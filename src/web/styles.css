@@ -4153,10 +4153,6 @@ table.recordings-table tbody td {
 }
 
 @media (max-width: 767px) {
-  main.main-guide {
-    padding-top: 0.5rem;
-  }
-
   .panel-guide > .panel-header {
     padding: 0.25rem 0.5rem;
     row-gap: 0.25rem;
@@ -4175,7 +4171,11 @@ table.recordings-table tbody td {
   }
 
   .panel-guide > .panel-body > .guide-top > .view-controls {
-    margin-top: 0;
+    margin-top: 0.5rem;
+  }
+
+  .panel-guide .epg-scroll {
+    --epg-rail-inset: 0.5rem;
   }
 
   main .panel-guide .panel-body .epg-scroll {
