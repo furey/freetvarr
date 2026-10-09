@@ -262,7 +262,12 @@ const readTvheadendVersion = async () => {
 
 app.get('/api/version', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
-  const about = { version: APP_VERSION, build: BUILD_ID, node: process.version }
+  const about = {
+    version: APP_VERSION,
+    build: BUILD_ID,
+    node: process.version,
+    uptimeSeconds: Math.floor(process.uptime()),
+  }
   if (req.query.tvheadend !== '1') return res.json(about)
   res.json({ ...about, tvheadend: await readTvheadendVersion() })
 })
