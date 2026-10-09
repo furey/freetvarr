@@ -312,6 +312,23 @@ table.deck-table tbody tr.active {
   white-space: nowrap;
 }
 
+.pill.pill-format {
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.pill.pill-hd {
+  color: #62cfff;
+  background: rgba(30, 182, 255, 0.14);
+}
+
+.pill.pill-sd {
+  color: #a39b95;
+  background: transparent;
+}
+
 .pill.not-in-tvh-chip {
   color: #8b837e;
   border-style: dashed;
