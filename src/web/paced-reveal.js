@@ -15,3 +15,13 @@ export const pacedSteps = ({ steps, revealed }) => steps.map((step, index) => {
   if (index < revealed) return step
   return { ...step, status: index === revealed ? 'running' : 'pending' }
 })
+
+export const shownJob = ({ job, revealed }) => {
+  if (!job) return { steps: [], running: false, result: null }
+  const allRevealed = revealed >= job.steps.length
+  return {
+    steps: pacedSteps({ steps: job.steps, revealed }),
+    running: Boolean(job.running) || !allRevealed,
+    result: allRevealed ? job.result || null : null,
+  }
+}
