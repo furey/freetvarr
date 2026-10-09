@@ -20,35 +20,78 @@ export const saveHoldMusicMuted = (storage, muted) => {
   try { storage.setItem(HOLD_MUSIC_MUTED_KEY, muted ? '1' : '0') } catch {}
 }
 
+export const audioContextOnce = (scope = globalThis) => {
+  let context = null
+  return () => {
+    const AudioContextClass = scope.AudioContext || scope.webkitAudioContext
+    if (!AudioContextClass) return null
+    context ??= new AudioContextClass()
+    return context
+  }
+}
+
+export const elementVolume = (audio) => ({
+  read: () => audio.volume,
+  write: (volume) => { audio.volume = volume },
+  resume: () => {},
+})
+
+export const gainVolume = ({ audio, context }) => {
+  const gain = context.createGain()
+  context.createMediaElementSource(audio).connect(gain).connect(context.destination)
+  return {
+    read: () => gain.gain.value,
+    write: (volume) => { gain.gain.value = volume },
+    resume: () => context.resume().catch(() => {}),
+  }
+}
+
+export const holdMusicVolume = ({ audio, getContext }) => {
+  const context = getContext()
+  return context ? gainVolume({ audio, context }) : elementVolume(audio)
+}
+
 export const createHoldMusic = ({
   makeAudio,
   onAudibleChange,
+  makeVolume = elementVolume,
   schedule = setInterval,
   cancel = clearInterval,
   now = Date.now,
 }) => {
   let audio = null
+  let volume = null
   let fadeTimer = null
   let wanted = false
 
   const fadeTo = (to, durationMs, done) => {
     cancel(fadeTimer)
-    const from = audio.volume
+    const from = volume.read()
     const startedAt = now()
     fadeTimer = schedule(() => {
       const elapsedMs = now() - startedAt
-      audio.volume = fadeVolume({ from, to, elapsedMs, durationMs })
+      volume.write(fadeVolume({ from, to, elapsedMs, durationMs }))
       if (elapsedMs < durationMs) return
       cancel(fadeTimer)
       done?.()
     }, FADE_TICK_MS)
   }
 
+  const silence = () => {
+    cancel(fadeTimer)
+    volume.write(0)
+    audio.pause()
+  }
+
   const start = async () => {
     wanted = true
-    audio ??= makeAudio()
+    if (!audio) {
+      audio = makeAudio()
+      volume = makeVolume(audio)
+    }
+    volume.resume()
     audio.loop = true
-    if (audio.paused) audio.volume = 0
+    if (audio.paused) volume.write(0)
     try {
       await audio.play()
     } catch {
@@ -56,7 +99,10 @@ export const createHoldMusic = ({
       onAudibleChange(false)
       return false
     }
-    if (!wanted) return false
+    if (!wanted) {
+      silence()
+      return false
+    }
     onAudibleChange(true)
     fadeTo(HOLD_MUSIC_VOLUME, FADE_IN_MS)
     return true
