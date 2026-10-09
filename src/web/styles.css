@@ -2576,12 +2576,20 @@ body.epg-drag-lock * {
 
   .panel-header {
     flex-wrap: wrap;
-    row-gap: 0.5rem;
-    padding: 0.75rem 1rem;
+    row-gap: 0.25rem;
+    padding: 0.5rem;
   }
 
   .panel-body {
-    padding: 1rem;
+    padding: 0.5rem;
+  }
+
+  .panel-body[class*="space-y-"] > :not([hidden]) {
+    margin-block-end: 0;
+  }
+
+  .panel-body[class*="space-y-"] > :not([hidden]) ~ :not([hidden]) {
+    margin-block-start: 0.5rem;
   }
 
   .doctor-row {
@@ -2604,7 +2612,7 @@ body.epg-drag-lock * {
   }
 
   main .panel-body .epg-scroll {
-    margin-inline: -1rem;
+    margin-inline: -0.5rem;
     border-inline: 0;
     border-radius: 0;
   }
@@ -2749,7 +2757,7 @@ body.epg-drag-lock * {
   }
 
   .epg-modal .panel-body {
-    padding: 0.9rem 1rem 0;
+    padding: 0.5rem 0.5rem 0;
   }
 
   .epg-modal .panel-body .text-sm {
@@ -2760,8 +2768,8 @@ body.epg-drag-lock * {
     position: sticky;
     bottom: 0;
     z-index: 1;
-    margin: 0 -1rem;
-    padding: 0.6rem 1rem calc(env(safe-area-inset-bottom, 0px) + 0.6rem);
+    margin: 0 -0.5rem;
+    padding: 0.6rem 0.5rem calc(env(safe-area-inset-bottom, 0px) + 0.6rem);
     background: #28231b;
     box-shadow: 0 -8px 16px -10px rgba(0, 0, 0, 0.6);
   }
@@ -4064,11 +4072,11 @@ section[id^="section-"] {
 
 @media (max-width: 767px) {
   .panel-header:has(> .header-actions) {
-    padding-block: 0.5rem;
+    padding-block: 0.25rem;
   }
 
   .header-actions {
-    gap: 0.5rem;
+    gap: 0.25rem;
     margin-left: auto;
   }
 
@@ -4116,8 +4124,8 @@ section[id^="section-"] {
     position: sticky;
     top: var(--app-header-h, 0px);
     z-index: 10;
-    margin: -0.5rem -1rem 0;
-    padding: 0.5rem 1rem;
+    margin: -0.5rem -0.5rem 0;
+    padding: 0.5rem;
     background: #28231b;
   }
 
@@ -4190,33 +4198,12 @@ table.recordings-table tbody td {
 }
 
 @media (max-width: 767px) {
-  .panel-guide > .panel-header {
-    padding: 0.25rem 0.5rem;
-    row-gap: 0.25rem;
-  }
-
-  .panel-guide > .panel-header .header-actions {
-    gap: 0.25rem;
-  }
-
-  .panel-guide > .panel-body {
-    padding: 0.5rem;
-  }
-
-  .panel-guide > .panel-body.space-y-4 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.5rem;
-  }
-
   .panel-guide > .panel-body > .guide-top > .view-controls {
     margin-top: 0.5rem;
   }
 
   .panel-guide .epg-scroll {
     --epg-rail-inset: 0.5rem;
-  }
-
-  main .panel-guide .panel-body .epg-scroll {
-    margin-inline: -0.5rem;
   }
 
   .panel-guide .epg-grid-edge {
