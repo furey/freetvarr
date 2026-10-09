@@ -53,6 +53,7 @@ warn() { printf '%s[install]%s %s%s%s\n' "$DIM" "$RESET" "$YELLOW" "$*" "$RESET"
 fail() { printf '%s[install] %s%s\n' "$ERR_RED" "$*" "$ERR_RESET" >&2; exit 1; }
 
 banner() {
+  say ""
   if use_utf8; then
     chips "▄▄▄" "$BOLD" "FREETVARR"
     chips "▀▀▀" "$DIM" "by James Furey · https://about.me/jamesfurey"
