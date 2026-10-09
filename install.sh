@@ -101,6 +101,10 @@ host_zone() {
   readlink /etc/localtime 2>/dev/null | sed -n 's#.*zoneinfo/##p'
 }
 
+never_started() {
+  [ -z "$(docker compose ps --all --quiet 2>/dev/null)" ]
+}
+
 host_address() {
   address=""
   if [ "$(uname -s)" = "Darwin" ]; then
@@ -119,6 +123,9 @@ docker compose version >/dev/null 2>&1 || fail "docker compose (v2) not found. I
 docker info >/dev/null 2>&1 || fail "cannot reach the Docker daemon. Run this as a user in the docker group, or with sudo."
 
 banner
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) fail "Windows is not supported yet. Run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi) or a Mac." ;;
+esac
 mkdir -p "$FREETVARR_DIR"
 cd "$FREETVARR_DIR"
 info "folder: $FREETVARR_DIR"
@@ -131,7 +138,7 @@ else
 fi
 
 if [ -f .env ]; then
-  info "keeping the existing .env"
+  env_line="keeping the existing .env"
 else
   zone="$(host_zone || true)"
   {
@@ -139,11 +146,18 @@ else
     say "PGID=${SUDO_GID:-$(id -g)}"
     say "# TZ=${zone:-Australia/Sydney}"
   } > .env
-  ok "wrote .env:"
+  env_line="wrote .env"
+fi
+
+if ! never_started; then
+  info "$env_line"
+else
+  ok "$env_line:"
   sed 's/^/    /' .env
   answer="$(ask_key 'Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]' "yYnNeE$ESC")"
   case "$answer" in
-    n|N|"$ESC") warn "stopped. Edit $FREETVARR_DIR/.env, then run: docker compose up -d"; exit 0 ;;
+    "$ESC") warn "cancelled. Nothing started. Run this script again when you are ready."; exit 0 ;;
+    n|N) warn "stopped. Edit $FREETVARR_DIR/.env, then run this script again."; exit 0 ;;
     e|E) "${EDITOR:-vi}" .env < /dev/tty > /dev/tty ;;
   esac
 fi

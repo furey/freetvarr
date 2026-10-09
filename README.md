@@ -165,7 +165,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
-- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac or Windows PC cannot find a network tuner on their own; enter the tuner's IP address in the setup wizard's CHANNELS step instead.
+- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's IP address in the setup wizard's CHANNELS step instead. Freetvarr is untested on Windows, and the install script does not run there.
 - **Plex Media Server** is optional.
 
 ## Quick start
