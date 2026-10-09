@@ -8,6 +8,7 @@ const props = defineProps({
   label: { type: String, default: 'http://freetvarr.lan' },
   credit: { type: String, default: null },
   phone: { type: Boolean, default: false },
+  ratio: { type: String, default: '1280 / 800' },
   ariaLabel: { type: String, default: 'A walkthrough of the Freetvarr dashboard, live TV, TV guide, series, recordings, syncs, and settings' }
 })
 
@@ -74,7 +75,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsI
       <div v-if="showsScreenshot" class="browser-frame__shot">
         <slot />
       </div>
-      <div v-else class="browser-frame__screen">
+      <div v-else class="browser-frame__screen" :style="{ aspectRatio: ratio }">
         <video
           ref="video"
           :poster="withBase(poster)"
