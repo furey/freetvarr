@@ -23,6 +23,7 @@ const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/tvh-setup/
 const feedXml = readFileSync(new URL('./fixtures/tvh-setup/mjh-sydney-channels.xml', import.meta.url), 'utf8')
 const CONN = { url: 'http://tvh.test:9981', username: 'freetvarr', password: 'x' }
 const FEED_URL = 'https://i.mjh.nz/au/Sydney/epg.xml'
+const ABC_KIDS_FAMILY = 'f95a5b6372bfd2e4baa91e24bdba4290'
 
 const liveGuide = () => {
   const raw = fixture('epggrab-channel-grid').entries
@@ -51,7 +52,7 @@ test('parseFeedChannels reads ids, display names, and LCNs from the feed head', 
   assert.equal(parseFeedChannels('<channel id="a&amp;b"><display-name>A &amp; B</display-name></channel>')[0].names[0], 'A & B')
 })
 
-test('matchGuideChannels links by service LCN, then by name, and agrees with the author\'s hand links', () => {
+test('matchGuideChannels links by service LCN, then by name, and links both feeds of a time-shared LCN', () => {
   const { guideChannels, handLinks } = liveGuide()
   const { links, unmatched } = matchGuideChannels({
     channels: liveChannels(),
@@ -62,6 +63,8 @@ test('matchGuideChannels links by service LCN, then by name, and agrees with the
   const wrong = links.filter((l) => !(handLinks.get(l.channelId) || []).includes(l.guideId))
   const names = new Map(guideChannels.map((g) => [g.id, g.name]))
   assert.deepEqual(wrong.map((l) => names.get(l.guideId)), ['ABC Kids'], 'only the time-shared LCN adds a second feed')
+  const timeShared = links.filter((l) => l.channelId === ABC_KIDS_FAMILY).map((l) => names.get(l.guideId))
+  assert.deepEqual(timeShared.sort(), ['ABC Family', 'ABC Kids'])
   assert.equal(links.length, 31)
   assert.equal(links.filter((l) => l.by === 'number').length, 25)
   assert.deepEqual(unmatched.map((c) => c.name).sort(), ['10 HD +1', 'ABCTV', 'Extra', 'SBS ONE', 'SBS WorldWatch'])
@@ -399,6 +402,18 @@ test('readGuideLinks lists every enabled channel with its guide links and the gu
   assert.equal(links.options.length, 175)
   assert.deepEqual(Object.keys(links.options[0]), ['id', 'name'])
   assert.ok(links.options.every((o, i) => i === 0 || links.options[i - 1].name.localeCompare(o.name) <= 0))
+})
+
+test('readGuideLinks lists both guide channels of a time-shared channel', async () => {
+  const http = fixtureTvheadend()
+  const grid = fixture('epggrab-channel-grid')
+  const kids = grid.entries.find((g) => g.name === 'ABC Kids')
+  kids.channels = [...kids.channels, ABC_KIDS_FAMILY]
+  http.get = async (path) => (path === 'epggrab/channel/grid' ? grid : fixtureTvheadend().get(path))
+  const links = await readGuideLinks({ http, conn: CONN, countProgrammes: async () => null })
+  const names = new Map(links.options.map((o) => [o.id, o.name]))
+  const { guideIds } = links.channels.find((c) => c.id === ABC_KIDS_FAMILY)
+  assert.deepEqual(guideIds.map((id) => names.get(id)), ['ABC Family', 'ABC Kids'])
 })
 
 test('linkChannelsByHand replaces a link, then re-runs the guide grabber', async () => {

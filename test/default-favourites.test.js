@@ -6,7 +6,7 @@ import { APPLIED_SETTING, applyDefaultFavourites, pickBigFive } from '../src/def
 
 const grid = JSON.parse(readFileSync(new URL('./fixtures/tvh-setup/channel-grid.json', import.meta.url)))
 
-const lineup = (rows) => rows.map(([number, name]) => ({ id: `${number}-${name}`, number, name }))
+const lineup = (rows) => rows.map(([number, name, hd]) => ({ id: `${number}-${name}`, number, name, hd }))
 
 const pickedNames = (channels) => pickBigFive(channels).map((c) => `${c.number} ${c.name}`)
 
@@ -151,4 +151,24 @@ test('applyDefaultFavourites: does nothing outside Australia', async () => {
   assert.deepEqual(await runApply({ country: 'nz', prefs }), [])
   assert.deepEqual(await runApply({ country: '', prefs }), [])
   assert.deepEqual(prefs.prefs.pinnedIds, [])
+})
+
+test('pickBigFive: service type HD on LCN 3 beats the number rule when names lack HD', () => {
+  const channels = lineup([[3, 'SBS ONE', true], [30, 'SBS ONE', false]])
+  assert.deepEqual(pickedNames(channels), ['3 SBS ONE'])
+})
+
+test('pickBigFive: service type HD on LCN 30 is picked over SD on LCN 3', () => {
+  const channels = lineup([[3, 'SBS ONE', false], [30, 'SBS ONE', true]])
+  assert.deepEqual(pickedNames(channels), ['30 SBS ONE'])
+})
+
+test('pickBigFive: service type HD outranks an HD name on an SD service', () => {
+  const channels = lineup([[30, 'SBS ONE HD', false], [3, 'SBS ONE', true]])
+  assert.deepEqual(pickedNames(channels), ['3 SBS ONE'])
+})
+
+test('pickBigFive: lineups without a service type flag rank as before', () => {
+  const channels = lineup([[3, 'SBS ONE'], [30, 'SBS ONE']])
+  assert.deepEqual(pickedNames(channels), ['30 SBS ONE'])
 })
