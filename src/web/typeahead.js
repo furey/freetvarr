@@ -9,8 +9,11 @@ export const filterOptions = ({ options, query }) => {
     .map(({ option }) => option)
 }
 
-export const optionLabel = ({ options, value, noneLabel }) =>
-  options.find((o) => o.id === value)?.name ?? noneLabel
+export const optionLabel = ({ options, value, noneLabel }) => String(value ?? '')
+  .split(',')
+  .map((id) => options.find((o) => o.id === id)?.name)
+  .filter(Boolean)
+  .join(' + ') || noneLabel
 
 export const nextIndex = ({ current, delta, length }) => {
   if (!length) return -1
