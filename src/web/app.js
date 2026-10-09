@@ -6776,9 +6776,13 @@ const ChannelsModal = {
                       :checked="!hiddenDraft.has(String(ch.id))"
                       :disabled="pinnedDraft.includes(String(ch.id))"
                       @change="toggleHidden(ch)" />
-                    <span class="font-mono text-[0.8rem] truncate">
-                      <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
-                      {{ ch.name }}<span class="text-ink-mute"> · {{ ch.hd ? 'HD' : 'SD' }}</span>
+                    <span class="flex items-center gap-1.5 min-w-0">
+                      <span class="font-mono text-[0.8rem] truncate">
+                        <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
+                        {{ ch.name }}
+                      </span>
+                      <span :class="['pill pill-format shrink-0', ch.hd ? 'pill-hd' : 'pill-sd']"
+                        :title="ch.hd ? 'High definition' : 'Standard definition'">{{ ch.hd ? 'HD' : 'SD' }}</span>
                     </span>
                   </label>
                   <template v-if="showGuideColumn && String(ch.id) in guideDraft">
