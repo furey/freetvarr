@@ -2,7 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  audioContextOnce,
   createHoldMusic,
+  holdMusicVolume,
   fadeVolume,
   holdMusicToggleLabel,
   loadHoldMusicMuted,
@@ -138,4 +140,91 @@ test('createHoldMusic: does nothing on stop before any start', () => {
   const { music, audible } = holdMusicWith(fakeAudio())
   assert.doesNotThrow(() => music.stop())
   assert.deepEqual(audible, [])
+})
+
+test('createHoldMusic: pauses when stop runs while the browser is still starting playback', async () => {
+  let resolvePlay
+  const audio = fakeAudio()
+  audio.play = function play() {
+    return new Promise((resolve) => { resolvePlay = () => { this.paused = false; resolve() } })
+  }
+  const { music, audible } = holdMusicWith(audio)
+  const started = music.start()
+  music.stop()
+  resolvePlay()
+  assert.equal(await started, false)
+  assert.equal(audio.paused, true)
+  assert.equal(audio.volume, 0)
+  assert.deepEqual(audible, [])
+})
+
+const fakeAudioContext = () => {
+  const calls = []
+  const gain = { gain: { value: 1 }, connect: (node) => node }
+  const context = {
+    destination: { name: 'speakers' },
+    calls,
+    gain,
+    createGain: () => gain,
+    createMediaElementSource: (audio) => {
+      calls.push(['source', audio])
+      return { connect: (node) => { calls.push(['connect', node]); return node } }
+    },
+    resume: () => { calls.push(['resume']); return Promise.resolve() },
+  }
+  return context
+}
+
+test('holdMusicVolume: fades through a gain node when Web Audio is available', async () => {
+  const audio = fakeAudio()
+  const context = fakeAudioContext()
+  const volume = holdMusicVolume({ audio, getContext: () => context })
+  assert.deepEqual(context.calls, [['source', audio], ['connect', context.gain]])
+  volume.write(0.3)
+  assert.equal(context.gain.gain.value, 0.3)
+  assert.equal(volume.read(), 0.3)
+  assert.equal(audio.volume, 1)
+  await volume.resume()
+  assert.deepEqual(context.calls.at(-1), ['resume'])
+})
+
+test('holdMusicVolume: falls back to the element volume without Web Audio', () => {
+  const audio = fakeAudio()
+  const volume = holdMusicVolume({ audio, getContext: () => null })
+  volume.write(0.2)
+  assert.equal(audio.volume, 0.2)
+  assert.doesNotThrow(() => volume.resume())
+})
+
+test('createHoldMusic: routes the element through the volume control only once', async () => {
+  const audio = fakeAudio()
+  const clock = fakeClock()
+  let made = 0
+  const music = createHoldMusic({
+    makeAudio: () => audio,
+    makeVolume: (element) => { made += 1; return holdMusicVolume({ audio: element, getContext: () => null }) },
+    onAudibleChange: () => {},
+    schedule: clock.schedule,
+    cancel: clock.cancel,
+    now: clock.now,
+  })
+  await music.start()
+  music.stop()
+  clock.advance(FADE_OUT_MS)
+  await music.start()
+  assert.equal(made, 1)
+})
+
+test('audioContextOnce: creates one context and reuses it', () => {
+  let created = 0
+  class FakeContext { constructor() { created += 1 } }
+  const getContext = audioContextOnce({ AudioContext: FakeContext })
+  assert.equal(getContext(), getContext())
+  assert.equal(created, 1)
+})
+
+test('audioContextOnce: uses the prefixed constructor, and returns null without Web Audio', () => {
+  class FakeContext {}
+  assert.ok(audioContextOnce({ webkitAudioContext: FakeContext })() instanceof FakeContext)
+  assert.equal(audioContextOnce({})(), null)
 })

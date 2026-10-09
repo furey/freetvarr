@@ -51,7 +51,8 @@ import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
 import { wizardSkipPrompt } from '/wizard-skip.js'
 import {
-  createHoldMusic, holdMusicToggleLabel, loadHoldMusicMuted, saveHoldMusicMuted, HOLD_MUSIC_SRC,
+  audioContextOnce, createHoldMusic, holdMusicToggleLabel, holdMusicVolume, loadHoldMusicMuted,
+  saveHoldMusicMuted, HOLD_MUSIC_SRC,
 } from '/hold-music.js'
 import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
@@ -4575,6 +4576,8 @@ const plexLibraryOutcome = (results) => results
   })
   .join(' ')
 
+const holdMusicAudioContext = audioContextOnce(window)
+
 const ChannelSetupStep = {
   props: {
     tvhUrl: { type: String, default: '' },
@@ -4754,6 +4757,7 @@ const ChannelSetupStep = {
     const musicMuted = ref(loadHoldMusicMuted(localStorage))
     const holdMusic = createHoldMusic({
       makeAudio: () => new Audio(HOLD_MUSIC_SRC),
+      makeVolume: (audio) => holdMusicVolume({ audio, getContext: holdMusicAudioContext }),
       onAudibleChange: (audible) => { musicAudible.value = audible },
     })
     let pollTimer = null
