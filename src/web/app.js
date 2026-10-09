@@ -6942,7 +6942,7 @@ const ChannelsModal = {
                       <span :class="['pill pill-format pill-slot shrink-0', ch.hd ? 'pill-hd' : 'pill-sd']"
                         :title="ch.hd ? 'High definition' : 'Standard definition'">{{ ch.hd ? 'HD' : 'SD' }}</span>
                       <span class="font-mono text-[0.8rem] truncate">
-                        <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
+                        <span class="text-ink-mute">{{ paddedNumber(ch.number) }}</span>
                         {{ ch.name }}
                       </span>
                     </span>
@@ -6988,6 +6988,9 @@ const ChannelsModal = {
     const listedChannels = computed(() => (hideSdChannelsDraft.value
       ? props.channels.filter((c) => c.hd || pinnedDraft.value.includes(String(c.id)))
       : props.channels))
+    const channelNumberWidth = computed(() =>
+      Math.max(2, ...props.channels.map((c) => String(c.number ?? '').length)))
+    const paddedNumber = (number) => (number == null ? '' : String(number).padStart(channelNumberWidth.value, '0'))
     const savingPrefs = ref(false)
     const [statusText, statusKind, setStatus] = makeStatus()
     const [guideStatusText, guideStatusKind, setGuideStatus] = makeStatus()
@@ -7116,7 +7119,7 @@ const ChannelsModal = {
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
       editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
-      onRowEscape,
+      onRowEscape, paddedNumber,
     }
   },
 }
