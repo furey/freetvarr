@@ -27,7 +27,7 @@ Matching is by title: a recording goes to the folder whose title appears in the 
 
 ## Record on any channel
 
-Turn on **RECORD ON ANY CHANNEL** in the programme window before you press **RECORD SERIES**. The series recording then matches on title alone, and records the show on whichever channel airs it. It is off by default.
+Turn on **RECORD ON ANY CHANNEL** in the programme window before you press **RECORD SERIES**. The series recording then matches on title alone, and records the show on whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again. It is off by default.
 
 Use it for a show that moves between channels, such as a series that airs on 7 one season and on 7mate the next. The SERIES tab shows `Any channel` where it normally shows the channel names.
 

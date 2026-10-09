@@ -6295,6 +6295,7 @@ let filterSheetCount = 0
 const LATEST_RELEASE_KEY = 'freetvarr.latest-release'
 const LATEST_RELEASE_TTL_MS = 60 * 60 * 1000
 const COPIED_FLASH_MS = 2000
+const ANY_CHANNEL_HINT = 'Records this series whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again.'
 
 const readCachedLatestRelease = () => {
   try {
@@ -6486,7 +6487,7 @@ const VersionsRow = {
           </dd>
           <dt>BUILD</dt>
           <dd>{{ about.build || '…' }}</dd>
-          <dt>FREETVARR UPTIME</dt>
+          <dt>UPTIME</dt>
           <dd>{{ uptimeText }}</dd>
           <dt>TVHEADEND</dt>
           <dd :class="{ 'about-muted': !about.tvheadend }">{{ tvheadendText }}</dd>
@@ -6511,8 +6512,15 @@ const VersionsRow = {
       if (about.value.tvheadend) return about.value.tvheadend
       return tvheadendLoaded.value ? 'not connected' : '…'
     })
-    const uptimeText = computed(() =>
-      about.value.uptimeSeconds == null ? '…' : formatUptime(about.value.uptimeSeconds))
+    const uptimeFetchedAt = ref(Date.now())
+    const nowMs = ref(Date.now())
+    let uptimeTimer = null
+    watch(() => about.value.uptimeSeconds, () => { uptimeFetchedAt.value = Date.now() })
+    const uptimeText = computed(() => {
+      if (about.value.uptimeSeconds == null) return '…'
+      const elapsedSeconds = Math.max(0, (nowMs.value - uptimeFetchedAt.value) / 1000)
+      return formatUptime(about.value.uptimeSeconds + elapsedSeconds)
+    })
     const updateText = computed(() => ({
       checking: 'Checking…',
       current: 'Up to date',
@@ -6521,7 +6529,7 @@ const VersionsRow = {
     const aboutLines = () => [
       `Freetvarr ${about.value.version}`,
       `Build ${about.value.build}`,
-      `Freetvarr uptime ${uptimeText.value}`,
+      `Uptime ${uptimeText.value}`,
       `TVHeadend ${about.value.tvheadend || 'not connected'}`,
       `Node ${about.value.node}`,
     ].join('\n')
@@ -6554,8 +6562,12 @@ const VersionsRow = {
     onMounted(() => {
       loadTvheadendVersion()
       checkForUpdate()
+      uptimeTimer = setInterval(() => { nowMs.value = Date.now() }, 1000)
     })
-    onUnmounted(() => clearTimeout(copyTimer))
+    onUnmounted(() => {
+      clearTimeout(copyTimer)
+      clearInterval(uptimeTimer)
+    })
     return { about, update, updateText, uptimeText, tvheadendText, copyState, copyAbout, releaseUrl }
   },
 }
@@ -7287,8 +7299,8 @@ const EpgView = {
                 </select>
               </div>
               <div v-if="selected.program.series_link" class="col-span-2 space-y-1">
-                <toggle-switch v-model="anyChannel">RECORD ON ANY CHANNEL</toggle-switch>
-                <p class="text-xs font-mono text-ink-mute">Off: the series recording covers {{ selected.channel?.name || channelName(selected.program.channelId) }} only. On: it records the show on whichever channel airs it.</p>
+                <toggle-switch v-model="anyChannel" :title="ANY_CHANNEL_HINT">RECORD ON ANY CHANNEL</toggle-switch>
+                <p class="text-xs font-mono text-ink-mute">{{ ANY_CHANNEL_HINT }}</p>
               </div>
               <div class="col-span-2 space-y-1">
                 <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
@@ -8403,7 +8415,7 @@ const EpgView = {
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected, hasCancelAction,
       modalStatusText, modalStatusKind,
-      leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
+      leadTime, lagTime, episodesToKeep, anyChannel, ANY_CHANNEL_HINT, addToLibrary, libraryNote,
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries, cancelChoice,
       upcoming, cancelUpcoming,
