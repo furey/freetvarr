@@ -22,7 +22,7 @@ In a terminal, run this command in the folder where you want a `freetvarr` folde
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-<BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" label="Terminal" credit="" aria-label="The one-line install in a terminal, from the curl command to the address of the setup wizard" />
+<BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" ratio="1280 / 960" label="Terminal" credit="" aria-label="The one-line install in a terminal, from the curl command to the address of the setup wizard" />
 
 The script creates the `freetvarr` folder, downloads its Docker compose file, writes its `.env`, and asks for confirmation regarding project file ownership. Press `Enter` to accept the defaults (most people do). The first start downloads the Docker images, which takes a few minutes. The script then starts the Docker containers and outputs the URL of the setup wizard. Open that URL in a browser and proceed to [step 2](#_2-run-the-wizard).
 
