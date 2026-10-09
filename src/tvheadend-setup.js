@@ -204,7 +204,7 @@ export const applyChannelSetup = async ({
       conn,
       network,
       tuners,
-      rescan: network.existing && network.services === 0,
+      rescan: network.existing,
       report: (detail) => progress.detail('scan', detail),
       wait,
       pollMs,
