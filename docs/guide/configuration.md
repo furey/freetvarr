@@ -29,6 +29,7 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 | `LIVE_TV_BUFFER_MINUTES` | Optional. How many minutes of [live TV](/guide/live-tv#pause-and-rewind) the player can pause and rewind (default `30`, `0` turns it off, maximum `120`)                                                                                            |
 | `LIVE_TV_TRANSCODE`      | Optional. How [live TV](/guide/live-tv#video-handling) handles H.264: `auto` (default), `hardware`, `software`, or `copy`                                                                                                                           |
 | `LIVE_TV_VAAPI_DEVICE`   | Optional. The render device for hardware encoding (default `/dev/dri/renderD128`)                                                                                                                                                                   |
+| `IMAGE_CACHE_MAX_MB`     | Optional. Megabytes of resized guide images and channel logos kept in `${CONFIG_PATH}/freetvarr/image-cache` (default `100`); the least recently shown go first                                                                                     |
 | `RENDER_GID`             | Only with [`docker-compose.override.yml`](/guide/hardware#hardware-transcoding). The group ID that owns the render device                                                                                                                           |
 
 ## CSRF secret
