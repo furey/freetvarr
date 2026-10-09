@@ -20,6 +20,10 @@ export const getActiveSyncId = () => inFlight?.syncId ?? null
 export const startSync = async ({ trigger = 'manual', showId = null } = {}) => {
   if (inFlight) return { syncId: inFlight.syncId, alreadyRunning: true }
 
+  const missingUrl = await tvheadendUrlMissing()
+  if (missingUrl && trigger === 'cron') return { skipped: true, reason: missingUrl.message }
+  if (missingUrl) throw missingUrl
+
   const syncId = await createSync(trigger, showId)
   const promise = doSync({ syncId, trigger, showId })
     .catch((err) => {
@@ -215,6 +219,9 @@ export const classifyImport = ({ expectedSize, actualSize, tolerance = SIZE_TOLE
     error: null,
   }
 }
+
+const tvheadendUrlMissing = () =>
+  resolveConnection().then(() => null, (err) => (err.code === 'no-url' ? err : Promise.reject(err)))
 
 const doSync = async ({ syncId, trigger, showId = null }) => {
   const summary = { trigger, imported: 0, skipped: 0, failed: 0, errors: [] }
