@@ -28,7 +28,7 @@ import { findHdSimulcast } from '/simulcast.js'
 import { liveRecordButton, nowProgramFor } from '/live-record.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
-import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
+import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
@@ -50,6 +50,10 @@ import {
 import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
 import { wizardSkipPrompt } from '/wizard-skip.js'
+import {
+  audioContextOnce, createHoldMusic, holdMusicToggleLabel, holdMusicVolume, loadHoldMusicMuted,
+  saveHoldMusicMuted, HOLD_MUSIC_SRC,
+} from '/hold-music.js'
 import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 
@@ -765,7 +769,6 @@ const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
 
 const ROUTES = ['dashboard', 'live', 'guide', 'series', 'syncs', 'recordings', 'settings', 'doctor', 'welcome']
-const WELCOME_DISMISSED_KEY = 'freetvarr.welcomeDismissed'
 const DEFAULT_ROUTE = 'dashboard'
 const ROUTE_ALIASES = { shows: 'series' }
 
@@ -1573,7 +1576,7 @@ const DashboardView = {
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
               <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
-              <span :class="['font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate', { 'off-air': e.channel.offAir }]" :title="e.channel.offAir ? OFF_AIR_MESSAGE : e.channel.name">{{ e.channel.name }}</span>
+              <span :class="['font-mono text-xs text-ink-dim w-16 md:w-28 shrink-0 truncate', { 'off-air': e.channel.offAir }]" :title="e.channel.offAir ? OFF_AIR_MESSAGE : e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
                 <button v-if="e.now" type="button" class="on-now-open block w-full"
                   :aria-label="'Show details for ' + e.now.title"
@@ -4186,7 +4189,6 @@ const SettingsView = {
       resetError.value = ''
       try {
         await api('POST', '/api/reset')
-        try { localStorage.removeItem(WELCOME_DISMISSED_KEY) } catch { /* private mode */ }
         window.location.hash = '#/welcome'
         window.location.reload()
       } catch (err) {
@@ -4195,8 +4197,10 @@ const SettingsView = {
       }
     }
 
-    const reopenWizard = () => {
-      try { localStorage.removeItem(WELCOME_DISMISSED_KEY) } catch { /* private mode */ }
+    const reopenWizard = async () => {
+      try {
+        await api('POST', '/api/settings', { welcome_dismissed: false })
+      } catch { /* wizard still opens */ }
       if (window.location.hash === '#/welcome') {
         window.location.reload()
       } else {
@@ -4572,6 +4576,48 @@ const plexLibraryOutcome = (results) => results
   })
   .join(' ')
 
+const holdMusicAudioContext = audioContextOnce(window)
+
+const usePacedJob = (job) => {
+  const revealed = ref(0)
+  let revealing = false
+  const shown = computed(() => shownJob({ job: job.value, revealed: revealed.value }))
+
+  const stepAtCursor = () => job.value?.steps[revealed.value]
+
+  const reveal = async () => {
+    if (revealing) return
+    revealing = true
+    try {
+      while (job.value && revealed.value < job.value.steps.length) {
+        const stepMs = revealStepMs(job.value.steps.length, STEP_PACING)
+        const shownAt = Date.now()
+        while (job.value?.running && !isStepResolved(stepAtCursor())) await wait(BOOTSTRAP_REVEAL_POLL_MS)
+        const step = stepAtCursor()
+        if (!isStepResolved(step)) break
+        await wait(Math.max(0, stepMs - (Date.now() - shownAt)))
+        revealed.value += 1
+        if (step.status === 'failed') break
+      }
+    } finally {
+      revealing = false
+    }
+    showAll()
+  }
+
+  const showAll = () => {
+    revealed.value = job.value?.steps.length || 0
+  }
+
+  const begin = () => {
+    revealed.value = 0
+    if (prefersReducedMotion()) return showAll()
+    reveal()
+  }
+
+  return { shown, begin, showAll }
+}
+
 const ChannelSetupStep = {
   props: {
     tvhUrl: { type: String, default: '' },
@@ -4595,7 +4641,14 @@ const ChannelSetupStep = {
                 <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
               </span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
-                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
+                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span><transition name="hold-music-fade"><span v-if="s.id === 'scan' && s.status === 'running'" class="hold-music">
+                  <span aria-hidden="true">·</span>
+                  <button type="button" class="hold-music-toggle" @click="toggleMusic"
+                    :aria-label="musicToggleLabel" :title="musicToggleLabel">
+                    <speaker-icon v-if="musicAudible" /><speaker-muted-icon v-else />
+                  </button>
+                  <music-notes-icon :class="['hold-music-notes', { 'is-audible': musicAudible }]" />
+                </span></transition>
               </span>
             </li>
           </ol>
@@ -4607,6 +4660,7 @@ const ChannelSetupStep = {
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <p v-if="favouritesText" class="text-sm text-ink">{{ favouritesText }}</p>
+          <button v-if="result && result.ok" type="button" class="btn" @click="restart"><search-icon /> SCAN AGAIN</button>
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
             <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
@@ -4668,7 +4722,7 @@ const ChannelSetupStep = {
           </p>
           <div class="field-row">
             <span class="field-label">Tuners</span>
-            <label v-for="t in tuners" :key="t.id" class="flex items-center gap-2 text-sm text-ink">
+            <label v-for="t in tuners" :key="t.id" class="flex items-center gap-2 text-sm text-ink py-1">
               <input type="checkbox" class="chk" :value="t.id" v-model="tunerIds" />
               {{ t.name }}
             </label>
@@ -4714,6 +4768,12 @@ const ChannelSetupStep = {
           </manual-option>
         </div>
       </template>
+
+      <div v-if="showSteps" :class="['hold-music-credit', { 'is-audible': musicAudible }]">
+        <p class="hold-music-credit-text text-xs text-ink-dim">
+        Music: "Local Forecast – Elevator" by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+        </p>
+      </div>
     </div>
   `,
   setup(props, { emit }) {
@@ -4727,6 +4787,8 @@ const ChannelSetupStep = {
     const transmitterKey = ref('')
     const guessed = ref(false)
     const job = ref(null)
+    const paced = usePacedJob(job)
+    let jobDismissed = false
     const starting = ref(false)
     const applyError = ref('')
     const tunerAddress = ref('')
@@ -4736,6 +4798,13 @@ const ChannelSetupStep = {
     const savingAddress = ref(false)
     const addressError = ref('')
     const addressSaved = ref('')
+    const musicAudible = ref(false)
+    const musicMuted = ref(loadHoldMusicMuted(localStorage))
+    const holdMusic = createHoldMusic({
+      makeAudio: () => new Audio(HOLD_MUSIC_SRC),
+      makeVolume: (audio) => holdMusicVolume({ audio, getContext: holdMusicAudioContext }),
+      onAudibleChange: (audible) => { musicAudible.value = audible },
+    })
     let pollTimer = null
     let retryTimer = null
     let retries = 0
@@ -4751,9 +4820,9 @@ const ChannelSetupStep = {
       .filter((t) => t.country === country.value)
       .sort((a, b) => a.name.localeCompare(b.name)))
     const ready = computed(() => tunerIds.value.length > 0 && Boolean(networkId.value || transmitterKey.value))
-    const steps = computed(() => job.value?.steps || [])
-    const result = computed(() => job.value?.result || null)
-    const running = computed(() => Boolean(job.value?.running))
+    const steps = computed(() => paced.shown.value.steps)
+    const result = computed(() => paced.shown.value.result)
+    const running = computed(() => paced.shown.value.running)
     const showSteps = computed(() => running.value || Boolean(result.value))
     const runningScan = computed(() => (running.value
       ? steps.value.find((s) => s.id === 'scan' && s.status === 'running')?.detail || null
@@ -4805,6 +4874,16 @@ const ChannelSetupStep = {
       hostGuessed.value = !r.tunerAddress?.hostAddress && Boolean(guess)
     }
 
+    const adoptJob = (serverJob) => {
+      if (!serverJob) return
+      if (!serverJob.running && (jobDismissed || job.value)) return
+      const wasRunning = Boolean(job.value?.running)
+      job.value = serverJob
+      if (!serverJob.running) return paced.showAll()
+      startPolling()
+      if (!wasRunning) paced.begin()
+    }
+
     const refresh = async () => {
       loading.value = true
       loadError.value = ''
@@ -4812,8 +4891,7 @@ const ChannelSetupStep = {
       try {
         const r = await api('GET', '/api/tvh-setup/status')
         status.value = r
-        if (r.job) job.value = r.job
-        if (r.job?.running) startPolling()
+        adoptJob(r.job)
         prefill(r.suggestion)
         if (r.suggestion?.state === 'no-tuner') prefillAddress(r)
         else addressSaved.value = ''
@@ -4849,7 +4927,32 @@ const ChannelSetupStep = {
       if (r) status.value = r
     }
 
+    const unlockMusicUnlessMuted = () => {
+      if (!musicMuted.value) holdMusic.unlock()
+    }
+
+    const startMusicUnlessMuted = () => {
+      if (!musicMuted.value) holdMusic.start()
+    }
+
+    const toggleMusic = () => {
+      musicMuted.value = musicAudible.value
+      saveHoldMusicMuted(localStorage, musicMuted.value)
+      if (musicMuted.value) holdMusic.stop()
+      else holdMusic.start()
+    }
+
+    const musicToggleLabel = computed(() => holdMusicToggleLabel(musicAudible.value))
+
+    const scanStepRunning = computed(() => steps.value.some((s) => s.id === 'scan' && s.status === 'running'))
+
+    watch(scanStepRunning, (isRunning) => {
+      if (isRunning) startMusicUnlessMuted()
+      else holdMusic.stop()
+    })
+
     const apply = async () => {
+      unlockMusicUnlessMuted()
       starting.value = true
       applyError.value = ''
       try {
@@ -4858,9 +4961,12 @@ const ChannelSetupStep = {
           network_id: networkId.value || null,
           transmitter_key: networkId.value ? null : transmitterKey.value,
         })
+        jobDismissed = false
         job.value = { running: true, steps: r.steps, result: null }
+        paced.begin()
         startPolling()
       } catch (err) {
+        holdMusic.stop()
         applyError.value = err.message
       } finally {
         starting.value = false
@@ -4887,6 +4993,7 @@ const ChannelSetupStep = {
     }
 
     const restart = () => {
+      jobDismissed = true
       job.value = null
       editing.value = true
       refresh()
@@ -4898,6 +5005,7 @@ const ChannelSetupStep = {
     onUnmounted(() => {
       clearInterval(pollTimer)
       clearTimeout(retryTimer)
+      holdMusic.stop()
     })
 
     return {
@@ -4907,6 +5015,7 @@ const ChannelSetupStep = {
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
       refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
+      running, musicAudible, musicToggleLabel, toggleMusic,
     }
   },
 }
@@ -4942,8 +5051,8 @@ const scanOrMapDetail = (step) => {
   const d = step.detail
   if (!d) return ''
   if (step.id === 'scan') {
-    if (!d.frequencies) return 'starting'
-    return `${d.scanned} of ${d.frequencies} done`
+    if (!d.frequencies) return ''
+    return d.scanned ? `${d.scanned} of ${d.frequencies}` : ''
   }
   if (step.id === 'map') {
     if (!d.total) return 'nothing new to add'
@@ -5070,6 +5179,8 @@ const GuideSetupStep = {
     const choice = ref('')
     const customUrl = ref('')
     const job = ref(null)
+    const paced = usePacedJob(job)
+    let jobDismissed = false
     const starting = ref(false)
     const applyError = ref('')
     const picks = reactive({})
@@ -5077,9 +5188,9 @@ const GuideSetupStep = {
 
     const suggestion = computed(() => status.value?.suggestion || null)
     const url = computed(() => (choice.value && choice.value !== OTHER ? choice.value : customUrl.value.trim()))
-    const steps = computed(() => job.value?.steps || [])
-    const result = computed(() => job.value?.result || null)
-    const running = computed(() => Boolean(job.value?.running))
+    const steps = computed(() => paced.shown.value.steps)
+    const result = computed(() => paced.shown.value.result)
+    const running = computed(() => paced.shown.value.running)
     const showSteps = computed(() => running.value || Boolean(result.value))
     const linked = computed(() => (result.value?.ok ? result.value.linked : suggestion.value?.linked || 0))
     const pickedCount = computed(() => Object.values(picks).filter(Boolean).length)
@@ -5098,14 +5209,23 @@ const GuideSetupStep = {
       customUrl.value = known ? '' : s?.url || ''
     }
 
+    const adoptJob = (serverJob) => {
+      if (!serverJob) return
+      if (!serverJob.running && (jobDismissed || job.value)) return
+      const wasRunning = Boolean(job.value?.running)
+      job.value = serverJob
+      if (!serverJob.running) return paced.showAll()
+      startPolling()
+      if (!wasRunning) paced.begin()
+    }
+
     const refresh = async () => {
       loading.value = true
       loadError.value = ''
       try {
         const r = await api('GET', '/api/tvh-guide/status')
         status.value = r
-        if (r.job) job.value = r.job
-        if (r.job?.running) startPolling()
+        adoptJob(r.job)
         prefill(r.suggestion)
       } catch (err) {
         loadError.value = err.message
@@ -5129,7 +5249,9 @@ const GuideSetupStep = {
       applyError.value = ''
       try {
         const r = await api('POST', '/api/tvh-guide/apply', { url: url.value })
+        jobDismissed = false
         job.value = { running: true, steps: r.steps, result: null }
+        paced.begin()
         startPolling()
       } catch (err) {
         applyError.value = err.message
@@ -5148,12 +5270,13 @@ const GuideSetupStep = {
     }
 
     const restart = () => {
+      jobDismissed = true
       job.value = null
       editing.value = true
       refresh()
     }
 
-    const stepDetail = (s) => (s.id === 'download' && s.detail?.expected
+    const stepDetail = (s) => (s.id === 'download' && s.detail?.expected && s.detail.found
       ? `${s.detail.found} of ${s.detail.expected} guide channels loaded`
       : '')
 
@@ -5406,11 +5529,11 @@ const WelcomeView = {
               <div class="settings-disclosure-body space-y-4">
                 <div class="field-row">
                   <label class="field-label">Plex address</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" @input="plexEditedByHand = true" />
+                  <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" />
                 </div>
                 <div class="field-row">
                   <label class="field-label">Plex token</label>
-                  <input v-no-autofill type="password" class="field-input" v-model="plexToken" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="password" class="field-input" v-model="plexToken"
                     :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
                   <div class="mt-2 flex flex-wrap items-center gap-3">
                     <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
@@ -5424,12 +5547,12 @@ const WelcomeView = {
                 </div>
                 <div class="field-row">
                   <label class="field-label">Preferences.xml path <span class="text-ink-mute">(as Freetvarr sees it)</span></label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath"
                     placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 </div>
                 <div v-if="!plexShowSections.length" class="field-row">
                   <label class="field-label">TV library number</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexSectionId" @input="plexEditedByHand = true"
+                  <input v-no-autofill type="text" class="field-input" v-model="plexSectionId"
                     placeholder="CONNECT lists your libraries" />
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
@@ -5651,7 +5774,8 @@ const WelcomeView = {
     const plexConnected = ref(false)
     const plexProblem = ref(null)
     const plexAdvancedOpen = ref(false)
-    const plexEditedByHand = ref(false)
+    const plexEditedByHand = computed(() =>
+      [plexUrl.value, plexToken.value, plexSectionId.value].some((field) => String(field ?? '').trim()))
     const plexDocsUrl = `${DOCS_BASE}guide/plex`
     const plexShowSections = computed(() => plexSections.value.filter((sec) => sec.type === 'show'))
     const hasPlexToken = () => Boolean(plexToken.value || plexTokenSet.value)
@@ -5726,13 +5850,15 @@ const WelcomeView = {
       return true
     })
 
-    const dismiss = () => {
-      try { localStorage.setItem(WELCOME_DISMISSED_KEY, '1') } catch { /* private mode */ }
+    const dismiss = async () => {
+      try {
+        await api('POST', '/api/settings', { welcome_dismissed: true })
+      } catch { /* wizard closes anyway */ }
     }
 
-    const skipToSettings = () => {
+    const skipToSettings = async () => {
       if (!confirm(wizardSkipPrompt({ tvhConnected: tvhConnected.value }))) return
-      dismiss()
+      await dismiss()
       window.location.hash = '#/settings'
     }
 
@@ -5771,7 +5897,7 @@ const WelcomeView = {
 
     const next = async () => {
       if (step.value === totalSteps) {
-        dismiss()
+        await dismiss()
         window.location.hash = '#/guide'
         return
       }
@@ -6031,7 +6157,7 @@ const WelcomeView = {
 
     const revealSecureSteps = async (isSettled) => {
       if (!prefersReducedMotion()) {
-        const stepMs = revealStepMs(secureSteps.value.length, SECURE_REVEAL_PACING)
+        const stepMs = revealStepMs(secureSteps.value.length, STEP_PACING)
         while (secureRevealed.value < secureSteps.value.length) {
           const shownAt = Date.now()
           while (!isStepResolved(secureSteps.value[secureRevealed.value])) {
@@ -8833,6 +8959,43 @@ const GoLiveIcon = {
   `,
 }
 
+const MusicNotesIcon = {
+  template: `
+    <svg viewBox="0 0 24 16" fill="currentColor" aria-hidden="true">
+      <g class="hold-music-note">
+        <ellipse cx="3.6" cy="12.6" rx="2.4" ry="1.8"/>
+        <rect x="5.2" y="3" width="1.2" height="9.6"/>
+        <path d="M5.2 3h1.2l3.4 2.6-1 1.1-2.4-1.8z"/>
+      </g>
+      <g class="hold-music-note">
+        <ellipse cx="13.6" cy="11.6" rx="2.2" ry="1.7"/>
+        <ellipse cx="20.6" cy="10.2" rx="2.2" ry="1.7"/>
+        <rect x="15" y="2.6" width="1.1" height="9"/>
+        <rect x="22" y="1.2" width="1.1" height="9"/>
+        <path d="M15 2.6 23.1 1.2v2L15 4.6z"/>
+      </g>
+    </svg>
+  `,
+}
+
+const SpeakerIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/>
+      <path d="M10.5 5.75a3.2 3.2 0 0 1 0 4.5M12.5 3.75a6 6 0 0 1 0 8.5"/>
+    </svg>
+  `,
+}
+
+const SpeakerMutedIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/>
+      <path d="M10.5 6l4 4M14.5 6l-4 4"/>
+    </svg>
+  `,
+}
+
 const CrossIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -9857,7 +10020,7 @@ const App = {
                 <rect x="11.5" y="0" width="4" height="3" fill="#e2b03c"/>
               </svg>
               <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">Freetvarr</span>
-              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]"><span class="text-signal-orange">//</span> Self-hosted free-to-air TV</span>
+              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]">Self-hosted free-to-air TV</span>
             </a>
             <div class="flex items-center gap-5">
               <a v-if="recordingCount" href="#/dashboard" class="no-hover-underline flex items-center gap-2" :title="recordingCount + ' recording now in TVHeadend'">
@@ -9942,10 +10105,6 @@ const App = {
   },
 }
 
-const welcomeDismissed = () => {
-  try { return localStorage.getItem(WELCOME_DISMISSED_KEY) === '1' } catch { return false }
-}
-
 checkForNewBuild()
 
 fetch('/api/settings')
@@ -9953,7 +10112,7 @@ fetch('/api/settings')
   .then((s) => {
     if (s.tz) tz.value = s.tz
     const hashIsExplicit = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
-    if (!s.tvh_url && !welcomeDismissed() && hashIsExplicit !== 'welcome') {
+    if (!s.tvh_url && !s.welcome_dismissed && hashIsExplicit !== 'welcome') {
       window.history.replaceState(null, '', '#/welcome')
       route.value = 'welcome'
     }
@@ -10162,6 +10321,9 @@ app.directive('autofocus', {
 })
 app.component('tv-icon', TvIcon)
 app.component('cross-icon', CrossIcon)
+app.component('music-notes-icon', MusicNotesIcon)
+app.component('speaker-icon', SpeakerIcon)
+app.component('speaker-muted-icon', SpeakerMutedIcon)
 app.component('record-icon', RecordIcon)
 app.component('stop-icon', StopIcon)
 app.component('go-live-icon', GoLiveIcon)

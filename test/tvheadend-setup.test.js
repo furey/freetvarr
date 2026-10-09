@@ -278,7 +278,7 @@ test('applyChannelSetup creates the network, turns on the tuner, scans, maps TV 
   assert.ok(progress.some((steps) => steps.find((s) => s.id === 'scan').detail?.scanned === 1))
 })
 
-test('applyChannelSetup reuses a network, keeps a user-set rerecord value, and skips a scan that has services', async () => {
+test('applyChannelSetup reuses a network, keeps a user-set rerecord value, and rescans a network that already has services', async () => {
   const http = scriptedTvheadend({
     scanFrames: [{ services: 20, muxes: [[0, 1], [0, 1]] }],
     mapperFrames: [{ total: 3, ok: 3, fail: 0, ignore: 0 }],
@@ -291,7 +291,7 @@ test('applyChannelSetup reuses a network, keeps a user-set rerecord value, and s
     http, conn: CONN, tunerIds: ['fe1'], networkId: 'net1', pollMs: 0, ...fastClock(),
   })
   assert.equal(result.ok, true, JSON.stringify(result))
-  assert.deepEqual(http.writes.map((w) => w.path), ['idnode/save', 'service/mapper/save'])
+  assert.deepEqual(http.writes.map((w) => w.path), ['idnode/save', 'mpegts/network/scan', 'service/mapper/save'])
   assert.equal(result.mapped.ok, 3)
   assert.equal(result.channels, 2, 'TVHeadend merges same-name services into one channel')
 })

@@ -22,16 +22,27 @@ use_utf8() {
   esac
 }
 
+ESC="$(printf '\033')"
+
 paint() { printf '\033[%sm' "$1"; }
 
 setup_colour() {
-  RESET="" BOLD="" DIM="" ACCENT="" BLUE="" YELLOW="" GREEN="" LINK=""
+  RESET="" BOLD="" DIM="" ACCENT="" YELLOW="" GREEN="" LINK=""
+  CHIP_BLUE="" CHIP_ORANGE="" CHIP_YELLOW="" PLATE=""
   use_colour 1 || return 0
-  orange=33
-  case "${TERM:-}:${COLORTERM:-}" in *256color*|*truecolor*|*24bit*) orange="38;5;208" ;; esac
+  orange=33 chip_blue=36 chip_orange=33 chip_yellow=93 plate=40
+  case "${TERM:-}:${COLORTERM:-}" in
+    *truecolor*|*24bit*)
+      orange="38;5;208" chip_blue="38;2;30;182;255" chip_orange="38;2;255;138;0"
+      chip_yellow="38;2;226;176;60" plate="48;2;26;22;17" ;;
+    *256color*)
+      orange="38;5;208" chip_blue="38;5;39" chip_orange="38;5;208"
+      chip_yellow="38;5;178" plate="48;5;234" ;;
+  esac
   RESET="$(paint 0)" BOLD="$(paint 1)" DIM="$(paint 2)" ACCENT="$(paint "1;$orange")"
-  BLUE="$(paint 36)" YELLOW="$(paint 93)" GREEN="$(paint 32)"
-  LINK="$(paint "1;4;$orange")"
+  YELLOW="$(paint 93)" GREEN="$(paint 32)" LINK="$(paint "1;4;$orange")"
+  CHIP_BLUE="$(paint "$chip_blue")" CHIP_ORANGE="$(paint "$chip_orange")"
+  CHIP_YELLOW="$(paint "$chip_yellow")" PLATE="$(paint "$plate")"
 }
 
 setup_colour
@@ -44,26 +55,43 @@ warn() { printf '%s[install]%s %s%s%s\n' "$DIM" "$RESET" "$YELLOW" "$*" "$RESET"
 fail() { printf '%s[install] %s%s\n' "$ERR_RED" "$*" "$ERR_RESET" >&2; exit 1; }
 
 banner() {
+  say ""
   if use_utf8; then
-    printf ' %s▄▄▄%s %s▄▄▄%s %s▄▄▄%s\n' "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET"
-    printf ' %s███%s %s███%s %s███%s  %sFREETVARR%s\n' \
-      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$BOLD" "$RESET"
-    printf ' %s▀▀▀%s %s▀▀▀%s %s▀▀▀%s  %sby James Furey · https://about.me/jamesfurey%s\n' \
-      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$DIM" "$RESET"
+    chips "▄▄▄" "$BOLD" "FREETVARR"
+    chips "▀▀▀" "$DIM" "by James Furey · https://about.me/jamesfurey"
   else
     printf ' %s###%s %s###%s %s###%s  %sFREETVARR%s\n' \
-      "$BLUE" "$RESET" "$ACCENT" "$RESET" "$YELLOW" "$RESET" "$BOLD" "$RESET"
+      "$CHIP_BLUE" "$RESET" "$CHIP_ORANGE" "$RESET" "$CHIP_YELLOW" "$RESET" "$BOLD" "$RESET"
     printf '              %sby James Furey - https://about.me/jamesfurey%s\n' "$DIM" "$RESET"
   fi
   say ""
 }
 
-ask() {
-  if (exec < /dev/tty) 2>/dev/null; then
-    printf '%s%s%s ' "$BOLD" "$1" "$RESET" > /dev/tty
-    read -r answer < /dev/tty || answer=""
-    printf '%s' "$answer"
-  fi
+chips() {
+  printf ' %s  %s%s %s%s %s%s  %s  %s%s%s\n' "$PLATE" "$CHIP_BLUE" "$1" "$CHIP_ORANGE" "$1" \
+    "$CHIP_YELLOW" "$1" "$RESET" "$2" "$3" "$RESET"
+}
+
+ask_key() {
+  (exec < /dev/tty) 2>/dev/null || return 0
+  printf '%s%s%s ' "$BOLD" "$1" "$RESET" > /dev/tty
+  tty_state="$(stty -g < /dev/tty)"
+  trap 'stty "$tty_state" < /dev/tty; printf "\n" > /dev/tty; exit 130' INT TERM
+  stty -icanon -echo min 1 time 0 < /dev/tty
+  while :; do
+    key="$(dd bs=1 count=1 < /dev/tty 2>/dev/null)"
+    case "$2" in *"$key"*) break ;; esac
+  done
+  if [ "$key" = "$ESC" ]; then drain_tty; fi
+  stty "$tty_state" < /dev/tty
+  trap - INT TERM
+  case "$key" in [[:alpha:]]) printf '%s\n' "$key" ;; *) printf '\n' ;; esac > /dev/tty
+  printf '%s' "$key"
+}
+
+drain_tty() {
+  stty min 0 time 1 < /dev/tty
+  dd bs=16 count=1 < /dev/tty > /dev/null 2>&1 || true
 }
 
 host_zone() {
@@ -71,6 +99,10 @@ host_zone() {
     timedatectl show -p Timezone --value 2>/dev/null && return
   fi
   readlink /etc/localtime 2>/dev/null | sed -n 's#.*zoneinfo/##p'
+}
+
+never_started() {
+  [ -z "$(docker compose ps --all --quiet 2>/dev/null)" ]
 }
 
 host_address() {
@@ -91,6 +123,9 @@ docker compose version >/dev/null 2>&1 || fail "docker compose (v2) not found. I
 docker info >/dev/null 2>&1 || fail "cannot reach the Docker daemon. Run this as a user in the docker group, or with sudo."
 
 banner
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) fail "Windows is not supported yet. Run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi) or a Mac." ;;
+esac
 mkdir -p "$FREETVARR_DIR"
 cd "$FREETVARR_DIR"
 info "folder: $FREETVARR_DIR"
@@ -103,7 +138,7 @@ else
 fi
 
 if [ -f .env ]; then
-  info "keeping the existing .env"
+  env_line="keeping the existing .env"
 else
   zone="$(host_zone || true)"
   {
@@ -111,11 +146,18 @@ else
     say "PGID=${SUDO_GID:-$(id -g)}"
     say "# TZ=${zone:-Australia/Sydney}"
   } > .env
-  ok "wrote .env:"
+  env_line="wrote .env"
+fi
+
+if ! never_started; then
+  info "$env_line"
+else
+  ok "$env_line:"
   sed 's/^/    /' .env
-  answer="$(ask 'Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]')"
+  answer="$(ask_key 'Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]' "yYnNeE$ESC")"
   case "$answer" in
-    n|N) warn "stopped. Edit $FREETVARR_DIR/.env, then run: docker compose up -d"; exit 0 ;;
+    "$ESC") warn "cancelled. Nothing started. Run this script again when you are ready."; exit 0 ;;
+    n|N) warn "stopped. Edit $FREETVARR_DIR/.env, then run this script again."; exit 0 ;;
     e|E) "${EDITOR:-vi}" .env < /dev/tty > /dev/tty ;;
   esac
 fi

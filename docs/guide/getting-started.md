@@ -10,7 +10,7 @@ description: >-
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. [Hardware](/guide/hardware) covers the choice.
-- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac or Windows PC cannot find a network tuner on their own; enter the tuner's address in the wizard's `CHANNELS` step instead ([Missing tuner](/guide/troubleshooting#missing-tuner)).
+- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's address in the wizard's `CHANNELS` step instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows, and the install script does not run there.
 
 The Docker compose file runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the Docker compose file can run Plex too ([No Plex yet?](/guide/plex#no-plex-yet)).
 
@@ -38,13 +38,13 @@ After a banner with the Freetvarr name and author credit, the script outputs the
 Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]
 ```
 
-`PUID` and `PGID` are the user and group that own the files Freetvarr writes, such as your recordings. Your numbers will differ from the example. Press `Enter` (or type `Y`) to accept and start the Docker containers. This is right for most people.
+`PUID` and `PGID` are the user and group that own the files Freetvarr writes, such as your recordings. Your numbers will differ from the example. Press `Enter` (or `Y`) to accept and start the Docker containers. This is right for most people.
 
-Type `e` if the files must belong to a different user. On a NAS, for example, use the `PUID` and `PGID` of the user that owns your media share. The script opens its `.env` in a text editor (`vi`, unless you set `EDITOR`). In `vi`, press `i` to type, then `Esc`, then `:wq` and `Enter` to save and close the file. The script then starts the Docker containers.
+Press `e` if the files must belong to a different user. On a NAS, for example, use the `PUID` and `PGID` of the user that owns your media share. The script opens its `.env` in a text editor (`vi`, unless you set `EDITOR`). In `vi`, press `i` to type, then `Esc`, then `:wq` and `Enter` to save and close the file. The script then starts the Docker containers.
 
-Type `n` to stop without starting anything. Edit the `.env` in the `freetvarr` folder, then run `docker compose up -d` in a terminal in that folder to start the Docker containers.
+Press `n` to stop without starting anything. Edit the `.env` in the `freetvarr` folder, then run the script again. `Esc` cancels without starting anything.
 
-Run the script again at any time. It keeps an existing `.env` and Docker compose file, and it does not ask about file ownership again. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
+Run the script again at any time. It keeps an existing `.env` and Docker compose file, and it asks about file ownership until the Docker containers have started once. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
 
 :::
 
@@ -84,7 +84,7 @@ The first visit to `http://<host-ip>:3733` in a browser opens the setup wizard:
 
 1. **Welcome**: confirm your time zone.
 2. **TVHeadend**: if Freetvarr installed TVHeadend for you, choose an admin username and password (press the eye button to check what you typed), check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR` to save the login in TVHeadend and connect Freetvarr to it. If you installed TVHeadend yourself, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
-3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS` to scan for channels. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT` to skip the scan. If the wizard finds no tuner, enter the tuner's IP address and press `USE THIS ADDRESS`. In Australia, the scan also makes the HD channels of ABC, Seven, Nine, 10, and SBS your favourites, in that order, if you have no favourites yet. The step lists them; to change them, press `CHANNELS` in the TV Guide ([Favourites](/guide/tv-guide#favourites)).
+3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS` to scan for channels. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT` to skip the scan, or `SCAN AGAIN` to add channels that are missing. If the wizard finds no tuner, enter the tuner's IP address and press `USE THIS ADDRESS`. In Australia, the scan also makes the HD channels of ABC, Seven, Nine, 10, and SBS your favourites, in that order, if you have no favourites yet. The step lists them; to change them, press `CHANNELS` in the TV Guide ([Favourites](/guide/tv-guide#favourites)).
 4. **Guide**: check the TV guide region, then press `SET UP GUIDE`. For any channel left without TV guide listings, the wizard pre-selects its best guess (check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number to find the channel), then press `SAVE & NEXT` to save the choices and move to the next step. Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
 5. **Storage**: Freetvarr checks the recordings folder and the TV library folder. If the checks pass, press `NEXT`. If a check fails, do what its message says, or change the folders under **Advanced: change folders**.
 6. **Plex**: optional. Freetvarr looks for Plex and its access token. If Freetvarr connects to Plex, check the TV library, press `CREATE LIBRARIES` if Plex has no library for your recordings yet, then press `NEXT`. Without Plex, press `SKIP`. To enter the Plex address and token yourself, open **Advanced: connect Plex by hand** ([Plex](/guide/plex)).
