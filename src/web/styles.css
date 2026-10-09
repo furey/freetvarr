@@ -737,6 +737,19 @@ select.field-input {
   background: rgba(30, 182, 255, 0.18);
 }
 
+.combobox-option.empty {
+  color: #8b837e;
+  cursor: default;
+}
+
+.combobox-option.empty.active {
+  background: transparent;
+}
+
+.combobox-option-note {
+  font-size: 0.75rem;
+}
+
 .combobox-option-number {
   color: #8b837e;
   font-size: 0.75rem;

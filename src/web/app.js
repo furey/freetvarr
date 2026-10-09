@@ -25,7 +25,7 @@ import {
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { liveRecordButton, nowProgramFor } from '/live-record.js'
-import { filterOptions, optionLabel, nextIndex } from '/typeahead.js'
+import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '/paced-reveal.js'
 import {
@@ -267,10 +267,10 @@ const GuideCombobox = {
         <ul v-show="open" ref="list" :id="listId" role="listbox" class="combobox-list" :style="listStyle"
           :aria-label="label || null" @mousedown.prevent>
           <li v-for="(o, i) in shown" :key="o.id" :id="optionId(i)" role="option"
-            :aria-selected="o.id === modelValue ? 'true' : 'false'"
-            :class="['combobox-option', { active: i === active, selected: o.id === modelValue, none: o.id === '' }]"
+            :aria-selected="o.id === modelValue ? 'true' : 'false'" :aria-disabled="o.empty ? 'true' : null"
+            :class="['combobox-option', { active: i === active, selected: o.id === modelValue, none: o.id === '', empty: o.empty }]"
             @mousemove="active = i" @click="choose(o)">
-            <span class="combobox-option-name">{{ o.name }}</span>
+            <span class="combobox-option-name">{{ o.name }}<span v-if="o.empty" class="combobox-option-note"> (no shows in this guide)</span></span>
             <span v-if="o.number" class="combobox-option-number">{{ o.number }}</span>
           </li>
           <li v-if="typed && shown.length === 1" class="combobox-empty" role="presentation">No channel matches</li>
@@ -342,6 +342,7 @@ const GuideCombobox = {
     }
 
     const choose = (option) => {
+      if (!isChoosable(option)) return
       emit('update:modelValue', option.id)
       open.value = false
       typed.value = false
@@ -361,7 +362,7 @@ const GuideCombobox = {
 
     const move = (delta) => {
       if (!open.value) return show()
-      setActive(nextIndex({ current: active.value, delta, length: shown.value.length }))
+      setActive(nextChoosableIndex({ options: shown.value, current: active.value, delta }))
     }
 
     const onEnter = (e) => {
@@ -1496,10 +1497,10 @@ const LiveView = {
       }
     }
 
-    const onChannelPrefsSaved = async () => {
+    const onChannelPrefsSaved = async ({ listingsLoading = false } = {}) => {
       channelsModal.value = false
       await load()
-      flash({ msg: 'Channel preferences saved.' })
+      flash({ msg: channelsSavedMessage({ listingsLoading }) })
     }
 
     const openDetails = (e, program) => openInGuide({ channelId: e.channel.id, program, returnTo: '#/live' })
@@ -6267,6 +6268,11 @@ const EPG_IMAGES_KEY = 'freetvarr.guideImages'
 const EPG_DRAG_THRESHOLD_PX = 6
 const PIN_LIFT_HOLD_MS = 250
 const EPG_STATE_POLL_MS = 60_000
+const LISTINGS_REFRESH_MS = 10_000
+const LISTINGS_LOADING_TEXT = 'Loading the new listings. This can take a couple of minutes.'
+const channelsSavedMessage = ({ listingsLoading }) => (listingsLoading
+  ? `Channel preferences saved. ${LISTINGS_LOADING_TEXT}`
+  : 'Channel preferences saved.')
 const EPG_SEARCH_DEBOUNCE_MS = 300
 const EPG_LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15]
 const EPG_LAG_OPTIONS = [0, 5, 10, 15, 30, 60]
@@ -6920,14 +6926,14 @@ const ChannelsModal = {
 
     const saveGuideLinks = async () => {
       const links = changedGuideLinks()
-      if (!links.length) return true
+      if (!links.length) return { saved: true, listingsLoading: false }
       try {
-        await api('POST', '/api/tvh-guide/links', { links })
+        const result = await api('POST', '/api/tvh-guide/links', { links })
         guideSaved.value = { ...guideDraft }
-        return true
+        return { saved: true, listingsLoading: Boolean(result.loading?.length) }
       } catch (err) {
         setGuideStatus(`Listings not saved: ${err.message}`, 'err', 0)
-        return false
+        return { saved: false, listingsLoading: false }
       }
     }
 
@@ -6935,9 +6941,9 @@ const ChannelsModal = {
       savingPrefs.value = true
       const prefsSaved = await savePrefs()
       if (prefsSaved) setStatus('Channels saved.', 'ok')
-      const linksSaved = await saveGuideLinks()
+      const links = await saveGuideLinks()
       savingPrefs.value = false
-      if (prefsSaved && linksSaved) emit('saved')
+      if (prefsSaved && links.saved) emit('saved', { listingsLoading: links.listingsLoading })
     }
 
     return {
@@ -7054,6 +7060,9 @@ const EpgView = {
             </div>
             <p v-if="guide?.stale" class="text-xs font-mono text-plex-yellow">
               Showing the cached guide. TVHeadend did not answer. It refreshes automatically on the next try.
+            </p>
+            <p v-if="guide?.loadingListings?.length" class="text-xs font-mono text-ink-dim" role="status">
+              {{ LISTINGS_LOADING_TEXT }}
             </p>
             <div v-if="errorCode === 'no-url'" class="space-y-3">
               <p class="text-sm text-ink">Set the TVHeadend URL in Settings.</p>
@@ -8146,11 +8155,30 @@ const EpgView = {
       channelsModal.value = true
     }
 
-    const onChannelPrefsSaved = async () => {
+    const onChannelPrefsSaved = async ({ listingsLoading = false } = {}) => {
       channelsModal.value = false
       await reloadGuide()
-      flash({ msg: 'Channel preferences saved.' })
+      flash({ msg: channelsSavedMessage({ listingsLoading }) })
     }
+
+    let listingsTimer = null
+    const refreshWhileListingsLoad = () => {
+      clearTimeout(listingsTimer)
+      if (!guide.value?.loadingListings?.length) return
+      listingsTimer = setTimeout(async () => {
+        const d = day.value
+        try {
+          const g = await api('GET', `/api/epg/guide?day=${d}`)
+          if (!g.loadingListings?.length) guideByDay.clear()
+          guideByDay.set(d, g)
+          if (day.value === d) guide.value = g
+        } catch {
+          refreshWhileListingsLoad()
+        }
+      }, LISTINGS_REFRESH_MS)
+    }
+    watch(guide, refreshWhileListingsLoad)
+    onUnmounted(() => clearTimeout(listingsTimer))
 
     const tooltip = ref(null)
     const tooltipEl = ref(null)
@@ -8331,7 +8359,7 @@ const EpgView = {
     })
 
     return {
-      mode, modes, setMode, day, dayChips, dayTitle, setDay,
+      mode, modes, setMode, day, dayChips, dayTitle, setDay, LISTINGS_LOADING_TEXT,
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
       scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs,
       zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, changeZoom,
