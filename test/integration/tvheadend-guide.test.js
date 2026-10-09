@@ -9,9 +9,11 @@ import {
   inspectGuide,
   linkChannelsByHand,
   parseFeedChannels,
+  readTimeshifts,
   suggestGuide,
   waitForNewListings,
 } from '../../src/tvheadend-guide.js'
+import { createRequestWatch, serveShiftedFeed } from '../../src/guide-feed.js'
 import { dockerAvailable, eventually, startTvheadend } from './tvheadend-container.js'
 
 const feedHead = readFileSync(new URL('../fixtures/tvh-setup/mjh-sydney-channels.xml', import.meta.url), 'utf8')
@@ -90,6 +92,59 @@ test('changing listings drops the old shows at once and No listings leaves the c
   await new Promise((resolve) => setTimeout(resolve, 20_000))
   assert.deepEqual(await titles(hd), [])
   assert.deepEqual([...new Set(await titles(sd))], ['Ten Show'])
+})
+
+test('a +1 channel gets the listings of its base channel one hour later from the shifted feed', { timeout: 600_000 }, async (t) => {
+  if (!(await dockerAvailable())) return t.skip('docker is not available')
+  const xml = relinkFeed(Date.now())
+  const source = await serveFeed(xml)
+  t.after(() => source.close())
+  const tvh = await startTvheadend()
+  t.after(() => tvh.stop())
+  const api = { get: tvhRead, post: tvhWrite }
+  const conn = { url: tvh.url, username: '', password: '' }
+  const create = async (name, number) =>
+    (await tvhWrite('channel/create', { conf: JSON.stringify({ name, number }) }, conn)).uuid
+  const ten = await create('10', 10)
+  const tenPlusOne = await create('10 HD +1', 14)
+  const requests = createRequestWatch()
+  const shifted = await serveShifted({
+    sourceUrl: `http://127.0.0.1:${source.port}/epg.xml`,
+    requests,
+    planShifts: (feedChannels) => readTimeshifts({ http: api, conn, feedChannels }),
+  })
+  t.after(() => shifted.close())
+  const shiftedUrl = `http://host.docker.internal:${shifted.port}/guide/xmltv.xml`
+
+  const setup = await applyGuideSetup({
+    http: api,
+    conn,
+    url: `http://host.docker.internal:${source.port}/epg.xml`,
+    fetchFeed: async () => parseFeedChannels(xml),
+    shiftedFeed: { url: shiftedUrl, useSource: async () => {}, waitForRequest: requests.waitSince },
+    countProgrammes: async () => null,
+    pollMs: 2000,
+  })
+  assert.equal(setup.ok, true, JSON.stringify(setup))
+  assert.equal(setup.grabberUrl, shiftedUrl)
+  assert.equal((await inspectGuide({ http: api, conn })).module.url, shiftedUrl)
+  const starts = async (channel) =>
+    ((await tvhRead('epg/events/grid', { channel, limit: 500 }, conn)).entries || [])
+      .filter((e) => e.title === 'Ten Show')
+      .map((e) => e.start)
+      .sort((a, b) => a - b)
+  assert.ok(await eventually(async () => (await starts(tenPlusOne)).length > 0, { attempts: 120, delayMs: 2000 }))
+  const [base, later] = [await starts(ten), await starts(tenPlusOne)]
+  assert.deepEqual(later.slice(0, base.length - 1), base.slice(1))
+  assert.equal(later[0] - base[0], 3600)
+})
+
+const serveShifted = ({ sourceUrl, requests, planShifts }) => new Promise((resolve) => {
+  const server = http.createServer((req, res) => {
+    requests.note()
+    serveShiftedFeed({ sourceUrl, res, planShifts }).catch(() => res.destroy())
+  })
+  server.listen(0, '0.0.0.0', () => resolve({ port: server.address().port, close: () => server.close() }))
 })
 
 const relinkFeed = (nowMs) => {
