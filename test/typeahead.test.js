@@ -67,6 +67,11 @@ test('optionLabel falls back to the none label', () => {
   assert.equal(optionLabel({ options, value: 'gone', noneLabel: 'No guide' }), 'No guide')
 })
 
+test('optionLabel joins the names of several linked guides', () => {
+  assert.equal(optionLabel({ options, value: 'a,b', noneLabel: 'No guide' }), 'ABC Kids + ABC TV')
+  assert.equal(optionLabel({ options, value: 'a,gone', noneLabel: 'No guide' }), 'ABC Kids')
+})
+
 test('nextIndex wraps and starts at the ends', () => {
   assert.equal(nextIndex({ current: -1, delta: 1, length: 3 }), 0)
   assert.equal(nextIndex({ current: -1, delta: -1, length: 3 }), 2)

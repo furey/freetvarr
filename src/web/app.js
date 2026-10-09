@@ -7000,8 +7000,8 @@ const ChannelsModal = {
     const editingId = ref(null)
     const editValue = ref('')
 
-    const guideNameFor = (guideId) =>
-      guideLinks.value?.options.find((o) => o.id === guideId)?.name || 'No listings'
+    const guideNameFor = (guideIds) =>
+      optionLabel({ options: guideLinks.value?.options || [], value: guideIds, noneLabel: 'No listings' })
     const isGuideChanged = (ch) => guideDraft[String(ch.id)] !== guideSaved.value[String(ch.id)]
     const startGuideEdit = (ch) => {
       editingId.value = String(ch.id)
@@ -7022,7 +7022,7 @@ const ChannelsModal = {
     const loadGuideLinks = async () => {
       try {
         const links = await api('GET', '/api/tvh-guide/links')
-        const picks = Object.fromEntries(links.channels.map((c) => [String(c.id), c.guideIds[0] || '']))
+        const picks = Object.fromEntries(links.channels.map((c) => [String(c.id), c.guideIds.join(',')]))
         guideSaved.value = picks
         Object.assign(guideDraft, picks)
         guideLinks.value = links
