@@ -6778,7 +6778,7 @@ const ChannelsModal = {
                       @change="toggleHidden(ch)" />
                     <span class="font-mono text-[0.8rem] truncate">
                       <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
-                      {{ ch.name }}<span v-if="ch.hd" class="text-ink-mute"> · HD</span>
+                      {{ ch.name }}<span class="text-ink-mute"> · {{ ch.hd ? 'HD' : 'SD' }}</span>
                     </span>
                   </label>
                   <template v-if="showGuideColumn && String(ch.id) in guideDraft">
