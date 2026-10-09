@@ -1498,10 +1498,10 @@ const LiveView = {
       }
     }
 
-    const onChannelPrefsSaved = async ({ listingsLoading = false } = {}) => {
+    const onChannelPrefsSaved = async () => {
       channelsModal.value = false
       await load()
-      flash({ msg: channelsSavedMessage({ listingsLoading }) })
+      flash({ msg: CHANNELS_SAVED_TEXT })
     }
 
     const openDetails = (e, program) => openInGuide({ channelId: e.channel.id, program, returnTo: '#/live' })
@@ -6271,9 +6271,7 @@ const PIN_LIFT_HOLD_MS = 250
 const EPG_STATE_POLL_MS = 60_000
 const LISTINGS_REFRESH_MS = 10_000
 const LISTINGS_LOADING_TEXT = 'Loading the new listings. This can take a couple of minutes.'
-const channelsSavedMessage = ({ listingsLoading }) => (listingsLoading
-  ? `Channel preferences saved. ${LISTINGS_LOADING_TEXT}`
-  : 'Channel preferences saved.')
+const CHANNELS_SAVED_TEXT = 'Channel preferences saved.'
 const EPG_SEARCH_DEBOUNCE_MS = 300
 const EPG_LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15]
 const EPG_LAG_OPTIONS = [0, 5, 10, 15, 30, 60]
@@ -7083,9 +7081,6 @@ const EpgView = {
             <p v-if="guide?.stale" class="text-xs font-mono text-plex-yellow">
               Showing the cached guide. TVHeadend did not answer. It refreshes automatically on the next try.
             </p>
-            <p v-if="guide?.loadingListings?.length" class="text-xs font-mono text-ink-dim" role="status">
-              {{ LISTINGS_LOADING_TEXT }}
-            </p>
             <div v-if="errorCode === 'no-url'" class="space-y-3">
               <p class="text-sm text-ink">Set the TVHeadend URL in Settings.</p>
               <div class="flex items-center gap-2">
@@ -7139,7 +7134,7 @@ const EpgView = {
                 <transition-group name="epg-rows" tag="div">
                 <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
                   v-show="shown"
-                  v-memo="[ch, label, shown, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
+                  v-memo="[ch, label, shown, loadingIds.has(ch?.id), loadingNoteMaxPx, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
                   :data-channel-id="ch?.id"
                   :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === key, 'epg-drop-after': dropAfter && dropTargetId === key, 'epg-dragging': dragPinId === key }]">
                   <template v-if="kind === 'heading'">
@@ -7156,6 +7151,9 @@ const EpgView = {
                     <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
                   </div>
                   <div class="epg-track" :style="{ width: trackWidth + 'px' }">
+                    <span v-if="loadingIds.has(ch.id)" class="epg-loading-note" role="status"
+                      :title="LISTINGS_LOADING_TEXT"
+                      :style="{ left: (nowX ?? 0) + 8 + 'px', maxWidth: loadingNoteMaxPx + 'px' }">{{ LISTINGS_LOADING_TEXT }}</span>
                     <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
                       :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'next-day': p.start >= guide.dayEnd, 'with-thumb': cellHasThumb(p) }]"
                       :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
@@ -7555,6 +7553,10 @@ const EpgView = {
     })
 
     const scrollViewW = ref(0)
+
+    const loadingIds = computed(() => new Set(guide.value?.loadingListings || []))
+
+    const loadingNoteMaxPx = computed(() => Math.max(scrollViewW.value - railPx.value - 24, 120))
 
     const trackTailPx = computed(() => {
       if (day.value !== 0 || nowX.value == null) return 0
@@ -8177,10 +8179,10 @@ const EpgView = {
       channelsModal.value = true
     }
 
-    const onChannelPrefsSaved = async ({ listingsLoading = false } = {}) => {
+    const onChannelPrefsSaved = async () => {
       channelsModal.value = false
       await reloadGuide()
-      flash({ msg: channelsSavedMessage({ listingsLoading }) })
+      flash({ msg: CHANNELS_SAVED_TEXT })
     }
 
     let listingsTimer = null
@@ -8382,6 +8384,7 @@ const EpgView = {
 
     return {
       mode, modes, setMode, day, dayChips, dayTitle, setDay, LISTINGS_LOADING_TEXT,
+      loadingIds, loadingNoteMaxPx,
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
       scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs,
       zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, changeZoom,
