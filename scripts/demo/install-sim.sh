@@ -44,7 +44,7 @@ chips() {
 banner() {
   say ""
   chips "▄▄▄" "$BOLD" "Freetvarr"
-  chips "▀▀▀" "$DIM" "by James Furey · https://about.me/jamesfurey"
+  chips "▀▀▀" "$DIM" "by @furey • https://github.com/furey"
   say ""
 }
 
