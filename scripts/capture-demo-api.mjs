@@ -45,6 +45,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/recording-now', (route) => fulfillJson(route, fixtures.recordingNow))
   await context.route('**/api/folder-suggest**', (route) => fulfillJson(route, { match: null, folders: [] }))
   await context.route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
+  await context.route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
   await context.route('**/*', refuseWrites)
   await context.route(/\/api\/live(\/|\?|$)/, demoLiveTv())
   return picks
@@ -639,6 +640,28 @@ const demoFixtures = ({ simNow, recording, library }) => {
       fetchedAt: simNow,
     },
     doctor: doctorReport(simNow),
+  }
+}
+
+const SHARED_GUIDE_CHANNELS = {
+  22: [{ id: 'abc-kids', name: 'ABC Kids' }, { id: 'abc-family', name: 'ABC Family' }],
+}
+
+const demoGuideLinks = (guide) => {
+  const guideOptionsFor = (channel) => SHARED_GUIDE_CHANNELS[channel.number]
+    || [{ id: channel.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: channel.name }]
+  const channels = (guide.channels || []).map((channel) => ({
+    id: channel.id,
+    name: channel.name,
+    number: channel.number,
+    guideIds: guideOptionsFor(channel).map((option) => option.id),
+  }))
+  const options = new Map((guide.channels || []).flatMap(guideOptionsFor).map((option) => [option.id, option]))
+  return {
+    ok: true,
+    ready: true,
+    channels,
+    options: [...options.values()].sort((a, b) => a.name.localeCompare(b.name)),
   }
 }
 
