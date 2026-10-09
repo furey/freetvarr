@@ -58,11 +58,11 @@ banner() {
   say ""
   if use_utf8; then
     chips "▄▄▄" "$BOLD" "Freetvarr"
-    chips "▀▀▀" "$DIM" "by James Furey · https://about.me/jamesfurey"
+    chips "▀▀▀" "$DIM" "by @furey • https://github.com/furey"
   else
     printf ' %s###%s %s###%s %s###%s  %sFreetvarr%s\n' \
       "$CHIP_BLUE" "$RESET" "$CHIP_ORANGE" "$RESET" "$CHIP_YELLOW" "$RESET" "$BOLD" "$RESET"
-    printf '              %sby James Furey - https://about.me/jamesfurey%s\n' "$DIM" "$RESET"
+    printf '              %sby @furey - https://github.com/furey%s\n' "$DIM" "$RESET"
   fi
   say ""
 }

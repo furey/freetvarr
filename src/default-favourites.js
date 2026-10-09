@@ -49,6 +49,7 @@ const rankFor = ({ channel, network }) => {
   const sdIndex = network.sdNumbers.indexOf(number)
   if (hdIndex < 0 && sdIndex < 0 && !named) return null
   return {
+    hdService: channel.hd === true,
     hdName: isHdName(channel.name),
     hdNumber: hdIndex >= 0,
     numberOrder: numberOrder({ network, hdIndex, sdIndex }),
@@ -63,7 +64,8 @@ const numberOrder = ({ network, hdIndex, sdIndex }) => {
 }
 
 const compareRanks = (a, b) =>
-  Number(b.hdName) - Number(a.hdName)
+  Number(b.hdService) - Number(a.hdService)
+  || Number(b.hdName) - Number(a.hdName)
   || Number(b.hdNumber) - Number(a.hdNumber)
   || a.numberOrder - b.numberOrder
   || Number(b.named) - Number(a.named)
