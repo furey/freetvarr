@@ -2053,6 +2053,37 @@ body.epg-drag-lock * {
   white-space: nowrap;
 }
 
+.epg-loading-note {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: #e2b03c;
+  pointer-events: none;
+}
+
+.panel-header > .panel-heading {
+  flex: none;
+  white-space: nowrap;
+}
+
+.panel-header > .header-actions {
+  min-width: 0;
+}
+
+.header-actions > .status-readout {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .epg-nowline {
   position: absolute;
   top: 0;
