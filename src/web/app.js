@@ -1576,7 +1576,7 @@ const DashboardView = {
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
               <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
-              <span :class="['font-mono text-xs text-ink-dim w-20 md:w-28 shrink-0 truncate', { 'off-air': e.channel.offAir }]" :title="e.channel.offAir ? OFF_AIR_MESSAGE : e.channel.name">{{ e.channel.name }}</span>
+              <span :class="['font-mono text-xs text-ink-dim w-16 md:w-28 shrink-0 truncate', { 'off-air': e.channel.offAir }]" :title="e.channel.offAir ? OFF_AIR_MESSAGE : e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
                 <button v-if="e.now" type="button" class="on-now-open block w-full"
                   :aria-label="'Show details for ' + e.now.title"
