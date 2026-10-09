@@ -128,6 +128,76 @@ html {
   height: 1lh;
 }
 
+.hold-music {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35em;
+  height: 1lh;
+  color: var(--color-ink-dim);
+}
+
+.hold-music-notes {
+  width: 1.5em;
+  height: 1em;
+  opacity: 0.45;
+  transition: opacity 2s;
+}
+
+.hold-music-notes.is-audible { opacity: 1; }
+
+.hold-music-notes.is-audible .hold-music-note {
+  animation: hold-music-bob 1.4s ease-in-out infinite;
+}
+
+.hold-music-notes.is-audible .hold-music-note + .hold-music-note {
+  animation-delay: -0.7s;
+}
+
+@keyframes hold-music-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.hold-music-toggle {
+  display: inline-flex;
+  padding: 0.1em;
+  border: none;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hold-music-toggle svg {
+  width: 1em;
+  height: 1em;
+}
+
+@media (hover: hover) {
+  .hold-music-toggle:hover { color: var(--color-ink); }
+}
+
+.hold-music-credit {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 3s, visibility 0s 3s;
+}
+
+.hold-music-credit.is-audible {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 2s, visibility 0s;
+}
+
+.hold-music-credit a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hold-music-notes.is-audible .hold-music-note { animation: none; }
+}
+
 .spinner-overlay {
   position: absolute;
   top: 50%;
