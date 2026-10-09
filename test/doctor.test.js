@@ -487,6 +487,20 @@ test('sync.health: a finished sync reads in plain words', async () => {
   assert.doesNotMatch(sync.detail, /#1|\*\/30/)
 })
 
+test('sync.health: a failed sync message that ends in a full stop gets no second one', async () => {
+  const now = Date.now()
+  const latestSync = async () => ({ id: 2, status: 'error', summary: { errors: ['TVHeadend URL is not configured.'] } })
+  const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
+  assert.equal(sync.detail, 'The last sync failed: TVHeadend URL is not configured.')
+})
+
+test('sync.health: a failed sync message without a full stop gets one', async () => {
+  const now = Date.now()
+  const latestSync = async () => ({ id: 2, status: 'error', summary: { errors: ['connect ECONNREFUSED'] } })
+  const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
+  assert.equal(sync.detail, 'The last sync failed: connect ECONNREFUSED.')
+})
+
 test('sync.health: a schedule with no plain description falls back to the cron text', async () => {
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now, schedulerExpression: () => '5 4 * * 1' })
