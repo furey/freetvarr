@@ -22,6 +22,7 @@ import { findSeriesLink } from '/series-link.js'
 import { seekPlan, adBreakAt, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
 import {
   DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
+  nativeClickPlan,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { liveRecordButton, nowProgramFor } from '/live-record.js'
@@ -8683,6 +8684,8 @@ const flashLiveSkipHint = createSkipHintFlasher(live)
 
 let liveTapState = emptyTapState()
 let liveTapStart = null
+let liveClickPlan = 'pass'
+let liveSingleClickTimer = null
 
 const canSkip = () => live.phase === 'live' && live.bufferSeconds > 0 && liveAttached
 
@@ -8706,6 +8709,7 @@ const onLivePointerDown = (e) => {
 const onLivePointerUp = (e) => {
   const start = liveTapStart
   liveTapStart = null
+  liveClickPlan = 'pass'
   if (!start || !canSkip()) return
   const tap = {
     startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
@@ -8713,7 +8717,25 @@ const onLivePointerUp = (e) => {
   }
   if (!isTap(tap)) return
   const side = tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })
-  skipLive(registerLiveTap({ side, force: false }))
+  const result = registerLiveTap({ side, force: false })
+  liveClickPlan = nativeClickPlan({ tap: result.kind, pointerType: e.pointerType })
+  clearTimeout(liveSingleClickTimer)
+  skipLive(result)
+}
+
+const onLiveClick = (e) => {
+  const plan = liveClickPlan
+  liveClickPlan = 'pass'
+  if (plan === 'pass' || e.target !== liveVideo) return
+  e.preventDefault()
+  e.stopPropagation()
+  if (plan === 'toggle-later') liveSingleClickTimer = setTimeout(toggleLivePause, DOUBLE_TAP_MS)
+}
+
+const toggleLivePause = () => {
+  if (!liveAttached) return
+  if (liveVideo.paused) return liveVideo.play()?.catch(() => {})
+  liveVideo.pause()
 }
 
 const onLiveDoubleClick = (e) => {
@@ -9115,7 +9137,7 @@ const LivePlayer = {
           </div>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
-        <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @dblclick.capture="onLiveDoubleClick">
+        <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @click.capture="onLiveClick" @dblclick.capture="onLiveDoubleClick">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controls></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
@@ -9277,7 +9299,7 @@ const LivePlayer = {
     return {
       recordButton, recordFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveDoubleClick,
+      isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveClick, onLiveDoubleClick,
     }
   },
 }
@@ -9297,7 +9319,7 @@ const SEEK_FLOOR_MARGIN_S = 4
 const NATIVE_LIVE_HOLD_BACK_S = 6
 const HAVE_CURRENT_DATA = 2
 const NATIVE_CONTROL_BAR_PX = 48
-const SKIP_HINT_MS = 600
+const SKIP_HINT_MS = 1_600
 
 const playback = reactive({
   open: false,

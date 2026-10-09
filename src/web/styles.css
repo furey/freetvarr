@@ -3715,16 +3715,17 @@ section[id^="section-"] {
   top: 50%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 10px;
+  padding: 14px 24px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.7);
   color: #fffcfb;
-  font-size: 13px;
-  letter-spacing: 0.08em;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   pointer-events: none;
   transform: translateY(-50%);
-  animation: live-skip-hint-fade 600ms ease-out forwards;
+  animation: live-skip-hint-fade 1600ms ease-out forwards;
 }
 
 .live-skip-hint.back {
@@ -3736,7 +3737,7 @@ section[id^="section-"] {
 }
 
 @keyframes live-skip-hint-fade {
-  0%, 50% { opacity: 1; }
+  0%, 75% { opacity: 1; }
   100% { opacity: 0; }
 }
 
