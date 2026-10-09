@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { revealStepMs, isStepResolved, pacedSteps, SECURE_REVEAL_PACING } from '../src/web/paced-reveal.js'
+import { revealStepMs, isStepResolved, pacedSteps, shownJob, SECURE_REVEAL_PACING } from '../src/web/paced-reveal.js'
 
 const steps = (...statuses) => statuses.map((status, i) => ({ id: `s${i}`, label: `Step ${i}`, status }))
 
@@ -56,4 +56,24 @@ test('pacedSteps: does not change the input', () => {
   const input = steps('done', 'done')
   pacedSteps({ steps: input, revealed: 0 })
   assert.equal(input[0].status, 'done')
+})
+
+test('shownJob: an absent job shows nothing', () => {
+  assert.deepEqual(shownJob({ job: null, revealed: 0 }), { steps: [], running: false, result: null })
+})
+
+test('shownJob: a finished job holds back its result until every step is revealed', () => {
+  const job = { running: false, steps: steps('done', 'done', 'done'), result: { ok: true } }
+  const early = shownJob({ job, revealed: 1 })
+  assert.equal(early.running, true)
+  assert.equal(early.result, null)
+  assert.deepEqual(early.steps.map((s) => s.status), ['done', 'running', 'pending'])
+  const late = shownJob({ job, revealed: 3 })
+  assert.equal(late.running, false)
+  assert.deepEqual(late.result, { ok: true })
+})
+
+test('shownJob: a running job stays running after every step is revealed', () => {
+  const job = { running: true, steps: steps('done'), result: null }
+  assert.equal(shownJob({ job, revealed: 1 }).running, true)
 })
