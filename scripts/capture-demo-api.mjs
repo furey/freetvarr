@@ -45,6 +45,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/recording-now', (route) => fulfillJson(route, fixtures.recordingNow))
   await context.route('**/api/folder-suggest**', (route) => fulfillJson(route, { match: null, folders: [] }))
   await context.route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
+  await context.route('**/api/tv-login', (route) => fulfillJson(route, {}))
   await context.route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
   await context.route('**/*', refuseWrites)
   await context.route(/\/api\/live(\/|\?|$)/, demoLiveTv())
