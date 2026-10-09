@@ -415,9 +415,11 @@ const guideSetupPlan = ({ modules, fixtures, timeZone }) => {
       id,
       name,
       number,
-      guess: modules.guessGuideChannel({ channel: { name }, candidates: guideChannels }),
+      guess: modules.guessGuideChannel({ channel: { name }, candidates: guideChannels.filter((g) => wanted.has(g.xmltvId)) }),
     })),
-    options: guideChannels.map((g) => ({ id: g.id, name: g.name })).sort((a, b) => a.name.localeCompare(b.name)),
+    options: guideChannels
+      .map((g) => ({ id: g.id, name: g.name, ...(wanted.has(g.xmltvId) ? {} : { empty: true }) }))
+      .sort((a, b) => Number(Boolean(a.empty)) - Number(Boolean(b.empty)) || a.name.localeCompare(b.name)),
   }
 }
 
