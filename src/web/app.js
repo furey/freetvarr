@@ -2946,8 +2946,9 @@ const RecordingsView = {
               </div>
             </article>
           </div>
-          <p v-else-if="total === 0" class="text-ink-dim text-sm">
-            {{ hasFiltersApplied ? 'No recordings match the current filters.' : 'No recordings yet.' }}
+          <p v-else-if="total === 0 && hasFiltersApplied" class="text-ink-dim text-sm pt-3">No recordings match the current filters.</p>
+          <p v-else-if="total === 0" class="text-ink-dim text-sm pt-3">
+            No recordings yet. To make a recording, open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD</strong> or <strong>RECORD SERIES</strong>. Recordings show here once TVHeadend starts them.
           </p>
           <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
             <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
