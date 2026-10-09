@@ -4641,14 +4641,14 @@ const ChannelSetupStep = {
                 <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
               </span>
               <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
-                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
-              </span>
-              <span v-if="s.id === 'scan' && s.status === 'running'" class="hold-music">
-                <music-notes-icon :class="['hold-music-notes', { 'is-audible': musicAudible }]" />
-                <button type="button" class="hold-music-toggle" @click="toggleMusic"
-                  :aria-label="musicToggleLabel" :title="musicToggleLabel">
-                  <speaker-icon v-if="musicAudible" /><speaker-muted-icon v-else />
-                </button>
+                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span><transition name="hold-music-fade"><span v-if="s.id === 'scan' && s.status === 'running'" class="hold-music">
+                  <span aria-hidden="true">·</span>
+                  <button type="button" class="hold-music-toggle" @click="toggleMusic"
+                    :aria-label="musicToggleLabel" :title="musicToggleLabel">
+                    <speaker-icon v-if="musicAudible" /><speaker-muted-icon v-else />
+                  </button>
+                  <music-notes-icon :class="['hold-music-notes', { 'is-audible': musicAudible }]" />
+                </span></transition>
               </span>
             </li>
           </ol>
