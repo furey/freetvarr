@@ -109,6 +109,8 @@ services:
       # auto (hardware if available, else software), hardware, software, or copy.
       # See docker-compose.hwaccel.example.yml to enable hardware transcoding.
       - LIVE_TV_TRANSCODE=${LIVE_TV_TRANSCODE:-auto}
+      # Megabytes of resized guide images and channel logos kept on disk.
+      - IMAGE_CACHE_MAX_MB=${IMAGE_CACHE_MAX_MB:-100}
       - CSRF_SECRET
       # Where the "Auto-detect token" button reads Plex's Preferences.xml. Empty
       # unless PLEX_PREFS_PATH is set, which makes Freetvarr read the plex
