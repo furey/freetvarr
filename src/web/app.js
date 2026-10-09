@@ -129,6 +129,13 @@ const api = async (method, url, body) => {
   }
 }
 
+let settingsRequest = null
+
+const fetchSettings = () => {
+  settingsRequest ??= api('GET', '/api/settings').finally(() => { settingsRequest = null })
+  return settingsRequest
+}
+
 const fmtBytes = (n) => {
   if (!n || n <= 0) return ''
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -1489,7 +1496,7 @@ const LiveView = {
 
     const load = async () => {
       if (tvhConfigured.value === null) {
-        const settings = await api('GET', '/api/settings').catch(() => ({}))
+        const settings = await fetchSettings().catch(() => ({}))
         tvhConfigured.value = Boolean(settings.tvh_url)
       }
       if (!tvhConfigured.value) return
@@ -1798,7 +1805,7 @@ const DashboardView = {
         loadSyncStatus().then(ensureSyncPolling),
         api('GET', '/api/series').catch((err) => ({ series: [], error: err.message })),
         api('GET', '/api/recordings').catch(() => ({ recordings: [] })),
-        api('GET', '/api/settings').catch(() => ({})),
+        fetchSettings().catch(() => ({})),
       ])
       recentSyncs.value = (syncs.syncs || []).slice(0, 5)
       seriesCount.value = series.series?.length || 0
@@ -2340,7 +2347,7 @@ const SeriesView = {
     }
 
     const loadSettings = async () => {
-      const s = await api('GET', '/api/settings').catch(() => ({}))
+      const s = await fetchSettings().catch(() => ({}))
       mediaRoot.value = s.media_root || ''
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
       importUnmatched.value = s.import_unmatched !== false
@@ -3076,7 +3083,7 @@ const RecordingsView = {
     }
 
     const loadAdRemovalSetting = async () => {
-      const s = await api('GET', '/api/settings').catch(() => ({}))
+      const s = await fetchSettings().catch(() => ({}))
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
     }
 
@@ -3940,7 +3947,7 @@ const SettingsView = {
     }
 
     onMounted(async () => {
-      const s = await api('GET', '/api/settings')
+      const s = await fetchSettings()
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
@@ -4020,7 +4027,7 @@ const SettingsView = {
     }
 
     const refreshSyncSchedule = async () => {
-      const fresh = await api('GET', '/api/settings').catch(() => null)
+      const fresh = await fetchSettings().catch(() => null)
       if (fresh) syncCronEffective.value = fresh.sync_cron_effective || ''
       await loadSyncStatus()
     }
@@ -5700,7 +5707,7 @@ const WelcomeView = {
     )
 
     onMounted(async () => {
-      const s = await api('GET', '/api/settings').catch(() => ({}))
+      const s = await fetchSettings().catch(() => ({}))
       tvhUrl.value = s.tvh_url || ''
       tvhConnected.value = Boolean(s.tvh_url)
       tvhUsername.value = s.tvh_username || ''
@@ -7603,7 +7610,7 @@ const EpgView = {
     const loadShowRules = async () => {
       const [r, s] = await Promise.all([
         api('GET', '/api/shows').catch(() => ({ shows: [] })),
-        api('GET', '/api/settings').catch(() => ({})),
+        fetchSettings().catch(() => ({})),
       ])
       showRules.value = (r.shows || []).filter((rule) => rule.enabled)
       moviesFolderSet.value = Boolean(s.movies_root)
