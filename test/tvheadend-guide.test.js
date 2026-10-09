@@ -1,16 +1,22 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import http from 'node:http'
 
 import {
   applyGuideSetup,
+  countUpcomingProgrammes,
+  createProgrammeCounter,
+  fetchProgrammeCounts,
   guessGuideChannel,
   linkChannelsByHand,
   matchGuideChannels,
   parseFeedChannels,
+  parseXmltvTime,
   planGuideRelinks,
   readGuideLinks,
   suggestGuide,
+  waitForNewListings,
 } from '../src/tvheadend-guide.js'
 
 const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/tvh-setup/${name}.json`, import.meta.url)))
@@ -370,7 +376,7 @@ const fixtureTvheadend = () => {
 }
 
 test('readGuideLinks lists every enabled channel with its guide links and the guide options', async () => {
-  const links = await readGuideLinks({ http: fixtureTvheadend(), conn: CONN })
+  const links = await readGuideLinks({ http: fixtureTvheadend(), conn: CONN, countProgrammes: async () => null })
   assert.equal(links.channels.length, 35)
   assert.deepEqual(links.channels.find((c) => c.id === SBS_ONE), {
     id: SBS_ONE,
@@ -391,9 +397,21 @@ test('linkChannelsByHand replaces a link, then re-runs the guide grabber', async
     conn: CONN,
     links: [{ channelId: SBS_ONE, guideId: GUIDE_SBS_FOOD }],
   })
-  assert.deepEqual(result, { linked: 1, saved: 2 })
-  assert.deepEqual(http.writes.map((w) => w.path), ['idnode/save', 'idnode/save', 'epggrab/internal/rerun'])
+  assert.deepEqual(result, { linked: 1, saved: 2, loading: [SBS_ONE] })
+  assert.deepEqual(http.writes.map((w) => w.path), ['idnode/save', 'idnode/save', 'idnode/save', 'epggrab/internal/rerun'])
   assert.deepEqual(JSON.parse(http.writes[0].form.node), { uuid: GUIDE_SBS, channels: [SBS_ONE_HD] })
+  assert.deepEqual(JSON.parse(http.writes[2].form.node), { uuid: SBS_ONE, epgauto: false, epg_parent: 'none' })
+})
+
+test('linkChannelsByHand drops the old listings for No listings and waits for nothing new', async () => {
+  const http = fixtureTvheadend()
+  const result = await linkChannelsByHand({ http, conn: CONN, links: [{ channelId: SBS_ONE, guideId: '' }] })
+  assert.deepEqual(result, { linked: 0, saved: 1, loading: [] })
+  assert.deepEqual(http.writes.map((w) => JSON.parse(w.form.node ?? '{}').uuid ?? w.path), [
+    GUIDE_SBS,
+    SBS_ONE,
+    'epggrab/internal/rerun',
+  ])
 })
 
 test('linkChannelsByHand skips unknown channels and guide channels, and writes nothing unchanged', async () => {
@@ -407,6 +425,148 @@ test('linkChannelsByHand skips unknown channels and guide channels, and writes n
       { channelId: SBS_ONE_HD, guideId: 'unknown-guide' },
     ],
   })
-  assert.deepEqual(result, { linked: 1, saved: 0 })
+  assert.deepEqual(result, { linked: 1, saved: 0, loading: [] })
   assert.deepEqual(http.writes, [])
+})
+
+const twinTens = () => {
+  const writes = []
+  const sd = { uuid: 'ten-sd', name: '10', number: 1, services: [] }
+  const hd = { uuid: 'ten-hd', name: '10', number: 10, services: [] }
+  const reads = {
+    'epggrab/module/list': () => ({ entries: [{ uuid: 'mod-url', title: 'Internal: XMLTV: XMLTV URL grabber' }] }),
+    'idnode/load': () => ({ entries: [{ params: [{ id: 'enabled', value: true }, { id: 'path', value: 'url' }, { id: 'args', value: 'http://feed.test/epg.xml' }] }] }),
+    'epggrab/channel/grid': () => ({
+      entries: [
+        { uuid: 'g-ten', modid: 'url', id: 'mjh-10', name: '10', channels: ['ten-sd', 'ten-hd'] },
+        { uuid: 'g-news', modid: 'url', id: 'mjh-abc-news', name: 'ABC NEWS', channels: [] },
+      ],
+    }),
+    'channel/grid': () => ({ entries: [sd, hd] }),
+  }
+  return {
+    writes,
+    get: async (path) => reads[path](),
+    post: async (path, form) => {
+      writes.push({ path, node: form.node ? JSON.parse(form.node) : null })
+      return {}
+    },
+  }
+}
+
+test('linkChannelsByHand moves only the picked one of two channels with the same name', async () => {
+  const http = twinTens()
+  const result = await linkChannelsByHand({ http, conn: CONN, links: [{ channelId: 'ten-hd', guideId: 'g-news' }] })
+  assert.deepEqual(result.loading, ['ten-hd'])
+  assert.deepEqual(http.writes.map((w) => w.node), [
+    { uuid: 'g-ten', channels: ['ten-sd'] },
+    { uuid: 'g-news', channels: ['ten-hd'] },
+    { uuid: 'ten-hd', epgauto: false, epg_parent: 'none' },
+    null,
+  ])
+})
+
+test('readGuideLinks marks guide channels with no upcoming shows and lists them last', async () => {
+  const counts = new Map([['mjh-10', 40]])
+  const links = await readGuideLinks({ http: twinTens(), conn: CONN, countProgrammes: async () => counts })
+  assert.deepEqual(links.options, [
+    { id: 'g-ten', name: '10' },
+    { id: 'g-news', name: 'ABC NEWS', empty: true },
+  ])
+})
+
+test('readGuideLinks offers every guide channel when the feed cannot be counted', async () => {
+  const links = await readGuideLinks({
+    http: twinTens(),
+    conn: CONN,
+    countProgrammes: async () => { throw new Error('offline') },
+  })
+  assert.ok(links.options.every((o) => !o.empty))
+})
+
+const NOW = Date.UTC(2026, 9, 9, 1, 0)
+
+const programme = ({ channel, stop }) =>
+  `<programme start="20261009000000 +0000" stop="${stop}" channel="${channel}"><title>x</title></programme>\n`
+
+test('countUpcomingProgrammes counts each guide channel\'s shows that have not ended', () => {
+  const xml = [
+    programme({ channel: 'mjh-10', stop: '20261009120000 +1100' }),
+    programme({ channel: 'mjh-10', stop: '20261009130000 +1100' }),
+    programme({ channel: 'mjh-old', stop: '20261009110000 +1100' }),
+    programme({ channel: 'a/b', stop: '20261010000000 +0000' }),
+  ].join('')
+  assert.deepEqual([...countUpcomingProgrammes({ xml, nowMs: NOW })], [['mjh-10', 1], ['a#b', 1]])
+})
+
+test('parseXmltvTime reads the offset, and reads a time with no offset as UTC', () => {
+  assert.equal(parseXmltvTime('20261009120000 +1100'), NOW)
+  assert.equal(parseXmltvTime('20261009010000'), NOW)
+  assert.equal(parseXmltvTime('20261008200000 -0500'), NOW)
+  assert.equal(parseXmltvTime(''), null)
+})
+
+test('fetchProgrammeCounts counts a feed that arrives in small pieces', async () => {
+  const body = `<tv><channel id="mjh-10"><display-name>10</display-name></channel>\n${
+    Array.from({ length: 50 }, () => programme({ channel: 'mjh-10', stop: '20261010000000 +0000' })).join('')
+  }</tv>`
+  const server = await serve(body)
+  try {
+    const counts = await fetchProgrammeCounts(`http://127.0.0.1:${server.port}/epg.xml`, { nowMs: NOW })
+    assert.equal(counts.get('mjh-10'), 50)
+  } finally {
+    server.close()
+  }
+})
+
+test('createProgrammeCounter downloads once per address and gives up waiting without losing the count', async () => {
+  let finish
+  let downloads = 0
+  const counter = createProgrammeCounter({
+    count: () => {
+      downloads += 1
+      return new Promise((resolve) => { finish = resolve })
+    },
+    waitMs: 5,
+  })
+  assert.equal(await counter('u'), null)
+  finish(new Map([['a', 1]]))
+  assert.deepEqual([...await counter('u')], [['a', 1]])
+  assert.equal(downloads, 1)
+})
+
+const eventCounts = (sequence) => {
+  let read = 0
+  return {
+    get: async (path, params) => {
+      assert.equal(path, 'epg/events/grid')
+      return { totalCount: sequence[Math.min(read++, sequence.length - 1)][params.channel] }
+    },
+  }
+}
+
+test('waitForNewListings waits until the new listings stop growing', async () => {
+  const http = eventCounts([{ c: 0 }, { c: 120 }, { c: 170 }, { c: 170 }])
+  assert.equal(await waitForNewListings({ http, conn: CONN, channelIds: ['c'], pollMs: 0 }), true)
+})
+
+test('waitForNewListings gives up when nothing arrives in time', async () => {
+  let t = 0
+  const http = eventCounts([{ c: 0 }])
+  const arrived = await waitForNewListings({ http, conn: CONN, channelIds: ['c'], pollMs: 0, limitMs: 3000, now: () => (t += 1000) })
+  assert.equal(arrived, false)
+})
+
+const serve = (body) => new Promise((resolve) => {
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/xml' })
+    const pieces = body.match(/[\s\S]{1,37}/g)
+    const next = () => {
+      if (!pieces.length) return res.end()
+      res.write(pieces.shift())
+      setImmediate(next)
+    }
+    next()
+  })
+  server.listen(0, '127.0.0.1', () => resolve({ port: server.address().port, close: () => server.close() }))
 })

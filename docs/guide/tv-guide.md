@@ -86,14 +86,18 @@ Each channel's shows come from one channel in the TV guide you set up, such as t
 
 1. In the TV Guide, press `CHANNELS` above the grid.
 2. Press the pencil next to the channel (**Change listings**). The row shows the current guide channel in a box you can type in.
-3. Type part of the guide channel's name to find it (`7` finds Seven and 7two), then pick the one that matches. The arrow keys and `Enter` also work, and `Esc` closes the list. Press the tick (**Use these listings**, or `Enter` with the list closed). Press the cross (**Keep the current listings**, or `Esc`) to keep the current pick.
+3. Type part of the guide channel's name to find it (`7` finds Seven and 7two), then pick the one that matches. Guide channels with no shows in the guide are at the end of the list, marked `(no shows in this guide)`, and you cannot pick them. The arrow keys and `Enter` also work, and `Esc` closes the list. Press the tick (**Use these listings**, or `Enter` with the list closed). Press the cross (**Keep the current listings**, or `Esc`) to keep the current pick.
 4. Press `SAVE` to save the new listings.
 
 Each row shows the name of its guide channel, or `No listings`. A row you changed is marked until you press `SAVE`. Opening another channel's pencil drops an unconfirmed pick.
 
-Pick **No listings** to remove a channel's shows. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
+Pick **No listings** to remove a channel's shows. The channel's shows go at once. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
 
-Freetvarr saves the pick in TVHeadend and asks TVHeadend to load the TV guide again. The new listings can take a minute or two to show. Press `REFRESH` if they do not.
+Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks TVHeadend to load the TV guide again. The channel stays empty while TVHeadend downloads the guide. Above the grid, the TV Guide shows `Loading the new listings. This can take a couple of minutes.` When the new shows are in TVHeadend, the TV Guide shows them and the note goes.
+
+Freetvarr also turns off TVHeadend's **Auto EPG channel** setting for a channel you change. TVHeadend then does not add a guide channel to it again by name or number.
+
+Shows that already ended stay in the TV Guide under their old listings. A scheduled recording on the channel stays at its time, but no longer follows a guide programme.
 
 If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and proceed to its `GUIDE` step.
 
