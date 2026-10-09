@@ -1350,7 +1350,7 @@ const LiveView = {
             <button type="button" class="btn btn-sm" @click="load"><refresh-icon /> RETRY</button>
           </div>
           <p v-else-if="!data" class="text-sm text-ink-dim">Loading channels…</p>
-          <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. Tap&nbsp;<star-icon class="icon-inline" />&nbsp;next to a channel to add it.</p>
+          <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. <span class="whitespace-nowrap">Tap <star-icon class="icon-inline" /> next</span> to a channel to add it.</p>
           <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
           <div v-for="g in groups" :key="g.key" class="live-group">
             <div class="channel-group-heading">{{ g.label }}</div>
@@ -2534,12 +2534,12 @@ const SyncsView = {
             </info-button>
           </span>
           <div class="flex items-center gap-3">
-            <span class="hidden md:inline text-xs text-ink-dim" title="Freetvarr deletes syncs older than the latest 500."><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template> The list keeps the last 500.</span>
+            <span class="hidden md:inline text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></span>
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
           </div>
         </header>
         <div class="panel-body space-y-4">
-          <p class="md:hidden text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template> The list keeps the last 500.</p>
+          <p v-if="scheduleFrequency || syncStatus.cron" class="md:hidden text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></p>
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
               <template v-if="syncStatus.activeSyncId"><span class="spinner"></span>SYNC RUNNING…</template>
@@ -6732,7 +6732,7 @@ const ChannelsModal = {
           <div>
             <label class="field-label">FAVOURITES · SHOWN FIRST, IN THIS ORDER</label>
             <p v-if="pinnedDraft.length === 0" class="text-xs text-ink-dim">
-              No favourites yet. Tap the&nbsp;<star-icon class="icon-inline" />&nbsp;next to a channel below, in the TV Guide rail, or in Live TV.
+              No favourites yet. Tap the <span class="whitespace-nowrap"><star-icon class="icon-inline" /> next</span> to a channel below, in the TV Guide rail, or in Live TV.
             </p>
             <ul v-else class="space-y-1.5">
               <li v-for="(id, i) in pinnedDraft" :key="id" class="flex items-center gap-2">
@@ -6774,11 +6774,11 @@ const ChannelsModal = {
             </p>
           </div>
           <p class="text-xs text-ink-dim">
-            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, press&nbsp;<pencil-icon class="icon-inline" />&nbsp;and pick the guide channel that matches it.
+            Each channel's shows come from the TV guide you set up (for example the Sydney guide). If a channel shows the wrong shows, or none, <span class="whitespace-nowrap">press <pencil-icon class="icon-inline" /> and</span> pick the guide channel that matches it.
           </p>
           </div>
           <div class="channels-list">
-            <label class="field-label">ALL CHANNELS · <star-icon class="icon-inline" />&nbsp;FAVOURITE, TICK TO SHOW, <pencil-icon class="icon-inline" />&nbsp;CHANGE LISTINGS</label>
+            <label class="field-label">ALL CHANNELS · <span class="whitespace-nowrap"><star-icon class="icon-inline" />&nbsp;FAVOURITE,</span> TICK TO SHOW, <span class="whitespace-nowrap"><pencil-icon class="icon-inline" />&nbsp;CHANGE GUIDE SOURCE</span></label>
             <p v-if="guideLoading" class="text-xs text-ink-dim mb-2">Reading the listings…</p>
             <p v-else-if="guideLoadError" class="status-readout err mb-2">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="text-xs text-ink-dim mb-2">
@@ -6811,7 +6811,7 @@ const ChannelsModal = {
                     <span :class="['font-mono text-[0.7rem] truncate max-w-[40%] sm:max-w-[16rem]', isGuideChanged(ch) ? 'text-signal-orange-hi' : 'text-ink-dim']"
                       :title="isGuideChanged(ch) ? 'Changed; SAVE writes it' : null">{{ guideNameFor(guideDraft[String(ch.id)]) }}</span>
                     <button type="button" class="btn btn-sm btn-icon shrink-0" @click="startGuideEdit(ch)"
-                      :title="'Change listings for ' + ch.name" :aria-label="'Change listings for ' + ch.name"><pencil-icon /></button>
+                      :title="'Change guide source for ' + ch.name" :aria-label="'Change guide source for ' + ch.name"><pencil-icon /></button>
                   </template>
                 </div>
                 <div v-if="editingId === String(ch.id)" class="flex items-center gap-2 pl-6">
@@ -6819,9 +6819,9 @@ const ChannelsModal = {
                     none-label="No listings" :label="'Listings for ' + ch.name" autofocus
                     @confirm="confirmGuideEdit" />
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="confirmGuideEdit"
-                    title="Use these listings" aria-label="Use these listings"><check-icon /></button>
+                    title="Use this guide source" aria-label="Use this guide source"><check-icon /></button>
                   <button type="button" class="btn btn-sm btn-icon shrink-0" @click="cancelGuideEdit"
-                    title="Keep the current listings" aria-label="Keep the current listings"><cross-icon /></button>
+                    title="Keep the current guide source" aria-label="Keep the current guide source"><cross-icon /></button>
                 </div>
               </div>
             </div>
