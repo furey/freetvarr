@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit'
 import { doubleCsrf } from 'csrf-csrf'
 
 import { db, getSetting, setSetting } from './db.js'
+import { isWelcomeDismissed, setWelcomeDismissed } from './welcome.js'
 import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
@@ -1144,6 +1145,7 @@ app.get('/api/settings', async (req, res) => {
     comskipIniOverride,
     tvhOpenEntryBackup,
     storedTimeZone,
+    welcomeDismissed,
   ] = await Promise.all([
     getSetting('tvh_url'),
     getSetting('tvh_username'),
@@ -1167,6 +1169,7 @@ app.get('/api/settings', async (req, res) => {
     comskipIniOverrideExists(),
     getSetting(OPEN_ENTRY_BACKUP_KEY),
     getSetting('time_zone'),
+    isWelcomeDismissed(),
   ])
   res.json({
     tvh_url: tvhUrl,
@@ -1203,6 +1206,7 @@ app.get('/api/settings', async (req, res) => {
     ad_removal_enabled: adRemovalEnabled === 'true',
     ad_original_retention_days: adOriginalRetentionDays || '7',
     comskip_ini_override: comskipIniOverride,
+    welcome_dismissed: welcomeDismissed,
   })
 })
 
@@ -1240,6 +1244,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
       body.delete_after_plex_refresh_only ? 'true' : 'false',
     )
   }
+  if (body.welcome_dismissed !== undefined) await setWelcomeDismissed(Boolean(body.welcome_dismissed))
   if (body.ad_removal_enabled !== undefined) {
     await setSetting('ad_removal_enabled', body.ad_removal_enabled ? 'true' : 'false')
   }

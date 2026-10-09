@@ -765,7 +765,6 @@ const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
 
 const ROUTES = ['dashboard', 'live', 'guide', 'series', 'syncs', 'recordings', 'settings', 'doctor', 'welcome']
-const WELCOME_DISMISSED_KEY = 'freetvarr.welcomeDismissed'
 const DEFAULT_ROUTE = 'dashboard'
 const ROUTE_ALIASES = { shows: 'series' }
 
@@ -4186,7 +4185,6 @@ const SettingsView = {
       resetError.value = ''
       try {
         await api('POST', '/api/reset')
-        try { localStorage.removeItem(WELCOME_DISMISSED_KEY) } catch { /* private mode */ }
         window.location.hash = '#/welcome'
         window.location.reload()
       } catch (err) {
@@ -4195,8 +4193,10 @@ const SettingsView = {
       }
     }
 
-    const reopenWizard = () => {
-      try { localStorage.removeItem(WELCOME_DISMISSED_KEY) } catch { /* private mode */ }
+    const reopenWizard = async () => {
+      try {
+        await api('POST', '/api/settings', { welcome_dismissed: false })
+      } catch { /* wizard still opens */ }
       if (window.location.hash === '#/welcome') {
         window.location.reload()
       } else {
@@ -5726,13 +5726,15 @@ const WelcomeView = {
       return true
     })
 
-    const dismiss = () => {
-      try { localStorage.setItem(WELCOME_DISMISSED_KEY, '1') } catch { /* private mode */ }
+    const dismiss = async () => {
+      try {
+        await api('POST', '/api/settings', { welcome_dismissed: true })
+      } catch { /* wizard closes anyway */ }
     }
 
-    const skipToSettings = () => {
+    const skipToSettings = async () => {
       if (!confirm(wizardSkipPrompt({ tvhConnected: tvhConnected.value }))) return
-      dismiss()
+      await dismiss()
       window.location.hash = '#/settings'
     }
 
@@ -5771,7 +5773,7 @@ const WelcomeView = {
 
     const next = async () => {
       if (step.value === totalSteps) {
-        dismiss()
+        await dismiss()
         window.location.hash = '#/guide'
         return
       }
@@ -9942,10 +9944,6 @@ const App = {
   },
 }
 
-const welcomeDismissed = () => {
-  try { return localStorage.getItem(WELCOME_DISMISSED_KEY) === '1' } catch { return false }
-}
-
 checkForNewBuild()
 
 fetch('/api/settings')
@@ -9953,7 +9951,7 @@ fetch('/api/settings')
   .then((s) => {
     if (s.tz) tz.value = s.tz
     const hashIsExplicit = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
-    if (!s.tvh_url && !welcomeDismissed() && hashIsExplicit !== 'welcome') {
+    if (!s.tvh_url && !s.welcome_dismissed && hashIsExplicit !== 'welcome') {
       window.history.replaceState(null, '', '#/welcome')
       route.value = 'welcome'
     }
