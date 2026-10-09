@@ -94,7 +94,7 @@ Each row shows the name of its guide channel, or `No listings`. A row you change
 
 Pick **No listings** to remove a channel's shows. The channel's shows go at once. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
 
-Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks TVHeadend to load the TV guide again. The channel stays empty while TVHeadend downloads the guide. Above the grid, the TV Guide shows `Loading the new listings. This can take a couple of minutes.` When the new shows are in TVHeadend, the TV Guide shows them and the note goes.
+Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks TVHeadend to load the TV guide again. The channel stays empty while TVHeadend downloads the guide. In the channel's row, to the right of the orange now line, the TV Guide shows `Loading the new listings. This can take a couple of minutes.` When the new shows are in TVHeadend, the TV Guide shows them and the note goes.
 
 Freetvarr also turns off TVHeadend's **Auto EPG channel** setting for a channel you change. TVHeadend then does not add a guide channel to it again by name or number.
 
