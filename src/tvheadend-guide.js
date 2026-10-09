@@ -440,8 +440,9 @@ const listServiceLcns = async ({ http, conn }) => {
 const missingTimeShares = ({ byNumber, linkedIds }) => {
   const matchedIds = byNumber.map((g) => g.id)
   const keepsManualChoice = !linkedIds.every((id) => matchedIds.includes(id))
-  if (byNumber.length < 2 || keepsManualChoice) return []
-  return byNumber.filter((g) => !linkedIds.includes(g.id))
+  const missing = byNumber.filter((g) => !linkedIds.includes(g.id))
+  if (byNumber.length < 2 || keepsManualChoice || !missing.length) return []
+  return byNumber
 }
 
 const isLinked = ({ channel, guideChannels }) => linkedGuideIds({ channel, guideChannels }).length > 0
