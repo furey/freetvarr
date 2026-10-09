@@ -1401,7 +1401,7 @@ const LiveView = {
       <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="data?.channels || []" :hidden-ids="data?.hiddenIds || []"
-        :sort="data?.sort" :hide-sd-simulcasts="data?.hideSdSimulcasts"
+        :sort="data?.sort" :hide-sd-simulcasts="data?.hideSdSimulcasts" :hide-sd-channels="data?.hideSdChannels"
         @close="channelsModal = false" @saved="onChannelPrefsSaved" />
       </transition>
       </teleport>
@@ -6710,7 +6710,7 @@ const ZoomControl = {
 }
 
 const ChannelsModal = {
-  props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts'],
+  props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts', 'hideSdChannels'],
   emits: ['close', 'saved'],
   template: `
     <div class="epg-modal-backdrop" @click.self="$emit('close')">
@@ -6756,11 +6756,21 @@ const ChannelsModal = {
           </div>
           <div>
             <label class="flex items-center gap-2.5 text-sm cursor-pointer">
-              <input type="checkbox" class="chk" v-model="hideSdDraft" />
+              <input type="checkbox" class="chk" :checked="hideSdChannelsDraft || hideSdDraft"
+                :disabled="hideSdChannelsDraft" @change="hideSdDraft = $event.target.checked" />
               <span class="font-mono text-[0.8rem]">HIDE SD SIMULCASTS</span>
             </label>
             <p class="text-xs text-ink-dim mt-1.5">
-              Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a favourite is never hidden.
+              Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. Applies to the grid and search; a favourite is never hidden. <template v-if="hideSdChannelsDraft">HIDE SD CHANNELS already hides these.</template>
+            </p>
+          </div>
+          <div>
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+              <input type="checkbox" class="chk" v-model="hideSdChannelsDraft" />
+              <span class="font-mono text-[0.8rem]">HIDE SD CHANNELS</span>
+            </label>
+            <p class="text-xs text-ink-dim mt-1.5">
+              Shows only HD channels. SD-only channels (for example 7flix) are hidden too. Applies to the grid, search, and Live TV; a favourite is never hidden.
             </p>
           </div>
           <p class="text-xs text-ink-dim">
@@ -6789,12 +6799,12 @@ const ChannelsModal = {
                       :disabled="pinnedDraft.includes(String(ch.id))"
                       @change="toggleHidden(ch)" />
                     <span class="flex items-center gap-1.5 min-w-0">
+                      <span :class="['pill pill-format pill-slot shrink-0', ch.hd ? 'pill-hd' : 'pill-sd']"
+                        :title="ch.hd ? 'High definition' : 'Standard definition'">{{ ch.hd ? 'HD' : 'SD' }}</span>
                       <span class="font-mono text-[0.8rem] truncate">
                         <span class="text-ink-mute">{{ ch.number ?? '' }}</span>
                         {{ ch.name }}
                       </span>
-                      <span :class="['pill pill-format shrink-0', ch.hd ? 'pill-hd' : 'pill-sd']"
-                        :title="ch.hd ? 'High definition' : 'Standard definition'">{{ ch.hd ? 'HD' : 'SD' }}</span>
                     </span>
                   </label>
                   <template v-if="showGuideColumn && String(ch.id) in guideDraft">
@@ -6834,6 +6844,7 @@ const ChannelsModal = {
     const hiddenDraft = ref(new Set((props.hiddenIds || []).map(String)))
     const sortDraft = ref(props.sort || 'default')
     const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
+    const hideSdChannelsDraft = ref(Boolean(props.hideSdChannels))
     const savingPrefs = ref(false)
     const [statusText, statusKind, setStatus] = makeStatus()
     const [guideStatusText, guideStatusKind, setGuideStatus] = makeStatus()
@@ -6922,6 +6933,7 @@ const ChannelsModal = {
           hidden_ids: [...hiddenDraft.value],
           sort: sortDraft.value,
           hide_sd_simulcasts: hideSdDraft.value,
+          hide_sd_channels: hideSdChannelsDraft.value,
         })
         return true
       } catch (err) {
@@ -7369,7 +7381,7 @@ const EpgView = {
       <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="guide?.channels || []" :hidden-ids="guide?.hiddenIds || []"
-        :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts"
+        :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts" :hide-sd-channels="guide?.hideSdChannels"
         @close="channelsModal = false" @saved="onChannelPrefsSaved" />
       </transition>
       </teleport>
