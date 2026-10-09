@@ -22,6 +22,8 @@ use_utf8() {
   esac
 }
 
+ESC="$(printf '\033')"
+
 paint() { printf '\033[%sm' "$1"; }
 
 setup_colour() {
@@ -70,12 +72,26 @@ chips() {
     "$CHIP_YELLOW" "$1" "$RESET" "$2" "$3" "$RESET"
 }
 
-ask() {
-  if (exec < /dev/tty) 2>/dev/null; then
-    printf '%s%s%s ' "$BOLD" "$1" "$RESET" > /dev/tty
-    read -r answer < /dev/tty || answer=""
-    printf '%s' "$answer"
-  fi
+ask_key() {
+  (exec < /dev/tty) 2>/dev/null || return 0
+  printf '%s%s%s ' "$BOLD" "$1" "$RESET" > /dev/tty
+  tty_state="$(stty -g < /dev/tty)"
+  trap 'stty "$tty_state" < /dev/tty; printf "\n" > /dev/tty; exit 130' INT TERM
+  stty -icanon -echo min 1 time 0 < /dev/tty
+  while :; do
+    key="$(dd bs=1 count=1 < /dev/tty 2>/dev/null)"
+    case "$2" in *"$key"*) break ;; esac
+  done
+  if [ "$key" = "$ESC" ]; then drain_tty; fi
+  stty "$tty_state" < /dev/tty
+  trap - INT TERM
+  case "$key" in [[:alpha:]]) printf '%s\n' "$key" ;; *) printf '\n' ;; esac > /dev/tty
+  printf '%s' "$key"
+}
+
+drain_tty() {
+  stty min 0 time 1 < /dev/tty
+  dd bs=16 count=1 < /dev/tty > /dev/null 2>&1 || true
 }
 
 host_zone() {
@@ -125,9 +141,9 @@ else
   } > .env
   ok "wrote .env:"
   sed 's/^/    /' .env
-  answer="$(ask 'Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]')"
+  answer="$(ask_key 'Files will be owned by this PUID and PGID. Start now? [Y/n/e = edit .env first]' "yYnNeE$ESC")"
   case "$answer" in
-    n|N) warn "stopped. Edit $FREETVARR_DIR/.env, then run: docker compose up -d"; exit 0 ;;
+    n|N|"$ESC") warn "stopped. Edit $FREETVARR_DIR/.env, then run: docker compose up -d"; exit 0 ;;
     e|E) "${EDITOR:-vi}" .env < /dev/tty > /dev/tty ;;
   esac
 fi
