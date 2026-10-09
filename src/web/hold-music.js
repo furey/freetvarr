@@ -83,8 +83,7 @@ export const createHoldMusic = ({
     audio.pause()
   }
 
-  const start = async () => {
-    wanted = true
+  const play = async () => {
     if (!audio) {
       audio = makeAudio()
       volume = makeVolume(audio)
@@ -99,6 +98,14 @@ export const createHoldMusic = ({
       onAudibleChange(false)
       return false
     }
+    return true
+  }
+
+  const unlock = () => play()
+
+  const start = async () => {
+    wanted = true
+    if (!(await play())) return false
     if (!wanted) {
       silence()
       return false
@@ -115,5 +122,5 @@ export const createHoldMusic = ({
     fadeTo(0, FADE_OUT_MS, () => audio.pause())
   }
 
-  return { start, stop }
+  return { unlock, start, stop }
 }

@@ -104,6 +104,41 @@ test('createHoldMusic: starts silent on a loop, then fades in to the hold volume
   assert.equal(audio.volume, HOLD_MUSIC_VOLUME)
 })
 
+test('createHoldMusic: unlock plays at zero volume without fading in or reporting audible', async () => {
+  const audio = fakeAudio()
+  const { music, clock, audible } = holdMusicWith(audio)
+  assert.equal(await music.unlock(), true)
+  assert.equal(audio.paused, false)
+  clock.advance(FADE_IN_MS * 2)
+  assert.equal(audio.volume, 0)
+  assert.deepEqual(audible, [])
+})
+
+test('createHoldMusic: start after unlock fades in from silence', async () => {
+  const audio = fakeAudio()
+  const { music, clock, audible } = holdMusicWith(audio)
+  await music.unlock()
+  await music.start()
+  assert.deepEqual(audible, [true])
+  clock.advance(FADE_IN_MS)
+  assert.equal(audio.volume, HOLD_MUSIC_VOLUME)
+})
+
+test('createHoldMusic: stop after unlock pauses without ever fading in', async () => {
+  const audio = fakeAudio()
+  const { music, clock } = holdMusicWith(audio)
+  await music.unlock()
+  music.stop()
+  clock.advance(FADE_OUT_MS)
+  assert.equal(audio.paused, true)
+  assert.equal(audio.volume, 0)
+})
+
+test('createHoldMusic: unlock reports a blocked browser', async () => {
+  const { music } = holdMusicWith(fakeAudio({ rejectPlay: true }))
+  assert.equal(await music.unlock(), false)
+})
+
 test('createHoldMusic: fades out, then pauses', async () => {
   const audio = fakeAudio()
   const { music, clock, audible } = holdMusicWith(audio)
