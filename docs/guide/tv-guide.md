@@ -69,7 +69,7 @@ The `CHANNELS` button above the grid opens a wide dialog on a computer. The chan
 - **Favourites**: reorder or remove them.
 - **Sort other channels by**: TVHeadend order, channel number, or name.
 - **Hide SD simulcasts**: hides an SD channel when its HD twin is in the lineup. SD-only channels stay.
-- **Hide SD channels**: shows only HD channels. SD-only channels (for example 7flix) are hidden too. It applies to the grid, search, and Live TV. Favourites are never hidden. While it is on, **Hide SD simulcasts** is ticked and locked, because it hides the same channels.
+- **Hide SD channels**: shows only HD channels. SD-only channels (for example 7flix) are hidden too. It applies to the grid, search, Live TV, and the channel list in this dialog. Favourites are never hidden. While it is on, **Hide SD simulcasts** is ticked and locked, because it hides the same channels.
 - **All channels**: untick a channel to hide it. Favourites are always shown.
 - **Listings**: fix the shows of a channel that has the wrong ones, or none. See [Channel listings](#channel-listings).
 

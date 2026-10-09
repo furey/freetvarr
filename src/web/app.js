@@ -6783,7 +6783,7 @@ const ChannelsModal = {
               Set up the TV guide first to change the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its GUIDE step.
             </p>
             <div class="grid grid-cols-1 gap-y-2">
-              <div v-for="ch in channels" :key="ch.id" class="flex flex-col gap-1.5"
+              <div v-for="ch in listedChannels" :key="ch.id" class="flex flex-col gap-1.5"
                 @keydown.esc="onRowEscape">
                 <div class="flex items-center gap-2">
                   <button type="button" :class="['epg-pin', { pinned: pinnedDraft.includes(String(ch.id)) }]"
@@ -6843,6 +6843,9 @@ const ChannelsModal = {
     const sortDraft = ref(props.sort || 'default')
     const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
     const hideSdChannelsDraft = ref(Boolean(props.hideSdChannels))
+    const listedChannels = computed(() => (hideSdChannelsDraft.value
+      ? props.channels.filter((c) => c.hd || pinnedDraft.value.includes(String(c.id)))
+      : props.channels))
     const savingPrefs = ref(false)
     const [statusText, statusKind, setStatus] = makeStatus()
     const [guideStatusText, guideStatusKind, setGuideStatus] = makeStatus()
@@ -6967,7 +6970,7 @@ const ChannelsModal = {
     }
 
     return {
-      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, savingPrefs,
+      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, hideSdChannelsDraft, listedChannels, savingPrefs,
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
       editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
