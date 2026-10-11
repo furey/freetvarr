@@ -5,6 +5,8 @@ import {
   isOnAir,
   nowProgramFor,
   liveRecordButton,
+  liveSeriesButton,
+  otherSeriesChannelId,
 } from '../src/web/live-record.js'
 
 const program = { title: 'News', start: 1_000, end: 2_000 }
@@ -43,4 +45,55 @@ test('liveRecordButton offers RECORD for a programme on air', () => {
 test('liveRecordButton shows REC while the channel records', () => {
   const button = liveRecordButton({ program, nowMs: 1_500, recording: true })
   assert.deepEqual([button.disabled, button.label], [false, 'REC'])
+})
+
+const episode = { title: 'Gruen', start: 1_000, end: 2_000, series_link: 'abc|gruen' }
+const names = (id) => ({ xyz: 'ABC TV Plus' })[id] || ''
+
+test('liveSeriesButton disables when nothing is on air', () => {
+  const button = liveSeriesButton({ program: null, nowMs: 1_500, seriesTags: [] })
+  assert.deepEqual([button.hidden, button.disabled, button.set], [false, true, false])
+  assert.match(button.title, /no series to record/)
+})
+
+test('liveSeriesButton hides for a programme without a series link', () => {
+  const button = liveSeriesButton({ program, nowMs: 1_500, seriesTags: [] })
+  assert.equal(button.hidden, true)
+})
+
+test('liveSeriesButton waits for the series list before it offers a choice', () => {
+  const button = liveSeriesButton({ program: episode, nowMs: 1_500, seriesTags: null })
+  assert.deepEqual([button.hidden, button.disabled, button.set], [false, true, false])
+  assert.match(button.title, /Checking TVHeadend/)
+})
+
+test('liveSeriesButton offers a series recording on this channel', () => {
+  const button = liveSeriesButton({ program: episode, nowMs: 1_500, seriesTags: [] })
+  assert.deepEqual([button.disabled, button.set], [false, false])
+  assert.equal(button.ariaLabel, 'Record series: "Gruen"')
+  assert.match(button.title, /on this channel/)
+})
+
+test('liveSeriesButton shows a set series for this channel or any channel', () => {
+  for (const seriesLinkId of ['abc|gruen', '|gruen']) {
+    const button = liveSeriesButton({ program: episode, nowMs: 1_500, seriesTags: [{ seriesLinkId }] })
+    assert.deepEqual([button.disabled, button.set], [false, true])
+    assert.equal(button.ariaLabel, 'Series recording set for "Gruen"')
+  }
+})
+
+test('liveSeriesButton names the other channel when the series is set elsewhere', () => {
+  const seriesTags = [{ seriesLinkId: 'xyz|gruen', channelId: 'xyz' }]
+  const button = liveSeriesButton({ program: episode, nowMs: 1_500, seriesTags, channelName: names })
+  assert.deepEqual([button.disabled, button.set], [false, false])
+  assert.match(button.title, /on ABC TV Plus\. Press to add this channel\./)
+})
+
+test('otherSeriesChannelId ignores this channel, any channel, and other titles', () => {
+  const seriesLink = 'abc|gruen'
+  assert.equal(otherSeriesChannelId({ seriesTags: [{ seriesLinkId: 'abc|gruen' }], seriesLink }), null)
+  assert.equal(otherSeriesChannelId({ seriesTags: [{ seriesLinkId: '|gruen' }], seriesLink }), null)
+  assert.equal(otherSeriesChannelId({ seriesTags: [{ seriesLinkId: 'xyz|news' }], seriesLink }), null)
+  assert.equal(otherSeriesChannelId({ seriesTags: [{ seriesLinkId: 'xyz|gruen' }], seriesLink }), 'xyz')
+  assert.equal(otherSeriesChannelId({ seriesTags: [], seriesLink: 'nolink' }), null)
 })

@@ -8,6 +8,7 @@ import {
   programmeProgress,
   airingBoundary,
   airingCovers,
+  watchRowLabel,
 } from '../src/web/live-info.js'
 
 const program = { title: 'News', start: 1_000, end: 2_000 }
@@ -70,4 +71,10 @@ test('airingCovers spans a gap from the fetch time to the next start', () => {
   assert.equal(airingCovers({ airing, atMs: 5_000 }), false)
   assert.equal(airingCovers({ airing, atMs: 2_999 }), false)
   assert.equal(airingCovers({ airing: { now: null, next: null, atMs: 3_000 }, atMs: 9e12 }), true)
+})
+
+test('watchRowLabel names the channel and the programme on now', () => {
+  const channel = { name: 'ABC TV' }
+  assert.equal(watchRowLabel({ channel, now: { title: 'Gruen' } }), 'Watch ABC TV live, Gruen on now')
+  assert.equal(watchRowLabel({ channel, now: null }), 'Watch ABC TV live')
 })

@@ -25,10 +25,10 @@ import {
   nativeClickPlan,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
-import { liveRecordButton } from '/live-record.js'
+import { liveRecordButton, liveSeriesButton } from '/live-record.js'
 import {
   NO_GUIDE_TEXT, channelNumberLabel, seasonEpisodeOf, ratingLabel, genreLabel, programmeProgress,
-  airingBoundary, airingCovers,
+  airingBoundary, airingCovers, watchRowLabel,
 } from '/live-info.js'
 import { isReadyToStart } from '/live-start.js'
 import { CAPTION_LINE_DEFAULT, captionLine } from '/caption-line.js'
@@ -1446,7 +1446,7 @@ const LiveView = {
           <span class="panel-heading">
             <span class="panel-title">LIVE TV</span>
             <info-button title="LIVE TV" doc="guide/live-tv#in-freetvarr">
-              <p>Every channel in TVHeadend, with what is on now and next. Press the TV button on a channel to watch it in the browser.</p>
+              <p>Every channel in TVHeadend, with what is on now and next. Tap a channel to watch it in the browser. Tap <info-icon class="icon-inline" /> to open the programme's details in the TV Guide.</p>
               <p>Freetvarr converts the TVHeadend stream into video the browser can play. It needs a free tuner, and a recording always takes the tuner first.</p>
               <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels. The zoom buttons change how much each row shows.</p>
             </info-button>
@@ -1491,8 +1491,9 @@ const LiveView = {
                     :number="paddedNumber(e.channel.number)" @pin="togglePin(e.channel)" />
                 </div>
                 <div class="live-row-now">
-                  <button v-if="e.now" type="button" class="on-now-open live-now-open"
-                    :aria-label="'Show details for ' + e.now.title" @click="openDetails(e, e.now)">
+                  <button type="button" class="on-now-open live-now-open row-play" :title="e.channel.offAir ? OFF_AIR_MESSAGE : null"
+                    :aria-label="watchRowLabel({ channel: e.channel, now: e.now })" @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })">
+                    <template v-if="e.now">
                     <span v-if="showImages" class="live-now-thumb">
                       <programme-image :event-id="e.now.has_image ? e.now.program_id : null"
                         :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" :title="e.now.title" />
@@ -1509,16 +1510,17 @@ const LiveView = {
                       </div>
                     </div>
                     </div>
+                    </template>
+                    <span v-else class="text-sm text-ink-mute">No guide data</span>
                   </button>
-                  <span v-else class="text-sm text-ink-mute">No guide data</span>
                 </div>
-                <button v-if="e.next" type="button" class="on-now-open live-row-next font-mono text-xs text-ink-dim min-w-0 truncate"
+                <button v-if="e.next" type="button" class="on-now-open row-over live-row-next font-mono text-xs text-ink-dim min-w-0 truncate"
                   :aria-label="'Show details for ' + e.next.title" @click="openDetails(e, e.next)">
                   next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
                 </button>
-                <button type="button" class="btn btn-sm btn-icon btn-watch live-row-watch" :title="e.channel.offAir ? OFF_AIR_MESSAGE : 'Watch live'"
-                  :aria-label="'Watch ' + e.channel.name + ' live'"
-                  @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
+                <button v-if="e.now" type="button" class="row-info row-over live-row-info" title="Programme info"
+                  :aria-label="'Programme info for ' + e.now.title" @click="openDetails(e, e.now)"><info-icon /></button>
+                <span v-else class="row-info live-row-info" aria-hidden="true"></span>
               </li>
             </ul>
           </div>
@@ -1654,7 +1656,7 @@ const LiveView = {
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, narrow, groups, favouritesHint, emptyText,
       paddedNumber,
-      OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
+      OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
       zoom, zoomIndex, zoomLevelCount: LIVE_ZOOM_LEVELS.length, changeZoom,
       dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
       onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
@@ -1685,7 +1687,7 @@ const DashboardView = {
             <info-button title="WHAT'S ON" doc="guide/tv-guide#on-the-dashboard">
               <p>What is on now on your favourite channels, what is on next, and the next recordings TVHeadend has scheduled. All of it comes from TVHeadend.</p>
               <p>Star a channel in Live TV or the TV Guide to add it here.</p>
-              <p>Tap a programme or a recording to open its details in the TV Guide. The TV button plays the channel live.</p>
+              <p>Tap a channel to watch it live. Tap <info-icon class="icon-inline" />, a next programme, or a recording to open its details in the TV Guide.</p>
             </info-button>
           </span>
           <div class="flex items-center gap-4">
@@ -1701,13 +1703,14 @@ const DashboardView = {
           <div v-if="onNow.length">
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Live now</div>
             <div class="space-y-3">
-            <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
+            <div v-for="e in onNow" :key="e.channel.id" class="dash-live-row flex items-center gap-3 md:gap-4">
               <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
               <span :class="['font-mono text-xs text-ink-dim w-16 md:w-28 shrink-0 truncate', { 'off-air': e.channel.offAir }]" :title="e.channel.offAir ? OFF_AIR_MESSAGE : e.channel.name">{{ e.channel.name }}</span>
               <div class="flex-1 min-w-0">
-                <button v-if="e.now" type="button" class="on-now-open block w-full"
-                  :aria-label="'Show details for ' + e.now.title"
-                  @click="openInGuide({ channelId: e.channel.id, program: e.now })">
+                <button type="button" class="on-now-open row-play block w-full" :title="e.channel.offAir ? OFF_AIR_MESSAGE : null"
+                  :aria-label="watchRowLabel({ channel: e.channel, now: e.now })"
+                  @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })">
+                  <template v-if="e.now">
                   <span class="block truncate">
                     <span class="text-sm font-semibold text-ink mr-3">{{ e.now.title }}</span>
                     <span v-if="isRecordingChannel(e.channel.id)" class="on-now-rec"><span class="led-dot sm live"></span>REC</span>
@@ -1718,17 +1721,19 @@ const DashboardView = {
                       <div :class="['progress-fill', { rec: isRecordingChannel(e.channel.id) }]" :style="{ width: onNowPercent(e.now) + '%' }"></div>
                     </div>
                   </div>
+                  </template>
+                  <span v-else class="block text-sm text-ink-mute">No guide data</span>
                 </button>
-                <span v-else class="text-sm text-ink-mute">off air</span>
               </div>
-              <button v-if="e.next" type="button" class="on-now-open hidden sm:block font-mono text-xs text-ink-dim min-w-0 max-w-[16rem] truncate"
+              <button v-if="e.next" type="button" class="on-now-open row-over hidden sm:block font-mono text-xs text-ink-dim min-w-0 max-w-[16rem] truncate"
                 :aria-label="'Show details for ' + e.next.title"
                 @click="openInGuide({ channelId: e.channel.id, program: e.next })">
                 next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
               </button>
-              <button type="button" class="btn btn-sm btn-icon btn-watch shrink-0" :title="e.channel.offAir ? OFF_AIR_MESSAGE : 'Watch live'"
-                :aria-label="'Watch ' + e.channel.name + ' live'"
-                @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })"><tv-icon /></button>
+              <button v-if="e.now" type="button" class="row-info row-over" title="Programme info"
+                :aria-label="'Programme info for ' + e.now.title"
+                @click="openInGuide({ channelId: e.channel.id, program: e.now })"><info-icon /></button>
+              <span v-else class="row-info" aria-hidden="true"></span>
             </div>
             </div>
           </div>
@@ -2036,7 +2041,7 @@ const DashboardView = {
       tvhConfigured, pipeline, HEALTH_COLOURS,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, fmtRelativeDay, tsOfMs,
       isRecordingChannel, loadGuidePanel,
-      OFF_AIR_MESSAGE, watchLive, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
+      OFF_AIR_MESSAGE, watchLive, watchRowLabel, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
       flashText, flashKind,
     }
   },
@@ -9216,6 +9221,18 @@ const RecordIcon = {
   `,
 }
 
+const SeriesRecordIcon = {
+  props: { set: { type: Boolean, default: false } },
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M7.875 3.887A4.75 4.75 0 1 0 7.875 12.113"/>
+      <circle cx="10.25" cy="8" r="4.75"/>
+      <path v-if="set" d="M8.4 8.1l1.3 1.3 2.4-2.6"/>
+      <circle v-else cx="10.25" cy="8" r="2.25" fill="currentColor" stroke="none"/>
+    </svg>
+  `,
+}
+
 const StopIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -9676,6 +9693,13 @@ const LivePlayer = {
             </div>
             <div v-else class="flex shrink-0 gap-2">
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
+              <button v-if="!seriesButton.hidden" type="button"
+                :class="['btn', 'live-action-wide', 'live-series-button', { 'is-on': seriesButton.set, 'is-busy': seriesBusy }]"
+                :disabled="seriesButton.disabled || seriesBusy" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
+                :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
+                <span class="btn-label"><series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span></span>
+                <span v-if="seriesBusy" class="spinner spinner-overlay"></span>
+              </button>
               <button type="button" class="btn live-action-wide" :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.label" @click="recordFromLive"><record-icon /> <span class="live-action-label">{{ recordButton.label }}</span></button>
               <button type="button" class="btn btn-danger live-action-wide" aria-label="STOP" @click="stopLive"><stop-icon /> <span class="live-action-label">STOP</span></button>
             </div>
@@ -9729,8 +9753,12 @@ const LivePlayer = {
 
     const isBehindLive = computed(() => live.phase === 'live' && live.behindSeconds >= BEHIND_LIVE_SHOWN_S)
 
+    const seriesNote = ref(null)
+    let seriesNoteTimer = null
+
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
+      if (seriesNote.value) return seriesNote.value.text
       if (live.phase === 'tuning') {
         const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
         return slow ? 'TUNING… STILL WAITING FOR A SIGNAL' : 'TUNING…'
@@ -9742,6 +9770,7 @@ const LivePlayer = {
     })
 
     const statusKind = computed(() => {
+      if (live.phase !== 'ended' && seriesNote.value) return seriesNote.value.kind
       if (live.phase === 'ended' || live.conflict) return 'err'
       return live.phase === 'live' ? 'ok' : 'info'
     })
@@ -9917,8 +9946,7 @@ const LivePlayer = {
       recording: isRecordingChannel(live.channel?.id),
     }))
 
-    const recordFromLive = () => {
-      if (recordButton.value.disabled) return
+    const openNowInGuide = () => {
       recordDialogOverPlayer.value = true
       openInGuide({
         channelId: live.channel.id,
@@ -9927,8 +9955,82 @@ const LivePlayer = {
       })
     }
 
+    const recordFromLive = () => {
+      if (!recordButton.value.disabled) openNowInGuide()
+    }
+
+    const liveSeriesTags = ref(null)
+    const liveChannels = ref([])
+    const seriesBusy = ref(false)
+
+    const loadLiveSeriesState = async () => {
+      const [state, onNowAll] = await Promise.all([
+        api('GET', '/api/epg/state').catch(() => null),
+        api('GET', '/api/epg/now?all=1').catch(() => null),
+      ])
+      liveSeriesTags.value = state && !state.stale ? state.seriesTags || [] : null
+      liveChannels.value = onNowAll?.entries || []
+    }
+
+    watch(() => live.open && live.channel?.id, (id) => {
+      liveSeriesTags.value = null
+      if (id) loadLiveSeriesState()
+    }, { immediate: true })
+
+    watch(recordDialogOverPlayer, (open) => {
+      if (!open && live.open) loadLiveSeriesState()
+    })
+
+    const liveChannelName = (id) =>
+      liveChannels.value.find((e) => String(e.channel?.id) === String(id))?.channel?.name || ''
+
+    const seriesButton = computed(() => liveSeriesButton({
+      program: airing.value.now,
+      nowMs: now.value.getTime(),
+      seriesTags: liveSeriesTags.value,
+      channelName: liveChannelName,
+    }))
+
+    const hdTwinOfNow = () => findHdSimulcast({
+      program: airing.value.now,
+      channelId: live.channel?.id,
+      channels: liveChannels.value.map((e) => e.channel),
+      programsByChannel: Object.fromEntries(liveChannels.value.map((e) => [e.channel.id, [e.now].filter(Boolean)])),
+      needsSeriesLink: true,
+    })
+
+    const showSeriesNote = ({ text, kind }) => {
+      clearTimeout(seriesNoteTimer)
+      seriesNote.value = { text, kind }
+      seriesNoteTimer = setTimeout(() => { seriesNote.value = null }, SERIES_NOTE_MS)
+    }
+
+    const recordSeriesFromLive = async () => {
+      const button = seriesButton.value
+      if (button.disabled || seriesBusy.value) return
+      if (button.set || hdTwinOfNow()) return openNowInGuide()
+      const program = airing.value.now
+      seriesBusy.value = true
+      try {
+        await api('POST', '/api/epg/record-series', {
+          series_link: program.series_link,
+          channel_id: live.channel.id,
+          program_id: program.program_id,
+          epg_program_id: program.epg_program_id,
+        })
+        showSeriesNote({ text: 'SERIES RECORDING SET', kind: 'ok' })
+        await loadLiveSeriesState()
+      } catch (err) {
+        showSeriesNote({ text: `Series record failed: ${err.message}`, kind: 'err' })
+      } finally {
+        seriesBusy.value = false
+      }
+    }
+
+    onUnmounted(() => clearTimeout(seriesNoteTimer))
+
     return {
-      recordButton, recordFromLive,
+      recordButton, recordFromLive, seriesButton, seriesBusy, recordSeriesFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
       isBehindLive, jumpToLive, frameEl, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
@@ -9950,6 +10052,7 @@ const fetchChannelAiring = async ({ channelId, atMs }) => {
 
 const EMPTY_AIRING = { now: null, next: null, atMs: 0, loaded: false }
 const AIRING_BOUNDARY_GRACE_MS = 1_000
+const SERIES_NOTE_MS = 6_000
 const LIVE_POLL_TUNING_MS = 1_000
 const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800
@@ -10795,6 +10898,7 @@ app.component('music-notes-icon', MusicNotesIcon)
 app.component('speaker-icon', SpeakerIcon)
 app.component('speaker-muted-icon', SpeakerMutedIcon)
 app.component('record-icon', RecordIcon)
+app.component('series-record-icon', SeriesRecordIcon)
 app.component('stop-icon', StopIcon)
 app.component('go-live-icon', GoLiveIcon)
 app.component('refresh-icon', RefreshIcon)
