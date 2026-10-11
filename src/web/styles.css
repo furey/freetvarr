@@ -1383,11 +1383,15 @@ a.icon-link {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 150ms ease;
+  transition: opacity 300ms ease;
 }
 
 .programme-image.is-loaded img {
   opacity: 1;
+}
+
+.programme-image.is-upgrade img {
+  transition-duration: 700ms;
 }
 
 .programme-image.no-fade img {

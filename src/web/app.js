@@ -547,6 +547,7 @@ const ProgrammeImage = {
     const img = ref(null)
     const status = ref('loading')
     const instant = ref(false)
+    const upgrading = ref(false)
     const guideImageUrl = computed(() => {
       if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}`
       if (props.title) return `/api/epg/show-image?title=${encodeURIComponent(props.title)}`
@@ -586,9 +587,18 @@ const ProgrammeImage = {
         retryTimer = null
         retried = true
         const probe = new Image()
-        probe.onload = () => { if (src.value === url) status.value = 'loading' }
+        probe.onload = () => { if (src.value === url) fadeInUpgrade() }
         probe.src = url
       }, IMAGE_RETRY_DELAY_MS)
+    }
+    const fadeInUpgrade = async () => {
+      instant.value = false
+      upgrading.value = true
+      status.value = 'loading'
+      await nextTick()
+      if (!img.value?.complete || img.value.naturalWidth === 0) return
+      getComputedStyle(img.value).opacity
+      status.value = 'loaded'
     }
     const onError = () => {
       if (usesSavedSource.value && guideImageUrl.value) {
@@ -609,6 +619,7 @@ const ProgrammeImage = {
     watch(src, async () => {
       cancelRetry()
       retried = false
+      upgrading.value = false
       status.value = 'loading'
       instant.value = false
       await nextTick()
@@ -616,10 +627,10 @@ const ProgrammeImage = {
     })
     const titleCardStyle = computed(() => ({ '--title-hue': titleHueOf(props.title) }))
     const titleInitials = computed(() => initialsOf(props.title))
-    return { img, status, instant, src, srcset, onLoad, onError, titleCardStyle, titleInitials }
+    return { img, status, instant, upgrading, src, srcset, onLoad, onError, titleCardStyle, titleInitials }
   },
   template: `
-    <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant }]">
+    <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant, 'is-upgrade': upgrading }]">
       <span v-if="title" class="programme-title-card" :style="titleCardStyle" aria-hidden="true">
         <span class="programme-title-card-text">{{ title }}</span>
         <span class="programme-title-card-initials">{{ titleInitials }}</span>
