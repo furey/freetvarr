@@ -56,13 +56,16 @@ export const syncSavedDvrState = async ({ futureRecordings = [], nowMs = Date.no
   })
 }
 
-export const savedImageFor = async ({ programId }) => {
+export const savedProgramFor = async ({ programId }) => {
   const row = await db('guide_programs')
     .where({ program_id: String(programId) })
     .orderBy('start', 'desc')
     .first()
-  return row ? JSON.parse(row.program_json).image || null : null
+  return row ? JSON.parse(row.program_json) : null
 }
+
+export const savedImageFor = async ({ programId }) =>
+  (await savedProgramFor({ programId }))?.image || null
 
 export const startOfYesterdayMs = (nowMs) => {
   const yesterday = new Date(nowMs)

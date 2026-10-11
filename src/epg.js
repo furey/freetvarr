@@ -17,13 +17,14 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
-import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom } from './image-thumbnails.js'
+import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
+import { createShowArtwork } from './show-artwork.js'
 import {
   saveGuidePrograms,
   loadEndedProgramsByChannel,
   mergeGuidePrograms,
   syncSavedDvrState,
-  savedImageFor,
+  savedProgramFor,
 } from './guide-history.js'
 import { findArtwork, saveArtwork } from './artwork.js'
 import { createGuideCache } from './guide-cache.js'
@@ -251,7 +252,7 @@ export const projectUpcomingRecordings = ({
       episodeTitle: r.episodeTitle || null,
       seriesLinkId: r.seriesLinkId || null,
       season: r.season ?? null,
-      hasImage: Boolean(guide?.imageByEventId?.has(String(r.programId))),
+      hasImage: Boolean(guide?.programByEventId?.get(String(r.programId))?.image),
       source: 'timer',
     }))
   const timerProgramIds = new Set([...timers.map((t) => String(t.programId)), ...skippedProgramIds.map(String)])
@@ -491,26 +492,80 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
   })
 }
 
-export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) =>
-  programmeImages.imageFor(await programmeImageSource({ eventId, fallbackSource }))
+export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
+  const { sources, title } = await programmeImageSources({ eventId, fallbackSource })
+  return await firstImageOf({ sources, load: (source) => programmeImages.imageFor(source) })
+    || await firstImageOf({ sources: await showArtSources(title), load: showArtOriginal })
+}
 
 export const getProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
-  const source = await programmeImageSource({ eventId, fallbackSource })
-  if (!source) return null
-  return thumbnailStore.thumbnailFor({
+  const { sources, title } = await programmeImageSources({ eventId, fallbackSource })
+  const guideThumbnail = (source) => thumbnailStore.thumbnailFor({
     key: `programme:${source}`,
     width,
     loadOriginal: () => programmeImages.imageFor(source),
   })
+  return await firstImageOf({ sources, load: guideThumbnail })
+    || await getShowThumbnail({ title, width })
 }
+
+export const getShowThumbnail = async ({ title, width } = {}) =>
+  firstImageOf({
+    sources: await showArtSources(title),
+    load: (source) => thumbnailStore.thumbnailFor({
+      key: `show:${source}`,
+      width,
+      loadOriginal: () => showArtOriginal(source),
+    }),
+  })
 
 export const prepareThumbnailCache = () => thumbnailStore.prepare()
 
-const programmeImageSource = async ({ eventId, fallbackSource }) => {
+const programmeImageSources = async ({ eventId, fallbackSource }) => {
   const guide = await getCachedGuide().catch(() => null)
-  return guide?.imageByEventId.get(String(eventId))
-    || fallbackSource
-    || await savedImageFor({ programId: eventId }).catch(logHistoryError('image'))
+  const inGuide = guide?.programByEventId.get(String(eventId))
+  const saved = inGuide || fallbackSource
+    ? null
+    : await savedProgramFor({ programId: eventId }).catch(logHistoryError('image'))
+  const own = inGuide?.image || fallbackSource || saved?.image
+  const title = inGuide?.title ?? saved?.title
+  const sameTitle = guide?.imagesByTitle.get(titleKeyOf(title)) || []
+  const sources = [...new Set([own, ...sameTitle].filter(Boolean))].slice(0, MAX_IMAGE_SOURCES)
+  return { sources, title }
+}
+
+const showArtSources = (title) => {
+  if (!title) return []
+  const timeout = new Promise((resolve) => setTimeout(resolve, SHOW_ART_WAIT_MS, []).unref())
+  return Promise.race([showArtwork.sourcesFor(title), timeout]).catch(() => [])
+}
+
+const showArtOriginal = async (source) => {
+  const image = await programmeImages.imageFor(source)
+  return image && landscapeOf(image).catch(() => image)
+}
+
+const firstImageOf = async ({ sources, load }) => {
+  for (const source of sources) {
+    const image = await load(source)
+    if (image) return image
+  }
+  return null
+}
+
+const titleKeyOf = (title) => String(title || '').trim().toLowerCase()
+
+const imagesByTitleOf = (events) => {
+  const imagesByTitle = new Map()
+  const byStart = [...events].sort((a, b) => a.start - b.start)
+  for (const e of byStart) {
+    const key = titleKeyOf(e.title)
+    if (!e.image || !key) continue
+    if (!imagesByTitle.has(key)) imagesByTitle.set(key, [])
+    const images = imagesByTitle.get(key)
+    if (!images.includes(e.image)) images.push(e.image)
+  }
+  return imagesByTitle
 }
 export const listGuideChannels = async () => (await getCachedGuide()).channels
 
@@ -548,19 +603,20 @@ const loadGuide = async (startMs) => {
     )
   }
   const programsByChannel = {}
-  const imageByEventId = new Map()
+  const programByEventId = new Map()
   for (const c of channels) programsByChannel[String(c.epgId)] = []
   for (const e of events) {
     const rows = programsByChannel[String(e.channel_id)]
     if (rows) rows.push(e)
-    if (e.image) imageByEventId.set(String(e.program_id), e.image)
+    programByEventId.set(String(e.program_id), e)
   }
   await saveGuidePrograms({ programs: events }).catch(logHistoryError('save'))
   return {
     startMs,
     channels,
     programsByChannel,
-    imageByEventId,
+    programByEventId,
+    imagesByTitle: imagesByTitleOf(events),
     fetchedAt: Date.now(),
     expiresAt: Date.now() + (events.length ? GUIDE_TTL_MS : GUIDE_EMPTY_TTL_MS),
   }
@@ -588,6 +644,7 @@ const imageCache = new Map()
 const programmeImages = createProgrammeImages({
   fetchImage: (source) => fetchProgrammeImage({ source }),
 })
+const showArtwork = createShowArtwork()
 const thumbnailStore = createThumbnailStore({
   dir: getThumbnailRoot(),
   maxBytes: imageCacheBytesFrom(process.env.IMAGE_CACHE_MAX_MB),
@@ -595,6 +652,8 @@ const thumbnailStore = createThumbnailStore({
 
 const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
+const MAX_IMAGE_SOURCES = 4
+const SHOW_ART_WAIT_MS = 4000
 const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000

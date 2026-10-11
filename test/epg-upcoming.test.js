@@ -156,7 +156,7 @@ test('projectUpcomingRecordings and withSeriesImages: flag programme images with
   const { withSeriesImages } = await import('../src/epg.js')
   const g = {
     channels: [{ id: 'c', epgId: 1, name: 'C' }],
-    imageByEventId: new Map([['timer-1', 'https://img.example/t.jpg']]),
+    programByEventId: new Map([['timer-1', { image: 'https://img.example/t.jpg' }]]),
     programsByChannel: {
       1: [
         { program_id: 'old', series_link: 'sl', title: 'Show', start: NOW - 2 * HOUR, end: NOW - HOUR, image: 'https://img.example/old.jpg' },

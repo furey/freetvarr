@@ -19,10 +19,10 @@ let db
 
 const eventsGrid = () => {
   const start = Math.floor(Date.now() / 1000)
-  const event = (eventId, image, offsetSeconds) => ({
+  const event = (eventId, image, offsetSeconds, title = `Programme ${eventId}`) => ({
     eventId,
     channelUuid: CHANNEL,
-    title: `Programme ${eventId}`,
+    title,
     start: start + offsetSeconds,
     stop: start + offsetSeconds + 60,
     ...(image ? { image } : {}),
@@ -33,6 +33,8 @@ const eventsGrid = () => {
       event(102, `${base}/img/page`, 1),
       event(103, `${base}/img/json`, 2),
       event(104, null, 3),
+      event(105, `${base}/img/missing.jpg`, 4, 'Shared Show'),
+      event(106, `${base}/img/block.jpg`, 5, 'Shared Show'),
     ],
   }
 }
@@ -63,7 +65,10 @@ before(async () => {
   base = `http://127.0.0.1:${server.address().port}`
   ;({ db } = await import('../src/db.js'))
   await db.migrate.latest()
-  await db('settings').insert({ key: 'tvh_url', value: base })
+  await db('settings').insert([
+    { key: 'tvh_url', value: base },
+    { key: 'show_artwork_lookup', value: 'false' },
+  ])
   epg = await import('../src/epg.js')
   tvheadend = await import('../src/tvheadend.js')
 })
@@ -85,7 +90,7 @@ test('getGuideDay: the browser payload carries has_image, never the image URL', 
   const day = await epg.getGuideDay({ day: 0 })
   const programs = day.programs[CHANNEL]
   assert.deepEqual(programs.map((p) => [p.program_id, p.has_image]), [
-    [101, true], [102, true], [103, true], [104, false],
+    [101, true], [102, true], [103, true], [104, false], [105, true], [106, true],
   ])
   assert.ok(!JSON.stringify(day).includes('/img/'))
   assert.ok(programs.every((p) => !('image' in p)))
@@ -112,6 +117,13 @@ test('getProgrammeImage: unknown and imageless events resolve to nothing (the ro
 test('getProgrammeImage: rejects an upstream answer that is not an image', async () => {
   assert.equal(await epg.getProgrammeImage({ eventId: '102' }), null)
   assert.equal(await epg.getProgrammeImage({ eventId: '103' }), null)
+})
+
+test('getProgrammeImage: a dead image link falls back to another airing of the same title', async () => {
+  const image = await epg.getProgrammeImage({ eventId: '105' })
+  assert.deepEqual(image.body, JPEG)
+  const thumbnail = await epg.getProgrammeThumbnail({ eventId: '105', width: 192 })
+  assert.deepEqual(thumbnail.body, JPEG)
 })
 
 test('getProgrammeThumbnail: unknown and imageless events give nothing; an unreadable image comes back as is', async () => {

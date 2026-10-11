@@ -504,14 +504,28 @@ const PROGRAMME_IMAGE_WIDTHS = {
   hero: [768],
 }
 
+const withWidth = (url, width) => `${url}${url.includes('?') ? '&' : '?'}w=${width}`
+
 const densitySrcset = ({ url, widths }) => (widths.length > 1
-  ? widths.map((width, index) => `${url}?w=${width} ${index + 1}x`).join(', ')
+  ? widths.map((width, index) => `${withWidth(url, width)} ${index + 1}x`).join(', ')
   : null)
 
 const imageStatusOf = (img) => {
   if (!img?.complete) return 'loading'
   return img.naturalWidth > 0 ? 'loaded' : 'failed'
 }
+
+const titleHueOf = (title) =>
+  [...String(title || '')].reduce((hash, char) => (hash * 31 + char.codePointAt(0)) % 360, 7)
+
+const initialsOf = (title) => String(title || '')
+  .split(/\s+/)
+  .filter((word) => /^[\p{L}\p{N}]/u.test(word) && !MINOR_TITLE_WORDS.has(word.toLowerCase()))
+  .slice(0, 2)
+  .map((word) => [...word][0].toUpperCase())
+  .join('')
+
+const MINOR_TITLE_WORDS = new Set(['the', 'a', 'an', 'of', 'and', 'with', 'in', 'on'])
 
 const ProgrammeImage = {
   props: {
@@ -520,18 +534,26 @@ const ProgrammeImage = {
     variant: { type: String, default: 'thumb' },
     channelId: { type: [String, Number], default: null },
     hasLogo: Boolean,
+    title: { type: String, default: null },
   },
   setup(props) {
     const img = ref(null)
     const status = ref('loading')
     const instant = ref(false)
-    const guideImageUrl = computed(() => (props.eventId != null
-      ? `/api/epg/image/${encodeURIComponent(props.eventId)}`
-      : null))
+    const guideImageUrl = computed(() => {
+      if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}`
+      if (props.title) return `/api/epg/show-image?title=${encodeURIComponent(props.title)}`
+      return null
+    })
     const guideImageWidths = computed(() => PROGRAMME_IMAGE_WIDTHS[props.variant] || PROGRAMME_IMAGE_WIDTHS.thumb)
-    const src = computed(() => props.source
-      ?? (guideImageUrl.value ? `${guideImageUrl.value}?w=${guideImageWidths.value[0]}` : null))
-    const srcset = computed(() => (props.source == null && guideImageUrl.value
+    const savedSourceFailed = ref(false)
+    watch(() => props.source, () => { savedSourceFailed.value = false })
+    const usesSavedSource = computed(() => props.source != null && !savedSourceFailed.value)
+    const src = computed(() => {
+      if (usesSavedSource.value) return props.source
+      return guideImageUrl.value ? withWidth(guideImageUrl.value, guideImageWidths.value[0]) : null
+    })
+    const srcset = computed(() => (!usesSavedSource.value && guideImageUrl.value
       ? densitySrcset({ url: guideImageUrl.value, widths: guideImageWidths.value })
       : null))
     const settleFromCache = () => {
@@ -544,7 +566,10 @@ const ProgrammeImage = {
       status.value = cached
     }
     const onLoad = () => { if (status.value === 'loading') status.value = 'loaded' }
-    const onError = () => { status.value = 'failed' }
+    const onError = () => {
+      if (usesSavedSource.value && guideImageUrl.value) savedSourceFailed.value = true
+      else status.value = 'failed'
+    }
     const fadeInFromCache = () => {
       const cached = src.value == null ? 'failed' : imageStatusOf(img.value)
       if (cached !== 'loaded') return settleFromCache()
@@ -558,13 +583,19 @@ const ProgrammeImage = {
       await nextTick()
       settleFromCache()
     })
-    return { img, status, instant, src, srcset, onLoad, onError }
+    const titleCardStyle = computed(() => ({ '--title-hue': titleHueOf(props.title) }))
+    const titleInitials = computed(() => initialsOf(props.title))
+    return { img, status, instant, src, srcset, onLoad, onError, titleCardStyle, titleInitials }
   },
   template: `
     <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant }]">
       <img v-if="src != null && status !== 'failed'" ref="img" :src="src" :srcset="srcset" alt=""
         :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
-      <span v-if="status === 'failed'" class="programme-image-fallback">
+      <span v-if="status === 'failed' && title" class="programme-title-card" :style="titleCardStyle" aria-hidden="true">
+        <span class="programme-title-card-text">{{ title }}</span>
+        <span class="programme-title-card-initials">{{ titleInitials }}</span>
+      </span>
+      <span v-else-if="status === 'failed'" class="programme-image-fallback">
         <channel-logo :channel-id="channelId" :has-logo="hasLogo" />
       </span>
     </div>
@@ -1097,7 +1128,7 @@ const RecordingCard = {
   },
   template: `
     <article :class="['rec-card', { failed: rec.failed }]">
-      <programme-image v-if="rec.hasImage" :event-id="rec.programId ?? rec.uuid" variant="rec" :channel-id="rec.channelId" has-logo />
+      <programme-image v-if="rec.hasImage" :event-id="rec.programId ?? rec.uuid" variant="rec" :channel-id="rec.channelId" has-logo :title="rec.name" />
       <div class="rec-card-body">
         <div class="rec-card-head">
           <channel-logo class="shrink-0" :channel-id="rec.channelId" has-logo />
@@ -1397,14 +1428,14 @@ const LiveView = {
                   @pointerup="onPinPointerUp"
                   @pointercancel="onPinPointerCancel">
                   <channel-identity :channel="e.channel" :has-logo="e.channel.hasLogo"
-                    :number="e.channel.number == null ? '' : String(e.channel.number)" @pin="togglePin(e.channel)" />
+                    :number="paddedNumber(e.channel.number)" @pin="togglePin(e.channel)" />
                 </div>
                 <div class="live-row-now">
                   <button v-if="e.now" type="button" class="on-now-open live-now-open"
                     :aria-label="'Show details for ' + e.now.title" @click="openDetails(e, e.now)">
                     <span v-if="showImages" class="live-now-thumb">
                       <programme-image :event-id="e.now.has_image ? e.now.program_id : null"
-                        :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
+                        :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" :title="e.now.title" />
                     </span>
                     <div class="live-now-text">
                     <span class="block truncate">
@@ -1478,6 +1509,10 @@ const LiveView = {
         ...(rest.length ? [{ key: 'other', label: channelGroupLabel({ pinned: false, anyPinned }), entries: rest }] : []),
       ]
     })
+
+    const channelNumberWidth = computed(() =>
+      Math.max(2, ...(data.value?.entries || []).map((e) => String(e.channel.number ?? '').length)))
+    const paddedNumber = (number) => (number == null ? '' : String(number).padStart(channelNumberWidth.value, '0'))
 
     const favouritesHint = computed(() => pinnedOnly.value && !filterQ.value.trim())
 
@@ -1558,6 +1593,7 @@ const LiveView = {
 
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, narrow, groups, favouritesHint, emptyText,
+      paddedNumber,
       OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive,
       zoom, zoomIndex, zoomLevelCount: LIVE_ZOOM_LEVELS.length, changeZoom,
       dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
@@ -1602,7 +1638,7 @@ const DashboardView = {
         </div>
         <div v-else class="panel-body space-y-5">
           <div v-if="onNow.length">
-            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Now · favourites</div>
+            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Live now</div>
             <div class="space-y-3">
             <div v-for="e in onNow" :key="e.channel.id" class="flex items-center gap-3 md:gap-4">
               <channel-logo class="shrink-0" :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" />
@@ -2129,7 +2165,7 @@ const SeriesView = {
             <div v-else class="space-y-3">
               <article v-for="s in series" :key="s.key" class="deck-card space-y-3">
                 <div class="deck-card-with-image">
-                  <programme-image v-if="s.imageProgramId != null" :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" />
+                  <programme-image :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" :title="s.title" />
                   <div class="deck-card-text">
                     <div class="flex items-start justify-between gap-3">
                       <span class="deck-card-title">{{ s.title }}</span>
@@ -2848,7 +2884,7 @@ const RecordingsView = {
                 :class="{ 'not-in-tvh': r.deleted_from_tvh_at }">
                 <td>
                   <div class="recording-cell">
-                    <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" />
+                    <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
                     <div class="recording-cell-text">
                       <span class="font-mono">{{ r.title }}</span>
                       <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
@@ -2922,7 +2958,7 @@ const RecordingsView = {
               :class="['deck-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at }]">
               <div class="flex items-start justify-between gap-3">
                 <div class="recording-cell">
-                  <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" />
+                  <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
                   <div class="recording-cell-text">
                     <span class="deck-card-title">{{ r.title }}</span>
                     <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
@@ -3358,6 +3394,7 @@ const SETTINGS_SECTIONS = [
   { id: 'storage', label: 'Storage' },
   { id: 'plex', label: 'Plex' },
   { id: 'schedule', label: 'Schedule' },
+  { id: 'pictures', label: 'Pictures' },
   { id: 'ad-removal', label: 'Ad removal' },
   { id: 'tv-apps', label: 'TV apps' },
   { id: 'help', label: 'Help' },
@@ -3740,6 +3777,25 @@ const SettingsView = {
           </div>
         </section>
 
+        <section id="section-pictures" class="panel">
+          <header class="panel-header">
+            <span class="panel-heading">
+              <span class="panel-title">PICTURES</span>
+              <info-button title="PICTURES" doc="guide/tv-guide#missing-pictures">
+                <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database.</p>
+                <p>A TVmaze lookup sends the programme title to TVmaze. Turn it off to keep every title on your network.</p>
+              </info-button>
+            </span>
+            <span class="text-xs font-mono text-ink-dim">where missing pictures come from</span>
+          </header>
+          <div class="panel-body space-y-4">
+            <toggle-switch v-model="showArtworkLookup">LOOK UP MISSING PICTURES ON TVMAZE</toggle-switch>
+            <p class="text-xs text-ink-mute leading-relaxed">
+              On: when the guide and Plex have no picture for a show, Freetvarr sends the title to <a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a> and uses its picture. Off: those shows get a title card.
+            </p>
+          </div>
+        </section>
+
         <section id="section-ad-removal" class="panel">
           <header class="panel-header">
             <span class="panel-heading">
@@ -3917,6 +3973,7 @@ const SettingsView = {
     const oneOffRootStatus = ref('')
     const oneOffRootStatusKind = ref('ok')
     const importUnmatched = ref(true)
+    const showArtworkLookup = ref(true)
     const plexOneOffSectionId = ref('')
     const moviesRoot = ref('')
     const moviesRootTesting = ref(false)
@@ -3969,6 +4026,7 @@ const SettingsView = {
       mediaRoot.value = s.media_root || ''
       oneOffRoot.value = s.oneoff_root || ''
       importUnmatched.value = s.import_unmatched !== false
+      showArtworkLookup.value = s.show_artwork_lookup !== false
       plexOneOffSectionId.value = s.plex_oneoff_section_id || ''
       moviesRoot.value = s.movies_root || ''
       plexMoviesSectionId.value = s.plex_movies_section_id || ''
@@ -3996,6 +4054,7 @@ const SettingsView = {
           media_root: mediaRoot.value,
           oneoff_root: oneOffRoot.value,
           import_unmatched: importUnmatched.value,
+          show_artwork_lookup: showArtworkLookup.value,
           plex_oneoff_section_id: plexOneOffSectionId.value,
           movies_root: moviesRoot.value,
           plex_movies_section_id: plexMoviesSectionId.value,
@@ -4276,7 +4335,7 @@ const SettingsView = {
       resetting, resetError, resetFreetvarr, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, plexOneOffSectionId, plexMoviesSectionId,
+      importUnmatched, showArtworkLookup, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,
@@ -7218,7 +7277,7 @@ const EpgView = {
                 @click="openProgram(p, channelById(p.channelId))"
                 @keydown.enter.prevent="openProgram(p, channelById(p.channelId))"
                 @keydown.space.prevent="openProgram(p, channelById(p.channelId))">
-                <programme-image v-if="p.has_image" :event-id="p.program_id" :channel-id="p.channelId" :has-logo="hasChannelLogo(p.channelId)" />
+                <programme-image :event-id="p.has_image ? p.program_id : null" :channel-id="p.channelId" :has-logo="hasChannelLogo(p.channelId)" :title="p.title" />
                 <div class="deck-card-text">
                 <div class="flex items-start justify-between gap-3">
                   <span class="deck-card-title">{{ p.title }}</span>
@@ -7390,7 +7449,7 @@ const EpgView = {
                   @click="openUpcoming(r)"
                   @keydown.enter.prevent="openUpcoming(r)"
                   @keydown.space.prevent="openUpcoming(r)">
-                  <programme-image v-if="r.hasImage" :event-id="r.programId" :channel-id="r.channelId" :has-logo="hasChannelLogo(r.channelId)" />
+                  <programme-image :event-id="r.hasImage ? r.programId : null" :channel-id="r.channelId" :has-logo="hasChannelLogo(r.channelId)" :title="r.name" />
                   <div class="deck-card-text">
                   <div class="flex items-start justify-between gap-3">
                     <span class="deck-card-title">{{ r.name }}</span>
@@ -7429,7 +7488,8 @@ const EpgView = {
             <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeModal" aria-label="Close"><cross-icon /></button>
           </header>
           <programme-image v-if="selected.program.has_image" :key="selected.program.program_id" :event-id="selected.program.program_id" variant="hero"
-            :channel-id="selected.channel?.id ?? selected.program.channelId" :has-logo="hasChannelLogo(selected.channel?.id ?? selected.program.channelId)" />
+            :channel-id="selected.channel?.id ?? selected.program.channelId" :has-logo="hasChannelLogo(selected.channel?.id ?? selected.program.channelId)"
+            :title="selected.program.title" />
           <div class="panel-body space-y-4">
             <p class="text-sm font-mono text-ink-dim">
               {{ selected.channel?.name || channelName(selected.program.channelId) }}<template v-if="selected.program.start"> ·

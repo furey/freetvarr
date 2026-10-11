@@ -3,8 +3,9 @@
 </p>
 
 <p align="center">
-  <strong>Watch live TV in your browser. Sync TVHeadend recordings into your media library.</strong><br/>
-  A self-hosted companion for TVHeadend and compatible tuner.
+  <strong>Live TV in your browser. Recordings in your library, ad free.*</strong><br/>
+  A self-hosted companion for TVHeadend and compatible tuner.<br/>
+  <em>*optional via comskip</em>
 </p>
 
 <p align="center">
