@@ -31,6 +31,24 @@ export const resizeToWebp = async ({ body, width }) => ({
   contentType: WEBP,
 })
 
+export const landscapeOf = async (image) => {
+  const { width, height } = await sharp(image.body).metadata()
+  if (!width || !height || width / height >= MIN_LANDSCAPE_RATIO) return image
+  const canvasHeight = Math.min(height, LANDSCAPE_MAX_HEIGHT)
+  const canvasWidth = Math.round(canvasHeight * 16 / 9)
+  const backdrop = await sharp(image.body)
+    .resize({ width: canvasWidth, height: canvasHeight, fit: 'cover' })
+    .blur(LANDSCAPE_BLUR_SIGMA)
+    .modulate({ brightness: LANDSCAPE_BACKDROP_BRIGHTNESS })
+    .toBuffer()
+  const poster = await sharp(image.body).resize({ height: canvasHeight }).toBuffer()
+  const body = await sharp(backdrop)
+    .composite([{ input: poster, gravity: 'center' }])
+    .jpeg({ quality: LANDSCAPE_JPEG_QUALITY })
+    .toBuffer()
+  return { body, contentType: 'image/jpeg' }
+}
+
 export const createThumbnailStore = ({ dir, maxBytes = DEFAULT_IMAGE_CACHE_BYTES, resize = resizeToWebp }) => {
   const files = new Map()
   const inflight = new Map()
@@ -151,6 +169,11 @@ const isThumbnailName = (name) => THUMBNAIL_NAME.test(name)
 const isPartialWrite = (name) => name.endsWith(PARTIAL_SUFFIX)
 
 const WEBP = 'image/webp'
+const MIN_LANDSCAPE_RATIO = 1.3
+const LANDSCAPE_MAX_HEIGHT = 720
+const LANDSCAPE_BLUR_SIGMA = 24
+const LANDSCAPE_BACKDROP_BRIGHTNESS = 0.55
+const LANDSCAPE_JPEG_QUALITY = 85
 const WEBP_QUALITY = 72
 const BYTES_PER_MB = 1024 * 1024
 const DEFAULT_IMAGE_CACHE_BYTES = 100 * BYTES_PER_MB

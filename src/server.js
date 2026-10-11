@@ -99,6 +99,7 @@ import {
   getChannelThumbnail,
   getProgrammeImage,
   getProgrammeThumbnail,
+  getShowThumbnail,
   prepareThumbnailCache,
   recordProgram,
   cancelProgram,
@@ -194,7 +195,8 @@ const liveEncoderReady = detectLiveEncoder({
 const LIVE_REAPER_MS = 5_000
 const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000
 const IMAGE_MAX_AGE_S = 24 * 60 * 60
-const MISSING_IMAGE_MAX_AGE_S = 60 * 60
+const MISSING_IMAGE_MAX_AGE_S = 5 * 60
+const MAX_SHOW_TITLE_LENGTH = 200
 
 const app = express()
 app.disable('x-powered-by')
@@ -618,11 +620,11 @@ const sendMissingImage = (res) => {
   res.status(404).end()
 }
 
-const serveImage = ({ widths, loadImage }) => async (req, res) => {
+const serveImage = ({ widths, loadImage, paramsOf = (req) => req.params }) => async (req, res) => {
   const width = thumbnailWidthFrom({ requested: req.query.w, allowed: widths })
   if (width === null) return res.status(400).json({ error: `w must be one of ${widths.join(', ')}` })
   try {
-    const image = await loadImage({ ...req.params, width })
+    const image = await loadImage({ ...paramsOf(req), width })
     if (!image) return sendMissingImage(res)
     res.setHeader('Content-Type', image.contentType)
     res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
@@ -640,6 +642,12 @@ app.get('/api/epg/image/:eventId', serveImage({
   widths: PROGRAMME_IMAGE_WIDTHS,
   loadImage: ({ eventId, width }) =>
     getProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+}))
+
+app.get('/api/epg/show-image', serveImage({
+  widths: PROGRAMME_IMAGE_WIDTHS,
+  loadImage: ({ width, title }) => getShowThumbnail({ title, width }),
+  paramsOf: (req) => ({ title: String(req.query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH) }),
 }))
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
@@ -1174,6 +1182,7 @@ app.get('/api/settings', async (req, res) => {
     tvhOpenEntryBackup,
     storedTimeZone,
     welcomeDismissed,
+    showArtworkLookup,
   ] = await Promise.all([
     getSetting('tvh_url'),
     getSetting('tvh_username'),
@@ -1198,6 +1207,7 @@ app.get('/api/settings', async (req, res) => {
     getSetting(OPEN_ENTRY_BACKUP_KEY),
     getSetting('time_zone'),
     isWelcomeDismissed(),
+    getSetting('show_artwork_lookup'),
   ])
   res.json({
     tvh_url: tvhUrl,
@@ -1235,6 +1245,7 @@ app.get('/api/settings', async (req, res) => {
     ad_original_retention_days: adOriginalRetentionDays || '7',
     comskip_ini_override: comskipIniOverride,
     welcome_dismissed: welcomeDismissed,
+    show_artwork_lookup: showArtworkLookup !== 'false',
   })
 })
 
@@ -1263,6 +1274,9 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   await writeString('plex_oneoff_section_id', body.plex_oneoff_section_id, { trim: true })
   await writeString('movies_root', body.movies_root, { trim: true })
   await writeString('plex_movies_section_id', body.plex_movies_section_id, { trim: true })
+  if (body.show_artwork_lookup !== undefined) {
+    await setSetting('show_artwork_lookup', body.show_artwork_lookup ? 'true' : 'false')
+  }
   if (body.import_unmatched !== undefined) {
     await setSetting('import_unmatched', body.import_unmatched ? 'true' : 'false')
   }

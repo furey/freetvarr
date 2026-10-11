@@ -38,7 +38,7 @@ Each day's grid runs to 3am the next morning, so a late film stays on the same p
 
 ## Recording a programme
 
-Click a programme's cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV guide feed (a TV guide fed only by the broadcast has none).
+Click a programme's cell to open its detail: the programme image, synopsis, rating, season and episode. The image comes from the XMLTV guide feed (a TV guide fed only by the broadcast has none); see [Missing pictures](#missing-pictures) for what Freetvarr shows when the feed has no image.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -119,6 +119,18 @@ The `LIVE TV` tab lists every channel with what's on now and next, favourites fi
 The dashboard's What's On panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. To fill the panel, press the star next to some channels in the TV Guide.
 
 While TVHeadend records, a `RECORDING NOW` panel at the top of the dashboard shows each recording's progress, file size, and tuner signal. If TVHeadend reports a recording as failed, the card turns red and shows TVHeadend's reason. After a recording stops, its card shows it through import, ad removal (if on), and into your library. While anything records, the browser tab title starts with `● REC`.
+
+## Missing pictures
+
+Some programmes in a guide feed have no image, or an image link that no longer works. Freetvarr then looks for a picture in this order:
+
+1. Another airing of the same programme in the guide.
+2. The show's background or poster in your Plex TV or movies library, matched by title.
+3. The show's picture on [TVmaze](https://www.tvmaze.com), a free online TV database, matched by exact title.
+
+If none of these has a picture, Freetvarr shows a title card: the programme's name on a coloured background.
+
+A TVmaze lookup sends the programme title to TVmaze. Freetvarr keeps each answer for 30 days, or 7 days when TVmaze has no match. To turn the lookups off, go to Settings → **Pictures** and turn off `LOOK UP MISSING PICTURES ON TVMAZE`.
 
 ## Caching
 

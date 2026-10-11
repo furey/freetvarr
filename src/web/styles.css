@@ -1416,6 +1416,52 @@ a.icon-link {
   opacity: 0.25;
 }
 
+.programme-title-card {
+  position: absolute;
+  inset: 0;
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6% 9%;
+  background:
+    radial-gradient(130% 100% at 0% 0%, hsl(var(--title-hue) 40% 32% / 0.6), transparent 65%),
+    linear-gradient(135deg, hsl(var(--title-hue) 28% 17%), hsl(calc(var(--title-hue) + 35) 22% 9%));
+  color: hsl(var(--title-hue) 35% 90%);
+  text-align: center;
+  user-select: none;
+}
+
+.programme-title-card-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: clamp(0.55rem, 11cqw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.programme-title-card-initials {
+  display: none;
+  font-size: 34cqw;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+@container (width < 4.5rem) {
+  .programme-title-card-text {
+    display: none;
+  }
+
+  .programme-title-card-initials {
+    display: block;
+  }
+}
+
 .channel-logo-fallback {
   color: #544e47;
 }
