@@ -67,7 +67,7 @@ const watchLiveBriefly = async (page, watchButton) => {
   await page.waitForSelector('.live-video:not(.is-veiled)', { timeout: 20000 }).catch(() => {})
   const playingAt = Date.now()
   await page.waitForTimeout(LIVE_PLAY_MS)
-  await clickWithCursor(page, page.locator('.live-modal .btn-danger')).catch(() => {})
+  await clickWithCursor(page, page.locator('.live-modal button[aria-label="Stop and close"]:visible').first()).catch(() => {})
   await page.waitForTimeout(700)
   return playingAt
 }
