@@ -7401,7 +7401,7 @@ const EpgView = {
                       :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
                       @click="openProgram(p, ch)">
                       <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
-                        :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" />
+                        :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
                       <span v-if="cellState(p) === 'recording'" class="epg-cell-rec-fill" :style="{ width: recordingFillPercent(p) + '%' }"></span>
                       <template v-if="cellShowsText(p)">
                         <span class="epg-cell-title">{{ p.title }}</span>
