@@ -4597,6 +4597,11 @@ table.recordings-table tbody td {
   overflow: hidden;
 }
 
+.live-series-button.is-on {
+  border-color: #e2b03c;
+  color: #e2b03c;
+}
+
 .live-status .live-status-text {
   flex: 1 1 0;
   min-width: 0;
