@@ -25,7 +25,7 @@ import {
   nativeClickPlan,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
-import { liveRecordButton } from '/live-record.js'
+import { liveRecordButton, liveSeriesButton } from '/live-record.js'
 import {
   NO_GUIDE_TEXT, channelNumberLabel, seasonEpisodeOf, ratingLabel, genreLabel, programmeProgress,
   airingBoundary, airingCovers, watchRowLabel,
@@ -9221,6 +9221,18 @@ const RecordIcon = {
   `,
 }
 
+const SeriesRecordIcon = {
+  props: { set: { type: Boolean, default: false } },
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M7.875 3.887A4.75 4.75 0 1 0 7.875 12.113"/>
+      <circle cx="10.25" cy="8" r="4.75"/>
+      <path v-if="set" d="M8.4 8.1l1.3 1.3 2.4-2.6"/>
+      <circle v-else cx="10.25" cy="8" r="2.25" fill="currentColor" stroke="none"/>
+    </svg>
+  `,
+}
+
 const StopIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -9681,6 +9693,13 @@ const LivePlayer = {
             </div>
             <div v-else class="flex shrink-0 gap-2">
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
+              <button v-if="!seriesButton.hidden" type="button"
+                :class="['btn', 'live-action-wide', 'live-series-button', { 'is-on': seriesButton.set, 'is-busy': seriesBusy }]"
+                :disabled="seriesButton.disabled || seriesBusy" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
+                :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
+                <span class="btn-label"><series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span></span>
+                <span v-if="seriesBusy" class="spinner spinner-overlay"></span>
+              </button>
               <button type="button" class="btn live-action-wide" :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.label" @click="recordFromLive"><record-icon /> <span class="live-action-label">{{ recordButton.label }}</span></button>
               <button type="button" class="btn btn-danger live-action-wide" aria-label="STOP" @click="stopLive"><stop-icon /> <span class="live-action-label">STOP</span></button>
             </div>
@@ -9734,8 +9753,12 @@ const LivePlayer = {
 
     const isBehindLive = computed(() => live.phase === 'live' && live.behindSeconds >= BEHIND_LIVE_SHOWN_S)
 
+    const seriesNote = ref(null)
+    let seriesNoteTimer = null
+
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
+      if (seriesNote.value) return seriesNote.value.text
       if (live.phase === 'tuning') {
         const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
         return slow ? 'TUNING… STILL WAITING FOR A SIGNAL' : 'TUNING…'
@@ -9747,6 +9770,7 @@ const LivePlayer = {
     })
 
     const statusKind = computed(() => {
+      if (live.phase !== 'ended' && seriesNote.value) return seriesNote.value.kind
       if (live.phase === 'ended' || live.conflict) return 'err'
       return live.phase === 'live' ? 'ok' : 'info'
     })
@@ -9922,8 +9946,7 @@ const LivePlayer = {
       recording: isRecordingChannel(live.channel?.id),
     }))
 
-    const recordFromLive = () => {
-      if (recordButton.value.disabled) return
+    const openNowInGuide = () => {
       recordDialogOverPlayer.value = true
       openInGuide({
         channelId: live.channel.id,
@@ -9932,8 +9955,82 @@ const LivePlayer = {
       })
     }
 
+    const recordFromLive = () => {
+      if (!recordButton.value.disabled) openNowInGuide()
+    }
+
+    const liveSeriesTags = ref(null)
+    const liveChannels = ref([])
+    const seriesBusy = ref(false)
+
+    const loadLiveSeriesState = async () => {
+      const [state, onNowAll] = await Promise.all([
+        api('GET', '/api/epg/state').catch(() => null),
+        api('GET', '/api/epg/now?all=1').catch(() => null),
+      ])
+      liveSeriesTags.value = state && !state.stale ? state.seriesTags || [] : null
+      liveChannels.value = onNowAll?.entries || []
+    }
+
+    watch(() => live.open && live.channel?.id, (id) => {
+      liveSeriesTags.value = null
+      if (id) loadLiveSeriesState()
+    }, { immediate: true })
+
+    watch(recordDialogOverPlayer, (open) => {
+      if (!open && live.open) loadLiveSeriesState()
+    })
+
+    const liveChannelName = (id) =>
+      liveChannels.value.find((e) => String(e.channel?.id) === String(id))?.channel?.name || ''
+
+    const seriesButton = computed(() => liveSeriesButton({
+      program: airing.value.now,
+      nowMs: now.value.getTime(),
+      seriesTags: liveSeriesTags.value,
+      channelName: liveChannelName,
+    }))
+
+    const hdTwinOfNow = () => findHdSimulcast({
+      program: airing.value.now,
+      channelId: live.channel?.id,
+      channels: liveChannels.value.map((e) => e.channel),
+      programsByChannel: Object.fromEntries(liveChannels.value.map((e) => [e.channel.id, [e.now].filter(Boolean)])),
+      needsSeriesLink: true,
+    })
+
+    const showSeriesNote = ({ text, kind }) => {
+      clearTimeout(seriesNoteTimer)
+      seriesNote.value = { text, kind }
+      seriesNoteTimer = setTimeout(() => { seriesNote.value = null }, SERIES_NOTE_MS)
+    }
+
+    const recordSeriesFromLive = async () => {
+      const button = seriesButton.value
+      if (button.disabled || seriesBusy.value) return
+      if (button.set || hdTwinOfNow()) return openNowInGuide()
+      const program = airing.value.now
+      seriesBusy.value = true
+      try {
+        await api('POST', '/api/epg/record-series', {
+          series_link: program.series_link,
+          channel_id: live.channel.id,
+          program_id: program.program_id,
+          epg_program_id: program.epg_program_id,
+        })
+        showSeriesNote({ text: 'SERIES RECORDING SET', kind: 'ok' })
+        await loadLiveSeriesState()
+      } catch (err) {
+        showSeriesNote({ text: `Series record failed: ${err.message}`, kind: 'err' })
+      } finally {
+        seriesBusy.value = false
+      }
+    }
+
+    onUnmounted(() => clearTimeout(seriesNoteTimer))
+
     return {
-      recordButton, recordFromLive,
+      recordButton, recordFromLive, seriesButton, seriesBusy, recordSeriesFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
       isBehindLive, jumpToLive, frameEl, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
@@ -9955,6 +10052,7 @@ const fetchChannelAiring = async ({ channelId, atMs }) => {
 
 const EMPTY_AIRING = { now: null, next: null, atMs: 0, loaded: false }
 const AIRING_BOUNDARY_GRACE_MS = 1_000
+const SERIES_NOTE_MS = 6_000
 const LIVE_POLL_TUNING_MS = 1_000
 const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800
@@ -10800,6 +10898,7 @@ app.component('music-notes-icon', MusicNotesIcon)
 app.component('speaker-icon', SpeakerIcon)
 app.component('speaker-muted-icon', SpeakerMutedIcon)
 app.component('record-icon', RecordIcon)
+app.component('series-record-icon', SeriesRecordIcon)
 app.component('stop-icon', StopIcon)
 app.component('go-live-icon', GoLiveIcon)
 app.component('refresh-icon', RefreshIcon)
