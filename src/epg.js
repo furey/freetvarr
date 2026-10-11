@@ -28,6 +28,7 @@ import {
 } from './guide-history.js'
 import { findArtwork, saveArtwork } from './artwork.js'
 import { createGuideCache } from './guide-cache.js'
+import { invalidateRecordingNow } from './recording-now.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -451,6 +452,7 @@ export const withSeriesImages = ({ seriesTags = [], guide, nowMs = Date.now() })
 export const invalidateRecordingState = () => {
   stateCache = null
   stateFailedUntil = 0
+  invalidateRecordingNow()
 }
 
 export const recordProgram = async (args) => {

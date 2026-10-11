@@ -26,6 +26,10 @@ export const getRecordingNow = async ({ nowMs = Date.now() } = {}) => {
   return inflight
 }
 
+export const invalidateRecordingNow = () => {
+  cache = null
+}
+
 export const recordingImageSource = (eventId) => {
   for (const { recording } of tracked.values()) {
     const ids = [recording.programId, recording.uuid].filter((id) => id != null).map(String)
@@ -248,6 +252,8 @@ const isExpired = ({ entry, nowMs }) =>
 const cardBasics = (recording) => ({
   uuid: recording.uuid,
   programId: recording.programId,
+  autorecId: recording.autorecId ?? null,
+  recordingSince: recording.recordingSince ?? null,
   hasImage: Boolean(recording.image),
   title: recording.name,
   episodeTitle: recording.episodeTitle,

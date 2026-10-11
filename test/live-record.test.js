@@ -5,11 +5,12 @@ import {
   isOnAir,
   nowProgramFor,
   liveRecordButton,
+  recordingProgramIdsOf,
   liveSeriesButton,
   otherSeriesChannelId,
 } from '../src/web/live-record.js'
 
-const program = { title: 'News', start: 1_000, end: 2_000 }
+const program = { program_id: 42, title: 'News', start: 1_000, end: 2_000 }
 
 test('isOnAir is true only between start and end', () => {
   assert.equal(isOnAir({ program, nowMs: 1_000 }), true)
@@ -27,24 +28,31 @@ test('nowProgramFor matches the channel id across number and string', () => {
 })
 
 test('liveRecordButton disables with the no-listing title when nothing is on', () => {
-  const button = liveRecordButton({ program: null, nowMs: 1_500, recording: false })
+  const button = liveRecordButton({ program: null, nowMs: 1_500 })
   assert.equal(button.disabled, true)
   assert.equal(button.title, NO_LISTING_TITLE)
 })
 
 test('liveRecordButton disables when the cached programme has ended', () => {
-  assert.equal(liveRecordButton({ program, nowMs: 2_500, recording: false }).disabled, true)
+  assert.equal(liveRecordButton({ program, nowMs: 2_500 }).disabled, true)
 })
 
 test('liveRecordButton offers RECORD for a programme on air', () => {
-  const button = liveRecordButton({ program, nowMs: 1_500, recording: false })
+  const button = liveRecordButton({ program, nowMs: 1_500, recordingProgramIds: new Set(['7']) })
   assert.deepEqual([button.disabled, button.label], [false, 'RECORD'])
   assert.match(button.title, /already aired is not included/)
 })
 
-test('liveRecordButton shows REC while the channel records', () => {
-  const button = liveRecordButton({ program, nowMs: 1_500, recording: true })
-  assert.deepEqual([button.disabled, button.label], [false, 'REC'])
+test('liveRecordButton offers STOP REC while this programme records', () => {
+  const button = liveRecordButton({ program, nowMs: 1_500, recordingProgramIds: new Set(['42']) })
+  assert.deepEqual([button.disabled, button.recording, button.label], [false, true, 'STOP REC'])
+  assert.match(button.ariaLabel, /Stop recording/)
+})
+
+test('recordingProgramIdsOf keeps working recordings with a programme id', () => {
+  const active = [{ programId: 42 }, { programId: 7, failed: true }, { programId: null }, { programId: '9' }]
+  assert.deepEqual([...recordingProgramIdsOf(active)], ['42', '9'])
+  assert.deepEqual([...recordingProgramIdsOf()], [])
 })
 
 const episode = { title: 'Gruen', start: 1_000, end: 2_000, series_link: 'abc|gruen' }
