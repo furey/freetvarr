@@ -54,7 +54,7 @@ export class LiveTvError extends Error {
 export const pickStreams = ({ streams = [], languages = [], encoder = COPY_ENCODER } = {}) => {
   const video = streams.find((s) => VIDEO_TYPES.includes(s.type)) || null
   const audio = pickAudio({ streams, languages })
-  const teletext = pickTeletext(streams)
+  const teletext = encoder.captions === false ? null : pickTeletext(streams)
   if (!video) return { video: null, audio, teletext, videoMode: null, heightCap: null, deinterlace: false }
   if (video.type === 'H264') return { video, audio, teletext, ...h264Plan(encoder) }
   const standardDefinition = isStandardDefinition(video)
@@ -680,7 +680,7 @@ const DEFAULT_CAPTION_PAGE = 801
 const CAPTION_CUE_MS = 4000
 const CAPTION_TRACK_NAME = 'English'
 const MAX_INTERLEAVE_MICROSECONDS = 500_000
-const TELETEXT_FAILURE = /teletext|zvbi/i
+const TELETEXT_FAILURE = /teletext|zvbi|txt_/i
 const PLAYLIST_NAMES = new Set([MASTER_PLAYLIST, MEDIA_PLAYLIST, CAPTIONS_PLAYLIST])
 const MAX_ERROR_LINES = 20
 const LIVE_REFUSALS = {

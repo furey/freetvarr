@@ -29,6 +29,9 @@ export const detectLiveEncoder = async ({
   return software('VAAPI unavailable')
 }
 
+export const detectCaptionDecoder = async ({ listDecoders = listFfmpegDecoders } = {}) =>
+  TELETEXT_DECODER.test(await listDecoders().catch(() => ''))
+
 export const describeLiveEncoder = (encoder) => {
   if (encoder.kind === 'vaapi') {
     return `hardware (VAAPI${encoder.lowPower ? ', low-power' : ''}): ${encoder.reason}`
@@ -78,6 +81,14 @@ const probeVaapi = ({ device, lowPower }) => new Promise((resolve) => {
   })
 })
 
+const listFfmpegDecoders = () => new Promise((resolve, reject) => {
+  execFile('ffmpeg', ['-hide_banner', '-decoders'], { timeout: PROBE_TIMEOUT_MS }, (err, stdout) => {
+    if (err) return reject(err)
+    resolve(stdout)
+  })
+})
+
 const lastLine = (text) => String(text || '').trim().split('\n').pop()
 
 const PROBE_TIMEOUT_MS = 20_000
+const TELETEXT_DECODER = /\blibzvbi_teletextdec\b/

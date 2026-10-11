@@ -137,7 +137,7 @@ import {
   openUpstreamFor,
   liveContentType,
 } from './live-tv.js'
-import { detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
+import { detectCaptionDecoder, detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
 import {
   createPlaybackSessions,
   playbackCandidates,
@@ -189,12 +189,16 @@ const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 const LIBRARY_CHOICES = ['include', 'exclude']
 const LIVE_TV_MAX_SESSIONS = Math.max(1, Number(process.env.LIVE_TV_MAX_SESSIONS) || 2)
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
-const liveEncoderReady = detectLiveEncoder({
-  mode: (process.env.LIVE_TV_TRANSCODE || 'auto').trim().toLowerCase(),
-  device: process.env.LIVE_TV_VAAPI_DEVICE || DEFAULT_VAAPI_DEVICE,
-}).then((encoder) => {
+const liveEncoderReady = Promise.all([
+  detectLiveEncoder({
+    mode: (process.env.LIVE_TV_TRANSCODE || 'auto').trim().toLowerCase(),
+    device: process.env.LIVE_TV_VAAPI_DEVICE || DEFAULT_VAAPI_DEVICE,
+  }),
+  detectCaptionDecoder(),
+]).then(([encoder, captions]) => {
   console.log(`[live] video ${describeLiveEncoder(encoder)}`)
-  return encoder
+  console.log(`[live] captions ${captions ? 'on (ffmpeg has the teletext decoder)' : 'off (ffmpeg has no libzvbi teletext decoder)'}`)
+  return { ...encoder, captions }
 })
 const LIVE_REAPER_MS = 5_000
 const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000

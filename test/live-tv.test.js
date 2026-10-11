@@ -774,3 +774,14 @@ test('vendor: the server sends the full hls.js build, which has caption support'
   const build = await readFile(new URL('../node_modules/hls.js/dist/hls.min.mjs', import.meta.url), 'utf8')
   assert.match(build, /subtitleStreamController:(?!void)/)
 })
+
+test('pickStreams: leaves captions out when ffmpeg has no teletext decoder', () => {
+  const streams = [
+    { pid: 0x100, type: 'H264' },
+    { pid: 0x101, type: 'AC3' },
+    { pid: 0x241, type: 'TELETEXT' },
+    { pid: 0x2000 + 801, type: 'TEXTSUB' },
+  ]
+  assert.ok(pickStreams({ streams }).teletext)
+  assert.equal(pickStreams({ streams, encoder: { kind: 'copy', captions: false } }).teletext, null)
+})
