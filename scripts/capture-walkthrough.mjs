@@ -103,7 +103,7 @@ const run = async () => {
   const settledAt = Date.now()
 
   await page.waitForTimeout(1400)
-  const dashboardWatch = page.locator('.panel-body .btn-watch:not(.live-row-watch)').first()
+  const dashboardWatch = page.locator('.dash-live-row .row-play').first()
   const playingAt = await watchLiveBriefly(page, dashboardWatch)
 
   await clickTab(page, 'live')

@@ -50,7 +50,7 @@ const openProgramme = async (page, programme) => {
 }
 
 const playLive = async (page) => {
-  await page.locator('.live-row.pinned .live-row-watch').first().click()
+  await page.locator('.live-row.pinned .row-play').first().click()
   await page.mouse.move(0, 0)
   await page.waitForSelector('.live-video:not(.is-veiled)', { timeout: 20_000 })
   await page.waitForFunction((at) => document.querySelector('.live-video')?.currentTime >= at,

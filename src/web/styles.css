@@ -2997,6 +2997,75 @@ body.epg-drag-lock * {
   height: 1.3rem;
 }
 
+.live-row,
+.dash-live-row {
+  position: relative;
+}
+
+.row-play::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0.25rem;
+}
+
+.on-now-open.row-play:focus-visible {
+  outline: none;
+}
+
+.row-play:focus-visible::after {
+  outline: 2px solid #1eb6ff;
+  outline-offset: 2px;
+}
+
+.row-over,
+.live-row .epg-pin,
+.live-row.pinned .live-row-handle .channel-logo {
+  position: relative;
+  z-index: 1;
+}
+
+.row-info {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: -0.25rem 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #8b837e;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+span.row-info {
+  pointer-events: none;
+}
+
+.row-info svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+@media (hover: hover) {
+  .row-info:hover {
+    color: #1eb6ff;
+    background: rgba(30, 182, 255, 0.08);
+  }
+}
+
+.row-info:focus-visible {
+  outline: 2px solid #1eb6ff;
+  outline-offset: 0;
+  color: #1eb6ff;
+}
+
 @media (pointer: fine) {
   .rec-actions .btn {
     min-height: 2.5rem;
@@ -3699,7 +3768,7 @@ section[id^="section-"] {
 .live-row {
   display: grid;
   grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) minmax(0, 16rem) auto;
-  grid-template-areas: "handle now next watch";
+  grid-template-areas: "handle now next info";
   align-items: center;
   gap: 0.5rem 1rem;
   padding: 0.6rem 0;
@@ -3748,7 +3817,7 @@ section[id^="section-"] {
 .channel-logo { flex: none; width: 2rem; display: flex; justify-content: center; }
 .live-row-now { grid-area: now; min-width: 0; }
 .live-row-next { grid-area: next; justify-self: end; max-width: 100%; }
-.live-row-watch { grid-area: watch; }
+.live-row-info { grid-area: info; }
 
 .channel-number {
   color: #544e47;
@@ -3820,7 +3889,7 @@ section[id^="section-"] {
   .live-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "handle watch"
+      "handle info"
       "now now"
       "next next";
     gap: 0.35rem 0.75rem;

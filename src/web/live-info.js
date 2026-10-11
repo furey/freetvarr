@@ -15,6 +15,9 @@ export const ratingLabel = (p) => {
   return typeof rating === 'string' && rating && Number.isNaN(Number(rating)) ? rating : ''
 }
 
+export const watchRowLabel = ({ channel, now }) =>
+  (now ? `Watch ${channel.name} live, ${now.title} on now` : `Watch ${channel.name} live`)
+
 export const genreLabel = (genre) => GENRE_LABELS[Number(genre) >> 4] || ''
 
 export const programmeProgress = ({ program, atMs }) => {

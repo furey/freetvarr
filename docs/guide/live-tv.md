@@ -29,9 +29,9 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**, or press the TV button beside a channel under **LIVE NOW** in the dashboard's **WHAT'S ON** panel. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
+Tap a channel in the **LIVE TV** tab, or under **LIVE NOW** in the dashboard's **WHAT'S ON** panel, to watch it. A channel with no guide listing plays too. The info button at the end of each row opens the programme's details in the TV Guide; close them to return to the list. In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
 
-A dimmed channel marked **OFF AIR** is not broadcasting right now, so the TV button shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
+A dimmed channel marked **OFF AIR** is not broadcasting right now, so a tap shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
 
 The **zoom buttons** above the channel list change the row size. Zoom out for more channels on screen; zoom in for bigger pictures and text. Each browser remembers its zoom.
 
