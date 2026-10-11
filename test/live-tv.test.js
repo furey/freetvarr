@@ -9,6 +9,7 @@ import {
   tunerVerdict,
   stallReason,
   createLiveSessions,
+  missingStreamParameters,
   LIVE_FILE_PATTERN,
   withoutCutInSegment,
   hasSegments,
@@ -93,11 +94,12 @@ test('ffmpegArgsFor: exact arguments for a copied H.264 channel', () => {
   const plan = pickStreams({ streams: SBS_HD })
   assert.deepEqual(ffmpegArgsFor({ plan, dir: '/tmp/live/abc' }), [
     '-hide_banner', '-loglevel', 'error', '-fflags', '+genpts+discardcorrupt',
+    '-probesize', '500000', '-analyzeduration', '500000',
     '-f', 'mpegts', '-i', 'pipe:0',
     '-map', '0:i:0x66', '-map', '0:i:0x67',
     '-c:v', 'copy',
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
-    '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
+    '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
     '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '/tmp/live/abc/index.m3u8',
@@ -108,17 +110,39 @@ test('ffmpegArgsFor: exact arguments for a transcoded MPEG-2 SD channel', () => 
   const plan = pickStreams({ streams: ABC_SD })
   assert.deepEqual(ffmpegArgsFor({ plan, dir: '/tmp/live/abc' }), [
     '-hide_banner', '-loglevel', 'error', '-fflags', '+genpts+discardcorrupt',
+    '-probesize', '500000', '-analyzeduration', '500000',
     '-f', 'mpegts', '-i', 'pipe:0',
     '-map', '0:i:0x200', '-map', '0:i:0x28a',
     '-vf', 'yadif=deint=interlaced,scale=-2:min(ih\\,576)',
     '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency', '-crf', '23',
-    '-g', '50', '-sc_threshold', '0', '-pix_fmt', 'yuv420p',
+    '-g', '50', '-force_key_frames', OPENING_KEYFRAMES, '-sc_threshold', '0', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
-    '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
+    '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
     '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '/tmp/live/abc/index.m3u8',
   ])
+})
+
+test('ffmpegArgsFor: the full probe leaves out the short probe options', () => {
+  const plan = pickStreams({ streams: SBS_HD })
+  const args = ffmpegArgsFor({ plan, dir: '/tmp/live/abc', probe: 'full' })
+  assert.ok(!args.includes('-probesize'))
+  assert.ok(!args.includes('-analyzeduration'))
+  assert.ok(args.includes('-hls_init_time'))
+})
+
+test('ffmpegArgsFor: copy mode never forces keyframes', () => {
+  const plan = pickStreams({ streams: SBS_HD })
+  assert.ok(!ffmpegArgsFor({ plan, dir: '/tmp/live/abc' }).includes('-force_key_frames'))
+})
+
+test('missingStreamParameters: spots ffmpeg probe failures only', () => {
+  assert.equal(missingStreamParameters(['Could not find codec parameters for stream 2']), true)
+  assert.equal(missingStreamParameters(['Stream #0:1: unspecified sample rate']), true)
+  assert.equal(missingStreamParameters(['unspecified size']), true)
+  assert.equal(missingStreamParameters(['Invalid data found when processing input']), false)
+  assert.equal(missingStreamParameters(), false)
 })
 
 test('ffmpegArgsFor: never carries a URL or credentials', () => {
@@ -223,6 +247,8 @@ test('LIVE_FILE_PATTERN: accepts the playlist and segments only', () => {
     assert.doesNotMatch(bad, LIVE_FILE_PATTERN)
   }
 })
+
+const OPENING_KEYFRAMES = 'expr:lt(t,4)*gte(t,n_forced)'
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
@@ -412,13 +438,14 @@ test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', (
     '-hide_banner', '-loglevel', 'error',
     '-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi',
     '-fflags', '+genpts+discardcorrupt',
+    '-probesize', '500000', '-analyzeduration', '500000',
     '-f', 'mpegts', '-i', 'pipe:0',
     '-map', '0:i:0x66', '-map', '0:i:0x67',
     '-vf', 'deinterlace_vaapi=auto=1,scale_vaapi=w=-2:h=min(ih\\,720)',
     '-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24',
-    '-g', '50', '-keyint_min', '50',
+    '-g', '50', '-keyint_min', '50', '-force_key_frames', OPENING_KEYFRAMES,
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
-    '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
+    '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
     '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '/tmp/live/abc/index.m3u8',
@@ -501,4 +528,37 @@ test('sessions: an upstream with no input source ends with a no-source reason', 
   await new Promise((resolve) => setImmediate(resolve))
   const status = await h.sessions.statusForChannel('c1')
   assert.equal(status.reason.code, 'no-source')
+})
+
+const failChild = async (child, line) => {
+  child.stderr.write(`${line}\n`)
+  await new Promise((resolve) => setImmediate(resolve))
+  child.emit('exit', 1, null)
+  await new Promise((resolve) => setImmediate(resolve))
+}
+
+test('sessions: missing stream parameters restart ffmpeg once with the full probe', async () => {
+  const h = fakeHarness()
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await new Promise((resolve) => setImmediate(resolve))
+  await failChild(h.children[0], 'Could not find codec parameters for stream 1')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(h.children.length, 2)
+  assert.equal(h.upstreams.length, 2)
+  assert.ok(h.spawnArgs[0].includes('-analyzeduration'))
+  assert.ok(!h.spawnArgs[1].includes('-analyzeduration'))
+  assert.equal(session.status, 'tuning')
+  assert.ok(h.events.includes('abort'))
+  await failChild(h.children[1], 'Could not find codec parameters for stream 1')
+  assert.equal(session.status, 'ended')
+  assert.equal(session.reason.code, 'ffmpeg')
+  assert.equal(h.children.length, 2)
+})
+
+test('sessions: other ffmpeg failures end the session without a restart', async () => {
+  const h = fakeHarness()
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await failChild(h.children[0], 'Invalid data found when processing input')
+  assert.equal(session.status, 'ended')
+  assert.equal(h.children.length, 1)
 })

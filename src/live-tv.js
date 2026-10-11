@@ -22,6 +22,7 @@ export const LIVE_FILE_PATTERN = /^(index\.m3u8|seg\d{1,9}\.ts)$/
 export const LIVE_SESSION_PATTERN = /^[a-f0-9]{16}$/
 export const CONFLICT_WINDOW_MS = 60 * 60 * 1000
 export const HLS_SEGMENT_SECONDS = 2
+export const HLS_INIT_SEGMENT_SECONDS = 1
 export const MIN_LIVE_SEGMENTS = 6
 
 export const DEFAULT_LIVE_BUFFER_MINUTES = 30
@@ -61,11 +62,12 @@ export const pickStreams = ({ streams = [], languages = [], encoder = COPY_ENCOD
   }
 }
 
-export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS }) => [
+export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, probe = 'short' }) => [
   '-hide_banner',
   '-loglevel', 'error',
   ...hardwareDecodeArgs(plan),
   '-fflags', '+genpts+discardcorrupt',
+  ...probeArgs(probe),
   '-f', 'mpegts',
   '-i', 'pipe:0',
   '-map', pidSpecifier(plan.video.pid),
@@ -74,11 +76,19 @@ export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS }) =
   ...(plan.audio ? ['-c:a', 'aac', '-ac', '2', '-b:a', '128k'] : []),
   '-f', 'hls',
   '-hls_time', String(HLS_SEGMENT_SECONDS),
+  '-hls_init_time', String(HLS_INIT_SEGMENT_SECONDS),
   '-hls_list_size', String(segmentCount),
   '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
   '-hls_segment_filename', path.join(dir, 'seg%d.ts'),
   path.join(dir, 'index.m3u8'),
 ]
+
+const probeArgs = (probe) => probe === 'full'
+  ? []
+  : ['-probesize', String(SHORT_PROBE_BYTES), '-analyzeduration', String(SHORT_PROBE_MICROSECONDS)]
+
+export const missingStreamParameters = (errorLines = []) =>
+  errorLines.some((line) => MISSING_PARAMETERS.test(line))
 
 const CUT_IN_SEGMENT = 'seg0.ts'
 
@@ -182,6 +192,8 @@ export const createLiveSessions = ({
       bufferSeconds: bufferMinutes * 60,
       controller: new AbortController(),
       child: null,
+      plan,
+      probe: 'short',
       errorLines: [],
       ending: null,
     }
@@ -189,13 +201,7 @@ export const createLiveSessions = ({
     ended.delete(channelId)
     try {
       await makeDir(session.dir)
-      session.child = spawnProcess('ffmpeg', ffmpegArgsFor({
-        plan,
-        dir: session.dir,
-        segmentCount: liveSegmentCount(bufferMinutes),
-      }), {
-        stdio: ['pipe', 'ignore', 'pipe'],
-      })
+      session.child = spawnFfmpeg(session)
     } catch (err) {
       session.exited = true
       await end(session, { code: 'ffmpeg', detail: err.message })
@@ -204,6 +210,42 @@ export const createLiveSessions = ({
     watchChild(session)
     pumpUpstream(session)
     return { session, shared: false }
+  }
+
+  const spawnFfmpeg = (session) => spawnProcess('ffmpeg', ffmpegArgsFor({
+    plan: session.plan,
+    dir: session.dir,
+    segmentCount: liveSegmentCount(bufferMinutes),
+    probe: session.probe,
+  }), {
+    stdio: ['pipe', 'ignore', 'pipe'],
+  })
+
+  const needsFullProbe = (session) =>
+    session.status === 'tuning' &&
+    session.probe === 'short' &&
+    missingStreamParameters(session.errorLines)
+
+  const restartWithFullProbe = async (session) => {
+    session.probe = 'full'
+    session.errorLines = []
+    session.lastByteAt = now()
+    session.upstream?.unpipe?.()
+    session.upstream?.destroy?.()
+    session.upstream = null
+    session.controller.abort()
+    session.controller = new AbortController()
+    try {
+      await removeDir(session.dir)
+      await makeDir(session.dir)
+      session.exited = false
+      session.child = spawnFfmpeg(session)
+    } catch (err) {
+      session.exited = true
+      return end(session, { code: 'ffmpeg', detail: err.message })
+    }
+    watchChild(session)
+    pumpUpstream(session)
   }
 
   const watchChild = (session) => {
@@ -220,6 +262,7 @@ export const createLiveSessions = ({
     child.on('exit', (code, signal) => {
       session.exited = true
       if (session.ending || session.status === 'stalled') return
+      if (needsFullProbe(session)) return restartWithFullProbe(session)
       end(session, {
         code: 'ffmpeg',
         detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,
@@ -239,7 +282,7 @@ export const createLiveSessions = ({
       upstream.on('data', () => { session.lastByteAt = now() })
       upstream.on('error', () => {})
       upstream.on('end', () => {
-        if (!session.ending) stall(session)
+        if (!session.ending && session.upstream === upstream) stall(session)
       })
       upstream.pipe(session.child.stdin)
     } catch (err) {
@@ -355,7 +398,7 @@ export const createLiveSessions = ({
     return readPlaylist(session)
   }
 
-  const waitForPlaylist = async (id, { timeoutMs = 8_000, pollMs = 200 } = {}) => {
+  const waitForPlaylist = async (id, { timeoutMs = 15_000, pollMs = 200 } = {}) => {
     const deadline = Date.now() + timeoutMs
     for (;;) {
       const session = sessions.get(id)
@@ -533,6 +576,7 @@ export const videoCodecArgs = (plan) => {
       ...vaapiEncoderArgs({ lowPower: plan.vaapi.lowPower }),
       '-g', '50',
       '-keyint_min', '50',
+      ...openingKeyframeArgs(),
     ]
   }
   const filters = [
@@ -546,10 +590,15 @@ export const videoCodecArgs = (plan) => {
     '-tune', 'zerolatency',
     '-crf', '23',
     '-g', '50',
+    ...openingKeyframeArgs(),
     '-sc_threshold', '0',
     '-pix_fmt', 'yuv420p',
   ]
 }
+
+const openingKeyframeArgs = () => [
+  '-force_key_frames', `expr:lt(t,${OPENING_KEYFRAME_SECONDS})*gte(t,n_forced)`,
+]
 
 const pidSpecifier = (pid) => `0:i:0x${Number(pid).toString(16)}`
 
@@ -558,6 +607,10 @@ const AUDIO_TYPES = ['MPEG2AUDIO', 'AC3', 'EAC3', 'AAC', 'AAC-LATM', 'MP4A', 'VO
 const DVR_TITLE = /^DVR:\s*/
 const SD_HEIGHT_CAP = 576
 const HD_TRANSCODE_HEIGHT_CAP = 540
+const OPENING_KEYFRAME_SECONDS = 4
+const SHORT_PROBE_BYTES = 500_000
+const SHORT_PROBE_MICROSECONDS = 500_000
+const MISSING_PARAMETERS = /could not find codec parameters|unspecified (sample rate|size)/i
 const COPY_ENCODER = { kind: 'copy' }
 const MAX_ERROR_LINES = 20
 const LIVE_REFUSALS = {
