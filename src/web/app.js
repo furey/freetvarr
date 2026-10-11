@@ -30,6 +30,7 @@ import {
   NO_GUIDE_TEXT, channelNumberLabel, seasonEpisodeOf, ratingLabel, genreLabel, programmeProgress,
   airingBoundary, airingCovers,
 } from '/live-info.js'
+import { isReadyToStart } from '/live-start.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
@@ -8712,6 +8713,9 @@ let liveVideo = null
 let liveHls = null
 let liveHlsBuffered = false
 let liveAttached = false
+let liveStarted = false
+let liveStartTimer = null
+let liveMetadataAt = 0
 let livePollTimer = null
 let liveRun = 0
 
@@ -8730,8 +8734,14 @@ const watchLive = ({ channel, nowTitle }) => {
     open: true, channel, nowTitle, sessionId: null,
     phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
   })
-  liveVideo?.play()?.catch(() => {})
+  unlockLiveVideo()
   startLiveSession(liveRun)
+}
+
+const unlockLiveVideo = () => {
+  if (!liveVideo) return
+  liveVideo.play()?.catch(() => {})
+  liveVideo.pause()
 }
 
 const stopLive = () => {
@@ -8779,7 +8789,6 @@ const pollLive = async (run) => {
     }
     live.captions = Boolean(session.captions)
     if (session.status === 'live' && !liveAttached) await attachLiveVideo(run, session.playlist)
-    if (session.status === 'live' && liveAttached) live.phase = 'live'
   } catch {
     if (run !== liveRun) return
   }
@@ -8791,9 +8800,8 @@ const playsHlsOnlyNatively = () =>
 
 const attachLiveVideo = async (run, playlist, { eager = false } = {}) => {
   liveAttached = true
-  if (!eager) live.phase = 'live'
   if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager })
-  liveVideo.addEventListener('loadedmetadata', () => markLiveReady(run), { once: true })
+  liveVideo.addEventListener('loadedmetadata', () => markLiveStarted(run), { once: true })
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
@@ -8804,10 +8812,37 @@ const attachLiveVideo = async (run, playlist, { eager = false } = {}) => {
   liveVideo.play()?.catch(() => {})
 }
 
-const markLiveReady = (run) => {
+const markLiveStarted = (run) => {
   if (run !== liveRun || !liveAttached || live.phase === 'ended') return
+  liveStarted = true
   live.phase = 'live'
 }
+
+const startWhenBuffered = (run) => {
+  clearTimeout(liveStartTimer)
+  if (run !== liveRun || !liveAttached || live.phase === 'ended') return
+  if (liveStarted) return liveVideo.play()?.catch(() => {})
+  const ready = isReadyToStart({
+    ranges: timeRangesOf(liveVideo.buffered),
+    position: liveVideo.currentTime,
+    waitedMs: msSinceLiveMetadata(),
+  })
+  if (!ready) {
+    liveStartTimer = setTimeout(() => startWhenBuffered(run), LIVE_START_CHECK_MS)
+    return
+  }
+  markLiveStarted(run)
+  liveVideo.play()?.catch(() => {})
+}
+
+const msSinceLiveMetadata = () => {
+  if (liveVideo.readyState < HAVE_METADATA) return 0
+  if (!liveMetadataAt) liveMetadataAt = Date.now()
+  return Date.now() - liveMetadataAt
+}
+
+const timeRangesOf = (ranges) =>
+  Array.from({ length: ranges.length }, (_, i) => [ranges.start(i), ranges.end(i)])
 
 const abandonEagerAttach = (run) => {
   if (run !== liveRun) return
@@ -8821,7 +8856,6 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {
   liveHls = new Hls(LIVE_HLS_CONFIG)
   liveHlsBuffered = false
   let recovered = false
-  liveHls.on(Hls.Events.MANIFEST_PARSED, () => markLiveReady(run))
   liveHls.once(Hls.Events.FRAG_BUFFERED, () => {
     liveHlsBuffered = true
     applyLiveCaptions()
@@ -8842,7 +8876,7 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {
   })
   liveHls.loadSource(playlist)
   liveHls.attachMedia(liveVideo)
-  liveVideo.play()?.catch(() => {})
+  startWhenBuffered(run)
 }
 
 const endLive = (run, reason) => {
@@ -8887,6 +8921,9 @@ const detachLiveVideo = () => {
   liveHls = null
   liveHlsBuffered = false
   liveAttached = false
+  liveStarted = false
+  liveMetadataAt = 0
+  clearTimeout(liveStartTimer)
   live.behindSeconds = 0
   if (!liveVideo) return
   liveVideo.pause()
@@ -9530,14 +9567,10 @@ const LivePlayer = {
             <span class="panel-title block truncate">{{ live.channel?.name }}</span>
             <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
           </div>
-          <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', { 'is-on': captionsOn }]"
-            @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-          <button type="button" :class="['btn', 'btn-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
-            aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
-        <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @click.capture="onLiveClick" @dblclick.capture="onLiveDoubleClick">
-          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controls></video>
+        <div ref="frameEl" class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
+          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen"></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
               <span class="live-chip-arm"><i class="live-chip"></i></span>
@@ -9547,12 +9580,15 @@ const LivePlayer = {
             <i v-for="n in 3" :key="n" class="live-chip"></i>
           </div>
           <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
+          <transition name="live-info">
           <section v-if="infoOpen" id="live-info" class="live-info" role="region" aria-label="Programme info">
+            <div class="live-info-body">
             <programme-image v-if="info.now" :key="info.now.program_id" class="live-info-image" variant="info"
               :event-id="info.now.has_image ? info.now.program_id : null" :title="info.now.title"
               :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
             <div class="live-info-text">
               <p class="live-info-channel">
+                <channel-logo class="live-info-logo" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
                 <span class="truncate">{{ infoChannelLabel }}</span>
                 <span v-if="isBehindLive" class="live-info-buffer">FROM BUFFER</span>
               </p>
@@ -9564,14 +9600,16 @@ const LivePlayer = {
                   <div class="progress-track"><div class="progress-fill" :style="{ width: infoProgress + '%' }"></div></div>
                 </div>
                 <p v-if="infoMetaLine" class="live-info-meta">{{ infoMetaLine }}</p>
-                <p v-if="info.now.synopsis" class="live-info-synopsis" tabindex="0">{{ info.now.synopsis }}</p>
+                <p v-if="info.now.synopsis" class="live-info-synopsis">{{ info.now.synopsis }}</p>
               </template>
               <p v-else-if="info.loaded && !info.next" class="live-info-empty">{{ NO_GUIDE_TEXT }}</p>
               <p v-if="info.next" class="live-info-next">
                 NEXT <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
               </p>
             </div>
+            </div>
           </section>
+          </transition>
           <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="toggleInfo"
             aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
           <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
@@ -9587,7 +9625,13 @@ const LivePlayer = {
             <li v-for="h in live.holders" :key="h.tuner">{{ liveHolderText(h) }}</li>
           </ul>
           <div class="epg-modal-actions flex items-center justify-between gap-3">
-            <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
+            <div class="live-status flex items-center gap-2 min-w-0">
+              <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
+                aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
+              <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
+                @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+              <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
+            </div>
             <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
               <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
               <button type="button" class="btn" @click="stopLive"><cross-icon /> CLOSE</button>
@@ -9687,7 +9731,6 @@ const LivePlayer = {
       liveVideo.addEventListener('seeked', trackBehindLive)
       liveVideo.addEventListener('pause', trackBehindLive)
       liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
-      liveVideo.addEventListener('loadeddata', handOffToVideo)
       liveVideo.addEventListener('playing', handOffToVideo)
       liveVideo.textTracks?.addEventListener?.('addtrack', onTextTrackAdded)
       window.addEventListener('keydown', onKeydown)
@@ -9711,6 +9754,40 @@ const LivePlayer = {
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const closeInfo = () => { infoOpen.value = false }
+
+    let ignoreTapsUntil = 0
+
+    const isVideoAreaTap = (e) => !e.target.closest?.('.live-info-body, button')
+
+    const isIgnoredTap = (e) => isVideoAreaTap(e) && Date.now() < ignoreTapsUntil
+
+    const swallow = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
+    const onFramePointerDown = (e) => {
+      if (infoOpen.value && e.isPrimary && isVideoAreaTap(e)) {
+        closeInfo()
+        ignoreTapsUntil = Date.now() + DOUBLE_TAP_MS
+      }
+      if (isIgnoredTap(e)) return
+      onLivePointerDown(e)
+    }
+
+    const onFramePointerUp = (e) => {
+      if (!isIgnoredTap(e)) onLivePointerUp(e)
+    }
+
+    const onFrameClick = (e) => {
+      if (isIgnoredTap(e)) return swallow(e)
+      onLiveClick(e)
+    }
+
+    const onFrameDoubleClick = (e) => {
+      if (isIgnoredTap(e)) return swallow(e)
+      onLiveDoubleClick(e)
+    }
 
     const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
       && !e.ctrlKey && !e.metaKey && !e.altKey
@@ -9802,7 +9879,7 @@ const LivePlayer = {
     return {
       recordButton, recordFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveClick, onLiveDoubleClick,
+      isBehindLive, jumpToLive, frameEl, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT,
@@ -9828,13 +9905,16 @@ const CHIPS_MIN_SHOWN_MS = 1_800
 const TUNING_SLOW_MS = 15_000
 const LIVE_HLS_CONFIG = {
   workerPath: '/vendor/hls.worker.js',
-  liveSyncDurationCount: 2,
+  liveSyncDuration: 4,
+  liveMaxLatencyDuration: Infinity,
   backBufferLength: 30,
 }
+const LIVE_START_CHECK_MS = 100
 const LIVE_POLL_PLAYING_MS = 10_000
 const BEHIND_LIVE_SHOWN_S = 10
 const SEEK_FLOOR_MARGIN_S = 4
 const NATIVE_LIVE_HOLD_BACK_S = 6
+const HAVE_METADATA = 1
 const HAVE_CURRENT_DATA = 2
 const NATIVE_CONTROL_BAR_PX = 48
 const SKIP_HINT_MS = 1_600
