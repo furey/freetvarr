@@ -32,7 +32,6 @@ import {
   airingBoundary, airingCovers, watchRowLabel,
 } from '/live-info.js'
 import { isReadyToStart } from '/live-start.js'
-import { CAPTION_LINE_DEFAULT, captionLine } from '/caption-line.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
@@ -9138,7 +9137,6 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {
     liveHlsBuffered = true
     applyLiveCaptions()
   })
-  liveHls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, placeLiftedCues)
   liveHls.on(Hls.Events.ERROR, (event, data) => {
     if (!data.fatal || run !== liveRun) return
     if (eager && data.type === Hls.ErrorTypes.NETWORK_ERROR) return abandonEagerAttach(run)
@@ -9168,7 +9166,7 @@ const endLive = (run, reason) => {
 }
 
 const applyLiveCaptions = () => {
-  const showing = live.captions && liveCaptionsOn.value
+  const showing = live.captions && liveCaptionsOn.value && !liveInfoOpen.value
   if (liveHls) {
     if (liveHlsBuffered) liveHls.subtitleTrack = showing ? 0 : -1
     return
@@ -9179,40 +9177,13 @@ const applyLiveCaptions = () => {
 const captionTracksOf = (video) =>
   [...(video?.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions')
 
-let liveCaptionLine = CAPTION_LINE_DEFAULT
-
-const isCaptionLineLifted = () => liveCaptionLine !== CAPTION_LINE_DEFAULT
-
-const placeCues = () => {
-  for (const track of captionTracksOf(liveVideo)) {
-    for (const cue of track.cues || []) {
-      if (cue.line !== liveCaptionLine) cue.line = liveCaptionLine
-    }
-  }
-}
-
-const placeLiftedCues = () => {
-  if (isCaptionLineLifted()) placeCues()
-}
-
-const followNativeCaptionLine = () => {
-  for (const track of captionTracksOf(liveVideo)) {
-    track.removeEventListener('cuechange', placeCues)
-    if (!liveHls && isCaptionLineLifted()) track.addEventListener('cuechange', placeCues)
-  }
-}
-
-const setLiveCaptionLine = (line) => {
-  liveCaptionLine = line
-  placeCues()
-  followNativeCaptionLine()
-}
-
 const toggleLiveCaptions = () => {
-  if (live.captions) liveCaptionsOn.value = !liveCaptionsOn.value
+  if (live.captions && !liveInfoOpen.value) liveCaptionsOn.value = !liveCaptionsOn.value
 }
 
-watch([liveCaptionsOn, () => live.captions], applyLiveCaptions)
+const liveInfoOpen = ref(false)
+
+watch([liveCaptionsOn, () => live.captions, liveInfoOpen], applyLiveCaptions)
 
 const detachLiveVideo = () => {
   liveHls?.destroy()
@@ -9927,7 +9898,7 @@ const LivePlayer = {
           <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="toggleInfo"
             aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
           <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
-            @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+            @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
@@ -9943,7 +9914,7 @@ const LivePlayer = {
               <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
                 aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
               <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
-                @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+                @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
               <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
             </div>
             <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
@@ -10086,27 +10057,14 @@ const LivePlayer = {
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
     const onTextTrackAdded = () => {
-      if (liveHls) return
-      followNativeCaptionLine()
-      applyLiveCaptions()
+      if (!liveHls) applyLiveCaptions()
     }
 
-    const infoOpen = ref(false)
+    const infoOpen = liveInfoOpen
     const airing = ref(EMPTY_AIRING)
     const bufferedAiring = ref(null)
     let airingTimer = null
     let bufferedLoading = false
-
-    const placeCaptionsAbovePanel = async () => {
-      await nextTick()
-      const panel = infoOpen.value ? document.getElementById('live-info') : null
-      setLiveCaptionLine(captionLine({
-        panelHeight: panel?.offsetHeight,
-        videoHeight: liveVideo?.clientHeight,
-      }))
-    }
-
-    watch(infoOpen, placeCaptionsAbovePanel)
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const closeInfo = () => { infoOpen.value = false }
@@ -10151,7 +10109,7 @@ const LivePlayer = {
 
     const isInfoKey = (e) => isPlainKey(e, 'i')
 
-    const isCaptionsKey = (e) => live.captions && isPlainKey(e, 'c')
+    const isCaptionsKey = (e) => live.captions && !infoOpen.value && isPlainKey(e, 'c')
     const isPauseKey = (e) => e.key === ' ' || isPlainKey(e, 'k')
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
