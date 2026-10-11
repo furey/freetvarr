@@ -56,7 +56,7 @@ If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV lo
 4. Enter the values from the **KODI** rows in Freetvarr's **SETTINGS → WATCH ON YOUR TV**: **HOSTNAME**, **HTTP PORT**, **HTSP PORT**, **USERNAME**, and **PASSWORD**.
 5. Press **OK**, then go back to the Kodi home screen.
 
-**TV** on the home screen now lists the channels, and its **Guide** shows the TV guide. Kodi shows Australian captions, which most other apps do not ([Captions](/guide/live-tv#captions)).
+**TV** on the home screen now lists the channels, and its **Guide** shows the TV guide. Kodi shows Australian captions, which most other apps do not ([Captions in other apps](/guide/live-tv#captions-in-other-apps)).
 
 ## Plex
 

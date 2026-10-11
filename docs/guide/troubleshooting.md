@@ -229,7 +229,8 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 
 ## Missing captions
 
-- Your broadcaster sends captions as Teletext or as DVB subtitles. Australian broadcasters send Teletext. Some players decode Teletext and some don't (it isn't a recording fault). See [Live TV](/guide/live-tv#captions).
+- Your broadcaster sends captions as Teletext or as DVB subtitles. Australian broadcasters send Teletext. Some players decode Teletext and some don't (it isn't a recording fault). See [Captions in other apps](/guide/live-tv#captions-in-other-apps).
+- In Freetvarr's player, the **CC** button shows only on channels that carry Teletext subtitles, and some programmes have none. See [Captions](/guide/live-tv#captions).
 
 ## Wrong timestamps
 
