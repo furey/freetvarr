@@ -8655,6 +8655,7 @@ const startLiveSession = async (run) => {
     live.bufferSeconds = r.session.bufferSeconds || 0
     live.conflict = r.conflict
     if (r.session.status === 'ended') return endLive(run, r.session.reason)
+    attachLiveVideo(run, r.session.playlist, { eager: true })
     pollLive(run)
   } catch (err) {
     if (run !== liveRun) return
@@ -8676,6 +8677,7 @@ const pollLive = async (run) => {
       return endLive(run, session?.reason)
     }
     if (session.status === 'live' && !liveAttached) await attachLiveVideo(run, session.playlist)
+    if (session.status === 'live' && liveAttached) live.phase = 'live'
   } catch {
     if (run !== liveRun) return
   }
@@ -8685,27 +8687,41 @@ const pollLive = async (run) => {
 const playsHlsOnlyNatively = () =>
   !('MediaSource' in window) && liveVideo.canPlayType('application/vnd.apple.mpegurl') !== ''
 
-const attachLiveVideo = async (run, playlist) => {
+const attachLiveVideo = async (run, playlist, { eager = false } = {}) => {
   liveAttached = true
-  live.phase = 'live'
-  if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist)
+  if (!eager) live.phase = 'live'
+  if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager })
+  liveVideo.addEventListener('loadedmetadata', () => markLiveReady(run), { once: true })
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
+    if (eager) return abandonEagerAttach(run)
     attachHlsJs(run, playlist)
   }, { once: true })
   liveVideo.src = playlist
   liveVideo.play()?.catch(() => {})
 }
 
-const attachHlsJs = async (run, playlist, { rebuilt = false } = {}) => {
+const markLiveReady = (run) => {
+  if (run !== liveRun || !liveAttached || live.phase === 'ended') return
+  live.phase = 'live'
+}
+
+const abandonEagerAttach = (run) => {
+  if (run !== liveRun) return
+  detachLiveVideo()
+}
+
+const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {}) => {
   const { default: Hls } = await import('/vendor/hls.mjs')
   if (run !== liveRun) return
   if (!Hls.isSupported()) return endLive(run, { code: 'unsupported' })
   liveHls = new Hls(LIVE_HLS_CONFIG)
   let recovered = false
+  liveHls.on(Hls.Events.MANIFEST_PARSED, () => markLiveReady(run))
   liveHls.on(Hls.Events.ERROR, (event, data) => {
     if (!data.fatal || run !== liveRun) return
+    if (eager && data.type === Hls.ErrorTypes.NETWORK_ERROR) return abandonEagerAttach(run)
     if (data.type !== Hls.ErrorTypes.MEDIA_ERROR) return endLive(run, { code: 'playback', detail: data.details })
     if (!recovered) {
       recovered = true
