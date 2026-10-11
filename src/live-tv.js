@@ -134,6 +134,8 @@ export const withoutCutInSegment = (playlist, cutInFile = CUT_IN_FILES[MEDIA_PLA
     .join('\n')
 }
 
+export const startsOnKeyframe = (plan) => plan?.videoMode === 'transcode' || plan?.videoMode === 'vaapi'
+
 export const hasSegments = (playlist) => /^seg\d+\.ts$/m.test(playlist)
 
 export const withCaptionLabels = (master) => master
@@ -437,6 +439,7 @@ export const createLiveSessions = ({
     const text = await readText(path.join(session.dir, name))
     if (text == null) return null
     if (name === MASTER_PLAYLIST) return withCaptionLabels(text)
+    if (startsOnKeyframe(session.plan)) return text
     return withoutCutInSegment(text, CUT_IN_FILES[name])
   }
 

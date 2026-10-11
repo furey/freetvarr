@@ -13,6 +13,7 @@ import {
   missingStreamParameters,
   LIVE_FILE_PATTERN,
   withoutCutInSegment,
+  startsOnKeyframe,
   hasSegments,
   liveSegmentCount,
   liveBufferMinutesFrom,
@@ -717,6 +718,21 @@ test('sessions: readiness reads the media playlist, and each playlist is served 
   assert.equal(sequenceOf(media), sequenceOf(captions))
   assert.equal(await h.sessions.playlistFor(session.id, 'seg1.ts'), null)
   assert.equal(h.sessions.fileFor(session.id, 'live1.vtt'), `/tmp/fake-live/${session.id}/live1.vtt`)
+  await h.sessions.stopAll()
+})
+
+test('startsOnKeyframe: transcoded paths open on an encoder keyframe, copied video does not', () => {
+  assert.equal(startsOnKeyframe(pickStreams({ streams: ABC_SD })), true)
+  assert.equal(startsOnKeyframe({ videoMode: 'vaapi' }), true)
+  assert.equal(startsOnKeyframe(CAPTIONED_PLAN), false)
+})
+
+test('sessions: a transcoded session serves its first segment and is live once it exists', async () => {
+  const onlyFirst = FIRST_PLAYLIST.replace('#EXTINF:1.920000,\nseg1.ts\n', '')
+  const h = fakeHarness({ files: { 'live.m3u8': onlyFirst } })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: pickStreams({ streams: ABC_SD }) })
+  assert.equal(await h.sessions.waitForPlaylist(session.id, { timeoutMs: 0 }), true)
+  assert.equal(await h.sessions.playlistFor(session.id, 'live.m3u8'), onlyFirst)
   await h.sessions.stopAll()
 })
 
