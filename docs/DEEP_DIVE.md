@@ -10,6 +10,7 @@ The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob
 - [Why the import is a hardlink](#why-the-import-is-a-hardlink)
 - [Series recordings as autorec rules](#series-recordings-as-autorec-rules)
 - [Remove after import](#remove-after-import)
+- [Stop a recording](#stop-a-recording)
 - [Ad removal](#ad-removal)
 - [Live progress indicators](#live-progress-indicators)
 - [Guide days and history](#guide-days-and-history)
@@ -94,7 +95,7 @@ Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTT
 | `dvr/entry/grid_upcoming`                | Scheduled and in-progress recordings                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `dvr/entry/grid_finished`                | The import queue: everything TVHeadend has finished                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `dvr/entry/create_by_event`              | RECORD                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `dvr/entry/cancel`, `dvr/entry/stop`     | CANCEL RECORDING, depending on whether it's already running                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `dvr/entry/cancel`, `dvr/entry/stop`     | CANCEL RECORDING for a scheduled entry; STOP RECORDING for a running one (see [Stop a recording](#stop-a-recording))                                                                                                                                                                                                                                                                                                                                         |
 | `dvr/entry/remove`                       | Remove after import: deletes the file and keeps the entry, which moves to TVHeadend's Removed Recordings tab ([Remove after import](#remove-after-import))                                                                                                                                                                                                                                                                                                   |
 | `dvr/entry/prevrec/set`                  | Remove after import: marks the entry previously recorded, so it stays a completed recording across TVHeadend restarts and never re-records                                                                                                                                                                                                                                                                                                                   |
 | `dvr/autorec/grid`, `dvr/autorec/create` | Series recordings                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -199,6 +200,20 @@ TVHeadend's duplicate check (`_dvr_duplicate_event` in `src/dvr/dvr_db.c`) compa
 4. `dvr/entry/remove`. TVHeadend deletes the file and keeps the entry in `grid_removed`.
 
 The order sets the failure mode. If a call fails part-way, the file stays on disk and TVHeadend still holds the entry, so the duplicate check still sees the episode. `idnode/delete` on a finished entry is never used: it deletes the entry together with the file, and the next autorec update schedules the next repeat of the episode.
+
+## Stop a recording
+
+STOP RECORDING keeps or deletes the part already recorded, by how long the entry has recorded. `src/web/stop-recording.js` holds the rule for the server and the dialog text: `STOP_RECORDING_KEEP_MIN_MS` is `5` minutes. The recording start is the later of the entry's `start_real` and its `create` time, because an entry made part-way through a programme has a `start_real` before it existed. `stopRecordingEntry` in `src/tvheadend.js` then makes these calls:
+
+| Recorded            | Entry from          | Calls                                                                                      |
+| ------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
+| `5` minutes or more | Any                 | `dvr/entry/stop`. The entry stays a finished recording, and the next sync imports it       |
+| Under `5` minutes   | A series recording  | `dvr/entry/stop`, then the last three steps of [Remove after import](#remove-after-import) |
+| Under `5` minutes   | A one-off recording | `dvr/entry/stop`, then `dvr/entry/remove`                                                  |
+
+A series episode keeps its entry in both cases, so TVHeadend's duplicate check still sees it and the autorec does not schedule that airing again.
+
+CANCEL SERIES with **STOP THE EPISODE ON NOW** lists the autorec's entries that are recording, deletes the autorec with `idnode/delete`, then stops each listed entry. The list comes first because deleting the autorec unlinks its running entries. TVHeadend cancels the autorec's scheduled entries itself and keeps the running ones, which are one-offs by the time Freetvarr stops them. With **KEEP TITLE MATCH** off, the same request deletes the `shows` row last.
 
 ## Ad removal
 
@@ -522,7 +537,7 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 - **Re-open the wizard later**: REOPEN WIZARD in the HELP panel near the end of Settings. Saved values prefill; stored passwords and tokens show as stored, not as their values.
 - **Settings**: the section bar jumps to each panel and `#/settings/<id>` links scroll to one (`about` opens HELP); save; a **Sync schedule** change reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
 - **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
-- **Series**: the list joins the series recordings in TVHeadend to their folders; ASSIGN FOLDER, EDIT, UNASSIGN FOLDER, per-series SYNC, PAUSE, RESUME, and STOP SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
+- **Series**: the list joins the series recordings in TVHeadend to their folders; ASSIGN FOLDER, EDIT, UNASSIGN FOLDER, per-series SYNC, PAUSE, RESUME, and CANCEL SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
 - **Syncs**: run a sync, watch the row appear and finish; page through the history `50` rows at a time; clear history; filter by activity type.
 - **Recordings**: a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; CLEAR FROM LIST hides those rows and leaves the files; UNDO restores them for `10 s` after.
 - **Reset**: `RESET FREETVARR` (in the RESET panel, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.

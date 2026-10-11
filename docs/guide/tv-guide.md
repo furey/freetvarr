@@ -51,8 +51,10 @@ From there:
 - **RECORD** schedules the single airing. `START EARLY` and `RUN LATE` pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **RECORD SERIES** creates a series recording in TVHeadend, with an episodes-to-keep option. See [How a series recording works](/guide/series#how-a-series-recording-works).
 - **ADD TO LIBRARY** decides what Freetvarr does with the recording. Under the switch, the dialog says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. With the switch off, the recording stays in TVHeadend only. With it on, **RECORD SERIES** also creates the series folder, so the episodes go to the TV library. To change a folder later, open [SERIES](/guide/series).
-- A scheduled programme shows **CANCEL RECORDING** instead. If the episode belongs to a series recording, cancelling asks whether to cancel just that episode or the whole series. Cancelling one episode disables it in TVHeadend instead of deleting it, so the series recording does not schedule it again. To turn it back on, open the episode later and press **RECORD**.
-- A programme whose series is already recording, with no episode scheduled yet, shows a **CANCEL SERIES** action.
+- Above the settings, the dialog says what each button does.
+- A scheduled programme shows **CANCEL RECORDING** instead. For an episode of a series recording, **CANCEL RECORDING** skips that episode only: TVHeadend keeps it disabled, so the series recording does not schedule it again. To turn it back on, open the episode later and press **RECORD**.
+- A programme that is recording now shows **STOP RECORDING**. After `5` minutes or more, the part recorded so far stays and imports to your library; before `5` minutes, Freetvarr deletes it. The dialog says which applies.
+- A programme with a series recording also shows **CANCEL SERIES**. See [Cancel a series recording](/guide/series#cancel-a-series-recording).
 
 Many networks show the same programme on an SD channel and an HD channel, such as 7 Sydney and 7HD Sydney. If you press **RECORD** or **RECORD SERIES** on the SD channel and the TV guide has the same programme at the same time on an HD channel, Freetvarr asks whether to record the HD channel instead. Your padding, episodes-to-keep, and **ADD TO LIBRARY** choices carry over.
 
@@ -116,7 +118,7 @@ The `LIVE TV` tab lists every channel with what's on now and next, favourites fi
 
 ## On the dashboard
 
-The dashboard's WHAT'S ON panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a channel to watch it live. Tap the info button at the end of its row, the next programme, or a recording to open it in the TV Guide. To fill the panel, press the star next to some channels in the TV Guide.
+The dashboard's WHAT'S ON panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a channel to watch it live. Tap **INFO** at the end of its row, the next programme, or a recording to open it in the TV Guide. To fill the panel, press the star next to some channels in the TV Guide.
 
 While TVHeadend records, a `RECORDING NOW` panel at the top of the dashboard shows each recording's progress, file size, and tuner signal. If TVHeadend reports a recording as failed, the card turns red and shows TVHeadend's reason. After a recording stops, its card shows it through import, ad removal (if on), and into your library. While anything records, the browser tab title starts with `● REC`.
 

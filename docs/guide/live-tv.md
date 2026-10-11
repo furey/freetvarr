@@ -29,7 +29,7 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Tap a channel in the **LIVE TV** tab, or under **LIVE NOW** in the dashboard's **WHAT'S ON** panel, to watch it. A channel with no guide listing plays too. The info button at the end of each row opens the programme's details in the TV Guide; close them to return to the list. In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
+Tap a channel in the **LIVE TV** tab, or under **LIVE NOW** in the dashboard's **WHAT'S ON** panel, to watch it. A channel with no guide listing plays too. The **INFO** button at the end of each row opens the programme's details in the TV Guide; close them to return to the list. In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**. The player keeps playing while you switch tabs. Close the player with the **✕** button to free the tuner.
 
 A dimmed channel marked **OFF AIR** is not broadcasting right now, so a tap shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
 
@@ -57,23 +57,32 @@ Press the button again, press `Esc`, or click the picture above the panel to clo
 
 ## Captions
 
-Press the **CC** button beside the **i** button, or the `c` key on a computer, to turn captions on. Press it again to turn them off. Captions are off until you turn them on, and each browser remembers your choice for the next channel.
+Press the **CC** button beside the **i** button, or the `c` key on a computer, to turn captions on. Press it again to turn them off. Captions are off until you turn them on, and each browser remembers your choice for the next channel. While the programme info panel is open, captions hide and the **CC** button is dimmed. Closing the panel brings them back if they were on.
 
 Captions come from the broadcast's Teletext subtitles. A channel shows the **CC** button only when it carries them, and some programmes on that channel have no captions at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
 
 ## Record from the player
 
-Press **RECORD** in the player to record the programme on now. The button opens the same dialog as the TV Guide, with **RECORD** for this airing, **RECORD SERIES** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. A recording starts from the moment you press the button, so the part that already aired is not included.
+Press **RECORD** in the player to record the programme on now, or **SERIES** to record every episode. Both buttons open the same dialog as the TV Guide, with **RECORD** for this airing, **RECORD SERIES** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. Under the status line, the dialog says what each button does. A recording starts from the moment you confirm, so the part that already aired is not included.
 
-If the guide has no listing for what is on now, the button is dimmed. While the programme records, the button reads **REC**. Press it to open the dialog, which offers to stop the recording.
+If the guide has no listing for what is on now, both buttons are dimmed. **SERIES** turns gold with a tick while a series recording records the programme; press it to change or cancel the series.
+
+While the programme on now records, the record button reads **STOP REC** with a flashing orange dot (on a phone, the dot alone). Press it to open the dialog, then press **STOP RECORDING**. The dialog says what happens to the part already recorded:
+
+- After `5` minutes or more, the recording stops and the part recorded so far stays, and imports to your library like any finished recording.
+- Before `5` minutes, the recording stops and Freetvarr deletes the part recorded so far.
+
+Stopping an episode of a series recording stops that episode only. The series keeps recording future episodes, and it does not record the stopped episode again.
 
 ## Pause and rewind
+
+Press **PAUSE** under the picture, or the space bar or `k` key on a computer, to pause. The status reads **PAUSED** and the channel keeps recording into the buffer. Press **PLAY** to carry on from where you paused, or **GO LIVE** to jump to now. Pausing for longer than the buffer resumes from the oldest part the buffer still holds.
 
 Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` to keep more or fewer minutes, or `0` to turn it off.
 
 To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further. On a computer, the left and right arrow keys skip `10` seconds too. Skipping stops at the start of the buffer and at live. Safari on an iPhone shows no timeline for live TV, so double-tap is the way to rewind there.
 
-If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (press **STOP** to free it at once).
+If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (close the player with **✕** to free it at once).
 
 The buffer starts when you open the channel, so you can rewind only as far back as that. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
 

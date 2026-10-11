@@ -756,12 +756,22 @@ const existingFolderFor = ({ title, folders }) => {
 }
 
 app.post('/api/epg/cancel-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
-  const { program_id, series_link_id } = req.body || {}
-  if (series_link_id == null) return res.status(400).json({ error: 'series_link_id is required' })
+  const { series_link_id, series_link_ids, stop_recording_now, title_match_id } = req.body || {}
+  const seriesLinkIds = Array.isArray(series_link_ids) ? series_link_ids : [series_link_id].filter((id) => id != null)
+  if (seriesLinkIds.length === 0) return res.status(400).json({ error: 'series_link_id or series_link_ids is required' })
   try {
+    const cancelled = []
+    for (const seriesLinkId of seriesLinkIds) {
+      cancelled.push(await cancelSeries({ seriesLinkId, stopRecordingNow: stop_recording_now === true }))
+    }
+    const titleMatchRemoved = title_match_id == null
+      ? false
+      : (await db('shows').where({ id: Number(title_match_id) }).delete()) > 0
     res.json({
       ok: true,
-      ...(await cancelSeries({ programId: program_id, seriesLinkId: series_link_id })),
+      cancelled,
+      stopped: cancelled.flatMap((c) => c.stopped),
+      titleMatchRemoved,
     })
   } catch (err) {
     epgError(res, err, 'cancel-series')

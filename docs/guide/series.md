@@ -58,7 +58,16 @@ The buttons on a row:
 - **SYNC** imports the new episodes of this series now.
 - **ASSIGN FOLDER** (on a row that saves to the one-off folder) gives the series a folder in your TV library. See [Assign a folder](#assign-a-folder).
 - **PAUSE** stops TVHeadend recording new episodes of this series. Episodes already recorded still import. **RESUME** starts it again. On an SD and HD pair, both series recordings pause and resume together.
-- **STOP SERIES** removes the series recording from TVHeadend. Episodes already recorded stay, and so do their files.
+- **CANCEL SERIES** removes the series recording from TVHeadend. See [Cancel a series recording](#cancel-a-series-recording).
+
+## Cancel a series recording
+
+Press **CANCEL SERIES** on a row of the **SERIES** tab, or in the programme dialog of the TV Guide or the live player. TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files. Before it cancels, Freetvarr asks:
+
+- **STOP THE EPISODE ON NOW** (shown while an episode records): on by default. After `5` minutes or more of recording, the episode stops and the part recorded so far stays. Before `5` minutes, Freetvarr deletes it. Turn the switch off to let the episode record to the end.
+- **KEEP TITLE MATCH** (shown when a [title match](#title-matches) saves this series): off by default when **RECORD SERIES** made the title match, so cancelling removes it. A title match records nothing by itself; it only decides the folder for recordings with that text in the title. Turn the switch on to keep saving them to the same folder.
+
+**KEEP SERIES** closes the question and changes nothing.
 
 ## Assign a folder
 
@@ -106,7 +115,7 @@ The episode title is dropped when the TV guide did not supply one. TVHeadend's o
 
 ## Title matches
 
-A recording whose title contains this text saves to its folder, even without a series recording. The **TITLE MATCHES** panel lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you stopped. Each title has a **SAVES TO** line, **EDIT**, and **SYNC**, like a series row. In the edit form, **REMOVE TITLE MATCH** removes the title after you confirm (recordings already imported stay where they are).
+A recording whose title contains this text saves to its folder, even without a series recording. The **TITLE MATCHES** panel lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **KEEP TITLE MATCH** on. Each title has a **SAVES TO** line, **EDIT**, and **SYNC**, like a series row. In the edit form, **REMOVE TITLE MATCH** removes the title after you confirm (recordings already imported stay where they are).
 
 To add a title:
 

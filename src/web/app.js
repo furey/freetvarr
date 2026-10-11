@@ -25,13 +25,13 @@ import {
   nativeClickPlan,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
-import { liveRecordButton, liveSeriesButton } from '/live-record.js'
+import { liveRecordButton, liveSeriesButton, recordingProgramIdsOf } from '/live-record.js'
+import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import {
   NO_GUIDE_TEXT, channelNumberLabel, seasonEpisodeOf, ratingLabel, genreLabel, programmeProgress,
   airingBoundary, airingCovers, watchRowLabel,
 } from '/live-info.js'
 import { isReadyToStart } from '/live-start.js'
-import { CAPTION_LINE_DEFAULT, captionLine } from '/caption-line.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
@@ -674,6 +674,65 @@ const ToggleSwitch = {
   `,
 }
 
+const CancelSeriesStep = {
+  props: {
+    title: { type: String, required: true },
+    episodeOutcome: { type: String, default: '' },
+    titleMatch: { type: Object, default: null },
+    busy: { type: Boolean, default: false },
+  },
+  emits: ['confirm', 'back'],
+  template: `
+    <div class="cancel-series-step space-y-4">
+      <div class="space-y-1">
+        <p class="text-sm text-ink">Cancel the series recording of "{{ title }}"?</p>
+        <p class="text-xs font-mono text-ink-dim">TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files.</p>
+      </div>
+      <div v-if="episodeOutcome" class="space-y-1">
+        <toggle-switch v-model="stopNow">STOP THE EPISODE ON NOW</toggle-switch>
+        <p class="text-xs font-mono text-ink-mute">{{ stopNow ? episodeOutcome : 'The episode on now keeps recording to the end.' }}</p>
+      </div>
+      <div v-if="titleMatch" class="space-y-1">
+        <toggle-switch v-model="keepTitleMatch">KEEP TITLE MATCH</toggle-switch>
+        <p class="text-xs font-mono text-ink-mute">{{ titleMatchNote }}</p>
+      </div>
+      <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
+        <button type="button" class="btn mr-auto" @click="$emit('back')" :disabled="busy">KEEP SERIES</button>
+        <button type="button" :class="['btn', 'btn-danger', { 'is-busy': busy }]" @click="confirm" :disabled="busy">
+          <span class="btn-label"><cross-icon /> CANCEL SERIES</span>
+          <span v-if="busy" class="spinner spinner-overlay"></span>
+        </button>
+      </div>
+    </div>
+  `,
+  setup(props, { emit }) {
+    const stopNow = ref(true)
+    const keepTitleMatch = ref(!isTitleMatchFromSeries({ titleMatch: props.titleMatch, title: props.title }))
+    const titleMatchNote = computed(() => (keepTitleMatch.value
+      ? `Recordings with "${props.titleMatch.show_pattern}" in the title keep saving to ${props.titleMatch.dest_folder} in your TV library. A title match records nothing by itself.`
+      : 'Removes the title match. Recordings already imported stay where they are.'))
+    const confirm = () => emit('confirm', {
+      stopRecordingNow: Boolean(props.episodeOutcome) && stopNow.value,
+      removeTitleMatch: Boolean(props.titleMatch) && !keepTitleMatch.value,
+    })
+    return { stopNow, keepTitleMatch, titleMatchNote, confirm }
+  },
+}
+
+const isTitleMatchFromSeries = ({ titleMatch, title }) => Boolean(titleMatch)
+  && titleMatch.show_pattern.trim().toLowerCase() === String(title || '').trim().toLowerCase()
+
+const episodeRecordingFor = (autorecIds) => {
+  const ids = new Set(autorecIds.filter(Boolean).map(String))
+  return recordingNow.value.active.find((r) => !r.failed && r.autorecId != null && ids.has(String(r.autorecId))) || null
+}
+
+const stopOutcomeFor = (recording) => (recording
+  ? stopRecordingOutcome({
+    recordedMs: recordedMsOf({ recordingSince: recording.recordingSince, nowMs: now.value.getTime() }),
+  })
+  : '')
+
 const TimeZoneField = {
   props: {
     modelValue: { type: String, default: '' },
@@ -1090,12 +1149,23 @@ const loadRecordingNow = async () => {
 const pollRecordingNow = async () => {
   clearTimeout(recordingNowTimer)
   await loadRecordingNow()
-  const fast = recordingNowBusy.value && !document.hidden
+  const fast = (recordingNowBusy.value || live.open) && !document.hidden
   recordingNowTimer = setTimeout(pollRecordingNow, fast ? RECORDING_NOW_FAST_POLL_MS : RECORDING_NOW_IDLE_POLL_MS)
 }
 
+const recordingChangeTick = ref(0)
+let recordingChangeTimers = []
+
+const refreshAfterRecordingChange = () => {
+  recordingChangeTimers.forEach(clearTimeout)
+  recordingChangeTimers = RECORDING_CHANGE_REFRESH_MS.map((ms) => setTimeout(() => {
+    recordingChangeTick.value += 1
+    pollRecordingNow()
+  }, ms))
+}
+
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && recordingNowBusy.value) pollRecordingNow()
+  if (!document.hidden && (recordingNowBusy.value || live.open)) pollRecordingNow()
 })
 
 document.addEventListener('visibilitychange', () => {
@@ -1110,6 +1180,7 @@ watch(recordingCount, (count) => {
 const APP_TITLE = 'Freetvarr'
 const RECORDING_NOW_FAST_POLL_MS = 5_000
 const RECORDING_NOW_IDLE_POLL_MS = 45_000
+const RECORDING_CHANGE_REFRESH_MS = [0, 2_000, 6_000]
 
 const clockReadout = computed(() => formatClockSeconds(now.value.getTime(), tz.value))
 
@@ -1518,8 +1589,8 @@ const LiveView = {
                   :aria-label="'Show details for ' + e.next.title" @click="openDetails(e, e.next)">
                   next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
                 </button>
-                <button v-if="e.now" type="button" class="row-info row-over live-row-info" title="Programme info"
-                  :aria-label="'Programme info for ' + e.now.title" @click="openDetails(e, e.now)"><info-icon /></button>
+                <button v-if="e.now" type="button" class="btn btn-sm row-info row-over live-row-info"
+                  :aria-label="'Programme info for ' + e.now.title" @click="openDetails(e, e.now)">INFO</button>
                 <span v-else class="row-info live-row-info" aria-hidden="true"></span>
               </li>
             </ul>
@@ -1730,9 +1801,9 @@ const DashboardView = {
                 @click="openInGuide({ channelId: e.channel.id, program: e.next })">
                 next: <span class="text-xs font-semibold font-sans text-ink">{{ e.next.title }}</span> {{ fmtClockTz(e.next.start) }}
               </button>
-              <button v-if="e.now" type="button" class="row-info row-over" title="Programme info"
+              <button v-if="e.now" type="button" class="btn btn-sm row-info row-over"
                 :aria-label="'Programme info for ' + e.now.title"
-                @click="openInGuide({ channelId: e.channel.id, program: e.now })"><info-icon /></button>
+                @click="openInGuide({ channelId: e.channel.id, program: e.now })">INFO</button>
               <span v-else class="row-info" aria-hidden="true"></span>
             </div>
             </div>
@@ -2210,9 +2281,9 @@ const SeriesView = {
             <info-button title="SERIES" doc="guide/series">
               <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
               <p>To record a new series, open the TV Guide, pick a programme, and press <strong>RECORD SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
-              <p><strong>STOP SERIES</strong> cancels the series recording in TVHeadend. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
+              <p><strong>CANCEL SERIES</strong> cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
               <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>ASSIGN FOLDER</strong> to give it one. <strong>UNASSIGN FOLDER</strong> in the edit form takes it away again. Episodes already imported stay where they are.</p>
-              <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>STOP SERIES</strong> removes it.</p>
+              <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>CANCEL SERIES</strong> removes it.</p>
             </info-button>
           </span>
           <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
@@ -2262,8 +2333,8 @@ const SeriesView = {
                   <button type="button" class="btn ml-auto" @click="pauseSeries(s, s.recording)" :disabled="busyKey === s.key">
                     <template v-if="s.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
                   </button>
-                  <button type="button" class="btn btn-danger" @click="stopSeries(s)" :disabled="busyKey === s.key">
-                    <stop-icon /> STOP SERIES
+                  <button type="button" class="btn btn-danger" @click="openCancelSeries(s)" :disabled="busyKey === s.key">
+                    <cross-icon /> CANCEL SERIES
                   </button>
                 </div>
               </article>
@@ -2272,12 +2343,30 @@ const SeriesView = {
         </div>
       </section>
 
+      <teleport to="body">
+      <transition name="epg-sheet">
+      <div v-if="cancelling" class="epg-modal-backdrop" @click.self="closeCancelSeries">
+        <section class="panel epg-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-series-title">
+          <header class="panel-header">
+            <span id="cancel-series-title" class="panel-title">{{ cancelling.series.title }}</span>
+            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeCancelSeries" aria-label="Close"><cross-icon /></button>
+          </header>
+          <div class="panel-body">
+            <cancel-series-step :title="cancelling.series.title" :episode-outcome="cancelling.episodeOutcome"
+              :title-match="cancelling.series.folder" :busy="busyKey === cancelling.series.key"
+              @back="closeCancelSeries" @confirm="cancelSeries" />
+          </div>
+        </section>
+      </div>
+      </transition>
+      </teleport>
+
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">TITLE MATCHES · {{ titleMatches.length }}</span>
             <info-button title="TITLE MATCHES" doc="guide/series#title-matches">
-              <p>A recording whose title contains this text saves to its folder, even without a series recording. This covers a title you typed by hand, such as <code>NRL</code>, or a series you stopped.</p>
+              <p>A recording whose title contains this text saves to its folder, even without a series recording. This covers a title you typed by hand, such as <code>NRL</code>, or a series you cancelled and kept the title match for.</p>
               <p><strong>ADD TITLE</strong> adds one. Freetvarr suggests a folder under your media root, and matches folders that are already there.</p>
             </info-button>
           </span>
@@ -2552,17 +2641,37 @@ const SeriesView = {
       }
     }
 
-    const stopSeries = async (s) => {
-      if (!confirm(`Stop recording "${s.title}"? Episodes already recorded will stay in TVHeadend, and the library folder will stay.`)) return
+    const cancelling = ref(null)
+
+    const openCancelSeries = (s) => {
+      cancelling.value = {
+        series: s,
+        episodeOutcome: stopOutcomeFor(episodeRecordingFor(s.autorecs.map((a) => a.id))),
+      }
+    }
+
+    const closeCancelSeries = () => {
+      if (busyKey.value !== cancelling.value?.series.key) cancelling.value = null
+    }
+
+    const cancelSeries = async ({ stopRecordingNow, removeTitleMatch }) => {
+      const s = cancelling.value.series
       busyKey.value = s.key
       try {
-        for (const autorec of s.autorecs) {
-          await api('POST', '/api/epg/cancel-series', { series_link_id: autorec.seriesLinkId })
-        }
+        await api('POST', '/api/epg/cancel-series', {
+          series_link_ids: s.autorecs.map((a) => a.seriesLinkId),
+          stop_recording_now: stopRecordingNow,
+          title_match_id: removeTitleMatch ? s.folder.id : null,
+        })
+        busyKey.value = ''
+        cancelling.value = null
+        refreshAfterRecordingChange()
         await refresh()
-        flash({ msg: `Stopped the series recording of "${s.title}".` })
+        flash({ msg: `Cancelled the series recording of "${s.title}".` })
       } catch (err) {
-        flash({ msg: `Stop failed: ${err.message}`, kind: 'err', ms: 8000 })
+        busyKey.value = ''
+        cancelling.value = null
+        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
         await refresh()
       } finally {
         busyKey.value = ''
@@ -2650,7 +2759,8 @@ const SeriesView = {
       assigning, assignDest, assignPath, assignStatusText, assignStatusKind, openAssign, closeAssign, assignFolder,
       newPattern, newFolder, newTemplate, newDeleteAfter, newAdRemoval,
       suggestion, suggestionIsNew, adding, loadingShows, syncingId,
-      channelsOf, nextAiringLabel, edit, onSaved, onDeleted, pauseSeries, stopSeries,
+      channelsOf, nextAiringLabel, edit, onSaved, onDeleted, pauseSeries,
+      cancelling, openCancelSeries, closeCancelSeries, cancelSeries,
       add, loadTvhShows, syncOne,
       flashText, flashKind, formStatusText, formStatusKind,
     }
@@ -7565,13 +7675,14 @@ const EpgView = {
             </p>
             <p v-if="selected.program.episode_title" class="text-sm text-ink">{{ selected.program.episode_title }}</p>
             <p v-if="selected.program.synopsis" class="text-sm text-ink-dim leading-relaxed">{{ selected.program.synopsis }}</p>
-            <p v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'" class="text-xs font-mono text-signal-blue-hi">
-              {{ cellState(selected.program) === 'recording' ? 'Recording now in TVHeadend' : 'Scheduled to record in TVHeadend' }}{{ isSeriesScheduled(selected.program) ? ' (part of a series recording).' : ' (one-off recording).' }}
-            </p>
+            <p v-if="selectedStatusText" class="text-xs font-mono text-signal-blue-hi">{{ selectedStatusText }}</p>
             <p v-else-if="cellState(selected.program) === 'series'" class="text-xs font-mono" style="color:#e2b03c">
               A series recording in TVHeadend records this show.
             </p>
-            <div v-if="canRecord" class="grid grid-cols-2 gap-3">
+            <ul v-if="actionOutcomes.length && !cancelSeriesStep" class="action-outcomes">
+              <li v-for="o in actionOutcomes" :key="o.label"><span class="action-outcome-label">{{ o.label }}</span> {{ o.text }}</li>
+            </ul>
+            <div v-if="showRecordSettings" class="grid grid-cols-2 gap-3">
               <div>
                 <label class="field-label">START EARLY</label>
                 <select v-model.number="leadTime" class="field-input">
@@ -7599,47 +7710,53 @@ const EpgView = {
                 <p class="text-xs font-mono text-ink-mute">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/series">SERIES</a>.</template></p>
               </div>
             </div>
+            <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
+              :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
+            <template v-else>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
               <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close"><cross-icon v-if="!hasCancelAction" /> CLOSE</button>
               <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
               <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
-              <template v-if="cellState(selected.program) === 'scheduled' || cellState(selected.program) === 'recording'">
-                <template v-if="isSeriesScheduled(selected.program) && cancelChoice">
-                  <span class="text-xs font-mono text-ink-mute">This is part of a series recording. Cancel what?</span>
-                  <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-episode' }" @click="cancelSelected" :disabled="modalBusy">
-                    <span class="btn-label"><cross-icon /> THIS EPISODE</span>
-                    <span v-if="modalAction === 'cancel-episode'" class="spinner spinner-overlay"></span>
-                  </button>
-                  <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-whole' }" @click="cancelSelectedSeries" :disabled="modalBusy">
-                    <span class="btn-label"><cross-icon /> WHOLE SERIES</span>
-                    <span v-if="modalAction === 'cancel-whole'" class="spinner spinner-overlay"></span>
-                  </button>
-                  <button type="button" class="btn" @click="cancelChoice = false" :disabled="modalBusy">KEEP</button>
-                </template>
-                <button v-else type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }"
-                  @click="isSeriesScheduled(selected.program) ? (cancelChoice = true) : cancelSelected()" :disabled="modalBusy">
+              <template v-if="cellState(selected.program) === 'recording'">
+                <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
+                  <cross-icon /> CANCEL SERIES
+                </button>
+                <button v-else-if="selected.program.series_link" type="button" class="btn" :class="{ 'is-busy': modalAction === 'record-series' }" @click="recordSelectedSeries" :disabled="modalBusy">
+                  <span class="btn-label"><series-record-icon /> RECORD SERIES</span>
+                  <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
+                </button>
+                <button type="button" :class="['btn', 'btn-danger', { 'is-busy': modalAction === 'cancel' }]" @click="cancelSelected" :disabled="modalBusy">
+                  <span class="btn-label"><stop-icon /> STOP RECORDING</span>
+                  <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
+                </button>
+              </template>
+              <template v-else-if="cellState(selected.program) === 'scheduled'">
+                <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
+                  <cross-icon /> CANCEL SERIES
+                </button>
+                <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }" @click="cancelSelected" :disabled="modalBusy">
                   <span class="btn-label"><cross-icon /> CANCEL RECORDING</span>
                   <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
               <template v-else-if="cellState(selected.program) === 'series'">
-                <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel-series' }" @click="cancelSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label"><cross-icon /> CANCEL SERIES</span>
-                  <span v-if="modalAction === 'cancel-series'" class="spinner spinner-overlay"></span>
+                <button type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
+                  <cross-icon /> CANCEL SERIES
                 </button>
               </template>
               <template v-else-if="canRecord">
-                <button v-if="selected.program.series_link" type="button" class="btn" :class="{ 'is-busy': modalAction === 'record-series' }" @click="recordSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label"><record-icon /> RECORD SERIES</span>
+                <button v-if="selected.program.series_link" type="button" :class="['btn', { 'btn-primary': dialogFocus === 'series', 'is-busy': modalAction === 'record-series' }]" @click="recordSelectedSeries" :disabled="modalBusy">
+                  <span class="btn-label"><series-record-icon /> RECORD SERIES</span>
                   <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
                 </button>
-                <button type="button" :class="['btn', { 'btn-primary': !canWatchLive, 'is-busy': modalAction === 'record' }]" @click="recordSelected" :disabled="modalBusy">
+                <button type="button" :class="['btn', { 'btn-primary': dialogFocus !== 'series' && (dialogFocus === 'record' || !canWatchLive), 'is-busy': modalAction === 'record' }]" @click="recordSelected" :disabled="modalBusy">
                   <span class="btn-label"><record-icon /> RECORD</span>
                   <span v-if="modalAction === 'record'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
               <p v-else class="text-xs font-mono text-ink-mute">This programme has already aired.</p>
             </div>
+            </template>
           </div>
         </section>
       </div>
@@ -7658,8 +7775,14 @@ const EpgView = {
             <p class="text-sm text-ink">{{ hdOffer.channel.name }} shows the same programme in HD.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
               <button type="button" class="btn epg-modal-close mr-auto" @click="hdOffer = null">CANCEL</button>
-              <button type="button" class="btn" @click="recordOffered('sd')"><record-icon /> RECORD IN SD</button>
-              <button type="button" class="btn btn-primary" @click="recordOffered('hd')"><record-icon /> RECORD IN HD</button>
+              <template v-if="hdOffer.action === 'record-series'">
+                <button type="button" class="btn" @click="recordOffered('sd')"><series-record-icon /> SERIES IN SD</button>
+                <button type="button" class="btn btn-primary" @click="recordOffered('hd')"><series-record-icon /> SERIES IN HD</button>
+              </template>
+              <template v-else>
+                <button type="button" class="btn" @click="recordOffered('sd')"><record-icon /> RECORD IN SD</button>
+                <button type="button" class="btn btn-primary" @click="recordOffered('hd')"><record-icon /> RECORD IN HD</button>
+              </template>
             </div>
           </div>
         </section>
@@ -7900,8 +8023,10 @@ const EpgView = {
       return map
     })
 
-    const activeRecordingSet = computed(() =>
-      new Set((state.value?.activeRecordingIds || []).map(String)))
+    const activeRecordingSet = computed(() => new Set([
+      ...(state.value?.activeRecordingIds || []).map(String),
+      ...recordingProgramIdsOf(recordingNow.value.active),
+    ]))
 
     const seriesLinkSet = computed(() => {
       const set = new Set()
@@ -7961,10 +8086,123 @@ const EpgView = {
 
     const canWatchLive = computed(() => {
       if (!selected.value?.channel) return false
+      if (live.open && String(live.channel?.id) === String(selected.value.channel.id)) return false
       const { start, end } = selected.value.program
       const t = now.value.getTime()
       return Boolean(start) && start <= t && end > t
     })
+
+    const dialogFocus = ref('')
+    const cancelSeriesStep = ref(null)
+
+    const isSelectedOnAir = computed(() => {
+      const program = selected.value?.program
+      return Boolean(program?.start) && program.start <= nowMs.value && program.end > nowMs.value
+    })
+
+    const selectedScheduled = computed(() => (selected.value
+      ? scheduledByProgramId.value.get(String(selected.value.program.program_id ?? selected.value.program.programId)) || null
+      : null))
+
+    const selectedSeriesLink = computed(() => {
+      const program = selected.value?.program
+      if (!program) return null
+      if (isSeriesScheduled(program)) return String(selectedScheduled.value.seriesLinkId)
+      return findSeriesLink({ links: seriesLinkSet.value, seriesLink: program.series_link })
+    })
+
+    const selectedRecording = computed(() => {
+      const program = selected.value?.program
+      if (!program) return null
+      const id = String(program.program_id ?? program.programId)
+      return recordingNow.value.active.find((r) => !r.failed && String(r.programId) === id) || selectedScheduled.value
+    })
+
+    const selectedStatusText = computed(() => {
+      const program = selected.value?.program
+      const state = program ? cellState(program) : ''
+      const series = isSeriesScheduled(program || {})
+      if (state === 'recording') {
+        return series ? `Recording now as part of the "${program.title}" series recording.` : 'Recording now (one-off recording).'
+      }
+      if (state === 'scheduled') {
+        return `Scheduled to record in TVHeadend${series ? ' (part of a series recording).' : ' (one-off recording).'}`
+      }
+      return ''
+    })
+
+    const selectedChannelLabel = () => {
+      if (anyChannel.value) return 'on any channel'
+      const name = selected.value.channel?.name || channelName(selected.value.program.channelId)
+      return name ? `on ${name}` : 'on this channel'
+    }
+
+    const recordOutcome = () => (isSelectedOnAir.value
+      ? `Records from now until ${fmtClock(selected.value.program.end)}. The part already aired is not included.`
+      : 'Records this airing only.')
+
+    const recordSeriesOutcome = ({ recordingNow: episodeRecording }) => {
+      const base = `Records every episode of "${selected.value.program.title}" ${selectedChannelLabel()}`
+      if (episodeRecording) return `${base}. This episode keeps recording.`
+      return isSelectedOnAir.value ? `${base}, starting with this one from now.` : `${base}.`
+    }
+
+    const stopOutcome = () => {
+      const recording = selectedRecording.value
+      const text = stopRecordingOutcome({
+        recordedMs: recordedMsOf({ recordingSince: recording?.recordingSince, nowMs: now.value.getTime() }),
+        addsToLibrary: selectedScheduled.value?.libraryChoice !== 'exclude',
+      })
+      return isSeriesScheduled(selected.value.program) ? `${text} The series keeps recording future episodes.` : text
+    }
+
+    const cancelSeriesOutcome = () =>
+      `Stops TVHeadend recording new episodes of "${selected.value.program.title}". Asks what to do with the rest.`
+
+    const actionOutcomes = computed(() => {
+      const program = selected.value?.program
+      if (!program || program.past) return []
+      const state = cellState(program)
+      const hasSeries = Boolean(selectedSeriesLink.value)
+      if (state === 'recording') {
+        return [
+          { label: 'STOP RECORDING', text: stopOutcome() },
+          hasSeries && { label: 'CANCEL SERIES', text: cancelSeriesOutcome() },
+          !hasSeries && program.series_link && { label: 'RECORD SERIES', text: recordSeriesOutcome({ recordingNow: true }) },
+        ].filter(Boolean)
+      }
+      if (state === 'scheduled') {
+        return [
+          { label: 'CANCEL RECORDING', text: isSeriesScheduled(program) ? 'Skips this episode. The series keeps recording the others.' : 'Removes this recording from the schedule.' },
+          hasSeries && { label: 'CANCEL SERIES', text: cancelSeriesOutcome() },
+        ].filter(Boolean)
+      }
+      if (state === 'series') return [{ label: 'CANCEL SERIES', text: cancelSeriesOutcome() }]
+      if (!canRecord.value) return []
+      return [
+        program.series_link && { label: 'RECORD SERIES', text: recordSeriesOutcome({ recordingNow: false }) },
+        { label: 'RECORD', text: recordOutcome() },
+      ].filter(Boolean)
+    })
+
+    const showRecordSettings = computed(() => {
+      if (!canRecord.value || cancelSeriesStep.value) return false
+      const state = cellState(selected.value.program)
+      if (state === '') return true
+      return state === 'recording' && !selectedSeriesLink.value && Boolean(selected.value.program.series_link)
+    })
+
+    const openCancelSeriesStep = () => {
+      const { program } = selected.value
+      const link = selectedSeriesLink.value ?? program.series_link
+      const autorec = seriesTags.value.find((t) => String(t.seriesLinkId) === String(link))
+      cancelSeriesStep.value = {
+        link,
+        title: autorec?.name || program.title,
+        episodeOutcome: stopOutcomeFor(episodeRecordingFor([autorec?.id])),
+        titleMatch: ruleFor(autorec?.name || program.title),
+      }
+    }
 
     const hasCancelAction = computed(() => Boolean(selected.value)
       && ['scheduled', 'recording', 'series'].includes(cellState(selected.value.program)))
@@ -8183,7 +8421,8 @@ const EpgView = {
       episodesToKeep.value = 0
       anyChannel.value = false
       addToLibrary.value = true
-      cancelChoice.value = false
+      cancelSeriesStep.value = null
+      dialogFocus.value = ''
       modalAction.value = ''
       setModalStatus('')
       selected.value = { program: p, channel }
@@ -8213,15 +8452,18 @@ const EpgView = {
       if (!handoff) return
       guideHandoff.value = null
       returnRoute = handoff.returnTo || '#/dashboard'
+      if (recordDialogOverPlayer.value) loadState({ fresh: true })
       if (handoff.upcoming) return openUpcoming(handoff.upcoming)
       const listed = (guide.value?.programs[handoff.channelId] || [])
         .find((p) => p.start === handoff.program.start)
       openProgram(listed || handoff.program, channelById(handoff.channelId))
+      dialogFocus.value = handoff.focus || ''
     }
 
     const closeModal = () => {
       recordDialogOverPlayer.value = false
-      cancelChoice.value = false
+      cancelSeriesStep.value = null
+      dialogFocus.value = ''
       hdOffer.value = null
       selected.value = null
       if (!returnRoute) return
@@ -8272,6 +8514,7 @@ const EpgView = {
         })
         flash({ msg: `Scheduled "${program.title}".` })
         closeModal()
+        refreshAfterRecordingChange()
         await loadState({ fresh: true })
       } catch (err) {
         setModalStatus(`Record failed: ${err.message}`, 'err', 8000)
@@ -8300,6 +8543,7 @@ const EpgView = {
         const ruleNote = result.showRule ? ` Episodes go into ${result.showRule.dest_folder}.` : ''
         flash({ msg: `Series recording set for "${program.title}".${ruleNote}`, ms: ruleNote ? 6000 : undefined })
         closeModal()
+        refreshAfterRecordingChange()
         await loadState({ fresh: true })
       } catch (err) {
         setModalStatus(`Series record failed: ${err.message}`, 'err', 8000)
@@ -8309,16 +8553,21 @@ const EpgView = {
       }
     }
 
-    const cancelChoice = ref(false)
+    const cancelledMessage = ({ title, result }) => {
+      if (result?.kept === true) return `Stopped "${title}". What it recorded stays.`
+      if (result?.kept === false) return `Stopped "${title}" and deleted what it recorded.`
+      return `Cancelled "${title}".`
+    }
 
     const cancelSelected = async () => {
       const { program } = selected.value
       modalBusy.value = true
-      modalAction.value = cancelChoice.value ? 'cancel-episode' : 'cancel'
+      modalAction.value = 'cancel'
       try {
-        await api('POST', '/api/epg/cancel', { program_id: program.program_id })
-        flash({ msg: `Cancelled "${program.title}".` })
+        const result = await api('POST', '/api/epg/cancel', { program_id: program.program_id })
+        flash({ msg: cancelledMessage({ title: program.title, result }) })
         closeModal()
+        refreshAfterRecordingChange()
         await loadState({ fresh: true })
       } catch (err) {
         setModalStatus(`Cancel failed: ${err.message}`, 'err', 8000)
@@ -8328,20 +8577,22 @@ const EpgView = {
       }
     }
 
-    const cancelSelectedSeries = async () => {
-      const { program } = selected.value
-      const rec = scheduledByProgramId.value.get(String(program.program_id ?? program.programId))
+    const cancelSelectedSeries = async ({ stopRecordingNow, removeTitleMatch }) => {
+      const step = cancelSeriesStep.value
       modalBusy.value = true
-      modalAction.value = cancelChoice.value ? 'cancel-whole' : 'cancel-series'
+      modalAction.value = 'cancel-series'
       try {
         await api('POST', '/api/epg/cancel-series', {
-          program_id: rec?.programId ?? null,
-          series_link_id: rec?.seriesLinkId ?? findSeriesLink({ links: seriesLinkSet.value, seriesLink: program.series_link }) ?? program.series_link,
+          series_link_id: step.link,
+          stop_recording_now: stopRecordingNow,
+          title_match_id: removeTitleMatch ? step.titleMatch.id : null,
         })
-        flash({ msg: `Series recording cancelled.` })
+        flash({ msg: `Cancelled the series recording of "${step.title}".` })
         closeModal()
-        await loadState({ fresh: true })
+        refreshAfterRecordingChange()
+        await Promise.all([loadState({ fresh: true }), loadShowRules()])
       } catch (err) {
+        cancelSeriesStep.value = null
         setModalStatus(`Cancel failed: ${err.message}`, 'err', 8000)
       } finally {
         modalBusy.value = false
@@ -8355,6 +8606,7 @@ const EpgView = {
       try {
         await api('POST', '/api/epg/cancel', { program_id: r.programId })
         flash({ msg: `Cancelled "${r.name}".` })
+        refreshAfterRecordingChange()
         await loadState({ fresh: true })
       } catch (err) {
         flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
@@ -8662,6 +8914,7 @@ const EpgView = {
     }
 
     watch(guideHandoff, (handoff) => handoff && openHandoff())
+    watch(recordingChangeTick, () => loadState({ fresh: true }))
 
     let statePollTimer = null
     onMounted(async () => {
@@ -8699,7 +8952,8 @@ const EpgView = {
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, ANY_CHANNEL_HINT, addToLibrary, libraryNote,
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
-      recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries, cancelChoice,
+      recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries,
+      dialogFocus, cancelSeriesStep, openCancelSeriesStep, showRecordSettings, selectedSeriesLink, selectedStatusText, actionOutcomes,
       upcoming, cancelUpcoming,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
@@ -8727,6 +8981,7 @@ const live = reactive({
   bufferSeconds: 0,
   skipHint: null,
   captions: false,
+  paused: false,
 })
 
 const liveCaptionsOn = storedFlag({ key: LIVE_CAPTIONS_KEY, fallback: false })
@@ -8882,7 +9137,6 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {
     liveHlsBuffered = true
     applyLiveCaptions()
   })
-  liveHls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, placeLiftedCues)
   liveHls.on(Hls.Events.ERROR, (event, data) => {
     if (!data.fatal || run !== liveRun) return
     if (eager && data.type === Hls.ErrorTypes.NETWORK_ERROR) return abandonEagerAttach(run)
@@ -8912,7 +9166,7 @@ const endLive = (run, reason) => {
 }
 
 const applyLiveCaptions = () => {
-  const showing = live.captions && liveCaptionsOn.value
+  const showing = live.captions && liveCaptionsOn.value && !liveInfoOpen.value
   if (liveHls) {
     if (liveHlsBuffered) liveHls.subtitleTrack = showing ? 0 : -1
     return
@@ -8923,40 +9177,13 @@ const applyLiveCaptions = () => {
 const captionTracksOf = (video) =>
   [...(video?.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions')
 
-let liveCaptionLine = CAPTION_LINE_DEFAULT
-
-const isCaptionLineLifted = () => liveCaptionLine !== CAPTION_LINE_DEFAULT
-
-const placeCues = () => {
-  for (const track of captionTracksOf(liveVideo)) {
-    for (const cue of track.cues || []) {
-      if (cue.line !== liveCaptionLine) cue.line = liveCaptionLine
-    }
-  }
-}
-
-const placeLiftedCues = () => {
-  if (isCaptionLineLifted()) placeCues()
-}
-
-const followNativeCaptionLine = () => {
-  for (const track of captionTracksOf(liveVideo)) {
-    track.removeEventListener('cuechange', placeCues)
-    if (!liveHls && isCaptionLineLifted()) track.addEventListener('cuechange', placeCues)
-  }
-}
-
-const setLiveCaptionLine = (line) => {
-  liveCaptionLine = line
-  placeCues()
-  followNativeCaptionLine()
-}
-
 const toggleLiveCaptions = () => {
-  if (live.captions) liveCaptionsOn.value = !liveCaptionsOn.value
+  if (live.captions && !liveInfoOpen.value) liveCaptionsOn.value = !liveCaptionsOn.value
 }
 
-watch([liveCaptionsOn, () => live.captions], applyLiveCaptions)
+const liveInfoOpen = ref(false)
+
+watch([liveCaptionsOn, () => live.captions, liveInfoOpen], applyLiveCaptions)
 
 const detachLiveVideo = () => {
   liveHls?.destroy()
@@ -9148,8 +9375,12 @@ const onLiveClick = (e) => {
 
 const toggleLivePause = () => {
   if (!liveAttached) return
-  if (liveVideo.paused) return liveVideo.play()?.catch(() => {})
-  liveVideo.pause()
+  if (!liveVideo.paused) return liveVideo.pause()
+  liveVideo.play()?.catch(() => {})
+}
+
+const syncLivePaused = () => {
+  live.paused = Boolean(liveVideo?.paused) && live.phase === 'live'
 }
 
 const onLiveDoubleClick = (e) => {
@@ -9667,7 +9898,7 @@ const LivePlayer = {
           <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="toggleInfo"
             aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
           <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
-            @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+            @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
@@ -9683,7 +9914,7 @@ const LivePlayer = {
               <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
                 aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
               <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
-                @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+                @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
               <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
             </div>
             <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
@@ -9693,14 +9924,21 @@ const LivePlayer = {
             <div v-else class="flex shrink-0 gap-2">
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
               <button v-if="!seriesButton.hidden" type="button"
-                :class="['btn', 'live-action-wide', 'live-series-button', { 'is-on': seriesButton.set, 'is-busy': seriesBusy }]"
-                :disabled="seriesButton.disabled || seriesBusy" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
+                :class="['btn', 'live-action-wide', 'live-series-button', { 'is-on': seriesButton.set }]"
+                :disabled="seriesButton.disabled" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
                 :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
-                <span class="btn-label"><series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span></span>
-                <span v-if="seriesBusy" class="spinner spinner-overlay"></span>
+                <series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span>
               </button>
-              <button type="button" class="btn live-action-wide" :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.label" @click="recordFromLive"><record-icon /> <span class="live-action-label">{{ recordButton.label }}</span></button>
-              <button type="button" class="btn btn-danger live-action-wide" aria-label="STOP" @click="stopLive"><stop-icon /> <span class="live-action-label">STOP</span></button>
+              <button type="button" :class="['btn', 'live-action-wide', 'live-record-button', { 'is-recording': recordButton.recording }]"
+                :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
+                <span v-if="recordButton.recording" class="led-dot live live-record-dot" aria-hidden="true"></span><record-icon v-else />
+                <span class="live-action-label">{{ recordButton.label }}</span>
+              </button>
+              <button type="button" class="btn live-action-wide live-pause-button" :disabled="live.phase !== 'live'"
+                :aria-label="live.paused ? 'Play' : 'Pause'" @click="toggleLivePause">
+                <play-icon v-if="live.paused" /><pause-icon v-else />
+                <span class="live-action-label">{{ live.paused ? 'PLAY' : 'PAUSE' }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -9745,6 +9983,7 @@ const LivePlayer = {
     watch(now, trackBehindLive)
 
     watch(() => live.phase, (phase) => {
+      syncLivePaused()
       if (phase === 'tuning') return showChips('tuning')
       if (phase === 'ended') return showChips('ended')
       if (phase === 'idle') return showChips('hidden')
@@ -9752,25 +9991,26 @@ const LivePlayer = {
 
     const isBehindLive = computed(() => live.phase === 'live' && live.behindSeconds >= BEHIND_LIVE_SHOWN_S)
 
-    const seriesNote = ref(null)
-    let seriesNoteTimer = null
-
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
-      if (seriesNote.value) return seriesNote.value.text
       if (live.phase === 'tuning') {
         const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
         return slow ? 'TUNING… STILL WAITING FOR A SIGNAL' : 'TUNING…'
       }
-      const lead = isBehindLive.value ? `${fmtCountdown(live.behindSeconds * 1000)} BEHIND LIVE` : 'LIVE'
+      const lead = liveLeadText()
       if (!live.conflict) return lead
       const wait = fmtCountdown(live.conflict.startsAt - now.value.getTime())
       return `${lead} · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
     })
 
+    const liveLeadText = () => {
+      if (live.paused) return 'PAUSED'
+      return isBehindLive.value ? `${fmtCountdown(live.behindSeconds * 1000)} BEHIND LIVE` : 'LIVE'
+    }
+
     const statusKind = computed(() => {
-      if (live.phase !== 'ended' && seriesNote.value) return seriesNote.value.kind
       if (live.phase === 'ended' || live.conflict) return 'err'
+      if (live.paused) return 'info'
       return live.phase === 'live' ? 'ok' : 'info'
     })
 
@@ -9785,8 +10025,12 @@ const LivePlayer = {
         e.preventDefault()
         return toggleLiveCaptions()
       }
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       if (e.target.closest?.('button, select, textarea, input')) return
+      if (isPauseKey(e)) {
+        e.preventDefault()
+        return toggleLivePause()
+      }
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       if (skipLiveByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
     }
 
@@ -9794,6 +10038,10 @@ const LivePlayer = {
       liveVideo = videoEl.value
       liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
       liveVideo.addEventListener('pause', onLivePause)
+      liveVideo.addEventListener('pause', syncLivePaused)
+      liveVideo.addEventListener('play', syncLivePaused)
+      liveVideo.addEventListener('play', keepSeekInsideBuffer)
+      liveVideo.addEventListener('emptied', syncLivePaused)
       liveVideo.addEventListener('seeked', trackBehindLive)
       liveVideo.addEventListener('pause', trackBehindLive)
       liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
@@ -9809,27 +10057,14 @@ const LivePlayer = {
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
     const onTextTrackAdded = () => {
-      if (liveHls) return
-      followNativeCaptionLine()
-      applyLiveCaptions()
+      if (!liveHls) applyLiveCaptions()
     }
 
-    const infoOpen = ref(false)
+    const infoOpen = liveInfoOpen
     const airing = ref(EMPTY_AIRING)
     const bufferedAiring = ref(null)
     let airingTimer = null
     let bufferedLoading = false
-
-    const placeCaptionsAbovePanel = async () => {
-      await nextTick()
-      const panel = infoOpen.value ? document.getElementById('live-info') : null
-      setLiveCaptionLine(captionLine({
-        panelHeight: panel?.offsetHeight,
-        videoHeight: liveVideo?.clientHeight,
-      }))
-    }
-
-    watch(infoOpen, placeCaptionsAbovePanel)
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const closeInfo = () => { infoOpen.value = false }
@@ -9874,7 +10109,8 @@ const LivePlayer = {
 
     const isInfoKey = (e) => isPlainKey(e, 'i')
 
-    const isCaptionsKey = (e) => live.captions && isPlainKey(e, 'c')
+    const isCaptionsKey = (e) => live.captions && !infoOpen.value && isPlainKey(e, 'c')
+    const isPauseKey = (e) => e.key === ' ' || isPlainKey(e, 'k')
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
 
@@ -9942,29 +10178,29 @@ const LivePlayer = {
     const recordButton = computed(() => liveRecordButton({
       program: airing.value.now,
       nowMs: now.value.getTime(),
-      recording: isRecordingChannel(live.channel?.id),
+      recordingProgramIds: recordingProgramIdsOf(recordingNow.value.active),
     }))
 
-    const openNowInGuide = () => {
+    const openNowInGuide = (focus) => {
       recordDialogOverPlayer.value = true
       openInGuide({
         channelId: live.channel.id,
         program: airing.value.now,
         returnTo: window.location.hash || '#/dashboard',
+        focus,
       })
     }
 
     const recordFromLive = () => {
-      if (!recordButton.value.disabled) openNowInGuide()
+      if (!recordButton.value.disabled) openNowInGuide('record')
     }
 
     const liveSeriesTags = ref(null)
     const liveChannels = ref([])
-    const seriesBusy = ref(false)
 
-    const loadLiveSeriesState = async () => {
+    const loadLiveSeriesState = async ({ fresh = false } = {}) => {
       const [state, onNowAll] = await Promise.all([
-        api('GET', '/api/epg/state').catch(() => null),
+        api('GET', `/api/epg/state${fresh ? '?fresh=1' : ''}`).catch(() => null),
         api('GET', '/api/epg/now?all=1').catch(() => null),
       ])
       liveSeriesTags.value = state && !state.stale ? state.seriesTags || [] : null
@@ -9973,11 +10209,21 @@ const LivePlayer = {
 
     watch(() => live.open && live.channel?.id, (id) => {
       liveSeriesTags.value = null
-      if (id) loadLiveSeriesState()
+      if (!id) return
+      loadLiveSeriesState()
+      pollRecordingNow()
     }, { immediate: true })
 
     watch(recordDialogOverPlayer, (open) => {
-      if (!open && live.open) loadLiveSeriesState()
+      if (!open && live.open) loadLiveSeriesState({ fresh: true })
+    })
+
+    watch(recordingChangeTick, () => {
+      if (live.open) loadLiveSeriesState({ fresh: true })
+    })
+
+    watch(recordingNow, () => {
+      if (live.open && !recordDialogOverPlayer.value) loadLiveSeriesState()
     })
 
     const liveChannelName = (id) =>
@@ -9990,46 +10236,12 @@ const LivePlayer = {
       channelName: liveChannelName,
     }))
 
-    const hdTwinOfNow = () => findHdSimulcast({
-      program: airing.value.now,
-      channelId: live.channel?.id,
-      channels: liveChannels.value.map((e) => e.channel),
-      programsByChannel: Object.fromEntries(liveChannels.value.map((e) => [e.channel.id, [e.now].filter(Boolean)])),
-      needsSeriesLink: true,
-    })
-
-    const showSeriesNote = ({ text, kind }) => {
-      clearTimeout(seriesNoteTimer)
-      seriesNote.value = { text, kind }
-      seriesNoteTimer = setTimeout(() => { seriesNote.value = null }, SERIES_NOTE_MS)
+    const recordSeriesFromLive = () => {
+      if (!seriesButton.value.disabled) openNowInGuide('series')
     }
-
-    const recordSeriesFromLive = async () => {
-      const button = seriesButton.value
-      if (button.disabled || seriesBusy.value) return
-      if (button.set || hdTwinOfNow()) return openNowInGuide()
-      const program = airing.value.now
-      seriesBusy.value = true
-      try {
-        await api('POST', '/api/epg/record-series', {
-          series_link: program.series_link,
-          channel_id: live.channel.id,
-          program_id: program.program_id,
-          epg_program_id: program.epg_program_id,
-        })
-        showSeriesNote({ text: 'SERIES RECORDING SET', kind: 'ok' })
-        await loadLiveSeriesState()
-      } catch (err) {
-        showSeriesNote({ text: `Series record failed: ${err.message}`, kind: 'err' })
-      } finally {
-        seriesBusy.value = false
-      }
-    }
-
-    onUnmounted(() => clearTimeout(seriesNoteTimer))
 
     return {
-      recordButton, recordFromLive, seriesButton, seriesBusy, recordSeriesFromLive,
+      recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
       isBehindLive, jumpToLive, frameEl, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
@@ -10051,7 +10263,6 @@ const fetchChannelAiring = async ({ channelId, atMs }) => {
 
 const EMPTY_AIRING = { now: null, next: null, atMs: 0, loaded: false }
 const AIRING_BOUNDARY_GRACE_MS = 1_000
-const SERIES_NOTE_MS = 6_000
 const LIVE_POLL_TUNING_MS = 1_000
 const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800
@@ -10850,6 +11061,7 @@ app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
+app.component('cancel-series-step', CancelSeriesStep)
 app.component('time-zone-field', TimeZoneField)
 app.component('guide-combobox', GuideCombobox)
 app.component('manual-option', ManualOption)

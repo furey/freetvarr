@@ -3028,42 +3028,20 @@ body.epg-drag-lock * {
 .row-info {
   position: relative;
   z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: -0.25rem 0;
-  padding: 0;
-  border: 0;
-  border-radius: 9999px;
-  background: transparent;
-  color: #8b837e;
-  cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  justify-content: center;
+  min-width: 3.5rem;
+}
+
+.row-info::before {
+  content: "";
+  position: absolute;
+  inset: -0.45rem -0.25rem;
 }
 
 span.row-info {
+  display: inline-block;
   pointer-events: none;
-}
-
-.row-info svg {
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-@media (hover: hover) {
-  .row-info:hover {
-    color: #1eb6ff;
-    background: rgba(30, 182, 255, 0.08);
-  }
-}
-
-.row-info:focus-visible {
-  outline: 2px solid #1eb6ff;
-  outline-offset: 0;
-  color: #1eb6ff;
 }
 
 @media (pointer: fine) {
@@ -4669,6 +4647,35 @@ table.recordings-table tbody td {
 .live-series-button.is-on {
   border-color: #e2b03c;
   color: #e2b03c;
+}
+
+.live-record-button.is-recording {
+  border-color: #ff8a00;
+  color: #ff8a00;
+  background: rgba(255, 138, 0, 0.08);
+}
+
+.live-record-dot {
+  flex-shrink: 0;
+  margin: 0 0.3rem;
+}
+
+.action-outcomes {
+  display: grid;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #b0a89e;
+}
+
+.action-outcome-label {
+  color: #fffcfb;
+  letter-spacing: 0.06em;
+}
+
+.action-outcome-label::after {
+  content: ":";
 }
 
 .live-status .live-status-text {

@@ -3,6 +3,7 @@ import axios from 'axios'
 
 import { getSetting, setSetting } from './db.js'
 import { authorizationFor, createChallengeCache } from './http-auth.js'
+import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -205,7 +206,7 @@ export const scheduleRecording = async ({
   return { ok: true, uuid, programId }
 }
 
-export const cancelRecording = async ({ programId } = {}) => {
+export const cancelRecording = async ({ programId, nowMs = Date.now() } = {}) => {
   const conn = await resolveConnection()
   const entry = (await listUpcoming(conn))
     .find((e) => e.enabled && String(e.programId) === String(programId))
@@ -213,13 +214,24 @@ export const cancelRecording = async ({ programId } = {}) => {
     throw new TvheadendError('No scheduled recording for that programme.', { stage: 'cancel', code: 'not-found' })
   }
   const action = cancelAction(entry)
+  if (action === 'stop') return { ok: true, programId, ...(await stopRecordingEntry({ entry, nowMs, conn })) }
   if (action === 'skip') {
     await apiPost('idnode/save', { node: JSON.stringify({ uuid: entry.uuid, enabled: false }) }, conn)
     return { ok: true, uuid: entry.uuid, programId }
   }
-  await apiPost(`dvr/entry/${action}`, { uuid: entry.uuid }, conn)
+  await apiPost('dvr/entry/cancel', { uuid: entry.uuid }, conn)
   await apiPost('dvr/entry/remove', { uuid: entry.uuid }, conn).catch(() => null)
   return { ok: true, uuid: entry.uuid, programId }
+}
+
+export const stopRecordingEntry = async ({ entry, nowMs = Date.now(), conn }) => {
+  const recordedMs = recordedMsOf({ recordingSince: entry.recordingSince, nowMs })
+  const kept = keepsStoppedRecording(recordedMs)
+  await apiPost('dvr/entry/stop', { uuid: entry.uuid }, conn)
+  if (kept) return { uuid: entry.uuid, kept, recordedMs }
+  if (entry.autorecId) await removeKeepingHistory({ uuid: entry.uuid, rerecords: [], conn })
+  else await apiPost('dvr/entry/remove', { uuid: entry.uuid }, conn).catch(() => null)
+  return { uuid: entry.uuid, kept, recordedMs }
 }
 
 export const cancelAction = ({ schedStatus, autorecId }) => {
@@ -266,14 +278,21 @@ export const enableSeriesTag = async ({
   return { ok: true, uuid: body.uuid, seriesLinkId: seriesLink }
 }
 
-export const disableSeriesTag = async ({ seriesLinkId } = {}) => {
+export const disableSeriesTag = async ({ seriesLinkId, stopRecordingNow = false, nowMs = Date.now() } = {}) => {
   const conn = await resolveConnection()
   const autorec = (await listAutorecs(conn)).find((a) => a.seriesLinkId === seriesLinkId || a.id === seriesLinkId)
   if (!autorec) {
     throw new TvheadendError('No series recording matches.', { stage: 'series', code: 'not-found' })
   }
+  const recordingNow = stopRecordingNow
+    ? (await listUpcoming(conn)).filter((e) => e.autorecId === autorec.id && e.schedStatus === 'recording')
+    : []
   await apiPost('idnode/delete', { uuid: autorec.id }, conn)
-  return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId }
+  const stopped = []
+  for (const entry of recordingNow) {
+    stopped.push(await stopRecordingEntry({ entry: { ...entry, autorecId: null }, nowMs, conn }))
+  }
+  return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId, title: autorec.name, stopped }
 }
 
 export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => {
@@ -520,6 +539,7 @@ const normaliseEntry = (e) => {
     schedStatus: e.sched_status || '',
     statusText: e.status || '',
     autorecId: e.autorec || null,
+    recordingSince: recordingSinceOf(e),
     enabled: e.enabled !== false,
     parentId: e.parent || null,
     filename: e.filename || null,
@@ -535,6 +555,11 @@ const normaliseEntry = (e) => {
     episode,
     pendingDelete: false,
   }
+}
+
+const recordingSinceOf = (e) => {
+  const started = Math.max(e.start_real ?? e.start ?? 0, e.create ?? 0)
+  return started > 0 ? started * 1000 : null
 }
 
 const parseEpisodeDisp = (disp) => {
