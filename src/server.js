@@ -136,6 +136,7 @@ import {
   describeStallFor,
   openUpstreamFor,
   liveContentType,
+  withCaptionCueSettings,
 } from './live-tv.js'
 import { detectCaptionDecoder, detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
 import {
@@ -897,10 +898,19 @@ app.get('/api/live/:session/:file', async (req, res) => {
     if (playlist == null) return res.status(404).json({ error: 'stream not ready' })
     return res.send(playlist)
   }
+  if (file.endsWith('.vtt')) return sendCaptionSegment(res, filePath)
   res.sendFile(filePath, (err) => {
     if (err && !res.headersSent) res.status(404).end()
   })
 })
+
+const sendCaptionSegment = async (res, filePath) => {
+  try {
+    res.send(withCaptionCueSettings(await fs.readFile(filePath, 'utf8')))
+  } catch {
+    res.status(404).end()
+  }
+}
 
 app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
   const held = await liveSessions.hold(String(req.params.session))

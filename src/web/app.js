@@ -8882,7 +8882,7 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {
     liveHlsBuffered = true
     applyLiveCaptions()
   })
-  liveHls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, clipOverlappingCues)
+  liveHls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, placeLiftedCues)
   liveHls.on(Hls.Events.ERROR, (event, data) => {
     if (!data.fatal || run !== liveRun) return
     if (eager && data.type === Hls.ErrorTypes.NETWORK_ERROR) return abandonEagerAttach(run)
@@ -8925,32 +8925,31 @@ const captionTracksOf = (video) =>
 
 let liveCaptionLine = CAPTION_LINE_DEFAULT
 
+const isCaptionLineLifted = () => liveCaptionLine !== CAPTION_LINE_DEFAULT
+
 const placeCues = () => {
   for (const track of captionTracksOf(liveVideo)) {
     for (const cue of track.cues || []) {
-      if (cue.snapToLines !== false) cue.snapToLines = false
       if (cue.line !== liveCaptionLine) cue.line = liveCaptionLine
-      if (cue.lineAlign !== 'end') cue.lineAlign = 'end'
     }
+  }
+}
+
+const placeLiftedCues = () => {
+  if (isCaptionLineLifted()) placeCues()
+}
+
+const followNativeCaptionLine = () => {
+  for (const track of captionTracksOf(liveVideo)) {
+    track.removeEventListener('cuechange', placeCues)
+    if (!liveHls && isCaptionLineLifted()) track.addEventListener('cuechange', placeCues)
   }
 }
 
 const setLiveCaptionLine = (line) => {
   liveCaptionLine = line
   placeCues()
-}
-
-const clipTrackCues = (track) => {
-  const cues = [...(track.cues || [])].sort((a, b) => a.startTime - b.startTime)
-  cues.forEach((cue, i) => {
-    const next = cues[i + 1]
-    if (next && cue.endTime > next.startTime) cue.endTime = next.startTime
-  })
-}
-
-const clipOverlappingCues = () => {
-  placeCues()
-  captionTracksOf(liveVideo).forEach(clipTrackCues)
+  followNativeCaptionLine()
 }
 
 const toggleLiveCaptions = () => {
@@ -9809,9 +9808,9 @@ const LivePlayer = {
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
-    const onTextTrackAdded = (e) => {
+    const onTextTrackAdded = () => {
       if (liveHls) return
-      e?.track?.addEventListener('cuechange', clipOverlappingCues)
+      followNativeCaptionLine()
       applyLiveCaptions()
     }
 

@@ -21,6 +21,8 @@ import {
   missingTeletext,
   withCaptionLabels,
   liveContentType,
+  withCaptionCueSettings,
+  CAPTION_CUE_SETTINGS,
 } from '../src/live-tv.js'
 
 const ABC_SD = [
@@ -612,7 +614,7 @@ test('ffmpegArgsFor: exact arguments for a copied H.264 channel with captions', 
   assert.deepEqual(ffmpegArgsFor({ plan: CAPTIONED_PLAN, dir: '/tmp/live/abc' }), [
     '-hide_banner', '-loglevel', 'error', '-fflags', '+genpts+discardcorrupt',
     '-probesize', '500000', '-analyzeduration', '500000',
-    '-txt_page', '801', '-txt_format', 'text', '-txt_duration', '4000',
+    '-fix_sub_duration', '-txt_page', '801', '-txt_format', 'text', '-txt_duration', '4000',
     '-f', 'mpegts', '-i', 'pipe:0',
     '-map', '0:i:0x201', '-map', '0:i:0x28a', '-map', '0:i:0x241',
     '-c:v', 'copy',
@@ -641,7 +643,7 @@ test('ffmpegArgsFor: the stream map names audio and captions only when the plan 
 
 test('ffmpegArgsFor: no caption options without teletext', () => {
   const args = ffmpegArgsFor({ plan: pickStreams({ streams: SBS_HD }), dir: '/tmp/x' })
-  for (const option of ['-txt_page', '-txt_format', '-txt_duration', '-c:s']) assert.ok(!args.includes(option))
+  for (const option of ['-fix_sub_duration', '-txt_page', '-txt_format', '-txt_duration', '-c:s']) assert.ok(!args.includes(option))
   assert.ok(!args.some((a) => a.includes('s:0')))
   assert.ok(args.includes('-muxdelay'))
   assert.ok(args.includes('-master_pl_name'))
@@ -701,6 +703,44 @@ test('liveContentType: playlists, caption segments, and video segments', () => {
   assert.equal(liveContentType('live_vtt.m3u8'), 'application/vnd.apple.mpegurl')
   assert.equal(liveContentType('live3.vtt'), 'text/vtt')
   assert.equal(liveContentType('seg3.ts'), 'video/mp2t')
+})
+
+const CAPTION_SEGMENT = [
+  'WEBVTT',
+  '',
+  '00:10.080 --> 00:10.400',
+  "to Kohl's, including a year's worth",
+  'of groceries.',
+  '',
+  '01:00:10.400 --> 01:00:10.520 line:0',
+  'of groceries. Can',
+  '',
+].join('\n')
+
+test('withCaptionCueSettings: places every cue low and left-aligned, replacing any settings', () => {
+  assert.equal(CAPTION_CUE_SETTINGS, 'line:85%,end align:start position:10% size:80%')
+  assert.equal(withCaptionCueSettings(CAPTION_SEGMENT), [
+    'WEBVTT',
+    '',
+    `00:10.080 --> 00:10.400 ${CAPTION_CUE_SETTINGS}`,
+    "to Kohl's, including a year's worth",
+    'of groceries.',
+    '',
+    `01:00:10.400 --> 01:00:10.520 ${CAPTION_CUE_SETTINGS}`,
+    'of groceries. Can',
+    '',
+  ].join('\n'))
+})
+
+test('withCaptionCueSettings: leaves cue text, empty segments, and its own output unchanged', () => {
+  const arrowText = 'WEBVTT\n\n00:01.000 --> 00:02.000\n2 --> 1\n'
+  assert.equal(
+    withCaptionCueSettings(arrowText),
+    `WEBVTT\n\n00:01.000 --> 00:02.000 ${CAPTION_CUE_SETTINGS}\n2 --> 1\n`,
+  )
+  assert.equal(withCaptionCueSettings('WEBVTT\n\n'), 'WEBVTT\n\n')
+  const once = withCaptionCueSettings(CAPTION_SEGMENT)
+  assert.equal(withCaptionCueSettings(once), once)
 })
 
 test('sessions: readiness reads the media playlist, and each playlist is served rewritten', async () => {
