@@ -7,6 +7,7 @@ const ONLY = (process.env.SHOT_FILTER || '').trim()
 const DESKTOP_VIEWPORT = { width: 1280, height: 936 }
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
 const LIVE_SHOT_AT_S = 4
+const NATIVE_CONTROLS_FADE_MS = 3500
 
 const DESKTOP_SHOTS = [
   { hash: '#/dashboard',  file: 'screenshot-dashboard.png',  wait: '.panel-title' },
@@ -55,6 +56,8 @@ const playLive = async (page) => {
   await page.waitForSelector('.live-video:not(.is-veiled)', { timeout: 20_000 })
   await page.waitForFunction((at) => document.querySelector('.live-video')?.currentTime >= at,
     LIVE_SHOT_AT_S, { timeout: 30_000 })
+  await page.mouse.move(0, 0)
+  await page.waitForTimeout(NATIVE_CONTROLS_FADE_MS)
 }
 
 const SIM_NOW = simulatedNow()
