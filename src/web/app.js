@@ -1641,6 +1641,7 @@ const LIVE_BOUNDARY_GRACE_MS = 2_000
 const LIVE_IMAGES_KEY = 'freetvarr.liveImages'
 const LIVE_FAVOURITES_ONLY_KEY = 'freetvarr.liveFavouritesOnly'
 const LIVE_ZOOM_KEY = 'freetvarr.liveZoom'
+const LIVE_CAPTIONS_KEY = 'freetvarr.liveCaptions'
 const LIVE_ZOOM_LEVELS = ['s', 'm', 'l']
 
 const DashboardView = {
@@ -8691,10 +8692,14 @@ const live = reactive({
   behindSeconds: 0,
   bufferSeconds: 0,
   skipHint: null,
+  captions: false,
 })
+
+const liveCaptionsOn = storedFlag({ key: LIVE_CAPTIONS_KEY, fallback: false })
 
 let liveVideo = null
 let liveHls = null
+let liveHlsBuffered = false
 let liveAttached = false
 let livePollTimer = null
 let liveRun = 0
@@ -8723,7 +8728,9 @@ const stopLive = () => {
   clearTimeout(livePollTimer)
   detachLiveVideo()
   if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
-  Object.assign(live, { open: false, sessionId: null, phase: 'idle', message: '', holders: [], conflict: null })
+  Object.assign(live, {
+    open: false, sessionId: null, phase: 'idle', message: '', holders: [], conflict: null, captions: false,
+  })
 }
 
 const startLiveSession = async (run) => {
@@ -8735,6 +8742,7 @@ const startLiveSession = async (run) => {
     }
     live.sessionId = r.session.id
     live.bufferSeconds = r.session.bufferSeconds || 0
+    live.captions = Boolean(r.session.captions)
     live.conflict = r.conflict
     if (r.session.status === 'ended') return endLive(run, r.session.reason)
     attachLiveVideo(run, r.session.playlist, { eager: true })
@@ -8758,6 +8766,7 @@ const pollLive = async (run) => {
     if (!session || session.id !== live.sessionId || session.status === 'ended') {
       return endLive(run, session?.reason)
     }
+    live.captions = Boolean(session.captions)
     if (session.status === 'live' && !liveAttached) await attachLiveVideo(run, session.playlist)
     if (session.status === 'live' && liveAttached) live.phase = 'live'
   } catch {
@@ -8799,8 +8808,14 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {
   if (run !== liveRun) return
   if (!Hls.isSupported()) return endLive(run, { code: 'unsupported' })
   liveHls = new Hls(LIVE_HLS_CONFIG)
+  liveHlsBuffered = false
   let recovered = false
   liveHls.on(Hls.Events.MANIFEST_PARSED, () => markLiveReady(run))
+  liveHls.once(Hls.Events.FRAG_BUFFERED, () => {
+    liveHlsBuffered = true
+    applyLiveCaptions()
+  })
+  liveHls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, clipOverlappingCues)
   liveHls.on(Hls.Events.ERROR, (event, data) => {
     if (!data.fatal || run !== liveRun) return
     if (eager && data.type === Hls.ErrorTypes.NETWORK_ERROR) return abandonEagerAttach(run)
@@ -8829,9 +8844,37 @@ const endLive = (run, reason) => {
   live.message = liveReasonText(reason)
 }
 
+const applyLiveCaptions = () => {
+  const showing = live.captions && liveCaptionsOn.value
+  if (liveHls) {
+    if (liveHlsBuffered) liveHls.subtitleTrack = showing ? 0 : -1
+    return
+  }
+  for (const track of captionTracksOf(liveVideo)) track.mode = showing ? 'showing' : 'disabled'
+}
+
+const captionTracksOf = (video) =>
+  [...(video?.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions')
+
+const clipOverlappingCues = () => {
+  const track = captionTracksOf(liveVideo).find((t) => t.mode === 'showing')
+  const cues = [...(track?.cues || [])].sort((a, b) => a.startTime - b.startTime)
+  cues.forEach((cue, i) => {
+    const next = cues[i + 1]
+    if (next && cue.endTime > next.startTime) cue.endTime = next.startTime
+  })
+}
+
+const toggleLiveCaptions = () => {
+  if (live.captions) liveCaptionsOn.value = !liveCaptionsOn.value
+}
+
+watch([liveCaptionsOn, () => live.captions], applyLiveCaptions)
+
 const detachLiveVideo = () => {
   liveHls?.destroy()
   liveHls = null
+  liveHlsBuffered = false
   liveAttached = false
   live.behindSeconds = 0
   if (!liveVideo) return
@@ -9438,6 +9481,16 @@ const InfoIcon = {
   `,
 }
 
+const CaptionsIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
+      <rect x="1.75" y="3.25" width="12.5" height="9.5" rx="1.5"/>
+      <path d="M6.94 6.66a1.9 1.9 0 1 0 0 2.68"/>
+      <path d="M11.74 6.66a1.9 1.9 0 1 0 0 2.68"/>
+    </svg>
+  `,
+}
+
 const StaleBuildBanner = {
   template: `
     <div v-if="staleBuild" class="stale-build" role="status">
@@ -9466,6 +9519,8 @@ const LivePlayer = {
             <span class="panel-title block truncate">{{ live.channel?.name }}</span>
             <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
           </div>
+          <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', { 'is-on': captionsOn }]"
+            @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
           <button type="button" :class="['btn', 'btn-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
             aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
@@ -9508,6 +9563,8 @@ const LivePlayer = {
           </section>
           <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="toggleInfo"
             aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
+          <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
+            @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
@@ -9603,6 +9660,10 @@ const LivePlayer = {
         e.preventDefault()
         return toggleInfo()
       }
+      if (isCaptionsKey(e)) {
+        e.preventDefault()
+        return toggleLiveCaptions()
+      }
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       if (e.target.closest?.('button, select, textarea, input')) return
       if (skipLiveByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
@@ -9617,6 +9678,7 @@ const LivePlayer = {
       liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
       liveVideo.addEventListener('loadeddata', handOffToVideo)
       liveVideo.addEventListener('playing', handOffToVideo)
+      liveVideo.textTracks?.addEventListener?.('addtrack', onTextTrackAdded)
       window.addEventListener('keydown', onKeydown)
     })
     onUnmounted(() => {
@@ -9625,6 +9687,10 @@ const LivePlayer = {
     })
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+
+    const onTextTrackAdded = () => {
+      if (!liveHls) applyLiveCaptions()
+    }
 
     const infoOpen = ref(false)
     const airing = ref(EMPTY_AIRING)
@@ -9635,9 +9701,13 @@ const LivePlayer = {
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const closeInfo = () => { infoOpen.value = false }
 
-    const isInfoKey = (e) => (e.key === 'i' || e.key === 'I')
+    const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
       && !e.ctrlKey && !e.metaKey && !e.altKey
       && !e.target.closest?.('select, textarea, input, [contenteditable]')
+
+    const isInfoKey = (e) => isPlainKey(e, 'i')
+
+    const isCaptionsKey = (e) => live.captions && isPlainKey(e, 'c')
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
 
@@ -9723,6 +9793,7 @@ const LivePlayer = {
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
       isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveClick, onLiveDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
+      captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT,
     }
   },
@@ -10567,6 +10638,7 @@ app.component('copy-row', CopyRow)
 app.component('tv-apps-panel', TvAppsPanel)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
+app.component('captions-icon', CaptionsIcon)
 app.component('eye-icon', EyeIcon)
 app.component('eye-off-icon', EyeOffIcon)
 app.component('doctor-spinner', DoctorSpinner)

@@ -4475,8 +4475,16 @@ table.recordings-table tbody td {
   color: #fffcfb;
 }
 
-.live-landscape-info {
+.live-landscape-info,
+.live-landscape-captions {
   display: none;
+}
+
+.live-video::cue {
+  color: #fffcfb;
+  background: rgba(0, 0, 0, 0.75);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.35;
 }
 
 @container (max-width: 40rem) {
@@ -4504,7 +4512,8 @@ table.recordings-table tbody td {
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-  .live-landscape-info {
+  .live-landscape-info,
+  .live-landscape-captions {
     display: inline-flex;
     position: absolute;
     top: 0.75rem;
@@ -4514,6 +4523,10 @@ table.recordings-table tbody td {
     justify-content: center;
     background: rgba(0, 0, 0, 0.5);
     border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .live-landscape-captions {
+    right: 7.25rem;
   }
 
   .live-info {

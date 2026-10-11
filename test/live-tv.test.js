@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'events'
 import { PassThrough } from 'stream'
+import { readFile } from 'fs/promises'
 
 import {
   pickStreams,
@@ -15,6 +16,10 @@ import {
   hasSegments,
   liveSegmentCount,
   liveBufferMinutesFrom,
+  teletextPageOf,
+  missingTeletext,
+  withCaptionLabels,
+  liveContentType,
 } from '../src/live-tv.js'
 
 const ABC_SD = [
@@ -99,10 +104,12 @@ test('ffmpegArgsFor: exact arguments for a copied H.264 channel', () => {
     '-map', '0:i:0x66', '-map', '0:i:0x67',
     '-c:v', 'copy',
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
+    '-muxdelay', '0', '-max_interleave_delta', '500000',
     '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
     '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
-    '/tmp/live/abc/index.m3u8',
+    '-master_pl_name', 'index.m3u8', '-var_stream_map', 'v:0,a:0',
+    '/tmp/live/abc/live.m3u8',
   ])
 })
 
@@ -117,10 +124,12 @@ test('ffmpegArgsFor: exact arguments for a transcoded MPEG-2 SD channel', () => 
     '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency', '-crf', '23',
     '-g', '50', '-force_key_frames', OPENING_KEYFRAMES, '-sc_threshold', '0', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
+    '-muxdelay', '0', '-max_interleave_delta', '500000',
     '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
     '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
-    '/tmp/live/abc/index.m3u8',
+    '-master_pl_name', 'index.m3u8', '-var_stream_map', 'v:0,a:0',
+    '/tmp/live/abc/live.m3u8',
   ])
 })
 
@@ -241,10 +250,15 @@ test('stallReason: the subscription is gone', () => {
   assert.deepEqual(stallReason({ userAgent: 'Freetvarr-live/abc', subscriptions: [] }), { code: 'gone' })
 })
 
-test('LIVE_FILE_PATTERN: accepts the playlist and segments only', () => {
-  for (const ok of ['index.m3u8', 'seg0.ts', 'seg123.ts']) assert.match(ok, LIVE_FILE_PATTERN)
-  for (const bad of ['../index.m3u8', '..%2Fseg1.ts', 'seg1.ts/..', 'seg.ts', 'index.m3u8.tmp', 'seg1.ts.tmp', '/etc/passwd', 'seg-1.ts', '']) {
-    assert.doesNotMatch(bad, LIVE_FILE_PATTERN)
+test('LIVE_FILE_PATTERN: accepts the playlists, segments, and caption segments only', () => {
+  const good = ['index.m3u8', 'live.m3u8', 'live_vtt.m3u8', 'seg0.ts', 'seg123.ts', 'live0.vtt', 'live123.vtt']
+  for (const ok of good) assert.match(ok, LIVE_FILE_PATTERN)
+  const bad = [
+    '../index.m3u8', '..%2Fseg1.ts', 'seg1.ts/..', 'seg.ts', 'index.m3u8.tmp', 'seg1.ts.tmp', '/etc/passwd',
+    'seg-1.ts', '', 'live.vtt', 'live1.vtt.tmp', 'live_vtt.m3u8.tmp', 'other.m3u8', 'seg1.vtt', '../live1.vtt',
+  ]
+  for (const name of bad) {
+    assert.doesNotMatch(name, LIVE_FILE_PATTERN)
   }
 })
 
@@ -252,7 +266,7 @@ const OPENING_KEYFRAMES = 'expr:lt(t,4)*gte(t,n_forced)'
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
-const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError } = {}) => {
+const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError, files = {} } = {}) => {
   const events = []
   const spawnArgs = []
   let clock = NOW
@@ -265,7 +279,7 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, up
     rootDir: '/tmp/fake-live',
     makeDir: async () => {},
     removeDir: async (dir) => { events.push(`rm ${dir}`) },
-    readText: async () => null,
+    readText: async (file) => files[file.split('/').pop()] ?? null,
     killGraceMs,
     bufferMinutes,
     spawnProcess: (command, args) => {
@@ -445,10 +459,12 @@ test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', (
     '-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24',
     '-g', '50', '-keyint_min', '50', '-force_key_frames', OPENING_KEYFRAMES,
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
+    '-muxdelay', '0', '-max_interleave_delta', '500000',
     '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
     '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
-    '/tmp/live/abc/index.m3u8',
+    '-master_pl_name', 'index.m3u8', '-var_stream_map', 'v:0,a:0',
+    '/tmp/live/abc/live.m3u8',
   ])
 })
 
@@ -561,4 +577,200 @@ test('sessions: other ffmpeg failures end the session without a restart', async 
   await failChild(h.children[0], 'Invalid data found when processing input')
   assert.equal(session.status, 'ended')
   assert.equal(h.children.length, 1)
+})
+
+const NINE_HD = [
+  { pid: 513, type: 'H264', language: '', audioType: null, height: 1080 },
+  { pid: 650, type: 'AC3', language: 'eng', audioType: 0, height: null },
+  { pid: 577, type: 'TELETEXT', language: '', audioType: null, height: null },
+  { pid: 8993, type: 'TEXTSUB', language: 'eng', audioType: null, height: null },
+]
+
+const CAPTIONED_PLAN = pickStreams({ streams: NINE_HD })
+
+test('pickStreams: teletext with a subtitle page carries captions', () => {
+  assert.deepEqual(CAPTIONED_PLAN.teletext, { pid: 577, page: 801 })
+})
+
+test('pickStreams: teletext without a subtitle page carries no captions', () => {
+  assert.equal(pickStreams({ streams: SBS_HD }).teletext, null)
+  assert.equal(pickStreams({ streams: TEN_HD }).teletext, null)
+})
+
+test('teletextPageOf: the subtitle PID less 0x2000 is the page, else page 801', () => {
+  assert.equal(teletextPageOf(8993), 801)
+  assert.equal(teletextPageOf(0x2000 + 888), 888)
+  assert.equal(teletextPageOf(0x2000 + 100), 100)
+  assert.equal(teletextPageOf(0x2000 + 99), 801)
+  assert.equal(teletextPageOf(0x2000 + 900), 801)
+  assert.equal(teletextPageOf(577), 801)
+  assert.equal(teletextPageOf(undefined), 801)
+})
+
+test('ffmpegArgsFor: exact arguments for a copied H.264 channel with captions', () => {
+  assert.deepEqual(ffmpegArgsFor({ plan: CAPTIONED_PLAN, dir: '/tmp/live/abc' }), [
+    '-hide_banner', '-loglevel', 'error', '-fflags', '+genpts+discardcorrupt',
+    '-probesize', '500000', '-analyzeduration', '500000',
+    '-txt_page', '801', '-txt_format', 'text', '-txt_duration', '4000',
+    '-f', 'mpegts', '-i', 'pipe:0',
+    '-map', '0:i:0x201', '-map', '0:i:0x28a', '-map', '0:i:0x241',
+    '-c:v', 'copy',
+    '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
+    '-c:s', 'webvtt',
+    '-muxdelay', '0', '-max_interleave_delta', '500000',
+    '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
+    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
+    '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
+    '-master_pl_name', 'index.m3u8',
+    '-var_stream_map', 'v:0,a:0,s:0,sgroup:subs,language:en,default:no',
+    '/tmp/live/abc/live.m3u8',
+  ])
+})
+
+const streamMapOf = (args) => args[args.indexOf('-var_stream_map') + 1]
+
+test('ffmpegArgsFor: the stream map names audio and captions only when the plan has them', () => {
+  const silent = pickStreams({ streams: NINE_HD.filter((s) => s.type !== 'AC3') })
+  assert.equal(streamMapOf(ffmpegArgsFor({ plan: silent, dir: '/tmp/x' })), 'v:0,s:0,sgroup:subs,language:en,default:no')
+  const bare = pickStreams({ streams: [NINE_HD[0]] })
+  const args = ffmpegArgsFor({ plan: bare, dir: '/tmp/x' })
+  assert.equal(streamMapOf(args), 'v:0')
+  assert.equal(args.filter((a) => a === '-map').length, 1)
+})
+
+test('ffmpegArgsFor: no caption options without teletext', () => {
+  const args = ffmpegArgsFor({ plan: pickStreams({ streams: SBS_HD }), dir: '/tmp/x' })
+  for (const option of ['-txt_page', '-txt_format', '-txt_duration', '-c:s']) assert.ok(!args.includes(option))
+  assert.ok(!args.some((a) => a.includes('s:0')))
+  assert.ok(args.includes('-muxdelay'))
+  assert.ok(args.includes('-master_pl_name'))
+})
+
+test('missingTeletext: spots a failure on the teletext stream only', () => {
+  const plan = CAPTIONED_PLAN
+  assert.equal(missingTeletext({ plan, errorLines: ["Stream map '0:i:0x241' matches no streams."] }), true)
+  assert.equal(missingTeletext({ plan, errorLines: ['[libzvbi_teletextdec @ 0x1] failed'] }), true)
+  assert.equal(missingTeletext({ plan, errorLines: ["Stream map '0:i:0x201' matches no streams."] }), false)
+  assert.equal(missingTeletext({ plan: PLAN, errorLines: ["Stream map '0:i:0x241' matches no streams."] }), false)
+})
+
+const VTT_PLAYLIST = [
+  '#EXTM3U',
+  '#EXT-X-VERSION:6',
+  '#EXT-X-TARGETDURATION:3',
+  '#EXT-X-MEDIA-SEQUENCE:0',
+  '#EXTINF:0.960000,',
+  'live0.vtt',
+  '#EXTINF:1.920000,',
+  'live1.vtt',
+  '',
+].join('\n')
+
+test('playlist: the cut-in caption segment is dropped and the sequence starts at 1', () => {
+  const trimmed = withoutCutInSegment(VTT_PLAYLIST, 'live0.vtt')
+  assert.ok(!trimmed.includes('live0.vtt'))
+  assert.ok(trimmed.includes('#EXT-X-MEDIA-SEQUENCE:1\n'))
+  assert.ok(trimmed.includes('#EXTINF:1.920000,\nlive1.vtt'))
+})
+
+const MASTER = [
+  '#EXTM3U',
+  '#EXT-X-VERSION:6',
+  '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="subtitle_0",DEFAULT=NO,LANGUAGE="en",URI="live_vtt.m3u8"',
+  '#EXT-X-STREAM-INF:BANDWIDTH=140800,RESOLUTION=1920x1080,SUBTITLES="subs"',
+  'live.m3u8',
+  '',
+].join('\n')
+
+test('withCaptionLabels: names the caption track English and lets players pick it', () => {
+  assert.equal(withCaptionLabels(MASTER), MASTER.replace(
+    'NAME="subtitle_0",DEFAULT=NO,LANGUAGE="en",URI="live_vtt.m3u8"',
+    'NAME="English",DEFAULT=NO,LANGUAGE="en",URI="live_vtt.m3u8",AUTOSELECT=YES',
+  ))
+})
+
+test('withCaptionLabels: leaves a master without captions unchanged, and runs twice safely', () => {
+  const plain = MASTER.split('\n').filter((l) => !l.startsWith('#EXT-X-MEDIA')).join('\n')
+  assert.equal(withCaptionLabels(plain), plain)
+  assert.equal(withCaptionLabels(withCaptionLabels(MASTER)), withCaptionLabels(MASTER))
+})
+
+test('liveContentType: playlists, caption segments, and video segments', () => {
+  assert.equal(liveContentType('index.m3u8'), 'application/vnd.apple.mpegurl')
+  assert.equal(liveContentType('live_vtt.m3u8'), 'application/vnd.apple.mpegurl')
+  assert.equal(liveContentType('live3.vtt'), 'text/vtt')
+  assert.equal(liveContentType('seg3.ts'), 'video/mp2t')
+})
+
+test('sessions: readiness reads the media playlist, and each playlist is served rewritten', async () => {
+  const h = fakeHarness({
+    files: { 'index.m3u8': MASTER, 'live.m3u8': FIRST_PLAYLIST, 'live_vtt.m3u8': VTT_PLAYLIST },
+  })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: CAPTIONED_PLAN })
+  assert.equal(await h.sessions.waitForPlaylist(session.id, { timeoutMs: 0 }), true)
+  assert.match(await h.sessions.playlistFor(session.id, 'index.m3u8'), /NAME="English"/)
+  const media = await h.sessions.playlistFor(session.id, 'live.m3u8')
+  const captions = await h.sessions.playlistFor(session.id, 'live_vtt.m3u8')
+  assert.ok(!media.includes('seg0.ts'))
+  assert.ok(!captions.includes('live0.vtt'))
+  const sequenceOf = (text) => text.match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/)[1]
+  assert.equal(sequenceOf(media), sequenceOf(captions))
+  assert.equal(await h.sessions.playlistFor(session.id, 'seg1.ts'), null)
+  assert.equal(h.sessions.fileFor(session.id, 'live1.vtt'), `/tmp/fake-live/${session.id}/live1.vtt`)
+  await h.sessions.stopAll()
+})
+
+test('sessions: the master playlist alone does not make a session live', async () => {
+  const h = fakeHarness({ files: { 'index.m3u8': MASTER } })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: CAPTIONED_PLAN })
+  assert.equal(await h.sessions.waitForPlaylist(session.id, { timeoutMs: 0 }), false)
+  await h.sessions.stopAll()
+})
+
+test('sessions: the session view says whether captions are on offer', async () => {
+  const h = fakeHarness()
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: CAPTIONED_PLAN })
+  const { session: plain } = await h.sessions.start({ channelId: 'c2', plan: PLAN })
+  assert.equal(h.sessions.view(session).captions, true)
+  assert.equal(h.sessions.view(plain).captions, false)
+  assert.equal(h.sessions.view(session).playlist, `/api/live/${session.id}/index.m3u8`)
+  await h.sessions.stopAll()
+})
+
+test('sessions: a missing teletext stream restarts ffmpeg once without captions', async () => {
+  const h = fakeHarness()
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: CAPTIONED_PLAN })
+  await new Promise((resolve) => setImmediate(resolve))
+  await failChild(h.children[0], "Stream map '0:i:0x241' matches no streams.")
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(h.children.length, 2)
+  assert.ok(h.spawnArgs[0].includes('-txt_page'))
+  assert.ok(!h.spawnArgs[1].includes('-txt_page'))
+  assert.ok(h.spawnArgs[1].includes('-analyzeduration'))
+  assert.equal(session.status, 'tuning')
+  assert.equal(h.sessions.view(session).captions, false)
+  await failChild(h.children[1], "Stream map '0:i:0x241' matches no streams.")
+  assert.equal(session.status, 'ended')
+  assert.equal(h.children.length, 2)
+})
+
+test('sessions: a probe failure and then a missing teletext stream each restart once', async () => {
+  const h = fakeHarness()
+  await h.sessions.start({ channelId: 'c1', plan: CAPTIONED_PLAN })
+  await new Promise((resolve) => setImmediate(resolve))
+  await failChild(h.children[0], 'Could not find codec parameters for stream 1')
+  await new Promise((resolve) => setImmediate(resolve))
+  await failChild(h.children[1], "Stream map '0:i:0x241' matches no streams.")
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(h.children.length, 3)
+  assert.ok(!h.spawnArgs[2].includes('-analyzeduration'))
+  assert.ok(!h.spawnArgs[2].includes('-txt_page'))
+  await h.sessions.stopAll()
+})
+
+test('vendor: the server sends the full hls.js build, which has caption support', async () => {
+  const server = await readFile(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(server, /'\/vendor\/hls\.mjs', sendVendorFile\('hls\.js', 'dist', 'hls\.min\.mjs'\)/)
+  const build = await readFile(new URL('../node_modules/hls.js/dist/hls.min.mjs', import.meta.url), 'utf8')
+  assert.match(build, /subtitleStreamController:(?!void)/)
 })

@@ -135,6 +135,7 @@ import {
   startLiveChannel,
   describeStallFor,
   openUpstreamFor,
+  liveContentType,
 } from './live-tv.js'
 import { detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
 import {
@@ -881,17 +882,17 @@ app.get('/api/live/:session/:file', async (req, res) => {
   const filePath = liveSessions.fileFor(sessionId, file)
   if (!filePath) return res.status(404).json({ error: 'not found' })
   liveSessions.touch(sessionId)
-  const isPlaylist = file === 'index.m3u8'
+  const isPlaylist = file.endsWith('.m3u8')
   if (isPlaylist && !(await liveSessions.waitForPlaylist(sessionId))) {
     return res.status(404).json({ error: 'stream not ready' })
   }
   res.setHeader('Cache-Control', 'no-store')
+  res.type(liveContentType(file))
   if (isPlaylist) {
-    const playlist = await liveSessions.playlistFor(sessionId)
+    const playlist = await liveSessions.playlistFor(sessionId, file)
     if (playlist == null) return res.status(404).json({ error: 'stream not ready' })
-    return res.type('application/vnd.apple.mpegurl').send(playlist)
+    return res.send(playlist)
   }
-  res.type('video/mp2t')
   res.sendFile(filePath, (err) => {
     if (err && !res.headersSent) res.status(404).end()
   })
@@ -1963,7 +1964,7 @@ const sendVendorFile = (...segments) => (req, res) => {
 }
 
 app.get('/vendor/vue.esm-browser.prod.js', sendVendorFile('vue', 'dist', 'vue.esm-browser.prod.js'))
-app.get('/vendor/hls.mjs', sendVendorFile('hls.js', 'dist', 'hls.light.min.mjs'))
+app.get('/vendor/hls.mjs', sendVendorFile('hls.js', 'dist', 'hls.min.mjs'))
 app.get('/vendor/hls.worker.js', sendVendorFile('hls.js', 'dist', 'hls.worker.js'))
 
 app.get(['/', '/index.html'], async (req, res) => {
