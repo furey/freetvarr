@@ -4357,3 +4357,165 @@ table.recordings-table tbody td {
     margin-right: -0.5rem;
   }
 }
+
+.btn-icon.is-on {
+  border-color: #1eb6ff;
+  color: #1eb6ff;
+}
+
+.live-info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3rem;
+  max-height: calc(100% - 3rem);
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(26, 22, 17, 0.9);
+  border-top: 1px dashed #3d3829;
+  border-bottom: 1px dashed #3d3829;
+  color: #fffcfb;
+}
+
+.live-info-image {
+  align-self: flex-start;
+  width: clamp(9rem, 24cqw, 15rem);
+  border: 1px solid rgba(61, 56, 41, 0.85);
+  border-radius: 0.25rem;
+}
+
+.live-info-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-info-text > * + * {
+  margin-top: 0.3rem;
+}
+
+.live-info-channel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #8b837e;
+}
+
+.live-info-buffer {
+  flex: none;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid #ffab3d;
+  border-radius: 0.2rem;
+  color: #ffab3d;
+  font-size: 0.66rem;
+}
+
+.live-info-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.live-info-episode {
+  font-size: 0.85rem;
+  color: #fffcfb;
+}
+
+.live-info-times {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #8b837e;
+}
+
+.live-info-times .progress-track {
+  flex: 1;
+  max-width: 14rem;
+}
+
+.live-info-meta,
+.live-info-next,
+.live-info-empty {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #8b837e;
+}
+
+.live-info-synopsis {
+  max-height: calc(3 * 1.45em);
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #b0a89e;
+}
+
+.live-info-synopsis:focus-visible {
+  outline: 2px solid #1eb6ff;
+  outline-offset: 2px;
+}
+
+.live-info-next {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-info-next-title {
+  margin: 0 0.35rem;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: #fffcfb;
+}
+
+.live-landscape-info {
+  display: none;
+}
+
+@container (max-width: 40rem) {
+  .live-info {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .live-info-image {
+    display: none;
+  }
+
+  .live-info-title {
+    font-size: 0.95rem;
+  }
+
+  .live-info-episode {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .live-info-synopsis {
+    max-height: calc(2 * 1.45em);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .live-landscape-info {
+    display: inline-flex;
+    position: absolute;
+    top: 0.75rem;
+    right: 4rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .live-info {
+    max-height: calc(100% - 7rem);
+  }
+}

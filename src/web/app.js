@@ -25,7 +25,11 @@ import {
   nativeClickPlan,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
-import { liveRecordButton, nowProgramFor } from '/live-record.js'
+import { liveRecordButton } from '/live-record.js'
+import {
+  NO_GUIDE_TEXT, channelNumberLabel, seasonEpisodeOf, ratingLabel, genreLabel, programmeProgress,
+  airingBoundary, airingCovers,
+} from '/live-info.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
@@ -502,6 +506,7 @@ const PROGRAMME_IMAGE_WIDTHS = {
   cell: [192],
   rec: [384, 768],
   hero: [768],
+  info: [384, 768],
 }
 
 const withWidth = (url, width) => `${url}${url.includes('?') ? '&' : '?'}w=${width}`
@@ -7916,17 +7921,7 @@ const EpgView = {
 
     const fmtShortRange = (start, end) => `${fmtDayTime(start)}–${fmtClock(end)}`
 
-    const ratingLabel = (p) => {
-      const r = p?.rating
-      return typeof r === 'string' && r && Number.isNaN(Number(r)) ? r : ''
-    }
-
-    const seLabel = (p) => {
-      if (p.series_no == null && p.episode_no == null) return ''
-      const s = p.series_no != null ? `S${String(p.series_no).padStart(2, '0')}` : ''
-      const e = p.episode_no != null ? `E${String(p.episode_no).padStart(2, '0')}` : ''
-      return `${s}${e}`
-    }
+    const seLabel = seasonEpisodeOf
 
     const channelById = (id) =>
       (guide.value?.channels || []).find((c) => String(c.id) === String(id)) || null
@@ -8681,6 +8676,7 @@ let liveRun = 0
 const liveChannelOf = (channel) => ({
   id: channel.id,
   name: channel.name,
+  number: channel.number ?? null,
   hasLogo: (channel.logos || []).length > 0,
 })
 
@@ -8862,6 +8858,12 @@ document.addEventListener('visibilitychange', () => {
 
 const FULLSCREEN_EXIT_RESUME_MS = 1_500
 
+const toggleStageFullscreen = ({ stage, video }) => {
+  if (document.fullscreenElement) return document.exitFullscreen?.().catch(() => {})
+  if (stage?.requestFullscreen) return stage.requestFullscreen().catch(() => {})
+  video?.webkitEnterFullscreen?.()
+}
+
 let resumeAfterFullscreenUntil = 0
 
 const resumeAfterFullscreen = () => {
@@ -8976,11 +8978,14 @@ const toggleLivePause = () => {
 }
 
 const onLiveDoubleClick = (e) => {
-  if (e.target !== liveVideo || !canSkip()) return
-  if (!tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })) return
+  if (e.target !== liveVideo || isOnNativeControlBar(e)) return
   e.preventDefault()
   e.stopPropagation()
+  if (canSkip() && tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })) return
+  toggleStageFullscreen({ stage: liveVideo.closest('.live-frame'), video: liveVideo })
 }
+
+const isOnNativeControlBar = (e) => e.clientY > liveVideo.getBoundingClientRect().bottom - NATIVE_CONTROL_BAR_PX
 
 const registerLiveTap = ({ side, force }) => {
   const step = registerTap(liveTapState, { side, at: Date.now(), position: liveVideo.currentTime, force })
@@ -9419,6 +9424,8 @@ const LivePlayer = {
             <span class="panel-title block truncate">{{ live.channel?.name }}</span>
             <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
           </div>
+          <button type="button" :class="['btn', 'btn-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
+            aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
           <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
         </header>
         <div ref="frameEl" class="live-frame" @pointerdown="onLivePointerDown" @pointerup="onLivePointerUp" @click.capture="onLiveClick" @dblclick.capture="onLiveDoubleClick">
@@ -9432,6 +9439,33 @@ const LivePlayer = {
             <i v-for="n in 3" :key="n" class="live-chip"></i>
           </div>
           <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
+          <section v-if="infoOpen" id="live-info" class="live-info" role="region" aria-label="Programme info">
+            <programme-image v-if="info.now" :key="info.now.program_id" class="live-info-image" variant="info"
+              :event-id="info.now.has_image ? info.now.program_id : null" :title="info.now.title"
+              :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
+            <div class="live-info-text">
+              <p class="live-info-channel">
+                <span class="truncate">{{ infoChannelLabel }}</span>
+                <span v-if="isBehindLive" class="live-info-buffer">FROM BUFFER</span>
+              </p>
+              <template v-if="info.now">
+                <p class="live-info-title">{{ info.now.title }}</p>
+                <p v-if="infoEpisodeLine" class="live-info-episode">{{ infoEpisodeLine }}</p>
+                <div class="live-info-times">
+                  <span>{{ fmtClockTz(info.now.start) }}–{{ fmtClockTz(info.now.end) }}</span>
+                  <div class="progress-track"><div class="progress-fill" :style="{ width: infoProgress + '%' }"></div></div>
+                </div>
+                <p v-if="infoMetaLine" class="live-info-meta">{{ infoMetaLine }}</p>
+                <p v-if="info.now.synopsis" class="live-info-synopsis" tabindex="0">{{ info.now.synopsis }}</p>
+              </template>
+              <p v-else-if="info.loaded && !info.next" class="live-info-empty">{{ NO_GUIDE_TEXT }}</p>
+              <p v-if="info.next" class="live-info-next">
+                NEXT <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
+              </p>
+            </div>
+          </section>
+          <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="toggleInfo"
+            aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
           <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
@@ -9522,7 +9556,11 @@ const LivePlayer = {
 
     const onKeydown = (e) => {
       if (!live.open || recordDialogOverPlayer.value) return
-      if (e.key === 'Escape') return stopLive()
+      if (e.key === 'Escape') return infoOpen.value ? closeInfo() : stopLive()
+      if (isInfoKey(e)) {
+        e.preventDefault()
+        return toggleInfo()
+      }
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       if (e.target.closest?.('button, select, textarea, input')) return
       if (skipLiveByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
@@ -9546,26 +9584,84 @@ const LivePlayer = {
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
-    const nowProgram = ref(null)
+    const infoOpen = ref(false)
+    const airing = ref(EMPTY_AIRING)
+    const bufferedAiring = ref(null)
+    let airingTimer = null
+    let bufferedLoading = false
 
-    const loadNowProgram = async () => {
+    const toggleInfo = () => { infoOpen.value = !infoOpen.value }
+    const closeInfo = () => { infoOpen.value = false }
+
+    const isInfoKey = (e) => (e.key === 'i' || e.key === 'I')
+      && !e.ctrlKey && !e.metaKey && !e.altKey
+      && !e.target.closest?.('select, textarea, input, [contenteditable]')
+
+    const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
+
+    const loadAiring = async () => {
+      clearTimeout(airingTimer)
       const channelId = live.channel?.id
-      nowProgram.value = null
-      if (!channelId) return
-      const result = await api('GET', '/api/epg/now?all=1').catch(() => null)
-      if (live.channel?.id !== channelId) return
-      nowProgram.value = nowProgramFor({ entries: result?.entries, channelId })
+      if (!isCurrentChannel(channelId)) return
+      const result = await fetchChannelAiring({ channelId, atMs: Date.now() })
+      if (!isCurrentChannel(channelId)) return
+      airing.value = result
+      const boundary = airingBoundary(result)
+      if (boundary == null) return
+      airingTimer = setTimeout(loadAiring, Math.max(0, boundary - Date.now()) + AIRING_BOUNDARY_GRACE_MS)
     }
 
-    watch(() => live.open && live.channel?.id, (id) => id && loadNowProgram(), { immediate: true })
+    const loadBufferedAiring = async (atMs) => {
+      const channelId = live.channel?.id
+      bufferedLoading = true
+      const result = await fetchChannelAiring({ channelId, atMs })
+      bufferedLoading = false
+      if (isCurrentChannel(channelId)) bufferedAiring.value = result
+    }
 
-    watch(now, () => {
-      const program = nowProgram.value
-      if (live.open && program && program.end <= now.value.getTime()) loadNowProgram()
+    watch(() => live.open && live.channel?.id, (id) => {
+      clearTimeout(airingTimer)
+      airing.value = EMPTY_AIRING
+      bufferedAiring.value = null
+      if (!live.open) infoOpen.value = false
+      if (id) loadAiring()
+    }, { immediate: true })
+
+    const playingAtMs = computed(() => now.value.getTime() - live.behindSeconds * 1000)
+
+    watch(playingAtMs, (atMs) => {
+      if (!isBehindLive.value || bufferedLoading) return
+      if (!airingCovers({ airing: bufferedAiring.value, atMs })) loadBufferedAiring(atMs)
     })
 
+    const info = computed(() => (isBehindLive.value && bufferedAiring.value) || airing.value)
+
+    watch(info, (shown) => {
+      if (shown.now) live.nowTitle = shown.now.title
+    })
+
+    const infoChannelLabel = computed(() =>
+      [channelNumberLabel(live.channel?.number), live.channel?.name].filter(Boolean).join(' '))
+
+    const infoEpisodeLine = computed(() => {
+      const program = info.value.now
+      return program ? [seasonEpisodeOf(program), program.episode_title].filter(Boolean).join(' · ') : ''
+    })
+
+    const infoMetaLine = computed(() => {
+      const program = info.value.now
+      return program ? [genreLabel(program.genre), ratingLabel(program)].filter(Boolean).join(' · ') : ''
+    })
+
+    const infoProgress = computed(() => {
+      const program = info.value.now
+      return program ? programmeProgress({ program, atMs: playingAtMs.value }) : 0
+    })
+
+    onUnmounted(() => clearTimeout(airingTimer))
+
     const recordButton = computed(() => liveRecordButton({
-      program: nowProgram.value,
+      program: airing.value.now,
       nowMs: now.value.getTime(),
       recording: isRecordingChannel(live.channel?.id),
     }))
@@ -9575,7 +9671,7 @@ const LivePlayer = {
       recordDialogOverPlayer.value = true
       openInGuide({
         channelId: live.channel.id,
-        program: nowProgram.value,
+        program: airing.value.now,
         returnTo: window.location.hash || '#/dashboard',
       })
     }
@@ -9584,10 +9680,24 @@ const LivePlayer = {
       recordButton, recordFromLive,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
       isBehindLive, jumpToLive, frameEl, onLivePointerDown, onLivePointerUp, onLiveClick, onLiveDoubleClick,
+      infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
+      fmtClockTz, NO_GUIDE_TEXT,
     }
   },
 }
 
+const fetchChannelAiring = async ({ channelId, atMs }) => {
+  const params = new URLSearchParams({ channel: channelId, at: String(Math.round(atMs)) })
+  try {
+    const { now, next } = await api('GET', `/api/epg/channel-now?${params}`)
+    return { now, next, atMs, loaded: true }
+  } catch {
+    return { ...EMPTY_AIRING, atMs, loaded: true }
+  }
+}
+
+const EMPTY_AIRING = { now: null, next: null, atMs: 0, loaded: false }
+const AIRING_BOUNDARY_GRACE_MS = 1_000
 const LIVE_POLL_TUNING_MS = 1_000
 const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800
@@ -10013,11 +10123,7 @@ const RecordingPlayer = {
       seekPlaybackTo(Number(e.target.value))
     }
 
-    const toggleFullscreen = () => {
-      if (document.fullscreenElement) return document.exitFullscreen?.().catch(() => {})
-      if (stageEl.value?.requestFullscreen) return stageEl.value.requestFullscreen().catch(() => {})
-      playVideo?.webkitEnterFullscreen?.()
-    }
+    const toggleFullscreen = () => toggleStageFullscreen({ stage: stageEl.value, video: playVideo })
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
 

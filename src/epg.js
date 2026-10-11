@@ -301,6 +301,28 @@ export const projectUpcomingRecordings = ({
   return [...timers, ...projected].sort((a, b) => a.startDate - b.startDate)
 }
 
+export const channelAiringAt = ({ guide, channelId, atMs, endedByChannel = null }) => {
+  const channel = guide.channels.find((c) => String(c.id) === String(channelId))
+  if (!channel) return { now: null, next: null }
+  const live = guide.programsByChannel[String(channel.epgId)] || []
+  const saved = endedByChannel?.get(String(channel.epgId)) || []
+  const rows = mergeGuidePrograms({ live, saved })
+  const now = rows.find((p) => p.start <= atMs && p.end > atMs) || null
+  const next = earliestStartingFrom({ rows, fromMs: now ? now.end : atMs })
+  return { now: now && toBrowserProgram(now), next: next && toBrowserProgram(next) }
+}
+
+export const getChannelAiring = async ({ channelId, atMs = Date.now(), nowMs = Date.now() }) => {
+  const guide = await getCachedGuide()
+  const endedByChannel = await loadEndedProgramsByChannel({ fromMs: atMs, toMs: nowMs, nowMs })
+    .catch(logHistoryError('load'))
+  return channelAiringAt({ guide, channelId, atMs, endedByChannel })
+}
+
+const earliestStartingFrom = ({ rows, fromMs }) => rows
+  .filter((p) => p.start >= fromMs)
+  .reduce((earliest, p) => (!earliest || p.start < earliest.start ? p : earliest), null)
+
 export const toBrowserProgram = ({ image, ...program }) => ({ ...program, has_image: Boolean(image) })
 
 export const toGuideCell = ({ program, nowMs }) => {

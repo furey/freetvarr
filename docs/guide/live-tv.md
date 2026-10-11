@@ -41,6 +41,20 @@ The **zoom buttons** above the channel list change the row size. Zoom out for mo
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
+## Programme info
+
+Press the **i** button at the top of the player, or the `i` key on a computer, to show what is on. The panel sits over the bottom of the picture and shows:
+
+- The channel number and name.
+- The title, the episode title, and the season and episode number.
+- The start and end times, and how much of the programme has played.
+- The genre, the classification, and a description. Scroll the description if it is long.
+- The programme that is on next, and when it starts.
+
+On a wide screen, the panel also shows the programme picture. While you watch from the rewind buffer, the panel describes what you are watching, not what is on air, and reads **FROM BUFFER**. The title at the top of the player changes when a new programme starts. If the guide has nothing for the channel, the panel says so.
+
+Press the button again, or `Esc`, to close the panel. Double-click the middle of the picture to go full screen with the panel. The full-screen button in the player's own controls shows the picture only.
+
 ## Record from the player
 
 Press **RECORD** in the player to record the programme on now. The button opens the same dialog as the TV Guide, with **RECORD** for this airing, **RECORD SERIES** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. A recording starts from the moment you press the button, so the part that already aired is not included.
