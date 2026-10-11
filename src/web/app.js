@@ -31,6 +31,7 @@ import {
   NO_GUIDE_TEXT, channelNumberLabel, seasonEpisodeOf, ratingLabel, genreLabel, programmeProgress,
   airingBoundary, airingCovers, watchRowLabel,
 } from '/live-info.js'
+import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
 import { isReadyToStart } from '/live-start.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
@@ -699,7 +700,7 @@ const CancelSeriesStep = {
       <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
         <button type="button" class="btn mr-auto" @click="$emit('back')" :disabled="busy">KEEP SERIES</button>
         <button type="button" :class="['btn', 'btn-danger', { 'is-busy': busy }]" @click="confirm" :disabled="busy">
-          <span class="btn-label"><cross-icon /> CANCEL SERIES</span>
+          <span class="btn-label">CANCEL SERIES</span>
           <span v-if="busy" class="spinner spinner-overlay"></span>
         </button>
       </div>
@@ -1517,7 +1518,7 @@ const LiveView = {
           <span class="panel-heading">
             <span class="panel-title">LIVE TV</span>
             <info-button title="LIVE TV" doc="guide/live-tv#in-freetvarr">
-              <p>Every channel in TVHeadend, with what is on now and next. Tap a channel to watch it in the browser. Tap <info-icon class="icon-inline" /> to open the programme's details in the TV Guide.</p>
+              <p>Every channel in TVHeadend, with what is on now and next. Tap a channel to watch it in the browser. Tap <strong>INFO</strong> to open the programme's details in the TV Guide.</p>
               <p>Freetvarr converts the TVHeadend stream into video the browser can play. It needs a free tuner, and a recording always takes the tuner first.</p>
               <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels. The zoom buttons change how much each row shows.</p>
             </info-button>
@@ -1758,7 +1759,7 @@ const DashboardView = {
             <info-button title="WHAT'S ON" doc="guide/tv-guide#on-the-dashboard">
               <p>What is on now on your favourite channels, what is on next, and the next recordings TVHeadend has scheduled. All of it comes from TVHeadend.</p>
               <p>Star a channel in Live TV or the TV Guide to add it here.</p>
-              <p>Tap a channel to watch it live. Tap <info-icon class="icon-inline" />, a next programme, or a recording to open its details in the TV Guide.</p>
+              <p>Tap a channel to watch it live. Tap <strong>INFO</strong>, a next programme, or a recording to open its details in the TV Guide.</p>
             </info-button>
           </span>
           <div class="flex items-center gap-4">
@@ -2186,13 +2187,13 @@ const FolderEditor = {
         <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" :aria-labelledby="'remove-title-' + folder.id">
           <header class="panel-header">
             <span :id="'remove-title-' + folder.id" class="panel-title">{{ removeTitle }}</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="confirming = false" aria-label="Close"><cross-icon /></button>
+            <button type="button" class="btn btn-icon epg-modal-x" @click="confirming = false" aria-label="Close"><cross-icon /></button>
           </header>
           <div class="panel-body space-y-4">
             <p class="text-sm text-ink">{{ removeOutcome }}</p>
             <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn epg-modal-close mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
+              <button type="button" class="btn mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
                 <template v-if="saving">REMOVING…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
               </button>
@@ -2280,7 +2281,7 @@ const SeriesView = {
             <span class="panel-title">SERIES · {{ series.length }}</span>
             <info-button title="SERIES" doc="guide/series">
               <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
-              <p>To record a new series, open the TV Guide, pick a programme, and press <strong>RECORD SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
+              <p>To record a new series, open the TV Guide, pick a programme, and press <strong>SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
               <p><strong>CANCEL SERIES</strong> cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
               <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>ASSIGN FOLDER</strong> to give it one. <strong>UNASSIGN FOLDER</strong> in the edit form takes it away again. Episodes already imported stay where they are.</p>
               <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>CANCEL SERIES</strong> removes it.</p>
@@ -2297,7 +2298,7 @@ const SeriesView = {
             <p v-if="error" class="text-sm font-mono text-signal-orange-hi">Cannot read the series recordings from TVHeadend: {{ error }}</p>
             <p v-else-if="stale" class="text-xs font-mono text-plex-yellow">TVHeadend is not answering. This is its last known state.</p>
             <p v-if="!error && series.length === 0" class="text-ink-dim text-sm">
-              No series recordings yet. Open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD SERIES</strong>.
+              No series recordings yet. Open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>SERIES</strong>.
             </p>
             <div v-else class="space-y-3">
               <article v-for="s in series" :key="s.key" class="deck-card space-y-3">
@@ -2334,7 +2335,7 @@ const SeriesView = {
                     <template v-if="s.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
                   </button>
                   <button type="button" class="btn btn-danger" @click="openCancelSeries(s)" :disabled="busyKey === s.key">
-                    <cross-icon /> CANCEL SERIES
+                    CANCEL SERIES
                   </button>
                 </div>
               </article>
@@ -2349,7 +2350,7 @@ const SeriesView = {
         <section class="panel epg-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-series-title">
           <header class="panel-header">
             <span id="cancel-series-title" class="panel-title">{{ cancelling.series.title }}</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeCancelSeries" aria-label="Close"><cross-icon /></button>
+            <button type="button" class="btn btn-icon epg-modal-x" @click="closeCancelSeries" aria-label="Close"><cross-icon /></button>
           </header>
           <div class="panel-body">
             <cancel-series-step :title="cancelling.series.title" :episode-outcome="cancelling.episodeOutcome"
@@ -2456,7 +2457,7 @@ const SeriesView = {
         <form class="panel epg-modal info-modal" role="dialog" aria-modal="true" aria-labelledby="assign-folder-title" @submit.prevent="assignFolder">
           <header class="panel-header">
             <span id="assign-folder-title" class="panel-title">Assign a folder to {{ assigning.title }}</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeAssign" aria-label="Close"><cross-icon /></button>
+            <button type="button" class="btn btn-icon epg-modal-x" @click="closeAssign" aria-label="Close"><cross-icon /></button>
           </header>
           <div class="panel-body space-y-4">
             <p class="text-sm text-ink">Future episodes save to <code>{{ assignPath }}</code>.</p>
@@ -2481,7 +2482,7 @@ const SeriesView = {
             </div>
             <p class="text-sm text-ink">Episodes already imported stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn epg-modal-close mr-auto" @click="closeAssign" :disabled="busyKey === assigning.key">CANCEL</button>
+              <button type="button" class="btn mr-auto" @click="closeAssign" :disabled="busyKey === assigning.key">CANCEL</button>
               <span v-if="assignStatusText" :class="['status-readout', assignStatusKind]">{{ assignStatusText }}</span>
               <button type="submit" class="btn btn-primary" :disabled="busyKey === assigning.key">
                 <template v-if="busyKey === assigning.key">ASSIGNING…</template><template v-else><check-icon /> ASSIGN</template>
@@ -3195,7 +3196,7 @@ const RecordingsView = {
           </div>
           <p v-else-if="total === 0 && hasFiltersApplied" class="text-ink-dim text-sm pt-3">No recordings match the current filters.</p>
           <p v-else-if="total === 0" class="text-ink-dim text-sm pt-3">
-            No recordings yet. To make a recording, open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD</strong> or <strong>RECORD SERIES</strong>. Recordings show here once TVHeadend starts them.
+            No recordings yet. To make a recording, open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD</strong> or <strong>SERIES</strong>. Recordings show here once TVHeadend starts them.
           </p>
           <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
             <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
@@ -5846,7 +5847,7 @@ const WelcomeView = {
               </ul>
             </div>
             <p class="text-ink-dim text-sm leading-relaxed">
-              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">RECORD SERIES</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
+              Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">SERIES</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               To check the whole setup, <a href="#/doctor">run the Doctor</a>. It checks {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }} and lists anything to fix.
@@ -6981,12 +6982,11 @@ const InfoButton = {
             :aria-labelledby="headingId" tabindex="-1">
             <header class="panel-header">
               <span :id="headingId" class="panel-title">{{ title }}</span>
-              <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
+              <button type="button" class="btn btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
             </header>
             <div class="panel-body info-modal-body">
               <slot />
-              <div class="epg-modal-actions flex items-center justify-end gap-2">
-                <button type="button" class="btn epg-modal-close mr-auto" @click="close"><cross-icon /> CLOSE</button>
+              <div v-if="doc" class="epg-modal-actions flex items-center justify-end gap-2">
                 <a v-if="doc" :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn no-hover-underline">
                   READ THE DOCS <external-link-icon />
                 </a>
@@ -7062,7 +7062,7 @@ const FilterSheet = {
             :aria-labelledby="headingId" tabindex="-1">
             <header class="panel-header">
               <span :id="headingId" class="panel-title">{{ title }}</span>
-              <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
+              <button type="button" class="btn btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
             </header>
             <div class="panel-body filter-sheet-body">
               <slot />
@@ -7130,7 +7130,7 @@ const ChannelsModal = {
               <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the TV Guide.</p>
             </info-button>
           </span>
-          <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
+          <button type="button" class="btn btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
         </header>
         <div class="panel-body channels-body">
           <div class="channels-grid">
@@ -7661,7 +7661,7 @@ const EpgView = {
         <section class="panel epg-modal">
           <header class="panel-header">
             <span class="panel-title">{{ selected.program.title }}</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="closeModal" aria-label="Close"><cross-icon /></button>
+            <button type="button" class="btn btn-icon epg-modal-x" @click="closeModal" aria-label="Close"><cross-icon /></button>
           </header>
           <programme-image v-if="selected.program.has_image" :key="selected.program.program_id" :event-id="selected.program.program_id" variant="hero"
             :channel-id="selected.channel?.id ?? selected.program.channelId" :has-logo="hasChannelLogo(selected.channel?.id ?? selected.program.channelId)"
@@ -7713,16 +7713,15 @@ const EpgView = {
             <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
               :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
             <template v-else>
-            <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
-              <button type="button" class="btn epg-modal-close mr-auto" @click="closeModal" aria-label="Close"><cross-icon v-if="!hasCancelAction" /> CLOSE</button>
+            <div class="epg-modal-actions programme-actions flex flex-wrap items-center justify-end gap-2 pt-1">
               <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
               <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
               <template v-if="cellState(selected.program) === 'recording'">
                 <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
-                  <cross-icon /> CANCEL SERIES
+                  CANCEL SERIES
                 </button>
-                <button v-else-if="selected.program.series_link" type="button" class="btn" :class="{ 'is-busy': modalAction === 'record-series' }" @click="recordSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label"><series-record-icon /> RECORD SERIES</span>
+                <button v-else-if="selected.program.series_link" type="button" class="btn" :class="{ 'is-busy': modalAction === 'record-series' }" aria-label="Record series" @click="recordSelectedSeries" :disabled="modalBusy">
+                  <span class="btn-label"><series-record-icon /> SERIES</span>
                   <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
                 </button>
                 <button type="button" :class="['btn', 'btn-danger', { 'is-busy': modalAction === 'cancel' }]" @click="cancelSelected" :disabled="modalBusy">
@@ -7732,21 +7731,21 @@ const EpgView = {
               </template>
               <template v-else-if="cellState(selected.program) === 'scheduled'">
                 <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
-                  <cross-icon /> CANCEL SERIES
+                  CANCEL SERIES
                 </button>
                 <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }" @click="cancelSelected" :disabled="modalBusy">
-                  <span class="btn-label"><cross-icon /> CANCEL RECORDING</span>
+                  <span class="btn-label">CANCEL RECORDING</span>
                   <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
                 </button>
               </template>
               <template v-else-if="cellState(selected.program) === 'series'">
                 <button type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
-                  <cross-icon /> CANCEL SERIES
+                  CANCEL SERIES
                 </button>
               </template>
               <template v-else-if="canRecord">
-                <button v-if="selected.program.series_link" type="button" :class="['btn', { 'btn-primary': dialogFocus === 'series', 'is-busy': modalAction === 'record-series' }]" @click="recordSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label"><series-record-icon /> RECORD SERIES</span>
+                <button v-if="selected.program.series_link" type="button" :class="['btn', { 'btn-primary': dialogFocus === 'series', 'is-busy': modalAction === 'record-series' }]" aria-label="Record series" @click="recordSelectedSeries" :disabled="modalBusy">
+                  <span class="btn-label"><series-record-icon /> SERIES</span>
                   <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
                 </button>
                 <button type="button" :class="['btn', { 'btn-primary': dialogFocus !== 'series' && (dialogFocus === 'record' || !canWatchLive), 'is-busy': modalAction === 'record' }]" @click="recordSelected" :disabled="modalBusy">
@@ -7769,12 +7768,11 @@ const EpgView = {
         <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title">
           <header class="panel-header">
             <span id="hd-offer-title" class="panel-title">This is the SD channel</span>
-            <button type="button" class="btn btn-sm btn-icon epg-modal-x" @click="hdOffer = null" aria-label="Close"><cross-icon /></button>
+            <button type="button" class="btn btn-icon epg-modal-x" @click="hdOffer = null" aria-label="Close"><cross-icon /></button>
           </header>
           <div class="panel-body space-y-4">
             <p class="text-sm text-ink">{{ hdOffer.channel.name }} shows the same programme in HD.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn epg-modal-close mr-auto" @click="hdOffer = null">CANCEL</button>
               <template v-if="hdOffer.action === 'record-series'">
                 <button type="button" class="btn" @click="recordOffered('sd')"><series-record-icon /> SERIES IN SD</button>
                 <button type="button" class="btn btn-primary" @click="recordOffered('hd')"><series-record-icon /> SERIES IN HD</button>
@@ -7881,7 +7879,7 @@ const EpgView = {
       if (moviesFolderSet.value && looksLikeFilm(program)) return { text: 'The guide lists this as a film, so it goes to the movies folder.' }
       if (!program.series_link) return { text: 'Goes to the one-off folder.' }
       return {
-        text: 'RECORD puts this airing in the one-off folder. RECORD SERIES gives the series its own folder in your TV library.',
+        text: 'RECORD puts this airing in the one-off folder. SERIES gives the series its own folder in your TV library.',
         changeable: true,
       }
     })
@@ -8168,7 +8166,7 @@ const EpgView = {
         return [
           { label: 'STOP RECORDING', text: stopOutcome() },
           hasSeries && { label: 'CANCEL SERIES', text: cancelSeriesOutcome() },
-          !hasSeries && program.series_link && { label: 'RECORD SERIES', text: recordSeriesOutcome({ recordingNow: true }) },
+          !hasSeries && program.series_link && { label: 'SERIES', text: recordSeriesOutcome({ recordingNow: true }) },
         ].filter(Boolean)
       }
       if (state === 'scheduled') {
@@ -8180,7 +8178,7 @@ const EpgView = {
       if (state === 'series') return [{ label: 'CANCEL SERIES', text: cancelSeriesOutcome() }]
       if (!canRecord.value) return []
       return [
-        program.series_link && { label: 'RECORD SERIES', text: recordSeriesOutcome({ recordingNow: false }) },
+        program.series_link && { label: 'SERIES', text: recordSeriesOutcome({ recordingNow: false }) },
         { label: 'RECORD', text: recordOutcome() },
       ].filter(Boolean)
     })
@@ -8203,9 +8201,6 @@ const EpgView = {
         titleMatch: ruleFor(autorec?.name || program.title),
       }
     }
-
-    const hasCancelAction = computed(() => Boolean(selected.value)
-      && ['scheduled', 'recording', 'series'].includes(cellState(selected.value.program)))
 
     const watchSelected = () => {
       const { program, channel } = selected.value
@@ -8948,7 +8943,7 @@ const EpgView = {
       jumpNow, jumpTonight, manualRefresh,
       searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered,
       selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
-      canWatchLive, watchSelected, hasCancelAction,
+      canWatchLive, watchSelected,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, ANY_CHANNEL_HINT, addToLibrary, libraryNote,
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
@@ -9172,6 +9167,15 @@ const applyLiveCaptions = () => {
     return
   }
   for (const track of captionTracksOf(liveVideo)) track.mode = showing ? 'showing' : 'disabled'
+}
+
+const syncCaptionPreferenceFromTracks = () => {
+  if (!live.captions || (liveHls && !liveHlsBuffered)) return
+  liveCaptionsOn.value = captionPreferenceAfterChange({
+    observedShowing: captionsShowing(captionTracksOf(liveVideo)),
+    expectedShowing: live.captions && liveCaptionsOn.value && !liveInfoOpen.value,
+    preference: liveCaptionsOn.value,
+  })
 }
 
 const captionTracksOf = (video) =>
@@ -9919,7 +9923,6 @@ const LivePlayer = {
             </div>
             <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
               <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
-              <button type="button" class="btn" @click="stopLive"><cross-icon /> CLOSE</button>
             </div>
             <div v-else class="flex shrink-0 gap-2">
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
@@ -10047,6 +10050,7 @@ const LivePlayer = {
       liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
       liveVideo.addEventListener('playing', handOffToVideo)
       liveVideo.textTracks?.addEventListener?.('addtrack', onTextTrackAdded)
+      liveVideo.textTracks?.addEventListener?.('change', syncCaptionPreferenceFromTracks)
       window.addEventListener('keydown', onKeydown)
     })
     onUnmounted(() => {
@@ -10633,7 +10637,6 @@ const RecordingPlayer = {
             <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
             <div class="flex shrink-0 gap-2">
               <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
-              <button type="button" class="btn" @click="stopPlayback"><cross-icon /> CLOSE</button>
             </div>
           </div>
         </div>

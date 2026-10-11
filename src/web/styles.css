@@ -2563,6 +2563,13 @@ body.epg-drag-lock * {
   padding-bottom: 0;
 }
 
+.epg-modal:not(.live-modal) > .panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #28231b;
+}
+
 .epg-modal .epg-modal-actions {
   position: sticky;
   bottom: 0;
@@ -2799,19 +2806,7 @@ body.epg-drag-lock * {
   }
 }
 
-.epg-modal-close {
-  display: none;
-}
-
 @media (max-width: 767px) {
-  .epg-modal-x {
-    display: none;
-  }
-
-  .epg-modal-close {
-    display: inline-flex;
-  }
-
   .panel-title {
     font-size: 0.7rem;
     letter-spacing: 0.14em;
@@ -3056,6 +3051,20 @@ span.row-info {
 
 .epg-modal-actions .btn {
   min-height: 2.75rem;
+}
+
+@media (max-width: 767px) {
+  .programme-actions {
+    gap: 0.4rem;
+  }
+
+  .programme-actions > .btn {
+    flex: 1 1 0;
+    min-width: max-content;
+    justify-content: center;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
 }
 
 .epg-modal-actions .btn-label {
@@ -3867,8 +3876,8 @@ section[id^="section-"] {
   .live-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "handle info"
-      "now now"
+      "handle handle"
+      "now info"
       "next next";
     gap: 0.35rem 0.75rem;
   }

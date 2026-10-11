@@ -63,7 +63,7 @@ Captions come from the broadcast's Teletext subtitles. A channel shows the **CC*
 
 ## Record from the player
 
-Press **RECORD** in the player to record the programme on now, or **SERIES** to record every episode. Both buttons open the same dialog as the TV Guide, with **RECORD** for this airing, **RECORD SERIES** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. Under the status line, the dialog says what each button does. A recording starts from the moment you confirm, so the part that already aired is not included.
+Press **RECORD** in the player to record the programme on now, or **SERIES** to record every episode. Both buttons open the same dialog as the TV Guide, with **RECORD** for this airing, **SERIES** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. Under the status line, the dialog says what each button does. A recording starts from the moment you confirm, so the part that already aired is not included.
 
 If the guide has no listing for what is on now, both buttons are dimmed. **SERIES** turns gold with a tick while a series recording records the programme; press it to change or cancel the series.
 

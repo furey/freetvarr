@@ -96,11 +96,11 @@ The clip below shows Freetvarr in use.
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Recording works like the record button on the Fetch remote. In Freetvarr's TV Guide, click a programme to open it, then press **RECORD** for one episode or **RECORD SERIES** for every episode.
+Recording works like the record button on the Fetch remote. In Freetvarr's TV Guide, click a programme to open it, then press **RECORD** for one episode or **SERIES** for every episode.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme opened from the TV Guide, with its image, description, padding settings, and WATCH LIVE, RECORD SERIES, and RECORD buttons" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme opened from the TV Guide, with its image, description, padding settings, and WATCH LIVE, SERIES, and RECORD buttons" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

@@ -161,7 +161,7 @@ An import whose destination already exists at exactly the source size returns ea
 
 ## Series recordings as autorec rules
 
-RECORD SERIES creates one TVHeadend autorec rule through `dvr/autorec/create`:
+The SERIES button creates one TVHeadend autorec rule through `dvr/autorec/create`:
 
 ```json
 {
