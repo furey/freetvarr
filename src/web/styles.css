@@ -4592,3 +4592,36 @@ table.recordings-table tbody td {
 .live-status .status-readout {
   margin-left: 0.5rem;
 }
+
+.live-status {
+  overflow: hidden;
+}
+
+.live-status .live-status-text {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .live-modal .epg-modal-actions {
+    gap: 0.5rem;
+  }
+
+  .live-modal .live-status {
+    gap: 0.25rem;
+  }
+
+  .live-modal .live-action-wide {
+    min-width: 2.75rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    justify-content: center;
+  }
+
+  .live-modal .live-action-wide .live-action-label {
+    display: none;
+  }
+}
