@@ -8935,14 +8935,17 @@ const setLiveCaptionLine = (line) => {
   placeCues()
 }
 
-const clipOverlappingCues = () => {
-  placeCues()
-  const track = captionTracksOf(liveVideo).find((t) => t.mode === 'showing')
-  const cues = [...(track?.cues || [])].sort((a, b) => a.startTime - b.startTime)
+const clipTrackCues = (track) => {
+  const cues = [...(track.cues || [])].sort((a, b) => a.startTime - b.startTime)
   cues.forEach((cue, i) => {
     const next = cues[i + 1]
     if (next && cue.endTime > next.startTime) cue.endTime = next.startTime
   })
+}
+
+const clipOverlappingCues = () => {
+  placeCues()
+  captionTracksOf(liveVideo).forEach(clipTrackCues)
 }
 
 const toggleLiveCaptions = () => {
@@ -9665,16 +9668,16 @@ const LivePlayer = {
                 aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
               <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
                 @click="toggleLiveCaptions" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-              <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
+              <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
             </div>
             <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
               <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
               <button type="button" class="btn" @click="stopLive"><cross-icon /> CLOSE</button>
             </div>
             <div v-else class="flex shrink-0 gap-2">
-              <button v-if="isBehindLive" type="button" class="btn" @click="jumpToLive"><go-live-icon /> GO LIVE</button>
-              <button type="button" class="btn" :disabled="recordButton.disabled" :title="recordButton.title" @click="recordFromLive"><record-icon /> {{ recordButton.label }}</button>
-              <button type="button" class="btn btn-danger" @click="stopLive"><stop-icon /> STOP</button>
+              <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
+              <button type="button" class="btn live-action-wide" :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.label" @click="recordFromLive"><record-icon /> <span class="live-action-label">{{ recordButton.label }}</span></button>
+              <button type="button" class="btn btn-danger live-action-wide" aria-label="STOP" @click="stopLive"><stop-icon /> <span class="live-action-label">STOP</span></button>
             </div>
           </div>
         </div>
@@ -9779,7 +9782,7 @@ const LivePlayer = {
 
     const onTextTrackAdded = (e) => {
       if (liveHls) return
-      e?.track?.addEventListener('cuechange', placeCues)
+      e?.track?.addEventListener('cuechange', clipOverlappingCues)
       applyLiveCaptions()
     }
 
@@ -10314,7 +10317,7 @@ const RecordingPlayer = {
         </div>
         <div class="panel-body">
           <div class="epg-modal-actions flex items-center justify-between gap-3">
-            <span :class="['status-readout', 'min-w-0', statusKind]">{{ statusText }}</span>
+            <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
             <div class="flex shrink-0 gap-2">
               <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
               <button type="button" class="btn" @click="stopPlayback"><cross-icon /> CLOSE</button>
