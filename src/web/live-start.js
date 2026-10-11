@@ -1,4 +1,4 @@
-export const LIVE_START_BUFFER_S = 3
+export const LIVE_START_BUFFER_S = 2.5
 export const LIVE_START_MAX_WAIT_MS = 4_000
 
 export const bufferedAhead = ({ ranges, position }) => {
