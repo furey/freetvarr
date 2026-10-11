@@ -4588,3 +4588,7 @@ table.recordings-table tbody td {
   flex: none;
   min-width: 2.75rem;
 }
+
+.live-status .status-readout {
+  margin-left: 0.5rem;
+}
