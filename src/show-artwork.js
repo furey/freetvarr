@@ -27,17 +27,27 @@ export const createShowArtwork = ({
   hitTtlMs = TVMAZE_HIT_TTL_MS,
   missTtlMs = TVMAZE_MISS_TTL_MS,
   lookupGapMs = TVMAZE_LOOKUP_GAP_MS,
+  failureBackoffMs = TVMAZE_FAILURE_BACKOFF_MS,
+  plexWaitMs = PLEX_WAIT_MS,
 } = {}) => {
   const plexShows = createExpiringValue({ load: loadPlexShows, ttlMs: plexTtlMs, fallback: new Map(), now })
   const runSpaced = createSpacedQueue({ gapMs: lookupGapMs })
   const inflight = new Map()
+  const failedUntil = new Map()
 
   const plexSourcesFor = async (key) => (await plexShows.get()).get(key) || []
 
-  const tvmazeSourcesFor = async ({ key, title }) => {
-    if (!(await isTvmazeEnabled())) return []
+  const recentlyFailed = (key) => (failedUntil.get(key) || 0) > now()
+
+  const cachedTvmazeSources = async (key) => {
     const cached = await cache.read(key).catch(() => null)
-    if (cached && cached.expiresAt > now()) return cached.sources
+    return cached && cached.expiresAt > now() ? cached.sources : null
+  }
+
+  const tvmazeSourcesFor = async ({ key, title }) => {
+    if (!(await isTvmazeEnabled()) || recentlyFailed(key)) return []
+    const cached = await cachedTvmazeSources(key)
+    if (cached) return cached
     if (inflight.has(key)) return inflight.get(key)
     const pending = runSpaced(() => lookUpTvmaze({ key, title }))
       .then(async (sources) => {
@@ -45,7 +55,10 @@ export const createShowArtwork = ({
         await cache.write({ key, sources, expiresAt }).catch(() => {})
         return sources
       })
-      .catch(() => [])
+      .catch(() => {
+        failedUntil.set(key, now() + failureBackoffMs)
+        return []
+      })
       .finally(() => inflight.delete(key))
     inflight.set(key, pending)
     return pending
@@ -66,8 +79,26 @@ export const createShowArtwork = ({
     return tvmazeSourcesFor({ key, title })
   }
 
-  return { sourcesFor }
+  const artworkFor = async (title) => {
+    const key = showTitleKey(title)
+    if (!key) return NO_ARTWORK
+    const fromPlex = await withinMs(plexSourcesFor(key).catch(() => []), plexWaitMs)
+    if (fromPlex === TIMED_OUT) return PENDING_ARTWORK
+    if (fromPlex.length) return { sources: fromPlex, pending: false }
+    if (!(await isTvmazeEnabled()) || recentlyFailed(key)) return NO_ARTWORK
+    const cached = await cachedTvmazeSources(key)
+    if (cached) return { sources: cached, pending: false }
+    tvmazeSourcesFor({ key, title })
+    return PENDING_ARTWORK
+  }
+
+  return { sourcesFor, artworkFor }
 }
+
+const withinMs = (promise, ms) => Promise.race([
+  promise,
+  new Promise((resolve) => setTimeout(resolve, ms, TIMED_OUT).unref?.()),
+])
 
 export const pickShow = ({ results = [], key, country }) => {
   const matches = results
@@ -181,6 +212,10 @@ const createSpacedQueue = ({ gapMs }) => {
   }
 }
 
+const TIMED_OUT = Symbol('timed out')
+const NO_ARTWORK = { sources: [], pending: false }
+const PENDING_ARTWORK = { sources: [], pending: true }
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const TVMAZE_API = 'https://api.tvmaze.com'
@@ -189,3 +224,5 @@ const PLEX_TTL_MS = 10 * 60 * 1000
 const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const TVMAZE_LOOKUP_GAP_MS = 1000
+const TVMAZE_FAILURE_BACKOFF_MS = 10 * 60 * 1000
+const PLEX_WAIT_MS = 1500

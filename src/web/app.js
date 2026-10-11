@@ -497,6 +497,8 @@ const ChannelLogo = {
 
 const CHANNEL_LOGO_WIDTHS = [96, 192]
 
+const IMAGE_RETRY_DELAY_MS = 5000
+
 const PROGRAMME_IMAGE_WIDTHS = {
   thumb: [192],
   cell: [192],
@@ -566,9 +568,30 @@ const ProgrammeImage = {
       status.value = cached
     }
     const onLoad = () => { if (status.value === 'loading') status.value = 'loaded' }
+    let retryTimer = null
+    let retried = false
+    const cancelRetry = () => {
+      clearTimeout(retryTimer)
+      retryTimer = null
+    }
+    const retryLater = () => {
+      if (retried || retryTimer || usesSavedSource.value || src.value == null) return
+      const url = src.value
+      retryTimer = setTimeout(() => {
+        retryTimer = null
+        retried = true
+        const probe = new Image()
+        probe.onload = () => { if (src.value === url) status.value = 'loading' }
+        probe.src = url
+      }, IMAGE_RETRY_DELAY_MS)
+    }
     const onError = () => {
-      if (usesSavedSource.value && guideImageUrl.value) savedSourceFailed.value = true
-      else status.value = 'failed'
+      if (usesSavedSource.value && guideImageUrl.value) {
+        savedSourceFailed.value = true
+        return
+      }
+      status.value = 'failed'
+      retryLater()
     }
     const fadeInFromCache = () => {
       const cached = src.value == null ? 'failed' : imageStatusOf(img.value)
@@ -577,7 +600,10 @@ const ProgrammeImage = {
       status.value = 'loaded'
     }
     onMounted(fadeInFromCache)
+    onUnmounted(cancelRetry)
     watch(src, async () => {
+      cancelRetry()
+      retried = false
       status.value = 'loading'
       instant.value = false
       await nextTick()
@@ -589,13 +615,13 @@ const ProgrammeImage = {
   },
   template: `
     <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant }]">
-      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" :srcset="srcset" alt=""
-        :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
-      <span v-if="status === 'failed' && title" class="programme-title-card" :style="titleCardStyle" aria-hidden="true">
+      <span v-if="title" class="programme-title-card" :style="titleCardStyle" aria-hidden="true">
         <span class="programme-title-card-text">{{ title }}</span>
         <span class="programme-title-card-initials">{{ titleInitials }}</span>
       </span>
-      <span v-else-if="status === 'failed'" class="programme-image-fallback">
+      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" :srcset="srcset" alt=""
+        :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
+      <span v-if="status === 'failed' && !title" class="programme-image-fallback">
         <channel-logo :channel-id="channelId" :has-logo="hasLogo" />
       </span>
     </div>
