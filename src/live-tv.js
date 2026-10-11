@@ -16,6 +16,7 @@ import {
 } from './tvheadend.js'
 import { getRecordingState, listGuideChannels } from './epg.js'
 import { vaapiFilters, vaapiEncoderArgs, VAAPI_HEIGHT_CAP } from './live-encoder.js'
+import { CAPTION_LINE_DEFAULT } from './web/caption-line.js'
 
 export const LIVE_ROOT = path.join(os.tmpdir(), 'freetvarr-live')
 export const MASTER_PLAYLIST = 'index.m3u8'
@@ -97,7 +98,12 @@ export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, pro
 ]
 
 const teletextDecoderArgs = (plan) => plan.teletext
-  ? ['-txt_page', String(plan.teletext.page), '-txt_format', 'text', '-txt_duration', String(CAPTION_CUE_MS)]
+  ? [
+      '-fix_sub_duration',
+      '-txt_page', String(plan.teletext.page),
+      '-txt_format', 'text',
+      '-txt_duration', String(CAPTION_CUE_MS),
+    ]
   : []
 
 const variantStreamMap = (plan) => [
@@ -147,6 +153,13 @@ const labelCaptionRendition = (line) => {
   const named = line.replace(/NAME="[^"]*"/, `NAME="${CAPTION_TRACK_NAME}"`)
   return /AUTOSELECT=/.test(named) ? named : `${named},AUTOSELECT=YES`
 }
+
+export const CAPTION_CUE_SETTINGS = `line:${CAPTION_LINE_DEFAULT}%,end align:start position:10% size:80%`
+
+const CUE_TIMESTAMP = String.raw`(?:\d+:)?\d{2}:\d{2}\.\d{3}`
+const CUE_TIMING_LINE = new RegExp(`^(${CUE_TIMESTAMP} --> ${CUE_TIMESTAMP}).*$`, 'gm')
+
+export const withCaptionCueSettings = (vtt) => vtt.replace(CUE_TIMING_LINE, `$1 ${CAPTION_CUE_SETTINGS}`)
 
 export const liveContentType = (name) => {
   if (name.endsWith('.m3u8')) return 'application/vnd.apple.mpegurl'
