@@ -31,6 +31,7 @@ import {
   airingBoundary, airingCovers,
 } from '/live-info.js'
 import { isReadyToStart } from '/live-start.js'
+import { CAPTION_LINE_DEFAULT, captionLine } from '/caption-line.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
@@ -8917,7 +8918,25 @@ const applyLiveCaptions = () => {
 const captionTracksOf = (video) =>
   [...(video?.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions')
 
+let liveCaptionLine = CAPTION_LINE_DEFAULT
+
+const placeCues = () => {
+  for (const track of captionTracksOf(liveVideo)) {
+    for (const cue of track.cues || []) {
+      if (cue.snapToLines !== false) cue.snapToLines = false
+      if (cue.line !== liveCaptionLine) cue.line = liveCaptionLine
+      if (cue.lineAlign !== 'end') cue.lineAlign = 'end'
+    }
+  }
+}
+
+const setLiveCaptionLine = (line) => {
+  liveCaptionLine = line
+  placeCues()
+}
+
 const clipOverlappingCues = () => {
+  placeCues()
   const track = captionTracksOf(liveVideo).find((t) => t.mode === 'showing')
   const cues = [...(track?.cues || [])].sort((a, b) => a.startTime - b.startTime)
   cues.forEach((cue, i) => {
@@ -9758,8 +9777,10 @@ const LivePlayer = {
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
-    const onTextTrackAdded = () => {
-      if (!liveHls) applyLiveCaptions()
+    const onTextTrackAdded = (e) => {
+      if (liveHls) return
+      e?.track?.addEventListener('cuechange', placeCues)
+      applyLiveCaptions()
     }
 
     const infoOpen = ref(false)
@@ -9767,6 +9788,17 @@ const LivePlayer = {
     const bufferedAiring = ref(null)
     let airingTimer = null
     let bufferedLoading = false
+
+    const placeCaptionsAbovePanel = async () => {
+      await nextTick()
+      const panel = infoOpen.value ? document.getElementById('live-info') : null
+      setLiveCaptionLine(captionLine({
+        panelHeight: panel?.offsetHeight,
+        videoHeight: liveVideo?.clientHeight,
+      }))
+    }
+
+    watch(infoOpen, placeCaptionsAbovePanel)
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const closeInfo = () => { infoOpen.value = false }
