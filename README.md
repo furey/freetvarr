@@ -5,7 +5,7 @@
 <p align="center">
   <strong>Live TV in your browser. Recordings in your library, ad free.*</strong><br/>
   A self-hosted companion for TVHeadend and compatible tuner.<br/>
-  <em>*optional via comskip</em>
+  <sub>*optional via <code>comskip</code></sub>
 </p>
 
 <p align="center">
