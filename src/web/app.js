@@ -502,6 +502,7 @@ const ChannelLogo = {
 const CHANNEL_LOGO_WIDTHS = [96, 192]
 
 const IMAGE_RETRY_DELAY_MS = 5000
+const TITLE_CARD_DELAY_MS = 500
 
 const PROGRAMME_IMAGE_WIDTHS = {
   thumb: [192],
@@ -548,6 +549,14 @@ const ProgrammeImage = {
     const status = ref('loading')
     const instant = ref(false)
     const upgrading = ref(false)
+    const titleCardShown = ref(false)
+    let titleCardTimer = null
+    const revealTitleCardLater = () => {
+      clearTimeout(titleCardTimer)
+      titleCardShown.value = src.value == null
+      if (titleCardShown.value) return
+      titleCardTimer = setTimeout(() => { titleCardShown.value = status.value !== 'loaded' }, TITLE_CARD_DELAY_MS)
+    }
     const guideImageUrl = computed(() => {
       if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}`
       if (props.title) return `/api/epg/show-image?title=${encodeURIComponent(props.title)}`
@@ -614,10 +623,17 @@ const ProgrammeImage = {
       getComputedStyle(img.value).opacity
       status.value = 'loaded'
     }
-    onMounted(fadeInFromCache)
-    onUnmounted(cancelRetry)
+    onMounted(() => {
+      revealTitleCardLater()
+      fadeInFromCache()
+    })
+    onUnmounted(() => {
+      cancelRetry()
+      clearTimeout(titleCardTimer)
+    })
     watch(src, async () => {
       cancelRetry()
+      revealTitleCardLater()
       retried = false
       upgrading.value = false
       status.value = 'loading'
@@ -627,11 +643,11 @@ const ProgrammeImage = {
     })
     const titleCardStyle = computed(() => ({ '--title-hue': titleHueOf(props.title) }))
     const titleInitials = computed(() => initialsOf(props.title))
-    return { img, status, instant, upgrading, src, srcset, onLoad, onError, titleCardStyle, titleInitials }
+    return { img, status, instant, upgrading, titleCardShown, src, srcset, onLoad, onError, titleCardStyle, titleInitials }
   },
   template: `
     <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant, 'is-upgrade': upgrading }]">
-      <span v-if="title" class="programme-title-card" :style="titleCardStyle" aria-hidden="true">
+      <span v-if="title" :class="['programme-title-card', { 'is-shown': titleCardShown }]" :style="titleCardStyle" aria-hidden="true">
         <span class="programme-title-card-text">{{ title }}</span>
         <span class="programme-title-card-initials">{{ titleInitials }}</span>
       </span>
