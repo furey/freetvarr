@@ -15,7 +15,7 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 
 | App                                 | Platforms                                | Points at              | Note                                                                        |
 | ----------------------------------- | ---------------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
-| Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. No captions yet                  |
+| Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. Captions                         |
 | The tuner's own app, e.g. HDHomeRun | Apple TV, iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                            |
 | Plex live TV                        | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend |
 | Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up        |
@@ -43,17 +43,23 @@ The **zoom buttons** above the channel list change the row size. Zoom out for mo
 
 ## Programme info
 
-Press the **i** button at the top of the player, or the `i` key on a computer, to show what is on. The panel sits over the bottom of the picture and shows:
+Press the **i** button beside the status under the picture, or the `i` key on a computer, to show what is on. On a phone turned sideways, the button sits on the picture. The panel sits over the bottom of the picture and shows:
 
-- The channel number and name.
+- The channel logo, number, and name.
 - The title, the episode title, and the season and episode number.
 - The start and end times, and how much of the programme has played.
-- The genre, the classification, and a description. Scroll the description if it is long.
+- The genre, the classification, and the start of the description.
 - The programme that is on next, and when it starts.
 
 On a wide screen, the panel also shows the programme picture. While you watch from the rewind buffer, the panel describes what you are watching, not what is on air, and reads **FROM BUFFER**. The title at the top of the player changes when a new programme starts. If the guide has nothing for the channel, the panel says so.
 
-Press the button again, or `Esc`, to close the panel. Double-click the middle of the picture to go full screen with the panel. The full-screen button in the player's own controls shows the picture only.
+Press the button again, press `Esc`, or click the picture above the panel to close it. That click closes the panel only: it does not pause or skip. The player's own controls come back when the panel closes. Double-click the middle of the picture to go full screen with the panel. The full-screen button in the player's own controls shows the picture only.
+
+## Captions
+
+Press the **CC** button beside the **i** button, or the `c` key on a computer, to turn captions on. Press it again to turn them off. Captions are off until you turn them on, and each browser remembers your choice for the next channel.
+
+Captions come from the broadcast's Teletext subtitles. A channel shows the **CC** button only when it carries them, and some programmes on that channel have no captions at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
 
 ## Record from the player
 
@@ -126,7 +132,7 @@ The author uses the HDHomeRun app, which finds the tuner by itself. The app talk
 
 Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass only to *record* through Plex, and TVHeadend and Freetvarr already do that for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi connected to TVHeadend instead.
 
-## Captions
+## Captions in other apps
 
 Captions arrive either as Teletext or as DVB subtitles, and your broadcaster decides which. Australian broadcasters send Teletext, and not every app shows it:
 

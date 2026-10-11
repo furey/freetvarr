@@ -135,8 +135,9 @@ import {
   startLiveChannel,
   describeStallFor,
   openUpstreamFor,
+  liveContentType,
 } from './live-tv.js'
-import { detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
+import { detectCaptionDecoder, detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
 import {
   createPlaybackSessions,
   playbackCandidates,
@@ -188,12 +189,16 @@ const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 const LIBRARY_CHOICES = ['include', 'exclude']
 const LIVE_TV_MAX_SESSIONS = Math.max(1, Number(process.env.LIVE_TV_MAX_SESSIONS) || 2)
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
-const liveEncoderReady = detectLiveEncoder({
-  mode: (process.env.LIVE_TV_TRANSCODE || 'auto').trim().toLowerCase(),
-  device: process.env.LIVE_TV_VAAPI_DEVICE || DEFAULT_VAAPI_DEVICE,
-}).then((encoder) => {
+const liveEncoderReady = Promise.all([
+  detectLiveEncoder({
+    mode: (process.env.LIVE_TV_TRANSCODE || 'auto').trim().toLowerCase(),
+    device: process.env.LIVE_TV_VAAPI_DEVICE || DEFAULT_VAAPI_DEVICE,
+  }),
+  detectCaptionDecoder(),
+]).then(([encoder, captions]) => {
   console.log(`[live] video ${describeLiveEncoder(encoder)}`)
-  return encoder
+  console.log(`[live] captions ${captions ? 'on (ffmpeg has the teletext decoder)' : 'off (ffmpeg has no libzvbi teletext decoder)'}`)
+  return { ...encoder, captions }
 })
 const LIVE_REAPER_MS = 5_000
 const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000
@@ -881,17 +886,17 @@ app.get('/api/live/:session/:file', async (req, res) => {
   const filePath = liveSessions.fileFor(sessionId, file)
   if (!filePath) return res.status(404).json({ error: 'not found' })
   liveSessions.touch(sessionId)
-  const isPlaylist = file === 'index.m3u8'
+  const isPlaylist = file.endsWith('.m3u8')
   if (isPlaylist && !(await liveSessions.waitForPlaylist(sessionId))) {
     return res.status(404).json({ error: 'stream not ready' })
   }
   res.setHeader('Cache-Control', 'no-store')
+  res.type(liveContentType(file))
   if (isPlaylist) {
-    const playlist = await liveSessions.playlistFor(sessionId)
+    const playlist = await liveSessions.playlistFor(sessionId, file)
     if (playlist == null) return res.status(404).json({ error: 'stream not ready' })
-    return res.type('application/vnd.apple.mpegurl').send(playlist)
+    return res.send(playlist)
   }
-  res.type('video/mp2t')
   res.sendFile(filePath, (err) => {
     if (err && !res.headersSent) res.status(404).end()
   })
@@ -1963,7 +1968,7 @@ const sendVendorFile = (...segments) => (req, res) => {
 }
 
 app.get('/vendor/vue.esm-browser.prod.js', sendVendorFile('vue', 'dist', 'vue.esm-browser.prod.js'))
-app.get('/vendor/hls.mjs', sendVendorFile('hls.js', 'dist', 'hls.light.min.mjs'))
+app.get('/vendor/hls.mjs', sendVendorFile('hls.js', 'dist', 'hls.min.mjs'))
 app.get('/vendor/hls.worker.js', sendVendorFile('hls.js', 'dist', 'hls.worker.js'))
 
 app.get(['/', '/index.html'], async (req, res) => {

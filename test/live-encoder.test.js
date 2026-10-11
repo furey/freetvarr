@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { detectLiveEncoder } from '../src/live-encoder.js'
+import { detectLiveEncoder, detectCaptionDecoder } from '../src/live-encoder.js'
 
 const openable = async () => null
 const passes = async () => null
@@ -45,4 +45,11 @@ test('detectLiveEncoder: an unknown mode falls back to software and names the va
   const encoder = await detectLiveEncoder({ mode: 'gpu' })
   assert.equal(encoder.kind, 'software')
   assert.match(encoder.reason, /auto, hardware, software, copy/)
+})
+
+test('detectCaptionDecoder: finds the libzvbi teletext decoder in the ffmpeg decoder list', async () => {
+  const withDecoder = ' S..... libzvbi_teletextdec  Libzvbi DVB teletext decoder (codec dvb_teletext)\n'
+  assert.equal(await detectCaptionDecoder({ listDecoders: async () => withDecoder }), true)
+  assert.equal(await detectCaptionDecoder({ listDecoders: async () => ' S..... dvbsub  DVB subtitles\n' }), false)
+  assert.equal(await detectCaptionDecoder({ listDecoders: async () => { throw new Error('no ffmpeg') } }), false)
 })

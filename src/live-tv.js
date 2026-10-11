@@ -18,7 +18,11 @@ import { getRecordingState, listGuideChannels } from './epg.js'
 import { vaapiFilters, vaapiEncoderArgs, VAAPI_HEIGHT_CAP } from './live-encoder.js'
 
 export const LIVE_ROOT = path.join(os.tmpdir(), 'freetvarr-live')
-export const LIVE_FILE_PATTERN = /^(index\.m3u8|seg\d{1,9}\.ts)$/
+export const MASTER_PLAYLIST = 'index.m3u8'
+export const MEDIA_PLAYLIST = 'live.m3u8'
+export const CAPTIONS_PLAYLIST = 'live_vtt.m3u8'
+export const LIVE_FILE_PATTERN =
+  /^(index\.m3u8|live\.m3u8|live_vtt\.m3u8|seg\d{1,9}\.ts|live\d{1,9}\.vtt)$/
 export const LIVE_SESSION_PATTERN = /^[a-f0-9]{16}$/
 export const CONFLICT_WINDOW_MS = 60 * 60 * 1000
 export const HLS_SEGMENT_SECONDS = 2
@@ -50,12 +54,14 @@ export class LiveTvError extends Error {
 export const pickStreams = ({ streams = [], languages = [], encoder = COPY_ENCODER } = {}) => {
   const video = streams.find((s) => VIDEO_TYPES.includes(s.type)) || null
   const audio = pickAudio({ streams, languages })
-  if (!video) return { video: null, audio, videoMode: null, heightCap: null, deinterlace: false }
-  if (video.type === 'H264') return { video, audio, ...h264Plan(encoder) }
+  const teletext = encoder.captions === false ? null : pickTeletext(streams)
+  if (!video) return { video: null, audio, teletext, videoMode: null, heightCap: null, deinterlace: false }
+  if (video.type === 'H264') return { video, audio, teletext, ...h264Plan(encoder) }
   const standardDefinition = isStandardDefinition(video)
   return {
     video,
     audio,
+    teletext,
     videoMode: 'transcode',
     heightCap: standardDefinition ? SD_HEIGHT_CAP : HD_TRANSCODE_HEIGHT_CAP,
     deinterlace: standardDefinition,
@@ -68,20 +74,42 @@ export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, pro
   ...hardwareDecodeArgs(plan),
   '-fflags', '+genpts+discardcorrupt',
   ...probeArgs(probe),
+  ...teletextDecoderArgs(plan),
   '-f', 'mpegts',
   '-i', 'pipe:0',
   '-map', pidSpecifier(plan.video.pid),
   ...(plan.audio ? ['-map', pidSpecifier(plan.audio.pid)] : []),
+  ...(plan.teletext ? ['-map', pidSpecifier(plan.teletext.pid)] : []),
   ...videoCodecArgs(plan),
   ...(plan.audio ? ['-c:a', 'aac', '-ac', '2', '-b:a', '128k'] : []),
+  ...(plan.teletext ? ['-c:s', 'webvtt'] : []),
+  '-muxdelay', '0',
+  '-max_interleave_delta', String(MAX_INTERLEAVE_MICROSECONDS),
   '-f', 'hls',
   '-hls_time', String(HLS_SEGMENT_SECONDS),
   '-hls_init_time', String(HLS_INIT_SEGMENT_SECONDS),
   '-hls_list_size', String(segmentCount),
   '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
   '-hls_segment_filename', path.join(dir, 'seg%d.ts'),
-  path.join(dir, 'index.m3u8'),
+  '-master_pl_name', MASTER_PLAYLIST,
+  '-var_stream_map', variantStreamMap(plan),
+  path.join(dir, MEDIA_PLAYLIST),
 ]
+
+const teletextDecoderArgs = (plan) => plan.teletext
+  ? ['-txt_page', String(plan.teletext.page), '-txt_format', 'text', '-txt_duration', String(CAPTION_CUE_MS)]
+  : []
+
+const variantStreamMap = (plan) => [
+  'v:0',
+  ...(plan.audio ? ['a:0'] : []),
+  ...(plan.teletext ? ['s:0', 'sgroup:subs', 'language:en', 'default:no'] : []),
+].join(',')
+
+export const teletextPageOf = (subtitlePid) => {
+  const page = Number(subtitlePid) - TEXTSUB_PID_OFFSET
+  return Number.isInteger(page) && page >= 100 && page <= 899 ? page : DEFAULT_CAPTION_PAGE
+}
 
 const probeArgs = (probe) => probe === 'full'
   ? []
@@ -90,11 +118,15 @@ const probeArgs = (probe) => probe === 'full'
 export const missingStreamParameters = (errorLines = []) =>
   errorLines.some((line) => MISSING_PARAMETERS.test(line))
 
-const CUT_IN_SEGMENT = 'seg0.ts'
+export const missingTeletext = ({ plan, errorLines = [] }) => {
+  if (!plan?.teletext) return false
+  const specifier = pidSpecifier(plan.teletext.pid)
+  return errorLines.some((line) => line.includes(specifier) || TELETEXT_FAILURE.test(line))
+}
 
-export const withoutCutInSegment = (playlist) => {
+export const withoutCutInSegment = (playlist, cutInFile = CUT_IN_FILES[MEDIA_PLAYLIST]) => {
   const lines = playlist.split('\n')
-  const cutIn = lines.indexOf(CUT_IN_SEGMENT)
+  const cutIn = lines.indexOf(cutInFile)
   if (cutIn < 1 || !lines[cutIn - 1].startsWith('#EXTINF')) return playlist
   return lines
     .filter((_, i) => i !== cutIn && i !== cutIn - 1)
@@ -102,7 +134,27 @@ export const withoutCutInSegment = (playlist) => {
     .join('\n')
 }
 
+export const startsOnKeyframe = (plan) => plan?.videoMode === 'transcode' || plan?.videoMode === 'vaapi'
+
 export const hasSegments = (playlist) => /^seg\d+\.ts$/m.test(playlist)
+
+export const withCaptionLabels = (master) => master
+  .split('\n')
+  .map((line) => line.startsWith('#EXT-X-MEDIA:TYPE=SUBTITLES') ? labelCaptionRendition(line) : line)
+  .join('\n')
+
+const labelCaptionRendition = (line) => {
+  const named = line.replace(/NAME="[^"]*"/, `NAME="${CAPTION_TRACK_NAME}"`)
+  return /AUTOSELECT=/.test(named) ? named : `${named},AUTOSELECT=YES`
+}
+
+export const liveContentType = (name) => {
+  if (name.endsWith('.m3u8')) return 'application/vnd.apple.mpegurl'
+  if (name.endsWith('.vtt')) return 'text/vtt'
+  return 'video/mp2t'
+}
+
+const CUT_IN_FILES = { [MEDIA_PLAYLIST]: 'seg0.ts', [CAPTIONS_PLAYLIST]: 'live0.vtt' }
 
 export const tunerVerdict = ({
   channelMux,
@@ -221,13 +273,15 @@ export const createLiveSessions = ({
     stdio: ['pipe', 'ignore', 'pipe'],
   })
 
-  const needsFullProbe = (session) =>
-    session.status === 'tuning' &&
-    session.probe === 'short' &&
-    missingStreamParameters(session.errorLines)
+  const fallbackFor = (session) => {
+    if (session.status !== 'tuning') return null
+    if (session.probe === 'short' && missingStreamParameters(session.errorLines)) return { probe: 'full' }
+    if (missingTeletext(session)) return { plan: { ...session.plan, teletext: null } }
+    return null
+  }
 
-  const restartWithFullProbe = async (session) => {
-    session.probe = 'full'
+  const restartWith = async (session, fallback) => {
+    Object.assign(session, fallback)
     session.errorLines = []
     session.lastByteAt = now()
     session.upstream?.unpipe?.()
@@ -262,7 +316,8 @@ export const createLiveSessions = ({
     child.on('exit', (code, signal) => {
       session.exited = true
       if (session.ending || session.status === 'stalled') return
-      if (needsFullProbe(session)) return restartWithFullProbe(session)
+      const fallback = fallbackFor(session)
+      if (fallback) return restartWith(session, fallback)
       end(session, {
         code: 'ffmpeg',
         detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,
@@ -380,9 +435,12 @@ export const createLiveSessions = ({
     return view(session)
   }
 
-  const readPlaylist = async (session) => {
-    const text = await readText(path.join(session.dir, 'index.m3u8'))
-    return text == null ? null : withoutCutInSegment(text)
+  const readPlaylist = async (session, name = MEDIA_PLAYLIST) => {
+    const text = await readText(path.join(session.dir, name))
+    if (text == null) return null
+    if (name === MASTER_PLAYLIST) return withCaptionLabels(text)
+    if (startsOnKeyframe(session.plan)) return text
+    return withoutCutInSegment(text, CUT_IN_FILES[name])
   }
 
   const refreshStatus = async (session) => {
@@ -392,10 +450,10 @@ export const createLiveSessions = ({
     return session
   }
 
-  const playlistFor = async (id) => {
+  const playlistFor = async (id, name = MEDIA_PLAYLIST) => {
     const session = sessions.get(id)
-    if (!session || session.ending) return null
-    return readPlaylist(session)
+    if (!session || session.ending || !PLAYLIST_NAMES.has(name)) return null
+    return readPlaylist(session, name)
   }
 
   const waitForPlaylist = async (id, { timeoutMs = 15_000, pollMs = 200 } = {}) => {
@@ -440,7 +498,8 @@ export const view = (session) => ({
   reason: session.reason,
   startedAt: session.startedAt,
   bufferSeconds: session.bufferSeconds ?? 0,
-  playlist: `/api/live/${session.id}/index.m3u8`,
+  captions: Boolean(session.plan?.teletext),
+  playlist: `/api/live/${session.id}/${MASTER_PLAYLIST}`,
 })
 
 export const preflightChannel = async ({ channelId, now = Date.now() }) => {
@@ -546,6 +605,13 @@ const pickAudio = ({ streams, languages }) => {
   return preferred || candidates[0] || null
 }
 
+const pickTeletext = (streams) => {
+  const teletext = streams.find((s) => s.type === 'TELETEXT')
+  const subtitles = streams.find((s) => s.type === 'TEXTSUB')
+  if (!teletext || !subtitles) return null
+  return { pid: teletext.pid, page: teletextPageOf(subtitles.pid) }
+}
+
 const isStandardDefinition = (video) =>
   video.height ? video.height <= SD_HEIGHT_CAP : video.type === 'MPEG2VIDEO'
 
@@ -612,6 +678,13 @@ const SHORT_PROBE_BYTES = 500_000
 const SHORT_PROBE_MICROSECONDS = 500_000
 const MISSING_PARAMETERS = /could not find codec parameters|unspecified (sample rate|size)/i
 const COPY_ENCODER = { kind: 'copy' }
+const TEXTSUB_PID_OFFSET = 0x2000
+const DEFAULT_CAPTION_PAGE = 801
+const CAPTION_CUE_MS = 4000
+const CAPTION_TRACK_NAME = 'English'
+const MAX_INTERLEAVE_MICROSECONDS = 500_000
+const TELETEXT_FAILURE = /teletext|zvbi|txt_/i
+const PLAYLIST_NAMES = new Set([MASTER_PLAYLIST, MEDIA_PLAYLIST, CAPTIONS_PLAYLIST])
 const MAX_ERROR_LINES = 20
 const LIVE_REFUSALS = {
   'off-air': "This channel isn't broadcasting right now, so TVHeadend can't tune it.",

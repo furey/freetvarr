@@ -5,7 +5,7 @@
 <p align="center">
   <strong>Live TV in your browser. Recordings in your library, ad free.*</strong><br/>
   A self-hosted companion for TVHeadend and compatible tuner.<br/>
-  <em>*optional via comskip</em>
+  <sub>*optional via <code>comskip</code></sub>
 </p>
 
 <p align="center">
@@ -64,6 +64,7 @@
 <p align="center">
   <img src="docs/img/screenshot-player.png" alt="Live TV player" width="100%"/>
   <br/><em>Live TV player</em>
+  <br/><sub>Big Buck Bunny © Blender Foundation (CC BY 3.0)</sub>
 </p>
 
 <p align="center">
@@ -92,8 +93,6 @@
   <img src="docs/img/screenshot-mobile-recordings.png" alt="Recordings on mobile" width="32%"/>
   <br/><em>Mobile</em>
 </p>
-
-Big Buck Bunny © Blender Foundation (CC BY 3.0)
 
 ## What Freetvarr is
 
