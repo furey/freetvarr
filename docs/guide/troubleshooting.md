@@ -5,7 +5,7 @@ description: 'Fixes keyed by symptom: the TVHeadend login, the wizard checks, tu
 
 # Troubleshooting
 
-Run the [Doctor](/guide/doctor) first (**Settings → HELP → RUN DOCTOR**). It checks TVHeadend, the TV guide, the folders, and Plex, and links each problem it finds to the section below that fixes it.
+Run the [Doctor](/guide/doctor) first (**SETTINGS → HELP → RUN DOCTOR**). It checks TVHeadend, the TV guide, the folders, and Plex, and links each problem it finds to the section below that fixes it.
 
 Each section starts from what you see, then gives the cause and the fix. The sections follow the order of a first install.
 
@@ -33,7 +33,7 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 ## Wizard connection test
 
-`SAVE & NEXT` on the TVHeadend step runs `TEST CONNECTION` and stays on the step until it passes. `FINISH LATER` leaves the wizard after you confirm, and keeps what you saved. Freetvarr cannot record until TVHeadend is connected. To resume, open `Settings → Setup wizard → REOPEN WIZARD`.
+`SAVE & NEXT` on the TVHEADEND step runs `TEST CONNECTION` and stays on the step until it passes. `FINISH LATER` leaves the wizard after you confirm, and keeps what you saved. Freetvarr cannot record until TVHeadend is connected. To resume, open `SETTINGS → Setup wizard → REOPEN WIZARD`.
 
 - **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither Docker container is on a Docker bridge network, so container names don't resolve).
 - **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run `docker compose logs tvheadend` in a terminal in the `freetvarr` folder.
@@ -135,19 +135,19 @@ TVHeadend's first-run wizard opens on every page load. The `wizard` value in **C
 
 ## Unimported recordings
 
-TVHeadend finished a recording, but nothing appears on the Recordings tab or in your library.
+TVHeadend finished a recording, but nothing appears on the RECORDINGS tab or in your library.
 
 - **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series](/guide/series)). Press **RECORD SERIES** in the TV Guide, or use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.
-- **The sync hasn't run yet.** The default **Sync schedule** is `Every 30 minutes`. Press `SYNC NOW` on the dashboard to run one at once.
+- **The sync hasn't run yet.** The default **SYNC SCHEDULE** is `Every 30 minutes`. Press `SYNC NOW` on the dashboard to run one at once.
 - **It came in as `skipped` or `partial`.** See the next two sections.
 
 ## Skipped recordings
 
-The row's error text on the Recordings tab says which of the two causes it was:
+The row's error text on the RECORDINGS tab says which of the two causes it was:
 
 - **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress shows this, and post-recording padding can keep it here for up to ten minutes after the programme ends. The next sync picks it up.
-- **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press `CHECK TVHEADEND` in Settings, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+- **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press `CHECK TVHEADEND` in SETTINGS, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 
 ## Partial recordings
 
@@ -181,9 +181,9 @@ An import fails with a permission error, or the TVHeadend file won't delete.
 
 Episodes import, but Plex doesn't show them.
 
-- Press `REFRESH PLEX NOW` in Settings. Freetvarr reports `Plex refresh sent (HTTP 200).` or the error.
-- **`Plex HTTP 401`**: the Plex token is wrong or expired. In Settings, detect or paste the Plex token again ([Plex](/guide/plex#the-token)).
-- **`Plex HTTP 404`**: the section ID doesn't exist. In Settings, pick the TV section again from the list.
+- Press `REFRESH PLEX NOW` in SETTINGS. Freetvarr reports `Plex refresh sent (HTTP 200).` or the error.
+- **`Plex HTTP 401`**: the Plex token is wrong or expired. In SETTINGS, detect or paste the Plex token again ([Plex](/guide/plex#the-token)).
+- **`Plex HTTP 404`**: the section ID doesn't exist. In SETTINGS, pick the TV section again from the list.
 - **`ECONNREFUSED` or `ECONNABORTED`**: the Plex URL is wrong, or Plex isn't running. Use `http://<plex-host-ip>:32400`.
 - **The refresh succeeds but nothing appears**: the Plex library doesn't include the folder Freetvarr writes to. Add the host folder `${DATA_PATH}/media/tv` to the library ([Plex](/guide/plex#the-library-folder)).
 
@@ -205,7 +205,7 @@ Other containers can't reach Freetvarr by name.
 Ad detection is cutting the wrong things, or missing breaks.
 
 - Ad detection is never perfect. Comskip's accuracy varies a lot by channel.
-- Set the series to `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. Allow about 30 minutes of scan per 75-minute recording on a home NAS.
+- Set the series to `DETECT` mode first and check the break counts and minutes it reports on the RECORDINGS tab before switching to `CUT`. Allow about 30 minutes of scan per 75-minute recording on a home NAS.
 - Cuts snap to the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount. Your file overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. If a cut goes wrong, rename its `<file>.ts.orig` backup back to recover the original. See [Ad removal](/guide/ad-removal).
 
@@ -233,7 +233,7 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 
 ## Wrong timestamps
 
-- Freetvarr uses the time zone you chose in the wizard. If Doctor warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings, in the SCHEDULE panel. Freetvarr shows every time in that zone, on every device.
+- Freetvarr uses the time zone you chose in the wizard. If Doctor warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in SETTINGS, in the SCHEDULE panel. Freetvarr shows every time in that zone, on every device.
 - A `TZ` in your `.env` only pre-fills the zone. The zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings, or correct `TZ` (e.g. `Australia/Sydney`) and run `docker compose up -d` to recreate the Docker containers.
 - TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
 
@@ -250,4 +250,4 @@ Running Freetvarr from source (`npm start`) rather than in Docker fails at `bett
 
 ## Reporting a bug
 
-Open an issue on [GitHub](https://github.com/furey/freetvarr/issues) with what you did, what you expected, and what happened. Include your versions: **VERSIONS** in **Settings → HELP** lists the Freetvarr, TVHeadend, and Node versions and the **UPTIME** of Freetvarr (how long it has been running), and **COPY** puts them on the clipboard. It also says whether a newer Freetvarr release is out.
+Open an issue on [GitHub](https://github.com/furey/freetvarr/issues) with what you did, what you expected, and what happened. Include your versions: **VERSIONS** in **SETTINGS → HELP** lists the Freetvarr, TVHeadend, and Node versions and the **UPTIME** of Freetvarr (how long it has been running), and **COPY** puts them on the clipboard. It also says whether a newer Freetvarr release is out.

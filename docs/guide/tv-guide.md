@@ -7,7 +7,7 @@ description: >-
 
 # TV Guide
 
-The TV Guide tab is a 7-day programme guide. Click a programme to record it, cancel it, or record a whole [series](/guide/series) in TVHeadend. Freetvarr imports each recording into your library after TVHeadend records it.
+The TV GUIDE tab is a 7-day programme guide. Click a programme to record it, cancel it, or record a whole [series](/guide/series) in TVHeadend. Freetvarr imports each recording into your library after TVHeadend records it.
 
 The TV Guide shows only the listings you loaded into TVHeadend. With the XMLTV guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
 
@@ -30,7 +30,7 @@ Channels run down the page and time runs across. The TV Guide opens at the curre
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
 - Drag the right edge of the channel list to make it wider or narrower.
 - A dimmed channel with **OFF AIR** beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
-- Each channel in the CHANNELS dialog shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin, even when both have the same name.
+- Each channel in the CHANNELS dialog shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. **HIDE SD SIMULCASTS** uses it to pair an SD channel with its HD twin, even when both have the same name.
 
 ## After midnight
 
@@ -66,10 +66,10 @@ In Australia, the wizard's channel scan starts you with five favourites: the HD 
 
 The `CHANNELS` button above the grid opens a wide dialog on a computer. The channel list is on the left and the settings are on the right. On a phone, the settings come first and the list follows. The settings are:
 
-- **Favourites**: reorder or remove them.
-- **Sort other channels by**: TVHeadend order, channel number, or name.
-- **Hide SD simulcasts**: hides an SD channel when its HD twin is in the lineup. SD-only channels stay.
-- **Hide SD channels**: shows only HD channels. SD-only channels (for example 7flix) are hidden too. It applies to the grid, search, Live TV, and the channel list in this dialog. Favourites are never hidden. While it is on, **Hide SD simulcasts** is ticked and locked, because it hides the same channels.
+- **FAVOURITES**: reorder or remove them.
+- **SORT OTHER CHANNELS BY**: TVHeadend order, channel number, or name.
+- **HIDE SD SIMULCASTS**: hides an SD channel when its HD twin is in the lineup. SD-only channels stay.
+- **HIDE SD CHANNELS**: shows only HD channels. SD-only channels (for example 7flix) are hidden too. It applies to the grid, search, Live TV, and the channel list in this dialog. Favourites are never hidden. While it is on, **HIDE SD SIMULCASTS** is ticked and locked, because it hides the same channels.
 - **All channels**: untick a channel to hide it. Favourites are always shown.
 - **Listings**: fix the shows of a channel that has the wrong ones, or none. See [Channel listings](#channel-listings).
 
@@ -116,7 +116,7 @@ The `LIVE TV` tab lists every channel with what's on now and next, favourites fi
 
 ## On the dashboard
 
-The dashboard's What's On panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. To fill the panel, press the star next to some channels in the TV Guide.
+The dashboard's WHAT'S ON panel shows what's on now and next on your favourite channels, and the next few scheduled recordings. Tap a programme or a recording to open it in the TV Guide. To fill the panel, press the star next to some channels in the TV Guide.
 
 While TVHeadend records, a `RECORDING NOW` panel at the top of the dashboard shows each recording's progress, file size, and tuner signal. If TVHeadend reports a recording as failed, the card turns red and shows TVHeadend's reason. After a recording stops, its card shows it through import, ad removal (if on), and into your library. While anything records, the browser tab title starts with `● REC`.
 
@@ -130,7 +130,7 @@ Some programmes in a guide feed have no image, or an image link that no longer w
 
 If none of these has a picture, Freetvarr shows a title card: the programme's name on a coloured background.
 
-A TVmaze lookup sends the programme title to TVmaze. Freetvarr keeps each answer for 30 days, or 7 days when TVmaze has no match. To turn the lookups off, go to Settings → **Pictures** and turn off `LOOK UP MISSING PICTURES ON TVMAZE`.
+A TVmaze lookup sends the programme title to TVmaze. Freetvarr keeps each answer for 30 days, or 7 days when TVmaze has no match. To turn the lookups off, go to SETTINGS → **PICTURES** and turn off `LOOK UP MISSING PICTURES ON TVMAZE`.
 
 ## Caching
 

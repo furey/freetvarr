@@ -7,7 +7,7 @@ description: >-
 
 # TV apps
 
-TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, **Settings → WATCH ON YOUR TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV Guide](/guide/tv-guide).
+TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, **SETTINGS → WATCH ON YOUR TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV Guide](/guide/tv-guide).
 
 | App      | On the TV                                                                          | Needs                                                     |
 | -------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -18,7 +18,7 @@ If you already run Jellyfin, use it: one server feeds every Jellyfin app in the 
 
 ## The TV login
 
-1. In Freetvarr, open **Settings → WATCH ON YOUR TV**.
+1. In Freetvarr, open **SETTINGS → WATCH ON YOUR TV**.
 2. Check the login name. `tv` is the default; any name with no spaces works.
 3. Press `MAKE A TV LOGIN` to create the TV login in TVHeadend.
 
@@ -53,7 +53,7 @@ If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV lo
 1. In Kodi, open **Settings → Add-ons → Install from repository → PVR clients**.
 2. Choose **Tvheadend HTSP Client** and press **Install**.
 3. Press **Configure** on the add-on.
-4. Enter the values from the **KODI** rows in Freetvarr's **Settings → WATCH ON YOUR TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
+4. Enter the values from the **KODI** rows in Freetvarr's **SETTINGS → WATCH ON YOUR TV**: **HOSTNAME**, **HTTP PORT**, **HTSP PORT**, **USERNAME**, and **PASSWORD**.
 5. Press **OK**, then go back to the Kodi home screen.
 
 **TV** on the home screen now lists the channels, and its **Guide** shows the TV guide. Kodi shows Australian captions, which most other apps do not ([Captions](/guide/live-tv#captions)).

@@ -72,7 +72,7 @@ When the wizard finds a TVHeadend with only the default entry, it asks for three
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **Settings → TVHEADEND → RESTORE OPEN ACCESS** in Freetvarr.
+Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **SETTINGS → TVHEADEND → RESTORE OPEN ACCESS** in Freetvarr.
 
 If you installed TVHeadend yourself, the wizard asks for the TVHeadend username and password you created for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.
 
@@ -96,7 +96,7 @@ Finish or cancel the wizard, even if you configured TVHeadend by hand. An unfini
 
 ## 3. Add the tuner
 
-The **Channels** step of the Freetvarr wizard does steps 3 to 5 for an antenna or cable tuner, and sets **Re-record if errors** from step 7. Follow steps 3 to 5 by hand for a satellite tuner, or to choose each setting yourself.
+The **CHANNELS** step of the Freetvarr wizard does steps 3 to 5 for an antenna or cable tuner, and sets **Re-record if errors** from step 7. Follow steps 3 to 5 by hand for a satellite tuner, or to choose each setting yourself.
 
 The linuxserver image is built with `--enable-hdhomerun_client`, so TVHeadend discovers HDHomeRun tuners on your home network by itself. The author's tuner is an HDHomeRun Flex Quatro, and the screens below follow it.
 
@@ -135,7 +135,7 @@ The channels appear in **Configuration → Channel/EPG → Channels**. Fix the n
 
 ## 6. Load the XMLTV guide
 
-The **Guide** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
+The **GUIDE** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
 
 Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and episode naming work. The Australian feed below is the example. [Outside Australia](#outside-australia) lists the source to use in other countries.
 

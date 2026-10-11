@@ -104,7 +104,7 @@ Recording works like the record button on the Fetch remote. In Freetvarr's TV Gu
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-On a phone, open Freetvarr in the browser, open the Live TV tab, and tap a channel. The browser plays the channel, with no app to install.
+On a phone, open Freetvarr in the browser, open the LIVE TV tab, and tap a channel. The browser plays the channel, with no app to install.
 
 <!-- markdownlint-disable MD033 -->
 <div class="phone-frames">
