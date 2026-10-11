@@ -10,11 +10,11 @@ description: >-
 Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using comskip (an ad-detection tool) and ffmpeg, both bundled in the Freetvarr Docker image. Ad removal is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
 
 > [!WARNING]<br>
-> Detection accuracy varies channel by channel, because every broadcaster cuts its breaks differently. Set a series to `DETECT` mode first, and check the breaks Freetvarr reports on the Recordings tab before you switch the series to `CUT`.
+> Detection accuracy varies channel by channel, because every broadcaster cuts its breaks differently. Set a series to `DETECT` mode first, and check the breaks Freetvarr reports on the RECORDINGS tab before you switch the series to `CUT`.
 
 ## Turn it on
 
-In Freetvarr, turn on ad removal in **Settings → AD REMOVAL**, then press **SAVE SETTINGS**. Then, on the [SERIES tab](/guide/series#edit-a-series-folder), press **EDIT** on each series, pick a mode under **Ad removal**, and press **SAVE**. Ad removal runs only when both the Settings switch and the series mode are on.
+In Freetvarr, turn on ad removal in **SETTINGS → AD REMOVAL**, then press **SAVE SETTINGS**. Then, on the [SERIES tab](/guide/series#edit-a-series-folder), press **EDIT** on each series, pick a mode under **AD REMOVAL**, and press **SAVE**. Ad removal runs only when both the Settings switch and the series mode are on.
 
 ## Modes
 

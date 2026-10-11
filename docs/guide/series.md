@@ -47,8 +47,8 @@ A series recording is one TVHeadend autorec entry. It matches on **title plus ch
 Each row shows one series:
 
 - The title, with the channels and the number of episodes to keep.
-- **Next**: the next airing, or the next expected airing, with its channel.
-- **Saves to**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no library folder shows its folder in the one-off folder, such as `/media/one-offs/Bluey`. When **IMPORT EVERY RECORDING** is off in Settings, such a series shows that its episodes wait in [Recordings](/guide/recordings).
+- **NEXT**: the next airing, or the next expected airing, with its channel.
+- **SAVES TO**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no library folder shows its folder in the one-off folder, such as `/media/one-offs/Bluey`. When **IMPORT EVERY RECORDING** is off in Settings, such a series shows that its episodes wait in [Recordings](/guide/recordings).
 
 A row shows a `PAUSED` badge when the series recording in TVHeadend is paused. A row with no badge records new episodes as normal.
 
@@ -65,7 +65,7 @@ The buttons on a row:
 **ASSIGN FOLDER** opens a dialog before it changes anything:
 
 1. Check the folder name. Freetvarr fills in an existing folder with the same name under your media root, or a new folder named after the series.
-2. To use another folder, type its name, or choose it under **Or pick an existing folder**.
+2. To use another folder, type its name, or choose it under **OR PICK AN EXISTING FOLDER**.
 3. Press **ASSIGN** to save the folder for the series.
 
 The dialog shows the full path for future episodes. Episodes already imported stay where they are; Freetvarr does not move them.
@@ -75,9 +75,9 @@ The dialog shows the full path for future episodes. Episodes already imported st
 **EDIT** opens these fields:
 
 - **SAVES TO**: the folder under your media root (shown before the field) where the series goes. As you type, Freetvarr suggests matching folders that are already there.
-- **Season folders**: the [season template](#season-template).
-- **Recording titles that contain**: the title that Freetvarr matches. It ignores case.
-- **Ad removal**: `OFF`, `DETECT`, or `CUT`. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in Settings.
+- **SEASON FOLDERS**: the [season template](#season-template).
+- **RECORDING TITLES THAT CONTAIN**: the title that Freetvarr matches. It ignores case.
+- **AD REMOVAL**: `OFF`, `DETECT`, or `CUT`. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in Settings.
 - **REMOVE FROM TVHEADEND AFTER IMPORT**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 
 Press **SAVE** to keep the changes. A change to **SAVES TO** applies to future episodes only (episodes already imported stay where they are).
@@ -106,11 +106,11 @@ The episode title is dropped when the TV guide did not supply one. TVHeadend's o
 
 ## Title matches
 
-A recording whose title contains this text saves to its folder, even without a series recording. The **TITLE MATCHES** panel lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you stopped. Each title has a **Saves to** line, **EDIT**, and **SYNC**, like a series row. In the edit form, **REMOVE TITLE MATCH** removes the title after you confirm (recordings already imported stay where they are).
+A recording whose title contains this text saves to its folder, even without a series recording. The **TITLE MATCHES** panel lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you stopped. Each title has a **SAVES TO** line, **EDIT**, and **SYNC**, like a series row. In the edit form, **REMOVE TITLE MATCH** removes the title after you confirm (recordings already imported stay where they are).
 
 To add a title:
 
-1. Under **ADD TITLE**, enter the **Recording titles that contain** text. Press **REFRESH TITLES** to list the titles TVHeadend has recorded.
+1. Under **ADD TITLE**, enter the **RECORDING TITLES THAT CONTAIN** text. Press **REFRESH TITLES** to list the titles TVHeadend has recorded.
 2. Under **SAVES TO**, enter the folder under your media root. Freetvarr suggests an existing folder, or a new folder named after the title.
 3. Set the season folders, ad removal, and **REMOVE FROM TVHEADEND AFTER IMPORT**.
 4. Press **ADD TITLE**.

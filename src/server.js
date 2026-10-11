@@ -1,3 +1,4 @@
+import dns from 'dns'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -98,8 +99,8 @@ import {
   getRecordingState,
   getChannelThumbnail,
   getProgrammeImage,
-  getProgrammeThumbnail,
-  getShowThumbnail,
+  findProgrammeThumbnail,
+  findShowThumbnail,
   prepareThumbnailCache,
   recordProgram,
   cancelProgram,
@@ -153,6 +154,8 @@ import { getSeries } from './series.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
+
+dns.setDefaultResultOrder('ipv4first')
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -620,12 +623,21 @@ const sendMissingImage = (res) => {
   res.status(404).end()
 }
 
+const sendPendingImage = (res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.status(404).end()
+}
+
+const imageResultOf = (result) => (result?.body
+  ? { image: result, pending: false }
+  : { image: result?.image ?? null, pending: Boolean(result?.pending) })
+
 const serveImage = ({ widths, loadImage, paramsOf = (req) => req.params }) => async (req, res) => {
   const width = thumbnailWidthFrom({ requested: req.query.w, allowed: widths })
   if (width === null) return res.status(400).json({ error: `w must be one of ${widths.join(', ')}` })
   try {
-    const image = await loadImage({ ...paramsOf(req), width })
-    if (!image) return sendMissingImage(res)
+    const { image, pending } = imageResultOf(await loadImage({ ...paramsOf(req), width }))
+    if (!image) return pending ? sendPendingImage(res) : sendMissingImage(res)
     res.setHeader('Content-Type', image.contentType)
     res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
     res.send(image.body)
@@ -641,12 +653,12 @@ app.get('/api/epg/logo/:channelId', serveImage({
 app.get('/api/epg/image/:eventId', serveImage({
   widths: PROGRAMME_IMAGE_WIDTHS,
   loadImage: ({ eventId, width }) =>
-    getProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+    findProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
 }))
 
 app.get('/api/epg/show-image', serveImage({
   widths: PROGRAMME_IMAGE_WIDTHS,
-  loadImage: ({ width, title }) => getShowThumbnail({ title, width }),
+  loadImage: ({ width, title }) => findShowThumbnail({ title, width }),
   paramsOf: (req) => ({ title: String(req.query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH) }),
 }))
 

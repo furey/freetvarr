@@ -129,11 +129,14 @@ test('sourcesFor: remembers a title TVmaze does not know until the miss expires'
   assert.equal(searches, 2)
 })
 
-test('sourcesFor: a failed TVmaze request is not remembered', async () => {
+test('sourcesFor: a failed TVmaze request is not saved, and pauses lookups for that title', async () => {
+  let clock = 1_000
   let searches = 0
   const cache = memoryCache()
   const artwork = artworkWith({
     cache,
+    now: () => clock,
+    failureBackoffMs: 500,
     searchTvmaze: async () => {
       searches += 1
       if (searches === 1) throw new Error('TVmaze HTTP 429')
@@ -142,7 +145,42 @@ test('sourcesFor: a failed TVmaze request is not remembered', async () => {
   })
   assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), [])
   assert.equal(cache.rows.size, 0)
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), [])
+  assert.equal(searches, 1)
+  clock += 500
   assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
+})
+
+test('artworkFor: answers at once and looks TVmaze up in the background', async () => {
+  let finishSearch
+  const artwork = artworkWith({
+    searchTvmaze: () => new Promise((resolve) => { finishSearch = resolve }),
+  })
+  assert.deepEqual(await artwork.artworkFor('Pooch Perfect'), { sources: [], pending: true })
+  await new Promise(setImmediate)
+  finishSearch([tvmazeShow({ id: 4, name: 'Pooch Perfect' })])
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
+  assert.deepEqual(await artwork.artworkFor('Pooch Perfect'), { sources: ['https://tvmaze.test/4.jpg'], pending: false })
+})
+
+test('artworkFor: a Plex match and a remembered miss are final answers', async () => {
+  const cache = memoryCache()
+  await cache.write({ key: '1 euro house', sources: [], expiresAt: Infinity })
+  const artwork = artworkWith({
+    cache,
+    loadPlexShows: async () => new Map([['chefs ahoy', ['http://plex/thumb']]]),
+  })
+  assert.deepEqual(await artwork.artworkFor('Chefs Ahoy'), { sources: ['http://plex/thumb'], pending: false })
+  assert.deepEqual(await artwork.artworkFor('1 Euro House'), { sources: [], pending: false })
+  assert.deepEqual(await artwork.artworkFor(''), { sources: [], pending: false })
+})
+
+test('artworkFor: a slow Plex library counts as pending', async () => {
+  const artwork = artworkWith({
+    plexWaitMs: 10,
+    loadPlexShows: () => new Promise(() => {}),
+  })
+  assert.deepEqual(await artwork.artworkFor('Show'), { sources: [], pending: true })
 })
 
 test('sourcesFor: the setting turns TVmaze off', async () => {

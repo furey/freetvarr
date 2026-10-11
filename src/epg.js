@@ -498,26 +498,30 @@ export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {})
     || await firstImageOf({ sources: await showArtSources(title), load: showArtOriginal })
 }
 
-export const getProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
+export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
+
+export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
   const { sources, title } = await programmeImageSources({ eventId, fallbackSource })
-  const guideThumbnail = (source) => thumbnailStore.thumbnailFor({
-    key: `programme:${source}`,
-    width,
-    loadOriginal: () => programmeImages.imageFor(source),
+  const fromGuide = await firstImageWithin({
+    sources,
+    load: guideThumbnailLoader(width),
+    budgetMs: GUIDE_IMAGE_BUDGET_MS,
   })
-  return await firstImageOf({ sources, load: guideThumbnail })
-    || await getShowThumbnail({ title, width })
+  if (fromGuide.image) return fromGuide
+  const fromShow = await findShowThumbnail({ title, width })
+  return { image: fromShow.image, pending: fromGuide.pending || fromShow.pending }
 }
 
-export const getShowThumbnail = async ({ title, width } = {}) =>
-  firstImageOf({
-    sources: await showArtSources(title),
-    load: (source) => thumbnailStore.thumbnailFor({
-      key: `show:${source}`,
-      width,
-      loadOriginal: () => showArtOriginal(source),
-    }),
+export const findShowThumbnail = async ({ title, width } = {}) => {
+  if (!title) return NO_IMAGE
+  const artwork = await showArtwork.artworkFor(title).catch(() => ({ sources: [], pending: false }))
+  const found = await firstImageWithin({
+    sources: artwork.sources,
+    load: showThumbnailLoader(width),
+    budgetMs: SHOW_IMAGE_BUDGET_MS,
   })
+  return { image: found.image, pending: artwork.pending || found.pending }
+}
 
 export const prepareThumbnailCache = () => thumbnailStore.prepare()
 
@@ -534,11 +538,36 @@ const programmeImageSources = async ({ eventId, fallbackSource }) => {
   return { sources, title }
 }
 
-const showArtSources = (title) => {
-  if (!title) return []
-  const timeout = new Promise((resolve) => setTimeout(resolve, SHOW_ART_WAIT_MS, []).unref())
-  return Promise.race([showArtwork.sourcesFor(title), timeout]).catch(() => [])
+const showArtSources = (title) => (title ? showArtwork.sourcesFor(title).catch(() => []) : [])
+
+const guideThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
+  key: `programme:${source}`,
+  width,
+  loadOriginal: () => programmeImages.imageFor(source),
+})
+
+const showThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
+  key: `show:${source}`,
+  width,
+  loadOriginal: () => showArtOriginal(source),
+})
+
+const firstImageWithin = async ({ sources, load, budgetMs }) => {
+  const deadline = Date.now() + budgetMs
+  for (const source of sources) {
+    const remainingMs = deadline - Date.now()
+    if (remainingMs <= 0) return PENDING_IMAGE
+    const image = await resolveWithin(Promise.resolve(load(source)).catch(() => null), remainingMs)
+    if (image === TIMED_OUT) return PENDING_IMAGE
+    if (image) return { image, pending: false }
+  }
+  return NO_IMAGE
 }
+
+const resolveWithin = (promise, ms) => Promise.race([
+  promise,
+  new Promise((resolve) => setTimeout(resolve, ms, TIMED_OUT).unref?.()),
+])
 
 const showArtOriginal = async (source) => {
   const image = await programmeImages.imageFor(source)
@@ -653,7 +682,11 @@ const thumbnailStore = createThumbnailStore({
 const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
-const SHOW_ART_WAIT_MS = 4000
+const GUIDE_IMAGE_BUDGET_MS = 1500
+const SHOW_IMAGE_BUDGET_MS = 3000
+const TIMED_OUT = Symbol('timed out')
+const NO_IMAGE = { image: null, pending: false }
+const PENDING_IMAGE = { image: null, pending: true }
 const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000

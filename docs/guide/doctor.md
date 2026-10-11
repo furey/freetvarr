@@ -7,7 +7,7 @@ description: >-
 
 # Doctor
 
-The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **Settings → HELP → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or by adding `#/doctor` to Freetvarr's address in the browser's address bar.
+The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **SETTINGS → HELP → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or by adding `#/doctor` to Freetvarr's address in the browser's address bar.
 
 The Doctor only reads. It sends `GET` requests to TVHeadend and Plex, and it looks at folders without writing to them. It never saves settings, changes TVHeadend, refreshes Plex, or starts a test encode.
 
@@ -44,7 +44,7 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0` (the **Channels** step of the setup wizard adds them). See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0` (the **CHANNELS** step of the setup wizard adds them). See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 
