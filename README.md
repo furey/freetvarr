@@ -99,7 +99,7 @@ Big Buck Bunny © Blender Foundation (CC BY 3.0)
 
 **Freetvarr** watches TVHeadend on your home network, picks up every recording it finishes, files episodes of each series you record into your TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the TV guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan its library if you use it, and optionally removes the TVHeadend copy once Plex confirms the file.
 
-It is also a TV app for your home network. Open the Live TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first. Pause and rewind up to `30` minutes, then jump back to live.
+It is also a TV app for your home network. Open the LIVE TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first. Pause and rewind up to `30` minutes, then jump back to live.
 
 If your media stack is tuner → TVHeadend → media library, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in your library named and foldered. Any TVHeadend-compatible tuner counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
 
@@ -147,7 +147,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **One-off recordings**: a recording that matches no series folder, such as a final or a special, goes to its own folder for a separate library. The RECORD dialog says where each recording will go, and can keep one out of the library.
 - **Films**: with a movies folder set, a film with no series folder is filed as `Title (Year)` for a Movies library.
 - **Recording playback**: play any finished recording in the browser player, with a seek bar and resume from where you stopped.
-- **Saved artwork**: each recording keeps its programme image and channel logo, so the Recordings tab still shows them after the TV guide moves on.
+- **Saved artwork**: each recording keeps its programme image and channel logo, so the RECORDINGS tab still shows them after the TV guide moves on.
 - **Hardlink imports**: the recording is already on disk, so the import is a hardlink when Freetvarr sees the recordings folder and the media library through one mount, and a copy when it doesn't. A hardlink uses no extra disk space.
 - **Library-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the TV guide gave no episode number.
 - **Short-file detection**: an import more than `1MB` short of what TVHeadend reported stays `partial`, and the next sync imports it again.
@@ -155,7 +155,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Plex integration**: section refresh after every sync that imported something, plus a Refresh Plex now button. With no Plex yet, the Docker compose file can run one (`COMPOSE_PROFILES=plex`), and the wizard creates its TV, one-off, and movie libraries.
 - **Remove after import**: once Plex confirms its copy, Freetvarr can delete the recording's file from TVHeadend.
 - **Optional ad removal**: ad detection with comskip, a detect-only mode that writes a `.edl` file so Kodi skips the breaks, cutting that copies the video across untouched (no re-encode), and a `.orig` backup of every cut file. Off by default; detection accuracy on free-to-air varies by channel, so try detect mode before trusting cuts. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#ad-removal).
-- **Live operation progress**: the Recordings tab shows the progress of each copy, ad scan, and cut. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#live-progress-indicators).
+- **Live operation progress**: the RECORDINGS tab shows the progress of each copy, ad scan, and cut. See [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#live-progress-indicators).
 - **Self-housekeeping**: sync history trims itself to the latest 500 rows; recording rows drop off 30 days after the TVHeadend copy is deleted.
 - **Timezone-aware UI**: the wizard asks for your time zone and pre-fills it from the browser. Timestamps show in that zone whatever device opens the page.
 - **Phone-friendly UI**: every view works on a phone.
@@ -229,7 +229,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 
 Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. In the example Docker compose file, TVHeadend sees the folder at `/recordings` and Freetvarr at `/data/recordings`. Freetvarr rewrites the one prefix to the other. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
-**Ad removal** is configured in Freetvarr's Settings, not in the `.env`. Turn it on in Settings → AD REMOVAL (off by default), then press **EDIT** on a series on the SERIES tab and pick its mode. `DETECT` leaves the video as it is and writes the ad breaks to a `.edl` file beside it, which Kodi skips (Jellyfin with an EDL plugin; Plex ignores it). `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
+**Ad removal** is configured in Freetvarr's Settings, not in the `.env`. Turn it on in SETTINGS → AD REMOVAL (off by default), then press **EDIT** on a series on the SERIES tab and pick its mode. `DETECT` leaves the video as it is and writes the ad breaks to a `.edl` file beside it, which Kodi skips (Jellyfin with an EDL plugin; Plex ignores it). `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
 
 <p align="center">
   <img src="docs/img/screenshot-settings.png" alt="Settings" width="100%"/>
@@ -287,13 +287,13 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 ### Wrong ad cuts
 
 - Ad detection is never exact. Comskip's accuracy varies by channel.
-- Set the series to `DETECT` mode first and check the break counts and minutes it reports on the Recordings tab before switching to `CUT`. A scan uses a lot of CPU: allow about 30 minutes per 75-minute recording on a dual-core Celeron, and less on a faster CPU.
+- Set the series to `DETECT` mode first and check the break counts and minutes it reports on the RECORDINGS tab before switching to `CUT`. A scan uses a lot of CPU: allow about 30 minutes per 75-minute recording on a dual-core Celeron, and less on a faster CPU.
 - Cuts fall on the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount. Your file overrides the bundled default, which is tuned for Australian channels. Every cut keeps a `<file>.ts.orig` backup for the retention window, so if a cut goes wrong you can rename the `.orig` back to recover it.
 
 ### Wrong timestamps
 
-- Wrong times, or a Doctor warning about the time zone: choose your zone in Settings, in the SCHEDULE panel. Freetvarr shows every timestamp in that zone, whatever device you're browsing from. A `TZ` in your `.env` only pre-fills the zone. The zone in Settings wins.
+- Wrong times, or a Doctor warning about the time zone: choose your zone in SETTINGS, in the SCHEDULE panel. Freetvarr shows every timestamp in that zone, whatever device you're browsing from. A `TZ` in your `.env` only pre-fills the zone. The zone in Settings wins.
 
 ## Disclaimer
 

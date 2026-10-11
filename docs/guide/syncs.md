@@ -7,7 +7,7 @@ description: >-
 
 # Syncs
 
-A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. The Syncs tab is the history of those passes.
+A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. The SYNCS tab is the history of those passes.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/syncs">
@@ -17,7 +17,7 @@ A sync is one pass over TVHeadend's finished recordings: list them, match them a
 
 ## Dashboard sync deck
 
-The dashboard shows whether a sync is running, when the last one ran and what it did, and when the next one is due. Press `SYNC NOW` to run one at once, or press `LAST SYNC` to open the Syncs tab.
+The dashboard shows whether a sync is running, when the last one ran and what it did, and when the next one is due. Press `SYNC NOW` to run one at once, or press `LAST SYNC` to open the SYNCS tab.
 
 ## Pull to refresh
 
@@ -25,7 +25,7 @@ In the Freetvarr Home Screen app on an iPhone, pull down from the top of a page 
 
 ## Scheduled and manual
 
-Choose how often Freetvarr checks TVHeadend in Settings → SCHEDULE, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. `Custom` opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the setup wizard connects TVHeadend, scheduled syncs skip without an entry in the SYNCS list. You can also press `SYNC NOW` on the dashboard to sync every series and title match at once, or press **SYNC** on a single series in the [SERIES tab](/guide/series#series-rows).
+Choose how often Freetvarr checks TVHeadend in SETTINGS → SCHEDULE, with **SYNC SCHEDULE**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. `Custom` opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the setup wizard connects TVHeadend, scheduled syncs skip without an entry in the SYNCS list. You can also press `SYNC NOW` on the dashboard to sync every series and title match at once, or press **SYNC** on a single series in the [SERIES tab](/guide/series#series-rows).
 
 The SYNCS tab states the schedule in plain words, such as "Syncs run every 30 minutes." On a phone this line sits above the buttons; on a wider screen it sits in the panel header. A schedule that has no plain description shows its cron expression instead.
 

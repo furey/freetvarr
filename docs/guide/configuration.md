@@ -55,7 +55,7 @@ The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/med
 
 The optional **movies folder** (`movies_root`, or `MOVIES_ROOT`) takes [films](/guide/series#films) with no series folder. Leave it empty to send films to the one-off folder. It must sit inside the same shared mount as the recordings, for example `/data/media/movies`.
 
-**IMPORT EVERY RECORDING**, under **LIBRARY RULES** in Settings → STORAGE, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **Plex one-off section**; for films, choose the **Plex movies section**.
+**IMPORT EVERY RECORDING**, under **LIBRARY RULES** in SETTINGS → STORAGE, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **PLEX ONE-OFF SECTION**; for films, choose the **PLEX MOVIES SECTION**.
 
 ## One shared mount
 
@@ -83,7 +83,7 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's Settings page (or its first-run wizard) and stored in Freetvarr's database. The bar under the tabs on the Settings page jumps to each part: **TVHeadend**, **Storage**, **Plex**, **Schedule**, **Pictures**, **Ad removal**, **Help**, and **Reset**. Press **SAVE SETTINGS** to keep your changes. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's Settings page (or its first-run wizard) and stored in Freetvarr's database. The bar under the tabs on the Settings page jumps to each part: **TVHEADEND**, **STORAGE**, **PLEX**, **SCHEDULE**, **PICTURES**, **AD REMOVAL**, **HELP**, and **RESET**. Press **SAVE SETTINGS** to keep your changes. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings">

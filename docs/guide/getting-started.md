@@ -82,18 +82,18 @@ The first visit to `http://<host-ip>:3733` in a browser opens the setup wizard:
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" credit="" aria-label="A walkthrough of the Freetvarr setup wizard, from the time zone to the ready step" />
 
-1. **Welcome**: confirm your time zone.
-2. **TVHeadend**: if Freetvarr installed TVHeadend for you, choose an admin username and password (press the eye button to check what you typed), check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR` to save the login in TVHeadend and connect Freetvarr to it. If you installed TVHeadend yourself, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
-3. **Channels**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS` to scan for channels. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT` to skip the scan, or `SCAN AGAIN` to add channels that are missing. If the wizard finds no tuner, enter the tuner's IP address and press `USE THIS ADDRESS`. In Australia, the scan also makes the HD channels of ABC, Seven, Nine, 10, and SBS your favourites, in that order, if you have no favourites yet. The step lists them; to change them, press `CHANNELS` in the TV Guide ([Favourites](/guide/tv-guide#favourites)).
-4. **Guide**: check the TV guide region, then press `SET UP GUIDE`. For any channel left without TV guide listings, the wizard pre-selects its best guess (check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number to find the channel), then press `SAVE & NEXT` to save the choices and move to the next step. A +1 channel, such as `10 HD +1`, gets the listings of its main channel one hour later ([+1 channels](/guide/tvheadend#_1-channels)). Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
-5. **Storage**: Freetvarr checks the recordings folder and the TV library folder. If the checks pass, press `NEXT`. If a check fails, do what its message says, or change the folders under **Advanced: change folders**.
-6. **Plex**: optional. Freetvarr looks for Plex and its access token. If Freetvarr connects to Plex, check the TV library, press `CREATE LIBRARIES` if Plex has no library for your recordings yet, then press `NEXT`. Without Plex, press `SKIP`. To enter the Plex address and token yourself, open **Advanced: connect Plex by hand** ([Plex](/guide/plex)).
+1. **WELCOME**: confirm your time zone.
+2. **TVHEADEND**: if Freetvarr installed TVHeadend for you, choose an admin username and password (press the eye button to check what you typed), check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR` to save the login in TVHeadend and connect Freetvarr to it. If you installed TVHeadend yourself, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
+3. **CHANNELS**: check the tuners and the transmitter your antenna points at, then press `FIND CHANNELS` to scan for channels. The scan takes a few minutes. If TVHeadend already has channels, press `NEXT` to skip the scan, or `SCAN AGAIN` to add channels that are missing. If the wizard finds no tuner, enter the tuner's IP address and press `USE THIS ADDRESS`. In Australia, the scan also makes the HD channels of ABC, Seven, Nine, 10, and SBS your favourites, in that order, if you have no favourites yet. The step lists them; to change them, press `CHANNELS` in the TV Guide ([Favourites](/guide/tv-guide#favourites)).
+4. **GUIDE**: check the TV guide region, then press `SET UP GUIDE`. For any channel left without TV guide listings, the wizard pre-selects its best guess (check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number to find the channel), then press `SAVE & NEXT` to save the choices and move to the next step. A +1 channel, such as `10 HD +1`, gets the listings of its main channel one hour later ([+1 channels](/guide/tvheadend#_1-channels)). Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press `SKIP`.
+5. **STORAGE**: Freetvarr checks the recordings folder and the TV library folder. If the checks pass, press `NEXT`. If a check fails, do what its message says, or change the folders under **Advanced: change folders**.
+6. **PLEX**: optional. Freetvarr looks for Plex and its access token. If Freetvarr connects to Plex, check the TV library, press `CREATE LIBRARIES` if Plex has no library for your recordings yet, then press `NEXT`. Without Plex, press `SKIP`. To enter the Plex address and token yourself, open **Advanced: connect Plex by hand** ([Plex](/guide/plex)).
 
 Every value can be changed later in Freetvarr's Settings.
 
 ## 3. Record something
 
-In Freetvarr, open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in **Settings → SCHEDULE**) and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **Settings → HELP → RUN DOCTOR**.
+In Freetvarr, open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in **SETTINGS → SCHEDULE**) and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **SETTINGS → HELP → RUN DOCTOR**.
 
 ## 4. Add it to your Home Screen
 
@@ -130,8 +130,8 @@ If TVHeadend already runs on another host or in another compose project:
 1. Delete the `tvheadend` service from your `docker-compose.yml`.
 2. Remove `tvheadend` from the `depends_on` of `freetvarr`.
 3. Mount the folder TVHeadend records into (a NAS share, for example) into the Freetvarr Docker container.
-4. In the wizard's TVHeadend step, enter `http://<tvheadend-host>:9981` and the TVHeadend username and password you created for Freetvarr.
-5. On the Storage step, open **Advanced: change folders**. Set "Recordings folder (as Freetvarr sees it)" to where Freetvarr sees the folder, and set "Recordings folder (as TVHeadend sees it)" to the path TVHeadend writes to. Press `CHECK TVHEADEND` to compare it with TVHeadend.
+4. In the wizard's TVHEADEND step, enter `http://<tvheadend-host>:9981` and the TVHeadend username and password you created for Freetvarr.
+5. On the STORAGE step, open **Advanced: change folders**. Set "Recordings folder (as Freetvarr sees it)" to where Freetvarr sees the folder, and set "Recordings folder (as TVHeadend sees it)" to the path TVHeadend writes to. Press `CHECK TVHEADEND` to compare it with TVHeadend.
 
 The Freetvarr host's address must fall inside the allowed networks of the TVHeadend user. See [The two recordings paths](/guide/configuration#the-two-recordings-paths).
 

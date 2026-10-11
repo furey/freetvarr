@@ -9,7 +9,7 @@ description: >-
 
 A network tuner streams live channels to any device on your home network, and TVHeadend streams from any tuner it controls. None of it costs anything. Freetvarr has its own player for a quick look in a browser. The apps below suit an evening on the couch and need no Freetvarr at all.
 
-To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's **Settings → WATCH ON YOUR TV** ([TV apps](/guide/tv-apps) has the steps).
+To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's **SETTINGS → WATCH ON YOUR TV** ([TV apps](/guide/tv-apps) has the steps).
 
 ## The options
 
@@ -29,7 +29,7 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**, or press the TV button beside a channel under **Now** in the dashboard's **What's On** panel. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
+In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**, or press the TV button beside a channel under **LIVE NOW** in the dashboard's **WHAT'S ON** panel. The player keeps playing while you switch tabs. Stop or close the player to free the tuner.
 
 A dimmed channel marked **OFF AIR** is not broadcasting right now, so the TV button shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
 

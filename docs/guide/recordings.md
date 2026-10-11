@@ -8,7 +8,7 @@ description: >-
 
 # Recordings
 
-The Recordings tab lists every recording TVHeadend has finished, with its programme image, channel, and air time, and what Freetvarr did with it.
+The RECORDINGS tab lists every recording TVHeadend has finished, with its programme image, channel, and air time, and what Freetvarr did with it.
 
 Freetvarr saves each programme image while the recording is still scheduled, because TV guide image links often stop working once the programme has aired. A recording with no saved image shows its channel logo.
 
@@ -43,7 +43,7 @@ A hardlink import is instant. A copy between filesystems, an ad scan, or a cut t
 
 ## Re-scan and re-cut
 
-On the Recordings tab, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend.
+On the RECORDINGS tab, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend.
 
 The ad scan button is greyed out when the library file is gone, for example after another app replaced or removed it.
 
@@ -51,7 +51,7 @@ The ad scan button is greyed out when the library file is gone, for example afte
 
 A recording that TVHeadend has deleted shows a `NOT IN TVHEADEND` marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
 
-These rows leave the list 30 days after the removal. To remove them sooner, press **Clear from list**. Freetvarr asks for confirmation first and states the number of rows it hides, across every page and filter. For 10 seconds after a clear, **Undo** puts the rows back. To remove one row, press its delete button. Both remove rows from the list only (the files stay in your library).
+These rows leave the list 30 days after the removal. To remove them sooner, press **CLEAR FROM LIST**. Freetvarr asks for confirmation first and states the number of rows it hides, across every page and filter. For 10 seconds after a clear, **UNDO** puts the rows back. To remove one row, press its delete button. Both remove rows from the list only (the files stay in your library).
 
 ## Failed rows
 
