@@ -137,7 +137,7 @@ TVHeadend's first-run wizard opens on every page load. The `wizard` value in **C
 
 TVHeadend finished a recording, but nothing appears on the RECORDINGS tab or in your library.
 
-- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series](/guide/series)). Press **RECORD SERIES** in the TV Guide, or use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
+- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series](/guide/series)). Press **SERIES** in the TV Guide, or use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.
 - **The sync hasn't run yet.** The default **SYNC SCHEDULE** is `Every 30 minutes`. Press `SYNC NOW` on the dashboard to run one at once.
 - **It came in as `skipped` or `partial`.** See the next two sections.

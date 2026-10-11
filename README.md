@@ -184,7 +184,7 @@ On a NAS or another remote host, sign in over SSH first. To install by hand or w
 
 ### Record something
 
-In Freetvarr, open the TV Guide, click a programme, and press **RECORD** for one airing or **RECORD SERIES** for every episode. To change TVHeadend by hand, see the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend).
+In Freetvarr, open the TV Guide, click a programme, and press **RECORD** for one airing or **SERIES** for every episode. To change TVHeadend by hand, see the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend).
 
 ### Configure
 

@@ -19,7 +19,7 @@ A series has two parts: a series recording in TVHeadend and a folder in your TV 
 
 1. In Freetvarr, open the [TV Guide](/guide/tv-guide#recording-a-programme).
 2. Click a programme of the series.
-3. Press **RECORD SERIES**.
+3. Press **SERIES**.
 
 Freetvarr creates the library folder at the same time, unless you turn **ADD TO LIBRARY** off first. Freetvarr uses an existing folder with the same name under your media root, or creates a new folder named after the series.
 
@@ -27,7 +27,7 @@ Matching is by title: a recording goes to the folder whose title appears in the 
 
 ## Record on any channel
 
-Turn on **RECORD ON ANY CHANNEL** in the programme window before you press **RECORD SERIES**. The series recording then matches on title alone, and records the show on whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again. It is off by default.
+Turn on **RECORD ON ANY CHANNEL** in the programme window before you press **SERIES**. The series recording then matches on title alone, and records the show on whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again. It is off by default.
 
 Use it for a show that moves between channels, such as a series that airs on 7 one season and on 7mate the next. The SERIES tab shows `Any channel` where it normally shows the channel names.
 
@@ -65,7 +65,7 @@ The buttons on a row:
 Press **CANCEL SERIES** on a row of the **SERIES** tab, or in the programme dialog of the TV Guide or the live player. TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files. Before it cancels, Freetvarr asks:
 
 - **STOP THE EPISODE ON NOW** (shown while an episode records): on by default. After `5` minutes or more of recording, the episode stops and the part recorded so far stays. Before `5` minutes, Freetvarr deletes it. Turn the switch off to let the episode record to the end.
-- **KEEP TITLE MATCH** (shown when a [title match](#title-matches) saves this series): off by default when **RECORD SERIES** made the title match, so cancelling removes it. A title match records nothing by itself; it only decides the folder for recordings with that text in the title. Turn the switch on to keep saving them to the same folder.
+- **KEEP TITLE MATCH** (shown when a [title match](#title-matches) saves this series): off by default when **SERIES** made the title match, so cancelling removes it. A title match records nothing by itself; it only decides the folder for recordings with that text in the title. Turn the switch on to keep saving them to the same folder.
 
 **KEEP SERIES** closes the question and changes nothing.
 

@@ -21,7 +21,7 @@ Recreate each series folder on the [SERIES](/guide/series) tab. The titles now c
 
 ## Series recordings
 
-In Freetvarr's [TV Guide](/guide/tv-guide), press **RECORD SERIES** on each series again. A Fetch series tag has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry that matches on title and channel.
+In Freetvarr's [TV Guide](/guide/tv-guide), press **SERIES** on each series again. A Fetch series tag has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry that matches on title and channel.
 
 ## What changed
 
