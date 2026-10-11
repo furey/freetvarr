@@ -33,6 +33,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/version**', (route) => route.continue())
   await context.route('**/api/epg/guide**', rewriteJson(withSimulatedDay({ dayOffset, simNow }), shiftDay(dayOffset)))
   await context.route('**/api/epg/now**', (route) => fulfillJson(route, onNowAt({ guide, simNow, url: route.request().url() })))
+  await context.route('**/api/epg/channel-now**', (route) => fulfillJson(route, channelNowAt({ guide, simNow, url: route.request().url() })))
   await context.route('**/api/epg/search**', rewriteJson(futureResults(simNow)))
   await context.route('**/api/epg/state**', rewriteJson(sanitiseState({ simNow, recording: picks.recording })))
   await context.route('**/api/settings', rewriteJson(maskSettings))
@@ -503,6 +504,12 @@ const onNowAt = ({ guide, simNow, url }) => {
     channels: guide.channels,
     entries,
   }
+}
+
+const channelNowAt = ({ guide, simNow, url }) => {
+  const params = new URL(url).searchParams
+  const atMs = Number(params.get('at') || simNow)
+  return nowAndNext(guide.programs?.[params.get('channel')] || [], atMs)
 }
 
 const nowAndNext = (programs, ms) => ({
