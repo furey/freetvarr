@@ -1,5 +1,6 @@
 import dns from 'dns'
 import fs from 'fs/promises'
+import net from 'net'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import express from 'express'
@@ -111,6 +112,7 @@ import {
   getChannelPrefs,
   getOnNowForPinned,
   getOnNowAll,
+  getChannelAiring,
   clearGuideCache,
 } from './epg.js'
 import {
@@ -155,8 +157,6 @@ import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
 
-dns.setDefaultResultOrder('ipv4first')
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
 const { version: APP_VERSION } = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'package.json'), 'utf8'))
@@ -199,7 +199,11 @@ const LIVE_REAPER_MS = 5_000
 const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000
 const IMAGE_MAX_AGE_S = 24 * 60 * 60
 const MISSING_IMAGE_MAX_AGE_S = 5 * 60
+const CONNECT_ATTEMPT_TIMEOUT_MS = 2500
 const MAX_SHOW_TITLE_LENGTH = 200
+
+dns.setDefaultResultOrder('ipv4first')
+net.setDefaultAutoSelectFamilyAttemptTimeout(CONNECT_ATTEMPT_TIMEOUT_MS)
 
 const app = express()
 app.disable('x-powered-by')
@@ -797,6 +801,18 @@ app.get('/api/epg/now', async (req, res) => {
     res.json(await (req.query.all === '1' ? getOnNowAll() : getOnNowForPinned()))
   } catch (err) {
     epgError(res, err, 'now')
+  }
+})
+
+app.get('/api/epg/channel-now', async (req, res) => {
+  const channelId = String(req.query.channel || '')
+  const atMs = req.query.at == null ? Date.now() : Number(req.query.at)
+  if (!channelId) return res.status(400).json({ error: 'channel is required' })
+  if (!Number.isFinite(atMs)) return res.status(400).json({ error: 'at must be a time in milliseconds' })
+  try {
+    res.json(await getChannelAiring({ channelId, atMs }))
+  } catch (err) {
+    epgError(res, err, 'channel-now')
   }
 })
 
