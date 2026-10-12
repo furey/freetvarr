@@ -1531,8 +1531,17 @@ svg.epg-rail-logo {
 
 .series-editor > .series-editor-head {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: -0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.series-editor-title {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink);
 }
 
 .field-prefixed {

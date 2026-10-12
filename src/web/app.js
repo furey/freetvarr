@@ -2153,6 +2153,7 @@ const FolderEditor = {
   template: `
     <form class="series-editor space-y-4" @submit.prevent="save" @keydown.esc.stop="closeEditor">
       <div class="series-editor-head">
+        <h3 class="series-editor-title">{{ isSeries ? 'Edit series' : 'Edit title match' }}</h3>
         <button type="button" class="btn btn-icon" @click="closeEditor" :disabled="saving"
           aria-label="Close without saving" title="Close without saving"><cross-icon /></button>
       </div>
