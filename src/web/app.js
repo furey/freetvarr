@@ -11173,14 +11173,10 @@ const RecordingPlayer = {
               <span class="play-time">{{ fmtPlayTime(playback.duration) }}</span>
             </div>
             <div class="play-buttons play-overlay-buttons">
-              <button type="button" class="btn btn-icon" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
-                <play-icon v-if="playback.paused" /><pause-icon v-else />
-              </button>
-              <span class="flex-1"></span>
               <button v-if="playback.resumed" type="button" class="btn btn-icon" @click="startPlaybackOver" aria-label="Start over"><start-over-icon /></button>
               <button v-if="playback.airplay" type="button" class="btn btn-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
-              <button type="button" class="btn btn-icon" @click="toggleFullscreen" :aria-label="isStageFullscreen ? 'Exit full screen' : 'Full screen'">
-                <exit-fullscreen-icon v-if="isStageFullscreen" /><fullscreen-icon v-else />
+              <button type="button" class="btn btn-icon" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
+                <play-icon v-if="playback.paused" /><pause-icon v-else />
               </button>
             </div>
           </div>

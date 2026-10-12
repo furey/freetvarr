@@ -3313,6 +3313,10 @@ span.row-info {
   display: none;
 }
 
+:root {
+  --player-edge-right: calc(env(safe-area-inset-right, 0px) + 1rem);
+}
+
 .live-backdrop.is-windowed {
   --windowed-chrome: 9.5rem;
   padding: 0;
@@ -3356,7 +3360,7 @@ span.row-info {
   display: inline-flex;
   position: absolute;
   top: 0.75rem;
-  right: 0.75rem;
+  right: var(--player-edge-right);
   min-width: 2.75rem;
   min-height: 2.75rem;
   justify-content: center;
@@ -3366,12 +3370,12 @@ span.row-info {
 
 .live-frame:fullscreen .live-landscape-info,
 .play-stage:fullscreen .live-landscape-info {
-  right: 4rem;
+  right: calc(var(--player-edge-right) + 3.25rem);
 }
 
 .live-frame:fullscreen .live-landscape-captions,
 .play-stage:fullscreen .live-landscape-captions {
-  right: 7.25rem;
+  right: calc(var(--player-edge-right) + 6.5rem);
 }
 
 @media (max-width: 767px) {
@@ -3460,7 +3464,7 @@ span.row-info {
   display: inline-flex;
   position: absolute;
   top: 0.75rem;
-  right: 0.75rem;
+  right: var(--player-edge-right);
   min-width: 2.75rem;
   min-height: 2.75rem;
   justify-content: center;
@@ -4247,6 +4251,19 @@ section[id^="section-"] {
   display: flex;
 }
 
+.play-stage:fullscreen .play-controls,
+.is-filled .play-modal .play-controls {
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+
+.play-stage:fullscreen .play-scrub,
+.is-filled .play-modal .play-scrub {
+  flex: 1;
+  min-width: 0;
+}
+
 .play-stage:fullscreen.is-info-open .play-controls {
   display: none;
 }
@@ -4284,7 +4301,7 @@ section[id^="section-"] {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 1.5rem calc(env(safe-area-inset-right, 0px) + 1rem) calc(env(safe-area-inset-bottom, 0px) + 0.5rem) calc(env(safe-area-inset-left, 0px) + 1rem);
+  padding: 1.5rem var(--player-edge-right) calc(env(safe-area-inset-bottom, 0px) + 0.5rem) calc(env(safe-area-inset-left, 0px) + 1rem);
   background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8));
 }
 
@@ -4778,7 +4795,7 @@ table.recordings-table tbody td {
   display: inline-flex;
   position: absolute;
   top: 0.75rem;
-  right: 4rem;
+  right: calc(var(--player-edge-right) + 3.25rem);
   min-width: 2.75rem;
   min-height: 2.75rem;
   justify-content: center;
@@ -4787,7 +4804,7 @@ table.recordings-table tbody td {
 }
 
 .is-filled .live-landscape-captions {
-  right: 7.25rem;
+  right: calc(var(--player-edge-right) + 6.5rem);
 }
 
 .is-filled .live-info {
