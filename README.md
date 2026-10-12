@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/hero.gif" alt="Freetvarr dashboard opening a live TV channel" width="800"/>
+  <img src="docs/img/hero.webp" alt="Freetvarr dashboard opening a live TV channel" width="800"/>
 </p>
 
 <p align="center">
