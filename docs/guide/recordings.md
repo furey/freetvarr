@@ -39,7 +39,7 @@ Press the play button on a finished recording to watch it in Freetvarr's player,
 
 - **PLAY** or **PAUSE**: pauses and carries on. The space bar or `k` key does the same on a computer.
 - **START OVER**: shows when Freetvarr resumed where you stopped last time, and plays from the start.
-- The full-screen button, a double-click in the middle of the picture, or the `f` key: full screen. The position bar stays in full screen.
+- The full-screen button beside the info button, a double-click in the middle of the picture, or the `f` key: full screen. The position bar stays in full screen, and its full-screen button exits it.
 - The position bar under the picture: drag it to move through the recording.
 
 The player uses the imported file, or the TVHeadend copy when the recording is not imported. Freetvarr remembers where you stopped and starts there next time. To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further. On a computer, the left and right arrow keys skip `10` seconds too. If ad detection found breaks in the recording (see [Ad removal](/guide/ad-removal)), a **SKIP AD** button appears at the bottom right of the picture while you watch a break. Press it to jump to the end of the break. On an iPhone, use AirPlay to send the recording to an Apple TV.
