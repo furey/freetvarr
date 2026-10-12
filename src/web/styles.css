@@ -3313,13 +3313,45 @@ span.row-info {
   display: none;
 }
 
+.live-backdrop.is-windowed {
+  --windowed-chrome: 9rem;
+  padding: 0;
+}
+
+.live-backdrop.is-windowed .play-modal {
+  --windowed-chrome: 12rem;
+}
+
+.is-windowed .live-modal {
+  width: 100%;
+  max-width: none;
+  max-height: 100svh;
+  overflow-y: auto;
+  border-radius: 0;
+  padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+}
+
+.is-windowed .live-modal .live-frame {
+  aspect-ratio: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.is-windowed .live-modal .live-video {
+  width: min(100%, (100svh - var(--windowed-chrome)) * 16 / 9);
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
 .live-video::-webkit-media-controls-fullscreen-button {
   display: none;
 }
 
 .live-frame:fullscreen .live-landscape-info,
 .live-frame:fullscreen .live-landscape-captions,
-.live-frame:fullscreen .live-landscape-close {
+.live-frame:fullscreen .live-landscape-close,
+.play-stage:fullscreen .live-landscape-info,
+.play-stage:fullscreen .live-landscape-close {
   display: inline-flex;
   position: absolute;
   top: 0.75rem;
@@ -3331,7 +3363,8 @@ span.row-info {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-.live-frame:fullscreen .live-landscape-info {
+.live-frame:fullscreen .live-landscape-info,
+.play-stage:fullscreen .live-landscape-info {
   right: 4rem;
 }
 
@@ -3368,71 +3401,71 @@ span.row-info {
   }
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
-  .live-backdrop {
-    padding: 0;
-    background: #000;
-  }
-
-  .live-modal {
-    width: 100%;
-    max-width: none;
-    height: 100%;
-    max-height: none;
-    border: 0;
-    border-radius: 0;
-    background: #000;
-    padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
-  }
-
-  .live-modal > .live-header,
-  .live-modal > .panel-body {
-    display: none;
-  }
-
-  .live-modal .live-frame {
-    height: 100%;
-    aspect-ratio: auto;
-    display: flex;
-    align-items: center;
-  }
-
-  .live-modal .live-video {
-    width: min(100%, 100svh * 16 / 9);
-    height: auto;
-    aspect-ratio: 16 / 9;
-    margin-inline: auto;
-    object-fit: contain;
-  }
-
-  .live-chip-caption {
-    display: block;
-    position: absolute;
-    left: calc(env(safe-area-inset-left, 0px) + 1rem);
-    bottom: 1rem;
-    max-width: calc(100% - 2rem);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    letter-spacing: 0.15em;
-    color: #b0a89e;
-    pointer-events: none;
-  }
-
-  .live-landscape-close {
-    display: inline-flex;
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
+.live-backdrop.is-filled {
+  padding: 0;
+  background: #000;
 }
+
+.is-filled .live-modal {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+}
+
+.is-filled .live-modal > .live-header,
+.is-filled .live-modal > .panel-body {
+  display: none;
+}
+
+.is-filled .live-modal .live-frame {
+  height: 100%;
+  aspect-ratio: auto;
+  display: flex;
+  align-items: center;
+}
+
+.is-filled .live-modal .live-video {
+  width: min(100%, 100svh * 16 / 9);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.is-filled .live-chip-caption,
+.live-frame:fullscreen .live-chip-caption {
+  display: block;
+  position: absolute;
+  left: calc(env(safe-area-inset-left, 0px) + 1rem);
+  bottom: 1rem;
+  max-width: calc(100% - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: #b0a89e;
+  pointer-events: none;
+}
+
+.is-filled .live-landscape-close {
+  display: inline-flex;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 
 html,
 body {
@@ -4240,36 +4273,35 @@ section[id^="section-"] {
   object-fit: contain;
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
-  .play-modal .play-stage {
-    height: 100%;
-  }
-
-  .play-modal .play-controls {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 1.5rem calc(env(safe-area-inset-right, 0px) + 1rem) calc(env(safe-area-inset-bottom, 0px) + 0.5rem) calc(env(safe-area-inset-left, 0px) + 1rem);
-    background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8));
-  }
-
-  .play-modal .play-overlay-buttons {
-    display: flex;
-  }
-
-  .play-modal .play-stage.is-info-open .play-controls {
-    display: none;
-  }
-
-  .play-modal .play-caption {
-    bottom: 6rem;
-  }
-
-  .play-modal .play-skip-ad {
-    bottom: 6rem;
-  }
+.is-filled .play-modal .play-stage {
+  height: 100%;
 }
+
+.is-filled .play-modal .play-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.5rem calc(env(safe-area-inset-right, 0px) + 1rem) calc(env(safe-area-inset-bottom, 0px) + 0.5rem) calc(env(safe-area-inset-left, 0px) + 1rem);
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8));
+}
+
+.is-filled .play-modal .play-overlay-buttons {
+  display: flex;
+}
+
+.is-filled .play-modal .play-stage.is-info-open .play-controls {
+  display: none;
+}
+
+.is-filled .play-modal .play-caption {
+  bottom: 6rem;
+}
+
+.is-filled .play-modal .play-skip-ad {
+  bottom: 6rem;
+}
+
 
 .view-controls {
   display: flex;
@@ -4734,28 +4766,27 @@ table.recordings-table tbody td {
   }
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
-  .live-landscape-info,
-  .live-landscape-captions {
-    display: inline-flex;
-    position: absolute;
-    top: 0.75rem;
-    right: 4rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
-  .live-landscape-captions {
-    right: 7.25rem;
-  }
-
-  .live-info {
-    max-height: calc(100% - 4rem);
-  }
+.is-filled .live-landscape-info,
+.is-filled .live-landscape-captions {
+  display: inline-flex;
+  position: absolute;
+  top: 0.75rem;
+  right: 4rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
 }
+
+.is-filled .live-landscape-captions {
+  right: 7.25rem;
+}
+
+.is-filled .live-info {
+  max-height: calc(100% - 4rem);
+}
+
 
 .live-action-icon {
   flex: none;
