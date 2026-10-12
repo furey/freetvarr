@@ -33,7 +33,7 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 ## Wizard connection test
 
-`SAVE & NEXT` on the TVHEADEND step runs `TEST CONNECTION` and stays on the step until it passes. **FINISH LATER** opens a dialog: press **FINISH LATER** again to leave the wizard and keep what you saved, or **STAY IN SETUP** to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open **SETTINGS → HELP → REOPEN WIZARD**.
+`SAVE & NEXT` on the TVHEADEND step runs `TEST CONNECTION` and stays on the step until it passes. **FINISH LATER** opens a dialog: press **FINISH LATER** again to leave the wizard and keep what you saved, or close the dialog to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open **SETTINGS → HELP → REOPEN WIZARD**.
 
 - **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither Docker container is on a Docker bridge network, so container names don't resolve).
 - **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run `docker compose logs tvheadend` in a terminal in the `freetvarr` folder.

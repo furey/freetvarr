@@ -15,10 +15,9 @@ const dialogs = [
   resetConfirm({ mediaRoot: '/data/media/tv' }),
 ]
 
-test('every confirm names what the dismiss button keeps, never CANCEL', () => {
+test('every confirm is dangerous and has no dismiss button; the close button backs out', () => {
   for (const dialog of dialogs) {
-    assert.ok(dialog.keepLabel)
-    assert.notEqual(dialog.keepLabel, 'CANCEL')
+    assert.equal(dialog.keepLabel, undefined)
     assert.equal(dialog.danger, true)
   }
 })

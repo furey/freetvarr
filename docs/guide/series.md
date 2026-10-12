@@ -77,7 +77,7 @@ Press **CANCEL SERIES** on a row of the **SERIES** tab, or in the programme dial
 - **STOP THE EPISODE ON NOW** (shown while an episode records): on by default. After `5` minutes or more of recording, the episode stops and the part recorded so far stays. Before `5` minutes, Freetvarr deletes it. Turn the switch off to let the episode record to the end.
 - **KEEP TITLE MATCH** (shown when a [title match](#title-matches) saves this series): off by default when **SERIES** made the title match, so cancelling removes it. A title match records nothing by itself; it only decides the folder for recordings with that text in the title. Turn the switch on to keep saving them to the same folder.
 
-**KEEP SERIES** closes the question and changes nothing.
+To change nothing, close the question. In the programme dialog, **KEEP SERIES** goes back to the programme.
 
 ## Assign a folder
 

@@ -15,5 +15,5 @@ test('wizardSkipConfirm: leaves out the recording warning once TVHeadend is conn
   const dialog = wizardSkipConfirm({ tvhConnected: true })
   assert.equal(dialog.body.length, 2)
   assert.equal(dialog.confirmLabel, 'FINISH LATER')
-  assert.equal(dialog.keepLabel, 'STAY IN SETUP')
+  assert.equal(dialog.keepLabel, undefined)
 })

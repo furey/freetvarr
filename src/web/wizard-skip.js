@@ -7,6 +7,5 @@ export const wizardSkipConfirm = ({ tvhConnected }) => ({
   ],
   confirmLabel: 'FINISH LATER',
   busyLabel: 'LEAVING…',
-  keepLabel: 'STAY IN SETUP',
   danger: false,
 })
