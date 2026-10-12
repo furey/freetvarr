@@ -96,7 +96,7 @@ export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, pro
   path.join(dir, MEDIA_PLAYLIST),
 ]
 
-const teletextDecoderArgs = (plan) => plan.teletext
+export const teletextDecoderArgs = (plan) => plan.teletext
   ? [
       '-fix_sub_duration',
       '-txt_page', String(plan.teletext.page),
@@ -105,7 +105,7 @@ const teletextDecoderArgs = (plan) => plan.teletext
     ]
   : []
 
-const variantStreamMap = (plan) => [
+export const variantStreamMap = (plan) => [
   'v:0',
   ...(plan.audio ? ['a:0'] : []),
   ...(plan.teletext ? ['s:0', 'sgroup:subs', 'language:en', 'default:no'] : []),

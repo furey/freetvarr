@@ -10,11 +10,17 @@ import {
   hardwareDecodeArgs,
   videoCodecArgs,
   streamLimitError,
+  teletextDecoderArgs,
+  teletextPageOf,
+  variantStreamMap,
+  withCaptionLabels,
 } from './live-tv.js'
 import { localPathFor } from './sync.js'
 
 export const PLAY_ROOT = path.join(LIVE_ROOT, 'play')
-export const PLAY_FILE_PATTERN = /^(index\.m3u8|seg\d{1,9}\.ts)$/
+export const PLAY_FILE_PATTERN = /^(index\.m3u8|play\.m3u8|play_vtt\.m3u8|seg\d{1,9}\.ts|play\d{1,9}\.vtt)$/
+export const MASTER_PLAYLIST = 'index.m3u8'
+export const MEDIA_PLAYLIST = 'play.m3u8'
 export const PLAY_SESSION_PATTERN = /^[a-f0-9]{16}$/
 export const PLAY_SEGMENT_SECONDS = 6
 export const RESUME_END_MARGIN_S = 30
@@ -44,18 +50,23 @@ export const playbackArgsFor = ({ plan, file, offset = 0, dir }) => [
   ...hardwareDecodeArgs(plan),
   ...(offset > 0 ? ['-ss', String(offset)] : []),
   '-fflags', '+genpts+discardcorrupt',
+  ...teletextDecoderArgs(plan),
   '-i', file,
   '-map', `0:${plan.video.index}`,
   ...(plan.audio ? ['-map', `0:${plan.audio.index}`] : []),
+  ...(plan.teletext ? ['-map', `0:${plan.teletext.index}`] : []),
   ...videoCodecArgs(plan),
   ...(plan.audio ? ['-c:a', 'aac', '-ac', '2', '-b:a', '128k'] : []),
+  ...(plan.teletext ? ['-c:s', 'webvtt', '-muxdelay', '0'] : []),
   '-max_muxing_queue_size', '1024',
   '-f', 'hls',
   '-hls_time', String(PLAY_SEGMENT_SECONDS),
   '-hls_playlist_type', 'event',
   '-hls_flags', 'independent_segments+temp_file',
   '-hls_segment_filename', path.join(dir, 'seg%d.ts'),
-  path.join(dir, 'index.m3u8'),
+  '-master_pl_name', MASTER_PLAYLIST,
+  '-var_stream_map', variantStreamMap(plan),
+  path.join(dir, MEDIA_PLAYLIST),
 ]
 
 export const playbackCandidates = ({ row, tvhRecordingsPath, recordingsRoot }) => {
@@ -139,9 +150,15 @@ export const probeRecording = (file) => new Promise((resolve, reject) => {
 })
 
 export const planForFile = ({ probe, encoder }) => {
-  const plan = pickStreams({ streams: probeStreamsFrom(probe), encoder })
+  const streams = probeStreamsFrom(probe)
+  const plan = pickStreams({ streams, encoder })
   if (!plan.video) throw new LiveTvError('This recording has no video.', { code: 'no-video', status: 422 })
-  return plan
+  return { ...plan, teletext: encoder?.captions === false ? null : recordingTeletextOf(streams) }
+}
+
+const recordingTeletextOf = (streams) => {
+  const teletext = streams.find((s) => s.type === 'TELETEXT')
+  return teletext ? { index: teletext.index, page: teletextPageOf() } : null
 }
 
 export const createPlaybackSessions = ({
@@ -173,6 +190,7 @@ export const createPlaybackSessions = ({
       file,
       offset,
       duration,
+      plan,
       dir: path.join(rootDir, id),
       status: 'starting',
       reason: null,
@@ -187,9 +205,7 @@ export const createPlaybackSessions = ({
     sessions.set(id, session)
     try {
       await makeDir(session.dir)
-      session.child = spawnProcess('ffmpeg', playbackArgsFor({ plan, file, offset, dir: session.dir }), {
-        stdio: ['ignore', 'ignore', 'pipe'],
-      })
+      spawnEncoder(session)
     } catch (err) {
       session.exited = true
       await end(session, { code: 'ffmpeg', detail: err.message })
@@ -197,6 +213,25 @@ export const createPlaybackSessions = ({
     }
     watchChild(session)
     return session
+  }
+
+  const spawnEncoder = (session) => {
+    session.child = spawnProcess('ffmpeg', playbackArgsFor({
+      plan: session.plan, file: session.file, offset: session.offset, dir: session.dir,
+    }), { stdio: ['ignore', 'ignore', 'pipe'] })
+  }
+
+  const retryWithoutCaptions = (session) => {
+    session.plan = { ...session.plan, teletext: null }
+    session.exited = false
+    session.errorLines = []
+    try {
+      spawnEncoder(session)
+    } catch (err) {
+      session.exited = true
+      return end(session, { code: 'ffmpeg', detail: err.message })
+    }
+    watchChild(session)
   }
 
   const watchChild = (session) => {
@@ -218,6 +253,7 @@ export const createPlaybackSessions = ({
         session.status = 'ready'
         return
       }
+      if (session.plan?.teletext) return retryWithoutCaptions(session)
       end(session, {
         code: 'ffmpeg',
         detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,
@@ -273,7 +309,7 @@ export const createPlaybackSessions = ({
 
   const stopAll = () => Promise.all([...sessions.values()].map((s) => end(s, { code: 'shutdown' })))
 
-  const readPlaylist = (session) => readText(path.join(session.dir, 'index.m3u8'))
+  const readPlaylist = (session, name = MEDIA_PLAYLIST) => readText(path.join(session.dir, name))
 
   const status = async (id) => {
     const session = touch(id)
@@ -283,18 +319,20 @@ export const createPlaybackSessions = ({
     return { ...view(session), producedSeconds: producedSecondsOf(playlist) }
   }
 
-  const playlistFor = async (id) => {
+  const playlistFor = async (id, name = MASTER_PLAYLIST) => {
     const session = sessions.get(id)
     if (!session || session.ending) return null
-    const playlist = await readPlaylist(session)
-    if (!hasSegments(playlist)) return null
+    if (!hasSegments(await readPlaylist(session))) return null
+    const playlist = await readPlaylist(session, name)
+    if (playlist == null) return null
+    if (name === MASTER_PLAYLIST) return withCaptionLabels(playlist)
     return playlistForClient({ playlist, finished: session.finished })
   }
 
-  const waitForPlaylist = async (id, { timeoutMs = 15_000, pollMs = 200 } = {}) => {
+  const waitForPlaylist = async (id, name = MASTER_PLAYLIST, { timeoutMs = 15_000, pollMs = 200 } = {}) => {
     const deadline = Date.now() + timeoutMs
     for (;;) {
-      const playlist = await playlistFor(id)
+      const playlist = await playlistFor(id, name)
       if (playlist) return playlist
       const session = sessions.get(id)
       if (!session || session.ending || Date.now() >= deadline) return null
@@ -326,7 +364,8 @@ export const view = (session) => ({
   offset: session.offset,
   duration: session.duration,
   finished: session.finished,
-  playlist: `/api/play/${session.id}/index.m3u8`,
+  captions: Boolean(session.plan?.teletext),
+  playlist: `/api/play/${session.id}/${MASTER_PLAYLIST}`,
 })
 
 const audioTypeOf = (stream) => (stream.disposition?.visual_impaired ? 3 : 0)
@@ -347,6 +386,7 @@ const CODEC_TYPES = {
   aac_latm: 'AAC-LATM',
   vorbis: 'VORBIS',
   opus: 'OPUS',
+  dvb_teletext: 'TELETEXT',
 }
 const PROBE_TIMEOUT_MS = 30_000
 const MAX_ERROR_LINES = 20

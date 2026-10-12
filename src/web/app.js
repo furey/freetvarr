@@ -10686,9 +10686,35 @@ const playback = reactive({
   airplay: false,
   adBreaks: [],
   source: '',
+  captions: false,
 })
 
 const playInfoOpen = ref(false)
+let playHlsBuffered = false
+
+const applyPlayCaptions = () => {
+  const showing = playback.captions && liveCaptionsOn.value && !playInfoOpen.value
+  if (playHls) {
+    if (playHlsBuffered) playHls.subtitleTrack = showing ? 0 : -1
+    return
+  }
+  for (const track of captionTracksOf(playVideo)) track.mode = showing ? 'showing' : 'disabled'
+}
+
+const syncPlayCaptionPreference = () => {
+  if (!playback.captions || (playHls && !playHlsBuffered)) return
+  liveCaptionsOn.value = captionPreferenceAfterChange({
+    observedShowing: captionsShowing(captionTracksOf(playVideo)),
+    expectedShowing: playback.captions && liveCaptionsOn.value && !playInfoOpen.value,
+    preference: liveCaptionsOn.value,
+  })
+}
+
+const togglePlayCaptions = () => {
+  if (playback.captions && !playInfoOpen.value) liveCaptionsOn.value = !liveCaptionsOn.value
+}
+
+watch([liveCaptionsOn, () => playback.captions, playInfoOpen], applyPlayCaptions)
 
 let playVideo = null
 let playHls = null
@@ -10705,7 +10731,7 @@ const playRecording = (recording) => {
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
-    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [], source: '',
+    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [], source: '', captions: false,
   })
   playInfoOpen.value = false
   playVideo?.play()?.catch(() => {})
@@ -10751,6 +10777,7 @@ const startPlaybackAt = async (offset, { delayMs = 0 } = {}) => {
       position: r.session.offset,
       phase: 'playing',
       waiting: true,
+      captions: Boolean(r.session.captions),
     })
     if (offset == null) playback.resumed = Boolean(r.resumed)
     playback.adBreaks = r.adBreaks || []
@@ -10775,6 +10802,11 @@ const attachPlayVideo = async (run, playlist) => {
   if (run !== playRun) return
   if (!Hls.isSupported()) return endPlayback(run, 'This browser cannot play recordings.')
   playHls = new Hls(PLAY_HLS_CONFIG)
+  playHlsBuffered = false
+  playHls.once(Hls.Events.FRAG_BUFFERED, () => {
+    playHlsBuffered = true
+    applyPlayCaptions()
+  })
   let recovered = false
   playHls.on(Hls.Events.ERROR, (event, data) => {
     if (!data.fatal || run !== playRun) return
@@ -10813,6 +10845,7 @@ const endPlayback = (run, message) => {
 const detachPlayVideo = () => {
   playHls?.destroy()
   playHls = null
+  playHlsBuffered = false
   playback.waiting = false
   if (!playVideo) return
   playVideo.pause()
@@ -11002,8 +11035,9 @@ const RecordingPlayer = {
             @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
             <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
             <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
-            <player-overlay-buttons :info-open="infoOpen" info-id="play-info" :fullscreen="isStageFullscreen || layout['is-filled']"
-              @toggle-info="toggleInfo" @close="stopPlayback" @exit-fullscreen="exitPlayerFullscreen" />
+            <player-overlay-buttons :info-open="infoOpen" info-id="play-info" :has-captions="playback.captions"
+              :captions-on="captionsOn" :fullscreen="isStageFullscreen || layout['is-filled']"
+              @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions" @close="stopPlayback" @exit-fullscreen="exitPlayerFullscreen" />
             <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
               <span>{{ playback.skipHint.label }}</span>
             </div>
@@ -11056,8 +11090,9 @@ const RecordingPlayer = {
           </div>
         </div>
         <div class="panel-body">
-          <player-action-row :info-open="infoOpen" info-id="play-info" :status-text="statusText" :status-kind="statusKind"
-            @toggle-info="toggleInfo">
+          <player-action-row :info-open="infoOpen" info-id="play-info" :has-captions="playback.captions"
+            :captions-on="captionsOn" :status-text="statusText" :status-kind="statusKind"
+            @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions">
             <template #icons>
               <button type="button" class="btn btn-icon live-action-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
               <button v-if="playback.airplay" type="button" class="btn btn-icon live-action-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
@@ -11181,8 +11216,8 @@ const RecordingPlayer = {
       infoOpen,
       close: stopPlayback,
       toggleInfo,
-      canToggleCaptions: () => false,
-      toggleCaptions: () => {},
+      canToggleCaptions: () => playback.captions && !infoOpen.value,
+      toggleCaptions: togglePlayCaptions,
       togglePause: togglePlayback,
       skip: skipPlaybackByKey,
       toggleFullscreen,
@@ -11220,6 +11255,8 @@ const RecordingPlayer = {
       playVideo.addEventListener('pause', onPause)
       playVideo.addEventListener('waiting', () => { playback.waiting = true })
       playVideo.addEventListener('ended', onEnded)
+      playVideo.textTracks?.addEventListener?.('addtrack', () => { if (!playHls) applyPlayCaptions() })
+      playVideo.textTracks?.addEventListener?.('change', syncPlayCaptionPreference)
       playVideo.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
         playback.airplay = e.availability === 'available'
       })
@@ -11230,7 +11267,8 @@ const RecordingPlayer = {
       infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
       statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, showAirplay, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      toggleFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, showAirplay,
+      captionsOn: liveCaptionsOn, togglePlayCaptions, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
     }
   },
 }

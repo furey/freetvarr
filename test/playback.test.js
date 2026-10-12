@@ -19,6 +19,7 @@ import {
   playlistForClient,
   createPlaybackSessions,
   PLAY_FILE_PATTERN,
+  view,
 } from '../src/playback.js'
 import { createLiveSessions } from '../src/live-tv.js'
 import { seekPlan, fmtPlayTime } from '../src/web/playback.js'
@@ -46,6 +47,7 @@ test('probeStreamsFrom: maps ffprobe codecs to the stream types pickStreams read
     [0, 'MPEG2VIDEO', null],
     [1, 'MPEG2AUDIO', 0],
     [2, 'MPEG2AUDIO', 3],
+    [3, 'TELETEXT', null],
   ])
 })
 
@@ -79,7 +81,23 @@ test('playbackArgsFor: seeks the input, maps by index, and writes an event playl
   assert.ok(line.includes('-hls_time 6 -hls_playlist_type event'))
   assert.ok(!line.includes('delete_segments'))
   assert.ok(!line.includes('omit_endlist'))
-  assert.equal(args.at(-1), '/tmp/p/index.m3u8')
+  assert.ok(line.includes('-master_pl_name index.m3u8'))
+  assert.equal(args.at(-1), '/tmp/p/play.m3u8')
+})
+
+test('planForFile: keeps the Teletext stream on page 801 unless the encoder cannot decode it', () => {
+  assert.deepEqual(planForFile({ probe: SD_PROBE, encoder: { kind: 'software' } }).teletext, { index: 3, page: 801 })
+  assert.equal(planForFile({ probe: SD_PROBE, encoder: { kind: 'software', captions: false } }).teletext, null)
+})
+
+test('playbackArgsFor: decodes Teletext into a WebVTT caption rendition', () => {
+  const plan = planForFile({ probe: SD_PROBE, encoder: { kind: 'software' } })
+  const args = playbackArgsFor({ plan, file: '/media/a.ts', offset: 60, dir: '/tmp/p' })
+  const line = args.join(' ')
+  assert.ok(args.indexOf('-txt_page') < args.indexOf('-i'))
+  assert.ok(line.includes('-map 0:3'))
+  assert.ok(line.includes('-c:s webvtt -muxdelay 0'))
+  assert.ok(line.includes('-var_stream_map v:0,a:0,s:0,sgroup:subs,language:en,default:no'))
 })
 
 test('playbackArgsFor: no -ss at offset 0; VAAPI decodes before the input', () => {
@@ -159,9 +177,13 @@ test('producedSecondsOf and playlistForClient: sum segments; start at 0; end a f
   assert.equal(playlistForClient({ playlist: ended, finished: true }).match(/ENDLIST/g).length, 1)
 })
 
-test('PLAY_FILE_PATTERN: only the playlist and numbered segments', () => {
+test('PLAY_FILE_PATTERN: only the playlists and numbered segments', () => {
   assert.ok(PLAY_FILE_PATTERN.test('index.m3u8'))
+  assert.ok(PLAY_FILE_PATTERN.test('play.m3u8'))
+  assert.ok(PLAY_FILE_PATTERN.test('play_vtt.m3u8'))
   assert.ok(PLAY_FILE_PATTERN.test('seg12.ts'))
+  assert.ok(PLAY_FILE_PATTERN.test('play12.vtt'))
+  assert.ok(!PLAY_FILE_PATTERN.test('play12.vtt.tmp'))
   assert.ok(!PLAY_FILE_PATTERN.test('../index.m3u8'))
   assert.ok(!PLAY_FILE_PATTERN.test('seg1.ts.tmp'))
 })
@@ -268,8 +290,20 @@ test('playback sessions: a finished encode keeps serving and ends its playlist',
   h.children[0].emit('exit', 0, null)
   await new Promise((resolve) => setImmediate(resolve))
   assert.equal(h.sessions.activeCount(), 1)
-  assert.match(await h.sessions.playlistFor(session.id), /#EXT-X-ENDLIST\n$/)
+  assert.match(await h.sessions.playlistFor(session.id, 'play.m3u8'), /#EXT-X-ENDLIST\n$/)
   assert.equal((await h.sessions.status(session.id)).producedSeconds, 6)
+})
+
+test('playback sessions: ffmpeg failing with captions starts again without them', async () => {
+  const h = playbackHarness()
+  const plan = planForFile({ probe: SD_PROBE, encoder: { kind: 'software' } })
+  const session = await start(h.sessions, { plan })
+  assert.equal(view(session).captions, true)
+  h.children[0].emit('exit', 1, null)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(h.children.length, 2)
+  assert.equal(h.sessions.activeCount(), 1)
+  assert.equal(view(h.sessions.get(session.id)).captions, false)
 })
 
 test('playback sessions: ffmpeg failing before any segment ends the session with its error', async () => {
