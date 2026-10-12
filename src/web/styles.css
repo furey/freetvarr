@@ -3296,6 +3296,19 @@ span.row-info {
   }
 }
 
+.live-frame:fullscreen {
+  display: flex;
+  align-items: center;
+}
+
+.live-frame:fullscreen > .live-video {
+  width: min(100%, 100svh * 16 / 9);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
 .live-landscape-close {
   display: none;
 }
@@ -3354,9 +3367,15 @@ span.row-info {
   .live-modal .live-frame {
     height: 100%;
     aspect-ratio: auto;
+    display: flex;
+    align-items: center;
   }
 
   .live-modal .live-video {
+    width: min(100%, 100svh * 16 / 9);
+    height: auto;
+    aspect-ratio: 16 / 9;
+    margin-inline: auto;
     object-fit: contain;
   }
 
