@@ -4597,7 +4597,7 @@ table.recordings-table tbody td {
 
 .live-info-body {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 1.25rem;
   min-height: 0;
   padding: 0 1.25rem 1.1rem;
@@ -4641,6 +4641,10 @@ table.recordings-table tbody td {
   .live-info-leave-to {
     transform: none;
   }
+}
+
+.live-info-body > * {
+  margin-top: auto;
 }
 
 .live-info-text {
