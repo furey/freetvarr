@@ -13,6 +13,7 @@ import {
   missingStreamParameters,
   LIVE_FILE_PATTERN,
   withoutCutInSegment,
+  withCaptionDateTimes,
   startsOnKeyframe,
   hasSegments,
   liveSegmentCount,
@@ -110,7 +111,7 @@ test('ffmpegArgsFor: exact arguments for a copied H.264 channel', () => {
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
     '-muxdelay', '0', '-max_interleave_delta', '500000',
     '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
-    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
+    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file+program_date_time',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '-master_pl_name', 'index.m3u8', '-var_stream_map', 'v:0,a:0',
     '/tmp/live/abc/live.m3u8',
@@ -130,7 +131,7 @@ test('ffmpegArgsFor: exact arguments for a transcoded MPEG-2 SD channel', () => 
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
     '-muxdelay', '0', '-max_interleave_delta', '500000',
     '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
-    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
+    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file+program_date_time',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '-master_pl_name', 'index.m3u8', '-var_stream_map', 'v:0,a:0',
     '/tmp/live/abc/live.m3u8',
@@ -465,7 +466,7 @@ test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', (
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
     '-muxdelay', '0', '-max_interleave_delta', '500000',
     '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
-    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
+    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file+program_date_time',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '-master_pl_name', 'index.m3u8', '-var_stream_map', 'v:0,a:0',
     '/tmp/live/abc/live.m3u8',
@@ -623,7 +624,7 @@ test('ffmpegArgsFor: exact arguments for a copied H.264 channel with captions', 
     '-c:s', 'webvtt',
     '-muxdelay', '0', '-max_interleave_delta', '500000',
     '-f', 'hls', '-hls_time', '2', '-hls_init_time', '1', '-hls_list_size', '6',
-    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
+    '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file+program_date_time',
     '-hls_segment_filename', '/tmp/live/abc/seg%d.ts',
     '-master_pl_name', 'index.m3u8',
     '-var_stream_map', 'v:0,a:0,s:0,sgroup:subs,language:en,default:no',
@@ -876,4 +877,21 @@ test('pickStreams: leaves captions out when ffmpeg has no teletext decoder', () 
   ]
   assert.ok(pickStreams({ streams }).teletext)
   assert.equal(pickStreams({ streams, encoder: { kind: 'copy', captions: false } }).teletext, null)
+})
+
+const dated = (n) => `#EXT-X-PROGRAM-DATE-TIME:2026-10-12T15:00:0${n}.000+1100`
+
+test('withoutCutInSegment: drops the date time line of the cut-in segment too', () => {
+  const playlist = ['#EXTM3U', '#EXT-X-MEDIA-SEQUENCE:0', '#EXTINF:1.000000,', dated(0), 'seg0.ts',
+    '#EXTINF:1.000000,', dated(1), 'seg1.ts'].join('\n')
+  assert.equal(withoutCutInSegment(playlist), ['#EXTM3U', '#EXT-X-MEDIA-SEQUENCE:1',
+    '#EXTINF:1.000000,', dated(1), 'seg1.ts'].join('\n'))
+})
+
+test('withCaptionDateTimes: gives each caption segment the date time of its video segment', () => {
+  const media = ['#EXTINF:2.000000,', dated(2), 'seg7.ts', '#EXTINF:2.000000,', dated(4), 'seg8.ts'].join('\n')
+  const captions = ['#EXTINF:2.000000,', 'live7.vtt', '#EXTINF:2.000000,', 'live8.vtt', '#EXTINF:2.000000,', 'live9.vtt']
+    .join('\n')
+  assert.equal(withCaptionDateTimes({ captions, media }), ['#EXTINF:2.000000,', dated(2), 'live7.vtt',
+    '#EXTINF:2.000000,', dated(4), 'live8.vtt', '#EXTINF:2.000000,', 'live9.vtt'].join('\n'))
 })
