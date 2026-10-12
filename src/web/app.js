@@ -10105,6 +10105,16 @@ const CaptionsIcon = {
   `,
 }
 
+const MoreIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <circle cx="3.25" cy="8" r="1.25"/>
+      <circle cx="8" cy="8" r="1.25"/>
+      <circle cx="12.75" cy="8" r="1.25"/>
+    </svg>
+  `,
+}
+
 const StaleBuildBanner = {
   template: `
     <div v-if="staleBuild" class="stale-build" role="status">
@@ -10174,16 +10184,100 @@ const PlayerActionRow = {
   },
   emits: ['toggle-info', 'toggle-captions'],
   template: `
-    <div class="epg-modal-actions flex items-center justify-between gap-3">
-      <div class="live-status flex items-center gap-2 min-w-0">
+    <div class="epg-modal-actions player-actions flex items-center justify-between">
+      <div class="player-actions-group flex flex-1 items-center min-w-0">
         <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="$emit('toggle-info')"
           aria-label="Programme info" :aria-expanded="String(infoOpen)" :aria-controls="infoId"><info-icon /></button>
-        <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
-          @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-        <slot name="icons" />
-        <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
+        <player-more-menu :has-captions="hasCaptions" :captions-on="captionsOn" :captions-disabled="infoOpen"
+          @toggle-captions="$emit('toggle-captions')"><slot name="menu" /></player-more-menu>
+        <div class="live-status player-actions-group flex items-center min-w-0">
+          <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', 'player-wide-only', { 'is-on': captionsOn }]"
+            @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+          <slot name="icons" />
+          <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
+        </div>
       </div>
-      <div class="flex shrink-0 gap-2"><slot /></div>
+      <div class="player-actions-group flex shrink-0"><slot /></div>
+    </div>
+  `,
+}
+
+const PlayerMoreMenu = {
+  props: {
+    hasCaptions: Boolean,
+    captionsOn: Boolean,
+    captionsDisabled: Boolean,
+  },
+  emits: ['toggle-captions'],
+  setup() {
+    const open = ref(false)
+    const rootEl = ref(null)
+    const triggerEl = ref(null)
+    const menuItems = () => [...(rootEl.value?.querySelectorAll('[role^="menuitem"]:not(:disabled)') || [])]
+
+    const close = ({ refocus = false } = {}) => {
+      open.value = false
+      if (refocus) triggerEl.value?.focus()
+    }
+
+    const toggle = () => { open.value = !open.value }
+
+    const moveFocus = (step) => {
+      const items = menuItems()
+      if (!items.length) return
+      const at = items.indexOf(document.activeElement)
+      items[(at + step + items.length) % items.length].focus()
+    }
+
+    const onOutsidePointerDown = (e) => {
+      if (rootEl.value?.contains(e.target)) return
+      e.stopPropagation()
+      close()
+    }
+
+    const onMenuKeydown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        return close({ refocus: true })
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        moveFocus(e.key === 'ArrowDown' ? 1 : -1)
+      }
+    }
+
+    const onMenuClick = (e) => {
+      if (e.target.closest('[role^="menuitem"]')) close()
+    }
+
+    const listen = (isOpen) => {
+      const method = isOpen ? 'addEventListener' : 'removeEventListener'
+      window[method]('pointerdown', onOutsidePointerDown, true)
+      window[method]('keydown', onMenuKeydown, true)
+    }
+
+    watch(open, async (isOpen) => {
+      listen(isOpen)
+      if (!isOpen) return
+      await nextTick()
+      menuItems()[0]?.focus()
+    })
+    onUnmounted(() => listen(false))
+
+    return { open, rootEl, triggerEl, toggle, onMenuClick }
+  },
+  template: `
+    <div ref="rootEl" class="player-more">
+      <button ref="triggerEl" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': open }]" @click="toggle"
+        aria-label="More" aria-haspopup="menu" :aria-expanded="String(open)"><more-icon /></button>
+      <div v-if="open" class="player-menu" role="menu" aria-label="More" @click="onMenuClick">
+        <button v-if="hasCaptions" type="button" class="player-menu-item" role="menuitemcheckbox" :aria-checked="String(captionsOn)"
+          :disabled="captionsDisabled" @click="$emit('toggle-captions')">
+          <captions-icon /> <span class="flex-1">CAPTIONS</span> <span class="player-menu-state">{{ captionsOn ? 'ON' : 'OFF' }}</span>
+        </button>
+        <slot />
+      </div>
     </div>
   `,
 }
@@ -10345,7 +10439,10 @@ const LivePlayer = {
             :captions-on="captionsOn" :status-text="statusText" :status-kind="statusKind"
             @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions">
             <template #icons>
-              <button type="button" class="btn btn-icon live-action-icon" @click="toggleLiveFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+              <button type="button" class="btn btn-icon live-action-icon player-wide-only" @click="toggleLiveFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+            </template>
+            <template #menu>
+              <button type="button" class="player-menu-item" role="menuitem" @click="toggleLiveFullscreen"><fullscreen-icon /> FULL SCREEN</button>
             </template>
             <button v-if="live.phase === 'ended'" type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
             <template v-else>
@@ -10978,10 +11075,8 @@ const onPlayPointerUp = (e) => {
   if (!isTap(tap)) return
   const side = tapZoneOf({ video: playVideo, event: e, bottomInsetPx: 0 })
   const result = registerPlayTap({ side, force: false })
-  const togglesOnSingleTap = e.pointerType !== 'touch'
   clearTimeout(playSingleTapTimer)
   if (result.kind === 'skip') return skipPlayback(result)
-  if (!togglesOnSingleTap) return
   playSingleTapTimer = setTimeout(togglePlayback, DOUBLE_TAP_MS)
 }
 
@@ -11095,12 +11190,17 @@ const RecordingPlayer = {
             :captions-on="captionsOn" :status-text="statusText" :status-kind="statusKind"
             @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions">
             <template #icons>
-              <button type="button" class="btn btn-icon live-action-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
-              <button v-if="playback.airplay" type="button" class="btn btn-icon live-action-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
+              <button type="button" class="btn btn-icon live-action-icon player-wide-only" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+              <button v-if="playback.airplay" type="button" class="btn btn-icon live-action-icon player-wide-only" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
+            </template>
+            <template #menu>
+              <button type="button" class="player-menu-item" role="menuitem" @click="toggleFullscreen"><fullscreen-icon /> FULL SCREEN</button>
+              <button v-if="playback.airplay" type="button" class="player-menu-item" role="menuitem" @click="showAirplay"><airplay-icon /> AIRPLAY</button>
+              <button v-if="playback.resumed && playback.phase !== 'ended'" type="button" class="player-menu-item" role="menuitem" @click="startPlaybackOver"><start-over-icon /> START OVER</button>
             </template>
             <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
             <template v-else>
-              <button v-if="playback.resumed" type="button" class="btn live-action-wide" aria-label="START OVER" @click="startPlaybackOver">
+              <button v-if="playback.resumed" type="button" class="btn live-action-wide player-wide-only" aria-label="START OVER" @click="startPlaybackOver">
                 <start-over-icon /> <span class="live-action-label">START OVER</span>
               </button>
               <button type="button" class="btn live-action-wide live-pause-button" :aria-label="playback.paused ? 'Play' : 'Pause'" @click="togglePlayback">
@@ -11629,6 +11729,8 @@ app.component('tv-apps-panel', TvAppsPanel)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
 app.component('captions-icon', CaptionsIcon)
+app.component('more-icon', MoreIcon)
+app.component('player-more-menu', PlayerMoreMenu)
 app.component('eye-icon', EyeIcon)
 app.component('eye-off-icon', EyeOffIcon)
 app.component('doctor-spinner', DoctorSpinner)
