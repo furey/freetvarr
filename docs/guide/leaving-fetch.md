@@ -100,7 +100,7 @@ Recording works like the record button on the Fetch remote. In Freetvarr's TV Gu
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme opened from the TV Guide, with its image, description, padding settings, and WATCH LIVE, SERIES, and RECORD buttons" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme opened from the TV Guide, with its image, description, padding settings, and RECORD, SERIES, and WATCH LIVE buttons" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
