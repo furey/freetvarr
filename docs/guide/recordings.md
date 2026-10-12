@@ -48,7 +48,7 @@ On the RECORDINGS tab, re-run an ad scan or cut on a file you have already impor
 - When the series folder's ad removal is **DETECT** or **OFF**, the scan writes the ad break times to a `.edl` file beside the recording, and the recording file stays as it is.
 - When it is **CUT**, the scan saves the recording again without the breaks and keeps the original as `<file>.ts.orig` for the days set in **SETTINGS**. If a second cut of a cut recording finds more ads, it replaces that backup with the first cut, so the full original is lost.
 
-The dialog also gives the expected time: finding the ads takes about half the length of the recording. Press **FIND ADS** or **CUT ADS** to start, or **CANCEL** to leave the recording as it is.
+The dialog also gives the expected time: finding the ads takes about half the length of the recording. Press **FIND ADS** or **CUT ADS** to start, or **DON'T SCAN** to leave the recording as it is.
 
 The ad scan button is greyed out when the library file is gone, for example after another app replaced or removed it.
 

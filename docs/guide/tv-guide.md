@@ -75,7 +75,7 @@ The `CHANNELS` button above the grid opens a wide dialog on a computer. The chan
 - **All channels**: untick a channel to hide it. Favourites are always shown.
 - **Listings**: fix the shows of a channel that has the wrong ones, or none. See [Channel listings](#channel-listings).
 
-Press `SAVE` to apply the changes.
+Press `SAVE` to apply the changes. To close the dialog without saving, press × in its title bar.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">

@@ -1,23 +1,19 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { wizardSkipPrompt } from '../src/web/wizard-skip.js'
+import { wizardSkipConfirm } from '../src/web/wizard-skip.js'
 
-test('wizardSkipPrompt: warns that recording needs TVHeadend when it is not connected', () => {
-  assert.equal(
-    wizardSkipPrompt({ tvhConnected: false }),
-    'Leave setup now?\n\n'
-      + 'Setup is not finished. Freetvarr will keep what you saved so far.\n\n'
-      + 'Freetvarr cannot record until it connects to TVHeadend.\n\n'
-      + 'To finish later, open Settings → Setup wizard → REOPEN WIZARD.',
-  )
+test('wizardSkipConfirm: warns that recording needs TVHeadend when it is not connected', () => {
+  assert.deepEqual(wizardSkipConfirm({ tvhConnected: false }).body, [
+    'Setup is not finished. Freetvarr keeps what you saved so far and opens SETTINGS.',
+    'Freetvarr cannot record until it connects to TVHeadend.',
+    'To finish later, open SETTINGS → HELP → REOPEN WIZARD.',
+  ])
 })
 
-test('wizardSkipPrompt: leaves out the recording warning once TVHeadend is connected', () => {
-  assert.equal(
-    wizardSkipPrompt({ tvhConnected: true }),
-    'Leave setup now?\n\n'
-      + 'Setup is not finished. Freetvarr will keep what you saved so far.\n\n'
-      + 'To finish later, open Settings → Setup wizard → REOPEN WIZARD.',
-  )
+test('wizardSkipConfirm: leaves out the recording warning once TVHeadend is connected', () => {
+  const dialog = wizardSkipConfirm({ tvhConnected: true })
+  assert.equal(dialog.body.length, 2)
+  assert.equal(dialog.confirmLabel, 'FINISH LATER')
+  assert.equal(dialog.keepLabel, 'STAY IN SETUP')
 })

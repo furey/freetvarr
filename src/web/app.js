@@ -56,7 +56,8 @@ import {
 } from '/sync-schedule.js'
 import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
-import { wizardSkipPrompt } from '/wizard-skip.js'
+import { wizardSkipConfirm } from '/wizard-skip.js'
+import { clearSyncHistoryConfirm, deleteSyncConfirm, resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import {
   audioContextOnce, createHoldMusic, holdMusicToggleLabel, holdMusicVolume, loadHoldMusicMuted,
   saveHoldMusicMuted, HOLD_MUSIC_SRC,
@@ -2139,7 +2140,11 @@ const FolderEditor = {
   },
   emits: ['saved', 'cancel', 'deleted'],
   template: `
-    <form class="series-editor space-y-4" @submit.prevent="save">
+    <form class="series-editor space-y-4" @submit.prevent="save" @keydown.esc.stop="closeEditor">
+      <div class="series-editor-head">
+        <button type="button" class="btn btn-icon" @click="closeEditor" :disabled="saving"
+          aria-label="Close without saving" title="Close without saving"><cross-icon /></button>
+      </div>
       <div class="grid gap-4 md:grid-cols-2">
         <div class="field-row">
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
@@ -2178,7 +2183,6 @@ const FolderEditor = {
         <button type="submit" class="btn btn-primary" :disabled="saving">
           <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
         </button>
-        <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
         <button type="button" class="btn btn-danger" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
@@ -2194,7 +2198,7 @@ const FolderEditor = {
             <p class="text-sm text-ink">{{ removeOutcome }}</p>
             <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
+              <button type="button" class="btn mr-auto" @click="confirming = false" :disabled="saving">{{ keepLabel }}</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
                 <template v-if="saving">REMOVING…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
               </button>
@@ -2216,6 +2220,7 @@ const FolderEditor = {
     const saving = ref(false)
     const confirming = ref(false)
     const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
+    const keepLabel = computed(() => (props.isSeries ? 'KEEP FOLDER' : 'KEEP TITLE MATCH'))
     const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
     const removeTitle = computed(() => (props.isSeries
       ? `Unassign the folder from ${props.folder.show_pattern}`
@@ -2252,6 +2257,10 @@ const FolderEditor = {
       }
     }
 
+    const closeEditor = () => {
+      if (!saving.value && !confirming.value) emit('cancel')
+    }
+
     const remove = async () => {
       saving.value = true
       try {
@@ -2267,8 +2276,8 @@ const FolderEditor = {
     }
 
     return {
-      destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming,
-      removeLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
+      destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
+      removeLabel, keepLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
 }
@@ -2483,8 +2492,7 @@ const SeriesView = {
             </div>
             <p class="text-sm text-ink">Episodes already imported stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn mr-auto" @click="closeAssign" :disabled="busyKey === assigning.key">CANCEL</button>
-              <span v-if="assignStatusText" :class="['status-readout', assignStatusKind]">{{ assignStatusText }}</span>
+              <span v-if="assignStatusText" :class="['status-readout', assignStatusKind, 'mr-auto']">{{ assignStatusText }}</span>
               <button type="submit" class="btn btn-primary" :disabled="busyKey === assigning.key">
                 <template v-if="busyKey === assigning.key">ASSIGNING…</template><template v-else><check-icon /> ASSIGN</template>
               </button>
@@ -2796,7 +2804,7 @@ const SyncsView = {
               <template v-else><play-icon /> SYNC NOW</template>
             </button>
             <button type="button" class="btn" @click="manualRefresh"><refresh-icon /> REFRESH</button>
-            <button type="button" class="btn btn-danger" @click="clearAll" :disabled="!total"><cross-icon /> CLEAR HISTORY</button>
+            <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total"><cross-icon /> CLEAR HISTORY</button>
           </div>
 
           <div class="flex items-center gap-2 min-w-0">
@@ -2822,7 +2830,7 @@ const SyncsView = {
                 <td>
                   <button type="button" class="btn btn-sm btn-icon btn-danger"
                     :disabled="s.id === syncStatus.activeSyncId"
-                    @click="removeSync(s)"
+                    @click="askRemoveSync(s)"
                     title="Delete this sync from history.">
                     <trash-icon />
                   </button>
@@ -2837,7 +2845,7 @@ const SyncsView = {
                 <span :class="['pill', s.status]">{{ s.status }}</span>
                 <button type="button" class="btn btn-sm btn-icon btn-danger"
                   :disabled="s.id === syncStatus.activeSyncId"
-                  @click="removeSync(s)">
+                  @click="askRemoveSync(s)">
                   <trash-icon />
                 </button>
               </div>
@@ -2859,6 +2867,8 @@ const SyncsView = {
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -2934,8 +2944,20 @@ const SyncsView = {
       }
     }
 
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+
+    const askRemoveSync = (s) => askConfirm({
+      dialog: deleteSyncConfirm({ syncId: s.id }),
+      icon: 'trash-icon',
+      run: () => removeSync(s),
+    })
+
+    const askClearAll = () => askConfirm({
+      dialog: clearSyncHistoryConfirm({ syncRunning: Boolean(syncStatus.value.activeSyncId) }),
+      run: clearAll,
+    })
+
     const removeSync = async (s) => {
-      if (!confirm(`Delete sync #${s.id}?`)) return
       try {
         await api('DELETE', `/api/syncs/${s.id}`)
         await refresh()
@@ -2945,8 +2967,6 @@ const SyncsView = {
     }
 
     const clearAll = async () => {
-      const suffix = syncStatus.value.activeSyncId ? ' (except the active sync)' : ''
-      if (!confirm(`Delete all sync history${suffix}?`)) return
       try {
         const r = await api('DELETE', '/api/syncs')
         flash({ msg: `Deleted ${r.deleted} sync${r.deleted === 1 ? '' : 's'}.` })
@@ -2972,7 +2992,8 @@ const SyncsView = {
       syncs, syncStatus, scheduleFrequency, starting,
       filter, filterOptions, filterLabel, setFilter,
       total, page, pageSize, totalPages, rangeLabel,
-      syncNow, refresh, manualRefresh, removeSync, clearAll,
+      syncNow, refresh, manualRefresh, askRemoveSync, askClearAll,
+      confirming, confirmBusy, closeConfirm, runConfirmed,
       fmtTime,
       flashText, flashKind,
     }
@@ -3215,8 +3236,7 @@ const RecordingsView = {
     const clearing = ref(false)
     const adRemovalEnabled = ref(false)
     const adRetentionDays = ref('7')
-    const confirming = ref(null)
-    const confirmBusy = ref(false)
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
     const adScanningId = ref(null)
     const total = ref(0)
     const page = ref(1)
@@ -3490,46 +3510,28 @@ const RecordingsView = {
       }
     }
 
-    const askAdScan = (r) => {
-      confirming.value = {
-        dialog: adScanConfirm({ recording: r, retentionDays: adRetentionDays.value }),
-        icon: 'ad-scan-icon',
-        run: () => adScan(r),
-      }
-    }
+    const askAdScan = (r) => askConfirm({
+      dialog: adScanConfirm({ recording: r, retentionDays: adRetentionDays.value }),
+      icon: 'ad-scan-icon',
+      run: () => adScan(r),
+    })
 
-    const askRemoveFromTvh = (r) => {
-      confirming.value = { dialog: removeFromTvhConfirm({ recording: r }), icon: 'trash-icon', run: () => deleteFromTvh(r) }
-    }
+    const askRemoveFromTvh = (r) => askConfirm({
+      dialog: removeFromTvhConfirm({ recording: r }),
+      icon: 'trash-icon',
+      run: () => deleteFromTvh(r),
+    })
 
-    const askClearRow = (r) => {
-      confirming.value = {
-        dialog: clearRowConfirm({ recording: r, undoSeconds: UNDO_WINDOW_MS / 1000 }),
-        icon: 'trash-icon',
-        run: () => removeRecording(r),
-      }
-    }
+    const askClearRow = (r) => askConfirm({
+      dialog: clearRowConfirm({ recording: r, undoSeconds: UNDO_WINDOW_MS / 1000 }),
+      icon: 'trash-icon',
+      run: () => removeRecording(r),
+    })
 
-    const askClearList = () => {
-      confirming.value = {
-        dialog: clearListConfirm({ count: clearable.value, undoSeconds: UNDO_WINDOW_MS / 1000 }),
-        icon: '',
-        run: clearNotInTvh,
-      }
-    }
-
-    const closeConfirm = () => { confirming.value = null }
-
-    const runConfirmed = async () => {
-      const { run } = confirming.value
-      confirmBusy.value = true
-      try {
-        await run()
-      } finally {
-        confirmBusy.value = false
-        confirming.value = null
-      }
-    }
+    const askClearList = () => askConfirm({
+      dialog: clearListConfirm({ count: clearable.value, undoSeconds: UNDO_WINDOW_MS / 1000 }),
+      run: clearNotInTvh,
+    })
 
     let undoTimer = null
     const offerUndo = (ids) => {
@@ -3746,7 +3748,7 @@ const SettingsView = {
               <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
             </div>
             <div v-if="tvhOpenEntryBackupSet" class="field-row md:col-span-3 flex flex-wrap items-center gap-3">
-              <button type="button" class="btn btn-sm" @click="undoTvhSecure" :disabled="tvhUndoing">
+              <button type="button" class="btn btn-sm" @click="askUndoTvhSecure" :disabled="tvhUndoing">
                 <template v-if="tvhUndoing">RESTORING…</template><template v-else>RESTORE OPEN ACCESS</template>
               </button>
               <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
@@ -4101,13 +4103,15 @@ const SettingsView = {
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
-            <button type="button" class="btn btn-danger" @click="resetFreetvarr" :disabled="resetting">
+            <button type="button" class="btn btn-danger" @click="askResetFreetvarr" :disabled="resetting">
               <template v-if="resetting">RESETTING…</template><template v-else><trash-icon /> RESET FREETVARR</template>
             </button>
             <span v-if="resetError" class="status-readout err">{{ resetError }}</span>
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -4121,8 +4125,9 @@ const SettingsView = {
     const tvhOpenEntryBackupSet = ref(false)
     const tvhUndoing = ref(false)
     const [tvhUndoText, tvhUndoKind, setTvhUndo] = makeStatus()
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+    const askUndoTvhSecure = () => askConfirm({ dialog: restoreOpenAccessConfirm(), run: undoTvhSecure })
     const undoTvhSecure = async () => {
-      if (!confirm('Restore open access to TVHeadend? Anyone on your network will be able to change it again.')) return
       tvhUndoing.value = true
       try {
         await api('POST', '/api/tvh-bootstrap/undo')
@@ -4477,14 +4482,13 @@ const SettingsView = {
       }
     }
 
+    const askResetFreetvarr = () => askConfirm({
+      dialog: resetConfirm({ mediaRoot: mediaRoot.value }),
+      icon: 'trash-icon',
+      run: resetFreetvarr,
+    })
+
     const resetFreetvarr = async () => {
-      const mediaPath = mediaRoot.value || '/media/tv'
-      const prompt = 'Reset Freetvarr?\n\n'
-        + 'This will delete Freetvarr\'s settings, series, list of recordings, and sync history.\n\n'
-        + `Your video files in ${mediaPath} and the other library folders will stay where they are, `
-        + 'and so will the recordings and settings in TVHeadend.\n\n'
-        + 'This cannot be undone. Continue?'
-      if (!confirm(prompt)) return
       resetting.value = true
       resetError.value = ''
       try {
@@ -4529,7 +4533,8 @@ const SettingsView = {
 
     return {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
-      tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, undoTvhSecure,
+      tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, askUndoTvhSecure,
+      confirming, confirmBusy, closeConfirm, runConfirmed,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       syncCron, syncCronEffective, syncSchedule, timeZone, tzSource,
       syncSchedulePresets: SYNC_SCHEDULE_PRESETS, customSyncSchedule: CUSTOM_SYNC_SCHEDULE,
@@ -4542,7 +4547,7 @@ const SettingsView = {
       deleteAfterPlexRefreshOnly,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
-      resetting, resetError, resetFreetvarr, reopenWizard,
+      resetting, resetError, askResetFreetvarr, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
       importUnmatched, showArtworkLookup, plexOneOffSectionId, plexMoviesSectionId,
@@ -5900,6 +5905,8 @@ const WelcomeView = {
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -6156,11 +6163,17 @@ const WelcomeView = {
       } catch { /* wizard closes anyway */ }
     }
 
-    const skipToSettings = async () => {
-      if (!confirm(wizardSkipPrompt({ tvhConnected: tvhConnected.value }))) return
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+
+    const leaveSetup = async () => {
       await dismiss()
       window.location.hash = '#/settings'
     }
+
+    const skipToSettings = () => askConfirm({
+      dialog: wizardSkipConfirm({ tvhConnected: tvhConnected.value }),
+      run: leaveSetup,
+    })
 
     const back = () => {
       if (step.value > 1) {
@@ -6551,7 +6564,7 @@ const WelcomeView = {
       focusFirstFieldOnOpen, manualLogin,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
-      back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
+      back, next, skipToSettings, confirming, confirmBusy, closeConfirm, runConfirmed, loadPlexSections, testTvh, advanceHint,
       showSecure, secureStepsVisible, backToSecureForm, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
       securePrefixes, secureShownSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
@@ -7060,7 +7073,7 @@ const ConfirmDialog = {
                 <p v-for="(line, i) in dialog.body" :key="i" class="text-sm text-ink confirm-dialog-line">{{ line }}</p>
               </div>
               <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-                <button type="button" class="btn mr-auto" @click="cancel" :disabled="busy">CANCEL</button>
+                <button type="button" class="btn mr-auto" @click="cancel" :disabled="busy">{{ dialog.keepLabel }}</button>
                 <button type="button" :class="['btn', dialog.danger ? 'btn-danger' : 'btn-primary']" @click="$emit('confirm')" :disabled="busy">
                   <template v-if="busy">{{ dialog.busyLabel }}</template>
                   <template v-else><component v-if="icon" :is="icon" /> {{ dialog.confirmLabel }}</template>
@@ -7107,6 +7120,30 @@ const ConfirmDialog = {
 }
 
 let confirmDialogCount = 0
+
+const useConfirm = () => {
+  const confirming = ref(null)
+  const confirmBusy = ref(false)
+
+  const askConfirm = ({ dialog, icon = '', run }) => {
+    confirming.value = { dialog, icon, run }
+  }
+
+  const closeConfirm = () => { confirming.value = null }
+
+  const runConfirmed = async () => {
+    const { run } = confirming.value
+    confirmBusy.value = true
+    try {
+      await run()
+    } finally {
+      confirmBusy.value = false
+      confirming.value = null
+    }
+  }
+
+  return { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed }
+}
 
 const useSheet = () => {
   const open = ref(false)
@@ -7344,7 +7381,6 @@ const ChannelsModal = {
           <p v-if="guideStatusText" :class="['status-readout', guideStatusKind, 'text-right']">{{ guideStatusText }}</p>
           <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
             <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
-            <button type="button" class="btn btn-sm" @click="$emit('close')">CANCEL</button>
             <button type="button" class="btn btn-sm btn-primary" @click="save" :disabled="savingPrefs || guideLoading">
               {{ savingPrefs ? 'SAVING…' : 'SAVE' }}
             </button>
@@ -8699,21 +8735,6 @@ const EpgView = {
       }
     }
 
-    const cancelUpcoming = async (r) => {
-      if (!confirm(`Cancel the scheduled recording of "${r.name}"?`)) return
-      busyId.value = r.programId
-      try {
-        await api('POST', '/api/epg/cancel', { program_id: r.programId })
-        flash({ msg: `Cancelled "${r.name}".` })
-        refreshAfterRecordingChange()
-        await loadState({ fresh: true })
-      } catch (err) {
-        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
-      } finally {
-        busyId.value = null
-      }
-    }
-
     const reloadGuide = async () => {
       guideByDay.clear()
       await loadDay(day.value, { force: true })
@@ -9053,7 +9074,7 @@ const EpgView = {
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries,
       dialogFocus, cancelSeriesStep, openCancelSeriesStep, showRecordSettings, selectedSeriesLink, selectedStatusText, actionOutcomes,
-      upcoming, cancelUpcoming,
+      upcoming,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, cellHasThumb,

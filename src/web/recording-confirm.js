@@ -17,6 +17,7 @@ export const removeFromTvhConfirm = ({ recording }) => ({
     'This takes a few seconds. You cannot undo it.',
   ],
   confirmLabel: 'REMOVE FROM TVHEADEND',
+  keepLabel: 'KEEP IN TVHEADEND',
   busyLabel: 'REMOVING…',
   danger: true,
 })
@@ -39,6 +40,7 @@ export const clearListConfirm = ({ count, undoSeconds }) => {
         + ` Without a clear, rows like these leave the list ${TOMBSTONE_DAYS} days after TVHeadend removed them.`,
     ],
     confirmLabel: 'CLEAR FROM LIST',
+    keepLabel: 'KEEP IN LIST',
     busyLabel: 'CLEARING…',
     danger: true,
   }
@@ -62,6 +64,7 @@ const findAdsConfirm = ({ recording }) => ({
     lastResultText(recording),
   ].filter(Boolean),
   confirmLabel: 'FIND ADS',
+  keepLabel: "DON'T SCAN",
   busyLabel: 'STARTING…',
   danger: false,
 })
@@ -80,6 +83,7 @@ const cutAdsConfirm = ({ recording, retentionDays }) => ({
       : lastResultText(recording),
   ].filter(Boolean),
   confirmLabel: 'CUT ADS',
+  keepLabel: "DON'T SCAN",
   busyLabel: 'STARTING…',
   danger: true,
 })
@@ -92,6 +96,7 @@ const clearRemovedRowConfirm = ({ recording, undoSeconds }) => ({
     `For ${undoSeconds} seconds, UNDO puts the row back.`,
   ],
   confirmLabel: 'CLEAR FROM LIST',
+  keepLabel: 'KEEP IN LIST',
   busyLabel: 'CLEARING…',
   danger: true,
 })
@@ -103,6 +108,7 @@ const clearHeldRowConfirm = ({ recording }) => ({
     'While TVHeadend has the recording, the next sync adds the row back and decides again whether to import it.',
   ],
   confirmLabel: 'CLEAR FROM LIST',
+  keepLabel: 'KEEP IN LIST',
   busyLabel: 'CLEARING…',
   danger: true,
 })

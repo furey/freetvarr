@@ -1529,6 +1529,12 @@ svg.epg-rail-logo {
   padding-top: 0.9rem;
 }
 
+.series-editor > .series-editor-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -0.5rem;
+}
+
 .field-prefixed {
   display: flex;
   align-items: stretch;

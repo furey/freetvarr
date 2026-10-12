@@ -89,7 +89,7 @@ The dialog shows the full path for future episodes. Episodes already imported st
 - **AD REMOVAL**: **OFF**, **DETECT**, or **CUT**. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in **SETTINGS**.
 - **REMOVE FROM TVHEADEND AFTER IMPORT**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 
-Press **SAVE** to keep the changes. A change to **SAVES TO** applies to future episodes only (episodes already imported stay where they are).
+Press **SAVE** to keep the changes. To close the form without saving, press × in its top-right corner, or press `Esc`. A change to **SAVES TO** applies to future episodes only (episodes already imported stay where they are).
 
 **UNASSIGN FOLDER** removes the folder from the series, after you confirm. Future episodes then save to the one-off folder again. When **IMPORT EVERY RECORDING** is off in **SETTINGS**, they wait in [Recordings](/guide/recordings) instead. Episodes already imported stay where they are.
 

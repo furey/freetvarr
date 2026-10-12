@@ -25,6 +25,16 @@ const recording = (overrides = {}) => ({
   ...overrides,
 })
 
+test('every recording confirm names what its dismiss button keeps', () => {
+  const base = recording({ deleted_from_tvh_at: '2026-10-01' })
+  assert.equal(adScanConfirm({ recording: base }).keepLabel, "DON'T SCAN")
+  assert.equal(adScanConfirm({ recording: { ...base, show_ad_removal: 'cut' } }).keepLabel, "DON'T SCAN")
+  assert.equal(removeFromTvhConfirm({ recording: base }).keepLabel, 'KEEP IN TVHEADEND')
+  assert.equal(clearRowConfirm({ recording: base, undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
+  assert.equal(clearRowConfirm({ recording: recording(), undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
+  assert.equal(clearListConfirm({ count: 2, undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
+})
+
 test('adScanModeOf: CUT only when the show cuts; OFF and one-offs detect', () => {
   assert.equal(adScanModeOf({ show_ad_removal: 'cut' }), 'cut')
   assert.equal(adScanModeOf({ show_ad_removal: 'detect' }), 'detect')
