@@ -33,6 +33,11 @@ To watch live TV only, you need just the tuner and its free app. The drive and t
 
 ## What the Fetch box did
 
+<div class="product-shot">
+  <img src="https://main.fetchtv.com.au/hs-fs/hubfs/mighty-4k.webp" alt="A black Fetch Mighty set-top box with its remote control" width="652" height="262" loading="lazy" referrerpolicy="no-referrer">
+  <p>Fetch's current Mighty box and remote.<br><em>Image: <a href="https://www.fetchtv.com.au/">Fetch TV</a>, shown from fetchtv.com.au.</em></p>
+</div>
+
 | Job                 | Fetch box                          | Replacement                                                                     |
 | ------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
 | Live free-to-air TV | Fetch's guide and remote           | A network tuner and its free app (Path 1), or Freetvarr in any browser (Path 2) |

@@ -33,8 +33,8 @@ It is a network tuner: it plugs into your router, or a switch on your home netwo
 No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
 
 <div class="product-shot">
-  <img src="../img/hardware/hdhomerun-early.webp" alt="A pale grey HDHomeRun box, about the size of a paperback book, with HDTV moulded into its lid" width="1000" height="538" loading="lazy">
-  <p>An early HDHomeRun from 2008. Current models such as the Flex Quatro are a different shape, but connect the same way: an aerial lead and a network cable.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:SiliconDust_HDHR_Front.jpeg">Zuzu</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
+  <img src="https://shop.silicondust.com/shop/wp-content/uploads/2020/11/UK-Quatro-for-shopsite.jpg" alt="A black HDHomeRun Flex Quatro network tuner, a small square box" width="400" height="400" loading="lazy" referrerpolicy="no-referrer">
+  <p>The HDHomeRun Flex Quatro: four tuners, an aerial socket, and a network port.<br><em>Image: <a href="https://shop.silicondust.com/shop/product/hdfx-4dt/">SiliconDust</a>, shown from silicondust.com.</em></p>
 </div>
 
 ### Direct to a spare NAS port
