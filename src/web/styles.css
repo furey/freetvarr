@@ -22,6 +22,11 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+p,
+li {
+  text-wrap: pretty;
+}
+
 #app {
   min-height: 100dvh;
   background-image:

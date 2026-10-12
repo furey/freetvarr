@@ -21,7 +21,8 @@ import {
   missingTeletext,
   withCaptionLabels,
   liveContentType,
-  withCaptionCueSettings,
+  servedCaptionSegment,
+  captionCuesOf,
   CAPTION_CUE_SETTINGS,
 } from '../src/live-tv.js'
 
@@ -705,42 +706,77 @@ test('liveContentType: playlists, caption segments, and video segments', () => {
   assert.equal(liveContentType('seg3.ts'), 'video/mp2t')
 })
 
-const CAPTION_SEGMENT = [
-  'WEBVTT',
-  '',
-  '00:10.080 --> 00:10.400',
-  "to Kohl's, including a year's worth",
-  'of groceries.',
-  '',
-  '01:00:10.400 --> 01:00:10.520 line:0',
-  'of groceries. Can',
-  '',
-].join('\n')
 
-test('withCaptionCueSettings: places every cue low and left-aligned, replacing any settings', () => {
+const HEADER = 'WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:0,LOCAL:00:00:00.000'
+const cueBlock = (timing, ...rows) => [`${timing} ${CAPTION_CUE_SETTINGS}`, ...rows].join('\n')
+const served = (...blocks) => [HEADER, ...blocks].join('\n\n') + '\n'
+
+test('servedCaptionSegment: adds the timestamp map and places every cue low and left-aligned', () => {
   assert.equal(CAPTION_CUE_SETTINGS, 'line:85%,end align:start position:10% size:80%')
-  assert.equal(withCaptionCueSettings(CAPTION_SEGMENT), [
-    'WEBVTT',
-    '',
-    `00:10.080 --> 00:10.400 ${CAPTION_CUE_SETTINGS}`,
-    "to Kohl's, including a year's worth",
-    'of groceries.',
-    '',
-    `01:00:10.400 --> 01:00:10.520 ${CAPTION_CUE_SETTINGS}`,
-    'of groceries. Can',
-    '',
-  ].join('\n'))
+  assert.equal(servedCaptionSegment({ vtt: 'WEBVTT\n\n00:01.000 --> 00:02.000 line:0\n2 --> 1\n' }), served(
+    cueBlock('00:01.000 --> 00:02.000', '2 --> 1'),
+  ))
+  assert.equal(servedCaptionSegment({ vtt: 'WEBVTT\n' }), served())
 })
 
-test('withCaptionCueSettings: leaves cue text, empty segments, and its own output unchanged', () => {
-  const arrowText = 'WEBVTT\n\n00:01.000 --> 00:02.000\n2 --> 1\n'
-  assert.equal(
-    withCaptionCueSettings(arrowText),
-    `WEBVTT\n\n00:01.000 --> 00:02.000 ${CAPTION_CUE_SETTINGS}\n2 --> 1\n`,
-  )
-  assert.equal(withCaptionCueSettings('WEBVTT\n\n'), 'WEBVTT\n\n')
-  const once = withCaptionCueSettings(CAPTION_SEGMENT)
-  assert.equal(withCaptionCueSettings(once), once)
+test('servedCaptionSegment: keeps the previous line above the new one, as a TV does', () => {
+  const vtt = [
+    'WEBVTT', '',
+    '00:32.194 --> 00:33.674', 'You could get $0 hearing aids', '',
+    '00:33.674 --> 00:35.234', 'with Specsavers Audiology.', '',
+    '00:35.234 --> 00:37.114', "They're fully funded", 'by the government.', '',
+  ].join('\n')
+  assert.equal(servedCaptionSegment({ vtt }), served(
+    cueBlock('00:32.194 --> 00:33.674', 'You could get $0 hearing aids'),
+    cueBlock('00:33.674 --> 00:35.234', 'You could get $0 hearing aids', 'with Specsavers Audiology.'),
+    cueBlock('00:35.234 --> 00:37.114', "They're fully funded", 'by the government.'),
+  ))
+})
+
+test('servedCaptionSegment: carries the last line over from earlier segments', () => {
+  const earlierVtts = ['WEBVTT\n\n00:30.874 --> 00:32.194\nVOICEOVER:\n', 'WEBVTT\n']
+  const vtt = 'WEBVTT\n\n00:32.194 --> 00:33.674\nYou could get $0 hearing aids\n'
+  assert.equal(servedCaptionSegment({ vtt, earlierVtts }), served(
+    cueBlock('00:32.194 --> 00:33.674', 'VOICEOVER:', 'You could get $0 hearing aids'),
+  ))
+})
+
+test('servedCaptionSegment: closes short gaps between captions so they do not flicker', () => {
+  const vtt = 'WEBVTT\n\n06:29.914 --> 06:30.914\nThere we are.\n\n06:31.034 --> 06:32.274\nOlwen, it is over to you.\n'
+  assert.equal(servedCaptionSegment({ vtt }), served(
+    cueBlock('06:29.914 --> 06:31.034', 'There we are.'),
+    cueBlock('06:31.034 --> 06:32.274', 'There we are.', 'Olwen, it is over to you.'),
+  ))
+})
+
+test('servedCaptionSegment: starts the first caption at the end of the last one in earlier segments', () => {
+  const earlierVtts = ['WEBVTT\n\n06:29.914 --> 06:30.914\nThere we are.\n']
+  const vtt = 'WEBVTT\n\n06:31.034 --> 06:32.274\nOlwen, it is over to you.\n'
+  assert.equal(servedCaptionSegment({ vtt, earlierVtts }), served(
+    cueBlock('06:30.914 --> 06:32.274', 'There we are.', 'Olwen, it is over to you.'),
+  ))
+})
+
+test('servedCaptionSegment: starts a fresh screen after a pause of more than a second', () => {
+  const vtt = 'WEBVTT\n\n00:01.000 --> 00:02.000\nFirst.\n\n00:03.500 --> 00:05.000\nAfter a pause.\n'
+  assert.equal(servedCaptionSegment({ vtt }), served(
+    cueBlock('00:01.000 --> 00:02.000', 'First.'),
+    cueBlock('00:03.500 --> 00:05.000', 'After a pause.'),
+  ))
+})
+
+test('servedCaptionSegment: replaces a line that grows word by word instead of repeating it', () => {
+  const vtt = [
+    'WEBVTT', '',
+    '00:10.080 --> 00:10.400', "to Kohl's, including a year's worth", 'of groceries.', '',
+    '01:00:10.400 --> 01:00:10.520', 'of groceries. Can', '',
+  ].join('\n')
+  const [, second] = captionCuesOf(vtt)
+  assert.equal(second.start, 3610.4)
+  assert.equal(servedCaptionSegment({ vtt: vtt.replace('01:00:10.400', '00:10.400') }), served(
+    cueBlock('00:10.080 --> 00:10.400', "to Kohl's, including a year's worth", 'of groceries.'),
+    cueBlock('00:10.400 --> 01:00:10.520', "to Kohl's, including a year's worth", 'of groceries. Can'),
+  ))
 })
 
 test('sessions: readiness reads the media playlist, and each playlist is served rewritten', async () => {

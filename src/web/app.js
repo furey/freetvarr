@@ -2237,7 +2237,7 @@ const FolderEditor = {
     const confirming = ref(false)
     const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
     const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
-    const removeTitle = computed(() => (props.isSeries ? 'Unassign the folder' : 'Remove the title match'))
+    const removeTitle = computed(() => (props.isSeries ? 'Unassign folder' : 'Remove title match'))
     const removeOutcome = computed(() => {
       const condition = props.isSeries
         ? 'If you unassign this series folder, future episodes'

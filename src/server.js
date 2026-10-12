@@ -137,7 +137,7 @@ import {
   describeStallFor,
   openUpstreamFor,
   liveContentType,
-  withCaptionCueSettings,
+  servedCaptionSegment,
 } from './live-tv.js'
 import { detectCaptionDecoder, detectLiveEncoder, describeLiveEncoder, DEFAULT_VAAPI_DEVICE } from './live-encoder.js'
 import {
@@ -919,11 +919,25 @@ app.get('/api/live/:session/:file', async (req, res) => {
 
 const sendCaptionSegment = async (res, filePath) => {
   try {
-    res.send(withCaptionCueSettings(await fs.readFile(filePath, 'utf8')))
+    const [vtt, earlierVtts] = await Promise.all([fs.readFile(filePath, 'utf8'), earlierCaptionSegments(filePath)])
+    res.send(servedCaptionSegment({ vtt, earlierVtts }))
   } catch {
     res.status(404).end()
   }
 }
+
+const earlierCaptionSegments = async (filePath) => {
+  const match = path.basename(filePath).match(CAPTION_SEGMENT_NAME)
+  if (!match) return []
+  const index = Number(match[2])
+  const names = Array.from({ length: EARLIER_CAPTION_SEGMENTS }, (_, i) => index - EARLIER_CAPTION_SEGMENTS + i)
+    .filter((n) => n >= 0)
+    .map((n) => path.join(path.dirname(filePath), `${match[1]}${n}.vtt`))
+  return Promise.all(names.map((name) => fs.readFile(name, 'utf8').catch(() => '')))
+}
+
+const CAPTION_SEGMENT_NAME = /^(.*?)(\d+)\.vtt$/
+const EARLIER_CAPTION_SEGMENTS = 3
 
 app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
   const held = await liveSessions.hold(String(req.params.session))

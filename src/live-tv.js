@@ -158,9 +158,65 @@ const CAPTION_LINE_PERCENT = 85
 export const CAPTION_CUE_SETTINGS = `line:${CAPTION_LINE_PERCENT}%,end align:start position:10% size:80%`
 
 const CUE_TIMESTAMP = String.raw`(?:\d+:)?\d{2}:\d{2}\.\d{3}`
-const CUE_TIMING_LINE = new RegExp(`^(${CUE_TIMESTAMP} --> ${CUE_TIMESTAMP}).*$`, 'gm')
 
-export const withCaptionCueSettings = (vtt) => vtt.replace(CUE_TIMING_LINE, `$1 ${CAPTION_CUE_SETTINGS}`)
+export const servedCaptionSegment = ({ vtt, earlierVtts = [] }) => {
+  const earlierCues = earlierVtts.flatMap(captionCuesOf)
+  const cues = captionCuesOf(vtt)
+  const screens = captionScreensOf([...earlierCues, ...cues]).slice(earlierCues.length)
+  const blocks = cues.map((cue, i) => [
+    `${startTextOf(cue, i ? null : earlierCues.at(-1))} --> ${endTextOf(cue, cues[i + 1])} ${CAPTION_CUE_SETTINGS}`,
+    ...screens[i],
+  ].join('\n'))
+  return [CAPTION_SEGMENT_HEADER, ...blocks].join('\n\n') + '\n'
+}
+
+export const captionCuesOf = (vtt) => vtt
+  .split(/\r?\n\r?\n/)
+  .map((block) => block.split(/\r?\n/))
+  .map((lines) => ({ lines, timingIndex: lines.findIndex((line) => CUE_TIMING_PARTS.test(line)) }))
+  .filter(({ timingIndex }) => timingIndex >= 0)
+  .map(({ lines, timingIndex }) => {
+    const [, start, end] = lines[timingIndex].match(CUE_TIMING_PARTS)
+    return {
+      startText: start,
+      endText: end,
+      start: cueSecondsOf(start),
+      end: cueSecondsOf(end),
+      rows: lines.slice(timingIndex + 1).filter(Boolean),
+    }
+  })
+
+const captionScreensOf = (cues) => {
+  let screen = []
+  let previousEnd = -Infinity
+  return cues.map((cue) => {
+    const kept = cue.start - previousEnd <= CAPTION_ROLL_UP_GAP_SECONDS ? screen : []
+    screen = [...withoutGrownRow(kept, cue.rows[0]), ...cue.rows].slice(-CAPTION_SCREEN_ROWS)
+    previousEnd = cue.end
+    return screen
+  })
+}
+
+const startTextOf = (cue, earlier) =>
+  (earlier && isRollUpGap(cue.start - earlier.end) ? earlier.endText : cue.startText)
+
+const endTextOf = (cue, next) => (next && isRollUpGap(next.start - cue.end) ? next.startText : cue.endText)
+
+const isRollUpGap = (seconds) => seconds > 0 && seconds <= CAPTION_ROLL_UP_GAP_SECONDS
+
+const withoutGrownRow = (rows, nextRow = '') => {
+  const last = rows.at(-1)
+  return last && nextRow.startsWith(last) ? rows.slice(0, -1) : rows
+}
+
+const cueSecondsOf = (timestamp) => timestamp
+  .split(':')
+  .reduce((total, part) => total * 60 + Number(part), 0)
+
+const CAPTION_SEGMENT_HEADER = 'WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:0,LOCAL:00:00:00.000'
+const CAPTION_SCREEN_ROWS = 2
+const CAPTION_ROLL_UP_GAP_SECONDS = 1
+const CUE_TIMING_PARTS = new RegExp(`^(${CUE_TIMESTAMP}) --> (${CUE_TIMESTAMP})`)
 
 export const liveContentType = (name) => {
   if (name.endsWith('.m3u8')) return 'application/vnd.apple.mpegurl'
