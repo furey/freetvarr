@@ -39,11 +39,6 @@ To watch live TV only, you need just the tuner and its free app. The drive and t
 
 ## What the Fetch box did
 
-<div class="product-shot">
-  <img src="https://main.fetchtv.com.au/hs-fs/hubfs/mighty-4k.webp" alt="A black Fetch Mighty set-top box with its remote control" width="652" height="262" loading="lazy" referrerpolicy="no-referrer">
-  <p>Fetch's current Mighty box and remote.<br><em>Image: <a href="https://www.fetchtv.com.au/">Fetch TV</a>, shown from fetchtv.com.au.</em></p>
-</div>
-
 | Job                 | Fetch box                          | Replacement                                                                     |
 | ------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
 | Live free-to-air TV | Fetch's guide and remote           | A network tuner and its free app (Path 1), or Freetvarr in any browser (Path 2) |
@@ -66,6 +61,11 @@ The facts below come from Fetch's [Extended Service Levy](https://news.fetchtv.c
 - **Apps**: Fetch removes some apps from Gen 3 boxes whether you pay or not. [CyberShack reports](https://cybershack.com.au/consumer-advice/fetch-tv-gen-3/) that the Mini loses Netflix, Paramount+, SBS On Demand, and Hayu, and the Mighty loses Paramount+.
 
 Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at `$4.99` a month.
+
+<div class="product-shot">
+  <img src="https://main.fetchtv.com.au/hs-fs/hubfs/mighty-4k.webp" alt="A black Fetch Mighty set-top box with its remote control" width="652" height="262" loading="lazy" referrerpolicy="no-referrer">
+  <p>The new Fetch Mighty and its remote.<br><em>Image: <a href="https://www.fetchtv.com.au/">Fetch TV</a>, shown from fetchtv.com.au.</em></p>
+</div>
 
 > [!WARNING]<br>
 > Save your recordings first. Once the box is cancelled or suspended, you cannot play or copy them. [Saving your Fetch recordings](#saving-your-fetch-recordings) takes an afternoon; do it before you cancel and before `1 November 2026`.
