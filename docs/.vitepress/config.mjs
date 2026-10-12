@@ -53,7 +53,7 @@ export default withMermaid(defineConfig({
   title: 'Freetvarr',
   description:
     'Watch live TV in your browser and sync TVHeadend recordings into Plex. A self-hosted companion for TVHeadend and compatible tuner.',
-  appearance: 'dark',
+  appearance: 'force-dark',
   cleanUrls: true,
   lastUpdated: true,
   metaChunk: true,
