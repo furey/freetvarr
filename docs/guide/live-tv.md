@@ -53,7 +53,7 @@ Press the **i** button beside the status under the picture, or the `i` key on a 
 
 On a wide screen, the panel also shows the programme picture. While you watch from the rewind buffer, the panel describes what you are watching, not what is on air, and reads **FROM BUFFER**. The title at the top of the player changes when a new programme starts. If the guide has nothing for the channel, the panel says so.
 
-Press the button again, press `Esc`, or click the picture above the panel to close it. That click closes the panel only: it does not pause or skip. The player's own controls come back when the panel closes. Double-click the middle of the picture, or press the `f` key, to go full screen with the panel. The full-screen button in the player's own controls shows the picture only.
+Press the button again, press `Esc`, or click the picture above the panel to close it. That click closes the panel only: it does not pause or skip. The player's own controls come back when the panel closes. Press the full-screen button beside **PAUSE**, double-click the middle of the picture, or press the `f` key to go full screen. In full screen, the info, **CC**, and close buttons show at the top right of the picture.
 
 ## Captions
 

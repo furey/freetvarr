@@ -89,7 +89,7 @@ export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, pro
   '-hls_time', String(HLS_SEGMENT_SECONDS),
   '-hls_init_time', String(HLS_INIT_SEGMENT_SECONDS),
   '-hls_list_size', String(segmentCount),
-  '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file',
+  '-hls_flags', 'delete_segments+independent_segments+omit_endlist+temp_file+program_date_time',
   '-hls_segment_filename', path.join(dir, 'seg%d.ts'),
   '-master_pl_name', MASTER_PLAYLIST,
   '-var_stream_map', variantStreamMap(plan),
@@ -132,12 +132,33 @@ export const missingTeletext = ({ plan, errorLines = [] }) => {
 export const withoutCutInSegment = (playlist, cutInFile = CUT_IN_FILES[MEDIA_PLAYLIST]) => {
   const lines = playlist.split('\n')
   const cutIn = lines.indexOf(cutInFile)
-  if (cutIn < 1 || !lines[cutIn - 1].startsWith('#EXTINF')) return playlist
+  const firstTag = lines[cutIn - 1]?.startsWith(PROGRAM_DATE_TIME) ? cutIn - 2 : cutIn - 1
+  if (cutIn < 1 || !lines[firstTag]?.startsWith('#EXTINF')) return playlist
   return lines
-    .filter((_, i) => i !== cutIn && i !== cutIn - 1)
+    .filter((_, i) => i < firstTag || i > cutIn)
     .map((line) => line.startsWith('#EXT-X-MEDIA-SEQUENCE:0') ? '#EXT-X-MEDIA-SEQUENCE:1' : line)
     .join('\n')
 }
+
+export const withCaptionDateTimes = ({ captions, media }) => {
+  const dateTimes = dateTimesBySegment(media)
+  return captions
+    .split('\n')
+    .flatMap((line) => (dateTimes.has(segmentNumberOf(line)) ? [dateTimes.get(segmentNumberOf(line)), line] : [line]))
+    .join('\n')
+}
+
+const dateTimesBySegment = (media) => {
+  const lines = media.split('\n')
+  return new Map(lines.flatMap((line, i) => (lines[i - 1]?.startsWith(PROGRAM_DATE_TIME) && segmentNumberOf(line) != null
+    ? [[segmentNumberOf(line), lines[i - 1]]]
+    : [])))
+}
+
+const segmentNumberOf = (line) => line.match(SEGMENT_NUMBER)?.[1] ?? null
+
+const PROGRAM_DATE_TIME = '#EXT-X-PROGRAM-DATE-TIME:'
+const SEGMENT_NUMBER = /^(?:seg|live)(\d+)\.(?:ts|vtt)$/
 
 export const startsOnKeyframe = (plan) => plan?.videoMode === 'transcode' || plan?.videoMode === 'vaapi'
 
@@ -509,8 +530,10 @@ export const createLiveSessions = ({
     const text = await readText(path.join(session.dir, name))
     if (text == null) return null
     if (name === MASTER_PLAYLIST) return withCaptionLabels(text)
-    if (startsOnKeyframe(session.plan)) return text
-    return withoutCutInSegment(text, CUT_IN_FILES[name])
+    const trimmed = startsOnKeyframe(session.plan) ? text : withoutCutInSegment(text, CUT_IN_FILES[name])
+    if (name !== CAPTIONS_PLAYLIST) return trimmed
+    const media = (await readText(path.join(session.dir, MEDIA_PLAYLIST))) ?? ''
+    return withCaptionDateTimes({ captions: trimmed, media })
   }
 
   const refreshStatus = async (session) => {
