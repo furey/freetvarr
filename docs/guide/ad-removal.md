@@ -14,7 +14,7 @@ Free-to-air recordings come with their ad breaks. Freetvarr can find those break
 
 ## Turn it on
 
-In Freetvarr, turn on ad removal in **SETTINGS → AD REMOVAL**, then press **SAVE SETTINGS**. Then, on the [SERIES tab](/guide/series#edit-a-series-folder), press **EDIT** on each series, pick a mode under **AD REMOVAL**, and press **SAVE**. Ad removal runs only when both the Settings switch and the series mode are on.
+In Freetvarr, turn on ad removal in **SETTINGS → AD REMOVAL**, then press **SAVE SETTINGS**. Then, on the [SERIES tab](/guide/series#edit-a-series-folder), press **EDIT** on each series, pick a mode under **AD REMOVAL**, and press **SAVE**. Ad removal runs only when both the **SETTINGS** switch and the series mode are on.
 
 ## Modes
 

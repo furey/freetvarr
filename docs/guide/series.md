@@ -48,7 +48,7 @@ Each row shows one series:
 
 - The title, with the channels and the number of episodes to keep.
 - **NEXT**: the next airing, or the next expected airing, with its channel.
-- **SAVES TO**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no library folder shows its folder in the one-off folder, such as `/media/one-offs/Bluey`. When **IMPORT EVERY RECORDING** is off in Settings, such a series shows that its episodes wait in [Recordings](/guide/recordings).
+- **SAVES TO**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no library folder shows its folder in the one-off folder, such as `/media/one-offs/Bluey`. When **IMPORT EVERY RECORDING** is off in **SETTINGS**, such a series shows that its episodes wait in [Recordings](/guide/recordings).
 
 A row shows a `PAUSED` badge when the series recording in TVHeadend is paused. A row with no badge records new episodes as normal.
 
@@ -86,12 +86,12 @@ The dialog shows the full path for future episodes. Episodes already imported st
 - **SAVES TO**: the folder under your media root (shown before the field) where the series goes. As you type, Freetvarr suggests matching folders that are already there.
 - **SEASON FOLDERS**: the [season template](#season-template).
 - **RECORDING TITLES THAT CONTAIN**: the title that Freetvarr matches. It ignores case.
-- **AD REMOVAL**: `OFF`, `DETECT`, or `CUT`. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in Settings.
+- **AD REMOVAL**: **OFF**, **DETECT**, or **CUT**. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in **SETTINGS**.
 - **REMOVE FROM TVHEADEND AFTER IMPORT**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 
 Press **SAVE** to keep the changes. A change to **SAVES TO** applies to future episodes only (episodes already imported stay where they are).
 
-**UNASSIGN FOLDER** removes the folder from the series, after you confirm. Future episodes then save to the one-off folder again. When **IMPORT EVERY RECORDING** is off in Settings, they wait in [Recordings](/guide/recordings) instead. Episodes already imported stay where they are.
+**UNASSIGN FOLDER** removes the folder from the series, after you confirm. Future episodes then save to the one-off folder again. When **IMPORT EVERY RECORDING** is off in **SETTINGS**, they wait in [Recordings](/guide/recordings) instead. Episodes already imported stay where they are.
 
 ## Season template
 
@@ -132,11 +132,11 @@ A recording that matches no series folder, such as a sports final or a special, 
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts
 ```
 
-The one-off folder stays out of the TV library on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. In your media server, point a separate library at the folder instead (in Plex, use the **Other Videos** library type). See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the Settings switch that turns this off.
+The one-off folder stays out of the TV library on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. In your media server, point a separate library at the folder instead (in Plex, use the **Other Videos** library type). See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the **SETTINGS** switch that turns this off.
 
 ## Films
 
-Set a **movies folder** in Settings, and a film with no series folder goes there instead, named the way movie libraries expect:
+Set a **movies folder** in **SETTINGS**, and a film with no series folder goes there instead, named the way movie libraries expect:
 
 ```text
 Isle Of Dogs (2018)/Isle Of Dogs (2018).ts

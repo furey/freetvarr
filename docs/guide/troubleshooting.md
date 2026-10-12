@@ -14,7 +14,7 @@ Each section starts from what you see, then gives the cause and the fix. The sec
 
 ## TVHeadend 401 or 403
 
-Freetvarr shows `Failed: TVHeadend rejected the credentials (HTTP 401).` or the same with `HTTP 403`, in the wizard, in Settings, or on a tab that reads from TVHeadend. Settings adds the API path that failed, such as `(stage: serverinfo)`.
+Freetvarr shows `Failed: TVHeadend rejected the credentials (HTTP 401).` or the same with `HTTP 403`, in the wizard, in **SETTINGS**, or on a tab that reads from TVHeadend. Settings adds the API path that failed, such as `(stage: serverinfo)`.
 
 - **`401` with an empty username**: TVHeadend asks for a login and Freetvarr sent none. Enter the username and password of the TVHeadend user ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 - **`403` at `serverinfo`**: TVHeadend refused the login. Check these in order:
@@ -140,7 +140,7 @@ TVHeadend finished a recording, but nothing appears on the RECORDINGS tab or in 
 - **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series](/guide/series)). Press **SERIES** in the TV Guide, or use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.
 - **The sync hasn't run yet.** The default **SYNC SCHEDULE** is `Every 30 minutes`. Press `SYNC NOW` on the dashboard to run one at once.
-- **It came in as `skipped` or `partial`.** See the next two sections.
+- **It came in as SKIPPED or PARTIAL.** See the next two sections.
 
 ## Skipped recordings
 
@@ -151,7 +151,7 @@ The row's error text on the RECORDINGS tab says which of the two causes it was:
 
 ## Partial recordings
 
-- The imported file came up more than `1MB` short of what TVHeadend reported. The next sync imports the file again. If it stays `partial`, the source itself is short. In TVHeadend's web interface, check the status of that entry (it usually reports data errors from a weak signal).
+- The imported file came up more than `1MB` short of what TVHeadend reported. The next sync imports the file again. If it stays **PARTIAL**, the source itself is short. In TVHeadend's web interface, check the status of that entry (it usually reports data errors from a weak signal).
 
 ## Slow imports
 
@@ -235,7 +235,7 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 ## Wrong timestamps
 
 - Freetvarr uses the time zone you chose in the wizard. If Doctor warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in SETTINGS, in the SCHEDULE panel. Freetvarr shows every time in that zone, on every device.
-- A `TZ` in your `.env` only pre-fills the zone. The zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings, or correct `TZ` (e.g. `Australia/Sydney`) and run `docker compose up -d` to recreate the Docker containers.
+- A `TZ` in your `.env` only pre-fills the zone. The zone chosen in **SETTINGS** wins. If `TZ` is wrong and no zone is chosen, choose one in **SETTINGS**, or correct `TZ` (e.g. `Australia/Sydney`) and run `docker compose up -d` to recreate the Docker containers.
 - TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
 
 ## CSRF secret

@@ -1321,7 +1321,7 @@ const RecordingNowPanel = {
           <info-button :title="title" doc="guide/tv-guide#on-the-dashboard">
             <p>One card for each programme TVHeadend is recording now. The orange bar runs from the padded start to the padded stop; the dim ends are the early start and the late finish.</p>
             <p>The line under the bar shows the file size, bitrate, tuner signal, and errors, as TVHeadend reports them.</p>
-            <p>When a recording stops, its card steps through <strong>Recorded</strong>, <strong>Importing</strong>, <strong>Cutting ads</strong>, and <strong>In Plex</strong>. Importing waits for the next sync. The card goes about ten minutes after the last step.</p>
+            <p>When a recording stops, its card steps through <strong>Recorded</strong>, <strong>Importing</strong>, <strong>Finding ads</strong> or <strong>Cutting ads</strong>, and <strong>In Plex</strong>. <strong>Importing</strong> waits for the next sync. The card goes about ten minutes after the last step.</p>
           </info-button>
         </span>
         <span v-if="summary" class="text-xs font-mono uppercase tracking-[0.16em] text-signal-orange">{{ summary }}</span>
@@ -1519,7 +1519,7 @@ const LiveView = {
           <span class="panel-heading">
             <span class="panel-title">LIVE TV</span>
             <info-button title="LIVE TV" doc="guide/live-tv#in-freetvarr">
-              <p>Every channel in TVHeadend, with what is on now and next. Tap a channel to watch it in the browser. Tap <strong>INFO</strong> to open the programme's details in the TV Guide.</p>
+              <p>Every channel in TVHeadend, with what is on now and next. Tap a channel to watch it in the browser. Tap <strong>INFO</strong> to open the programme's details in the <strong>TV GUIDE</strong>.</p>
               <p>Freetvarr converts the TVHeadend stream into video the browser can play. It needs a free tuner, and a recording always takes the tuner first.</p>
               <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels. The zoom buttons change how much each row shows.</p>
             </info-button>
@@ -1759,8 +1759,8 @@ const DashboardView = {
             <span class="panel-title">WHAT'S ON</span>
             <info-button title="WHAT'S ON" doc="guide/tv-guide#on-the-dashboard">
               <p>What is on now on your favourite channels, what is on next, and the next recordings TVHeadend has scheduled. All of it comes from TVHeadend.</p>
-              <p>Star a channel in Live TV or the TV Guide to add it here.</p>
-              <p>Tap a channel to watch it live. Tap <strong>INFO</strong>, a next programme, or a recording to open its details in the TV Guide.</p>
+              <p>Star a channel in <strong>LIVE TV</strong> or the <strong>TV GUIDE</strong> to add it here.</p>
+              <p>Tap a channel to watch it live. Tap <strong>INFO</strong>, a next programme, or a recording to open its details in the <strong>TV GUIDE</strong>.</p>
             </info-button>
           </span>
           <div class="flex items-center gap-4">
@@ -1837,7 +1837,7 @@ const DashboardView = {
             <span class="panel-title">SYNC DECK</span>
             <info-button title="SYNC DECK" doc="guide/syncs#dashboard-sync-deck">
               <p>A sync reads the finished recordings in TVHeadend, imports them into your library (series episodes into their series folders, single recordings and films into the one-off and movies folders), then asks Plex to refresh.</p>
-              <ul><li><strong>STATUS</strong>: idle, or syncing.</li><li><strong>LAST SYNC</strong>: when the last sync ran, and how it went.</li><li><strong>RESULT</strong>: what it imported, or what failed.</li><li><strong>SYNC NOW</strong>: runs a sync at once, without waiting for the schedule.</li></ul>
+              <ul><li><strong>STATUS</strong>: <strong>Idle</strong> or <strong>Syncing</strong>.</li><li><strong>LAST SYNC</strong>: when the last sync ran, and how it went.</li><li><strong>RESULT</strong>: what it imported, or what failed.</li><li><strong>SYNC NOW</strong>: runs a sync at once, without waiting for the schedule.</li></ul>
               <p>The strip below shows TVHeadend, your series, the last 7 days of recordings, and Plex. Press a cell to open its page.</p>
             </info-button>
           </span>
@@ -1880,7 +1880,7 @@ const DashboardView = {
             <span class="panel-title">RECENT SYNCS</span>
             <info-button title="RECENT SYNCS" doc="guide/syncs#reading-a-sync">
               <p>The last few syncs Freetvarr ran, newest first, with what each one imported.</p>
-              <p>A sync is <strong>ok</strong> unless something failed. <strong>See all</strong> opens the Syncs tab with the full history.</p>
+              <p>A sync is <strong>OK</strong> unless something failed. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
             </info-button>
           </span>
           <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
@@ -2281,8 +2281,8 @@ const SeriesView = {
           <span class="panel-heading">
             <span class="panel-title">SERIES · {{ series.length }}</span>
             <info-button title="SERIES" doc="guide/series">
-              <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
-              <p>To record a new series, open the TV Guide, pick a programme, and press <strong>SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
+              <p>Each row is a series recording in TVHeadend. <strong>SAVES TO</strong> shows the folder where each sync saves its finished episodes.</p>
+              <p>To record a new series, open the <strong>TV GUIDE</strong>, pick a programme, and press <strong>SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
               <p><strong>CANCEL SERIES</strong> cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
               <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>ASSIGN FOLDER</strong> to give it one. <strong>UNASSIGN FOLDER</strong> in the edit form takes it away again. Episodes already imported stay where they are.</p>
               <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>CANCEL SERIES</strong> removes it.</p>
@@ -2778,7 +2778,7 @@ const SyncsView = {
             <span class="panel-title" title="Freetvarr keeps the latest 500 syncs and deletes older ones.">SYNCS · <template v-if="filter !== 'all'">{{ filterLabel }} · </template>{{ rangeLabel }} of {{ total }}</span>
             <info-button title="SYNCS" doc="guide/syncs">
               <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
-              <p>Syncs run on the schedule in Settings, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
+              <p>Syncs run on the schedule in <strong>SETTINGS</strong>, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
               <p>Filter the list by activity. The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs.</p>
             </info-button>
           </span>
@@ -2987,8 +2987,8 @@ const RecordingsView = {
           <span class="panel-heading">
             <span class="panel-title">RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
             <info-button title="RECORDINGS" doc="guide/recordings">
-              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>imported</strong>, <strong>partial</strong>, <strong>skipped</strong>, <strong>failed</strong>, or <strong>not imported</strong>. The next sync tries a partial import again.</p>
-              <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a recording that is not imported to add it to the library.</p>
+              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>IMPORTED</strong>, <strong>PARTIAL</strong>, <strong>SKIPPED</strong>, <strong>FAILED</strong>, or <strong>NOT IMPORTED</strong>. The next sync tries a <strong>PARTIAL</strong> import again.</p>
+              <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a <strong>NOT IMPORTED</strong> recording to add it to the library.</p>
               <p><strong>NOT IN TVHEADEND</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
             </info-button>
@@ -3702,7 +3702,7 @@ const SettingsView = {
               <span class="panel-title">TVHEADEND</span>
               <info-button title="TVHEADEND" doc="guide/tvheadend">
                 <p>The address and login Freetvarr uses for the TVHeadend API. Freetvarr reads the guide, channels, and recordings from it, and sets and cancels recordings.</p>
-                <p><strong>AUTO-DISCOVER</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
+                <p><strong>AUTO-DISCOVER TVHEADEND</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
               </info-button>
             </span>
             <span class="text-xs font-mono text-ink-dim">the recorder</span>
@@ -3760,7 +3760,7 @@ const SettingsView = {
             <span class="panel-heading">
               <span class="panel-title">STORAGE</span>
               <info-button title="STORAGE" doc="guide/configuration#the-two-recordings-paths">
-                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+                <ul><li><strong>MEDIA ROOT</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>ONE-OFF FOLDER</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>RECORDINGS FOLDER (AS FREETVARR SEES IT)</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>RECORDINGS FOLDER (AS TVHEADEND SEES IT)</strong>: the same folder, at the path TVHeadend reports.</li></ul>
                 <p>When both apps see the folder at the same path, the two recordings paths are the same. Keep the recordings and the media root inside one shared folder: imports are then instant and use no extra disk space.</p>
               </info-button>
             </span>
@@ -3960,7 +3960,7 @@ const SettingsView = {
               <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
                 <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file only fills in the first choice; the zone you save here wins.</p>
                 <p>How often Freetvarr checks TVHeadend for new recordings to import. <strong>Custom</strong> takes a cron expression, such as <code>0 */2 * * *</code> for every two hours.</p>
-                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the dashboard runs a sync at any time.</p>
+                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the <strong>DASHBOARD</strong> runs a sync at any time.</p>
               </info-button>
             </span>
             <span class="text-xs font-mono text-ink-dim">time zone and when Freetvarr syncs</span>
@@ -4012,8 +4012,8 @@ const SettingsView = {
               <span class="panel-title">AD REMOVAL</span>
               <info-button title="AD REMOVAL" doc="guide/ad-removal">
                 <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each series on the SERIES tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
-                <p>Detection is not always right. Use DETECT on a channel first, and check the breaks before you let it cut.</p>
+                <p>Turn it on here, then set a mode for each series on the <strong>SERIES</strong> tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Detection is not always right. Use <strong>DETECT</strong> on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
             <span class="text-xs font-mono text-ink-dim">optional</span>
@@ -4593,7 +4593,7 @@ const DoctorView = {
             <span class="panel-title">DOCTOR</span>
             <info-button title="DOCTOR" doc="guide/doctor">
               <p>Checks TVHeadend, the guide, the folders, Plex, live TV, and the host, then says what to fix.</p>
-              <ul><li><strong>Pass</strong>: nothing to do.</li><li><strong>Warn</strong>: Freetvarr works, but something costs space, guide data, or picture quality.</li><li><strong>Fail</strong>: something Freetvarr needs is broken. The row says how to fix it.</li><li><strong>Skip</strong>: the check could not run, usually because an earlier check failed.</li></ul>
+              <ul><li><strong>PASS</strong>: nothing to do.</li><li><strong>WARN</strong>: Freetvarr works, but something costs space, guide data, or picture quality.</li><li><strong>FAIL</strong>: something Freetvarr needs is broken. The row says how to fix it.</li><li><strong>SKIP</strong>: the check could not run, usually because an earlier check failed.</li></ul>
               <p><strong>RE-RUN</strong> checks again. Otherwise the results can be up to 15 seconds old.</p>
             </info-button>
           </span>
@@ -7229,9 +7229,9 @@ const ChannelsModal = {
           <span class="panel-heading">
             <span class="panel-title">CHANNELS</span>
             <info-button title="Channels" doc="guide/tv-guide#favourites">
-              <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
-              <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
-              <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the TV Guide.</p>
+              <p>Favourites sit at the top of <strong>LIVE TV</strong> and the <strong>TV GUIDE</strong>, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
+              <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order, <strong>HIDE SD SIMULCASTS</strong>, and <strong>HIDE SD CHANNELS</strong> apply to the other channels.</p>
+              <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick <strong>No listings</strong> to remove its shows. A new pick can take a minute to show in the <strong>TV GUIDE</strong>.</p>
             </info-button>
           </span>
           <button type="button" class="btn btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>

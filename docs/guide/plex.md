@@ -26,7 +26,7 @@ The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the
 5. In Freetvarr in a browser, proceed to the setup wizard's PLEX step. Freetvarr finds Plex and its token itself. If you already finished the wizard, open SETTINGS → PLEX instead, enter the URL `http://127.0.0.1:32400` and press `AUTO-DETECT TOKEN`.
 6. Check the library names and folders, then press `CREATE LIBRARIES` to create the libraries in Plex.
 
-Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a movies folder, it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings. Each library uses the language and rating system of the country from your time zone.
+Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a movies folder, it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in **SETTINGS**. Each library uses the language and rating system of the country from your time zone.
 
 Plex keeps its settings in `${CONFIG_PATH}/plex` and reads your library at `/data/media`, the same paths as Freetvarr. To finish the Plex setup (for example, to name the server), open `http://<host-ip>:32400/web` in a browser.
 
@@ -53,7 +53,7 @@ Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/t
 
 ## The one-off library
 
-Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **PLEX ONE-OFF SECTION** in Settings. Other Videos does no online matching, so a sports final or a special keeps its own title.
+Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **PLEX ONE-OFF SECTION** in **SETTINGS**. Other Videos does no online matching, so a sports final or a special keeps its own title.
 
 If you set a movies folder, point a **Movies** library at it and choose that library as the **PLEX MOVIES SECTION**.
 
