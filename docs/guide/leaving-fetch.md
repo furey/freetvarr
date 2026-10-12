@@ -15,6 +15,12 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 ## What you'll need
 
 1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun is a good one. The Flex Quatro has four tuners inside, so it receives four channels at once.
+
+   <div class="product-shot">
+     <img src="https://shop.silicondust.com/shop/wp-content/uploads/2020/11/UK-Quatro-for-shopsite.jpg" alt="A black HDHomeRun Flex Quatro network tuner, a small square box" width="400" height="400" loading="lazy" referrerpolicy="no-referrer">
+     <p>The HDHomeRun Flex Quatro. The aerial lead and a network cable plug into the back.<br><em>Image: <a href="https://shop.silicondust.com/shop/product/hdfx-4dt/">SiliconDust</a>, shown from silicondust.com.</em></p>
+   </div>
+
 2. **Somewhere to store recordings**: a hard drive. A NAS (a small storage box with hard drives that stays on) suits this well, because it can also run the recording software.
 
    <div class="product-shot">
