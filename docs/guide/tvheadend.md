@@ -11,6 +11,9 @@ TVHeadend is the recorder. It drives the tuner, holds the channel list and the T
 
 Set it up in this order. Each step depends on the one before it. Any TVHeadend-compatible tuner works here. The steps change only where they name a device or a country.
 
+> [!TIP]<br>
+> Most of this page is manual setup, and you can skip most of it. The [install script](/guide/getting-started#_1-install) does step 1. Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) does steps 2 to 6 and step 8 for an aerial or cable tuner, and checks step 7. Read on to set up TVHeadend by hand, to use a satellite tuner, or to see what the wizard changed.
+
 > [!NOTE]<br>
 > The HDHomeRun tuner, the `au-Sydney` mux list, and the Sydney XMLTV feed on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
 
