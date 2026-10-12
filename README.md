@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Live TV in your browser. Recordings in your library, ad free.*</strong><br/>
-  A self-hosted companion for TVHeadend and compatible tuner.<br/>
+  A self-hosted companion for TVHeadend and compatible tuner (e.g. HDHomeRun).<br/>
   <sub>*optional via <code>comskip</code></sub>
 </p>
 
@@ -15,6 +15,10 @@
   <img alt="Last commit" src="https://img.shields.io/github/last-commit/furey/freetvarr.svg?style=flat-square&color=e2b03c"/>
   <img alt="No auth" src="https://img.shields.io/badge/auth-LAN%20only-8b837e.svg?style=flat-square"/>
   <a href="https://furey.github.io/freetvarr/"><img alt="Documentation" src="https://img.shields.io/badge/docs-vitepress-1eb6ff.svg?style=flat-square"/></a>
+</p>
+
+<p align="center">
+  <img src="docs/img/hero.gif" alt="Freetvarr dashboard opening a live TV channel" width="800"/>
 </p>
 
 <p align="center">
