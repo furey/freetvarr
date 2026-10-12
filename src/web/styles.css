@@ -564,6 +564,12 @@ input[type="search"]::-webkit-search-cancel-button {
   color: #fffcfb;
 }
 
+.epg-modal-actions .btn-danger {
+  border-color: #ff8a00;
+  background: rgba(255, 138, 0, 0.12);
+  color: #fffcfb;
+}
+
 @media (hover: hover) {
   .btn-primary:hover:not(:disabled) {
     background: #1eb6ff;
@@ -574,6 +580,11 @@ input[type="search"]::-webkit-search-cancel-button {
     border-color: #ff8a00;
     color: #ff8a00;
     background: rgba(255, 138, 0, 0.06);
+  }
+
+  .epg-modal-actions .btn-danger:hover:not(:disabled) {
+    background: #ff8a00;
+    color: #1a1611;
   }
 }
 
@@ -984,6 +995,10 @@ code {
 
 .info-modal:focus {
   outline: none;
+}
+
+.confirm-dialog-line {
+  overflow-wrap: anywhere;
 }
 
 .info-modal-body {

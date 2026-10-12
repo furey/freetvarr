@@ -43,19 +43,28 @@ A hardlink import is instant. A copy between filesystems, an ad scan, or a cut t
 
 ## Re-scan and re-cut
 
-On the RECORDINGS tab, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend.
+On the RECORDINGS tab, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend. Press the scissors button on the row. A dialog says what the scan does before it starts:
+
+- When the series folder's ad removal is **DETECT** or **OFF**, the scan writes the ad break times to a `.edl` file beside the recording, and the recording file stays as it is.
+- When it is **CUT**, the scan saves the recording again without the breaks and keeps the original as `<file>.ts.orig` for the days set in Settings. If a second cut of a cut recording finds more ads, it replaces that backup with the first cut, so the full original is lost.
+
+The dialog also gives the expected time: finding the ads takes about half the length of the recording. Press **FIND ADS** or **CUT ADS** to start, or **CANCEL** to leave the recording as it is.
 
 The ad scan button is greyed out when the library file is gone, for example after another app replaced or removed it.
+
+## Remove from TVHeadend
+
+An imported recording that TVHeadend still has shows a delete button. Press it, then press **REMOVE FROM TVHEADEND** in the dialog. TVHeadend deletes its copy of the recording, and your library copy stays. TVHeadend keeps a note that it recorded the episode, so a series recording does not record it again. You cannot undo this. [Remove from TVHeadend](/guide/remove-from-tvheadend) explains the TVHeadend calls.
 
 ## Not in TVHeadend
 
 A recording that TVHeadend has deleted shows a `NOT IN TVHEADEND` marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
 
-These rows leave the list 30 days after the removal. To remove them sooner, press **CLEAR FROM LIST**. Freetvarr asks for confirmation first and states the number of rows it hides, across every page and filter. For 10 seconds after a clear, **UNDO** puts the rows back. To remove one row, press its delete button. Both remove rows from the list only (the files stay in your library).
+These rows leave the list 30 days after the removal. To remove them sooner, press **CLEAR FROM LIST** in the panel header, then **CLEAR FROM LIST** in the dialog. The dialog states the number of rows it clears, across every page and filter. To clear one row, press its delete button, then **CLEAR FROM LIST** in the dialog. Both remove rows from the list only (the files stay in your library). For 10 seconds after a clear, **UNDO** puts the rows back.
 
 ## Failed rows
 
-You can delete a `failed`, `skipped`, or `not imported` row from Freetvarr's history. If the recording is still in TVHeadend and the next sync would import it, the row comes back.
+To clear a `failed`, `skipped`, or `not imported` row, press its delete button, then **CLEAR FROM LIST** in the dialog. TVHeadend keeps the recording. While TVHeadend has it, the next sync adds the row back and decides again whether to import it.
 
 ## Filters and time
 

@@ -61,7 +61,8 @@ import {
   audioContextOnce, createHoldMusic, holdMusicToggleLabel, holdMusicVolume, loadHoldMusicMuted,
   saveHoldMusicMuted, HOLD_MUSIC_SRC,
 } from '/hold-music.js'
-import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
+import { clearedListMessage, restoredListMessage } from '/clear-list.js'
+import { adScanConfirm, clearListConfirm, clearRowConfirm, removeFromTvhConfirm } from '/recording-confirm.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 
 let csrfToken = null
@@ -2996,7 +2997,7 @@ const RecordingsView = {
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
             <header-button v-if="undoIds.length" label="Undo" @click="undoClear" :disabled="restoring"
               title="Puts the cleared rows back in this list."><arrow-left-icon /></header-button>
-            <header-button :label="clearing ? 'Clearing…' : 'Clear from list'" @click="clearNotInTvh"
+            <header-button :label="clearing ? 'Clearing…' : 'Clear from list'" @click="askClearList"
               :disabled="clearing || clearable === 0"
               title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library."><cross-icon /></header-button>
             <header-button label="Refresh" @click="manualRefresh"><refresh-icon /></header-button>
@@ -3104,24 +3105,20 @@ const RecordingsView = {
                     {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
                   </button>
                   <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                    @click="adScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
+                    @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
                     :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
                     <span v-if="adScanningId === r.recording_id">…</span>
-                    <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <circle cx="4" cy="4.5" r="1.75"/>
-                      <circle cx="4" cy="11.5" r="1.75"/>
-                      <path d="M5.5 5.75 13 12M5.5 10.25 13 4"/>
-                    </svg>
+                    <ad-scan-icon v-else />
                   </button>
                   <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                    @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id"
-                    title="Remove this recording from TVHeadend. TVHeadend will delete the file and keep the episode in its history. You cannot undo this.">
+                    @click="askRemoveFromTvh(r)" :disabled="deletingId === r.recording_id"
+                    title="Remove from TVHeadend" aria-label="Remove from TVHeadend">
                     <span v-if="deletingId === r.recording_id">…</span>
                     <trash-icon v-else />
                   </button>
                   <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                    @click="removeRecording(r)" :disabled="removingId === r.recording_id"
-                    :title="removeTitle(r)">
+                    @click="askClearRow(r)" :disabled="removingId === r.recording_id"
+                    :title="removeTitle(r)" aria-label="Clear from list">
                     <span v-if="removingId === r.recording_id">…</span>
                     <trash-icon v-else />
                   </button>
@@ -3172,22 +3169,19 @@ const RecordingsView = {
                   {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
                 </button>
                 <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                  @click="adScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
+                  @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
                   :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
                   <span v-if="adScanningId === r.recording_id">…</span>
-                  <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="4" cy="4.5" r="1.75"/>
-                    <circle cx="4" cy="11.5" r="1.75"/>
-                    <path d="M5.5 5.75 13 12M5.5 10.25 13 4"/>
-                  </svg>
+                  <ad-scan-icon v-else />
                 </button>
                 <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                  @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id">
+                  @click="askRemoveFromTvh(r)" :disabled="deletingId === r.recording_id"
+                  title="Remove from TVHeadend" aria-label="Remove from TVHeadend">
                   <span v-if="deletingId === r.recording_id">…</span>
                   <trash-icon v-else />
                 </button>
                 <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                  @click="removeRecording(r)" :disabled="removingId === r.recording_id" :title="removeTitle(r)">
+                  @click="askClearRow(r)" :disabled="removingId === r.recording_id" :title="removeTitle(r)" aria-label="Clear from list">
                   <span v-if="removingId === r.recording_id">…</span>
                   <trash-icon v-else />
                 </button>
@@ -3207,6 +3201,8 @@ const RecordingsView = {
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -3218,6 +3214,9 @@ const RecordingsView = {
     const importingId = ref(null)
     const clearing = ref(false)
     const adRemovalEnabled = ref(false)
+    const adRetentionDays = ref('7')
+    const confirming = ref(null)
+    const confirmBusy = ref(false)
     const adScanningId = ref(null)
     const total = ref(0)
     const page = ref(1)
@@ -3298,6 +3297,7 @@ const RecordingsView = {
     const loadAdRemovalSetting = async () => {
       const s = await fetchSettings().catch(() => ({}))
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
+      adRetentionDays.value = s.ad_original_retention_days || '7'
     }
 
     const setStatus = (v) => { statusFilter.value = v; page.value = 1 }
@@ -3353,9 +3353,8 @@ const RecordingsView = {
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
       || UNIMPORTED_STATUSES.includes(r.status)
     const removeTitle = (r) => (r.deleted_from_tvh_at
-      ? 'Remove this row from the list. The file will stay in your library.'
-      : "Remove this recording from Freetvarr's history."
-        + ' If it is still in TVHeadend, the next sync will import it again.')
+      ? 'Clear this row from the list. The file stays in your library.'
+      : 'Clear this row from the list. While TVHeadend has the recording, the next sync adds it back.')
     const notInTvhTitle = (r) => `TVHeadend deleted its copy ${fmtTime(r.deleted_from_tvh_at)}.`
       + ' The episode is still in your library.'
     const canAdScan = (r) => canAdScanRecording({ adRemovalEnabled: adRemovalEnabled.value, recording: r })
@@ -3441,10 +3440,6 @@ const RecordingsView = {
     }
 
     const deleteFromTvh = async (r) => {
-      const prompt = `Remove "${r.title}" from TVHeadend?\n\n`
-        + 'TVHeadend will delete the recording file and keep the episode in its history,'
-        + ' so it will not record it again. You cannot undo this.'
-      if (!confirm(prompt)) return
       deletingId.value = r.recording_id
       try {
         const url = `/api/recordings/${encodeURIComponent(r.recording_id)}/delete-from-tvh`
@@ -3467,25 +3462,21 @@ const RecordingsView = {
     }
 
     const removeRecording = async (r) => {
-      const prompt = r.deleted_from_tvh_at
-        ? `Remove "${r.title}" from this list?\n\nThe file will stay in your library.`
-        : `Remove "${r.title}" from Freetvarr's history?`
-          + '\n\nIf it is still in TVHeadend, the next sync will import it again.'
-      if (!confirm(prompt)) return
       removingId.value = r.recording_id
       try {
         await api('DELETE', `/api/recordings/${encodeURIComponent(r.recording_id)}`)
-        flash({ msg: `Removed "${r.title}".` })
+        const undoable = Boolean(r.deleted_from_tvh_at)
+        flash({ msg: `Cleared "${r.title}" from the list.`, ms: undoable ? UNDO_WINDOW_MS : FLASH_DEFAULT_MS })
+        if (undoable) offerUndo([r.recording_id])
         await refresh()
       } catch (err) {
-        flash({ msg: `Remove failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Clear failed: ${err.message}`, kind: 'err', ms: 6000 })
       } finally {
         removingId.value = null
       }
     }
 
     const clearNotInTvh = async () => {
-      if (!confirm(clearListPrompt(clearable.value))) return
       clearing.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
@@ -3496,6 +3487,47 @@ const RecordingsView = {
         flash({ msg: `Clear failed: ${err.message}`, kind: 'err', ms: 6000 })
       } finally {
         clearing.value = false
+      }
+    }
+
+    const askAdScan = (r) => {
+      confirming.value = {
+        dialog: adScanConfirm({ recording: r, retentionDays: adRetentionDays.value }),
+        icon: 'ad-scan-icon',
+        run: () => adScan(r),
+      }
+    }
+
+    const askRemoveFromTvh = (r) => {
+      confirming.value = { dialog: removeFromTvhConfirm({ recording: r }), icon: 'trash-icon', run: () => deleteFromTvh(r) }
+    }
+
+    const askClearRow = (r) => {
+      confirming.value = {
+        dialog: clearRowConfirm({ recording: r, undoSeconds: UNDO_WINDOW_MS / 1000 }),
+        icon: 'trash-icon',
+        run: () => removeRecording(r),
+      }
+    }
+
+    const askClearList = () => {
+      confirming.value = {
+        dialog: clearListConfirm({ count: clearable.value, undoSeconds: UNDO_WINDOW_MS / 1000 }),
+        icon: '',
+        run: clearNotInTvh,
+      }
+    }
+
+    const closeConfirm = () => { confirming.value = null }
+
+    const runConfirmed = async () => {
+      const { run } = confirming.value
+      confirmBusy.value = true
+      try {
+        await run()
+      } finally {
+        confirmBusy.value = false
+        confirming.value = null
       }
     }
 
@@ -3558,6 +3590,7 @@ const RecordingsView = {
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, notInTvhTitle, clearNotInTvh,
       clearable, undoIds, restoring, undoClear,
+      confirming, confirmBusy, askAdScan, askRemoveFromTvh, askClearRow, askClearList, closeConfirm, runConfirmed,
       setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
       narrow, chipGroups, activeFilters, clearSheetFilters,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
@@ -7004,6 +7037,77 @@ const InfoButton = {
   },
 }
 
+const ConfirmDialog = {
+  props: {
+    open: Boolean,
+    dialog: { type: Object, default: null },
+    busy: Boolean,
+    icon: { type: String, default: '' },
+  },
+  emits: ['confirm', 'cancel'],
+  template: `
+    <teleport to="body">
+      <transition name="epg-sheet">
+        <div v-if="open && dialog" class="epg-modal-backdrop" @click.self="cancel">
+          <section ref="dialogEl" class="panel epg-modal info-modal" role="alertdialog" aria-modal="true"
+            :aria-labelledby="headingId" :aria-describedby="bodyId" tabindex="-1">
+            <header class="panel-header">
+              <span :id="headingId" class="panel-title">{{ dialog.title }}</span>
+              <button type="button" class="btn btn-icon epg-modal-x" @click="cancel" aria-label="Close"><cross-icon /></button>
+            </header>
+            <div class="panel-body space-y-4">
+              <div :id="bodyId" class="space-y-3">
+                <p v-for="(line, i) in dialog.body" :key="i" class="text-sm text-ink confirm-dialog-line">{{ line }}</p>
+              </div>
+              <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
+                <button type="button" class="btn mr-auto" @click="cancel" :disabled="busy">CANCEL</button>
+                <button type="button" :class="['btn', dialog.danger ? 'btn-danger' : 'btn-primary']" @click="$emit('confirm')" :disabled="busy">
+                  <template v-if="busy">{{ dialog.busyLabel }}</template>
+                  <template v-else><component v-if="icon" :is="icon" /> {{ dialog.confirmLabel }}</template>
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </transition>
+    </teleport>
+  `,
+  setup(props, { emit }) {
+    const dialogEl = ref(null)
+    const headingId = `confirm-dialog-${++confirmDialogCount}`
+    const bodyId = `${headingId}-body`
+
+    const cancel = () => {
+      if (!props.busy) emit('cancel')
+    }
+
+    const onKeydown = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      cancel()
+    }
+
+    const setOpen = async (isOpen) => {
+      try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
+      window.removeEventListener('keydown', onKeydown, true)
+      if (!isOpen) return
+      window.addEventListener('keydown', onKeydown, true)
+      await nextTick()
+      dialogEl.value?.focus()
+    }
+
+    watch(() => props.open && Boolean(props.dialog), setOpen)
+
+    onUnmounted(() => {
+      if (props.open) setOpen(false)
+    })
+
+    return { dialogEl, headingId, bodyId, cancel }
+  },
+}
+
+let confirmDialogCount = 0
+
 const useSheet = () => {
   const open = ref(false)
   const trigger = ref(null)
@@ -9791,6 +9895,16 @@ const TrashIcon = {
   `,
 }
 
+const AdScanIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="4" cy="4.5" r="1.75"/>
+      <circle cx="4" cy="11.5" r="1.75"/>
+      <path d="M5.5 5.75 13 12M5.5 10.25 13 4"/>
+    </svg>
+  `,
+}
+
 const ExternalLinkIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -11134,5 +11248,7 @@ app.component('pulse-icon', PulseIcon)
 app.component('bolt-icon', BoltIcon)
 app.component('download-icon', DownloadIcon)
 app.component('trash-icon', TrashIcon)
+app.component('ad-scan-icon', AdScanIcon)
+app.component('confirm-dialog', ConfirmDialog)
 app.component('external-link-icon', ExternalLinkIcon)
 app.mount('#app')

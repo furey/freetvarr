@@ -461,7 +461,7 @@ app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, re
   await db('recordings')
     .where({ recording_id: recordingId })
     .update({ purged_at: new Date().toISOString() })
-  await forgetRecordingArtwork(recordingId)
+  if (!row.deleted_from_tvh_at) await forgetRecordingArtwork(recordingId)
   res.json({ ok: true })
 })
 
@@ -548,6 +548,7 @@ app.get('/api/recordings', async (req, res) => {
       'recordings.*',
       'shows.show_pattern as show_pattern',
       'shows.dest_folder as show_dest_folder',
+      'shows.ad_removal as show_ad_removal',
     )
   if (groupTombstonesLast) {
     rowsQuery.orderByRaw('(recordings.deleted_from_tvh_at IS NULL) DESC')
