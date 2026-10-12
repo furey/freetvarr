@@ -4028,7 +4028,12 @@ section[id^="section-"] {
 
 .play-stage {
   position: relative;
+  container-type: inline-size;
   background: #000;
+}
+
+.play-stage.is-info-open .play-controls {
+  visibility: hidden;
 }
 
 .play-stage .live-frame {
@@ -4138,6 +4143,18 @@ section[id^="section-"] {
   gap: 0.5rem;
 }
 
+.play-overlay-buttons {
+  display: none;
+}
+
+.play-stage:fullscreen .play-overlay-buttons {
+  display: flex;
+}
+
+.play-stage:fullscreen.is-info-open .play-controls {
+  display: none;
+}
+
 .play-buttons .btn-icon {
   display: inline-flex;
   align-items: center;
@@ -4174,6 +4191,14 @@ section[id^="section-"] {
     bottom: 0;
     padding: 1.5rem calc(env(safe-area-inset-right, 0px) + 1rem) calc(env(safe-area-inset-bottom, 0px) + 0.5rem) calc(env(safe-area-inset-left, 0px) + 1rem);
     background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8));
+  }
+
+  .play-modal .play-overlay-buttons {
+    display: flex;
+  }
+
+  .play-modal .play-stage.is-info-open .play-controls {
+    display: none;
   }
 
   .play-modal .play-caption {

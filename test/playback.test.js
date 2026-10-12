@@ -11,6 +11,7 @@ import {
   playbackCandidates,
   isInsideRoots,
   resolvePlaybackFile,
+  playbackSourceFor,
   resumeStartFor,
   startOffsetFor,
   positionFrom,
@@ -299,4 +300,12 @@ test('stream cap: live TV and recordings share one limit and name what is playin
   await assert.rejects(live.start({ channelId: 'c2', plan: {} }), { code: 'max-sessions' })
   await live.stopAll()
   await h.sessions.stopAll()
+})
+
+test('playbackSourceFor: library when the resolved file is the library copy, else TVHeadend', async () => {
+  const realpath = async (p) => (p === '/lib/a.ts' ? '/real/lib/a.ts' : Promise.reject(new Error('missing')))
+  assert.equal(await playbackSourceFor({ file: '/real/lib/a.ts', libraryPath: '/lib/a.ts', realpath }), 'library')
+  assert.equal(await playbackSourceFor({ file: '/real/tvh/a.ts', libraryPath: '/lib/a.ts', realpath }), 'tvheadend')
+  assert.equal(await playbackSourceFor({ file: '/real/tvh/a.ts', libraryPath: '/gone.ts', realpath }), 'tvheadend')
+  assert.equal(await playbackSourceFor({ file: '/real/tvh/a.ts', libraryPath: null, realpath }), 'tvheadend')
 })

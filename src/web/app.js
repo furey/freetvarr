@@ -21,6 +21,17 @@ import {
 import { findSeriesLink } from '/series-link.js'
 import { seekPlan, adBreakAt, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
 import {
+  adsText,
+  airedRangeText,
+  durationText,
+  libraryStatusText,
+  recordingEpisodeLine,
+  recordingHeaderLine,
+  savesToLine,
+  sourceBadgeText,
+  watchedPercent,
+} from '/recording-info.js'
+import {
   DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
   nativeClickPlan,
 } from '/double-tap.js'
@@ -9766,6 +9777,14 @@ const FullscreenIcon = {
   `,
 }
 
+const StartOverIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3.5 3v10M12.5 3.5 6 8l6.5 4.5z"/>
+    </svg>
+  `,
+}
+
 const AirplayIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -9979,20 +9998,171 @@ const StaleBuildBanner = {
   },
 }
 
+const PlayerHeader = {
+  props: {
+    channelId: { type: [String, Number], default: null },
+    hasLogo: Boolean,
+    title: { type: String, default: '' },
+    subtitle: { type: String, default: '' },
+    closeLabel: { type: String, default: 'Close' },
+  },
+  emits: ['close'],
+  template: `
+    <header class="panel-header live-header">
+      <channel-logo v-if="channelId" class="shrink-0" :channel-id="channelId" :has-logo="hasLogo" />
+      <div class="flex-1 min-w-0">
+        <span class="panel-title block truncate">{{ title }}</span>
+        <span v-if="subtitle" class="block truncate text-xs text-ink-dim mt-1">{{ subtitle }}</span>
+      </div>
+      <button type="button" class="btn btn-icon" @click="$emit('close')" :aria-label="closeLabel"><cross-icon /></button>
+    </header>
+  `,
+}
+
+const PlayerOverlayButtons = {
+  props: {
+    infoOpen: Boolean,
+    infoId: { type: String, required: true },
+    hasCaptions: Boolean,
+    captionsOn: Boolean,
+    closeLabel: { type: String, default: 'Close' },
+  },
+  emits: ['toggle-info', 'toggle-captions', 'close'],
+  template: `
+    <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="$emit('toggle-info')"
+      aria-label="Programme info" :aria-expanded="String(infoOpen)" :aria-controls="infoId"><info-icon /></button>
+    <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
+      @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+    <button type="button" class="btn btn-icon live-landscape-close" @click="$emit('close')" :aria-label="closeLabel"><cross-icon /></button>
+  `,
+}
+
+const PlayerActionRow = {
+  props: {
+    infoOpen: Boolean,
+    infoId: { type: String, required: true },
+    hasCaptions: Boolean,
+    captionsOn: Boolean,
+    statusText: { type: String, default: '' },
+    statusKind: { type: String, default: 'info' },
+  },
+  emits: ['toggle-info', 'toggle-captions'],
+  template: `
+    <div class="epg-modal-actions flex items-center justify-between gap-3">
+      <div class="live-status flex items-center gap-2 min-w-0">
+        <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="$emit('toggle-info')"
+          aria-label="Programme info" :aria-expanded="String(infoOpen)" :aria-controls="infoId"><info-icon /></button>
+        <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
+          @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+        <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
+      </div>
+      <div class="flex shrink-0 gap-2"><slot /></div>
+    </div>
+  `,
+}
+
+const PlayerInfoPanel = {
+  props: {
+    open: Boolean,
+    panelId: { type: String, required: true },
+  },
+  template: `
+    <transition name="live-info">
+    <section v-if="open" :id="panelId" class="live-info" role="region" aria-label="Programme info">
+      <div class="live-info-body">
+        <slot name="image" />
+        <div class="live-info-text"><slot /></div>
+      </div>
+    </section>
+    </transition>
+  `,
+}
+
+const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
+  && !e.ctrlKey && !e.metaKey && !e.altKey
+  && !e.target.closest?.('select, textarea, input:not([type=range]), [contenteditable]')
+
+const usePlayerKeys = ({
+  isActive, infoOpen, close, toggleInfo, canToggleCaptions, toggleCaptions, togglePause, skip, toggleFullscreen,
+  ignoreSelector = 'button, select, textarea, input',
+}) => {
+  const onKeydown = (e) => {
+    if (!isActive()) return
+    if (e.key === 'Escape') {
+      if (infoOpen.value) infoOpen.value = false
+      else close()
+      return
+    }
+    if (isPlainKey(e, 'i')) {
+      e.preventDefault()
+      return toggleInfo()
+    }
+    if (canToggleCaptions() && isPlainKey(e, 'c')) {
+      e.preventDefault()
+      return toggleCaptions()
+    }
+    if (e.target.closest?.(ignoreSelector)) return
+    if (e.key === ' ' || isPlainKey(e, 'k')) {
+      e.preventDefault()
+      return togglePause()
+    }
+    if (isPlainKey(e, 'f')) {
+      e.preventDefault()
+      return toggleFullscreen()
+    }
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    if (skip(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
+  }
+  onMounted(() => window.addEventListener('keydown', onKeydown))
+  onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+}
+
+const useInfoDismissTaps = ({ infoOpen, onPointerDown, onPointerUp, onClick, onDoubleClick }) => {
+  let ignoreTapsUntil = 0
+
+  const isVideoAreaTap = (e) => !e.target.closest?.('.live-info-body, button')
+
+  const isIgnoredTap = (e) => isVideoAreaTap(e) && Date.now() < ignoreTapsUntil
+
+  const swallow = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const onFramePointerDown = (e) => {
+    if (infoOpen.value && e.isPrimary && isVideoAreaTap(e)) {
+      infoOpen.value = false
+      ignoreTapsUntil = Date.now() + DOUBLE_TAP_MS
+    }
+    if (isIgnoredTap(e)) return
+    onPointerDown(e)
+  }
+
+  const onFramePointerUp = (e) => {
+    if (!isIgnoredTap(e)) onPointerUp(e)
+  }
+
+  const onFrameClick = (e) => {
+    if (isIgnoredTap(e)) return swallow(e)
+    onClick(e)
+  }
+
+  const onFrameDoubleClick = (e) => {
+    if (isIgnoredTap(e)) return swallow(e)
+    onDoubleClick(e)
+  }
+
+  return { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick }
+}
+
 const LivePlayer = {
   template: `
     <teleport to="body">
     <transition name="epg-sheet">
     <div v-show="live.open" class="epg-modal-backdrop live-backdrop">
       <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
-        <header class="panel-header live-header">
-          <channel-logo class="shrink-0" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
-          <div class="flex-1 min-w-0">
-            <span class="panel-title block truncate">{{ live.channel?.name }}</span>
-            <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
-          </div>
-          <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
-        </header>
+        <player-header :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="live.channel?.name"
+          :subtitle="live.nowTitle" close-label="Stop and close" @close="stopLive" />
         <div ref="frameEl" class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen"></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
@@ -10004,13 +10174,12 @@ const LivePlayer = {
             <i v-for="n in 3" :key="n" class="live-chip"></i>
           </div>
           <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
-          <transition name="live-info">
-          <section v-if="infoOpen" id="live-info" class="live-info" role="region" aria-label="Programme info">
-            <div class="live-info-body">
+          <player-info-panel :open="infoOpen" panel-id="live-info">
+            <template #image>
             <programme-image v-if="info.now" :key="info.now.program_id" class="live-info-image" variant="info"
               :event-id="info.now.has_image ? info.now.program_id : null" :title="info.now.title"
               :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
-            <div class="live-info-text">
+            </template>
               <p class="live-info-channel">
                 <channel-logo class="live-info-logo" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
                 <span class="truncate">{{ infoChannelLabel }}</span>
@@ -10030,15 +10199,10 @@ const LivePlayer = {
               <p v-if="info.next" class="live-info-next">
                 NEXT <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
               </p>
-            </div>
-            </div>
-          </section>
-          </transition>
-          <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="toggleInfo"
-            aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
-          <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
-            @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-          <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
+          </player-info-panel>
+          <player-overlay-buttons :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
+            :captions-on="captionsOn" close-label="Stop and close"
+            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" />
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
           </div>
@@ -10048,18 +10212,11 @@ const LivePlayer = {
           <ul v-if="live.holders.length" class="space-y-1 font-mono text-xs text-ink-dim">
             <li v-for="h in live.holders" :key="h.tuner">{{ liveHolderText(h) }}</li>
           </ul>
-          <div class="epg-modal-actions flex items-center justify-between gap-3">
-            <div class="live-status flex items-center gap-2 min-w-0">
-              <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
-                aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
-              <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
-                @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-              <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
-            </div>
-            <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
-              <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
-            </div>
-            <div v-else class="flex shrink-0 gap-2">
+          <player-action-row :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
+            :captions-on="captionsOn" :status-text="statusText" :status-kind="statusKind"
+            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions">
+            <button v-if="live.phase === 'ended'" type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
+            <template v-else>
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
               <button type="button" :class="['btn', 'live-action-wide', 'live-record-button', { 'is-recording': recordButton.recording }]"
                 :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
@@ -10077,8 +10234,8 @@ const LivePlayer = {
                 <play-icon v-if="live.paused" /><pause-icon v-else />
                 <span class="live-action-label">{{ live.paused ? 'PLAY' : 'PAUSE' }}</span>
               </button>
-            </div>
-          </div>
+            </template>
+          </player-action-row>
         </div>
       </section>
     </div>
@@ -10152,26 +10309,6 @@ const LivePlayer = {
       return live.phase === 'live' ? 'ok' : 'info'
     })
 
-    const onKeydown = (e) => {
-      if (!live.open || recordDialogOverPlayer.value) return
-      if (e.key === 'Escape') return infoOpen.value ? closeInfo() : stopLive()
-      if (isInfoKey(e)) {
-        e.preventDefault()
-        return toggleInfo()
-      }
-      if (isCaptionsKey(e)) {
-        e.preventDefault()
-        return toggleLiveCaptions()
-      }
-      if (e.target.closest?.('button, select, textarea, input')) return
-      if (isPauseKey(e)) {
-        e.preventDefault()
-        return toggleLivePause()
-      }
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-      if (skipLiveByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
-    }
-
     onMounted(() => {
       liveVideo = videoEl.value
       liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
@@ -10186,12 +10323,8 @@ const LivePlayer = {
       liveVideo.addEventListener('playing', handOffToVideo)
       liveVideo.textTracks?.addEventListener?.('addtrack', onTextTrackAdded)
       liveVideo.textTracks?.addEventListener?.('change', syncCaptionPreferenceFromTracks)
-      window.addEventListener('keydown', onKeydown)
     })
-    onUnmounted(() => {
-      clearTimeout(chipsTimer)
-      window.removeEventListener('keydown', onKeydown)
-    })
+    onUnmounted(() => clearTimeout(chipsTimer))
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
@@ -10206,50 +10339,26 @@ const LivePlayer = {
     let bufferedLoading = false
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
-    const closeInfo = () => { infoOpen.value = false }
 
-    let ignoreTapsUntil = 0
+    const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
+      infoOpen,
+      onPointerDown: onLivePointerDown,
+      onPointerUp: onLivePointerUp,
+      onClick: onLiveClick,
+      onDoubleClick: onLiveDoubleClick,
+    })
 
-    const isVideoAreaTap = (e) => !e.target.closest?.('.live-info-body, button')
-
-    const isIgnoredTap = (e) => isVideoAreaTap(e) && Date.now() < ignoreTapsUntil
-
-    const swallow = (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-    }
-
-    const onFramePointerDown = (e) => {
-      if (infoOpen.value && e.isPrimary && isVideoAreaTap(e)) {
-        closeInfo()
-        ignoreTapsUntil = Date.now() + DOUBLE_TAP_MS
-      }
-      if (isIgnoredTap(e)) return
-      onLivePointerDown(e)
-    }
-
-    const onFramePointerUp = (e) => {
-      if (!isIgnoredTap(e)) onLivePointerUp(e)
-    }
-
-    const onFrameClick = (e) => {
-      if (isIgnoredTap(e)) return swallow(e)
-      onLiveClick(e)
-    }
-
-    const onFrameDoubleClick = (e) => {
-      if (isIgnoredTap(e)) return swallow(e)
-      onLiveDoubleClick(e)
-    }
-
-    const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
-      && !e.ctrlKey && !e.metaKey && !e.altKey
-      && !e.target.closest?.('select, textarea, input, [contenteditable]')
-
-    const isInfoKey = (e) => isPlainKey(e, 'i')
-
-    const isCaptionsKey = (e) => live.captions && !infoOpen.value && isPlainKey(e, 'c')
-    const isPauseKey = (e) => e.key === ' ' || isPlainKey(e, 'k')
+    usePlayerKeys({
+      isActive: () => live.open && !recordDialogOverPlayer.value,
+      infoOpen,
+      close: stopLive,
+      toggleInfo,
+      canToggleCaptions: () => live.captions && !infoOpen.value,
+      toggleCaptions: toggleLiveCaptions,
+      togglePause: toggleLivePause,
+      skip: skipLiveByKey,
+      toggleFullscreen: () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo }),
+    })
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
 
@@ -10440,7 +10549,10 @@ const playback = reactive({
   skipHint: null,
   airplay: false,
   adBreaks: [],
+  source: '',
 })
+
+const playInfoOpen = ref(false)
 
 let playVideo = null
 let playHls = null
@@ -10456,8 +10568,9 @@ const playRecording = (recording) => {
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
-    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [],
+    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [], source: '',
   })
+  playInfoOpen.value = false
   playVideo?.play()?.catch(() => {})
   startPlaybackAt(null)
 }
@@ -10470,6 +10583,7 @@ const stopPlayback = () => {
   detachPlayVideo()
   if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
   Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })
+  playInfoOpen.value = false
 }
 
 const startPlaybackAt = async (offset) => {
@@ -10500,6 +10614,8 @@ const startPlaybackAt = async (offset) => {
     })
     if (offset == null) playback.resumed = Boolean(r.resumed)
     playback.adBreaks = r.adBreaks || []
+    playback.source = r.source || ''
+
     attachPlayVideo(run, r.session.playlist)
     schedulePlayHeartbeat(run)
   } catch (err) {
@@ -10691,13 +10807,24 @@ const onPlayPointerUp = (e) => {
   clearTimeout(playSingleTapTimer)
   if (result.kind === 'skip') return skipPlayback(result)
   if (!togglesOnSingleTap) return
-  if (result.kind === 'center') return togglePlayback()
   playSingleTapTimer = setTimeout(togglePlayback, DOUBLE_TAP_MS)
 }
+
+const onPlayDoubleClick = (e) => {
+  if (e.target !== playVideo) return
+  e.preventDefault()
+  e.stopPropagation()
+  if (tapZoneOf({ video: playVideo, event: e, bottomInsetPx: 0 })) return
+  clearTimeout(playSingleTapTimer)
+  togglePlayFullscreen()
+}
+
+const togglePlayFullscreen = () => toggleStageFullscreen({ stage: playVideo?.closest('.play-stage'), video: playVideo })
 
 const skipPlaybackByKey = (side) => {
   const result = registerPlayTap({ side, force: true })
   if (result.kind === 'skip') skipPlayback(result)
+  return true
 }
 
 const sendPlaybackBeacon = () => {
@@ -10727,25 +10854,42 @@ const RecordingPlayer = {
     <transition name="epg-sheet">
     <div v-show="playback.open" class="epg-modal-backdrop live-backdrop">
       <section class="panel epg-modal live-modal play-modal" role="dialog" aria-label="Recording player">
-        <header class="panel-header live-header">
-          <channel-logo v-if="recording?.channel_id" class="shrink-0" :channel-id="recording.channel_id" has-logo />
-          <div class="flex-1 min-w-0">
-            <span class="panel-title block truncate">{{ recording?.title }}</span>
-            <span v-if="subtitle" class="block truncate text-xs text-ink-dim mt-1">{{ subtitle }}</span>
-          </div>
-          <button type="button" class="btn btn-icon" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
-        </header>
-        <div ref="stageEl" class="play-stage">
-          <div class="live-frame" @pointerdown="onPlayPointerDown" @pointerup="onPlayPointerUp">
+        <player-header :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
+          @close="stopPlayback" />
+        <div ref="stageEl" :class="['play-stage', { 'is-info-open': infoOpen }]">
+          <div class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
+            @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
             <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
             <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
-            <button type="button" class="btn btn-icon live-landscape-close" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
+            <player-overlay-buttons :info-open="infoOpen" info-id="play-info" @toggle-info="toggleInfo" @close="stopPlayback" />
             <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
               <span>{{ playback.skipHint.label }}</span>
             </div>
             <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
-            <button v-if="inAdBreak" type="button" class="btn play-skip-ad" @click="skipCurrentAd">SKIP AD</button>
+            <button v-if="inAdBreak && !infoOpen" type="button" class="btn play-skip-ad" @click="skipCurrentAd">SKIP AD</button>
           </div>
+          <player-info-panel :open="infoOpen" panel-id="play-info">
+            <template #image>
+              <programme-image v-if="recording" :key="recording.recording_id" class="live-info-image" variant="info"
+                :source="imageSource" :title="recording.title" :channel-id="recording.channel_id" :has-logo="Boolean(recording.channel_id)" />
+            </template>
+            <p class="live-info-channel">
+              <channel-logo v-if="recording?.channel_id" class="live-info-logo" :channel-id="recording.channel_id" has-logo />
+              <span class="truncate">{{ recording?.channel_name }}</span>
+              <span v-if="sourceBadge" class="live-info-buffer">{{ sourceBadge }}</span>
+            </p>
+            <p class="live-info-title">{{ recording?.title }}</p>
+            <p v-if="episodeLine" class="live-info-episode">{{ episodeLine }}</p>
+            <div v-if="airedText" class="live-info-times">
+              <span>{{ airedText }}</span>
+              <div class="progress-track"><div class="progress-fill" :style="{ width: watched + '%' }"></div></div>
+            </div>
+            <p v-if="metaLine" class="live-info-meta">{{ metaLine }}</p>
+            <p v-if="recording?.synopsis" class="live-info-synopsis">{{ recording.synopsis }}</p>
+            <p v-for="line in infoLines" :key="line.label" class="live-info-next">
+              {{ line.label }} <span class="live-info-next-title">{{ line.text }}</span>
+            </p>
+          </player-info-panel>
           <div class="play-controls">
             <div class="play-scrub">
               <span class="play-time">{{ fmtPlayTime(shownPosition) }}</span>
@@ -10756,24 +10900,33 @@ const RecordingPlayer = {
                 aria-label="Position">
               <span class="play-time">{{ fmtPlayTime(playback.duration) }}</span>
             </div>
-            <div class="play-buttons">
-              <button type="button" class="btn btn-icon play-toggle" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
+            <div class="play-buttons play-overlay-buttons">
+              <button type="button" class="btn btn-icon" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
                 <play-icon v-if="playback.paused" /><pause-icon v-else />
               </button>
               <span class="flex-1"></span>
-              <button v-if="playback.resumed" type="button" class="btn btn-sm" @click="startPlaybackOver">START OVER</button>
+              <button v-if="playback.resumed" type="button" class="btn btn-icon" @click="startPlaybackOver" aria-label="Start over"><start-over-icon /></button>
               <button v-if="playback.airplay" type="button" class="btn btn-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
               <button type="button" class="btn btn-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
             </div>
           </div>
         </div>
         <div class="panel-body">
-          <div class="epg-modal-actions flex items-center justify-between gap-3">
-            <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
-            <div class="flex shrink-0 gap-2">
-              <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
-            </div>
-          </div>
+          <player-action-row :info-open="infoOpen" info-id="play-info" :status-text="statusText" :status-kind="statusKind"
+            @toggle-info="toggleInfo">
+            <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
+            <template v-else>
+              <button v-if="playback.resumed" type="button" class="btn live-action-wide" aria-label="START OVER" @click="startPlaybackOver">
+                <start-over-icon /> <span class="live-action-label">START OVER</span>
+              </button>
+              <button v-if="playback.airplay" type="button" class="btn btn-icon live-action-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
+              <button type="button" class="btn btn-icon live-action-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+              <button type="button" class="btn live-action-wide live-pause-button" :aria-label="playback.paused ? 'Play' : 'Pause'" @click="togglePlayback">
+                <play-icon v-if="playback.paused" /><pause-icon v-else />
+                <span class="live-action-label">{{ playback.paused ? 'PLAY' : 'PAUSE' }}</span>
+              </button>
+            </template>
+          </player-action-row>
         </div>
       </section>
     </div>
@@ -10784,13 +10937,48 @@ const RecordingPlayer = {
     const videoEl = ref(null)
     const stageEl = ref(null)
     const recording = computed(() => playback.recording)
+    const infoOpen = playInfoOpen
 
-    const subtitle = computed(() => {
+    const header = computed(() => {
+      const r = playback.recording
+      if (!r) return { title: '', subtitle: '' }
+      if (!r.channel_name) return { title: r.title, subtitle: recordingEpisodeLine(r) }
+      return { title: r.channel_name, subtitle: recordingHeaderLine(r) }
+    })
+
+    const imageSource = computed(() => {
+      const r = playback.recording
+      return r?.image_path ? `/api/recordings/${encodeURIComponent(r.recording_id)}/image` : null
+    })
+
+    const episodeLine = computed(() => (playback.recording ? recordingEpisodeLine(playback.recording) : ''))
+
+    const airedText = computed(() => airedRangeText({
+      airedAt: playback.recording?.aired_at,
+      durationSeconds: playback.recording?.duration_s || playback.duration,
+      timeZone: tz.value,
+    }))
+
+    const watched = computed(() => watchedPercent({ position: playback.position, duration: playback.duration }))
+
+    const metaLine = computed(() => {
       const r = playback.recording
       if (!r) return ''
-      const aired = r.aired_at ? fmtTime(r.aired_at) : ''
-      return [r.episode_title, r.channel_name, aired].filter(Boolean).join(' · ')
+      return [
+        durationText(r.duration_s || playback.duration),
+        libraryStatusText({ status: r.status, imported: fmtTime(r.imported_at), deletedFromTvh: Boolean(r.deleted_from_tvh_at) }),
+      ].filter(Boolean).join(' · ')
     })
+
+    const sourceBadge = computed(() => sourceBadgeText(playback.source))
+
+    const infoLines = computed(() => {
+      const r = playback.recording
+      if (!r) return []
+      return [{ label: 'ADS', text: adsText(r) }, savesToLine(r)].filter((line) => line?.text)
+    })
+
+    const toggleInfo = () => { infoOpen.value = !infoOpen.value }
 
     const inAdBreak = computed(() =>
       playback.phase === 'playing' && adBreakAt({ breaks: playback.adBreaks, time: playback.position }) !== null)
@@ -10833,6 +11021,27 @@ const RecordingPlayer = {
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
 
+    const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
+      infoOpen,
+      onPointerDown: onPlayPointerDown,
+      onPointerUp: onPlayPointerUp,
+      onClick: () => {},
+      onDoubleClick: onPlayDoubleClick,
+    })
+
+    usePlayerKeys({
+      isActive: () => playback.open,
+      infoOpen,
+      close: stopPlayback,
+      toggleInfo,
+      canToggleCaptions: () => false,
+      toggleCaptions: () => {},
+      togglePause: togglePlayback,
+      skip: skipPlaybackByKey,
+      toggleFullscreen,
+      ignoreSelector: 'button, select, textarea, input:not(.play-range)',
+    })
+
     const onTimeUpdate = () => {
       if (playback.phase !== 'playing') return
       playback.position = playback.offset + playVideo.currentTime
@@ -10856,20 +11065,6 @@ const RecordingPlayer = {
       savePlaybackPosition()
     }
 
-    const onKeydown = (e) => {
-      if (!playback.open) return
-      if (e.key === 'Escape') return stopPlayback()
-      if (e.target.closest?.('button, select, textarea, input:not(.play-range)')) return
-      if (e.key === ' ' || e.key === 'k') {
-        e.preventDefault()
-        return togglePlayback()
-      }
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault()
-        skipPlaybackByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')
-      }
-    }
-
     onMounted(() => {
       playVideo = videoEl.value
       playVideo.addEventListener('timeupdate', onTimeUpdate)
@@ -10881,15 +11076,14 @@ const RecordingPlayer = {
       playVideo.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
         playback.airplay = e.availability === 'available'
       })
-      window.addEventListener('keydown', onKeydown)
     })
-    onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     return {
-      playback, recording, subtitle, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
+      playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
+      infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
       statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, showAirplay, onPlayPointerDown, onPlayPointerUp,
+      toggleFullscreen, showAirplay, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
     }
   },
 }
@@ -11218,6 +11412,11 @@ app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)
 app.component('fullscreen-icon', FullscreenIcon)
 app.component('airplay-icon', AirplayIcon)
+app.component('start-over-icon', StartOverIcon)
+app.component('player-header', PlayerHeader)
+app.component('player-overlay-buttons', PlayerOverlayButtons)
+app.component('player-action-row', PlayerActionRow)
+app.component('player-info-panel', PlayerInfoPanel)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)

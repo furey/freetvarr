@@ -33,7 +33,28 @@ With ad removal on, an ad status also appears: **SCANNING**, **DETECTED**, **NO 
 
 ## Playback
 
-Press the play button on a finished recording to watch it in Freetvarr's player, in any browser, on a phone or a computer. The player uses the imported file, or the TVHeadend copy when the recording is not imported. Freetvarr remembers where you stopped and starts there next time, with a button to start over. To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further. On a computer, the left and right arrow keys skip `10` seconds too. If ad detection found breaks in the recording (see [Ad removal](/guide/ad-removal)), a **SKIP AD** button appears at the bottom right of the picture while you watch a break. Press it to jump to the end of the break. On an iPhone, use AirPlay to send the recording to an Apple TV.
+Press the play button on a finished recording to watch it in Freetvarr's player, in any browser, on a phone or a computer. The player works like the [live TV player](/guide/live-tv): the channel and the programme sit at the top, the **×** at the top right closes the player, and the row under the picture holds the **i** button, the status, and the buttons. Under `480` pixels wide, the buttons show only their icons.
+
+- **PLAY** or **PAUSE**: pauses and carries on. The space bar or `k` key does the same on a computer.
+- **START OVER**: shows when Freetvarr resumed where you stopped last time, and plays from the start.
+- The full-screen button, a double-click in the middle of the picture, or the `f` key: full screen. The position bar stays in full screen.
+- The position bar under the picture: drag it to move through the recording.
+
+The player uses the imported file, or the TVHeadend copy when the recording is not imported. Freetvarr remembers where you stopped and starts there next time. To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further. On a computer, the left and right arrow keys skip `10` seconds too. If ad detection found breaks in the recording (see [Ad removal](/guide/ad-removal)), a **SKIP AD** button appears at the bottom right of the picture while you watch a break. Press it to jump to the end of the break. On an iPhone, use AirPlay to send the recording to an Apple TV.
+
+### Recording info
+
+Press the **i** button, or the `i` key on a computer, to show the recording's details over the picture. On a phone turned sideways, the button sits on the picture. The panel shows:
+
+- The channel, and **FROM LIBRARY** or **FROM TVHEADEND** for the file that plays.
+- The title, the season and episode, and the episode title.
+- When it aired, with a bar for how much you have watched.
+- The length, and the import status as the RECORDINGS tab shows it, such as **IMPORTED** with its date, or **NOT IN TVHEADEND**.
+- The description.
+- **ADS**: the ad breaks a scan found or cut, when ad removal has scanned the recording.
+- **SAVES TO**: the library file. It reads **FILE MISSING** when Freetvarr cannot find that file; the player then plays the TVHeadend copy if TVHeadend still has it.
+
+Press the button again, press `Esc`, or click the picture above the panel to close it. The position bar and **SKIP AD** hide while the panel is open. A second `Esc` closes the player.
 
 The player converts the file as it plays, the same way it converts [live TV](/guide/live-tv#stream-handling), so live channels and recordings share the `LIVE_TV_MAX_SESSIONS` limit. A recording still in progress cannot be played until it finishes. On the TV itself, a media player that reads your library (Plex, Jellyfin, Kodi, or Infuse) is still the better way to watch.
 

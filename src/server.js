@@ -143,6 +143,7 @@ import {
   createPlaybackSessions,
   playbackCandidates,
   resolvePlaybackFile,
+  playbackSourceFor,
   probeRecording,
   durationFrom,
   planForFile,
@@ -1020,8 +1021,11 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
     if (session.status === 'ended') {
       return res.status(500).json({ error: `ffmpeg failed: ${session.reason?.detail || 'unknown error'}`, code: 'ffmpeg' })
     }
-    const adBreaks = await adBreaksFor(file)
-    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0, adBreaks })
+    const [adBreaks, source] = await Promise.all([
+      adBreaksFor(file),
+      playbackSourceFor({ file, libraryPath: ['done', 'partial'].includes(row.status) ? row.file_path : null }),
+    ])
+    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0, adBreaks, source })
   } catch (err) {
     liveError(res, err, 'play start')
   }
