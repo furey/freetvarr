@@ -4589,8 +4589,9 @@ table.recordings-table tbody td {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding-top: clamp(2rem, 9cqw, 5rem);
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.82) 45%, rgba(0, 0, 0, 0.45) 75%, transparent 100%);
+  --live-info-fade: clamp(2rem, 9cqw, 5rem);
+  padding-top: var(--live-info-fade);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.82) 45%, rgba(0, 0, 0, 0.7) calc(100% - var(--live-info-fade)), transparent 100%);
   color: #fffcfb;
   pointer-events: none;
 }
