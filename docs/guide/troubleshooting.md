@@ -242,6 +242,17 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 - Your broadcaster sends captions as Teletext or as DVB subtitles. Australian broadcasters send Teletext. Some players decode Teletext and some don't (it isn't a recording fault). See [Captions in other apps](/guide/live-tv#captions-in-other-apps).
 - In Freetvarr's player, the **CC** button shows only on channels that carry Teletext subtitles, and some programmes have none. See [Captions](/guide/live-tv#captions).
 
+## Chrome Live Caption
+
+A black box titled **Live Caption** at the bottom of the Chrome window is Chrome's own speech-to-text, not Freetvarr's captions. Chrome makes the text from the sound of any video, so it can show words the broadcaster never sent. The **Captions** item in the video's menu can switch it on, but turning that item off later does not switch it off.
+
+To switch it off:
+
+1. Open `chrome://settings/accessibility` in Chrome.
+2. Turn off **Live Caption**.
+
+Freetvarr's own captions show inside the picture. Press **CC** in the player to show or hide them.
+
 ## Wrong timestamps
 
 - Freetvarr uses the time zone you chose in the wizard. If Doctor warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in SETTINGS, in the SCHEDULE panel. Freetvarr shows every time in that zone, on every device.
