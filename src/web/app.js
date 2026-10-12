@@ -9484,6 +9484,10 @@ document.addEventListener('visibilitychange', () => {
 
 const FULLSCREEN_EXIT_RESUME_MS = 1_500
 
+const isStageFullscreen = ref(false)
+
+document.addEventListener('fullscreenchange', () => { isStageFullscreen.value = Boolean(document.fullscreenElement) })
+
 const toggleStageFullscreen = ({ stage, video }) => {
   if (document.fullscreenElement) return document.exitFullscreen?.().catch(() => {})
   if (stage?.requestFullscreen) return stage.requestFullscreen().catch(() => {})
@@ -9861,6 +9865,14 @@ const FullscreenIcon = {
   `,
 }
 
+const ExitFullscreenIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M6 2.75V6H2.75M13.25 6H10V2.75M10 13.25V10h3.25M2.75 10H6v3.25"/>
+    </svg>
+  `,
+}
+
 const StartOverIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -10110,14 +10122,17 @@ const PlayerOverlayButtons = {
     hasCaptions: Boolean,
     captionsOn: Boolean,
     closeLabel: { type: String, default: 'Close' },
+    fullscreen: Boolean,
   },
-  emits: ['toggle-info', 'toggle-captions', 'close'],
+  emits: ['toggle-info', 'toggle-captions', 'close', 'exit-fullscreen'],
   template: `
     <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="$emit('toggle-info')"
       aria-label="Programme info" :aria-expanded="String(infoOpen)" :aria-controls="infoId"><info-icon /></button>
     <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
       @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-    <button type="button" class="btn btn-icon live-landscape-close" @click="$emit('close')" :aria-label="closeLabel"><cross-icon /></button>
+    <button v-if="fullscreen" type="button" class="btn btn-icon live-landscape-close" @click="$emit('exit-fullscreen')"
+      aria-label="Exit full screen"><exit-fullscreen-icon /></button>
+    <button v-else type="button" class="btn btn-icon live-landscape-close" @click="$emit('close')" :aria-label="closeLabel"><cross-icon /></button>
   `,
 }
 
@@ -10138,6 +10153,7 @@ const PlayerActionRow = {
           aria-label="Programme info" :aria-expanded="String(infoOpen)" :aria-controls="infoId"><info-icon /></button>
         <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
           @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+        <slot name="icons" />
         <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
       </div>
       <div class="flex shrink-0 gap-2"><slot /></div>
@@ -10285,8 +10301,8 @@ const LivePlayer = {
               </p>
           </player-info-panel>
           <player-overlay-buttons :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
-            :captions-on="captionsOn" close-label="Stop and close"
-            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" />
+            :captions-on="captionsOn" close-label="Stop and close" :fullscreen="isStageFullscreen"
+            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" @exit-fullscreen="toggleLiveFullscreen" />
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
           </div>
@@ -10299,6 +10315,9 @@ const LivePlayer = {
           <player-action-row :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
             :captions-on="captionsOn" :status-text="statusText" :status-kind="statusKind"
             @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions">
+            <template #icons>
+              <button type="button" class="btn btn-icon live-action-icon" @click="toggleLiveFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+            </template>
             <button v-if="live.phase === 'ended'" type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
             <template v-else>
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
@@ -10313,7 +10332,6 @@ const LivePlayer = {
                 :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
                 <series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span>
               </button>
-              <button type="button" class="btn btn-icon live-action-icon" @click="toggleLiveFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
               <button type="button" class="btn live-action-wide live-pause-button" :disabled="live.phase !== 'live'"
                 :aria-label="live.paused ? 'Play' : 'Pause'" @click="toggleLivePause">
                 <play-icon v-if="live.paused" /><pause-icon v-else />
@@ -10577,7 +10595,7 @@ const LivePlayer = {
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, toggleLiveFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      isBehindLive, jumpToLive, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT,
@@ -10993,20 +11011,24 @@ const RecordingPlayer = {
               <span class="flex-1"></span>
               <button v-if="playback.resumed" type="button" class="btn btn-icon" @click="startPlaybackOver" aria-label="Start over"><start-over-icon /></button>
               <button v-if="playback.airplay" type="button" class="btn btn-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
-              <button type="button" class="btn btn-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+              <button type="button" class="btn btn-icon" @click="toggleFullscreen" :aria-label="isStageFullscreen ? 'Exit full screen' : 'Full screen'">
+                <exit-fullscreen-icon v-if="isStageFullscreen" /><fullscreen-icon v-else />
+              </button>
             </div>
           </div>
         </div>
         <div class="panel-body">
           <player-action-row :info-open="infoOpen" info-id="play-info" :status-text="statusText" :status-kind="statusKind"
             @toggle-info="toggleInfo">
+            <template #icons>
+              <button type="button" class="btn btn-icon live-action-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+              <button v-if="playback.airplay" type="button" class="btn btn-icon live-action-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
+            </template>
             <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
             <template v-else>
               <button v-if="playback.resumed" type="button" class="btn live-action-wide" aria-label="START OVER" @click="startPlaybackOver">
                 <start-over-icon /> <span class="live-action-label">START OVER</span>
               </button>
-              <button v-if="playback.airplay" type="button" class="btn btn-icon live-action-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
-              <button type="button" class="btn btn-icon live-action-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
               <button type="button" class="btn live-action-wide live-pause-button" :aria-label="playback.paused ? 'Play' : 'Pause'" @click="togglePlayback">
                 <play-icon v-if="playback.paused" /><pause-icon v-else />
                 <span class="live-action-label">{{ playback.paused ? 'PLAY' : 'PAUSE' }}</span>
@@ -11169,7 +11191,7 @@ const RecordingPlayer = {
       infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
       statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, showAirplay, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      toggleFullscreen, isStageFullscreen, showAirplay, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
     }
   },
 }
@@ -11497,6 +11519,7 @@ app.component('live-player', LivePlayer)
 app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)
 app.component('fullscreen-icon', FullscreenIcon)
+app.component('exit-fullscreen-icon', ExitFullscreenIcon)
 app.component('airplay-icon', AirplayIcon)
 app.component('start-over-icon', StartOverIcon)
 app.component('player-header', PlayerHeader)

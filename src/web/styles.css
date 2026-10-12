@@ -3313,6 +3313,10 @@ span.row-info {
   display: none;
 }
 
+.live-video::-webkit-media-controls-fullscreen-button {
+  display: none;
+}
+
 .live-frame:fullscreen .live-landscape-info,
 .live-frame:fullscreen .live-landscape-captions,
 .live-frame:fullscreen .live-landscape-close {
