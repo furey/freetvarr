@@ -141,6 +141,15 @@ kbd {
   line-height: 1.15;
 }
 
+.VPHero .tagline.tagline {
+  padding-top: 28px;
+  line-height: 1.25;
+}
+
+.VPHero .actions.actions {
+  padding-top: 44px;
+}
+
 /* Keyboard hints. */
 kbd {
   display: inline-block;
@@ -289,8 +298,12 @@ kbd {
   }
 
   .VPHero .tagline.tagline {
+    padding-top: 20px;
     font-size: 16px;
-    line-height: 1.3;
+  }
+
+  .VPHero .actions.actions {
+    padding-top: 36px;
   }
 
   /* Tables: tighter cells, and columns wide enough to read in tables of three
