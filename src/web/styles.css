@@ -3313,6 +3313,28 @@ span.row-info {
   display: none;
 }
 
+.live-frame:fullscreen .live-landscape-info,
+.live-frame:fullscreen .live-landscape-captions,
+.live-frame:fullscreen .live-landscape-close {
+  display: inline-flex;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.live-frame:fullscreen .live-landscape-info {
+  right: 4rem;
+}
+
+.live-frame:fullscreen .live-landscape-captions {
+  right: 7.25rem;
+}
+
 @media (max-width: 767px) {
   .live-backdrop {
     align-items: center;

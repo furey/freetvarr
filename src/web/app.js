@@ -10248,7 +10248,7 @@ const LivePlayer = {
         <player-header :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="live.channel?.name"
           :subtitle="live.nowTitle" close-label="Stop and close" @close="stopLive" />
         <div ref="frameEl" class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
-          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen"></video>
+          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen" controlslist="nofullscreen"></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
               <span class="live-chip-arm"><i class="live-chip"></i></span>
@@ -10313,6 +10313,7 @@ const LivePlayer = {
                 :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
                 <series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span>
               </button>
+              <button type="button" class="btn btn-icon live-action-icon" @click="toggleLiveFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
               <button type="button" class="btn live-action-wide live-pause-button" :disabled="live.phase !== 'live'"
                 :aria-label="live.paused ? 'Play' : 'Pause'" @click="toggleLivePause">
                 <play-icon v-if="live.paused" /><pause-icon v-else />
@@ -10423,6 +10424,7 @@ const LivePlayer = {
     let bufferedLoading = false
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
+    const toggleLiveFullscreen = () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo })
 
     const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
       infoOpen,
@@ -10441,7 +10443,7 @@ const LivePlayer = {
       toggleCaptions: toggleLiveCaptions,
       togglePause: toggleLivePause,
       skip: skipLiveByKey,
-      toggleFullscreen: () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo }),
+      toggleFullscreen: toggleLiveFullscreen,
     })
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
@@ -10575,7 +10577,7 @@ const LivePlayer = {
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      isBehindLive, jumpToLive, frameEl, toggleLiveFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT,
