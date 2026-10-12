@@ -8,7 +8,7 @@ export const adScanConfirm = ({ recording, retentionDays }) => (adScanModeOf(rec
   : findAdsConfirm({ recording }))
 
 export const removeFromTvhConfirm = ({ recording }) => ({
-  title: `Remove "${recording.title}" from TVHeadend`,
+  title: 'Remove from TVHeadend',
   body: [
     'TVHeadend deletes its copy of the recording.',
     libraryCopyText(recording),
@@ -55,7 +55,7 @@ export const scanMinutesOf = (durationSeconds) => {
 export const fileNameOf = (filePath) => String(filePath || '').split('/').pop()
 
 const findAdsConfirm = ({ recording }) => ({
-  title: `Find the ads in "${recording.title}"`,
+  title: 'Find ads',
   body: [
     'Freetvarr scans the recording for ad breaks.'
       + ` If it finds any, it saves their times in ${edlNameOf(recording.file_path)} beside the recording.`
@@ -64,13 +64,12 @@ const findAdsConfirm = ({ recording }) => ({
     lastResultText(recording),
   ].filter(Boolean),
   confirmLabel: 'FIND ADS',
-  keepLabel: "DON'T SCAN",
   busyLabel: 'STARTING…',
   danger: false,
 })
 
 const cutAdsConfirm = ({ recording, retentionDays }) => ({
-  title: `Cut the ads from "${recording.title}"`,
+  title: 'Cut ads',
   body: [
     'Freetvarr scans the recording for ad breaks.'
       + ' If it finds any, it saves the recording again without them, at the same picture quality.',
@@ -83,13 +82,12 @@ const cutAdsConfirm = ({ recording, retentionDays }) => ({
       : lastResultText(recording),
   ].filter(Boolean),
   confirmLabel: 'CUT ADS',
-  keepLabel: "DON'T SCAN",
   busyLabel: 'STARTING…',
   danger: true,
 })
 
 const clearRemovedRowConfirm = ({ recording, undoSeconds }) => ({
-  title: `Clear "${recording.title}" from the list`,
+  title: 'Clear from the list',
   body: [
     `The row leaves this list. ${libraryCopyText(recording)}`,
     'To delete the episode for good, delete it in your media player or from your library folder.',
@@ -102,7 +100,7 @@ const clearRemovedRowConfirm = ({ recording, undoSeconds }) => ({
 })
 
 const clearHeldRowConfirm = ({ recording }) => ({
-  title: `Clear "${recording.title}" from the list`,
+  title: 'Clear from the list',
   body: [
     'The row leaves this list. TVHeadend keeps the recording.',
     'While TVHeadend has the recording, the next sync adds the row back and decides again whether to import it.',

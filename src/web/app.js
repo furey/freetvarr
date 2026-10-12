@@ -2236,9 +2236,7 @@ const FolderEditor = {
     const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
     const keepLabel = computed(() => (props.isSeries ? 'KEEP FOLDER' : 'KEEP TITLE MATCH'))
     const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
-    const removeTitle = computed(() => (props.isSeries
-      ? `Unassign the folder from ${props.folder.show_pattern}`
-      : `Remove the title match ${props.folder.show_pattern}`))
+    const removeTitle = computed(() => (props.isSeries ? 'Unassign the folder' : 'Remove the title match'))
     const removeOutcome = computed(() => {
       const condition = props.isSeries
         ? 'If you unassign this series folder, future episodes'
@@ -2423,7 +2421,7 @@ const SeriesView = {
       <div v-if="cancelling" class="epg-modal-backdrop" @click.self="closeCancelSeries">
         <section class="panel epg-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-series-title">
           <header class="panel-header">
-            <span id="cancel-series-title" class="panel-title">{{ cancelling.series.title }}</span>
+            <span id="cancel-series-title" class="panel-title">Cancel series</span>
             <button type="button" class="btn btn-icon epg-modal-x" @click="closeCancelSeries" aria-label="Close"><cross-icon /></button>
           </header>
           <div class="panel-body">
@@ -2531,7 +2529,7 @@ const SeriesView = {
       <div v-if="assigning" class="epg-modal-backdrop" @click.self="closeAssign">
         <form class="panel epg-modal info-modal" role="dialog" aria-modal="true" aria-labelledby="assign-folder-title" @submit.prevent="assignFolder">
           <header class="panel-header">
-            <span id="assign-folder-title" class="panel-title">Assign a folder to {{ assigning.title }}</span>
+            <span id="assign-folder-title" class="panel-title">Assign a folder</span>
             <button type="button" class="btn btn-icon epg-modal-x" @click="closeAssign" aria-label="Close"><cross-icon /></button>
           </header>
           <div class="panel-body space-y-4">
@@ -7168,7 +7166,7 @@ const ConfirmDialog = {
                 <p v-for="(line, i) in dialog.body" :key="i" class="text-sm text-ink confirm-dialog-line">{{ line }}</p>
               </div>
               <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-                <button type="button" class="btn mr-auto" @click="cancel" :disabled="busy">{{ dialog.keepLabel }}</button>
+                <button v-if="dialog.keepLabel" type="button" class="btn mr-auto" @click="cancel" :disabled="busy">{{ dialog.keepLabel }}</button>
                 <button type="button" :class="['btn', dialog.danger ? 'btn-danger' : 'btn-primary']" @click="$emit('confirm')" :disabled="busy">
                   <template v-if="busy">{{ dialog.busyLabel }}</template>
                   <template v-else><component v-if="icon" :is="icon" /> {{ dialog.confirmLabel }}</template>

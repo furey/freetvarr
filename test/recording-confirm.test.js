@@ -25,10 +25,14 @@ const recording = (overrides = {}) => ({
   ...overrides,
 })
 
-test('every recording confirm names what its dismiss button keeps', () => {
+test('ad scan confirms have no dismiss button; the close button backs out', () => {
+  const base = recording()
+  assert.equal(adScanConfirm({ recording: base }).keepLabel, undefined)
+  assert.equal(adScanConfirm({ recording: { ...base, show_ad_removal: 'cut' } }).keepLabel, undefined)
+})
+
+test('every other recording confirm names what its dismiss button keeps', () => {
   const base = recording({ deleted_from_tvh_at: '2026-10-01' })
-  assert.equal(adScanConfirm({ recording: base }).keepLabel, "DON'T SCAN")
-  assert.equal(adScanConfirm({ recording: { ...base, show_ad_removal: 'cut' } }).keepLabel, "DON'T SCAN")
   assert.equal(removeFromTvhConfirm({ recording: base }).keepLabel, 'KEEP IN TVHEADEND')
   assert.equal(clearRowConfirm({ recording: base, undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
   assert.equal(clearRowConfirm({ recording: recording(), undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
@@ -56,7 +60,7 @@ test('fileNameOf: the last path part', () => {
 
 test('adScanConfirm: detect names the .edl file, the time, and keeps the file', () => {
   const dialog = adScanConfirm({ recording: recording(), retentionDays: '7' })
-  assert.equal(dialog.title, 'Find the ads in "The Block"')
+  assert.equal(dialog.title, 'Find ads')
   assert.equal(dialog.confirmLabel, 'FIND ADS')
   assert.equal(dialog.danger, false)
   assert.match(dialog.body[0], /The Block - S21E01\.edl beside the recording/)
@@ -74,7 +78,7 @@ test('adScanConfirm: detect says it replaces the last result', () => {
 
 test('adScanConfirm: cut names the backup, its retention, and is styled as danger', () => {
   const dialog = adScanConfirm({ recording: recording({ show_ad_removal: 'cut' }), retentionDays: '3' })
-  assert.equal(dialog.title, 'Cut the ads from "The Block"')
+  assert.equal(dialog.title, 'Cut ads')
   assert.equal(dialog.confirmLabel, 'CUT ADS')
   assert.equal(dialog.danger, true)
   assert.match(dialog.body[1], /The Block - S21E01\.ts\.orig for 3 days, then deletes it\./)
@@ -94,7 +98,7 @@ test('adScanConfirm: unknown length says several minutes; bad retention falls ba
 
 test('removeFromTvhConfirm: library copy stays, history kept, cannot undo', () => {
   const dialog = removeFromTvhConfirm({ recording: recording() })
-  assert.equal(dialog.title, 'Remove "The Block" from TVHeadend')
+  assert.equal(dialog.title, 'Remove from TVHeadend')
   assert.equal(dialog.confirmLabel, 'REMOVE FROM TVHEADEND')
   assert.equal(dialog.danger, true)
   assert.deepEqual(dialog.body, [
@@ -113,7 +117,7 @@ test('removeFromTvhConfirm: warns when the library copy is already gone', () => 
 
 test('clearRowConfirm: a row not in TVHeadend keeps the file and offers UNDO', () => {
   const dialog = clearRowConfirm({ recording: recording({ deleted_from_tvh_at: '2026-10-01' }), undoSeconds: 10 })
-  assert.equal(dialog.title, 'Clear "The Block" from the list')
+  assert.equal(dialog.title, 'Clear from the list')
   assert.equal(dialog.confirmLabel, 'CLEAR FROM LIST')
   assert.equal(dialog.body[0], `The row leaves this list. Your library copy stays at ${FILE}, and your media player still plays it.`)
   assert.equal(dialog.body[2], 'For 10 seconds, UNDO puts the row back.')
