@@ -4110,7 +4110,7 @@ const SettingsView = {
               <span class="panel-title">AD REMOVAL</span>
               <info-button title="AD REMOVAL" doc="guide/ad-removal">
                 <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each series on the <strong>SERIES</strong> tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Turn it on here, then set a mode for each series on the <strong>SERIES</strong> tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so apps that read it skip them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
                 <p>Detection is not always right. Use <strong>DETECT</strong> on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
