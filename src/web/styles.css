@@ -3314,12 +3314,12 @@ span.row-info {
 }
 
 .live-backdrop.is-windowed {
-  --windowed-chrome: 9rem;
+  --windowed-chrome: 9.5rem;
   padding: 0;
 }
 
 .live-backdrop.is-windowed .play-modal {
-  --windowed-chrome: 12rem;
+  --windowed-chrome: 12.5rem;
 }
 
 .is-windowed .live-modal {
