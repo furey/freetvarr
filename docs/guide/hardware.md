@@ -32,6 +32,11 @@ It is a network tuner: it plugs into your router, or a switch on your home netwo
 
 No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
 
+<div class="product-shot">
+  <img src="../img/hardware/hdhomerun-early.webp" alt="A pale grey HDHomeRun box, about the size of a paperback book, with HDTV moulded into its lid" width="1000" height="538" loading="lazy">
+  <p>An early HDHomeRun from 2008. Current models such as the Flex Quatro are a different shape, but connect the same way: an aerial lead and a network cable.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:SiliconDust_HDHR_Front.jpeg">Zuzu</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
+</div>
+
 ### Direct to a spare NAS port
 
 A NAS with a second ethernet port can take the tuner directly, with no router in between. It works, with two catches. Nothing on that link hands out addresses, so the tuner and the NAS port fall back to link-local addresses (`169.254.x.x`). TVHeadend under host networking still finds the tuner by broadcast on that port. But the tuner no longer appears in your router's client list, and its status page answers only from the NAS itself. Plug the tuner into the router or a switch on your home network if you can.
@@ -63,6 +68,11 @@ A `A$20` Xbox One or Hauppauge USB tuner works on a normal Linux computer. It do
 </div>
 
 ## Wiring it up
+
+<div class="product-shot">
+  <img src="../img/hardware/rooftop-uhf-aerials.webp" alt="Three long UHF TV aerials and an older VHF aerial on one mast against a blue sky" width="1000" height="700" loading="lazy">
+  <p>Rooftop TV aerials. Most Australian homes already have one; the tuner uses the same aerial and lead as the old TV or recorder.<br><em>Photo: Serge Nueffer, public domain, via <a href="https://commons.wikimedia.org/wiki/File:Three_UHF_Yagi_television_antennas.jpg">Wikimedia Commons</a>; cropped and resized.</em></p>
+</div>
 
 The tuner takes the place of whatever box was on the end of your aerial lead. Nothing else in the chain changes. For most homes the chain is the aerial lead into the tuner and an ethernet lead into the router:
 
