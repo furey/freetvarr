@@ -4976,3 +4976,40 @@ table.recordings-table tbody td {
 .live-controls-status {
   min-width: 4.5rem;
 }
+
+.player-tap-layer {
+  position: absolute;
+  inset: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.live-landscape-info,
+.live-landscape-captions,
+.live-landscape-close,
+.play-controls,
+.live-controls {
+  transition: opacity 0.25s ease;
+}
+
+.is-controls-hidden {
+  cursor: none;
+}
+
+.is-controls-hidden .live-landscape-info,
+.is-controls-hidden .live-landscape-captions,
+.is-controls-hidden .live-landscape-close,
+.is-controls-hidden .play-controls,
+.is-controls-hidden .live-controls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-landscape-info,
+  .live-landscape-captions,
+  .live-landscape-close,
+  .play-controls,
+  .live-controls {
+    transition: none;
+  }
+}

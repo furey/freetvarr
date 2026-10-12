@@ -9203,6 +9203,7 @@ const live = reactive({
   scrubbing: false,
   scrubValue: 0,
   customControls: false,
+  captionsLifted: false,
   skipHint: null,
   captions: false,
   paused: false,
@@ -9564,7 +9565,7 @@ const seekLiveTo = (second) => {
 }
 
 const placeLiveCaptions = () => {
-  const line = live.customControls ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT
+  const line = live.captionsLifted ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT
   for (const track of captionTracksOf(liveVideo)) {
     for (const cue of track.cues || []) if (cue.line !== line) cue.line = line
   }
@@ -9621,17 +9622,17 @@ const tapZoneOf = ({ video, event, bottomInsetPx }) => {
 }
 
 const onLivePointerDown = (e) => {
-  liveTapStart = e.isPrimary && e.target === liveVideo
+  liveTapStart = e.isPrimary && isPictureTarget(e.target, liveVideo)
     ? { x: e.clientX, y: e.clientY, at: Date.now() }
     : null
 }
 
-const onLivePointerUp = (e) => {
+const onLivePointerUp = (e, { onSingleTap = toggleLivePause } = {}) => {
   const start = liveTapStart
   liveTapStart = null
   liveClickPlan = 'pass'
   if (!start) return
-  if (live.customControls) return onCustomControlsTap({ start, e })
+  if (live.customControls) return onCustomControlsTap({ start, e, onSingleTap })
   if (!canSkip()) return
   const tap = {
     startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
@@ -9645,7 +9646,9 @@ const onLivePointerUp = (e) => {
   skipLive(result)
 }
 
-const onCustomControlsTap = ({ start, e }) => {
+const cancelLiveTap = () => { liveTapStart = null }
+
+const onCustomControlsTap = ({ start, e, onSingleTap }) => {
   const tap = {
     startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
     ms: Date.now() - start.at, pointerType: e.pointerType,
@@ -9655,13 +9658,13 @@ const onCustomControlsTap = ({ start, e }) => {
   const result = registerLiveTap({ side, force: false })
   clearTimeout(liveSingleClickTimer)
   if (result.kind === 'skip') return skipLive(result)
-  liveSingleClickTimer = setTimeout(toggleLivePause, DOUBLE_TAP_MS)
+  liveSingleClickTimer = setTimeout(onSingleTap, DOUBLE_TAP_MS)
 }
 
 const onLiveClick = (e) => {
   const plan = liveClickPlan
   liveClickPlan = 'pass'
-  if (plan === 'pass' || e.target !== liveVideo) return
+  if (plan === 'pass' || !isPictureTarget(e.target, liveVideo)) return
   e.preventDefault()
   e.stopPropagation()
   if (plan === 'toggle-later') liveSingleClickTimer = setTimeout(toggleLivePause, DOUBLE_TAP_MS)
@@ -9678,7 +9681,7 @@ const syncLivePaused = () => {
 }
 
 const onLiveDoubleClick = (e) => {
-  if (e.target !== liveVideo || (!live.customControls && isOnNativeControlBar(e))) return
+  if (!isPictureTarget(e.target, liveVideo) || (!live.customControls && isOnNativeControlBar(e))) return
   e.preventDefault()
   e.stopPropagation()
   const bottomInsetPx = live.customControls ? 0 : NATIVE_CONTROL_BAR_PX
@@ -10381,6 +10384,57 @@ const usePlayerKeys = ({
 
 const isKeyboardFocused = (el) => !el.matches?.('button') || el.matches(':focus-visible')
 
+const isPictureTarget = (el, video) => el === video || Boolean(el?.classList?.contains('player-tap-layer'))
+
+const singleTapActionFor = ({ pointerType, controlsShown, revealControls, togglePause }) => {
+  if (pointerType === 'touch' && !controlsShown.value) return revealControls
+  return () => {
+    togglePause()
+    revealControls()
+  }
+}
+
+const useControlsAutoHide = ({ enabled, holdShown, rootEl }) => {
+  const controlsShown = ref(true)
+  let hideTimer = null
+
+  const isFocusInside = () => {
+    const el = document.activeElement
+    return Boolean(el && rootEl.value?.contains(el) && el.matches(':focus-visible'))
+  }
+
+  const hideLater = () => {
+    clearTimeout(hideTimer)
+    if (!enabled.value || holdShown.value) return
+    hideTimer = setTimeout(() => {
+      if (isFocusInside()) return hideLater()
+      controlsShown.value = false
+    }, CONTROLS_HIDE_MS)
+  }
+
+  const revealControls = () => {
+    controlsShown.value = true
+    hideLater()
+  }
+
+  const onPointerMove = (e) => {
+    if (enabled.value && e.pointerType === 'mouse') revealControls()
+  }
+
+  const onKeydown = () => {
+    if (enabled.value) revealControls()
+  }
+
+  watch([enabled, holdShown], revealControls)
+  onMounted(() => window.addEventListener('keydown', onKeydown, true))
+  onUnmounted(() => {
+    clearTimeout(hideTimer)
+    window.removeEventListener('keydown', onKeydown, true)
+  })
+
+  return { controlsShown, revealControls, onPointerMove }
+}
+
 const useInfoDismissTaps = ({ infoOpen, onPointerDown, onPointerUp, onClick, onDoubleClick }) => {
   let ignoreTapsUntil = 0
 
@@ -10427,8 +10481,10 @@ const LivePlayer = {
       <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
         <player-header :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="live.channel?.name"
           :subtitle="live.nowTitle" close-label="Stop and close" @close="stopLive" />
-        <div ref="frameEl" class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
+        <div ref="frameEl" :class="['live-frame', { 'is-controls-hidden': !controlsShown }]" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
+          @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen && !customControls" controlslist="nofullscreen"></video>
+          <div v-if="customControls" class="player-tap-layer" aria-hidden="true"></div>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
               <span class="live-chip-arm"><i class="live-chip"></i></span>
@@ -10638,10 +10694,7 @@ const LivePlayer = {
     const toggleLiveFullscreen = () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo })
     const layout = computed(() => playerLayoutOf({ canFill: live.phase !== 'ended' && !live.holders.length }))
     const customControls = computed(() => layout.value['is-filled'] || isStageFullscreen.value)
-    watch(customControls, (on) => {
-      live.customControls = on
-      placeLiveCaptions()
-    }, { immediate: true })
+    watch(customControls, (on) => { live.customControls = on }, { immediate: true })
 
     const bufferSpan = computed(() =>
       (live.bufferFrom == null || live.bufferTo == null ? 0 : live.bufferTo - live.bufferFrom))
@@ -10670,10 +10723,23 @@ const LivePlayer = {
       seekLiveTo(Number(e.target.value))
     }
 
+    const { controlsShown, revealControls, onPointerMove: onControlsPointerMove } = useControlsAutoHide({
+      enabled: computed(() => live.open && customControls.value),
+      holdShown: computed(() => live.paused || live.phase !== 'live' || live.scrubbing || infoOpen.value
+        || chips.value !== 'hidden' || recordDialogOverPlayer.value),
+      rootEl: frameEl,
+    })
+    watch([customControls, controlsShown], ([custom, shown]) => {
+      live.captionsLifted = custom && shown
+      placeLiveCaptions()
+    }, { immediate: true })
+
     const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
       infoOpen,
       onPointerDown: onLivePointerDown,
-      onPointerUp: onLivePointerUp,
+      onPointerUp: (e) => onLivePointerUp(e, {
+        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, togglePause: toggleLivePause }),
+      }),
       onClick: onLiveClick,
       onDoubleClick: onLiveDoubleClick,
     })
@@ -10822,7 +10888,7 @@ const LivePlayer = {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
       isBehindLive, jumpToLive, customControls, hasBufferBar, shownLivePosition, liveFillPercent, barStatus,
-      onLiveScrubInput, onLiveScrubCommit, frameEl, toggleLiveFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT,
@@ -10863,6 +10929,7 @@ const NATIVE_CONTROL_BAR_PX = 48
 const SKIP_HINT_MS = 1_600
 const SEEK_RESTART_DELAY_MS = 400
 const FILLED_CAPTION_LINE = 70
+const CONTROLS_HIDE_MS = 3_000
 const MIN_BUFFER_BAR_S = 10
 const PLAYER_TOKEN = crypto.randomUUID?.() ?? String(Math.random()).slice(2)
 
@@ -11160,12 +11227,14 @@ const registerPlayTap = ({ side, force }) => {
 }
 
 const onPlayPointerDown = (e) => {
-  playTapStart = e.isPrimary && e.target === playVideo
+  playTapStart = e.isPrimary && isPictureTarget(e.target, playVideo)
     ? { x: e.clientX, y: e.clientY, at: Date.now() }
     : null
 }
 
-const onPlayPointerUp = (e) => {
+const cancelPlayTap = () => { playTapStart = null }
+
+const onPlayPointerUp = (e, { onSingleTap = togglePlayback } = {}) => {
   const start = playTapStart
   playTapStart = null
   if (!start || playback.phase !== 'playing') return
@@ -11178,11 +11247,11 @@ const onPlayPointerUp = (e) => {
   const result = registerPlayTap({ side, force: false })
   clearTimeout(playSingleTapTimer)
   if (result.kind === 'skip') return skipPlayback(result)
-  playSingleTapTimer = setTimeout(togglePlayback, DOUBLE_TAP_MS)
+  playSingleTapTimer = setTimeout(onSingleTap, DOUBLE_TAP_MS)
 }
 
 const onPlayDoubleClick = (e) => {
-  if (e.target !== playVideo) return
+  if (!isPictureTarget(e.target, playVideo)) return
   e.preventDefault()
   e.stopPropagation()
   if (tapZoneOf({ video: playVideo, event: e, bottomInsetPx: 0 })) return
@@ -11227,10 +11296,11 @@ const RecordingPlayer = {
       <section class="panel epg-modal live-modal play-modal" role="dialog" aria-label="Recording player">
         <player-header :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
           @close="stopPlayback" />
-        <div ref="stageEl" :class="['play-stage', { 'is-info-open': infoOpen }]">
-          <div class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
-            @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
+        <div ref="stageEl" :class="['play-stage', { 'is-info-open': infoOpen, 'is-controls-hidden': !controlsShown }]">
+          <div class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @pointercancel="cancelPlayTap"
+            @pointermove="onControlsPointerMove" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
             <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
+            <div class="player-tap-layer" aria-hidden="true"></div>
             <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
             <player-overlay-buttons :info-open="infoOpen" info-id="play-info" :has-captions="playback.captions"
               :captions-on="captionsOn" :fullscreen="isStageFullscreen || layout['is-filled']"
@@ -11398,7 +11468,14 @@ const RecordingPlayer = {
 
     const toggleFullscreen = () => toggleStageFullscreen({ stage: stageEl.value, video: playVideo })
     const layout = computed(() => playerLayoutOf({ canFill: playback.phase !== 'ended' }))
-    const captionLine = computed(() => (layout.value['is-filled'] ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT))
+    const customControls = computed(() => layout.value['is-filled'] || isStageFullscreen.value)
+    const { controlsShown, revealControls, onPointerMove: onControlsPointerMove } = useControlsAutoHide({
+      enabled: computed(() => playback.open && customControls.value),
+      holdShown: computed(() => playback.paused || playback.phase !== 'playing' || playback.waiting
+        || playback.scrubbing || infoOpen.value),
+      rootEl: stageEl,
+    })
+    const captionLine = computed(() => (customControls.value && controlsShown.value ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT))
     const placeCaptions = () => {
       for (const track of captionTracksOf(playVideo)) {
         for (const cue of track.cues || []) if (cue.line !== captionLine.value) cue.line = captionLine.value
@@ -11411,7 +11488,9 @@ const RecordingPlayer = {
     const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
       infoOpen,
       onPointerDown: onPlayPointerDown,
-      onPointerUp: onPlayPointerUp,
+      onPointerUp: (e) => onPlayPointerUp(e, {
+        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, togglePause: togglePlayback }),
+      }),
       onClick: () => {},
       onDoubleClick: onPlayDoubleClick,
     })
@@ -11472,7 +11551,7 @@ const RecordingPlayer = {
 
     return {
       playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
-      infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
+      infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent, controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
       toggleFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, showAirplay,
