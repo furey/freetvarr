@@ -35,6 +35,7 @@
 - [Screenshots](#screenshots)
 - [What Freetvarr is](#what-freetvarr-is)
 - [Where it works](#where-it-works)
+- [Why I built this](#why-i-built-this)
 - [Why not just TVHeadend](#why-not-just-tvheadend)
 - [Why not just Plex DVR](#why-not-just-plex-dvr)
 - [What Freetvarr isn't](#what-freetvarr-isnt)
@@ -117,13 +118,19 @@ It is also a TV app for your home network. Open the LIVE TV tab on a phone or a 
 
 If your media stack is tuner → TVHeadend → media library, Freetvarr is the automation in between: schedule a series from its built-in TV Guide, and the episodes turn up in your library named and foldered. Any TVHeadend-compatible tuner counts: a network tuner such as an HDHomeRun, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
 
-It's a fork of [Fetcharr](https://github.com/furey/fetcharr) with the recorder replaced. When Fetch TV announced its Gen 3 Extended Service Levy, the author swapped Fetcharr's Fetch pieces for TVHeadend one at a time to get his new HDHomeRun working. Only after all that did he notice that his own Plex Pass already covered [Plex DVR](https://furey.github.io/freetvarr/guide/plex-dvr). Without a Plex Pass, a tuner you own and a free guide cost nothing per year. See [Leaving Fetch TV](https://furey.github.io/freetvarr/guide/leaving-fetch), and [From Fetcharr](https://furey.github.io/freetvarr/guide/from-fetcharr) if you ran Fetcharr.
+It's a fork of [Fetcharr](https://github.com/furey/fetcharr) with the recorder replaced ([Why I built this](#why-i-built-this)). See [Leaving Fetch TV](https://furey.github.io/freetvarr/guide/leaving-fetch), and [From Fetcharr](https://furey.github.io/freetvarr/guide/from-fetcharr) if you ran Fetcharr.
 
 ## Where it works
 
 Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so TVHeadend handles the broadcast standard: DVB-T/T2 (Australia, UK, Europe, New Zealand), DVB-C and DVB-S, ATSC (US and Canada), ISDB-T. Three things differ by country and all three are set up in TVHeadend, not here: the tuner model (a DVB-T tuner in Australia or the UK, an ATSC one in the US), the TV guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US), and the mux scan list. The docs walk through an Australian setup because that is where the author lives. Every Australian value in them is an example: swap the timezone, the mux list, the TV guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases in the TV Guide are tuned for Australian channels but do no harm elsewhere.
 
 Tested with an HDHomeRun Flex Quatro. The [hardware guide](https://furey.github.io/freetvarr/guide/hardware) says why the author recommends it and what else works.
+
+## Why I built this
+
+Freetvarr grew out of my earlier project, [Fetcharr](https://github.com/furey/fetcharr), which moved Fetch TV recordings into Plex. When Fetch announced its Gen 3 Extended Service Levy, I bought an HDHomeRun and swapped Fetcharr's Fetch parts for TVHeadend, one at a time, until it worked. Only then did I notice that my Plex Pass already includes [Plex DVR](https://furey.github.io/freetvarr/guide/plex-dvr). I haven't tried it yet, but I will.
+
+So why not just use Plex DVR, FlexPass, or another project? Any of them might suit you better, and that's fine. I've written software for 20 years and I enjoy tinkering, so building this was the fun part, and it does what I need. I'm sharing it in case it helps someone. Use it, clone it, or point your own AI agent at it and make it yours. I'm not selling anything.
 
 ## Why not just TVHeadend
 
@@ -201,6 +208,10 @@ On a NAS or another remote host, sign in over SSH first. To install by hand or w
 ### Record something
 
 In Freetvarr, open the TV Guide, click a programme, and press **RECORD** for one airing or **SERIES** for every episode. To change TVHeadend by hand, see the [TVHeadend guide](https://furey.github.io/freetvarr/guide/tvheadend).
+
+### Save it as an app (optional)
+
+On an iPhone or iPad, open Freetvarr in Safari, tap the Share button, then tap **Add to Home Screen**. Freetvarr then opens full screen from its own icon, with no Safari address bar. On Android, use Chrome's `⋮` menu → **Add to Home screen**. See [Save it as an app](https://furey.github.io/freetvarr/guide/getting-started#_4-save-it-as-an-app).
 
 ### Configure
 
