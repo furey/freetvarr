@@ -45,6 +45,7 @@ import {
 import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
 import { isReadyToStart } from '/live-start.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
+import { SERIES_SORTS, SERIES_STATUSES, sortSeries, filterSeries, filterTitleMatches } from '/series-order.js'
 import { transmitterLabel } from '/transmitter-label.js'
 import { revealStepMs, isStepResolved, pacedSteps, shownJob, STEP_PACING } from '/paced-reveal.js'
 import {
@@ -1758,6 +1759,7 @@ const LIVE_IMAGES_KEY = 'freetvarr.liveImages'
 const LIVE_FAVOURITES_ONLY_KEY = 'freetvarr.liveFavouritesOnly'
 const LIVE_ZOOM_KEY = 'freetvarr.liveZoom'
 const LIVE_CAPTIONS_KEY = 'freetvarr.liveCaptions'
+const SERIES_SORT_KEY = 'freetvarr.seriesSort'
 const LIVE_ZOOM_LEVELS = ['s', 'm', 'l']
 
 const DashboardView = {
@@ -2300,13 +2302,14 @@ const SeriesView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">SERIES · {{ series.length }}</span>
+            <span class="panel-title" aria-live="polite">SERIES · {{ seriesCountLabel }}</span>
             <info-button title="SERIES" doc="guide/series">
               <p>Each row is a series recording in TVHeadend. <strong>SAVES TO</strong> shows the folder where each sync saves its finished episodes.</p>
               <p>To record a new series, open the <strong>TV GUIDE</strong>, pick a programme, and press <strong>SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
               <p><strong>CANCEL SERIES</strong> cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
               <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>ASSIGN FOLDER</strong> to give it one. <strong>UNASSIGN FOLDER</strong> in the edit form takes it away again. Episodes already imported stay where they are.</p>
               <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>CANCEL SERIES</strong> removes it.</p>
+              <p>Type in the filter box to find a series by title, channel, or folder. <strong>SORT</strong> orders the rows, and <strong>STATUS</strong> shows only paused series, series not in the TV guide, or series recording now.</p>
             </info-button>
           </span>
           <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
@@ -2322,8 +2325,56 @@ const SeriesView = {
             <p v-if="!error && series.length === 0" class="text-ink-dim text-sm">
               No series recordings yet. Open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>SERIES</strong>.
             </p>
+            <template v-else>
+            <template v-if="narrow">
+              <div class="view-controls view-controls-sticky" style="flex-wrap: wrap;">
+                <input v-no-autofill v-model="filterQ" type="search" class="field-input" style="flex-basis: 100%;"
+                  placeholder="Filter series or channels" aria-label="Filter series or channels" />
+                <select v-model="sortKey" class="field-input" aria-label="Sort series">
+                  <option v-for="o in SERIES_SORTS" :key="o.key" :value="o.key">{{ o.label }}</option>
+                </select>
+                <filter-sheet title="FILTER SERIES" :count="statusFilter === 'all' ? 0 : 1" @clear="statusFilter = 'all'">
+                  <div class="filter-group" role="group" aria-label="STATUS">
+                    <span class="field-label">STATUS</span>
+                    <div class="filter-chips">
+                      <button v-for="o in SERIES_STATUSES" :key="o.key" type="button"
+                        :class="['btn', 'btn-sm', statusFilter === o.key ? 'btn-on' : '']" :aria-pressed="String(statusFilter === o.key)"
+                        @click="statusFilter = o.key">{{ o.label }}</button>
+                    </div>
+                  </div>
+                </filter-sheet>
+              </div>
+              <div v-if="statusFilter !== 'all'" class="active-filters">
+                <button type="button" class="btn btn-sm btn-on" :aria-label="'Remove filter: ' + statusLabel"
+                  @click="statusFilter = 'all'">{{ statusLabel }} <cross-icon /></button>
+              </div>
+            </template>
             <div v-else class="space-y-3">
-              <article v-for="s in series" :key="s.key" class="deck-card space-y-3">
+              <div class="view-controls">
+                <input v-no-autofill v-model="filterQ" type="search" class="field-input"
+                  placeholder="Filter series or channels" aria-label="Filter series or channels"
+                  style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
+                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SORT</span>
+                <select v-model="sortKey" class="field-input day-select" aria-label="Sort series"
+                  style="padding-top: 0.3rem; padding-bottom: 0.3rem;">
+                  <option v-for="o in SERIES_SORTS" :key="o.key" :value="o.key">{{ o.label }}</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2 min-w-0" role="group" aria-label="STATUS">
+                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">STATUS</span>
+                <div class="chip-row md:flex-wrap">
+                  <button v-for="o in SERIES_STATUSES" :key="o.key" type="button"
+                    :class="['btn', 'btn-sm', statusFilter === o.key ? 'btn-on' : '']" :aria-pressed="String(statusFilter === o.key)"
+                    @click="statusFilter = o.key">{{ o.label }}</button>
+                </div>
+              </div>
+            </div>
+            <div v-if="!visibleSeries.length" class="flex flex-wrap items-center gap-3">
+              <p class="text-ink-dim text-sm">{{ noMatchText }}</p>
+              <button type="button" class="btn btn-sm" @click="clearFilters"><cross-icon /> CLEAR FILTERS</button>
+            </div>
+            <div v-else class="space-y-3">
+              <article v-for="s in visibleSeries" :key="s.key" class="deck-card space-y-3">
                 <div class="deck-card-with-image">
                   <programme-image :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" :title="s.title" />
                   <div class="deck-card-text">
@@ -2362,6 +2413,7 @@ const SeriesView = {
                 </div>
               </article>
             </div>
+            </template>
           </template>
         </div>
       </section>
@@ -2387,7 +2439,7 @@ const SeriesView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">TITLE MATCHES · {{ titleMatches.length }}</span>
+            <span class="panel-title">TITLE MATCHES · {{ titleMatchCountLabel }}</span>
             <info-button title="TITLE MATCHES" doc="guide/series#title-matches">
               <p>A recording whose title contains this text saves to its folder, even without a series recording. This covers a title you typed by hand, such as <code>NRL</code>, or a series you cancelled and kept the title match for.</p>
               <p><strong>ADD TITLE</strong> adds one. Freetvarr suggests a folder under your media root, and matches folders that are already there.</p>
@@ -2396,8 +2448,9 @@ const SeriesView = {
         </header>
         <div class="panel-body space-y-4">
           <p class="text-sm text-ink-dim">A recording whose title contains this text saves to its folder, even without a series recording.</p>
-          <div v-if="titleMatches.length" class="space-y-3">
-            <article v-for="f in titleMatches" :key="f.id" class="deck-card space-y-3">
+          <p v-if="titleMatches.length && !visibleTitleMatches.length" class="text-ink-dim text-sm">No title matches for "{{ filterQ.trim() }}".</p>
+          <div v-if="visibleTitleMatches.length" class="space-y-3">
+            <article v-for="f in visibleTitleMatches" :key="f.id" class="deck-card space-y-3">
               <div class="flex items-start justify-between gap-3">
                 <span class="deck-card-title">{{ f.show_pattern }}</span>
               </div>
@@ -2544,6 +2597,34 @@ const SeriesView = {
     const assigning = ref(null)
     const assignDest = ref('')
     const [assignStatusText, assignStatusKind, setAssignStatus] = makeStatus()
+    const filterQ = ref('')
+    const statusFilter = ref('all')
+    const sortKey = storedChoice({ key: SERIES_SORT_KEY, options: SERIES_SORTS.map((o) => o.key), fallback: 'az' })
+    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+    const nowMs = ref(Date.now())
+    const clock = setInterval(() => (nowMs.value = Date.now()), 30000)
+    onUnmounted(() => clearInterval(clock))
+
+    const isFiltering = computed(() => Boolean(filterQ.value.trim()) || statusFilter.value !== 'all')
+    const visibleSeries = computed(() => sortSeries({
+      series: filterSeries({ series: series.value, query: filterQ.value, status: statusFilter.value, nowMs: nowMs.value }),
+      sort: sortKey.value,
+    }))
+    const visibleTitleMatches = computed(() => filterTitleMatches({ titleMatches: titleMatches.value, query: filterQ.value }))
+    const countLabel = ({ shown, total }) => (isFiltering.value && total ? `${shown} of ${total}` : String(total))
+    const seriesCountLabel = computed(() => countLabel({ shown: visibleSeries.value.length, total: series.value.length }))
+    const titleMatchCountLabel = computed(() =>
+      countLabel({ shown: visibleTitleMatches.value.length, total: titleMatches.value.length }))
+    const statusLabel = computed(() => SERIES_STATUSES.find((o) => o.key === statusFilter.value)?.label ?? '')
+    const noMatchText = computed(() => {
+      const query = filterQ.value.trim()
+      if (query) return `No series match "${query}".`
+      return `No series match ${statusLabel.value}.`
+    })
+    const clearFilters = () => {
+      filterQ.value = ''
+      statusFilter.value = 'all'
+    }
 
     const refresh = async () => {
       try {
@@ -2777,6 +2858,8 @@ const SeriesView = {
 
     return {
       series, titleMatches, loaded, error, stale, editingKey, busyKey,
+      filterQ, statusFilter, sortKey, narrow, visibleSeries, visibleTitleMatches, seriesCountLabel, titleMatchCountLabel,
+      statusLabel, noMatchText, clearFilters, SERIES_SORTS, SERIES_STATUSES,
       tvhShows, folders, mediaRoot, mediaRootPrefix, adRemovalEnabled, importUnmatched, FOLDER_HINT,
       assigning, assignDest, assignPath, assignStatusText, assignStatusKind, openAssign, closeAssign, assignFolder,
       newPattern, newFolder, newTemplate, newDeleteAfter, newAdRemoval,

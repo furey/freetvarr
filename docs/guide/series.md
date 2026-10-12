@@ -60,6 +60,16 @@ The buttons on a row:
 - **PAUSE** stops TVHeadend recording new episodes of this series. Episodes already recorded still import. **RESUME** starts it again. On an SD and HD pair, both series recordings pause and resume together.
 - **CANCEL SERIES** removes the series recording from TVHeadend. See [Cancel a series recording](#cancel-a-series-recording).
 
+## Sort and filter
+
+The controls above the series rows narrow and order the list:
+
+- **Filter series or channels**: type part of a title, a channel name, `any channel`, or part of a **SAVES TO** path. The filter also applies to the **TITLE MATCHES** panel.
+- **SORT**: **A–Z** (the default), **NEXT AIRING**, or **RECENTLY ADDED**. **A–Z** ignores a leading "The", so `The Block` sorts under B. **NEXT AIRING** puts series with nothing in the TV guide last. **RECENTLY ADDED** uses the date the series got its library folder, so a series that saves to the one-off folder sorts last.
+- **STATUS**: **ALL**, **PAUSED**, **NOT IN GUIDE** (nothing in the TV guide for the next `7` days), or **RECORDING NOW**. On a phone, press **FILTERS** to pick a status.
+
+The panel title shows how many series match, such as `SERIES · 2 OF 9`. **CLEAR FILTERS** shows all series again. The browser remembers the sort order; the filter and status reset when you leave the tab.
+
 ## Cancel a series recording
 
 Press **CANCEL SERIES** on a row of the **SERIES** tab, or in the programme dialog of the TV Guide or the live player. TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files. Before it cancels, Freetvarr asks:
