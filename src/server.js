@@ -29,7 +29,7 @@ import {
   matchShow,
   createValidFilename,
 } from './sync.js'
-import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates } from './library-files.js'
+import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { findArtwork, saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopScheduler } from './scheduler.js'
 import {
@@ -2055,6 +2055,7 @@ const server = app.listen(PORT, async () => {
     const moved = await rebaseFilePaths()
     if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
     await resetInterruptedImports()
+    sweepLibraryStates().catch((err) => console.warn(`[sync] library check: ${err.message}`))
     shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
     prepareThumbnailCache()
   } catch (err) {
