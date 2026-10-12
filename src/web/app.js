@@ -44,7 +44,7 @@ import {
   NO_GUIDE_TEXT, channelNumberLabel, seasonEpisodeOf, ratingLabel, genreLabel, programmeProgress,
   airingBoundary, airingCovers, watchRowLabel,
 } from '/live-info.js'
-import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
+import { CAPTION_LINE_PERCENT, captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
 import { isReadyToStart } from '/live-start.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { SERIES_SORTS, SERIES_STATUSES, sortSeries, filterSeries, filterTitleMatches } from '/series-order.js'
@@ -10665,6 +10665,7 @@ const HAVE_CURRENT_DATA = 2
 const NATIVE_CONTROL_BAR_PX = 48
 const SKIP_HINT_MS = 1_600
 const SEEK_RESTART_DELAY_MS = 400
+const FILLED_CAPTION_LINE = 70
 const PLAYER_TOKEN = crypto.randomUUID?.() ?? String(Math.random()).slice(2)
 
 const playback = reactive({
@@ -11200,6 +11201,13 @@ const RecordingPlayer = {
 
     const toggleFullscreen = () => toggleStageFullscreen({ stage: stageEl.value, video: playVideo })
     const layout = computed(() => playerLayoutOf({ canFill: playback.phase !== 'ended' }))
+    const captionLine = computed(() => (layout.value['is-filled'] ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT))
+    const placeCaptions = () => {
+      for (const track of captionTracksOf(playVideo)) {
+        for (const cue of track.cues || []) if (cue.line !== captionLine.value) cue.line = captionLine.value
+      }
+    }
+    watch(captionLine, placeCaptions)
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
 
@@ -11255,7 +11263,10 @@ const RecordingPlayer = {
       playVideo.addEventListener('pause', onPause)
       playVideo.addEventListener('waiting', () => { playback.waiting = true })
       playVideo.addEventListener('ended', onEnded)
-      playVideo.textTracks?.addEventListener?.('addtrack', () => { if (!playHls) applyPlayCaptions() })
+      playVideo.textTracks?.addEventListener?.('addtrack', (e) => {
+        e.track?.addEventListener?.('cuechange', placeCaptions)
+        if (!playHls) applyPlayCaptions()
+      })
       playVideo.textTracks?.addEventListener?.('change', syncPlayCaptionPreference)
       playVideo.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
         playback.airplay = e.availability === 'available'

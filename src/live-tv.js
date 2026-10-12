@@ -16,6 +16,7 @@ import {
 } from './tvheadend.js'
 import { getRecordingState, listGuideChannels } from './epg.js'
 import { vaapiFilters, vaapiEncoderArgs, VAAPI_HEIGHT_CAP } from './live-encoder.js'
+import { CAPTION_LINE_PERCENT } from './web/live-captions.js'
 
 export const LIVE_ROOT = path.join(os.tmpdir(), 'freetvarr-live')
 export const MASTER_PLAYLIST = 'index.m3u8'
@@ -174,7 +175,6 @@ const labelCaptionRendition = (line) => {
   return /AUTOSELECT=/.test(named) ? named : `${named},AUTOSELECT=YES`
 }
 
-const CAPTION_LINE_PERCENT = 85
 
 export const CAPTION_CUE_SETTINGS = `line:${CAPTION_LINE_PERCENT}%,end align:start position:10% size:80%`
 
