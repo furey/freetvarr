@@ -13,7 +13,7 @@ set -euo pipefail
 # the server. It records every frame Chrome paints (capture-screencast.mjs),
 # then encode-screencast.sh trims and encodes them on the host to
 # docs/public/demo.mp4 with a matching poster frame, and cuts the opening
-# seconds into the README's docs/img/hero.gif.
+# seconds into the README's docs/img/hero.webp.
 #
 # Needs host `node` + `ffmpeg`, and a running freetvarr with a reachable
 # TVHeadend EPG (the tour shows its real channels, logos, and artwork).
@@ -65,11 +65,10 @@ VIDEO_FPS="${WALKTHROUGH_FPS:-60}" \
 
 rm -rf "$FRAMES_DIR" "$TOUR_LOG"
 
-HERO_GIF="${REPO_ROOT}/docs/img/hero.gif"
+HERO="${REPO_ROOT}/docs/img/hero.webp"
 HERO_SECONDS="${WALKTHROUGH_HERO_SECONDS:-9.2}"
-ffmpeg -y -loglevel error -t "$HERO_SECONDS" -i "$MP4" \
-  -vf "fps=12,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
-  -loop 0 "$HERO_GIF"
+ffmpeg -y -loglevel error -t "$HERO_SECONDS" -i "$MP4" -vf "fps=12,scale=800:-1:flags=lanczos" \
+  -c:v libwebp -quality 80 -compression_level 6 -loop 0 -an "$HERO"
 
 echo "[walkthrough] done:"
-ls -lh "$MP4" "$POSTER" "$HERO_GIF"
+ls -lh "$MP4" "$POSTER" "$HERO"
