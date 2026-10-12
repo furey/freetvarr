@@ -57,7 +57,7 @@ const findAdsConfirm = ({ recording }) => ({
   body: [
     'Freetvarr scans the recording for ad breaks.'
       + ` If it finds any, it saves their times in ${edlNameOf(recording.file_path)} beside the recording.`
-      + ' Kodi reads that file and skips the ads. The recording file stays as it is.',
+      + ' Apps that read that file skip the ads. The recording file stays as it is.',
     `${scanTimeText(recording)} and uses a lot of processor time.`,
     lastResultText(recording),
   ].filter(Boolean),

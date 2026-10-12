@@ -153,6 +153,16 @@ The row's error text on the RECORDINGS tab says which of the two causes it was:
 
 - The imported file came up more than `1MB` short of what TVHeadend reported. The next sync imports the file again. If it stays **PARTIAL**, the source itself is short. In TVHeadend's web interface, check the status of that entry (it usually reports data errors from a weak signal).
 
+## Replaced recordings
+
+A recording shows **REPLACED** when its library file is gone and another file for the same episode is in its place. Freetvarr checks this at every sync and each time the RECORDINGS tab loads.
+
+The usual cause is Sonarr. When Sonarr and Freetvarr save to the same TV library folder, Sonarr counts Freetvarr's recording as its own file for that episode. When Sonarr downloads a copy its quality profile rates higher, it moves Freetvarr's file to its recycle bin and keeps the download. The INFO panel of the recording names the file that replaced it.
+
+Freetvarr leaves the replacement in place. To keep Freetvarr's recordings, open the series in Sonarr and turn off monitoring for the episodes Freetvarr records.
+
+A recording shows **NOT IN LIBRARY** when its file is gone and nothing replaced it. Press **IMPORT AGAIN** on its row to import the TVHeadend copy again.
+
 ## Slow imports
 
 - A hardlink import is instant. If an import shows progress, Freetvarr is copying, because Freetvarr sees the recordings folder and the media library through separate mounts or on different disks. Put both under one mounted folder on one disk to import by hardlink ([One shared mount](/guide/configuration#one-shared-mount)).

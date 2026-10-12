@@ -53,9 +53,24 @@ export const adsText = ({ ad_status: status, ad_breaks_json: json }) => {
   return status === 'cut' ? `${summary}, cut` : `${summary}, found`
 }
 
-export const savesToLine = ({ status, file_path: filePath, library_file_present: present }) => {
+export const libraryStatusOf = (recording) => recording.library_state || recording.status
+
+export const savesToLine = (recording) => {
+  const { status, file_path: filePath, library_file_present: present } = recording
   if (!['done', 'partial'].includes(status) || !filePath) return null
-  return { label: present === false ? 'FILE MISSING' : 'SAVES TO', text: filePath }
+  if (recording.library_state === 'replaced') return { label: 'REPLACED BY', text: recording.library_replacement }
+  const missing = recording.library_state === 'not_in_library' || present === false
+  return { label: missing ? 'FILE MISSING' : 'SAVES TO', text: filePath }
+}
+
+export const libraryStateTitle = (recording) => {
+  if (recording.library_state === 'replaced') {
+    return `Another app, such as Sonarr, replaced Freetvarr's file with ${fileNameOf(recording.library_replacement)}.`
+  }
+  if (recording.library_state === 'not_in_library') {
+    return `The file is gone from your library folder: ${fileNameOf(recording.file_path)}.`
+  }
+  return ''
 }
 
 export const libraryStatusText = ({ status, imported, deletedFromTvh }) => {
@@ -67,6 +82,8 @@ export const libraryStatusText = ({ status, imported, deletedFromTvh }) => {
 }
 
 export const sourceBadgeText = (source) => SOURCE_BADGES[source] || ''
+
+const fileNameOf = (filePath) => String(filePath || '').split('/').pop()
 
 const uniqueParts = (parts) => parts
   .filter(Boolean)
@@ -92,6 +109,8 @@ const STATUS_LABELS = {
   skipped: 'SKIPPED',
   failed: 'FAILED',
   not_imported: 'NOT IMPORTED',
+  replaced: 'REPLACED',
+  not_in_library: 'NOT IN LIBRARY',
   importing: 'IMPORTING',
   pending: 'PENDING',
 }

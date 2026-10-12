@@ -24,6 +24,8 @@ import {
   adsText,
   airedRangeText,
   durationText,
+  libraryStateTitle,
+  libraryStatusOf,
   libraryStatusText,
   recordingEpisodeLine,
   recordingHeaderLine,
@@ -2185,7 +2187,7 @@ const FolderEditor = {
           <label class="field-label">Ad removal</label>
           <select class="field-input" v-model="adRemoval" :disabled="!adRemovalEnabled">
             <option value="off">OFF</option>
-            <option value="detect">DETECT: mark ad breaks so Kodi can skip them</option>
+            <option value="detect">DETECT: mark ad breaks so apps can skip them</option>
             <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
           </select>
           <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
@@ -2506,7 +2508,7 @@ const SeriesView = {
                 <label class="field-label">Ad removal</label>
                 <select class="field-input" v-model="newAdRemoval" :disabled="!adRemovalEnabled">
                   <option value="off">OFF</option>
-                  <option value="detect">DETECT: mark ad breaks so Kodi can skip them</option>
+                  <option value="detect">DETECT: mark ad breaks so apps can skip them</option>
                   <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
                 </select>
                 <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
@@ -3101,6 +3103,7 @@ const RecordingsView = {
             <span class="panel-title">RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
             <info-button title="RECORDINGS" doc="guide/recordings">
               <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>IMPORTED</strong>, <strong>PARTIAL</strong>, <strong>SKIPPED</strong>, <strong>FAILED</strong>, or <strong>NOT IMPORTED</strong>. The next sync tries a <strong>PARTIAL</strong> import again.</p>
+              <p><strong>REPLACED</strong> means another app, such as Sonarr, put a different file for the episode in place of Freetvarr's. <strong>NOT IN LIBRARY</strong> means the file is gone; press <strong>IMPORT AGAIN</strong> to import the TVHeadend copy again.</p>
               <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a <strong>NOT IMPORTED</strong> recording to add it to the library.</p>
               <p><strong>NOT IN TVHEADEND</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
@@ -3192,7 +3195,7 @@ const RecordingsView = {
                 <td class="font-mono whitespace-nowrap">{{ fmtBytes(r.size) }}</td>
                 <td>
                   <span class="pill-group stacked">
-                    <span :class="['pill', r.status]">{{ statusLabel(r.status) }}</span>
+                    <span :class="['pill', libraryStatusOf(r)]" :title="libraryStateTitle(r) || null">{{ statusLabel(libraryStatusOf(r)) }}</span>
                     <span v-if="r.deleted_from_tvh_at" class="pill not-in-tvh-chip" :title="notInTvhTitle(r)">NOT IN TVHEADEND</span>
                   </span>
                   <span v-if="r.error" class="block text-xs font-mono text-signal-orange-hi mt-1">{{ r.error }}</span>
@@ -3215,7 +3218,7 @@ const RecordingsView = {
                   <button v-if="canImport(r)" type="button" class="btn btn-sm"
                     @click="importRecording(r)" :disabled="importingId === r.recording_id"
                     title="Add this recording to the library at the next sync.">
-                    {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
+                    {{ importingId === r.recording_id ? '…' : importLabel(r) }}
                   </button>
                   <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
                     @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
@@ -3256,7 +3259,7 @@ const RecordingsView = {
                     <span v-if="resumeLabel(r)" class="recording-cell-resume">{{ resumeLabel(r) }}</span>
                   </div>
                 </div>
-                <span :class="['pill', r.status]">{{ statusLabel(r.status) }}</span>
+                <span :class="['pill', libraryStatusOf(r)]" :title="libraryStateTitle(r) || null">{{ statusLabel(libraryStatusOf(r)) }}</span>
               </div>
               <p class="deck-card-meta">
                 {{ showLabel(r) }}<template v-if="se(r)"> · {{ se(r) }}</template><template v-if="fmtBytes(r.size)"> · {{ fmtBytes(r.size) }}</template><template v-if="r.imported_at"> · imported {{ fmtTime(r.imported_at) }}</template>
@@ -3279,7 +3282,7 @@ const RecordingsView = {
                 </button>
                 <button v-if="canImport(r)" type="button" class="btn btn-sm"
                   @click="importRecording(r)" :disabled="importingId === r.recording_id">
-                  {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
+                  {{ importingId === r.recording_id ? '…' : importLabel(r) }}
                 </button>
                 <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
                   @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
@@ -3343,7 +3346,7 @@ const RecordingsView = {
     const undoIds = ref([])
     const restoring = ref(false)
 
-    const statusOptions = ['all', 'done', 'not_imported', 'partial', 'failed', 'skipped', 'importing']
+    const statusOptions = ['all', 'done', 'not_imported', 'replaced', 'not_in_library', 'partial', 'failed', 'skipped', 'importing']
     const sinceOptions = [
       { key: 'all', label: 'ALL' },
       { key: '1h',  label: '1H'  },
@@ -3468,9 +3471,10 @@ const RecordingsView = {
       ? 'Clear this row from the list. The file stays in your library.'
       : 'Clear this row from the list. While TVHeadend has the recording, the next sync adds it back.')
     const notInTvhTitle = (r) => `TVHeadend deleted its copy ${fmtTime(r.deleted_from_tvh_at)}.`
-      + ' The episode is still in your library.'
+      + (r.library_state ? '' : ' The episode is still in your library.')
     const canAdScan = (r) => canAdScanRecording({ adRemovalEnabled: adRemovalEnabled.value, recording: r })
-    const canImport = (r) => r.status === 'not_imported' && !r.deleted_from_tvh_at
+    const canImport = (r) => ['not_imported', 'not_in_library'].includes(libraryStatusOf(r)) && !r.deleted_from_tvh_at
+    const importLabel = (r) => (r.library_state === 'not_in_library' ? 'IMPORT AGAIN' : 'IMPORT')
     const statusLabel = (status) => (status === 'done' ? 'imported' : status.replace(/_/g, ' '))
     const showLabel = (r) => r.show_pattern || (r.show_id == null ? 'One-off' : 'none')
     const imageUrl = (r) => (r.image_path ? `/api/recordings/${encodeURIComponent(r.recording_id)}/image` : null)
@@ -3678,7 +3682,7 @@ const RecordingsView = {
       sortCol, sortDir, statusFilter, showFilter, sinceFilter, deletedFilter,
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
       deletingId, removingId, importingId, clearing, adRemovalEnabled, adScanningId,
-      canImport, importRecording, statusLabel, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
+      canImport, importLabel, importRecording, statusLabel, libraryStatusOf, libraryStateTitle, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
       refresh, manualRefresh, canDelete,
       canAdScan, isAdScanBlocked, adScanTitle, adLabel, adTooltip, adScan,
       progressPhase, isAdProgress, hasBar, progressCaption,
@@ -4106,7 +4110,7 @@ const SettingsView = {
               <span class="panel-title">AD REMOVAL</span>
               <info-button title="AD REMOVAL" doc="guide/ad-removal">
                 <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each series on the <strong>SERIES</strong> tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Turn it on here, then set a mode for each series on the <strong>SERIES</strong> tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so apps that read it skip them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
                 <p>Detection is not always right. Use <strong>DETECT</strong> on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
@@ -11046,7 +11050,7 @@ const RecordingPlayer = {
       if (!r) return ''
       return [
         durationText(r.duration_s || playback.duration),
-        libraryStatusText({ status: r.status, imported: fmtTime(r.imported_at), deletedFromTvh: Boolean(r.deleted_from_tvh_at) }),
+        libraryStatusText({ status: libraryStatusOf(r), imported: fmtTime(r.imported_at), deletedFromTvh: Boolean(r.deleted_from_tvh_at) }),
       ].filter(Boolean).join(' · ')
     })
 

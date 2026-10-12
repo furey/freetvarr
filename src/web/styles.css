@@ -465,6 +465,8 @@ table.deck-table tbody tr.active {
 .pill.error      { color: #ffab3d; }
 .pill.skipped    { color: #8b837e; }
 .pill.not_imported { color: #8b837e; }
+.pill.replaced   { color: #8b837e; }
+.pill.not_in_library { color: #ffab3d; }
 .pill.pending    { color: #62cfff; }
 .pill.scanning      { color: #62cfff; }
 .pill.detected      { color: #ffcd00; }
