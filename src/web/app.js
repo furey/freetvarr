@@ -9197,6 +9197,12 @@ const live = reactive({
   tuningStartedAt: 0,
   behindSeconds: 0,
   bufferSeconds: 0,
+  bufferFrom: null,
+  bufferTo: null,
+  position: 0,
+  scrubbing: false,
+  scrubValue: 0,
+  customControls: false,
   skipHint: null,
   captions: false,
   paused: false,
@@ -9541,9 +9547,27 @@ const liveEdgeOf = (video) => {
 }
 
 const trackBehindLive = () => {
-  const target = liveVideo?.readyState >= HAVE_CURRENT_DATA ? liveTargetSecond() : null
+  const ready = liveVideo?.readyState >= HAVE_CURRENT_DATA
+  const target = ready ? liveTargetSecond() : null
+  const oldest = ready ? oldestKeptSecond() : null
   const behind = target == null ? null : finiteOrNull(target - liveVideo.currentTime)
   live.behindSeconds = behind == null ? 0 : Math.max(0, behind)
+  live.bufferTo = target
+  live.bufferFrom = oldest == null ? null : oldest + SEEK_FLOOR_MARGIN_S
+  live.position = ready ? liveVideo.currentTime : 0
+}
+
+const seekLiveTo = (second) => {
+  if (!canSkip() || live.bufferFrom == null || live.bufferTo == null) return
+  liveVideo.currentTime = Math.max(live.bufferFrom, Math.min(live.bufferTo, second))
+  trackBehindLive()
+}
+
+const placeLiveCaptions = () => {
+  const line = live.customControls ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT
+  for (const track of captionTracksOf(liveVideo)) {
+    for (const cue of track.cues || []) if (cue.line !== line) cue.line = line
+  }
 }
 
 const oldestKeptSecond = () => {
@@ -9606,7 +9630,9 @@ const onLivePointerUp = (e) => {
   const start = liveTapStart
   liveTapStart = null
   liveClickPlan = 'pass'
-  if (!start || !canSkip()) return
+  if (!start) return
+  if (live.customControls) return onCustomControlsTap({ start, e })
+  if (!canSkip()) return
   const tap = {
     startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
     ms: Date.now() - start.at, pointerType: e.pointerType,
@@ -9617,6 +9643,19 @@ const onLivePointerUp = (e) => {
   liveClickPlan = nativeClickPlan({ tap: result.kind, pointerType: e.pointerType })
   clearTimeout(liveSingleClickTimer)
   skipLive(result)
+}
+
+const onCustomControlsTap = ({ start, e }) => {
+  const tap = {
+    startX: start.x, startY: start.y, endX: e.clientX, endY: e.clientY,
+    ms: Date.now() - start.at, pointerType: e.pointerType,
+  }
+  if (!isTap(tap) || live.phase !== 'live') return
+  const side = canSkip() ? tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: 0 }) : null
+  const result = registerLiveTap({ side, force: false })
+  clearTimeout(liveSingleClickTimer)
+  if (result.kind === 'skip') return skipLive(result)
+  liveSingleClickTimer = setTimeout(toggleLivePause, DOUBLE_TAP_MS)
 }
 
 const onLiveClick = (e) => {
@@ -9639,10 +9678,12 @@ const syncLivePaused = () => {
 }
 
 const onLiveDoubleClick = (e) => {
-  if (e.target !== liveVideo || isOnNativeControlBar(e)) return
+  if (e.target !== liveVideo || (!live.customControls && isOnNativeControlBar(e))) return
   e.preventDefault()
   e.stopPropagation()
-  if (canSkip() && tapZoneOf({ video: liveVideo, event: e, bottomInsetPx: NATIVE_CONTROL_BAR_PX })) return
+  const bottomInsetPx = live.customControls ? 0 : NATIVE_CONTROL_BAR_PX
+  if (canSkip() && tapZoneOf({ video: liveVideo, event: e, bottomInsetPx })) return
+  clearTimeout(liveSingleClickTimer)
   toggleStageFullscreen({ stage: liveVideo.closest('.live-frame'), video: liveVideo })
 }
 
@@ -10387,7 +10428,7 @@ const LivePlayer = {
         <player-header :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="live.channel?.name"
           :subtitle="live.nowTitle" close-label="Stop and close" @close="stopLive" />
         <div ref="frameEl" class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
-          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen" controlslist="nofullscreen"></video>
+          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen && !customControls" controlslist="nofullscreen"></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
             <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
               <span class="live-chip-arm"><i class="live-chip"></i></span>
@@ -10426,6 +10467,30 @@ const LivePlayer = {
           <player-overlay-buttons :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
             :captions-on="captionsOn" close-label="Stop and close" :fullscreen="isStageFullscreen || layout['is-filled']"
             @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" @exit-fullscreen="exitPlayerFullscreen" />
+          <div v-if="customControls && !infoOpen" class="play-controls live-controls">
+            <div class="play-scrub">
+              <span class="play-time live-controls-status">{{ barStatus }}</span>
+              <input v-if="hasBufferBar" type="range" class="play-range" step="any"
+                :min="live.bufferFrom" :max="live.bufferTo" :value="shownLivePosition"
+                :style="{ '--fill': liveFillPercent }"
+                @input="onLiveScrubInput" @change="onLiveScrubCommit"
+                aria-label="Position in the live buffer">
+            </div>
+            <div class="play-buttons">
+              <button v-if="isBehindLive" type="button" class="btn btn-icon" aria-label="Go live" @click="jumpToLive"><go-live-icon /></button>
+              <button type="button" :class="['btn', 'btn-icon', 'live-record-button', { 'is-recording': recordButton.recording }]"
+                :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
+                <span v-if="recordButton.recording" class="led-dot live live-record-dot" aria-hidden="true"></span><record-icon v-else />
+              </button>
+              <button v-if="!seriesButton.hidden" type="button" :class="['btn', 'btn-icon', 'live-series-button', { 'is-on': seriesButton.set }]"
+                :disabled="seriesButton.disabled" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
+                :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive"><series-record-icon :set="seriesButton.set" /></button>
+              <button type="button" class="btn btn-icon" :disabled="live.phase !== 'live'"
+                :aria-label="live.paused ? 'Play' : 'Pause'" @click="toggleLivePause">
+                <play-icon v-if="live.paused" /><pause-icon v-else />
+              </button>
+            </div>
+          </div>
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
           </div>
@@ -10547,6 +10612,7 @@ const LivePlayer = {
       liveVideo.addEventListener('play', keepSeekInsideBuffer)
       liveVideo.addEventListener('emptied', syncLivePaused)
       liveVideo.addEventListener('seeked', trackBehindLive)
+      liveVideo.addEventListener('timeupdate', trackBehindLive)
       liveVideo.addEventListener('pause', trackBehindLive)
       liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
       liveVideo.addEventListener('playing', handOffToVideo)
@@ -10557,7 +10623,8 @@ const LivePlayer = {
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
-    const onTextTrackAdded = () => {
+    const onTextTrackAdded = (e) => {
+      e.track?.addEventListener?.('cuechange', placeLiveCaptions)
       if (!liveHls) applyLiveCaptions()
     }
 
@@ -10570,6 +10637,38 @@ const LivePlayer = {
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const toggleLiveFullscreen = () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo })
     const layout = computed(() => playerLayoutOf({ canFill: live.phase !== 'ended' && !live.holders.length }))
+    const customControls = computed(() => layout.value['is-filled'] || isStageFullscreen.value)
+    watch(customControls, (on) => {
+      live.customControls = on
+      placeLiveCaptions()
+    }, { immediate: true })
+
+    const bufferSpan = computed(() =>
+      (live.bufferFrom == null || live.bufferTo == null ? 0 : live.bufferTo - live.bufferFrom))
+    const hasBufferBar = computed(() =>
+      live.phase === 'live' && live.bufferSeconds > 0 && bufferSpan.value >= MIN_BUFFER_BAR_S)
+    const shownLivePosition = computed(() => (live.scrubbing ? live.scrubValue : live.position))
+    const liveFillPercent = computed(() => {
+      if (!bufferSpan.value) return '100%'
+      const share = (shownLivePosition.value - live.bufferFrom) / bufferSpan.value
+      return `${Math.max(0, Math.min(100, share * 100))}%`
+    })
+    const barStatus = computed(() => {
+      if (live.phase === 'tuning') return 'TUNING…'
+      if (live.scrubbing && live.bufferTo != null) return `-${fmtCountdown((live.bufferTo - live.scrubValue) * 1000)}`
+      if (live.paused) return 'PAUSED'
+      return isBehindLive.value ? `-${fmtCountdown(live.behindSeconds * 1000)}` : 'LIVE'
+    })
+
+    const onLiveScrubInput = (e) => {
+      live.scrubbing = true
+      live.scrubValue = Number(e.target.value)
+    }
+
+    const onLiveScrubCommit = (e) => {
+      live.scrubbing = false
+      seekLiveTo(Number(e.target.value))
+    }
 
     const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
       infoOpen,
@@ -10722,7 +10821,8 @@ const LivePlayer = {
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, toggleLiveFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      isBehindLive, jumpToLive, customControls, hasBufferBar, shownLivePosition, liveFillPercent, barStatus,
+      onLiveScrubInput, onLiveScrubCommit, frameEl, toggleLiveFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT,
@@ -10763,6 +10863,7 @@ const NATIVE_CONTROL_BAR_PX = 48
 const SKIP_HINT_MS = 1_600
 const SEEK_RESTART_DELAY_MS = 400
 const FILLED_CAPTION_LINE = 70
+const MIN_BUFFER_BAR_S = 10
 const PLAYER_TOKEN = crypto.randomUUID?.() ?? String(Math.random()).slice(2)
 
 const playback = reactive({
