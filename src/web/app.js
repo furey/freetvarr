@@ -9126,6 +9126,8 @@ const EpgView = {
       if (hdOffer.value) hdOffer.value = null
       else if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
+      else return
+      e.preventDefault()
     }
 
     watch(guideHandoff, (handoff) => handoff && openHandoff())
@@ -9142,6 +9144,7 @@ const EpgView = {
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
     })
     onUnmounted(() => {
+      recordDialogOverPlayer.value = false
       window.removeEventListener('keydown', onKeydown)
       window.removeEventListener('scroll', onAnyScroll, { capture: true })
       hideTooltip()
@@ -10187,7 +10190,7 @@ const usePlayerKeys = ({
   ignoreSelector = 'button, select, textarea, input',
 }) => {
   const onKeydown = (e) => {
-    if (!isActive()) return
+    if (!isActive() || e.defaultPrevented) return
     if (e.key === 'Escape') {
       if (infoOpen.value) infoOpen.value = false
       else close()
@@ -10201,7 +10204,7 @@ const usePlayerKeys = ({
       e.preventDefault()
       return toggleCaptions()
     }
-    if (e.target.closest?.(ignoreSelector)) return
+    if (e.target.closest?.(ignoreSelector) && isKeyboardFocused(e.target)) return
     if (e.key === ' ' || isPlainKey(e, 'k')) {
       e.preventDefault()
       return togglePause()
@@ -10216,6 +10219,8 @@ const usePlayerKeys = ({
   onMounted(() => window.addEventListener('keydown', onKeydown))
   onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 }
+
+const isKeyboardFocused = (el) => !el.matches?.('button') || el.matches(':focus-visible')
 
 const useInfoDismissTaps = ({ infoOpen, onPointerDown, onPointerUp, onClick, onDoubleClick }) => {
   let ignoreTapsUntil = 0
@@ -10634,6 +10639,8 @@ const HAVE_METADATA = 1
 const HAVE_CURRENT_DATA = 2
 const NATIVE_CONTROL_BAR_PX = 48
 const SKIP_HINT_MS = 1_600
+const SEEK_RESTART_DELAY_MS = 400
+const PLAYER_TOKEN = crypto.randomUUID?.() ?? String(Math.random()).slice(2)
 
 const playback = reactive({
   open: false,
@@ -10690,7 +10697,7 @@ const stopPlayback = () => {
   playInfoOpen.value = false
 }
 
-const startPlaybackAt = async (offset) => {
+const startPlaybackAt = async (offset, { delayMs = 0 } = {}) => {
   const run = ++playRun
   const replace = playback.sessionId
   clearTimeout(playHeartbeatTimer)
@@ -10698,11 +10705,14 @@ const startPlaybackAt = async (offset) => {
   playback.phase = 'starting'
   playback.message = ''
   if (offset != null) playback.position = offset
+  if (delayMs) await wait(delayMs)
+  if (run !== playRun) return
   const recordingId = encodeURIComponent(playback.recording.recording_id)
   try {
     const r = await api('POST', `/api/recordings/${recordingId}/play`, {
       ...(offset == null ? {} : { offset }),
       ...(replace ? { replace } : {}),
+      player: PLAYER_TOKEN,
     })
     if (run !== playRun) {
       api('DELETE', `/api/play/${r.session.id}`).catch(() => {})
@@ -10832,15 +10842,16 @@ const producedEndOf = () => {
 }
 
 const seekPlaybackTo = (target) => {
-  if (!playback.open || playback.phase === 'ended') return startPlaybackAt(Math.max(0, Math.floor(target)))
-  if (!playback.sessionId || playback.phase !== 'playing') return startPlaybackAt(Math.max(0, Math.floor(target)))
+  const restartAt = (offset) => startPlaybackAt(offset, { delayMs: SEEK_RESTART_DELAY_MS })
+  if (!playback.open || playback.phase === 'ended') return restartAt(Math.max(0, Math.floor(target)))
+  if (!playback.sessionId || playback.phase !== 'playing') return restartAt(Math.max(0, Math.floor(target)))
   const plan = seekPlan({
     target,
     offset: playback.offset,
     producedEnd: producedEndOf(),
     duration: playback.duration,
   })
-  if (plan.kind === 'restart') return startPlaybackAt(plan.offset)
+  if (plan.kind === 'restart') return restartAt(plan.offset)
   playVideo.currentTime = plan.time
   playback.position = playback.offset + plan.time
   if (playVideo.paused) playVideo.play()?.catch(() => {})

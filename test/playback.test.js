@@ -238,6 +238,16 @@ test('playback sessions: a restart replaces the old session before the cap is ch
   assert.equal(h.sessions.activeCount(), 2)
 })
 
+test('playback sessions: a new start from the same player ends its earlier sessions', async () => {
+  const h = playbackHarness()
+  await start(h.sessions, { player: 'tab-a' })
+  await start(h.sessions, { player: 'tab-a', offset: 60 })
+  const latest = await start(h.sessions, { player: 'tab-a', offset: 120 })
+  await start(h.sessions, { player: 'tab-b' })
+  assert.equal(h.sessions.activeCount(), 2)
+  assert.equal(latest.offset, 120)
+})
+
 test('playback sessions: the reaper ends a session idle for 60 s; fetches keep it alive', async () => {
   const h = playbackHarness()
   const session = await start(h.sessions)

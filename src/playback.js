@@ -159,14 +159,16 @@ export const createPlaybackSessions = ({
 } = {}) => {
   const sessions = new Map()
 
-  const start = async ({ recordingId, label, file, offset = 0, duration = null, plan, replace = null }) => {
+  const start = async ({ recordingId, label, file, offset = 0, duration = null, plan, replace = null, player = null }) => {
     if (replace) await stop(replace)
+    if (player) await Promise.all([...sessions.values()].filter((s) => s.player === player).map((s) => stop(s.id)))
     const playing = [...labels(), ...streamsElsewhere()]
     if (playing.length >= maxSessions) throw streamLimitError({ maxSessions, playing })
     const id = newId()
     const session = {
       id,
       recordingId,
+      player,
       label: label || 'a recording',
       file,
       offset,

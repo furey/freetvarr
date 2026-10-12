@@ -1024,6 +1024,7 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
       : startOffsetFor({ seconds: req.body.offset, duration })
     const plan = planForFile({ probe, encoder: await liveEncoderReady })
     const replace = typeof req.body?.replace === 'string' ? req.body.replace : null
+    const player = typeof req.body?.player === 'string' ? req.body.player.slice(0, 64) : null
     const session = await playbackSessions.start({
       recordingId: row.recording_id,
       label: recordingLabel(row),
@@ -1032,6 +1033,7 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
       duration,
       plan,
       replace,
+      player,
     })
     if (session.status === 'ended') {
       return res.status(500).json({ error: `ffmpeg failed: ${session.reason?.detail || 'unknown error'}`, code: 'ffmpeg' })
