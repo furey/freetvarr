@@ -54,7 +54,7 @@
 
 A walkthrough of the app: the dashboard, live TV, the TV Guide, series, and recordings.
 
-<https://gist.github.com/user-attachments/assets/a6ca5f78-dda2-4fe6-811b-1752c313b284>
+<https://gist.github.com/user-attachments/assets/082ff72b-3731-428b-ba04-22d03c54fc89>
 
 The one-line install, from the `curl` command to the address of the setup wizard.
 
@@ -62,7 +62,7 @@ The one-line install, from the `curl` command to the address of the setup wizard
 
 The setup wizard, from the time zone to the ready step.
 
-<https://gist.github.com/user-attachments/assets/a26b1cfe-5b77-49a6-8534-a8ae2b4dc380>
+<https://gist.github.com/user-attachments/assets/0f70a20e-2cb6-4418-94a0-f5981fc0a93f>
 
 ## Screenshots
 
