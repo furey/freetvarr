@@ -2162,7 +2162,7 @@ const FolderEditor = {
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
           <div class="field-prefixed">
             <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-            <input v-no-autofill :id="'saves-to-' + folder.id" v-autofocus type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
+            <input v-no-autofill :id="'saves-to-' + folder.id" type="text" v-model="destFolder" list="series-media-folders" class="field-input" />
           </div>
           <datalist id="series-media-folders">
             <option v-for="d in folders" :key="d" :value="d" />
