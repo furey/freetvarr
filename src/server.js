@@ -143,6 +143,7 @@ import {
   createPlaybackSessions,
   playbackCandidates,
   resolvePlaybackFile,
+  playbackSourceFor,
   probeRecording,
   durationFrom,
   planForFile,
@@ -461,7 +462,7 @@ app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, re
   await db('recordings')
     .where({ recording_id: recordingId })
     .update({ purged_at: new Date().toISOString() })
-  await forgetRecordingArtwork(recordingId)
+  if (!row.deleted_from_tvh_at) await forgetRecordingArtwork(recordingId)
   res.json({ ok: true })
 })
 
@@ -548,6 +549,7 @@ app.get('/api/recordings', async (req, res) => {
       'recordings.*',
       'shows.show_pattern as show_pattern',
       'shows.dest_folder as show_dest_folder',
+      'shows.ad_removal as show_ad_removal',
     )
   if (groupTombstonesLast) {
     rowsQuery.orderByRaw('(recordings.deleted_from_tvh_at IS NULL) DESC')
@@ -1019,8 +1021,11 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
     if (session.status === 'ended') {
       return res.status(500).json({ error: `ffmpeg failed: ${session.reason?.detail || 'unknown error'}`, code: 'ffmpeg' })
     }
-    const adBreaks = await adBreaksFor(file)
-    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0, adBreaks })
+    const [adBreaks, source] = await Promise.all([
+      adBreaksFor(file),
+      playbackSourceFor({ file, libraryPath: ['done', 'partial'].includes(row.status) ? row.file_path : null }),
+    ])
+    res.json({ ok: true, session: playbackView(session), resumed: resumed && offset > 0, adBreaks, source })
   } catch (err) {
     liveError(res, err, 'play start')
   }

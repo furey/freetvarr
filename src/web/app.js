@@ -21,6 +21,17 @@ import {
 import { findSeriesLink } from '/series-link.js'
 import { seekPlan, adBreakAt, fmtPlayTime, RESUME_END_MARGIN_S, SEEK_EDGE_MARGIN_S } from '/playback.js'
 import {
+  adsText,
+  airedRangeText,
+  durationText,
+  libraryStatusText,
+  recordingEpisodeLine,
+  recordingHeaderLine,
+  savesToLine,
+  sourceBadgeText,
+  watchedPercent,
+} from '/recording-info.js'
+import {
   DOUBLE_TAP_MS, emptyTapState, zoneOf, isTap, registerTap, clampSkip, skipLabel, skipSpoken,
   nativeClickPlan,
 } from '/double-tap.js'
@@ -56,12 +67,14 @@ import {
 } from '/sync-schedule.js'
 import { withBrowserNetwork } from '/lan-network.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
-import { wizardSkipPrompt } from '/wizard-skip.js'
+import { wizardSkipConfirm } from '/wizard-skip.js'
+import { clearSyncHistoryConfirm, deleteSyncConfirm, resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import {
   audioContextOnce, createHoldMusic, holdMusicToggleLabel, holdMusicVolume, loadHoldMusicMuted,
   saveHoldMusicMuted, HOLD_MUSIC_SRC,
 } from '/hold-music.js'
-import { clearListPrompt, clearedListMessage, restoredListMessage } from '/clear-list.js'
+import { clearedListMessage, restoredListMessage } from '/clear-list.js'
+import { adScanConfirm, clearListConfirm, clearRowConfirm, removeFromTvhConfirm } from '/recording-confirm.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 
 let csrfToken = null
@@ -1320,7 +1333,7 @@ const RecordingNowPanel = {
           <info-button :title="title" doc="guide/tv-guide#on-the-dashboard">
             <p>One card for each programme TVHeadend is recording now. The orange bar runs from the padded start to the padded stop; the dim ends are the early start and the late finish.</p>
             <p>The line under the bar shows the file size, bitrate, tuner signal, and errors, as TVHeadend reports them.</p>
-            <p>When a recording stops, its card steps through <strong>Recorded</strong>, <strong>Importing</strong>, <strong>Cutting ads</strong>, and <strong>In Plex</strong>. Importing waits for the next sync. The card goes about ten minutes after the last step.</p>
+            <p>When a recording stops, its card steps through <strong>Recorded</strong>, <strong>Importing</strong>, <strong>Finding ads</strong> or <strong>Cutting ads</strong>, and <strong>In Plex</strong>. <strong>Importing</strong> waits for the next sync. The card goes about ten minutes after the last step.</p>
           </info-button>
         </span>
         <span v-if="summary" class="text-xs font-mono uppercase tracking-[0.16em] text-signal-orange">{{ summary }}</span>
@@ -1518,7 +1531,7 @@ const LiveView = {
           <span class="panel-heading">
             <span class="panel-title">LIVE TV</span>
             <info-button title="LIVE TV" doc="guide/live-tv#in-freetvarr">
-              <p>Every channel in TVHeadend, with what is on now and next. Tap a channel to watch it in the browser. Tap <strong>INFO</strong> to open the programme's details in the TV Guide.</p>
+              <p>Every channel in TVHeadend, with what is on now and next. Tap a channel to watch it in the browser. Tap <strong>INFO</strong> to open the programme's details in the <strong>TV GUIDE</strong>.</p>
               <p>Freetvarr converts the TVHeadend stream into video the browser can play. It needs a free tuner, and a recording always takes the tuner first.</p>
               <p>Star a channel to put it in your favourites at the top. <strong>CHANNELS</strong> hides, sorts, and orders the channels. The zoom buttons change how much each row shows.</p>
             </info-button>
@@ -1758,8 +1771,8 @@ const DashboardView = {
             <span class="panel-title">WHAT'S ON</span>
             <info-button title="WHAT'S ON" doc="guide/tv-guide#on-the-dashboard">
               <p>What is on now on your favourite channels, what is on next, and the next recordings TVHeadend has scheduled. All of it comes from TVHeadend.</p>
-              <p>Star a channel in Live TV or the TV Guide to add it here.</p>
-              <p>Tap a channel to watch it live. Tap <strong>INFO</strong>, a next programme, or a recording to open its details in the TV Guide.</p>
+              <p>Star a channel in <strong>LIVE TV</strong> or the <strong>TV GUIDE</strong> to add it here.</p>
+              <p>Tap a channel to watch it live. Tap <strong>INFO</strong>, a next programme, or a recording to open its details in the <strong>TV GUIDE</strong>.</p>
             </info-button>
           </span>
           <div class="flex items-center gap-4">
@@ -1836,7 +1849,7 @@ const DashboardView = {
             <span class="panel-title">SYNC DECK</span>
             <info-button title="SYNC DECK" doc="guide/syncs#dashboard-sync-deck">
               <p>A sync reads the finished recordings in TVHeadend, imports them into your library (series episodes into their series folders, single recordings and films into the one-off and movies folders), then asks Plex to refresh.</p>
-              <ul><li><strong>STATUS</strong>: idle, or syncing.</li><li><strong>LAST SYNC</strong>: when the last sync ran, and how it went.</li><li><strong>RESULT</strong>: what it imported, or what failed.</li><li><strong>SYNC NOW</strong>: runs a sync at once, without waiting for the schedule.</li></ul>
+              <ul><li><strong>STATUS</strong>: <strong>Idle</strong> or <strong>Syncing</strong>.</li><li><strong>LAST SYNC</strong>: when the last sync ran, and how it went.</li><li><strong>RESULT</strong>: what it imported, or what failed.</li><li><strong>SYNC NOW</strong>: runs a sync at once, without waiting for the schedule.</li></ul>
               <p>The strip below shows TVHeadend, your series, the last 7 days of recordings, and Plex. Press a cell to open its page.</p>
             </info-button>
           </span>
@@ -1879,7 +1892,7 @@ const DashboardView = {
             <span class="panel-title">RECENT SYNCS</span>
             <info-button title="RECENT SYNCS" doc="guide/syncs#reading-a-sync">
               <p>The last few syncs Freetvarr ran, newest first, with what each one imported.</p>
-              <p>A sync is <strong>ok</strong> unless something failed. <strong>See all</strong> opens the Syncs tab with the full history.</p>
+              <p>A sync is <strong>OK</strong> unless something failed. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
             </info-button>
           </span>
           <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
@@ -2138,7 +2151,11 @@ const FolderEditor = {
   },
   emits: ['saved', 'cancel', 'deleted'],
   template: `
-    <form class="series-editor space-y-4" @submit.prevent="save">
+    <form class="series-editor space-y-4" @submit.prevent="save" @keydown.esc.stop="closeEditor">
+      <div class="series-editor-head">
+        <button type="button" class="btn btn-icon" @click="closeEditor" :disabled="saving"
+          aria-label="Close without saving" title="Close without saving"><cross-icon /></button>
+      </div>
       <div class="grid gap-4 md:grid-cols-2">
         <div class="field-row">
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
@@ -2177,7 +2194,6 @@ const FolderEditor = {
         <button type="submit" class="btn btn-primary" :disabled="saving">
           <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
         </button>
-        <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
         <button type="button" class="btn btn-danger" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
@@ -2193,7 +2209,7 @@ const FolderEditor = {
             <p class="text-sm text-ink">{{ removeOutcome }}</p>
             <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn mr-auto" @click="confirming = false" :disabled="saving">CANCEL</button>
+              <button type="button" class="btn mr-auto" @click="confirming = false" :disabled="saving">{{ keepLabel }}</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
                 <template v-if="saving">REMOVING…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
               </button>
@@ -2215,6 +2231,7 @@ const FolderEditor = {
     const saving = ref(false)
     const confirming = ref(false)
     const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
+    const keepLabel = computed(() => (props.isSeries ? 'KEEP FOLDER' : 'KEEP TITLE MATCH'))
     const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
     const removeTitle = computed(() => (props.isSeries
       ? `Unassign the folder from ${props.folder.show_pattern}`
@@ -2251,6 +2268,10 @@ const FolderEditor = {
       }
     }
 
+    const closeEditor = () => {
+      if (!saving.value && !confirming.value) emit('cancel')
+    }
+
     const remove = async () => {
       saving.value = true
       try {
@@ -2266,8 +2287,8 @@ const FolderEditor = {
     }
 
     return {
-      destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming,
-      removeLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
+      destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
+      removeLabel, keepLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
 }
@@ -2280,8 +2301,8 @@ const SeriesView = {
           <span class="panel-heading">
             <span class="panel-title">SERIES · {{ series.length }}</span>
             <info-button title="SERIES" doc="guide/series">
-              <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
-              <p>To record a new series, open the TV Guide, pick a programme, and press <strong>SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
+              <p>Each row is a series recording in TVHeadend. <strong>SAVES TO</strong> shows the folder where each sync saves its finished episodes.</p>
+              <p>To record a new series, open the <strong>TV GUIDE</strong>, pick a programme, and press <strong>SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
               <p><strong>CANCEL SERIES</strong> cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files. <strong>EDIT</strong> changes where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
               <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>ASSIGN FOLDER</strong> to give it one. <strong>UNASSIGN FOLDER</strong> in the edit form takes it away again. Episodes already imported stay where they are.</p>
               <p><strong>PAUSE</strong> stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again; <strong>CANCEL SERIES</strong> removes it.</p>
@@ -2482,8 +2503,7 @@ const SeriesView = {
             </div>
             <p class="text-sm text-ink">Episodes already imported stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn mr-auto" @click="closeAssign" :disabled="busyKey === assigning.key">CANCEL</button>
-              <span v-if="assignStatusText" :class="['status-readout', assignStatusKind]">{{ assignStatusText }}</span>
+              <span v-if="assignStatusText" :class="['status-readout', assignStatusKind, 'mr-auto']">{{ assignStatusText }}</span>
               <button type="submit" class="btn btn-primary" :disabled="busyKey === assigning.key">
                 <template v-if="busyKey === assigning.key">ASSIGNING…</template><template v-else><check-icon /> ASSIGN</template>
               </button>
@@ -2777,7 +2797,7 @@ const SyncsView = {
             <span class="panel-title" title="Freetvarr keeps the latest 500 syncs and deletes older ones.">SYNCS · <template v-if="filter !== 'all'">{{ filterLabel }} · </template>{{ rangeLabel }} of {{ total }}</span>
             <info-button title="SYNCS" doc="guide/syncs">
               <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
-              <p>Syncs run on the schedule in Settings, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
+              <p>Syncs run on the schedule in <strong>SETTINGS</strong>, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
               <p>Filter the list by activity. The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs.</p>
             </info-button>
           </span>
@@ -2795,7 +2815,7 @@ const SyncsView = {
               <template v-else><play-icon /> SYNC NOW</template>
             </button>
             <button type="button" class="btn" @click="manualRefresh"><refresh-icon /> REFRESH</button>
-            <button type="button" class="btn btn-danger" @click="clearAll" :disabled="!total"><cross-icon /> CLEAR HISTORY</button>
+            <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total"><cross-icon /> CLEAR HISTORY</button>
           </div>
 
           <div class="flex items-center gap-2 min-w-0">
@@ -2821,7 +2841,7 @@ const SyncsView = {
                 <td>
                   <button type="button" class="btn btn-sm btn-icon btn-danger"
                     :disabled="s.id === syncStatus.activeSyncId"
-                    @click="removeSync(s)"
+                    @click="askRemoveSync(s)"
                     title="Delete this sync from history.">
                     <trash-icon />
                   </button>
@@ -2836,7 +2856,7 @@ const SyncsView = {
                 <span :class="['pill', s.status]">{{ s.status }}</span>
                 <button type="button" class="btn btn-sm btn-icon btn-danger"
                   :disabled="s.id === syncStatus.activeSyncId"
-                  @click="removeSync(s)">
+                  @click="askRemoveSync(s)">
                   <trash-icon />
                 </button>
               </div>
@@ -2858,6 +2878,8 @@ const SyncsView = {
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -2933,8 +2955,20 @@ const SyncsView = {
       }
     }
 
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+
+    const askRemoveSync = (s) => askConfirm({
+      dialog: deleteSyncConfirm({ syncId: s.id }),
+      icon: 'trash-icon',
+      run: () => removeSync(s),
+    })
+
+    const askClearAll = () => askConfirm({
+      dialog: clearSyncHistoryConfirm({ syncRunning: Boolean(syncStatus.value.activeSyncId) }),
+      run: clearAll,
+    })
+
     const removeSync = async (s) => {
-      if (!confirm(`Delete sync #${s.id}?`)) return
       try {
         await api('DELETE', `/api/syncs/${s.id}`)
         await refresh()
@@ -2944,8 +2978,6 @@ const SyncsView = {
     }
 
     const clearAll = async () => {
-      const suffix = syncStatus.value.activeSyncId ? ' (except the active sync)' : ''
-      if (!confirm(`Delete all sync history${suffix}?`)) return
       try {
         const r = await api('DELETE', '/api/syncs')
         flash({ msg: `Deleted ${r.deleted} sync${r.deleted === 1 ? '' : 's'}.` })
@@ -2971,7 +3003,8 @@ const SyncsView = {
       syncs, syncStatus, scheduleFrequency, starting,
       filter, filterOptions, filterLabel, setFilter,
       total, page, pageSize, totalPages, rangeLabel,
-      syncNow, refresh, manualRefresh, removeSync, clearAll,
+      syncNow, refresh, manualRefresh, askRemoveSync, askClearAll,
+      confirming, confirmBusy, closeConfirm, runConfirmed,
       fmtTime,
       flashText, flashKind,
     }
@@ -2986,8 +3019,8 @@ const RecordingsView = {
           <span class="panel-heading">
             <span class="panel-title">RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
             <info-button title="RECORDINGS" doc="guide/recordings">
-              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>imported</strong>, <strong>partial</strong>, <strong>skipped</strong>, <strong>failed</strong>, or <strong>not imported</strong>. The next sync tries a partial import again.</p>
-              <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a recording that is not imported to add it to the library.</p>
+              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>IMPORTED</strong>, <strong>PARTIAL</strong>, <strong>SKIPPED</strong>, <strong>FAILED</strong>, or <strong>NOT IMPORTED</strong>. The next sync tries a <strong>PARTIAL</strong> import again.</p>
+              <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a <strong>NOT IMPORTED</strong> recording to add it to the library.</p>
               <p><strong>NOT IN TVHEADEND</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
             </info-button>
@@ -2996,7 +3029,7 @@ const RecordingsView = {
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
             <header-button v-if="undoIds.length" label="Undo" @click="undoClear" :disabled="restoring"
               title="Puts the cleared rows back in this list."><arrow-left-icon /></header-button>
-            <header-button :label="clearing ? 'Clearing…' : 'Clear from list'" @click="clearNotInTvh"
+            <header-button :label="clearing ? 'Clearing…' : 'Clear from list'" @click="askClearList"
               :disabled="clearing || clearable === 0"
               title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library."><cross-icon /></header-button>
             <header-button label="Refresh" @click="manualRefresh"><refresh-icon /></header-button>
@@ -3104,24 +3137,20 @@ const RecordingsView = {
                     {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
                   </button>
                   <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                    @click="adScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
+                    @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
                     :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
                     <span v-if="adScanningId === r.recording_id">…</span>
-                    <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <circle cx="4" cy="4.5" r="1.75"/>
-                      <circle cx="4" cy="11.5" r="1.75"/>
-                      <path d="M5.5 5.75 13 12M5.5 10.25 13 4"/>
-                    </svg>
+                    <ad-scan-icon v-else />
                   </button>
                   <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                    @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id"
-                    title="Remove this recording from TVHeadend. TVHeadend will delete the file and keep the episode in its history. You cannot undo this.">
+                    @click="askRemoveFromTvh(r)" :disabled="deletingId === r.recording_id"
+                    title="Remove from TVHeadend" aria-label="Remove from TVHeadend">
                     <span v-if="deletingId === r.recording_id">…</span>
                     <trash-icon v-else />
                   </button>
                   <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                    @click="removeRecording(r)" :disabled="removingId === r.recording_id"
-                    :title="removeTitle(r)">
+                    @click="askClearRow(r)" :disabled="removingId === r.recording_id"
+                    :title="removeTitle(r)" aria-label="Clear from list">
                     <span v-if="removingId === r.recording_id">…</span>
                     <trash-icon v-else />
                   </button>
@@ -3172,22 +3201,19 @@ const RecordingsView = {
                   {{ importingId === r.recording_id ? '…' : 'IMPORT' }}
                 </button>
                 <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                  @click="adScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
+                  @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
                   :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
                   <span v-if="adScanningId === r.recording_id">…</span>
-                  <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="4" cy="4.5" r="1.75"/>
-                    <circle cx="4" cy="11.5" r="1.75"/>
-                    <path d="M5.5 5.75 13 12M5.5 10.25 13 4"/>
-                  </svg>
+                  <ad-scan-icon v-else />
                 </button>
                 <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                  @click="deleteFromTvh(r)" :disabled="deletingId === r.recording_id">
+                  @click="askRemoveFromTvh(r)" :disabled="deletingId === r.recording_id"
+                  title="Remove from TVHeadend" aria-label="Remove from TVHeadend">
                   <span v-if="deletingId === r.recording_id">…</span>
                   <trash-icon v-else />
                 </button>
                 <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                  @click="removeRecording(r)" :disabled="removingId === r.recording_id" :title="removeTitle(r)">
+                  @click="askClearRow(r)" :disabled="removingId === r.recording_id" :title="removeTitle(r)" aria-label="Clear from list">
                   <span v-if="removingId === r.recording_id">…</span>
                   <trash-icon v-else />
                 </button>
@@ -3207,6 +3233,8 @@ const RecordingsView = {
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -3218,6 +3246,8 @@ const RecordingsView = {
     const importingId = ref(null)
     const clearing = ref(false)
     const adRemovalEnabled = ref(false)
+    const adRetentionDays = ref('7')
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
     const adScanningId = ref(null)
     const total = ref(0)
     const page = ref(1)
@@ -3298,6 +3328,7 @@ const RecordingsView = {
     const loadAdRemovalSetting = async () => {
       const s = await fetchSettings().catch(() => ({}))
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
+      adRetentionDays.value = s.ad_original_retention_days || '7'
     }
 
     const setStatus = (v) => { statusFilter.value = v; page.value = 1 }
@@ -3353,9 +3384,8 @@ const RecordingsView = {
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
       || UNIMPORTED_STATUSES.includes(r.status)
     const removeTitle = (r) => (r.deleted_from_tvh_at
-      ? 'Remove this row from the list. The file will stay in your library.'
-      : "Remove this recording from Freetvarr's history."
-        + ' If it is still in TVHeadend, the next sync will import it again.')
+      ? 'Clear this row from the list. The file stays in your library.'
+      : 'Clear this row from the list. While TVHeadend has the recording, the next sync adds it back.')
     const notInTvhTitle = (r) => `TVHeadend deleted its copy ${fmtTime(r.deleted_from_tvh_at)}.`
       + ' The episode is still in your library.'
     const canAdScan = (r) => canAdScanRecording({ adRemovalEnabled: adRemovalEnabled.value, recording: r })
@@ -3441,10 +3471,6 @@ const RecordingsView = {
     }
 
     const deleteFromTvh = async (r) => {
-      const prompt = `Remove "${r.title}" from TVHeadend?\n\n`
-        + 'TVHeadend will delete the recording file and keep the episode in its history,'
-        + ' so it will not record it again. You cannot undo this.'
-      if (!confirm(prompt)) return
       deletingId.value = r.recording_id
       try {
         const url = `/api/recordings/${encodeURIComponent(r.recording_id)}/delete-from-tvh`
@@ -3467,25 +3493,21 @@ const RecordingsView = {
     }
 
     const removeRecording = async (r) => {
-      const prompt = r.deleted_from_tvh_at
-        ? `Remove "${r.title}" from this list?\n\nThe file will stay in your library.`
-        : `Remove "${r.title}" from Freetvarr's history?`
-          + '\n\nIf it is still in TVHeadend, the next sync will import it again.'
-      if (!confirm(prompt)) return
       removingId.value = r.recording_id
       try {
         await api('DELETE', `/api/recordings/${encodeURIComponent(r.recording_id)}`)
-        flash({ msg: `Removed "${r.title}".` })
+        const undoable = Boolean(r.deleted_from_tvh_at)
+        flash({ msg: `Cleared "${r.title}" from the list.`, ms: undoable ? UNDO_WINDOW_MS : FLASH_DEFAULT_MS })
+        if (undoable) offerUndo([r.recording_id])
         await refresh()
       } catch (err) {
-        flash({ msg: `Remove failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Clear failed: ${err.message}`, kind: 'err', ms: 6000 })
       } finally {
         removingId.value = null
       }
     }
 
     const clearNotInTvh = async () => {
-      if (!confirm(clearListPrompt(clearable.value))) return
       clearing.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
@@ -3498,6 +3520,29 @@ const RecordingsView = {
         clearing.value = false
       }
     }
+
+    const askAdScan = (r) => askConfirm({
+      dialog: adScanConfirm({ recording: r, retentionDays: adRetentionDays.value }),
+      icon: 'ad-scan-icon',
+      run: () => adScan(r),
+    })
+
+    const askRemoveFromTvh = (r) => askConfirm({
+      dialog: removeFromTvhConfirm({ recording: r }),
+      icon: 'trash-icon',
+      run: () => deleteFromTvh(r),
+    })
+
+    const askClearRow = (r) => askConfirm({
+      dialog: clearRowConfirm({ recording: r, undoSeconds: UNDO_WINDOW_MS / 1000 }),
+      icon: 'trash-icon',
+      run: () => removeRecording(r),
+    })
+
+    const askClearList = () => askConfirm({
+      dialog: clearListConfirm({ count: clearable.value, undoSeconds: UNDO_WINDOW_MS / 1000 }),
+      run: clearNotInTvh,
+    })
 
     let undoTimer = null
     const offerUndo = (ids) => {
@@ -3558,6 +3603,7 @@ const RecordingsView = {
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, notInTvhTitle, clearNotInTvh,
       clearable, undoIds, restoring, undoClear,
+      confirming, confirmBusy, askAdScan, askRemoveFromTvh, askClearRow, askClearList, closeConfirm, runConfirmed,
       setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
       narrow, chipGroups, activeFilters, clearSheetFilters,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
@@ -3669,7 +3715,7 @@ const SettingsView = {
               <span class="panel-title">TVHEADEND</span>
               <info-button title="TVHEADEND" doc="guide/tvheadend">
                 <p>The address and login Freetvarr uses for the TVHeadend API. Freetvarr reads the guide, channels, and recordings from it, and sets and cancels recordings.</p>
-                <p><strong>AUTO-DISCOVER</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
+                <p><strong>AUTO-DISCOVER TVHEADEND</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
               </info-button>
             </span>
             <span class="text-xs font-mono text-ink-dim">the recorder</span>
@@ -3713,7 +3759,7 @@ const SettingsView = {
               <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
             </div>
             <div v-if="tvhOpenEntryBackupSet" class="field-row md:col-span-3 flex flex-wrap items-center gap-3">
-              <button type="button" class="btn btn-sm" @click="undoTvhSecure" :disabled="tvhUndoing">
+              <button type="button" class="btn btn-sm" @click="askUndoTvhSecure" :disabled="tvhUndoing">
                 <template v-if="tvhUndoing">RESTORING…</template><template v-else>RESTORE OPEN ACCESS</template>
               </button>
               <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
@@ -3727,7 +3773,7 @@ const SettingsView = {
             <span class="panel-heading">
               <span class="panel-title">STORAGE</span>
               <info-button title="STORAGE" doc="guide/configuration#the-two-recordings-paths">
-                <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder, as Freetvarr sees it</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>Recordings folder, as TVHeadend sees it</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+                <ul><li><strong>MEDIA ROOT</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>ONE-OFF FOLDER</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>RECORDINGS FOLDER (AS FREETVARR SEES IT)</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>RECORDINGS FOLDER (AS TVHEADEND SEES IT)</strong>: the same folder, at the path TVHeadend reports.</li></ul>
                 <p>When both apps see the folder at the same path, the two recordings paths are the same. Keep the recordings and the media root inside one shared folder: imports are then instant and use no extra disk space.</p>
               </info-button>
             </span>
@@ -3927,7 +3973,7 @@ const SettingsView = {
               <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
                 <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file only fills in the first choice; the zone you save here wins.</p>
                 <p>How often Freetvarr checks TVHeadend for new recordings to import. <strong>Custom</strong> takes a cron expression, such as <code>0 */2 * * *</code> for every two hours.</p>
-                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the dashboard runs a sync at any time.</p>
+                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the <strong>DASHBOARD</strong> runs a sync at any time.</p>
               </info-button>
             </span>
             <span class="text-xs font-mono text-ink-dim">time zone and when Freetvarr syncs</span>
@@ -3979,8 +4025,8 @@ const SettingsView = {
               <span class="panel-title">AD REMOVAL</span>
               <info-button title="AD REMOVAL" doc="guide/ad-removal">
                 <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each series on the SERIES tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
-                <p>Detection is not always right. Use DETECT on a channel first, and check the breaks before you let it cut.</p>
+                <p>Turn it on here, then set a mode for each series on the <strong>SERIES</strong> tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so Kodi skips them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
+                <p>Detection is not always right. Use <strong>DETECT</strong> on a channel first, and check the breaks before you let it cut.</p>
               </info-button>
             </span>
             <span class="text-xs font-mono text-ink-dim">optional</span>
@@ -4068,13 +4114,15 @@ const SettingsView = {
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
-            <button type="button" class="btn btn-danger" @click="resetFreetvarr" :disabled="resetting">
+            <button type="button" class="btn btn-danger" @click="askResetFreetvarr" :disabled="resetting">
               <template v-if="resetting">RESETTING…</template><template v-else><trash-icon /> RESET FREETVARR</template>
             </button>
             <span v-if="resetError" class="status-readout err">{{ resetError }}</span>
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -4088,8 +4136,9 @@ const SettingsView = {
     const tvhOpenEntryBackupSet = ref(false)
     const tvhUndoing = ref(false)
     const [tvhUndoText, tvhUndoKind, setTvhUndo] = makeStatus()
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+    const askUndoTvhSecure = () => askConfirm({ dialog: restoreOpenAccessConfirm(), run: undoTvhSecure })
     const undoTvhSecure = async () => {
-      if (!confirm('Restore open access to TVHeadend? Anyone on your network will be able to change it again.')) return
       tvhUndoing.value = true
       try {
         await api('POST', '/api/tvh-bootstrap/undo')
@@ -4444,14 +4493,13 @@ const SettingsView = {
       }
     }
 
+    const askResetFreetvarr = () => askConfirm({
+      dialog: resetConfirm({ mediaRoot: mediaRoot.value }),
+      icon: 'trash-icon',
+      run: resetFreetvarr,
+    })
+
     const resetFreetvarr = async () => {
-      const mediaPath = mediaRoot.value || '/media/tv'
-      const prompt = 'Reset Freetvarr?\n\n'
-        + 'This will delete Freetvarr\'s settings, series, list of recordings, and sync history.\n\n'
-        + `Your video files in ${mediaPath} and the other library folders will stay where they are, `
-        + 'and so will the recordings and settings in TVHeadend.\n\n'
-        + 'This cannot be undone. Continue?'
-      if (!confirm(prompt)) return
       resetting.value = true
       resetError.value = ''
       try {
@@ -4496,7 +4544,8 @@ const SettingsView = {
 
     return {
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
-      tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, undoTvhSecure,
+      tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, askUndoTvhSecure,
+      confirming, confirmBusy, closeConfirm, runConfirmed,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       syncCron, syncCronEffective, syncSchedule, timeZone, tzSource,
       syncSchedulePresets: SYNC_SCHEDULE_PRESETS, customSyncSchedule: CUSTOM_SYNC_SCHEDULE,
@@ -4509,7 +4558,7 @@ const SettingsView = {
       deleteAfterPlexRefreshOnly,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
-      resetting, resetError, resetFreetvarr, reopenWizard,
+      resetting, resetError, askResetFreetvarr, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
       importUnmatched, showArtworkLookup, plexOneOffSectionId, plexMoviesSectionId,
@@ -4560,7 +4609,7 @@ const DoctorView = {
             <span class="panel-title">DOCTOR</span>
             <info-button title="DOCTOR" doc="guide/doctor">
               <p>Checks TVHeadend, the guide, the folders, Plex, live TV, and the host, then says what to fix.</p>
-              <ul><li><strong>Pass</strong>: nothing to do.</li><li><strong>Warn</strong>: Freetvarr works, but something costs space, guide data, or picture quality.</li><li><strong>Fail</strong>: something Freetvarr needs is broken. The row says how to fix it.</li><li><strong>Skip</strong>: the check could not run, usually because an earlier check failed.</li></ul>
+              <ul><li><strong>PASS</strong>: nothing to do.</li><li><strong>WARN</strong>: Freetvarr works, but something costs space, guide data, or picture quality.</li><li><strong>FAIL</strong>: something Freetvarr needs is broken. The row says how to fix it.</li><li><strong>SKIP</strong>: the check could not run, usually because an earlier check failed.</li></ul>
               <p><strong>RE-RUN</strong> checks again. Otherwise the results can be up to 15 seconds old.</p>
             </info-button>
           </span>
@@ -5867,6 +5916,8 @@ const WelcomeView = {
           </div>
         </div>
       </section>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -6123,11 +6174,17 @@ const WelcomeView = {
       } catch { /* wizard closes anyway */ }
     }
 
-    const skipToSettings = async () => {
-      if (!confirm(wizardSkipPrompt({ tvhConnected: tvhConnected.value }))) return
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+
+    const leaveSetup = async () => {
       await dismiss()
       window.location.hash = '#/settings'
     }
+
+    const skipToSettings = () => askConfirm({
+      dialog: wizardSkipConfirm({ tvhConnected: tvhConnected.value }),
+      run: leaveSetup,
+    })
 
     const back = () => {
       if (step.value > 1) {
@@ -6518,7 +6575,7 @@ const WelcomeView = {
       focusFirstFieldOnOpen, manualLogin,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
-      back, next, skipToSettings, loadPlexSections, testTvh, advanceHint,
+      back, next, skipToSettings, confirming, confirmBusy, closeConfirm, runConfirmed, loadPlexSections, testTvh, advanceHint,
       showSecure, secureStepsVisible, backToSecureForm, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
       securePrefixes, secureShownSteps, secureError, secureNext, secureInputProblem, secureReady,
       secureTvh, useManualLogin, secureStepDot,
@@ -7004,6 +7061,101 @@ const InfoButton = {
   },
 }
 
+const ConfirmDialog = {
+  props: {
+    open: Boolean,
+    dialog: { type: Object, default: null },
+    busy: Boolean,
+    icon: { type: String, default: '' },
+  },
+  emits: ['confirm', 'cancel'],
+  template: `
+    <teleport to="body">
+      <transition name="epg-sheet">
+        <div v-if="open && dialog" class="epg-modal-backdrop" @click.self="cancel">
+          <section ref="dialogEl" class="panel epg-modal info-modal" role="alertdialog" aria-modal="true"
+            :aria-labelledby="headingId" :aria-describedby="bodyId" tabindex="-1">
+            <header class="panel-header">
+              <span :id="headingId" class="panel-title">{{ dialog.title }}</span>
+              <button type="button" class="btn btn-icon epg-modal-x" @click="cancel" aria-label="Close"><cross-icon /></button>
+            </header>
+            <div class="panel-body space-y-4">
+              <div :id="bodyId" class="space-y-3">
+                <p v-for="(line, i) in dialog.body" :key="i" class="text-sm text-ink confirm-dialog-line">{{ line }}</p>
+              </div>
+              <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
+                <button type="button" class="btn mr-auto" @click="cancel" :disabled="busy">{{ dialog.keepLabel }}</button>
+                <button type="button" :class="['btn', dialog.danger ? 'btn-danger' : 'btn-primary']" @click="$emit('confirm')" :disabled="busy">
+                  <template v-if="busy">{{ dialog.busyLabel }}</template>
+                  <template v-else><component v-if="icon" :is="icon" /> {{ dialog.confirmLabel }}</template>
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </transition>
+    </teleport>
+  `,
+  setup(props, { emit }) {
+    const dialogEl = ref(null)
+    const headingId = `confirm-dialog-${++confirmDialogCount}`
+    const bodyId = `${headingId}-body`
+
+    const cancel = () => {
+      if (!props.busy) emit('cancel')
+    }
+
+    const onKeydown = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      cancel()
+    }
+
+    const setOpen = async (isOpen) => {
+      try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
+      window.removeEventListener('keydown', onKeydown, true)
+      if (!isOpen) return
+      window.addEventListener('keydown', onKeydown, true)
+      await nextTick()
+      dialogEl.value?.focus()
+    }
+
+    watch(() => props.open && Boolean(props.dialog), setOpen)
+
+    onUnmounted(() => {
+      if (props.open) setOpen(false)
+    })
+
+    return { dialogEl, headingId, bodyId, cancel }
+  },
+}
+
+let confirmDialogCount = 0
+
+const useConfirm = () => {
+  const confirming = ref(null)
+  const confirmBusy = ref(false)
+
+  const askConfirm = ({ dialog, icon = '', run }) => {
+    confirming.value = { dialog, icon, run }
+  }
+
+  const closeConfirm = () => { confirming.value = null }
+
+  const runConfirmed = async () => {
+    const { run } = confirming.value
+    confirmBusy.value = true
+    try {
+      await run()
+    } finally {
+      confirmBusy.value = false
+      confirming.value = null
+    }
+  }
+
+  return { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed }
+}
+
 const useSheet = () => {
   const open = ref(false)
   const trigger = ref(null)
@@ -7125,9 +7277,9 @@ const ChannelsModal = {
           <span class="panel-heading">
             <span class="panel-title">CHANNELS</span>
             <info-button title="Channels" doc="guide/tv-guide#favourites">
-              <p>Favourites sit at the top of Live TV and the TV Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
-              <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order and the SD simulcast switch apply to the other channels.</p>
-              <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the TV Guide.</p>
+              <p>Favourites sit at the top of <strong>LIVE TV</strong> and the <strong>TV GUIDE</strong>, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
+              <p>Untick a channel to hide it from both pages. A favourite is always shown. The sort order, <strong>HIDE SD SIMULCASTS</strong>, and <strong>HIDE SD CHANNELS</strong> apply to the other channels.</p>
+              <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick <strong>No listings</strong> to remove its shows. A new pick can take a minute to show in the <strong>TV GUIDE</strong>.</p>
             </info-button>
           </span>
           <button type="button" class="btn btn-icon epg-modal-x" @click="$emit('close')" aria-label="Close"><cross-icon /></button>
@@ -7240,7 +7392,6 @@ const ChannelsModal = {
           <p v-if="guideStatusText" :class="['status-readout', guideStatusKind, 'text-right']">{{ guideStatusText }}</p>
           <div class="epg-modal-actions flex items-center justify-end gap-2 pt-1">
             <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
-            <button type="button" class="btn btn-sm" @click="$emit('close')">CANCEL</button>
             <button type="button" class="btn btn-sm btn-primary" @click="save" :disabled="savingPrefs || guideLoading">
               {{ savingPrefs ? 'SAVING…' : 'SAVE' }}
             </button>
@@ -8595,21 +8746,6 @@ const EpgView = {
       }
     }
 
-    const cancelUpcoming = async (r) => {
-      if (!confirm(`Cancel the scheduled recording of "${r.name}"?`)) return
-      busyId.value = r.programId
-      try {
-        await api('POST', '/api/epg/cancel', { program_id: r.programId })
-        flash({ msg: `Cancelled "${r.name}".` })
-        refreshAfterRecordingChange()
-        await loadState({ fresh: true })
-      } catch (err) {
-        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
-      } finally {
-        busyId.value = null
-      }
-    }
-
     const reloadGuide = async () => {
       guideByDay.clear()
       await loadDay(day.value, { force: true })
@@ -8949,7 +9085,7 @@ const EpgView = {
       minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
       recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries,
       dialogFocus, cancelSeriesStep, openCancelSeriesStep, showRecordSettings, selectedSeriesLink, selectedStatusText, actionOutcomes,
-      upcoming, cancelUpcoming,
+      upcoming,
       isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, cellHasThumb,
@@ -9641,6 +9777,14 @@ const FullscreenIcon = {
   `,
 }
 
+const StartOverIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3.5 3v10M12.5 3.5 6 8l6.5 4.5z"/>
+    </svg>
+  `,
+}
+
 const AirplayIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -9791,6 +9935,16 @@ const TrashIcon = {
   `,
 }
 
+const AdScanIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="4" cy="4.5" r="1.75"/>
+      <circle cx="4" cy="11.5" r="1.75"/>
+      <path d="M5.5 5.75 13 12M5.5 10.25 13 4"/>
+    </svg>
+  `,
+}
+
 const ExternalLinkIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -9844,20 +9998,171 @@ const StaleBuildBanner = {
   },
 }
 
+const PlayerHeader = {
+  props: {
+    channelId: { type: [String, Number], default: null },
+    hasLogo: Boolean,
+    title: { type: String, default: '' },
+    subtitle: { type: String, default: '' },
+    closeLabel: { type: String, default: 'Close' },
+  },
+  emits: ['close'],
+  template: `
+    <header class="panel-header live-header">
+      <channel-logo v-if="channelId" class="shrink-0" :channel-id="channelId" :has-logo="hasLogo" />
+      <div class="flex-1 min-w-0">
+        <span class="panel-title block truncate">{{ title }}</span>
+        <span v-if="subtitle" class="block truncate text-xs text-ink-dim mt-1">{{ subtitle }}</span>
+      </div>
+      <button type="button" class="btn btn-icon" @click="$emit('close')" :aria-label="closeLabel"><cross-icon /></button>
+    </header>
+  `,
+}
+
+const PlayerOverlayButtons = {
+  props: {
+    infoOpen: Boolean,
+    infoId: { type: String, required: true },
+    hasCaptions: Boolean,
+    captionsOn: Boolean,
+    closeLabel: { type: String, default: 'Close' },
+  },
+  emits: ['toggle-info', 'toggle-captions', 'close'],
+  template: `
+    <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="$emit('toggle-info')"
+      aria-label="Programme info" :aria-expanded="String(infoOpen)" :aria-controls="infoId"><info-icon /></button>
+    <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
+      @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+    <button type="button" class="btn btn-icon live-landscape-close" @click="$emit('close')" :aria-label="closeLabel"><cross-icon /></button>
+  `,
+}
+
+const PlayerActionRow = {
+  props: {
+    infoOpen: Boolean,
+    infoId: { type: String, required: true },
+    hasCaptions: Boolean,
+    captionsOn: Boolean,
+    statusText: { type: String, default: '' },
+    statusKind: { type: String, default: 'info' },
+  },
+  emits: ['toggle-info', 'toggle-captions'],
+  template: `
+    <div class="epg-modal-actions flex items-center justify-between gap-3">
+      <div class="live-status flex items-center gap-2 min-w-0">
+        <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="$emit('toggle-info')"
+          aria-label="Programme info" :aria-expanded="String(infoOpen)" :aria-controls="infoId"><info-icon /></button>
+        <button v-if="hasCaptions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
+          @click="$emit('toggle-captions')" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
+        <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
+      </div>
+      <div class="flex shrink-0 gap-2"><slot /></div>
+    </div>
+  `,
+}
+
+const PlayerInfoPanel = {
+  props: {
+    open: Boolean,
+    panelId: { type: String, required: true },
+  },
+  template: `
+    <transition name="live-info">
+    <section v-if="open" :id="panelId" class="live-info" role="region" aria-label="Programme info">
+      <div class="live-info-body">
+        <slot name="image" />
+        <div class="live-info-text"><slot /></div>
+      </div>
+    </section>
+    </transition>
+  `,
+}
+
+const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
+  && !e.ctrlKey && !e.metaKey && !e.altKey
+  && !e.target.closest?.('select, textarea, input:not([type=range]), [contenteditable]')
+
+const usePlayerKeys = ({
+  isActive, infoOpen, close, toggleInfo, canToggleCaptions, toggleCaptions, togglePause, skip, toggleFullscreen,
+  ignoreSelector = 'button, select, textarea, input',
+}) => {
+  const onKeydown = (e) => {
+    if (!isActive()) return
+    if (e.key === 'Escape') {
+      if (infoOpen.value) infoOpen.value = false
+      else close()
+      return
+    }
+    if (isPlainKey(e, 'i')) {
+      e.preventDefault()
+      return toggleInfo()
+    }
+    if (canToggleCaptions() && isPlainKey(e, 'c')) {
+      e.preventDefault()
+      return toggleCaptions()
+    }
+    if (e.target.closest?.(ignoreSelector)) return
+    if (e.key === ' ' || isPlainKey(e, 'k')) {
+      e.preventDefault()
+      return togglePause()
+    }
+    if (isPlainKey(e, 'f')) {
+      e.preventDefault()
+      return toggleFullscreen()
+    }
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    if (skip(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
+  }
+  onMounted(() => window.addEventListener('keydown', onKeydown))
+  onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+}
+
+const useInfoDismissTaps = ({ infoOpen, onPointerDown, onPointerUp, onClick, onDoubleClick }) => {
+  let ignoreTapsUntil = 0
+
+  const isVideoAreaTap = (e) => !e.target.closest?.('.live-info-body, button')
+
+  const isIgnoredTap = (e) => isVideoAreaTap(e) && Date.now() < ignoreTapsUntil
+
+  const swallow = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const onFramePointerDown = (e) => {
+    if (infoOpen.value && e.isPrimary && isVideoAreaTap(e)) {
+      infoOpen.value = false
+      ignoreTapsUntil = Date.now() + DOUBLE_TAP_MS
+    }
+    if (isIgnoredTap(e)) return
+    onPointerDown(e)
+  }
+
+  const onFramePointerUp = (e) => {
+    if (!isIgnoredTap(e)) onPointerUp(e)
+  }
+
+  const onFrameClick = (e) => {
+    if (isIgnoredTap(e)) return swallow(e)
+    onClick(e)
+  }
+
+  const onFrameDoubleClick = (e) => {
+    if (isIgnoredTap(e)) return swallow(e)
+    onDoubleClick(e)
+  }
+
+  return { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick }
+}
+
 const LivePlayer = {
   template: `
     <teleport to="body">
     <transition name="epg-sheet">
     <div v-show="live.open" class="epg-modal-backdrop live-backdrop">
       <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
-        <header class="panel-header live-header">
-          <channel-logo class="shrink-0" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
-          <div class="flex-1 min-w-0">
-            <span class="panel-title block truncate">{{ live.channel?.name }}</span>
-            <span v-if="live.nowTitle" class="block truncate text-xs text-ink-dim mt-1">{{ live.nowTitle }}</span>
-          </div>
-          <button type="button" class="btn btn-icon" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
-        </header>
+        <player-header :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="live.channel?.name"
+          :subtitle="live.nowTitle" close-label="Stop and close" @close="stopLive" />
         <div ref="frameEl" class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
           <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen"></video>
           <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
@@ -9869,13 +10174,12 @@ const LivePlayer = {
             <i v-for="n in 3" :key="n" class="live-chip"></i>
           </div>
           <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
-          <transition name="live-info">
-          <section v-if="infoOpen" id="live-info" class="live-info" role="region" aria-label="Programme info">
-            <div class="live-info-body">
+          <player-info-panel :open="infoOpen" panel-id="live-info">
+            <template #image>
             <programme-image v-if="info.now" :key="info.now.program_id" class="live-info-image" variant="info"
               :event-id="info.now.has_image ? info.now.program_id : null" :title="info.now.title"
               :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
-            <div class="live-info-text">
+            </template>
               <p class="live-info-channel">
                 <channel-logo class="live-info-logo" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
                 <span class="truncate">{{ infoChannelLabel }}</span>
@@ -9895,15 +10199,10 @@ const LivePlayer = {
               <p v-if="info.next" class="live-info-next">
                 NEXT <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
               </p>
-            </div>
-            </div>
-          </section>
-          </transition>
-          <button type="button" :class="['btn', 'btn-icon', 'live-landscape-info', { 'is-on': infoOpen }]" @click="toggleInfo"
-            aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
-          <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-landscape-captions', { 'is-on': captionsOn }]"
-            @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-          <button type="button" class="btn btn-icon live-landscape-close" @click="stopLive" aria-label="Stop and close"><cross-icon /></button>
+          </player-info-panel>
+          <player-overlay-buttons :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
+            :captions-on="captionsOn" close-label="Stop and close"
+            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" />
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
           </div>
@@ -9913,18 +10212,11 @@ const LivePlayer = {
           <ul v-if="live.holders.length" class="space-y-1 font-mono text-xs text-ink-dim">
             <li v-for="h in live.holders" :key="h.tuner">{{ liveHolderText(h) }}</li>
           </ul>
-          <div class="epg-modal-actions flex items-center justify-between gap-3">
-            <div class="live-status flex items-center gap-2 min-w-0">
-              <button type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': infoOpen }]" @click="toggleInfo"
-                aria-label="Programme info" :aria-expanded="String(infoOpen)" aria-controls="live-info"><info-icon /></button>
-              <button v-if="live.captions" type="button" :class="['btn', 'btn-icon', 'live-action-icon', { 'is-on': captionsOn }]"
-                @click="toggleLiveCaptions" :disabled="infoOpen" aria-label="Captions" :aria-pressed="String(captionsOn)"><captions-icon /></button>
-              <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
-            </div>
-            <div v-if="live.phase === 'ended'" class="flex shrink-0 gap-2">
-              <button type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
-            </div>
-            <div v-else class="flex shrink-0 gap-2">
+          <player-action-row :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
+            :captions-on="captionsOn" :status-text="statusText" :status-kind="statusKind"
+            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions">
+            <button v-if="live.phase === 'ended'" type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
+            <template v-else>
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
               <button type="button" :class="['btn', 'live-action-wide', 'live-record-button', { 'is-recording': recordButton.recording }]"
                 :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
@@ -9942,8 +10234,8 @@ const LivePlayer = {
                 <play-icon v-if="live.paused" /><pause-icon v-else />
                 <span class="live-action-label">{{ live.paused ? 'PLAY' : 'PAUSE' }}</span>
               </button>
-            </div>
-          </div>
+            </template>
+          </player-action-row>
         </div>
       </section>
     </div>
@@ -10017,26 +10309,6 @@ const LivePlayer = {
       return live.phase === 'live' ? 'ok' : 'info'
     })
 
-    const onKeydown = (e) => {
-      if (!live.open || recordDialogOverPlayer.value) return
-      if (e.key === 'Escape') return infoOpen.value ? closeInfo() : stopLive()
-      if (isInfoKey(e)) {
-        e.preventDefault()
-        return toggleInfo()
-      }
-      if (isCaptionsKey(e)) {
-        e.preventDefault()
-        return toggleLiveCaptions()
-      }
-      if (e.target.closest?.('button, select, textarea, input')) return
-      if (isPauseKey(e)) {
-        e.preventDefault()
-        return toggleLivePause()
-      }
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-      if (skipLiveByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')) e.preventDefault()
-    }
-
     onMounted(() => {
       liveVideo = videoEl.value
       liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
@@ -10051,12 +10323,8 @@ const LivePlayer = {
       liveVideo.addEventListener('playing', handOffToVideo)
       liveVideo.textTracks?.addEventListener?.('addtrack', onTextTrackAdded)
       liveVideo.textTracks?.addEventListener?.('change', syncCaptionPreferenceFromTracks)
-      window.addEventListener('keydown', onKeydown)
     })
-    onUnmounted(() => {
-      clearTimeout(chipsTimer)
-      window.removeEventListener('keydown', onKeydown)
-    })
+    onUnmounted(() => clearTimeout(chipsTimer))
 
     const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
 
@@ -10071,50 +10339,26 @@ const LivePlayer = {
     let bufferedLoading = false
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
-    const closeInfo = () => { infoOpen.value = false }
 
-    let ignoreTapsUntil = 0
+    const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
+      infoOpen,
+      onPointerDown: onLivePointerDown,
+      onPointerUp: onLivePointerUp,
+      onClick: onLiveClick,
+      onDoubleClick: onLiveDoubleClick,
+    })
 
-    const isVideoAreaTap = (e) => !e.target.closest?.('.live-info-body, button')
-
-    const isIgnoredTap = (e) => isVideoAreaTap(e) && Date.now() < ignoreTapsUntil
-
-    const swallow = (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-    }
-
-    const onFramePointerDown = (e) => {
-      if (infoOpen.value && e.isPrimary && isVideoAreaTap(e)) {
-        closeInfo()
-        ignoreTapsUntil = Date.now() + DOUBLE_TAP_MS
-      }
-      if (isIgnoredTap(e)) return
-      onLivePointerDown(e)
-    }
-
-    const onFramePointerUp = (e) => {
-      if (!isIgnoredTap(e)) onLivePointerUp(e)
-    }
-
-    const onFrameClick = (e) => {
-      if (isIgnoredTap(e)) return swallow(e)
-      onLiveClick(e)
-    }
-
-    const onFrameDoubleClick = (e) => {
-      if (isIgnoredTap(e)) return swallow(e)
-      onLiveDoubleClick(e)
-    }
-
-    const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
-      && !e.ctrlKey && !e.metaKey && !e.altKey
-      && !e.target.closest?.('select, textarea, input, [contenteditable]')
-
-    const isInfoKey = (e) => isPlainKey(e, 'i')
-
-    const isCaptionsKey = (e) => live.captions && !infoOpen.value && isPlainKey(e, 'c')
-    const isPauseKey = (e) => e.key === ' ' || isPlainKey(e, 'k')
+    usePlayerKeys({
+      isActive: () => live.open && !recordDialogOverPlayer.value,
+      infoOpen,
+      close: stopLive,
+      toggleInfo,
+      canToggleCaptions: () => live.captions && !infoOpen.value,
+      toggleCaptions: toggleLiveCaptions,
+      togglePause: toggleLivePause,
+      skip: skipLiveByKey,
+      toggleFullscreen: () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo }),
+    })
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
 
@@ -10305,7 +10549,10 @@ const playback = reactive({
   skipHint: null,
   airplay: false,
   adBreaks: [],
+  source: '',
 })
+
+const playInfoOpen = ref(false)
 
 let playVideo = null
 let playHls = null
@@ -10321,8 +10568,9 @@ const playRecording = (recording) => {
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
-    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [],
+    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [], source: '',
   })
+  playInfoOpen.value = false
   playVideo?.play()?.catch(() => {})
   startPlaybackAt(null)
 }
@@ -10335,6 +10583,7 @@ const stopPlayback = () => {
   detachPlayVideo()
   if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
   Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })
+  playInfoOpen.value = false
 }
 
 const startPlaybackAt = async (offset) => {
@@ -10365,6 +10614,8 @@ const startPlaybackAt = async (offset) => {
     })
     if (offset == null) playback.resumed = Boolean(r.resumed)
     playback.adBreaks = r.adBreaks || []
+    playback.source = r.source || ''
+
     attachPlayVideo(run, r.session.playlist)
     schedulePlayHeartbeat(run)
   } catch (err) {
@@ -10556,13 +10807,24 @@ const onPlayPointerUp = (e) => {
   clearTimeout(playSingleTapTimer)
   if (result.kind === 'skip') return skipPlayback(result)
   if (!togglesOnSingleTap) return
-  if (result.kind === 'center') return togglePlayback()
   playSingleTapTimer = setTimeout(togglePlayback, DOUBLE_TAP_MS)
 }
+
+const onPlayDoubleClick = (e) => {
+  if (e.target !== playVideo) return
+  e.preventDefault()
+  e.stopPropagation()
+  if (tapZoneOf({ video: playVideo, event: e, bottomInsetPx: 0 })) return
+  clearTimeout(playSingleTapTimer)
+  togglePlayFullscreen()
+}
+
+const togglePlayFullscreen = () => toggleStageFullscreen({ stage: playVideo?.closest('.play-stage'), video: playVideo })
 
 const skipPlaybackByKey = (side) => {
   const result = registerPlayTap({ side, force: true })
   if (result.kind === 'skip') skipPlayback(result)
+  return true
 }
 
 const sendPlaybackBeacon = () => {
@@ -10592,25 +10854,42 @@ const RecordingPlayer = {
     <transition name="epg-sheet">
     <div v-show="playback.open" class="epg-modal-backdrop live-backdrop">
       <section class="panel epg-modal live-modal play-modal" role="dialog" aria-label="Recording player">
-        <header class="panel-header live-header">
-          <channel-logo v-if="recording?.channel_id" class="shrink-0" :channel-id="recording.channel_id" has-logo />
-          <div class="flex-1 min-w-0">
-            <span class="panel-title block truncate">{{ recording?.title }}</span>
-            <span v-if="subtitle" class="block truncate text-xs text-ink-dim mt-1">{{ subtitle }}</span>
-          </div>
-          <button type="button" class="btn btn-icon" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
-        </header>
-        <div ref="stageEl" class="play-stage">
-          <div class="live-frame" @pointerdown="onPlayPointerDown" @pointerup="onPlayPointerUp">
+        <player-header :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
+          @close="stopPlayback" />
+        <div ref="stageEl" :class="['play-stage', { 'is-info-open': infoOpen }]">
+          <div class="live-frame" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
+            @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
             <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
             <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
-            <button type="button" class="btn btn-icon live-landscape-close" @click="stopPlayback" aria-label="Close"><cross-icon /></button>
+            <player-overlay-buttons :info-open="infoOpen" info-id="play-info" @toggle-info="toggleInfo" @close="stopPlayback" />
             <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
               <span>{{ playback.skipHint.label }}</span>
             </div>
             <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
-            <button v-if="inAdBreak" type="button" class="btn play-skip-ad" @click="skipCurrentAd">SKIP AD</button>
+            <button v-if="inAdBreak && !infoOpen" type="button" class="btn play-skip-ad" @click="skipCurrentAd">SKIP AD</button>
           </div>
+          <player-info-panel :open="infoOpen" panel-id="play-info">
+            <template #image>
+              <programme-image v-if="recording" :key="recording.recording_id" class="live-info-image" variant="info"
+                :source="imageSource" :title="recording.title" :channel-id="recording.channel_id" :has-logo="Boolean(recording.channel_id)" />
+            </template>
+            <p class="live-info-channel">
+              <channel-logo v-if="recording?.channel_id" class="live-info-logo" :channel-id="recording.channel_id" has-logo />
+              <span class="truncate">{{ recording?.channel_name }}</span>
+              <span v-if="sourceBadge" class="live-info-buffer">{{ sourceBadge }}</span>
+            </p>
+            <p class="live-info-title">{{ recording?.title }}</p>
+            <p v-if="episodeLine" class="live-info-episode">{{ episodeLine }}</p>
+            <div v-if="airedText" class="live-info-times">
+              <span>{{ airedText }}</span>
+              <div class="progress-track"><div class="progress-fill" :style="{ width: watched + '%' }"></div></div>
+            </div>
+            <p v-if="metaLine" class="live-info-meta">{{ metaLine }}</p>
+            <p v-if="recording?.synopsis" class="live-info-synopsis">{{ recording.synopsis }}</p>
+            <p v-for="line in infoLines" :key="line.label" class="live-info-next">
+              {{ line.label }} <span class="live-info-next-title">{{ line.text }}</span>
+            </p>
+          </player-info-panel>
           <div class="play-controls">
             <div class="play-scrub">
               <span class="play-time">{{ fmtPlayTime(shownPosition) }}</span>
@@ -10621,24 +10900,33 @@ const RecordingPlayer = {
                 aria-label="Position">
               <span class="play-time">{{ fmtPlayTime(playback.duration) }}</span>
             </div>
-            <div class="play-buttons">
-              <button type="button" class="btn btn-icon play-toggle" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
+            <div class="play-buttons play-overlay-buttons">
+              <button type="button" class="btn btn-icon" @click="togglePlayback" :aria-label="playback.paused ? 'Play' : 'Pause'">
                 <play-icon v-if="playback.paused" /><pause-icon v-else />
               </button>
               <span class="flex-1"></span>
-              <button v-if="playback.resumed" type="button" class="btn btn-sm" @click="startPlaybackOver">START OVER</button>
+              <button v-if="playback.resumed" type="button" class="btn btn-icon" @click="startPlaybackOver" aria-label="Start over"><start-over-icon /></button>
               <button v-if="playback.airplay" type="button" class="btn btn-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
               <button type="button" class="btn btn-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
             </div>
           </div>
         </div>
         <div class="panel-body">
-          <div class="epg-modal-actions flex items-center justify-between gap-3">
-            <span :class="['status-readout', 'live-status-text', statusKind]">{{ statusText }}</span>
-            <div class="flex shrink-0 gap-2">
-              <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
-            </div>
-          </div>
+          <player-action-row :info-open="infoOpen" info-id="play-info" :status-text="statusText" :status-kind="statusKind"
+            @toggle-info="toggleInfo">
+            <button v-if="playback.phase === 'ended'" type="button" class="btn" @click="togglePlayback"><refresh-icon /> RETRY</button>
+            <template v-else>
+              <button v-if="playback.resumed" type="button" class="btn live-action-wide" aria-label="START OVER" @click="startPlaybackOver">
+                <start-over-icon /> <span class="live-action-label">START OVER</span>
+              </button>
+              <button v-if="playback.airplay" type="button" class="btn btn-icon live-action-icon" @click="showAirplay" aria-label="AirPlay"><airplay-icon /></button>
+              <button type="button" class="btn btn-icon live-action-icon" @click="toggleFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
+              <button type="button" class="btn live-action-wide live-pause-button" :aria-label="playback.paused ? 'Play' : 'Pause'" @click="togglePlayback">
+                <play-icon v-if="playback.paused" /><pause-icon v-else />
+                <span class="live-action-label">{{ playback.paused ? 'PLAY' : 'PAUSE' }}</span>
+              </button>
+            </template>
+          </player-action-row>
         </div>
       </section>
     </div>
@@ -10649,13 +10937,48 @@ const RecordingPlayer = {
     const videoEl = ref(null)
     const stageEl = ref(null)
     const recording = computed(() => playback.recording)
+    const infoOpen = playInfoOpen
 
-    const subtitle = computed(() => {
+    const header = computed(() => {
+      const r = playback.recording
+      if (!r) return { title: '', subtitle: '' }
+      if (!r.channel_name) return { title: r.title, subtitle: recordingEpisodeLine(r) }
+      return { title: r.channel_name, subtitle: recordingHeaderLine(r) }
+    })
+
+    const imageSource = computed(() => {
+      const r = playback.recording
+      return r?.image_path ? `/api/recordings/${encodeURIComponent(r.recording_id)}/image` : null
+    })
+
+    const episodeLine = computed(() => (playback.recording ? recordingEpisodeLine(playback.recording) : ''))
+
+    const airedText = computed(() => airedRangeText({
+      airedAt: playback.recording?.aired_at,
+      durationSeconds: playback.recording?.duration_s || playback.duration,
+      timeZone: tz.value,
+    }))
+
+    const watched = computed(() => watchedPercent({ position: playback.position, duration: playback.duration }))
+
+    const metaLine = computed(() => {
       const r = playback.recording
       if (!r) return ''
-      const aired = r.aired_at ? fmtTime(r.aired_at) : ''
-      return [r.episode_title, r.channel_name, aired].filter(Boolean).join(' · ')
+      return [
+        durationText(r.duration_s || playback.duration),
+        libraryStatusText({ status: r.status, imported: fmtTime(r.imported_at), deletedFromTvh: Boolean(r.deleted_from_tvh_at) }),
+      ].filter(Boolean).join(' · ')
     })
+
+    const sourceBadge = computed(() => sourceBadgeText(playback.source))
+
+    const infoLines = computed(() => {
+      const r = playback.recording
+      if (!r) return []
+      return [{ label: 'ADS', text: adsText(r) }, savesToLine(r)].filter((line) => line?.text)
+    })
+
+    const toggleInfo = () => { infoOpen.value = !infoOpen.value }
 
     const inAdBreak = computed(() =>
       playback.phase === 'playing' && adBreakAt({ breaks: playback.adBreaks, time: playback.position }) !== null)
@@ -10698,6 +11021,27 @@ const RecordingPlayer = {
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
 
+    const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
+      infoOpen,
+      onPointerDown: onPlayPointerDown,
+      onPointerUp: onPlayPointerUp,
+      onClick: () => {},
+      onDoubleClick: onPlayDoubleClick,
+    })
+
+    usePlayerKeys({
+      isActive: () => playback.open,
+      infoOpen,
+      close: stopPlayback,
+      toggleInfo,
+      canToggleCaptions: () => false,
+      toggleCaptions: () => {},
+      togglePause: togglePlayback,
+      skip: skipPlaybackByKey,
+      toggleFullscreen,
+      ignoreSelector: 'button, select, textarea, input:not(.play-range)',
+    })
+
     const onTimeUpdate = () => {
       if (playback.phase !== 'playing') return
       playback.position = playback.offset + playVideo.currentTime
@@ -10721,20 +11065,6 @@ const RecordingPlayer = {
       savePlaybackPosition()
     }
 
-    const onKeydown = (e) => {
-      if (!playback.open) return
-      if (e.key === 'Escape') return stopPlayback()
-      if (e.target.closest?.('button, select, textarea, input:not(.play-range)')) return
-      if (e.key === ' ' || e.key === 'k') {
-        e.preventDefault()
-        return togglePlayback()
-      }
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault()
-        skipPlaybackByKey(e.key === 'ArrowLeft' ? 'back' : 'forward')
-      }
-    }
-
     onMounted(() => {
       playVideo = videoEl.value
       playVideo.addEventListener('timeupdate', onTimeUpdate)
@@ -10746,15 +11076,14 @@ const RecordingPlayer = {
       playVideo.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
         playback.airplay = e.availability === 'available'
       })
-      window.addEventListener('keydown', onKeydown)
     })
-    onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     return {
-      playback, recording, subtitle, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
+      playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
+      infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
       statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, showAirplay, onPlayPointerDown, onPlayPointerUp,
+      toggleFullscreen, showAirplay, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
     }
   },
 }
@@ -11083,6 +11412,11 @@ app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)
 app.component('fullscreen-icon', FullscreenIcon)
 app.component('airplay-icon', AirplayIcon)
+app.component('start-over-icon', StartOverIcon)
+app.component('player-header', PlayerHeader)
+app.component('player-overlay-buttons', PlayerOverlayButtons)
+app.component('player-action-row', PlayerActionRow)
+app.component('player-info-panel', PlayerInfoPanel)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
@@ -11134,5 +11468,7 @@ app.component('pulse-icon', PulseIcon)
 app.component('bolt-icon', BoltIcon)
 app.component('download-icon', DownloadIcon)
 app.component('trash-icon', TrashIcon)
+app.component('ad-scan-icon', AdScanIcon)
+app.component('confirm-dialog', ConfirmDialog)
 app.component('external-link-icon', ExternalLinkIcon)
 app.mount('#app')

@@ -116,6 +116,12 @@ export const resolvePlaybackFile = async ({ candidates, roots, realpath = fs.rea
   return null
 }
 
+export const playbackSourceFor = async ({ file, libraryPath, realpath = fs.realpath }) => {
+  if (!file || !libraryPath) return 'tvheadend'
+  const libraryReal = await realpath(libraryPath).catch(() => null)
+  return libraryReal === file ? 'library' : 'tvheadend'
+}
+
 export const probeRecording = (file) => new Promise((resolve, reject) => {
   execFile('ffprobe', [
     '-v', 'error',

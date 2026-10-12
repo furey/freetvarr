@@ -13,10 +13,10 @@ The Doctor only reads. It sends `GET` requests to TVHeadend and Plex, and it loo
 
 Each check gets one of these results:
 
-- **Pass**: nothing to do.
-- **Warn**: Freetvarr works, but something costs you space, guide data, or picture quality.
-- **Fail**: something Freetvarr needs is broken. The row says how to fix it and links to the matching docs.
-- **Skip**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
+- **PASS**: nothing to do.
+- **WARN**: Freetvarr works, but something costs you space, guide data, or picture quality.
+- **FAIL**: something Freetvarr needs is broken. The row says how to fix it and links to the matching docs.
+- **SKIP**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
 
 Failing rows come first. Press `RE-RUN` to check again. A check that gets no answer in `8` seconds fails.
 
@@ -60,7 +60,7 @@ Checks that the recordings folder exists inside the Freetvarr Docker container a
 
 ## TVHeadend recording path {#paths-match}
 
-Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in Settings. They must match. See [CHECK TVHEADEND mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
+Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in **SETTINGS**. They must match. See [CHECK TVHEADEND mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
 
 ## Media folder {#paths-media}
 
@@ -92,4 +92,4 @@ Runs only when ad removal is on. It checks that `comskip`, `ffmpeg`, and `ffprob
 
 ## Time zone and network {#host-env}
 
-Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings, in the SCHEDULE panel, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).
+Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in **SETTINGS → SCHEDULE**, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).

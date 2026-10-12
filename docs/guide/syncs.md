@@ -33,7 +33,7 @@ Only one sync runs at a time. A second request while one runs returns the runnin
 
 ## Reading a sync
 
-Each row shows what the pass did: imports, failures, removals, or nothing (empty). A sync is marked `ok` unless something failed. A short import (a `partial` recording) counts as a failure, not a skip.
+Each row shows what the pass did: imports, failures, removals, or nothing (empty). A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording) counts as a failure, not a skip.
 
 ## History
 
