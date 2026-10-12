@@ -1064,12 +1064,13 @@ app.get('/api/play/:session/:file', async (req, res) => {
   if (!filePath) return res.status(404).json({ error: 'not found' })
   playbackSessions.touch(sessionId)
   res.setHeader('Cache-Control', 'no-store')
-  if (file === 'index.m3u8') {
-    const playlist = await playbackSessions.waitForPlaylist(sessionId)
+  if (file.endsWith('.m3u8')) {
+    const playlist = await playbackSessions.waitForPlaylist(sessionId, file)
     if (playlist == null) return res.status(404).json({ error: 'stream not ready' })
     return res.type('application/vnd.apple.mpegurl').send(playlist)
   }
-  res.type('video/mp2t')
+  res.type(liveContentType(file))
+  if (file.endsWith('.vtt')) return sendCaptionSegment(res, filePath)
   res.sendFile(filePath, (err) => {
     if (err && !res.headersSent) res.status(404).end()
   })

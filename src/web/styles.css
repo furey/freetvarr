@@ -3351,6 +3351,7 @@ span.row-info {
 .live-frame:fullscreen .live-landscape-captions,
 .live-frame:fullscreen .live-landscape-close,
 .play-stage:fullscreen .live-landscape-info,
+.play-stage:fullscreen .live-landscape-captions,
 .play-stage:fullscreen .live-landscape-close {
   display: inline-flex;
   position: absolute;
@@ -3368,7 +3369,8 @@ span.row-info {
   right: 4rem;
 }
 
-.live-frame:fullscreen .live-landscape-captions {
+.live-frame:fullscreen .live-landscape-captions,
+.play-stage:fullscreen .live-landscape-captions {
   right: 7.25rem;
 }
 

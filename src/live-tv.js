@@ -16,6 +16,7 @@ import {
 } from './tvheadend.js'
 import { getRecordingState, listGuideChannels } from './epg.js'
 import { vaapiFilters, vaapiEncoderArgs, VAAPI_HEIGHT_CAP } from './live-encoder.js'
+import { CAPTION_LINE_PERCENT } from './web/live-captions.js'
 
 export const LIVE_ROOT = path.join(os.tmpdir(), 'freetvarr-live')
 export const MASTER_PLAYLIST = 'index.m3u8'
@@ -96,7 +97,7 @@ export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, pro
   path.join(dir, MEDIA_PLAYLIST),
 ]
 
-const teletextDecoderArgs = (plan) => plan.teletext
+export const teletextDecoderArgs = (plan) => plan.teletext
   ? [
       '-fix_sub_duration',
       '-txt_page', String(plan.teletext.page),
@@ -105,7 +106,7 @@ const teletextDecoderArgs = (plan) => plan.teletext
     ]
   : []
 
-const variantStreamMap = (plan) => [
+export const variantStreamMap = (plan) => [
   'v:0',
   ...(plan.audio ? ['a:0'] : []),
   ...(plan.teletext ? ['s:0', 'sgroup:subs', 'language:en', 'default:no'] : []),
@@ -174,7 +175,6 @@ const labelCaptionRendition = (line) => {
   return /AUTOSELECT=/.test(named) ? named : `${named},AUTOSELECT=YES`
 }
 
-const CAPTION_LINE_PERCENT = 85
 
 export const CAPTION_CUE_SETTINGS = `line:${CAPTION_LINE_PERCENT}%,end align:start position:10% size:80%`
 
