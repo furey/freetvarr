@@ -6,7 +6,6 @@ export const deleteSyncConfirm = ({ syncId }) => ({
   ],
   confirmLabel: 'DELETE SYNC',
   busyLabel: 'DELETING…',
-  keepLabel: 'KEEP SYNC',
   danger: true,
 })
 
@@ -20,7 +19,6 @@ export const clearSyncHistoryConfirm = ({ syncRunning }) => ({
   ],
   confirmLabel: 'CLEAR HISTORY',
   busyLabel: 'CLEARING…',
-  keepLabel: 'KEEP HISTORY',
   danger: true,
 })
 
@@ -32,7 +30,6 @@ export const restoreOpenAccessConfirm = () => ({
   ],
   confirmLabel: 'RESTORE OPEN ACCESS',
   busyLabel: 'RESTORING…',
-  keepLabel: 'KEEP LOGIN REQUIRED',
   danger: true,
 })
 
@@ -47,6 +44,5 @@ export const resetConfirm = ({ mediaRoot }) => ({
   ],
   confirmLabel: 'RESET FREETVARR',
   busyLabel: 'RESETTING…',
-  keepLabel: "DON'T RESET",
   danger: true,
 })

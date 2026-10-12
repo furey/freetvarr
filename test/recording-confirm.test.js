@@ -25,18 +25,17 @@ const recording = (overrides = {}) => ({
   ...overrides,
 })
 
-test('ad scan confirms have no dismiss button; the close button backs out', () => {
-  const base = recording()
-  assert.equal(adScanConfirm({ recording: base }).keepLabel, undefined)
-  assert.equal(adScanConfirm({ recording: { ...base, show_ad_removal: 'cut' } }).keepLabel, undefined)
-})
-
-test('every other recording confirm names what its dismiss button keeps', () => {
+test('recording confirms have no dismiss button; the close button backs out', () => {
   const base = recording({ deleted_from_tvh_at: '2026-10-01' })
-  assert.equal(removeFromTvhConfirm({ recording: base }).keepLabel, 'KEEP IN TVHEADEND')
-  assert.equal(clearRowConfirm({ recording: base, undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
-  assert.equal(clearRowConfirm({ recording: recording(), undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
-  assert.equal(clearListConfirm({ count: 2, undoSeconds: 10 }).keepLabel, 'KEEP IN LIST')
+  const dialogs = [
+    adScanConfirm({ recording: base }),
+    adScanConfirm({ recording: { ...base, show_ad_removal: 'cut' } }),
+    removeFromTvhConfirm({ recording: base }),
+    clearRowConfirm({ recording: base, undoSeconds: 10 }),
+    clearRowConfirm({ recording: recording(), undoSeconds: 10 }),
+    clearListConfirm({ count: 2, undoSeconds: 10 }),
+  ]
+  for (const dialog of dialogs) assert.equal(dialog.keepLabel, undefined)
 })
 
 test('adScanModeOf: CUT only when the show cuts; OFF and one-offs detect', () => {

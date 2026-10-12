@@ -695,6 +695,7 @@ const CancelSeriesStep = {
     episodeOutcome: { type: String, default: '' },
     titleMatch: { type: Object, default: null },
     busy: { type: Boolean, default: false },
+    showBack: { type: Boolean, default: true },
   },
   emits: ['confirm', 'back'],
   template: `
@@ -712,7 +713,7 @@ const CancelSeriesStep = {
         <p class="text-xs font-mono text-ink-mute">{{ titleMatchNote }}</p>
       </div>
       <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
-        <button type="button" class="btn mr-auto" @click="$emit('back')" :disabled="busy">KEEP SERIES</button>
+        <button v-if="showBack" type="button" class="btn mr-auto" @click="$emit('back')" :disabled="busy">KEEP SERIES</button>
         <button type="button" :class="['btn', 'btn-danger', { 'is-busy': busy }]" @click="confirm" :disabled="busy">
           <span class="btn-label">CANCEL SERIES</span>
           <span v-if="busy" class="spinner spinner-overlay"></span>
@@ -2212,7 +2213,6 @@ const FolderEditor = {
             <p class="text-sm text-ink">{{ removeOutcome }}</p>
             <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn mr-auto" @click="confirming = false" :disabled="saving">{{ keepLabel }}</button>
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
                 <template v-if="saving">REMOVING…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
               </button>
@@ -2234,7 +2234,6 @@ const FolderEditor = {
     const saving = ref(false)
     const confirming = ref(false)
     const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
-    const keepLabel = computed(() => (props.isSeries ? 'KEEP FOLDER' : 'KEEP TITLE MATCH'))
     const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
     const removeTitle = computed(() => (props.isSeries ? 'Unassign the folder' : 'Remove the title match'))
     const removeOutcome = computed(() => {
@@ -2289,7 +2288,7 @@ const FolderEditor = {
 
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
-      removeLabel, keepLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
+      removeLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
 }
@@ -2426,8 +2425,8 @@ const SeriesView = {
           </header>
           <div class="panel-body">
             <cancel-series-step :title="cancelling.series.title" :episode-outcome="cancelling.episodeOutcome"
-              :title-match="cancelling.series.folder" :busy="busyKey === cancelling.series.key"
-              @back="closeCancelSeries" @confirm="cancelSeries" />
+              :title-match="cancelling.series.folder" :busy="busyKey === cancelling.series.key" :show-back="false"
+              @confirm="cancelSeries" />
           </div>
         </section>
       </div>
@@ -7166,7 +7165,6 @@ const ConfirmDialog = {
                 <p v-for="(line, i) in dialog.body" :key="i" class="text-sm text-ink confirm-dialog-line">{{ line }}</p>
               </div>
               <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-                <button v-if="dialog.keepLabel" type="button" class="btn mr-auto" @click="cancel" :disabled="busy">{{ dialog.keepLabel }}</button>
                 <button type="button" :class="['btn', dialog.danger ? 'btn-danger' : 'btn-primary']" @click="$emit('confirm')" :disabled="busy">
                   <template v-if="busy">{{ dialog.busyLabel }}</template>
                   <template v-else><component v-if="icon" :is="icon" /> {{ dialog.confirmLabel }}</template>
