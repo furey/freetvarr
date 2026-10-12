@@ -29,6 +29,7 @@ import {
   matchShow,
   createValidFilename,
 } from './sync.js'
+import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates } from './library-files.js'
 import { findArtwork, saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopScheduler } from './scheduler.js'
 import {
@@ -474,12 +475,15 @@ app.post('/api/recordings/:recording_id/library', syncLimiter, doubleCsrfProtect
   }
   const row = await db('recordings').where({ recording_id: recordingId }).first()
   if (!row) return res.status(404).json({ error: 'recording not found' })
-  if (['done', 'importing'].includes(row.status)) {
+  const { state } = await libraryStateOf(row)
+  if (row.status === 'importing' || (row.status === 'done' && state !== 'not_in_library')) {
     return res.status(409).json({ error: 'recording is already in the library' })
   }
   await db('recordings').where({ recording_id: recordingId }).update({
     library_choice: choice,
-    ...(choice === 'include' ? { status: 'pending', error: null } : {}),
+    ...(choice === 'include'
+      ? { status: 'pending', error: null, library_state: null, library_replacement: null }
+      : {}),
   })
   const sync = choice === 'include' ? await startSync({ trigger: 'manual:import' }) : null
   res.json({ ok: true, choice, syncId: sync?.syncId ?? null })
@@ -501,7 +505,7 @@ app.get('/api/recordings', async (req, res) => {
     title: 'recordings.title',
     show_pattern: 'shows.show_pattern',
   }
-  const STATUS_VALUES = ['done', 'partial', 'failed', 'skipped', 'importing', 'not_imported', 'pending']
+  const STATUS_VALUES = ['done', 'partial', 'failed', 'skipped', 'importing', 'not_imported', 'pending', ...LIBRARY_STATES]
   const SINCE_INTERVALS = {
     '1h':  '-1 hours',
     '24h': '-24 hours',
@@ -527,9 +531,8 @@ app.get('/api/recordings', async (req, res) => {
 
   const applyFilters = (q) => {
     q.whereNull('recordings.purged_at')
-    if (statusFilter) {
-      q.where('recordings.status', statusFilter)
-    }
+    if (LIBRARY_STATES.includes(statusFilter)) q.where('recordings.library_state', statusFilter)
+    else if (statusFilter) q.where('recordings.status', statusFilter).whereNull('recordings.library_state')
     if (showIdFilter != null) q.where('recordings.show_id', showIdFilter)
     if (sinceInterval) {
       q.where('recordings.imported_at', '>=', db.raw(`datetime('now', '${sinceInterval}')`))
@@ -567,19 +570,17 @@ app.get('/api/recordings', async (req, res) => {
     .count({ count: 'recording_id' })
     .first()
 
-  const [totalRow, rows, clearableRow] = await Promise.all([totalQuery, rowsQuery, clearableQuery])
+  const [totalRow, storedRows, clearableRow] = await Promise.all([totalQuery, rowsQuery, clearableQuery])
+  const rows = await refreshLibraryStates(storedRows)
   const progress = snapshotProgress(rows.map((r) => r.recording_id))
   const sources = await playbackSourceResolver()
-  const [playable, libraryFilePresent] = await Promise.all([
-    Promise.all(rows.map(async (r) => Boolean(await sources(r)))),
-    Promise.all(rows.map((r) => isLibraryFilePresent(r.file_path))),
-  ])
+  const playable = await Promise.all(rows.map(async (r) => Boolean(await sources(r))))
   res.json({
     recordings: rows.map((r, i) => ({
       ...r,
       progress: progress[r.recording_id] ?? null,
       playable: playable[i],
-      library_file_present: libraryFilePresent[i],
+      library_file_present: !r.library_state,
     })),
     total: Number(totalRow?.count) || 0,
     clearable: Number(clearableRow?.count) || 0,

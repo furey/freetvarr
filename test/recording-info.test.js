@@ -5,6 +5,8 @@ import {
   adsText,
   airedRangeText,
   durationText,
+  libraryStateTitle,
+  libraryStatusOf,
   libraryStatusText,
   recordingEpisodeLine,
   recordingHeaderLine,
@@ -80,4 +82,30 @@ test('sourceBadgeText: names the file that plays', () => {
   assert.equal(sourceBadgeText('library'), 'FROM LIBRARY')
   assert.equal(sourceBadgeText('tvheadend'), 'FROM TVHEADEND')
   assert.equal(sourceBadgeText(undefined), '')
+})
+
+test('savesToLine: names the replacement or the missing file', () => {
+  const base = { status: 'done', file_path: '/tv/A/A - S01E01.ts' }
+  assert.deepEqual(
+    savesToLine({ ...base, library_state: 'replaced', library_replacement: '/tv/A/A - S01E01 WEBDL.mkv' }),
+    { label: 'REPLACED BY', text: '/tv/A/A - S01E01 WEBDL.mkv' },
+  )
+  assert.deepEqual(savesToLine({ ...base, library_state: 'not_in_library' }), { label: 'FILE MISSING', text: base.file_path })
+  assert.deepEqual(savesToLine(base), { label: 'SAVES TO', text: base.file_path })
+})
+
+test('libraryStatusOf and libraryStatusText: the library state wins over the import status', () => {
+  const replaced = { status: 'done', library_state: 'replaced' }
+  assert.equal(libraryStatusOf(replaced), 'replaced')
+  assert.equal(libraryStatusOf({ status: 'done', library_state: null }), 'done')
+  assert.equal(libraryStatusText({ status: libraryStatusOf(replaced), imported: 'today' }), 'REPLACED')
+  assert.equal(libraryStatusText({ status: 'not_in_library' }), 'NOT IN LIBRARY')
+})
+
+test('libraryStateTitle: says who replaced the file', () => {
+  assert.equal(
+    libraryStateTitle({ library_state: 'replaced', library_replacement: '/tv/A/A - S01E01 WEBDL.mkv' }),
+    "Another app, such as Sonarr, replaced Freetvarr's file with A - S01E01 WEBDL.mkv.",
+  )
+  assert.equal(libraryStateTitle({ library_state: null }), '')
 })

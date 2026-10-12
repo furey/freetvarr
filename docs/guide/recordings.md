@@ -25,6 +25,8 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 - **SKIPPED**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The row's error text says which.
 - **FAILED**: the import hit an error.
 - **NOT IMPORTED**: Freetvarr left the recording in TVHeadend. You recorded it with **ADD TO LIBRARY** off, or it matches no series folder and **IMPORT EVERY RECORDING** is off in **SETTINGS**. Press **IMPORT** to add it to the library at once.
+- **REPLACED**: Freetvarr imported the recording, but its library file is gone, and the folder has another file for the same episode. Another app, such as Sonarr, replaced it. See [Replaced recordings](/guide/troubleshooting#replaced-recordings).
+- **NOT IN LIBRARY**: Freetvarr imported the recording, but its library file is gone and no other copy of the episode is in the folder. Press **IMPORT AGAIN** to import the TVHeadend copy again, while TVHeadend still has it.
 
 With ad removal on, an ad status also appears: **SCANNING**, **DETECTED**, **NO BREAKS**, **CUT**, **DETECT FAILED**, or **CUT FAILED**. See [Ad removal](/guide/ad-removal).
 
@@ -52,7 +54,7 @@ Press the **i** button, or the `i` key on a computer, to show the recording's de
 - The length, and the import status as the RECORDINGS tab shows it, such as **IMPORTED** with its date, or **NOT IN TVHEADEND**.
 - The description.
 - **ADS**: the ad breaks a scan found or cut, when ad removal has scanned the recording.
-- **SAVES TO**: the library file. It reads **FILE MISSING** when Freetvarr cannot find that file; the player then plays the TVHeadend copy if TVHeadend still has it.
+- **SAVES TO**: the library file. It reads **REPLACED BY** and the other file when another app replaced it, and **FILE MISSING** when Freetvarr cannot find the file; the player then plays the TVHeadend copy if TVHeadend still has it.
 
 Press the button again, press `Esc`, or click the picture above the panel to close it. The position bar and **SKIP AD** hide while the panel is open. A second `Esc` closes the player.
 

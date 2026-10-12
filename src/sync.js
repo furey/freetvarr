@@ -13,6 +13,7 @@ import {
 } from './tvheadend.js'
 import { processRecordingAds, pruneCutOriginals, shouldQueueAutoDelete } from './commercials.js'
 import { makeImportProgress } from './progress.js'
+import { sweepLibraryStates } from './library-files.js'
 import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from './artwork.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
@@ -287,6 +288,7 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
   if (imported.oneOff > 0) summary.plexOneOffs = await refreshSection('plex_oneoff_section_id')
   if (imported.film > 0) summary.plexMovies = await refreshSection('plex_movies_section_id')
   if (deletables.length > 0) summary.delete = await runAutoDelete(deletables, summary.plex)
+  await sweepLibraryStates().catch((err) => console.warn(`[sync] library check: ${err.message}`))
 
   const finalStatus = summary.failed > 0 ? 'partial' : 'ok'
   await finishSync(syncId, finalStatus, summary)
