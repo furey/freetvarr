@@ -9126,6 +9126,8 @@ const EpgView = {
       if (hdOffer.value) hdOffer.value = null
       else if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
+      else return
+      e.preventDefault()
     }
 
     watch(guideHandoff, (handoff) => handoff && openHandoff())
@@ -9142,6 +9144,7 @@ const EpgView = {
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
     })
     onUnmounted(() => {
+      recordDialogOverPlayer.value = false
       window.removeEventListener('keydown', onKeydown)
       window.removeEventListener('scroll', onAnyScroll, { capture: true })
       hideTooltip()
@@ -9222,6 +9225,7 @@ const watchLive = ({ channel, nowTitle }) => {
   if (live.open && live.channel?.id === channel.id && live.phase !== 'ended') return
   if (playback.open) stopPlayback()
   stopLive()
+  playerWindowed.value = false
   Object.assign(live, {
     open: true, channel, nowTitle, sessionId: null,
     phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
@@ -9488,7 +9492,30 @@ const isStageFullscreen = ref(false)
 
 document.addEventListener('fullscreenchange', () => { isStageFullscreen.value = Boolean(document.fullscreenElement) })
 
+const shortLandscapeQuery = window.matchMedia?.('(orientation: landscape) and (max-height: 500px)')
+const isShortLandscape = ref(Boolean(shortLandscapeQuery?.matches))
+const playerWindowed = ref(false)
+
+shortLandscapeQuery?.addEventListener?.('change', (e) => {
+  isShortLandscape.value = e.matches
+  playerWindowed.value = false
+})
+
+const playerLayoutOf = ({ canFill }) => {
+  const filled = isShortLandscape.value && !playerWindowed.value && canFill
+  return { 'is-filled': filled, 'is-windowed': isShortLandscape.value && !filled }
+}
+
+const exitPlayerFullscreen = () => {
+  if (document.fullscreenElement) return document.exitFullscreen?.().catch(() => {})
+  playerWindowed.value = true
+}
+
 const toggleStageFullscreen = ({ stage, video }) => {
+  if (!document.fullscreenElement && isShortLandscape.value && playerWindowed.value) {
+    playerWindowed.value = false
+    return
+  }
   if (document.fullscreenElement) return document.exitFullscreen?.().catch(() => {})
   if (stage?.requestFullscreen) return stage.requestFullscreen().catch(() => {})
   video?.webkitEnterFullscreen?.()
@@ -10187,7 +10214,7 @@ const usePlayerKeys = ({
   ignoreSelector = 'button, select, textarea, input',
 }) => {
   const onKeydown = (e) => {
-    if (!isActive()) return
+    if (!isActive() || e.defaultPrevented) return
     if (e.key === 'Escape') {
       if (infoOpen.value) infoOpen.value = false
       else close()
@@ -10201,7 +10228,7 @@ const usePlayerKeys = ({
       e.preventDefault()
       return toggleCaptions()
     }
-    if (e.target.closest?.(ignoreSelector)) return
+    if (e.target.closest?.(ignoreSelector) && isKeyboardFocused(e.target)) return
     if (e.key === ' ' || isPlainKey(e, 'k')) {
       e.preventDefault()
       return togglePause()
@@ -10216,6 +10243,8 @@ const usePlayerKeys = ({
   onMounted(() => window.addEventListener('keydown', onKeydown))
   onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 }
+
+const isKeyboardFocused = (el) => !el.matches?.('button') || el.matches(':focus-visible')
 
 const useInfoDismissTaps = ({ infoOpen, onPointerDown, onPointerUp, onClick, onDoubleClick }) => {
   let ignoreTapsUntil = 0
@@ -10259,7 +10288,7 @@ const LivePlayer = {
   template: `
     <teleport to="body">
     <transition name="epg-sheet">
-    <div v-show="live.open" class="epg-modal-backdrop live-backdrop">
+    <div v-show="live.open" :class="['epg-modal-backdrop', 'live-backdrop', layout]">
       <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
         <player-header :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="live.channel?.name"
           :subtitle="live.nowTitle" close-label="Stop and close" @close="stopLive" />
@@ -10301,8 +10330,8 @@ const LivePlayer = {
               </p>
           </player-info-panel>
           <player-overlay-buttons :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
-            :captions-on="captionsOn" close-label="Stop and close" :fullscreen="isStageFullscreen"
-            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" @exit-fullscreen="toggleLiveFullscreen" />
+            :captions-on="captionsOn" close-label="Stop and close" :fullscreen="isStageFullscreen || layout['is-filled']"
+            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" @exit-fullscreen="exitPlayerFullscreen" />
           <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
             <span>{{ live.skipHint.label }}</span>
           </div>
@@ -10443,6 +10472,7 @@ const LivePlayer = {
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const toggleLiveFullscreen = () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo })
+    const layout = computed(() => playerLayoutOf({ canFill: live.phase !== 'ended' && !live.holders.length }))
 
     const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
       infoOpen,
@@ -10595,7 +10625,7 @@ const LivePlayer = {
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      isBehindLive, jumpToLive, frameEl, toggleLiveFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT,
@@ -10634,6 +10664,8 @@ const HAVE_METADATA = 1
 const HAVE_CURRENT_DATA = 2
 const NATIVE_CONTROL_BAR_PX = 48
 const SKIP_HINT_MS = 1_600
+const SEEK_RESTART_DELAY_MS = 400
+const PLAYER_TOKEN = crypto.randomUUID?.() ?? String(Math.random()).slice(2)
 
 const playback = reactive({
   open: false,
@@ -10669,6 +10701,7 @@ const playRecording = (recording) => {
   if (live.open) stopLive()
   stopPlayback()
   lastSavedPosition = recording.playback_position_s ?? null
+  playerWindowed.value = false
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
@@ -10690,7 +10723,7 @@ const stopPlayback = () => {
   playInfoOpen.value = false
 }
 
-const startPlaybackAt = async (offset) => {
+const startPlaybackAt = async (offset, { delayMs = 0 } = {}) => {
   const run = ++playRun
   const replace = playback.sessionId
   clearTimeout(playHeartbeatTimer)
@@ -10698,11 +10731,14 @@ const startPlaybackAt = async (offset) => {
   playback.phase = 'starting'
   playback.message = ''
   if (offset != null) playback.position = offset
+  if (delayMs) await wait(delayMs)
+  if (run !== playRun) return
   const recordingId = encodeURIComponent(playback.recording.recording_id)
   try {
     const r = await api('POST', `/api/recordings/${recordingId}/play`, {
       ...(offset == null ? {} : { offset }),
       ...(replace ? { replace } : {}),
+      player: PLAYER_TOKEN,
     })
     if (run !== playRun) {
       api('DELETE', `/api/play/${r.session.id}`).catch(() => {})
@@ -10832,15 +10868,16 @@ const producedEndOf = () => {
 }
 
 const seekPlaybackTo = (target) => {
-  if (!playback.open || playback.phase === 'ended') return startPlaybackAt(Math.max(0, Math.floor(target)))
-  if (!playback.sessionId || playback.phase !== 'playing') return startPlaybackAt(Math.max(0, Math.floor(target)))
+  const restartAt = (offset) => startPlaybackAt(offset, { delayMs: SEEK_RESTART_DELAY_MS })
+  if (!playback.open || playback.phase === 'ended') return restartAt(Math.max(0, Math.floor(target)))
+  if (!playback.sessionId || playback.phase !== 'playing') return restartAt(Math.max(0, Math.floor(target)))
   const plan = seekPlan({
     target,
     offset: playback.offset,
     producedEnd: producedEndOf(),
     duration: playback.duration,
   })
-  if (plan.kind === 'restart') return startPlaybackAt(plan.offset)
+  if (plan.kind === 'restart') return restartAt(plan.offset)
   playVideo.currentTime = plan.time
   playback.position = playback.offset + plan.time
   if (playVideo.paused) playVideo.play()?.catch(() => {})
@@ -10956,7 +10993,7 @@ const RecordingPlayer = {
   template: `
     <teleport to="body">
     <transition name="epg-sheet">
-    <div v-show="playback.open" class="epg-modal-backdrop live-backdrop">
+    <div v-show="playback.open" :class="['epg-modal-backdrop', 'live-backdrop', layout]">
       <section class="panel epg-modal live-modal play-modal" role="dialog" aria-label="Recording player">
         <player-header :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
           @close="stopPlayback" />
@@ -10965,7 +11002,8 @@ const RecordingPlayer = {
             @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
             <video ref="videoEl" :class="['live-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
             <span v-if="overlayText" class="play-caption">{{ overlayText }}</span>
-            <player-overlay-buttons :info-open="infoOpen" info-id="play-info" @toggle-info="toggleInfo" @close="stopPlayback" />
+            <player-overlay-buttons :info-open="infoOpen" info-id="play-info" :fullscreen="isStageFullscreen || layout['is-filled']"
+              @toggle-info="toggleInfo" @close="stopPlayback" @exit-fullscreen="exitPlayerFullscreen" />
             <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
               <span>{{ playback.skipHint.label }}</span>
             </div>
@@ -11126,6 +11164,7 @@ const RecordingPlayer = {
     }
 
     const toggleFullscreen = () => toggleStageFullscreen({ stage: stageEl.value, video: playVideo })
+    const layout = computed(() => playerLayoutOf({ canFill: playback.phase !== 'ended' }))
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
 
@@ -11191,7 +11230,7 @@ const RecordingPlayer = {
       infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent,
       statusText, statusKind, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, isStageFullscreen, showAirplay, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      toggleFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, showAirplay, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
     }
   },
 }
