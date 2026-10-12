@@ -2980,16 +2980,8 @@ body.epg-drag-lock * {
 }
 
 .btn-watch {
-  min-width: 2.5rem;
-  min-height: 2.5rem;
-  justify-content: center;
   border-color: #1eb6ff;
   color: #1eb6ff;
-}
-
-.btn-watch svg {
-  width: 1.3rem;
-  height: 1.3rem;
 }
 
 .live-row,
@@ -3051,6 +3043,24 @@ span.row-info {
 
 .epg-modal-actions .btn {
   min-height: 2.75rem;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-actions .status-readout {
+  flex-basis: 100%;
+}
+
+@media (max-width: 767px) {
+  .card-actions > .btn {
+    flex: 1 1 calc(50% - 0.25rem);
+    justify-content: center;
+  }
 }
 
 @media (max-width: 767px) {

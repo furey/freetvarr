@@ -2173,12 +2173,12 @@ const FolderEditor = {
       <div class="flex flex-col gap-2">
         <toggle-switch v-model="deleteAfter">REMOVE FROM TVHEADEND AFTER IMPORT</toggle-switch>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="card-actions">
         <button type="submit" class="btn btn-primary" :disabled="saving">
           <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
         </button>
         <button type="button" class="btn" @click="$emit('cancel')" :disabled="saving">CANCEL</button>
-        <button type="button" class="btn btn-danger ml-auto" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
+        <button type="button" class="btn btn-danger" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
       <teleport to="body">
@@ -2319,7 +2319,7 @@ const SeriesView = {
                 <series-folder-editor v-if="s.folder && editingKey === s.key" :folder="s.folder" :folders="folders"
                   :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" is-series :import-unmatched="importUnmatched"
                   @saved="onSaved" @deleted="onDeleted" @cancel="editingKey = ''" />
-                <div v-else class="flex flex-wrap items-center gap-2">
+                <div v-else class="card-actions">
                   <template v-if="s.folder">
                     <button type="button" class="btn" @click="edit(s.key)"><sliders-icon /> EDIT</button>
                     <button type="button" class="btn" @click="syncOne(s.folder)"
@@ -2331,7 +2331,7 @@ const SeriesView = {
                   <button v-else type="button" class="btn btn-primary" @click="openAssign(s)" :disabled="busyKey === s.key">
                     <plus-icon /> ASSIGN FOLDER
                   </button>
-                  <button type="button" class="btn ml-auto" @click="pauseSeries(s, s.recording)" :disabled="busyKey === s.key">
+                  <button type="button" class="btn" @click="pauseSeries(s, s.recording)" :disabled="busyKey === s.key">
                     <template v-if="s.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
                   </button>
                   <button type="button" class="btn btn-danger" @click="openCancelSeries(s)" :disabled="busyKey === s.key">
@@ -2383,7 +2383,7 @@ const SeriesView = {
               <series-folder-editor v-if="editingKey === 'folder-' + f.id" :folder="f" :folders="folders"
                 :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" :import-unmatched="importUnmatched"
                 @saved="onSaved" @deleted="onDeleted" @cancel="editingKey = ''" />
-              <div v-else class="flex flex-wrap items-center gap-2">
+              <div v-else class="card-actions">
                 <button type="button" class="btn" @click="edit('folder-' + f.id)"><sliders-icon /> EDIT</button>
                 <button type="button" class="btn" @click="syncOne(f)" :disabled="!f.enabled || syncingId === f.id"
                   :title="f.enabled ? 'Sync just this title now' : 'Press EDIT, then SAVE, to sync this title'">
@@ -7715,8 +7715,11 @@ const EpgView = {
             <template v-else>
             <div class="epg-modal-actions programme-actions flex flex-wrap items-center justify-end gap-2 pt-1">
               <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
-              <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
               <template v-if="cellState(selected.program) === 'recording'">
+                <button type="button" :class="['btn', 'btn-danger', { 'is-busy': modalAction === 'cancel' }]" @click="cancelSelected" :disabled="modalBusy">
+                  <span class="btn-label"><stop-icon /> STOP RECORDING</span>
+                  <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
+                </button>
                 <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
                   CANCEL SERIES
                 </button>
@@ -7724,18 +7727,14 @@ const EpgView = {
                   <span class="btn-label"><series-record-icon /> SERIES</span>
                   <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
                 </button>
-                <button type="button" :class="['btn', 'btn-danger', { 'is-busy': modalAction === 'cancel' }]" @click="cancelSelected" :disabled="modalBusy">
-                  <span class="btn-label"><stop-icon /> STOP RECORDING</span>
-                  <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
-                </button>
               </template>
               <template v-else-if="cellState(selected.program) === 'scheduled'">
-                <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
-                  CANCEL SERIES
-                </button>
                 <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }" @click="cancelSelected" :disabled="modalBusy">
                   <span class="btn-label">CANCEL RECORDING</span>
                   <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
+                </button>
+                <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
+                  CANCEL SERIES
                 </button>
               </template>
               <template v-else-if="cellState(selected.program) === 'series'">
@@ -7744,16 +7743,17 @@ const EpgView = {
                 </button>
               </template>
               <template v-else-if="canRecord">
-                <button v-if="selected.program.series_link" type="button" :class="['btn', { 'btn-primary': dialogFocus === 'series', 'is-busy': modalAction === 'record-series' }]" aria-label="Record series" @click="recordSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label"><series-record-icon /> SERIES</span>
-                  <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
-                </button>
                 <button type="button" :class="['btn', { 'btn-primary': dialogFocus !== 'series' && (dialogFocus === 'record' || !canWatchLive), 'is-busy': modalAction === 'record' }]" @click="recordSelected" :disabled="modalBusy">
                   <span class="btn-label"><record-icon /> RECORD</span>
                   <span v-if="modalAction === 'record'" class="spinner spinner-overlay"></span>
                 </button>
+                <button v-if="selected.program.series_link" type="button" :class="['btn', { 'btn-primary': dialogFocus === 'series', 'is-busy': modalAction === 'record-series' }]" aria-label="Record series" @click="recordSelectedSeries" :disabled="modalBusy">
+                  <span class="btn-label"><series-record-icon /> SERIES</span>
+                  <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
+                </button>
               </template>
               <p v-else class="text-xs font-mono text-ink-mute">This programme has already aired.</p>
+              <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
             </div>
             </template>
           </div>
@@ -8178,8 +8178,8 @@ const EpgView = {
       if (state === 'series') return [{ label: 'CANCEL SERIES', text: cancelSeriesOutcome() }]
       if (!canRecord.value) return []
       return [
-        program.series_link && { label: 'SERIES', text: recordSeriesOutcome({ recordingNow: false }) },
         { label: 'RECORD', text: recordOutcome() },
+        program.series_link && { label: 'SERIES', text: recordSeriesOutcome({ recordingNow: false }) },
       ].filter(Boolean)
     })
 
@@ -9926,16 +9926,16 @@ const LivePlayer = {
             </div>
             <div v-else class="flex shrink-0 gap-2">
               <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
+              <button type="button" :class="['btn', 'live-action-wide', 'live-record-button', { 'is-recording': recordButton.recording }]"
+                :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
+                <span v-if="recordButton.recording" class="led-dot live live-record-dot" aria-hidden="true"></span><record-icon v-else />
+                <span class="live-action-label">{{ recordButton.label }}</span>
+              </button>
               <button v-if="!seriesButton.hidden" type="button"
                 :class="['btn', 'live-action-wide', 'live-series-button', { 'is-on': seriesButton.set }]"
                 :disabled="seriesButton.disabled" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
                 :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
                 <series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span>
-              </button>
-              <button type="button" :class="['btn', 'live-action-wide', 'live-record-button', { 'is-recording': recordButton.recording }]"
-                :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
-                <span v-if="recordButton.recording" class="led-dot live live-record-dot" aria-hidden="true"></span><record-icon v-else />
-                <span class="live-action-label">{{ recordButton.label }}</span>
               </button>
               <button type="button" class="btn live-action-wide live-pause-button" :disabled="live.phase !== 'live'"
                 :aria-label="live.paused ? 'Play' : 'Pause'" @click="toggleLivePause">
