@@ -159,7 +159,7 @@ const run = async () => {
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(700)
   await scrollDownAndBack(page, { dy: 240 })
-  const recordingRow = page.locator('.recordings-table tr.toggle-row:visible, article.toggle-card:visible').first().locator('.recording-cell').first()
+  const recordingRow = page.locator('.recordings-table tr.toggle-row:visible, article.toggle-card:visible').first().locator('.recording-cell, .deck-card-title').first()
   if (await clickWithCursor(page, recordingRow)) {
     await page.waitForSelector('.recording-drawer', { timeout: 5000 }).catch(() => {})
     await page.waitForTimeout(1800)

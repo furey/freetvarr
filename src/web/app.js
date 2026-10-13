@@ -1998,18 +1998,18 @@ const DashboardView = {
               </tr>
             </tbody>
           </table>
-          <div v-if="syncsLoaded && recentSyncs.length" class="md:hidden space-y-3">
+          <div v-if="syncsLoaded && recentSyncs.length" class="md:hidden list-rows">
             <component :is="isNotableSync(s) ? 'a' : 'article'" v-for="s in recentSyncs" :key="s.id"
               :href="isNotableSync(s) ? syncDetailsHref(s) : null"
-              :class="['deck-card', 'block', 'space-y-2', 'no-underline', 'no-hover-underline', { active: s.id === syncStatus.activeSyncId, notable: isNotableSync(s) }]">
-              <div class="flex items-start justify-between gap-3">
-                <span class="deck-card-meta whitespace-nowrap">{{ syncWhenText(s) }}</span>
-                <span class="flex items-center gap-2">
+              :class="['list-row', 'block', 'no-underline', 'no-hover-underline', { active: s.id === syncStatus.activeSyncId, notable: isNotableSync(s) }]">
+              <div class="list-row-main">
+                <div class="list-row-stack">
                   <span :class="['pill', s.status]">{{ s.status }}</span>
-                  <arrow-right-icon v-if="isNotableSync(s)" class="sync-details-arrow" />
-                </span>
+                  <p class="deck-card-meta">{{ syncWhenText(s) }}</p>
+                  <summary-line :summary="s.summary"/>
+                </div>
+                <arrow-right-icon v-if="isNotableSync(s)" class="sync-details-arrow" />
               </div>
-              <summary-line :summary="s.summary"/>
             </component>
           </div>
           <p v-else-if="syncsLoaded" class="text-ink-dim text-sm">No syncs yet.</p>
@@ -2480,7 +2480,7 @@ const SeriesDrawer = {
       <div class="series-drawer-tvh">
         <p class="series-drawer-state">
           <span class="field-label">Series recording</span>
-          <span>{{ series.recording ? 'TVHeadend records new episodes.' : 'Paused: TVHeadend records no new episodes.' }}</span>
+          <span>{{ series.recording ? 'TVHeadend records new episodes' : 'Paused: TVHeadend records no new episodes' }}</span>
         </p>
         <div class="card-actions">
           <button type="button" class="btn btn-sm" @click="$emit('pause')" :disabled="busy">
@@ -2619,26 +2619,21 @@ const SeriesView = {
                 </template>
               </tbody>
             </table>
-            <div v-else class="space-y-3">
-              <article v-for="s in visibleSeries" :key="s.key" :class="['deck-card', 'series-card', 'toggle-card', 'space-y-3', { open: isEditing(s) }]"
+            <div v-else class="list-rows">
+              <article v-for="s in visibleSeries" :key="s.key" :class="['list-row', 'series-card', 'toggle-card', 'space-y-3', { open: isEditing(s) }]"
                 tabindex="0" :aria-expanded="String(isEditing(s))" :aria-label="s.title + ': show settings'"
                 @click="toggleEdit(s.key)" @keydown.enter.self.prevent="toggleEdit(s.key)" @keydown.space.self.prevent="toggleEdit(s.key)">
-                <div class="deck-card-with-image">
-                  <programme-image :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" :title="s.title" />
-                  <div class="deck-card-text">
-                    <div class="flex items-start justify-between gap-3">
-                      <span class="deck-card-title">{{ s.title }}</span>
-                      <span class="pill-group end">
-                        <span v-if="!s.recording" class="pill skipped">PAUSED</span>
-                      </span>
+                <div class="list-row-main">
+                  <div class="deck-card-with-image">
+                    <programme-image :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" :title="s.title" />
+                    <div class="deck-card-text">
+                      <span class="deck-card-title">{{ s.title }}<span v-if="!s.recording" class="pill skipped series-paused">PAUSED</span></span>
+                      <p class="deck-card-meta">{{ channelsOf(s) }}<template v-if="s.episodesToKeep"> · keeps the latest {{ s.episodesToKeep }}</template></p>
+                      <p class="deck-card-meta"><span class="deck-card-label">Next</span> {{ nextAiringLabel(s) }}</p>
+                      <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/recordings">RECORDINGS</a></template></p>
                     </div>
-                    <p class="deck-card-meta">{{ channelsOf(s) }}<template v-if="s.episodesToKeep"> · keeps the latest {{ s.episodesToKeep }}</template></p>
-                    <p class="deck-card-meta"><span class="deck-card-label">Next</span> {{ nextAiringLabel(s) }}</p>
-                    <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/recordings">RECORDINGS</a></template></p>
                   </div>
-                </div>
-                <div v-if="s.folder" class="card-actions">
-                  <folder-sync-button :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
+                  <folder-sync-button v-if="s.folder" :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
                 </div>
                 <series-drawer v-if="isEditing(s)" class="drawer-card" @click.stop @keydown.stop :series="s" :folders="folders" :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
                   :import-unmatched="importUnmatched" :busy="busyKey === s.key"
@@ -2709,13 +2704,15 @@ const SeriesView = {
               </template>
             </tbody>
           </table>
-          <div v-else-if="visibleTitleMatches.length" class="space-y-3">
-            <article v-for="f in visibleTitleMatches" :key="f.id" :class="['deck-card', 'toggle-card', 'space-y-3', { open: isEditingTitleMatch(f) }]"
+          <div v-else-if="visibleTitleMatches.length" class="list-rows">
+            <article v-for="f in visibleTitleMatches" :key="f.id" :class="['list-row', 'toggle-card', 'space-y-3', { open: isEditingTitleMatch(f) }]"
               tabindex="0" :aria-expanded="String(isEditingTitleMatch(f))" :aria-label="f.show_pattern + ': show settings'"
               @click="toggleEdit('folder-' + f.id)" @keydown.enter.self.prevent="toggleEdit('folder-' + f.id)" @keydown.space.self.prevent="toggleEdit('folder-' + f.id)">
-              <span class="deck-card-title">{{ f.show_pattern }}</span>
-              <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></p>
-              <div class="card-actions">
+              <div class="list-row-main">
+                <div class="list-row-stack">
+                  <span class="deck-card-title block">{{ f.show_pattern }}</span>
+                  <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></p>
+                </div>
                 <folder-sync-button :folder="f" :syncing="syncingId === f.id" @sync="syncOne(f)" />
               </div>
               <series-folder-editor v-if="isEditingTitleMatch(f)" class="drawer-card" @click.stop @keydown.stop :folder="f" :folders="folders"
@@ -2772,7 +2769,7 @@ const SeriesView = {
               </div>
             </div>
             <toggle-switch v-model="newDeleteAfter">REMOVE FROM TVHEADEND AFTER IMPORT</toggle-switch>
-            <div class="flex flex-wrap items-center gap-3">
+            <div class="action-row flex flex-wrap items-center gap-3">
               <button type="submit" class="btn btn-primary" :disabled="adding">
                 <template v-if="adding">ADDING…</template><template v-else><plus-icon /> ADD TITLE</template>
               </button>
@@ -3264,19 +3261,19 @@ const SyncsView = {
             <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
           </div>
         </header>
-        <div class="panel-body space-y-4">
+        <div class="panel-body syncs-body space-y-4">
           <p v-if="scheduleFrequency || syncStatus.cron" class="md:hidden text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></p>
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
-              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span>SYNC RUNNING…</template>
+              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span><span class="hidden md:inline">SYNC </span>RUNNING…</template>
               <template v-else-if="starting">STARTING…</template>
-              <template v-else><play-icon /> SYNC NOW</template>
+              <template v-else><play-icon /> SYNC<span class="hidden md:inline">&nbsp;NOW</span></template>
             </button>
-            <button type="button" class="btn" @click="manualRefresh"><refresh-icon /> REFRESH</button>
-            <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total"><cross-icon /> CLEAR HISTORY</button>
+            <button type="button" class="btn" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /><span class="hidden md:inline">REFRESH</span></button>
+            <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total" aria-label="Clear history"><trash-icon /> <span class="hidden md:inline">CLEAR&nbsp;</span>HISTORY</button>
           </div>
 
-          <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-2 md:gap-y-3">
             <div class="flex items-center gap-2 min-w-0" role="group" aria-label="Show">
               <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SHOW</span>
               <div class="chip-row md:flex-wrap">
@@ -3326,21 +3323,23 @@ const SyncsView = {
               </template>
             </tbody>
           </table>
-          <div v-if="loaded && syncs.length" class="md:hidden space-y-3">
+          <div v-if="loaded && syncs.length" class="md:hidden list-rows">
             <article v-for="s in syncs" :key="s.id"
-              :class="['deck-card', 'sync-card', 'space-y-2', { active: s.id === syncStatus.activeSyncId, open: isOpen(s), linked: highlightId === s.id }]" :data-sync-id="s.id"
+              :class="['list-row', 'sync-card', 'space-y-2', { active: s.id === syncStatus.activeSyncId, open: isOpen(s), linked: highlightId === s.id }]" :data-sync-id="s.id"
               tabindex="0" :aria-expanded="String(isOpen(s))" :aria-label="'Sync #' + s.id + ': show details'"
               @click="toggleOpen(s)" @keydown.enter.self.prevent="toggleOpen(s)" @keydown.space.self.prevent="toggleOpen(s)">
-              <div class="flex items-start justify-between gap-3">
-                <span :class="['pill', s.status]">{{ s.status }}</span>
+              <div class="list-row-main">
+                <div class="list-row-stack">
+                  <span :class="['pill', s.status]">{{ s.status }}</span>
+                  <p class="deck-card-meta">{{ whenOf(s) }}<template v-if="tookOf(s)"> · took {{ tookOf(s) }}</template></p>
+                  <summary-line :summary="s.summary"/>
+                </div>
                 <button type="button" class="btn btn-sm btn-icon btn-danger"
                   :disabled="s.id === syncStatus.activeSyncId"
-                  @click.stop="askRemoveSync(s)" :aria-label="'Delete sync #' + s.id">
+                  @click.stop="askRemoveSync(s)" @keydown.stop :aria-label="'Delete sync #' + s.id">
                   <trash-icon />
                 </button>
               </div>
-              <p class="deck-card-meta">{{ whenOf(s) }}<template v-if="tookOf(s)"> · took {{ tookOf(s) }}</template></p>
-              <summary-line :summary="s.summary"/>
               <sync-detail v-if="isOpen(s)" class="drawer-card" :sync="s" @click.stop />
             </article>
           </div>
@@ -3752,18 +3751,19 @@ const RecordingsView = {
               </template>
             </tbody>
           </table>
-          <div v-if="loaded && recordings.length" class="lg:hidden space-y-3">
+          <div v-if="loaded && recordings.length" class="lg:hidden list-rows">
             <article v-for="r in recordings" :key="r.recording_id"
-              :class="['deck-card', 'toggle-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at, open: isOpen(r) }]"
+              :class="['list-row', 'toggle-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at, open: isOpen(r) }]"
               tabindex="0" :aria-expanded="String(isOpen(r))" :aria-label="r.title + ': show details'"
               @click="toggleOpen(r)" @keydown.enter.self.prevent="toggleOpen(r)" @keydown.space.self.prevent="toggleOpen(r)">
-              <div class="flex items-start justify-between gap-3">
-                <div class="recording-cell">
+              <div class="list-row-main">
+                <div class="deck-card-with-image">
                   <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
-                  <div class="recording-cell-text">
-                    <span class="deck-card-title">{{ r.title }}</span>
-                    <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
-                    <span class="recording-cell-channel">{{ [showLabel(r), se(r), r.aired_at ? fmtTime(r.aired_at) : ''].filter(Boolean).join(' · ') }}</span>
+                  <div class="deck-card-text">
+                    <span class="deck-card-title block">{{ r.title }}</span>
+                    <span v-if="r.episode_title" class="recording-cell-episode block">{{ r.episode_title }}</span>
+                    <p class="deck-card-meta">{{ [showLabel(r), se(r), r.aired_at ? fmtTime(r.aired_at) : ''].filter(Boolean).join(' · ') }}</p>
+                    <recording-status :recording="r" :ctx="drawerContext" inline />
                   </div>
                 </div>
                 <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch recording-play"
@@ -3771,7 +3771,6 @@ const RecordingsView = {
                   <play-icon />
                 </button>
               </div>
-              <recording-status :recording="r" :ctx="drawerContext" inline />
               <recording-drawer v-if="isOpen(r)" class="drawer-card" :recording="r" :ctx="drawerContext" @click.stop @keydown.stop />
             </article>
           </div>
@@ -5589,9 +5588,11 @@ const ChannelSetupStep = {
             <p class="text-xs text-ink-dim">
               Find the tuner's address in your router's list of devices, or in the tuner's own app.<template v-if="dockerVm"> This computer's address is the one other devices on your network use to reach this Mac or PC.<template v-if="hostGuessed"> Freetvarr guessed it from the address in your browser.</template></template>
             </p>
-            <button type="submit" class="btn btn-primary" :disabled="savingAddress || Boolean(addressSaved) || !tunerAddress">
-              <search-icon /> USE THIS ADDRESS
-            </button>
+            <div class="action-row flex">
+              <button type="submit" class="btn btn-primary" :disabled="savingAddress || Boolean(addressSaved) || !tunerAddress">
+                <search-icon /> USE THIS ADDRESS
+              </button>
+            </div>
             <p v-if="addressError" class="status-readout err">{{ addressError }}</p>
           </form>
           <button v-else type="button" class="btn-link" @click="addressOpen = true">Enter the tuner's address</button>
@@ -5648,7 +5649,7 @@ const ChannelSetupStep = {
             </p>
           </template>
           <p v-if="recordingNow" class="status-readout info">{{ recordingNow }}</p>
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="action-row flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!ready || starting">
               <search-icon /> FIND CHANNELS
             </button>
@@ -6048,7 +6049,7 @@ const GuideSetupStep = {
             <label class="field-label" for="guide-url">Guide address (XMLTV)</label>
             <input v-no-autofill id="guide-url" v-autofocus type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
           </div>
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="action-row flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
               <tv-icon /> SET UP GUIDE
             </button>
@@ -6258,7 +6259,7 @@ const WelcomeView = {
               <p class="text-xs text-ink-mute leading-relaxed">
                 Keep the admin password somewhere safe: you sign in to TVHeadend with it, and Freetvarr does not store it. Freetvarr signs in as <code>freetvarr</code> with a random password it keeps for itself.
               </p>
-              <div class="flex flex-wrap items-center gap-3">
+              <div class="action-row flex flex-wrap items-center gap-3">
                 <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
                   <template v-if="securing">SECURING…</template><template v-else>SECURE TVHEADEND AND CONNECT FREETVARR</template>
                 </button>
