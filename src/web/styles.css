@@ -5154,5 +5154,4 @@ table.recordings-table tbody td {
 }
 .error-details-steps { margin-top: 0.4rem; }
 
-.recordings-table td.recording-status-cell { width: 13rem; max-width: 13rem; }
-.recording-status-error { margin-top: 0.6rem; }
+.recording-status-error { margin-top: 0.6rem; max-width: 13rem; }
