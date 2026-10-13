@@ -2783,6 +2783,10 @@ body.epg-drag-lock * {
     margin-block-start: 0.5rem;
   }
 
+  .panel-body.syncs-body > :not([hidden]) ~ :not([hidden]) {
+    margin-block-start: 1rem;
+  }
+
   .doctor-row {
     gap: 0.75rem;
     padding: 0.9rem 1rem;
@@ -3093,9 +3097,17 @@ span.row-info {
 
 @media (max-width: 767px) {
   .card-actions > .btn {
-    flex: 1 1 calc(50% - 0.25rem);
+    flex: 1 1 auto;
     justify-content: center;
+    white-space: nowrap;
   }
+
+  .card-actions > .btn-primary,
+  .card-actions > .btn-watch,
+  .action-row > .btn-primary { order: 1; }
+  .card-actions > .status-readout { order: 2; }
+  .card-actions > .btn-primary:only-child { flex: 0 1 calc(50% - 0.25rem); margin-left: auto; }
+  .action-row { justify-content: flex-end; }
 }
 
 @media (max-width: 767px) {
@@ -5069,11 +5081,28 @@ table.recordings-table tbody td {
   padding: 0.9rem 1rem;
   background: rgba(26, 22, 17, 0.45);
 }
-.deck-card .drawer-card {
+.list-row {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgba(61, 56, 41, 0.55);
+}
+.list-row:last-child { border-bottom: 0; }
+.list-row.active {
+  background: rgba(255, 138, 0, 0.08);
+  box-shadow: inset 3px 0 0 0 #ff8a00;
+}
+.list-row .progress { max-width: none; }
+.list-row-main { display: flex; align-items: center; gap: 0.75rem; }
+.list-row-main > :first-child { flex: 1; min-width: 0; }
+.list-row .deck-card-text > * + * { margin-top: 0.15rem; }
+.list-row .deck-card-text > .recording-status { margin-top: 0.45rem; }
+.list-row-stack { display: grid; gap: 0.3rem; justify-items: start; }
+.list-row .drawer-card {
   cursor: auto;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px dashed #3d3829;
+  margin-top: 0.85rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(61, 56, 41, 0.85);
+  border-radius: 0.4rem;
+  background: rgba(26, 22, 17, 0.45);
 }
 
 .series-table .series-next { color: #b7aea6; }
@@ -5093,8 +5122,11 @@ table.recordings-table tbody td {
   padding-bottom: 0.9rem;
   border-bottom: 1px dashed #3d3829;
 }
-.series-drawer-state { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; font-size: 0.875rem; }
-.series-drawer-state .field-label { margin: 0; }
+@media (max-width: 767px) {
+  .series-drawer-tvh > .card-actions { flex-basis: 100%; }
+}
+.series-drawer-state { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; font-family: var(--font-mono); font-size: 0.7rem; color: #b7aea6; }
+.series-drawer-state .field-label { display: inline; margin: 0; }
 .toggle-row,
 .toggle-card { cursor: pointer; }
 .toggle-card .drawer-card { cursor: auto; }
@@ -5147,7 +5179,7 @@ table.recordings-table tbody td {
 .sync-details-link { display: inline-flex; padding: 0.25rem; }
 @media (hover: hover) {
   .recent-syncs-table tbody tr.notable:hover .sync-details-link,
-  a.deck-card.notable:hover .sync-details-arrow { color: #1eb6ff; }
+  a.list-row.notable:hover .sync-details-arrow { color: #1eb6ff; }
 }
 .sync-details-link:focus-visible { color: #1eb6ff; }
 
