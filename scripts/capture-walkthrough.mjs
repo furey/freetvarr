@@ -147,11 +147,11 @@ const run = async () => {
   await clickTab(page, 'series')
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(1500)
-  const seriesEdit = page.locator('.series-row:visible, .series-card:visible').first().locator('button', { hasText: 'EDIT' })
-  if (await clickWithCursor(page, seriesEdit)) {
+  const seriesRow = page.locator('.series-row:visible, .series-card:visible').first().locator('.recording-cell, .deck-card-title').first()
+  if (await clickWithCursor(page, seriesRow)) {
     await page.waitForSelector('.series-drawer', { timeout: 5000 }).catch(() => {})
     await page.waitForTimeout(1800)
-    await clickWithCursor(page, seriesEdit)
+    await clickWithCursor(page, seriesRow)
     await page.waitForTimeout(600)
   }
 
@@ -159,6 +159,13 @@ const run = async () => {
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(700)
   await scrollDownAndBack(page, { dy: 240 })
+  const recordingRow = page.locator('.recordings-table tr.toggle-row:visible, article.toggle-card:visible').first().locator('.recording-cell').first()
+  if (await clickWithCursor(page, recordingRow)) {
+    await page.waitForSelector('.recording-drawer', { timeout: 5000 }).catch(() => {})
+    await page.waitForTimeout(1800)
+    await clickWithCursor(page, recordingRow)
+    await page.waitForTimeout(600)
+  }
 
   await clickTab(page, 'syncs')
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})

@@ -59,7 +59,7 @@
 
 A walkthrough of the app: the dashboard, live TV, the TV Guide, series, and recordings.
 
-<https://github.com/user-attachments/assets/25363cca-88fa-4364-8975-fc5cceda2532>
+<https://github.com/user-attachments/assets/fcc4f25d-f192-4ba6-9b15-3b6da38fb796>
 
 The one-line install, from the `curl` command to the address of the setup wizard.
 
@@ -292,7 +292,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 
 ### `skipped` recordings
 
-- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error on the row says which; press **DETAILS** under it for the full error and steps to fix it.
+- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error on the row says which; press the row for the full error and steps to fix it.
 
 ### `partial` recordings
 

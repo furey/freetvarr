@@ -501,6 +501,7 @@ app.get('/api/recordings/:recording_id/image', async (req, res) => {
 
 app.get('/api/recordings', async (req, res) => {
   const SORT_COLUMNS = {
+    aired_at: 'recordings.aired_at',
     imported_at: 'recordings.imported_at',
     size: 'recordings.size',
     status: 'recordings.status',
