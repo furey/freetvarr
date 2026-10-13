@@ -8,7 +8,7 @@ description: >-
 
 # Recordings
 
-The RECORDINGS tab lists every recording TVHeadend has finished, with its programme image, channel, and air time, and what Freetvarr did with it.
+The RECORDINGS tab lists every recording TVHeadend has finished, with its programme image, show, air time, and what Freetvarr did with it.
 
 Freetvarr saves each programme image while the recording is still scheduled, because TV guide image links often stop working once the programme has aired. A recording with no saved image shows its channel logo.
 
@@ -17,6 +17,19 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
   <img src="../img/screenshot-recordings.png" alt="The Recordings tab" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
+
+## Recording details
+
+Press a row to open the recording's details under it. Press the row again to close them. The details show the description and these facts, when they are known:
+
+- **CHANNEL**, **AIRED**, **LENGTH**, and **SIZE**.
+- **IMPORTED**: when Freetvarr imported the recording.
+- **FILE**: the file in your library.
+- **TVHEADEND**: whether TVHeadend still has its copy.
+- **ADS**: the ad status, with the number of breaks and minutes of ads.
+- **PLAYBACK**: where you stopped watching.
+
+The buttons under the facts depend on the recording: **PLAY**, **IMPORT** or **IMPORT AGAIN**, **SCAN FOR ADS**, and **REMOVE FROM TVHEADEND** or **CLEAR FROM LIST**.
 
 ## Statuses
 
@@ -28,7 +41,7 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 - **REPLACED**: Freetvarr imported the recording, but its library file is gone, and the folder has another file for the same episode. Another app, such as Sonarr, replaced it. See [Replaced recordings](/guide/troubleshooting#replaced-recordings).
 - **NOT IN LIBRARY**: Freetvarr imported the recording, but its library file is gone and no other copy of the episode is in the folder. Press **IMPORT AGAIN** to import the TVHeadend copy again, while TVHeadend still has it.
 
-An error shows under the status, cut to two lines. Press **DETAILS** under it to open the full error, what it means, and steps to fix it. The dialog also has **OPEN DOCTOR** and **READ THE DOCS**, which opens the matching section of [Troubleshooting](/guide/troubleshooting).
+An error shows under the status, cut to two lines. Press the row to see the full error, what it means, and steps to fix it, with **OPEN DOCTOR** and **READ THE DOCS**, which opens the matching section of [Troubleshooting](/guide/troubleshooting).
 
 With ad removal on, an ad status also appears: **SCANNING**, **DETECTED**, **NO BREAKS**, **CUT**, **DETECT FAILED**, or **CUT FAILED**. See [Ad removal](/guide/ad-removal).
 
@@ -37,7 +50,7 @@ With ad removal on, an ad status also appears: **SCANNING**, **DETECTED**, **NO 
 
 ## Playback
 
-Press the play button on a finished recording to watch it in Freetvarr's player, in any browser, on a phone or a computer. The player works like the [live TV player](/guide/live-tv): the channel and the programme sit at the top, the **×** at the top right closes the player, and the row under the picture holds the **i** button, the status, and the buttons. Under `480` pixels wide, the buttons show only their icons.
+Press the play button on a finished recording, or **PLAY** in its details, to watch it in Freetvarr's player, in any browser, on a phone or a computer. The player works like the [live TV player](/guide/live-tv): the channel and the programme sit at the top, the **×** at the top right closes the player, and the row under the picture holds the **i** button, the status, and the buttons. Under `480` pixels wide, the buttons show only their icons.
 
 - **PLAY** or **PAUSE**: pauses and carries on. The space bar or `k` key does the same on a computer.
 - **START OVER**: shows when Freetvarr resumed where you stopped last time, and plays from the start.
@@ -69,28 +82,28 @@ A hardlink import is instant. A copy between filesystems, an ad scan, or a cut t
 
 ## Re-scan and re-cut
 
-On the RECORDINGS tab, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend. Press the scissors button on the row. A dialog says what the scan does before it starts:
+On the RECORDINGS tab, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend. Press the row, then **SCAN FOR ADS**. A dialog says what the scan does before it starts:
 
 - When the series folder's ad removal is **DETECT** or **OFF**, the scan writes the ad break times to a `.edl` file beside the recording, and the recording file stays as it is.
 - When it is **CUT**, the scan saves the recording again without the breaks and keeps the original as `<file>.ts.orig` for the days set in **SETTINGS**. If a second cut of a cut recording finds more ads, it replaces that backup with the first cut, so the full original is lost.
 
 The dialog also gives the expected time: finding the ads takes about half the length of the recording. Press **FIND ADS** or **CUT ADS** to start, or close the dialog to leave the recording as it is.
 
-The ad scan button is greyed out when the library file is gone, for example after another app replaced or removed it.
+**SCAN FOR ADS** is greyed out when the library file is gone, for example after another app replaced or removed it.
 
 ## Remove from TVHeadend
 
-An imported recording that TVHeadend still has shows a delete button. Press it, then press **REMOVE FROM TVHEADEND** in the dialog. TVHeadend deletes its copy of the recording, and your library copy stays. TVHeadend keeps a note that it recorded the episode, so a series recording does not record it again. You cannot undo this. [Remove from TVHeadend](/guide/remove-from-tvheadend) explains the TVHeadend calls.
+Press an imported recording that TVHeadend still has, then **REMOVE FROM TVHEADEND**, then **REMOVE FROM TVHEADEND** in the dialog. TVHeadend deletes its copy of the recording, and your library copy stays. TVHeadend keeps a note that it recorded the episode, so a series recording does not record it again. You cannot undo this. [Remove from TVHeadend](/guide/remove-from-tvheadend) explains the TVHeadend calls.
 
 ## Not in TVHeadend
 
 A recording that TVHeadend has deleted shows a **NOT IN TVHEADEND** marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
 
-These rows leave the list 30 days after the removal. To remove them sooner, press **CLEAR FROM LIST** in the panel header, then **CLEAR FROM LIST** in the dialog. The dialog states the number of rows it clears, across every page and filter. To clear one row, press its delete button, then **CLEAR FROM LIST** in the dialog. Both remove rows from the list only (the files stay in your library). For 10 seconds after a clear, **UNDO** puts the rows back.
+These rows leave the list 30 days after the removal. To remove them sooner, press **CLEAR FROM LIST** in the panel header, then **CLEAR FROM LIST** in the dialog. The dialog states the number of rows it clears, across every page and filter. To clear one row, press it, then **CLEAR FROM LIST**, then **CLEAR FROM LIST** in the dialog. Both remove rows from the list only (the files stay in your library). For 10 seconds after a clear, **UNDO** puts the rows back.
 
 ## Failed rows
 
-To clear a **FAILED**, **SKIPPED**, or **NOT IMPORTED** row, press its delete button, then **CLEAR FROM LIST** in the dialog. TVHeadend keeps the recording. While TVHeadend has it, the next sync adds the row back and decides again whether to import it.
+To clear a **FAILED**, **SKIPPED**, or **NOT IMPORTED** row, press it, then **CLEAR FROM LIST**, then **CLEAR FROM LIST** in the dialog. TVHeadend keeps the recording. While TVHeadend has it, the next sync adds the row back and decides again whether to import it.
 
 ## Filters and time
 

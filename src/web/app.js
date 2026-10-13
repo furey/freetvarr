@@ -2310,11 +2310,6 @@ const FolderEditor = {
   emits: ['saved', 'cancel', 'deleted'],
   template: `
     <form class="series-editor space-y-4" @submit.prevent="save" @keydown.esc.stop="closeEditor">
-      <div class="series-editor-head">
-        <h3 class="series-editor-title">{{ isSeries ? 'Edit series' : 'Edit title match' }}</h3>
-        <button type="button" class="btn btn-icon" @click="closeEditor" :disabled="saving"
-          aria-label="Close without saving" title="Close without saving"><cross-icon /></button>
-      </div>
       <div class="grid gap-4 md:grid-cols-2">
         <div class="field-row">
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
@@ -2448,29 +2443,24 @@ const FolderEditor = {
   },
 }
 
-const FolderRowActions = {
+const FolderSyncButton = {
   props: {
-    folder: { type: Object, default: null },
-    label: { type: String, required: true },
+    folder: { type: Object, required: true },
     isSeries: Boolean,
-    editing: Boolean,
     syncing: Boolean,
   },
-  emits: ['sync', 'edit'],
+  emits: ['sync'],
   template: `
-    <button v-if="folder" type="button" class="btn btn-sm" @click="$emit('sync')" :disabled="!folder.enabled || syncing" :title="syncTitle">
+    <button type="button" class="btn btn-sm" @click.stop="$emit('sync')" @keydown.stop
+      :disabled="!folder.enabled || syncing" :title="syncTitle">
       <template v-if="syncing">STARTING…</template><template v-else><play-icon /> SYNC</template>
-    </button>
-    <button type="button" :class="['btn', 'btn-sm', { 'btn-on': editing }]" @click="$emit('edit')"
-      :aria-expanded="String(editing)" :aria-label="(editing ? 'Close the edit form for ' : 'Edit ') + label">
-      <sliders-icon /> EDIT
     </button>
   `,
   setup(props) {
     const noun = computed(() => (props.isSeries ? 'series' : 'title'))
-    const syncTitle = computed(() => (props.folder?.enabled
+    const syncTitle = computed(() => (props.folder.enabled
       ? `Sync just this ${noun.value} now`
-      : `Press EDIT, then SAVE, to sync this ${noun.value}`))
+      : `Open the ${noun.value}, then press SAVE, to sync it`))
     return { syncTitle }
   },
 }
@@ -2487,30 +2477,27 @@ const SeriesDrawer = {
   emits: ['saved', 'deleted', 'close', 'assign', 'pause', 'cancel-series'],
   template: `
     <div class="series-drawer" @keydown.esc="$emit('close')">
+      <div class="series-drawer-tvh">
+        <p class="series-drawer-state">
+          <span class="field-label">Series recording</span>
+          <span>{{ series.recording ? 'TVHeadend records new episodes.' : 'Paused: TVHeadend records no new episodes.' }}</span>
+        </p>
+        <div class="card-actions">
+          <button type="button" class="btn btn-sm" @click="$emit('pause')" :disabled="busy">
+            <template v-if="series.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
+          </button>
+          <button type="button" class="btn btn-sm btn-danger" @click="$emit('cancel-series')" :disabled="busy">CANCEL SERIES</button>
+        </div>
+      </div>
       <series-folder-editor v-if="series.folder" :folder="series.folder" :folders="folders"
         :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" is-series :import-unmatched="importUnmatched"
         @saved="$emit('saved')" @deleted="$emit('deleted')" @cancel="$emit('close')" />
-      <template v-else>
-        <div class="series-editor-head">
-          <h3 class="series-editor-title">Edit series</h3>
-          <button type="button" class="btn btn-icon" @click="$emit('close')" aria-label="Close" title="Close"><cross-icon /></button>
-        </div>
-        <div class="series-drawer-unassigned">
-          <p v-if="series.savesTo?.path" class="text-sm text-ink">This series has no folder in your TV library, so its episodes save to the one-off folder: <code>{{ series.savesTo.path }}</code>.</p>
-          <p v-else class="text-sm text-ink">This series has no folder in your TV library, so its episodes wait in <a href="#/recordings">RECORDINGS</a>.</p>
-          <p class="text-sm text-ink-dim">To save its episodes in their own folder in your TV library, press <strong>ASSIGN FOLDER</strong>. You can then set the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
-          <div class="card-actions">
-            <button type="button" class="btn btn-primary" @click="$emit('assign')" :disabled="busy"><plus-icon /> ASSIGN FOLDER</button>
-          </div>
-        </div>
-      </template>
-      <div class="series-drawer-tvh">
-        <span class="field-label">TVHeadend series recording</span>
+      <div v-else class="series-drawer-unassigned">
+        <p v-if="series.savesTo?.path" class="text-sm text-ink">This series has no folder in your TV library, so its episodes save to the one-off folder: <code>{{ series.savesTo.path }}</code>.</p>
+        <p v-else class="text-sm text-ink">This series has no folder in your TV library, so its episodes wait in <a href="#/recordings">RECORDINGS</a>.</p>
+        <p class="text-sm text-ink-dim">To save its episodes in their own folder in your TV library, press <strong>ASSIGN FOLDER</strong>. You can then set the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
         <div class="card-actions">
-          <button type="button" class="btn" @click="$emit('pause')" :disabled="busy">
-            <template v-if="series.recording"><pause-icon /> PAUSE</template><template v-else><play-icon /> RESUME</template>
-          </button>
-          <button type="button" class="btn btn-danger" @click="$emit('cancel-series')" :disabled="busy">CANCEL SERIES</button>
+          <button type="button" class="btn btn-primary" @click="$emit('assign')" :disabled="busy"><plus-icon /> ASSIGN FOLDER</button>
         </div>
       </div>
     </div>
@@ -2527,10 +2514,10 @@ const SeriesView = {
             <info-button title="SERIES" doc="guide/series">
               <p>Each row is a series recording in TVHeadend. <strong>SAVES TO</strong> shows the folder where each sync saves its finished episodes.</p>
               <p>To record a new series, open the <strong>TV GUIDE</strong>, pick a programme, and press <strong>SERIES</strong>. An SD and an HD recording of the same title show as one series.</p>
-              <p><strong>EDIT</strong> opens the series under its row. There you change where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
-              <p>A series with no folder in your TV library saves to the one-off folder. Press <strong>EDIT</strong>, then <strong>ASSIGN FOLDER</strong>, to give it one. <strong>UNASSIGN FOLDER</strong> in the same place takes it away again. Episodes already imported stay where they are.</p>
-              <p><strong>PAUSE</strong>, under <strong>EDIT</strong>, stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again.</p>
-              <p><strong>CANCEL SERIES</strong>, under <strong>EDIT</strong>, cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files.</p>
+              <p>Press a row to open the series under it. There you change where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
+              <p>A series with no folder in your TV library saves to the one-off folder. Open it and press <strong>ASSIGN FOLDER</strong> to give it one. <strong>UNASSIGN FOLDER</strong> in the same place takes it away again. Episodes already imported stay where they are.</p>
+              <p><strong>PAUSE</strong>, in the open series, stops TVHeadend recording new episodes of this series, and the row shows <strong>PAUSED</strong>. Episodes already recorded still import. <strong>RESUME</strong> starts it again.</p>
+              <p><strong>CANCEL SERIES</strong>, in the open series, cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files.</p>
               <p>Type in the filter box to find a series by title, channel, or folder. <strong>SORT</strong> orders the rows, and <strong>STATUS</strong> shows only paused series, series not in the TV guide, or series recording now.</p>
             </info-button>
           </span>
@@ -2601,7 +2588,9 @@ const SeriesView = {
               </tr></thead>
               <tbody>
                 <template v-for="s in visibleSeries" :key="s.key">
-                  <tr :class="['series-row', { open: isEditing(s) }]">
+                  <tr :class="['series-row', 'toggle-row', { open: isEditing(s) }]" tabindex="0"
+                    :aria-expanded="String(isEditing(s))" :aria-label="s.title + ': show settings'"
+                    @click="toggleEdit(s.key)" @keydown.enter.self.prevent="toggleEdit(s.key)" @keydown.space.self.prevent="toggleEdit(s.key)">
                     <td>
                       <div class="recording-cell">
                         <programme-image :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" :title="s.title" />
@@ -2615,8 +2604,7 @@ const SeriesView = {
                     <td class="series-saves-to"><code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/recordings">RECORDINGS</a></template></td>
                     <td>
                       <div class="rec-actions flex items-center justify-end gap-2">
-                        <folder-row-actions :folder="s.folder" :label="s.title" is-series :editing="isEditing(s)" :syncing="syncingId === s.folder?.id"
-                          @sync="syncOne(s.folder)" @edit="toggleEdit(s.key)" />
+                        <folder-sync-button v-if="s.folder" :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
                       </div>
                     </td>
                   </tr>
@@ -2632,7 +2620,9 @@ const SeriesView = {
               </tbody>
             </table>
             <div v-else class="space-y-3">
-              <article v-for="s in visibleSeries" :key="s.key" :class="['deck-card', 'series-card', 'space-y-3', { open: isEditing(s) }]">
+              <article v-for="s in visibleSeries" :key="s.key" :class="['deck-card', 'series-card', 'toggle-card', 'space-y-3', { open: isEditing(s) }]"
+                tabindex="0" :aria-expanded="String(isEditing(s))" :aria-label="s.title + ': show settings'"
+                @click="toggleEdit(s.key)" @keydown.enter.self.prevent="toggleEdit(s.key)" @keydown.space.self.prevent="toggleEdit(s.key)">
                 <div class="deck-card-with-image">
                   <programme-image :event-id="s.imageProgramId" :channel-id="s.autorecs[0]?.channelId" :title="s.title" />
                   <div class="deck-card-text">
@@ -2647,11 +2637,10 @@ const SeriesView = {
                     <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/recordings">RECORDINGS</a></template></p>
                   </div>
                 </div>
-                <div class="card-actions">
-                  <folder-row-actions :folder="s.folder" :label="s.title" is-series :editing="isEditing(s)" :syncing="syncingId === s.folder?.id"
-                    @sync="syncOne(s.folder)" @edit="toggleEdit(s.key)" />
+                <div v-if="s.folder" class="card-actions">
+                  <folder-sync-button :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
                 </div>
-                <series-drawer v-if="isEditing(s)" class="drawer-card" :series="s" :folders="folders" :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
+                <series-drawer v-if="isEditing(s)" class="drawer-card" @click.stop @keydown.stop :series="s" :folders="folders" :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
                   :import-unmatched="importUnmatched" :busy="busyKey === s.key"
                   @saved="onSaved" @deleted="onDeleted" @close="editingKey = ''" @assign="openAssign(s)"
                   @pause="pauseSeries(s, s.recording)" @cancel-series="openCancelSeries(s)" />
@@ -2699,13 +2688,14 @@ const SeriesView = {
             </tr></thead>
             <tbody>
               <template v-for="f in visibleTitleMatches" :key="f.id">
-                <tr :class="{ open: isEditingTitleMatch(f) }">
+                <tr :class="['toggle-row', { open: isEditingTitleMatch(f) }]" tabindex="0"
+                  :aria-expanded="String(isEditingTitleMatch(f))" :aria-label="f.show_pattern + ': show settings'"
+                  @click="toggleEdit('folder-' + f.id)" @keydown.enter.self.prevent="toggleEdit('folder-' + f.id)" @keydown.space.self.prevent="toggleEdit('folder-' + f.id)">
                   <td class="font-mono">{{ f.show_pattern }}</td>
                   <td class="series-saves-to"><code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></td>
                   <td>
                     <div class="rec-actions flex items-center justify-end gap-2">
-                      <folder-row-actions :folder="f" :label="f.show_pattern" :editing="isEditingTitleMatch(f)" :syncing="syncingId === f.id"
-                        @sync="syncOne(f)" @edit="toggleEdit('folder-' + f.id)" />
+                      <folder-sync-button :folder="f" :syncing="syncingId === f.id" @sync="syncOne(f)" />
                     </div>
                   </td>
                 </tr>
@@ -2720,14 +2710,15 @@ const SeriesView = {
             </tbody>
           </table>
           <div v-else-if="visibleTitleMatches.length" class="space-y-3">
-            <article v-for="f in visibleTitleMatches" :key="f.id" class="deck-card space-y-3">
+            <article v-for="f in visibleTitleMatches" :key="f.id" :class="['deck-card', 'toggle-card', 'space-y-3', { open: isEditingTitleMatch(f) }]"
+              tabindex="0" :aria-expanded="String(isEditingTitleMatch(f))" :aria-label="f.show_pattern + ': show settings'"
+              @click="toggleEdit('folder-' + f.id)" @keydown.enter.self.prevent="toggleEdit('folder-' + f.id)" @keydown.space.self.prevent="toggleEdit('folder-' + f.id)">
               <span class="deck-card-title">{{ f.show_pattern }}</span>
               <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></p>
               <div class="card-actions">
-                <folder-row-actions :folder="f" :label="f.show_pattern" :editing="isEditingTitleMatch(f)" :syncing="syncingId === f.id"
-                  @sync="syncOne(f)" @edit="toggleEdit('folder-' + f.id)" />
+                <folder-sync-button :folder="f" :syncing="syncingId === f.id" @sync="syncOne(f)" />
               </div>
-              <series-folder-editor v-if="isEditingTitleMatch(f)" class="drawer-card" :folder="f" :folders="folders"
+              <series-folder-editor v-if="isEditingTitleMatch(f)" class="drawer-card" @click.stop @keydown.stop :folder="f" :folders="folders"
                 :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" :import-unmatched="importUnmatched"
                 @saved="onSaved" @deleted="onDeleted" @cancel="editingKey = ''" />
             </article>
@@ -3560,6 +3551,90 @@ const SyncsView = {
   },
 }
 
+const RecordingStatus = {
+  props: {
+    recording: { type: Object, required: true },
+    ctx: { type: Object, required: true },
+    inline: Boolean,
+  },
+  template: `
+    <div :class="['recording-status', { 'recording-status-inline': inline }]">
+      <span :class="['pill-group', inline ? '' : 'stacked']">
+        <span :class="['pill', ctx.libraryStatusOf(recording)]">{{ ctx.statusLabel(ctx.libraryStatusOf(recording)) }}</span>
+        <span v-if="recording.deleted_from_tvh_at" class="pill not-in-tvh-chip">NOT IN TVHEADEND</span>
+      </span>
+      <span v-if="recording.error" class="error-details error-details-text recording-status-error">{{ recording.error }}</span>
+      <progress-block v-if="ctx.progressPhase(recording) === 'importing'"
+        :progress="recording.progress" :caption="ctx.progressCaption(recording)" :bar="true"/>
+      <progress-block v-if="ctx.isAdProgress(recording)"
+        :progress="recording.progress" :caption="ctx.progressCaption(recording)" :bar="ctx.hasBar(recording)"/>
+    </div>
+  `,
+}
+
+const RecordingDrawer = {
+  props: {
+    recording: { type: Object, required: true },
+    ctx: { type: Object, required: true },
+  },
+  template: `
+    <div class="recording-drawer">
+      <p v-if="recording.synopsis" class="text-sm text-ink-dim leading-relaxed">{{ recording.synopsis }}</p>
+      <p v-if="stateNote" class="text-sm text-ink">{{ stateNote }}</p>
+      <dl v-if="facts.length" class="sync-facts recording-facts">
+        <template v-for="fact in facts" :key="fact.label">
+          <dt>{{ fact.label }}</dt><dd>{{ fact.text }}</dd>
+        </template>
+      </dl>
+      <error-diagnosis v-if="recording.error" :error="recording.error" />
+      <div v-if="hasActions" class="card-actions">
+        <button v-if="recording.playable" type="button" class="btn btn-sm btn-watch" @click="ctx.playRecording(recording)" :title="ctx.playTitle(recording)">
+          <play-icon /> PLAY
+        </button>
+        <button v-if="ctx.canImport(recording)" type="button" class="btn btn-sm"
+          @click="ctx.importRecording(recording)" :disabled="ctx.importingId === recording.recording_id"
+          title="Add this recording to the library at the next sync.">
+          {{ ctx.importingId === recording.recording_id ? 'IMPORTING…' : ctx.importLabel(recording) }}
+        </button>
+        <button v-if="ctx.canAdScan(recording)" type="button" class="btn btn-sm"
+          @click="ctx.askAdScan(recording)" :disabled="ctx.adScanningId === recording.recording_id || ctx.isAdScanBlocked(recording)"
+          :title="ctx.adScanTitle(recording)">
+          <ad-scan-icon /> SCAN FOR ADS
+        </button>
+        <button v-if="ctx.canDelete(recording)" type="button" class="btn btn-sm btn-danger"
+          @click="ctx.askRemoveFromTvh(recording)" :disabled="ctx.deletingId === recording.recording_id">
+          <trash-icon /> REMOVE FROM TVHEADEND
+        </button>
+        <button v-else-if="ctx.canRemove(recording)" type="button" class="btn btn-sm btn-danger"
+          @click="ctx.askClearRow(recording)" :disabled="ctx.removingId === recording.recording_id" :title="ctx.removeTitle(recording)">
+          <cross-icon /> CLEAR FROM LIST
+        </button>
+      </div>
+    </div>
+  `,
+  setup(props) {
+    const stateNote = computed(() => props.ctx.libraryStateTitle(props.recording) || '')
+    const facts = computed(() => recordingFacts({ recording: props.recording, ctx: props.ctx }))
+    const hasActions = computed(() => {
+      const { recording: r, ctx } = props
+      return r.playable || ctx.canImport(r) || ctx.canAdScan(r) || ctx.canDelete(r) || ctx.canRemove(r)
+    })
+    return { stateNote, facts, hasActions }
+  },
+}
+
+const recordingFacts = ({ recording: r, ctx }) => [
+  { label: 'Channel', text: r.channel_name },
+  { label: 'Aired', text: r.aired_at ? fmtTime(r.aired_at) : '' },
+  { label: 'Length', text: r.duration_s ? formatMinutes(Math.round(r.duration_s / 60)) : '' },
+  { label: 'Size', text: r.size ? fmtBytes(r.size) : '' },
+  { label: 'Imported', text: r.imported_at ? fmtTime(r.imported_at) : '' },
+  { label: 'File', text: r.file_path },
+  { label: 'TVHeadend', text: r.deleted_from_tvh_at ? ctx.notInTvhTitle(r) : 'TVHeadend still has its copy.' },
+  { label: 'Ads', text: r.ad_status ? [ctx.adLabel(r.ad_status).toUpperCase(), ctx.adTooltip(r)].filter(Boolean).join(' · ') : '' },
+  { label: 'Playback', text: ctx.resumeLabel(r) },
+].filter((fact) => fact.text)
+
 const RecordingsView = {
   template: `
     <div class="view-reveal space-y-6">
@@ -3572,7 +3647,8 @@ const RecordingsView = {
               <p><strong>REPLACED</strong> means another app, such as Sonarr, put a different file for the episode in place of Freetvarr's. <strong>NOT IN LIBRARY</strong> means the file is gone; press <strong>IMPORT AGAIN</strong> to import the TVHeadend copy again.</p>
               <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a <strong>NOT IMPORTED</strong> recording to add it to the library.</p>
               <p><strong>NOT IN TVHEADEND</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
-              <p>A copy, an ad scan, or a cut shows a progress bar while it runs. You can scan or cut an imported recording again.</p>
+              <p>A copy, an ad scan, or a cut shows a progress bar while it runs.</p>
+              <p>Press a row to see the recording's details: its channel, length, size, file, ads, and the full error if it has one. The buttons there play, import, scan for ads, or remove it.</p>
             </info-button>
           </span>
           <div class="header-actions flex flex-wrap items-center justify-end gap-3">
@@ -3633,142 +3709,70 @@ const RecordingsView = {
             <thead><tr>
               <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
               <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
-              <th>S/E</th>
-              <th class="sortable" @click="toggleSort('size')">Size<sort-arrow :dir="sortDirFor('size')" /></th>
               <th class="sortable" @click="toggleSort('status')">Status<sort-arrow :dir="sortDirFor('status')" /></th>
-              <th title="Ad break detection/removal status. Hover a pill for break count + minutes.">Ads</th>
-              <th class="sortable" @click="toggleSort('imported_at')">Imported<sort-arrow :dir="sortDirFor('imported_at')" /></th>
+              <th class="sortable" @click="toggleSort('aired_at')">Aired<sort-arrow :dir="sortDirFor('aired_at')" /></th>
               <th></th>
             </tr></thead>
             <tbody>
-              <tr v-for="r in recordings" :key="r.recording_id"
-                :class="{ 'not-in-tvh': r.deleted_from_tvh_at }">
-                <td>
-                  <div class="recording-cell">
-                    <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
-                    <div class="recording-cell-text">
-                      <span class="font-mono">{{ r.title }}</span>
-                      <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
-                      <span v-if="r.channel_name || r.aired_at" class="recording-cell-channel">
-                        <channel-logo v-if="r.channel_id" :channel-id="r.channel_id" has-logo />
-                        {{ [r.channel_name, r.aired_at ? fmtTime(r.aired_at) : ''].filter(Boolean).join(' · ') }}
-                      </span>
-                      <span v-if="resumeLabel(r)" class="recording-cell-resume">{{ resumeLabel(r) }}</span>
+              <template v-for="r in recordings" :key="r.recording_id">
+                <tr :class="['toggle-row', { 'not-in-tvh': r.deleted_from_tvh_at, open: isOpen(r) }]" tabindex="0"
+                  :aria-expanded="String(isOpen(r))" :aria-label="r.title + ': show details'"
+                  @click="toggleOpen(r)" @keydown.enter.self.prevent="toggleOpen(r)" @keydown.space.self.prevent="toggleOpen(r)">
+                  <td>
+                    <div class="recording-cell">
+                      <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
+                      <div class="recording-cell-text">
+                        <span class="font-mono">{{ r.title }}</span>
+                        <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td class="font-mono">{{ showLabel(r) }}</td>
-                <td class="font-mono">{{ se(r) }}</td>
-                <td class="font-mono whitespace-nowrap">{{ fmtBytes(r.size) }}</td>
-                <td class="recording-status-cell">
-                  <span class="pill-group stacked">
-                    <span :class="['pill', libraryStatusOf(r)]" :title="libraryStateTitle(r) || null">{{ statusLabel(libraryStatusOf(r)) }}</span>
-                    <span v-if="r.deleted_from_tvh_at" class="pill not-in-tvh-chip" :title="notInTvhTitle(r)">NOT IN TVHEADEND</span>
-                  </span>
-                  <error-details v-if="r.error" class="recording-status-error" :error="r.error" />
-                  <progress-block v-if="progressPhase(r) === 'importing'"
-                    :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
-                </td>
-                <td>
-                  <span v-if="r.ad_status" :class="['pill', r.ad_status]" :title="adTooltip(r)">{{ adLabel(r.ad_status) }}</span>
-                  <span v-else-if="!progressPhase(r)" class="text-ink-mute">none</span>
-                  <progress-block v-if="isAdProgress(r)"
-                    :progress="r.progress" :caption="progressCaption(r)" :bar="hasBar(r)"/>
-                </td>
-                <td class="font-mono">{{ fmtTime(r.imported_at) }}</td>
-                <td>
-                  <div class="rec-actions flex items-center gap-2">
-                  <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
-                    @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
-                    <play-icon />
-                  </button>
-                  <button v-if="canImport(r)" type="button" class="btn btn-sm"
-                    @click="importRecording(r)" :disabled="importingId === r.recording_id"
-                    title="Add this recording to the library at the next sync.">
-                    {{ importingId === r.recording_id ? '…' : importLabel(r) }}
-                  </button>
-                  <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                    @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
-                    :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
-                    <span v-if="adScanningId === r.recording_id">…</span>
-                    <ad-scan-icon v-else />
-                  </button>
-                  <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                    @click="askRemoveFromTvh(r)" :disabled="deletingId === r.recording_id"
-                    title="Remove from TVHeadend" aria-label="Remove from TVHeadend">
-                    <span v-if="deletingId === r.recording_id">…</span>
-                    <trash-icon v-else />
-                  </button>
-                  <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                    @click="askClearRow(r)" :disabled="removingId === r.recording_id"
-                    :title="removeTitle(r)" aria-label="Clear from list">
-                    <span v-if="removingId === r.recording_id">…</span>
-                    <trash-icon v-else />
-                  </button>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                  <td>
+                    <div class="recording-cell-text">
+                      <span class="font-mono">{{ showLabel(r) }}</span>
+                      <span v-if="se(r)" class="recording-cell-channel">{{ se(r) }}</span>
+                    </div>
+                  </td>
+                  <td class="recording-status-cell">
+                    <recording-status :recording="r" :ctx="drawerContext" />
+                  </td>
+                  <td class="font-mono whitespace-nowrap text-ink-dim">{{ r.aired_at ? fmtTime(r.aired_at) : '' }}</td>
+                  <td>
+                    <div class="rec-actions flex items-center justify-end">
+                      <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch recording-play"
+                        @click.stop="playRecording(r)" @keydown.stop :title="playTitle(r)" :aria-label="playTitle(r)">
+                        <play-icon />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="isOpen(r)" class="drawer-row">
+                  <td colspan="5"><recording-drawer class="drawer-card" :recording="r" :ctx="drawerContext" /></td>
+                </tr>
+              </template>
             </tbody>
           </table>
           <div v-if="loaded && recordings.length" class="lg:hidden space-y-3">
             <article v-for="r in recordings" :key="r.recording_id"
-              :class="['deck-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at }]">
+              :class="['deck-card', 'toggle-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at, open: isOpen(r) }]"
+              tabindex="0" :aria-expanded="String(isOpen(r))" :aria-label="r.title + ': show details'"
+              @click="toggleOpen(r)" @keydown.enter.self.prevent="toggleOpen(r)" @keydown.space.self.prevent="toggleOpen(r)">
               <div class="flex items-start justify-between gap-3">
                 <div class="recording-cell">
                   <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
                   <div class="recording-cell-text">
                     <span class="deck-card-title">{{ r.title }}</span>
                     <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
-                    <span v-if="r.channel_name || r.aired_at" class="recording-cell-channel">
-                      <channel-logo v-if="r.channel_id" :channel-id="r.channel_id" has-logo />
-                      {{ [r.channel_name, r.aired_at ? fmtTime(r.aired_at) : ''].filter(Boolean).join(' · ') }}
-                    </span>
-                    <span v-if="resumeLabel(r)" class="recording-cell-resume">{{ resumeLabel(r) }}</span>
+                    <span class="recording-cell-channel">{{ [showLabel(r), se(r), r.aired_at ? fmtTime(r.aired_at) : ''].filter(Boolean).join(' · ') }}</span>
                   </div>
                 </div>
-                <span :class="['pill', libraryStatusOf(r)]" :title="libraryStateTitle(r) || null">{{ statusLabel(libraryStatusOf(r)) }}</span>
-              </div>
-              <p class="deck-card-meta">
-                {{ showLabel(r) }}<template v-if="se(r)"> · {{ se(r) }}</template><template v-if="fmtBytes(r.size)"> · {{ fmtBytes(r.size) }}</template><template v-if="r.imported_at"> · imported {{ fmtTime(r.imported_at) }}</template>
-              </p>
-              <error-details v-if="r.error" :error="r.error" />
-              <div v-if="r.deleted_from_tvh_at || r.ad_status" class="pill-group">
-                <span v-if="r.deleted_from_tvh_at" class="pill not-in-tvh-chip" :title="notInTvhTitle(r)">NOT IN TVHEADEND</span>
-                <span v-if="r.ad_status" :class="['pill', r.ad_status]" :title="adTooltip(r)">{{ adLabel(r.ad_status) }}</span>
-              </div>
-              <p v-if="r.deleted_from_tvh_at" class="deck-card-meta">removed {{ fmtTime(r.deleted_from_tvh_at) }}</p>
-              <p v-if="r.ad_status && adTooltip(r)" class="deck-card-meta">{{ adTooltip(r) }}</p>
-              <progress-block v-if="progressPhase(r) === 'importing'"
-                :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
-              <progress-block v-if="isAdProgress(r)"
-                :progress="r.progress" :caption="progressCaption(r)" :bar="hasBar(r)"/>
-              <div v-if="r.playable || canImport(r) || canAdScan(r) || canDelete(r) || canRemove(r)" class="rec-actions flex items-center justify-end gap-2 pt-1">
-                <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch"
-                  @click="playRecording(r)" :title="playTitle(r)" :aria-label="playTitle(r)">
+                <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch recording-play"
+                  @click.stop="playRecording(r)" @keydown.stop :title="playTitle(r)" :aria-label="playTitle(r)">
                   <play-icon />
                 </button>
-                <button v-if="canImport(r)" type="button" class="btn btn-sm"
-                  @click="importRecording(r)" :disabled="importingId === r.recording_id">
-                  {{ importingId === r.recording_id ? '…' : importLabel(r) }}
-                </button>
-                <button v-if="canAdScan(r)" type="button" class="btn btn-sm btn-icon"
-                  @click="askAdScan(r)" :disabled="adScanningId === r.recording_id || isAdScanBlocked(r)"
-                  :title="adScanTitle(r)" :aria-label="adScanTitle(r)">
-                  <span v-if="adScanningId === r.recording_id">…</span>
-                  <ad-scan-icon v-else />
-                </button>
-                <button v-if="canDelete(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                  @click="askRemoveFromTvh(r)" :disabled="deletingId === r.recording_id"
-                  title="Remove from TVHeadend" aria-label="Remove from TVHeadend">
-                  <span v-if="deletingId === r.recording_id">…</span>
-                  <trash-icon v-else />
-                </button>
-                <button v-else-if="canRemove(r)" type="button" class="btn btn-sm btn-icon btn-danger"
-                  @click="askClearRow(r)" :disabled="removingId === r.recording_id" :title="removeTitle(r)" aria-label="Clear from list">
-                  <span v-if="removingId === r.recording_id">…</span>
-                  <trash-icon v-else />
-                </button>
               </div>
+              <recording-status :recording="r" :ctx="drawerContext" inline />
+              <recording-drawer v-if="isOpen(r)" class="drawer-card" :recording="r" :ctx="drawerContext" @click.stop @keydown.stop />
             </article>
           </div>
           <p v-else-if="loaded && total === 0 && hasFiltersApplied" class="text-ink-dim text-sm pt-3">No recordings match the current filters.</p>
@@ -4146,7 +4150,25 @@ const RecordingsView = {
     const stopSyncWatch = watch(() => syncStatus.value.activeSyncId, refresh)
     onUnmounted(stopSyncWatch)
 
+    const openIds = ref(new Set())
+    const isOpen = (r) => openIds.value.has(r.recording_id)
+    const toggleOpen = (r) => {
+      const next = new Set(openIds.value)
+      if (next.has(r.recording_id)) next.delete(r.recording_id)
+      else next.add(r.recording_id)
+      openIds.value = next
+    }
+
+    const drawerContext = reactive({
+      deletingId, removingId, importingId, adScanningId,
+      canImport, importLabel, importRecording, canAdScan, isAdScanBlocked, adScanTitle, askAdScan,
+      canDelete, askRemoveFromTvh, canRemove, removeTitle, askClearRow,
+      statusLabel, libraryStatusOf, libraryStateTitle, notInTvhTitle, showLabel, resumeLabel, playTitle, playRecording,
+      adLabel, adTooltip, progressPhase, isAdProgress, hasBar, progressCaption,
+    })
+
     return {
+      isOpen, toggleOpen, drawerContext,
       recordings, shows, total, loaded, page, pageSize, totalPages, rangeLabel,
       sortCol, sortDir, statusFilter, showFilter, sinceFilter, deletedFilter,
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
@@ -7615,44 +7637,27 @@ const InfoButton = {
   },
 }
 
-const ErrorDetails = {
+const ErrorDiagnosis = {
   props: { error: { type: String, required: true } },
   template: `
-    <span class="error-details">
-      <span class="error-details-text" :title="error">{{ error }}</span>
-      <button ref="trigger" type="button" class="btn-link error-details-btn" :aria-expanded="open" @click.stop="show">DETAILS</button>
-      <teleport to="body">
-        <transition name="epg-sheet">
-          <div v-if="open" class="epg-modal-backdrop" @click.self="close">
-            <section ref="dialog" class="panel epg-modal info-modal" role="dialog" aria-modal="true"
-              :aria-labelledby="headingId" tabindex="-1">
-              <header class="panel-header">
-                <span :id="headingId" class="panel-title">{{ diagnosis.title }}</span>
-                <button type="button" class="btn btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
-              </header>
-              <div class="panel-body info-modal-body">
-                <p>{{ diagnosis.meaning }}</p>
-                <pre class="error-details-full">{{ diagnosis.error }}</pre>
-                <p class="deck-card-label">What to try</p>
-                <ul class="error-details-steps">
-                  <li v-for="(step, i) in diagnosis.steps" :key="i">{{ step }}</li>
-                </ul>
-                <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-                  <a href="#/doctor" class="btn no-hover-underline" @click="close">OPEN DOCTOR</a>
-                  <a :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn no-hover-underline">READ THE DOCS <external-link-icon /></a>
-                </div>
-              </div>
-            </section>
-          </div>
-        </transition>
-      </teleport>
-    </span>
+    <div class="error-diagnosis">
+      <p class="sync-detail-meta">{{ diagnosis.title }}</p>
+      <p class="text-sm text-ink">{{ diagnosis.meaning }}</p>
+      <pre class="error-details-full">{{ diagnosis.error }}</pre>
+      <p class="deck-card-label">What to try</p>
+      <ul class="error-details-steps text-sm text-ink-dim">
+        <li v-for="(step, i) in diagnosis.steps" :key="i">{{ step }}</li>
+      </ul>
+      <div class="card-actions">
+        <a href="#/doctor" class="btn btn-sm no-hover-underline">OPEN DOCTOR</a>
+        <a :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn btn-sm no-hover-underline">READ THE DOCS <external-link-icon /></a>
+      </div>
+    </div>
   `,
   setup(props) {
-    const headingId = `error-dialog-${++infoDialogCount}`
     const diagnosis = computed(() => diagnoseRecordingError(props.error))
     const docUrl = computed(() => `${DOCS_BASE}${diagnosis.value.doc}`)
-    return { ...useSheet(), headingId, diagnosis, docUrl }
+    return { diagnosis, docUrl }
   },
 }
 
@@ -12372,7 +12377,9 @@ const app = createApp(App)
 app.directive('no-autofill', noAutofill)
 app.component('summary-line', SummaryLine)
 app.component('sync-detail', SyncDetail)
-app.component('error-details', ErrorDetails)
+app.component('error-diagnosis', ErrorDiagnosis)
+app.component('recording-status', RecordingStatus)
+app.component('recording-drawer', RecordingDrawer)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('channel-logo', ChannelLogo)
@@ -12407,7 +12414,7 @@ app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
 app.component('series-folder-editor', FolderEditor)
-app.component('folder-row-actions', FolderRowActions)
+app.component('folder-sync-button', FolderSyncButton)
 app.component('series-drawer', SeriesDrawer)
 app.component('filter-sheet', FilterSheet)
 app.component('header-button', HeaderButton)

@@ -372,6 +372,7 @@ const libraryRecording = ({ row, index, shows, simNow }) => {
     channel_name: channel.name,
     aired_at: program.start,
     duration_s: durationS,
+    synopsis: program.synopsis || null,
     image_path: `artwork/demo-${program.program_id}.jpg`,
     file_path: libraryPath({ program, show }),
     size,

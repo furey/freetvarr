@@ -292,7 +292,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 
 ### `skipped` recordings
 
-- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error on the row says which; press **DETAILS** under it for the full error and steps to fix it.
+- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error on the row says which; press the row for the full error and steps to fix it.
 
 ### `partial` recordings
 

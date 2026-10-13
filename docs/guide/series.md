@@ -52,13 +52,11 @@ Each row shows one series:
 
 A row shows a `PAUSED` badge when the series recording in TVHeadend is paused. A row with no badge records new episodes as normal.
 
-The buttons on a row:
+**SYNC** (on a row with a library folder) imports the new episodes of this series now.
 
-- **SYNC** (on a row with a library folder) imports the new episodes of this series now.
-- **EDIT** opens the series under its row. Press **EDIT** again, or ×, to close it.
+Press a row to open the series under it. Press the row again, or press `Esc`, to close it. The open series shows:
 
-Under **EDIT**:
-
+- **SERIES RECORDING**: whether TVHeadend records new episodes, with **PAUSE** and **CANCEL SERIES**.
 - A series with a library folder shows the [edit form](#edit-a-series-folder).
 - A series that saves to the one-off folder shows that path and **ASSIGN FOLDER**, which gives the series a folder in your TV library. See [Assign a folder](#assign-a-folder).
 - **PAUSE** stops TVHeadend recording new episodes of this series. Episodes already recorded still import. **RESUME** starts it again. On an SD and HD pair, both series recordings pause and resume together.
@@ -76,7 +74,7 @@ The panel title shows how many series match, such as `SERIES · 2 OF 9`. **CLEAR
 
 ## Cancel a series recording
 
-On the **SERIES** tab, press **EDIT** on a row, then **CANCEL SERIES**. The programme dialog of the TV Guide and the live player also has **CANCEL SERIES**. TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files. Before it cancels, Freetvarr asks:
+On the **SERIES** tab, press a row, then **CANCEL SERIES**. The programme dialog of the TV Guide and the live player also has **CANCEL SERIES**. TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files. Before it cancels, Freetvarr asks:
 
 - **STOP THE EPISODE ON NOW** (shown while an episode records): on by default. After `5` minutes or more of recording, the episode stops and the part recorded so far stays. Before `5` minutes, Freetvarr deletes it. Turn the switch off to let the episode record to the end.
 - **KEEP TITLE MATCH** (shown when a [title match](#title-matches) saves this series): off by default when **SERIES** made the title match, so cancelling removes it. A title match records nothing by itself; it only decides the folder for recordings with that text in the title. Turn the switch on to keep saving them to the same folder.
@@ -85,7 +83,7 @@ To change nothing, close the question. In the programme dialog, **KEEP SERIES** 
 
 ## Assign a folder
 
-Press **EDIT** on a series that saves to the one-off folder, then **ASSIGN FOLDER**. A dialog opens before anything changes:
+Press a series that saves to the one-off folder, then **ASSIGN FOLDER**. A dialog opens before anything changes:
 
 1. Check the folder name. Freetvarr fills in an existing folder with the same name under your media root, or a new folder named after the series.
 2. To use another folder, type its name, or choose it under **OR PICK AN EXISTING FOLDER**.
@@ -95,7 +93,7 @@ The dialog shows the full path for future episodes. Episodes already imported st
 
 ## Edit a series folder
 
-**EDIT** on a series with a library folder opens these fields under the row:
+Press a series with a library folder to open these fields under the row:
 
 - **SAVES TO**: the folder under your media root (shown before the field) where the series goes. As you type, Freetvarr suggests matching folders that are already there.
 - **SEASON FOLDERS**: the [season template](#season-template).
@@ -103,7 +101,7 @@ The dialog shows the full path for future episodes. Episodes already imported st
 - **AD REMOVAL**: **OFF**, **DETECT**, or **CUT**. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in **SETTINGS**.
 - **REMOVE FROM TVHEADEND AFTER IMPORT**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 
-Press **SAVE** to keep the changes. To close the form without saving, press × in its top-right corner, or press `Esc`. A change to **SAVES TO** applies to future episodes only (episodes already imported stay where they are).
+Press **SAVE** to keep the changes. To close the form without saving, press the row again, or press `Esc`. A change to **SAVES TO** applies to future episodes only (episodes already imported stay where they are).
 
 **UNASSIGN FOLDER** removes the folder from the series, after you confirm. Future episodes then save to the one-off folder again. When **IMPORT EVERY RECORDING** is off in **SETTINGS**, they wait in [Recordings](/guide/recordings) instead. Episodes already imported stay where they are.
 
@@ -129,7 +127,7 @@ The episode title is dropped when the TV guide did not supply one. TVHeadend's o
 
 ## Title matches
 
-A recording whose title contains this text saves to its folder, even without a series recording. The **TITLE MATCHES** panel lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **KEEP TITLE MATCH** on. Each title has a **SAVES TO** path, **SYNC**, and **EDIT**, like a series row. **EDIT** opens the edit form under the row. In the edit form, **REMOVE TITLE MATCH** removes the title after you confirm (recordings already imported stay where they are).
+A recording whose title contains this text saves to its folder, even without a series recording. The **TITLE MATCHES** panel lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **KEEP TITLE MATCH** on. Each title has a **SAVES TO** path and **SYNC**, like a series row. Press the row to open the edit form under it. In the edit form, **REMOVE TITLE MATCH** removes the title after you confirm (recordings already imported stay where they are).
 
 To add a title:
 
