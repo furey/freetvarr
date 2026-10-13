@@ -19,6 +19,8 @@ A sync is one pass over TVHeadend's finished recordings: list them, match them a
 
 The dashboard shows whether a sync is running, when the last one ran and what it did, and when the next one is due. Press `SYNC NOW` to run one at once, or press `LAST SYNC` to open the SYNCS tab.
 
+**RECENT SYNCS** under it lists the last five syncs. A sync that imported, failed, or removed something has an arrow at the end of its row. Press the row to open that sync on the SYNCS tab with its [details](#sync-details) open. Empty and running syncs have no link.
+
 ## Pull to refresh
 
 In the Freetvarr Home Screen app on an iPhone, pull down from the top of a page to reload its data. Filters and scroll position stay as they were. A pull does not reload the app itself, so after you update Freetvarr, close and reopen the Home Screen app.
@@ -33,10 +35,34 @@ Only one sync runs at a time. A second request while one runs returns the runnin
 
 ## Reading a sync
 
-Each row shows what the pass did: imports, failures, removals, or nothing (empty). A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording) counts as a failure, not a skip.
+Each row shows when the sync ran, how long it took, its status, and a summary of what it did: imports, failures, removals, or nothing (empty). **WHEN** gives the day and the start and finish times in one line, such as `Today 9:04–9:05am`. A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording) counts as a failure, not a skip.
+
+## Sync details
+
+Press a sync to open its details, and press it again to close them. The details list each recording the sync imported or failed to import, up to `100`. Each recording shows:
+
+- its title, season and episode, and episode title;
+- whether it went to a series folder, the one-off folder, or the movies folder;
+- the channel, when it aired, and how long the programme ran;
+- the file size, ad removal results, and how long the import took;
+- **removed from TVHeadend**, when [Remove after import](/guide/remove-from-tvheadend) deleted the TVHeadend copy;
+- the error, when the import failed.
+
+Under the recordings, each step of the sync shows its result and how long it took: reading TVHeadend, importing files, refreshing each Plex library, removing recordings from TVHeadend, and checking the library.
+
+A sync still running shows its details when it finishes. Syncs from Freetvarr versions before this list was added show only their counts.
+
+Each sync has its own address, `#/syncs/<number>`. Open that address to show the sync with its details open.
 
 ## History
 
-Sync history keeps the latest 500 rows. The tab shows 50 per page (press `PREV` and `NEXT` to see older syncs). Clear individual rows or the whole history from the tab, and filter by activity: `MANUAL` / `CRON` / `IMPORTS` / `FAILS` / `REMOVALS` / `EMPTY`.
+Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, take at most 100 of those, so syncs that did something stay in the history longer. The tab shows 50 per page (press `PREV` and `NEXT` to see older syncs). Clear individual rows or the whole history from the tab.
+
+Two filters choose which syncs the tab lists:
+
+- **SHOW**: `IMPORTS`, `FAILS`, `REMOVALS`, and `EMPTY`. Turn on as many as you like. `EMPTY` is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** on that line to turn `EMPTY` on.
+- **FROM**: `ANY`, `SCHEDULE` (syncs the sync schedule started), or `MANUAL` (syncs you started).
+
+The browser remembers your choice. A running sync always shows.
 
 After each sync, Freetvarr trims the history, drops removed recordings older than 30 days, and deletes expired `.orig` backups from ad cutting.

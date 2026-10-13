@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import knexFactory from 'knex'
 
-import { listSyncs, syncPageParams, SYNC_PAGE_SIZE_MAX } from '../src/sync-history.js'
+import { listSyncs, pruneSyncHistory, syncPageParams, SYNC_PAGE_SIZE_MAX } from '../src/sync-history.js'
 
 const openDb = async () => {
   const db = knexFactory({
@@ -29,22 +29,36 @@ const seedSyncs = async (db, count) => {
   await db('syncs').insert(rows)
 }
 
-test('syncPageParams: defaults to page 1 of 50 with no filter', () => {
-  assert.deepEqual(syncPageParams({}), { filter: null, page: 1, pageSize: 50 })
+const seedRow = (db, { minute, status = 'ok', summary }) => db('syncs').insert({
+  started_at: new Date(Date.UTC(2026, 9, 1, 0, minute)).toISOString(),
+  status,
+  summary_json: JSON.stringify(summary),
 })
 
-test('syncPageParams: caps the page size and ignores unknown filters', () => {
-  const params = syncPageParams({ page: '3', pageSize: '5000', filter: 'bogus' })
-  assert.deepEqual(params, { filter: null, page: 3, pageSize: SYNC_PAGE_SIZE_MAX })
-  assert.equal(syncPageParams({ page: '-2', filter: 'imports' }).page, 1)
-  assert.equal(syncPageParams({ filter: 'imports' }).filter, 'imports')
+test('syncPageParams: defaults to page 1 of 50 with every outcome and trigger', () => {
+  assert.deepEqual(syncPageParams({}), { outcomes: null, trigger: null, page: 1, pageSize: 50 })
+})
+
+test('syncPageParams: reads several outcomes and drops unknown ones', () => {
+  assert.deepEqual(syncPageParams({ show: 'imports,fails,bogus,imports' }).outcomes, ['imports', 'fails'])
+  assert.equal(syncPageParams({ show: 'bogus' }).outcomes, null)
+  assert.equal(syncPageParams({ show: 'imports,fails,removals,empty' }).outcomes, null)
+})
+
+test('syncPageParams: caps the page size and ignores an unknown trigger', () => {
+  const params = syncPageParams({ page: '3', pageSize: '5000', trigger: 'bogus' })
+  assert.equal(params.page, 3)
+  assert.equal(params.pageSize, SYNC_PAGE_SIZE_MAX)
+  assert.equal(params.trigger, null)
+  assert.equal(syncPageParams({ page: '-2' }).page, 1)
+  assert.equal(syncPageParams({ trigger: 'cron' }).trigger, 'cron')
 })
 
 test('listSyncs: pages newest first and counts every row', async () => {
   const db = await openDb()
   await seedSyncs(db, 120)
-  const first = await listSyncs({ db, filter: null, page: 1, pageSize: 50 })
-  const last = await listSyncs({ db, filter: null, page: 3, pageSize: 50 })
+  const first = await listSyncs({ db, page: 1, pageSize: 50 })
+  const last = await listSyncs({ db, page: 3, pageSize: 50 })
   assert.equal(first.total, 120)
   assert.equal(first.syncs.length, 50)
   assert.equal(first.syncs[0].id, 120)
@@ -53,12 +67,32 @@ test('listSyncs: pages newest first and counts every row', async () => {
   await db.destroy()
 })
 
-test('listSyncs: applies the filter to the rows and the total', async () => {
+test('listSyncs: matches any chosen outcome and counts the empty syncs', async () => {
   const db = await openDb()
-  await seedSyncs(db, 120)
-  const result = await listSyncs({ db, filter: 'imports', page: 1, pageSize: 50 })
-  assert.equal(result.total, 40)
-  assert.equal(result.syncs.length, 40)
-  assert.ok(result.syncs.every((s) => JSON.parse(s.summary_json).imported === 1))
+  await seedRow(db, { minute: 1, summary: { trigger: 'cron', imported: 2 } })
+  await seedRow(db, { minute: 2, status: 'partial', summary: { trigger: 'cron', failed: 1 } })
+  await seedRow(db, { minute: 3, summary: { trigger: 'cron', delete: { triggered: 1 } } })
+  await seedRow(db, { minute: 4, summary: { trigger: 'cron', imported: 0 } })
+  await seedRow(db, { minute: 5, summary: { trigger: 'manual', imported: 0 } })
+  await seedRow(db, { minute: 6, status: 'running', summary: { trigger: 'cron' } })
+  const result = await listSyncs({ db, outcomes: ['imports', 'fails'] })
+  assert.deepEqual(result.syncs.map((s) => s.id), [6, 2, 1])
+  assert.equal(result.emptyCount, 2)
+  const cronOnly = await listSyncs({ db, outcomes: ['empty'], trigger: 'cron' })
+  assert.deepEqual(cronOnly.syncs.map((s) => s.id), [6, 4])
+  assert.equal(cronOnly.emptyCount, 1)
+  await db.destroy()
+})
+
+test('pruneSyncHistory: drops the oldest empty syncs first, then caps the total', async () => {
+  const db = await openDb()
+  for (let minute = 1; minute <= 6; minute++) {
+    await seedRow(db, { minute, summary: { trigger: 'cron', imported: minute % 2 } })
+  }
+  await pruneSyncHistory({ db, cap: 4, emptyCap: 1 })
+  const ids = (await db('syncs').select('id').orderBy('id')).map((r) => r.id)
+  assert.deepEqual(ids, [1, 3, 5, 6])
+  await pruneSyncHistory({ db, cap: 3, emptyCap: 1 })
+  assert.deepEqual((await db('syncs').select('id').orderBy('id')).map((r) => r.id), [3, 5, 6])
   await db.destroy()
 })

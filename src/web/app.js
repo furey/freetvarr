@@ -77,6 +77,10 @@ import {
   saveHoldMusicMuted, HOLD_MUSIC_SRC,
 } from '/hold-music.js'
 import { clearedListMessage, restoredListMessage } from '/clear-list.js'
+import { readSnapshot, writeSnapshot, onNowAt, upcomingAt } from '/warm-start.js'
+import { syncWhen, syncTook } from '/sync-when.js'
+import { syncDetail } from '/sync-detail.js'
+import { diagnoseRecordingError } from '/recording-error.js'
 import { adScanConfirm, clearListConfirm, clearRowConfirm, removeFromTvhConfirm } from '/recording-confirm.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 
@@ -184,7 +188,16 @@ const tvhTestSummary = (r) => {
   return bits.length ? `Connected to TVHeadend · ${bits.join(' · ')}.` : 'Connected to TVHeadend.'
 }
 
-const tz = ref('UTC')
+const browserStorage = () => {
+  try {
+    return localStorage
+  } catch {
+    return null
+  }
+}
+
+const tz = ref(readSnapshot({ storage: browserStorage(), key: 'tz' }) ?? 'UTC')
+watch(tz, (zone) => writeSnapshot({ storage: browserStorage(), key: 'tz', data: zone }))
 
 const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || ''
 
@@ -1218,12 +1231,37 @@ const seasonEpisodeLabel = (r) => {
   return `${s}${e}`
 }
 
-const within7Days = (s) => {
-  if (!s) return false
-  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s
-  const t = new Date(iso).getTime()
-  return Number.isFinite(t) && (Date.now() - t) < 7 * 24 * 60 * 60 * 1000
+const ListSkeleton = {
+  props: {
+    rows: { type: Number, default: 5 },
+    rowHeight: { type: String, default: '2.9375rem' },
+    logo: { type: Boolean, default: false },
+    guide: { type: Boolean, default: false },
+  },
+  template: `
+    <div class="skeleton-reveal" aria-hidden="true">
+      <div v-for="(width, i) in widths" :key="i" class="skeleton-row" :style="{ height: rowHeight }">
+        <span v-if="logo || guide" class="skeleton skeleton-logo"></span>
+        <template v-if="guide">
+          <span v-for="(grow, j) in guideBlocksFor(i)" :key="j" class="skeleton skeleton-block" :style="{ flexGrow: grow }"></span>
+        </template>
+        <span v-else class="skeleton skeleton-line" :style="{ width }"></span>
+      </div>
+    </div>
+  `,
+  setup(props) {
+    const widths = computed(() => Array.from({ length: props.rows }, (_, i) => SKELETON_ROW_WIDTHS[i % SKELETON_ROW_WIDTHS.length]))
+    const guideBlocksFor = (i) => SKELETON_GUIDE_BLOCKS[i % SKELETON_GUIDE_BLOCKS.length]
+    return { widths, guideBlocksFor }
+  },
 }
+
+const SKELETON_ROW_WIDTHS = ['72%', '58%', '81%', '64%', '76%', '52%', '68%']
+const SKELETON_GUIDE_BLOCKS = [[3, 2, 4, 2], [2, 5, 3], [4, 2, 2, 3], [3, 3, 5], [2, 4, 3, 2]]
+const GUIDE_PANEL_RETRY_MS = 5000
+const SKELETON_LIVE_WIDTHS = ['62%', '48%', '71%', '55%']
+const SKELETON_UPCOMING_WIDTHS = ['58%', '44%', '64%']
+const SKELETON_SYNC_WIDTHS = ['86%', '74%', '81%', '68%', '77%']
 
 const hostOf = (url) => {
   if (!url) return ''
@@ -1563,7 +1601,7 @@ const LiveView = {
             <span class="status-readout err">Guide unavailable: {{ error }}</span>
             <button type="button" class="btn btn-sm" @click="load"><refresh-icon /> RETRY</button>
           </div>
-          <p v-else-if="!data" class="text-sm text-ink-dim">Loading channels…</p>
+          <list-skeleton v-else-if="!data" :rows="8" row-height="3rem" logo />
           <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. <span class="whitespace-nowrap">Tap <star-icon class="icon-inline" /> next</span> to a channel to add it.</p>
           <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
           <div v-for="g in groups" :key="g.key" class="live-group">
@@ -1770,7 +1808,7 @@ const DashboardView = {
     <div class="view-reveal space-y-6">
       <recording-now-panel />
 
-      <section v-if="tvhConfigured" class="panel">
+      <section v-if="tvhConfigured || !guideLoaded" class="panel" :aria-busy="!guideLoaded">
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">WHAT'S ON</span>
@@ -1785,7 +1823,30 @@ const DashboardView = {
             <a href="#/guide" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">Guide <arrow-right-icon /></a>
           </div>
         </header>
-        <div v-if="!guideOk" class="panel-body flex flex-wrap items-center gap-3">
+        <div v-if="!guideLoaded" class="panel-body space-y-5 skeleton-reveal" aria-hidden="true">
+          <div>
+            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3"><signal-bars-icon /> Tuning in</div>
+            <div class="space-y-3">
+              <div v-for="width in SKELETON_LIVE_WIDTHS" :key="width" class="skeleton-row-live flex items-center gap-3 md:gap-4">
+                <span class="skeleton skeleton-logo"></span>
+                <span class="skeleton skeleton-line w-16 md:w-28 shrink-0"></span>
+                <span class="flex-1 min-w-0 space-y-2">
+                  <span class="skeleton skeleton-line" :style="{ width }"></span>
+                  <span class="skeleton skeleton-track"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
+            <div class="space-y-2">
+              <div v-for="width in SKELETON_UPCOMING_WIDTHS" :key="width" class="skeleton-row-upcoming">
+                <span class="skeleton skeleton-line" :style="{ width }"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="!guideOk" class="panel-body flex flex-wrap items-center gap-3">
           <span class="status-readout err">Guide unavailable. TVHeadend did not answer.</span>
           <button type="button" class="btn btn-sm" @click="loadGuidePanel"><refresh-icon /> RETRY</button>
         </div>
@@ -1897,60 +1958,107 @@ const DashboardView = {
             <span class="panel-title">RECENT SYNCS</span>
             <info-button title="RECENT SYNCS" doc="guide/syncs#reading-a-sync">
               <p>The last few syncs Freetvarr ran, newest first, with what each one imported.</p>
-              <p>A sync is <strong>OK</strong> unless something failed. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
+              <p>A sync is <strong>OK</strong> unless something failed. Press a sync that imported, failed, or removed something to open its details. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
             </info-button>
           </span>
           <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
         </header>
-        <div class="panel-body">
-          <table v-if="recentSyncs.length" class="deck-table hidden md:table">
+        <div class="panel-body" :aria-busy="!syncsLoaded">
+          <div v-if="!syncsLoaded" class="skeleton-reveal" aria-hidden="true">
+            <div class="skeleton-row-sync-head"></div>
+            <div v-for="width in SKELETON_SYNC_WIDTHS" :key="width" class="skeleton-row-sync">
+              <span class="skeleton skeleton-line" :style="{ width }"></span>
+            </div>
+          </div>
+          <table v-else-if="recentSyncs.length" class="deck-table recent-syncs-table hidden md:table">
             <thead><tr>
-              <th>Started</th><th>Status</th><th>Summary</th>
+              <th>When</th><th>Status</th><th>Summary</th><th><span class="sr-only">Details</span></th>
             </tr></thead>
             <tbody>
-              <tr v-for="s in recentSyncs" :key="s.id" :class="{ active: s.id === syncStatus.activeSyncId }">
-                <td class="font-mono">{{ fmtTime(s.started_at) }}</td>
+              <tr v-for="s in recentSyncs" :key="s.id"
+                :class="{ active: s.id === syncStatus.activeSyncId, notable: isNotableSync(s) }"
+                @click="isNotableSync(s) && openSyncDetails(s)">
+                <td class="font-mono whitespace-nowrap">{{ syncWhenText(s) }}</td>
                 <td><span :class="['pill', s.status]">{{ s.status }}</span></td>
                 <td><summary-line :summary="s.summary"/></td>
+                <td class="text-right">
+                  <a v-if="isNotableSync(s)" :href="syncDetailsHref(s)" class="sync-details-link"
+                    :aria-label="'Details of sync #' + s.id" @click.stop><arrow-right-icon /></a>
+                </td>
               </tr>
             </tbody>
           </table>
-          <div v-if="recentSyncs.length" class="md:hidden space-y-3">
-            <article v-for="s in recentSyncs" :key="s.id"
-              :class="['deck-card', 'space-y-2', { active: s.id === syncStatus.activeSyncId }]">
+          <div v-if="syncsLoaded && recentSyncs.length" class="md:hidden space-y-3">
+            <component :is="isNotableSync(s) ? 'a' : 'article'" v-for="s in recentSyncs" :key="s.id"
+              :href="isNotableSync(s) ? syncDetailsHref(s) : null"
+              :class="['deck-card', 'block', 'space-y-2', 'no-underline', 'no-hover-underline', { active: s.id === syncStatus.activeSyncId, notable: isNotableSync(s) }]">
               <div class="flex items-start justify-between gap-3">
-                <span class="deck-card-meta">{{ fmtTime(s.started_at) }}</span>
-                <span :class="['pill', s.status]">{{ s.status }}</span>
+                <span class="deck-card-meta whitespace-nowrap">{{ syncWhenText(s) }}</span>
+                <span class="flex items-center gap-2">
+                  <span :class="['pill', s.status]">{{ s.status }}</span>
+                  <arrow-right-icon v-if="isNotableSync(s)" class="sync-details-arrow" />
+                </span>
               </div>
               <summary-line :summary="s.summary"/>
-            </article>
+            </component>
           </div>
-          <p v-else class="text-ink-dim text-sm">No syncs yet.</p>
+          <p v-else-if="syncsLoaded" class="text-ink-dim text-sm">No syncs yet.</p>
         </div>
       </section>
     </div>
   `,
   setup() {
+    const snapshot = readSnapshot({ storage: browserStorage(), key: 'dashboard' })
+    const nowMs = Date.now()
     const { flashText, flashKind, flash } = useFlash()
     const starting = ref(false)
     const heldSyncId = ref(null)
     const runningSince = ref({ id: null, at: null })
     const shownSyncId = computed(() => syncStatus.value.activeSyncId || heldSyncId.value)
-    const recentSyncs = ref([])
-    const statsLoaded = ref(false)
-    const seriesCount = ref(0)
-    const outsideLibraryCount = ref(0)
+    const recentSyncs = ref(snapshot?.recentSyncs ?? [])
+    const statsLoaded = ref(Boolean(snapshot))
+    const syncsLoaded = ref(Boolean(snapshot))
+    const guideLoaded = ref(Boolean(snapshot))
+    const seriesCount = ref(snapshot?.seriesCount ?? 0)
+    const outsideLibraryCount = ref(snapshot?.outsideLibraryCount ?? 0)
     const seriesUnavailable = ref(false)
-    const recordings7dCount = ref(0)
-    const plexConfigured = ref(false)
-    const plexHost = ref('')
-    const tvhState = ref(null)
-    const tvhReachable = ref(false)
-    const tvhConfigured = ref(false)
-    const onNow = ref([])
-    const guideUpcoming = ref([])
-    const guideSeriesLinks = ref(new Set())
-    const guideOk = ref(true)
+    const recordings7dCount = ref(snapshot?.recordings7dCount ?? 0)
+    const plexConfigured = ref(snapshot?.plexConfigured ?? false)
+    const plexHost = ref(snapshot?.plexHost ?? '')
+    const tvhState = ref(snapshot?.tvhState ?? null)
+    const tvhReachable = ref(snapshot?.tvhReachable ?? false)
+    const tvhConfigured = ref(snapshot?.tvhConfigured ?? false)
+    const onNow = ref(onNowAt({ entries: snapshot?.onNow, nowMs }))
+    const guideUpcoming = ref(upcomingAt({
+      recordings: snapshot?.guideUpcoming,
+      nowMs,
+      startMsOf: (r) => tsOfMs(r.startDate),
+    }))
+    const guideSeriesLinks = ref(new Set(snapshot?.guideSeriesLinks ?? []))
+    const guideOk = ref(snapshot?.guideOk ?? true)
+
+    const saveSnapshot = () => writeSnapshot({
+      storage: browserStorage(),
+      key: 'dashboard',
+      data: {
+        recentSyncs: recentSyncs.value,
+        seriesCount: seriesCount.value,
+        outsideLibraryCount: outsideLibraryCount.value,
+        recordings7dCount: recordings7dCount.value,
+        plexConfigured: plexConfigured.value,
+        plexHost: plexHost.value,
+        tvhState: tvhState.value && {
+          tunerCount: tvhState.value.tunerCount,
+          storageInfo: tvhState.value.storageInfo,
+        },
+        tvhReachable: tvhReachable.value,
+        tvhConfigured: tvhConfigured.value,
+        onNow: onNow.value,
+        guideUpcoming: guideUpcoming.value,
+        guideSeriesLinks: [...guideSeriesLinks.value],
+        guideOk: guideOk.value,
+      },
+    })
 
     const lastSync = computed(() => recentSyncs.value[0] || null)
 
@@ -1970,45 +2078,76 @@ const DashboardView = {
       if (!tvhConfigured.value) {
         tvhState.value = null
         tvhReachable.value = false
+        guideLoaded.value = true
         return
       }
       const [s, onNowResult] = await Promise.all([
         api('GET', '/api/epg/state').catch(() => null),
         api('GET', '/api/epg/now').catch(() => null),
       ])
-      tvhState.value = s
       tvhReachable.value = Boolean(s) && !s.stale
-      guideSeriesLinks.value = new Set((s?.seriesTags || []).map((t) => String(t.seriesLinkId ?? t.id)))
-      guideUpcoming.value = (s?.futureRecordings || [])
+      if (s) applyRecordingState(s)
+      if (onNowResult) onNow.value = onNowResult.entries || []
+      guideOk.value = Boolean(onNowResult) || onNow.value.length > 0
+      guideLoaded.value = true
+      if (!s || !onNowResult) retryGuidePanelSoon()
+    }
+
+    const applyRecordingState = (s) => {
+      tvhState.value = s
+      guideSeriesLinks.value = new Set((s.seriesTags || []).map((t) => String(t.seriesLinkId ?? t.id)))
+      guideUpcoming.value = (s.futureRecordings || [])
         .filter((r) => !r.pendingDelete)
         .sort((a, b) => tsOfMs(a.startDate) - tsOfMs(b.startDate))
         .slice(0, 3)
-      guideOk.value = Boolean(onNowResult)
-      if (onNowResult) onNow.value = onNowResult.entries || []
     }
+
+    let guideRetryTimer = null
+    const retryGuidePanelSoon = () => {
+      if (guideRetryTimer) return
+      guideRetryTimer = setTimeout(() => {
+        guideRetryTimer = null
+        loadGuidePanel()
+      }, GUIDE_PANEL_RETRY_MS)
+    }
+    onUnmounted(() => clearTimeout(guideRetryTimer))
 
     const isSeriesRec = (r) =>
       r?.seriesLinkId != null && guideSeriesLinks.value.has(String(r.seriesLinkId))
 
 
-    const refresh = async () => {
-      const [syncs, , series, recordings, settings] = await Promise.all([
-        api('GET', '/api/syncs?pageSize=5').catch(() => ({ syncs: [] })),
-        loadSyncStatus().then(ensureSyncPolling),
-        api('GET', '/api/series').catch((err) => ({ series: [], error: err.message })),
-        api('GET', '/api/recordings').catch(() => ({ recordings: [] })),
-        fetchSettings().catch(() => ({})),
-      ])
+    const syncDetailsHref = (s) => `#/syncs/${s.id}`
+    const openSyncDetails = (s) => { window.location.hash = syncDetailsHref(s) }
+
+    const applySyncs = (syncs) => {
       recentSyncs.value = (syncs.syncs || []).slice(0, 5)
+      syncsLoaded.value = true
+    }
+
+    const applySeries = (series) => {
       seriesCount.value = series.series?.length || 0
       outsideLibraryCount.value = series.series?.filter((s) => s.savesTo?.kind !== 'library').length || 0
       seriesUnavailable.value = Boolean(series.error)
-      recordings7dCount.value = recordings.recordings?.filter((r) => within7Days(r.imported_at)).length || 0
+    }
+
+    const applySettings = (settings) => {
       plexConfigured.value = Boolean(settings.plex_url && settings.plex_token_set && settings.plex_tv_section_id)
       plexHost.value = hostOf(settings.plex_url)
       tvhConfigured.value = Boolean(settings.tvh_url)
-      await loadGuidePanel()
+    }
+
+    const refresh = async () => {
+      await Promise.all([
+        api('GET', '/api/syncs?pageSize=5').then(applySyncs).catch(() => { syncsLoaded.value = true }),
+        loadSyncStatus().then(ensureSyncPolling),
+        api('GET', '/api/series').catch((err) => ({ series: [], error: err.message })).then(applySeries),
+        api('GET', '/api/recordings?since=7d&pageSize=10')
+          .then((recordings) => { recordings7dCount.value = recordings.total || 0 })
+          .catch(() => {}),
+        fetchSettings().catch(() => ({})).then(applySettings).then(loadGuidePanel),
+      ])
       statsLoaded.value = true
+      saveSnapshot()
     }
 
     const tvhCell = computed(() => {
@@ -2049,6 +2188,7 @@ const DashboardView = {
 
     const lastSyncCell = computed(() => {
       const s = deckSync.value
+      if (!statsLoaded.value && !s) return { label: 'LAST SYNC', value: '...', dim: true }
       if (!s) return { label: 'LAST SYNC', value: 'never', dim: true }
       const nowMs = now.value.getTime()
       const title = [`#${s.id}`, fmtTime(s.started_at), s.summary?.trigger].filter(Boolean).join(' · ')
@@ -2063,6 +2203,7 @@ const DashboardView = {
         return { key: `flash-${flashText.value}`, label: 'NOTICE', value: flashText.value, tone: flashKind.value, title: flashText.value }
       }
       const s = deckSync.value
+      if (!statsLoaded.value && !s) return { key: 'loading', label: 'RESULT', value: '...', tone: 'deck-cell-dim' }
       if (!s) return { key: 'none', label: 'RESULT', value: 'none', tone: 'deck-cell-dim' }
       if (s.status === 'running') return { key: `run-${s.id}`, label: 'RESULT', value: 'in progress', tone: 'deck-cell-dim' }
       const sum = s.summary || {}
@@ -2132,7 +2273,9 @@ const DashboardView = {
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, fmtRelativeDay, tsOfMs,
       isRecordingChannel, loadGuidePanel,
       OFF_AIR_MESSAGE, watchLive, watchRowLabel, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
-      flashText, flashKind,
+      flashText, flashKind, statsLoaded, syncsLoaded, guideLoaded,
+      syncWhenText, isNotableSync, syncDetailsHref, openSyncDetails,
+      SKELETON_LIVE_WIDTHS, SKELETON_UPCOMING_WIDTHS, SKELETON_SYNC_WIDTHS,
     }
   },
 }
@@ -2317,7 +2460,7 @@ const SeriesView = {
           <p class="text-sm text-ink-dim leading-relaxed">
             Series episodes go into their own folder in the TV library. Single recordings and films go to the one-off and movies folders; see <a href="#/recordings">RECORDINGS</a>.
           </p>
-          <div v-if="!loaded" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
+          <list-skeleton v-if="!loaded" :rows="6" />
           <template v-else>
             <p v-if="error" class="text-sm font-mono text-signal-orange-hi">Cannot read the series recordings from TVHeadend: {{ error }}</p>
             <p v-else-if="stale" class="text-xs font-mono text-plex-yellow">TVHeadend is not answering. This is its last known state.</p>
@@ -2871,17 +3014,126 @@ const SeriesView = {
   },
 }
 
+const syncMsOf = (at) => (at ? Date.parse(toIso(at)) : null)
+
+const syncWhenText = (s) => syncWhen({
+  startedMs: syncMsOf(s.started_at),
+  finishedMs: s.status === 'running' ? null : syncMsOf(s.finished_at),
+  nowMs: now.value.getTime(),
+  timeZone: tz.value,
+})
+
+const syncTookText = (s) => {
+  if (s.status === 'running') return fmtElapsed({ at: s.started_at, nowMs: now.value.getTime() })
+  if (!s.finished_at) return ''
+  return syncTook(syncMsOf(s.finished_at) - syncMsOf(s.started_at))
+}
+
+const isNotableSync = (s) => {
+  if (s.status === 'running') return false
+  if (s.status !== 'ok') return true
+  const sum = s.summary || {}
+  return Boolean(sum.imported || sum.failed || sum.delete?.triggered)
+}
+
+const OUTCOME_OPTIONS = [
+  { key: 'imports', label: 'IMPORTS' },
+  { key: 'fails', label: 'FAILS' },
+  { key: 'removals', label: 'REMOVALS' },
+  { key: 'empty', label: 'EMPTY' },
+]
+const TRIGGER_OPTIONS = [
+  { key: 'any', label: 'ANY' },
+  { key: 'cron', label: 'SCHEDULE' },
+  { key: 'manual', label: 'MANUAL' },
+]
+const DEFAULT_SYNC_FILTER = { outcomes: ['imports', 'fails', 'removals'], trigger: 'any' }
+const SYNC_FILTER_KEY = 'freetvarr.syncFilter'
+
+const loadSyncFilter = () => {
+  try {
+    const saved = JSON.parse(browserStorage()?.getItem(SYNC_FILTER_KEY) || 'null')
+    const outcomes = OUTCOME_OPTIONS.map((o) => o.key).filter((o) => saved?.outcomes?.includes(o))
+    const trigger = TRIGGER_OPTIONS.some((o) => o.key === saved?.trigger) ? saved.trigger : DEFAULT_SYNC_FILTER.trigger
+    return outcomes.length ? { outcomes, trigger } : DEFAULT_SYNC_FILTER
+  } catch {
+    return DEFAULT_SYNC_FILTER
+  }
+}
+
+const saveSyncFilter = (filter) => {
+  try {
+    browserStorage()?.setItem(SYNC_FILTER_KEY, JSON.stringify(filter))
+  } catch {}
+}
+
+const SyncDetail = {
+  props: { sync: { type: Object, required: true } },
+  template: `
+    <div class="sync-detail">
+      <p v-if="sync.status === 'running'" class="text-xs text-ink-dim">This sync is still running. Its details show here when it finishes.</p>
+      <template v-else>
+        <p class="sync-detail-meta">{{ detail.trigger }} · sync #{{ sync.id }}<template v-if="detail.message"> · {{ detail.message }}</template></p>
+        <ul v-if="detail.items.length" class="sync-items">
+          <li v-for="item in shownItems" :key="item.id" class="sync-item">
+            <span :class="['pill', item.outcome === 'imported' ? 'done' : 'error']">{{ item.outcomeLabel }}</span>
+            <div class="min-w-0">
+              <p class="sync-item-title">{{ item.title }}<span v-if="item.episode" class="sync-item-episode"> · {{ item.episode }}</span></p>
+              <p class="sync-item-meta">{{ itemMeta(item) }}</p>
+              <p v-if="item.error" class="sync-item-error">{{ item.error }}</p>
+            </div>
+          </li>
+        </ul>
+        <button v-if="hiddenItemCount" type="button" class="btn-link text-xs" @click="showAll = true">Show all {{ detail.items.length }}</button>
+        <p v-if="detail.omitted" class="text-xs text-ink-dim">{{ detail.omitted }} more not listed.</p>
+        <p v-if="detail.countsOnly" class="text-xs text-ink-dim">This sync ran before Freetvarr kept a list of each recording, so only its counts are known.</p>
+        <p v-else-if="!detail.items.length && !detail.errors.length" class="text-xs text-ink-dim">Nothing new to import.</p>
+        <ul v-if="detail.errors.length" class="sync-errors">
+          <li v-for="(error, i) in detail.errors" :key="i">{{ error }}</li>
+        </ul>
+        <dl v-if="detail.steps.length" class="sync-facts">
+          <template v-for="step in detail.steps" :key="step.key">
+            <dt>{{ step.label }}</dt><dd :class="{ 'sync-fact-err': !step.ok }">{{ step.text }}</dd>
+          </template>
+        </dl>
+      </template>
+    </div>
+  `,
+  setup(props) {
+    const showAll = ref(false)
+    const detail = computed(() => syncDetail(props.sync.summary))
+    const shownItems = computed(() => (showAll.value ? detail.value.items : detail.value.items.slice(0, SYNC_DETAIL_ITEMS_SHOWN)))
+    const hiddenItemCount = computed(() => detail.value.items.length - shownItems.value.length)
+    const itemMeta = (item) => [
+      item.kind,
+      item.channel,
+      item.airedAt ? `${fmtRelativeDay(item.airedAt)} ${fmtClockTz(item.airedAt)}` : '',
+      item.durationMins ? formatMinutes(item.durationMins) : '',
+      item.size ? fmtBytes(item.size) : '',
+      item.ads,
+      item.took ? `took ${item.took}` : '',
+      item.removedFromTvh ? 'removed from TVHeadend' : '',
+    ].filter(Boolean).join(' · ')
+    return { detail, shownItems, hiddenItemCount, showAll, itemMeta }
+  },
+}
+
+const SYNC_DETAIL_ITEMS_SHOWN = 20
+const LINKED_SYNC_HIGHLIGHT_MS = 1600
+
 const SyncsView = {
   template: `
     <div class="view-reveal space-y-6">
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title" title="Freetvarr keeps the latest 500 syncs and deletes older ones.">SYNCS · <template v-if="filter !== 'all'">{{ filterLabel }} · </template>{{ rangeLabel }} of {{ total }}</span>
+            <span class="panel-title" title="Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.">SYNCS<template v-if="loaded"> · {{ rangeLabel }} of {{ total }}</template></span>
             <info-button title="SYNCS" doc="guide/syncs">
               <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
               <p>Syncs run on the schedule in <strong>SETTINGS</strong>, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
-              <p>Filter the list by activity. The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs.</p>
+              <p><strong>SHOW</strong> picks which syncs to list: those that imported, failed, or removed something, and empty ones that found nothing new. Empty syncs are hidden at first. <strong>FROM</strong> picks syncs started on the schedule or by hand.</p>
+              <p>Press a sync to see each recording it imported, failed, or removed, and how long each step took.</p>
+              <p>The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.</p>
             </info-button>
           </span>
           <div class="flex items-center gap-3">
@@ -2901,56 +3153,78 @@ const SyncsView = {
             <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total"><cross-icon /> CLEAR HISTORY</button>
           </div>
 
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">ACTIVITY</span>
-            <div class="chip-row md:flex-wrap">
-              <button v-for="opt in filterOptions" :key="opt.key"
-                type="button"
-                :class="['btn', 'btn-sm', filter === opt.key ? 'btn-on' : '']"
-                @click="setFilter(opt.key)">{{ opt.label }}</button>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div class="flex items-center gap-2 min-w-0" role="group" aria-label="Show">
+              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SHOW</span>
+              <div class="chip-row md:flex-wrap">
+                <button v-for="opt in OUTCOME_OPTIONS" :key="opt.key" type="button"
+                  :class="['btn', 'btn-sm', outcomes.includes(opt.key) ? 'btn-on' : '']"
+                  :aria-pressed="String(outcomes.includes(opt.key))"
+                  @click="toggleOutcome(opt.key)">{{ opt.label }}</button>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 min-w-0" role="group" aria-label="Started by">
+              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">FROM</span>
+              <div class="chip-row">
+                <button v-for="opt in TRIGGER_OPTIONS" :key="opt.key" type="button"
+                  :class="['btn', 'btn-sm', trigger === opt.key ? 'btn-on' : '']"
+                  :aria-pressed="String(trigger === opt.key)"
+                  @click="setTrigger(opt.key)">{{ opt.label }}</button>
+              </div>
             </div>
           </div>
 
-          <table v-if="syncs.length" class="deck-table hidden md:table">
+          <list-skeleton v-if="!loaded" :rows="8" />
+          <table v-else-if="syncs.length" class="deck-table sync-table hidden md:table">
             <thead><tr>
-              <th>Started</th><th>Finished</th><th>Status</th><th>Summary</th><th></th>
+              <th>When</th><th>Took</th><th>Status</th><th>Summary</th><th></th>
             </tr></thead>
             <tbody>
-              <tr v-for="s in syncs" :key="s.id" :class="{ active: s.id === syncStatus.activeSyncId }">
-                <td class="font-mono">{{ fmtTime(s.started_at) }}</td>
-                <td class="font-mono">{{ fmtTime(s.finished_at) }}</td>
-                <td><span :class="['pill', s.status]">{{ s.status }}</span></td>
-                <td><summary-line :summary="s.summary"/></td>
-                <td>
-                  <button type="button" class="btn btn-sm btn-icon btn-danger"
-                    :disabled="s.id === syncStatus.activeSyncId"
-                    @click="askRemoveSync(s)"
-                    title="Delete this sync from history.">
-                    <trash-icon />
-                  </button>
-                </td>
-              </tr>
+              <template v-for="s in syncs" :key="s.id">
+                <tr :class="['sync-row', { active: s.id === syncStatus.activeSyncId, open: isOpen(s), linked: highlightId === s.id }]" :data-sync-id="s.id"
+                  tabindex="0" :aria-expanded="String(isOpen(s))" :aria-label="'Sync #' + s.id + ': show details'"
+                  @click="toggleOpen(s)" @keydown.enter.prevent="toggleOpen(s)" @keydown.space.prevent="toggleOpen(s)">
+                  <td class="font-mono whitespace-nowrap">{{ whenOf(s) }}</td>
+                  <td class="font-mono whitespace-nowrap text-ink-dim">{{ tookOf(s) }}</td>
+                  <td><span :class="['pill', s.status]">{{ s.status }}</span></td>
+                  <td><summary-line :summary="s.summary"/></td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-icon btn-danger"
+                      :disabled="s.id === syncStatus.activeSyncId"
+                      @click.stop="askRemoveSync(s)" @keydown.stop
+                      title="Delete this sync from history." :aria-label="'Delete sync #' + s.id">
+                      <trash-icon />
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="isOpen(s)" class="sync-detail-row">
+                  <td colspan="5"><sync-detail :sync="s" /></td>
+                </tr>
+              </template>
             </tbody>
           </table>
-          <div v-if="syncs.length" class="md:hidden space-y-3">
+          <div v-if="loaded && syncs.length" class="md:hidden space-y-3">
             <article v-for="s in syncs" :key="s.id"
-              :class="['deck-card', 'space-y-2', { active: s.id === syncStatus.activeSyncId }]">
+              :class="['deck-card', 'sync-card', 'space-y-2', { active: s.id === syncStatus.activeSyncId, open: isOpen(s), linked: highlightId === s.id }]" :data-sync-id="s.id"
+              tabindex="0" :aria-expanded="String(isOpen(s))" :aria-label="'Sync #' + s.id + ': show details'"
+              @click="toggleOpen(s)" @keydown.enter.self.prevent="toggleOpen(s)" @keydown.space.self.prevent="toggleOpen(s)">
               <div class="flex items-start justify-between gap-3">
                 <span :class="['pill', s.status]">{{ s.status }}</span>
                 <button type="button" class="btn btn-sm btn-icon btn-danger"
                   :disabled="s.id === syncStatus.activeSyncId"
-                  @click="askRemoveSync(s)">
+                  @click.stop="askRemoveSync(s)" :aria-label="'Delete sync #' + s.id">
                   <trash-icon />
                 </button>
               </div>
-              <p class="deck-card-meta">
-                {{ fmtTime(s.started_at) }}<template v-if="s.finished_at"> to {{ fmtTime(s.finished_at) }}</template>
-              </p>
+              <p class="deck-card-meta">{{ whenOf(s) }}<template v-if="tookOf(s)"> · took {{ tookOf(s) }}</template></p>
               <summary-line :summary="s.summary"/>
+              <sync-detail v-if="isOpen(s)" :sync="s" @click.stop />
             </article>
           </div>
-          <p v-else-if="total === 0" class="text-ink-dim text-sm">
-            {{ filter === 'all' ? 'No syncs yet.' : 'No syncs match the current filter.' }}
+          <p v-else-if="loaded && total === 0" class="text-ink-dim text-sm">{{ emptyText }}</p>
+          <p v-if="loaded && hiddenEmptyCount" class="text-xs text-ink-dim">
+            {{ hiddenEmptyCount }} empty sync{{ hiddenEmptyCount === 1 ? '' : 's' }} hidden.
+            <button type="button" class="btn-link" @click="toggleOutcome('empty')">Show {{ hiddenEmptyCount === 1 ? 'it' : 'them' }}</button>
           </p>
           <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
             <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
@@ -2969,22 +3243,83 @@ const SyncsView = {
     const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
     const syncs = ref([])
     const starting = ref(false)
-    const filter = ref('all')
+    const outcomes = ref(loadSyncFilter().outcomes)
+    const trigger = ref(loadSyncFilter().trigger)
     const total = ref(0)
+    const emptyCount = ref(0)
+    const loaded = ref(false)
     const page = ref(1)
     const pageSize = ref(50)
+    const openIds = ref(new Set())
     const scheduleFrequency = computed(() => describeSyncFrequency(syncStatus.value.cron))
-    const filterOptions = [
-      { key: 'all',       label: 'ALL' },
-      { key: 'manual',    label: 'MANUAL' },
-      { key: 'cron',      label: 'CRON' },
-      { key: 'imports',   label: 'IMPORTS' },
-      { key: 'fails',     label: 'FAILS' },
-      { key: 'deletes',   label: 'REMOVALS' },
-      { key: 'empty',     label: 'EMPTY' },
-    ]
 
-    const filterLabel = computed(() => filterOptions.find((opt) => opt.key === filter.value)?.label ?? '')
+    const hiddenEmptyCount = computed(() => (outcomes.value.includes('empty') ? 0 : emptyCount.value))
+
+    const emptyText = computed(() => {
+      const isEverything = outcomes.value.length === OUTCOME_OPTIONS.length && trigger.value === 'any'
+      return isEverything ? 'No syncs yet.' : 'No syncs match the current filter.'
+    })
+
+    const toggleOutcome = (key) => {
+      const picked = outcomes.value.includes(key)
+        ? outcomes.value.filter((o) => o !== key)
+        : [...outcomes.value, key]
+      if (!picked.length) return
+      outcomes.value = OUTCOME_OPTIONS.map((o) => o.key).filter((o) => picked.includes(o))
+      page.value = 1
+      saveSyncFilter({ outcomes: outcomes.value, trigger: trigger.value })
+    }
+
+    const setTrigger = (key) => {
+      trigger.value = key
+      page.value = 1
+      saveSyncFilter({ outcomes: outcomes.value, trigger: trigger.value })
+    }
+
+    const isOpen = (s) => openIds.value.has(s.id)
+
+    const toggleOpen = (s) => {
+      const next = new Set(openIds.value)
+      if (next.has(s.id)) next.delete(s.id)
+      else next.add(s.id)
+      openIds.value = next
+      if (!next.has(s.id) && s.id === linkedSyncId.value) clearLinkedSync()
+    }
+
+    const whenOf = syncWhenText
+    const tookOf = syncTookText
+    const linkedSyncId = computed(() => Number(routeSection.value) || null)
+    const highlightId = ref(null)
+
+    const clearLinkedSync = () => {
+      if (!linkedSyncId.value) return
+      history.replaceState(null, '', '#/syncs')
+      routeSection.value = ''
+    }
+
+    const visibleElementFor = (id) => [...document.querySelectorAll(`[data-sync-id="${id}"]`)]
+      .find((el) => el.offsetParent !== null)
+
+    const focusLinkedSync = async () => {
+      const id = linkedSyncId.value
+      if (!id) return
+      if (!syncs.value.some((s) => s.id === id)) {
+        outcomes.value = DEFAULT_SYNC_FILTER.outcomes
+        trigger.value = DEFAULT_SYNC_FILTER.trigger
+        page.value = 1
+        await refresh()
+      }
+      if (!syncs.value.some((s) => s.id === id)) {
+        flash({ msg: `Sync #${id} is no longer in the history.`, kind: 'info', ms: 5000 })
+        clearLinkedSync()
+        return
+      }
+      openIds.value = new Set([...openIds.value, id])
+      highlightId.value = id
+      await nextTick()
+      visibleElementFor(id)?.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+      setTimeout(() => { highlightId.value = null }, LINKED_SYNC_HIGHLIGHT_MS)
+    }
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
@@ -3000,26 +3335,23 @@ const SyncsView = {
         page: String(page.value),
         pageSize: String(pageSize.value),
       })
-      if (filter.value !== 'all') params.set('filter', filter.value)
+      params.set('show', outcomes.value.join(','))
+      if (trigger.value !== 'any') params.set('trigger', trigger.value)
       const r = await api('GET', `/api/syncs?${params}`)
       syncs.value = r.syncs
       total.value = r.total
+      emptyCount.value = r.emptyCount || 0
+      loaded.value = true
       if (page.value > 1 && r.syncs.length === 0) page.value = 1
     }
 
     const manualRefresh = async () => {
       try {
         await refresh()
-        const label = filter.value === 'all' ? 'sync' : `${filterLabel.value.toLowerCase()} sync`
-        flash({ msg: `Refreshed ${total.value} ${label}${total.value === 1 ? '' : 's'}.` })
+        flash({ msg: `Refreshed ${total.value} sync${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
         flash({ msg: `Refresh failed: ${err.message}`, kind: 'err', ms: 6000 })
       }
-    }
-
-    const setFilter = (v) => {
-      filter.value = v
-      page.value = 1
     }
 
     const syncNow = async () => {
@@ -3072,20 +3404,22 @@ const SyncsView = {
 
     let pollTimer = null
     onMounted(() => {
-      refresh()
+      refresh().then(focusLinkedSync)
       pollTimer = setInterval(refresh, SYNCS_POLL_MS)
     })
+    watch(linkedSyncId, (id) => { if (id) focusLinkedSync() })
     onUnmounted(() => {
       if (pollTimer) clearInterval(pollTimer)
     })
-    watch([page, filter], refresh)
+    watch([page, outcomes, trigger], refresh)
     const stopWatch = watch(() => syncStatus.value.activeSyncId, refresh)
     onUnmounted(stopWatch)
 
     return {
       syncs, syncStatus, scheduleFrequency, starting,
-      filter, filterOptions, filterLabel, setFilter,
-      total, page, pageSize, totalPages, rangeLabel,
+      outcomes, trigger, toggleOutcome, setTrigger, OUTCOME_OPTIONS, TRIGGER_OPTIONS,
+      emptyText, hiddenEmptyCount, isOpen, toggleOpen, whenOf, tookOf, highlightId,
+      total, loaded, page, pageSize, totalPages, rangeLabel,
       syncNow, refresh, manualRefresh, askRemoveSync, askClearAll,
       confirming, confirmBusy, closeConfirm, runConfirmed,
       fmtTime,
@@ -3100,7 +3434,7 @@ const RecordingsView = {
       <section class="panel">
         <header class="panel-header">
           <span class="panel-heading">
-            <span class="panel-title">RECORDINGS · {{ rangeLabel }} of {{ total }}</span>
+            <span class="panel-title">RECORDINGS<template v-if="loaded"> · {{ rangeLabel }} of {{ total }}</template></span>
             <info-button title="RECORDINGS" doc="guide/recordings">
               <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>IMPORTED</strong>, <strong>PARTIAL</strong>, <strong>SKIPPED</strong>, <strong>FAILED</strong>, or <strong>NOT IMPORTED</strong>. The next sync tries a <strong>PARTIAL</strong> import again.</p>
               <p><strong>REPLACED</strong> means another app, such as Sonarr, put a different file for the episode in place of Freetvarr's. <strong>NOT IN LIBRARY</strong> means the file is gone; press <strong>IMPORT AGAIN</strong> to import the TVHeadend copy again.</p>
@@ -3162,7 +3496,8 @@ const RecordingsView = {
               </div>
             </template>
           </div>
-          <table v-if="recordings.length" class="deck-table recordings-table hidden lg:table">
+          <list-skeleton v-if="!loaded" :rows="8" />
+          <table v-else-if="recordings.length" class="deck-table recordings-table hidden lg:table">
             <thead><tr>
               <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
               <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
@@ -3193,12 +3528,12 @@ const RecordingsView = {
                 <td class="font-mono">{{ showLabel(r) }}</td>
                 <td class="font-mono">{{ se(r) }}</td>
                 <td class="font-mono whitespace-nowrap">{{ fmtBytes(r.size) }}</td>
-                <td>
+                <td class="recording-status-cell">
                   <span class="pill-group stacked">
                     <span :class="['pill', libraryStatusOf(r)]" :title="libraryStateTitle(r) || null">{{ statusLabel(libraryStatusOf(r)) }}</span>
                     <span v-if="r.deleted_from_tvh_at" class="pill not-in-tvh-chip" :title="notInTvhTitle(r)">NOT IN TVHEADEND</span>
                   </span>
-                  <span v-if="r.error" class="block text-xs font-mono text-signal-orange-hi mt-1">{{ r.error }}</span>
+                  <error-details v-if="r.error" class="recording-status-error" :error="r.error" />
                   <progress-block v-if="progressPhase(r) === 'importing'"
                     :progress="r.progress" :caption="progressCaption(r)" :bar="true"/>
                 </td>
@@ -3243,7 +3578,7 @@ const RecordingsView = {
               </tr>
             </tbody>
           </table>
-          <div v-if="recordings.length" class="lg:hidden space-y-3">
+          <div v-if="loaded && recordings.length" class="lg:hidden space-y-3">
             <article v-for="r in recordings" :key="r.recording_id"
               :class="['deck-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at }]">
               <div class="flex items-start justify-between gap-3">
@@ -3264,7 +3599,7 @@ const RecordingsView = {
               <p class="deck-card-meta">
                 {{ showLabel(r) }}<template v-if="se(r)"> · {{ se(r) }}</template><template v-if="fmtBytes(r.size)"> · {{ fmtBytes(r.size) }}</template><template v-if="r.imported_at"> · imported {{ fmtTime(r.imported_at) }}</template>
               </p>
-              <p v-if="r.error" class="text-xs font-mono text-signal-orange-hi">{{ r.error }}</p>
+              <error-details v-if="r.error" :error="r.error" />
               <div v-if="r.deleted_from_tvh_at || r.ad_status" class="pill-group">
                 <span v-if="r.deleted_from_tvh_at" class="pill not-in-tvh-chip" :title="notInTvhTitle(r)">NOT IN TVHEADEND</span>
                 <span v-if="r.ad_status" :class="['pill', r.ad_status]" :title="adTooltip(r)">{{ adLabel(r.ad_status) }}</span>
@@ -3304,8 +3639,8 @@ const RecordingsView = {
               </div>
             </article>
           </div>
-          <p v-else-if="total === 0 && hasFiltersApplied" class="text-ink-dim text-sm pt-3">No recordings match the current filters.</p>
-          <p v-else-if="total === 0" class="text-ink-dim text-sm pt-3">
+          <p v-else-if="loaded && total === 0 && hasFiltersApplied" class="text-ink-dim text-sm pt-3">No recordings match the current filters.</p>
+          <p v-else-if="loaded && total === 0" class="text-ink-dim text-sm pt-3">
             No recordings yet. To make a recording, open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD</strong> or <strong>SERIES</strong>. Recordings show here once TVHeadend starts them.
           </p>
           <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
@@ -3334,6 +3669,7 @@ const RecordingsView = {
     const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
     const adScanningId = ref(null)
     const total = ref(0)
+    const loaded = ref(false)
     const page = ref(1)
     const pageSize = ref(50)
     const sortCol = ref(null)
@@ -3400,6 +3736,7 @@ const RecordingsView = {
       const r = await api('GET', `/api/recordings?${params}`)
       recordings.value = r.recordings
       total.value = r.total
+      loaded.value = true
       clearable.value = r.clearable ?? 0
       if (page.value > 1 && r.recordings.length === 0) page.value = 1
     }
@@ -3678,7 +4015,7 @@ const RecordingsView = {
     onUnmounted(stopSyncWatch)
 
     return {
-      recordings, shows, total, page, pageSize, totalPages, rangeLabel,
+      recordings, shows, total, loaded, page, pageSize, totalPages, rangeLabel,
       sortCol, sortDir, statusFilter, showFilter, sinceFilter, deletedFilter,
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
       deletingId, removingId, importingId, clearing, adRemovalEnabled, adScanningId,
@@ -7146,6 +7483,47 @@ const InfoButton = {
   },
 }
 
+const ErrorDetails = {
+  props: { error: { type: String, required: true } },
+  template: `
+    <span class="error-details">
+      <span class="error-details-text" :title="error">{{ error }}</span>
+      <button ref="trigger" type="button" class="btn-link error-details-btn" :aria-expanded="open" @click.stop="show">DETAILS</button>
+      <teleport to="body">
+        <transition name="epg-sheet">
+          <div v-if="open" class="epg-modal-backdrop" @click.self="close">
+            <section ref="dialog" class="panel epg-modal info-modal" role="dialog" aria-modal="true"
+              :aria-labelledby="headingId" tabindex="-1">
+              <header class="panel-header">
+                <span :id="headingId" class="panel-title">{{ diagnosis.title }}</span>
+                <button type="button" class="btn btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
+              </header>
+              <div class="panel-body info-modal-body">
+                <p>{{ diagnosis.meaning }}</p>
+                <pre class="error-details-full">{{ diagnosis.error }}</pre>
+                <p class="deck-card-label">What to try</p>
+                <ul class="error-details-steps">
+                  <li v-for="(step, i) in diagnosis.steps" :key="i">{{ step }}</li>
+                </ul>
+                <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
+                  <a href="#/doctor" class="btn no-hover-underline" @click="close">OPEN DOCTOR</a>
+                  <a :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn no-hover-underline">READ THE DOCS <external-link-icon /></a>
+                </div>
+              </div>
+            </section>
+          </div>
+        </transition>
+      </teleport>
+    </span>
+  `,
+  setup(props) {
+    const headingId = `error-dialog-${++infoDialogCount}`
+    const diagnosis = computed(() => diagnoseRecordingError(props.error))
+    const docUrl = computed(() => `${DOCS_BASE}${diagnosis.value.doc}`)
+    return { ...useSheet(), headingId, diagnosis, docUrl }
+  },
+}
+
 const ConfirmDialog = {
   props: {
     open: Boolean,
@@ -7752,7 +8130,7 @@ const EpgView = {
               </p>
               <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
             </div>
-            <div v-else-if="loading && !guide" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> loading guide…</div>
+            <list-skeleton v-else-if="loading && !guide" :rows="10" row-height="3.25rem" guide />
             <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
               <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
               <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
@@ -7849,7 +8227,7 @@ const EpgView = {
 
           <template v-else-if="mode === 'upcoming'">
             <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
-            <div v-else-if="!state" class="text-ink-dim font-mono text-sm"><signal-bars-icon /> contacting TVHeadend…</div>
+            <list-skeleton v-else-if="!state" :rows="6" />
             <template v-else>
               <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is not answering. This is its last known state.</p>
               <p v-if="upcoming.length === 0" class="text-ink-dim text-sm">Nothing scheduled in TVHeadend.</p>
@@ -8243,9 +8621,8 @@ const EpgView = {
     const lastDayLabel = computed(() => formatDate(noonOf(guide.value?.dayStart ?? 0).getTime(), tz.value))
 
     const dayTitle = computed(() => {
-      if (!guide.value) return dayChips.value[day.value]?.label || ''
-      const weekday = narrow.value ? 'short' : 'long'
-      return formatDate(guide.value.dayStart + 12 * 3_600_000, tz.value, { weekday })
+      const middayOfDayNumber = (todayNumber.value + day.value) * 86_400_000 + 43_200_000
+      return formatDate(middayOfDayNumber, 'UTC', { weekday: narrow.value ? 'short' : 'long' })
     })
 
     const scheduledByProgramId = computed(() => {
@@ -11606,7 +11983,7 @@ const App = {
                 <rect x="11.5" y="0" width="4" height="3" fill="#e2b03c"/>
               </svg>
               <span class="font-mono font-semibold text-lg tracking-[0.1em] text-ink">Freetvarr</span>
-              <span class="hidden sm:inline text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]">Self-hosted free-to-air TV</span>
+              <span class="hidden sm:inline ml-[10px] text-xs font-mono uppercase tracking-[0.2em] text-ink-mute translate-y-[2px]">Self-hosted free-to-air TV</span>
             </a>
             <div class="flex items-center gap-5">
               <a v-if="recordingCount" href="#/dashboard" class="no-hover-underline flex items-center gap-2" :title="recordingCount + ' recording now in TVHeadend'">
@@ -11861,6 +12238,8 @@ installPullToRefresh({ onRefresh: refreshFromPull })
 const app = createApp(App)
 app.directive('no-autofill', noAutofill)
 app.component('summary-line', SummaryLine)
+app.component('sync-detail', SyncDetail)
+app.component('error-details', ErrorDetails)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('channel-logo', ChannelLogo)
@@ -11877,6 +12256,7 @@ app.component('star-icon', StarIcon)
 app.component('step-mark-icon', StepMarkIcon)
 app.component('sort-arrow', SortArrow)
 app.component('signal-bars-icon', SignalBarsIcon)
+app.component('list-skeleton', ListSkeleton)
 app.component('recording-card', RecordingCard)
 app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)

@@ -22,11 +22,13 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 
 - **IMPORTED**: the file on disk matches the size TVHeadend reported.
 - **PARTIAL**: the imported file came up more than `1MB` short. The next sync imports it again.
-- **SKIPPED**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The row's error text says which.
+- **SKIPPED**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The row's error says which.
 - **FAILED**: the import hit an error.
 - **NOT IMPORTED**: Freetvarr left the recording in TVHeadend. You recorded it with **ADD TO LIBRARY** off, or it matches no series folder and **IMPORT EVERY RECORDING** is off in **SETTINGS**. Press **IMPORT** to add it to the library at once.
 - **REPLACED**: Freetvarr imported the recording, but its library file is gone, and the folder has another file for the same episode. Another app, such as Sonarr, replaced it. See [Replaced recordings](/guide/troubleshooting#replaced-recordings).
 - **NOT IN LIBRARY**: Freetvarr imported the recording, but its library file is gone and no other copy of the episode is in the folder. Press **IMPORT AGAIN** to import the TVHeadend copy again, while TVHeadend still has it.
+
+An error shows under the status, cut to two lines. Press **DETAILS** under it to open the full error, what it means, and steps to fix it. The dialog also has **OPEN DOCTOR** and **READ THE DOCS**, which opens the matching section of [Troubleshooting](/guide/troubleshooting).
 
 With ad removal on, an ad status also appears: **SCANNING**, **DETECTED**, **NO BREAKS**, **CUT**, **DETECT FAILED**, or **CUT FAILED**. See [Ad removal](/guide/ad-removal).
 

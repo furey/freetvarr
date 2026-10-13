@@ -390,6 +390,14 @@ export const getRecordingState = async ({ fresh = false } = {}) => {
     if (stateCache) return { ...stateCache.value, stale: true }
     throw stateLastError
   }
+  if (!fresh && stateCache) {
+    reloadRecordingState(now).catch(() => {})
+    return stateCache.value
+  }
+  return reloadRecordingState(now)
+}
+
+const reloadRecordingState = (now) => {
   if (stateInflight) return stateInflight
   stateInflight = loadRecordingState(now)
     .catch((err) => {
@@ -624,6 +632,21 @@ export const listGuideChannels = async () => (await getCachedGuide()).channels
 
 export const getGuideSnapshot = () => getCachedGuide()
 
+export const keepGuideWarm = () => {
+  const warm = () => getCachedGuide()
+    .then(() => getRecordingState())
+    .catch((err) => console.warn(`[epg] guide warm-up: ${err.message}`))
+  const warmAfterMidnight = () => {
+    const nextMidnightMs = guideDayWindow({ startMs: localMidnightMs() }).dayEnd
+    setTimeout(() => {
+      warm()
+      warmAfterMidnight()
+    }, nextMidnightMs - Date.now() + MIDNIGHT_WARM_DELAY_MS).unref()
+  }
+  warm()
+  warmAfterMidnight()
+}
+
 export const localMidnightMs = (now = new Date()) => {
   const midnight = new Date(now)
   midnight.setHours(0, 0, 0, 0)
@@ -663,7 +686,7 @@ const loadGuide = async (startMs) => {
     if (rows) rows.push(e)
     programByEventId.set(String(e.program_id), e)
   }
-  await saveGuidePrograms({ programs: events }).catch(logHistoryError('save'))
+  saveGuidePrograms({ programs: events }).catch(logHistoryError('save'))
   return {
     startMs,
     channels,
@@ -714,6 +737,7 @@ const PENDING_IMAGE = { image: null, pending: true }
 const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000
+const MIDNIGHT_WARM_DELAY_MS = 5 * 1000
 const GUIDE_STALE_RETRY_MS = 60 * 1000
 const GUIDE_EMPTY_TTL_MS = 60 * 1000
 const STATE_TTL_MS = 45 * 1000

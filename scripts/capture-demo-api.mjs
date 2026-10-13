@@ -38,7 +38,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/epg/state**', rewriteJson(sanitiseState({ simNow, recording: picks.recording })))
   await context.route('**/api/settings', rewriteJson(maskSettings))
   await context.route('**/api/sync-status', (route) => fulfillJson(route, fixtures.syncStatus))
-  await context.route('**/api/syncs**', (route) => fulfillJson(route, { syncs: fixtures.syncs, total: fixtures.syncs.length }))
+  await context.route('**/api/syncs**', (route) => fulfillJson(route, syncsPage({ syncs: fixtures.syncs, url: route.request().url() })))
   await context.route('**/api/shows', (route) => fulfillJson(route, { shows: fixtures.shows }))
   await context.route('**/api/series', (route) => fulfillJson(route, fixtures.series))
   await context.route('**/api/recordings**', (route) => fulfillJson(route, fixtures.recordingsPage))
@@ -625,6 +625,9 @@ const demoFixtures = ({ simNow, recording, library }) => {
   })
   const recordings = serverOrder(library.rows.map((row, i) => libraryRecording({ row, index: i, shows, simNow })))
   const partialLabel = recordingLabel(recordings.find((r) => r.status === 'importing') ?? recordings[0])
+  const imported = recordings.filter((r) => r.status === 'done')
+  const failedRecording = recordings.find((r) => r.status === 'importing') ?? recordings[0]
+  const shortCopy = 'short copy: on-disk 1200000000 bytes vs TVHeadend 2100000000 bytes (Δ 900000000)'
   return {
     recordingImages: new Map(library.rows.map((row) => [`demo-${row.program.program_id}`, row.program.program_id])),
     syncStatus: {
@@ -633,11 +636,34 @@ const demoFixtures = ({ simNow, recording, library }) => {
       nextRunAt: new Date(simNow + (SYNC_INTERVAL_MIN - LAST_SYNC_AGO_MIN) * MINUTE_MS).toISOString(),
     },
     syncs: [
-      demoSync({ id: 412, slot: 0, summary: { trigger: 'cron', imported: 2, skipped: 0, failed: 0, errors: [], plex: { triggered: true, status: 200 }, ads: { scanned: 2, detected: 1, cut: 1, failed: 0, adSeconds: 278 } } }),
-      demoSync({ id: 411, slot: 1, summary: { trigger: 'cron', imported: 0, skipped: 0, failed: 0, errors: [] } }),
-      demoSync({ id: 410, slot: 2, status: 'partial', summary: { trigger: 'manual', imported: 1, skipped: 0, failed: 1, errors: [`${partialLabel}: downloaded 1.20 GB of 2.10 GB; next sync resumes`], plex: { triggered: true, status: 200 } } }),
-      demoSync({ id: 409, slot: 3, summary: { trigger: 'cron', imported: 0, skipped: 0, failed: 0, errors: [] } }),
-      demoSync({ id: 408, slot: 4, summary: { trigger: 'cron', imported: 1, skipped: 0, failed: 0, errors: [], plex: { triggered: true, status: 200 }, delete: { triggered: true, removed: ['3f9c2a1b'] } } }),
+      demoSync({ id: 412, slot: 0, summary: {
+        trigger: 'cron', imported: 2, skipped: 14, failed: 0, errors: [],
+        plex: { triggered: true, status: 200 },
+        ads: { scanned: 2, detected: 1, cut: 1, failed: 0, adSeconds: 278 },
+        items: [
+          syncItem({ recording: imported[0], outcome: 'imported', ms: 1800, ads: { status: 'cut', adSeconds: 278 } }),
+          syncItem({ recording: imported[1], outcome: 'imported', ms: 900, ads: { status: 'detected', adSeconds: 0 } }),
+        ].filter(Boolean),
+        steps: { list: 640, imports: 2700, plexTv: 380, libraryCheck: 90 },
+      } }),
+      demoSync({ id: 411, slot: 1, summary: { trigger: 'cron', imported: 0, skipped: 14, failed: 0, errors: [], items: [], steps: { list: 610, imports: 40, libraryCheck: 80 } } }),
+      demoSync({ id: 410, slot: 2, status: 'partial', summary: {
+        trigger: 'manual', imported: 1, skipped: 13, failed: 1, errors: [`${partialLabel}: ${shortCopy}`],
+        plex: { triggered: true, status: 200 },
+        items: [
+          syncItem({ recording: imported[2], outcome: 'imported', ms: 1100 }),
+          syncItem({ recording: failedRecording, outcome: 'failed', ms: 64000, error: shortCopy }),
+        ].filter(Boolean),
+        steps: { list: 700, imports: 65200, plexTv: 410, libraryCheck: 95 },
+      } }),
+      demoSync({ id: 409, slot: 3, summary: { trigger: 'cron', imported: 0, skipped: 13, failed: 0, errors: [], items: [], steps: { list: 590, imports: 35, libraryCheck: 70 } } }),
+      demoSync({ id: 408, slot: 4, summary: {
+        trigger: 'cron', imported: 1, skipped: 12, failed: 0, errors: [],
+        plex: { triggered: true, status: 200 },
+        delete: { triggered: true, removed: [imported[3]?.recording_id ?? 'demo'] },
+        items: [syncItem({ recording: imported[3], outcome: 'imported', ms: 1300, removedFromTvh: true })].filter(Boolean),
+        steps: { list: 620, imports: 1300, plexTv: 390, removals: 820, libraryCheck: 85 },
+      } }),
     ],
     shows,
     series: demoSeries({ shows, library, simNow }),
@@ -648,6 +674,45 @@ const demoFixtures = ({ simNow, recording, library }) => {
       fetchedAt: simNow,
     },
     doctor: doctorReport(simNow),
+  }
+}
+
+const syncItem = ({ recording, outcome, ms, error = null, ads = null, removedFromTvh = false }) => recording && ({
+  id: recording.recording_id,
+  title: recording.title,
+  episodeTitle: recording.episode_title,
+  season: recording.season,
+  episode: recording.episode,
+  channel: recording.channel_name,
+  airedAt: recording.aired_at,
+  durationS: recording.duration_s,
+  kind: recording.show_id ? 'tv' : 'oneOff',
+  outcome,
+  size: outcome === 'failed' ? 1200000000 : recording.size,
+  error,
+  ads,
+  ms,
+  removedFromTvh,
+})
+
+const SYNC_OUTCOME_TESTS = {
+  imports: (s) => s.summary.imported > 0,
+  fails: (s) => s.status !== 'ok',
+  removals: (s) => Boolean(s.summary.delete?.triggered),
+  empty: (s) => s.status === 'ok' && !s.summary.imported && !s.summary.failed && !s.summary.delete?.triggered,
+}
+
+const syncsPage = ({ syncs, url }) => {
+  const params = new URL(url).searchParams
+  const outcomes = (params.get('show') || '').split(',').filter((o) => SYNC_OUTCOME_TESTS[o])
+  const pageSize = Number(params.get('pageSize')) || 50
+  const matches = outcomes.length
+    ? syncs.filter((s) => outcomes.some((o) => SYNC_OUTCOME_TESTS[o](s)))
+    : syncs
+  return {
+    syncs: matches.slice(0, pageSize).map(({ summary_json, ...s }) => s),
+    total: matches.length,
+    emptyCount: syncs.filter(SYNC_OUTCOME_TESTS.empty).length,
   }
 }
 

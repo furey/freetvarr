@@ -12,7 +12,7 @@ const NATIVE_CONTROLS_FADE_MS = 3500
 const DESKTOP_SHOTS = [
   { hash: '#/dashboard',  file: 'screenshot-dashboard.png',  wait: '.panel-title' },
   { hash: '#/series',     file: 'screenshot-series.png',     wait: '.panel-title' },
-  { hash: '#/syncs',      file: 'screenshot-syncs.png',      wait: '.panel-title' },
+  { hash: '#/syncs/412',  file: 'screenshot-syncs.png',      wait: '.sync-detail' },
   { hash: '#/recordings', file: 'screenshot-recordings.png', wait: '.panel-title' },
   { hash: '#/settings',   file: 'screenshot-settings.png',   wait: '.panel-title' },
   { hash: '#/guide',      file: 'screenshot-guide.png',      wait: '.epg-cell' },

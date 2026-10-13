@@ -15,6 +15,7 @@ import { processRecordingAds, pruneCutOriginals, shouldQueueAutoDelete } from '.
 import { makeImportProgress } from './progress.js'
 import { sweepLibraryStates } from './library-files.js'
 import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from './artwork.js'
+import { pruneSyncHistory } from './sync-history.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
@@ -225,7 +226,8 @@ const tvheadendUrlMissing = () =>
   resolveConnection().then(() => null, (err) => (err.code === 'no-url' ? err : Promise.reject(err)))
 
 const doSync = async ({ syncId, trigger, showId = null }) => {
-  const summary = { trigger, imported: 0, skipped: 0, failed: 0, errors: [] }
+  const summary = { trigger, imported: 0, skipped: 0, failed: 0, errors: [], items: [], steps: {} }
+  const timeStep = startStepTimer(summary.steps)
   if (showId != null) summary.showId = showId
   const deletables = []
   const imported = { tv: 0, oneOff: 0, film: 0 }
@@ -247,7 +249,7 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
       return
     }
     conn = await resolveConnection()
-    finished = await listFinished(conn)
+    finished = await timeStep('list', () => listFinished(conn))
     await captureUpcomingArtwork(conn).catch((err) => console.warn(`[sync] artwork capture: ${err.message}`))
   } catch (err) {
     summary.errors.push(err.message)
@@ -255,6 +257,7 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
     return
   }
 
+  const importsStartedAt = Date.now()
   for (const entry of finished) {
     const show = matchShow(shows, entry.name)
     if (showId != null && show?.id !== showId) continue
@@ -267,8 +270,12 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
         continue
       }
       const kind = libraryKind({ show, item, moviesRoot: roots.moviesRoot })
-      const { summaryKey, adResult } = await processItem({ item, show, kind, roots })
+      const itemStartedAt = Date.now()
+      const { summaryKey, adResult, size, error } = await processItem({ item, show, kind, roots })
       summary[summaryKey]++
+      if (summaryKey !== 'skipped') {
+        noteItem({ summary, item, kind, outcome: summaryKey, size, error, adResult, ms: Date.now() - itemStartedAt })
+      }
       if (summaryKey === 'imported') imported[kind]++
       if (adResult) accumulateAdSummary(summary, adResult)
       if (
@@ -281,14 +288,20 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
     } catch (err) {
       summary.failed++
       summary.errors.push(`${item.title}: ${err.message}`)
+      noteItem({ summary, item, outcome: 'failed', error: err.message })
     }
   }
+  summary.steps.imports = Date.now() - importsStartedAt
 
-  if (imported.tv > 0) summary.plex = await notifyPlexSectionRefresh()
-  if (imported.oneOff > 0) summary.plexOneOffs = await refreshSection('plex_oneoff_section_id')
-  if (imported.film > 0) summary.plexMovies = await refreshSection('plex_movies_section_id')
-  if (deletables.length > 0) summary.delete = await runAutoDelete(deletables, summary.plex)
-  await sweepLibraryStates().catch((err) => console.warn(`[sync] library check: ${err.message}`))
+  if (imported.tv > 0) summary.plex = await timeStep('plexTv', () => notifyPlexSectionRefresh())
+  if (imported.oneOff > 0) summary.plexOneOffs = await timeStep('plexOneOffs', () => refreshSection('plex_oneoff_section_id'))
+  if (imported.film > 0) summary.plexMovies = await timeStep('plexMovies', () => refreshSection('plex_movies_section_id'))
+  if (deletables.length > 0) {
+    summary.delete = await timeStep('removals', () => runAutoDelete(deletables, summary.plex))
+    markRemovedItems({ items: summary.items, removedIds: summary.delete.removed })
+  }
+  await timeStep('libraryCheck', () => sweepLibraryStates())
+    .catch((err) => console.warn(`[sync] library check: ${err.message}`))
 
   const finalStatus = summary.failed > 0 ? 'partial' : 'ok'
   await finishSync(syncId, finalStatus, summary)
@@ -458,7 +471,44 @@ const processItem = async ({ item, show, kind, roots }) => {
       adResult = await processRecordingAds({ filePath, mode: show.ad_removal, recordingId: item.id })
     }
   }
-  return { summaryKey: outcome.summaryKey, adResult }
+  return { summaryKey: outcome.summaryKey, adResult, size: outcome.sizeToStore, error: outcome.error }
+}
+
+const noteItem = ({ summary, item, kind = null, outcome, size = null, error = null, adResult = null, ms = null }) => {
+  if (summary.items.length >= SYNC_ITEMS_CAP) {
+    summary.itemsOmitted = (summary.itemsOmitted || 0) + 1
+    return
+  }
+  summary.items.push({
+    id: item.id,
+    title: item.title,
+    episodeTitle: item.episode_title || null,
+    season: item.season ?? null,
+    episode: item.episode ?? null,
+    channel: item.channelName || null,
+    airedAt: item.start || null,
+    durationS: item.end > item.start ? Math.round((item.end - item.start) / 1000) : null,
+    kind,
+    outcome,
+    size,
+    error,
+    ads: adResult ? { status: adResult.status, adSeconds: adResult.adSeconds } : null,
+    ms,
+  })
+}
+
+const markRemovedItems = ({ items, removedIds = [] }) => {
+  const removed = new Set(removedIds.map(String))
+  for (const item of items) if (removed.has(String(item.id))) item.removedFromTvh = true
+}
+
+const startStepTimer = (steps) => async (name, run) => {
+  const startedAt = Date.now()
+  try {
+    return await run()
+  } finally {
+    steps[name] = Date.now() - startedAt
+  }
 }
 
 const isDirectory = async (dir) => (await fs.stat(dir).catch(() => null))?.isDirectory() ?? false
@@ -541,7 +591,7 @@ const finishSync = async (syncId, status, summary) => {
     finished_at: db.fn.now(),
     summary_json: JSON.stringify(summary),
   })
-  await pruneSyncHistory()
+  await pruneSyncHistory({ db })
   await pruneTombstonedRecordings()
   await pruneCutOriginals()
 }
@@ -559,19 +609,6 @@ const pruneTombstonedRecordings = async () => {
 
 export const forgetRecordingArtwork = (recordingId) =>
   removeArtwork({ kind: 'recording', id: recordingId }).catch(() => null)
-
-const pruneSyncHistory = async () => {
-  const keep = await db('syncs')
-    .select('id')
-    .orderBy('started_at', 'desc')
-    .limit(SYNC_HISTORY_CAP)
-  const keepIds = keep.map((r) => r.id)
-  if (keepIds.length < SYNC_HISTORY_CAP) return
-  await db('syncs')
-    .whereNotIn('id', keepIds)
-    .andWhere('status', '!=', 'running')
-    .delete()
-}
 
 const upsertRecording = async ({ item, show, file_path, status, error }) => {
   const payload = {
@@ -607,7 +644,7 @@ const HOLD_REASONS = {
 }
 const SIZE_TOLERANCE_BYTES = 1_000_000
 const PROGRESS_TICK_MS = 1000
-const SYNC_HISTORY_CAP = 500
+const SYNC_ITEMS_CAP = 100
 const RECORDING_TOMBSTONE_TTL_DAYS = 30
 
 let inFlight = null
