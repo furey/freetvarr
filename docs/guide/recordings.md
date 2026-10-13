@@ -18,6 +18,18 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
+## Sort
+
+**SORT** orders the list. The browser remembers your choice.
+
+- **NEWEST** (the default) and **OLDEST**: by the time the programme aired.
+- **A–Z**: by title. A leading "The" is ignored, so `The Block` sorts under B.
+- **SHOW A–Z**: by series. One-off recordings come last.
+- **RECENTLY IMPORTED**: by import time. Recordings not yet imported come last.
+- **LARGEST**: by file size.
+
+On a computer, pressing the **RECORDING**, **SHOW**, or **AIRED** column header picks the matching sort. Press **AIRED** again to switch between newest and oldest.
+
 ## Recording details
 
 Press a row to open the recording's details under it. Press the row again to close them. The details show the description and these facts, when they are known:

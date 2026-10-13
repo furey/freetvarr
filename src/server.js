@@ -499,14 +499,17 @@ app.get('/api/recordings/:recording_id/image', async (req, res) => {
   res.send(image.body)
 })
 
+const titleSortExpression = (column) =>
+  `(CASE WHEN lower(${column}) LIKE 'the %' THEN substr(${column}, 5) ELSE ${column} END) COLLATE NOCASE`
+
 app.get('/api/recordings', async (req, res) => {
   const SORT_COLUMNS = {
     aired_at: 'recordings.aired_at',
     imported_at: 'recordings.imported_at',
     size: 'recordings.size',
     status: 'recordings.status',
-    title: 'recordings.title',
-    show_pattern: 'shows.show_pattern',
+    title: titleSortExpression('recordings.title'),
+    show_pattern: titleSortExpression('shows.show_pattern'),
   }
   const STATUS_VALUES = ['done', 'partial', 'failed', 'skipped', 'importing', 'not_imported', 'pending', ...LIBRARY_STATES]
   const SINCE_INTERVALS = {
@@ -523,7 +526,7 @@ app.get('/api/recordings', async (req, res) => {
 
   const page = Math.max(1, parseInt(req.query.page, 10) || 1)
   const pageSize = Math.min(200, Math.max(10, parseInt(req.query.pageSize, 10) || 50))
-  const sortColumn = SORT_COLUMNS[req.query.sort] || SORT_COLUMNS.imported_at
+  const sortColumn = SORT_COLUMNS[req.query.sort] || SORT_COLUMNS.aired_at
   const sortDir = req.query.dir === 'asc' ? 'asc' : 'desc'
   const statusFilter = STATUS_VALUES.includes(req.query.status) ? req.query.status : null
   const showIdRaw = req.query.show_id ? Number(req.query.show_id) : null
@@ -561,7 +564,7 @@ app.get('/api/recordings', async (req, res) => {
     rowsQuery.orderByRaw('(recordings.deleted_from_tvh_at IS NULL) DESC')
   }
   rowsQuery
-    .orderBy(sortColumn, sortDir)
+    .orderByRaw(`${sortColumn} ${sortDir} NULLS LAST`)
     .orderBy('recordings.season', 'desc')
     .orderBy('recordings.episode', 'desc')
     .limit(pageSize)

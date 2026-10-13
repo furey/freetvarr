@@ -82,6 +82,7 @@ import { syncWhen, syncTook } from '/sync-when.js'
 import { syncDetail } from '/sync-detail.js'
 import { diagnoseRecordingError } from '/recording-error.js'
 import { adScanConfirm, clearListConfirm, clearRowConfirm, removeFromTvhConfirm } from '/recording-confirm.js'
+import { RECORDING_SORTS, recordingSortFor, headerSortKey } from '/recording-sort.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 
 let csrfToken = null
@@ -1811,6 +1812,7 @@ const LIVE_FAVOURITES_ONLY_KEY = 'freetvarr.liveFavouritesOnly'
 const LIVE_ZOOM_KEY = 'freetvarr.liveZoom'
 const LIVE_CAPTIONS_KEY = 'freetvarr.liveCaptions'
 const SERIES_SORT_KEY = 'freetvarr.seriesSort'
+const RECORDINGS_SORT_KEY = 'freetvarr.recordingsSort'
 const LIVE_ZOOM_LEVELS = ['s', 'm', 'l']
 
 const DashboardView = {
@@ -3647,6 +3649,7 @@ const RecordingsView = {
               <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a <strong>NOT IMPORTED</strong> recording to add it to the library.</p>
               <p><strong>NOT IN TVHEADEND</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
               <p>A copy, an ad scan, or a cut shows a progress bar while it runs.</p>
+              <p><strong>SORT</strong> orders the list by air date, title, series, import time, or size. The browser remembers your choice.</p>
               <p>Press a row to see the recording's details: its channel, length, size, file, ads, and the full error if it has one. The buttons there play, import, scan for ads, or remove it.</p>
             </info-button>
           </span>
@@ -3662,10 +3665,13 @@ const RecordingsView = {
         </header>
         <div class="panel-body space-y-4">
           <template v-if="narrow">
-            <div class="view-controls view-controls-sticky">
-              <select :value="showFilter" @change="setShow($event.target.value)" class="field-input" aria-label="Show">
+            <div class="view-controls view-controls-sticky" style="flex-wrap: wrap;">
+              <select :value="showFilter" @change="setShow($event.target.value)" class="field-input" style="flex-basis: 100%;" aria-label="Show">
                 <option value="all">Any show</option>
                 <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
+              </select>
+              <select v-model="sortKey" class="field-input" aria-label="Sort recordings">
+                <option v-for="o in RECORDING_SORTS" :key="o.key" :value="o.key">{{ o.label }}</option>
               </select>
               <filter-sheet title="FILTER RECORDINGS" :count="activeFilters.length" @clear="clearSheetFilters">
                 <div v-for="g in chipGroups" :key="g.key" class="filter-group" role="group" :aria-label="g.label">
@@ -3701,6 +3707,13 @@ const RecordingsView = {
                   <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
                 </select>
               </div>
+              <div v-if="g.key === 'status'" class="flex items-center gap-2">
+                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SORT</span>
+                <select v-model="sortKey" aria-label="Sort recordings"
+                  class="field-input" style="width: auto; min-width: 9rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
+                  <option v-for="o in RECORDING_SORTS" :key="o.key" :value="o.key">{{ o.label }}</option>
+                </select>
+              </div>
             </template>
           </div>
           <list-skeleton v-if="!loaded" :rows="8" />
@@ -3708,7 +3721,7 @@ const RecordingsView = {
             <thead><tr>
               <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
               <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
-              <th class="sortable" @click="toggleSort('status')">Status<sort-arrow :dir="sortDirFor('status')" /></th>
+              <th>Status</th>
               <th class="sortable" @click="toggleSort('aired_at')">Aired<sort-arrow :dir="sortDirFor('aired_at')" /></th>
               <th></th>
             </tr></thead>
@@ -3807,8 +3820,8 @@ const RecordingsView = {
     const loaded = ref(false)
     const page = ref(1)
     const pageSize = ref(50)
-    const sortCol = ref(null)
-    const sortDir = ref(null)
+    const sortKey = storedChoice({ key: RECORDINGS_SORT_KEY, options: RECORDING_SORTS.map((o) => o.key), fallback: 'newest' })
+    const sort = computed(() => recordingSortFor(sortKey.value))
     const statusFilter = ref('all')
     const showFilter = ref('all')
     const sinceFilter = ref('all')
@@ -3862,8 +3875,8 @@ const RecordingsView = {
         page: String(page.value),
         pageSize: String(pageSize.value),
       })
-      if (sortCol.value) params.set('sort', sortCol.value)
-      if (sortDir.value) params.set('dir', sortDir.value)
+      params.set('sort', sort.value.column)
+      params.set('dir', sort.value.dir)
       if (statusFilter.value !== 'all') params.set('status', statusFilter.value)
       if (showFilter.value !== 'all') params.set('show_id', String(showFilter.value))
       if (sinceFilter.value !== 'all') params.set('since', sinceFilter.value)
@@ -3921,20 +3934,13 @@ const RecordingsView = {
       page.value = 1
     }
 
-    const toggleSort = (col) => {
-      if (sortCol.value !== col) {
-        sortCol.value = col
-        sortDir.value = 'desc'
-      } else if (sortDir.value === 'desc') {
-        sortDir.value = 'asc'
-      } else {
-        sortCol.value = null
-        sortDir.value = null
-      }
-      page.value = 1
+    const toggleSort = (column) => {
+      sortKey.value = headerSortKey({ column, current: sortKey.value })
     }
 
-    const sortDirFor = (col) => (sortCol.value === col ? sortDir.value : null)
+    watch(sortKey, () => { page.value = 1 })
+
+    const sortDirFor = (column) => (sort.value.column === column ? sort.value.dir : null)
 
     const canDelete = (r) => r.status === 'done' && !r.deleted_from_tvh_at
     const canRemove = (r) => Boolean(r.deleted_from_tvh_at)
@@ -4142,7 +4148,7 @@ const RecordingsView = {
     })
 
     watch(
-      [page, sortCol, sortDir, statusFilter, showFilter, sinceFilter, deletedFilter],
+      [page, sortKey, statusFilter, showFilter, sinceFilter, deletedFilter],
       refresh,
     )
 
@@ -4169,7 +4175,7 @@ const RecordingsView = {
     return {
       isOpen, toggleOpen, drawerContext,
       recordings, shows, total, loaded, page, pageSize, totalPages, rangeLabel,
-      sortCol, sortDir, statusFilter, showFilter, sinceFilter, deletedFilter,
+      sortKey, RECORDING_SORTS, statusFilter, showFilter, sinceFilter, deletedFilter,
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
       deletingId, removingId, importingId, clearing, adRemovalEnabled, adScanningId,
       canImport, importLabel, importRecording, statusLabel, libraryStatusOf, libraryStateTitle, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
