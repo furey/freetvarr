@@ -397,7 +397,7 @@ const libraryRecording = ({ row, index, shows, simNow }) => {
 
 const serverOrder = (recordings) => [...recordings].sort((a, b) =>
   Number(Boolean(a.deleted_from_tvh_at)) - Number(Boolean(b.deleted_from_tvh_at))
-  || (b.imported_at ?? '').localeCompare(a.imported_at ?? ''))
+  || (b.aired_at ?? 0) - (a.aired_at ?? 0))
 
 const rowStatus = (row) => {
   if (row.unimported) return 'not_imported'
