@@ -5051,9 +5051,22 @@ table.recordings-table tbody td {
 .skeleton-row-upcoming { height: 1rem; display: flex; align-items: center; }
 .skeleton-row-sync-head { height: 2.25rem; }
 .skeleton-row-sync { height: 2.9375rem; display: flex; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.04); }
-.skeleton-row { display: flex; align-items: center; gap: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); }
+.skeleton-row { display: flex; align-items: center; gap: 0.75rem; height: 2.9375rem; border-top: 1px solid rgba(255, 255, 255, 0.04); }
+.skeleton-thumb { flex: none; width: 4.5rem; aspect-ratio: 16 / 9; border-radius: 0.25rem; }
+.live-skeleton .skeleton-row { height: 3.8rem; }
+.live-zoom-s .live-skeleton .skeleton-row { height: 2.6rem; }
+.live-zoom-s .live-skeleton .skeleton-thumb { width: 3rem; }
+.live-zoom-l .live-skeleton .skeleton-row { height: 7.125rem; }
+.live-zoom-l .live-skeleton .skeleton-thumb { width: 9rem; }
+
+@media (max-width: 767px) {
+  .live-skeleton .skeleton-row { height: 7.1rem; }
+  .live-zoom-s .live-skeleton .skeleton-row { height: 5.9rem; }
+  .live-zoom-l .live-skeleton .skeleton-row { height: 9.2rem; }
+  .live-zoom-l .live-skeleton .skeleton-thumb { width: 6.5rem; }
+}
 .skeleton-row:first-child { border-top: 0; }
-.skeleton-block { flex-basis: 0; height: 2.25rem; border-radius: 0.25rem; }
+.skeleton-block { flex-basis: 0; height: calc(100% - 1rem); border-radius: 0.25rem; }
 
 .sync-table .sync-row,
 .sync-card { cursor: pointer; }

@@ -1234,14 +1234,17 @@ const seasonEpisodeLabel = (r) => {
 const ListSkeleton = {
   props: {
     rows: { type: Number, default: 5 },
-    rowHeight: { type: String, default: '2.9375rem' },
+    rowHeight: { type: String, default: null },
     logo: { type: Boolean, default: false },
+    thumb: { type: Boolean, default: false },
     guide: { type: Boolean, default: false },
+    guideZoom: { type: String, default: 'm' },
   },
   template: `
     <div class="skeleton-reveal" aria-hidden="true">
-      <div v-for="(width, i) in widths" :key="i" class="skeleton-row" :style="{ height: rowHeight }">
+      <div v-for="(width, i) in widths" :key="i" class="skeleton-row" :style="rowHeight ? { height: rowHeight } : null">
         <span v-if="logo || guide" class="skeleton skeleton-logo"></span>
+        <span v-if="thumb" class="skeleton skeleton-thumb"></span>
         <template v-if="guide">
           <span v-for="(grow, j) in guideBlocksFor(i)" :key="j" class="skeleton skeleton-block" :style="{ flexGrow: grow }"></span>
         </template>
@@ -1251,13 +1254,20 @@ const ListSkeleton = {
   `,
   setup(props) {
     const widths = computed(() => Array.from({ length: props.rows }, (_, i) => SKELETON_ROW_WIDTHS[i % SKELETON_ROW_WIDTHS.length]))
-    const guideBlocksFor = (i) => SKELETON_GUIDE_BLOCKS[i % SKELETON_GUIDE_BLOCKS.length]
+    const guideBlocksFor = (i) => guideSkeletonBlocks({ row: i, zoom: props.guideZoom })
     return { widths, guideBlocksFor }
   },
 }
 
 const SKELETON_ROW_WIDTHS = ['72%', '58%', '81%', '64%', '76%', '52%', '68%']
 const SKELETON_GUIDE_BLOCKS = [[3, 2, 4, 2], [2, 5, 3], [4, 2, 2, 3], [3, 3, 5], [2, 4, 3, 2]]
+
+const guideSkeletonBlocks = ({ row, zoom }) => {
+  const blocksAt = (i) => SKELETON_GUIDE_BLOCKS[i % SKELETON_GUIDE_BLOCKS.length]
+  if (zoom === 's') return [...blocksAt(row), ...blocksAt(row + 1)]
+  if (zoom === 'l') return blocksAt(row).slice(0, 2)
+  return blocksAt(row)
+}
 const GUIDE_PANEL_RETRY_MS = 5000
 const SKELETON_LIVE_WIDTHS = ['62%', '48%', '71%', '55%']
 const SKELETON_UPCOMING_WIDTHS = ['58%', '44%', '64%']
@@ -1601,7 +1611,7 @@ const LiveView = {
             <span class="status-readout err">Guide unavailable: {{ error }}</span>
             <button type="button" class="btn btn-sm" @click="load"><refresh-icon /> RETRY</button>
           </div>
-          <list-skeleton v-else-if="!data" :rows="8" row-height="3rem" logo />
+          <list-skeleton v-else-if="!data" class="live-skeleton" :rows="8" logo :thumb="showImages" />
           <p v-else-if="!groups.length && favouritesHint" class="text-sm text-ink-dim">No favourites yet. <span class="whitespace-nowrap">Tap <star-icon class="icon-inline" /> next</span> to a channel to add it.</p>
           <p v-else-if="!groups.length" class="text-sm text-ink-dim">{{ emptyText }}</p>
           <div v-for="g in groups" :key="g.key" class="live-group">
@@ -8252,7 +8262,7 @@ const EpgView = {
               </p>
               <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
             </div>
-            <list-skeleton v-else-if="loading && !guide" :rows="10" row-height="3.25rem" guide />
+            <list-skeleton v-else-if="loading && !guide" :rows="10" :row-height="guideRowRem + 'rem'" guide :guide-zoom="zoom" />
             <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
               <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
               <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
@@ -8637,9 +8647,10 @@ const EpgView = {
     const zooming = ref(false)
     const narrow = useMediaQuery(EPG_NARROW_QUERY)
 
+    const guideRowRem = computed(() => (narrow.value ? zoomLevel.value.narrowRowRem : zoomLevel.value.rowRem))
+
     const thumbMinCellPx = computed(() => {
-      const rowRem = narrow.value ? zoomLevel.value.narrowRowRem : zoomLevel.value.rowRem
-      const thumbPx = ((rowRem * 16 - EPG_CELL_INSET_PX) * 16) / 9
+      const thumbPx = ((guideRowRem.value * 16 - EPG_CELL_INSET_PX) * 16) / 9
       return Math.round(thumbPx) + EPG_THUMB_TEXT_MIN_PX
     })
 
@@ -9656,7 +9667,7 @@ const EpgView = {
       loadingIds, loadingNoteMaxPx,
       guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
       scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs,
-      zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, changeZoom,
+      zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, guideRowRem, changeZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
       recordingStateText, fmtProgrammeRange, cellKey, cellShowsText,
       visibleChannels, railNum, railFilter, pinnedCount, pinsOffscreen, scrollRailTop,
