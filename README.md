@@ -186,7 +186,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **Help panel**: Settings reopens the setup wizard, runs the Doctor, and lists the Freetvarr, TVHeadend, and Node versions for bug reports. It also says when a newer Freetvarr release is out.
 - **Timezone-aware UI**: the wizard asks for your time zone and pre-fills it from the browser. Timestamps show in that zone whatever device opens the page.
 - **Reset**: **RESET FREETVARR** in Settings deletes Freetvarr's settings, series, list of recordings, and sync history, then returns to the setup wizard. Your video files and TVHeadend stay as they are.
-- **Self-housekeeping**: sync history trims itself to the latest 500 rows; recording rows drop off 30 days after the TVHeadend copy is deleted.
+- **Self-housekeeping**: sync history keeps the latest 500 syncs, at most 100 of them empty; recording rows drop off 30 days after the TVHeadend copy is deleted.
 - **Authless LAN service**: SQLite-backed, single Docker container, no external runtime dependencies once configured.
 
 ## Prerequisites
@@ -292,7 +292,7 @@ The common snags are below. The [troubleshooting guide](https://furey.github.io/
 
 ### `skipped` recordings
 
-- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error text on the row says which.
+- Either TVHeadend has no finished file yet (a recording in progress, and post-recording padding keeps it there for up to ten minutes after the programme ends), or it reported a path outside the recordings folder Freetvarr can see. The error on the row says which; press **DETAILS** under it for the full error and steps to fix it.
 
 ### `partial` recordings
 

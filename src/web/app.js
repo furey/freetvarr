@@ -1958,7 +1958,7 @@ const DashboardView = {
             <span class="panel-title">RECENT SYNCS</span>
             <info-button title="RECENT SYNCS" doc="guide/syncs#reading-a-sync">
               <p>The last few syncs Freetvarr ran, newest first, with what each one imported.</p>
-              <p>A sync is <strong>OK</strong> unless something failed. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
+              <p>A sync is <strong>OK</strong> unless something failed. Press a sync that imported, failed, or removed something to open its details. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
             </info-button>
           </span>
           <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>

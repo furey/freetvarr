@@ -155,7 +155,11 @@ const run = async () => {
 
   await clickTab(page, 'syncs')
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})
-  await page.waitForTimeout(1500)
+  await page.waitForTimeout(900)
+  if (await clickWithCursor(page, page.locator('.sync-row:visible, .sync-card:visible').first())) {
+    await page.waitForSelector('.sync-detail', { timeout: 5000 }).catch(() => {})
+    await page.waitForTimeout(1800)
+  }
 
   await clickTab(page, 'settings')
   await page.waitForSelector('.panel-title', { timeout: 8000 }).catch(() => {})
