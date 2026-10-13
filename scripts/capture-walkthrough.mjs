@@ -147,6 +147,13 @@ const run = async () => {
   await clickTab(page, 'series')
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(1500)
+  const seriesEdit = page.locator('.series-row:visible, .series-card:visible').first().locator('button', { hasText: 'EDIT' })
+  if (await clickWithCursor(page, seriesEdit)) {
+    await page.waitForSelector('.series-drawer', { timeout: 5000 }).catch(() => {})
+    await page.waitForTimeout(1800)
+    await clickWithCursor(page, seriesEdit)
+    await page.waitForTimeout(600)
+  }
 
   await clickTab(page, 'recordings')
   await page.waitForSelector('.deck-table tbody tr, .deck-card', { timeout: 8000 }).catch(() => {})
