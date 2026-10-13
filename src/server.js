@@ -115,6 +115,7 @@ import {
   getOnNowAll,
   getChannelAiring,
   clearGuideCache,
+  keepGuideWarm,
 } from './epg.js'
 import {
   startManualAdScan,
@@ -340,10 +341,11 @@ app.get('/api/sync-status', (req, res) => {
 })
 
 app.get('/api/syncs', async (req, res) => {
-  const { syncs, total } = await listSyncs({ db, ...syncPageParams(req.query) })
+  const { syncs, total, emptyCount } = await listSyncs({ db, ...syncPageParams(req.query) })
   res.json({
-    syncs: syncs.map((r) => ({ ...r, summary: safeJson(r.summary_json) })),
+    syncs: syncs.map(({ summary_json, ...r }) => ({ ...r, summary: safeJson(summary_json) })),
     total,
+    emptyCount,
   })
 })
 
@@ -2070,6 +2072,7 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.error('[ads] failed to reconcile interrupted ad processing:', err.message)
   }
+  keepGuideWarm()
   try {
     await startScheduler()
   } catch (err) {
