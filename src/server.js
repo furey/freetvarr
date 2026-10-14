@@ -533,7 +533,6 @@ app.get('/api/recordings', async (req, res) => {
   const showIdFilter = Number.isInteger(showIdRaw) ? showIdRaw : null
   const sinceInterval = SINCE_INTERVALS[req.query.since] || null
   const deletedClause = DELETED_FILTERS[req.query.deleted] || null
-  const groupTombstonesLast = req.query.deleted !== 'deleted'
 
   const applyFilters = (q) => {
     q.whereNull('recordings.purged_at')
@@ -560,9 +559,6 @@ app.get('/api/recordings', async (req, res) => {
       'shows.dest_folder as show_dest_folder',
       'shows.ad_removal as show_ad_removal',
     )
-  if (groupTombstonesLast) {
-    rowsQuery.orderByRaw('(recordings.deleted_from_tvh_at IS NULL) DESC')
-  }
   rowsQuery
     .orderByRaw(`${sortColumn} ${sortDir} NULLS LAST`)
     .orderBy('recordings.season', 'desc')

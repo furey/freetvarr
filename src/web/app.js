@@ -3267,12 +3267,12 @@ const SyncsView = {
           <p v-if="scheduleFrequency || syncStatus.cron" class="md:hidden text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></p>
           <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
-              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span><span class="hidden md:inline">SYNC </span>RUNNING…</template>
+              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span><span><span class="hidden md:inline">SYNC </span>RUNNING…</span></template>
               <template v-else-if="starting">STARTING…</template>
-              <template v-else><play-icon /> SYNC<span class="hidden md:inline">&nbsp;NOW</span></template>
+              <template v-else><play-icon /> <span>SYNC<span class="hidden md:inline"> NOW</span></span></template>
             </button>
             <button type="button" class="btn" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /><span class="hidden md:inline">REFRESH</span></button>
-            <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total" aria-label="Clear history"><trash-icon /> <span class="hidden md:inline">CLEAR&nbsp;</span>HISTORY</button>
+            <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total" aria-label="Clear history"><trash-icon /> <span><span class="hidden md:inline">CLEAR </span>HISTORY</span></button>
           </div>
 
           <div class="flex flex-wrap items-center gap-x-6 gap-y-2 md:gap-y-3">
