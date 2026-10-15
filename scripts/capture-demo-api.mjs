@@ -187,12 +187,12 @@ const LAST_SYNC_AGO_MIN = 16
 const FAVOURITE_CHANNEL_PATTERNS = [/^ABC TV/i, /^SBS\b/i, /^9/i, /^7/i]
 const FAVOURITE_COUNT = 3
 const SEARCH_TITLE_MAX = 24
-const LIVE_DEMO_CHANNEL_PATTERN = /^ABCTV$/i
-const LIVE_DEMO_CHANNEL_NAME = 'ABC HD'
+const LIVE_DEMO_CHANNEL_PATTERN = /^7mate\b/i
+const LIVE_DEMO_CHANNEL_NAME = '7mate'
 const LIVE_DEMO_PROGRAMME = {
-  title: 'Earth From Above',
-  episode_title: 'Orbit by Orbit',
-  synopsis: 'Ultra-high-definition footage from the International Space Station follows the planet through a full day, from city lights at night to storms, deserts, and oceans in sunlight.',
+  title: 'Big Wave Season',
+  episode_title: 'Winter Swell',
+  synopsis: 'Surfers and photographers follow a run of winter swells along the east coast, from dawn glassy sessions to heavy afternoon sets.',
   series_no: null,
   episode_no: null,
   genre: null,
@@ -928,7 +928,7 @@ const withLiveDemoSlot = (simNow) => (data) => {
   const renamed = { ...channel, name: LIVE_DEMO_CHANNEL_NAME, pinned: true, hidden: false }
   const others = data.channels.filter((c) => c !== channel)
   const programs = (data.programs?.[channel.id] || []).map((p) => airsAt(p, simNow)
-    ? { ...p, ...LIVE_DEMO_PROGRAMME, series_link: `${channel.id}|earth from above` }
+    ? { ...p, ...LIVE_DEMO_PROGRAMME, series_link: `${channel.id}|big wave season` }
     : p)
   return {
     ...data,

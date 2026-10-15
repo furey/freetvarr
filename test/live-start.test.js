@@ -3,8 +3,10 @@ import assert from 'node:assert/strict'
 import {
   LIVE_START_BUFFER_S,
   LIVE_START_MAX_WAIT_MS,
+  SEEK_FLOOR_MARGIN_S,
   bufferedAhead,
   isReadyToStart,
+  seekFloorOf,
 } from '../src/web/live-start.js'
 
 test('bufferedAhead measures the range under the playhead', () => {
@@ -29,4 +31,16 @@ test('isReadyToStart waits for the start buffer', () => {
 test('isReadyToStart gives up waiting after the longest wait', () => {
   assert.equal(isReadyToStart({ ranges: [[0, 1]], position: 0, waitedMs: LIVE_START_MAX_WAIT_MS }), true)
   assert.equal(isReadyToStart({ ranges: [], position: 0, waitedMs: LIVE_START_MAX_WAIT_MS - 1 }), false)
+})
+
+test('seekFloorOf keeps seeks a margin after the oldest kept second', () => {
+  assert.equal(seekFloorOf({ oldest: 10, target: 60 }), 10 + SEEK_FLOOR_MARGIN_S)
+  assert.equal(seekFloorOf({ oldest: 10, target: null }), 10 + SEEK_FLOOR_MARGIN_S)
+  assert.equal(seekFloorOf({ oldest: null, target: 60 }), null)
+})
+
+test('seekFloorOf keeps the floor a margin behind the live target', () => {
+  assert.equal(seekFloorOf({ oldest: 0, target: 6 }), 6 - SEEK_FLOOR_MARGIN_S)
+  assert.equal(seekFloorOf({ oldest: 0, target: 2 }), 0)
+  assert.equal(seekFloorOf({ oldest: 3, target: 4 }), 3)
 })

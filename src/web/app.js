@@ -45,7 +45,7 @@ import {
   airingBoundary, airingCovers, watchRowLabel,
 } from '/live-info.js'
 import { CAPTION_LINE_PERCENT, captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
-import { isReadyToStart } from '/live-start.js'
+import { isReadyToStart, seekFloorOf } from '/live-start.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
 import { SERIES_SORTS, SERIES_STATUSES, sortSeries, filterSeries, filterTitleMatches } from '/series-order.js'
 import { transmitterLabel } from '/transmitter-label.js'
@@ -10072,11 +10072,10 @@ const liveEdgeOf = (video) => {
 const trackBehindLive = () => {
   const ready = liveVideo?.readyState >= HAVE_CURRENT_DATA
   const target = ready ? liveTargetSecond() : null
-  const oldest = ready ? oldestKeptSecond() : null
   const behind = target == null ? null : finiteOrNull(target - liveVideo.currentTime)
   live.behindSeconds = behind == null ? 0 : Math.max(0, behind)
   live.bufferTo = target
-  live.bufferFrom = oldest == null ? null : oldest + SEEK_FLOOR_MARGIN_S
+  live.bufferFrom = ready ? liveSeekFloor() : null
   live.position = ready ? liveVideo.currentTime : 0
 }
 
@@ -10107,11 +10106,11 @@ const liveTargetSecond = () => {
   return edge == null ? null : Math.max(0, edge - NATIVE_LIVE_HOLD_BACK_S)
 }
 
+const liveSeekFloor = () => seekFloorOf({ oldest: oldestKeptSecond(), target: liveTargetSecond() })
+
 const keepSeekInsideBuffer = () => {
-  const oldest = oldestKeptSecond()
-  if (oldest == null) return
-  const floor = oldest + SEEK_FLOOR_MARGIN_S
-  if (liveVideo.currentTime < floor) liveVideo.currentTime = floor
+  const floor = liveSeekFloor()
+  if (floor != null && liveVideo.currentTime < floor) liveVideo.currentTime = floor
 }
 
 const createSkipHintFlasher = (target) => {
@@ -10222,12 +10221,11 @@ const registerLiveTap = ({ side, force }) => {
 
 const skipLive = (result) => {
   if (result.kind !== 'skip') return
-  const oldest = oldestKeptSecond()
   const direction = result.side === 'back' ? -1 : 1
   const { to, applied } = clampSkip({
     base: result.base,
     delta: direction * result.total,
-    floor: oldest == null ? null : oldest + SEEK_FLOOR_MARGIN_S,
+    floor: liveSeekFloor(),
     ceiling: liveTargetSecond(),
   })
   if (!applied) return
@@ -11142,6 +11140,7 @@ const LivePlayer = {
 
     const handOffToVideo = () => {
       if (chips.value !== 'tuning' || live.phase !== 'live' || handOffPending) return
+      if (liveVideo.paused || liveVideo.readyState < HAVE_FUTURE_DATA) return
       handOffPending = true
       const wait = Math.max(0, CHIPS_MIN_SHOWN_MS - (Date.now() - chipsShownAt))
       chipsTimer = setTimeout(animateChipsAway, wait)
@@ -11194,6 +11193,7 @@ const LivePlayer = {
       liveVideo.addEventListener('pause', trackBehindLive)
       liveVideo.addEventListener('seeking', keepSeekInsideBuffer)
       liveVideo.addEventListener('playing', handOffToVideo)
+      liveVideo.addEventListener('canplay', handOffToVideo)
       liveVideo.textTracks?.addEventListener?.('addtrack', onTextTrackAdded)
       liveVideo.textTracks?.addEventListener?.('change', syncCaptionPreferenceFromTracks)
     })
@@ -11443,10 +11443,10 @@ const LIVE_HLS_CONFIG = {
 const LIVE_START_CHECK_MS = 100
 const LIVE_POLL_PLAYING_MS = 10_000
 const BEHIND_LIVE_SHOWN_S = 10
-const SEEK_FLOOR_MARGIN_S = 4
 const NATIVE_LIVE_HOLD_BACK_S = 6
 const HAVE_METADATA = 1
 const HAVE_CURRENT_DATA = 2
+const HAVE_FUTURE_DATA = 3
 const NATIVE_CONTROL_BAR_PX = 48
 const SKIP_HINT_MS = 1_600
 const SEEK_RESTART_DELAY_MS = 400
