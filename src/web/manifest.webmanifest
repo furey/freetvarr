@@ -1,12 +1,17 @@
 {
+  "id": "/",
   "name": "Freetvarr",
   "short_name": "Freetvarr",
+  "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into your media library.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#1a1611",
   "theme_color": "#1a1611",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-monochrome-512.png", "sizes": "512x512", "type": "image/png", "purpose": "monochrome" }
   ]
 }

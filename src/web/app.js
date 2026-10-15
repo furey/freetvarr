@@ -1094,7 +1094,7 @@ const ensureFaviconCanvas = () => {
   faviconCanvas.width = FAVICON_SIZE
   faviconCanvas.height = FAVICON_SIZE
   faviconCtx = faviconCanvas.getContext('2d')
-  faviconLink = document.querySelector('link[rel="icon"]')
+  faviconLink = document.querySelector('link[rel="icon"][type="image/svg+xml"]')
   faviconLink.type = 'image/png'
 }
 
