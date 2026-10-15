@@ -7,7 +7,7 @@ description: >-
 
 # Hardware
 
-Any TVHeadend-compatible tuner works. Freetvarr talks only to TVHeadend and the recordings folder, so a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, and IPTV all work. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange (most NAS kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in). The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with.
+You need one TVHeadend-compatible tuner, and any type works: a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, or IPTV. Freetvarr talks only to TVHeadend and the recordings folder, so the tuner type makes no difference to it. The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange (most NAS kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in).
 
 The broadcast standard where you live decides the model: DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
 

@@ -1,9 +1,13 @@
 <script setup>
-import { withBase } from 'vitepress'
+import { withBase, useData } from 'vitepress'
+import { computed } from 'vue'
+
+const { page } = useData()
+const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/leaving-fetch.md')
 </script>
 
 <template>
-  <a class="fetch-banner" :href="withBase('/guide/leaving-fetch')">
+  <a v-if="!isLeavingFetchPage" class="fetch-banner" :href="withBase('/guide/leaving-fetch')">
     <span class="fetch-banner__text">
       <strong>Leaving Fetch TV?</strong>
       <span class="fetch-banner__long">A step-by-step guide to owning your setup before the levy</span>

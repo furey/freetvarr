@@ -18,6 +18,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   const picks = await pickShowcase({ request: context.request, base, guide, simNow })
   const library = await pickLibrary({ request: context.request, base, guide, simNow })
   const fixtures = demoFixtures({ simNow, recording: picks.recording, library })
+  const desk = createRecordingDesk({ guide, simNow })
   await context.clock.install({ time: simNow })
   await context.addInitScript((prefs) => {
     try {
@@ -35,7 +36,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/epg/now**', (route) => fulfillJson(route, onNowAt({ guide, simNow, url: route.request().url() })))
   await context.route('**/api/epg/channel-now**', (route) => fulfillJson(route, channelNowAt({ guide, simNow, url: route.request().url() })))
   await context.route('**/api/epg/search**', rewriteJson(futureResults(simNow)))
-  await context.route('**/api/epg/state**', rewriteJson(sanitiseState({ simNow, recording: picks.recording })))
+  await context.route('**/api/epg/state**', rewriteJson((data, url) => desk.applyTo(sanitiseState({ simNow, recording: picks.recording })(data, url))))
   await context.route('**/api/settings', rewriteJson(maskSettings))
   await context.route('**/api/sync-status', (route) => fulfillJson(route, fixtures.syncStatus))
   await context.route('**/api/syncs**', (route) => fulfillJson(route, syncsPage({ syncs: fixtures.syncs, url: route.request().url() })))
@@ -50,6 +51,8 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
   await context.route('**/*', refuseWrites)
   await context.route(/\/api\/live(\/|\?|$)/, demoLiveTv())
+  await context.route('**/api/epg/record', desk.recordOneOff)
+  await context.route('**/api/epg/record-series', desk.recordSeries)
   return picks
 }
 
@@ -128,6 +131,22 @@ export const clickWithCursor = async (page, locator) => {
   return true
 }
 
+export const clickTab = async (page, route) => {
+  const link = page.locator(`.tab-strip a[href="#/${route}"]`)
+  await cursorToBox(page, link)
+  await page.waitForTimeout(220)
+  await page.evaluate(() => window.__wt?.click())
+  await Promise.all([
+    page.waitForFunction(
+      (r) => document.querySelector(`.tab-strip a[href="#/${r}"]`)?.dataset.active === 'true',
+      route,
+      { timeout: 8000 },
+    ),
+    link.click(),
+  ])
+  await page.waitForTimeout(VIEW_REVEAL_MS)
+}
+
 export const glideScroll = (page, { selector = null, dx = 0, dy = 0, ms = SCROLL_MS }) =>
   page.evaluate(({ selector, dx, dy, ms }) => new Promise((resolve) => {
     const el = selector ? document.querySelector(selector) : document.scrollingElement
@@ -155,6 +174,7 @@ export const glideScroll = (page, { selector = null, dx = 0, dy = 0, ms = SCROLL
   }), { selector, dx, dy, ms })
 
 const SCROLL_MS = 1600
+const VIEW_REVEAL_MS = 850
 const PRIME_TIME = { hour: 19, minute: 45 }
 const LIVE_DEMO_DIR = process.env.LIVE_DEMO_DIR || '/work/scripts/.cache/live-demo'
 const LIVE_SESSION_ID = 'demo-live'
@@ -575,6 +595,60 @@ const scheduledEntry = ({ channel, program }) => ({
   pendingDelete: false,
   seriesLinkId: null,
 })
+
+const createRecordingDesk = ({ guide, simNow }) => {
+  const entries = []
+  const seriesTags = []
+  const answer = (handler) => (route) => {
+    const body = route.request().postDataJSON() || {}
+    const channel = (guide.channels || []).find((c) => String(c.id) === String(body.channel_id))
+    const program = programsOf(guide, { id: body.channel_id }).find((p) => String(p.program_id) === String(body.program_id))
+    if (!channel || !program) return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"not found"}' })
+    return fulfillJson(route, handler({ body, channel, program }))
+  }
+  const recordOneOff = answer(({ channel, program }) => {
+    const uuid = `demo-desk-${program.program_id}`
+    entries.push(deskEntry({ channel, program, uuid, seriesLinkId: null, simNow }))
+    return { ok: true, uuid }
+  })
+  const recordSeries = answer(({ body, channel, program }) => {
+    const uuid = `demo-desk-${program.program_id}`
+    entries.push(deskEntry({ channel, program, uuid, seriesLinkId: body.series_link, simNow }))
+    seriesTags.push({
+      id: `demo-desk-series-${seriesTags.length}`,
+      seriesLinkId: body.series_link,
+      name: program.title,
+      channelId: channel.id,
+      enabled: true,
+      leadTime: 2,
+      lagTime: 10,
+      episodesToKeep: 0,
+      imageProgramId: program.program_id,
+    })
+    return { ok: true, uuid, title: program.title, showRule: null }
+  })
+  const applyTo = (state) => ({
+    ...state,
+    futureRecordings: [...(state.futureRecordings || []), ...entries],
+    seriesTags: [...(state.seriesTags || []), ...seriesTags],
+    activeRecordingIds: [
+      ...(state.activeRecordingIds || []),
+      ...entries.filter((e) => e.schedStatus === 'recording').map((e) => String(e.programId)),
+    ],
+  })
+  return { recordOneOff, recordSeries, applyTo }
+}
+
+const deskEntry = ({ channel, program, uuid, seriesLinkId, simNow }) => {
+  const onAir = airsAt(program, simNow)
+  return {
+    ...scheduledEntry({ channel, program }),
+    uuid,
+    schedStatus: onAir ? 'recording' : 'scheduled',
+    statusText: onAir ? 'Running' : 'Scheduled for recording',
+    seriesLinkId,
+  }
+}
 
 const activeRecordingCard = ({ recording, simNow }) => {
   const { channel, program } = recording

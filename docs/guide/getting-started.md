@@ -95,6 +95,9 @@ Every value can be changed later in Freetvarr's Settings.
 
 In Freetvarr, open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in **SETTINGS → SCHEDULE**) and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **SETTINGS → HELP → RUN DOCTOR**.
 
+<!-- markdownlint-disable-next-line MD033 -->
+<BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the TV Guide: click the programme, press RECORD for one airing, then press SERIES on another programme for every episode" />
+
 ## 4. Save it as an app
 
 On a tablet or phone, add Freetvarr to the Home Screen. Freetvarr then opens full screen from its own icon, like an app.

@@ -1,7 +1,7 @@
 import { chromium } from 'playwright'
 import {
   TIMEZONE, simulatedNow, prepareDemoContext, onAirCell, waitForImages,
-  installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll,
+  installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll, clickTab,
 } from './capture-demo-api.mjs'
 import { startScreencast } from './capture-screencast.mjs'
 import { startLoopback } from './capture-loopback.mjs'
@@ -11,26 +11,9 @@ const BASE = await startLoopback({ target: SERVER_URL })
 const FRAMES_DIR = process.env.WALKTHROUGH_FRAMES || '/work/scripts/.cache/frames/walkthrough'
 const VIEWPORT = { width: 1280, height: 800 }
 const DEVICE_SCALE = 2
-const VIEW_REVEAL_MS = 850
 const LIVE_PLAY_MS = 3500
 const POSTER_AFTER_PLAY_S = 2.5
 const TOOLTIP_HOLD_MS = 1800
-
-const clickTab = async (page, route) => {
-  const link = page.locator(`.tab-strip a[href="#/${route}"]`)
-  await cursorToBox(page, link)
-  await page.waitForTimeout(220)
-  await page.evaluate(() => window.__wt?.click())
-  await Promise.all([
-    page.waitForFunction(
-      (r) => document.querySelector(`.tab-strip a[href="#/${r}"]`)?.dataset.active === 'true',
-      route,
-      { timeout: 8000 },
-    ),
-    link.click(),
-  ])
-  await page.waitForTimeout(VIEW_REVEAL_MS)
-}
 
 const scrollDownAndBack = async (page, { dy, hold = 600 }) => {
   await glideScroll(page, { dy })
