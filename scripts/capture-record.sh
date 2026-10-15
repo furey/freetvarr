@@ -54,10 +54,8 @@ RECORD_FRAMES="$FRAMES_DIR" \
 
 TOUR_TRIM=$(sed -n 's/.*TOUR_TRIM=\([0-9][0-9.]*\).*/\1/p' "$TOUR_LOG" | tail -1)
 TRIM_HEAD="${RECORD_TRIM_HEAD:-${TOUR_TRIM:-0.5}}"
-TOUR_POSTER=$(sed -n 's/.*TOUR_POSTER=\([0-9][0-9.]*\).*/\1/p' "$TOUR_LOG" | tail -1)
-POSTER_AT="${RECORD_POSTER_AT:-${TOUR_POSTER:-$TRIM_HEAD}}"
 VIDEO_FPS="${RECORD_FPS:-60}" \
-  "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" "$MP4" "$POSTER" "$TRIM_HEAD" "$POSTER_AT"
+  "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" "$MP4" "$POSTER" "$TRIM_HEAD"
 
 rm -rf "$FRAMES_DIR" "$TOUR_LOG"
 

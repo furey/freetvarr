@@ -17,7 +17,6 @@ const STILL_FILE = 'screenshot-wizard-secure.png'
 const TYPE_DELAY_MS = 50
 const EDGE_MARGIN_PX = 110
 const JOB_TIMEOUT_MS = 40_000
-const POSTER_AFTER_CHANNELS_S = 0.8
 const HIDE_SCROLLBARS = '::-webkit-scrollbar{width:0!important;height:0!important}html,body{scrollbar-width:none!important}'
 const GUIDE_PICKS = [
   { channel: 'ABCTV', guide: 'ABC TV' },
@@ -83,7 +82,7 @@ const recordTour = async (browser) => {
 
   await tourWelcome(page)
   await tourTvheadend(page)
-  const channelsDoneAt = await tourChannels(page)
+  await tourChannels(page)
   await tourGuide(page)
   await tourStorage(page)
   await tourPlex(page)
@@ -92,7 +91,6 @@ const recordTour = async (browser) => {
   await screencast.stop()
   await context.close()
   console.log(`TOUR_TRIM=${((settledAt - startedAt) / 1000 + 0.4).toFixed(1)}`)
-  console.log(`TOUR_POSTER=${((channelsDoneAt - startedAt) / 1000 + POSTER_AFTER_CHANNELS_S).toFixed(1)}`)
   return serverWrites
 }
 

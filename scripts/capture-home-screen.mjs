@@ -43,7 +43,6 @@ const LAUNCH_MS = 560
 const APP_FADE_DELAY_MS = 330
 const APP_FADE_MS = 420
 const APP_HOLD_MS = 3000
-const POSTER_AT_S = 0.6
 const SCROLLBARS_OFF = '::-webkit-scrollbar{width:0!important;height:0!important}html,body{scrollbar-width:none!important}'
 
 const run = async () => {
@@ -69,7 +68,6 @@ const run = async () => {
   await screencast.stop()
   await browser.close()
   console.log('TOUR_TRIM=0.2')
-  console.log(`TOUR_POSTER=${POSTER_AT_S}`)
 }
 
 const captureDashboard = async ({ browser, base, viewport, isMobile = false }) => {

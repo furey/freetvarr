@@ -9,12 +9,11 @@ set -euo pipefail
 # from scripts/demo/install-sim.sh, which prints what a fresh install prints,
 # with the image pull sped up. Nothing touches Docker on the host, a NAS, or a
 # running freetvarr. ffmpeg on the host transcodes the .webm to
-# docs/public/install-demo.mp4 with a poster frame of the finished install.
+# docs/public/install-demo.mp4 with a poster of its first frame.
 #
 # Needs host `docker` + `ffmpeg`.
 #
 #   ./scripts/capture-install.sh
-#   INSTALL_POSTER_AT=8 ./scripts/capture-install.sh
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 VHS_IMAGE="${VHS_IMAGE:-ghcr.io/charmbracelet/vhs:v0.12.1}"
@@ -42,7 +41,6 @@ docker run --rm \
 [ -f "$WEBM" ] || { echo "[install-demo] no .webm produced" >&2; exit 1; }
 
 DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$WEBM")
-POSTER_AT="${INSTALL_POSTER_AT:-$(awk -v d="$DURATION" 'BEGIN { printf "%.2f", d - 1 }')}"
 VIDEO_FPS="${INSTALL_FPS:-25}"
 
 echo "[install-demo] encoding mp4 (${DURATION}s)"
@@ -52,9 +50,8 @@ ffmpeg -y -loglevel error -i "$WEBM" \
   -pix_fmt yuv420p -movflags +faststart \
   "$MP4"
 
-echo "[install-demo] extracting poster at ${POSTER_AT}s"
-ffmpeg -y -loglevel error -ss "$POSTER_AT" -i "$WEBM" \
-  -frames:v 1 -update 1 -q:v 4 "$POSTER"
+echo "[install-demo] extracting poster from the first frame"
+ffmpeg -y -loglevel error -i "$MP4" -frames:v 1 -update 1 -q:v 4 "$POSTER"
 
 rm -f "$WEBM"
 
