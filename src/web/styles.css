@@ -1332,6 +1332,19 @@ a.icon-link {
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 2.5rem;
+  --tab-fade-left: 0px;
+  --tab-fade-right: 0px;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--tab-fade-left), #000 calc(100% - var(--tab-fade-right)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--tab-fade-left), #000 calc(100% - var(--tab-fade-right)), transparent);
+}
+
+.tab-strip[data-fade-left="true"] {
+  --tab-fade-left: 40px;
+}
+
+.tab-strip[data-fade-right="true"] {
+  --tab-fade-right: 40px;
 }
 
 .tab-strip::-webkit-scrollbar {

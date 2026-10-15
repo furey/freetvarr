@@ -24,6 +24,7 @@ The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob
 - [Scripts](#scripts)
 - [Testing](#testing)
 - [Screenshots](#screenshots)
+- [Docs media](#docs-media)
 - [Documentation site](#documentation-site)
 
 ## Architecture
@@ -558,6 +559,14 @@ The captures themselves are configured in `scripts/capture-screenshots.mjs` (des
 
 > [!TIP]<br>
 > To shoot UI changes that haven't shipped yet, run them locally against a copy of the live database; every panel renders from SQLite and the settings row, so the shots match production. Copy the state file off the deploy host (`ssh <host> 'cat /path/to/freetvarr/state.db' > /tmp/shots.db`; `scp` fails on hosts with a restricted sftp subsystem, Synology among them), start the server with `DB_PATH=/tmp/shots.db node src/server.js`, then point the capture script at your machine's LAN IP rather than `localhost` (the Playwright container can't reach the host loopback). Cautions: the scheduler starts with the copied `sync_cron`, so capture outside the cron window or a real sync fires against the live TVHeadend, and delete the copy afterwards; it holds the TVHeadend password and the Plex token.
+
+## Docs media
+
+The docs videos, posters, screenshots, and hero image are not in git. They live as assets of the `docs-media` GitHub release, listed in `scripts/docs-media.txt`.
+
+- `npm run build` and `npm run dev` in `docs/` run `scripts/fetch-docs-media.sh` first. It skips files already present; run `./scripts/fetch-docs-media.sh --force` to refresh them.
+- Each capture script ends by running `scripts/upload-docs-media.sh`, which replaces the release assets and starts a docs deploy. Set `DOCS_MEDIA_UPLOAD=0` to skip the upload, or `DOCS_MEDIA_DEPLOY=0` to skip the deploy.
+- The README images load from `https://furey.github.io/freetvarr/img/`, because GitHub's image proxy rejects release asset URLs.
 
 ## Documentation site
 

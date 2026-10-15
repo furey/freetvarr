@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/hero.webp" alt="Freetvarr dashboard opening a live TV channel" width="800"/>
+  <img src="https://furey.github.io/freetvarr/img/hero.webp" alt="Freetvarr dashboard opening a live TV channel" width="800"/>
 </p>
 
 <p align="center">
@@ -72,44 +72,44 @@ The setup wizard, from the time zone to the ready step.
 ## Screenshots
 
 <p align="center">
-  <img src="docs/img/screenshot-dashboard.png" alt="Dashboard" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-dashboard.png" alt="Dashboard" width="100%"/>
   <br/><em>Dashboard</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/screenshot-live.png" alt="Live TV" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-live.png" alt="Live TV" width="100%"/>
   <br/><em>Live TV</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/screenshot-player.png" alt="Live TV player" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-player.png" alt="Live TV player" width="100%"/>
   <br/><em>Live TV player</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/screenshot-guide.png" alt="TV Guide" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-guide.png" alt="TV Guide" width="100%"/>
   <br/><em>TV Guide</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/screenshot-series.png" alt="Series" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-series.png" alt="Series" width="100%"/>
   <br/><em>Series</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/screenshot-recordings.png" alt="Recordings" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-recordings.png" alt="Recordings" width="100%"/>
   <br/><em>Recordings</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/screenshot-syncs.png" alt="Syncs" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-syncs.png" alt="Syncs" width="100%"/>
   <br/><em>Syncs</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/screenshot-mobile-dashboard.png" alt="Dashboard on mobile" width="32%"/>
-  <img src="docs/img/screenshot-mobile-live.png" alt="Live TV on mobile" width="32%"/>
-  <img src="docs/img/screenshot-mobile-recordings.png" alt="Recordings on mobile" width="32%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-dashboard.png" alt="Dashboard on mobile" width="32%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-live.png" alt="Live TV on mobile" width="32%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-recordings.png" alt="Recordings on mobile" width="32%"/>
   <br/><em>Mobile</em>
 </p>
 
@@ -261,7 +261,7 @@ Freetvarr keeps two settings for one folder: `recordings_root` is where it sees 
 **Ad removal** is configured in Freetvarr's Settings, not in the `.env`. Turn it on in SETTINGS → AD REMOVAL (off by default), then press **EDIT** on a series on the SERIES tab and pick its mode. `DETECT` leaves the video as it is and writes the ad breaks to a `.edl` file beside it, which Kodi skips (Jellyfin with an EDL plugin; Plex ignores it). `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
 
 <p align="center">
-  <img src="docs/img/screenshot-settings.png" alt="Settings" width="100%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-settings.png" alt="Settings" width="100%"/>
   <br/><em>Settings</em>
 </p>
 

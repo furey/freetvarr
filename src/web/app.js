@@ -38,6 +38,7 @@ import {
   nativeClickPlan,
 } from '/double-tap.js'
 import { findHdSimulcast } from '/simulcast.js'
+import { fadeEdges, nudgeDecision, nudgeOffsetAt, NUDGE_DELAY_MS, NUDGE_DISTANCE_PX, NUDGE_TOTAL_MS } from '/tab-strip.js'
 import { liveRecordButton, liveSeriesButton, recordingProgramIdsOf } from '/live-record.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import {
@@ -12115,6 +12116,91 @@ const TABS = [
   { key: 'settings',   label: 'SETTINGS'   },
 ]
 
+const NAV_HINT_KEY = 'freetvarr.navHintShown'
+
+const NAV_INTERRUPT_EVENTS = ['pointerdown', 'touchstart', 'wheel']
+
+const useTabStripHints = (tabStrip) => {
+  const tabFade = reactive({ left: false, right: false })
+  let fadeFrame = 0
+  let nudgeTimer = 0
+  let nudgeFrame = 0
+  let userTouched = false
+  const updateFade = () => {
+    const strip = tabStrip.value
+    if (!strip) return
+    Object.assign(tabFade, fadeEdges(strip))
+  }
+  const scheduleFade = () => {
+    if (fadeFrame) return
+    fadeFrame = requestAnimationFrame(() => {
+      fadeFrame = 0
+      updateFade()
+    })
+  }
+  const navHintShown = () => {
+    try {
+      return browserStorage()?.getItem(NAV_HINT_KEY) === '1'
+    } catch {
+      return true
+    }
+  }
+  const markNavHintShown = () => {
+    try { browserStorage()?.setItem(NAV_HINT_KEY, '1') } catch {}
+  }
+  const stopNudge = () => {
+    cancelAnimationFrame(nudgeFrame)
+    nudgeFrame = 0
+  }
+  const noteUserTouch = () => {
+    userTouched = true
+    if (!nudgeFrame) return
+    stopNudge()
+    markNavHintShown()
+  }
+  const playNudge = (strip) => {
+    const distancePx = Math.min(NUDGE_DISTANCE_PX, strip.scrollWidth - strip.clientWidth)
+    const startedAt = performance.now()
+    const step = (now) => {
+      const elapsedMs = now - startedAt
+      strip.scrollLeft = nudgeOffsetAt({ elapsedMs, distancePx })
+      nudgeFrame = elapsedMs < NUDGE_TOTAL_MS ? requestAnimationFrame(step) : 0
+    }
+    nudgeFrame = requestAnimationFrame(step)
+    markNavHintShown()
+  }
+  const maybeNudge = () => {
+    const strip = tabStrip.value
+    if (!strip) return
+    const decision = nudgeDecision({
+      alreadyShown: navHintShown(),
+      reducedMotion: prefersReducedMotion(),
+      userTouched,
+      scrollLeft: strip.scrollLeft,
+      scrollWidth: strip.scrollWidth,
+      clientWidth: strip.clientWidth,
+    })
+    if (decision === 'mark') return markNavHintShown()
+    if (decision === 'run') playNudge(strip)
+  }
+  const stripObserver = new ResizeObserver(scheduleFade)
+  onMounted(() => {
+    const strip = tabStrip.value
+    strip.addEventListener('scroll', scheduleFade, { passive: true })
+    NAV_INTERRUPT_EVENTS.forEach((type) => strip.addEventListener(type, noteUserTouch, { passive: true }))
+    stripObserver.observe(strip)
+    updateFade()
+    nudgeTimer = setTimeout(maybeNudge, NUDGE_DELAY_MS)
+  })
+  onUnmounted(() => {
+    stripObserver.disconnect()
+    clearTimeout(nudgeTimer)
+    stopNudge()
+    cancelAnimationFrame(fadeFrame)
+  })
+  return { tabFade, updateFade }
+}
+
 const App = {
   template: `
     <div class="min-h-dvh flex flex-col">
@@ -12150,7 +12236,7 @@ const App = {
               </div>
             </div>
           </div>
-          <nav class="tab-strip">
+          <nav ref="tabStrip" class="tab-strip" :data-fade-left="tabFade.left" :data-fade-right="tabFade.right">
             <a v-for="t in tabs" :key="t.key"
               :href="'#/' + t.key"
               :data-active="isActiveTab(t.key)"
@@ -12189,10 +12275,13 @@ const App = {
   setup() {
     const currentView = computed(() => VIEW_MAP[route.value] || DashboardView)
     const isActiveTab = (key) => (TAB_FOR_ROUTE[route.value] || route.value) === key
+    const tabStrip = ref(null)
+    const { tabFade, updateFade } = useTabStripHints(tabStrip)
     watch(route, async () => {
       await nextTick()
       document.querySelector('.tab-strip [data-active="true"]')
         ?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+      updateFade()
     }, { immediate: true })
     const appVersion = computed(() => serverAbout.value.version || '')
     const appHeader = ref(null)
@@ -12206,7 +12295,7 @@ const App = {
     })
     onUnmounted(() => headerObserver.disconnect())
     return {
-      appHeader, route, refreshTick, tabs: TABS, currentView, isActiveTab,
+      appHeader, tabStrip, tabFade, route, refreshTick, tabs: TABS, currentView, isActiveTab,
       syncStatus, clockReadout, tzShortName, recordingCount,
       appVersion, releaseUrl,
     }

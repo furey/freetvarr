@@ -60,3 +60,5 @@ rm -f "$WEBM"
 
 echo "[install-demo] done:"
 ls -lh "$MP4" "$POSTER"
+
+"$REPO_ROOT/scripts/upload-docs-media.sh"

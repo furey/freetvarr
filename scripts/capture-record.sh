@@ -63,3 +63,5 @@ rm -rf "$FRAMES_DIR" "$TOUR_LOG"
 
 echo "[record] done:"
 ls -lh "$MP4" "${MP4%.mp4}-1x.mp4" "$POSTER"
+
+"$REPO_ROOT/scripts/upload-docs-media.sh"

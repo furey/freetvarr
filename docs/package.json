@@ -5,7 +5,10 @@
   "type": "module",
   "description": "VitePress documentation site for Freetvarr.",
   "scripts": {
+    "media": "../scripts/fetch-docs-media.sh",
+    "predev": "npm run media",
     "dev": "vitepress dev",
+    "prebuild": "npm run media",
     "build": "vitepress build",
     "preview": "vitepress preview"
   },

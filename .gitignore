@@ -18,3 +18,10 @@ npm-debug.log*
 scripts/.cache/
 
 .claude/
+
+# Generated docs media (published to the docs-media release; see scripts/docs-media.txt)
+docs/public/*.mp4
+docs/public/*-poster.jpg
+docs/img/screenshot-*.png
+docs/img/hero.webp
+docs/public/img/
