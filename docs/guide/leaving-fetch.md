@@ -52,10 +52,10 @@ Fetch's paid channel packs and streamed international channels have no free repl
 
 The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of mid-October 2026:
 
-- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack). Apps billed through Fetch, such as Netflix, do not count.
+- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack). Apps billed through Fetch, such as Netflix, do not count.
 - **More than one box**: a second box needs Multiroom at `$4.49` a month, so most homes with two or more boxes do not pay the levy. They already pay Fetch `$53.88` a year.
 - **How much**: `$29.99` once per household, however many Gen 3 boxes you have.
-- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in) by `31 October 2026`. Fetch then charges the card on file with at least 7 days' notice, or emails a payment link in November 2026.
+- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in) by `31 October 2026`. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026.
 - **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that.
 - **Free trials**: levy payers can claim one month of the Ultimate Pack and Movie Box at `$0`. Each trial continues at the full monthly price unless you cancel it before the month ends.
 - **If you do nothing**: Fetch suspends the box in November 2026, then deactivates it permanently. A Mighty loses its recordings for good. While the account is suspended, Fetch can still restore it on request.
