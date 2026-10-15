@@ -36,12 +36,9 @@ const monochromeSvg = () => svgDocument({
 const faviconSvg = () => svgDocument({
   size: 32,
   background: BACKGROUND,
-  body: [
-    rect({ x: 8, y: 2, width: 6, height: 18, fill: INK }),
-    rect({ x: 8, y: 2, width: 16, height: 6, fill: INK }),
-    rect({ x: 8, y: 12, width: 12, height: 4, fill: INK }),
-    ...CHIP_COLOURS.map((fill, index) => rect({ x: 2 + index * 10, y: 24, width: 8, height: 6, fill }))
-  ].join('')
+  body: CHIP_COLOURS
+    .map((fill, index) => rect({ x: 2.5 + index * 9.5, y: 13.5, width: 8, height: 5, fill }))
+    .join('')
 })
 
 const monogram = ({ ink, chips }) => [

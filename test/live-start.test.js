@@ -24,7 +24,7 @@ test('bufferedAhead bridges a small gap before the first range', () => {
 test('isReadyToStart waits for the start buffer', () => {
   const position = 0
   assert.equal(isReadyToStart({ ranges: [[0, 1]], position, waitedMs: 0 }), false)
-  assert.equal(isReadyToStart({ ranges: [[0, 2]], position, waitedMs: 1_000 }), false)
+  assert.equal(isReadyToStart({ ranges: [[0, 1.5]], position, waitedMs: 1_000 }), false)
   assert.equal(isReadyToStart({ ranges: [[0, LIVE_START_BUFFER_S]], position, waitedMs: 1_000 }), true)
 })
 
