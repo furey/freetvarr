@@ -545,7 +545,7 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 
 ## Screenshots
 
-The PNGs under `docs/img/` are captured from the running app by `scripts/capture-screenshots.sh`. The script pulls the official Playwright Docker image (no host install required), drives headless Chromium across the tabs at desktop width plus a `390×844` mobile viewport, and writes the screenshots back into `docs/img/` with the right ownership.
+The PNGs under `docs/img/` are captured from the running app by `scripts/capture-screenshots.sh`. The script pulls the official Playwright Docker image (no host install required), drives headless Chromium across the tabs at desktop width plus a `390×844` mobile viewport, writes the screenshots into `docs/img/` with the right ownership, then uploads them to the `docs-media` release ([Docs media](#docs-media)).
 
 ```sh
 # the container must be up + reachable at the URL the script expects
@@ -555,7 +555,7 @@ The PNGs under `docs/img/` are captured from the running app by `scripts/capture
 ./scripts/capture-screenshots.sh settings
 ```
 
-The captures themselves are configured in `scripts/capture-screenshots.mjs` (desktop viewport `1280×936`, mobile `390×844`, viewport-only clip so every shot has the same aspect ratio, 2× device-scale). Before the Settings shot, the script rewrites the `/api/settings` response in-page so no real TVHeadend URL, password, Plex token, or host path reaches a committed PNG.
+The captures themselves are configured in `scripts/capture-screenshots.mjs` (desktop viewport `1280×936`, mobile `390×844`, viewport-only clip so every shot has the same aspect ratio, 2× device-scale). Before the Settings shot, the script rewrites the `/api/settings` response in-page so no real TVHeadend URL, password, Plex token, or host path reaches a published PNG.
 
 > [!TIP]<br>
 > To shoot UI changes that haven't shipped yet, run them locally against a copy of the live database; every panel renders from SQLite and the settings row, so the shots match production. Copy the state file off the deploy host (`ssh <host> 'cat /path/to/freetvarr/state.db' > /tmp/shots.db`; `scp` fails on hosts with a restricted sftp subsystem, Synology among them), start the server with `DB_PATH=/tmp/shots.db node src/server.js`, then point the capture script at your machine's LAN IP rather than `localhost` (the Playwright container can't reach the host loopback). Cautions: the scheduler starts with the copied `sync_cron`, so capture outside the cron window or a real sync fires against the live TVHeadend, and delete the copy afterwards; it holds the TVHeadend password and the Plex token.
