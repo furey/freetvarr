@@ -10,7 +10,7 @@ imageAlt: 'Leaving Fetch TV? Own your free-to-air setup before the levy.'
 
 # Leaving Fetch TV
 
-Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now charges a one-off levy to keep it working until October 2027. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
+Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now asks for a one-off levy to keep it working until at least June 2028. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
 ## What you'll need
 
@@ -50,15 +50,19 @@ Fetch's paid channel packs and streamed international channels have no free repl
 
 ## The deadline
 
-The facts below come from Fetch's [Extended Service Levy](https://news.fetchtv.com.au/extended-service-levy-1) page and [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of October 2026:
+The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of mid-October 2026:
 
 - **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack). Apps billed through Fetch, such as Netflix, do not count.
+- **More than one box**: a second box needs Multiroom at `$4.49` a month, so most homes with two or more boxes do not pay the levy. They already pay Fetch `$53.88` a year.
 - **How much**: `$29.99` once per household, however many Gen 3 boxes you have.
-- **When**: Fetch charges the card on file on `1 November 2026` unless you cancel by `31 October 2026`.
-- **What it buys**: service to `31 October 2027`. Fetch says it will "endeavour" to support Gen 3 boxes after that, but it makes no promise.
-- **If you do not pay**: Fetch suspends the account. A suspended Mighty loses "making or viewing recordings".
+- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in) by `31 October 2026`. Fetch then charges the card on file with at least 7 days' notice, or emails a payment link in November 2026.
+- **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that.
+- **Free trials**: levy payers can claim one month of the Ultimate Pack and Movie Box at `$0`. Each trial continues at the full monthly price unless you cancel it before the month ends.
+- **If you do nothing**: Fetch suspends the box in November 2026, then deactivates it permanently. A Mighty loses its recordings for good. While the account is suspended, Fetch can still restore it on request.
 - **If you cancel**: Fetch says a cancelled box "cannot be reactivated in the future by you or anyone else". The box stops working completely, free-to-air TV included.
 - **Apps**: Fetch removes some apps from Gen 3 boxes whether you pay or not. [CyberShack reports](https://cybershack.com.au/consumer-advice/fetch-tv-gen-3/) that the Mini loses Netflix, Paramount+, SBS On Demand, and Hayu, and the Mighty loses Paramount+.
+
+Fetch changed these terms in October 2026. Its September emails said Fetch would charge the card automatically on `1 November 2026` and cover the box until 2027. If your email says that, the FAQ is newer.
 
 Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at `$4.99` a month.
 
@@ -257,7 +261,7 @@ flowchart LR
   split --> tuner
 ```
 
-If the new setup is not working by the deadline, paying the `$29.99` keeps the Fetch box going for another year while you finish.
+If the new setup will not be ready by the deadline, opt in to the `$29.99` levy by `31 October 2026`. It keeps the Fetch box going until mid-2028 while you finish.
 
 ## FAQ
 
@@ -295,7 +299,7 @@ On cost alone, a new Fetch box can come out cheaper than either path. Fetch's pr
 | Mighty Gen 4     | `A$659`                                | Yes, `1TB` disk | about `A$840`                 |
 | Mighty Gen 4 Pro | `A$799` pre-order (RRP `A$999`)        | Yes, `2TB` disk | about `A$980`                 |
 
-Every new box needs Fetch Access at `A$4.99` a month (`A$59.88` a year). Fetch Access includes Movie Box, 30+ streamed channels, and games; apps such as Netflix cost extra. Gen 3 owners who buy the Mini also get `A$29.94` of credit, which is six months of Fetch Access. The offer ends on `31 October 2026`.
+Every new box needs Fetch Access at `A$4.99` a month (`A$59.88` a year). With the Mighty Gen 4 Pro, Fetch also sells Fetch Access for Life: a one-off `A$250` instead of the monthly fee, for as long as the Fetch account stays active. Fetch Access includes Movie Box, 30+ streamed channels, and games; apps such as Netflix cost extra. Gen 3 owners who buy the Mini also get `A$29.94` of credit, which is six months of Fetch Access. The offer ends on `31 October 2026`.
 
 Path 1 costs about `A$280–400` once, about the same as a Mini over three years. Path 2 costs about `A$600–1,400` once, so a Mighty can cost less than a new NAS and drive. After three years, a Fetch box still costs `A$59.88` a year, and the tuner route costs nothing more.
 
