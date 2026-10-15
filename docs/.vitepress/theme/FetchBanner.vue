@@ -6,7 +6,8 @@ import { withBase } from 'vitepress'
   <a class="fetch-banner" :href="withBase('/guide/leaving-fetch')">
     <span class="fetch-banner__text">
       <strong>Leaving Fetch TV?</strong>
-      A step-by-step guide to owning your setup before the levy
+      <span class="fetch-banner__long">A step-by-step guide to owning your setup before the levy</span>
+      <span class="fetch-banner__short">Read the guide before the levy</span>
     </span>
     <svg class="fetch-banner__arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 8h10M9 4l4 4-4 4"/>
@@ -16,49 +17,62 @@ import { withBase } from 'vitepress'
 
 <style scoped>
 .fetch-banner {
-  display: inline-flex;
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: var(--vp-z-index-layout-top);
+  display: flex;
   align-items: center;
-  gap: 10px;
-  max-width: 100%;
-  margin-top: 32px;
-  margin-bottom: 24px;
-  padding: 8px 14px;
-  border: 1px solid var(--vp-c-brand-soft);
-  border-radius: 999px;
-  background: var(--vp-c-brand-softer);
-  color: var(--vp-c-text-1);
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: var(--vp-layout-top-height);
+  padding: 0 16px;
+  background: #007bb6;
+  color: #fff;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.5;
   text-decoration: none;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition: background-color 0.2s;
 }
 
 .fetch-banner:hover {
-  border-color: var(--vp-c-brand-1);
-  background: var(--vp-c-brand-soft);
+  background-color: #006da3;
+}
+
+.fetch-banner:hover .fetch-banner__text {
+  text-decoration: underline;
 }
 
 .fetch-banner:focus-visible {
-  outline: 2px solid var(--vp-c-brand-1);
-  outline-offset: 2px;
+  outline: 2px solid #fff;
+  outline-offset: -4px;
 }
 
 .fetch-banner__text {
-  color: var(--vp-c-text-2);
-  text-align: left;
-  text-wrap: balance;
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fetch-banner__text strong {
-  color: var(--vp-c-text-1);
-  font-weight: 600;
+  margin-right: 4px;
+  color: inherit;
+  font-weight: 700;
+}
+
+.fetch-banner__short {
+  display: none;
 }
 
 .fetch-banner__arrow {
   flex-shrink: 0;
   width: 1.15em;
   height: 1.15em;
-  color: var(--vp-c-brand-1);
+  color: inherit;
   transition: transform 0.2s;
 }
 
@@ -66,21 +80,17 @@ import { withBase } from 'vitepress'
   transform: translateX(3px);
 }
 
-@media (min-width: 960px) {
-  .fetch-banner {
-    margin-top: 0;
-    font-size: 13px;
-  }
-
-  .fetch-banner__text {
-    white-space: nowrap;
-  }
-}
-
 @media (max-width: 639px) {
   .fetch-banner {
-    border-radius: 14px;
     font-size: 13px;
+  }
+
+  .fetch-banner__long {
+    display: none;
+  }
+
+  .fetch-banner__short {
+    display: inline;
   }
 }
 
