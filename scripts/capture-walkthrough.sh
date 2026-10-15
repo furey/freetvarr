@@ -7,9 +7,9 @@ set -euo pipefail
 # running freetvarr at a simulated prime time (19:45 tonight in TZ, or set
 # SIMULATED_NOW). Guide, search, logo, and programme-image GETs come from the
 # real server; settings are masked; syncs, series, recordings, and recording-now
-# are synthetic fixtures; live TV plays a NASA Earth footage clip
-# prepared by capture-live-clip.sh as the fixture programme "Earth From Above"
-# on "ABC HD", so no live session starts on the server; every non-GET is answered locally and never reaches
+# are synthetic fixtures; live TV plays a Mixkit surfing montage
+# prepared by capture-live-clip.sh as the fixture programme "Big Wave Season"
+# on "7mate", so no live session starts on the server; every non-GET is answered locally and never reaches
 # the server. It records every frame Chrome paints (capture-screencast.mjs),
 # then encode-screencast.sh trims and encodes them on the host to
 # docs/public/demo.mp4 with a matching poster frame, and cuts the opening
