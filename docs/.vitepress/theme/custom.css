@@ -24,6 +24,7 @@
 }
 
 :root {
+  --vp-layout-top-height: 40px;
   --vp-font-family-base: "Inter", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
   --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
@@ -46,7 +47,6 @@
   --vp-button-brand-active-bg: #0a9fe6;
 
   --vp-home-hero-name-color: var(--vp-c-text-1);
-  --hero-line-1: #9a6f00;
   --hero-line-2: #c25e00;
   --vp-home-hero-image-background-image: linear-gradient(
     -45deg,
@@ -58,7 +58,6 @@
 }
 
 .dark {
-  --hero-line-1: #e2b03c;
   --hero-line-2: #ff8a00;
   --vp-c-brand-1: #62cfff;
   --vp-c-brand-2: #1eb6ff;
@@ -105,7 +104,8 @@ kbd {
 .VPHero .name .hero-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.59em;
+  gap: 0.49em;
+  font-size: 0.8em;
   font-family: var(--vp-font-family-mono);
   font-weight: 400;
   letter-spacing: 0;
@@ -125,15 +125,13 @@ kbd {
 .VPHero .hero-chips i:nth-child(2) { background: #ff8a00; }
 .VPHero .hero-chips i:nth-child(3) { background: #e2b03c; }
 
-.VPHero .text .hero-line-1 { display: block; color: var(--hero-line-1); }
+.VPHero .text .hero-line-1,
 .VPHero .text .hero-line-2 { display: block; color: var(--hero-line-2); }
+
+.VPHero .text .hero-em { color: var(--vp-c-text-1); font-style: normal; }
 
 .VPHero .heading .name:has(.hero-brand) {
   padding-bottom: 0.45em;
-}
-
-.VPHero .name .hero-brand {
-  font-size: 0.9em;
 }
 
 .VPHero .text:has(.hero-line-1) {
@@ -142,12 +140,12 @@ kbd {
 }
 
 .VPHero .tagline.tagline {
-  padding-top: 28px;
+  padding-top: 38px;
   line-height: 1.25;
 }
 
 .VPHero .actions.actions {
-  padding-top: 44px;
+  padding-top: 30px;
 }
 
 /* Keyboard hints. */
@@ -324,4 +322,21 @@ kbd {
   .vp-doc table:has(th:nth-child(3)) :is(th, td):first-child {
     min-width: 6em;
   }
+}
+
+/* Homepage hero buttons: outlined in the site blue, white on hover. */
+.VPHero {
+  --vp-button-brand-hover-border: #fffcfb;
+  --vp-button-brand-hover-bg: #fffcfb;
+  --vp-button-brand-active-border: var(--vp-c-text-2);
+  --vp-button-brand-active-bg: var(--vp-c-text-2);
+  --vp-button-alt-border: var(--vp-c-brand-2);
+  --vp-button-alt-text: var(--vp-c-brand-1);
+  --vp-button-alt-bg: transparent;
+  --vp-button-alt-hover-border: #fffcfb;
+  --vp-button-alt-hover-text: #fffcfb;
+  --vp-button-alt-hover-bg: transparent;
+  --vp-button-alt-active-border: var(--vp-c-text-2);
+  --vp-button-alt-active-text: var(--vp-c-text-2);
+  --vp-button-alt-active-bg: transparent;
 }

@@ -84,7 +84,6 @@ The setup wizard, from the time zone to the ready step.
 <p align="center">
   <img src="docs/img/screenshot-player.png" alt="Live TV player" width="100%"/>
   <br/><em>Live TV player</em>
-  <br/><sub>Big Buck Bunny © Blender Foundation (CC BY 3.0)</sub>
 </p>
 
 <p align="center">

@@ -22,7 +22,7 @@ In a terminal, run this command in the folder where you want a `freetvarr` folde
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-<BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" ratio="1280 / 960" label="Terminal" credit="" aria-label="The one-line install in a terminal, from the curl command to the address of the setup wizard" />
+<BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" ratio="1280 / 960" label="Terminal" single aria-label="The one-line install in a terminal, from the curl command to the address of the setup wizard" />
 
 The script creates the `freetvarr` folder, downloads its Docker compose file, writes its `.env`, and asks for confirmation regarding project file ownership. Press `Enter` to accept the defaults (most people do). The first start downloads the Docker images, which takes a few minutes. The script then starts the Docker containers and outputs the URL of the setup wizard. Open that URL in a browser and proceed to [step 2](#_2-run-the-wizard).
 
@@ -80,7 +80,7 @@ Use this instead of the script if your NAS has no SSH access, or if you prefer t
 The first visit to `http://<host-ip>:3733` in a browser opens the setup wizard:
 
 <!-- markdownlint-disable-next-line MD033 -->
-<BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" credit="" aria-label="A walkthrough of the Freetvarr setup wizard, from the time zone to the ready step" />
+<BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" aria-label="A walkthrough of the Freetvarr setup wizard, from the time zone to the ready step" />
 
 1. **WELCOME**: confirm your time zone.
 2. **TVHEADEND**: if Freetvarr installed TVHeadend for you, choose an admin username and password (press the eye button to check what you typed), check the allowed networks, then press `SECURE TVHEADEND AND CONNECT FREETVARR` to save the login in TVHeadend and connect Freetvarr to it. If you installed TVHeadend yourself, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).

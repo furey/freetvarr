@@ -11,7 +11,7 @@ export default {
   },
   Layout: () =>
     h(DefaultTheme.Layout, null, {
-      'home-hero-info-before': () => h(FetchBanner),
-      'home-hero-image': () => h(BrowserFrame, { credit: 'Big Buck Bunny © Blender Foundation (CC BY 3.0)' })
+      'layout-top': () => h(FetchBanner),
+      'home-hero-image': () => h(BrowserFrame)
     })
 }

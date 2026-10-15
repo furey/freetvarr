@@ -6,7 +6,7 @@ const props = defineProps({
   src: { type: String, default: '/demo.mp4' },
   poster: { type: String, default: '/demo-poster.jpg' },
   label: { type: String, default: 'http://freetvarr.lan' },
-  credit: { type: String, default: null },
+  single: { type: Boolean, default: false },
   phone: { type: Boolean, default: false },
   ratio: { type: String, default: '1280 / 800' },
   ariaLabel: { type: String, default: 'A walkthrough of the Freetvarr dashboard, live TV, TV guide, series, recordings, syncs, and settings' }
@@ -14,14 +14,40 @@ const props = defineProps({
 
 const slots = useSlots()
 const showsScreenshot = computed(() => Boolean(slots.default))
-const creditText = computed(() => props.credit ?? '')
+const oneXSrc = computed(() => props.src.replace(/\.mp4$/, '-1x.mp4'))
 
 const video = ref(null)
 
-const showControlsInFullscreen = () => {
+const switchSourceKeepingTime = (el, apply) => {
+  const time = el.currentTime
+  const wasPlaying = !el.paused
+  apply()
+  el.addEventListener('loadedmetadata', () => {
+    el.currentTime = time
+    if (wasPlaying) el.play?.().catch(() => {})
+  }, { once: true })
+}
+
+const useFullResolution = (el) => {
+  if (props.single || !el.currentSrc.endsWith('-1x.mp4')) return
+  switchSourceKeepingTime(el, () => { el.src = withBase(props.src) })
+}
+
+const restoreScreenResolution = (el) => {
+  if (!el.hasAttribute('src')) return
+  switchSourceKeepingTime(el, () => {
+    el.removeAttribute('src')
+    el.load()
+  })
+}
+
+const onFullscreenChange = () => {
   const el = video.value
   if (!el) return
-  el.controls = document.fullscreenElement === el
+  const isFullscreen = document.fullscreenElement === el
+  el.controls = isFullscreen
+  if (isFullscreen) return useFullResolution(el)
+  restoreScreenResolution(el)
 }
 
 const playFullscreen = () => {
@@ -29,6 +55,7 @@ const playFullscreen = () => {
   if (!el) return
   el.play?.().catch(() => {})
   if (el.requestFullscreen) return el.requestFullscreen().catch(() => {})
+  useFullResolution(el)
   el.webkitEnterFullscreen?.()
 }
 
@@ -36,7 +63,7 @@ onMounted(() => {
   const el = video.value
   if (!el) return
   el.muted = true
-  document.addEventListener('fullscreenchange', showControlsInFullscreen)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')
   if (reduce?.matches) {
     el.removeAttribute('autoplay')
@@ -46,7 +73,7 @@ onMounted(() => {
   el.play?.().catch(() => {})
 })
 
-onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsInFullscreen))
+onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenChange))
 </script>
 
 <template>
@@ -87,11 +114,14 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsI
           :aria-label="ariaLabel"
           @dblclick="playFullscreen"
         >
-          <source :src="withBase(src)" type="video/mp4" />
+          <source v-if="single" :src="withBase(src)" type="video/mp4" />
+          <template v-else>
+            <source :src="withBase(src)" media="(min-resolution: 2dppx)" type="video/mp4" />
+            <source :src="withBase(oneXSrc)" type="video/mp4" />
+          </template>
         </video>
       </div>
     </div>
-    <figcaption v-if="creditText" class="browser-frame__credit">{{ creditText }}</figcaption>
   </figure>
 </template>
 
@@ -102,20 +132,6 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', showControlsI
 
 .vp-doc .browser-frame__figure {
   margin: 24px 0;
-}
-
-.browser-frame__credit {
-  margin-top: 8px;
-  color: var(--vp-c-text-3);
-  font-size: 11px;
-  text-align: center;
-  white-space: nowrap;
-}
-
-@media (max-width: 639px) {
-  .browser-frame__credit {
-    font-size: 10px;
-  }
 }
 
 .browser-frame {

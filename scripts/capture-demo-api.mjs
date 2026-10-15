@@ -167,6 +167,17 @@ const LAST_SYNC_AGO_MIN = 16
 const FAVOURITE_CHANNEL_PATTERNS = [/^ABC TV/i, /^SBS\b/i, /^9/i, /^7/i]
 const FAVOURITE_COUNT = 3
 const SEARCH_TITLE_MAX = 24
+const LIVE_DEMO_CHANNEL_PATTERN = /^ABCTV$/i
+const LIVE_DEMO_CHANNEL_NAME = 'ABC HD'
+const LIVE_DEMO_PROGRAMME = {
+  title: 'Earth From Above',
+  episode_title: 'Orbit by Orbit',
+  synopsis: 'Ultra-high-definition footage from the International Space Station follows the planet through a full day, from city lights at night to storms, deserts, and oceans in sunlight.',
+  series_no: null,
+  episode_no: null,
+  genre: null,
+  has_image: false,
+}
 const DEMO_PREFS = {
   'freetvarr.welcomeDismissed': '1',
   'freetvarr.guideZoom': 'm',
@@ -205,7 +216,7 @@ const loadSimulatedGuide = async ({ request, base, simNow }) => {
   const today = await fetchGuideDay({ request, base, day: 0 })
   const dayOffset = Math.round((localMidnight(simNow) - today.dayStart) / DAY_MS)
   const guide = dayOffset === 0 ? today : await fetchGuideDay({ request, base, day: dayOffset })
-  return { guide: withFavouriteChannels(guide), dayOffset }
+  return { guide: withLiveDemoSlot(simNow)(withFavouriteChannels(guide)), dayOffset }
 }
 
 const fetchGuideDay = async ({ request, base, day }) => {
@@ -525,7 +536,7 @@ const shiftDay = (dayOffset) => (url) => {
 }
 
 const withSimulatedDay = ({ dayOffset, simNow }) => (data) => ({
-  ...withFavouriteChannels(data),
+  ...withLiveDemoSlot(simNow)(withFavouriteChannels(data)),
   day: data.day - dayOffset,
   fetchedAt: simNow,
 })
@@ -835,6 +846,21 @@ const pinnedFirst = ({ items, pinIds }) => {
 const withFavouriteChannels = (data) => {
   const pinIds = favouriteIds(data.channels || [])
   return { ...data, channels: pinnedFirst({ items: (data.channels || []).map(markPinned(pinIds)), pinIds }) }
+}
+
+const withLiveDemoSlot = (simNow) => (data) => {
+  const channel = (data.channels || []).find((c) => LIVE_DEMO_CHANNEL_PATTERN.test(c.name || ''))
+  if (!channel) return data
+  const renamed = { ...channel, name: LIVE_DEMO_CHANNEL_NAME, pinned: true, hidden: false }
+  const others = data.channels.filter((c) => c !== channel)
+  const programs = (data.programs?.[channel.id] || []).map((p) => airsAt(p, simNow)
+    ? { ...p, ...LIVE_DEMO_PROGRAMME, series_link: `${channel.id}|earth from above` }
+    : p)
+  return {
+    ...data,
+    channels: [renamed, ...others.filter((c) => c.pinned), ...others.filter((c) => !c.pinned)],
+    programs: { ...data.programs, [channel.id]: programs },
+  }
 }
 
 const maskSettings = (data) => {

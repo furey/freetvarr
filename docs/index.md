@@ -5,7 +5,7 @@ hero:
   name: >-
     <span class="hero-brand"><span class="hero-chips" aria-hidden="true"><i></i><i></i><i></i></span>Freetvarr</span>
   text: >-
-    <span class="hero-line-1">Live TV in your browser.</span><span class="hero-line-2">Recordings in your library, ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></span>
+    <span class="hero-line-1"><em class="hero-em">Live TV</em> in your browser.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
     Self-hosted TV for any TVHeadend-compatible tuner. Watch live,
     browse the TV guide, and record straight into your media library.<br><span
