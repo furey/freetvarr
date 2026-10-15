@@ -8,6 +8,7 @@ const props = defineProps({
   label: { type: String, default: 'http://freetvarr.lan' },
   single: { type: Boolean, default: false },
   phone: { type: Boolean, default: false },
+  bare: { type: Boolean, default: false },
   ratio: { type: String, default: '1280 / 800' },
   ariaLabel: { type: String, default: 'A walkthrough of the Freetvarr dashboard, live TV, TV guide, series, recordings, syncs, and settings' }
 })
@@ -78,8 +79,8 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
 
 <template>
   <figure class="browser-frame__figure">
-    <div class="browser-frame" :class="{ 'browser-frame--phone': phone }">
-      <div class="browser-frame__bar">
+    <div class="browser-frame" :class="{ 'browser-frame--phone': phone, 'browser-frame--bare': bare }">
+      <div v-if="!bare" class="browser-frame__bar">
         <span class="browser-frame__dots" aria-hidden="true">
           <span class="browser-frame__dot browser-frame__dot--blue"></span>
           <span class="browser-frame__dot browser-frame__dot--orange"></span>
@@ -126,6 +127,17 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
 </template>
 
 <style scoped>
+.browser-frame.browser-frame--bare {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.browser-frame--bare .browser-frame__screen {
+  background: transparent;
+}
+
 .browser-frame__figure {
   margin: 0;
 }

@@ -102,6 +102,9 @@ In Freetvarr, open the [TV Guide](/guide/tv-guide), click a programme, and press
 
 On a tablet or phone, add Freetvarr to the Home Screen. Freetvarr then opens full screen from its own icon, like an app.
 
+<!-- markdownlint-disable-next-line MD033 -->
+<BrowserFrame bare src="/home-screen-demo.mp4" poster="/home-screen-demo-poster.jpg" ratio="1114 / 918" aria-label="An iPad and an iPhone, each with the Freetvarr icon on its Home Screen: a tap on each icon opens Freetvarr full screen on the Dashboard, in the phone layout and then the tablet layout" />
+
 On an iPad or iPhone:
 
 1. Open `http://<host-ip>:3733` in Safari.

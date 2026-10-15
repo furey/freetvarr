@@ -112,8 +112,10 @@ export const installCursor = (page) =>
   })
 
 export const cursorTo = async (page, x, y) => {
+  await page.mouse.move(-1, -1)
   await page.evaluate(([x, y]) => window.__wt?.move(x, y), [x, y])
   await page.waitForTimeout(680)
+  await page.mouse.move(x, y)
 }
 
 export const cursorToBox = async (page, locator) => {
@@ -123,9 +125,9 @@ export const cursorToBox = async (page, locator) => {
   return true
 }
 
-export const clickWithCursor = async (page, locator) => {
+export const clickWithCursor = async (page, locator, { dwellMs = 180 } = {}) => {
   if (!(await cursorToBox(page, locator))) return false
-  await page.waitForTimeout(180)
+  await page.waitForTimeout(dwellMs)
   await page.evaluate(() => window.__wt?.click())
   await locator.click()
   return true
