@@ -38,7 +38,7 @@ const faviconSvg = () => svgDocument({
   size: 32,
   background: BACKGROUND,
   body: CHIP_COLOURS
-    .map((fill, index) => rect({ x: 2 + index * 10, y: 12, width: 8, height: 6, fill }))
+    .map((fill, index) => rect({ x: 2 + index * 10, y: 14, width: 8, height: 4, fill }))
     .join('')
 })
 
