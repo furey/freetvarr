@@ -5,10 +5,13 @@ public wizard-demo-1x.mp4
 public record-demo.mp4
 public record-demo-1x.mp4
 public install-demo.mp4
+public home-screen-demo.mp4
+public home-screen-demo-1x.mp4
 public demo-poster.jpg
 public wizard-demo-poster.jpg
 public record-demo-poster.jpg
 public install-demo-poster.jpg
+public home-screen-demo-poster.jpg
 img hero.webp
 img screenshot-channels.png
 img screenshot-dashboard.png

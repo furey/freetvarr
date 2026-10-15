@@ -16,6 +16,7 @@ const SERIES_PROGRAMME_SKIP = /news|sport|football|rugby|league|cricket|tennis|g
 const POSTER_AFTER_MODAL_S = 0.6
 const MODAL_HOLD_MS = 1800
 const MARKER_HOLD_MS = 2400
+const BUTTON_DWELL_MS = 900
 const SCROLLBARS_OFF = '::-webkit-scrollbar{width:0!important;height:0!important}html,body{scrollbar-width:none!important}'
 
 
@@ -26,11 +27,10 @@ const openCell = async (page, cell) => {
   if (await page.locator('.epg-modal:not(.live-modal) .programme-image img').count()) {
     await waitForImages(page, '.epg-modal:not(.live-modal) .programme-image img')
   }
-  await page.mouse.move(0, 0)
 }
 
 const pressInModal = async (page, button) => {
-  await clickWithCursor(page, button)
+  await clickWithCursor(page, button, { dwellMs: BUTTON_DWELL_MS })
   await page.waitForSelector('.epg-modal:not(.live-modal)', { state: 'hidden', timeout: 8000 })
 }
 
