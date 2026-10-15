@@ -12,7 +12,6 @@ const FRAMES_DIR = process.env.WALKTHROUGH_FRAMES || '/work/scripts/.cache/frame
 const VIEWPORT = { width: 1280, height: 800 }
 const DEVICE_SCALE = 2
 const LIVE_PLAY_MS = 3500
-const POSTER_AFTER_PLAY_S = 2.5
 const TOOLTIP_HOLD_MS = 1800
 
 const scrollDownAndBack = async (page, { dy, hold = 600 }) => {
@@ -88,7 +87,7 @@ const run = async () => {
 
   await page.waitForTimeout(1400)
   const dashboardWatch = page.locator('.dash-live-row .row-play').first()
-  const playingAt = await watchLiveBriefly(page, dashboardWatch)
+  await watchLiveBriefly(page, dashboardWatch)
 
   await clickTab(page, 'live')
   await page.waitForSelector('.live-row', { timeout: 8000 }).catch(() => {})
@@ -176,7 +175,6 @@ const run = async () => {
   await browser.close()
   const trim = (settledAt - startedAt) / 1000 + 0.4
   console.log(`TOUR_TRIM=${trim.toFixed(1)}`)
-  if (playingAt) console.log(`TOUR_POSTER=${((playingAt - startedAt) / 1000 + POSTER_AFTER_PLAY_S).toFixed(1)}`)
 }
 
 run().catch((err) => {

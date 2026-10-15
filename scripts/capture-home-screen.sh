@@ -50,9 +50,8 @@ HOME_SCREEN_FRAMES="$FRAMES_DIR" \
 [ -s "$FRAMES_DIR/frames.ffconcat" ] || { echo "[home-screen] no frames produced" >&2; exit 1; }
 
 TOUR_TRIM=$(sed -n 's/.*TOUR_TRIM=\([0-9][0-9.]*\).*/\1/p' "$TOUR_LOG" | tail -1)
-TOUR_POSTER=$(sed -n 's/.*TOUR_POSTER=\([0-9][0-9.]*\).*/\1/p' "$TOUR_LOG" | tail -1)
 VIDEO_FPS=60 VIDEO_1X_SIZE=1114x918 \
-  "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" "$MP4" "$POSTER" "${TOUR_TRIM:-0.2}" "${TOUR_POSTER:-0.6}"
+  "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" "$MP4" "$POSTER" "${TOUR_TRIM:-0.2}"
 
 rm -rf "$FRAMES_DIR" "$TOUR_LOG"
 

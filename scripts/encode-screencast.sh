@@ -7,7 +7,7 @@ set -euo pipefail
 # poster frame. Each frame keeps the time Chrome painted it, so the
 # video plays at real speed whatever rate Chrome managed to paint at.
 #
-#   ./scripts/encode-screencast.sh FRAMES_DIR OUT.mp4 POSTER.jpg TRIM_S POSTER_S
+#   ./scripts/encode-screencast.sh FRAMES_DIR OUT.mp4 POSTER.jpg TRIM_S
 #
 # VIDEO_FPS (default 60) sets the constant output rate; VIDEO_CRF (default 22)
 # sets the x264 quality.
@@ -16,7 +16,6 @@ FRAMES_DIR="$1"
 MP4="$2"
 POSTER="$3"
 TRIM_HEAD="$4"
-POSTER_AT="$5"
 VIDEO_FPS="${VIDEO_FPS:-60}"
 VIDEO_CRF="${VIDEO_CRF:-22}"
 VIDEO_1X_SIZE="${VIDEO_1X_SIZE:-1040x650}"
@@ -39,6 +38,5 @@ ffmpeg -y -loglevel error -f concat -safe 0 -i "$CONCAT" -ss "$TRIM_HEAD" \
   -color_range tv -movflags +faststart \
   "$MP4_1X"
 
-echo "[encode] poster at ${POSTER_AT}s"
-ffmpeg -y -loglevel error -f concat -safe 0 -i "$CONCAT" -ss "$POSTER_AT" \
-  -frames:v 1 -update 1 -q:v 4 "$POSTER"
+echo "[encode] poster from the first frame"
+ffmpeg -y -loglevel error -i "$MP4" -frames:v 1 -update 1 -q:v 4 "$POSTER"

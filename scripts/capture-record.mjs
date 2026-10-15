@@ -13,7 +13,6 @@ const VIEWPORT = { width: 1280, height: 800 }
 const DEVICE_SCALE = 2
 const RECORDED_PROGRAMME = 'Big Wave Season'
 const SERIES_PROGRAMME_SKIP = /news|sport|football|rugby|league|cricket|tennis|golf|racing|shopping|weather/i
-const POSTER_AFTER_MODAL_S = 0.6
 const MODAL_HOLD_MS = 1800
 const MARKER_HOLD_MS = 2400
 const BUTTON_DWELL_MS = 900
@@ -103,7 +102,6 @@ const run = async () => {
   await page.waitForTimeout(1400)
 
   await openCell(page, recordedCell(page))
-  const modalOpenAt = Date.now()
   await page.waitForTimeout(MODAL_HOLD_MS)
   await pressInModal(page, page.locator('.epg-modal:not(.live-modal) button', { hasText: /^\s*RECORD\s*$/ }).first())
   await showMarker(page, await recordedCell(page).elementHandle())
@@ -116,7 +114,6 @@ const run = async () => {
   await context.close()
   await browser.close()
   console.log(`TOUR_TRIM=${((settledAt - startedAt) / 1000 + 0.4).toFixed(1)}`)
-  console.log(`TOUR_POSTER=${((modalOpenAt - startedAt) / 1000 + POSTER_AFTER_MODAL_S).toFixed(1)}`)
 }
 
 run().catch((err) => {
