@@ -567,6 +567,8 @@ The docs videos, posters, screenshots, and hero image are not in git. They live 
 - `npm run build` and `npm run dev` in `docs/` run `scripts/fetch-docs-media.sh` first. It skips files already present; run `./scripts/fetch-docs-media.sh --force` to refresh them.
 - Each capture script ends by running `scripts/upload-docs-media.sh`, which replaces the release assets and starts a docs deploy. Set `DOCS_MEDIA_UPLOAD=0` to skip the upload, or `DOCS_MEDIA_DEPLOY=0` to skip the deploy.
 - The README images load from `https://furey.github.io/freetvarr/img/`, because GitHub's image proxy rejects release asset URLs.
+- The videos come from `capture-walkthrough.sh` (`demo.mp4`), `capture-install.sh`, `capture-wizard.sh`, `capture-record.sh` (Getting started step 3), and `capture-home-screen.sh` (step 4: an iPad and an iPhone opening Freetvarr from the Home Screen). All but the install video use the demo fixtures in `scripts/capture-demo-api.mjs`, so they need a running Freetvarr but write nothing to it. Each poster is the first frame of its video, so the poster hands over to playback with no jump.
+- Only one GitHub Pages deploy runs at a time. If an upload's deploy overlaps a deploy from a push to `main`, the later one fails with "in progress deployment"; run `gh workflow run docs.yml --ref main` once the first finishes.
 
 ## Documentation site
 
