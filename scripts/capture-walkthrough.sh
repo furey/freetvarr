@@ -72,3 +72,5 @@ ffmpeg -y -loglevel error -t "$HERO_SECONDS" -i "$MP4" -vf "fps=12,scale=800:-1:
 
 echo "[walkthrough] done:"
 ls -lh "$MP4" "$POSTER" "$HERO"
+
+"$REPO_ROOT/scripts/upload-docs-media.sh"

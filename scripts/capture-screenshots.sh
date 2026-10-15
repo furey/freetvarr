@@ -42,3 +42,5 @@ docker run --rm --network host \
 
 echo "[capture] done. PNGs:"
 ls -lh "$REPO_ROOT/docs/img"/screenshot-*.png
+
+"$REPO_ROOT/scripts/upload-docs-media.sh"

@@ -10,41 +10,52 @@ const DOCS_PUBLIC = path.join(ROOT, 'docs', 'public')
 const BACKGROUND = '#28231b'
 const INK = '#fffcfb'
 const CHIP_COLOURS = ['#1eb6ff', '#ff8a00', '#e2b03c']
-const ANY_SCALE = 1.25
+const SAFE_ZONE_RADIUS = 204.8
+const CHIP_ROW = { chipWidth: 4, chipHeight: 3, gap: 1.75 }
 
 const main = async () => {
   await writeSvg('favicon.svg', faviconSvg(), [WEB, DOCS_PUBLIC])
-  await writePng({ name: 'icon-192.png', svg: iconSvg({ scale: ANY_SCALE }), size: 192 })
-  await writePng({ name: 'icon-512.png', svg: iconSvg({ scale: ANY_SCALE }), size: 512 })
-  await writePng({ name: 'icon-maskable-512.png', svg: iconSvg({ scale: 1 }), size: 512 })
+  await writePng({ name: 'icon-192.png', svg: iconSvg(), size: 192 })
+  await writePng({ name: 'icon-512.png', svg: iconSvg(), size: 512 })
+  await writePng({ name: 'icon-maskable-512.png', svg: iconSvg(), size: 512 })
   await writePng({ name: 'icon-monochrome-512.png', svg: monochromeSvg(), size: 512, transparent: true })
-  await writePng({ name: 'apple-touch-icon.png', svg: iconSvg({ scale: ANY_SCALE }), size: 180 })
+  await writePng({ name: 'apple-touch-icon.png', svg: iconSvg(), size: 180 })
   await writeFile(path.join(WEB, 'favicon.ico'), await icoFrom([16, 32]))
 }
 
-const iconSvg = ({ scale }) => svgDocument({
+const iconSvg = () => svgDocument({
   size: 512,
   background: BACKGROUND,
-  body: scaledAroundCentre({ scale, body: monogram({ ink: INK, chips: CHIP_COLOURS }) })
+  body: chipRowInSafeZone(CHIP_COLOURS)
 })
 
 const monochromeSvg = () => svgDocument({
   size: 512,
-  body: monogram({ ink: INK, chips: CHIP_COLOURS.map(() => INK) })
+  body: chipRowInSafeZone(CHIP_COLOURS.map(() => INK))
 })
 
 const faviconSvg = () => svgDocument({
   size: 32,
   background: BACKGROUND,
   body: CHIP_COLOURS
-    .map((fill, index) => rect({ x: 2.5 + index * 9.5, y: 13.5, width: 8, height: 5, fill }))
+    .map((fill, index) => rect({ x: 2 + index * 10, y: 12, width: 8, height: 6, fill }))
     .join('')
 })
 
-const monogram = ({ ink, chips }) => [
-  `<path d="M166 116H352V168H222V200H316V248H222V326H166Z" fill="${ink}"/>`,
-  ...chips.map((fill, index) => rect({ x: 116 + index * 98, y: 352, width: 84, height: 44, fill }))
-].join('')
+const chipRowInSafeZone = (fills) => {
+  const { chipWidth, chipHeight, gap } = CHIP_ROW
+  const rowWidth = 3 * chipWidth + 2 * gap
+  const unit = SAFE_ZONE_RADIUS / Math.hypot(rowWidth / 2, chipHeight / 2)
+  const left = 256 - (rowWidth * unit) / 2
+  const top = 256 - (chipHeight * unit) / 2
+  return fills.map((fill, index) => rect({
+    x: round(left + index * (chipWidth + gap) * unit),
+    y: round(top),
+    width: round(chipWidth * unit),
+    height: round(chipHeight * unit),
+    fill
+  })).join('')
+}
 
 const writeSvg = async (name, svg, directories) => {
   for (const directory of directories) await writeFile(path.join(directory, name), svg)
@@ -90,9 +101,7 @@ const svgDocument = ({ size, background, body }) => [
   ''
 ].join('\n')
 
-const scaledAroundCentre = ({ scale, body }) => scale === 1
-  ? body
-  : `<g transform="translate(256 256) scale(${scale}) translate(-256 -256)">${body}</g>`
+const round = (value) => Math.round(value * 100) / 100
 
 const rect = ({ x, y, width, height, fill }) =>
   `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}"/>`

@@ -78,3 +78,5 @@ rm -rf "$FRAMES_DIR" "$TOUR_LOG"
 echo "[wizard] done:"
 ls -lh "$MP4" "$POSTER"
 [ ! -f "$STILL" ] || ls -lh "$STILL"
+
+"$REPO_ROOT/scripts/upload-docs-media.sh"
