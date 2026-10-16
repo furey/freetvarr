@@ -1313,7 +1313,6 @@ const SKELETON_LIVE_WIDTHS = ['62%', '48%', '71%', '55%']
 const SKELETON_UPCOMING_WIDTHS = ['58%', '44%', '64%']
 const SKELETON_SYNC_WIDTHS = ['86%', '74%', '81%', '68%', '77%']
 const RECENT_SYNCS_COUNT = 12
-const RECENT_SYNCS_TABLE_COUNT = 5
 
 const hostOf = (url) => {
   if (!url) return ''
@@ -2010,9 +2009,8 @@ const DashboardView = {
           <span class="panel-heading">
             <span class="panel-title">RECENT SYNCS</span>
             <info-button title="RECENT SYNCS" doc="guide/syncs#reading-a-sync">
-              <p>The last few syncs Freetvarr ran, newest first, with what each one imported.</p>
-              <p>On a phone, the panel shows the latest sync and a bar for each of the last {{ RECENT_SYNCS_COUNT }} syncs. A tall bar is a sync that imported, removed, or failed something. Below the bars, only those syncs get a row.</p>
-              <p>A sync is <strong>OK</strong> unless something failed. Press a sync that imported, failed, or removed something to open its details. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
+              <p>The latest sync and what it did, then a bar for each of the last {{ RECENT_SYNCS_COUNT }} syncs, newest on the right. A tall bar is a sync that imported, removed, or failed something; a short bar found nothing new.</p>
+              <p>Below the bars, each of those tall-bar syncs has a row. Press a row to open its details on the <strong>SYNCS</strong> tab. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
             </info-button>
           </span>
           <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
@@ -2024,25 +2022,7 @@ const DashboardView = {
               <span class="skeleton skeleton-line" :style="{ width }"></span>
             </div>
           </div>
-          <table v-else-if="recentSyncs.length" class="deck-table recent-syncs-table hidden md:table">
-            <thead><tr>
-              <th>When</th><th>Status</th><th>Summary</th><th><span class="sr-only">Details</span></th>
-            </tr></thead>
-            <tbody>
-              <tr v-for="s in recentTableSyncs" :key="s.id"
-                :class="{ active: s.id === syncStatus.activeSyncId, notable: isNotableSync(s) }"
-                @click="isNotableSync(s) && openSyncDetails(s)">
-                <td class="font-mono whitespace-nowrap">{{ syncWhenText(s) }}</td>
-                <td><span :class="['pill', s.status]">{{ s.status }}</span></td>
-                <td><summary-line :summary="s.summary"/></td>
-                <td class="text-right">
-                  <a v-if="isNotableSync(s)" :href="syncDetailsHref(s)" class="sync-details-link"
-                    :aria-label="'Details of sync #' + s.id" @click.stop><arrow-right-icon /></a>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="syncsLoaded && recentSyncs.length" class="md:hidden recent-syncs-mobile">
+          <div v-else-if="recentSyncs.length" class="recent-syncs-view">
             <div class="sync-glance">
               <p v-if="runningSync" class="sync-glance-line">
                 <sync-status-icon status="running" />
@@ -2131,7 +2111,6 @@ const DashboardView = {
     })
 
     const lastSync = computed(() => recentSyncs.value[0] || null)
-    const recentTableSyncs = computed(() => recentSyncs.value.slice(0, RECENT_SYNCS_TABLE_COUNT))
     const runningSync = computed(() => recentSyncs.value.find((s) => s.status === 'running') || null)
     const lastFinishedSync = computed(() => recentSyncs.value.find((s) => s.status !== 'running') || null)
     const notableSyncs = computed(() => recentSyncs.value.filter(isNotableSync))
@@ -2193,7 +2172,6 @@ const DashboardView = {
 
 
     const syncDetailsHref = (s) => `#/syncs/${s.id}`
-    const openSyncDetails = (s) => { window.location.hash = syncDetailsHref(s) }
 
     const applySyncs = (syncs) => {
       recentSyncs.value = (syncs.syncs || []).slice(0, RECENT_SYNCS_COUNT)
@@ -2350,8 +2328,8 @@ const DashboardView = {
       isRecordingChannel, loadGuidePanel,
       OFF_AIR_MESSAGE, watchLive, watchRowLabel, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
       flashText, flashKind, statsLoaded, syncsLoaded, guideLoaded,
-      syncWhenText, syncTookText, isNotableSync, syncDetailsHref, openSyncDetails, firstSyncError,
-      recentTableSyncs, runningSync, lastFinishedSync, notableSyncs, stripMarks, stripLabel, RECENT_SYNCS_COUNT,
+      syncWhenText, syncTookText, syncDetailsHref, firstSyncError,
+      runningSync, lastFinishedSync, notableSyncs, stripMarks, stripLabel, RECENT_SYNCS_COUNT,
       SKELETON_LIVE_WIDTHS, SKELETON_UPCOMING_WIDTHS, SKELETON_SYNC_WIDTHS,
     }
   },

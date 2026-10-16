@@ -19,9 +19,7 @@ A sync is one pass over TVHeadend's finished recordings: list them, match them a
 
 The dashboard shows whether a sync is running, when the last one ran and what it did, and when the next one is due. Press `SYNC NOW` to run one at once, or press `LAST SYNC` to open the SYNCS tab.
 
-**RECENT SYNCS** under it lists the last five syncs. A sync that imported, failed, or removed something has an arrow at the end of its row. Press the row to open that sync on the SYNCS tab with its [details](#sync-details) open. Empty and running syncs have no link.
-
-On a phone, **RECENT SYNCS** shows the latest sync and what it did, then a bar for each of the last `12` syncs, with the newest on the right. A tall bar is a sync that imported, removed, or failed something; a short bar is a sync that found nothing new. Below the bars, only those tall-bar syncs get a row.
+**RECENT SYNCS** under it shows the latest sync and what it did, then a bar for each of the last `12` syncs, with the newest on the right. A tall bar is a sync that imported, removed, or failed something; a short bar is a sync that found nothing new. Below the bars, each tall-bar sync has a row. Press a row to open that sync on the SYNCS tab with its [details](#sync-details) open.
 
 ## Pull to refresh
 

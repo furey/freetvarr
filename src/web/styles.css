@@ -963,7 +963,7 @@ code {
 }
 
 .panel-heading > .info-btn svg {
-  translate: 0 -0.375px;
+  translate: 2px -0.375px;
 }
 
 .info-btn {
@@ -2809,7 +2809,7 @@ body.epg-drag-lock * {
   .panel-body.whats-on-body > .next-recordings:not(:first-child) { margin-block-start: 1.5rem; }
 
   .sync-list,
-  .recent-syncs-mobile { margin-inline: -0.5rem; }
+  .recent-syncs-view { margin-inline: -0.5rem; }
 
   .doctor-row {
     gap: 0.75rem;
@@ -2876,7 +2876,7 @@ body.epg-drag-lock * {
   }
 
   .panel-heading > .info-btn svg {
-    translate: 0 -0.125px;
+    translate: 2px -0.125px;
   }
 
   .deck-card {
@@ -5195,16 +5195,10 @@ table.recordings-table tbody td {
 }
 
 @media (hover: hover) {
-  .recent-syncs-table tbody tr:not(.notable):hover { background: transparent; }
-}
-.recent-syncs-table tbody tr.notable { cursor: pointer; }
-.sync-details-link { color: #8b837e; transition: color 0.15s ease; }
-.sync-details-link { display: inline-flex; padding: 0.25rem; }
-@media (hover: hover) {
-  .recent-syncs-table tbody tr.notable:hover .sync-details-link,
   a.sync-line:hover .sync-line-chevron { color: #1eb6ff; }
 }
-.sync-details-link:focus-visible { color: #1eb6ff; }
+a.sync-line:focus-visible .sync-line-chevron { color: #1eb6ff; }
+.recent-syncs-view { margin-inline: -0.75rem; }
 
 .sync-status-icon { width: 1rem; height: 1rem; display: block; flex: none; }
 .sync-status-icon.ok { color: #e2b03c; }
