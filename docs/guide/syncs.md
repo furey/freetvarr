@@ -21,6 +21,8 @@ The dashboard shows whether a sync is running, when the last one ran and what it
 
 **RECENT SYNCS** under it lists the last five syncs. A sync that imported, failed, or removed something has an arrow at the end of its row. Press the row to open that sync on the SYNCS tab with its [details](#sync-details) open. Empty and running syncs have no link.
 
+On a phone, **RECENT SYNCS** shows the latest sync and what it did, then a bar for each of the last `12` syncs, with the newest on the right. A tall bar is a sync that imported, removed, or failed something; a short bar is a sync that found nothing new. Below the bars, only those tall-bar syncs get a row.
+
 ## Pull to refresh
 
 In the Freetvarr Home Screen app on an iPhone, pull down from the top of a page to reload its data. Filters and scroll position stay as they were. A pull does not reload the app itself, so after you update Freetvarr, close and reopen the Home Screen app.
@@ -35,7 +37,16 @@ Only one sync runs at a time. A second request while one runs returns the runnin
 
 ## Reading a sync
 
-Each row shows when the sync ran, how long it took, its status, and a summary of what it did: imports, failures, removals, or nothing (empty). **WHEN** gives the day and the start and finish times in one line, such as `Today 9:04–9:05am`. A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording) counts as a failure, not a skip.
+The SYNCS tab groups syncs under a heading for each day: `Today`, `Yesterday`, or a date such as `10 Oct`. Each row shows:
+
+- a status mark: a tick for **OK**, a warning sign for **PARTIAL**, a cross for a sync that failed, or a spinner while it runs;
+- the start and finish times, such as `9:04–9:05am`;
+- the result in words, such as `2 imported`, `1 failed`, `1 removed`, or `nothing new`;
+- how long the sync took.
+
+A failed sync also shows its first error under the row. On a wider screen, a **DETAILS** column shows whether the schedule or you started the sync, how many recordings it skipped, and the Plex result.
+
+A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording) counts as a failure, not a skip. A sync that runs past midnight sits under the day it started, such as `11:58pm – 12:04am`.
 
 ## Sync details
 
@@ -52,11 +63,13 @@ Under the recordings, each step of the sync shows its result and how long it too
 
 A sync still running shows its details when it finishes. Syncs from Freetvarr versions before this list was added show only their counts.
 
+To delete one sync from the history, open its details and press `DELETE SYNC`. The recordings it imported stay in your library.
+
 Each sync has its own address, `#/syncs/<number>`. Open that address to show the sync with its details open.
 
 ## History
 
-Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, take at most 100 of those, so syncs that did something stay in the history longer. The tab shows 50 per page (press `PREV` and `NEXT` to see older syncs). Clear individual rows or the whole history from the tab.
+Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, take at most 100 of those, so syncs that did something stay in the history longer. The tab shows 50 per page (press `PREV` and `NEXT` to see older syncs). Delete one sync from its [details](#sync-details), or press `CLEAR HISTORY` to clear them all.
 
 Two filters choose which syncs the tab lists:
 
