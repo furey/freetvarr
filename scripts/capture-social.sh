@@ -18,7 +18,7 @@ docker run --rm \
     npm install --silent --no-save --no-audit --no-fund playwright@${PLAYWRIGHT_VERSION} 2>&1 | tail -1 && \
     cp /work/scripts/capture-social.mjs ./social.mjs && \
     node ./social.mjs && \
-    chown -R ${HOST_UID}:${HOST_GID} /work/docs/public/social"
+    chown -R ${HOST_UID}:${HOST_GID} /work/docs/public/social /work/docs/img"
 
 echo "[social] done. PNGs:"
 ls -lh "$REPO_ROOT/docs/public/social"/*.png

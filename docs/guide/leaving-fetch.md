@@ -5,7 +5,7 @@ description: >-
   free-to-air setup before the Gen 3 Extended Service Levy: save your
   recordings, buy a tuner, and cancel.
 image: /social/leaving-fetch.png
-imageAlt: 'Leaving Fetch TV? Own your free-to-air setup before the levy.'
+imageAlt: 'Leaving Fetch TV? Keep recording free-to-air TV and watching it on your TV. Own your setup before the levy.'
 ---
 
 # Leaving Fetch TV
