@@ -13,6 +13,17 @@ export const syncWhen = ({ startedMs, finishedMs = null, nowMs, timeZone }) => {
   return `${startDay} ${clockRange({ startClock, finishClock })}`
 }
 
+export const syncDay = ({ ms, nowMs, timeZone }) => dayLabel({ ms, nowMs, timeZone })
+
+export const syncTime = ({ startedMs, finishedMs = null, timeZone }) => {
+  const startClock = formatClock(startedMs, timeZone)
+  if (finishedMs == null) return `${startClock} – now`
+  const finishClock = formatClock(finishedMs, timeZone)
+  if (!isSameDay({ a: startedMs, b: finishedMs, timeZone })) return `${startClock} – ${finishClock}`
+  if (startClock === finishClock) return startClock
+  return clockRange({ startClock, finishClock })
+}
+
 export const syncTook = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) return ''
   const seconds = Math.round(ms / 1000)
