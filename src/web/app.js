@@ -1890,7 +1890,7 @@ const DashboardView = {
               </div>
             </div>
           </div>
-          <div>
+          <div class="next-recordings">
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
             <div class="space-y-2">
               <div v-for="width in SKELETON_UPCOMING_WIDTHS" :key="width" class="skeleton-row-upcoming">
@@ -1945,7 +1945,7 @@ const DashboardView = {
             <p class="text-xs text-ink-dim">Star channels to see what's on now.</p>
             <a href="#/live" class="btn btn-sm no-hover-underline">OPEN LIVE TV</a>
           </div>
-          <div>
+          <div class="next-recordings">
             <div class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim mb-3">Next recordings</div>
             <p v-if="!guideUpcoming.length" class="text-xs text-ink-dim">Nothing scheduled to record.</p>
             <div v-else class="space-y-2">

@@ -2806,6 +2806,8 @@ body.epg-drag-lock * {
     margin-block-start: 1rem;
   }
 
+  .panel-body.whats-on-body > .next-recordings:not(:first-child) { margin-block-start: 1.5rem; }
+
   .sync-list,
   .recent-syncs-mobile { margin-inline: -0.5rem; }
 
