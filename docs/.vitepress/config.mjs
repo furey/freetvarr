@@ -5,7 +5,7 @@ const repo = 'https://github.com/furey/freetvarr'
 const site = 'https://furey.github.io/freetvarr/'
 const defaultSocialImage = {
   path: '/social/default.png',
-  alt: 'Freetvarr: live TV in your browser, recordings in Plex'
+  alt: 'Freetvarr: live TV in your browser, recordings in your media library, ad free. Self-hosted TV for any TVHeadend-compatible tuner.'
 }
 
 const pageUrl = (relativePath) => {
@@ -52,7 +52,7 @@ export default withMermaid(defineConfig({
   lang: 'en-AU',
   title: 'Freetvarr',
   description:
-    'Watch live TV in your browser and sync TVHeadend recordings into Plex. A self-hosted companion for TVHeadend and compatible tuner.',
+    'Self-hosted TV for any TVHeadend-compatible tuner. Watch live, browse the TV guide, and record straight into your media library.',
   appearance: 'force-dark',
   cleanUrls: true,
   lastUpdated: true,
