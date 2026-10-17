@@ -1,13 +1,13 @@
 ---
 title: Series
 description: >-
-  Record a series in the TV Guide, give it a library folder, and set where
+  Record a series in the TV Guide, give it a series folder, and set where
   episodes are saved and how they are named.
 ---
 
 # Series
 
-A series has two parts: a series recording in TVHeadend and a folder in your TV library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync. The SERIES tab lists both parts together.
+A series has two parts: a series recording in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync. The SERIES tab lists both parts together.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/series">
@@ -21,7 +21,7 @@ A series has two parts: a series recording in TVHeadend and a folder in your TV 
 2. Click a programme of the series.
 3. Press **SERIES**.
 
-Freetvarr creates the library folder at the same time, unless you turn **ADD TO LIBRARY** off first. Freetvarr uses an existing folder with the same name under your media root, or creates a new folder named after the series.
+Freetvarr creates the series folder at the same time, unless you turn **ADD TO LIBRARY** off first. Freetvarr uses an existing folder with the same name under your media root, or creates a new folder named after the series.
 
 Matching is by title: a recording goes to the folder whose title appears in the recording's title. When more than one folder matches, the longest title wins, so `NRL Grand Final` beats `NRL`.
 
@@ -48,17 +48,17 @@ Each row shows one series:
 
 - The title, with the channels and the number of episodes to keep.
 - **NEXT**: the next airing, or the next expected airing, with its channel.
-- **SAVES TO**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no library folder shows its folder in the one-off folder, such as `/media/one-offs/Bluey`. When **IMPORT EVERY RECORDING** is off in **SETTINGS**, such a series shows that its episodes wait in [Recordings](/guide/recordings).
+- **SAVES TO**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no series folder shows its folder in the one-off folder, such as `/media/one-offs/Bluey`. When **IMPORT EVERY RECORDING** is off in **SETTINGS**, such a series shows that its episodes wait in [Recordings](/guide/recordings).
 
 A row shows a `PAUSED` badge when the series recording in TVHeadend is paused. A row with no badge records new episodes as normal.
 
-**SYNC** (on a row with a library folder) imports the new episodes of this series now.
+**SYNC** (on a row with a series folder) imports the new episodes of this series now.
 
 Press a row to open the series under it. Press the row again, or press `Esc`, to close it. The open series shows:
 
 - **SERIES RECORDING**: whether TVHeadend records new episodes, with **PAUSE** and **CANCEL SERIES**.
-- A series with a library folder shows the [edit form](#edit-a-series-folder).
-- A series that saves to the one-off folder shows that path and **ASSIGN FOLDER**, which gives the series a folder in your TV library. See [Assign a folder](#assign-a-folder).
+- A series with a series folder shows the [edit form](#edit-a-series-folder).
+- A series that saves to the one-off folder shows that path and **ASSIGN FOLDER**, which gives the series a folder in your media library. See [Assign a folder](#assign-a-folder).
 - **PAUSE** stops TVHeadend recording new episodes of this series. Episodes already recorded still import. **RESUME** starts it again. On an SD and HD pair, both series recordings pause and resume together.
 - **CANCEL SERIES** removes the series recording from TVHeadend. See [Cancel a series recording](#cancel-a-series-recording).
 
@@ -67,7 +67,7 @@ Press a row to open the series under it. Press the row again, or press `Esc`, to
 The controls above the series rows narrow and order the list:
 
 - **Filter series or channels**: type part of a title, a channel name, `any channel`, or part of a **SAVES TO** path. The filter also applies to the **TITLE MATCHES** panel.
-- **SORT**: **A–Z** (the default), **NEXT AIRING**, or **RECENTLY ADDED**. **A–Z** ignores a leading "The", so `The Block` sorts under B. **NEXT AIRING** puts series with nothing in the TV guide last. **RECENTLY ADDED** uses the date the series got its library folder, so a series that saves to the one-off folder sorts last.
+- **SORT**: **A–Z** (the default), **NEXT AIRING**, or **RECENTLY ADDED**. **A–Z** ignores a leading "The", so `The Block` sorts under B. **NEXT AIRING** puts series with nothing in the TV guide last. **RECENTLY ADDED** uses the date the series got its series folder, so a series that saves to the one-off folder sorts last.
 - **STATUS**: **ALL**, **PAUSED**, **NOT IN GUIDE** (nothing in the TV guide for the next `7` days), or **RECORDING NOW**. On a phone, press **FILTERS** to pick a status.
 
 The panel title shows how many series match, such as `SERIES · 2 OF 9`. **CLEAR FILTERS** shows all series again. The browser remembers the sort order; the filter and status reset when you leave the tab.
@@ -93,7 +93,7 @@ The dialog shows the full path for future episodes. Episodes already imported st
 
 ## Edit a series folder
 
-Press a series with a library folder to open these fields under the row:
+Press a series with a series folder to open these fields under the row:
 
 - **SAVES TO**: the folder under your media root (shown before the field) where the series goes. As you type, Freetvarr suggests matching folders that are already there.
 - **SEASON FOLDERS**: the [season template](#season-template).
@@ -111,7 +111,7 @@ Each folder has a season template that decides where episodes are saved: `{seaso
 
 ## Filenames
 
-Freetvarr renames every file as it imports it, into the shape your library reads:
+Freetvarr renames every file as it imports it, into the shape Plex, Jellyfin, and Kodi read:
 
 ```text
 Show Name - S01E02 - Episode Title.ts
@@ -144,7 +144,7 @@ A recording that matches no series folder, such as a sports final or a special, 
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts
 ```
 
-The one-off folder stays out of the TV library on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. In your media server, point a separate library at the folder instead (in Plex, use the **Other Videos** library type). See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the **SETTINGS** switch that turns this off.
+The one-off folder stays out of the TV folder on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. In your media server, point a separate library at the folder instead (in Plex, use the **Other Videos** library type). See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the **SETTINGS** switch that turns this off.
 
 ## Films
 
