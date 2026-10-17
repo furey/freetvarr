@@ -197,9 +197,9 @@ To copy one show only, add `--show=` and part of its name: `npx fetchtv recordin
 
 The files play in VLC (a free video player).
 
-### Adding them to your library
+### Adding them to your media library
 
-On Path 2, Plex and Jellyfin can show your Fetch recordings next to your new ones. The names `fetchtv` gives already suit them: a folder for each show, and file names that start with the season and episode (e.g. `Gogglebox Australia/S20 E8 - Episode 8 of Season 20 - Thu 03 Oct.ts`). You do not rename anything.
+On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. The names `fetchtv` gives already suit them: a folder for each show, and file names that start with the season and episode (e.g. `Gogglebox Australia/S20 E8 - Episode 8 of Season 20 - Thu 03 Oct.ts`). You do not rename anything.
 
 Once the NAS and Freetvarr are set up, open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac) and drag each folder out of `fetch-recordings` into one of the folders inside Freetvarr's `media` folder:
 
@@ -209,7 +209,7 @@ Once the NAS and Freetvarr are set up, open the NAS's shared folder from your co
 | A film                                                                         | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
 | Anything else, such as a news bulletin or a sports final                       | `one-offs`                                                                        |
 
-Plex and Jellyfin find the new files on their next library scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex.
+Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex.
 
 If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac), and add `--exclude=` with the name of each film or news show to leave it out. Then save those with `--show=` into `movies` or `one-offs`.
 
@@ -222,11 +222,10 @@ Do these in order. The times are for someone doing it the first time.
 3. **Wire the tuner** ([Hardware](/guide/hardware)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
 4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch live TV. `10 minutes`.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
-6. **Set up [TVHeadend](/guide/tvheadend)**: channels, TV guide, and recording folder. One evening, `2–3 hours`.
-7. **Set up Freetvarr** ([Getting started](/guide/getting-started)). `30–60 minutes`.
-8. **Connect [Plex](/guide/plex)** if you use it. `30 minutes`.
-9. **[Add your Fetch recordings](#adding-them-to-your-library)** to the library. `15 minutes`, plus copying time.
-10. **Watch [Live TV](/guide/live-tv)** in Freetvarr in a browser to check that the whole setup works. `5 minutes`.
+6. **Install Freetvarr** ([Getting started](/guide/getting-started)). The install script also installs TVHeadend. To get Plex as well, add your Plex claim code before you run it ([No Plex yet?](/guide/plex#no-plex-yet)). If you already run TVHeadend or Plex, Freetvarr connects to them instead ([An existing TVHeadend](/guide/getting-started#an-existing-tvheadend)). `15–30 minutes`.
+7. **Run the setup wizard**. It secures TVHeadend, scans for channels, loads the TV guide, sets the recording folders, and creates your Plex libraries. `30–60 minutes`.
+8. **[Add your Fetch recordings](#adding-them-to-your-media-library)** to your media library (e.g. Plex, Jellyfin, or Kodi): drag them into Freetvarr's `media` folder. `15 minutes`, plus copying time.
+9. **Watch [Live TV](/guide/live-tv)** in Freetvarr in a browser to check that the whole setup works. `5 minutes`.
 
 ## Switching over
 
