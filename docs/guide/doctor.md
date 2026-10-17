@@ -44,7 +44,7 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0` (the **CHANNELS** step of the setup wizard adds them). See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0` (the **CHANNELS** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard) adds them). See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 

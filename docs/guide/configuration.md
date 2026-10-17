@@ -83,7 +83,7 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set on Freetvarr's **SETTINGS** tab (or in its first-run wizard) and stored in Freetvarr's database. The bar under the tabs on **SETTINGS** jumps to each part: **TVHEADEND**, **STORAGE**, **PLEX**, **SCHEDULE**, **PICTURES**, **AD REMOVAL**, **HELP**, and **RESET**. Press **SAVE SETTINGS** to keep your changes. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set on Freetvarr's **SETTINGS** tab (or in its [setup wizard](/guide/getting-started#_2-run-the-wizard)) and stored in Freetvarr's database. The bar under the tabs on **SETTINGS** jumps to each part: **TVHEADEND**, **STORAGE**, **PLEX**, **SCHEDULE**, **PICTURES**, **AD REMOVAL**, **HELP**, and **RESET**. Press **SAVE SETTINGS** to keep your changes. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings">

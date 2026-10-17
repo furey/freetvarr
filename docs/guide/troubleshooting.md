@@ -64,7 +64,7 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
 
 ## Missing tuner
 
-In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or Freetvarr's setup wizard reports `0 tuners`.
+In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) reports `0 tuners`.
 
 - The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server (those broadcasts don't cross Docker's private bridge network). A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.
 - On a Mac, Docker Desktop and OrbStack cannot find a network tuner on their own. In the wizard's `CHANNELS` step, enter the tuner's IP address and this computer's IP address, then press `USE THIS ADDRESS`. The Doctor's **Tuners** check links to the wizard. Or run Freetvarr with Docker on Linux (a NAS, mini PC, or Raspberry Pi).
