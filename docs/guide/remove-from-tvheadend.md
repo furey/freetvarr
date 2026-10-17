@@ -34,7 +34,7 @@ To let TVHeadend record an episode again, delete its entry in the **Removed Reco
 
 ## Turn it on
 
-Remove after import is a per-series switch on the [SERIES tab](/guide/series#edit-a-series-folder). Press **EDIT** on a series, turn on **REMOVE FROM TVHEADEND AFTER IMPORT**, then press **SAVE**. Turn it on for series you are happy to keep only in your library. Leave it off for anything you want a second copy of.
+Remove after import is a per-series switch on the [SERIES tab](/guide/series#edit-a-series-folder). Press **EDIT** on a series, turn on **REMOVE FROM TVHEADEND AFTER IMPORT**, then press **SAVE**. Turn it on for series you are happy to keep only in your media library. Leave it off for anything you want a second copy of.
 
 ## When it removes
 

@@ -60,7 +60,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 - **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the [setup wizard](/guide/getting-started#_2-run-the-wizard) in a browser.
 - **[TVHeadend](/guide/tvheadend)**: what the wizard sets up in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
 - **[TV Guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
-- **[Series](/guide/series)**: record a series and set its library folder.
+- **[Series](/guide/series)**: record a series and choose its folder.
 - **[Recordings](/guide/recordings)** and **[Syncs](/guide/syncs)**: watch imports happen and read the status of each one.
 - **[Ad removal](/guide/ad-removal)**: the optional comskip detect/cut pass.
 - **[Plex](/guide/plex)**, **[Remove from TVHeadend](/guide/remove-from-tvheadend)**, and **[Live TV](/guide/live-tv)**: the optional extras.
