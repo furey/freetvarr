@@ -1015,7 +1015,6 @@ const useFlash = () => {
 
 const FLASH_DEFAULT_MS = 4500
 const UNDO_WINDOW_MS = 10_000
-const SYNC_DOTS = { ok: '#e2b03c', partial: '#ffcd00', error: '#ffab3d', running: '#62cfff' }
 const SYNC_FLASH_SAFETY_MS = 60_000
 const MIN_SYNC_DISPLAY_MS = 1500
 
@@ -1323,7 +1322,6 @@ const hostOf = (url) => {
   }
 }
 
-const HEALTH_COLOURS = { ok: '#e2b03c', err: '#ff8a00', off: '#544e47' }
 
 const fmtClockTz = (ms) => formatClock(ms, tz.value)
 
@@ -1975,7 +1973,7 @@ const DashboardView = {
         </header>
         <div class="deck-status">
           <div class="deck-cell deck-cell-status">
-            <span class="deck-cell-label"><span :class="['led-dot', 'sm', shownSyncId ? 'live' : 'idle']"></span>STATUS</span>
+            <span class="deck-cell-label">STATUS</span>
             <span :class="['deck-cell-value', { 'deck-cell-live': shownSyncId }]">{{ shownSyncId ? 'Syncing' : 'Idle' }}</span>
           </div>
           <div class="deck-zone-action">
@@ -1985,7 +1983,7 @@ const DashboardView = {
           </div>
           <a href="#/syncs" class="deck-cell deck-cell-last no-hover-underline" :title="lastSyncCell.title">
             <span class="deck-cell-label">
-              <span v-if="lastSyncCell.dot" :class="['led-dot', 'sm', { live: lastSyncCell.live }]" :style="{ background: lastSyncCell.dot }"></span>{{ lastSyncCell.label }}
+              {{ lastSyncCell.label }}
             </span>
             <span :class="['deck-cell-value', { 'deck-cell-dim': lastSyncCell.dim }]">{{ lastSyncCell.value }}</span>
           </a>
@@ -1997,7 +1995,7 @@ const DashboardView = {
         <div class="deck-pipeline">
           <a v-for="cell in pipeline" :key="cell.label" :href="cell.href" class="deck-cell no-hover-underline">
             <span class="deck-cell-label">
-              <span v-if="cell.health" class="led-dot sm" :style="{ background: HEALTH_COLOURS[cell.health] }"></span>{{ cell.label }}
+              {{ cell.label }}
             </span>
             <span :class="['deck-cell-value', { 'deck-cell-cta': cell.cta }]" :title="cell.title || cell.value">{{ cell.value }}</span>
           </a>
@@ -2207,14 +2205,14 @@ const DashboardView = {
     const tvhCell = computed(() => {
       const base = { label: 'TVHEADEND', href: '#/settings/tvheadend' }
       if (!statsLoaded.value) return { ...base, value: '...' }
-      if (!tvhConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
-      if (!tvhReachable.value) return { ...base, href: '#/doctor/tvheadend', health: 'err', value: 'unreachable' }
+      if (!tvhConfigured.value) return { ...base, value: 'not set up', cta: true }
+      if (!tvhReachable.value) return { ...base, href: '#/doctor/tvheadend', value: 'unreachable' }
       const s = tvhState.value
       const bits = [
         ...(s?.tunerCount ? [`${s.tunerCount} tuner${s.tunerCount === 1 ? '' : 's'}`] : []),
         ...(s?.storageInfo?.free ? [`${fmtBytes(s.storageInfo.free)} free`] : []),
       ]
-      return { ...base, health: 'ok', value: bits.join(' · ') || 'reachable' }
+      return { ...base, value: bits.join(' · ') || 'reachable' }
     })
 
     const seriesCell = computed(() => {
@@ -2234,8 +2232,8 @@ const DashboardView = {
     const plexCell = computed(() => {
       const base = { label: 'PLEX', href: '#/settings/plex' }
       if (!statsLoaded.value) return { ...base, value: '...' }
-      if (!plexConfigured.value) return { ...base, health: 'off', value: 'not set up', cta: true }
-      return { ...base, health: 'ok', value: plexHost.value || 'connected' }
+      if (!plexConfigured.value) return { ...base, value: 'not set up', cta: true }
+      return { ...base, value: plexHost.value || 'connected' }
     })
 
     const pipeline = computed(() => [tvhCell.value, seriesCell.value, recordingsCell.value, plexCell.value])
@@ -2247,9 +2245,9 @@ const DashboardView = {
       const nowMs = now.value.getTime()
       const title = [`#${s.id}`, fmtTime(s.started_at), s.summary?.trigger].filter(Boolean).join(' · ')
       if (s.status === 'running') {
-        return { label: 'ELAPSED', value: fmtElapsed({ at: s.started_at, nowMs }), dot: SYNC_DOTS.running, live: true, title }
+        return { label: 'ELAPSED', value: fmtElapsed({ at: s.started_at, nowMs }), title }
       }
-      return { label: 'LAST SYNC', value: fmtAgo({ at: s.finished_at || s.started_at, nowMs }), dot: SYNC_DOTS[s.status], title }
+      return { label: 'LAST SYNC', value: fmtAgo({ at: s.finished_at || s.started_at, nowMs }), title }
     })
 
     const resultCell = computed(() => {
@@ -2323,7 +2321,7 @@ const DashboardView = {
 
     return {
       syncStatus, shownSyncId, lastSyncCell, resultCell, nextSyncLabel, recentSyncs,
-      tvhConfigured, pipeline, HEALTH_COLOURS,
+      tvhConfigured, pipeline,
       onNow, guideUpcoming, guideOk, onNowPercent, onNowMeta, isSeriesRec, fmtClockTz, fmtRelativeDay, tsOfMs,
       isRecordingChannel, loadGuidePanel,
       OFF_AIR_MESSAGE, watchLive, watchRowLabel, openInGuide, starting, syncNow, syncButtonLabel, fmtTime,
@@ -2766,7 +2764,7 @@ const SeriesView = {
             </article>
           </div>
 
-          <form class="space-y-4 pt-4 border-t border-hairline" @submit.prevent="add">
+          <form class="space-y-4 pt-4 pb-3 md:pb-0 border-t border-hairline" @submit.prevent="add">
             <span class="field-label block">ADD TITLE</span>
             <div class="grid gap-4 md:grid-cols-2">
               <div class="field-row">
@@ -12307,7 +12305,7 @@ const App = {
 
       <footer class="border-t border-hairline">
         <div class="max-w-6xl mx-auto px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-ink-mute">
-          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> <a v-if="appVersion" :href="releaseUrl(appVersion)" target="_blank" rel="noopener noreferrer" class="text-ink-dim" :title="'Freetvarr ' + appVersion + ' on GitHub'">{{ appVersion }}</a> · Self-hosted free-to-air TV</span>
+          <span><a href="/#dashboard" class="no-underline text-ink">Freetvarr</a> <a v-if="appVersion" :href="releaseUrl(appVersion)" target="_blank" rel="noopener noreferrer" class="text-ink-dim" :title="'Freetvarr ' + appVersion + ' on GitHub'">{{ appVersion }}</a><span class="hidden sm:inline"> · Self-hosted free-to-air TV</span></span>
           <a
             href="https://github.com/furey/freetvarr"
             target="_blank"
