@@ -59,7 +59,7 @@
 
 A walkthrough of the app: the dashboard, live TV, the TV Guide, series, and recordings.
 
-<https://github.com/user-attachments/assets/9d788038-bffb-45b8-9e9b-053d6e8ea3d3>
+<https://github.com/user-attachments/assets/3004c85f-3a1a-4a52-95bf-ec33f1c5f60c>
 
 The one-line install, from the `curl` command to the address of the setup wizard.
 
