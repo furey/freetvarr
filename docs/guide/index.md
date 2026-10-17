@@ -2,12 +2,12 @@
 title: What Freetvarr is
 description: >-
   Freetvarr records free-to-air TV through TVHeadend and files each episode
-  into your TV library for Plex, Jellyfin, or Kodi. Live TV plays in any browser.
+  into your media library for Plex, Jellyfin, or Kodi. Live TV plays in any browser.
 ---
 
 # What Freetvarr is
 
-Freetvarr records free-to-air TV and files each episode into your TV library. Watch it on your TV in Plex, Jellyfin, Kodi, or another media player, with pause, rewind, and skip.
+Freetvarr records free-to-air TV and files each episode into your media library. Watch it on your TV in Plex, Jellyfin, Kodi, or another media player, with pause, rewind, and skip.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
@@ -15,7 +15,7 @@ Freetvarr records free-to-air TV and files each episode into your TV library. Wa
 With it, you can:
 
 - **[Record from a 7-day guide](/guide/tv-guide)** on your phone or computer: one episode, or every episode of a series.
-- **[Watch recordings in your own player](/guide/series).** Each episode goes into a series and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells Plex to scan its library.
+- **[Watch recordings in your own player](/guide/series).** Each episode goes into a series and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells Plex to scan for new episodes.
 - **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
 - **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install, and pause or rewind up to `30` minutes. To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
 - **[Clear out TVHeadend](/guide/remove-from-tvheadend).** If you use Plex, Freetvarr can delete each recording once Plex has the episode.
@@ -28,7 +28,7 @@ If you have a Plex Pass, you may not need Freetvarr. Plex's own DVR records free
 
 ## How it files recordings
 
-TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings. It files each episode of a series into your TV library as `Show/Season 01/Show - S01E02.ts`, or by air date when the TV guide has no episode number. A one-off, such as a sports final, goes to a separate folder named after its title. When Freetvarr sees the recordings folder and the library through one mount, the import is a hardlink: it is instant and uses no extra disk space.
+TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings. It files each episode of a series into your media library as `Show/Season 01/Show - S01E02.ts`, or by air date when the TV guide has no episode number. A one-off, such as a sports final, goes to a separate folder named after its title. When Freetvarr sees the recordings folder and the media library through one mount, the import is a hardlink: it is instant and uses no extra disk space.
 
 ## Where it works
 
@@ -57,8 +57,8 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 ## Where next
 
 - **[Hardware](/guide/hardware)**: what to buy, and how it wires into the aerial you already have.
-- **[TVHeadend](/guide/tvheadend)**: the recorder itself, from Docker container to scanned channels and a working TV guide.
-- **[Getting started](/guide/getting-started)**: run Freetvarr with Docker and complete the first-run wizard in a browser.
+- **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the setup wizard in a browser.
+- **[TVHeadend](/guide/tvheadend)**: what the wizard sets up in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
 - **[TV Guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
 - **[Series](/guide/series)**: record a series and set its library folder.
 - **[Recordings](/guide/recordings)** and **[Syncs](/guide/syncs)**: watch imports happen and read the status of each one.

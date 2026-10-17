@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Live TV in your browser. Recordings in your library, ad free.*</strong><br/>
+  <strong>Live TV in your browser. Recordings in your media library, ad free.*</strong><br/>
   A self-hosted companion for TVHeadend and compatible tuner (e.g. HDHomeRun).<br/>
   <sub>*optional via <code>comskip</code></sub>
 </p>
@@ -115,7 +115,7 @@ The setup wizard, from the time zone to the ready step.
 
 ## What Freetvarr is
 
-**Freetvarr** watches TVHeadend on your home network, picks up every recording it finishes, files episodes of each series you record into your TV library as `Show/Season 01/Show - S01E02.ts` (or by air date when the TV guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan its library if you use it, and optionally removes the TVHeadend copy once Plex confirms the file.
+**Freetvarr** watches TVHeadend on your home network, picks up every recording it finishes, files episodes of each series you record into your media library as `Show/Season 01/Show - S01E02.ts` (or by air date when the TV guide has no episode number), files one-offs such as a sports final into a separate folder, asks Plex to scan its library if you use it, and optionally removes the TVHeadend copy once Plex confirms the file.
 
 It is also a TV app for your home network. Open the LIVE TV tab on a phone or a desktop and watch any channel in the browser, with now and next for every channel and your favourites first. Pause and rewind up to `30` minutes, then jump back to live.
 
@@ -204,7 +204,7 @@ In a terminal, run this command in the folder where you want a `freetvarr` folde
 curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | sh
 ```
 
-The script creates the `freetvarr` folder, downloads its Docker compose file, writes its `.env`, and asks for confirmation regarding project file ownership. It then starts the TVHeadend and Freetvarr Docker containers and outputs the URL of the setup wizard. Open that URL in a browser and work through the steps: time zone, TVHeadend, channels, guide, storage, Plex.
+The script creates the `freetvarr` folder, downloads its Docker compose file, writes its `.env`, and asks for confirmation regarding project file ownership. It then starts the TVHeadend and Freetvarr Docker containers and outputs the URL of the setup wizard. Open that URL in a browser and work through the steps: time zone, TVHeadend, channels, guide, storage, Plex. To have the script install Plex too, get a Plex claim code first ([No Plex yet?](https://furey.github.io/freetvarr/guide/plex#no-plex-yet)).
 
 On a NAS or another remote host, sign in over SSH first. To install by hand or with a NAS container app, see [Getting started](https://furey.github.io/freetvarr/guide/getting-started#_1-install).
 
@@ -246,7 +246,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 | Variable           | Purpose                                                                                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CONFIG_PATH`      | Optional. Host folder for both Docker containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                           |
-| `DATA_PATH`        | Optional. Host folder (default `./data`) holding `recordings/` (TVHeadend's output) and `media/` (your TV library), and nothing else                                                              |
+| `DATA_PATH`        | Optional. Host folder (default `./data`) holding `recordings/` (TVHeadend's output) and `media/` (your media library), and nothing else                                                           |
 | `PLEX_PREFS_PATH`  | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button, for a Plex on this host that the `plex` profile did not start                                                   |
 | `COMPOSE_PROFILES` | Optional. `plex` adds the Plex service, for a host with no media server yet                                                                                                                       |
 | `PLEX_CLAIM`       | Optional, `plex` profile only. The claim code from `https://plex.tv/claim` (expires after 4 minutes)                                                                                              |
