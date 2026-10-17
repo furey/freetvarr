@@ -135,7 +135,7 @@ TVHeadend's first-run wizard opens on every page load. The `wizard` value in **C
 
 ## Unimported recordings
 
-TVHeadend finished a recording, but nothing appears on the RECORDINGS tab or in your library.
+TVHeadend finished a recording, but nothing appears on the RECORDINGS tab or in your media library.
 
 - **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series](/guide/series)). Press **SERIES** in the TV Guide, or use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.

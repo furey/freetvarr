@@ -13,11 +13,11 @@ Freetvarr is Fetcharr with the recorder swapped out. The web interface, the show
 
 ## The database
 
-Your Fetcharr database does not carry over. Freetvarr starts with an empty database. Set up TVHeadend and Freetvarr as in [Leaving Fetch TV](/guide/leaving-fetch#setting-up), then come back here.
+Your Fetcharr database does not carry over. Freetvarr starts with an empty database. Install Freetvarr and run its setup wizard as in [Leaving Fetch TV](/guide/leaving-fetch#setting-up). The wizard sets up TVHeadend too. Then come back here.
 
-## Library folders
+## Series folders
 
-Recreate each series folder on the [SERIES](/guide/series) tab. The titles now come from TVHeadend, so a title can differ slightly from Fetch's. Point each series at the folder it already uses under your media root, and nothing in your library moves. For a title with no series recording, use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
+Recreate each series folder on the [SERIES](/guide/series) tab. The titles now come from TVHeadend, so a title can differ slightly from Fetch's. Point each series at the folder it already uses under your media root, and nothing in your media library moves. For a title with no series recording, use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
 
 ## Series recordings
 

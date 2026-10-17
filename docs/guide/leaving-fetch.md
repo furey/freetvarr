@@ -102,7 +102,7 @@ SiliconDust also sells a recording service, its [DVR service](https://info.hdhom
 This is the author's setup. The tuner sends TV to TVHeadend, free recording software that runs on an always-on computer at home. Freetvarr runs alongside it and gives you:
 
 - A 7-day [TV Guide](/guide/tv-guide), where you record one programme or a whole series.
-- [Recordings](/guide/recordings) filed into your TV library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
+- [Recordings](/guide/recordings) filed into your media library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 - [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, watch live TV with the 7-day guide in Jellyfin or Kodi: Freetvarr shows the addresses to copy into the app ([TV apps](/guide/tv-apps)).
 
@@ -174,7 +174,7 @@ Everything in Path 1, plus an always-on computer and somewhere to store recordin
 | Or: a mini PC with an Intel N150 or N100 | Cheaper than a NAS. Runs Linux and Docker; its Intel graphics chip converts live TV for the browser                                                          | about `A$290–370`      | [Amazon AU, Beelink EQ14](https://www.amazon.com.au/dp/B0G1M7C1V9?tag=freetvarr-22), [Amazon AU, GMKtec G3 Plus](https://www.amazon.com.au/dp/B0FKYPD8JR?tag=freetvarr-22) |
 | Or, with a mini PC: a USB tuner          | Cheaper than a network tuner, but it works only plugged into the Linux computer that runs TVHeadend, not a NAS                                               | `A$100–190`            | [PB Tech, Hauppauge WinTV-dualHD](https://www.pbtech.com/au/product/TVNHGR1590/Hauppauge-WinTV-dualHD-Dual-Tuner-DVB-TT2C-Digital)                                         |
 
-An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that. Plex is free for watching your own library at home; see [Plex's plans](https://www.plex.tv/en-au/plans/) for what its paid tier adds.
+An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that. Plex is free for watching your own media library at home; see [Plex's plans](https://www.plex.tv/en-au/plans/) for what its paid tier adds.
 
 > [!NOTE]<br>
 > The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. Any always-on computer that runs Docker works; the [Hardware](/guide/hardware) guide has the details.

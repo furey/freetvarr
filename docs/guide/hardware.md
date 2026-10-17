@@ -156,5 +156,5 @@ The override file passes `/dev/dri` into the Freetvarr Docker container and adds
 
 ## Where next
 
-- **[TVHeadend](/guide/tvheadend)**: point the recorder at the tuner and scan for channels.
+- **[Getting started](/guide/getting-started)**: install Freetvarr. Its setup wizard finds the tuner and scans for channels.
 - **[Live TV](/guide/live-tv)**: watch the tuner directly, with no recording involved.
