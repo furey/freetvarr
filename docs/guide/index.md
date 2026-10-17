@@ -57,7 +57,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 ## Where next
 
 - **[Hardware](/guide/hardware)**: what to buy, and how it wires into the aerial you already have.
-- **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the setup wizard in a browser.
+- **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the [setup wizard](/guide/getting-started#_2-run-the-wizard) in a browser.
 - **[TVHeadend](/guide/tvheadend)**: what the wizard sets up in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
 - **[TV Guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
 - **[Series](/guide/series)**: record a series and set its library folder.

@@ -7,7 +7,7 @@ description: >-
 
 # TVHeadend
 
-TVHeadend is the recorder. It drives the tuner, holds the channel list and the TV guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so Freetvarr needs a working TVHeadend. Freetvarr's install script and setup wizard set one up for you.
+TVHeadend is the recorder. It drives the tuner, holds the channel list and the TV guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so Freetvarr needs a working TVHeadend. Freetvarr's install script and [setup wizard](/guide/getting-started#_2-run-the-wizard) set one up for you.
 
 This page lists each TVHeadend setting in the order TVHeadend needs it. Each step depends on the one before it. Any TVHeadend-compatible tuner works here. The steps change only where they name a device or a country.
 

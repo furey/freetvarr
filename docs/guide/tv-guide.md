@@ -85,7 +85,7 @@ Press `SAVE` to apply the changes. To close the dialog without saving, press × 
 
 ## Channel listings
 
-Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the `GUIDE` step of the setup wizard. The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
+Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the `GUIDE` step of the [setup wizard](/guide/getting-started#_2-run-the-wizard). The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
 
 1. In the TV Guide, press `CHANNELS` above the grid.
 2. Press the pencil next to the channel (**Change guide source**). The row shows the current guide channel in a box you can type in.

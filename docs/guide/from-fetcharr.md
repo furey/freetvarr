@@ -13,7 +13,7 @@ Freetvarr is Fetcharr with the recorder swapped out. The web interface, the show
 
 ## The database
 
-Your Fetcharr database does not carry over. Freetvarr starts with an empty database. Install Freetvarr and run its setup wizard as in [Leaving Fetch TV](/guide/leaving-fetch#setting-up). The wizard sets up TVHeadend too. Then come back here.
+Your Fetcharr database does not carry over. Freetvarr starts with an empty database. Install Freetvarr and run its [setup wizard](/guide/getting-started#_2-run-the-wizard) as in [Leaving Fetch TV](/guide/leaving-fetch#setting-up). The wizard sets up TVHeadend too. Then come back here.
 
 ## Series folders
 

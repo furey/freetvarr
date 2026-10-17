@@ -11,7 +11,7 @@ Plex is optional. Without it, Freetvarr still imports and files episodes (you re
 
 ## No Plex yet?
 
-The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex token itself, and Freetvarr's setup wizard creates the Plex libraries. Do these steps before you run the install script, or now if Freetvarr already runs.
+The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex token itself, and Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) creates the Plex libraries. Do these steps before you run the install script, or now if Freetvarr already runs.
 
 1. In a browser, open `https://plex.tv/claim` and sign in to your Plex account (a free account works).
 2. Copy the claim code. It expires 4 minutes after Plex shows it, so do the next steps straight away.
