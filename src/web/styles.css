@@ -3898,6 +3898,10 @@ section[id^="section-"] {
   .deck-pipeline > :nth-child(odd) {
     border-left: 0;
   }
+
+  .deck-zone-action {
+    justify-content: center;
+  }
 }
 
 .channel-group-heading {
