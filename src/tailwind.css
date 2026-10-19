@@ -47,7 +47,7 @@
   --color-plex-yellow-hi: var(--color-warning);
 
   --font-sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace;
 
   --text-display: 44px;
   --text-display--line-height: 46px;

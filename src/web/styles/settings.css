@@ -432,7 +432,7 @@ a.settings-row-link:hover {
 
 .settings-licence-link {
   flex: none;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 13px;
   white-space: nowrap;
 }

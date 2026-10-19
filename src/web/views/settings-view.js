@@ -36,7 +36,7 @@ const SETTINGS_SECTION_GAP_PX = 24
 const LICENCES = [
   { name: 'Freetvarr', note: 'By James Furey.', licence: 'GPL-3.0-or-later', href: 'https://github.com/furey/freetvarr/blob/main/LICENSE' },
   { name: 'Figtree', note: 'Interface typeface, by Erik Kennedy.', licence: 'SIL OFL 1.1', href: '/fonts/figtree-OFL.txt' },
-  { name: 'JetBrains Mono', note: 'Typeface for paths and values.', licence: 'SIL OFL 1.1', href: 'https://github.com/JetBrains/JetBrainsMono/blob/master/OFL.txt' },
+  { name: 'Geist Mono', note: 'Typeface for paths and code.', licence: 'SIL OFL 1.1', href: '/fonts/geist-mono-OFL.txt' },
   { name: 'Vue', note: 'Interface framework.', licence: 'MIT', href: 'https://github.com/vuejs/core/blob/main/LICENSE' },
   { name: 'Hold music', note: '"Local Forecast – Elevator" by Kevin MacLeod (incompetech.com).', licence: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' },
 ]

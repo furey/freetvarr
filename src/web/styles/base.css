@@ -78,7 +78,7 @@ body {
 }
 
 .ui-tabular { font-variant-numeric: tabular-nums; }
-.ui-mono { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-2); }
+.ui-mono { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--color-text-2); }
 .ui-meta { font-size: 13px; line-height: 18px; font-weight: var(--weight-small); color: var(--color-text-2); }
 .ui-label { font-size: 12px; line-height: 16px; font-weight: 700; color: var(--color-text-2); }
 
@@ -1085,7 +1085,8 @@ button.ui-group-row {
 }
 
 .ui-group-row-value {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums slashed-zero;
   font-size: 13px;
   color: var(--color-text-2);
   text-align: right;

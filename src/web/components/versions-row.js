@@ -52,7 +52,7 @@ export const VersionsRow = {
             <span v-else :class="update.state === 'current' ? 'about-current' : 'about-muted'">{{ updateText }}</span>
           </dd>
           <dt>Build</dt>
-          <dd>{{ about.build || '…' }}</dd>
+          <dd class="about-code">{{ about.build || '…' }}</dd>
           <dt>Uptime</dt>
           <dd>{{ uptimeText }}</dd>
           <dt>TVHeadend</dt>
