@@ -91,6 +91,7 @@ export const tunerExplainerOf = (status) => {
     sharing
       ? 'Watching or recording a channel uses a tuner, unless another channel on the same multiplex is already tuned.'
       : 'Watching or recording a channel uses a tuner.',
+    'Multiview plays two channels at once, so it uses up to two tuners.',
     'Recordings always come first.',
     capacityText(status.streams),
   ].filter(Boolean)

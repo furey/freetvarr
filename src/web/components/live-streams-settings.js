@@ -18,7 +18,7 @@ export const LiveStreamsSetting = {
               :class="{ 'is-over-estimate': choice.tooMany }" :aria-pressed="String(current === choice.value)"
               :disabled="saving || !loaded" @click="choose(choice.value)">{{ choice.label }}</button>
           </div>
-          <p class="settings-hint">Two needs hardware transcoding; Freetvarr turns this on when it detects it.</p>
+          <p class="settings-hint">Two lets you use Multiview, and needs hardware transcoding; Freetvarr turns this on when it detects it.</p>
           <p v-if="showTooMany" class="settings-hint live-streams-warn">{{ tooManyNote }}</p>
           <p class="settings-hint">{{ measured }}</p>
           <div class="settings-row-actions">

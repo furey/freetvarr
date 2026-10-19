@@ -69,7 +69,7 @@ test('the More menu labels follow the picture in picture and full screen state',
   assert.equal(fullOpen.label, 'Exit full screen')
 })
 
-test('Watch alongside starts with the single player sound state', () => {
+test('Multiview starts with the single player sound state', () => {
   assert.equal(initialMultiView({ muted: false }).audible, 'primary')
   assert.equal(initialMultiView({ muted: true }).audible, null)
   assert.equal(initialMultiView().audible, 'primary')

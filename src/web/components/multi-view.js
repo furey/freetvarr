@@ -45,11 +45,11 @@ export const MultiViewLayer = {
         <button type="button" class="pl-round" aria-label="Stop both and close" @click="$emit('close')"><arrow-left-icon /></button>
         <h2 class="mv-title">{{ title }}</h2>
         <div v-if="!portraitPhone" class="ui-segmented mv-layouts" role="group" aria-label="Layout">
-          <button type="button" class="ui-segment" aria-label="Split" :aria-pressed="String(multi.view.layout === 'split')" @click="setMultiLayout('split')">
-            <split-layout-icon /><span class="mv-segment-label">Split</span>
+          <button type="button" class="ui-segment" aria-label="Side by side" :aria-pressed="String(multi.view.layout === 'split')" @click="setMultiLayout('split')">
+            <split-layout-icon /><span class="mv-segment-label">Side by side</span>
           </button>
-          <button type="button" class="ui-segment" aria-label="Main + inset" :aria-pressed="String(multi.view.layout === 'inset')" @click="setMultiLayout('inset')">
-            <inset-layout-icon /><span class="mv-segment-label">Main + inset</span>
+          <button type="button" class="ui-segment" aria-label="Big and small" :aria-pressed="String(multi.view.layout === 'inset')" @click="setMultiLayout('inset')">
+            <inset-layout-icon /><span class="mv-segment-label">Big and small</span>
           </button>
         </div>
         <button type="button" class="pl-round" :aria-label="swapLabel" @click="swapMultiPictures">
@@ -81,7 +81,7 @@ export const MultiViewLayer = {
       </div>
       <footer class="mv-bottom">
         <p class="mv-hint">{{ hint }}</p>
-        <p v-if="portraitPhone" class="mv-rotate"><phone-rotate-icon />Turn your phone sideways for side by side or main + inset</p>
+        <p v-if="portraitPhone" class="mv-rotate"><phone-rotate-icon />Turn your phone sideways for side by side or big and small</p>
       </footer>
       <ui-sheet :open="Boolean(menuFor)" :title="menuTitle" @close="menuFor = null">
         <div class="ui-group">
@@ -111,7 +111,7 @@ export const MultiViewLayer = {
     const title = computed(() => watchingTitle(2))
     const meter = tunerMeter
     const secondarySlotClass = computed(() => slotClassOf('secondary'))
-    const swapLabel = computed(() => (shownLayout.value === 'inset' ? 'Swap main and inset' : 'Swap pictures'))
+    const swapLabel = computed(() => (shownLayout.value === 'inset' ? 'Swap big and small' : 'Swap pictures'))
 
     const secondaryTitle = computed(() => secondaryAiring.value?.title || multi.secondary.channel?.name || '')
     const secondaryMeta = computed(() => {
@@ -143,7 +143,7 @@ export const MultiViewLayer = {
 
     const hint = computed(() => {
       const sound = 'Tap Muted to hear a picture; the other mutes. Tap Sound to mute both. You hear the picture with the mint frame.'
-      if (shownLayout.value === 'inset') return `${sound} Drag the inset to any corner; double-tap it to make it the main picture.`
+      if (shownLayout.value === 'inset') return `${sound} Drag the small picture to any corner; double-tap it to make it the big picture.`
       return sound
     })
 
@@ -272,7 +272,7 @@ export const MultiViewLayer = {
   },
 }
 
-export const WatchAlongsideSheet = {
+export const MultiviewSheet = {
   components: { 'tuner-cells': TunerCells, 'tuner-explainer-sheet': TunerExplainerSheet },
   props: {
     open: Boolean,
@@ -281,7 +281,7 @@ export const WatchAlongsideSheet = {
   },
   emits: ['choose', 'close'],
   template: `
-    <ui-sheet :open="open" :title="isAdding ? 'Watch alongside' : 'Change channel'" :subtitle="subtitle" @close="$emit('close')">
+    <ui-sheet :open="open" :title="isAdding ? 'Multiview' : 'Change channel'" :subtitle="subtitle" @close="$emit('close')">
       <div class="mv-sheet-meter">
         <button type="button" class="mv-sheet-meter-button" :aria-label="meterText + ' How tuners work'" @click="explainerOpen = true">
           <tuner-cells :cells="meter.cells" /><span>{{ meterText }}</span>

@@ -20,7 +20,7 @@ import {
 } from '/components/player-controls.js'
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/player-mini.js'
-import { MultiViewLayer, WatchAlongsideSheet } from '/components/multi-view.js'
+import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
 import { startOverOptionsOf, startOverNoteOf, behindLiveText, fromStartRecordingOf } from '/start-over.js'
 import { behindPillText, liveHintText, percentWithin, programmeRangeText, joinedParts } from '/player-labels.js'
@@ -75,7 +75,7 @@ export const LivePlayer = {
     'player-mini': PlayerMini,
     'start-over-sheet': StartOverSheet,
     'multi-view-layer': MultiViewLayer,
-    'watch-alongside-sheet': WatchAlongsideSheet,
+    'multiview-sheet': MultiviewSheet,
   },
   template: `
     <teleport to="body">
@@ -130,8 +130,8 @@ export const LivePlayer = {
           @back="stopLive" @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @toggle-fullscreen="toggleLiveFullscreen"
           @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted">
           <template #lead>
-            <button v-if="live.phase === 'live' && !live.fromStart" type="button" class="pl-pill" aria-label="Watch alongside"
-              @click="openPicker"><watch-alongside-icon /><span class="pl-pill-label">Watch alongside</span></button>
+            <button v-if="live.phase === 'live' && !live.fromStart" type="button" class="pl-pill" aria-label="Add a channel to Multiview"
+              @click="openPicker"><watch-alongside-icon /><span class="pl-pill-label">Add a channel</span></button>
           </template>
           <template #before>
             <button v-if="!seriesButton.hidden" type="button" :class="['pl-pill', { 'is-on': seriesButton.set }]"
@@ -185,7 +185,7 @@ export const LivePlayer = {
     </transition>
     <start-over-sheet :open="startOverOpen" :options="startOverOptions" :note="startOverNote"
       @choose="chooseStartOver" @close="startOverOpen = false" />
-    <watch-alongside-sheet :open="pickerOpen" :target="pickerTarget" :watching-title="playerTitle"
+    <multiview-sheet :open="pickerOpen" :target="pickerTarget" :watching-title="playerTitle"
       @choose="choosePickerChannel" @close="pickerOpen = false" />
     </teleport>
   `,
