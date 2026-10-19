@@ -23,7 +23,7 @@ import {
   useSwipeDown,
 } from '/components/player-controls.js'
 import { PlayerMini, usePictureInPicture } from '/components/player-mini.js'
-import { miniMetaOf } from '/mini-player.js'
+import { miniMetaOf, captionLineOf } from '/mini-player.js'
 import {
   playInfoOpen,
   applyPlayCaptions,
@@ -126,6 +126,7 @@ export const RecordingPlayer = {
         <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
         <player-mini v-if="mini" :title="header.title" :meta="miniMeta" :progress="fillPercent"
           :paused="playback.paused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
+          :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" @toggle-captions="togglePlayCaptions"
           @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
@@ -236,7 +237,12 @@ export const RecordingPlayer = {
         || playback.scrubbing || infoOpen.value),
       rootEl: stageEl,
     })
-    const captionLine = computed(() => (controlsShown.value ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT))
+    const captionLine = computed(() => captionLineOf({
+      mini: mini.value,
+      lifted: controlsShown.value,
+      liftedLine: FILLED_CAPTION_LINE,
+      restingLine: CAPTION_LINE_PERCENT,
+    }))
     const placeCaptions = () => {
       for (const track of captionTracksOf(playVideo)) {
         for (const cue of track.cues || []) if (cue.line !== captionLine.value) cue.line = captionLine.value

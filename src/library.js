@@ -11,6 +11,7 @@ import { showKeyOf } from './web/show-key.js'
 
 export const MOVIE_MIN_DURATION_S = 4500
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
+export const EPISODE_KINDS = ['show', 'movie', 'oneoff']
 
 export const getLibraryShows = async ({
   loadRows = loadLibraryRows,
@@ -66,11 +67,12 @@ export const getLibraryShow = async ({
 export const getLibraryEpisodes = async ({
   state,
   limit,
+  kind = null,
   loadRows = loadLibraryRows,
   loadMoviesRoot = getMoviesRoot,
 } = {}) => {
   const [rows, moviesRoot] = await Promise.all([loadRows(), loadMoviesRoot().catch(() => '')])
-  return { episodes: libraryEpisodesOf({ rows, state, limit, moviesRoot }) }
+  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot }) }
 }
 
 export const setRecordingWatched = async ({ recordingId, watched, nowIso = new Date().toISOString() }) => {
@@ -234,10 +236,13 @@ export const resumeNextOf = (episodes) => {
   return oldestUnwatched ? { recordingId: oldestUnwatched.recordingId, positionS: 0 } : null
 }
 
-export const libraryEpisodesOf = ({ rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, moviesRoot = '' }) => {
+export const libraryEpisodesOf = ({
+  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '',
+}) => {
   const libraryRows = rows.filter(isLibraryMember)
   const kinds = kindsByKey({ rows: libraryRows, moviesRoot })
-  const members = libraryRows.filter((row) => !isFailed(row) && !isWatched(row))
+  const isWantedKind = (row) => !kind || (kinds.get(showKeyOf(row.title)) || 'oneoff') === kind
+  const members = libraryRows.filter((row) => !isFailed(row) && !isWatched(row) && isWantedKind(row))
   const chosen = {
     'in-progress': () => members
       .filter((row) => row.playback_position_s > 0)

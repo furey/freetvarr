@@ -37,3 +37,28 @@ export const togglePictureInPicture = async ({ video, doc }) => {
   video.webkitSetPresentationMode(inside ? 'inline' : 'picture-in-picture')
   return !inside
 }
+
+export const MINI_CAPTION_LINE = 90
+export const MINI_TAP_HIDE_MS = 3_000
+
+export const captionLineOf = ({ mini, lifted, liftedLine, restingLine }) => {
+  if (mini) return MINI_CAPTION_LINE
+  return lifted ? liftedLine : restingLine
+}
+
+export const miniControlsShownOf = ({ hovering, tapShown, paused, menuOpen, focusInside }) =>
+  Boolean(hovering || tapShown || paused || menuOpen || focusInside)
+
+export const miniPictureClickOf = ({ controlsShown }) => (controlsShown ? 'expand' : 'reveal')
+
+export const isHoverPointer = (pointerType) => pointerType === 'mouse' || pointerType === 'pen'
+
+export const miniMenuItemsOf = ({ phone, hasCaptions, captionsOn, canPip, pipActive, muted }) => [
+  phone && { key: 'sound', label: 'Sound', value: muted ? 'Muted' : 'On', on: !muted },
+  { key: 'expand', label: 'Back to full player' },
+  !phone && hasCaptions && { key: 'captions', label: 'Captions', value: captionsOn ? 'On' : 'Off', on: captionsOn },
+  canPip && {
+    key: 'pip',
+    label: pipActive ? 'Close pop out (picture in picture)' : 'Pop out (picture in picture)',
+  },
+].filter(Boolean)

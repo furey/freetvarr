@@ -168,6 +168,17 @@ test('libraryEpisodesOf: in-progress by last played, new by air date, never fail
   assert.equal(libraryEpisodesOf({ rows, state: 'new' })[0].kind, 'show')
 })
 
+test('libraryEpisodesOf: a kind keeps only episodes of that kind', () => {
+  const rows = [
+    row({ recording_id: 's1', aired_at: NOW, season: 1 }),
+    row({ recording_id: 'm1', title: 'The Long Paddock', aired_at: NOW - DAY_MS, file_path: '/media/Movies/paddock.ts' }),
+  ]
+  const ofKind = (kind) => libraryEpisodesOf({ rows, state: 'new', kind, moviesRoot: '/media/Movies' }).map((e) => e.recordingId)
+  assert.deepEqual(ofKind('movie'), ['m1'])
+  assert.deepEqual(ofKind('show'), ['s1'])
+  assert.equal(libraryEpisodesOf({ rows, state: 'new' }).length, 2)
+})
+
 test('episodeLimitFrom and rulePatchFrom: validate request values', () => {
   assert.equal(episodeLimitFrom(undefined), 20)
   assert.equal(episodeLimitFrom('12'), 12)

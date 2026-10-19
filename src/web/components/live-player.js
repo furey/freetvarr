@@ -178,6 +178,7 @@ export const LivePlayer = {
           @change-channel="openPickerFor" @close="stopLive" />
         <player-mini v-if="mini" :title="playerTitle" :meta="miniMeta" is-live :progress="miniProgress"
           :paused="live.paused" :pause-disabled="live.phase !== 'live'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
+          :has-captions="Boolean(live.captions)" :captions-on="captionsOn" @toggle-captions="toggleLiveCaptions"
           @expand="expand" @toggle-pause="toggleLivePause" @close="stopLive" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
@@ -398,6 +399,7 @@ export const LivePlayer = {
       live.captionsLifted = shown
       placeLiveCaptions()
     }, { immediate: true })
+    watch(mini, placeLiveCaptions)
 
     const { onSwipePointerDown, onSwipePointerUp } = useSwipeDown({
       enabled: () => live.open && !mini.value && !multi.active && !infoOpen.value,

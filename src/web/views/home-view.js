@@ -1,6 +1,9 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import { artFallbackStyle } from '/art-fallback.js'
+import { HomeHeroCarousel } from '/components/home-hero-carousel.js'
+import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
+import { MOVIES_URL, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
 import {
   continueWatchingUrl,
   newRecordingsUrl,
@@ -9,21 +12,20 @@ import {
   tonightMetaOf,
   newCardMetaOf,
   onNowMetaOf,
-  episodeCodeOf,
-  minutesLeftOf,
-  watchedFractionOf,
   greetingFor,
   showHrefOf,
   splitClock,
 } from '/home-feed.js'
 import { recordingRowOf } from '/show-page.js'
 import { playRecording } from '/shared/playback-session.js'
-import { watchLive, liveChannelOf } from '/shared/live-session.js'
+import { watchLive, watchRecordingFromStart, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
-import { recordingChangeTick } from '/shared/recording-now.js'
+import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
+import { openInGuide } from '/shared/store.js'
 import { now, tz, fmtClockTz } from '/shared/time.js'
 
 export const HomeView = {
+  components: { HomeHeroCarousel, RecordingOptionsSheet },
   template: `
     <div class="ui-page home-page">
       <page-header :title="greeting" brand />
@@ -34,37 +36,15 @@ export const HomeView = {
         </div>
       </template>
       <template v-else>
-        <section v-if="hero" class="ui-hero home-hero" aria-label="Continue watching">
-          <div class="home-hero-backdrop ui-art-fallback" :style="heroFallbackStyle">
-            <img v-if="heroImageUrl && !heroImageFailed" class="ui-hero-art" :src="heroImageUrl" alt=""
-              decoding="async" @error="heroImageFailed = true" />
-          </div>
-          <div class="ui-hero-scrim"></div>
-          <div class="ui-hero-body">
-            <div class="ui-hero-kicker">Continue watching</div>
-            <h2 class="ui-hero-title">{{ hero.title }}</h2>
-            <div class="ui-hero-meta ui-only-wide">{{ heroMeta }}</div>
-            <div class="ui-hero-meta ui-only-phone">{{ heroMetaShort }}</div>
-            <div class="ui-progress home-hero-progress" role="progressbar" aria-label="Watched"
-              :aria-valuenow="heroPercent" aria-valuemin="0" aria-valuemax="100">
-              <span class="ui-progress-fill" :style="{ width: heroPercent + '%' }"></span>
-            </div>
-            <div class="ui-hero-actions">
-              <button type="button" class="ui-button ui-button-primary" @click="playEpisode(hero)">
-                <play-icon /> Resume
-              </button>
-              <a :href="heroShowHref" class="ui-button ui-button-secondary ui-only-wide">Episodes</a>
-            </div>
-          </div>
-        </section>
+        <home-hero-carousel v-if="heroSlides.length" :slides="heroSlides" @action="runSlideAction" />
 
-        <section v-if="newRecordings.length" class="ui-section" aria-labelledby="home-new-title">
+        <section v-if="newRecordingsRow.length" class="ui-section" aria-labelledby="home-new-title">
           <div class="ui-row-header">
             <h2 id="home-new-title" class="ui-section-title">New recordings</h2>
             <a href="#/recordings" class="ui-row-link">See all</a>
           </div>
           <div class="ui-scroller">
-            <a v-for="r in newRecordings" :key="r.recordingId" :href="showHref(r)" class="ui-card"
+            <a v-for="r in newRecordingsRow" :key="r.recordingId" :href="showHref(r)" class="ui-card"
               :aria-label="newCardLabel(r)">
               <div class="ui-card-art ui-art-fallback" :style="fallbackStyleOf(r.title)">
                 <programme-image :source="r.image" :title="r.title" variant="info" />
@@ -76,7 +56,7 @@ export const HomeView = {
           </div>
         </section>
 
-        <section v-if="!hero && !newRecordings.length" class="ui-empty" aria-label="Nothing recorded yet">
+        <section v-if="!inProgress.length && !newRecordings.length" class="ui-empty" aria-label="Nothing recorded yet">
           <h2 class="ui-empty-title">Nothing recorded yet</h2>
           <p class="ui-empty-text">Find a show in the Guide and record it. New recordings show up here.</p>
           <a href="#/guide" class="ui-button ui-button-primary">Find a show in the Guide</a>
@@ -128,61 +108,70 @@ export const HomeView = {
           </ul>
         </section>
       </template>
+      <recording-options-sheet v-if="optionsShow" :open="optionsOpen" :show="optionsShow" @close="optionsOpen = false"
+        @changed="load" @stopped="onOptionsStopped" />
     </div>
   `,
   setup() {
     const inProgress = ref([])
     const newRecordings = ref([])
+    const shows = ref([])
+    const watchlist = ref([])
+    const movies = ref([])
     const nowEntries = ref([])
     const upcoming = ref([])
     const activeProgramIds = ref([])
     const loaded = ref(false)
-    const heroImageFailed = ref(false)
+    const optionsShow = ref(null)
+    const optionsOpen = ref(false)
 
     const nowMs = computed(() => now.value.getTime())
     const greeting = computed(() => greetingFor({ nowMs: nowMs.value, timeZone: tz.value }))
-    const hero = computed(() => inProgress.value[0] ?? null)
     const onNow = computed(() => favouriteOnNowOf({ entries: nowEntries.value, nowMs: nowMs.value }))
-    const tonight = computed(() => tonightOf({
+
+    const heroSlides = computed(() => heroSlidesOf({
+      inProgress: inProgress.value,
+      newEpisodes: newRecordings.value,
+      shows: shows.value,
+      recordingNow: recordingNow.value.active ?? [],
+      nowEntries: nowEntries.value,
       upcoming: upcoming.value,
+      activeProgramIds: activeProgramIds.value,
+      watchlist: watchlist.value,
+      movies: movies.value,
+      nowMs: nowMs.value,
+      timeZone: tz.value,
+    }))
+    const heroRecordingIds = computed(() => heroRecordingIdsOf(heroSlides.value))
+    const heroProgramIds = computed(() => heroProgramIdsOf(heroSlides.value))
+    const newRecordingsRow = computed(() => newRecordings.value.filter((r) => !heroRecordingIds.value.has(r.recordingId)))
+    const tonight = computed(() => tonightOf({
+      upcoming: upcoming.value.filter((u) => !heroProgramIds.value.has(String(u.programId))),
       activeProgramIds: activeProgramIds.value,
       nowMs: nowMs.value,
       timeZone: tz.value,
     }))
 
-    const heroMeta = computed(() => {
-      const r = hero.value
-      return [
-        episodeCodeOf(r),
-        r.episodeTitle,
-        r.channelName,
-        `${minutesLeftOf(r)} min left`,
-      ].filter(Boolean).join(' · ')
-    })
-    const heroMetaShort = computed(() => [episodeCodeOf(hero.value), `${minutesLeftOf(hero.value)} min left`].filter(Boolean).join(' · '))
-    const heroPercent = computed(() => Math.round(watchedFractionOf(hero.value) * 100))
-    const heroShowHref = computed(() => showHrefOf(hero.value))
-    const heroFallbackStyle = computed(() => artFallbackStyle(hero.value.title))
-    const heroImageUrl = computed(() => {
-      const r = hero.value
-      return r.image || `/api/epg/show-image?title=${encodeURIComponent(r.title)}&w=768`
-    })
-    watch(() => hero.value?.recordingId, () => { heroImageFailed.value = false })
-
     const settled = (promise, fallback) => promise.catch(() => fallback)
 
     const load = async () => {
-      const [resumable, unplayed, nowData, state] = await Promise.all([
+      const [resumable, unplayed, nowData, state, library, watching, unwatchedMovies] = await Promise.all([
         settled(api('GET', continueWatchingUrl), { episodes: [] }),
         settled(api('GET', newRecordingsUrl), { episodes: [] }),
         settled(api('GET', '/api/epg/now?all=1'), { entries: [] }),
         settled(api('GET', '/api/epg/state'), { upcomingRecordings: [], activeRecordingIds: [] }),
+        settled(api('GET', '/api/library/shows'), { shows: [] }),
+        settled(api('GET', '/api/watchlist'), { items: [] }),
+        settled(api('GET', MOVIES_URL), { episodes: [] }),
       ])
       inProgress.value = resumable.episodes ?? []
       newRecordings.value = unplayed.episodes ?? []
       nowEntries.value = nowData.entries ?? []
       upcoming.value = state.upcomingRecordings ?? []
       activeProgramIds.value = state.activeRecordingIds ?? []
+      shows.value = library.shows ?? []
+      watchlist.value = watching.items ?? []
+      movies.value = unwatchedMovies.episodes ?? []
       loaded.value = true
     }
 
@@ -191,12 +180,49 @@ export const HomeView = {
     const stopWatchingPlayer = watch(() => playback.open, (open, wasOpen) => { if (wasOpen && !open) load() })
     onUnmounted(stopWatchingPlayer)
 
+    const openRecordingOptions = async (showKey) => {
+      try {
+        optionsShow.value = await api('GET', `/api/library/shows/${encodeURIComponent(showKey)}`)
+        optionsOpen.value = true
+      } catch {
+        window.location.hash = '#/recordings/scheduled'
+      }
+    }
+
+    const onOptionsStopped = () => {
+      optionsOpen.value = false
+      load()
+    }
+
+    const guideHandoff = ({ target }, focus = '') => openInGuide({
+      channelId: target.channel.id,
+      program: target.program,
+      focus,
+      returnTo: '#/home',
+    })
+
+    const SLIDE_ACTIONS = {
+      play: ({ target }) => playRecording(recordingRowOf(target.episode)),
+      'watch-live': (slide) => watchLive({ channel: slide.target.channel, nowTitle: slide.title }),
+      'from-start': ({ target, title }) => watchRecordingFromStart({
+        channel: target.channel,
+        recording: target.recording,
+        nowTitle: title,
+      }),
+      record: (slide) => guideHandoff(slide),
+      'record-series': (slide) => guideHandoff(slide, 'series'),
+      guide: (slide) => guideHandoff(slide),
+      upcoming: ({ target }) => openInGuide({ upcoming: target.upcoming, returnTo: '#/home' }),
+      options: ({ target }) => openRecordingOptions(target.showKey),
+    }
+
+    const runSlideAction = ({ slide, action }) => SLIDE_ACTIONS[action]?.(slide)
+
     const watchChannel = (item) => watchLive({
       channel: liveChannelOf(item.channel),
       nowTitle: item.program.title || '',
     })
 
-    const playEpisode = (episode) => playRecording(recordingRowOf(episode))
     const showHref = (episode) => showHrefOf(episode)
     const newCardMeta = (episode) => newCardMetaOf({ episode, nowMs: nowMs.value, timeZone: tz.value })
     const newCardLabel = (episode) => `${episode.title}, new recording, ${newCardMeta(episode)}`
@@ -205,8 +231,8 @@ export const HomeView = {
     const fallbackStyleOf = (title) => artFallbackStyle(title)
 
     return {
-      loaded, greeting, hero, heroMeta, heroMetaShort, heroPercent, heroShowHref, heroFallbackStyle, heroImageUrl, heroImageFailed,
-      newRecordings, onNow, tonight, playEpisode, watchChannel, showHref, newCardMeta, newCardLabel,
+      loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
+      optionsShow, optionsOpen, load, onOptionsStopped, watchChannel, showHref, newCardMeta, newCardLabel,
       channelTag, clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
     }
   },

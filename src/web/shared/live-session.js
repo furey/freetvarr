@@ -13,6 +13,7 @@ import {
   captionPreferenceAfterChange,
 } from '/live-captions.js'
 import { isReadyToStart, seekFloorOf } from '/live-start.js'
+import { captionLineOf } from '/mini-player.js'
 import { csrfToken, api } from '/shared/api.js'
 import {
   live,
@@ -62,6 +63,19 @@ export const watchLive = ({ channel, nowTitle }) => {
   })
   unlockLiveVideo()
   startLiveSession(liveRun)
+}
+
+export const watchRecordingFromStart = ({ channel, recording, nowTitle = '' }) => {
+  if (playback.open) playbackHooks.stopPlayback()
+  stopLive()
+  playerWindowed.value = false
+  playerMini.value = false
+  Object.assign(live, {
+    open: true, channel, nowTitle, sessionId: null,
+    phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
+  })
+  unlockLiveVideo()
+  watchFromStart(recording)
 }
 
 const unlockLiveVideo = () => {
@@ -486,7 +500,12 @@ export const seekLiveTo = (second) => {
 }
 
 export const placeLiveCaptions = () => {
-  const line = live.captionsLifted ? FILLED_CAPTION_LINE : CAPTION_LINE_PERCENT
+  const line = captionLineOf({
+    mini: playerMini.value,
+    lifted: live.captionsLifted,
+    liftedLine: FILLED_CAPTION_LINE,
+    restingLine: CAPTION_LINE_PERCENT,
+  })
   for (const track of captionTracksOf(liveVideo)) {
     for (const cue of track.cues || []) if (cue.line !== line) cue.line = line
   }
