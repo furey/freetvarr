@@ -130,8 +130,8 @@ export const LivePlayer = {
           @back="stopLive" @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @toggle-fullscreen="toggleLiveFullscreen"
           @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted">
           <template #lead>
-            <button v-if="live.phase === 'live' && !live.fromStart" type="button" class="pl-pill" aria-label="Add a channel to Multiview"
-              @click="openPicker"><watch-alongside-icon /><span class="pl-pill-label">Add a channel</span></button>
+            <button v-if="live.phase === 'live' && !live.fromStart" type="button" class="pl-pill" aria-label="Multiview: add a second channel"
+              @click="openPicker"><watch-alongside-icon /><span class="pl-pill-label">Multiview</span></button>
           </template>
           <template #before>
             <button v-if="!seriesButton.hidden" type="button" :class="['pl-pill', { 'is-on': seriesButton.set }]"

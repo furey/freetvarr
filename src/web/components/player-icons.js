@@ -16,7 +16,7 @@ export const ExitPictureInPictureIcon = icon('<rect x="1.75" y="3" width="12.5" 
 
 export const ExpandArrowsIcon = icon('<path d="M9.5 2.75h3.75V6.5M13.25 2.75 8.75 7.25M6.5 13.25H2.75V9.5M2.75 13.25l4.5-4.5"/>')
 
-export const WatchAlongsideIcon = icon('<rect x="1.75" y="3" width="6" height="10" rx="1.2"/><path d="M11.75 6v4M9.75 8h4"/>')
+export const WatchAlongsideIcon = icon('<rect x="1.25" y="2.5" width="13.5" height="9" rx="1.5"/><path d="M8 2.5v9M5.5 14h5"/>')
 
 export const SwapIcon = icon('<path d="M3 5.5h10M10.5 3 13 5.5 10.5 8M13 10.5H3M5.5 8 3 10.5 5.5 13"/>')
 
