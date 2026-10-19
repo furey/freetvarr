@@ -217,7 +217,7 @@ export const EpgView = {
               <div class="epg-ruler-track" :style="{ width: trackWidth + 'px' }">
                 <span v-for="t in ticks" :key="t.x" :class="['epg-tick', { half: t.half }]" :style="{ left: t.x + 'px' }">{{ t.label }}</span>
                 <span class="epg-tick epg-midnight-tick" :style="{ left: midnightX + 'px' }"><calendar-icon /> {{ nextDayLabel }}</span>
-                <span v-if="day === 0 && nowX != null" class="epg-now-pill" :style="{ left: nowX + 'px' }" aria-hidden="true">{{ nowPill }}</span>
+                <span v-if="day === 0 && nowX != null" class="epg-now-pill" :style="{ left: Math.round(nowX) + 'px' }" aria-hidden="true">{{ nowPill }}</span>
               </div>
             </div>
             <div class="epg-midnight-line" aria-hidden="true" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }"></div>

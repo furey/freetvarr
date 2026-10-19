@@ -196,6 +196,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-weight: var(--weight-small);
 }
 
 .guide-legend-ring {
@@ -220,6 +221,7 @@
   margin-left: auto;
   color: var(--color-text-3);
   font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-small);
 }
 
 .guide-results {
@@ -359,15 +361,17 @@
   z-index: 2;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 48px;
   height: 20px;
-  padding: 0 7px;
+  margin-left: -24px;
+  padding: 0;
   border-radius: var(--radius-chip);
   background: var(--color-live);
   color: #fff;
   font-size: 11px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  transform: translateX(-50%);
   pointer-events: none;
 }
 
@@ -465,7 +469,7 @@
   font-family: inherit;
   font-size: 12px;
   line-height: 16px;
-  font-weight: 500;
+  font-weight: var(--weight-small);
   letter-spacing: 0;
   color: var(--color-text-3);
   font-variant-numeric: tabular-nums;
@@ -707,9 +711,9 @@
   padding: 4px;
   border: 0;
   border-radius: 16px;
-  background: rgba(28, 38, 48, 0.94);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  background: none;
+  --frost-fill: rgba(28, 38, 48, 0.94);
+  --frost-blur: blur(20px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 

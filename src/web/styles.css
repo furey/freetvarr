@@ -392,7 +392,7 @@ table.deck-table tbody tr.active {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   border: 1px solid currentColor;
   background: rgba(255, 255, 255, 0.02);
@@ -824,6 +824,7 @@ code {
   background: var(--color-surface-2);
   padding: 0.05rem 0.35rem;
   border-radius: 6px;
+  font-weight: var(--weight-small);
 }
 
 .info-btn {
@@ -907,9 +908,8 @@ code {
   bottom: var(--app-tabbar-h, 0px);
   z-index: 30;
   border-top: 1px solid var(--color-hairline);
-  background: rgba(20, 28, 36, 0.94);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  --frost-fill: rgba(20, 28, 36, 0.94);
+  --frost-blur: blur(20px);
   box-shadow: 0 -12px 24px -8px rgba(0, 0, 0, 0.55);
   padding-bottom: var(--app-tabbar-safe-bottom, env(safe-area-inset-bottom));
 }
@@ -2490,6 +2490,7 @@ section[id^="section-"] {
 .channel-number {
   color: var(--color-text-3);
   font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-small);
 }
 
 .channel-name {

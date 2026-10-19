@@ -55,7 +55,7 @@ import {
   onLivePause,
   setLiveVideo,
 } from '/shared/live-session.js'
-import { multi, slotClassOf, watchAlongside, changePictureChannel } from '/shared/multi-session.js'
+import { multi, slotClassOf, watchAlongside, changePictureChannel, applySingleMuting, togglePlayerMuted } from '/shared/multi-session.js'
 import {
   live,
   playback,
@@ -63,6 +63,7 @@ import {
   isStageFullscreen,
   toggleStageFullscreen,
   playerMini,
+  playerMuted,
 } from '/shared/player-shared.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
 import { recordDialogOverPlayer, openInGuide } from '/shared/store.js'
@@ -125,9 +126,9 @@ export const LivePlayer = {
         <player-top-bar :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="playerTitle"
           :subtitle="playerSubtitle" back-label="Stop and close" :info-open="infoOpen" info-id="live-info"
           :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :fullscreen="isStageFullscreen"
-          :can-pip="canPip" :pip-active="pipActive" :can-minimise="true"
+          :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
           @back="stopLive" @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @toggle-fullscreen="toggleLiveFullscreen"
-          @toggle-pip="togglePip" @minimise="minimise">
+          @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted">
           <template #lead>
             <button v-if="live.phase === 'live' && !live.fromStart" type="button" class="pl-pill" aria-label="Watch alongside"
               @click="openPicker"><watch-alongside-icon /><span class="pl-pill-label">Watch alongside</span></button>
@@ -176,8 +177,8 @@ export const LivePlayer = {
         <multi-view-layer v-if="multi.active && !mini" :primary-title="playerTitle" :primary-meta="miniMeta"
           @change-channel="openPickerFor" @close="stopLive" />
         <player-mini v-if="mini" :title="playerTitle" :meta="miniMeta" is-live :progress="miniProgress"
-          :paused="live.paused" :pause-disabled="live.phase !== 'live'" :can-pip="canPip" :pip-active="pipActive"
-          @expand="expand" @toggle-pause="toggleLivePause" @close="stopLive" @toggle-pip="togglePip" />
+          :paused="live.paused" :pause-disabled="live.phase !== 'live'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
+          @expand="expand" @toggle-pause="toggleLivePause" @close="stopLive" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
     </transition>
@@ -255,6 +256,7 @@ export const LivePlayer = {
 
     onMounted(() => {
       setLiveVideo(videoEl.value)
+      applySingleMuting()
       liveVideo.addEventListener('webkitendfullscreen', onLiveFullscreenExit)
       liveVideo.addEventListener('pause', onLivePause)
       liveVideo.addEventListener('pause', syncLivePaused)
@@ -441,6 +443,7 @@ export const LivePlayer = {
       togglePause: toggleLivePause,
       skip: skipLiveByKey,
       toggleFullscreen: toggleLiveFullscreen,
+      toggleMute: togglePlayerMuted,
     })
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
@@ -585,7 +588,7 @@ export const LivePlayer = {
       isBehindLive, jumpToLive, hasBufferBar, shownLivePosition, liveFillPercent, scrubberPill,
       bufferStartText, bufferEndText, hintText, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, openStartOver, chooseStartOver,
-      canPip, pipActive, togglePip, mini, minimise, expand, miniMeta, miniProgress,
+      canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, expand, miniMeta, miniProgress,
       multi, primarySlotClass, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,

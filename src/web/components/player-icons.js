@@ -1,3 +1,5 @@
+import { SpeakerIcon, SpeakerMutedIcon } from '/components/icons.js'
+
 const icon = (paths) => ({
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -8,7 +10,9 @@ const icon = (paths) => ({
 
 export const PictureInPictureIcon = icon('<rect x="1.75" y="3" width="12.5" height="10" rx="1.5"/><rect x="8" y="8" width="4.5" height="3.25" rx="0.6" fill="currentColor" stroke="none"/>')
 
-export const MinimiseIcon = icon('<path d="M4 6.25 8 10.25l4-4"/>')
+export const MinimiseIcon = PictureInPictureIcon
+
+export const ExitPictureInPictureIcon = icon('<rect x="1.75" y="3" width="12.5" height="10" rx="1.5"/><rect x="8.25" y="8" width="4.25" height="3.25" rx="0.6"/><path d="M7.25 7.25 4.5 4.5M4.5 7.25V4.5h2.75"/>')
 
 export const WatchAlongsideIcon = icon('<rect x="1.75" y="3" width="6" height="10" rx="1.2"/><path d="M11.75 6v4M9.75 8h4"/>')
 
@@ -23,8 +27,6 @@ export const InsetLayoutIcon = icon('<rect x="1.75" y="3" width="12.5" height="1
 export const RewindToStartIcon = icon('<path d="M2.75 8a5.25 5.25 0 1 0 1.6-3.8"/><path d="M2.75 2.75v2.5h2.5"/>')
 
 export const ClockIcon = icon('<circle cx="8" cy="8" r="5.75"/><path d="M8 4.75V8l2.25 1.5"/>')
-
-export const ExpandIcon = icon('<path d="M2.75 6V2.75H6M10 2.75h3.25V6M13.25 10v3.25H10M6 13.25H2.75V10"/>')
 
 export const MoreDotsIcon = {
   template: `
@@ -46,7 +48,9 @@ export const PLAYER_ICON_COMPONENTS = {
   'inset-layout-icon': InsetLayoutIcon,
   'rewind-to-start-icon': RewindToStartIcon,
   'clock-icon': ClockIcon,
-  'expand-icon': ExpandIcon,
+  'exit-pip-icon': ExitPictureInPictureIcon,
+  'speaker-icon': SpeakerIcon,
+  'speaker-muted-icon': SpeakerMutedIcon,
   'more-dots-icon': MoreDotsIcon,
   'phone-rotate-icon': PhoneRotateIcon,
 }

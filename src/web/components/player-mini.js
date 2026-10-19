@@ -1,5 +1,6 @@
-import { ref, onMounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
+import { muteButtonOf } from '/player-mute.js'
 import { pictureInPictureSupportOf, isInPictureInPicture, togglePictureInPicture } from '/mini-player.js'
 
 export const PlayerMini = {
@@ -13,8 +14,12 @@ export const PlayerMini = {
     pauseDisabled: Boolean,
     canPip: Boolean,
     pipActive: Boolean,
+    muted: Boolean,
   },
-  emits: ['expand', 'toggle-pause', 'close', 'toggle-pip'],
+  emits: ['expand', 'toggle-pause', 'close', 'toggle-pip', 'toggle-mute'],
+  setup(props) {
+    return { sound: computed(() => muteButtonOf({ muted: props.muted })) }
+  },
   template: `
     <div class="pl-mini">
       <button type="button" class="pl-mini-expand" :aria-label="'Open full player: ' + title" @click="$emit('expand')"></button>
@@ -24,12 +29,17 @@ export const PlayerMini = {
         <p v-if="meta" class="pl-mini-meta">{{ meta }}</p>
       </div>
       <div class="pl-mini-actions">
-        <button v-if="canPip" type="button" class="pl-mini-button is-wide-only" :aria-pressed="String(pipActive)"
+        <button v-if="canPip" type="button" class="pl-mini-button pl-mini-pip is-wide-only" :aria-pressed="String(pipActive)"
           :aria-label="pipActive ? 'Leave picture in picture' : 'Picture in picture'" @click="$emit('toggle-pip')"><pip-icon /></button>
-        <button type="button" class="pl-mini-button is-wide-only" aria-label="Full screen" @click="$emit('expand')"><expand-icon /></button>
+        <button type="button" class="pl-mini-button pl-mini-back is-wide-only" aria-label="Back to full player" title="Back to full player"
+          @click="$emit('expand')"><exit-pip-icon /></button>
+        <button type="button" :class="['pl-mini-button', 'pl-mini-sound', { 'is-on': sound.audible }]" :aria-pressed="String(sound.audible)"
+          :aria-label="sound.ariaLabel" :title="sound.label" @click="$emit('toggle-mute')">
+          <speaker-icon v-if="sound.audible" /><speaker-muted-icon v-else />
+        </button>
         <button type="button" class="pl-mini-button pl-mini-pause" :disabled="pauseDisabled" :aria-label="paused ? 'Play' : 'Pause'"
           @click="$emit('toggle-pause')"><play-icon v-if="paused" /><pause-icon v-else /></button>
-        <button type="button" class="pl-mini-button" aria-label="Stop and close" @click="$emit('close')"><cross-icon /></button>
+        <button type="button" class="pl-mini-button pl-mini-close" aria-label="Stop and close" @click="$emit('close')"><cross-icon /></button>
       </div>
       <div :class="['ui-progress', 'pl-mini-progress', { 'is-live': isLive }]" aria-hidden="true">
         <span class="ui-progress-fill" :style="{ width: progress + '%' }"></span>

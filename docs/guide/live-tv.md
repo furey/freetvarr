@@ -104,14 +104,15 @@ Freetvarr keeps the buffer on disk, in the Freetvarr Docker container's temporar
 
 On a computer, the player takes these keys:
 
-| Key                   | What it does                                          |
-| --------------------- | ----------------------------------------------------- |
-| Space or `k`          | Pauses, or carries on.                                |
-| Left and right arrows | Skip back or forward `10` seconds, within the buffer. |
-| `f`                   | Enters or exits full screen.                          |
-| `i`                   | Shows or hides the programme info.                    |
-| `c`                   | Turns captions on or off, when the channel has them.  |
-| `Esc`                 | Closes the programme info, or else closes the player. |
+| Key                   | What it does                                                |
+| --------------------- | ----------------------------------------------------------- |
+| Space or `k`          | Pauses, or carries on.                                      |
+| Left and right arrows | Skip back or forward `10` seconds, within the buffer.       |
+| `f`                   | Enters or exits full screen.                                |
+| `i`                   | Shows or hides the programme info.                          |
+| `c`                   | Turns captions on or off, when the channel has them.        |
+| `m`                   | Mutes or unmutes the sound. Freetvarr remembers the choice. |
+| `Esc`                 | Closes the programme info, or else closes the player.       |
 
 ## Stream handling
 

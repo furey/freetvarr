@@ -1,17 +1,18 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { DOUBLE_TAP_MS } from '/double-tap.js'
 import { isSwipeDown } from '/mini-player.js'
+import { overlayStack } from '/overlay-stack.js'
 
 const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
   && !e.ctrlKey && !e.metaKey && !e.altKey
   && !e.target.closest?.('select, textarea, input:not([type=range]), [contenteditable]')
 
 export const usePlayerKeys = ({
-  isActive, infoOpen, close, toggleInfo, canToggleCaptions, toggleCaptions, togglePause, skip, toggleFullscreen,
+  isActive, infoOpen, close, toggleInfo, canToggleCaptions, toggleCaptions, togglePause, skip, toggleFullscreen, toggleMute,
   ignoreSelector = 'button, select, textarea, input',
 }) => {
   const onKeydown = (e) => {
-    if (!isActive() || e.defaultPrevented) return
+    if (!isActive() || e.defaultPrevented || overlayStack.size() > 0) return
     if (e.key === 'Escape') {
       if (infoOpen.value) infoOpen.value = false
       else close()
@@ -24,6 +25,10 @@ export const usePlayerKeys = ({
     if (canToggleCaptions() && isPlainKey(e, 'c')) {
       e.preventDefault()
       return toggleCaptions()
+    }
+    if (isPlainKey(e, 'm')) {
+      e.preventDefault()
+      return toggleMute()
     }
     if (e.target.closest?.(ignoreSelector) && isKeyboardFocused(e.target)) return
     if (e.key === ' ' || isPlainKey(e, 'k')) {

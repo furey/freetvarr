@@ -100,14 +100,15 @@ The player uses the imported file, or the TVHeadend copy when the recording is n
 
 On a computer, the player takes these keys:
 
-| Key                   | What it does                                            |
-| --------------------- | ------------------------------------------------------- |
-| Space or `k`          | Pauses, or carries on.                                  |
-| Left and right arrows | Skip back or forward `10` seconds.                      |
-| `f`                   | Enters or exits full screen.                            |
-| `i`                   | Shows or hides the recording info.                      |
-| `c`                   | Turns captions on or off, when the recording kept them. |
-| `Esc`                 | Closes the recording info, or else closes the player.   |
+| Key                   | What it does                                                |
+| --------------------- | ----------------------------------------------------------- |
+| Space or `k`          | Pauses, or carries on.                                      |
+| Left and right arrows | Skip back or forward `10` seconds.                          |
+| `f`                   | Enters or exits full screen.                                |
+| `i`                   | Shows or hides the recording info.                          |
+| `c`                   | Turns captions on or off, when the recording kept them.     |
+| `m`                   | Mutes or unmutes the sound. Freetvarr remembers the choice. |
+| `Esc`                 | Closes the recording info, or else closes the player.       |
 
 ### Recording info
 

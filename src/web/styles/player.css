@@ -55,9 +55,9 @@
   position: absolute;
   top: 6px;
   left: 6px;
+  height: 18px;
+  padding: 0 6px;
   pointer-events: none;
-  transform: scale(0.82);
-  transform-origin: top left;
 }
 
 .pl-mini-text {
@@ -84,7 +84,7 @@
 .pl-mini-meta {
   font-size: 13px;
   line-height: 18px;
-  font-weight: 500;
+  font-weight: var(--weight-small);
   color: var(--color-text-2);
 }
 
@@ -124,6 +124,10 @@
 
 .pl-mini-button.is-wide-only {
   display: none;
+}
+
+.pl-mini-sound.is-on {
+  color: var(--color-primary);
 }
 
 .pl-mini-progress {
@@ -190,16 +194,20 @@ body.player-mini-open .app-content {
     display: inline-flex;
   }
 
-  .pl-mini-actions > :nth-last-child(4) {
-    right: 104px;
+  .pl-mini-close {
+    right: 8px;
   }
 
-  .pl-mini-actions > :nth-last-child(3) {
+  .pl-mini-sound {
     right: 56px;
   }
 
-  .pl-mini-actions > :last-child {
-    right: 8px;
+  .pl-mini-back {
+    right: 104px;
+  }
+
+  .pl-mini-pip {
+    right: 152px;
   }
 
   .pl-mini-button.pl-mini-pause {

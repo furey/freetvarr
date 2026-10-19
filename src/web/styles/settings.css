@@ -19,7 +19,7 @@
   font-size: 12px;
   line-height: 16px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--color-text-3);
 }
@@ -367,10 +367,11 @@ a.settings-row-link:hover {
   font-size: 13px;
   line-height: 18px;
   color: var(--color-text-2);
+  font-weight: var(--weight-small);
 }
 
 .settings-label-note {
-  font-weight: 500;
+  font-weight: var(--weight-small);
   color: var(--color-text-3);
 }
 
@@ -379,6 +380,7 @@ a.settings-row-link:hover {
   font-size: 13px;
   line-height: 18px;
   color: var(--color-text-2);
+  font-weight: var(--weight-small);
 }
 
 .settings-meta-line {
@@ -614,6 +616,7 @@ a.settings-row-link:hover {
   font-size: 13px;
   line-height: 18px;
   color: var(--color-text-2);
+  font-weight: var(--weight-small);
 }
 
 .settings-save-bar-inner .ui-button-primary {
@@ -692,7 +695,7 @@ a.settings-row-link:hover {
   font-size: 12px;
   line-height: 16px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   color: var(--color-text-3);
 }
 
@@ -769,7 +772,7 @@ a.settings-row-link:hover {
   padding: 16px 16px 6px;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   color: var(--color-text-3);
   text-align: left;
 }
@@ -787,7 +790,7 @@ a.settings-row-link:hover {
   padding: 16px 0 4px;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   color: var(--color-text-3);
 }
 

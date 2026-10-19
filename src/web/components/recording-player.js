@@ -53,6 +53,7 @@ import {
   FILLED_CAPTION_LINE,
   playback,
   playerMini,
+  playerMuted,
 } from '/shared/player-shared.js'
 import { tz, fmtTime } from '/shared/time.js'
 import { SKIP_STEP_S } from '/double-tap.js'
@@ -95,9 +96,9 @@ export const RecordingPlayer = {
         </player-info-panel>
         <player-top-bar :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
           back-label="Close" :info-open="infoOpen" info-id="play-info" :has-captions="playback.captions"
-          :captions-on="captionsOn" :fullscreen="isStageFullscreen" :can-pip="canPip" :pip-active="pipActive" :can-minimise="true"
+          :captions-on="captionsOn" :fullscreen="isStageFullscreen" :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
           @back="stopPlayback" @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions" @toggle-fullscreen="toggleFullscreen"
-          @toggle-pip="togglePip" @minimise="minimise">
+          @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted">
           <button v-if="playback.airplay" type="button" class="pl-pill" aria-label="AirPlay" @click="showAirplay">
             <airplay-icon /><span class="pl-pill-label">AirPlay</span>
           </button>
@@ -124,8 +125,8 @@ export const RecordingPlayer = {
         </div>
         <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
         <player-mini v-if="mini" :title="header.title" :meta="miniMeta" :progress="fillPercent"
-          :paused="playback.paused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive"
-          @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" />
+          :paused="playback.paused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
+          @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
     </transition>
@@ -213,6 +214,9 @@ export const RecordingPlayer = {
       seekPlaybackTo(value)
     }
 
+    const togglePlayerMuted = () => { playerMuted.value = !playerMuted.value }
+    const applyMuting = () => { if (playVideo) playVideo.muted = playerMuted.value }
+    watch(playerMuted, applyMuting)
     const toggleFullscreen = () => toggleStageFullscreen({ stage: stageEl.value, video: playVideo })
     const mini = playerMini
     const { canPip, pipActive, togglePip } = usePictureInPicture({ videoEl })
@@ -285,6 +289,7 @@ export const RecordingPlayer = {
       togglePause: togglePlayback,
       skip: skipPlaybackByKey,
       toggleFullscreen,
+      toggleMute: togglePlayerMuted,
       ignoreSelector: 'button, select, textarea, input:not(.pl-range)',
     })
 
@@ -313,6 +318,7 @@ export const RecordingPlayer = {
 
     onMounted(() => {
       setPlayVideo(videoEl.value)
+      applyMuting()
       playVideo.addEventListener('timeupdate', onTimeUpdate)
       playVideo.addEventListener('playing', onPlaying)
       playVideo.addEventListener('play', () => { playback.paused = false })
@@ -338,7 +344,7 @@ export const RecordingPlayer = {
       toggleFullscreen, isStageFullscreen, showAirplay,
       captionsOn: liveCaptionsOn, togglePlayCaptions,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
-      mini, minimise, expand, miniMeta, canPip, pipActive, togglePip,
+      mini, minimise, expand, miniMeta, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
     }
   },
 }

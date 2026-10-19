@@ -6,10 +6,10 @@ export const LAYOUTS = ['split', 'inset']
 
 export const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 
-export const initialMultiView = ({ layout = 'split' } = {}) => ({
+export const initialMultiView = ({ layout = 'split', muted = false } = {}) => ({
   order: [...PICTURES],
   layout,
-  audible: 'primary',
+  audible: muted ? null : 'primary',
   insetCorner: 'bottom-right',
 })
 

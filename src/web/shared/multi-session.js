@@ -18,7 +18,7 @@ import {
   retuneLive,
   liveReasonText,
 } from '/shared/live-session.js'
-import { live } from '/shared/player-shared.js'
+import { live, playerMuted } from '/shared/player-shared.js'
 
 const emptySecondary = () => ({
   channel: null, sessionId: null, playlist: '', bufferSeconds: 0, captions: false, phase: 'idle', message: '',
@@ -55,7 +55,7 @@ export const slotClassOf = (picture) => (multi.active
 
 export const watchAlongside = (channel) => {
   if (multi.active) return changeSecondary(channel)
-  Object.assign(multi, { active: true, view: initialMultiView(), insetBox: null })
+  Object.assign(multi, { active: true, view: initialMultiView({ muted: playerMuted.value }), insetBox: null })
   startCompanion(channel)
 }
 
@@ -75,18 +75,14 @@ export const changePictureChannel = ({ picture, channel }) => {
 }
 
 export const stopWatchingPicture = (picture) => {
-  if (picture === 'secondary') {
+  if (picture === 'secondary' || !multi.secondary.sessionId) {
     stopCompanion()
-    return exitMulti()
+    return exitMultiKeepingSound('primary')
   }
   const { channel, sessionId, playlist, bufferSeconds, captions } = multi.secondary
-  if (!sessionId) {
-    stopCompanion()
-    return exitMulti()
-  }
   releaseCompanionVideo()
   multi.secondary = emptySecondary()
-  exitMulti()
+  exitMultiKeepingSound('secondary')
   adoptLiveSession({ channel, session: { id: sessionId, playlist, bufferSeconds, captions } })
 }
 
@@ -126,7 +122,20 @@ const exitMulti = () => {
   multi.active = false
   multi.insetBox = null
   multi.view = initialMultiView()
-  if (liveVideo) liveVideo.muted = false
+  applySingleMuting()
+}
+
+const exitMultiKeepingSound = (survivor) => {
+  playerMuted.value = isMutedIn({ audible: multi.view.audible, picture: survivor })
+  exitMulti()
+}
+
+export const applySingleMuting = () => {
+  if (liveVideo) liveVideo.muted = playerMuted.value
+}
+
+export const togglePlayerMuted = () => {
+  if (!multi.active) playerMuted.value = !playerMuted.value
 }
 
 const changeSecondary = (channel) => {
@@ -254,6 +263,10 @@ const applyMuting = () => {
 }
 
 watch(() => [multi.active, multi.view.audible], applyMuting)
+
+watch(playerMuted, () => {
+  if (!multi.active) applySingleMuting()
+})
 
 const companionErrorText = (err) => {
   if (err.code === 'stream-limit') {

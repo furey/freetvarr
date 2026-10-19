@@ -1,4 +1,6 @@
+import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
+import { muteButtonOf, playerMenuItemsOf } from '/player-mute.js'
 
 export const PlayerTopBar = {
   components: PLAYER_ICON_COMPONENTS,
@@ -16,8 +18,23 @@ export const PlayerTopBar = {
     canPip: Boolean,
     pipActive: Boolean,
     canMinimise: Boolean,
+    muted: Boolean,
   },
-  emits: ['back', 'toggle-info', 'toggle-captions', 'toggle-fullscreen', 'toggle-pip', 'minimise'],
+  emits: ['back', 'toggle-info', 'toggle-captions', 'toggle-fullscreen', 'toggle-pip', 'minimise', 'toggle-mute'],
+  setup(props, { emit }) {
+    const menuOpen = ref(false)
+    const sound = computed(() => muteButtonOf({ muted: props.muted }))
+    const menuItems = computed(() => playerMenuItemsOf({
+      canPip: props.canPip,
+      pipActive: props.pipActive,
+      fullscreen: props.fullscreen,
+    }))
+    const chooseMenuItem = (key) => {
+      menuOpen.value = false
+      emit(key === 'pip' ? 'toggle-pip' : 'toggle-fullscreen')
+    }
+    return { menuOpen, sound, menuItems, chooseMenuItem }
+  },
   template: `
     <header class="pl-top">
       <button type="button" class="pl-round" :aria-label="backLabel" @click="$emit('back')"><arrow-left-icon /></button>
@@ -28,9 +45,7 @@ export const PlayerTopBar = {
       </div>
       <div class="pl-actions">
         <slot name="lead" />
-        <button v-if="canPip" type="button" class="pl-round" :aria-pressed="String(pipActive)"
-          :aria-label="pipActive ? 'Leave picture in picture' : 'Picture in picture'" @click="$emit('toggle-pip')"><pip-icon /></button>
-        <button v-if="canMinimise" type="button" class="pl-round" aria-label="Minimise player" @click="$emit('minimise')"><minimise-icon /></button>
+        <button v-if="canMinimise" type="button" class="pl-round" aria-label="Mini player" title="Mini player" @click="$emit('minimise')"><minimise-icon /></button>
         <slot name="before" />
         <button v-if="hasCaptions" type="button" class="pl-pill" :disabled="infoOpen" :aria-pressed="String(captionsOn)"
           aria-label="Captions" @click="$emit('toggle-captions')">
@@ -41,11 +56,23 @@ export const PlayerTopBar = {
           <info-icon /><span class="pl-pill-label">Info</span>
         </button>
         <slot />
+        <button type="button" :class="['pl-pill', 'is-sound', { 'is-on': sound.audible }]" :aria-pressed="String(sound.audible)"
+          :aria-label="sound.ariaLabel" @click="$emit('toggle-mute')">
+          <speaker-icon v-if="sound.audible" /><speaker-muted-icon v-else /><span class="pl-sound-label">{{ sound.label }}</span>
+        </button>
+        <button type="button" class="pl-round pl-more" aria-label="More" title="More" @click="menuOpen = true"><more-dots-icon /></button>
         <button type="button" class="pl-round pl-fullscreen" :aria-label="fullscreen ? 'Exit full screen' : 'Full screen'"
           @click="$emit('toggle-fullscreen')">
           <exit-fullscreen-icon v-if="fullscreen" /><fullscreen-icon v-else />
         </button>
       </div>
+      <ui-sheet :open="menuOpen" title="More" @close="menuOpen = false">
+        <div class="ui-group">
+          <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row" @click="chooseMenuItem(item.key)">
+            <span class="ui-group-row-main"><span class="ui-group-row-title">{{ item.label }}</span></span>
+          </button>
+        </div>
+      </ui-sheet>
     </header>
   `,
 }

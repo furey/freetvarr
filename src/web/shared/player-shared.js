@@ -1,7 +1,8 @@
-import { ref, reactive } from '/vendor/vue.esm-browser.prod.js'
+import { ref, reactive, watch } from '/vendor/vue.esm-browser.prod.js'
 import { zoneOf, skipLabel, skipSpoken } from '/double-tap.js'
 import { LIVE_CAPTIONS_KEY } from '/shared/constants.js'
-import { storedFlag } from '/shared/storage.js'
+import { storedFlag, browserStorage } from '/shared/storage.js'
+import { loadPlayerMuted, savePlayerMuted } from '/player-mute.js'
 
 export const live = reactive({
   open: false,
@@ -31,6 +32,10 @@ export const live = reactive({
 export const playerMini = ref(false)
 
 export const liveCaptionsOn = storedFlag({ key: LIVE_CAPTIONS_KEY, fallback: false })
+
+export const playerMuted = ref(loadPlayerMuted(browserStorage()))
+
+watch(playerMuted, (muted) => savePlayerMuted(browserStorage(), muted))
 
 export const captionTracksOf = (video) =>
   [...(video?.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions')

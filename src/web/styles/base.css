@@ -1,4 +1,6 @@
 :root {
+  --weight-small: 550;
+  --tracking-caps: 0.04em;
   --app-rail-w: 0px;
   --app-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-tabbar-h: calc(64px + var(--app-tabbar-safe-bottom));
@@ -31,12 +33,43 @@
   }
 }
 
+@media (max-resolution: 1.49dppx) {
+  :root {
+    --tracking-caps: 0;
+  }
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-text-1);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 22px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:is(.pl-pill, .app-tabbar, .settings-save-bar, .epg-float-cluster) {
+  isolation: isolate;
+}
+
+:is(.pl-pill, .app-tabbar, .settings-save-bar, .epg-float-cluster)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--frost-fill);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  pointer-events: none;
+}
+
+@media (max-resolution: 1.49dppx) {
+  body {
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+  }
 }
 
 :where(a, button, [role="button"], [role="tab"], [role="switch"], [tabindex]):focus-visible {
@@ -46,7 +79,7 @@ body {
 
 .ui-tabular { font-variant-numeric: tabular-nums; }
 .ui-mono { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-2); }
-.ui-meta { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--color-text-2); }
+.ui-meta { font-size: 13px; line-height: 18px; font-weight: var(--weight-small); color: var(--color-text-2); }
 .ui-label { font-size: 12px; line-height: 16px; font-weight: 700; color: var(--color-text-2); }
 
 .ui-visually-hidden {
@@ -175,9 +208,8 @@ body {
   display: flex;
   justify-content: space-around;
   padding: 8px calc(env(safe-area-inset-right, 0px) + 6px) var(--app-tabbar-safe-bottom) calc(env(safe-area-inset-left, 0px) + 6px);
-  background: rgba(20, 28, 36, 0.94);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  --frost-fill: rgba(20, 28, 36, 0.94);
+  --frost-blur: blur(20px);
   border-top: 1px solid var(--color-hairline);
 }
 
@@ -361,7 +393,7 @@ body.sheet-open .app-tabbar {
   font-size: 13px;
   line-height: 18px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-caps);
   color: var(--color-text-3);
   text-transform: uppercase;
 }
@@ -550,7 +582,7 @@ body.sheet-open .app-tabbar {
   color: var(--color-on-primary);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
 }
 
 .ui-card-title {
@@ -584,7 +616,7 @@ body.sheet-open .app-tabbar {
   color: #fff;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   white-space: nowrap;
 }
