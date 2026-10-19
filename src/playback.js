@@ -174,6 +174,8 @@ export const createPlaybackSessions = ({
   streamsElsewhere = () => [],
   idleMs = 60_000,
   killGraceMs = 3_000,
+  onStart = () => {},
+  onEnd = () => {},
 } = {}) => {
   const sessions = new Map()
 
@@ -212,6 +214,7 @@ export const createPlaybackSessions = ({
       producedSeconds: 0,
     }
     sessions.set(id, session)
+    onStart(session)
     try {
       await makeDir(session.dir)
       spawnEncoder(session)
@@ -291,6 +294,7 @@ export const createPlaybackSessions = ({
     if (session.ending) return session.ending
     session.status = 'ended'
     session.reason = reason
+    onEnd(session, reason)
     session.ending = teardown(session).finally(() => sessions.delete(session.id))
     return session.ending
   }

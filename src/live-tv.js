@@ -303,6 +303,8 @@ export const createLiveSessions = ({
   stallMs = 10_000,
   killGraceMs = 3_000,
   endedMemoryMs = 60_000,
+  onStart = () => {},
+  onEnd = () => {},
 } = {}) => {
   const sessions = new Map()
   const ended = new Map()
@@ -343,6 +345,7 @@ export const createLiveSessions = ({
     }
     sessions.set(id, session)
     ended.delete(channelId)
+    onStart(session)
     try {
       await makeDir(session.dir)
       session.child = spawnFfmpeg(session)
@@ -452,6 +455,7 @@ export const createLiveSessions = ({
     if (session.ending) return session.ending
     session.status = 'ended'
     session.reason = reason
+    onEnd(session, reason)
     ended.set(session.channelId, { ...view(session), endedAt: now() })
     session.ending = teardown(session).finally(() => sessions.delete(session.id))
     return session.ending

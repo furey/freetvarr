@@ -182,6 +182,14 @@ import { mountInProgressPlayback, inProgressFolders } from './in-progress-playba
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
+import {
+  liveSessionHooks,
+  mountUserEvents,
+  observeUserEvents,
+  playbackSessionHooks,
+  startUserEvents,
+  stopUserEvents,
+} from './user-events-log.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -279,6 +287,7 @@ app.use(compression())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser(CSRF_SECRET))
+app.use(observeUserEvents)
 
 const { doubleCsrfProtection, generateToken } = doubleCsrf({
   getSecret: () => CSRF_SECRET,
@@ -893,11 +902,13 @@ const liveSessions = createLiveSessions({
   maxSessions: () => liveStreams.current(),
   streamsElsewhere: () => playbackSessions.labels(),
   bufferMinutes: LIVE_TV_BUFFER_MINUTES,
+  ...liveSessionHooks(),
 })
 
 const playbackSessions = createPlaybackSessions({
   maxSessions: () => liveStreams.current(),
   streamsElsewhere: () => liveSessions.labels(),
+  ...playbackSessionHooks(),
 })
 
 const liveStreams = createLiveStreams({
@@ -1171,6 +1182,7 @@ mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter 
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
+mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
 mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
 mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })
@@ -2138,6 +2150,7 @@ const server = app.listen(PORT, async () => {
     console.error('[ads] failed to reconcile interrupted ad processing:', err.message)
   }
   keepGuideWarm()
+  startUserEvents().catch((err) => console.warn(`[events] failed to start: ${err.message}`))
   try {
     await startScheduler()
   } catch (err) {
@@ -2155,6 +2168,7 @@ const shutdown = async () => {
   clearInterval(liveReaper)
   await liveSessions.stopAll().catch(() => {})
   await playbackSessions.stopAll().catch(() => {})
+  await stopUserEvents().catch(() => {})
   server.close()
   await db.destroy()
   process.exit(0)

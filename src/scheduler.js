@@ -3,6 +3,7 @@ import cron from 'node-cron'
 import { getSetting } from './db.js'
 import { startSync } from './sync.js'
 import { getGuideSnapshot } from './epg.js'
+import { backfillUserEvents, pruneUserEvents } from './user-events-log.js'
 
 const DEFAULT_CRON = '*/30 * * * *'
 
@@ -37,6 +38,9 @@ const scheduleWith = (expr) => {
     getGuideSnapshot().catch((err) => {
       console.error('[scheduler] guide refresh failed:', err.message)
     })
+    pruneUserEvents()
+      .then(() => backfillUserEvents())
+      .catch((err) => console.error('[scheduler] viewing history upkeep failed:', err.message))
   })
   currentExpr = expr
   console.log(`[scheduler] running on "${expr}"`)
