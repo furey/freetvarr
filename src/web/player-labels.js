@@ -1,19 +1,25 @@
 import { SKIP_STEP_S } from './double-tap.js'
 
-export const behindPillText = (seconds) => {
-  const whole = Math.max(1, Math.round(seconds))
-  return whole < 60 ? `${whole} SEC BEHIND` : `${Math.round(whole / 60)} MIN BEHIND`
+export const BEHIND_SHOWN_FROM_S = 15
+export const LIVE_SHOWN_UNDER_S = 10
+export const MINUTE_HYSTERESIS_S = 10
+
+export const steadyBehindMinutesOf = ({ seconds, previous = 0 }) => {
+  if (!Number.isFinite(seconds)) return previous
+  if (previous === 0) return seconds >= BEHIND_SHOWN_FROM_S ? wholeMinutesOf(seconds) : 0
+  if (seconds < LIVE_SHOWN_UNDER_S) return 0
+  const distance = Math.abs(seconds - previous * 60)
+  return distance <= 30 + MINUTE_HYSTERESIS_S ? previous : wholeMinutesOf(seconds)
 }
 
-export const behindLabelOf = (seconds) => {
-  const whole = Math.max(1, Math.round(seconds))
-  return whole < 60 ? `${whole} sec behind` : `${Math.round(whole / 60)} min behind`
-}
+export const behindPillText = (minutes) => `${Math.max(1, minutes)} MIN BEHIND`
 
-export const liveEdgeOf = ({ behindSeconds = 0, fromStart = false, thresholdSeconds = 10 }) => {
-  const behind = Boolean(fromStart) || behindSeconds >= thresholdSeconds
+export const behindLabelOf = (minutes) => `${Math.max(1, minutes)} min behind`
+
+export const liveEdgeOf = ({ behindMinutes = 0, fromStart = false }) => {
+  const behind = Boolean(fromStart) || behindMinutes > 0
   return behind
-    ? { atEdge: false, label: behindLabelOf(behindSeconds) }
+    ? { atEdge: false, label: behindLabelOf(behindMinutes) }
     : { atEdge: true, label: '' }
 }
 
@@ -45,3 +51,5 @@ export const programmeRangeText = ({ program, clockText }) =>
   (program ? `${clockText(program.start)}–${clockText(program.end)}` : '')
 
 export const joinedParts = (parts) => parts.filter(Boolean).join(' · ')
+
+const wholeMinutesOf = (seconds) => Math.max(1, Math.round(seconds / 60))

@@ -2274,15 +2274,15 @@ body.epg-drag-lock * {
   top: calc(var(--chip-h) / -2);
   width: var(--chip-w);
   height: var(--chip-h);
-  background: var(--color-primary);
+  background: var(--color-brand-blue);
 }
 
 .live-chip-orbit:nth-child(2) .live-chip {
-  background: var(--color-live);
+  background: var(--color-brand-orange);
 }
 
 .live-chip-orbit:nth-child(3) .live-chip {
-  background: var(--color-warning);
+  background: var(--color-brand-yellow);
 }
 
 .live-chips.handoff,
@@ -2319,8 +2319,11 @@ body.epg-drag-lock * {
 
 .live-chips-row .live-chip {
   position: static;
-  background: var(--color-text-3);
 }
+
+.live-chips-row .live-chip:nth-child(1) { background: var(--color-brand-blue); }
+.live-chips-row .live-chip:nth-child(2) { background: var(--color-brand-orange); }
+.live-chips-row .live-chip:nth-child(3) { background: var(--color-brand-yellow); }
 
 @keyframes live-chips-in {
   to { opacity: 1; }

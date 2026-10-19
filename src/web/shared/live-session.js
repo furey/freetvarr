@@ -13,7 +13,7 @@ import {
   captionPreferenceAfterChange,
 } from '/live-captions.js'
 import { isReadyToStart } from '/live-start.js'
-import { liveWindowOf, rangesOf } from '/live-edge.js'
+import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/live-edge.js'
 import { captionLineOf } from '/mini-player.js'
 import { csrfToken, api } from '/shared/api.js'
 import {
@@ -38,6 +38,7 @@ let liveAttached = false
 let liveStarted = false
 let liveStartTimer = null
 let liveMetadataAt = 0
+let liveEdgeAnchor = null
 let livePollTimer = null
 let liveRun = 0
 let fromStartBeatTimer = null
@@ -255,6 +256,7 @@ const playsHlsOnlyNatively = () =>
 
 const attachLiveVideo = async (run, playlist, { eager = false, config = LIVE_HLS_CONFIG } = {}) => {
   liveAttached = true
+  liveEdgeAnchor = null
   if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager, config })
   liveVideo.addEventListener('loadedmetadata', () => {
     if (live.fromStart && run === liveRun) {
@@ -385,6 +387,7 @@ const detachLiveVideo = () => {
   liveStarted = false
   liveMetadataAt = 0
   clearTimeout(liveStartTimer)
+  liveEdgeAnchor = null
   live.behindSeconds = 0
   if (!liveVideo) return
   liveVideo.pause()
@@ -478,19 +481,26 @@ export const onLiveFullscreenExit = () => {
   setTimeout(resumeAfterFullscreen, 100)
 }
 
-const currentLiveWindow = () => liveWindowOf({
-  seekable: rangesOf(liveVideo.seekable),
-  duration: liveVideo.duration,
-  currentTime: liveVideo.currentTime,
+const liveWindowInput = () => ({
+  ...videoLiveInputOf(liveVideo),
   hlsSyncPosition: liveHls?.liveSyncPosition ?? null,
   hlsOldestSecond: liveHls?.latestLevelDetails?.fragments?.[0]?.start ?? null,
   fromStart: Boolean(live.fromStart),
   bufferSeconds: live.fromStart ? 0 : live.bufferSeconds,
 })
 
+const currentLiveWindow = () => liveWindowOf(liveWindowInput())
+
+const steadyLiveWindow = () => {
+  const steady = steadyLiveWindowOf({ ...liveWindowInput(), anchor: liveEdgeAnchor, wallS: performance.now() / 1000 })
+  liveEdgeAnchor = steady.anchor
+  return steady
+}
+
 export const trackBehindLive = () => {
   const ready = liveVideo?.readyState >= HAVE_CURRENT_DATA
-  const liveWindow = ready ? currentLiveWindow() : null
+  if (!ready) liveEdgeAnchor = null
+  const liveWindow = ready ? steadyLiveWindow() : null
   live.behindSeconds = liveWindow ? liveWindow.behind : 0
   live.bufferTo = liveWindow ? liveWindow.target : null
   live.bufferFrom = liveWindow ? liveWindow.floor : null
@@ -499,7 +509,8 @@ export const trackBehindLive = () => {
 
 export const seekLiveTo = (second) => {
   if (!canSkip() || live.bufferFrom == null || live.bufferTo == null) return false
-  liveVideo.currentTime = Math.max(live.bufferFrom, Math.min(live.bufferTo, second))
+  const ceiling = Math.min(live.bufferTo, currentLiveWindow().target ?? live.bufferTo)
+  liveVideo.currentTime = Math.max(live.bufferFrom, Math.min(ceiling, second))
   trackBehindLive()
   return true
 }

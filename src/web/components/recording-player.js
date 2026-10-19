@@ -231,7 +231,9 @@ export const RecordingPlayer = {
       playback.recording?.channel_name,
       playback.duration > 0 ? leftPillText(Math.max(0, playback.duration - playback.position)).toLowerCase() : '',
     ]))
-    const { controlsShown, revealControls, onPointerMove: onControlsPointerMove } = useControlsAutoHide({
+    const {
+      controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,
+    } = useControlsAutoHide({
       enabled: computed(() => playback.open && !mini.value),
       holdShown: computed(() => playback.paused || playback.phase !== 'playing' || playback.waiting
         || playback.scrubbing || infoOpen.value),
@@ -256,7 +258,7 @@ export const RecordingPlayer = {
       infoOpen,
       onPointerDown: onPlayPointerDown,
       onPointerUp: (e) => onPlayPointerUp(e, {
-        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, togglePause: togglePlayback }),
+        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, hideControls, togglePause: togglePlayback }),
       }),
       onClick: () => {},
       onDoubleClick: onPlayDoubleClick,
@@ -268,6 +270,7 @@ export const RecordingPlayer = {
     })
     const onFramePointerDownAll = (e) => {
       if (mini.value) return
+      onControlsPointerDown(e)
       onSwipePointerDown(e)
       onFramePointerDown(e)
     }

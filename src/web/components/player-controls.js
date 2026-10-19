@@ -2,7 +2,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from '/vendor/vue.esm-br
 import { DOUBLE_TAP_MS } from '/double-tap.js'
 import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
-import { controlsHideMsOf } from '/controls-hide.js'
+import { controlsHideMsOf, singleTapPlanOf, holdsControlsForFocus, isControlTarget } from '/controls-hide.js'
 
 const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
   && !e.ctrlKey && !e.metaKey && !e.altKey
@@ -90,8 +90,10 @@ export const useSwipeDown = ({ enabled, onSwipe }) => {
 
 const isKeyboardFocused = (el) => !el.matches?.('button') || el.matches(':focus-visible')
 
-export const singleTapActionFor = ({ pointerType, controlsShown, revealControls, togglePause }) => {
-  if (pointerType === 'touch' && !controlsShown.value) return revealControls
+export const singleTapActionFor = ({ pointerType, controlsShown, revealControls, hideControls, togglePause }) => {
+  const plan = singleTapPlanOf({ pointerType, controlsShown: controlsShown.value })
+  if (plan === 'hide') return hideControls
+  if (plan === 'reveal') return revealControls
   return () => {
     togglePause()
     revealControls()
@@ -102,10 +104,7 @@ export const useControlsAutoHide = ({ enabled, holdShown, rootEl }) => {
   const controlsShown = ref(true)
   let hideTimer = null
 
-  const isFocusInside = () => {
-    const el = document.activeElement
-    return Boolean(el && rootEl.value?.contains(el) && el.matches(':focus-visible'))
-  }
+  const isFocusInside = () => holdsControlsForFocus({ focused: document.activeElement, root: rootEl.value })
 
   const hideLater = () => {
     clearTimeout(hideTimer)
@@ -121,8 +120,17 @@ export const useControlsAutoHide = ({ enabled, holdShown, rootEl }) => {
     hideLater()
   }
 
+  const hideControls = () => {
+    clearTimeout(hideTimer)
+    if (enabled.value) controlsShown.value = false
+  }
+
   const onPointerMove = (e) => {
     if (enabled.value && e.pointerType === 'mouse') revealControls()
+  }
+
+  const onPointerDown = (e) => {
+    if (enabled.value && controlsShown.value && isControlTarget(e.target)) revealControls()
   }
 
   const onKeydown = () => {
@@ -136,7 +144,7 @@ export const useControlsAutoHide = ({ enabled, holdShown, rootEl }) => {
     window.removeEventListener('keydown', onKeydown, true)
   })
 
-  return { controlsShown, revealControls, onPointerMove }
+  return { controlsShown, revealControls, hideControls, onPointerMove, onPointerDown }
 }
 
 export const useInfoDismissTaps = ({ infoOpen, onPointerDown, onPointerUp, onClick, onDoubleClick }) => {

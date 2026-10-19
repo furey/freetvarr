@@ -17,3 +17,15 @@ export const saveControlsHideS = (storage, seconds) => {
 }
 
 export const controlsHideMsOf = (storage) => loadControlsHideS(storage) * 1000
+
+export const singleTapPlanOf = ({ pointerType, controlsShown }) => {
+  if (pointerType !== 'touch') return 'toggle-pause'
+  return controlsShown ? 'hide' : 'reveal'
+}
+
+export const holdsControlsForFocus = ({ focused, root }) => Boolean(focused && root
+  && focused !== root
+  && root.contains(focused)
+  && focused.matches(':focus-visible'))
+
+export const isControlTarget = (el) => Boolean(el?.closest?.('button, input, select, a[href]'))

@@ -23,7 +23,15 @@ import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/pla
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
 import { startOverOptionsOf, startOverNoteOf, behindLiveText, fromStartRecordingOf } from '/start-over.js'
-import { behindPillText, liveEdgeOf, liveHintText, percentWithin, programmeRangeText, joinedParts } from '/player-labels.js'
+import {
+  behindPillText,
+  liveEdgeOf,
+  steadyBehindMinutesOf,
+  liveHintText,
+  percentWithin,
+  programmeRangeText,
+  joinedParts,
+} from '/player-labels.js'
 import { canRewind } from '/live-edge.js'
 import { api } from '/shared/api.js'
 import {
@@ -238,7 +246,8 @@ export const LivePlayer = {
       if (phase === 'idle') return showChips('hidden')
     })
 
-    const isBehindLive = computed(() => live.phase === 'live' && live.behindSeconds >= BEHIND_LIVE_SHOWN_S)
+    const behindMinutes = ref(0)
+    const isBehindLive = computed(() => live.phase === 'live' && behindMinutes.value > 0)
 
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
@@ -309,16 +318,16 @@ export const LivePlayer = {
         : 100))
     const shownBehindSeconds = computed(() =>
       (live.scrubbing && live.bufferTo != null ? live.bufferTo - live.scrubValue : live.behindSeconds))
+    watch(shownBehindSeconds, (seconds) => {
+      const previous = live.scrubbing ? 0 : behindMinutes.value
+      behindMinutes.value = live.phase === 'live' ? steadyBehindMinutesOf({ seconds, previous }) : 0
+    }, { immediate: true })
     const scrubberPill = computed(() => {
-      if (live.fromStart) return { text: behindLiveText(shownBehindSeconds.value), live: false }
-      if (shownBehindSeconds.value >= BEHIND_LIVE_SHOWN_S) return { text: behindPillText(shownBehindSeconds.value), live: false }
+      if (live.fromStart) return { text: behindLiveText(behindMinutes.value * 60), live: false }
+      if (behindMinutes.value > 0) return { text: behindPillText(behindMinutes.value), live: false }
       return live.paused ? { text: 'PAUSED', live: false } : { text: 'LIVE', live: true }
     })
-    const liveEdge = computed(() => liveEdgeOf({
-      behindSeconds: shownBehindSeconds.value,
-      fromStart: live.fromStart,
-      thresholdSeconds: BEHIND_LIVE_SHOWN_S,
-    }))
+    const liveEdge = computed(() => liveEdgeOf({ behindMinutes: behindMinutes.value, fromStart: live.fromStart }))
     const bufferStartText = computed(() => (live.fromStart
       ? fmtClockTz(live.fromStart.recordingStartedAt)
       : fmtClockTz(now.value.getTime() - bufferSpan.value * 1000)))
@@ -370,7 +379,7 @@ export const LivePlayer = {
 
     const miniMeta = computed(() => miniMetaOf([
       live.channel?.name,
-      live.fromStart ? behindLiveText(live.behindSeconds) : minutesLeftText({ endMs: info.value.now?.end, nowMs: now.value.getTime() }),
+      live.fromStart ? behindLiveText(behindMinutes.value * 60) : minutesLeftText({ endMs: info.value.now?.end, nowMs: now.value.getTime() }),
     ]))
     const miniProgress = computed(() => infoProgress.value)
 
@@ -401,7 +410,9 @@ export const LivePlayer = {
       }
     })
 
-    const { controlsShown, revealControls, onPointerMove: onControlsPointerMove } = useControlsAutoHide({
+    const {
+      controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,
+    } = useControlsAutoHide({
       enabled: computed(() => live.open && !mini.value && !multi.active),
       holdShown: computed(() => live.paused || live.phase !== 'live' || live.scrubbing || infoOpen.value
         || chips.value !== 'hidden' || recordDialogOverPlayer.value),
@@ -420,6 +431,7 @@ export const LivePlayer = {
     const isFullPlayerTap = () => !mini.value && !multi.active
     const onFramePointerDownAll = (e) => {
       if (!isFullPlayerTap()) return
+      onControlsPointerDown(e)
       onSwipePointerDown(e)
       onFramePointerDown(e)
     }
@@ -439,7 +451,7 @@ export const LivePlayer = {
       infoOpen,
       onPointerDown: onLivePointerDown,
       onPointerUp: (e) => onLivePointerUp(e, {
-        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, togglePause: toggleLivePause }),
+        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, hideControls, togglePause: toggleLivePause }),
       }),
       onClick: onLiveClick,
       onDoubleClick: onLiveDoubleClick,
@@ -630,8 +642,6 @@ const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800
 const TUNING_SLOW_MS = 15_000
 const TUNING_TEXT = 'Tuning…'
-
-const BEHIND_LIVE_SHOWN_S = 10
 
 const HAVE_FUTURE_DATA = 3
 
