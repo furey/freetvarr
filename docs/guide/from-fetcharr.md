@@ -17,11 +17,11 @@ Your Fetcharr database does not carry over. Freetvarr starts with an empty datab
 
 ## Series folders
 
-Recreate each series folder on the [SERIES](/guide/series) tab. The titles now come from TVHeadend, so a title can differ slightly from Fetch's. Point each series at the folder it already uses under your media root, and nothing in your media library moves. For a title with no series recording, use **ADD TITLE** in [TITLE MATCHES](/guide/series#title-matches).
+Recreate each series folder in Settings → System → [Series rules](/guide/series). The titles now come from TVHeadend, so a title can differ slightly from Fetch's. Point each series at the folder it already uses under your media root, and nothing in your media library moves. For a title with no series recording, use **Add title** in Settings → System → [Folders](/guide/series#title-matches).
 
 ## Series recordings
 
-In Freetvarr's [TV Guide](/guide/tv-guide), press **SERIES** on each series again. A Fetch series tag has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry that matches on title and channel.
+In Freetvarr's [Guide](/guide/tv-guide), pick **Every episode** and press **Record series** on each series again. A Fetch series tag has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry that matches on title and channel.
 
 ## What changed
 

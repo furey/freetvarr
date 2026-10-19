@@ -10,11 +10,6 @@ export const timeLeftLabel = ({ program, nowMs, clockText }) => {
 
 export const nextLabel = ({ next, clockText }) => (next ? `${next.title} · ${clockText(next.start)}` : '')
 
-export const phoneMetaLine = ({ program, next, nowMs, clockText }) => {
-  const left = timeLeftLabel({ program, nowMs, clockText })
-  return next ? `${left} · Next ${next.title}` : left
-}
-
 export const groupsOf = ({ entries, favouritesOnly, groupLabelOf }) => {
   const pinned = entries.filter((e) => e.channel.pinned)
   const rest = favouritesOnly ? [] : entries.filter((e) => !e.channel.pinned)

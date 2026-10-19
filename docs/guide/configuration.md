@@ -21,7 +21,7 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 | `COMPOSE_PROFILES`       | Optional. `plex` adds the Plex service to `docker compose up -d` ([No Plex yet?](/guide/plex#no-plex-yet))                                                                                                                                          |
 | `PLEX_CLAIM`             | Optional, `plex` profile only. The claim code from `https://plex.tv/claim`, which signs the new Plex in to your Plex account. A code expires 4 minutes after you get it                                                                             |
 | `CSRF_SECRET`            | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`. See [CSRF secret](#csrf-secret)                                                                                    |
-| `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in the wizard; a zone chosen in **SETTINGS** wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                              |
+| `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in the wizard; a zone chosen in Settings → Schedule wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                       |
 | `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Both Docker containers use the same pair                                                                        |
 | `FREETVARR_PORT`         | Host port to serve on (default `3733`)                                                                                                                                                                                                              |
 | `TVH_URL`                | Optional. Fixes the address `AUTO-DISCOVER TVHEADEND` offers; omit to let Freetvarr probe port `9981` on the host                                                                                                                                   |
@@ -55,7 +55,7 @@ The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/med
 
 The optional **movies folder** (`movies_root`, or `MOVIES_ROOT`) takes [films](/guide/series#films) with no series folder. Leave it empty to send films to the one-off folder. It must sit inside the same shared mount as the recordings, for example `/data/media/movies`.
 
-**IMPORT EVERY RECORDING**, under **LIBRARY RULES** in SETTINGS → STORAGE, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **ADD TO LIBRARY** on. To have Plex refresh the one-off library after an import, choose it as the **PLEX ONE-OFF SECTION**; for films, choose the **PLEX MOVIES SECTION**.
+**Import every recording**, under **Library** in Settings → Library and Plex, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **Add to library** on. **Add to library by default** in the same group sets the starting choice for new recordings in the Guide. To have Plex refresh the one-off library after an import, choose it as the **One-off section**; for films, choose the **Movies section**.
 
 ## One shared mount
 
@@ -75,7 +75,7 @@ The example Docker compose file does this. It mounts `${DATA_PATH}` once, at `/d
 
 Keep only `recordings/` and `media/` in `${DATA_PATH}`. Freetvarr can write to everything in the mount.
 
-If your folders live in separate places, mount one parent folder that holds both, or move them under one. The [Doctor](/guide/doctor#paths-hardlink) Hardlinks check tells you whether imports are instant or copied.
+If your folders live in separate places, mount one parent folder that holds both, or move them under one. The [Health](/guide/doctor#paths-hardlink) Hardlinks check tells you whether imports are instant or copied.
 
 For the technically minded: Freetvarr imports with a hardlink (a second name for the same file), and Linux refuses a hardlink across two mounts with the `EXDEV` error.
 
@@ -83,15 +83,21 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set on Freetvarr's **SETTINGS** tab (or in its [setup wizard](/guide/getting-started#_2-run-the-wizard)) and stored in Freetvarr's database. The bar under the tabs on **SETTINGS** jumps to each part: **TVHEADEND**, **STORAGE**, **PLEX**, **SCHEDULE**, **PICTURES**, **AD REMOVAL**, **HELP**, and **RESET**. Press **SAVE SETTINGS** to keep your changes. `TEST PATH` checks the media root and Freetvarr's recordings folder, and `CHECK TVHEADEND` reads TVHeadend's recording path from its DVR profile and compares it with yours.
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's **Settings** (or in its [setup wizard](/guide/getting-started#_2-run-the-wizard)) and stored in Freetvarr's database. Settings groups its pages as follows:
+
+- **Preferences**: Recording, Library and Plex, Pictures, Ad removal, Watch on TV, and Schedule.
+- **System**: Health, Activity, Series rules, Folders, Recording log, and TVHeadend.
+- **About**: About Freetvarr (the setup wizard, versions, and licences) and Danger zone.
+
+Press **Save settings** to keep your changes. **Test path** checks the media root and Freetvarr's recordings folder, and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings">
-  <img src="../img/screenshot-settings.png" alt="The Settings tab" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-settings.png" alt="Settings → Preferences" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
 > [!NOTE]<br>
-> `MEDIA_ROOT`, `ONEOFF_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for their matching runtime settings. Freetvarr uses the value in **SETTINGS** first, then the environment variable, then the built-in default.
+> `MEDIA_ROOT`, `ONEOFF_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for their matching runtime settings. Freetvarr uses the value in Settings first, then the environment variable, then the built-in default.
 
 The full environment reference, including container-side variables like `DB_PATH`, `PORT`, and `NODE_ENV`, is in the [deep dive](/deep-dive#full-environment-reference).

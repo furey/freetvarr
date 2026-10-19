@@ -1,25 +1,23 @@
 ---
-title: Syncs
+title: Activity
 description: >-
   Scheduled and manual sync passes over TVHeadend's finished recordings, and
   the history of what each one did.
 ---
 
-# Syncs
+# Activity
 
-A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. The SYNCS tab is the history of those passes.
+A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. **Activity** is the history of those passes. Open it from Settings → System → Activity, or from the **Activity** row on [Health](/guide/doctor).
 
 <!-- markdownlint-disable MD033 -->
-<BrowserFrame label="http://freetvarr.lan/#/syncs">
-  <img src="../img/screenshot-syncs.png" alt="The Syncs tab" width="2560" height="1872" loading="lazy">
+<BrowserFrame label="http://freetvarr.lan/#/settings/system/activity">
+  <img src="../img/screenshot-syncs.png" alt="Settings → System → Activity" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-## Dashboard sync deck
+## Health summary
 
-The dashboard shows whether a sync is running, when the last one ran and what it did, and when the next one is due. Press `SYNC NOW` to run one at once, or press `LAST SYNC` to open the SYNCS tab.
-
-**RECENT SYNCS** under it shows the latest sync and what it did, then a bar for each of the last `12` syncs, with the newest on the right. A tall bar is a sync that imported, removed, or failed something; a short bar is a sync that found nothing new. Below the bars, each tall-bar sync has a row. Press a row to open that sync on the SYNCS tab with its [details](#sync-details) open.
+[Health](/guide/doctor) shows whether a sync is running, when the last one ran and what it did, when the next one is due, and how many recordings imported in the last `7` days. Press **Sync now** there, or on Activity, to run a sync at once.
 
 ## Pull to refresh
 
@@ -27,17 +25,17 @@ In the Freetvarr Home Screen app on an iPhone, pull down from the top of a page 
 
 ## Scheduled and manual
 
-Choose how often Freetvarr checks TVHeadend in SETTINGS → SCHEDULE, with **SYNC SCHEDULE**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. `Custom` opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup wizard](/guide/getting-started#_2-run-the-wizard) connects TVHeadend, scheduled syncs skip without an entry in the SYNCS list. You can also press `SYNC NOW` on the dashboard to sync every series and title match at once, or press **SYNC** on a single series in the [SERIES tab](/guide/series#series-rows).
+Choose how often Freetvarr checks TVHeadend in Settings → Schedule, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup wizard](/guide/getting-started#_2-run-the-wizard) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and title match at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
 
-The SYNCS tab states the schedule in plain words, such as "Syncs run every 30 minutes." On a phone this line sits above the buttons; on a wider screen it sits in the panel header. A schedule that has no plain description shows its cron expression instead.
+Activity states the schedule in plain words, such as "Syncs run every 30 minutes." A schedule that has no plain description shows its cron expression instead.
 
 Only one sync runs at a time. A second request while one runs returns the running sync.
 
 ## Reading a sync
 
-The SYNCS tab groups syncs under a heading for each day: `Today`, `Yesterday`, or a date such as `10 Oct`. Each row shows:
+Activity groups syncs under a heading for each day: `Today`, `Yesterday`, or a date such as `10 Oct`. Each row shows:
 
-- a status mark: a tick for **OK**, a warning sign for **PARTIAL**, a cross for a sync that failed, or a spinner while it runs;
+- a status mark: a tick for **OK**, a warning sign for **Partial**, a cross for a sync that failed, or a spinner while it runs;
 - the start and finish times, such as `9:04–9:05am`;
 - the result in words, such as `2 imported`, `1 failed`, `1 removed`, or `nothing new`;
 - how long the sync took.
@@ -61,18 +59,18 @@ Under the recordings, each step of the sync shows its result and how long it too
 
 A sync still running shows its details when it finishes. Syncs from Freetvarr versions before this list was added show only their counts.
 
-To delete one sync from the history, open its details and press `DELETE SYNC`. The recordings it imported stay in your library.
+To delete one sync from the history, open its details and press **Delete sync**. The recordings it imported stay in your library.
 
-Each sync has its own address, `#/syncs/<number>`. Open that address to show the sync with its details open.
+Each sync has its own address, `#/settings/system/activity/<number>`. The old address `#/syncs/<number>` redirects to it. Open that address to show the sync with its details open.
 
 ## History
 
-Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, take at most 100 of those, so syncs that did something stay in the history longer. The tab shows 50 per page (press `PREV` and `NEXT` to see older syncs). Delete one sync from its [details](#sync-details), or press `CLEAR HISTORY` to clear them all.
+Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, take at most 100 of those, so syncs that did something stay in the history longer. Activity shows 50 per page (press **Previous** and **Next** to see older syncs). Delete one sync from its [details](#sync-details), or press **Clear history** to clear them all.
 
-Two filters choose which syncs the tab lists:
+Two filters choose which syncs Activity lists:
 
-- **SHOW**: `IMPORTS`, `FAILS`, `REMOVALS`, and `EMPTY`. Turn on as many as you like. `EMPTY` is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** on that line to turn `EMPTY` on.
-- **FROM**: `ANY`, `SCHEDULE` (syncs the sync schedule started), or `MANUAL` (syncs you started).
+- **Show**: **Imports**, **Fails**, **Removals**, and **Empty**. Turn on as many as you like. **Empty** is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** on that line to turn **Empty** on.
+- **From**: **Any**, **Schedule** (syncs the sync schedule started), or **Manual** (syncs you started).
 
 The browser remembers your choice. A running sync always shows.
 

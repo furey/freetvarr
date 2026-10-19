@@ -10,9 +10,6 @@ const SERIES_SET_TITLE = 'A series recording in TVHeadend records this show. Pre
 export const isOnAir = ({ program, nowMs }) =>
   Boolean(program) && program.start <= nowMs && program.end > nowMs
 
-export const nowProgramFor = ({ entries = [], channelId }) =>
-  entries.find((e) => String(e.channel?.id) === String(channelId))?.now || null
-
 export const liveRecordButton = ({ program, nowMs, recordingProgramIds = new Set() }) => {
   if (!isOnAir({ program, nowMs })) {
     return { disabled: true, recording: false, label: 'RECORD', ariaLabel: 'Record', title: NO_LISTING_TITLE }

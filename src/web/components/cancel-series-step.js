@@ -10,28 +10,31 @@ export const CancelSeriesStep = {
   },
   emits: ['confirm', 'back'],
   template: `
-    <div class="cancel-series-step space-y-4">
-      <div class="space-y-1">
-        <p class="text-sm text-ink">Cancel the series recording of "{{ title }}"?</p>
-        <p class="text-xs font-mono text-ink-dim">TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files.</p>
+    <div class="cancel-series-step">
+      <div class="cancel-series-text">
+        <p class="cancel-series-question">Cancel the series recording of "{{ title }}"?</p>
+        <p class="cancel-series-note">TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files.</p>
       </div>
-      <div v-if="episodeOutcome" class="space-y-1">
-        <toggle-switch v-model="stopNow">STOP THE EPISODE ON NOW</toggle-switch>
-        <p class="text-xs font-mono text-ink-mute">{{ stopNow ? episodeOutcome : 'The episode on now keeps recording to the end.' }}</p>
+      <div v-if="episodeOutcome || titleMatch" class="ui-group">
+        <div v-if="episodeOutcome" class="cancel-series-option">
+          <toggle-switch v-model="stopNow">Stop the episode on now</toggle-switch>
+          <p class="cancel-series-note">{{ stopNow ? episodeOutcome : 'The episode on now keeps recording to the end.' }}</p>
+        </div>
+        <div v-if="titleMatch" class="cancel-series-option">
+          <toggle-switch v-model="keepTitleMatch">Keep title match</toggle-switch>
+          <p class="cancel-series-note">{{ titleMatchNote }}</p>
+        </div>
       </div>
-      <div v-if="titleMatch" class="space-y-1">
-        <toggle-switch v-model="keepTitleMatch">KEEP TITLE MATCH</toggle-switch>
-        <p class="text-xs font-mono text-ink-mute">{{ titleMatchNote }}</p>
-      </div>
-      <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2 pt-1">
-        <button v-if="showBack" type="button" class="btn mr-auto" @click="$emit('back')" :disabled="busy">KEEP SERIES</button>
-        <button type="button" :class="['btn', 'btn-danger', { 'is-busy': busy }]" @click="confirm" :disabled="busy">
-          <span class="btn-label">CANCEL SERIES</span>
+      <div class="cancel-series-actions">
+        <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-busy': busy }]" @click="confirm" :disabled="busy">
+          <span class="btn-label">Cancel series</span>
           <span v-if="busy" class="spinner spinner-overlay"></span>
         </button>
+        <button v-if="showBack" type="button" class="ui-button ui-button-block" @click="$emit('back')" :disabled="busy">Keep series</button>
       </div>
     </div>
   `,
+
   setup(props, { emit }) {
     const stopNow = ref(true)
     const keepTitleMatch = ref(!isTitleMatchFromSeries({ titleMatch: props.titleMatch, title: props.title }))

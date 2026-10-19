@@ -15,6 +15,7 @@ Freetvarr records free-to-air TV and files each episode into your media library.
 With it, you can:
 
 - **[Record from a 7-day guide](/guide/tv-guide)** on your phone or computer: one episode, or every episode of a series.
+- **[Browse your recordings](/guide/recordings)** as shows with posters and episode lists, and see what records next.
 - **[Watch recordings in your own player](/guide/series).** Each episode goes into a series and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells Plex to scan for new episodes.
 - **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
 - **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install, and pause or rewind up to `30` minutes. To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
@@ -41,11 +42,11 @@ Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PC
 
 ## What Freetvarr isn't
 
-- **Not an indexer integration** (Sonarr / Radarr / Prowlarr). Freetvarr works with the recordings TVHeadend has made, and its [TV Guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content.
+- **Not an indexer integration** (Sonarr / Radarr / Prowlarr). Freetvarr works with the recordings TVHeadend has made, and its [Guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content.
 - **Not a tuner.** TVHeadend drives the tuner, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never controls the hardware. See [TVHeadend](/guide/tvheadend).
 - **Not authenticated.** There's no login, so it's built for a home network you trust. The usual web hardening is in place (CSRF protection, rate limiting, a strict content-security policy), but anyone who can reach the page can change its settings, so don't expose it to the internet. See the [security model](/deep-dive#security-model).
 - **Not a converter.** Files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad removal drops the ad sections without re-encoding, so there's no quality loss. If you want `.mkv`, run the files through Tdarr or similar afterwards.
-- **Not a notifier.** No Discord / ntfy / push integration.
+- **Not a notifier.** No Discord / ntfy / push integration. **Notify me** in the [Guide](/guide/tv-guide#notify-me) adds a show to a list in the app; it sends no message.
 
 > [!IMPORTANT]<br>
 > Tested against TVHeadend `4.3` fed by an HDHomeRun Flex Quatro, with Plex Media Server. Other tuners and TVHeadend versions are unverified.
@@ -59,23 +60,25 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 - **[Hardware](/guide/hardware)**: what to buy, and how it wires into the aerial you already have.
 - **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the [setup wizard](/guide/getting-started#_2-run-the-wizard) in a browser.
 - **[TVHeadend](/guide/tvheadend)**: what the wizard sets up in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
-- **[TV Guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
-- **[Series](/guide/series)**: record a series and choose its folder.
-- **[Recordings](/guide/recordings)** and **[Syncs](/guide/syncs)**: watch imports happen and read the status of each one.
+- **[What's new in 2.0](/guide/whats-new)**: the five destinations, and where each old screen went.
+- **[Guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
+- **[Recordings](/guide/recordings)**: your library, show pages, and what records next.
+- **[Series rules and folders](/guide/series)**: record a series and choose its folder.
+- **[Activity](/guide/syncs)**: watch imports happen and read the status of each one.
 - **[Ad removal](/guide/ad-removal)**: the optional comskip detect/cut pass.
 - **[Plex](/guide/plex)**, **[Remove from TVHeadend](/guide/remove-from-tvheadend)**, and **[Live TV](/guide/live-tv)**: the optional extras.
 - **[Leaving Fetch TV](/guide/leaving-fetch)**: save your recordings, buy a tuner, and cancel before the levy. Former Fetcharr users also read **[From Fetcharr](/guide/from-fetcharr)**.
-- **[Configuration](/guide/configuration)** and **[Troubleshooting](/guide/troubleshooting)**: the deploy knobs and the fixes for common snags.
+- **[Configuration](/guide/configuration)**, **[Troubleshooting](/guide/troubleshooting)**, and **[Health](/guide/doctor)**: the deploy knobs, the fixes for common snags, and the built-in checks.
 
 It works on a phone, too.
 
 <!-- markdownlint-disable MD033 -->
 <div class="phone-frames">
-  <BrowserFrame phone label="freetvarr.lan/#/dashboard">
-    <img src="../img/screenshot-mobile-dashboard.png" alt="Dashboard on a phone" width="780" height="1688" loading="lazy">
+  <BrowserFrame phone label="freetvarr.lan/#/home">
+    <img src="../img/screenshot-mobile-dashboard.png" alt="Home on a phone" width="780" height="1688" loading="lazy">
   </BrowserFrame>
   <BrowserFrame phone label="freetvarr.lan/#/guide">
-    <img src="../img/screenshot-mobile-guide.png" alt="The TV Guide on a phone" width="780" height="1688" loading="lazy">
+    <img src="../img/screenshot-mobile-guide.png" alt="The Guide on a phone" width="780" height="1688" loading="lazy">
   </BrowserFrame>
   <BrowserFrame phone label="freetvarr.lan/#/live">
     <img src="../img/screenshot-mobile-live.png" alt="Live TV on a phone" width="780" height="1688" loading="lazy">

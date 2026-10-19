@@ -39,32 +39,32 @@ export const VersionsRow = {
   template: `
     <div class="help-row">
       <div>
-        <span class="settings-block-title">VERSIONS</span>
+        <span class="settings-block-title">Versions</span>
         <dl class="about-list">
-          <dt>FREETVARR</dt>
+          <dt>Freetvarr</dt>
           <dd>
             <a v-if="about.version" :href="releaseUrl(about.version)" target="_blank" rel="noopener noreferrer">{{ about.version }}</a>
             <span v-else class="about-muted">…</span>
           </dd>
-          <dt>UPDATES</dt>
+          <dt>Updates</dt>
           <dd>
             <a v-if="update.state === 'available'" :href="releaseUrl(update.latest)" target="_blank" rel="noopener noreferrer" class="about-update">{{ update.latest }} available</a>
             <span v-else :class="update.state === 'current' ? 'about-current' : 'about-muted'">{{ updateText }}</span>
           </dd>
-          <dt>BUILD</dt>
+          <dt>Build</dt>
           <dd>{{ about.build || '…' }}</dd>
-          <dt>UPTIME</dt>
+          <dt>Uptime</dt>
           <dd>{{ uptimeText }}</dd>
-          <dt>TVHEADEND</dt>
+          <dt>TVHeadend</dt>
           <dd :class="{ 'about-muted': !about.tvheadend }">{{ tvheadendText }}</dd>
-          <dt>NODE</dt>
+          <dt>Node</dt>
           <dd>{{ about.node || '…' }}</dd>
         </dl>
       </div>
       <button type="button" class="btn" @click="copyAbout" :disabled="!about.version">
-        <template v-if="copyState === 'copied'"><check-icon /> COPIED</template>
-        <template v-else-if="copyState === 'failed'"><cross-icon /> COPY FAILED</template>
-        <template v-else><copy-icon /> COPY</template>
+        <template v-if="copyState === 'copied'"><check-icon /> Copied</template>
+        <template v-else-if="copyState === 'failed'"><cross-icon /> Copy failed</template>
+        <template v-else><copy-icon /> Copy</template>
       </button>
     </div>
   `,

@@ -8,15 +8,6 @@ export const TvIcon = {
   `,
 }
 
-export const RecordIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-      <circle cx="8" cy="8" r="6"/>
-      <circle cx="8" cy="8" r="2.75" fill="currentColor" stroke="none"/>
-    </svg>
-  `,
-}
-
 export const SeriesRecordIcon = {
   props: { set: { type: Boolean, default: false } },
   template: `
@@ -107,24 +98,6 @@ export const SlidersIcon = {
       <circle cx="10.5" cy="3.5" r="1.5"/>
       <circle cx="5.5" cy="8" r="1.5"/>
       <circle cx="8" cy="12.5" r="1.5"/>
-    </svg>
-  `,
-}
-
-export const FilterIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M2.25 3h11.5l-4.5 5.25v4.5l-2.5 1.25V8.25z"/>
-    </svg>
-  `,
-}
-
-export const ImageIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <rect x="2" y="3" width="12" height="10" rx="1.5"/>
-      <circle cx="5.75" cy="6.5" r="1.25"/>
-      <path d="M14 10.5 10.5 7 4 13"/>
     </svg>
   `,
 }
@@ -300,15 +273,6 @@ export const SortArrow = {
   `,
 }
 
-export const SignalBarsIcon = {
-  template: `
-    <svg viewBox="0 0 10 4" class="signal-bars" fill="currentColor" aria-hidden="true">
-      <rect x="0" y="0" width="4" height="4"/>
-      <rect x="5.5" y="0" width="4" height="4"/>
-    </svg>
-  `,
-}
-
 export const EyeIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -412,16 +376,6 @@ export const CaptionsIcon = {
       <rect x="1.75" y="3.25" width="12.5" height="9.5" rx="1.5"/>
       <path d="M6.94 6.66a1.9 1.9 0 1 0 0 2.68"/>
       <path d="M11.74 6.66a1.9 1.9 0 1 0 0 2.68"/>
-    </svg>
-  `,
-}
-
-export const MoreIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <circle cx="3.25" cy="8" r="1.25"/>
-      <circle cx="8" cy="8" r="1.25"/>
-      <circle cx="12.75" cy="8" r="1.25"/>
     </svg>
   `,
 }

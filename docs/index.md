@@ -22,6 +22,9 @@ hero:
       text: What it is
       link: /guide/
     - theme: alt
+      text: What's new in 2.0
+      link: /guide/whats-new
+    - theme: alt
       text: Technical deep dive
       link: /deep-dive
 
@@ -38,15 +41,15 @@ features:
       vendor who can retire your recorder.
     link: /guide/hardware
     linkText: What to buy
-  - title: TV Guide
+  - title: Guide
     details: >-
       A 7-day programme guide in the browser: schedule, cancel, and
-      series-record in TVHeadend, with favourite channels.
+      series-record in TVHeadend, or ask to be told when a show airs.
     link: /guide/tv-guide
     linkText: Browse and record
   - title: Series folders
     details: >-
-      Record a series from the TV Guide, match it to a folder under your media
+      Record a series from the Guide, match it to a folder under your media
       root, set a season template, and Freetvarr imports new episodes on your
       schedule.
     link: /guide/series

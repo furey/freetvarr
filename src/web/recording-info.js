@@ -7,12 +7,6 @@ export const recordingSeasonEpisode = ({ season, episode }) => {
   return `${s}${e}`
 }
 
-export const recordingHeaderLine = (recording) => uniqueParts([
-  recording.title,
-  recordingSeasonEpisode(recording),
-  recording.episode_title,
-]).join(' · ')
-
 export const recordingEpisodeLine = (recording) => uniqueParts([
   recordingSeasonEpisode(recording),
   recording.episode_title !== recording.title ? recording.episode_title : '',

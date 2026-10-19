@@ -103,7 +103,7 @@ Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>`, with HTT
 | `idnode/save`, `idnode/delete`           | Applying padding to a new entry; removing an autorec rule. Before remove after import: setting the entry's retention to `Forever`, and deleting a scheduled re-record of it                                                                                                                                                                                                                                                                                  |
 | `dvr/config/grid`                        | Finding the default DVR profile, cached after the first call                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `epggrab/channel/grid`                   | Channel logo fallback: the guide feed's channel icons, used when TVHeadend reports no `icon_public_url` for a channel. Admin only in TVHeadend; a failure leaves the logos to TVHeadend's own icons                                                                                                                                                                                                                                                          |
-| `status/inputs`, `hardware/tree`         | Tuner count and signal readings for the dashboard; the multiplex each tuner carries, for the live TV preflight                                                                                                                                                                                                                                                                                                                                               |
+| `status/inputs`, `hardware/tree`         | Tuner count and signal readings for the Health page; the multiplex each tuner carries, for the live TV preflight                                                                                                                                                                                                                                                                                                                                             |
 | `status/subscriptions`                   | What holds each tuner, and why a live stream stalled                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `mpegts/service/grid`                    | The multiplex of every service, cached for `10` minutes                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `service/streams`                        | A channel's elementary streams and their PIDs, which set the live TV codec choice                                                                                                                                                                                                                                                                                                                                                                            |
@@ -214,7 +214,7 @@ STOP RECORDING keeps or deletes the part already recorded, by how long the entry
 
 A series episode keeps its entry in both cases, so TVHeadend's duplicate check still sees it and the autorec does not schedule that airing again.
 
-CANCEL SERIES with **STOP THE EPISODE ON NOW** lists the autorec's entries that are recording, deletes the autorec with `idnode/delete`, then stops each listed entry. The list comes first because deleting the autorec unlinks its running entries. TVHeadend cancels the autorec's scheduled entries itself and keeps the running ones, which are one-offs by the time Freetvarr stops them. With **KEEP TITLE MATCH** off, the same request deletes the `shows` row last.
+**Cancel series** with **Stop the episode on now** lists the autorec's entries that are recording, deletes the autorec with `idnode/delete`, then stops each listed entry. The list comes first because deleting the autorec unlinks its running entries. TVHeadend cancels the autorec's scheduled entries itself and keeps the running ones, which are one-offs by the time Freetvarr stops them. With **Keep title match** off, the same request deletes the `shows` row last.
 
 ## Ad removal
 
@@ -246,7 +246,7 @@ Comskip is CPU-bound; expect roughly half an hour for a 75-minute 1080i broadcas
 
 ## Live progress indicators
 
-An ad scan, a cut, and a cross-filesystem import can each take minutes. `src/progress.js` keeps an in-memory progress registry that these operations write to and `GET /api/recordings` merges into each row. Nothing is persisted and there is no WebSocket; the RECORDINGS tab polls faster while an operation runs.
+An ad scan, a cut, and a cross-filesystem import can each take minutes. `src/progress.js` keeps an in-memory progress registry that these operations write to and `GET /api/recordings` merges into each row. Nothing is persisted and there is no WebSocket; the recording log polls faster while an operation runs.
 
 The registry is a module-level `Map` keyed by recording ID, shared by every request handler and the sync loop because it's all one Node process. Entries are ephemeral, present only while an operation runs:
 
@@ -272,7 +272,7 @@ The three sources:
 
 Cleanup is in one place per source. The scan ticker clears its own `setInterval` in a `finally` inside `detectBreaks`; `processRecordingAds` clears the registry entry in a single `finally` around the whole detect/cut sequence; the import shim clears on `stop()`. On the API side, `GET /api/recordings` calls `snapshotProgress` over the returned rows and attaches `progress` (the entry or `null`) to each one without mutating the query result.
 
-The RECORDINGS tab shows each entry as a progress bar with percent and ETA. Its poll is a self-scheduling `setTimeout` that picks the next interval from the rows it just fetched: `RECORDINGS_ACTIVE_POLL_MS` (`2 s`) when any row has a non-null `progress`, otherwise `RECORDINGS_POLL_MS` (`60 s`). After a restart no stale progress remains: the registry starts empty and `resetInterruptedScans` clears any persisted `scanning` row.
+The recording log shows each entry as a progress bar with percent and ETA. Its poll is a self-scheduling `setTimeout` that picks the next interval from the rows it just fetched: `RECORDINGS_ACTIVE_POLL_MS` (`2 s`) when any row has a non-null `progress`, otherwise `RECORDINGS_POLL_MS` (`60 s`). After a restart no stale progress remains: the registry starts empty and `resetInterruptedScans` clears any persisted `scanning` row.
 
 ## Guide days and history
 
@@ -334,7 +334,7 @@ The `deck-table` views use **dual markup** on a phone: the desktop `<table>` sit
 
 Below `md`, filter button groups become `chip-row`s: one line that scrolls sideways. The tab nav uses the same pattern (`tab-strip`), and a `watch(route)` calls `scrollIntoView` to keep the active tab visible.
 
-Below `md`, top-level `.panel`s and the TV Guide's `.epg-scroll` take a `-1rem` side margin and drop their side borders, so they span the screen. The header, tab nav, footer, and nested panels keep their padding and borders.
+Below `md`, top-level `.panel`s and the Guide's `.epg-scroll` take a `-1rem` side margin and drop their side borders, so they span the screen. The header, tab nav, footer, and nested panels keep their padding and borders.
 
 The rest is iOS Safari fixes in `styles.css`:
 
@@ -535,12 +535,12 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 
 - `npm run dev`, hit `http://localhost:3733`.
 - **First visit** (with empty settings): auto-redirects to the setup wizard. Walks the time zone (WELCOME; pre-filled from the browser, or from `TZ` when it is set) → TVHeadend (URL, user, TEST CONNECTION; SAVE & NEXT runs the same test and stays on the step until it passes) → storage (three paths, with TEST PATH and CHECK TVHEADEND) → Plex → ready.
-- **Re-open the wizard later**: REOPEN WIZARD in the HELP panel near the end of Settings. Saved values prefill; stored passwords and tokens show as stored, not as their values.
-- **Settings**: the section bar jumps to each panel and `#/settings/<id>` links scroll to one (`about` opens HELP); save; a **Sync schedule** change reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
-- **TV Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
-- **Series**: the list joins the series recordings in TVHeadend to their folders; per-series SYNC on each row; pressing a row opens it, and there ASSIGN FOLDER, the folder form, UNASSIGN FOLDER, PAUSE, RESUME, and CANCEL SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
-- **Syncs**: run a sync, watch the row appear and finish; page through the history `50` rows at a time; clear history; filter by activity type.
-- **Recordings**: pressing a row opens its details and buttons; a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; CLEAR FROM LIST hides those rows and leaves the files; UNDO restores them for `10 s` after.
+- **Re-open the wizard later**: **Reopen wizard** under Settings → About. Saved values prefill; stored passwords and tokens show as stored, not as their values.
+- **Settings**: the section bar jumps to each panel and `#/settings/<id>` and `#/settings/system/<id>` links open one page (`help` and `about` open About); save; a **Sync schedule** change reloads the scheduler on save; TEST CONNECTION reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
+- **Guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
+- **Series rules**: the list joins the series recordings in TVHeadend to their folders; per-series SYNC on each row; pressing a row opens it, and there ASSIGN FOLDER, the folder form, UNASSIGN FOLDER, PAUSE, RESUME, and CANCEL SERIES each take effect; ADD TITLE suggests a folder from the effective `media_root`.
+- **Activity**: run a sync, watch the row appear and finish; page through the history `50` rows at a time; clear history; filter by activity type.
+- **Recording log**: pressing a row opens its details and buttons; a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; CLEAR FROM LIST hides those rows and leaves the files; UNDO restores them for `10 s` after.
 - **Reset**: `RESET FREETVARR` (in the RESET panel, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.
 
 ## Screenshots

@@ -74,7 +74,7 @@ export const SummaryLine = {
           </svg>
           <template v-if="p.kind === 'mark'">
             <span>{{ p.label }}</span>
-            <step-mark-icon :state="p.mark" :class="['w-3.5', 'h-3.5', 'align-middle', p.mark === 'done' ? 'text-plex-yellow' : 'text-signal-orange-hi']" />
+            <step-mark-icon :state="p.mark" :class="['w-3.5', 'h-3.5', 'align-middle', p.mark === 'done' ? 'text-success' : 'text-live-text']" />
           </template>
           <span>{{ p.text }}</span>
         </span>

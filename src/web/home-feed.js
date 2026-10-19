@@ -1,53 +1,25 @@
-import { RESUME_END_MARGIN_S } from './playback.js'
-import { showKeyOf } from './show-key.js'
 import { localDayNumber } from './guide-time.js'
 import { programmeProgress } from './live-info.js'
 
 export const TONIGHT_LIMIT = 3
 export const NEW_RECORDINGS_LIMIT = 12
 
-const DONE_STATUSES = ['done', 'partial']
-
-export const inLibrary = (recording) =>
-  recording.status !== 'failed'
-  && !recording.purged_at
-  && (DONE_STATUSES.includes(recording.status) || !recording.deleted_from_tvh_at)
-
-export const isWatched = (recording) =>
-  Boolean(recording.watched_at)
-  || recording.playback_position_s != null
-  && Boolean(recording.duration_s)
-  && recording.playback_position_s >= recording.duration_s - RESUME_END_MARGIN_S
-
-export const isInProgress = (recording) =>
-  (recording.playback_position_s ?? 0) > 0 && !isWatched(recording)
-
-const playedAtMs = (recording) => Date.parse(recording.played_at?.includes('T')
-  ? recording.played_at
-  : `${String(recording.played_at).replace(' ', 'T')}Z`) || 0
-
-export const continueWatchingOf = (recordings) => recordings
-  .filter((r) => inLibrary(r) && r.playable !== false && isInProgress(r))
-  .sort((a, b) => playedAtMs(b) - playedAtMs(a))[0] ?? null
-
-export const newRecordingsOf = (recordings, limit = NEW_RECORDINGS_LIMIT) => recordings
-  .filter((r) => inLibrary(r) && r.played_at == null && !isWatched(r))
-  .sort((a, b) => (b.aired_at ?? 0) - (a.aired_at ?? 0))
-  .slice(0, limit)
+export const continueWatchingUrl = '/api/library/episodes?state=in-progress&limit=1'
+export const newRecordingsUrl = `/api/library/episodes?state=new&limit=${NEW_RECORDINGS_LIMIT}`
 
 export const episodeCodeOf = ({ season, episode }) => {
   const parts = [season != null ? `S${season}` : '', episode != null ? `E${episode}` : '']
   return parts.filter(Boolean).join(' ')
 }
 
-export const minutesLeftOf = (recording) => {
-  const left = (recording.duration_s ?? 0) - (recording.playback_position_s ?? 0)
+export const minutesLeftOf = (episode) => {
+  const left = (episode.durationS ?? 0) - (episode.positionS ?? 0)
   return Math.max(1, Math.ceil(left / 60))
 }
 
-export const watchedFractionOf = (recording) => {
-  if (!recording.duration_s) return 0
-  return Math.min(1, Math.max(0, (recording.playback_position_s ?? 0) / recording.duration_s))
+export const watchedFractionOf = (episode) => {
+  if (!episode.durationS) return 0
+  return Math.min(1, Math.max(0, (episode.positionS ?? 0) / episode.durationS))
 }
 
 const dayWord = ({ ms, nowMs, timeZone }) => {
@@ -60,9 +32,9 @@ const dayWord = ({ ms, nowMs, timeZone }) => {
 const weekdayOf = ({ ms, timeZone }) =>
   new Intl.DateTimeFormat('en-AU', { weekday: 'short', timeZone }).format(ms)
 
-export const airedWhenOf = ({ recording, nowMs, timeZone }) => {
-  if (!recording.aired_at) return ''
-  const ms = recording.aired_at
+export const airedWhenOf = ({ episode, nowMs, timeZone }) => {
+  if (!episode.airedAt) return ''
+  const ms = episode.airedAt
   const word = dayWord({ ms, nowMs, timeZone })
   if (word) return word
   const daysAgo = localDayNumber({ ms: nowMs, timeZone }) - localDayNumber({ ms, timeZone })
@@ -70,13 +42,13 @@ export const airedWhenOf = ({ recording, nowMs, timeZone }) => {
   return new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', timeZone }).format(ms)
 }
 
-export const newCardMetaOf = ({ recording, nowMs, timeZone }) => [
-  episodeCodeOf(recording),
-  recording.channel_name,
-  airedWhenOf({ recording, nowMs, timeZone }),
+export const newCardMetaOf = ({ episode, nowMs, timeZone }) => [
+  episodeCodeOf(episode),
+  episode.channelName,
+  airedWhenOf({ episode, nowMs, timeZone }),
 ].filter(Boolean).join(' · ')
 
-export const showHrefOfRecording = (recording) => `#/recordings/show/${showKeyOf(recording.title)}`
+export const showHrefOf = (episode) => `#/recordings/show/${episode.showKey}`
 
 export const greetingFor = ({ nowMs, timeZone }) => {
   const hour = Number(new Intl.DateTimeFormat('en-AU', {

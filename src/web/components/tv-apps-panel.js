@@ -8,64 +8,72 @@ export const TvAppsPanel = {
     tvhUrl: { type: String, default: '' },
   },
   template: `
-    <section id="section-tv-apps" class="panel">
-      <header class="panel-header">
-        <span class="panel-heading">
-          <span class="panel-title">WATCH ON YOUR TV</span>
-          <info-button title="WATCH ON YOUR TV" doc="guide/tv-apps">
-            <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
-            <p v-if="!login.authCode"><strong>MAKE A TV LOGIN</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
-            <p v-else>Your TV login can only watch TV. It cannot change your settings or your recordings.</p>
-            <p>Copy each detail into the app. The setup guide has the steps for each app.</p>
-          </info-button>
-        </span>
-        <span class="text-xs font-mono text-ink-dim">live TV in Jellyfin or Kodi</span>
-      </header>
-      <div class="panel-body space-y-4">
-        <p v-if="!tvhUrl" class="text-sm text-ink-dim">Set the TVHeadend URL above first.</p>
-        <template v-else-if="!login.authCode">
-          <p class="text-sm text-ink-dim leading-relaxed max-w-2xl">
-            A TV app needs its own login to get your channels. Press MAKE A TV LOGIN, and Freetvarr will make a login that can only watch TV. It then shows the details to copy into the app.
-          </p>
-          <div class="flex flex-wrap items-end gap-3">
+    <section id="section-tv-apps" class="settings-section">
+      <p class="settings-intro">
+        Watch live TV with the guide in Jellyfin or Kodi.
+        <info-button title="Watch on TV" doc="guide/tv-apps">
+          <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
+          <p v-if="!login.authCode"><strong>Make a TV login</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
+          <p v-else>Your TV login can only watch TV. It cannot change your settings or your recordings.</p>
+          <p>Copy each detail into the app. The setup guide has the steps for each app.</p>
+        </info-button>
+      </p>
+      <div v-if="!tvhUrl" class="ui-group">
+        <p class="settings-row settings-row-meta">Set the TVHeadend address in Settings → System → TVHeadend first.</p>
+      </div>
+      <div v-else-if="!login.authCode" class="settings-group">
+        <h3 class="ui-group-label">TV login</h3>
+        <div class="ui-group">
+          <div class="settings-row">
+            <p class="settings-row-meta">A TV app needs its own login to get your channels. Press Make a TV login, and Freetvarr makes a login that can only watch TV. It then shows the details to copy into the app.</p>
+          </div>
+          <div class="settings-row settings-row-actions">
             <div class="field-row mb-0!">
               <label class="field-label" for="tv-login-name">Login name</label>
               <input v-no-autofill id="tv-login-name" type="text" class="field-input" v-model="name" />
             </div>
             <button type="button" class="btn" @click="makeLogin" :disabled="making">
-              <template v-if="making">MAKING…</template><template v-else><tv-icon /> MAKE A TV LOGIN</template>
+              <template v-if="making">Making…</template><template v-else><tv-icon /> Make a TV login</template>
             </button>
           </div>
-          <p v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</p>
-        </template>
-        <template v-else>
-          <div class="field-row md:max-w-sm">
-            <label class="field-label" for="tv-apps-host">TVHeadend address for TV apps</label>
-            <input v-no-autofill id="tv-apps-host" type="text" class="field-input" v-model="host" placeholder="e.g. 192.168.1.10" />
+          <p v-if="statusText" :class="['settings-row', 'status-readout', statusKind]">{{ statusText }}</p>
+        </div>
+      </div>
+      <template v-else>
+        <div class="settings-group">
+          <h3 class="ui-group-label">TVHeadend address</h3>
+          <div class="ui-group">
+            <div class="settings-row field-row mb-0!">
+              <label class="field-label" for="tv-apps-host">TVHeadend address for TV apps</label>
+              <input v-no-autofill id="tv-apps-host" type="text" class="field-input" v-model="host" placeholder="e.g. 192.168.1.10" />
+            </div>
           </div>
-          <template v-if="addresses">
-            <div>
-              <span class="settings-block-title">JELLYFIN</span>
+        </div>
+        <template v-if="addresses">
+          <div class="settings-group">
+            <h3 class="ui-group-label">Jellyfin</h3>
+            <div class="ui-group">
               <copy-row label="Tuner (M3U) URL" :value="addresses.playlist" />
               <copy-row label="Guide (XMLTV) URL" :value="addresses.guide" />
             </div>
-            <div>
-              <span class="settings-block-title">KODI (TVHEADEND HTSP CLIENT)</span>
+          </div>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Kodi (TVHeadend HTSP client)</h3>
+            <div class="ui-group">
               <copy-row label="Hostname" :value="addresses.host" />
               <copy-row label="HTTP port" :value="addresses.httpPort" />
               <copy-row label="HTSP port" :value="addresses.htspPort" />
               <copy-row label="Username" :value="login.username" />
               <copy-row label="Password" :value="login.password" />
             </div>
-          </template>
-          <p v-else class="text-sm text-ink-dim">Enter the network address of the computer that runs TVHeadend.</p>
-          <p class="text-xs text-ink-mute leading-relaxed max-w-2xl">
-            Anyone on your home network with these details can watch your channels. They cannot change your settings or your recordings.
-          </p>
+          </div>
         </template>
-      </div>
+        <p v-else class="settings-note">Enter the network address of the computer that runs TVHeadend.</p>
+        <p class="settings-note">Anyone on your home network with these details can watch your channels. They cannot change your settings or your recordings.</p>
+      </template>
     </section>
   `,
+
   setup(props) {
     const login = ref({})
     const name = ref(DEFAULT_TV_LOGIN_NAME)

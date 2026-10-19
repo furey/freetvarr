@@ -126,6 +126,13 @@ test('episodeActionsOf: offers the same delete and import actions as the recordi
   assert.deepEqual(keys(episode({ status: 'partial' })), ['watched'])
 })
 
+test('episodeActionsOf: failed and skipped episodes offer Retry', () => {
+  const retry = (e) => episodeActionsOf(e).find((a) => a.key === 'import')
+  assert.equal(retry(episode({ status: 'failed' })).label, 'Retry')
+  assert.equal(retry(episode({ status: 'skipped' })).label, 'Retry')
+  assert.equal(retry(episode({ status: 'failed', deletedFromTvhAt: '2026-10-01' })), undefined)
+})
+
 test('show page lines: hero meta, play label and rule status', () => {
   const detail = show({
     rule: { paused: false, channels: ['9HD'], anyChannel: false, summary: 'Records every new episode on 9HD' },

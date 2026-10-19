@@ -32,6 +32,7 @@ export const UiSheet = {
     const titleId = `ui-sheet-title-${++sheetCount}`
     let returnFocus = null
     const onKeydown = (event) => {
+      if (event.key === 'Tab') return keepFocusInside({ event, root: sheet.value })
       if (event.key !== 'Escape') return
       event.stopImmediatePropagation()
       emit('close')
@@ -58,3 +59,21 @@ export const UiSheet = {
     return { sheet, titleId }
   },
 }
+
+export const keepFocusInside = ({ event, root }) => {
+  const focusable = focusableIn(root)
+  if (!focusable.length) return
+  const first = focusable[0]
+  const last = focusable.at(-1)
+  const active = document.activeElement
+  const leavingStart = event.shiftKey && (active === first || active === root)
+  const leavingEnd = !event.shiftKey && active === last
+  if (!leavingStart && !leavingEnd && root.contains(active)) return
+  event.preventDefault()
+  const target = event.shiftKey ? last : first
+  target.focus()
+}
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+
+const focusableIn = (root) => (root ? [...root.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent !== null) : [])

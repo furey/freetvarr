@@ -16,6 +16,7 @@ import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { adMarkersOf, leftPillText, percentWithin, joinedParts } from '/player-labels.js'
 import {
   usePlayerKeys,
+  usePlayerFocus,
   singleTapActionFor,
   useControlsAutoHide,
   useInfoDismissTaps,
@@ -58,7 +59,7 @@ export const RecordingPlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="playback.open" class="pl-backdrop" role="dialog" aria-label="Recording player">
-      <div ref="stageEl" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-controls-hidden': !controlsShown }]"
+      <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-controls-hidden': !controlsShown }]"
         @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @pointercancel="cancelPlayTap"
         @pointermove="onControlsPointerMove" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
         <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
@@ -230,6 +231,8 @@ export const RecordingPlayer = {
       onClick: () => {},
       onDoubleClick: onPlayDoubleClick,
     })
+
+    usePlayerFocus({ isOpen: computed(() => playback.open), rootEl: stageEl })
 
     usePlayerKeys({
       isActive: () => playback.open,

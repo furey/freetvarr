@@ -1,8 +1,5 @@
-import { computed } from '/vendor/vue.esm-browser.prod.js'
-import { useSheet } from '/components/dialogs.js'
+import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { DOCS_BASE } from '/shared/constants.js'
-
-let infoDialogCount = 0
 
 export const InfoButton = {
   props: {
@@ -10,33 +7,24 @@ export const InfoButton = {
     doc: { type: String, default: '' },
   },
   template: `
-    <button ref="trigger" type="button" class="info-btn" :aria-label="'About ' + title" :title="'About ' + title"
-      :aria-expanded="open" @click="show"><info-icon /></button>
-    <teleport to="body">
-      <transition name="epg-sheet">
-        <div v-if="open" class="epg-modal-backdrop" @click.self="close">
-          <section ref="dialog" class="panel epg-modal info-modal" role="dialog" aria-modal="true"
-            :aria-labelledby="headingId" tabindex="-1">
-            <header class="panel-header">
-              <span :id="headingId" class="panel-title">{{ title }}</span>
-              <button type="button" class="btn btn-icon epg-modal-x" @click="close" aria-label="Close"><cross-icon /></button>
-            </header>
-            <div class="panel-body info-modal-body">
-              <slot />
-              <div v-if="doc" class="epg-modal-actions flex items-center justify-end gap-2">
-                <a v-if="doc" :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn no-hover-underline">
-                  READ THE DOCS <external-link-icon />
-                </a>
-              </div>
-            </div>
-          </section>
-        </div>
-      </transition>
-    </teleport>
+    <button type="button" class="info-btn" :aria-label="'About ' + title" :title="'About ' + title"
+      :aria-expanded="open" @click="open = true"><info-icon /></button>
+    <ui-sheet :open="open" :title="title" @close="open = false">
+      <template #header-actions>
+        <button type="button" class="ui-icon-button" aria-label="Close" @click="open = false"><close-glyph /></button>
+      </template>
+      <div class="info-sheet-body"><slot /></div>
+      <template v-if="doc" #footer>
+        <a :href="docUrl" target="_blank" rel="noopener noreferrer" class="ui-button ui-button-secondary ui-button-block">
+          Read the docs <external-link-icon />
+        </a>
+      </template>
+    </ui-sheet>
   `,
+
   setup(props) {
-    const headingId = `info-dialog-${++infoDialogCount}`
+    const open = ref(false)
     const docUrl = computed(() => `${DOCS_BASE}${props.doc}`)
-    return { ...useSheet(), headingId, docUrl }
+    return { open, docUrl }
   },
 }

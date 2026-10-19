@@ -4,6 +4,7 @@ import axios from 'axios'
 import { getSetting, setSetting } from './db.js'
 import { authorizationFor, createChallengeCache } from './http-auth.js'
 import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
+import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -248,30 +249,22 @@ export const enableSeriesTag = async ({
   leadTime = DEFAULT_LEAD_MINUTES,
   lagTime = DEFAULT_LAG_MINUTES,
   episodesToKeep = 0,
+  paused = false,
 } = {}) => {
   const conn = await resolveConnection()
   const seriesLink = anyChannel ? seriesKey({ channelId: '', title }) : requestedLink
   const existing = (await listAutorecs(conn)).find((a) => a.seriesLinkId === seriesLink)
   if (existing) return { ok: true, uuid: existing.id, seriesLinkId: seriesLink, existed: true }
-  const body = await apiPost('dvr/autorec/create', {
-    conf: JSON.stringify({
-      enabled: true,
-      name: title,
-      title,
-      fulltext: false,
-      channel: anyChannel ? '' : channelId,
-      start: 'Any',
-      start_window: 'Any',
-      weekdays: [1, 2, 3, 4, 5, 6, 7],
-      pri: 2,
-      record: DUPLICATE_DETECTION_EPISODE_NUMBER,
-      start_extra: leadTime,
-      stop_extra: lagTime,
-      maxcount: episodesToKeep,
-      config_name: await defaultDvrConfig(conn),
-      comment: CREATOR_TAG,
-    }),
-  }, conn)
+  const conf = newAutorecConfOf({
+    title,
+    channelId: anyChannel ? '' : channelId,
+    leadTime,
+    lagTime,
+    episodesToKeep,
+    paused,
+    configName: await defaultDvrConfig(conn),
+  })
+  const body = await apiPost('dvr/autorec/create', { conf: JSON.stringify(conf) }, conn)
   if (!body?.uuid) {
     throw new TvheadendError('TVHeadend did not return an autorec uuid.', { stage: 'series', code: 'no-uuid' })
   }
@@ -295,21 +288,18 @@ export const disableSeriesTag = async ({ seriesLinkId, stopRecordingNow = false,
   return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId, title: autorec.name, stopped }
 }
 
-export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => {
-  const connection = conn || (await resolveConnection())
-  const wanted = new Set(seriesLinkIds.map(String))
-  const autorecs = (await listAutorecs(connection))
-    .filter((a) => wanted.has(String(a.seriesLinkId)) || wanted.has(String(a.id)))
-  if (autorecs.length === 0) {
-    throw new TvheadendError('No series recording matches.', { stage: 'series', code: 'not-found' })
-  }
-  for (const autorec of autorecs) {
-    await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, enabled }) }, connection)
-  }
-  return { ok: true, enabled, uuids: autorecs.map((a) => a.id) }
-}
+export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => ({
+  ok: true,
+  enabled,
+  uuids: await saveMatchingSeriesTags({ seriesLinkIds, fields: { enabled }, conn }),
+})
 
-export const updateSeriesTags = async ({ seriesLinkIds = [], patch = {}, conn } = {}) => {
+export const updateSeriesTags = async ({ seriesLinkIds = [], patch = {}, conn } = {}) => ({
+  ok: true,
+  uuids: await saveMatchingSeriesTags({ seriesLinkIds, fields: autorecFieldsOf(patch), conn }),
+})
+
+const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
   const connection = conn || (await resolveConnection())
   const wanted = new Set(seriesLinkIds.map(String))
   const autorecs = (await listAutorecs(connection))
@@ -317,12 +307,29 @@ export const updateSeriesTags = async ({ seriesLinkIds = [], patch = {}, conn } 
   if (autorecs.length === 0) {
     throw new TvheadendError('No series recording matches.', { stage: 'series', code: 'not-found' })
   }
-  const fields = autorecFieldsOf(patch)
   for (const autorec of autorecs) {
     await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, ...fields }) }, connection)
   }
-  return { ok: true, uuids: autorecs.map((a) => a.id) }
+  return autorecs.map((a) => a.id)
 }
+
+export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodesToKeep, paused = false, configName }) => ({
+  enabled: !paused,
+  name: title,
+  title,
+  fulltext: false,
+  channel: channelId,
+  start: 'Any',
+  start_window: 'Any',
+  weekdays: [1, 2, 3, 4, 5, 6, 7],
+  pri: 2,
+  record: DUPLICATE_DETECTION_EPISODE_NUMBER,
+  start_extra: leadTime,
+  stop_extra: lagTime,
+  maxcount: episodesToKeep,
+  config_name: configName,
+  comment: CREATOR_TAG,
+})
 
 export const autorecFieldsOf = ({ episodesToKeep, leadTime, lagTime } = {}) => ({
   ...(episodesToKeep != null ? { maxcount: episodesToKeep } : {}),
@@ -513,7 +520,7 @@ export const seriesKey = ({ channelId, title }) =>
 export const resolveConnection = async ({ url, username, password } = {}) => {
   const resolvedUrl = (url ?? (await getSetting('tvh_url')) ?? '').trim().replace(/\/+$/, '')
   if (!resolvedUrl) {
-    throw new TvheadendError('TVHeadend URL is not configured.', { stage: 'config', code: 'no-url' })
+    throw new TvheadendError('TVHeadend URL is not configured.', { stage: 'config', code: TVHEADEND_UNCONFIGURED_CODE })
   }
   const resolvedUser = (username ?? (await getSetting('tvh_username')) ?? '').trim()
   const resolvedPass = password || (await getSetting('tvh_password')) || ''

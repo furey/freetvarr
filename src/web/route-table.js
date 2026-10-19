@@ -29,10 +29,10 @@ export const canonicalSegments = (segments) => {
 
 export const resolveRoute = (hash) => {
   const raw = hashSegments(hash)
-  const segments = canonicalSegments(raw)
+  const segments = carriesLogFilters({ raw, hash }) ? ['settings', 'system', 'log'] : canonicalSegments(raw)
   const [view, ...params] = segments
   if (!ROUTES.includes(view)) return { view: DEFAULT_ROUTE, params: [], section: '', canonicalHash: null }
-  const canonicalHash = `#/${segments.map(encodeURIComponent).join('/')}`
+  const canonicalHash = `#/${segments.map(encodeURIComponent).join('/')}${queryOf(hash)}`
   const changed = raw.join('/') !== segments.join('/')
   return { view, params, section: legacySectionOf({ view, params }), canonicalHash: changed ? canonicalHash : null }
 }
@@ -73,6 +73,19 @@ const legacySectionOf = ({ view, params }) => {
   if (params[0] !== 'system') return params[0] || ''
   if (params[1] === 'tvheadend') return 'tvheadend'
   return params[2] || ''
+}
+
+const LOG_FILTER_PARAMS = ['status', 'since', 'deleted', 'sort', 'dir', 'show', 'show_id', 'when', 'page']
+
+const carriesLogFilters = ({ raw, hash }) => {
+  if (raw.length !== 1 || raw[0].toLowerCase() !== 'recordings') return false
+  const query = new URLSearchParams(queryOf(hash))
+  return LOG_FILTER_PARAMS.some((param) => query.has(param))
+}
+
+const queryOf = (hash) => {
+  const index = String(hash).indexOf('?')
+  return index === -1 ? '' : String(hash).slice(index)
 }
 
 const lowerCase = (segments) => segments.map((segment) => segment.toLowerCase())

@@ -2,8 +2,8 @@ import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-br
 import { api } from '/shared/api.js'
 import { artFallbackStyle } from '/art-fallback.js'
 import {
-  continueWatchingOf,
-  newRecordingsOf,
+  continueWatchingUrl,
+  newRecordingsUrl,
   favouriteOnNowOf,
   tonightOf,
   tonightMetaOf,
@@ -13,16 +13,15 @@ import {
   minutesLeftOf,
   watchedFractionOf,
   greetingFor,
-  showHrefOfRecording,
+  showHrefOf,
   splitClock,
 } from '/home-feed.js'
+import { recordingRowOf } from '/show-page.js'
 import { playRecording } from '/shared/playback-session.js'
 import { watchLive, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
 import { recordingChangeTick } from '/shared/recording-now.js'
 import { now, tz, fmtClockTz } from '/shared/time.js'
-
-const LIBRARY_PAGE_SIZE = 100
 
 export const HomeView = {
   template: `
@@ -51,7 +50,7 @@ export const HomeView = {
               <span class="ui-progress-fill" :style="{ width: heroPercent + '%' }"></span>
             </div>
             <div class="ui-hero-actions">
-              <button type="button" class="ui-button ui-button-primary" @click="playRecording(hero)">
+              <button type="button" class="ui-button ui-button-primary" @click="playEpisode(hero)">
                 <play-icon /> Resume
               </button>
               <a :href="heroShowHref" class="ui-button ui-button-secondary ui-only-wide">Episodes</a>
@@ -65,11 +64,10 @@ export const HomeView = {
             <a href="#/recordings" class="ui-row-link">See all</a>
           </div>
           <div class="ui-scroller">
-            <a v-for="r in newRecordings" :key="r.recording_id" :href="showHref(r)" class="ui-card"
+            <a v-for="r in newRecordings" :key="r.recordingId" :href="showHref(r)" class="ui-card"
               :aria-label="newCardLabel(r)">
               <div class="ui-card-art ui-art-fallback" :style="fallbackStyleOf(r.title)">
-                <programme-image :source="r.image_path ? '/api/recordings/' + r.recording_id + '/image' : null"
-                  :title="r.title" variant="info" />
+                <programme-image :source="r.image" :title="r.title" variant="info" />
                 <span class="ui-art-badge ui-new-badge">NEW</span>
               </div>
               <div class="ui-card-title">{{ r.title }}</div>
@@ -133,7 +131,8 @@ export const HomeView = {
     </div>
   `,
   setup() {
-    const recordings = ref([])
+    const inProgress = ref([])
+    const newRecordings = ref([])
     const nowEntries = ref([])
     const upcoming = ref([])
     const activeProgramIds = ref([])
@@ -142,8 +141,7 @@ export const HomeView = {
 
     const nowMs = computed(() => now.value.getTime())
     const greeting = computed(() => greetingFor({ nowMs: nowMs.value, timeZone: tz.value }))
-    const hero = computed(() => continueWatchingOf(recordings.value))
-    const newRecordings = computed(() => newRecordingsOf(recordings.value))
+    const hero = computed(() => inProgress.value[0] ?? null)
     const onNow = computed(() => favouriteOnNowOf({ entries: nowEntries.value, nowMs: nowMs.value }))
     const tonight = computed(() => tonightOf({
       upcoming: upcoming.value,
@@ -156,31 +154,32 @@ export const HomeView = {
       const r = hero.value
       return [
         episodeCodeOf(r),
-        r.episode_title,
-        r.channel_name,
+        r.episodeTitle,
+        r.channelName,
         `${minutesLeftOf(r)} min left`,
       ].filter(Boolean).join(' · ')
     })
     const heroMetaShort = computed(() => [episodeCodeOf(hero.value), `${minutesLeftOf(hero.value)} min left`].filter(Boolean).join(' · '))
     const heroPercent = computed(() => Math.round(watchedFractionOf(hero.value) * 100))
-    const heroShowHref = computed(() => showHrefOfRecording(hero.value))
+    const heroShowHref = computed(() => showHrefOf(hero.value))
     const heroFallbackStyle = computed(() => artFallbackStyle(hero.value.title))
     const heroImageUrl = computed(() => {
       const r = hero.value
-      if (r.image_path) return `/api/recordings/${encodeURIComponent(r.recording_id)}/image`
-      return `/api/epg/show-image?title=${encodeURIComponent(r.title)}&w=768`
+      return r.image || `/api/epg/show-image?title=${encodeURIComponent(r.title)}&w=768`
     })
-    watch(() => hero.value?.recording_id, () => { heroImageFailed.value = false })
+    watch(() => hero.value?.recordingId, () => { heroImageFailed.value = false })
 
     const settled = (promise, fallback) => promise.catch(() => fallback)
 
     const load = async () => {
-      const [library, nowData, state] = await Promise.all([
-        settled(api('GET', `/api/recordings?pageSize=${LIBRARY_PAGE_SIZE}&sort=aired_at&dir=desc`), { recordings: [] }),
+      const [resumable, unplayed, nowData, state] = await Promise.all([
+        settled(api('GET', continueWatchingUrl), { episodes: [] }),
+        settled(api('GET', newRecordingsUrl), { episodes: [] }),
         settled(api('GET', '/api/epg/now?all=1'), { entries: [] }),
         settled(api('GET', '/api/epg/state'), { upcomingRecordings: [], activeRecordingIds: [] }),
       ])
-      recordings.value = library.recordings ?? []
+      inProgress.value = resumable.episodes ?? []
+      newRecordings.value = unplayed.episodes ?? []
       nowEntries.value = nowData.entries ?? []
       upcoming.value = state.upcomingRecordings ?? []
       activeProgramIds.value = state.activeRecordingIds ?? []
@@ -197,16 +196,17 @@ export const HomeView = {
       nowTitle: item.program.title || '',
     })
 
-    const showHref = (recording) => showHrefOfRecording(recording)
-    const newCardMeta = (recording) => newCardMetaOf({ recording, nowMs: nowMs.value, timeZone: tz.value })
-    const newCardLabel = (recording) => `${recording.title}, new recording, ${newCardMeta(recording)}`
+    const playEpisode = (episode) => playRecording(recordingRowOf(episode))
+    const showHref = (episode) => showHrefOf(episode)
+    const newCardMeta = (episode) => newCardMetaOf({ episode, nowMs: nowMs.value, timeZone: tz.value })
+    const newCardLabel = (episode) => `${episode.title}, new recording, ${newCardMeta(episode)}`
     const channelTag = (channel) => channel.number != null ? String(channel.number) : channel.name
     const clockOf = (item) => splitClock(fmtClockTz(item.startDate))
     const fallbackStyleOf = (title) => artFallbackStyle(title)
 
     return {
       loaded, greeting, hero, heroMeta, heroMetaShort, heroPercent, heroShowHref, heroFallbackStyle, heroImageUrl, heroImageFailed,
-      newRecordings, onNow, tonight, playRecording, watchChannel, showHref, newCardMeta, newCardLabel,
+      newRecordings, onNow, tonight, playEpisode, watchChannel, showHref, newCardMeta, newCardLabel,
       channelTag, clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
     }
   },

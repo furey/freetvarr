@@ -36,12 +36,12 @@ export const TimeZoneField = {
   emits: ['update:modelValue'],
   template: `
     <div class="field-row">
-      <label class="field-label" for="time-zone-select">TIME ZONE</label>
+      <label class="field-label" for="time-zone-select">Time zone</label>
       <select id="time-zone-select" class="field-input" :value="modelValue"
         @change="$emit('update:modelValue', $event.target.value)">
         <option v-for="zone in zones" :key="zone" :value="zone">{{ zone }}</option>
       </select>
-      <p v-if="modelValue" class="text-xs font-mono text-ink-dim mt-2">Now {{ readout }}</p>
+      <p v-if="modelValue" class="text-xs text-ink-dim mt-2 ui-tabular">Now {{ readout }}</p>
       <p v-if="fromEnv" class="text-xs text-ink-dim mt-2">Pre-filled from <code>TZ</code> in your .env file.</p>
       <p v-else-if="hint" class="text-xs text-ink-dim mt-2">Pre-filled from this browser. Freetvarr uses it for the guide, recordings, and the sync schedule.</p>
     </div>

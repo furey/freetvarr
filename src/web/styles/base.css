@@ -258,8 +258,8 @@ body.sheet-open .app-tabbar {
 }
 
 .ui-page-heading {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: min(100%, 300px);
 }
 
 .ui-page-heading .app-brand-mark {
@@ -1575,4 +1575,85 @@ a.ui-banner:hover {
   .ui-poster:active .ui-poster-art {
     transform: none;
   }
+}
+
+.confirm-dialog-body,
+.info-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text-2);
+}
+
+.info-sheet-body > *,
+.confirm-dialog-body > * {
+  margin: 0;
+}
+
+.info-sheet-body strong {
+  color: var(--color-text-1);
+}
+
+.cancel-series-step,
+.cancel-series-text,
+.cancel-series-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.cancel-series-step {
+  gap: 20px;
+}
+
+.cancel-series-text {
+  gap: 6px;
+}
+
+.cancel-series-actions {
+  gap: 10px;
+}
+
+.cancel-series-question {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text-1);
+}
+
+.cancel-series-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-2);
+}
+
+.cancel-series-option {
+  padding: 8px 16px 14px;
+}
+
+.cancel-series-option + .cancel-series-option {
+  border-top: 1px solid var(--color-hairline-soft);
+}
+
+.ui-sheet .cancel-series-option .toggle {
+  white-space: normal;
+}
+
+.assign-folder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.recording-drawer-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text-1);
+}
+
+.recording-drawer-text.is-dim {
+  color: var(--color-text-2);
 }

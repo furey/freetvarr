@@ -1,7 +1,5 @@
 import { ref } from '/vendor/vue.esm-browser.prod.js'
 
-export const RECORDING_CARDS_MAX = 4
-
 export const setDragLock = (on) => {
   try { document.body.classList.toggle('epg-drag-lock', on) } catch { /* ignore */ }
 }

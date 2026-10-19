@@ -12,6 +12,7 @@ import {
 } from '/live-info.js'
 import {
   usePlayerKeys,
+  usePlayerFocus,
   singleTapActionFor,
   useControlsAutoHide,
   useInfoDismissTaps,
@@ -64,7 +65,7 @@ export const LivePlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="live.open" class="pl-backdrop" role="dialog" aria-label="Live TV">
-      <div ref="frameEl" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown }]" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
+      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown }]" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
         <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controlslist="nofullscreen"></video>
         <div class="player-tap-layer" aria-hidden="true"></div>
@@ -306,6 +307,8 @@ export const LivePlayer = {
       onClick: onLiveClick,
       onDoubleClick: onLiveDoubleClick,
     })
+
+    usePlayerFocus({ isOpen: computed(() => live.open), rootEl: frameEl })
 
     usePlayerKeys({
       isActive: () => live.open && !recordDialogOverPlayer.value,

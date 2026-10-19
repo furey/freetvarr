@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { anyChannelLinkFor, isAnyChannelLink, findSeriesLink } from '../src/web/series-link.js'
+import { anyChannelLinkFor, findSeriesLink } from '../src/web/series-link.js'
 import { adBreakAt } from '../src/web/playback.js'
 import { seriesKey } from '../src/tvheadend.js'
 import { projectUpcomingRecordings } from '../src/epg.js'
@@ -19,11 +19,6 @@ test('anyChannelLinkFor: keeps the title and drops the channel', () => {
 test('anyChannelLinkFor: matches the key of a TVHeadend autorec with no channel', () => {
   assert.equal(anyChannelLinkFor(seriesKey({ channelId: '7', title: 'Home and Away' })),
     seriesKey({ channelId: '', title: 'Home and Away' }))
-})
-
-test('isAnyChannelLink: true only for a key with an empty channel', () => {
-  assert.equal(isAnyChannelLink('|hard quiz'), true)
-  assert.equal(isAnyChannelLink('abc|hard quiz'), false)
 })
 
 test('findSeriesLink: prefers the exact key, then the any-channel key', () => {

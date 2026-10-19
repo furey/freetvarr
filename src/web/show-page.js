@@ -7,7 +7,6 @@ export const LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15]
 export const LAG_OPTIONS = [0, 5, 10, 15, 30, 60]
 export const KEEP_OPTIONS = [0, 1, 2, 3, 5, 10, 15, 20, 30, 50]
 export const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
-export const WATCHED_MARGIN_S = 30
 
 export const stepOption = ({ options, value, direction }) => {
   const current = Number(value) || 0
@@ -115,7 +114,7 @@ export const guideMatchesFor = ({ results = [], key }) => results.filter((p) => 
 
 export const episodeActionsOf = (episode) => [
   { key: episode.watched ? 'unwatched' : 'watched', label: episode.watched ? 'Mark unwatched' : 'Mark watched' },
-  ...(canImport(episode) ? [{ key: 'import', label: episode.libraryState === 'not_in_library' ? 'Import again' : 'Import' }] : []),
+  ...(canImport(episode) ? [{ key: 'import', label: importLabelOf(episode) }] : []),
   ...(canRemoveFromTvh(episode) ? [{ key: 'remove-from-tvh', label: 'Delete', danger: true }] : []),
   ...(canClearRow(episode) ? [{ key: 'clear', label: 'Delete', danger: true }] : []),
 ]
@@ -124,8 +123,15 @@ export const canRemoveFromTvh = (episode) => episode.status === 'done' && !episo
 
 export const canClearRow = (episode) => Boolean(episode.deletedFromTvhAt) || UNIMPORTED_STATUSES.includes(episode.status)
 
-export const canImport = (episode) => ['not_imported', 'not_in_library'].includes(episode.libraryState || episode.status)
+export const canImport = (episode) => RETRYABLE_STATES.includes(episode.libraryState || episode.status)
   && !episode.deletedFromTvhAt
+
+const RETRYABLE_STATES = ['not_imported', 'not_in_library', 'failed', 'skipped']
+
+const importLabelOf = (episode) => {
+  if (episode.libraryState === 'not_in_library') return 'Import again'
+  return ['failed', 'skipped'].includes(episode.status) ? 'Retry' : 'Import'
+}
 
 export const recordingRowOf = (episode) => ({
   recording_id: episode.recordingId,

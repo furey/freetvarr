@@ -116,6 +116,8 @@ import {
   getOnNowAll,
   getChannelAiring,
   clearGuideCache,
+  guideDayWindow,
+  localMidnightMs,
   keepGuideWarm,
 } from './epg.js'
 import {
@@ -158,6 +160,13 @@ import {
 import { BUILD_HEADER, cacheControlFor, readBuildId, stampAssetUrls, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
 import { healthSummaryRoute } from './health-summary.js'
+import {
+  isTvheadendUnconfigured,
+  unconfiguredGuideDay,
+  unconfiguredOnNow,
+  unconfiguredRecordingNow,
+  unconfiguredRecordingState,
+} from './tvheadend-unconfigured.js'
 import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { watchedAtAfterPosition } from './library.js'
@@ -612,16 +621,31 @@ const epgError = (res, err, context) => {
   res.status(502).json({ ok: false, error: err.message, stage, code })
 }
 
+const sendTvheadendRead = async ({ res, context, load, whenUnconfigured }) => {
+  try {
+    res.json(await load())
+  } catch (err) {
+    if (!isTvheadendUnconfigured(err)) return epgError(res, err, context)
+    res.json(await whenUnconfigured({ nowMs: Date.now() }))
+  }
+}
+
 app.get('/api/epg/guide', async (req, res) => {
   const day = Number(req.query.day ?? 0)
   if (!Number.isInteger(day) || day < 0 || day > 6) {
     return res.status(400).json({ error: 'day must be an integer 0–6' })
   }
-  try {
-    res.json({ ...await getGuideDay({ day }), loadingListings: listingsImport?.channelIds || [] })
-  } catch (err) {
-    epgError(res, err, 'guide')
-  }
+  await sendTvheadendRead({
+    res,
+    context: 'guide',
+    load: async () => ({ ...await getGuideDay({ day }), loadingListings: listingsImport?.channelIds || [] }),
+    whenUnconfigured: async ({ nowMs }) => unconfiguredGuideDay({
+      day,
+      window: guideDayWindow({ startMs: localMidnightMs(), day }),
+      prefs: await getChannelPrefs(),
+      nowMs,
+    }),
+  })
 })
 
 app.get('/api/epg/search', async (req, res) => {
@@ -632,13 +656,12 @@ app.get('/api/epg/search', async (req, res) => {
   }
 })
 
-app.get('/api/epg/state', async (req, res) => {
-  try {
-    res.json(await getRecordingState({ fresh: req.query.fresh === '1' }))
-  } catch (err) {
-    epgError(res, err, 'state')
-  }
-})
+app.get('/api/epg/state', (req, res) => sendTvheadendRead({
+  res,
+  context: 'state',
+  load: () => getRecordingState({ fresh: req.query.fresh === '1' }),
+  whenUnconfigured: unconfiguredRecordingState,
+}))
 
 const sendMissingImage = (res) => {
   res.setHeader('Cache-Control', `public, max-age=${MISSING_IMAGE_MAX_AGE_S}`)
@@ -723,7 +746,7 @@ app.post('/api/epg/cancel', epgLimiter, doubleCsrfProtection, async (req, res) =
 app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const {
     series_link, channel_id, epg_program_id, program_id,
-    lead_time, lag_time, episodes_to_keep, add_show_rule, any_channel,
+    lead_time, lag_time, episodes_to_keep, add_show_rule, any_channel, paused,
   } = req.body || {}
   if (series_link == null || channel_id == null || program_id == null || epg_program_id == null) {
     return res.status(400).json({
@@ -737,6 +760,7 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       epgProgramId: epg_program_id,
       programId: program_id,
       anyChannel: any_channel === true,
+      paused: paused === true,
       ...(lead_time != null ? { leadTime: Number(lead_time) } : {}),
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
       ...(episodes_to_keep != null ? { episodesToKeep: Number(episodes_to_keep) } : {}),
@@ -829,13 +853,16 @@ app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, ...prefs })
 })
 
-app.get('/api/epg/now', async (req, res) => {
-  try {
-    res.json(await (req.query.all === '1' ? getOnNowAll() : getOnNowForPinned()))
-  } catch (err) {
-    epgError(res, err, 'now')
-  }
-})
+app.get('/api/epg/now', (req, res) => sendTvheadendRead({
+  res,
+  context: 'now',
+  load: () => (req.query.all === '1' ? getOnNowAll() : getOnNowForPinned()),
+  whenUnconfigured: async ({ nowMs }) => unconfiguredOnNow({
+    all: req.query.all === '1',
+    prefs: await getChannelPrefs(),
+    nowMs,
+  }),
+}))
 
 app.get('/api/epg/channel-now', async (req, res) => {
   const channelId = String(req.query.channel || '')
@@ -849,13 +876,12 @@ app.get('/api/epg/channel-now', async (req, res) => {
   }
 })
 
-app.get('/api/recording-now', async (req, res) => {
-  try {
-    res.json(await getRecordingNow())
-  } catch (err) {
-    epgError(res, err, 'recording-now')
-  }
-})
+app.get('/api/recording-now', (req, res) => sendTvheadendRead({
+  res,
+  context: 'recording-now',
+  load: () => getRecordingNow(),
+  whenUnconfigured: unconfiguredRecordingNow,
+}))
 
 const liveSessions = createLiveSessions({
   openUpstream: openUpstreamFor,

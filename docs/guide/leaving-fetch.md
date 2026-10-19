@@ -101,7 +101,7 @@ SiliconDust also sells a recording service, its [DVR service](https://info.hdhom
 
 This is the author's setup. The tuner sends TV to TVHeadend, free recording software that runs on an always-on computer at home. Freetvarr runs alongside it and gives you:
 
-- A 7-day [TV Guide](/guide/tv-guide), where you record one programme or a whole series.
+- A 7-day [Guide](/guide/tv-guide), where you record one programme or a whole series.
 - [Recordings](/guide/recordings) filed into your media library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 - [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, watch live TV with the 7-day guide in Jellyfin or Kodi: Freetvarr shows the addresses to copy into the app ([TV apps](/guide/tv-apps)).
@@ -111,20 +111,20 @@ The clip below shows Freetvarr in use.
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Recording works like the record button on the Fetch remote. In Freetvarr's TV Guide, click a programme to open it, then press **RECORD** for one episode or **SERIES** for every episode.
+Recording works like the record button on the Fetch remote. In Freetvarr's [Guide](/guide/tv-guide), press a programme to open it, then press **Record** for one episode. Pick **Every episode** and press **Record series** for every episode.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme opened from the TV Guide, with its image, description, padding settings, and RECORD, SERIES, and WATCH LIVE buttons" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme sheet in the Guide, with its image, description, padding settings, and Record, Record series, and Watch live buttons" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-On a phone, open Freetvarr in the browser, open the LIVE TV tab, and tap a channel. The browser plays the channel, with no app to install.
+On a phone, open Freetvarr in the browser, open Live TV, and tap a channel. The browser plays the channel, with no app to install.
 
 <!-- markdownlint-disable MD033 -->
 <div class="phone-frames">
   <BrowserFrame phone label="freetvarr.lan/#/live">
-    <img src="../img/screenshot-mobile-live.png" alt="The Live TV tab on a phone, listing channels with the programme on now" width="780" height="1688" loading="lazy">
+    <img src="../img/screenshot-mobile-live.png" alt="The Live TV page on a phone, listing channels with the programme on now" width="780" height="1688" loading="lazy">
   </BrowserFrame>
   <BrowserFrame phone label="freetvarr.lan/#/live">
     <img src="../img/screenshot-mobile-player.png" alt="The live TV player on a phone, playing a channel" width="780" height="1688" loading="lazy">

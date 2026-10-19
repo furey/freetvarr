@@ -3,15 +3,13 @@ import { CancelSeriesStep } from '/components/cancel-series-step.js'
 import { ChannelIdentity } from '/components/channel-identity.js'
 import { ChannelsModal } from '/components/channels-modal.js'
 import { CopyRow } from '/components/copy-row.js'
-import { ConfirmDialog, FilterSheet } from '/components/dialogs.js'
+import { ConfirmDialog } from '/components/dialogs.js'
 import { ErrorDiagnosis } from '/components/error-diagnosis.js'
 import { noAutofill, ToggleSwitch, TimeZoneField } from '/components/forms.js'
 import { GuideCombobox } from '/components/guide-combobox.js'
-import { HeaderButton, ZoomControl } from '/components/header-controls.js'
 import { ClockLabel, HealthDot, PageHeader, RecordingChip, SearchButton } from '/components/header-widgets.js'
 import {
   TvIcon,
-  RecordIcon,
   SeriesRecordIcon,
   StopIcon,
   GoLiveIcon,
@@ -21,8 +19,6 @@ import {
   CrossIcon,
   RefreshIcon,
   SlidersIcon,
-  FilterIcon,
-  ImageIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   ChevronRightIcon,
@@ -43,7 +39,6 @@ import {
   StarIcon,
   StepMarkIcon,
   SortArrow,
-  SignalBarsIcon,
   EyeIcon,
   EyeOffIcon,
   SearchIcon,
@@ -56,7 +51,6 @@ import {
   CopyIcon,
   InfoIcon,
   CaptionsIcon,
-  MoreIcon,
 } from '/components/icons.js'
 import { AppNav, BrandMark } from '/components/app-shell.js'
 import { ChannelLogo, ProgrammeImage } from '/components/images.js'
@@ -77,15 +71,8 @@ import {
   PlayGlyph,
   MoreGlyph,
 } from '/components/nav-icons.js'
-import {
-  PlayerHeader,
-  PlayerOverlayButtons,
-  PlayerActionRow,
-  PlayerMoreMenu,
-  PlayerInfoPanel,
-} from '/components/player-parts.js'
+import { PlayerInfoPanel } from '/components/player-parts.js'
 import { ProgressBlock } from '/components/progress-block.js'
-import { RecordingCard, RecordingNowPanel } from '/components/recording-cards.js'
 import { RecordingStatus, RecordingDrawer } from '/components/recording-drawer.js'
 import { RecordingPlayer } from '/components/recording-player.js'
 import { RecordingsTabs } from '/components/recordings-tabs.js'
@@ -231,10 +218,7 @@ app.component('channel-identity', ChannelIdentity)
 app.component('star-icon', StarIcon)
 app.component('step-mark-icon', StepMarkIcon)
 app.component('sort-arrow', SortArrow)
-app.component('signal-bars-icon', SignalBarsIcon)
 app.component('list-skeleton', ListSkeleton)
-app.component('recording-card', RecordingCard)
-app.component('recording-now-panel', RecordingNowPanel)
 app.component('live-player', LivePlayer)
 app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)
@@ -242,9 +226,6 @@ app.component('fullscreen-icon', FullscreenIcon)
 app.component('exit-fullscreen-icon', ExitFullscreenIcon)
 app.component('airplay-icon', AirplayIcon)
 app.component('start-over-icon', StartOverIcon)
-app.component('player-header', PlayerHeader)
-app.component('player-overlay-buttons', PlayerOverlayButtons)
-app.component('player-action-row', PlayerActionRow)
 app.component('player-info-panel', PlayerInfoPanel)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('channels-modal', ChannelsModal)
@@ -252,19 +233,12 @@ app.component('info-button', InfoButton)
 app.component('series-folder-editor', FolderEditor)
 app.component('folder-sync-button', FolderSyncButton)
 app.component('series-drawer', SeriesDrawer)
-app.component('filter-sheet', FilterSheet)
-app.component('header-button', HeaderButton)
-app.component('zoom-control', ZoomControl)
-app.component('filter-icon', FilterIcon)
-app.component('image-icon', ImageIcon)
 app.component('versions-row', VersionsRow)
 app.component('copy-row', CopyRow)
 app.component('tv-apps-panel', TvAppsPanel)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
 app.component('captions-icon', CaptionsIcon)
-app.component('more-icon', MoreIcon)
-app.component('player-more-menu', PlayerMoreMenu)
 app.component('eye-icon', EyeIcon)
 app.component('eye-off-icon', EyeOffIcon)
 app.component('doctor-spinner', DoctorSpinner)
@@ -278,7 +252,6 @@ app.component('cross-icon', CrossIcon)
 app.component('music-notes-icon', MusicNotesIcon)
 app.component('speaker-icon', SpeakerIcon)
 app.component('speaker-muted-icon', SpeakerMutedIcon)
-app.component('record-icon', RecordIcon)
 app.component('series-record-icon', SeriesRecordIcon)
 app.component('stop-icon', StopIcon)
 app.component('go-live-icon', GoLiveIcon)

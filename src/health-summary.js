@@ -4,6 +4,7 @@ import { db, getSetting } from './db.js'
 import { peekDoctorReport } from './doctor.js'
 import { getRecordingState } from './epg.js'
 import { getActiveSyncId, getMediaRoot, getRecordingsRoot } from './sync.js'
+import { isTvheadendUrlSet } from './tvheadend-unconfigured.js'
 
 export const HEALTH_LEVELS = ['ok', 'warn', 'fail']
 
@@ -97,7 +98,7 @@ const tvheadendState = async () => {
   return outcome
 }
 
-const tvheadendConfigured = async () => Boolean((await getSetting('tvh_url')) || process.env.TVH_URL)
+const tvheadendConfigured = async () => isTvheadendUrlSet(await getSetting('tvh_url'))
 
 const latestFinishedSync = async () => {
   const row = await db('syncs').whereNot('status', 'running').orderBy('id', 'desc').first()

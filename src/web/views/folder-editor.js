@@ -59,27 +59,18 @@ export const FolderEditor = {
         <button type="button" class="btn btn-danger" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
-      <teleport to="body">
-      <transition name="epg-sheet">
-      <div v-if="confirming" class="epg-modal-backdrop" @click.self="confirming = false">
-        <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" :aria-labelledby="'remove-title-' + folder.id">
-          <header class="panel-header">
-            <span :id="'remove-title-' + folder.id" class="panel-title">{{ removeTitle }}</span>
-            <button type="button" class="btn btn-icon epg-modal-x" @click="confirming = false" aria-label="Close"><cross-icon /></button>
-          </header>
-          <div class="panel-body space-y-4">
-            <p class="text-sm text-ink">{{ removeOutcome }}</p>
-            <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
-            <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
-                <template v-if="saving">Removing…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
-      </transition>
-      </teleport>
+      <ui-sheet :open="confirming" :title="removeTitle" @close="confirming = false">
+        <div class="confirm-dialog-body">
+          <p>{{ removeOutcome }}</p>
+          <p>{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
+        </div>
+        <template #footer>
+          <button type="button" class="ui-button ui-button-destructive ui-button-block" @click="remove" :disabled="saving">
+            <template v-if="saving">Removing…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
+          </button>
+          <button type="button" class="ui-button ui-button-block" @click="confirming = false" :disabled="saving">Cancel</button>
+        </template>
+      </ui-sheet>
     </form>
   `,
   setup(props, { emit }) {

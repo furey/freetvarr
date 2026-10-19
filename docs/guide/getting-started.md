@@ -93,17 +93,17 @@ Every value can be changed later in Freetvarr's Settings.
 
 ## 3. Record something
 
-In Freetvarr, open the [TV Guide](/guide/tv-guide), click a programme, and press **RECORD** for one airing or **SERIES** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in **SETTINGS → SCHEDULE**) and imports each one into your library ([Series](/guide/series)). To check the whole setup, open **SETTINGS → HELP → RUN DOCTOR**.
+In Freetvarr, open the [Guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in Settings → Schedule) and imports each one into your library ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
 
 <!-- markdownlint-disable-next-line MD033 -->
-<BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the TV Guide: click the programme, press RECORD for one airing, then press SERIES on another programme for every episode" />
+<BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the Guide: press the programme and press Record for one airing, then pick Every episode on another programme and press Record series" />
 
 ## 4. Save it as an app
 
 On a tablet or phone, add Freetvarr to the Home Screen. Freetvarr then opens full screen from its own icon, like an app.
 
 <!-- markdownlint-disable-next-line MD033 -->
-<BrowserFrame bare src="/home-screen-demo.mp4" poster="/home-screen-demo-poster.jpg" ratio="1114 / 918" aria-label="An iPad and an iPhone, each with the Freetvarr icon on its Home Screen: a tap on each icon opens Freetvarr full screen on the Dashboard, in the phone layout and then the tablet layout" />
+<BrowserFrame bare src="/home-screen-demo.mp4" poster="/home-screen-demo-poster.jpg" ratio="1114 / 918" aria-label="An iPad and an iPhone, each with the Freetvarr icon on its Home Screen: a tap on each icon opens Freetvarr full screen on Home, in the phone layout and then the tablet layout" />
 
 On an iPad or iPhone:
 
@@ -161,7 +161,8 @@ A Freetvarr browser tab left open during the update offers **APPLY & RELOAD** to
 
 ## Where next
 
-- [TV Guide](/guide/tv-guide): schedule recordings from the browser.
-- [Series](/guide/series): assign series folders and sync recordings into your library.
+- [What's new in 2.0](/guide/whats-new): the five destinations of the app.
+- [Guide](/guide/tv-guide): schedule recordings from the browser.
+- [Series rules and folders](/guide/series): assign series folders and sync recordings into your library.
 - [Configuration](/guide/configuration): the full `.env` reference.
 - [Troubleshooting](/guide/troubleshooting): if the TVHeadend connection, an import, or Plex does not work.

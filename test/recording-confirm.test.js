@@ -60,7 +60,7 @@ test('fileNameOf: the last path part', () => {
 test('adScanConfirm: detect names the .edl file, the time, and keeps the file', () => {
   const dialog = adScanConfirm({ recording: recording(), retentionDays: '7' })
   assert.equal(dialog.title, 'Find ads')
-  assert.equal(dialog.confirmLabel, 'FIND ADS')
+  assert.equal(dialog.confirmLabel, 'Find ads')
   assert.equal(dialog.danger, false)
   assert.match(dialog.body[0], /The Block - S21E01\.edl beside the recording/)
   assert.match(dialog.body[0], /The recording file stays as it is\./)
@@ -78,7 +78,7 @@ test('adScanConfirm: detect says it replaces the last result', () => {
 test('adScanConfirm: cut names the backup, its retention, and is styled as danger', () => {
   const dialog = adScanConfirm({ recording: recording({ show_ad_removal: 'cut' }), retentionDays: '3' })
   assert.equal(dialog.title, 'Cut ads')
-  assert.equal(dialog.confirmLabel, 'CUT ADS')
+  assert.equal(dialog.confirmLabel, 'Cut ads')
   assert.equal(dialog.danger, true)
   assert.match(dialog.body[1], /The Block - S21E01\.ts\.orig for 3 days, then deletes it\./)
   assert.match(dialog.body[2], /^Finding the ads takes about 45 minutes, and saving the cut/)
@@ -98,7 +98,7 @@ test('adScanConfirm: unknown length says several minutes; bad retention falls ba
 test('removeFromTvhConfirm: library copy stays, history kept, cannot undo', () => {
   const dialog = removeFromTvhConfirm({ recording: recording() })
   assert.equal(dialog.title, 'Remove from TVHeadend')
-  assert.equal(dialog.confirmLabel, 'REMOVE FROM TVHEADEND')
+  assert.equal(dialog.confirmLabel, 'Remove from TVHeadend')
   assert.equal(dialog.danger, true)
   assert.deepEqual(dialog.body, [
     'TVHeadend deletes its copy of the recording.',
@@ -117,9 +117,9 @@ test('removeFromTvhConfirm: warns when the library copy is already gone', () => 
 test('clearRowConfirm: a row not in TVHeadend keeps the file and offers UNDO', () => {
   const dialog = clearRowConfirm({ recording: recording({ deleted_from_tvh_at: '2026-10-01' }), undoSeconds: 10 })
   assert.equal(dialog.title, 'Clear from the list')
-  assert.equal(dialog.confirmLabel, 'CLEAR FROM LIST')
+  assert.equal(dialog.confirmLabel, 'Clear from list')
   assert.equal(dialog.body[0], `The row leaves this list. Your library copy stays at ${FILE}, and your media player still plays it.`)
-  assert.equal(dialog.body[2], 'For 10 seconds, UNDO puts the row back.')
+  assert.equal(dialog.body[2], 'For 10 seconds, Undo puts the row back.')
 })
 
 test('clearRowConfirm: a row TVHeadend still has comes back at the next sync', () => {
@@ -137,7 +137,7 @@ test('clearListConfirm: plural wording', () => {
     'TVHeadend no longer has these recordings. Their rows leave this list, on every page and filter.',
     'The files stay in your library, and your media player still shows them.'
       + ' To delete them for good, delete them in your media player or from your library folder.',
-    'For 10 seconds, UNDO puts the rows back. Without a clear, rows like these leave the list 30 days after TVHeadend removed them.',
+    'For 10 seconds, Undo puts the rows back. Without a clear, rows like these leave the list 30 days after TVHeadend removed them.',
   ])
 })
 
@@ -146,5 +146,5 @@ test('clearListConfirm: singular wording', () => {
   assert.equal(dialog.title, 'Clear 1 recording from the list')
   assert.match(dialog.body[0], /^TVHeadend no longer has this recording\. Its row leaves this list/)
   assert.match(dialog.body[1], /^The file stays in your library, and your media player still shows it\. To delete it for good, delete it/)
-  assert.match(dialog.body[2], /^For 10 seconds, UNDO puts the row back\./)
+  assert.match(dialog.body[2], /^For 10 seconds, Undo puts the row back\./)
 })

@@ -54,6 +54,23 @@ test('resolveRoute: show keys keep their case and decode', () => {
   assert.equal(show.canonicalHash, null)
 })
 
+test('resolveRoute: aliases keep their query string when rewritten', () => {
+  assert.equal(resolveRoute('#/settings/log?status=failed&since=7d').canonicalHash, '#/settings/system/log?status=failed&since=7d')
+  assert.equal(resolveRoute('#/syncs?show=fails').canonicalHash, '#/settings/system/activity?show=fails')
+  assert.equal(resolveRoute('#/dashboard?').canonicalHash, '#/home?')
+  assert.equal(resolveRoute('#/settings/system/log?status=failed').canonicalHash, null)
+})
+
+test('resolveRoute: old recordings links with admin filters open the recording log', () => {
+  const log = resolveRoute('#/recordings?status=failed&since=7d')
+  assert.equal(log.canonicalHash, '#/settings/system/log?status=failed&since=7d')
+  assert.deepEqual(log.params, ['system', 'log'])
+  assert.equal(resolveRoute('#/recordings?sort=size&dir=desc').canonicalHash, '#/settings/system/log?sort=size&dir=desc')
+  assert.equal(resolveRoute('#/recordings?utm=x').canonicalHash, null)
+  assert.equal(resolveRoute('#/recordings').canonicalHash, null)
+  assert.equal(resolveRoute('#/recordings/scheduled?status=failed').canonicalHash, null)
+})
+
 test('activeDestinationOf: only the five destinations light up', () => {
   assert.equal(activeDestinationOf('recordings'), 'recordings')
   assert.equal(activeDestinationOf('welcome'), null)

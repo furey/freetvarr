@@ -146,23 +146,11 @@ export const SeriesView = {
         <p class="settings-note settings-cross-link">Title matches and their folders are under <a href="#/settings/system/folders">Folders</a>.</p>
       </template>
 
-      <teleport to="body">
-      <transition name="epg-sheet">
-      <div v-if="cancelling" class="epg-modal-backdrop" @click.self="closeCancelSeries">
-        <section class="panel epg-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-series-title">
-          <header class="panel-header">
-            <span id="cancel-series-title" class="panel-title">Cancel series</span>
-            <button type="button" class="btn btn-icon epg-modal-x" @click="closeCancelSeries" aria-label="Close"><cross-icon /></button>
-          </header>
-          <div class="panel-body">
-            <cancel-series-step :title="cancelling.series.title" :episode-outcome="cancelling.episodeOutcome"
-              :title-match="cancelling.series.folder" :busy="busyKey === cancelling.series.key" :show-back="false"
-              @confirm="cancelSeries" />
-          </div>
-        </section>
-      </div>
-      </transition>
-      </teleport>
+      <ui-sheet :open="Boolean(cancelling)" title="Cancel series" @close="closeCancelSeries">
+        <cancel-series-step v-if="cancelling" :title="cancelling.series.title" :episode-outcome="cancelling.episodeOutcome"
+          :title-match="cancelling.series.folder" :busy="busyKey === cancelling.series.key" :show-back="false"
+          @confirm="cancelSeries" />
+      </ui-sheet>
 
       <template v-if="part === 'folders'">
         <div class="settings-toolbar">
@@ -293,47 +281,37 @@ export const SeriesView = {
         </form>
       </template>
 
-      <teleport to="body">
-      <transition name="epg-sheet">
-      <div v-if="assigning" class="epg-modal-backdrop" @click.self="closeAssign">
-        <form class="panel epg-modal info-modal" role="dialog" aria-modal="true" aria-labelledby="assign-folder-title" @submit.prevent="assignFolder">
-          <header class="panel-header">
-            <span id="assign-folder-title" class="panel-title">Assign a folder</span>
-            <button type="button" class="btn btn-icon epg-modal-x" @click="closeAssign" aria-label="Close"><cross-icon /></button>
-          </header>
-          <div class="panel-body space-y-4">
-            <p class="text-sm text-ink">Future episodes save to <code>{{ assignPath }}</code>.</p>
-            <div class="field-row">
-              <label class="field-label" for="assign-folder">Folder</label>
-              <div class="field-prefixed">
-                <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
-                <input v-no-autofill id="assign-folder" v-autofocus type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
-              </div>
-              <datalist id="assign-media-folders">
-                <option v-for="d in folders" :key="d" :value="d" />
-              </datalist>
-              <p class="text-xs text-ink-mute mt-2">{{ FOLDER_HINT }}</p>
+      <ui-sheet :open="Boolean(assigning)" title="Assign a folder" @close="closeAssign">
+        <form v-if="assigning" id="assign-folder-form" class="assign-folder-form" @submit.prevent="assignFolder">
+          <p class="cancel-series-question">Future episodes save to <code>{{ assignPath }}</code>.</p>
+          <div class="field-row">
+            <label class="field-label" for="assign-folder">Folder</label>
+            <div class="field-prefixed">
+              <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
+              <input v-no-autofill id="assign-folder" v-autofocus type="text" v-model="assignDest" list="assign-media-folders" class="field-input" />
             </div>
-            <div v-if="folders.length" class="field-row">
-              <label class="field-label" for="assign-existing">Or pick an existing folder</label>
-              <select id="assign-existing" class="field-input" :value="folders.includes(assignDest.trim()) ? assignDest.trim() : ''"
-                @change="assignDest = $event.target.value">
-                <option value="" disabled>Choose a folder…</option>
-                <option v-for="d in folders" :key="d" :value="d">{{ d }}</option>
-              </select>
-            </div>
-            <p class="text-sm text-ink">Episodes already imported stay where they are.</p>
-            <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <span v-if="assignStatusText" :class="['status-readout', assignStatusKind, 'mr-auto']">{{ assignStatusText }}</span>
-              <button type="submit" class="btn btn-primary" :disabled="busyKey === assigning.key">
-                <template v-if="busyKey === assigning.key">Assigning…</template><template v-else><check-icon /> Assign</template>
-              </button>
-            </div>
+            <datalist id="assign-media-folders">
+              <option v-for="d in folders" :key="d" :value="d" />
+            </datalist>
+            <p class="cancel-series-note">{{ FOLDER_HINT }}</p>
           </div>
+          <div v-if="folders.length" class="field-row">
+            <label class="field-label" for="assign-existing">Or pick an existing folder</label>
+            <select id="assign-existing" class="field-input" :value="folders.includes(assignDest.trim()) ? assignDest.trim() : ''"
+              @change="assignDest = $event.target.value">
+              <option value="" disabled>Choose a folder…</option>
+              <option v-for="d in folders" :key="d" :value="d">{{ d }}</option>
+            </select>
+          </div>
+          <p class="cancel-series-note">Episodes already imported stay where they are.</p>
+          <p v-if="assignStatusText" :class="['status-readout', assignStatusKind]">{{ assignStatusText }}</p>
         </form>
-      </div>
-      </transition>
-      </teleport>
+        <template v-if="assigning" #footer>
+          <button type="submit" form="assign-folder-form" class="ui-button ui-button-primary ui-button-block" :disabled="busyKey === assigning.key">
+            <template v-if="busyKey === assigning.key">Assigning…</template><template v-else><check-icon /> Assign</template>
+          </button>
+        </template>
+      </ui-sheet>
     </div>
   `,
   setup() {

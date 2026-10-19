@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
+import { ref, onMounted, onUnmounted, watch, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { DOUBLE_TAP_MS } from '/double-tap.js'
 
 const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
@@ -38,6 +38,20 @@ export const usePlayerKeys = ({
   }
   onMounted(() => window.addEventListener('keydown', onKeydown))
   onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+}
+
+export const usePlayerFocus = ({ isOpen, rootEl }) => {
+  let returnFocus = null
+  watch(isOpen, async (open) => {
+    if (!open) {
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true })
+      returnFocus = null
+      return
+    }
+    returnFocus = document.activeElement
+    await nextTick()
+    rootEl.value?.focus({ preventScroll: true })
+  })
 }
 
 const isKeyboardFocused = (el) => !el.matches?.('button') || el.matches(':focus-visible')

@@ -75,7 +75,7 @@ export const mountWatchlist = ({ app, csrf, limiter = passThrough, onSeriesCreat
     }
   })
 
-  app.delete('/api/watchlist/:id', csrf, async (req, res) => {
+  app.delete('/api/watchlist/:id', limiter, csrf, async (req, res) => {
     const removed = await db('watchlist').where({ id: Number(req.params.id) }).delete()
     if (!removed) return res.status(404).json({ error: 'watchlist entry not found' })
     res.json({ ok: true })

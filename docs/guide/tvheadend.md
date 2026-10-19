@@ -75,9 +75,9 @@ When the wizard finds a TVHeadend with only the default entry, it asks for three
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **SETTINGS → TVHEADEND → RESTORE OPEN ACCESS** in Freetvarr.
+Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **Restore open access** in Settings → System → TVHeadend.
 
-If you installed TVHeadend yourself, the wizard asks for the TVHeadend username and password you created for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.
+If you installed TVHeadend yourself, the wizard asks for the TVHeadend username and password you created for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. [Health](/guide/doctor#tvh-open) warns while the default entry is still there.
 
 In TVHeadend's web interface, set the interface and TV guide (EPG) languages under **Configuration → General → Base**.
 
@@ -215,7 +215,7 @@ In TVHeadend's web interface, go to **Configuration → Recording → Digital Vi
 
 The path is the one inside the TVHeadend Docker container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. The Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
 
-Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series](/guide/series)).
+Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series rules](/guide/series)).
 
 Freetvarr also sets these two on each recording it schedules:
 
@@ -261,4 +261,4 @@ curl --digest -u freetvarr:<password> -o /dev/null -w '%{http_code}\n' \
 ## Where next
 
 - **[Getting started](/guide/getting-started)**: run Freetvarr and point it at this TVHeadend.
-- **[TV Guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from Freetvarr instead of TVHeadend's own web interface.
+- **[Guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from Freetvarr instead of TVHeadend's own web interface.

@@ -1,13 +1,27 @@
 ---
-title: Doctor
+title: Health
 description: >-
   A read-only health check of TVHeadend, the TV guide, the folders, Plex, live TV,
   and the host, with the fix for each problem it finds.
 ---
 
-# Doctor
+# Health
 
-The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **SETTINGS → HELP → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or by adding `#/doctor` to Freetvarr's address in the browser's address bar.
+Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → System → **Health**, from the health dot in the header, or from **Health checks** in Settings → About. The old address `#/doctor` redirects to it.
+
+The page has three groups:
+
+- **Sync**: the last sync, the next sync, and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs). **Sync now** at the top runs a sync at once.
+- **Checks**: the set of read-only checks, called the **Doctor**, described below.
+- **Storage**: the free space on the recordings and media folders, with a bar for each.
+
+The sentence under the page title summarises the result, for example `Everything is working.`
+
+## Health dot
+
+The dot in the header shows the worst result of the health checks and the last sync. Green says `All good`. Amber or red adds a sentence, such as `TVHeadend is not answering.` or `The last sync failed.` Press the dot to open Health. On a phone, the dot becomes a banner at the top of the page while the result is amber or red.
+
+## Results
 
 The Doctor only reads. It sends `GET` requests to TVHeadend and Plex, and it looks at folders without writing to them. It never saves settings, changes TVHeadend, refreshes Plex, or starts a test encode.
 
@@ -18,7 +32,7 @@ Each check gets one of these results:
 - **FAIL**: something Freetvarr needs is broken. The row says how to fix it and links to the matching docs.
 - **SKIP**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
 
-Failing rows come first. Press `RE-RUN` to check again. A check that gets no answer in `8` seconds fails.
+Failing rows come first. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
 
 From a source checkout, `npm run doctor` outputs the same checks in the terminal. It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
 
@@ -44,7 +58,7 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0` (the **CHANNELS** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard) adds them). See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0` (the `CHANNELS` step of the [setup wizard](/guide/getting-started#_2-run-the-wizard) adds them). See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 
@@ -60,7 +74,7 @@ Checks that the recordings folder exists inside the Freetvarr Docker container a
 
 ## TVHeadend recording path {#paths-match}
 
-Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in **SETTINGS**. They must match. See [CHECK TVHEADEND mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
+Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in Settings → Recording. They must match. See [CHECK TVHEADEND mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
 
 ## Media folder {#paths-media}
 
@@ -80,7 +94,7 @@ Lists Plex's library sections. It skips when Plex is not set up. It fails when P
 
 ## Syncs {#sync-health}
 
-Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. It works without Plex, so it has its own **SYNCS** group on the Doctor page. See [Syncs](/guide/syncs).
+Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. It works without Plex. See [Activity](/guide/syncs).
 
 ## Live TV encoder {#live-encoder}
 
@@ -92,4 +106,4 @@ Runs only when ad removal is on. It checks that `comskip`, `ffmpeg`, and `ffprob
 
 ## Time zone and network {#host-env}
 
-Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in **SETTINGS → SCHEDULE**, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).
+Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings → Schedule, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).

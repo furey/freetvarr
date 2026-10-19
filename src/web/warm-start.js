@@ -15,16 +15,6 @@ export const writeSnapshot = ({ storage, key, data, nowMs = Date.now() }) => {
   } catch {}
 }
 
-export const onNowAt = ({ entries = [], nowMs }) => entries.map((entry) => {
-  const hasEnded = entry.now && entry.now.end <= nowMs
-  const hasNextStarted = entry.next && entry.next.start <= nowMs
-  if (!hasEnded || !hasNextStarted) return entry
-  return { ...entry, now: entry.next, next: null }
-})
-
-export const upcomingAt = ({ recordings = [], nowMs, startMsOf }) =>
-  recordings.filter((r) => startMsOf(r) > nowMs)
-
 const storageKeyOf = (key) => `freetvarr.snapshot.${key}`
 
 const SNAPSHOT_VERSION = 1

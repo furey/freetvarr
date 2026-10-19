@@ -343,7 +343,7 @@ export const RecordingsView = {
       + (r.library_state ? '' : ' The episode is still in your library.')
     const canAdScan = (r) => canAdScanRecording({ adRemovalEnabled: adRemovalEnabled.value, recording: r })
     const canImport = (r) => ['not_imported', 'not_in_library'].includes(libraryStatusOf(r)) && !r.deleted_from_tvh_at
-    const importLabel = (r) => (r.library_state === 'not_in_library' ? 'IMPORT AGAIN' : 'IMPORT')
+    const importLabel = (r) => (r.library_state === 'not_in_library' ? 'Import again' : 'Import')
     const statusLabel = (status) => (status === 'done' ? 'imported' : status.replace(/_/g, ' '))
     const showLabel = (r) => r.show_pattern || (r.show_id == null ? 'One-off' : 'none')
     const imageUrl = (r) => (r.image_path ? `/api/recordings/${encodeURIComponent(r.recording_id)}/image` : null)

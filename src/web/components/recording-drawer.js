@@ -2,6 +2,7 @@ import { computed } from '/vendor/vue.esm-browser.prod.js'
 import { formatMinutes } from '/time-format.js'
 import { fmtBytes } from '/shared/format.js'
 import { fmtTime } from '/shared/time.js'
+import { sentenceCase } from '/sentence-case.js'
 
 export const RecordingStatus = {
   props: {
@@ -31,8 +32,8 @@ export const RecordingDrawer = {
   },
   template: `
     <div class="recording-drawer">
-      <p v-if="recording.synopsis" class="text-sm text-ink-dim leading-relaxed">{{ recording.synopsis }}</p>
-      <p v-if="stateNote" class="text-sm text-ink">{{ stateNote }}</p>
+      <p v-if="recording.synopsis" class="recording-drawer-text is-dim">{{ recording.synopsis }}</p>
+      <p v-if="stateNote" class="recording-drawer-text">{{ stateNote }}</p>
       <dl v-if="facts.length" class="sync-facts recording-facts">
         <template v-for="fact in facts" :key="fact.label">
           <dt>{{ fact.label }}</dt><dd>{{ fact.text }}</dd>
@@ -41,25 +42,25 @@ export const RecordingDrawer = {
       <error-diagnosis v-if="recording.error" :error="recording.error" />
       <div v-if="hasActions" class="card-actions">
         <button v-if="recording.playable" type="button" class="btn btn-sm btn-watch" @click="ctx.playRecording(recording)" :title="ctx.playTitle(recording)">
-          <play-icon /> PLAY
+          <play-icon /> Play
         </button>
         <button v-if="ctx.canImport(recording)" type="button" class="btn btn-sm"
           @click="ctx.importRecording(recording)" :disabled="ctx.importingId === recording.recording_id"
           title="Add this recording to the library at the next sync.">
-          {{ ctx.importingId === recording.recording_id ? 'IMPORTING…' : ctx.importLabel(recording) }}
+          {{ ctx.importingId === recording.recording_id ? 'Importing…' : ctx.importLabel(recording) }}
         </button>
         <button v-if="ctx.canAdScan(recording)" type="button" class="btn btn-sm"
           @click="ctx.askAdScan(recording)" :disabled="ctx.adScanningId === recording.recording_id || ctx.isAdScanBlocked(recording)"
           :title="ctx.adScanTitle(recording)">
-          <ad-scan-icon /> SCAN FOR ADS
+          <ad-scan-icon /> Scan for ads
         </button>
         <button v-if="ctx.canDelete(recording)" type="button" class="btn btn-sm btn-danger"
           @click="ctx.askRemoveFromTvh(recording)" :disabled="ctx.deletingId === recording.recording_id">
-          <trash-icon /> REMOVE FROM TVHEADEND
+          <trash-icon /> Remove from TVHeadend
         </button>
         <button v-else-if="ctx.canRemove(recording)" type="button" class="btn btn-sm btn-danger"
           @click="ctx.askClearRow(recording)" :disabled="ctx.removingId === recording.recording_id" :title="ctx.removeTitle(recording)">
-          <cross-icon /> CLEAR FROM LIST
+          <cross-icon /> Clear from list
         </button>
       </div>
     </div>
@@ -83,6 +84,6 @@ const recordingFacts = ({ recording: r, ctx }) => [
   { label: 'Imported', text: r.imported_at ? fmtTime(r.imported_at) : '' },
   { label: 'File', text: r.file_path },
   { label: 'TVHeadend', text: r.deleted_from_tvh_at ? ctx.notInTvhTitle(r) : 'TVHeadend still has its copy.' },
-  { label: 'Ads', text: r.ad_status ? [ctx.adLabel(r.ad_status).toUpperCase(), ctx.adTooltip(r)].filter(Boolean).join(' · ') : '' },
+  { label: 'Ads', text: r.ad_status ? [sentenceCase(ctx.adLabel(r.ad_status)), ctx.adTooltip(r)].filter(Boolean).join(' · ') : '' },
   { label: 'Playback', text: ctx.resumeLabel(r) },
 ].filter((fact) => fact.text)

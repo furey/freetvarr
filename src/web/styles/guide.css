@@ -490,7 +490,7 @@
 }
 
 .guide-page .epg-rail-cell .epg-pin.pinned {
-  color: var(--color-warning);
+  color: var(--color-primary);
 }
 
 .guide-page .epg-row.epg-drop-target,
@@ -521,6 +521,7 @@
 .guide-page .epg-cell {
   top: 4px;
   bottom: 4px;
+  overflow: clip;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -547,10 +548,16 @@
 }
 
 .guide-page .epg-cell-text {
+  position: sticky;
+  left: calc(var(--epg-rail-px, 200px) + 10px);
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.guide-page .epg-cell.with-thumb .epg-cell-text {
+  left: calc(var(--epg-rail-px, 200px) + var(--epg-thumb-w) + 15px);
 }
 
 .guide-page .epg-cell-title {
@@ -642,6 +649,13 @@
 
 .epg-cell-dot.is-watch {
   background: var(--color-primary);
+}
+
+.epg-cell-dot.is-inline {
+  position: static;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: 1px;
 }
 
 .guide-page .epg-loading-note {

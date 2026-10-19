@@ -42,6 +42,7 @@ import {
 import { showKeyOf } from '/show-key.js'
 import { channelGroupLabel } from '/components/channel-identity.js'
 import { togglePinnedChannel } from '/components/channels-modal.js'
+import { keepFocusInside } from '/components/ui-sheet.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
 import { EPG_NARROW_QUERY, CHANNELS_SAVED_TEXT } from '/shared/constants.js'
@@ -253,11 +254,13 @@ export const EpgView = {
                   <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
                     :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
                   <span v-if="cellShowsText(p)" class="epg-cell-text">
-                    <span class="epg-cell-title">{{ p.title }}</span>
+                    <span class="epg-cell-title"><span v-if="cellMarks(p).scheduledDot" class="epg-cell-dot is-inline" aria-hidden="true"></span><span v-else-if="cellMarks(p).watchDot" class="epg-cell-dot is-inline is-watch" aria-hidden="true"></span>{{ p.title }}</span>
                     <span class="epg-cell-meta">{{ fmtClock(p.start) }}</span>
                   </span>
-                  <span v-if="cellMarks(p).scheduledDot" class="epg-cell-dot" aria-hidden="true"></span>
-                  <span v-else-if="cellMarks(p).watchDot" class="epg-cell-dot is-watch" aria-hidden="true"></span>
+                  <template v-else>
+                    <span v-if="cellMarks(p).scheduledDot" class="epg-cell-dot" aria-hidden="true"></span>
+                    <span v-else-if="cellMarks(p).watchDot" class="epg-cell-dot is-watch" aria-hidden="true"></span>
+                  </template>
                 </button>
               </div>
               </template>
@@ -977,6 +980,10 @@ export const EpgView = {
       loading.value = true
       try {
         const g = await api('GET', `/api/epg/guide?day=${d}`)
+        if (g.configured === false) {
+          errorCode.value = 'no-url'
+          return
+        }
         guideByDay.set(d, g)
         if (day.value === d) guide.value = g
       } catch (err) {
@@ -1648,6 +1655,7 @@ export const EpgView = {
     })
 
     const onKeydown = (e) => {
+      if (e.key === 'Tab' && selected.value && sheetEl.value) return keepFocusInside({ event: e, root: sheetEl.value })
       if (e.key !== 'Escape') return
       if (hdOffer.value) hdOffer.value = null
       else if (selected.value) closeModal()

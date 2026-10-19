@@ -4,11 +4,11 @@ import { db } from './db.js'
 import { getRecordingNow } from './recording-now.js'
 import { getRecordingState, updateSeriesRule } from './epg.js'
 import { refreshLibraryStates } from './library-files.js'
+import { RESUME_END_MARGIN_S } from './playback.js'
 import { getSeries } from './series.js'
 import { getMoviesRoot } from './sync.js'
 import { showKeyOf } from './web/show-key.js'
 
-export const WATCHED_MARGIN_S = 30
 export const MOVIE_MIN_DURATION_S = 4500
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
 
@@ -84,7 +84,7 @@ export const setRecordingWatched = async ({ recordingId, watched, nowIso = new D
 }
 
 export const watchedAtAfterPosition = ({ seconds, nowIso = new Date().toISOString() }) => db.raw(
-  `CASE WHEN duration_s > 0 AND ? >= duration_s - ${WATCHED_MARGIN_S} THEN ? ELSE watched_at END`,
+  `CASE WHEN duration_s > 0 AND ? >= duration_s - ${RESUME_END_MARGIN_S} THEN ? ELSE watched_at END`,
   [seconds, nowIso],
 )
 
@@ -333,6 +333,8 @@ const libraryEpisodeOf = ({ row, kind }) => {
     episode: episode.episode,
     airedAt: episode.airedAt,
     durationS: episode.durationS,
+    synopsis: episode.synopsis,
+    channelId: episode.channelId,
     channelName: episode.channelName,
     image: episode.image,
     positionS: episode.positionS,

@@ -1,62 +1,32 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  inLibrary, isWatched, continueWatchingOf, newRecordingsOf, episodeCodeOf, minutesLeftOf,
+  continueWatchingUrl, newRecordingsUrl, showHrefOf, episodeCodeOf, minutesLeftOf,
   watchedFractionOf, greetingFor, favouriteOnNowOf, tonightOf, tonightMetaOf, splitClock,
   newCardMetaOf,
 } from '../src/web/home-feed.js'
 
-const row = (over) => ({
-  recording_id: 'a', title: 'The Block', status: 'done', duration_s: 3600,
-  playback_position_s: null, played_at: null, aired_at: 1000, playable: true, ...over,
+const episode = (over) => ({
+  recordingId: 'a', showKey: 'the-block', title: 'The Block', durationS: 3600,
+  positionS: null, playedAt: null, airedAt: 1000, ...over,
 })
 
-test('inLibrary: failed and purged rows are out, done rows are in', () => {
-  assert.equal(inLibrary(row()), true)
-  assert.equal(inLibrary(row({ status: 'failed' })), false)
-  assert.equal(inLibrary(row({ purged_at: '2026-01-01' })), false)
-  assert.equal(inLibrary(row({ status: 'pending', deleted_from_tvh_at: '2026-01-01' })), false)
-  assert.equal(inLibrary(row({ status: 'pending' })), true)
+test('episode feed urls ask the library for one in-progress and the newest unplayed', () => {
+  assert.equal(continueWatchingUrl, '/api/library/episodes?state=in-progress&limit=1')
+  assert.equal(newRecordingsUrl, '/api/library/episodes?state=new&limit=12')
 })
 
-test('isWatched: within 30 s of the scheduled end', () => {
-  assert.equal(isWatched(row({ playback_position_s: 3570 })), true)
-  assert.equal(isWatched(row({ playback_position_s: 3000 })), false)
-  assert.equal(isWatched(row()), false)
-  assert.equal(isWatched(row({ watched_at: '2026-10-01 10:00:00' })), true)
-})
-
-test('continueWatchingOf: most recently played in-progress row', () => {
-  const older = row({ recording_id: 'o', playback_position_s: 600, played_at: '2026-10-01 10:00:00' })
-  const newer = row({ recording_id: 'n', playback_position_s: 900, played_at: '2026-10-02T10:00:00.000Z' })
-  const done = row({ recording_id: 'd', playback_position_s: 3590, played_at: '2026-10-03 10:00:00' })
-  assert.equal(continueWatchingOf([older, done, newer]).recording_id, 'n')
-  assert.equal(continueWatchingOf([done, row()]), null)
-})
-
-test('continueWatchingOf: skips files that are not playable', () => {
-  const gone = row({ playback_position_s: 600, played_at: '2026-10-01 10:00:00', playable: false })
-  assert.equal(continueWatchingOf([gone]), null)
-})
-
-test('newRecordingsOf: unopened rows, newest first, limited', () => {
-  const rows = [
-    row({ recording_id: 'a', aired_at: 1 }),
-    row({ recording_id: 'b', aired_at: 3 }),
-    row({ recording_id: 'c', aired_at: 2, played_at: '2026-10-01 10:00:00' }),
-    row({ recording_id: 'd', aired_at: 4, status: 'failed' }),
-  ]
-  assert.deepEqual(newRecordingsOf(rows).map((r) => r.recording_id), ['b', 'a'])
-  assert.deepEqual(newRecordingsOf(rows, 1).map((r) => r.recording_id), ['b'])
+test('showHrefOf: links to the show page by key', () => {
+  assert.equal(showHrefOf(episode()), '#/recordings/show/the-block')
 })
 
 test('episodeCodeOf, minutesLeftOf, watchedFractionOf', () => {
   assert.equal(episodeCodeOf({ season: 22, episode: 45 }), 'S22 E45')
   assert.equal(episodeCodeOf({ season: null, episode: 3 }), 'E3')
   assert.equal(episodeCodeOf({ season: null, episode: null }), '')
-  assert.equal(minutesLeftOf(row({ playback_position_s: 1800 })), 30)
-  assert.equal(watchedFractionOf(row({ playback_position_s: 1800 })), 0.5)
-  assert.equal(watchedFractionOf(row({ duration_s: 0 })), 0)
+  assert.equal(minutesLeftOf(episode({ positionS: 1800 })), 30)
+  assert.equal(watchedFractionOf(episode({ positionS: 1800 })), 0.5)
+  assert.equal(watchedFractionOf(episode({ durationS: 0 })), 0)
 })
 
 test('greetingFor: follows the hour in the zone', () => {
@@ -104,6 +74,6 @@ test('tonightMetaOf and splitClock', () => {
 
 test('newCardMetaOf: episode, channel, and when it aired', () => {
   const nowMs = Date.parse('2026-10-19T09:00:00Z')
-  const recording = row({ season: 1, episode: 3, channel_name: '9HD', aired_at: nowMs - 86_400_000 })
-  assert.equal(newCardMetaOf({ recording, nowMs, timeZone: 'UTC' }), 'S1 E3 · 9HD · Yesterday')
+  const item = episode({ season: 1, episode: 3, channelName: '9HD', airedAt: nowMs - 86_400_000 })
+  assert.equal(newCardMetaOf({ episode: item, nowMs, timeZone: 'UTC' }), 'S1 E3 · 9HD · Yesterday')
 })

@@ -30,7 +30,7 @@ const hasScrolledAncestor = (el) => {
 
 const pullBlocked = (e) => window.scrollY > 0
   || e.touches.length > 1
-  || Boolean(e.target.closest?.('.epg-modal-backdrop, .epg-row.pinned .epg-rail-cell, .live-row.pinned .live-row-handle'))
+  || Boolean(e.target.closest?.('.ui-sheet-backdrop, .ui-search-backdrop, .epg-row.pinned .epg-rail-cell, .live-row.pinned .live-row-handle'))
   || hasScrolledAncestor(e.target)
 
 const clamp01 = (n) => Math.min(1, Math.max(0, n))

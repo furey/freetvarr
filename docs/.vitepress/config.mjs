@@ -96,6 +96,7 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'What Freetvarr is', link: '/guide/' },
+          { text: 'What\'s new in 2.0', link: '/guide/whats-new' },
           { text: 'Plex DVR instead', link: '/guide/plex-dvr' },
           { text: 'Hardware', link: '/guide/hardware' },
           { text: 'TVHeadend', link: '/guide/tvheadend' },
@@ -106,10 +107,10 @@ export default withMermaid(defineConfig({
         text: 'Using Freetvarr',
         collapsed: false,
         items: [
-          { text: 'TV Guide', link: '/guide/tv-guide' },
-          { text: 'Series', link: '/guide/series' },
+          { text: 'Guide', link: '/guide/tv-guide' },
           { text: 'Recordings', link: '/guide/recordings' },
-          { text: 'Syncs', link: '/guide/syncs' },
+          { text: 'Series rules and folders', link: '/guide/series' },
+          { text: 'Activity', link: '/guide/syncs' },
           { text: 'Ad removal', link: '/guide/ad-removal' }
         ]
       },
@@ -137,7 +138,7 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
           { text: 'Troubleshooting', link: '/guide/troubleshooting' },
-          { text: 'Doctor', link: '/guide/doctor' }
+          { text: 'Health', link: '/guide/doctor' }
         ]
       },
       {

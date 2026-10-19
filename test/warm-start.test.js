@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { readSnapshot, writeSnapshot, onNowAt, upcomingAt } from '../src/web/warm-start.js'
+import { readSnapshot, writeSnapshot, } from '../src/web/warm-start.js'
 
 const memoryStorage = () => {
   const items = new Map()
@@ -43,17 +43,4 @@ test('broken or blocked storage reads as null and writes nothing', () => {
   assert.equal(readSnapshot({ storage: blocked, key: 'dashboard' }), null)
   assert.doesNotThrow(() => writeSnapshot({ storage: blocked, key: 'dashboard', data: {} }))
   assert.equal(readSnapshot({ storage: null, key: 'dashboard' }), null)
-})
-
-test('onNowAt moves a started next programme into now', () => {
-  const now = { title: 'News', start: 0, end: 100 }
-  const next = { title: 'Quiz', start: 100, end: 200 }
-  assert.deepEqual(onNowAt({ entries: [{ now, next }], nowMs: 150 }), [{ now: next, next: null }])
-  assert.deepEqual(onNowAt({ entries: [{ now, next }], nowMs: 50 }), [{ now, next }])
-  assert.deepEqual(onNowAt({ entries: [{ now, next: null }], nowMs: 150 }), [{ now, next: null }])
-})
-
-test('upcomingAt drops recordings that have already started', () => {
-  const recordings = [{ id: 'a', start: 50 }, { id: 'b', start: 150 }]
-  assert.deepEqual(upcomingAt({ recordings, nowMs: 100, startMsOf: (r) => r.start }), [{ id: 'b', start: 150 }])
 })

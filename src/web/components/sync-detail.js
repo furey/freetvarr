@@ -37,7 +37,7 @@ export const SyncDetail = {
       </template>
       <div v-if="deletable" class="sync-detail-actions">
         <button type="button" class="btn btn-sm btn-danger" title="Delete this sync from history."
-          @click.stop="$emit('delete')" @keydown.stop><trash-icon /> DELETE SYNC</button>
+          @click.stop="$emit('delete')" @keydown.stop><trash-icon /> Delete sync</button>
       </div>
     </div>
   `,

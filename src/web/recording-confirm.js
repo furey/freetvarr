@@ -16,8 +16,8 @@ export const removeFromTvhConfirm = ({ recording }) => ({
       + ' TVHeadend also deletes any re-record it has scheduled for this episode.',
     'This takes a few seconds. You cannot undo it.',
   ],
-  confirmLabel: 'REMOVE FROM TVHEADEND',
-  busyLabel: 'REMOVING…',
+  confirmLabel: 'Remove from TVHeadend',
+  busyLabel: 'Removing…',
   danger: true,
 })
 
@@ -35,11 +35,11 @@ export const clearListConfirm = ({ count, undoSeconds }) => {
       `${one ? 'The file stays' : 'The files stay'} in your library, and your media player still shows`
         + ` ${one ? 'it' : 'them'}. To delete ${one ? 'it' : 'them'} for good, delete ${one ? 'it' : 'them'}`
         + ' in your media player or from your library folder.',
-      `For ${undoSeconds} seconds, UNDO puts the ${one ? 'row' : 'rows'} back.`
+      `For ${undoSeconds} seconds, Undo puts the ${one ? 'row' : 'rows'} back.`
         + ` Without a clear, rows like these leave the list ${TOMBSTONE_DAYS} days after TVHeadend removed them.`,
     ],
-    confirmLabel: 'CLEAR FROM LIST',
-    busyLabel: 'CLEARING…',
+    confirmLabel: 'Clear from list',
+    busyLabel: 'Clearing…',
     danger: true,
   }
 }
@@ -61,8 +61,8 @@ const findAdsConfirm = ({ recording }) => ({
     `${scanTimeText(recording)} and uses a lot of processor time.`,
     lastResultText(recording),
   ].filter(Boolean),
-  confirmLabel: 'FIND ADS',
-  busyLabel: 'STARTING…',
+  confirmLabel: 'Find ads',
+  busyLabel: 'Starting…',
   danger: false,
 })
 
@@ -79,8 +79,8 @@ const cutAdsConfirm = ({ recording, retentionDays }) => ({
         + ' with the current cut file, and the full original is lost.'
       : lastResultText(recording),
   ].filter(Boolean),
-  confirmLabel: 'CUT ADS',
-  busyLabel: 'STARTING…',
+  confirmLabel: 'Cut ads',
+  busyLabel: 'Starting…',
   danger: true,
 })
 
@@ -89,10 +89,10 @@ const clearRemovedRowConfirm = ({ recording, undoSeconds }) => ({
   body: [
     `The row leaves this list. ${libraryCopyText(recording)}`,
     'To delete the episode for good, delete it in your media player or from your library folder.',
-    `For ${undoSeconds} seconds, UNDO puts the row back.`,
+    `For ${undoSeconds} seconds, Undo puts the row back.`,
   ],
-  confirmLabel: 'CLEAR FROM LIST',
-  busyLabel: 'CLEARING…',
+  confirmLabel: 'Clear from list',
+  busyLabel: 'Clearing…',
   danger: true,
 })
 
@@ -102,8 +102,8 @@ const clearHeldRowConfirm = ({ recording }) => ({
     'The row leaves this list. TVHeadend keeps the recording.',
     'While TVHeadend has the recording, the next sync adds the row back and decides again whether to import it.',
   ],
-  confirmLabel: 'CLEAR FROM LIST',
-  busyLabel: 'CLEARING…',
+  confirmLabel: 'Clear from list',
+  busyLabel: 'Clearing…',
   danger: true,
 })
 

@@ -4,7 +4,6 @@ import {
   minutesLeft,
   timeLeftLabel,
   nextLabel,
-  phoneMetaLine,
   groupsOf,
   matchesFilter,
 } from '../src/web/live-list.js'
@@ -27,12 +26,6 @@ test('timeLeftLabel counts minutes under an hour and names the end time after th
 test('nextLabel joins title and start time and is empty without a next programme', () => {
   assert.equal(nextLabel({ next: { title: 'The Rookie', start: 5 }, clockText }), 'The Rookie · t5')
   assert.equal(nextLabel({ next: null, clockText }), '')
-})
-
-test('phoneMetaLine puts the next title after the time left', () => {
-  const program = { end: 27 * minute }
-  assert.equal(phoneMetaLine({ program, next: { title: 'QI', start: 1 }, nowMs, clockText }), '27 min left · Next QI')
-  assert.equal(phoneMetaLine({ program, next: null, nowMs, clockText }), '27 min left')
 })
 
 const entry = (id, pinned, extra = {}) => ({ channel: { id, name: `Ch ${id}`, number: id, pinned }, ...extra })

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import http from 'node:http'
 
-import { listAutorecs, setSeriesTagsEnabled } from '../src/tvheadend.js'
+import { listAutorecs, newAutorecConfOf, setSeriesTagsEnabled } from '../src/tvheadend.js'
 import { folderForTitle, getSeries, joinSeries, savesTo } from '../src/series.js'
 
 const NOW = Date.UTC(2026, 9, 6, 8, 0)
@@ -177,6 +177,20 @@ test('setSeriesTagsEnabled: rejects a series link with no autorec', async () => 
     withAutorecGrid((conn) => setSeriesTagsEnabled({ seriesLinkIds: ['nope'], enabled: false, conn })),
     /No series recording matches/,
   )
+})
+
+test('newAutorecConfOf: a new rule records unless the show is paused', () => {
+  const base = { title: 'Hard Quiz', channelId: ABC_TV, leadTime: 2, lagTime: 5, episodesToKeep: 3, configName: 'dvr' }
+  const conf = newAutorecConfOf(base)
+  assert.equal(conf.enabled, true)
+  assert.equal(conf.channel, ABC_TV)
+  assert.equal(conf.title, 'Hard Quiz')
+  assert.equal(conf.start_extra, 2)
+  assert.equal(conf.stop_extra, 5)
+  assert.equal(conf.maxcount, 3)
+  assert.equal(conf.config_name, 'dvr')
+  assert.equal(conf.comment, 'freetvarr')
+  assert.equal(newAutorecConfOf({ ...base, paused: true }).enabled, false)
 })
 
 test('joinSeries: no airing in the guide leaves nextAiring empty', () => {

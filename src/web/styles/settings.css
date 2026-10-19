@@ -687,36 +687,6 @@ a.settings-row-link:hover {
   background: var(--color-surface-3);
 }
 
-.settings-content .panel {
-  background: transparent;
-}
-
-.settings-content .panel > .panel-header {
-  padding: 0 4px 8px;
-  border-bottom: 0;
-}
-
-.settings-content .panel > .panel-header .panel-title {
-  font-size: 13px;
-  line-height: 18px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-}
-
-.settings-content .panel > .panel-header > .font-mono {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--color-text-2);
-}
-
-.settings-content .panel > .panel-body {
-  border-radius: var(--radius-card);
-  background: var(--color-surface-1);
-  padding: 16px;
-}
-
 .settings-content .settings-block-title {
   margin-bottom: 8px;
   font-size: 12px;
@@ -746,10 +716,9 @@ a.settings-row-link:hover {
 
 .settings-content .about-list dt {
   font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-text-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-2);
 }
 
 .settings-content .about-list .about-current {
@@ -1212,10 +1181,6 @@ a.settings-row-link:hover {
   line-height: 18px;
 }
 
-.welcome-body .font-mono:not(code) {
-  font-family: var(--font-sans);
-}
-
 .welcome-body .field-input {
   border-color: transparent;
   background: var(--color-surface-2);
@@ -1330,16 +1295,6 @@ a.settings-row-link:hover {
   font-size: 15px;
   color: var(--color-text-1);
   cursor: pointer;
-}
-
-.welcome-page label[for="time-zone-select"],
-.settings-content label[for="time-zone-select"] {
-  text-transform: lowercase;
-}
-
-.welcome-page label[for="time-zone-select"]::first-letter,
-.settings-content label[for="time-zone-select"]::first-letter {
-  text-transform: uppercase;
 }
 
 @media (max-width: 767px) {

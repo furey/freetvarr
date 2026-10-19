@@ -268,6 +268,7 @@ export const RecordingOptionsSheet = {
       episodes_to_keep: keep.value,
       add_show_rule: false,
       any_channel: anyChannel,
+      paused: paused.value,
     })
 
     const cancelAutorecs = (autorecs) => (autorecs.length
