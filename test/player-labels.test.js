@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  behindLabelOf,
+  liveEdgeOf,
   behindPillText,
   leftPillText,
   liveHintText,
@@ -49,4 +51,16 @@ test('programmeRangeText joins start and end with an en dash', () => {
 
 test('joinedParts drops empty parts', () => {
   assert.equal(joinedParts(['A', '', null, 'B']), 'A · B')
+})
+
+test('behindLabelOf uses sentence case seconds then minutes', () => {
+  assert.equal(behindLabelOf(0), '1 sec behind')
+  assert.equal(behindLabelOf(45), '45 sec behind')
+  assert.equal(behindLabelOf(150), '3 min behind')
+})
+
+test('liveEdgeOf reports the live edge until behind the threshold or playing from the start', () => {
+  assert.deepEqual(liveEdgeOf({ behindSeconds: 3 }), { atEdge: true, label: '' })
+  assert.deepEqual(liveEdgeOf({ behindSeconds: 10 }), { atEdge: false, label: '10 sec behind' })
+  assert.deepEqual(liveEdgeOf({ behindSeconds: 0, fromStart: {} }), { atEdge: false, label: '1 sec behind' })
 })

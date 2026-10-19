@@ -81,6 +81,7 @@ export const PlayerTopBar = {
 }
 
 export const PlayerCenterControls = {
+  components: PLAYER_ICON_COMPONENTS,
   props: {
     paused: Boolean,
     pauseDisabled: Boolean,
@@ -91,14 +92,20 @@ export const PlayerCenterControls = {
   emits: ['start-over', 'toggle-pause'],
   template: `
     <div class="pl-centre">
-      <button v-if="showStartOver" type="button" class="pl-control" aria-label="Start over" :title="startOverTitle || null"
-        :disabled="startOverDisabled" @click="$emit('start-over')"><start-over-icon /></button>
-      <span v-else class="pl-control-spacer" aria-hidden="true"></span>
-      <button type="button" class="pl-control is-large" :disabled="pauseDisabled"
-        :aria-label="paused ? 'Play' : 'Pause'" @click="$emit('toggle-pause')">
-        <play-icon v-if="paused" /><pause-icon v-else />
-      </button>
-      <slot name="end"><span class="pl-control-spacer" aria-hidden="true"></span></slot>
+      <div class="pl-centre-slot">
+        <template v-if="showStartOver">
+          <button type="button" class="pl-control" aria-label="Start over" :title="startOverTitle || null"
+            :disabled="startOverDisabled" @click="$emit('start-over')"><rewind-to-start-icon /></button>
+          <span class="pl-centre-label" aria-hidden="true">Start over</span>
+        </template>
+      </div>
+      <div class="pl-centre-slot is-main">
+        <button type="button" class="pl-control is-large" :disabled="pauseDisabled"
+          :aria-label="paused ? 'Play' : 'Pause'" @click="$emit('toggle-pause')">
+          <play-icon v-if="paused" /><pause-icon v-else />
+        </button>
+      </div>
+      <div class="pl-centre-slot"><slot name="end" /></div>
     </div>
   `,
 }

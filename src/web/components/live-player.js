@@ -23,7 +23,7 @@ import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/pla
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
 import { startOverOptionsOf, startOverNoteOf, behindLiveText, fromStartRecordingOf } from '/start-over.js'
-import { behindPillText, liveHintText, percentWithin, programmeRangeText, joinedParts } from '/player-labels.js'
+import { behindPillText, liveEdgeOf, liveHintText, percentWithin, programmeRangeText, joinedParts } from '/player-labels.js'
 import { api } from '/shared/api.js'
 import {
   liveVideo,
@@ -150,7 +150,11 @@ export const LivePlayer = {
           :show-start-over="true" :start-over-disabled="!startOverOptions.length" start-over-title="Start over"
           @start-over="openStartOver" @toggle-pause="toggleLivePause">
           <template #end>
-            <button type="button" class="pl-control" aria-label="Jump to live" title="Jump to live" :disabled="!isBehindLive && !live.fromStart" @click="returnToLive"><go-live-icon /></button>
+            <span v-if="liveEdge.atEdge" class="pl-live-status"><i aria-hidden="true"></i>LIVE</span>
+            <template v-else>
+              <button type="button" class="pl-go-live" @click="returnToLive"><go-live-icon />Go live</button>
+              <span class="pl-centre-label">{{ liveEdge.label }}</span>
+            </template>
           </template>
         </player-center-controls>
         <div v-if="live.phase === 'ended'" class="pl-ended">
@@ -166,7 +170,7 @@ export const LivePlayer = {
         <footer v-if="live.phase === 'live' && !infoOpen" class="pl-bottom">
           <player-scrubber v-if="hasBufferBar" :min="live.bufferFrom" :max="live.bufferTo" :value="shownLivePosition"
             :fill-percent="liveFillPercent" :start-text="bufferStartText" :end-text="bufferEndText"
-            :pill-text="scrubberPill.text" :pill-live="scrubberPill.live" aria-label="Position in the live buffer"
+            aria-label="Position in the live buffer"
             :value-text="scrubberPill.text" @scrub="onLiveScrubInput" @commit="onLiveScrubCommit" />
           <p class="pl-hint">{{ hintText }}</p>
         </footer>
@@ -308,6 +312,11 @@ export const LivePlayer = {
       if (shownBehindSeconds.value >= BEHIND_LIVE_SHOWN_S) return { text: behindPillText(shownBehindSeconds.value), live: false }
       return live.paused ? { text: 'PAUSED', live: false } : { text: 'LIVE', live: true }
     })
+    const liveEdge = computed(() => liveEdgeOf({
+      behindSeconds: shownBehindSeconds.value,
+      fromStart: live.fromStart,
+      thresholdSeconds: BEHIND_LIVE_SHOWN_S,
+    }))
     const bufferStartText = computed(() => (live.fromStart
       ? fmtClockTz(live.fromStart.recordingStartedAt)
       : fmtClockTz(now.value.getTime() - bufferSpan.value * 1000)))
@@ -587,7 +596,7 @@ export const LivePlayer = {
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
-      isBehindLive, jumpToLive, hasBufferBar, shownLivePosition, liveFillPercent, scrubberPill,
+      isBehindLive, jumpToLive, hasBufferBar, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
       bufferStartText, bufferEndText, hintText, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, openStartOver, chooseStartOver,
       canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, expand, miniMeta, miniProgress,

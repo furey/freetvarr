@@ -5,6 +5,18 @@ export const behindPillText = (seconds) => {
   return whole < 60 ? `${whole} SEC BEHIND` : `${Math.round(whole / 60)} MIN BEHIND`
 }
 
+export const behindLabelOf = (seconds) => {
+  const whole = Math.max(1, Math.round(seconds))
+  return whole < 60 ? `${whole} sec behind` : `${Math.round(whole / 60)} min behind`
+}
+
+export const liveEdgeOf = ({ behindSeconds = 0, fromStart = false, thresholdSeconds = 10 }) => {
+  const behind = Boolean(fromStart) || behindSeconds >= thresholdSeconds
+  return behind
+    ? { atEdge: false, label: behindLabelOf(behindSeconds) }
+    : { atEdge: true, label: '' }
+}
+
 export const leftPillText = (seconds) => `${Math.max(1, Math.ceil(seconds / 60))} MIN LEFT`
 
 export const liveHintText = (bufferSeconds) => {
