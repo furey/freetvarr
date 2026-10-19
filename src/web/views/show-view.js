@@ -100,14 +100,14 @@ export const ShowView = {
           </div>
           <ul class="show-episode-list">
             <li v-for="e in visibleEpisodes" :key="e.recordingId"
-              :class="['show-episode', { 'is-failed': e.failed, 'is-selected': selecting && selected.has(e.recordingId), 'is-locked': selecting && isLocked(e) }]"
-              @click="selecting && toggleEpisode(e)" @contextmenu="onEpisodeHold($event, e)">
+              :class="['show-episode', { 'is-failed': e.failed, 'is-playable': e.playable && !selecting, 'is-selected': selecting && selected.has(e.recordingId), 'is-locked': selecting && isLocked(e) }]"
+              @click="onEpisodeRowClick(e)" @contextmenu="onEpisodeHold($event, e)">
               <button v-if="selecting" type="button" role="checkbox" :class="['show-episode-check', { 'is-on': selected.has(e.recordingId) }]"
                 :aria-checked="String(selected.has(e.recordingId))" :aria-disabled="String(isLocked(e))"
                 :aria-label="checkLabel(e)" @click.stop="toggleEpisode(e)">
                 <menu-icon v-if="selected.has(e.recordingId)" name="check" />
               </button>
-              <button v-if="e.playable && !selecting" type="button" class="show-episode-thumb ui-art-fallback" :style="artStyle" @click="playEpisode(e)"
+              <button v-if="e.playable && !selecting" type="button" class="show-episode-thumb ui-art-fallback" :style="artStyle" @click.stop="playEpisode(e)"
                 :aria-label="'Play ' + episodeHeading(e)">
                 <img v-if="episodeImage(e) && !failedImages[e.recordingId]" :src="episodeImage(e)" alt="" loading="lazy" @error="markImageFailed(e)" />
                 <span v-else class="ui-art-title">{{ title }}</span>
@@ -125,7 +125,7 @@ export const ShowView = {
                 <p v-if="e.synopsis" class="show-episode-synopsis">{{ e.synopsis }}</p>
               </div>
               <button v-if="!selecting" type="button" class="ui-icon-button is-plain show-episode-more" :aria-label="'Actions for ' + episodeHeading(e)"
-                aria-haspopup="dialog" @click="openEpisodeMenu(e)"><more-glyph /></button>
+                aria-haspopup="dialog" @click.stop="openEpisodeMenu(e)"><more-glyph /></button>
             </li>
           </ul>
         </section>
@@ -181,6 +181,10 @@ export const ShowView = {
     const selected = ref(new Set())
     const episodesSection = ref(null)
 
+    const onEpisodeRowClick = (episode) => {
+      if (selecting.value) return toggleEpisode(episode)
+      if (episode.playable) playEpisode(episode)
+    }
     const backTarget = computed(() => backTargetOf({
       previousHash: cameFromHash.value,
       currentHash: window.location.hash,
@@ -326,7 +330,7 @@ export const ShowView = {
       show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
       ruleStatus, firstEpisodeLine, visibleEpisodes, selectedSeason, optionsOpen, failedImages,
       toast, dismissToast, flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable,
-      backTarget, goBack, load, playEpisode, playNext, onStopped, markImageFailed,
+      backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
       onEpisodeHold, isLocked, checkLabel, isRecordingNow, selectionTitle,
       episodeHeading, seasonLabel,

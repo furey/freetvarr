@@ -314,6 +314,54 @@
   border-top: 1px solid var(--color-hairline-soft);
 }
 
+.show-episode.is-playable {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .show-episode {
+    margin: 0 -12px;
+    padding: 14px 12px;
+    border-radius: var(--radius-card);
+    transition: background-color var(--motion-fast) var(--ease-standard);
+  }
+
+  .show-episode.is-playable:hover {
+    background: var(--color-surface-1);
+    border-top-color: transparent;
+  }
+
+  .show-episode.is-playable:hover + .show-episode {
+    border-top-color: transparent;
+  }
+
+  .show-episode-thumb > img {
+    transition: filter var(--motion-fast) var(--ease-standard);
+  }
+
+  .show-episode.is-playable:hover .show-episode-thumb > img {
+    filter: brightness(1.08);
+  }
+
+  .show-episode-play svg {
+    transition: transform var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+  }
+
+  .show-episode.is-playable:hover .show-episode-play svg {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    transform: scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show-episode,
+  .show-episode-thumb > img,
+  .show-episode-play svg {
+    transition: none;
+  }
+}
+
 .show-episode-thumb {
   position: relative;
   display: flex;
