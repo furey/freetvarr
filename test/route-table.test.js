@@ -82,3 +82,10 @@ test('recordingsPageOf: library by default, scheduled and show pages by segment'
   assert.deepEqual(recordingsPageOf(['show', 'the-block']), { page: 'show', showKey: 'the-block' })
   assert.deepEqual(recordingsPageOf(['show']), { page: 'library' })
 })
+
+test('resolveRoute: the For you page keeps Home selected in the nav', () => {
+  const resolved = resolveRoute('#/for-you')
+  assert.equal(resolved.view, 'for-you')
+  assert.equal(resolved.canonicalHash, null)
+  assert.equal(activeDestinationOf('for-you'), 'home')
+})

@@ -22,7 +22,7 @@ export const sheetStrengthsFor = ({ canRecordEpisode, canRecordSeries, canNotify
 
 export const initialStrengthOf = ({ strengths, focus = '' }) => {
   const keys = strengths.map((s) => s.key)
-  if (focus === 'series' && keys.includes('series')) return 'series'
+  if (keys.includes(focus)) return focus
   return keys[0] ?? ''
 }
 

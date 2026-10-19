@@ -16,6 +16,7 @@ export const heroSlidesOf = ({
   activeProgramIds = [],
   watchlist = [],
   movies = [],
+  forYou = null,
   nowMs,
   timeZone,
 }) => {
@@ -25,6 +26,7 @@ export const heroSlidesOf = ({
     continueSlideOf({ episode: continueEpisode }),
     newEpisodeSlideOf({ newEpisodes, shows, inProgress, nowMs, timeZone }),
     recording && recordingNowSlideOf({ recording, nowEntries, nowMs, timeZone }),
+    forYou,
     onNowSlideOf({ entries: nowEntries, recording, nowMs, timeZone }),
     upcomingSlideOf({ upcoming, activeProgramIds, shows, nowMs, timeZone }),
     watchlistSlideOf({ items: watchlist, nowMs, timeZone }),

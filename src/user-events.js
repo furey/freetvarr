@@ -18,6 +18,7 @@ export const EVENT_KINDS = new Set([
   'series_pause',
   'series_resume',
   'recording_deleted',
+  'not_interested_undo',
   ...FEEDBACK_KINDS,
 ])
 

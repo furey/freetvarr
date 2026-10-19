@@ -21,6 +21,7 @@ import { createProgrammeImages } from './programme-images.js'
 import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork } from './show-artwork.js'
+import { rememberTvmazeShow } from './genre-enrichment.js'
 import {
   saveGuidePrograms,
   loadEndedProgramsByChannel,
@@ -575,6 +576,8 @@ export const findShowPoster = async ({ title, width } = {}) => {
   return { image: found.image, pending: artwork.pending || found.pending }
 }
 
+export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
+
 const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
   key: `show-poster:${source}`,
   width,
@@ -746,7 +749,7 @@ const imageCache = new Map()
 const programmeImages = createProgrammeImages({
   fetchImage: (source) => fetchProgrammeImage({ source }),
 })
-const showArtwork = createShowArtwork()
+const showArtwork = createShowArtwork({ onTvmazeShow: rememberTvmazeShow })
 export const forgetShowArtwork = (title) => showArtwork.forget(title)
 const thumbnailStore = createThumbnailStore({
   dir: getThumbnailRoot(),

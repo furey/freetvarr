@@ -102,6 +102,7 @@ import { DoctorSpinner } from '/views/doctor-view.js'
 import { EpgView } from '/views/epg-view.js'
 import { FolderEditor, FolderSyncButton } from '/views/folder-editor.js'
 import { GuideSetupStep } from '/views/guide-setup-step.js'
+import { ForYouView } from '/views/for-you-view.js'
 import { HomeView } from '/views/home-view.js'
 import { LiveView } from '/views/live-view.js'
 import { PlexLibrarySetup } from '/views/plex-library-setup.js'
@@ -120,6 +121,7 @@ const RECORDINGS_VIEWS = {
 
 const VIEW_MAP = {
   home: HomeView,
+  'for-you': ForYouView,
   live: LiveView,
   guide: EpgView,
   settings: SettingsShell,

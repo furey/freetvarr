@@ -56,6 +56,12 @@ test('initialStrengthOf: series focus picks Every episode when it is offered', (
   assert.equal(initialStrengthOf({ strengths: [] }), '')
 })
 
+test('initialStrengthOf: notify focus picks Notify me, and an unoffered focus falls back to the first', () => {
+  const strengths = sheetStrengthsFor({ canRecordEpisode: true, canRecordSeries: false, canNotify: true })
+  assert.equal(initialStrengthOf({ strengths, focus: 'notify' }), 'notify')
+  assert.equal(initialStrengthOf({ strengths, focus: 'series' }), 'episode')
+})
+
 test('strengthLineOf: one line that says what each strength does', () => {
   assert.equal(strengthLineOf({ strength: 'episode' }), 'Records this airing only.')
   assert.match(strengthLineOf({ strength: 'episode', onAirUntil: '9:12pm' }), /from now until 9:12pm/)

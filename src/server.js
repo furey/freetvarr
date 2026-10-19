@@ -171,6 +171,7 @@ import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { watchedAtAfterPosition } from './library.js'
 import { mountLibraryRoutes } from './library-routes.js'
+import { mountArtPoolRoutes } from './art-pool.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { mountWatchlist } from './watchlist.js'
@@ -182,6 +183,7 @@ import { mountInProgressPlayback, inProgressFolders } from './in-progress-playba
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
+import { mountForYou } from './for-you-routes.js'
 import {
   liveSessionHooks,
   mountUserEvents,
@@ -1178,11 +1180,13 @@ app.get('/api/series', async (req, res) => {
 })
 
 mountLibraryRoutes({ app, csrf: doubleCsrfProtection, ruleLimiter: epgLimiter, watchedLimiter: playPingLimiter, playbackSourceResolver })
+mountArtPoolRoutes({ app })
 mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
 mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
+mountForYou({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
 mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })

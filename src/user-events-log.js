@@ -34,8 +34,7 @@ export const mountUserEvents = ({ app, csrf, limiter = passThrough }) => {
     if (typeof enabled !== 'boolean') {
       return res.status(400).json({ error: 'viewing_history_enabled must be true or false' })
     }
-    await setSetting(VIEWING_HISTORY_KEY, enabled ? 'true' : 'false')
-    writer.setEnabled(enabled)
+    await setViewingHistoryEnabled(enabled)
     res.json({ ok: true, viewing_history_enabled: enabled })
   })
 
@@ -107,6 +106,15 @@ export const backfillUserEvents = async ({ nowMs = Date.now(), loadAutorecs = au
 
 export const flushUserEvents = () => writer.flush()
 
+export const logUserEvent = (event) => writer.log(event)
+
+export const isViewingHistoryEnabled = async () => viewingHistoryEnabledFrom(await getSetting(VIEWING_HISTORY_KEY))
+
+export const setViewingHistoryEnabled = async (enabled) => {
+  await setSetting(VIEWING_HISTORY_KEY, enabled ? 'true' : 'false')
+  writer.setEnabled(enabled)
+}
+
 const insertRows = (rows) => db('user_events').insert(rows)
 
 const writer = createEventWriter({ insertRows })
@@ -129,8 +137,6 @@ const programmesFor = async ({ channelId, fromMs, toMs }) => {
 const recordingFor = (recordingId) => db('recordings').where({ recording_id: recordingId }).first()
 
 const tracker = createWatchTracker({ log: writer.log, programmesFor, recordingFor })
-
-const isViewingHistoryEnabled = async () => viewingHistoryEnabledFrom(await getSetting(VIEWING_HISTORY_KEY))
 
 const historySummary = async () => {
   const row = await db('user_events').count({ count: '*' }).min({ oldest: 'ts' }).first()

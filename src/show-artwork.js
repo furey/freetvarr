@@ -29,6 +29,7 @@ export const createShowArtwork = ({
   lookupGapMs = TVMAZE_LOOKUP_GAP_MS,
   failureBackoffMs = TVMAZE_FAILURE_BACKOFF_MS,
   plexWaitMs = PLEX_WAIT_MS,
+  onTvmazeShow = () => {},
 } = {}) => {
   const plexShows = createExpiringValue({ load: loadPlexShows, ttlMs: plexTtlMs, fallback: new Map(), now })
   const runSpaced = createSpacedQueue({ gapMs: lookupGapMs })
@@ -67,6 +68,7 @@ export const createShowArtwork = ({
   const lookUpTvmaze = async ({ key, title }) => {
     const show = pickShow({ results: await searchTvmaze(title), key, country: countryCode() })
     if (!show) return []
+    Promise.resolve().then(() => onTvmazeShow({ title, show })).catch(() => {})
     const images = await loadTvmazeImages(show.id).catch(() => [])
     return tvmazeSourcesOf({ show, images })
   }
@@ -158,7 +160,7 @@ const plexSectionItems = async ({ url, token, id }) => {
   return res.data?.MediaContainer?.Metadata || []
 }
 
-const tvmazeSearch = async (title) => {
+export const tvmazeSearch = async (title) => {
   const res = await axios.get(`${TVMAZE_API}/search/shows`, {
     params: { q: title },
     timeout: REQUEST_TIMEOUT_MS,
@@ -168,7 +170,7 @@ const tvmazeSearch = async (title) => {
   return Array.isArray(res.data) ? res.data : []
 }
 
-const tvmazeImages = async (showId) => {
+export const tvmazeImages = async (showId) => {
   const res = await axios.get(`${TVMAZE_API}/shows/${encodeURIComponent(showId)}/images`, {
     timeout: REQUEST_TIMEOUT_MS,
     validateStatus: () => true,
@@ -176,7 +178,7 @@ const tvmazeImages = async (showId) => {
   return res.status === 200 && Array.isArray(res.data) ? res.data : []
 }
 
-const tvmazeLookupEnabled = async () => (await getSetting('show_artwork_lookup')) !== 'false'
+export const tvmazeLookupEnabled = async () => (await getSetting('show_artwork_lookup')) !== 'false'
 
 const databaseCache = {
   read: async (key) => {

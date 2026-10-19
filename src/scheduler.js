@@ -4,6 +4,7 @@ import { getSetting } from './db.js'
 import { startSync } from './sync.js'
 import { getGuideSnapshot } from './epg.js'
 import { backfillUserEvents, pruneUserEvents } from './user-events-log.js'
+import { runForYouUpkeep } from './for-you-service.js'
 
 const DEFAULT_CRON = '*/30 * * * *'
 
@@ -41,6 +42,7 @@ const scheduleWith = (expr) => {
     pruneUserEvents()
       .then(() => backfillUserEvents())
       .catch((err) => console.error('[scheduler] viewing history upkeep failed:', err.message))
+    runForYouUpkeep().catch((err) => console.error('[scheduler] for you upkeep failed:', err.message))
   })
   currentExpr = expr
   console.log(`[scheduler] running on "${expr}"`)

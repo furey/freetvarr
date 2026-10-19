@@ -1394,3 +1394,71 @@ a.settings-row-link:hover {
 .settings-about-wordmark {
   font-size: 36px;
 }
+
+.suggestions-row-button {
+  min-height: 64px;
+  padding: 14px 16px;
+  gap: 12px;
+}
+
+.suggestions-count {
+  font-size: 15px;
+  color: var(--color-text-2);
+}
+
+.suggestions-chevron {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-2);
+}
+
+.suggestions-level {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.suggestions-probe {
+  flex: none;
+}
+
+.suggestions-tier-note {
+  margin-top: 10px;
+}
+
+.suggestions-clear {
+  flex: none;
+  min-width: 96px;
+  border-color: transparent;
+  background: var(--color-live-tint);
+  color: var(--color-live-text);
+}
+
+.suggestions-footnote {
+  margin: 12px 4px 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-2);
+}
+
+.suggestions-hidden-row {
+  justify-content: space-between;
+}
+
+.suggestions-hidden-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .suggestions-level {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

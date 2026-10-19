@@ -10,6 +10,7 @@ import { DoctorView } from '/views/doctor-view.js'
 import { RecordingsView } from '/views/recordings-view.js'
 import { SeriesView } from '/views/series-view.js'
 import { SettingsView } from '/views/settings-view.js'
+import { SuggestionsSettingsView } from '/views/suggestions-settings-view.js'
 import { SyncsView } from '/views/syncs-view.js'
 
 const SYSTEM_VIEWS = {
@@ -26,6 +27,7 @@ const PAGE_INTROS = {
   activity: 'Every sync Freetvarr has run, newest first.',
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
+  suggestions: 'For you picks shows from the guide based on what this household watches and records.',
   about: 'Records free-to-air TV from your TVHeadend-compatible tuner and saves it where your media player finds it.',
 }
 
@@ -68,9 +70,11 @@ export const SettingsShell = {
     const narrow = useMediaQuery(EPG_NARROW_QUERY)
     const page = computed(() => settingsPageOf({ params: routeParams.value, narrow: narrow.value }))
     const showNav = computed(() => !narrow.value || !page.value)
-    const pageView = computed(() => (page.value?.view === 'system'
-      ? SYSTEM_VIEWS[page.value.id]
-      : { view: SettingsView, props: {} }))
+    const pageView = computed(() => {
+      if (page.value?.view === 'system') return SYSTEM_VIEWS[page.value.id]
+      if (page.value?.view === 'suggestions') return { view: SuggestionsSettingsView, props: {} }
+      return { view: SettingsView, props: {} }
+    })
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))
     const intro = computed(() => PAGE_INTROS[page.value?.id] || '')
     const healthDotClass = computed(() => ({ ok: 'is-ok', warn: 'is-warn', fail: 'is-fail' })[health.value.level])

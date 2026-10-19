@@ -1,4 +1,4 @@
-export const ROUTES = ['home', 'live', 'guide', 'recordings', 'settings', 'welcome']
+export const ROUTES = ['home', 'for-you', 'live', 'guide', 'recordings', 'settings', 'welcome']
 
 export const DEFAULT_ROUTE = 'home'
 
@@ -37,8 +37,12 @@ export const resolveRoute = (hash) => {
   return { view, params, section: legacySectionOf({ view, params }), canonicalHash: changed ? canonicalHash : null }
 }
 
-export const activeDestinationOf = (view) =>
-  NAV_DESTINATIONS.some(({ key }) => key === view) ? view : null
+export const activeDestinationOf = (view) => {
+  const destination = NAV_PARENTS[view] ?? view
+  return NAV_DESTINATIONS.some(({ key }) => key === destination) ? destination : null
+}
+
+const NAV_PARENTS = { 'for-you': 'home' }
 
 export const recordingsPageOf = (params = []) => {
   if (params[0] === 'scheduled') return { page: 'scheduled' }

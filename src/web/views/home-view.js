@@ -1,6 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import { artFallbackStyle } from '/art-fallback.js'
+import { ForYouOverlays, ForYouRows } from '/components/for-you-parts.js'
 import { HomeHeroCarousel } from '/components/home-hero-carousel.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { MOVIES_URL, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
@@ -16,7 +17,9 @@ import {
   showHrefOf,
   splitClock,
 } from '/home-feed.js'
+import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, forYouSlideOf, homeRowOf, isScheduled, scheduledKeysOf } from '/for-you.js'
 import { recordingRowOf } from '/show-page.js'
+import { forYouHidden, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { playRecording } from '/shared/playback-session.js'
 import { watchLive, watchRecordingFromStart, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
@@ -25,7 +28,7 @@ import { openInGuide } from '/shared/store.js'
 import { now, tz, fmtClockTz } from '/shared/time.js'
 
 export const HomeView = {
-  components: { HomeHeroCarousel, RecordingOptionsSheet },
+  components: { ForYouOverlays, ForYouRows, HomeHeroCarousel, RecordingOptionsSheet },
   template: `
     <div class="ui-page home-page">
       <page-header :title="greeting" brand />
@@ -60,6 +63,14 @@ export const HomeView = {
           <h2 class="ui-empty-title">Nothing recorded yet</h2>
           <p class="ui-empty-text">Find a show in the Guide and record it. New recordings show up here.</p>
           <a href="#/guide" class="ui-button ui-button-primary">Find a show in the Guide</a>
+        </section>
+
+        <section v-if="forYouRow" ref="forYouSection" class="ui-section home-for-you" aria-labelledby="home-for-you-title">
+          <div class="ui-row-header">
+            <h2 id="home-for-you-title" class="ui-section-title">{{ forYouRow.title }}</h2>
+            <a :href="forYouHref" class="ui-row-link">See all</a>
+          </div>
+          <for-you-rows :rows="[{ shape: 'card', items: forYouRow.items }]" :ctl="forYou" with-lead />
         </section>
 
         <section v-if="onNow.length" class="ui-section" aria-labelledby="home-on-now-title">
@@ -110,6 +121,7 @@ export const HomeView = {
       </template>
       <recording-options-sheet v-if="optionsShow" :open="optionsOpen" :show="optionsShow" @close="optionsOpen = false"
         @changed="load" @stopped="onOptionsStopped" />
+      <for-you-overlays :ctl="forYou" />
     </div>
   `,
   setup() {
@@ -118,6 +130,7 @@ export const HomeView = {
     const shows = ref([])
     const watchlist = ref([])
     const movies = ref([])
+    const forYouPayload = ref(null)
     const nowEntries = ref([])
     const upcoming = ref([])
     const activeProgramIds = ref([])
@@ -129,6 +142,20 @@ export const HomeView = {
     const greeting = computed(() => greetingFor({ nowMs: nowMs.value, timeZone: tz.value }))
     const onNow = computed(() => favouriteOnNowOf({ entries: nowEntries.value, nowMs: nowMs.value }))
 
+    const scheduledKeys = computed(() => scheduledKeysOf(upcoming.value))
+    const forYouRow = computed(() => homeRowOf({
+      payload: forYouPayload.value,
+      scheduledKeys: scheduledKeys.value,
+      hiddenKeys: forYouHidden.value,
+    }))
+    const forYouSlide = computed(() => forYouSlideOf({
+      payload: forYouPayload.value,
+      scheduledKeys: scheduledKeys.value,
+      hiddenKeys: forYouHidden.value,
+      nowMs: nowMs.value,
+      timeZone: tz.value,
+    }))
+
     const heroSlides = computed(() => heroSlidesOf({
       inProgress: inProgress.value,
       newEpisodes: newRecordings.value,
@@ -139,6 +166,7 @@ export const HomeView = {
       activeProgramIds: activeProgramIds.value,
       watchlist: watchlist.value,
       movies: movies.value,
+      forYou: forYouSlide.value,
       nowMs: nowMs.value,
       timeZone: tz.value,
     }))
@@ -155,7 +183,7 @@ export const HomeView = {
     const settled = (promise, fallback) => promise.catch(() => fallback)
 
     const load = async () => {
-      const [resumable, unplayed, nowData, state, library, watching, unwatchedMovies] = await Promise.all([
+      const [resumable, unplayed, nowData, state, library, watching, unwatchedMovies, suggestions] = await Promise.all([
         settled(api('GET', continueWatchingUrl), { episodes: [] }),
         settled(api('GET', newRecordingsUrl), { episodes: [] }),
         settled(api('GET', '/api/epg/now?all=1'), { entries: [] }),
@@ -163,6 +191,7 @@ export const HomeView = {
         settled(api('GET', '/api/library/shows'), { shows: [] }),
         settled(api('GET', '/api/watchlist'), { items: [] }),
         settled(api('GET', MOVIES_URL), { episodes: [] }),
+        settled(api('GET', FOR_YOU_URL), null),
       ])
       inProgress.value = resumable.episodes ?? []
       newRecordings.value = unplayed.episodes ?? []
@@ -172,6 +201,7 @@ export const HomeView = {
       shows.value = library.shows ?? []
       watchlist.value = watching.items ?? []
       movies.value = unwatchedMovies.episodes ?? []
+      forYouPayload.value = suggestions
       loaded.value = true
     }
 
@@ -198,6 +228,7 @@ export const HomeView = {
       channelId: target.channel.id,
       program: target.program,
       focus,
+      dayOffset: target.dayOffset,
       returnTo: '#/home',
     })
 
@@ -216,7 +247,39 @@ export const HomeView = {
       options: ({ target }) => openRecordingOptions(target.showKey),
     }
 
-    const runSlideAction = ({ slide, action }) => SLIDE_ACTIONS[action]?.(slide)
+    const runSlideAction = ({ slide, action }) => {
+      if (slide.type === 'for-you') sendFeedback(feedbackOf({ kind: 'suggestion_accepted', item: slide.target.item, source: 'carousel' }))
+      SLIDE_ACTIONS[action]?.(slide)
+    }
+
+    const forYou = useForYouActions({
+      source: 'home',
+      returnTo: '#/home',
+      isScheduled: (item) => isScheduled({ item, scheduledKeys: scheduledKeys.value }),
+      onChanged: load,
+    })
+
+    let forYouShownSent = false
+    const reportForYouShown = () => {
+      if (forYouShownSent || !forYouRow.value) return
+      forYouShownSent = true
+      sendShown({ items: forYouRow.value.items, source: 'home' })
+      if (forYouSlide.value) sendShown({ items: [forYouSlide.value.target.item], source: 'carousel' })
+    }
+    const forYouSection = ref(null)
+    let forYouObserver = null
+    watch(forYouSection, (el) => {
+      forYouObserver?.disconnect()
+      if (!el || forYouShownSent) return
+      if (!('IntersectionObserver' in window)) return reportForYouShown()
+      forYouObserver = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        forYouObserver.disconnect()
+        reportForYouShown()
+      }, { threshold: 0.25 })
+      forYouObserver.observe(el)
+    })
+    onUnmounted(() => forYouObserver?.disconnect())
 
     const watchChannel = (item) => watchLive({
       channel: liveChannelOf(item.channel),
@@ -234,6 +297,7 @@ export const HomeView = {
       loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
       optionsShow, optionsOpen, load, onOptionsStopped, watchChannel, showHref, newCardMeta, newCardLabel,
       channelTag, clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
+      forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF,
     }
   },
 }

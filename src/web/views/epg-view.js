@@ -1149,13 +1149,15 @@ export const EpgView = {
 
     let returnRoute = ''
 
-    const openHandoff = () => {
+    const openHandoff = async () => {
       const handoff = guideHandoff.value
       if (!handoff) return
       guideHandoff.value = null
       returnRoute = handoff.returnTo || '#/home'
       if (recordDialogOverPlayer.value) loadState({ fresh: true })
       if (handoff.upcoming) return openUpcoming(handoff.upcoming)
+      const handoffDay = handoff.dayOffset ?? day.value
+      if (handoffDay !== day.value) await setDay(handoffDay, { atMs: handoff.program.start })
       const listed = (guide.value?.programs[handoff.channelId] || [])
         .find((p) => p.start === handoff.program.start)
       openProgram(listed || handoff.program, channelById(handoff.channelId), { focus: handoff.focus || '' })
@@ -1676,8 +1678,8 @@ export const EpgView = {
       loadWatchlist()
       loadLibraryDefault()
       await loadDay(0)
-      openHandoff()
-      await scrollToNow()
+      await openHandoff()
+      if (day.value === 0) await scrollToNow()
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
     })
     onUnmounted(() => {
