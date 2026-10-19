@@ -77,6 +77,52 @@ export const listPlexSections = async (connection = {}) => {
   }))
 }
 
+export const getPlexConnection = (connection) => resolveConnection(connection)
+
+export const getPlexMachineIdentifier = async ({ url, token }) => {
+  const cached = machineIdentifiers.get(url)
+  if (cached) return cached
+  const res = await axios.get(`${url}/`, {
+    params: { 'X-Plex-Token': token },
+    headers: { Accept: 'application/json' },
+    timeout: 5000,
+    validateStatus: () => true,
+  })
+  const identifier = res.data?.MediaContainer?.machineIdentifier
+  if (res.status !== 200 || !identifier) throw new Error(`Plex HTTP ${res.status}`)
+  machineIdentifiers.set(url, identifier)
+  return identifier
+}
+
+export const listPlexSectionItems = async ({ url, token, section }) => {
+  const cacheKey = `${url}|${section.id}`
+  const cached = sectionItemCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) return cached.items
+  const res = await axios.get(`${url}/library/sections/${encodeURIComponent(section.id)}/all`, {
+    params: { type: section.type === 'show' ? 4 : 1, 'X-Plex-Token': token },
+    headers: { Accept: 'application/json' },
+    timeout: 15000,
+    validateStatus: () => true,
+  })
+  if (res.status >= 400) throw new Error(`Plex HTTP ${res.status}`)
+  const items = res.data?.MediaContainer?.Metadata || []
+  sectionItemCache.set(cacheKey, { items, expiresAt: Date.now() + SECTION_ITEM_TTL_MS })
+  return items
+}
+
+export const plexSectionsToSearch = async () => {
+  const [tv, oneoff, movies] = await Promise.all([
+    getSetting('plex_tv_section_id'),
+    getSetting('plex_oneoff_section_id'),
+    getSetting('plex_movies_section_id'),
+  ])
+  return [
+    tv && { id: String(tv), type: 'show' },
+    oneoff && { id: String(oneoff), type: 'movie' },
+    movies && { id: String(movies), type: 'movie' },
+  ].filter(Boolean)
+}
+
 export const planPlexLibraries = ({ sections, roots }) =>
   Object.entries(PLEX_LIBRARY_KINDS)
     .filter(([kind]) => roots[kind])
@@ -254,6 +300,9 @@ const getConfig = async () => {
 
 const prefsXml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' })
 
+const machineIdentifiers = new Map()
+const sectionItemCache = new Map()
+const SECTION_ITEM_TTL_MS = 60 * 1000
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
 const PLEX_LIBRARY_KINDS = {
   tv: { name: 'TV Shows', type: 'show', agent: 'tv.plex.agents.series', scanner: 'Plex TV Series' },

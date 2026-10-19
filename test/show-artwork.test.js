@@ -211,3 +211,24 @@ test('landscapeOf: fits a portrait poster into a 16:9 picture and leaves landsca
   const wide = { body: await solid(1280, 720), contentType: 'image/jpeg' }
   assert.equal(await landscapeOf(wide), wide)
 })
+
+test('forget: drops the cached sources and the failure backoff', async () => {
+  const cache = memoryCache()
+  let searches = 0
+  const artwork = artworkWith({
+    cache,
+    searchTvmaze: async () => {
+      searches += 1
+      if (searches === 1) throw new Error('down')
+      return [tvmazeShow({ id: 1, name: 'Bluey' })]
+    },
+  })
+  await artwork.sourcesFor('Bluey')
+  assert.deepEqual(await artwork.sourcesFor('Bluey'), [])
+  await artwork.forget('Bluey')
+  assert.equal((await artwork.sourcesFor('Bluey')).length > 0, true)
+  cache.rows.set('bluey', { sources: ['old'], expiresAt: Date.now() + 100000 })
+  cache.remove = async (key) => cache.rows.delete(key)
+  await artwork.forget('Bluey')
+  assert.equal(cache.rows.has('bluey'), false)
+})

@@ -171,6 +171,7 @@ import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { watchedAtAfterPosition } from './library.js'
 import { mountLibraryRoutes } from './library-routes.js'
+import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { mountWatchlist } from './watchlist.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
@@ -1166,6 +1167,7 @@ app.get('/api/series', async (req, res) => {
 })
 
 mountLibraryRoutes({ app, csrf: doubleCsrfProtection, ruleLimiter: epgLimiter, watchedLimiter: playPingLimiter, playbackSourceResolver })
+mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })

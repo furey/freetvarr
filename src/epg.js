@@ -747,6 +747,7 @@ const programmeImages = createProgrammeImages({
   fetchImage: (source) => fetchProgrammeImage({ source }),
 })
 const showArtwork = createShowArtwork()
+export const forgetShowArtwork = (title) => showArtwork.forget(title)
 const thumbnailStore = createThumbnailStore({
   dir: getThumbnailRoot(),
   maxBytes: imageCacheBytesFrom(process.env.IMAGE_CACHE_MAX_MB),

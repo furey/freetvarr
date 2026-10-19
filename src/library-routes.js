@@ -1,5 +1,12 @@
+import {
+  getRecordingPlexLink,
+  getShowPlexLink,
+  refreshShowArtwork,
+  setShowWatched,
+} from './library-actions.js'
 import { TvheadendError } from './tvheadend.js'
 import {
+  EPISODE_KINDS,
   EPISODE_STATES,
   episodeLimitFrom,
   getLibraryEpisodes,
@@ -35,6 +42,38 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
     }
   })
 
+  app.post('/api/library/shows/:key/watched', watchedLimiter, csrf, async (req, res) => {
+    const { watched, through_recording_id: through } = req.body || {}
+    if (typeof watched !== 'boolean') return res.status(400).json({ error: 'watched must be true or false' })
+    if (through != null && typeof through !== 'string') {
+      return res.status(400).json({ error: 'through_recording_id must be a recording id' })
+    }
+    const result = await setShowWatched({ key: req.params.key, watched, throughRecordingId: through })
+    if (!result) return res.status(404).json({ error: 'show not found' })
+    if (result.missingThrough) return res.status(404).json({ error: 'recording not found in this show' })
+    res.json({ ok: true, ...result })
+  })
+
+  app.post('/api/library/shows/:key/refresh-artwork', ruleLimiter, csrf, async (req, res) => {
+    const result = await refreshShowArtwork({ key: req.params.key })
+    if (!result) return res.status(404).json({ error: 'show not found' })
+    res.json({ ok: true, ...result })
+  })
+
+  app.get('/api/library/recordings/:recording_id/plex-link', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    const result = await getRecordingPlexLink({ recordingId: req.params.recording_id })
+    if (!result) return res.status(404).json({ error: 'recording not found' })
+    res.json(result)
+  })
+
+  app.get('/api/library/shows/:key/plex-link', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    const result = await getShowPlexLink({ key: req.params.key })
+    if (!result) return res.status(404).json({ error: 'show not found' })
+    res.json(result)
+  })
+
   app.get('/api/library/episodes', async (req, res) => {
     const state = req.query.state ?? 'unwatched'
     if (!EPISODE_STATES.includes(state)) {
@@ -42,8 +81,12 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
     }
     const limit = episodeLimitFrom(req.query.limit)
     if (limit == null) return res.status(400).json({ error: 'limit must be a whole number from 1 to 50' })
+    const kind = req.query.kind ?? null
+    if (kind != null && !EPISODE_KINDS.includes(kind)) {
+      return res.status(400).json({ error: `kind must be one of ${EPISODE_KINDS.join(', ')}` })
+    }
     res.setHeader('Cache-Control', 'no-store')
-    res.json(await getLibraryEpisodes({ state, limit }))
+    res.json(await getLibraryEpisodes({ state, limit, kind }))
   })
 
   app.post('/api/recordings/:recording_id/watched', watchedLimiter, csrf, async (req, res) => {

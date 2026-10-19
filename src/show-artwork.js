@@ -92,7 +92,15 @@ export const createShowArtwork = ({
     return PENDING_ARTWORK
   }
 
-  return { sourcesFor, artworkFor }
+  const forget = async (title) => {
+    const key = showTitleKey(title)
+    if (!key) return
+    failedUntil.delete(key)
+    await cache.remove?.(key).catch(() => {})
+    plexShows.reset()
+  }
+
+  return { sourcesFor, artworkFor, forget }
 }
 
 const withinMs = (promise, ms) => Promise.race([
@@ -179,6 +187,7 @@ const databaseCache = {
     .insert({ title_key: key, sources_json: JSON.stringify(sources), expires_at: expiresAt })
     .onConflict('title_key')
     .merge(),
+  remove: (key) => db('show_artwork').where({ title_key: key }).del(),
 }
 
 const createExpiringValue = ({ load, ttlMs, fallback, now }) => {
@@ -200,7 +209,8 @@ const createExpiringValue = ({ load, ttlMs, fallback, now }) => {
     if (expiresAt <= now()) await refresh()
     return value
   }
-  return { get }
+  const reset = () => { expiresAt = 0 }
+  return { get, reset }
 }
 
 const createSpacedQueue = ({ gapMs }) => {
