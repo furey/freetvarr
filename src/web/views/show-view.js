@@ -22,7 +22,8 @@ import { useFlash, FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { playRecording } from '/shared/playback-session.js'
 import { playback } from '/shared/player-shared.js'
 import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
-import { routeParams } from '/shared/router.js'
+import { routeParams, cameFromHash, navigate } from '/shared/router.js'
+import { backTargetOf } from '/back-target.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 
@@ -35,7 +36,7 @@ export const ShowView = {
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
         <img v-if="heroSrc && !heroFailed" class="show-hero-art" :src="heroSrc" alt="" @error="heroFailed = true" />
         <span class="show-hero-scrim"></span>
-        <a href="#/recordings" class="show-back"><back-glyph /> Recordings</a>
+        <a :href="backTarget.route" class="show-back" @click.prevent="goBack"><back-glyph /> {{ backTarget.label }}</a>
         <div class="show-hero-body">
           <h1 class="show-title">{{ title }}</h1>
           <p v-if="heroMeta" class="show-hero-meta">{{ heroMeta }}</p>
@@ -54,7 +55,7 @@ export const ShowView = {
       <section v-else-if="missing" class="ui-empty show-missing" aria-label="Show not found">
         <h2 class="ui-empty-title">This show is not in your library</h2>
         <p class="ui-empty-text">It may have been removed, or the link is out of date.</p>
-        <a href="#/recordings" class="ui-button">Back to Recordings</a>
+        <a :href="backTarget.route" class="ui-button" @click.prevent="goBack">{{ backTarget.label === 'Back' ? 'Back' : 'Back to ' + backTarget.label }}</a>
       </section>
 
       <p v-else-if="error && !show" class="ui-banner is-error" role="alert">Cannot load this show: {{ error }}</p>
@@ -161,6 +162,15 @@ export const ShowView = {
     const optionsOpen = ref(false)
     const busyId = ref(null)
     const undoIds = ref([])
+
+    const backTarget = computed(() => backTargetOf({
+      previousHash: cameFromHash.value,
+      currentHash: window.location.hash,
+    }))
+    const goBack = () => {
+      if (backTarget.value.usesHistory) return history.back()
+      navigate(backTarget.value.route)
+    }
 
     const title = computed(() => show.value?.title || titleFromKey(key.value))
     const heroStyle = computed(() => artFallbackStyle(title.value))
@@ -323,7 +333,7 @@ export const ShowView = {
       show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, heroFailed, heroMeta, playLabel,
       ruleStatus, firstEpisodeLine, visibleEpisodes, selectedSeason, actionsFor, optionsOpen, busyId, failedImages,
       undoIds, flashText, flashKind, flash, confirming, confirmBusy, closeConfirm, runConfirmed,
-      load, playEpisode, playNext, openActions, runAction, undoClear, onStopped, markImageFailed,
+      backTarget, goBack, load, playEpisode, playNext, openActions, runAction, undoClear, onStopped, markImageFailed,
       episodeHeading, episodeActionsOf, seasonLabel,
       episodeMeta: (episode) => episodeMetaOf({ episode, timeZone: tz.value }),
       episodeImage: (episode) => episode.image,
