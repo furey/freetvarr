@@ -16,6 +16,7 @@ import {
   isPictureTarget,
   playback,
   playbackHooks,
+  playerMini,
 } from '/shared/player-shared.js'
 import { wait } from '/shared/utils.js'
 
@@ -62,6 +63,7 @@ export const playRecording = (recording) => {
   stopPlayback()
   lastSavedPosition = recording.playback_position_s ?? null
   playerWindowed.value = false
+  playerMini.value = false
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
@@ -81,6 +83,7 @@ export const stopPlayback = () => {
   if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
   Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })
   playInfoOpen.value = false
+  if (!live.open) playerMini.value = false
 }
 
 const startPlaybackAt = async (offset, { delayMs = 0 } = {}) => {

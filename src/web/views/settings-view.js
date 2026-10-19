@@ -187,6 +187,7 @@ export const SettingsView = {
               </div>
             </div>
           </div>
+          <tuner-status-panel />
         </section>
 
         <section id="section-storage" class="settings-section">
@@ -267,6 +268,7 @@ export const SettingsView = {
             </div>
             <p class="settings-note">TVHeadend and Freetvarr must share this folder. Each can see it at a different path; enter the path each one sees.</p>
           </div>
+          <live-streams-setting />
         </section>
 
         <section id="section-plex" class="settings-section">

@@ -293,6 +293,12 @@ body.sheet-open .app-tabbar {
   flex-basis: 100%;
 }
 
+@media (max-width: 767px) {
+  .ui-page-heading {
+    min-width: min(100%, 160px);
+  }
+}
+
 @media (min-width: 768px) {
   .ui-page-title {
     font-size: 32px;

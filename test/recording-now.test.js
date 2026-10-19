@@ -116,6 +116,17 @@ test('describeActiveRecording: builds the live card without exposing the image U
   assert.ok(!JSON.stringify(card).includes('fetchtv'))
 })
 
+test('describeActiveRecording: offers watching from the start unless the recording failed', () => {
+  const card = describeActiveRecording({ recording: recording(), inputs: [], subscriptions: [], nowMs: T0 })
+  assert.equal(card.dvrUuid, card.uuid)
+  assert.equal(card.canPlayFromStart, true)
+  assert.ok(card.recordingStartedAt)
+  const failed = describeActiveRecording({
+    recording: recording({ schedStatus: 'recordingError' }), inputs: [], subscriptions: [], nowMs: T0,
+  })
+  assert.equal(failed.canPlayFromStart, false)
+})
+
 test('isRecordingFailure: an error state or error code fails the recording', () => {
   assert.equal(isRecordingFailure(recording()), false)
   assert.equal(isRecordingFailure(recording({ schedStatus: 'recordingError' })), true)

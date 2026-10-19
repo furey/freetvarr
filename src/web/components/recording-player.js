@@ -20,7 +20,10 @@ import {
   singleTapActionFor,
   useControlsAutoHide,
   useInfoDismissTaps,
+  useSwipeDown,
 } from '/components/player-controls.js'
+import { PlayerMini, usePictureInPicture } from '/components/player-mini.js'
+import { miniMetaOf } from '/mini-player.js'
 import {
   playInfoOpen,
   applyPlayCaptions,
@@ -49,19 +52,20 @@ import {
   toggleStageFullscreen,
   FILLED_CAPTION_LINE,
   playback,
+  playerMini,
 } from '/shared/player-shared.js'
 import { tz, fmtTime } from '/shared/time.js'
 import { SKIP_STEP_S } from '/double-tap.js'
 
 export const RecordingPlayer = {
-  components: PLAYER_CHROME_COMPONENTS,
+  components: { ...PLAYER_CHROME_COMPONENTS, 'player-mini': PlayerMini },
   template: `
     <teleport to="body">
     <transition name="pl-fade">
-    <div v-show="playback.open" class="pl-backdrop" role="dialog" aria-label="Recording player">
-      <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-controls-hidden': !controlsShown }]"
-        @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp" @pointercancel="cancelPlayTap"
-        @pointermove="onControlsPointerMove" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
+    <div v-show="playback.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Mini player' : 'Recording player'">
+      <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-controls-hidden': !controlsShown && !mini }]"
+        @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll" @pointercancel="cancelPlayTap"
+        @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
         <div class="player-tap-layer" aria-hidden="true"></div>
         <span v-if="overlayText && playback.phase !== 'ended'" class="pl-caption" role="status">{{ overlayText }}</span>
@@ -91,8 +95,9 @@ export const RecordingPlayer = {
         </player-info-panel>
         <player-top-bar :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
           back-label="Close" :info-open="infoOpen" info-id="play-info" :has-captions="playback.captions"
-          :captions-on="captionsOn" :fullscreen="isStageFullscreen"
-          @back="stopPlayback" @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions" @toggle-fullscreen="toggleFullscreen">
+          :captions-on="captionsOn" :fullscreen="isStageFullscreen" :can-pip="canPip" :pip-active="pipActive" :can-minimise="true"
+          @back="stopPlayback" @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions" @toggle-fullscreen="toggleFullscreen"
+          @toggle-pip="togglePip" @minimise="minimise">
           <button v-if="playback.airplay" type="button" class="pl-pill" aria-label="AirPlay" @click="showAirplay">
             <airplay-icon /><span class="pl-pill-label">AirPlay</span>
           </button>
@@ -118,6 +123,9 @@ export const RecordingPlayer = {
           <span>{{ playback.skipHint.label }}</span>
         </div>
         <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
+        <player-mini v-if="mini" :title="header.title" :meta="miniMeta" :progress="fillPercent"
+          :paused="playback.paused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive"
+          @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" />
       </div>
     </div>
     </transition>
@@ -206,8 +214,20 @@ export const RecordingPlayer = {
     }
 
     const toggleFullscreen = () => toggleStageFullscreen({ stage: stageEl.value, video: playVideo })
+    const mini = playerMini
+    const { canPip, pipActive, togglePip } = usePictureInPicture({ videoEl })
+    const minimise = () => {
+      infoOpen.value = false
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+      mini.value = true
+    }
+    const expand = () => { mini.value = false }
+    const miniMeta = computed(() => miniMetaOf([
+      playback.recording?.channel_name,
+      playback.duration > 0 ? leftPillText(Math.max(0, playback.duration - playback.position)).toLowerCase() : '',
+    ]))
     const { controlsShown, revealControls, onPointerMove: onControlsPointerMove } = useControlsAutoHide({
-      enabled: computed(() => playback.open),
+      enabled: computed(() => playback.open && !mini.value),
       holdShown: computed(() => playback.paused || playback.phase !== 'playing' || playback.waiting
         || playback.scrubbing || infoOpen.value),
       rootEl: stageEl,
@@ -232,10 +252,31 @@ export const RecordingPlayer = {
       onDoubleClick: onPlayDoubleClick,
     })
 
-    usePlayerFocus({ isOpen: computed(() => playback.open), rootEl: stageEl })
+    const { onSwipePointerDown, onSwipePointerUp } = useSwipeDown({
+      enabled: () => playback.open && !mini.value && !infoOpen.value,
+      onSwipe: minimise,
+    })
+    const onFramePointerDownAll = (e) => {
+      if (mini.value) return
+      onSwipePointerDown(e)
+      onFramePointerDown(e)
+    }
+    const onFramePointerUpAll = (e) => {
+      if (mini.value) return
+      if (onSwipePointerUp(e)) return cancelPlayTap()
+      onFramePointerUp(e)
+    }
+    const onFrameClickAll = (e) => {
+      if (!mini.value) onFrameClick(e)
+    }
+    const onFrameDoubleClickAll = (e) => {
+      if (!mini.value) onFrameDoubleClick(e)
+    }
+
+    usePlayerFocus({ isOpen: computed(() => playback.open), isMini: mini, rootEl: stageEl })
 
     usePlayerKeys({
-      isActive: () => playback.open,
+      isActive: () => playback.open && !mini.value,
       infoOpen,
       close: stopPlayback,
       toggleInfo,
@@ -295,7 +336,9 @@ export const RecordingPlayer = {
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
       toggleFullscreen, isStageFullscreen, showAirplay,
-      captionsOn: liveCaptionsOn, togglePlayCaptions, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      captionsOn: liveCaptionsOn, togglePlayCaptions,
+      onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
+      mini, minimise, expand, miniMeta, canPip, pipActive, togglePip,
     }
   },
 }

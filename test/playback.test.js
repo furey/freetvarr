@@ -337,11 +337,11 @@ test('stream cap: live TV and recordings share one limit and name what is playin
   await live.start({ channelId: 'c1', plan: { video: { pid: 1 }, audio: null, videoMode: 'copy' }, label: 'ABC TV' })
   await start(h.sessions)
   await assert.rejects(start(h.sessions, { recordingId: 'r2' }), (err) => {
-    assert.equal(err.code, 'max-sessions')
+    assert.equal(err.code, 'stream-limit')
     assert.match(err.message, /Only 2 streams can play at once\. Playing now: "Show", live TV on ABC TV\./)
     return true
   })
-  await assert.rejects(live.start({ channelId: 'c2', plan: {} }), { code: 'max-sessions' })
+  await assert.rejects(live.start({ channelId: 'c2', plan: {} }), { code: 'stream-limit' })
   await live.stopAll()
   await h.sessions.stopAll()
 })

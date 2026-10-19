@@ -59,6 +59,9 @@ export const describeActiveRecording = ({ recording, inputs, subscriptions, nowM
   const { subscription, input } = inputForRecording({ recording, inputs, subscriptions })
   return {
     ...cardBasics(recording),
+    dvrUuid: recording.uuid,
+    canPlayFromStart: !isRecordingFailure(recording),
+    recordingStartedAt: recording.recordingSince ?? recording.startPadded ?? null,
     start: recording.startDate,
     stop: recording.endDate,
     startPadded: recording.startPadded,

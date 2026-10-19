@@ -13,6 +13,7 @@ import {
   plexLocationMatches,
   isBridgeOnly,
   guideCoverage,
+  liveStreamsCheck,
 } from '../src/doctor.js'
 
 const HOUR_MS = 60 * 60 * 1000
@@ -101,6 +102,7 @@ const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
     latestSync: async () => null,
     schedulerExpression: () => '*/30 * * * *',
     liveEncoder: async () => ({ kind: 'vaapi', reason: 'VAAPI test encode passed on /dev/dri/renderD128' }),
+    liveStreams: async () => ({ max_live_streams: 2, benchmark: { encoder: 'vaapi', speed: 6.2, estimated: 4 } }),
     which: async (tool) => `/usr/bin/${tool}`,
     statfs: async () => ({ bavail: (500 * GB) / 4096, bsize: 4096, blocks: (1000 * GB) / 4096 }),
     envTimeZone: () => 'Australia/Sydney',
@@ -128,7 +130,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 16, warn: 0, fail: 0, skip: 2 })
+  assert.deepEqual(report.summary, { pass: 17, warn: 0, fail: 0, skip: 2 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -516,4 +518,17 @@ test('host.env: a Docker VM omits its internal address', async () => {
     now,
   })
   assert.doesNotMatch(byId(report)['host.env'].detail, /192\.168\.139\.2/)
+})
+
+test('live.streams: names the measured speed and the limit', () => {
+  const check = liveStreamsCheck({ max_live_streams: 2, benchmark: { encoder: 'vaapi', speed: 6.2, estimated: 4 } })
+  assert.equal(check.status, 'pass')
+  assert.equal(check.detail, 'Hardware transcoding measured at 6.2× real time, enough for 4 at once. Freetvarr plays up to 2 at once.')
+})
+
+test('live.streams: warns when the limit is above the estimate, skips before the first run', () => {
+  const check = liveStreamsCheck({ max_live_streams: 2, benchmark: { encoder: 'software', speed: 2.1, estimated: 1 } })
+  assert.equal(check.status, 'warn')
+  assert.match(check.fix, /Set Live streams at once to 1\./)
+  assert.equal(liveStreamsCheck({ max_live_streams: 1, benchmark: null }).status, 'skip')
 })

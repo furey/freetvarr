@@ -1,4 +1,5 @@
 import { ref, watch, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { overlayStack } from '/overlay-stack.js'
 
 let sheetCount = 0
 
@@ -12,7 +13,7 @@ export const UiSheet = {
   template: `
     <teleport to="body">
       <transition name="ui-sheet">
-        <div v-if="open" class="ui-sheet-backdrop" @click.self="$emit('close')">
+        <div v-if="open" class="ui-sheet-backdrop" :style="{ zIndex }" @click.self="$emit('close')">
           <section ref="sheet" class="ui-sheet" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1">
             <span class="ui-sheet-grab" aria-hidden="true"></span>
             <header class="ui-sheet-header">
@@ -30,20 +31,29 @@ export const UiSheet = {
   setup(props, { emit }) {
     const sheet = ref(null)
     const titleId = `ui-sheet-title-${++sheetCount}`
+    const zIndex = ref(null)
     let returnFocus = null
+    let layerId = null
     const onKeydown = (event) => {
+      if (!overlayStack.isTop(layerId)) return
       if (event.key === 'Tab') return keepFocusInside({ event, root: sheet.value })
       if (event.key !== 'Escape') return
       event.stopImmediatePropagation()
       emit('close')
     }
     const setOpen = async (isOpen) => {
-      try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
       window.removeEventListener('keydown', onKeydown, true)
       if (!isOpen) {
+        overlayStack.remove(layerId)
+        layerId = null
+        try { document.body.classList.toggle('sheet-open', overlayStack.size() > 0) } catch {}
         returnFocus?.focus?.()
         return
       }
+      const layer = overlayStack.push()
+      layerId = layer.id
+      zIndex.value = layer.zIndex
+      try { document.body.classList.add('sheet-open') } catch {}
       returnFocus = document.activeElement
       window.addEventListener('keydown', onKeydown, true)
       await nextTick()
@@ -56,7 +66,7 @@ export const UiSheet = {
     onUnmounted(() => {
       if (props.open) setOpen(false)
     })
-    return { sheet, titleId }
+    return { sheet, titleId, zIndex }
   },
 }
 

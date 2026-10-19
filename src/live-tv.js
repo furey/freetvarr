@@ -315,8 +315,9 @@ export const createLiveSessions = ({
       return { session: existing, shared: true }
     }
     const playing = [...labels(), ...streamsElsewhere()]
-    if (playing.length >= maxSessions) {
-      throw streamLimitError({ maxSessions, playing })
+    const limit = limitOf(maxSessions)
+    if (playing.length >= limit) {
+      throw streamLimitError({ maxSessions: limit, playing })
     }
     const id = newId()
     const session = {
@@ -581,8 +582,10 @@ export const createLiveSessions = ({
 export const streamLimitError = ({ maxSessions, playing }) =>
   new LiveTvError(
     `Only ${maxSessions} stream${maxSessions === 1 ? '' : 's'} can play at once. Playing now: ${playing.join(', ')}.`,
-    { code: 'max-sessions', details: { playing } },
+    { code: 'stream-limit', details: { playing, limit: maxSessions } },
   )
+
+export const limitOf = (maxSessions) => (typeof maxSessions === 'function' ? maxSessions() : maxSessions)
 
 export const view = (session) => ({
   id: session.id,

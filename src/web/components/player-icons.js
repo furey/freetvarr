@@ -1,0 +1,52 @@
+const icon = (paths) => ({
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      ${paths}
+    </svg>
+  `,
+})
+
+export const PictureInPictureIcon = icon('<rect x="1.75" y="3" width="12.5" height="10" rx="1.5"/><rect x="8" y="8" width="4.5" height="3.25" rx="0.6" fill="currentColor" stroke="none"/>')
+
+export const MinimiseIcon = icon('<path d="M4 6.25 8 10.25l4-4"/>')
+
+export const WatchAlongsideIcon = icon('<rect x="1.75" y="3" width="6" height="10" rx="1.2"/><path d="M11.75 6v4M9.75 8h4"/>')
+
+export const SwapIcon = icon('<path d="M3 5.5h10M10.5 3 13 5.5 10.5 8M13 10.5H3M5.5 8 3 10.5 5.5 13"/>')
+
+export const SwapVerticalIcon = icon('<path d="M5.5 13V3M3 5.5 5.5 3 8 5.5M10.5 3v10M8 10.5l2.5 2.5 2.5-2.5"/>')
+
+export const SplitLayoutIcon = icon('<rect x="1.75" y="3" width="5.5" height="10" rx="1.2"/><rect x="8.75" y="3" width="5.5" height="10" rx="1.2"/>')
+
+export const InsetLayoutIcon = icon('<rect x="1.75" y="3" width="12.5" height="10" rx="1.5"/><rect x="8" y="8" width="4.5" height="3.25" rx="0.6" fill="currentColor" stroke="none"/>')
+
+export const RewindToStartIcon = icon('<path d="M2.75 8a5.25 5.25 0 1 0 1.6-3.8"/><path d="M2.75 2.75v2.5h2.5"/>')
+
+export const ClockIcon = icon('<circle cx="8" cy="8" r="5.75"/><path d="M8 4.75V8l2.25 1.5"/>')
+
+export const ExpandIcon = icon('<path d="M2.75 6V2.75H6M10 2.75h3.25V6M13.25 10v3.25H10M6 13.25H2.75V10"/>')
+
+export const MoreDotsIcon = {
+  template: `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/>
+    </svg>
+  `,
+}
+
+export const PhoneRotateIcon = icon('<rect x="4.5" y="1.75" width="7" height="12.5" rx="1.5"/><path d="M2 9.5a3 3 0 0 0 2.5 3"/>')
+
+export const PLAYER_ICON_COMPONENTS = {
+  'pip-icon': PictureInPictureIcon,
+  'minimise-icon': MinimiseIcon,
+  'watch-alongside-icon': WatchAlongsideIcon,
+  'swap-icon': SwapIcon,
+  'swap-vertical-icon': SwapVerticalIcon,
+  'split-layout-icon': SplitLayoutIcon,
+  'inset-layout-icon': InsetLayoutIcon,
+  'rewind-to-start-icon': RewindToStartIcon,
+  'clock-icon': ClockIcon,
+  'expand-icon': ExpandIcon,
+  'more-dots-icon': MoreDotsIcon,
+  'phone-rotate-icon': PhoneRotateIcon,
+}

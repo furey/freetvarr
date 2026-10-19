@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { DOUBLE_TAP_MS } from '/double-tap.js'
+import { isSwipeDown } from '/mini-player.js'
 
 const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
   && !e.ctrlKey && !e.metaKey && !e.altKey
@@ -40,18 +41,45 @@ export const usePlayerKeys = ({
   onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 }
 
-export const usePlayerFocus = ({ isOpen, rootEl }) => {
+export const usePlayerFocus = ({ isOpen, isMini = ref(false), rootEl }) => {
   let returnFocus = null
-  watch(isOpen, async (open) => {
-    if (!open) {
-      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true })
-      returnFocus = null
+  const isInsidePlayer = (el) => Boolean(el && rootEl.value?.closest('.pl-backdrop')?.contains(el))
+  const restoreFocus = () => {
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true })
+  }
+  watch(() => isOpen.value && !isMini.value, async (shown) => {
+    if (!shown) {
+      restoreFocus()
+      if (!isOpen.value) returnFocus = null
       return
     }
-    returnFocus = document.activeElement
+    if (!isInsidePlayer(document.activeElement)) returnFocus = document.activeElement
     await nextTick()
     rootEl.value?.focus({ preventScroll: true })
   })
+  watch(isOpen, (open) => {
+    if (open) return
+    if (isInsidePlayer(document.activeElement) || document.activeElement === document.body) restoreFocus()
+    returnFocus = null
+  })
+}
+
+export const useSwipeDown = ({ enabled, onSwipe }) => {
+  let start = null
+  const onSwipePointerDown = (e) => {
+    start = enabled() && e.pointerType === 'touch' && e.isPrimary && !e.target.closest?.('button, input, .pl-bottom')
+      ? { x: e.clientX, y: e.clientY, at: Date.now() }
+      : null
+  }
+  const onSwipePointerUp = (e) => {
+    const from = start
+    start = null
+    if (!from) return false
+    const swiped = isSwipeDown({ startX: from.x, startY: from.y, endX: e.clientX, endY: e.clientY, ms: Date.now() - from.at })
+    if (swiped) onSwipe()
+    return swiped
+  }
+  return { onSwipePointerDown, onSwipePointerUp }
 }
 
 const isKeyboardFocused = (el) => !el.matches?.('button') || el.matches(':focus-visible')

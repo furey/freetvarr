@@ -57,6 +57,7 @@ import { ChannelLogo, ProgrammeImage } from '/components/images.js'
 import { InfoButton } from '/components/info-button.js'
 import { ListSkeleton } from '/components/list-skeleton.js'
 import { LivePlayer } from '/components/live-player.js'
+import { LiveStreamsSetting, TunerStatusPanel } from '/components/live-streams-settings.js'
 import { ManualOption } from '/components/manual-option.js'
 import {
   HomeNavIcon,
@@ -220,6 +221,8 @@ app.component('step-mark-icon', StepMarkIcon)
 app.component('sort-arrow', SortArrow)
 app.component('list-skeleton', ListSkeleton)
 app.component('live-player', LivePlayer)
+app.component('live-streams-setting', LiveStreamsSetting)
+app.component('tuner-status-panel', TunerStatusPanel)
 app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)
 app.component('fullscreen-icon', FullscreenIcon)

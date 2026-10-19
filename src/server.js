@@ -174,6 +174,10 @@ import { mountLibraryRoutes } from './library-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { mountWatchlist } from './watchlist.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
+import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
+import { describeBenchmark } from './live-benchmark.js'
+import { mountTunerStatus } from './tuner-status.js'
+import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
@@ -207,7 +211,6 @@ const CSRF_SECRET = await loadCsrfSecret()
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 const LIBRARY_CHOICES = ['include', 'exclude']
-const LIVE_TV_MAX_SESSIONS = Math.max(1, Number(process.env.LIVE_TV_MAX_SESSIONS) || 2)
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
 const liveEncoderReady = Promise.all([
   detectLiveEncoder({
@@ -886,15 +889,27 @@ app.get('/api/recording-now', (req, res) => sendTvheadendRead({
 const liveSessions = createLiveSessions({
   openUpstream: openUpstreamFor,
   describeStall: describeStallFor,
-  maxSessions: LIVE_TV_MAX_SESSIONS,
+  maxSessions: () => liveStreams.current(),
   streamsElsewhere: () => playbackSessions.labels(),
   bufferMinutes: LIVE_TV_BUFFER_MINUTES,
 })
 
 const playbackSessions = createPlaybackSessions({
-  maxSessions: LIVE_TV_MAX_SESSIONS,
+  maxSessions: () => liveStreams.current(),
   streamsElsewhere: () => liveSessions.labels(),
 })
+
+const liveStreams = createLiveStreams({
+  envValue: process.env.LIVE_TV_MAX_SESSIONS,
+  encoderReady: liveEncoderReady,
+  getSetting,
+  setSetting,
+  isBusy: () => liveSessions.activeCount() + playbackSessions.activeCount() > 0,
+})
+liveStreams.load()
+  .then(() => liveStreams.measure())
+  .then((outcome) => outcome.benchmark && console.log(`[live] ${describeBenchmark(outcome.benchmark)}`))
+  .catch((err) => console.warn(`[live] stream capacity check failed: ${err.message}`))
 
 const liveLimiter = rateLimit({
   windowMs: 60_000,
@@ -1139,7 +1154,7 @@ app.get('/api/doctor', doctorLimiter, async (req, res) => {
   try {
     res.json(await getDoctorReport({
       fresh: req.query.fresh === '1',
-      deps: { liveEncoder: () => liveEncoderReady },
+      deps: { liveEncoder: () => liveEncoderReady, liveStreams: async () => liveStreams.describe() },
     }))
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -1154,6 +1169,9 @@ mountLibraryRoutes({ app, csrf: doubleCsrfProtection, ruleLimiter: epgLimiter, w
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
+mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })
+mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
+mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })
 
 app.get('/api/health-summary', healthSummaryRoute)
 

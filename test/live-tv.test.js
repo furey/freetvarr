@@ -341,8 +341,37 @@ test('sessions: refuses a channel past the session limit', async () => {
   const h = fakeHarness()
   await h.sessions.start({ channelId: 'c1', plan: PLAN })
   await h.sessions.start({ channelId: 'c2', plan: PLAN })
-  await assert.rejects(h.sessions.start({ channelId: 'c3', plan: PLAN }), { code: 'max-sessions' })
+  await assert.rejects(h.sessions.start({ channelId: 'c3', plan: PLAN }), { code: 'stream-limit' })
   await h.sessions.stopAll()
+})
+
+test('sessions: the stream limit is read at each start, so a changed setting applies at once', async () => {
+  let limit = 1
+  const sessions = createLiveSessions({
+    maxSessions: () => limit,
+    newId: (() => { let n = 0; return () => String(++n).padStart(16, '0') })(),
+    makeDir: async () => {},
+    removeDir: async () => {},
+    spawnProcess: () => {
+      const child = new EventEmitter()
+      child.stdin = new PassThrough()
+      child.stderr = new PassThrough()
+      child.kill = () => child.emit('exit', null, 'SIGTERM')
+      return child
+    },
+    openUpstream: async () => new PassThrough(),
+  })
+  await sessions.start({ channelId: 'c1', plan: PLAN, label: 'ABC TV' })
+  await assert.rejects(sessions.start({ channelId: 'c2', plan: PLAN }), (err) => {
+    assert.equal(err.code, 'stream-limit')
+    assert.equal(err.status, 409)
+    assert.deepEqual(err.details, { playing: ['live TV on ABC TV'], limit: 1 })
+    return true
+  })
+  limit = 2
+  await sessions.start({ channelId: 'c2', plan: PLAN })
+  assert.equal(sessions.activeCount(), 2)
+  await sessions.stopAll()
 })
 
 test('sessions: the reaper ends a session nobody has fetched from for 20 s', async () => {

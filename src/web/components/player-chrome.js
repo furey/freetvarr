@@ -1,4 +1,7 @@
+import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
+
 export const PlayerTopBar = {
+  components: PLAYER_ICON_COMPONENTS,
   props: {
     channelId: { type: [String, Number], default: null },
     hasLogo: Boolean,
@@ -10,8 +13,11 @@ export const PlayerTopBar = {
     hasCaptions: Boolean,
     captionsOn: Boolean,
     fullscreen: Boolean,
+    canPip: Boolean,
+    pipActive: Boolean,
+    canMinimise: Boolean,
   },
-  emits: ['back', 'toggle-info', 'toggle-captions', 'toggle-fullscreen'],
+  emits: ['back', 'toggle-info', 'toggle-captions', 'toggle-fullscreen', 'toggle-pip', 'minimise'],
   template: `
     <header class="pl-top">
       <button type="button" class="pl-round" :aria-label="backLabel" @click="$emit('back')"><arrow-left-icon /></button>
@@ -21,6 +27,10 @@ export const PlayerTopBar = {
         <p v-if="subtitle" class="pl-subtitle">{{ subtitle }}</p>
       </div>
       <div class="pl-actions">
+        <slot name="lead" />
+        <button v-if="canPip" type="button" class="pl-round" :aria-pressed="String(pipActive)"
+          :aria-label="pipActive ? 'Leave picture in picture' : 'Picture in picture'" @click="$emit('toggle-pip')"><pip-icon /></button>
+        <button v-if="canMinimise" type="button" class="pl-round" aria-label="Minimise player" @click="$emit('minimise')"><minimise-icon /></button>
         <slot name="before" />
         <button v-if="hasCaptions" type="button" class="pl-pill" :disabled="infoOpen" :aria-pressed="String(captionsOn)"
           aria-label="Captions" @click="$emit('toggle-captions')">
@@ -101,6 +111,7 @@ export const PlayerScrubber = {
 }
 
 export const PLAYER_CHROME_COMPONENTS = {
+  ...PLAYER_ICON_COMPONENTS,
   'player-top-bar': PlayerTopBar,
   'player-center-controls': PlayerCenterControls,
   'player-scrubber': PlayerScrubber,

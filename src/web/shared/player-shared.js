@@ -25,7 +25,10 @@ export const live = reactive({
   skipHint: null,
   captions: false,
   paused: false,
+  fromStart: null,
 })
+
+export const playerMini = ref(false)
 
 export const liveCaptionsOn = storedFlag({ key: LIVE_CAPTIONS_KEY, fallback: false })
 

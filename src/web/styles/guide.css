@@ -1013,12 +1013,30 @@
   height: 16px;
 }
 
-.channels-sheet-backdrop {
-  z-index: 41;
-}
-
 .channels-sheet {
   gap: 16px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.channels-sheet .ui-group-row {
+  min-width: 0;
+}
+
+.channels-sheet .ui-group-row-main {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.channels-sheet .ui-switch {
+  flex: none;
+}
+
+.channels-list > * {
+  flex: none;
 }
 
 .channels-grid {

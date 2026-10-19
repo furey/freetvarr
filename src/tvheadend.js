@@ -471,6 +471,19 @@ export const openChannelStream = async ({ channelId, signal, userAgent, conn } =
   })
 }
 
+export const openDvrFile = async ({ uuid, start = 0, signal, conn } = {}) => {
+  const c = conn || (await resolveConnection())
+  const res = await sendAuthenticated({
+    method: 'get',
+    url: `${c.url}/dvrfile/${encodeURIComponent(uuid)}`,
+    responseType: 'stream',
+    signal,
+    timeout: REQUEST_TIMEOUT_MS,
+    headers: { Range: `bytes=${start}-` },
+  }, c)
+  return { status: res.status, stream: res.data }
+}
+
 export const streamRequestError = (err) => {
   if (err?.code !== 'ECONNRESET') return err
   return new TvheadendError('TVHeadend closed the stream before sending any video.', {

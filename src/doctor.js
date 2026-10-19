@@ -8,6 +8,7 @@ import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { findOpenAdminEntries } from './tvheadend-bootstrap.js'
 import { listPlexSections } from './plex.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
+import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
@@ -528,6 +529,13 @@ const LATER_CHECKS = [
     },
   },
   {
+    id: 'live.streams',
+    group: 'live',
+    title: 'Live streams',
+    doc: 'guide/hardware#hardware-transcoding',
+    run: async (ctx) => liveStreamsCheck(await ctx.deps.liveStreams()),
+  },
+  {
     id: 'ads.comskip',
     group: 'host',
     title: 'Ad removal tools',
@@ -577,6 +585,20 @@ const LATER_CHECKS = [
     },
   },
 ]
+
+export const liveStreamsCheck = (streams) => {
+  const measured = describeBenchmark(streams?.benchmark)
+  if (!measured) return { status: 'skip', detail: 'The live TV speed test has not run yet.' }
+  const limit = `Freetvarr plays up to ${streams.max_live_streams} at once.`
+  if (streams.max_live_streams > streams.benchmark.estimated) {
+    return {
+      status: 'warn',
+      detail: `${measured}. ${limit}`,
+      fix: `Pictures may stutter. Set Live streams at once to ${streams.benchmark.estimated}.`,
+    }
+  }
+  return { status: 'pass', detail: `${measured}. ${limit}` }
+}
 
 const runCheck = async ({ spec, ctx }) => {
   const base = { id: spec.id, group: spec.group, title: spec.title, doc: spec.doc, fix: '' }
@@ -777,6 +799,7 @@ const defaultDeps = () => ({
   latestSync: readLatestSync,
   schedulerExpression: getSchedulerExpression,
   liveEncoder: async () => null,
+  liveStreams: async () => null,
   which: findOnPath,
   envTimeZone: timeZoneFromEnv,
   systemTimeZone: currentTimeZone,

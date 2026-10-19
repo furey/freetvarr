@@ -1,7 +1,9 @@
-import { ref, reactive, computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { optionLabel } from '/typeahead.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
+import { overlayStack } from '/overlay-stack.js'
+import { keepFocusInside } from '/components/ui-sheet.js'
 
 const CHANNEL_SORT_OPTIONS = [
   { key: 'default', label: 'TVHeadend' },
@@ -13,8 +15,8 @@ export const ChannelsModal = {
   props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts', 'hideSdChannels'],
   emits: ['close', 'saved'],
   template: `
-    <div class="ui-sheet-backdrop channels-sheet-backdrop" @click.self="$emit('close')">
-      <section class="ui-sheet channels-sheet" role="dialog" aria-modal="true" aria-labelledby="channels-sheet-title">
+    <div class="ui-sheet-backdrop channels-sheet-backdrop" :style="{ zIndex }" @click.self="$emit('close')">
+      <section ref="sheet" class="ui-sheet channels-sheet" role="dialog" aria-modal="true" aria-labelledby="channels-sheet-title" tabindex="-1">
         <span class="ui-sheet-grab" aria-hidden="true"></span>
         <header class="ui-sheet-header">
           <h2 id="channels-sheet-title" class="ui-sheet-title">Channels</h2>
@@ -192,12 +194,31 @@ export const ChannelsModal = {
       }
     }
 
-    onMounted(() => {
+    const sheet = ref(null)
+    const layer = overlayStack.push()
+    const zIndex = ref(layer.zIndex)
+    let returnFocus = null
+    const onKeydown = (event) => {
+      if (!overlayStack.isTop(layer.id)) return
+      if (event.key === 'Tab') return keepFocusInside({ event, root: sheet.value })
+      if (event.key !== 'Escape' || editingId.value !== null) return
+      event.stopImmediatePropagation()
+      emit('close')
+    }
+
+    onMounted(async () => {
       try { document.body.classList.add('sheet-open') } catch { /* ignore */ }
+      returnFocus = document.activeElement
+      window.addEventListener('keydown', onKeydown, true)
       loadGuideLinks()
+      await nextTick()
+      sheet.value?.focus()
     })
     onUnmounted(() => {
-      try { document.body.classList.remove('sheet-open') } catch { /* ignore */ }
+      window.removeEventListener('keydown', onKeydown, true)
+      overlayStack.remove(layer.id)
+      try { document.body.classList.toggle('sheet-open', overlayStack.size() > 0) } catch { /* ignore */ }
+      returnFocus?.focus?.()
     })
 
     const draftName = (id) => props.channels.find((c) => String(c.id) === String(id))?.name || `channel ${id}`
@@ -275,7 +296,7 @@ export const ChannelsModal = {
       statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
       editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
-      onRowEscape, paddedNumber,
+      onRowEscape, paddedNumber, sheet, zIndex,
     }
   },
 }

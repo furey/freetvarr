@@ -27,6 +27,7 @@ import {
   FILLED_CAPTION_LINE,
   playback,
   playbackHooks,
+  playerMini,
 } from '/shared/player-shared.js'
 
 export let liveVideo = null
@@ -38,6 +39,9 @@ let liveStartTimer = null
 let liveMetadataAt = 0
 let livePollTimer = null
 let liveRun = 0
+let fromStartBeatTimer = null
+
+export const liveStopHooks = new Set()
 
 export const liveChannelOf = (channel) => ({
   id: channel.id,
@@ -51,6 +55,7 @@ export const watchLive = ({ channel, nowTitle }) => {
   if (playback.open) playbackHooks.stopPlayback()
   stopLive()
   playerWindowed.value = false
+  playerMini.value = false
   Object.assign(live, {
     open: true, channel, nowTitle, sessionId: null,
     phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
@@ -70,9 +75,124 @@ export const stopLive = () => {
   clearTimeout(livePollTimer)
   detachLiveVideo()
   if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
+  stopFromStartSession()
   Object.assign(live, {
     open: false, sessionId: null, phase: 'idle', message: '', holders: [], conflict: null, captions: false,
   })
+  playerMini.value = false
+  for (const hook of liveStopHooks) hook()
+}
+
+export const adoptLiveSession = ({ channel, session, nowTitle = '' }) => {
+  liveRun += 1
+  const run = liveRun
+  clearTimeout(livePollTimer)
+  detachLiveVideo()
+  if (live.sessionId && live.sessionId !== session.id) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
+  stopFromStartSession()
+  Object.assign(live, {
+    channel, nowTitle, sessionId: session.id, phase: 'tuning', message: '', holders: [], conflict: null,
+    tuningStartedAt: Date.now(), bufferSeconds: session.bufferSeconds || 0, captions: Boolean(session.captions),
+  })
+  attachLiveVideo(run, session.playlist)
+  pollLive(run)
+}
+
+export const retuneLive = ({ channel, nowTitle = '' }) => {
+  liveRun += 1
+  clearTimeout(livePollTimer)
+  detachLiveVideo()
+  if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
+  stopFromStartSession()
+  Object.assign(live, {
+    channel, nowTitle, sessionId: null, phase: 'tuning', message: '', holders: [], conflict: null,
+    tuningStartedAt: Date.now(),
+  })
+  startLiveSession(liveRun)
+}
+
+export const watchFromStart = async (recording) => {
+  liveRun += 1
+  const run = liveRun
+  clearTimeout(livePollTimer)
+  detachLiveVideo()
+  if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
+  const replace = live.fromStart?.sessionId
+  Object.assign(live, {
+    sessionId: null, phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
+    fromStart: {
+      dvrUuid: recording.dvrUuid, title: recording.title, sessionId: null,
+      recordingStartedAt: recording.recordingStartedAt ?? recording.startPadded ?? recording.start,
+      edgeSeconds: 0, growing: true,
+    },
+  })
+  try {
+    const r = await api('POST', '/api/play/in-progress', {
+      dvrUuid: recording.dvrUuid, player: FROM_START_PLAYER, ...(replace ? { replace } : {}),
+    })
+    if (run !== liveRun) {
+      api('DELETE', `/api/play/${r.session.id}`).catch(() => {})
+      return
+    }
+    Object.assign(live.fromStart, {
+      sessionId: r.session.id,
+      recordingStartedAt: r.session.recordingStartedAt ?? live.fromStart.recordingStartedAt,
+      edgeSeconds: r.session.liveEdgeSeconds || 0,
+    })
+    live.captions = Boolean(r.session.captions)
+    attachLiveVideo(run, r.session.playlist, { config: FROM_START_HLS_CONFIG })
+    scheduleFromStartBeat(run)
+  } catch (err) {
+    if (run !== liveRun) return
+    live.phase = 'ended'
+    live.message = fromStartErrorText(err)
+  }
+}
+
+export const returnToLive = () => {
+  if (!live.fromStart) return jumpToLive()
+  retuneLive({ channel: live.channel, nowTitle: live.nowTitle })
+}
+
+const stopFromStartSession = () => {
+  clearTimeout(fromStartBeatTimer)
+  const sessionId = live.fromStart?.sessionId
+  if (sessionId) api('DELETE', `/api/play/${sessionId}`).catch(() => {})
+  live.fromStart = null
+}
+
+const scheduleFromStartBeat = (run) => {
+  clearTimeout(fromStartBeatTimer)
+  fromStartBeatTimer = setTimeout(() => beatFromStart(run), FROM_START_HEARTBEAT_MS)
+}
+
+const beatFromStart = async (run) => {
+  const sessionId = live.fromStart?.sessionId
+  if (run !== liveRun || !sessionId) return
+  try {
+    const r = await api('POST', `/api/play/${sessionId}/heartbeat`)
+    if (run !== liveRun || !live.fromStart) return
+    live.fromStart.edgeSeconds = r.session?.liveEdgeSeconds ?? live.fromStart.edgeSeconds
+    live.fromStart.growing = r.session?.growing !== false
+  } catch (err) {
+    if (run !== liveRun) return
+    if (err.status === 404) return endLive(run, { code: 'gone' })
+  }
+  scheduleFromStartBeat(run)
+}
+
+const fromStartErrorText = (err) => {
+  if (err.code === 'stream-limit') return streamLimitText(err)
+  if (err.code === 'not-recording') return 'The recording has stopped, so it cannot play from the start.'
+  if (err.code === 'missing') return 'Freetvarr cannot read this recording yet.'
+  return `Error: ${err.message}`
+}
+
+const streamLimitText = (err) => {
+  const limit = err.data?.limit ?? err.limit
+  const playing = (err.data?.playing || []).filter(Boolean).join(', ')
+  const count = limit === 1 ? '1 stream' : `${limit || 'all'} streams`
+  return playing ? `This NAS is already playing ${count}: ${playing}.` : `This NAS is already playing ${count}.`
 }
 
 const startLiveSession = async (run) => {
@@ -119,10 +239,13 @@ const pollLive = async (run) => {
 const playsHlsOnlyNatively = () =>
   !('MediaSource' in window) && liveVideo.canPlayType('application/vnd.apple.mpegurl') !== ''
 
-const attachLiveVideo = async (run, playlist, { eager = false } = {}) => {
+const attachLiveVideo = async (run, playlist, { eager = false, config = LIVE_HLS_CONFIG } = {}) => {
   liveAttached = true
-  if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager })
-  liveVideo.addEventListener('loadedmetadata', () => markLiveStarted(run), { once: true })
+  if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager, config })
+  liveVideo.addEventListener('loadedmetadata', () => {
+    if (live.fromStart && run === liveRun) liveVideo.currentTime = 0
+    markLiveStarted(run)
+  }, { once: true })
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
@@ -170,11 +293,11 @@ const abandonEagerAttach = (run) => {
   detachLiveVideo()
 }
 
-const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {}) => {
+const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false, config = LIVE_HLS_CONFIG } = {}) => {
   const { default: Hls } = await import('/vendor/hls.mjs')
   if (run !== liveRun) return
   if (!Hls.isSupported()) return endLive(run, { code: 'unsupported' })
-  liveHls = new Hls(LIVE_HLS_CONFIG)
+  liveHls = new Hls(config)
   liveHlsBuffered = false
   let recovered = false
   liveHls.once(Hls.Events.FRAG_BUFFERED, () => {
@@ -192,7 +315,7 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false } = {
     if (rebuilt) return endLive(run, { code: 'playback', detail: data.details })
     liveHls.destroy()
     liveHls = null
-    attachHlsJs(run, playlist, { rebuilt: true })
+    attachHlsJs(run, playlist, { rebuilt: true, config })
   })
   liveHls.loadSource(playlist)
   liveHls.attachMedia(liveVideo)
@@ -205,6 +328,11 @@ const endLive = (run, reason) => {
   detachLiveVideo()
   if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
   live.sessionId = null
+  clearTimeout(fromStartBeatTimer)
+  if (live.fromStart?.sessionId) {
+    api('DELETE', `/api/play/${live.fromStart.sessionId}`).catch(() => {})
+    live.fromStart.sessionId = null
+  }
   live.phase = 'ended'
   live.message = liveReasonText(reason)
 }
@@ -254,10 +382,11 @@ const clearVideoSource = () => {
   liveVideo.load()
 }
 
-const liveReasonText = (reason) => {
+export const liveReasonText = (reason) => {
   const detail = reason?.detail ? `: ${reason.detail}` : '.'
   if (!reason) return 'Stopped: the stream ended.'
-  if (reason.code === 'preempted') return `Stopped: the recording "${reason.recording}" took the tuner.`
+  if (reason.code === 'preempted') return `Stopped for a recording: ${reason.recording}`
+  if (reason.code === 'stream-limit') return streamLimitText(reason)
   if (reason.code === 'no-input') return 'Stopped: TVHeadend gets no signal for this channel.'
   if (reason.code === 'gone') return 'Stopped: TVHeadend ended the stream.'
   if (reason.code === 'idle') return 'Stopped: nobody was watching.'
@@ -272,6 +401,7 @@ const liveReasonText = (reason) => {
 }
 
 const liveStartErrorText = (err) => {
+  if (err.code === 'stream-limit') return streamLimitText(err)
   if (err.code === 'no-tuner') return 'No free tuner. Every tuner is busy on another multiplex:'
   if (err.code === 'off-air') return err.message
   return `Error: ${err.message}`
@@ -287,6 +417,16 @@ export const fmtCountdown = (ms) => {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`
 }
 
+const sendFromStartBeacon = () => {
+  const sessionId = live.fromStart?.sessionId
+  if (!sessionId) return
+  fetch(`/api/play/${sessionId}`, {
+    method: 'DELETE',
+    keepalive: true,
+    headers: { 'x-csrf-token': csrfToken || '' },
+  }).catch(() => {})
+}
+
 const sendLiveBeacon = ({ method, suffix = '' }) => {
   if (!live.sessionId) return
   fetch(`/api/live/${live.sessionId}${suffix}`, {
@@ -299,10 +439,12 @@ const sendLiveBeacon = ({ method, suffix = '' }) => {
 window.addEventListener('pagehide', (event) => {
   if (event.persisted) return sendLiveBeacon({ method: 'POST', suffix: '/hold' })
   sendLiveBeacon({ method: 'DELETE' })
+  sendFromStartBeacon()
 })
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') return sendLiveBeacon({ method: 'POST', suffix: '/hold' })
+  if (live.fromStart?.sessionId) return beatFromStart(liveRun)
   if (!live.sessionId) return
   clearTimeout(livePollTimer)
   pollLive(liveRun)
@@ -364,7 +506,7 @@ const liveTargetSecond = () => {
   return edge == null ? null : Math.max(0, edge - NATIVE_LIVE_HOLD_BACK_S)
 }
 
-const liveSeekFloor = () => seekFloorOf({ oldest: oldestKeptSecond(), target: liveTargetSecond() })
+const liveSeekFloor = () => (live.fromStart ? 0 : seekFloorOf({ oldest: oldestKeptSecond(), target: liveTargetSecond() }))
 
 export const keepSeekInsideBuffer = () => {
   const floor = liveSeekFloor()
@@ -378,7 +520,7 @@ let liveTapStart = null
 let liveClickPlan = 'pass'
 let liveSingleClickTimer = null
 
-const canSkip = () => live.phase === 'live' && live.bufferSeconds > 0 && liveAttached
+const canSkip = () => live.phase === 'live' && (live.bufferSeconds > 0 || Boolean(live.fromStart)) && liveAttached
 
 export const onLivePointerDown = (e) => {
   liveTapStart = e.isPrimary && isPictureTarget(e.target, liveVideo)
@@ -497,6 +639,13 @@ const LIVE_HLS_CONFIG = {
   liveMaxLatencyDuration: Infinity,
   backBufferLength: 30,
 }
+const FROM_START_HLS_CONFIG = {
+  ...LIVE_HLS_CONFIG,
+  startPosition: 0,
+  backBufferLength: 90,
+}
+const FROM_START_HEARTBEAT_MS = 15_000
+const FROM_START_PLAYER = `from-start-${crypto.randomUUID?.() ?? String(Math.random()).slice(2)}`
 const LIVE_START_CHECK_MS = 100
 const LIVE_POLL_PLAYING_MS = 10_000
 
