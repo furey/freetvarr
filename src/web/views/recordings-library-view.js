@@ -13,6 +13,7 @@ import {
   showsCountText,
 } from '/library-shelves.js'
 import { diagnoseRecordingError } from '/recording-error.js'
+import { scheduledCountOfState } from '/scheduled-groups.js'
 import { showHrefOf } from '/show-key.js'
 import { api } from '/shared/api.js'
 import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
@@ -176,7 +177,13 @@ export const RecordingsLibraryView = {
 
     const loadScheduledCount = async () => {
       const state = await api('GET', '/api/epg/state').catch(() => null)
-      scheduledCount.value = state ? (state.futureRecordings || []).filter((r) => !r.pendingDelete).length : null
+      scheduledCount.value = state
+        ? scheduledCountOfState({
+          state,
+          activeProgramIds: recordingNow.value.active.filter((r) => !r.failed).map((r) => r.programId),
+          timeZone: tz.value,
+        })
+        : null
     }
 
     const refresh = () => Promise.all([loadShows(), loadFailures()])

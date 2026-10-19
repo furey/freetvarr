@@ -7,6 +7,10 @@ import {
   scheduledCount,
   progressPercent,
   minutesLeftText,
+  durationText,
+  weekStrip,
+  episodeMetaParts,
+  scheduledCountOfState,
 } from '../src/web/scheduled-groups.js'
 
 const HOUR = 3_600_000
@@ -75,12 +79,38 @@ test('groupScheduled: formats the row time, show key and meta', () => {
   assert.equal(row.time, '8:30')
   assert.equal(row.period, 'pm')
   assert.equal(row.showKey, 'the-block')
-  assert.equal(row.meta, 'S04E46 · Room reveal · 9HD')
+  assert.equal(row.meta, 'S4 E46 · Room reveal · 9HD · 1h')
+  assert.equal(row.day, '')
 })
 
-test('groupScheduled: later rows start the meta line with the weekday', () => {
-  const [row] = groupScheduled({ upcoming: [entry('a', 72)], nowMs: NOW, timeZone: 'UTC' }).later
-  assert.equal(row.meta, 'Thu · 9HD')
+test('groupScheduled: later rows carry the weekday for the time column', () => {
+  const [row] = groupScheduled({ upcoming: [entry('a', 72, { hasImage: true })], nowMs: NOW, timeZone: 'UTC' }).later
+  assert.equal(row.day, 'Thu')
+  assert.equal(row.meta, '9HD · 1h')
+  assert.equal(row.imageProgramId, 'a')
+})
+
+test('durationText: formats minutes and hours compactly', () => {
+  assert.equal(durationText({ start: 0, end: 30 * 60_000 }), '30m')
+  assert.equal(durationText({ start: 0, end: HOUR }), '1h')
+  assert.equal(durationText({ start: 0, end: HOUR + 10 * 60_000 }), '1h 10m')
+  assert.equal(durationText({ start: HOUR, end: 0 }), '')
+})
+
+test('weekStrip: counts active recordings per day for seven days and marks clashes', () => {
+  const groups = groupScheduled({
+    upcoming: [entry('a', 1), entry('b', 2), entry('c', 24), entry('d', 72)],
+    skipped: [entry('e', 25)],
+    nowMs: NOW,
+    timeZone: 'UTC',
+  })
+  const days = weekStrip({ groups, recordingNowCount: 2, clashDays: [groups.today[0].dayNumber], nowMs: NOW, timeZone: 'UTC' })
+  assert.equal(days.length, 7)
+  assert.deepEqual(days.map((d) => d.count), [4, 1, 0, 1, 0, 0, 0])
+  assert.deepEqual(days.slice(0, 3).map((d) => [d.weekday, d.date, d.countText]), [['Mon', 19, '4 rec'], ['Tue', 20, '1 rec'], ['Wed', 21, '—']])
+  assert.equal(days[0].isToday, true)
+  assert.equal(days[0].hasClash, true)
+  assert.equal(days[1].hasClash, false)
 })
 
 test('recordingNowRows: skips failed recordings and computes progress', () => {
@@ -93,7 +123,7 @@ test('recordingNowRows: skips failed recordings and computes progress', () => {
   })
   assert.equal(rows.length, 1)
   assert.equal(rows[0].percent, 50)
-  assert.equal(rows[0].meta, 'S04E46 · Finale · 9HD · 60 min left')
+  assert.equal(rows[0].meta, 'S4 E46 · Finale · 9HD · 60 min left')
   assert.equal(rows[0].showKey, 'the-block')
 })
 
@@ -119,4 +149,34 @@ test('watchingRows: describes matches and missing matches', () => {
   assert.equal(rows[0].meta, 'Not in the guide yet · notify me')
   assert.equal(rows[1].meta, 'Next Mon 8:30pm · 10 HD · record automatically')
   assert.equal(rows[1].unseen, 2)
+})
+
+test('episodeMetaParts: turns placeholder episode titles into a season and episode number', () => {
+  assert.deepEqual(episodeMetaParts({ season: 16, episodeTitle: 'Episode 9 of Season 16' }), ['S16 E9'])
+  assert.deepEqual(episodeMetaParts({ season: 22, episodeTitle: 'episode 47' }), ['S22 E47'])
+  assert.deepEqual(episodeMetaParts({ episodeTitle: 'EPISODE 3 OF SEASON 2' }), ['S2 E3'])
+  assert.deepEqual(episodeMetaParts({ season: 1, episodeTitle: 'Korea' }), ['S1', 'Korea'])
+  assert.deepEqual(episodeMetaParts({ seriesNo: 4, episodeNo: 46, episodeTitle: 'Episode 46 is the one' }), ['S4 E46', 'Episode 46 is the one'])
+  assert.deepEqual(episodeMetaParts({ episodeTitle: 'Front Yard Reveal' }), ['Front Yard Reveal'])
+  assert.deepEqual(episodeMetaParts({}), [])
+})
+
+test('groupScheduled: rows drop placeholder episode titles from the meta line', () => {
+  const [row] = groupScheduled({
+    upcoming: [entry('a', 1, { season: 22, episodeTitle: 'Episode 48 of Season 22' })],
+    nowMs: NOW,
+    timeZone: 'UTC',
+  }).today
+  assert.equal(row.meta, 'S22 E48 · 9HD · 1h')
+})
+
+test('scheduledCountOfState: counts what the Scheduled page lists, not every TVHeadend timer', () => {
+  const state = {
+    upcomingRecordings: [entry('a', 1), entry('b', 2, { source: 'series' }), entry('c', 24 * 9), entry('d', 0.5)],
+    skippedRecordings: [entry('e', 3)],
+    activeRecordingIds: ['d'],
+  }
+  assert.equal(scheduledCountOfState({ state, nowMs: NOW, timeZone: 'UTC' }), 2)
+  assert.equal(scheduledCountOfState({ state, activeProgramIds: ['a'], nowMs: NOW, timeZone: 'UTC' }), 1)
+  assert.equal(scheduledCountOfState({ state: null, nowMs: NOW, timeZone: 'UTC' }), 0)
 })

@@ -1,9 +1,10 @@
-import { localDayNumber } from './guide-time.js'
+import { localDayNumber, weekdayOfDayNumber } from './guide-time.js'
 import { formatClock, formatDate } from './time-format.js'
 import { showKeyOf } from './show-key.js'
 
 const LATER_DAYS = 6
 const MINUTE_MS = 60_000
+const DAY_MS = 86_400_000
 
 export const SCHEDULED_SECTIONS = [
   { key: 'today', label: 'Today' },
@@ -46,7 +47,7 @@ export const recordingNowRows = ({ active = [], nowMs = Date.now() } = {}) =>
     programId: r.programId,
     title: r.title,
     showKey: showKeyOf(r.title),
-    meta: [seasonEpisodeText(r), r.episodeTitle, r.channelName, minutesLeftText({ stop: r.stop, nowMs })]
+    meta: [...episodeMetaParts(r), r.channelName, minutesLeftText({ stop: r.stop, nowMs })]
       .filter(Boolean).join(' · '),
     percent: progressPercent({ start: r.start, stop: r.stop, nowMs }),
     imageProgramId: r.hasImage ? r.programId : null,
@@ -59,6 +60,47 @@ export const watchingRows = ({ items = [], timeZone = 'UTC' } = {}) =>
     title: item.title,
     unseen: item.unseen || 0,
     meta: watchingMeta({ item, timeZone }),
+  }))
+
+export const weekStrip = ({ groups, recordingNowCount = 0, clashDays = [], nowMs = Date.now(), timeZone = 'UTC' }) => {
+  const today = localDayNumber({ ms: nowMs, timeZone })
+  const clashDaySet = new Set(clashDays)
+  const counts = new Map()
+  for (const row of Object.values(groups).flat()) {
+    if (row.state === 'off') continue
+    counts.set(row.dayNumber, (counts.get(row.dayNumber) || 0) + 1)
+  }
+  return Array.from({ length: LATER_DAYS + 1 }, (_, offset) => {
+    const dayNumber = today + offset
+    const count = (counts.get(dayNumber) || 0) + (offset === 0 ? recordingNowCount : 0)
+    return {
+      dayNumber,
+      weekday: weekdayOfDayNumber(dayNumber),
+      date: new Date(dayNumber * DAY_MS).getUTCDate(),
+      count,
+      countText: count ? `${count} rec` : '—',
+      isToday: offset === 0,
+      hasClash: clashDaySet.has(dayNumber),
+    }
+  })
+}
+
+export const durationText = ({ start, end }) => {
+  const minutes = Math.round((Number(end) - Number(start)) / MINUTE_MS)
+  if (!(minutes > 0)) return ''
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  if (!hours) return `${rest}m`
+  return rest ? `${hours}h ${rest}m` : `${hours}h`
+}
+
+export const scheduledCountOfState = ({ state, skipped = [], activeProgramIds = [], nowMs = Date.now(), timeZone = 'UTC' }) =>
+  scheduledCount(groupScheduled({
+    upcoming: state?.upcomingRecordings || [],
+    skipped: [...(state?.skippedRecordings || []), ...skipped],
+    activeProgramIds: [...(state?.activeRecordingIds || []), ...activeProgramIds],
+    nowMs,
+    timeZone,
   }))
 
 export const scheduledCount = (groups) =>
@@ -91,6 +133,9 @@ const rowOf = ({ entry, state, timeZone, showDay }) => {
   const [, time, period] = clock.match(/^(.+?)(am|pm)$/i) || [null, clock, '']
   const day = showDay ? formatDate(startMs, timeZone, { weekday: 'short' }).split(',')[0] : ''
   return {
+    dayNumber: localDayNumber({ ms: startMs, timeZone }),
+    day,
+    imageProgramId: entry.hasImage ? entry.programId : null,
     key: `${entry.programId}-${state === 'expected' ? 'series' : 'timer'}`,
     programId: entry.programId,
     channelId: entry.channelId,
@@ -100,16 +145,25 @@ const rowOf = ({ entry, state, timeZone, showDay }) => {
     time,
     period,
     state,
-    meta: [day, seasonEpisodeText(entry), entry.episodeTitle, entry.channelName].filter(Boolean).join(' · '),
+    meta: [
+      ...episodeMetaParts(entry),
+      entry.channelName,
+      durationText({ start: entry.startDate, end: entry.endDate }),
+    ].filter(Boolean).join(' · '),
   }
 }
 
-const seasonEpisodeText = ({ season, episode, seriesNo, episodeNo }) => {
-  const s = season ?? seriesNo
-  const e = episode ?? episodeNo
-  if (s == null && e == null) return ''
-  return `${s != null ? `S${String(s).padStart(2, '0')}` : ''}${e != null ? `E${String(e).padStart(2, '0')}` : ''}`
+const PLACEHOLDER_EPISODE_TITLE = /^\s*episode\s+(\d+)(?:\s+of\s+season\s+(\d+))?\s*$/i
+
+export const episodeMetaParts = ({ season, episode, seriesNo, episodeNo, episodeTitle } = {}) => {
+  const placeholder = String(episodeTitle ?? '').match(PLACEHOLDER_EPISODE_TITLE)
+  const s = season ?? seriesNo ?? (placeholder?.[2] != null ? Number(placeholder[2]) : null)
+  const e = episode ?? episodeNo ?? (placeholder ? Number(placeholder[1]) : null)
+  return [seasonEpisodeText({ season: s, episode: e }), placeholder ? null : episodeTitle].filter(Boolean)
 }
+
+const seasonEpisodeText = ({ season, episode }) =>
+  [season != null ? `S${season}` : '', episode != null ? `E${episode}` : ''].filter(Boolean).join(' ')
 
 const watchingMeta = ({ item, timeZone }) => {
   const mode = item.mode === 'record' ? 'record automatically' : 'notify me'
