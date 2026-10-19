@@ -1,12 +1,18 @@
 import { localDayNumber } from './guide-time.js'
 import { formatClock } from './time-format.js'
 import { showKeyOf } from './show-key.js'
+import { artIdentityFrom, pickDistinctArt } from './hero-art.js'
 import { episodeCodeOf, minutesLeftOf, watchedFractionOf, showHrefOf } from './home-feed.js'
 
 export const HERO_SLIDE_LIMIT = 5
 export const MOVIES_URL = '/api/library/episodes?state=unwatched&kind=movie&limit=1'
 
-export const heroSlidesOf = ({
+export const heroSlidesOf = ({ pools = {}, limit = HERO_SLIDE_LIMIT, ...feed }) => {
+  const candidates = heroCandidatesOf(feed)
+  return arrangeHero({ chosen: candidates.slice(0, limit), waiting: candidates.slice(limit), pools, limit })
+}
+
+export const heroCandidatesOf = ({
   inProgress = [],
   newEpisodes = [],
   shows = [],
@@ -32,40 +38,28 @@ export const heroSlidesOf = ({
     watchlistSlideOf({ items: watchlist, nowMs, timeZone }),
     movieSlideOf({ movie: movies[0] ?? null, nowMs, timeZone }),
   ]
-  return arrangeByArt({ slides: withoutRepeats(ranked.filter(Boolean)), limit: HERO_SLIDE_LIMIT })
+  return withoutRepeats(ranked.filter(Boolean))
 }
 
-export const sharesArt = (a, b) => artKeyOf(a.art.image) === artKeyOf(b.art.image) || showKeyOf(a.art.title) === showKeyOf(b.art.title)
-
-export const arrangeByArt = ({ slides, limit = HERO_SLIDE_LIMIT }) => {
-  const pool = [...slides]
-  const arranged = []
-  while (arranged.length < limit) {
-    const previous = arranged.at(-1)
-    const pick = pool.findIndex((slide) => !previous || !sharesArt(previous, slide))
-    if (pick < 0) break
-    arranged.push(...pool.splice(pick, 1))
-  }
-  return withoutWrapClash({ arranged, pool })
+export const reusedArtSlidesOf = ({ slides, pools = {} }) => {
+  const identityOf = artIdentityFrom(pools)
+  const seen = new Set()
+  return slides.filter((slide) => {
+    const identity = identityOf(slide.art.image)
+    if (seen.has(identity)) return true
+    seen.add(identity)
+    return false
+  })
 }
 
-const withoutWrapClash = ({ arranged, pool }) => {
-  const result = [...arranged]
-  while (result.length > 1 && sharesArt(result.at(-1), result[0])) {
-    result.pop()
-    const previous = result.at(-1)
-    const pick = pool.findIndex((slide) => !sharesArt(previous, slide) && !sharesArt(slide, result[0]))
-    if (pick >= 0) result.push(...pool.splice(pick, 1))
-  }
-  return result
-}
-
-const artKeyOf = (url) => {
-  const [path, query = ''] = String(url ?? '').toLowerCase().split('?')
-  const params = new URLSearchParams(query)
-  params.delete('w')
-  params.sort()
-  return `${path}?${params}`
+const arrangeHero = ({ chosen, waiting, pools, limit }) => {
+  const picked = pickDistinctArt({ slides: chosen, pools })
+  const dropped = [...picked.unplaceable, ...reusedArtSlidesOf({ slides: picked.slides, pools })]
+  if (!dropped.length) return picked.slides
+  const droppedKeys = new Set(dropped.map((slide) => slide.key))
+  const kept = chosen.filter((slide) => !droppedKeys.has(slide.key))
+  const refill = waiting.slice(0, limit - kept.length)
+  return arrangeHero({ chosen: [...kept, ...refill], waiting: waiting.slice(refill.length), pools, limit })
 }
 
 export const heroRecordingIdsOf = (slides) =>
@@ -273,6 +267,7 @@ const recordingSlideBase = ({ type, episode }) => ({
   type,
   badge: null,
   title: episode.title,
+  showKey: episode.showKey ?? showKeyOf(episode.title),
   art: { image: episode.image || showImageOf(episode.title), title: episode.title },
   recordingId: episode.recordingId,
   target: { episode },

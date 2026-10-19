@@ -7,6 +7,7 @@ import { health } from '/shared/health.js'
 import { routeParams } from '/shared/router.js'
 import { prefersReducedMotion } from '/shared/utils.js'
 import { DoctorView } from '/views/doctor-view.js'
+import { PlayerSettingsView } from '/views/player-settings-view.js'
 import { RecordingsView } from '/views/recordings-view.js'
 import { SeriesView } from '/views/series-view.js'
 import { SettingsView } from '/views/settings-view.js'
@@ -27,6 +28,7 @@ const PAGE_INTROS = {
   activity: 'Every sync Freetvarr has run, newest first.',
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
+  player: 'How the player starts and behaves on this device.',
   suggestions: 'For you picks shows from the guide based on what this household watches and records.',
   about: 'Records free-to-air TV from your TVHeadend-compatible tuner and saves it where your media player finds it.',
 }
@@ -73,6 +75,7 @@ export const SettingsShell = {
     const pageView = computed(() => {
       if (page.value?.view === 'system') return SYSTEM_VIEWS[page.value.id]
       if (page.value?.view === 'suggestions') return { view: SuggestionsSettingsView, props: {} }
+      if (page.value?.view === 'player') return { view: PlayerSettingsView, props: {} }
       return { view: SettingsView, props: {} }
     })
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))

@@ -4,7 +4,7 @@ import { artFallbackStyle } from '/art-fallback.js'
 import { ForYouOverlays, ForYouRows } from '/components/for-you-parts.js'
 import { HomeHeroCarousel } from '/components/home-hero-carousel.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
-import { MOVIES_URL, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
+import { MOVIES_URL, heroCandidatesOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
 import {
   continueWatchingUrl,
   newRecordingsUrl,
@@ -20,12 +20,15 @@ import {
 import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, forYouSlideOf, homeRowOf, isScheduled, scheduledKeysOf } from '/for-you.js'
 import { recordingRowOf } from '/show-page.js'
 import { forYouHidden, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
+import { heroArtPoolsFor } from '/shared/hero-art-pools.js'
 import { playRecording } from '/shared/playback-session.js'
 import { watchLive, watchRecordingFromStart, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
 import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
 import { openInGuide } from '/shared/store.js'
 import { now, tz, fmtClockTz } from '/shared/time.js'
+
+const HERO_POOL_WAIT_MS = 2000
 
 export const HomeView = {
   components: { ForYouOverlays, ForYouRows, HomeHeroCarousel, RecordingOptionsSheet },
@@ -156,7 +159,7 @@ export const HomeView = {
       timeZone: tz.value,
     }))
 
-    const heroSlides = computed(() => heroSlidesOf({
+    const heroFeed = computed(() => ({
       inProgress: inProgress.value,
       newEpisodes: newRecordings.value,
       shows: shows.value,
@@ -170,6 +173,8 @@ export const HomeView = {
       nowMs: nowMs.value,
       timeZone: tz.value,
     }))
+    const heroPools = ref({})
+    const heroSlides = computed(() => heroSlidesOf({ ...heroFeed.value, pools: heroPools.value }))
     const heroRecordingIds = computed(() => heroRecordingIdsOf(heroSlides.value))
     const heroProgramIds = computed(() => heroProgramIdsOf(heroSlides.value))
     const newRecordingsRow = computed(() => newRecordings.value.filter((r) => !heroRecordingIds.value.has(r.recordingId)))
@@ -202,7 +207,13 @@ export const HomeView = {
       watchlist.value = watching.items ?? []
       movies.value = unwatchedMovies.episodes ?? []
       forYouPayload.value = suggestions
+      await loadHeroPools()
       loaded.value = true
+    }
+
+    const loadHeroPools = () => {
+      const pools = heroArtPoolsFor(heroCandidatesOf(heroFeed.value)).then((found) => { heroPools.value = found })
+      return Promise.race([pools, new Promise((resolve) => setTimeout(resolve, HERO_POOL_WAIT_MS))])
     }
 
     onMounted(load)

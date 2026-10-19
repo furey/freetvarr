@@ -8,6 +8,7 @@ import {
   tierSummaryOf,
 } from '/for-you.js'
 import { api } from '/shared/api.js'
+import { dataCreditsOf } from '/data-credits.js'
 import { forYouHidden, unhideShow } from '/shared/for-you-session.js'
 
 export const SuggestionsSettingsView = {
@@ -36,6 +37,11 @@ export const SuggestionsSettingsView = {
                 <span class="settings-row-meta">Show titles are sent to TVmaze and Wikidata to look up genres. Nothing else is sent.</span>
               </span>
             </toggle-switch>
+            <p class="settings-row-meta suggestions-credit">
+              <template v-for="(credit, i) in dataCredits" :key="credit.name">{{ i ? ' ' : '' }}{{ credit.lead }} from
+                <a :href="credit.siteHref" target="_blank" rel="noopener noreferrer">{{ credit.name }}</a>, licensed
+                <a :href="credit.licenceHref" target="_blank" rel="noopener noreferrer">{{ credit.licence }}</a>.</template>
+            </p>
           </div>
           <button type="button" class="ui-group-row suggestions-row-button" @click="hiddenOpen = true">
             <span class="settings-toggle-text">
@@ -124,6 +130,7 @@ export const SuggestionsSettingsView = {
     const tierReason = computed(() => tierReasonOf(settings.value))
     const tierOverride = computed(() => settings.value.tierOverride || 'auto')
     const clearCopy = computed(() => historyClearCopyOf(eventCount.value))
+    const dataCredits = computed(() => dataCreditsOf(settings.value.attribution))
 
     const loadHidden = async () => {
       hidden.value = hiddenShowsOf(await api('GET', '/api/for-you/hidden').catch(() => []))
@@ -204,7 +211,7 @@ export const SuggestionsSettingsView = {
     onMounted(load)
 
     return {
-      settings, hidden, loaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy,
+      settings, hidden, loaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits,
       tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
     }
   },

@@ -430,6 +430,15 @@ a.settings-row-link:hover {
   font-variant-numeric: tabular-nums;
 }
 
+.settings-credit-link {
+  align-self: flex-start;
+  text-decoration: none;
+}
+
+.settings-credit-link:hover {
+  text-decoration: underline;
+}
+
 .settings-licence-link {
   flex: none;
   font-family: var(--font-sans);
@@ -1425,6 +1434,16 @@ a.settings-row-link:hover {
 
 .suggestions-tier-note {
   margin-top: 10px;
+}
+
+.suggestions-credit {
+  margin-top: 10px;
+}
+
+.suggestions-credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .suggestions-clear {

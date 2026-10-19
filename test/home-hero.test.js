@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   HERO_SLIDE_LIMIT, MOVIES_URL, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf, liveGenreOf, durationText,
-  recordedWhenOf, airingWhenOf, watchedShowKeysOf, activeRecordingOf, recordingWhenEyebrowOf, nextUpcomingOf, arrangeByArt, sharesArt,
+  recordedWhenOf, airingWhenOf, watchedShowKeysOf, activeRecordingOf, recordingWhenEyebrowOf, nextUpcomingOf, heroCandidatesOf, reusedArtSlidesOf,
 } from '../src/web/home-hero.js'
 
 const timeZone = 'UTC'
@@ -55,10 +55,11 @@ const fullFeed = () => ({
   timeZone,
 })
 
-test('heroSlidesOf: ranks slides and caps them at five', () => {
+test('heroSlidesOf: ranks slides, caps them at five, and skips repeated art without a pool', () => {
   const slides = heroSlidesOf(fullFeed())
-  assert.equal(slides.length, HERO_SLIDE_LIMIT)
-  assert.deepEqual(slides.map((s) => s.type), ['continue', 'on-now', 'new', 'watchlist', 'movie'])
+  assert.deepEqual(slides.map((s) => s.type), ['continue', 'on-now', 'watchlist', 'movie'])
+  const many = heroSlidesOf({ ...fullFeed(), pools: { recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] } } })
+  assert.equal(many.length, HERO_SLIDE_LIMIT)
 })
 
 test('heroSlidesOf: keeps rank order when every slide has its own artwork', () => {
@@ -165,7 +166,7 @@ test('heroSlidesOf: one recording never appears twice', () => {
 
 test('heroRecordingIdsOf and heroProgramIdsOf: what the rows hide', () => {
   const slides = heroSlidesOf(fullFeed())
-  assert.deepEqual([...heroRecordingIdsOf(slides)], ['r1', 'r2', 'm1'])
+  assert.deepEqual([...heroRecordingIdsOf(slides)], ['r1', 'm1'])
   assert.deepEqual([...heroProgramIdsOf(slides)], [])
   const varied = heroSlidesOf({ ...fullFeed(), upcoming: [upcomingItem({ programId: 78 })], inProgress: [] })
   assert.deepEqual([...heroProgramIdsOf(varied)], ['78'])
@@ -217,35 +218,42 @@ test('nextUpcomingOf: the soonest future recording that is not already recording
   assert.equal(slide.eyebrow, 'Recording tomorrow')
 })
 
-const artSlide = (key, title, image = `/api/epg/show-image?title=${encodeURIComponent(title)}&w=768`) =>
-  ({ key, art: { title, image } })
 const keys = (slides) => slides.map((s) => s.key)
+const showArt = (title) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=768`
 
-test('sharesArt: same image ignoring size, or the same show', () => {
-  assert.equal(sharesArt(artSlide('a', 'The Block'), artSlide('b', 'The Block', '/api/epg/show-image?title=The%20Block&w=1200')), true)
-  assert.equal(sharesArt(artSlide('a', 'The Block', '/api/recordings/1/image'), artSlide('b', 'the block', '/api/recordings/2/image')), true)
-  assert.equal(sharesArt(artSlide('a', 'MKR', '/x.jpg'), artSlide('b', 'Gogglebox', '/X.jpg?w=10')), true)
-  assert.equal(sharesArt(artSlide('a', 'MKR'), artSlide('b', 'Gogglebox')), false)
+test('heroCandidatesOf: every ranked slide, uncapped, with a show key on recording slides', () => {
+  const candidates = heroCandidatesOf(fullFeed())
+  assert.deepEqual(candidates.map((s) => s.type), ['continue', 'new', 'recording', 'on-now', 'upcoming', 'watchlist', 'movie'])
+  assert.equal(candidates[0].showKey, 'the-block')
 })
 
-test('arrangeByArt: swaps a matching neighbour with the next different slide', () => {
-  const slides = [artSlide('a', 'The Block'), artSlide('b', 'The Block'), artSlide('c', 'MKR'), artSlide('d', 'Gogglebox')]
-  assert.deepEqual(keys(arrangeByArt({ slides })), ['a', 'c', 'b', 'd'])
+test('heroSlidesOf: same show stays when its pool gives each slide different art', () => {
+  const pools = {
+    shows: { 'the-block': [{ url: '/bg1', kind: 'background' }, { url: '/bg2', kind: 'background' }] },
+    recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] },
+  }
+  const slides = heroSlidesOf({ ...fullFeed(), pools })
+  assert.deepEqual(slides.map((s) => s.type), ['continue', 'new', 'recording', 'on-now', 'upcoming'])
+  assert.deepEqual(slides.map((s) => s.art.image), ['/r1', '/r2', showArt('The Block'), '/api/epg/image/900', '/bg1'])
 })
 
-test('arrangeByArt: replaces with the next unused candidate when the cap is reached', () => {
-  const slides = [artSlide('a', 'The Block'), artSlide('b', 'MKR'), artSlide('c', 'MKR'), artSlide('d', 'Gogglebox')]
-  assert.deepEqual(keys(arrangeByArt({ slides, limit: 3 })), ['a', 'b', 'd'])
+test('heroSlidesOf: drops a same-show slide only when its pool is used up, then refills', () => {
+  const pools = { recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] } }
+  const slides = heroSlidesOf({ ...fullFeed(), pools })
+  assert.deepEqual(slides.map((s) => s.type), ['continue', 'new', 'recording', 'on-now', 'watchlist'])
+  assert.equal(new Set(slides.map((s) => s.art.image)).size, slides.length)
 })
 
-test('arrangeByArt: the last slide never matches the first', () => {
-  const slides = [artSlide('a', 'The Block'), artSlide('b', 'MKR'), artSlide('c', 'The Block'), artSlide('d', 'Gogglebox')]
-  assert.deepEqual(keys(arrangeByArt({ slides, limit: 3 })), ['a', 'b', 'd'])
-  assert.deepEqual(keys(arrangeByArt({ slides: slides.slice(0, 3) })), ['a', 'b'])
+test('reusedArtSlidesOf: later slides whose art already appeared', () => {
+  const slide = (key, image) => ({ key, art: { image, title: key } })
+  const slides = [slide('a', '/x?w=768'), slide('b', '/y'), slide('c', '/X?w=384')]
+  assert.deepEqual(keys(reusedArtSlidesOf({ slides })), ['c'])
+  const pools = { shows: { s: [{ url: '/y', contentKey: 'k' }, { url: '/z', contentKey: 'k' }] } }
+  assert.deepEqual(keys(reusedArtSlidesOf({ slides: [slide('a', '/y'), slide('b', '/z')], pools })), ['b'])
 })
 
-test('arrangeByArt: drops the lower-ranked slide when nothing else fits', () => {
-  assert.deepEqual(keys(arrangeByArt({ slides: [artSlide('a', 'The Block'), artSlide('b', 'The Block')] })), ['a'])
-  assert.deepEqual(keys(arrangeByArt({ slides: [artSlide('a', 'The Block')] })), ['a'])
-  assert.deepEqual(arrangeByArt({ slides: [] }), [])
+test('heroSlidesOf: the last slide never shares art with the first', () => {
+  const slides = heroSlidesOf({ inProgress: [episode()], upcoming: [upcomingItem({ name: 'The Block' })], nowMs, timeZone })
+  assert.deepEqual(slides.map((s) => s.type), ['continue'])
+  assert.equal(showArt('The Block'), slides[0].art.image)
 })

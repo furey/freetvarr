@@ -208,6 +208,6 @@ const MAX_LIMIT = 20
 const MAX_PICKS = 30
 const SERIES_KEY = /^[a-z0-9-]{1,200}$/
 const ATTRIBUTION = [
-  { name: 'TVmaze', url: 'https://www.tvmaze.com', licence: 'CC BY-SA 4.0', use: 'show genres' },
+  { name: 'TVmaze', url: 'https://www.tvmaze.com', licence: 'CC BY-SA 4.0', use: 'show genres and some artwork' },
   { name: 'Wikidata', url: 'https://www.wikidata.org', licence: 'CC0', use: 'movie genres' },
 ]

@@ -24,6 +24,18 @@ export const pickDistinctArt = ({ slides = [], pools = {} }) => {
   }
 }
 
+export const slideShowKeyOf = (slide) => slide.showKey ?? showKeyOf(slide.art?.title)
+
+export const poolRequestsOf = (slides = []) => {
+  const counts = new Map()
+  for (const slide of slides) counts.set(slideShowKeyOf(slide), (counts.get(slideShowKeyOf(slide)) ?? 0) + 1)
+  const repeated = slides.filter((slide) => counts.get(slideShowKeyOf(slide)) > 1)
+  return {
+    showKeys: [...new Set(repeated.map(slideShowKeyOf))],
+    recordingIds: [...new Set(repeated.filter(isEpisodeSlide).map((slide) => slide.recordingId).filter(Boolean))],
+  }
+}
+
 export const isEpisodeSlide = (slide) => Boolean(slide.recordingId) || EPISODE_SLIDE_TYPES.has(slide.type)
 
 export const artUrlKeyOf = (url) => {
@@ -37,7 +49,7 @@ export const artUrlKeyOf = (url) => {
 }
 
 export const candidatesOf = ({ slide, pools }) => {
-  const showImages = pools.shows?.[showKeyFor(slide)] ?? []
+  const showImages = pools.shows?.[slideShowKeyOf(slide)] ?? []
   const recordingImages = slide.recordingId ? pools.recordings?.[slide.recordingId] ?? [] : []
   const own = slide.art?.image ? [{ url: slide.art.image }] : []
   const byKind = (images, kind) => images.filter((image) => image.kind === kind)
@@ -96,8 +108,6 @@ const choose = ({ candidates, blocked, used, identityOf }) => {
   const open = candidates.filter((url) => !blocked.has(identityOf(url)))
   return open.find((url) => !used.has(identityOf(url))) ?? open[0] ?? null
 }
-
-const showKeyFor = (slide) => slide.showKey ?? showKeyOf(slide.art?.title)
 
 const uniqueByIdentity = ({ urls, identityOf }) => {
   const seen = new Set()

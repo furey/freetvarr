@@ -25,3 +25,10 @@ test('settingsPageOf: no page on a phone shows the index, wide screens open the 
   assert.equal(settingsPageOf({ params: [] }).id, 'storage')
   assert.equal(settingsPageOf({ params: ['nope'], narrow: true }), null)
 })
+
+test('settingsPageOf: the Player page sits in Preferences with its own view', () => {
+  const page = settingsPageOf({ params: ['player'] })
+  assert.equal(page.view, 'player')
+  assert.equal(page.group, 'preferences')
+  assert.equal(page.href, '#/settings/player')
+})

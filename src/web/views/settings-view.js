@@ -8,6 +8,7 @@ import {
 } from '/sync-schedule.js'
 import { resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import { useConfirm } from '/components/dialogs.js'
+import { dataCreditsOf } from '/data-credits.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { tvhDetectSummary, tvhTestSummary } from '/shared/format.js'
@@ -559,6 +560,13 @@ export const SettingsView = {
               </span>
               <a :href="item.href" target="_blank" rel="noopener noreferrer" class="settings-licence-link">{{ item.licence }}</a>
             </div>
+            <div v-for="credit in dataCredits" :key="credit.name" class="settings-row settings-row-inline">
+              <span class="settings-toggle-text">
+                <a :href="credit.siteHref" target="_blank" rel="noopener noreferrer" class="settings-row-title settings-credit-link">{{ credit.name }}</a>
+                <span class="settings-row-meta">{{ credit.note }}</span>
+              </span>
+              <a :href="credit.licenceHref" target="_blank" rel="noopener noreferrer" class="settings-licence-link">{{ credit.licence }}</a>
+            </div>
           </div>
         </div>
       </section>
@@ -694,6 +702,10 @@ export const SettingsView = {
       if (ms > 0) setTimeout(() => (plexTokenStatus.value = ''), ms)
     }
 
+    const dataCredits = ref(dataCreditsOf())
+    onMounted(() => api('GET', '/api/for-you/settings')
+      .then((body) => { dataCredits.value = dataCreditsOf(body.attribution) })
+      .catch(() => {}))
     onMounted(async () => {
       const s = await fetchSettings()
       tvhUrl.value = s.tvh_url || ''
@@ -1035,7 +1047,7 @@ export const SettingsView = {
       resetting, resetError, askResetFreetvarr, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, addToLibraryDefault, showArtworkLookup, licences: LICENCES, plexOneOffSectionId, plexMoviesSectionId,
+      importUnmatched, addToLibraryDefault, showArtworkLookup, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,

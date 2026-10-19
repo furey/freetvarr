@@ -34,7 +34,7 @@ export const HomeHeroCarousel = {
             :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index }]"
             :style="slideStyle(i)">
             <div class="hero-slide-backdrop ui-art-fallback" :style="fallbackStyleOf(slide)">
-              <img v-if="!failedArt[slide.key]" class="ui-hero-art" :src="slide.art.image" alt="" decoding="async"
+              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="slide.art.image" alt="" decoding="async"
                 :loading="i === rotation.index ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
@@ -260,12 +260,13 @@ export const HomeHeroCarousel = {
 
     const emitAction = (slide, button) => emit('action', { slide, action: button.action })
     const fallbackStyleOf = (slide) => artFallbackStyle(slide.art.title)
-    const markArtFailed = (slide) => { failedArt.value = { ...failedArt.value, [slide.key]: true } }
+    const artKeyOf = (slide) => `${slide.key}|${slide.art.image}`
+    const markArtFailed = (slide) => { failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true } }
 
     return {
       rotation, stage, failedArt, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerEnter, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
-      setFillRef, setDotRef, emitAction, fallbackStyleOf, markArtFailed,
+      setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
     }
   },
 }
