@@ -1,14 +1,27 @@
 import { ref } from '/vendor/vue.esm-browser.prod.js'
+import { worstHealthOf } from '/health-page.js'
 import { healthLevelOf } from '/health-level.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { recordingNow } from '/shared/recording-now.js'
 
 export const health = ref({ level: 'ok', sentence: null, known: false })
 
-export const pollHealth = async () => {
+export const healthSummary = ref(null)
+
+export const pollHealth = async ({ fresh = false } = {}) => {
   clearTimeout(healthTimer)
-  health.value = { ...(await healthFromFallbackSources()), known: true }
-  healthTimer = setTimeout(pollHealth, HEALTH_POLL_MS)
+  health.value = { ...(await currentHealth({ fresh })), known: true }
+  healthTimer = setTimeout(() => pollHealth(), HEALTH_POLL_MS)
+}
+
+const currentHealth = async ({ fresh }) => {
+  const summary = await api('GET', `/api/health-summary${fresh ? '?fresh=1' : ''}`).catch(() => null)
+  if (!summary) return healthFromFallbackSources()
+  healthSummary.value = summary
+  return worstHealthOf(
+    { level: summary.level, sentence: summary.sentence },
+    healthLevelOf({ failingRecordings: failingRecordingCount() }),
+  )
 }
 
 const healthFromFallbackSources = async () => {
@@ -25,9 +38,11 @@ const healthFromFallbackSources = async () => {
     guideState: guideState.state ?? null,
     guideStateFailed: Boolean(guideState.failed),
     lastSync: syncs?.syncs?.find((sync) => sync.status !== 'running') ?? null,
-    failingRecordings: recordingNow.value.active.filter((entry) => entry.failed).length,
+    failingRecordings: failingRecordingCount(),
   })
 }
+
+const failingRecordingCount = () => recordingNow.value.active.filter((entry) => entry.failed).length
 
 let healthTimer = null
 

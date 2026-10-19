@@ -47,8 +47,8 @@ export const SETUP_POLL_MS = 1500
 export const secureStepDot = (status) => ({
   pending: 'idle',
   running: 'live',
-  done: 'bg-plex-yellow',
-  failed: 'bg-signal-orange',
+  done: 'is-done',
+  failed: 'is-failed',
 })[status] || 'idle'
 
 export const BOOTSTRAP_REVEAL_POLL_MS = 50

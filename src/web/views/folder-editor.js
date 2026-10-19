@@ -17,9 +17,9 @@ export const FolderEditor = {
   },
   emits: ['saved', 'cancel', 'deleted'],
   template: `
-    <form class="series-editor space-y-4" @submit.prevent="save" @keydown.esc.stop="closeEditor">
-      <div class="grid gap-4 md:grid-cols-2">
-        <div class="field-row">
+    <form class="series-editor" @submit.prevent="save" @keydown.esc.stop="closeEditor">
+      <div class="settings-editor-grid">
+        <div>
           <label class="field-label" :for="'saves-to-' + folder.id">Saves to</label>
           <div class="field-prefixed">
             <span class="field-prefix">{{ mediaRootPrefix(mediaRoot) }}</span>
@@ -28,33 +28,33 @@ export const FolderEditor = {
           <datalist id="series-media-folders">
             <option v-for="d in folders" :key="d" :value="d" />
           </datalist>
-          <p class="text-xs text-ink-mute mt-2">{{ FOLDER_HINT }}</p>
+          <p class="settings-hint">{{ FOLDER_HINT }}</p>
         </div>
-        <div class="field-row">
-          <label class="field-label">Season folders</label>
-          <input v-no-autofill type="text" v-model="seasonTemplate" placeholder="Season {season}" class="field-input" />
+        <div>
+          <label class="field-label" :for="'season-template-' + folder.id">Season folders</label>
+          <input v-no-autofill :id="'season-template-' + folder.id" type="text" v-model="seasonTemplate" placeholder="Season {season}" class="field-input" />
         </div>
-        <div class="field-row">
-          <label class="field-label">Recording titles that contain</label>
-          <input v-no-autofill type="text" v-model="pattern" class="field-input" />
-          <p class="text-xs text-ink-mute mt-2">Case-insensitive. The longest match wins when two folders match.</p>
+        <div>
+          <label class="field-label" :for="'pattern-' + folder.id">Recording titles that contain</label>
+          <input v-no-autofill :id="'pattern-' + folder.id" type="text" v-model="pattern" class="field-input" />
+          <p class="settings-hint">Case-insensitive. The longest match wins when two folders match.</p>
         </div>
-        <div class="field-row">
-          <label class="field-label">Ad removal</label>
-          <select class="field-input" v-model="adRemoval" :disabled="!adRemovalEnabled">
-            <option value="off">OFF</option>
-            <option value="detect">DETECT: mark ad breaks so apps can skip them</option>
-            <option value="cut">CUT: remove ad breaks (keeps .orig backup)</option>
+        <div>
+          <label class="field-label" :for="'ad-removal-' + folder.id">Ad removal</label>
+          <select :id="'ad-removal-' + folder.id" class="field-input" v-model="adRemoval" :disabled="!adRemovalEnabled">
+            <option value="off">Off</option>
+            <option value="detect">Detect: mark ad breaks so apps can skip them</option>
+            <option value="cut">Cut: remove ad breaks (keeps .orig backup)</option>
           </select>
-          <p v-if="!adRemovalEnabled" class="text-xs text-ink-mute mt-2">Enable ad removal in Settings to use this.</p>
+          <p v-if="!adRemovalEnabled" class="settings-hint">Turn on ad removal in <a href="#/settings/ad-removal">Settings</a> to use this.</p>
         </div>
       </div>
-      <div class="flex flex-col gap-2">
-        <toggle-switch v-model="deleteAfter">REMOVE FROM TVHEADEND AFTER IMPORT</toggle-switch>
-      </div>
+      <toggle-switch v-model="deleteAfter" class="settings-toggle">
+        <span class="settings-row-title">Remove from TVHeadend after import</span>
+      </toggle-switch>
       <div class="card-actions">
         <button type="submit" class="btn btn-primary" :disabled="saving">
-          <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE</template>
+          <template v-if="saving">Saving…</template><template v-else><check-icon /> Save</template>
         </button>
         <button type="button" class="btn btn-danger" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
@@ -72,7 +72,7 @@ export const FolderEditor = {
             <p class="text-sm text-ink">{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
             <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
               <button type="button" class="btn btn-danger" @click="remove" :disabled="saving">
-                <template v-if="saving">REMOVING…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
+                <template v-if="saving">Removing…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
               </button>
             </div>
           </div>
@@ -91,7 +91,7 @@ export const FolderEditor = {
     const deleteAfter = ref(Boolean(props.folder.delete_after_import))
     const saving = ref(false)
     const confirming = ref(false)
-    const removeLabel = computed(() => (props.isSeries ? 'UNASSIGN FOLDER' : 'REMOVE TITLE MATCH'))
+    const removeLabel = computed(() => (props.isSeries ? 'Unassign folder' : 'Remove title match'))
     const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
     const removeTitle = computed(() => (props.isSeries ? 'Unassign folder' : 'Remove title match'))
     const removeOutcome = computed(() => {
@@ -100,7 +100,7 @@ export const FolderEditor = {
         : 'If you remove this title match, future recordings with this title'
       return props.importUnmatched
         ? `${condition} will save to the one-off folder again.`
-        : `${condition} will wait in RECORDINGS until you import them.`
+        : `${condition} will wait in the Recording log until you import them.`
     })
 
     const save = async () => {
@@ -161,14 +161,14 @@ export const FolderSyncButton = {
   template: `
     <button type="button" class="btn btn-sm" @click.stop="$emit('sync')" @keydown.stop
       :disabled="!folder.enabled || syncing" :title="syncTitle">
-      <template v-if="syncing">STARTING…</template><template v-else><play-icon /> SYNC</template>
+      <template v-if="syncing">Starting…</template><template v-else><play-icon /> Sync</template>
     </button>
   `,
   setup(props) {
     const noun = computed(() => (props.isSeries ? 'series' : 'title'))
     const syncTitle = computed(() => (props.folder.enabled
       ? `Sync just this ${noun.value} now`
-      : `Open the ${noun.value}, then press SAVE, to sync it`))
+      : `Open the ${noun.value}, then press Save, to sync it`))
     return { syncTitle }
   },
 }

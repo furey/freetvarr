@@ -29,6 +29,11 @@ export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   return reportInflight
 }
 
+export const peekDoctorReport = ({ nowMs = Date.now() } = {}) => {
+  if (!reportCache) return null
+  return { report: reportCache.value, ageMs: Math.max(0, nowMs - Date.parse(reportCache.value.ranAt)) }
+}
+
 export const runDoctor = async ({ now = Date.now(), timeoutMs = DEFAULT_TIMEOUT_MS, deps = {} } = {}) => {
   const startedAt = Date.now()
   const merged = { ...defaultDeps(), ...deps }

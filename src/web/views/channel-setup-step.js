@@ -26,12 +26,12 @@ export const ChannelSetupStep = {
 
       <div v-else-if="loadError" class="space-y-2">
         <p class="status-readout err">{{ loadError }}</p>
-        <button type="button" class="btn" @click="refresh"><refresh-icon /> CHECK AGAIN</button>
+        <button type="button" class="btn" @click="refresh"><refresh-icon /> Check again</button>
       </div>
 
       <template v-else-if="status">
         <div v-if="showSteps" class="space-y-3">
-          <ol class="space-y-1 text-sm font-mono">
+          <ol class="welcome-steps">
             <li v-for="s in steps" :key="s.id" class="step-row">
               <span class="step-marker">
                 <span v-if="s.status === 'running'" class="step-spinner"></span>
@@ -57,11 +57,11 @@ export const ChannelSetupStep = {
           </p>
           <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
           <p v-if="favouritesText" class="text-sm text-ink">{{ favouritesText }}</p>
-          <button v-if="result && result.ok" type="button" class="btn" @click="restart"><search-icon /> SCAN AGAIN</button>
+          <button v-if="result && result.ok" type="button" class="btn" @click="restart"><search-icon /> Scan again</button>
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
             <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
-            <button type="button" class="btn" @click="restart"><refresh-icon /> TRY AGAIN</button>
+            <button type="button" class="btn" @click="restart"><refresh-icon /> Try again</button>
           </div>
         </div>
 
@@ -74,13 +74,13 @@ export const ChannelSetupStep = {
             <p v-if="dockerVm" class="text-sm text-ink">
               Docker on a Mac or Windows PC cannot find a network tuner by itself. Enter the tuner's address below.
             </p>
-            <p v-else class="text-sm text-ink">Check that the tuner is on and connected to your network, then press CHECK AGAIN.</p>
+            <p v-else class="text-sm text-ink">Check that the tuner is on and connected to your network, then press Check again.</p>
             <p v-if="savedAddress" class="text-sm text-ink-dim">TVHeadend looks for a tuner at {{ savedAddress }}.</p>
             <button v-if="!dockerVm" type="button" class="btn" @click="refresh" :disabled="loading">
-              <template v-if="loading">CHECKING…</template><template v-else><refresh-icon /> CHECK AGAIN</template>
+              <template v-if="loading">Checking…</template><template v-else><refresh-icon /> Check again</template>
             </button>
           </div>
-          <form v-if="addressOpen" class="space-y-3 border-t border-hairline pt-3" @submit.prevent="saveAddress">
+          <form v-if="addressOpen" class="welcome-subform" @submit.prevent="saveAddress">
             <div class="grid gap-4 md:grid-cols-2">
               <div class="field-row">
                 <label class="field-label" for="tuner-address">Tuner address</label>
@@ -96,7 +96,7 @@ export const ChannelSetupStep = {
             </p>
             <div class="action-row flex">
               <button type="submit" class="btn btn-primary" :disabled="savingAddress || Boolean(addressSaved) || !tunerAddress">
-                <search-icon /> USE THIS ADDRESS
+                <search-icon /> Use this address
               </button>
             </div>
             <p v-if="addressError" class="status-readout err">{{ addressError }}</p>
@@ -105,23 +105,23 @@ export const ChannelSetupStep = {
         </div>
 
         <div v-else-if="state === 'unsupported-tuner'" class="space-y-2">
-          <p class="text-sm text-ink">Freetvarr cannot set up this kind of tuner yet. Set up its channels in TVHeadend, then press CHECK AGAIN.</p>
-          <button type="button" class="btn" @click="refresh"><refresh-icon /> CHECK AGAIN</button>
+          <p class="text-sm text-ink">Freetvarr cannot set up this kind of tuner yet. Set up its channels in TVHeadend, then press Check again.</p>
+          <button type="button" class="btn" @click="refresh"><refresh-icon /> Check again</button>
         </div>
 
         <div v-else-if="state === 'has-channels' && !editing" class="space-y-2">
           <p class="status-readout ok">TVHeadend already has {{ status.channels }} channels.</p>
-          <p class="text-sm text-ink-dim">Press NEXT to keep them. To add channels that are missing, scan again.</p>
-          <button type="button" class="btn" @click="editing = true"><search-icon /> SCAN AGAIN</button>
+          <p class="text-sm text-ink-dim">Press Next to keep them. To add channels that are missing, scan again.</p>
+          <button type="button" class="btn" @click="editing = true"><search-icon /> Scan again</button>
         </div>
 
         <div v-else class="space-y-4">
           <p class="text-ink text-sm leading-relaxed">
-            Freetvarr can scan for channels and add them to TVHeadend. Check the choices below, then press FIND CHANNELS.
+            Freetvarr can scan for channels and add them to TVHeadend. Check the choices below, then press Find channels.
           </p>
           <div class="field-row">
             <span class="field-label">Tuners</span>
-            <label v-for="t in tuners" :key="t.id" class="flex items-center gap-2 text-sm text-ink py-1">
+            <label v-for="t in tuners" :key="t.id" class="welcome-check">
               <input type="checkbox" class="chk" :value="t.id" v-model="tunerIds" />
               {{ t.name }}
             </label>
@@ -157,7 +157,7 @@ export const ChannelSetupStep = {
           <p v-if="recordingNow" class="status-readout info">{{ recordingNow }}</p>
           <div class="action-row flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!ready || starting">
-              <search-icon /> FIND CHANNELS
+              <search-icon /> Find channels
             </button>
           </div>
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
@@ -298,7 +298,7 @@ export const ChannelSetupStep = {
           retries += 1
           retryTimer = setTimeout(refresh, NO_TUNER_RETRY_MS)
         } else if (addressSaved.value) {
-          addressError.value = `No tuner answered at ${addressSaved.value}. Check the address, then press USE THIS ADDRESS again.`
+          addressError.value = `No tuner answered at ${addressSaved.value}. Check the address, then press Use this address again.`
           addressSaved.value = ''
         }
       } catch (err) {

@@ -16,6 +16,8 @@ import {
   useControlsAutoHide,
   useInfoDismissTaps,
 } from '/components/player-controls.js'
+import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
+import { behindPillText, liveHintText, percentWithin, programmeRangeText, joinedParts } from '/player-labels.js'
 import { api } from '/shared/api.js'
 import {
   liveVideo,
@@ -47,10 +49,9 @@ import {
 } from '/shared/live-session.js'
 import {
   live,
+  playback,
   liveCaptionsOn,
   isStageFullscreen,
-  playerLayoutOf,
-  exitPlayerFullscreen,
   toggleStageFullscreen,
 } from '/shared/player-shared.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
@@ -58,120 +59,98 @@ import { recordDialogOverPlayer, openInGuide } from '/shared/store.js'
 import { now, fmtClockTz } from '/shared/time.js'
 
 export const LivePlayer = {
+  components: PLAYER_CHROME_COMPONENTS,
   template: `
     <teleport to="body">
-    <transition name="epg-sheet">
-    <div v-show="live.open" :class="['epg-modal-backdrop', 'live-backdrop', layout]">
-      <section class="panel epg-modal live-modal" role="dialog" aria-label="Live TV">
-        <player-header :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="live.channel?.name"
-          :subtitle="live.nowTitle" close-label="Stop and close" @close="stopLive" />
-        <div ref="frameEl" :class="['live-frame', { 'is-controls-hidden': !controlsShown }]" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
-          @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
-          <video ref="videoEl" :class="['live-video', { 'is-veiled': chips !== 'hidden' }]" playsinline :controls="!infoOpen && !customControls" controlslist="nofullscreen"></video>
-          <div v-if="customControls" class="player-tap-layer" aria-hidden="true"></div>
-          <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
-            <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
-              <span class="live-chip-arm"><i class="live-chip"></i></span>
-            </span>
-          </div>
-          <div v-if="chips === 'ended'" class="live-chips-row" aria-hidden="true">
-            <i v-for="n in 3" :key="n" class="live-chip"></i>
-          </div>
-          <span v-if="chips === 'tuning' || chips === 'ended'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText }}</span>
-          <player-info-panel :open="infoOpen" panel-id="live-info">
-            <template #image>
-            <programme-image v-if="info.now" :key="info.now.program_id" class="live-info-image" variant="info"
-              :event-id="info.now.has_image ? info.now.program_id : null" :title="info.now.title"
-              :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
-            </template>
-              <p class="live-info-channel">
-                <channel-logo class="live-info-logo" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
-                <span class="truncate">{{ infoChannelLabel }}</span>
-                <span v-if="isBehindLive" class="live-info-buffer">FROM BUFFER</span>
-              </p>
-              <template v-if="info.now">
-                <p class="live-info-title">{{ info.now.title }}</p>
-                <p v-if="infoEpisodeLine" class="live-info-episode">{{ infoEpisodeLine }}</p>
-                <div class="live-info-times">
-                  <span>{{ fmtClockTz(info.now.start) }}–{{ fmtClockTz(info.now.end) }}</span>
-                  <div class="progress-track"><div class="progress-fill" :style="{ width: infoProgress + '%' }"></div></div>
-                </div>
-                <p v-if="infoMetaLine" class="live-info-meta">{{ infoMetaLine }}</p>
-                <p v-if="info.now.synopsis" class="live-info-synopsis">{{ info.now.synopsis }}</p>
-              </template>
-              <p v-else-if="info.loaded && !info.next" class="live-info-empty">{{ NO_GUIDE_TEXT }}</p>
-              <p v-if="info.next" class="live-info-next">
-                NEXT <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
-              </p>
-          </player-info-panel>
-          <player-overlay-buttons :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
-            :captions-on="captionsOn" close-label="Stop and close" :fullscreen="isStageFullscreen || layout['is-filled']"
-            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @close="stopLive" @exit-fullscreen="exitPlayerFullscreen" />
-          <div v-if="customControls && !infoOpen" class="play-controls live-controls">
-            <div class="play-scrub">
-              <span class="play-time live-controls-status">{{ barStatus }}</span>
-              <input v-if="hasBufferBar" type="range" class="play-range" step="any"
-                :min="live.bufferFrom" :max="live.bufferTo" :value="shownLivePosition"
-                :style="{ '--fill': liveFillPercent }"
-                @input="onLiveScrubInput" @change="onLiveScrubCommit"
-                aria-label="Position in the live buffer">
-            </div>
-            <div class="play-buttons">
-              <button v-if="isBehindLive" type="button" class="btn btn-icon" aria-label="Go live" @click="jumpToLive"><go-live-icon /></button>
-              <button type="button" :class="['btn', 'btn-icon', 'live-record-button', { 'is-recording': recordButton.recording }]"
-                :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
-                <span v-if="recordButton.recording" class="led-dot live live-record-dot" aria-hidden="true"></span><record-icon v-else />
-              </button>
-              <button v-if="!seriesButton.hidden" type="button" :class="['btn', 'btn-icon', 'live-series-button', { 'is-on': seriesButton.set }]"
-                :disabled="seriesButton.disabled" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
-                :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive"><series-record-icon :set="seriesButton.set" /></button>
-              <button type="button" class="btn btn-icon" :disabled="live.phase !== 'live'"
-                :aria-label="live.paused ? 'Play' : 'Pause'" @click="toggleLivePause">
-                <play-icon v-if="live.paused" /><pause-icon v-else />
-              </button>
-            </div>
-          </div>
-          <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
-            <span>{{ live.skipHint.label }}</span>
-          </div>
-          <span class="sr-only" aria-live="polite">{{ live.skipHint?.spoken || '' }}</span>
+    <transition name="pl-fade">
+    <div v-show="live.open" class="pl-backdrop" role="dialog" aria-label="Live TV">
+      <div ref="frameEl" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown }]" @pointerdown="onFramePointerDown" @pointerup="onFramePointerUp"
+        @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClick" @dblclick.capture="onFrameDoubleClick">
+        <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': chips !== 'hidden' }]" playsinline controlslist="nofullscreen"></video>
+        <div class="player-tap-layer" aria-hidden="true"></div>
+        <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
+          <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
+            <span class="live-chip-arm"><i class="live-chip"></i></span>
+          </span>
         </div>
-        <div class="panel-body space-y-3">
-          <ul v-if="live.holders.length" class="space-y-1 font-mono text-xs text-ink-dim">
+        <div v-if="chips === 'ended'" class="live-chips-row" aria-hidden="true">
+          <i v-for="n in 3" :key="n" class="live-chip"></i>
+        </div>
+        <span v-if="chips === 'tuning'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText || TUNING_TEXT }}</span>
+        <div class="pl-scrim is-top" aria-hidden="true"></div>
+        <div class="pl-scrim is-bottom" aria-hidden="true"></div>
+        <player-info-panel :open="infoOpen" panel-id="live-info">
+          <template #image>
+          <programme-image v-if="info.now" :key="info.now.program_id" class="live-info-image" variant="info"
+            :event-id="info.now.has_image ? info.now.program_id : null" :title="info.now.title"
+            :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
+          </template>
+            <p class="live-info-channel">
+              <channel-logo class="live-info-logo" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
+              <span class="truncate">{{ infoChannelLabel }}</span>
+              <span v-if="isBehindLive" class="live-info-buffer">From buffer</span>
+            </p>
+            <template v-if="info.now">
+              <p class="live-info-title">{{ info.now.title }}</p>
+              <p v-if="infoEpisodeLine" class="live-info-episode">{{ infoEpisodeLine }}</p>
+              <div class="live-info-times">
+                <span>{{ fmtClockTz(info.now.start) }}–{{ fmtClockTz(info.now.end) }}</span>
+                <div class="progress-track"><div class="progress-fill" :style="{ width: infoProgress + '%' }"></div></div>
+              </div>
+              <p v-if="infoMetaLine" class="live-info-meta">{{ infoMetaLine }}</p>
+              <p v-if="info.now.synopsis" class="live-info-synopsis">{{ info.now.synopsis }}</p>
+            </template>
+            <p v-else-if="info.loaded && !info.next" class="live-info-empty">{{ NO_GUIDE_TEXT }}</p>
+            <p v-if="info.next" class="live-info-next">
+              Next <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
+            </p>
+        </player-info-panel>
+        <player-top-bar :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="playerTitle"
+          :subtitle="playerSubtitle" back-label="Stop and close" :info-open="infoOpen" info-id="live-info"
+          :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :fullscreen="isStageFullscreen"
+          @back="stopLive" @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @toggle-fullscreen="toggleLiveFullscreen">
+          <template #before>
+            <button v-if="!seriesButton.hidden" type="button" :class="['pl-pill', { 'is-on': seriesButton.set }]"
+              :disabled="seriesButton.disabled" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
+              :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
+              <series-record-icon :set="seriesButton.set" /><span class="pl-pill-label">Series</span>
+            </button>
+          </template>
+          <button type="button" :class="['pl-pill', 'is-record', { 'is-recording': recordButton.recording }]"
+            :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
+            <span class="pl-record-dot" aria-hidden="true"></span>{{ recordButton.recording ? 'Recording' : 'Record' }}
+          </button>
+        </player-top-bar>
+        <p v-if="conflictText && live.phase === 'live'" class="pl-notice" role="status">{{ conflictText }}</p>
+        <player-center-controls v-if="live.phase === 'live' && chips === 'hidden' && !infoOpen" :paused="live.paused"
+          :show-start-over="true" :start-over-disabled="!hasBufferBar" start-over-title="Jump to the start of the buffer"
+          @start-over="startOverBuffer" @toggle-pause="toggleLivePause">
+          <template #end>
+            <button type="button" class="pl-control" aria-label="Jump to live" title="Jump to live" :disabled="!isBehindLive" @click="jumpToLive"><go-live-icon /></button>
+          </template>
+        </player-center-controls>
+        <div v-if="live.phase === 'ended'" class="pl-ended">
+          <p class="pl-ended-message">{{ live.message }}</p>
+          <ul v-if="live.holders.length" class="pl-ended-holders">
             <li v-for="h in live.holders" :key="h.tuner">{{ liveHolderText(h) }}</li>
           </ul>
-          <player-action-row :info-open="infoOpen" info-id="live-info" :has-captions="Boolean(live.captions)"
-            :captions-on="captionsOn" :status-text="statusText" :status-kind="statusKind"
-            @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions">
-            <template #icons>
-              <button type="button" class="btn btn-icon live-action-icon player-wide-only" @click="toggleLiveFullscreen" aria-label="Full screen"><fullscreen-icon /></button>
-            </template>
-            <template #menu>
-              <button type="button" class="player-menu-item" role="menuitem" @click="toggleLiveFullscreen"><fullscreen-icon /> FULL SCREEN</button>
-            </template>
-            <button v-if="live.phase === 'ended'" type="button" class="btn" @click="retryLive"><refresh-icon /> RETRY</button>
-            <template v-else>
-              <button v-if="isBehindLive" type="button" class="btn live-action-wide" aria-label="GO LIVE" @click="jumpToLive"><go-live-icon /> <span class="live-action-label">GO LIVE</span></button>
-              <button type="button" :class="['btn', 'live-action-wide', 'live-record-button', { 'is-recording': recordButton.recording }]"
-                :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
-                <span v-if="recordButton.recording" class="led-dot live live-record-dot" aria-hidden="true"></span><record-icon v-else />
-                <span class="live-action-label">{{ recordButton.label }}</span>
-              </button>
-              <button v-if="!seriesButton.hidden" type="button"
-                :class="['btn', 'live-action-wide', 'live-series-button', { 'is-on': seriesButton.set }]"
-                :disabled="seriesButton.disabled" :title="seriesButton.title" :aria-label="seriesButton.ariaLabel"
-                :aria-pressed="String(seriesButton.set)" @click="recordSeriesFromLive">
-                <series-record-icon :set="seriesButton.set" /> <span class="live-action-label">SERIES</span>
-              </button>
-              <button type="button" class="btn live-action-wide live-pause-button" :disabled="live.phase !== 'live'"
-                :aria-label="live.paused ? 'Play' : 'Pause'" @click="toggleLivePause">
-                <play-icon v-if="live.paused" /><pause-icon v-else />
-                <span class="live-action-label">{{ live.paused ? 'PLAY' : 'PAUSE' }}</span>
-              </button>
-            </template>
-          </player-action-row>
+          <div class="pl-ended-actions">
+            <button type="button" class="ui-button ui-button-primary" @click="retryLive"><refresh-icon /> Try again</button>
+            <button type="button" class="ui-button ui-button-secondary" @click="stopLive">Close</button>
+          </div>
         </div>
-      </section>
+        <footer v-if="live.phase === 'live' && !infoOpen" class="pl-bottom">
+          <player-scrubber v-if="hasBufferBar" :min="live.bufferFrom" :max="live.bufferTo" :value="shownLivePosition"
+            :fill-percent="liveFillPercent" :start-text="bufferStartText" :end-text="bufferEndText"
+            :pill-text="scrubberPill.text" :pill-live="scrubberPill.live" aria-label="Position in the live buffer"
+            :value-text="scrubberPill.text" @scrub="onLiveScrubInput" @commit="onLiveScrubCommit" />
+          <p class="pl-hint">{{ hintText }}</p>
+        </footer>
+        <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
+          <span>{{ live.skipHint.label }}</span>
+        </div>
+        <span class="sr-only" aria-live="polite">{{ live.skipHint?.spoken || '' }}</span>
+      </div>
     </div>
     </transition>
     </teleport>
@@ -223,26 +202,20 @@ export const LivePlayer = {
 
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
-      if (live.phase === 'tuning') {
-        const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
-        return slow ? 'TUNING… STILL WAITING FOR A SIGNAL' : 'TUNING…'
-      }
-      const lead = liveLeadText()
-      if (!live.conflict) return lead
+      if (live.phase !== 'tuning') return ''
+      const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
+      return slow ? 'Tuning… still waiting for a signal' : TUNING_TEXT
+    })
+
+    const conflictText = computed(() => {
+      if (!live.conflict) return ''
       const wait = fmtCountdown(live.conflict.startsAt - now.value.getTime())
-      return `${lead} · "${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
+      return `"${live.conflict.title}" needs this tuner at ${fmtClockTz(live.conflict.startsAt)} (in ${wait})`
     })
 
-    const liveLeadText = () => {
-      if (live.paused) return 'PAUSED'
-      return isBehindLive.value ? `${fmtCountdown(live.behindSeconds * 1000)} BEHIND LIVE` : 'LIVE'
-    }
-
-    const statusKind = computed(() => {
-      if (live.phase === 'ended' || live.conflict) return 'err'
-      if (live.paused) return 'info'
-      return live.phase === 'live' ? 'ok' : 'info'
-    })
+    watch(() => live.open || playback.open, (open) => {
+      document.body.classList.toggle(PLAYER_OPEN_CLASS, open)
+    }, { immediate: true })
 
     onMounted(() => {
       setLiveVideo(videoEl.value)
@@ -278,45 +251,49 @@ export const LivePlayer = {
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
     const toggleLiveFullscreen = () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo })
-    const layout = computed(() => playerLayoutOf({ canFill: live.phase !== 'ended' && !live.holders.length }))
-    const customControls = computed(() => layout.value['is-filled'] || isStageFullscreen.value)
-    watch(customControls, (on) => { live.customControls = on }, { immediate: true })
+    live.customControls = true
 
     const bufferSpan = computed(() =>
       (live.bufferFrom == null || live.bufferTo == null ? 0 : live.bufferTo - live.bufferFrom))
     const hasBufferBar = computed(() =>
       live.phase === 'live' && live.bufferSeconds > 0 && bufferSpan.value >= MIN_BUFFER_BAR_S)
     const shownLivePosition = computed(() => (live.scrubbing ? live.scrubValue : live.position))
-    const liveFillPercent = computed(() => {
-      if (!bufferSpan.value) return '100%'
-      const share = (shownLivePosition.value - live.bufferFrom) / bufferSpan.value
-      return `${Math.max(0, Math.min(100, share * 100))}%`
+    const liveFillPercent = computed(() =>
+      (bufferSpan.value
+        ? percentWithin({ value: shownLivePosition.value, min: live.bufferFrom, max: live.bufferTo })
+        : 100))
+    const shownBehindSeconds = computed(() =>
+      (live.scrubbing && live.bufferTo != null ? live.bufferTo - live.scrubValue : live.behindSeconds))
+    const scrubberPill = computed(() => {
+      if (shownBehindSeconds.value >= BEHIND_LIVE_SHOWN_S) return { text: behindPillText(shownBehindSeconds.value), live: false }
+      return live.paused ? { text: 'PAUSED', live: false } : { text: 'LIVE', live: true }
     })
-    const barStatus = computed(() => {
-      if (live.phase === 'tuning') return 'TUNING…'
-      if (live.scrubbing && live.bufferTo != null) return `-${fmtCountdown((live.bufferTo - live.scrubValue) * 1000)}`
-      if (live.paused) return 'PAUSED'
-      return isBehindLive.value ? `-${fmtCountdown(live.behindSeconds * 1000)}` : 'LIVE'
-    })
+    const bufferStartText = computed(() => fmtClockTz(now.value.getTime() - bufferSpan.value * 1000))
+    const bufferEndText = computed(() => fmtClockTz(now.value.getTime()))
+    const hintText = computed(() => liveHintText(live.bufferSeconds))
 
-    const onLiveScrubInput = (e) => {
+    const onLiveScrubInput = (value) => {
       live.scrubbing = true
-      live.scrubValue = Number(e.target.value)
+      live.scrubValue = value
     }
 
-    const onLiveScrubCommit = (e) => {
+    const onLiveScrubCommit = (value) => {
       live.scrubbing = false
-      seekLiveTo(Number(e.target.value))
+      seekLiveTo(value)
+    }
+
+    const startOverBuffer = () => {
+      if (live.bufferFrom != null) seekLiveTo(live.bufferFrom)
     }
 
     const { controlsShown, revealControls, onPointerMove: onControlsPointerMove } = useControlsAutoHide({
-      enabled: computed(() => live.open && customControls.value),
+      enabled: computed(() => live.open),
       holdShown: computed(() => live.paused || live.phase !== 'live' || live.scrubbing || infoOpen.value
         || chips.value !== 'hidden' || recordDialogOverPlayer.value),
       rootEl: frameEl,
     })
-    watch([customControls, controlsShown], ([custom, shown]) => {
-      live.captionsLifted = custom && shown
+    watch(controlsShown, (shown) => {
+      live.captionsLifted = shown
       placeLiveCaptions()
     }, { immediate: true })
 
@@ -384,6 +361,14 @@ export const LivePlayer = {
     watch(info, (shown) => {
       if (shown.now) live.nowTitle = shown.now.title
     })
+
+    const playerTitle = computed(() => info.value.now?.title || live.nowTitle || live.channel?.name || '')
+
+    const playerSubtitle = computed(() => joinedParts([
+      live.channel?.name,
+      programmeRangeText({ program: info.value.now, clockText: fmtClockTz }),
+      info.value.next ? `Next: ${info.value.next.title}` : '',
+    ]))
 
     const infoChannelLabel = computed(() =>
       [channelNumberLabel(live.channel?.number), live.channel?.name].filter(Boolean).join(' '))
@@ -472,12 +457,13 @@ export const LivePlayer = {
 
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause,
-      live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, statusKind, liveHolderText,
-      isBehindLive, jumpToLive, customControls, hasBufferBar, shownLivePosition, liveFillPercent, barStatus,
-      onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, layout, exitPlayerFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
+      live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
+      isBehindLive, jumpToLive, hasBufferBar, shownLivePosition, liveFillPercent, scrubberPill,
+      bufferStartText, bufferEndText, hintText, startOverBuffer, playerTitle, playerSubtitle,
+      onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
-      fmtClockTz, NO_GUIDE_TEXT,
+      fmtClockTz, NO_GUIDE_TEXT, TUNING_TEXT,
     }
   },
 }
@@ -498,9 +484,12 @@ const AIRING_BOUNDARY_GRACE_MS = 1_000
 const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800
 const TUNING_SLOW_MS = 15_000
+const TUNING_TEXT = 'Tuning…'
 
 const BEHIND_LIVE_SHOWN_S = 10
 
 const HAVE_FUTURE_DATA = 3
+
+const PLAYER_OPEN_CLASS = 'player-open'
 
 const MIN_BUFFER_BAR_S = 10

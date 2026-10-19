@@ -17,6 +17,8 @@ import {
   removeFromTvhConfirm,
 } from '/recording-confirm.js'
 import { RECORDING_SORTS, recordingSortFor, headerSortKey } from '/recording-sort.js'
+import { LOG_STATUSES, logFiltersFromHash } from '/recording-log-filters.js'
+import { sentenceCase } from '/sentence-case.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 import { useConfirm } from '/components/dialogs.js'
 import { api, fetchSettings } from '/shared/api.js'
@@ -38,92 +40,61 @@ const RECORDINGS_SORT_KEY = 'freetvarr.recordingsSort'
 
 export const RecordingsView = {
   template: `
-    <div class="view-reveal space-y-6">
-      <section class="panel">
-        <header class="panel-header">
-          <span class="panel-heading">
-            <span class="panel-title">RECORDINGS<template v-if="loaded"> · {{ rangeLabel }} of {{ total }}</template></span>
-            <info-button title="RECORDINGS" doc="guide/recordings">
-              <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>IMPORTED</strong>, <strong>PARTIAL</strong>, <strong>SKIPPED</strong>, <strong>FAILED</strong>, or <strong>NOT IMPORTED</strong>. The next sync tries a <strong>PARTIAL</strong> import again.</p>
-              <p><strong>REPLACED</strong> means another app, such as Sonarr, put a different file for the episode in place of Freetvarr's. <strong>NOT IN LIBRARY</strong> means the file is gone; press <strong>IMPORT AGAIN</strong> to import the TVHeadend copy again.</p>
-              <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>IMPORT</strong> on a <strong>NOT IMPORTED</strong> recording to add it to the library.</p>
-              <p><strong>NOT IN TVHEADEND</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
-              <p>A copy, an ad scan, or a cut shows a progress bar while it runs.</p>
-              <p><strong>SORT</strong> orders the list by air date, title, series, import time, or size. The browser remembers your choice.</p>
-              <p>Press a row to see the recording's details: its channel, length, size, file, ads, and the full error if it has one. The buttons there play, import, scan for ads, or remove it.</p>
-            </info-button>
-          </span>
-          <div class="header-actions flex flex-wrap items-center justify-end gap-3">
-            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <header-button v-if="undoIds.length" label="Undo" @click="undoClear" :disabled="restoring"
-              title="Puts the cleared rows back in this list."><arrow-left-icon /></header-button>
-            <header-button :label="clearing ? 'Clearing…' : 'Clear from list'" @click="askClearList"
-              :disabled="clearing || clearable === 0"
-              title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library."><cross-icon /></header-button>
-            <header-button label="Refresh" @click="manualRefresh"><refresh-icon /></header-button>
+    <div class="view-reveal settings-page log-page">
+      <div class="settings-toolbar">
+        <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
+        <button type="button" class="btn" @click="askClearList" :disabled="clearing || clearable === 0"
+          title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library.">
+          <cross-icon /> {{ clearing ? 'Clearing…' : 'Clear from list' }}
+        </button>
+        <button v-if="undoIds.length" type="button" class="btn" @click="undoClear" :disabled="restoring"
+          title="Puts the cleared rows back in this list."><arrow-left-icon /> Undo</button>
+        <span class="settings-toolbar-end"></span>
+        <info-button title="Recording log" doc="guide/recordings">
+          <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>Imported</strong>, <strong>Partial</strong>, <strong>Skipped</strong>, <strong>Failed</strong>, or <strong>Not imported</strong>. The next sync tries a <strong>Partial</strong> import again.</p>
+          <p><strong>Replaced</strong> means another app, such as Sonarr, put a different file for the episode in place of Freetvarr's. <strong>Not in library</strong> means the file is gone; press <strong>Import again</strong> to import the TVHeadend copy again.</p>
+          <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>Import</strong> on a <strong>Not imported</strong> recording to add it to the library.</p>
+          <p><strong>Not in TVHeadend</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
+          <p>A copy, an ad scan, or a cut shows a progress bar while it runs.</p>
+          <p><strong>Sort</strong> orders the list by air date, title, series, import time, or size. The browser remembers your choice.</p>
+          <p>Press a row to see the recording's details: its channel, length, size, file, ads, and the full error if it has one. The buttons there play, import, scan for ads, or remove it.</p>
+        </info-button>
+      </div>
+      <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
+
+      <div class="settings-filters">
+        <div class="settings-filter-bar">
+          <select :value="showFilter" @change="setShow($event.target.value)" class="field-input settings-select" aria-label="Show">
+            <option value="all">Any show</option>
+            <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
+          </select>
+          <select v-model="sortKey" class="field-input settings-select" aria-label="Sort recordings">
+            <option v-for="o in RECORDING_SORTS" :key="o.key" :value="o.key">{{ sentenceCase(o.label) }}</option>
+          </select>
+        </div>
+        <div v-for="g in chipGroups" :key="g.key" class="settings-filter" role="group" :aria-labelledby="'log-filter-' + g.key">
+          <span :id="'log-filter-' + g.key" class="settings-filter-label">{{ g.label }}</span>
+          <div class="ui-chip-row is-scroll">
+            <button v-for="opt in g.options" :key="opt.key" type="button" class="ui-chip is-small"
+              :aria-pressed="String(g.value === opt.key)" @click="g.set(opt.key)">{{ opt.label }}</button>
           </div>
-        </header>
-        <div class="panel-body space-y-4">
-          <template v-if="narrow">
-            <div class="view-controls view-controls-sticky" style="flex-wrap: wrap;">
-              <select :value="showFilter" @change="setShow($event.target.value)" class="field-input" style="flex-basis: 100%;" aria-label="Show">
-                <option value="all">Any show</option>
-                <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
-              </select>
-              <select v-model="sortKey" class="field-input" aria-label="Sort recordings">
-                <option v-for="o in RECORDING_SORTS" :key="o.key" :value="o.key">{{ o.label }}</option>
-              </select>
-              <filter-sheet title="FILTER RECORDINGS" :count="activeFilters.length" @clear="clearSheetFilters">
-                <div v-for="g in chipGroups" :key="g.key" class="filter-group" role="group" :aria-label="g.label">
-                  <span class="field-label">{{ g.label }}</span>
-                  <div class="filter-chips">
-                    <button v-for="opt in g.options" :key="opt.key" type="button"
-                      :class="['btn', 'btn-sm', g.value === opt.key ? 'btn-on' : '']" :aria-pressed="String(g.value === opt.key)"
-                      @click="g.set(opt.key)">{{ opt.label }}</button>
-                  </div>
-                </div>
-              </filter-sheet>
-            </div>
-            <div v-if="activeFilters.length" class="active-filters">
-              <button v-for="f in activeFilters" :key="f.key" type="button" class="btn btn-sm btn-on"
-                :aria-label="'Remove filter: ' + f.label" @click="f.clear">{{ f.label }} <cross-icon /></button>
-            </div>
-          </template>
-          <div v-else class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
-            <template v-for="g in chipGroups" :key="g.key">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">{{ g.label }}</span>
-                <div class="chip-row md:flex-wrap">
-                  <button v-for="opt in g.options" :key="opt.key" type="button"
-                    :class="['btn', 'btn-sm', g.value === opt.key ? 'btn-on' : '']" :aria-pressed="String(g.value === opt.key)"
-                    @click="g.set(opt.key)">{{ opt.label }}</button>
-                </div>
-              </div>
-              <div v-if="g.key === 'status'" class="flex items-center gap-2">
-                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SHOW</span>
-                <select :value="showFilter" @change="setShow($event.target.value)" aria-label="Show"
-                  class="field-input" style="width: auto; min-width: 9rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
-                  <option value="all">Any</option>
-                  <option v-for="s in shows" :key="s.id" :value="s.id">{{ s.show_pattern }}</option>
-                </select>
-              </div>
-              <div v-if="g.key === 'status'" class="flex items-center gap-2">
-                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SORT</span>
-                <select v-model="sortKey" aria-label="Sort recordings"
-                  class="field-input" style="width: auto; min-width: 9rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
-                  <option v-for="o in RECORDING_SORTS" :key="o.key" :value="o.key">{{ o.label }}</option>
-                </select>
-              </div>
-            </template>
-          </div>
-          <list-skeleton v-if="!loaded" :rows="8" />
-          <table v-else-if="recordings.length" class="deck-table recordings-table hidden lg:table">
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-head">
+          <h3 class="ui-group-label">Recordings</h3>
+          <span v-if="loaded" class="settings-group-count">{{ rangeLabel }} of {{ total }}</span>
+        </div>
+        <div v-if="!loaded" class="ui-group settings-table-card"><list-skeleton :rows="8" /></div>
+        <div v-else-if="recordings.length" class="ui-group settings-table-card">
+          <table class="deck-table recordings-table hidden lg:table">
             <thead><tr>
               <th class="sortable" @click="toggleSort('title')">Recording<sort-arrow :dir="sortDirFor('title')" /></th>
               <th class="sortable" @click="toggleSort('show_pattern')">Show<sort-arrow :dir="sortDirFor('show_pattern')" /></th>
               <th>Status</th>
               <th class="sortable" @click="toggleSort('aired_at')">Aired<sort-arrow :dir="sortDirFor('aired_at')" /></th>
-              <th></th>
+              <th><span class="sr-only">Play</span></th>
             </tr></thead>
             <tbody>
               <template v-for="r in recordings" :key="r.recording_id">
@@ -134,21 +105,21 @@ export const RecordingsView = {
                     <div class="recording-cell">
                       <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
                       <div class="recording-cell-text">
-                        <span class="font-mono">{{ r.title }}</span>
+                        <span class="settings-cell-title">{{ r.title }}</span>
                         <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
                       </div>
                     </div>
                   </td>
                   <td>
                     <div class="recording-cell-text">
-                      <span class="font-mono">{{ showLabel(r) }}</span>
+                      <span>{{ showLabel(r) }}</span>
                       <span v-if="se(r)" class="recording-cell-channel">{{ se(r) }}</span>
                     </div>
                   </td>
                   <td class="recording-status-cell">
                     <recording-status :recording="r" :ctx="drawerContext" />
                   </td>
-                  <td class="font-mono whitespace-nowrap text-ink-dim">{{ r.aired_at ? fmtTime(r.aired_at) : '' }}</td>
+                  <td class="ui-tabular whitespace-nowrap text-ink-dim">{{ r.aired_at ? fmtTime(r.aired_at) : '' }}</td>
                   <td>
                     <div class="rec-actions flex items-center justify-end">
                       <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch recording-play"
@@ -164,9 +135,9 @@ export const RecordingsView = {
               </template>
             </tbody>
           </table>
-          <div v-if="loaded && recordings.length" class="lg:hidden list-rows">
+          <div class="lg:hidden list-rows">
             <article v-for="r in recordings" :key="r.recording_id"
-              :class="['list-row', 'toggle-card', 'space-y-2', { 'not-in-tvh': r.deleted_from_tvh_at, open: isOpen(r) }]"
+              :class="['list-row', 'toggle-card', { 'not-in-tvh': r.deleted_from_tvh_at, open: isOpen(r) }]"
               tabindex="0" :aria-expanded="String(isOpen(r))" :aria-label="r.title + ': show details'"
               @click="toggleOpen(r)" @keydown.enter.self.prevent="toggleOpen(r)" @keydown.space.self.prevent="toggleOpen(r)">
               <div class="list-row-main">
@@ -187,19 +158,24 @@ export const RecordingsView = {
               <recording-drawer v-if="isOpen(r)" class="drawer-card" :recording="r" :ctx="drawerContext" @click.stop @keydown.stop />
             </article>
           </div>
-          <p v-else-if="loaded && total === 0 && hasFiltersApplied" class="text-ink-dim text-sm pt-3">No recordings match the current filters.</p>
-          <p v-else-if="loaded && total === 0" class="text-ink-dim text-sm pt-3">
-            No recordings yet. To make a recording, open the <a href="#/guide">TV Guide</a>, pick a programme, and press <strong>RECORD</strong> or <strong>SERIES</strong>. Recordings show here once TVHeadend starts them.
-          </p>
-          <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
-            <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
-            <div class="flex items-center gap-2">
-              <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> PREV</button>
-              <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">NEXT <arrow-right-icon /></button>
-            </div>
-          </div>
         </div>
-      </section>
+        <div v-else-if="total === 0 && hasFiltersApplied" class="ui-group settings-no-match-card">
+          <p class="settings-empty">No recordings match the current filters.</p>
+          <button type="button" class="btn btn-sm" @click="clearAllFilters"><cross-icon /> Clear filters</button>
+        </div>
+        <div v-else-if="total === 0" class="ui-group">
+          <p class="settings-empty">
+            No recordings yet. To make a recording, open the <a href="#/guide">Guide</a>, pick a programme, and press <strong>Record</strong> or <strong>Record series</strong>. Recordings show here once TVHeadend starts them.
+          </p>
+        </div>
+      </div>
+      <div v-if="total > pageSize" class="settings-pager">
+        <span class="settings-meta-line">Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
+        <div class="settings-pager-buttons">
+          <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
+          <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
+        </div>
+      </div>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
         :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
@@ -222,27 +198,28 @@ export const RecordingsView = {
     const pageSize = ref(50)
     const sortKey = storedChoice({ key: RECORDINGS_SORT_KEY, options: RECORDING_SORTS.map((o) => o.key), fallback: 'newest' })
     const sort = computed(() => recordingSortFor(sortKey.value))
-    const statusFilter = ref('all')
+    const linkedFilters = logFiltersFromHash(window.location.hash)
+    const statusFilter = ref(linkedFilters.status)
     const showFilter = ref('all')
-    const sinceFilter = ref('all')
-    const deletedFilter = ref('all')
+    const sinceFilter = ref(linkedFilters.since)
+    const deletedFilter = ref(linkedFilters.deleted)
     const clearable = ref(0)
     const undoIds = ref([])
     const restoring = ref(false)
 
-    const statusOptions = ['all', 'done', 'not_imported', 'replaced', 'not_in_library', 'partial', 'failed', 'skipped', 'importing']
+    const statusOptions = LOG_STATUSES
     const sinceOptions = [
-      { key: 'all', label: 'ALL' },
-      { key: '1h',  label: '1H'  },
-      { key: '24h', label: '24H' },
-      { key: '7d',  label: '7D'  },
-      { key: '30d', label: '30D' },
-      { key: '90d', label: '90D' },
+      { key: 'all', label: 'Any time' },
+      { key: '1h', label: 'Last hour' },
+      { key: '24h', label: '24 hours' },
+      { key: '7d', label: '7 days' },
+      { key: '30d', label: '30 days' },
+      { key: '90d', label: '90 days' },
     ]
     const deletedOptions = [
-      { key: 'all',     label: 'ALL'              },
-      { key: 'on_tvh',  label: 'IN TVHEADEND'     },
-      { key: 'deleted', label: 'NOT IN TVHEADEND' },
+      { key: 'all', label: 'All' },
+      { key: 'on_tvh', label: 'In TVHeadend' },
+      { key: 'deleted', label: 'Not in TVHeadend' },
     ]
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
@@ -310,13 +287,13 @@ export const RecordingsView = {
     const chipGroups = computed(() => [
       {
         key: 'status',
-        label: 'STATUS',
+        label: 'Status',
         value: statusFilter.value,
         set: setStatus,
-        options: statusOptions.map((opt) => ({ key: opt, label: statusLabel(opt).toUpperCase() })),
+        options: statusOptions.map((opt) => ({ key: opt, label: sentenceCase(statusLabel(opt)) })),
       },
-      { key: 'since', label: 'WHEN', value: sinceFilter.value, set: setSince, options: sinceOptions },
-      { key: 'deleted', label: 'TVHEADEND', value: deletedFilter.value, set: setDeleted, options: deletedOptions },
+      { key: 'since', label: 'When', value: sinceFilter.value, set: setSince, options: sinceOptions },
+      { key: 'deleted', label: 'TVHeadend', value: deletedFilter.value, set: setDeleted, options: deletedOptions },
     ])
 
     const activeFilters = computed(() => chipGroups.value
@@ -331,6 +308,20 @@ export const RecordingsView = {
       statusFilter.value = 'all'
       sinceFilter.value = 'all'
       deletedFilter.value = 'all'
+      page.value = 1
+    }
+
+    const clearAllFilters = () => {
+      clearSheetFilters()
+      showFilter.value = 'all'
+    }
+
+    const applyLinkedFilters = () => {
+      if (!window.location.hash.includes('?')) return
+      const linked = logFiltersFromHash(window.location.hash)
+      statusFilter.value = linked.status
+      sinceFilter.value = linked.since
+      deletedFilter.value = linked.deleted
       page.value = 1
     }
 
@@ -543,8 +534,10 @@ export const RecordingsView = {
       loadAdRemovalSetting()
       refresh().catch(() => {}).finally(scheduleNextPoll)
     })
+    window.addEventListener('hashchange', applyLinkedFilters)
     onUnmounted(() => {
       if (pollTimer) clearTimeout(pollTimer)
+      window.removeEventListener('hashchange', applyLinkedFilters)
     })
 
     watch(
@@ -586,7 +579,7 @@ export const RecordingsView = {
       clearable, undoIds, restoring, undoClear,
       confirming, confirmBusy, askAdScan, askRemoveFromTvh, askClearRow, askClearList, closeConfirm, runConfirmed,
       setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
-      narrow, chipGroups, activeFilters, clearSheetFilters,
+      narrow, chipGroups, activeFilters, clearSheetFilters, clearAllFilters, sentenceCase,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
       flashText, flashKind,
     }

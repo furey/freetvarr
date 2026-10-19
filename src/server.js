@@ -103,6 +103,7 @@ import {
   getProgrammeImage,
   findProgrammeThumbnail,
   findShowThumbnail,
+  findShowPoster,
   prepareThumbnailCache,
   recordProgram,
   cancelProgram,
@@ -156,8 +157,14 @@ import {
 } from './playback.js'
 import { BUILD_HEADER, cacheControlFor, readBuildId, stampAssetUrls, stampIndexHtml } from './build-id.js'
 import { getDoctorReport } from './doctor.js'
+import { healthSummaryRoute } from './health-summary.js'
 import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
+import { watchedAtAfterPosition } from './library.js'
+import { mountLibraryRoutes } from './library-routes.js'
+import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
+import { mountWatchlist } from './watchlist.js'
+import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
@@ -673,8 +680,13 @@ app.get('/api/epg/image/:eventId', serveImage({
 
 app.get('/api/epg/show-image', serveImage({
   widths: PROGRAMME_IMAGE_WIDTHS,
-  loadImage: ({ width, title }) => findShowThumbnail({ title, width }),
-  paramsOf: (req) => ({ title: String(req.query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH) }),
+  loadImage: ({ width, title, shape }) => (shape === POSTER_SHAPE
+    ? findShowPoster({ title, width })
+    : findShowThumbnail({ title, width })),
+  paramsOf: (req) => ({
+    title: String(req.query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
+    shape: showImageShapeFrom(req.query.shape),
+  }),
 }))
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
@@ -1055,7 +1067,7 @@ app.post('/api/recordings/:recording_id/position', playPingLimiter, doubleCsrfPr
   if (seconds == null) return res.status(400).json({ error: 'seconds must be a number from 0 to 86400' })
   const n = await db('recordings')
     .where({ recording_id: req.params.recording_id })
-    .update({ playback_position_s: seconds, played_at: new Date().toISOString() })
+    .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds }) })
   if (n === 0) return res.status(404).json({ error: 'recording not found' })
   res.json({ ok: true, seconds })
 })
@@ -1111,6 +1123,13 @@ app.get('/api/doctor', doctorLimiter, async (req, res) => {
 app.get('/api/series', async (req, res) => {
   res.json(await getSeries())
 })
+
+mountLibraryRoutes({ app, csrf: doubleCsrfProtection, ruleLimiter: epgLimiter, watchedLimiter: playPingLimiter, playbackSourceResolver })
+
+mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
+mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
+
+app.get('/api/health-summary', healthSummaryRoute)
 
 app.get('/api/shows', async (req, res) => {
   const rows = await db('shows').orderBy('created_at', 'desc')

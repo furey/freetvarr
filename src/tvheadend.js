@@ -309,6 +309,27 @@ export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn }
   return { ok: true, enabled, uuids: autorecs.map((a) => a.id) }
 }
 
+export const updateSeriesTags = async ({ seriesLinkIds = [], patch = {}, conn } = {}) => {
+  const connection = conn || (await resolveConnection())
+  const wanted = new Set(seriesLinkIds.map(String))
+  const autorecs = (await listAutorecs(connection))
+    .filter((a) => wanted.has(String(a.seriesLinkId)) || wanted.has(String(a.id)))
+  if (autorecs.length === 0) {
+    throw new TvheadendError('No series recording matches.', { stage: 'series', code: 'not-found' })
+  }
+  const fields = autorecFieldsOf(patch)
+  for (const autorec of autorecs) {
+    await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, ...fields }) }, connection)
+  }
+  return { ok: true, uuids: autorecs.map((a) => a.id) }
+}
+
+export const autorecFieldsOf = ({ episodesToKeep, leadTime, lagTime } = {}) => ({
+  ...(episodesToKeep != null ? { maxcount: episodesToKeep } : {}),
+  ...(leadTime != null ? { start_extra: leadTime } : {}),
+  ...(lagTime != null ? { stop_extra: lagTime } : {}),
+})
+
 export const removeRecordings = async ({ recordingIds } = {}) => {
   const ids = (recordingIds || []).map(String).filter(Boolean)
   if (ids.length === 0) {
@@ -346,12 +367,14 @@ export const getState = async () => {
     countTuners(conn).catch(() => null),
   ])
   const keyByAutorecId = new Map(autorecs.map((a) => [a.id, a.seriesLinkId]))
-  const futureRecordings = upcoming.filter((e) => e.enabled).map((e) => ({
+  const withSeriesLink = (e) => ({
     ...e,
     seriesLinkId: e.autorecId ? keyByAutorecId.get(e.autorecId) || null : null,
-  }))
+  })
+  const futureRecordings = upcoming.filter((e) => e.enabled).map(withSeriesLink)
   return {
     futureRecordings,
+    skippedRecordings: upcoming.filter((e) => !e.enabled).map((e) => ({ ...withSeriesLink(e), skipped: true })),
     skippedProgramIds: upcoming.filter((e) => !e.enabled).map((e) => String(e.programId)),
     seriesTags: autorecs,
     activeRecordingIds: futureRecordings

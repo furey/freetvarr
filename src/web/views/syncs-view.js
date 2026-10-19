@@ -33,15 +33,15 @@ const syncTimeText = (s) => syncTime({
 const SYNC_DETAIL_ROLES = ['trigger', 'skip', 'plex', 'ads', 'message']
 
 const OUTCOME_OPTIONS = [
-  { key: 'imports', label: 'IMPORTS' },
-  { key: 'fails', label: 'FAILS' },
-  { key: 'removals', label: 'REMOVALS' },
-  { key: 'empty', label: 'EMPTY' },
+  { key: 'imports', label: 'Imports' },
+  { key: 'fails', label: 'Fails' },
+  { key: 'removals', label: 'Removals' },
+  { key: 'empty', label: 'Empty' },
 ]
 const TRIGGER_OPTIONS = [
-  { key: 'any', label: 'ANY' },
-  { key: 'cron', label: 'SCHEDULE' },
-  { key: 'manual', label: 'MANUAL' },
+  { key: 'any', label: 'Any' },
+  { key: 'cron', label: 'Schedule' },
+  { key: 'manual', label: 'Manual' },
 ]
 const DEFAULT_SYNC_FILTER = { outcomes: ['imports', 'fails', 'removals'], trigger: 'any' }
 const SYNC_FILTER_KEY = 'freetvarr.syncFilter'
@@ -67,59 +67,53 @@ const LINKED_SYNC_HIGHLIGHT_MS = 1600
 
 export const SyncsView = {
   template: `
-    <div class="view-reveal space-y-6">
-      <section class="panel">
-        <header class="panel-header">
-          <span class="panel-heading">
-            <span class="panel-title" title="Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.">SYNCS<template v-if="loaded"> · {{ rangeLabel }} of {{ total }}</template></span>
-            <info-button title="SYNCS" doc="guide/syncs">
-              <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
-              <p>Syncs run on the schedule in <strong>SETTINGS</strong>, or when you press <strong>SYNC NOW</strong>. Only one runs at a time.</p>
-              <p><strong>SHOW</strong> picks which syncs to list: those that imported, failed, or removed something, and empty ones that found nothing new. Empty syncs are hidden at first. <strong>FROM</strong> picks syncs started on the schedule or by hand.</p>
-              <p>Press a sync to see each recording it imported, failed, or removed, and how long each step took. Its details also hold <strong>DELETE SYNC</strong>, which removes that sync from the history.</p>
-              <p>The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.</p>
-            </info-button>
-          </span>
-          <div class="flex items-center gap-3">
-            <span class="hidden md:inline text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></span>
-            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-          </div>
-        </header>
-        <div class="panel-body syncs-body space-y-4">
-          <p v-if="scheduleFrequency || syncStatus.cron" class="md:hidden text-xs text-ink-dim"><template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template></p>
-          <div class="flex flex-wrap gap-3">
-            <button type="button" class="btn btn-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
-              <template v-if="syncStatus.activeSyncId"><span class="spinner"></span><span><span class="hidden md:inline">SYNC </span>RUNNING…</span></template>
-              <template v-else-if="starting">STARTING…</template>
-              <template v-else><play-icon /> <span>SYNC<span class="hidden md:inline"> NOW</span></span></template>
-            </button>
-            <button type="button" class="btn" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /><span class="hidden md:inline">REFRESH</span></button>
-            <button type="button" class="btn btn-danger" @click="askClearAll" :disabled="!total" aria-label="Clear history"><trash-icon /> <span><span class="hidden md:inline">CLEAR </span>HISTORY</span></button>
-          </div>
+    <div class="view-reveal settings-page activity-page">
+      <div class="settings-toolbar">
+        <button type="button" class="ui-button ui-button-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
+          <template v-if="syncStatus.activeSyncId"><span class="spinner"></span> Syncing…</template>
+          <template v-else-if="starting">Starting…</template>
+          <template v-else><refresh-icon /> Sync now</template>
+        </button>
+        <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
+        <button type="button" class="btn btn-danger settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
+        <info-button title="Activity" doc="guide/syncs">
+          <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
+          <p>Syncs run on the schedule in <strong>Settings</strong>, or when you press <strong>Sync now</strong>. Only one runs at a time.</p>
+          <p><strong>Show</strong> picks which syncs to list: those that imported, failed, or removed something, and empty ones that found nothing new. Empty syncs are hidden at first. <strong>From</strong> picks syncs started on the schedule or by hand.</p>
+          <p>Press a sync to see each recording it imported, failed, or removed, and how long each step took. Its details also hold <strong>Delete sync</strong>, which removes that sync from the history.</p>
+          <p>The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.</p>
+        </info-button>
+      </div>
+      <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
+      <p v-if="scheduleFrequency || syncStatus.cron" class="settings-meta-line">
+        <template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template>
+      </p>
 
-          <div class="flex flex-wrap items-center gap-x-6 gap-y-2 md:gap-y-3">
-            <div class="flex items-center gap-2 min-w-0" role="group" aria-label="Show">
-              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">SHOW</span>
-              <div class="chip-row md:flex-wrap">
-                <button v-for="opt in OUTCOME_OPTIONS" :key="opt.key" type="button"
-                  :class="['btn', 'btn-sm', outcomes.includes(opt.key) ? 'btn-on' : '']"
-                  :aria-pressed="String(outcomes.includes(opt.key))"
-                  @click="toggleOutcome(opt.key)">{{ opt.label }}</button>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 min-w-0" role="group" aria-label="Started by">
-              <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">FROM</span>
-              <div class="chip-row">
-                <button v-for="opt in TRIGGER_OPTIONS" :key="opt.key" type="button"
-                  :class="['btn', 'btn-sm', trigger === opt.key ? 'btn-on' : '']"
-                  :aria-pressed="String(trigger === opt.key)"
-                  @click="setTrigger(opt.key)">{{ opt.label }}</button>
-              </div>
-            </div>
+      <div class="settings-filters">
+        <div class="settings-filter" role="group" aria-labelledby="activity-show-label">
+          <span id="activity-show-label" class="settings-filter-label">Show</span>
+          <div class="ui-chip-row is-scroll">
+            <button v-for="opt in OUTCOME_OPTIONS" :key="opt.key" type="button" class="ui-chip is-small"
+              :aria-pressed="String(outcomes.includes(opt.key))" @click="toggleOutcome(opt.key)">{{ opt.label }}</button>
           </div>
+        </div>
+        <div class="settings-filter" role="group" aria-labelledby="activity-from-label">
+          <span id="activity-from-label" class="settings-filter-label">From</span>
+          <div class="ui-chip-row is-scroll">
+            <button v-for="opt in TRIGGER_OPTIONS" :key="opt.key" type="button" class="ui-chip is-small"
+              :aria-pressed="String(trigger === opt.key)" @click="setTrigger(opt.key)">{{ opt.label }}</button>
+          </div>
+        </div>
+      </div>
 
-          <list-skeleton v-if="!loaded" :rows="8" />
-          <table v-else-if="syncs.length" class="deck-table sync-table hidden md:table">
+      <div class="settings-group">
+        <div class="settings-group-head">
+          <h3 class="ui-group-label">Syncs</h3>
+          <span v-if="loaded" class="settings-group-count" title="Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.">{{ rangeLabel }} of {{ total }}</span>
+        </div>
+        <div v-if="!loaded" class="ui-group settings-table-card"><list-skeleton :rows="8" /></div>
+        <div v-else-if="syncs.length" class="ui-group settings-table-card">
+          <table class="deck-table sync-table hidden md:table">
             <thead><tr>
               <th class="sync-status-cell"><span class="sr-only">Status</span></th><th>Time</th><th>Result</th><th>Details</th><th>Took</th><th class="sync-chevron-cell"><span class="sr-only">Open</span></th>
             </tr></thead>
@@ -131,7 +125,7 @@ export const SyncsView = {
                     tabindex="0" :aria-expanded="String(isOpen(s))" :aria-label="'Sync #' + s.id + ': show details'"
                     @click="toggleOpen(s)" @keydown.enter.prevent="toggleOpen(s)" @keydown.space.prevent="toggleOpen(s)">
                     <td class="sync-status-cell"><sync-status-icon :status="s.status" /></td>
-                    <td class="font-mono whitespace-nowrap">{{ timeOf(s) }}</td>
+                    <td class="ui-tabular whitespace-nowrap">{{ timeOf(s) }}</td>
                     <td><sync-result :sync="s" /></td>
                     <td class="sync-details-cell">
                       <span class="sync-details-line">
@@ -139,7 +133,7 @@ export const SyncsView = {
                         <template v-if="firstSyncError(s)"><span class="text-ink-mute">·</span><span class="sync-details-error truncate">{{ firstSyncError(s) }}</span></template>
                       </span>
                     </td>
-                    <td class="font-mono whitespace-nowrap text-ink-dim">{{ tookOf(s) }}</td>
+                    <td class="ui-tabular whitespace-nowrap text-ink-dim">{{ tookOf(s) }}</td>
                     <td class="sync-chevron-cell"><chevron-right-icon :class="['sync-line-chevron', { open: isOpen(s) }]" /></td>
                   </tr>
                   <tr v-if="isOpen(s)" class="drawer-row">
@@ -149,7 +143,7 @@ export const SyncsView = {
               </template>
             </tbody>
           </table>
-          <div v-if="loaded && syncs.length" class="md:hidden list-rows sync-list">
+          <div class="md:hidden list-rows sync-list">
             <template v-for="group in dayGroups" :key="group.day">
               <p class="sync-day">{{ group.day }}</p>
               <article v-for="s in group.syncs" :key="s.id"
@@ -168,20 +162,20 @@ export const SyncsView = {
               </article>
             </template>
           </div>
-          <p v-else-if="loaded && total === 0" class="text-ink-dim text-sm">{{ emptyText }}</p>
-          <p v-if="loaded && hiddenEmptyCount" class="text-xs text-ink-dim">
-            {{ hiddenEmptyCount }} empty sync{{ hiddenEmptyCount === 1 ? '' : 's' }} hidden.
-            <button type="button" class="btn-link" @click="toggleOutcome('empty')">Show {{ hiddenEmptyCount === 1 ? 'it' : 'them' }}</button>
-          </p>
-          <div v-if="total > pageSize" class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-ink-dim pt-1">
-            <span>Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
-            <div class="flex items-center gap-2">
-              <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> PREV</button>
-              <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">NEXT <arrow-right-icon /></button>
-            </div>
-          </div>
         </div>
-      </section>
+        <div v-else-if="total === 0" class="ui-group"><p class="settings-empty">{{ emptyText }}</p></div>
+        <p v-if="loaded && hiddenEmptyCount" class="settings-note">
+          {{ hiddenEmptyCount }} empty sync{{ hiddenEmptyCount === 1 ? '' : 's' }} hidden.
+          <button type="button" class="btn-link" @click="toggleOutcome('empty')">Show {{ hiddenEmptyCount === 1 ? 'it' : 'them' }}</button>
+        </p>
+      </div>
+      <div v-if="total > pageSize" class="settings-pager">
+        <span class="settings-meta-line">Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
+        <div class="settings-pager-buttons">
+          <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
+          <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
+        </div>
+      </div>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
         :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>

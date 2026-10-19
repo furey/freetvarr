@@ -18,8 +18,28 @@ import { findSeriesLink } from '/series-link.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordingProgramIdsOf } from '/live-record.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
-import { seasonEpisodeOf, ratingLabel } from '/live-info.js'
-import { formatDate, formatMinutes } from '/time-format.js'
+import { seasonEpisodeOf } from '/live-info.js'
+import { formatDate } from '/time-format.js'
+import {
+  SHEET_KEEP_STEPS,
+  SHEET_LAG_STEPS,
+  SHEET_LEAD_STEPS,
+  activeWatchItemFor,
+  canStep,
+  cellMarksOf,
+  clockWithoutPeriod,
+  initialStrengthOf,
+  keepLabel,
+  minutesShort,
+  primaryActionOf,
+  seasonEpisodeShort,
+  sheetMetaLineOf,
+  sheetStrengthsFor,
+  stepValue,
+  strengthLineOf,
+  watchedKeysOf,
+} from '/programme-sheet.js'
+import { showKeyOf } from '/show-key.js'
 import { channelGroupLabel } from '/components/channel-identity.js'
 import { togglePinnedChannel } from '/components/channels-modal.js'
 import { api, fetchSettings } from '/shared/api.js'
@@ -43,9 +63,9 @@ import { tz, dateFormat, now, fmtClockTz, tsOfMs } from '/shared/time.js'
 const dayKey = (ms) => dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
 
 const EPG_ZOOM_LEVELS = [
-  { key: 's', pxPerMin: 3, rowRem: 3.4, narrowRowRem: 3, halfHourTicks: false },
-  { key: 'm', pxPerMin: 5, rowRem: 4.4, narrowRowRem: 3.75, halfHourTicks: true },
-  { key: 'l', pxPerMin: 8, rowRem: 5.6, narrowRowRem: 4.75, halfHourTicks: true },
+  { key: 's', label: 'Small', pxPerMin: 3, rowRem: 3.4, narrowRowRem: 3, halfHourTicks: false },
+  { key: 'm', label: 'Medium', pxPerMin: 5, rowRem: 4.4, narrowRowRem: 3.75, halfHourTicks: true },
+  { key: 'l', label: 'Large', pxPerMin: 8, rowRem: 5.6, narrowRowRem: 4.75, halfHourTicks: true },
 ]
 const EPG_ZOOM_KEY = 'freetvarr.guideZoom'
 const EPG_NOW_ANCHOR = 0.2
@@ -67,398 +87,339 @@ const LISTINGS_REFRESH_MS = 10_000
 const LISTINGS_LOADING_TEXT = 'Loading the new listings. This can take a couple of minutes.'
 
 const EPG_SEARCH_DEBOUNCE_MS = 300
-const EPG_LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15]
-const EPG_LAG_OPTIONS = [0, 5, 10, 15, 30, 60]
-const EPG_KEEP_OPTIONS = [
-  { value: 0, label: 'ALL EPISODES' },
-  { value: 5, label: 'KEEP 5' },
-  { value: 10, label: 'KEEP 10' },
-]
+const SCHEDULED_HREF = '#/recordings/scheduled'
 
 const ANY_CHANNEL_HINT = 'Records this series whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again.'
 
 export const EpgView = {
   template: `
-    <div :class="['view-reveal', 'space-y-6', { 'max-w-[69rem] mx-auto': mode !== 'guide' }]">
-      <section :class="['panel', { 'panel-guide': mode === 'guide' }]">
-        <header class="panel-header">
-          <span class="panel-heading">
-            <span class="panel-title">GUIDE<template v-if="mode === 'guide'"> · <span class="normal-case">{{ dayTitle }}</span></template><template v-else> · {{ mode.toUpperCase() }}</template></span>
-            <info-button v-if="mode === 'upcoming'" title="TV GUIDE: UPCOMING" doc="guide/tv-guide#recording-a-programme">
-              <p>Everything TVHeadend will record, soonest first. <strong>SCHEDULED</strong> cards are timers set in TVHeadend, marked <strong>SERIES</strong> or <strong>ONE-OFF</strong>. <strong>EXPECTED</strong> cards are episodes your series recordings should catch in the next 7 days.</p>
-              <p>Click a card to open the programme, where you can cancel the recording. Search filters the list as you type.</p>
-            </info-button>
-            <info-button v-else title="TV GUIDE: GUIDE" doc="guide/tv-guide#the-grid">
-              <p>Channels run down the page and time runs across; the orange line marks now. The day chips, <strong>NOW</strong>, and <strong>TONIGHT</strong> move through the week, and the zoom buttons change the time scale.</p>
-              <p>Earlier programmes from today are dimmed. The grid runs on to 3am; programmes after midnight are dimmed, and the date pill opens the next day. Blue borders are scheduled, gold borders are series recordings, and orange is recording now. Hover a programme for its details.</p>
-              <p>Click a programme to record it, record the series, or cancel. A programme on now also offers <strong>WATCH LIVE</strong>.</p>
-            </info-button>
-          </span>
-          <div class="header-actions flex flex-wrap items-center justify-end gap-3">
-            <span v-if="flashText" :class="['status-readout', flashKind]">{{ flashText }}</span>
-            <template v-if="mode === 'guide'">
-              <toggle-switch v-model="showImages" label="IMAGES" />
-            </template>
-            <header-button label="Channels" @click="openChannelsModal" :disabled="!guide"><sliders-icon /></header-button>
-            <header-button v-if="!narrow" label="Refresh" @click="manualRefresh" :disabled="loading"><refresh-icon /></header-button>
-          </div>
-        </header>
-        <div class="panel-body space-y-4">
-          <div class="guide-top flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
-            <div class="chip-row mode-tabs md:flex-wrap">
-              <button v-for="m in modes" :key="m.key" type="button"
-                :class="['btn', 'btn-sm', mode === m.key ? 'btn-on' : '']" :aria-pressed="String(mode === m.key)"
-                @click="setMode(m.key)">{{ m.label }}</button>
-            </div>
-            <div :class="['view-controls', 'flex-1', 'min-w-[12rem]', 'md:max-w-xs', 'md:ml-auto', { 'view-controls-sticky': mode !== 'guide' }]">
-              <select v-if="narrow && mode === 'guide'" :value="day" @change="setDay(Number($event.target.value))"
-                class="field-input day-select" aria-label="Day">
-                <option v-for="d in dayChips" :key="d.day" :value="d.day">{{ d.label }}</option>
-              </select>
-              <input v-no-autofill v-model="searchQ" type="search" class="field-input" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder"
-                style="padding-top: 0.35rem; padding-bottom: 0.35rem;" />
-            </div>
-          </div>
+    <div class="ui-page guide-page view-reveal">
+      <page-header title="Guide" :subtitle="dateSubtitle" :widgets="false">
+        <template #actions>
+          <a href="#/recordings/scheduled" class="guide-scheduled-chip" :aria-label="scheduledLabel + '. Open Scheduled'">
+            <span class="guide-scheduled-dot" aria-hidden="true"></span>{{ scheduledLabel }}
+          </a>
+          <recording-chip />
+          <health-dot />
+          <button type="button" class="ui-icon-button" aria-label="Channels" title="Channels" :disabled="!guide" @click="openChannelsModal"><sliders-icon /></button>
+          <button type="button" class="ui-icon-button" :aria-label="searchOpen ? 'Close search' : 'Search the next 7 days'"
+            :title="searchOpen ? 'Close search' : 'Search the next 7 days'" :aria-expanded="String(searchOpen)" @click="toggleSearch">
+            <close-glyph v-if="searchOpen" /><search-glyph v-else />
+          </button>
+        </template>
+        <template #below>
+          <recording-chip variant="banner" />
+          <health-dot variant="banner" />
+        </template>
+      </page-header>
 
-          <template v-if="mode === 'guide' && searchActive">
-            <p class="text-xs font-mono text-ink-mute">
-              {{ searching ? 'Searching…' : searchResults.length + ' result' + (searchResults.length === 1 ? '' : 's') + ' for “' + searchQ.trim() + '”' }}
-            </p>
-            <div class="space-y-3">
-              <article v-for="p in searchResults" :key="p.program_id + '-' + p.start"
-                class="deck-card deck-card-clickable deck-card-with-image" role="button" tabindex="0"
-                @click="openProgram(p, channelById(p.channelId))"
-                @keydown.enter.prevent="openProgram(p, channelById(p.channelId))"
-                @keydown.space.prevent="openProgram(p, channelById(p.channelId))">
-                <programme-image :event-id="p.has_image ? p.program_id : null" :channel-id="p.channelId" :has-logo="hasChannelLogo(p.channelId)" :title="p.title" />
-                <div class="deck-card-text">
-                <div class="flex items-start justify-between gap-3">
-                  <span class="deck-card-title">{{ p.title }}</span>
-                  <span class="pill-group end">
-                    <span v-if="isSeriesScheduled(p)" class="pill done">SERIES</span>
-                    <span v-if="cellState(p) === 'recording'" class="pill recording">RECORDING</span>
-                    <span v-else-if="cellState(p) === 'scheduled'" class="pill scheduled">SCHEDULED</span>
-                    <span v-else-if="cellState(p) === 'series'" class="pill done">SERIES</span>
-                    <span v-else-if="cellState(p) === 'recorded'" class="pill skipped">RECORDED</span>
-                  </span>
-                </div>
-                <p class="deck-card-meta flex items-center gap-1.5">
-                  <channel-logo class="shrink-0" :channel-id="p.channelId" :has-logo="hasChannelLogo(p.channelId)" />
-                  <span>{{ p.channelName }} · {{ fmtDayTime(p.start) }}–{{ fmtClock(p.end) }}<template v-if="p.episode_title"> · {{ p.episode_title }}</template></span>
-                </p>
-                </div>
-              </article>
-              <p v-if="!searching && searchResults.length === 0" class="text-ink-dim text-sm">Nothing upcoming matches.</p>
-            </div>
-          </template>
-
-          <template v-else-if="mode === 'guide'">
-            <div v-if="!narrow" class="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">DAY</span>
-                <div class="chip-row md:flex-wrap">
-                  <button v-for="d in dayChips" :key="d.day" type="button"
-                    :class="['btn', 'btn-sm', day === d.day ? 'btn-on' : '']"
-                    @click="setDay(d.day)"><span class="normal-case">{{ d.label }}</span></button>
-                </div>
-              </div>
-              <div class="flex flex-wrap items-center gap-x-6 gap-y-3 md:ml-auto">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-mono uppercase tracking-[0.16em] text-ink-dim">JUMP</span>
-                  <div class="chip-row">
-                    <button type="button" class="btn btn-sm" @click="jumpNow">NOW</button>
-                    <button type="button" class="btn btn-sm" @click="jumpTonight">TONIGHT</button>
-                  </div>
-                </div>
-                <zoom-control :index="zoomIndex" :count="zoomLevelCount" @step="changeZoom" />
-              </div>
-            </div>
-            <p v-if="guide?.stale" class="text-xs font-mono text-plex-yellow">
-              Showing the cached guide. TVHeadend did not answer. It refreshes automatically on the next try.
-            </p>
-            <div v-if="errorCode === 'no-url'" class="space-y-3">
-              <p class="text-sm text-ink">Set the TVHeadend URL in Settings.</p>
-              <div class="flex items-center gap-2">
-                <a href="#/settings" class="btn btn-sm btn-primary no-underline">OPEN SETTINGS</a>
-                <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
-              </div>
-            </div>
-            <div v-else-if="errorCode === 'no-channels'" class="space-y-3">
-              <p class="text-sm text-ink">TVHeadend has no channels yet; scan and map them in TVHeadend.</p>
-              <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
-            </div>
-            <div v-else-if="error" class="space-y-3">
-              <p class="text-sm font-mono text-signal-orange-hi">{{ error }}</p>
-              <p class="text-xs text-ink-dim">
-                Check the TVHeadend connection in <a href="#/settings">Settings</a>.
-              </p>
-              <button type="button" class="btn btn-sm" @click="loadDay(day, { force: true })"><refresh-icon /> RETRY</button>
-            </div>
-            <list-skeleton v-else-if="loading && !guide" :rows="10" :row-height="guideRowRem + 'rem'" guide :guide-zoom="zoom" />
-            <div v-else-if="guide" class="relative" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
-              <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
-              <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} FAVOURITES</button>
-              <button v-if="midnightOnScreen && day < 6" type="button" class="epg-pinned-chip epg-next-day-chip"
-                :style="{ right: 'calc(' + scrollbarW + 'px + 0.4rem)' }" :aria-label="'Go to ' + nextDayLongLabel"
-                @click="goToNextDay">{{ narrow ? nextDayWeekday : nextDayLabel }} <chevron-right-icon /></button>
-              <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming }]" ref="scrollEl"
-                @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
-                @pointerdown="hideTooltip" @focusin="onGridFocusIn" @focusout="onGridFocusOut">
-              <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
-                <div class="epg-ruler">
-                  <div class="epg-ruler-corner">
-                    <input v-no-autofill v-model="railFilter" type="search" class="field-input epg-corner-filter"
-                      :placeholder="narrow ? 'Filter' : 'Filter channels'" aria-label="Filter channels by number or name" />
-                    <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
-                    <div class="epg-rail-resizer" title="Drag to resize the channel rail"
-                      :style="{ height: railStripH + 'px' }"
-                      @pointerdown="onRailResizeDown"
-                      @pointermove="onRailResizeMove"
-                      @pointerup="onRailResizeUp"
-                      @pointercancel="onRailResizeUp"></div>
-                  </div>
-                  <div class="epg-ruler-track" :style="{ width: trackWidth + 'px' }">
-                    <span v-for="t in ticks" :key="t.x" :class="['epg-tick', { half: t.half }]" :style="{ left: t.x + 'px' }">{{ t.label }}</span>
-                    <span class="epg-tick epg-midnight-tick" :style="{ left: midnightX + 'px' }"><calendar-icon /> {{ nextDayLabel }}</span>
-                  </div>
-                </div>
-                <div class="epg-midnight-line" aria-hidden="true" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }"></div>
-                <div v-if="day === 6" class="epg-guide-end-lane" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }">
-                  <span class="epg-guide-end">Guide ends {{ lastDayLabel }}</span>
-                </div>
-                <transition-group name="epg-rows" tag="div">
-                <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
-                  v-show="shown"
-                  v-memo="[ch, label, shown, loadingIds.has(ch?.id), loadingNoteMaxPx, nowMs, state, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
-                  :data-channel-id="ch?.id"
-                  :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === key, 'epg-drop-after': dropAfter && dropTargetId === key, 'epg-dragging': dragPinId === key }]">
-                  <template v-if="kind === 'heading'">
-                    <div class="epg-heading-rail"><span class="channel-group-heading">{{ label }}</span></div>
-                    <div class="epg-heading-track"></div>
-                  </template>
-                  <template v-else>
-                  <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]"
-                    :title="ch.pinned ? 'Drag to reorder favourites' : null"
-                    @pointerdown="onPinPointerDown(ch, $event)"
-                    @pointermove="onPinPointerMove"
-                    @pointerup="onPinPointerUp"
-                    @pointercancel="onPinPointerCancel">
-                    <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
-                  </div>
-                  <div class="epg-track" :style="{ width: trackWidth + 'px' }">
-                    <span v-if="loadingIds.has(ch.id)" class="epg-loading-note" role="status"
-                      :title="LISTINGS_LOADING_TEXT"
-                      :style="{ left: (nowX ?? 0) + 8 + 'px', maxWidth: loadingNoteMaxPx + 'px' }">{{ LISTINGS_LOADING_TEXT }}</span>
-                    <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
-                      :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'next-day': p.start >= guide.dayEnd, 'with-thumb': cellHasThumb(p) }]"
-                      :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
-                      @click="openProgram(p, ch)">
-                      <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
-                        :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
-                      <span v-if="cellState(p) === 'recording'" class="epg-cell-rec-fill" :style="{ width: recordingFillPercent(p) + '%' }"></span>
-                      <template v-if="cellShowsText(p)">
-                        <span class="epg-cell-title">{{ p.title }}</span>
-                        <span class="epg-cell-meta">
-                          <span v-if="cellState(p) === 'recording'" class="led-dot sm live"></span>
-                          <span v-else-if="cellState(p) === 'scheduled'" class="led-dot sm" style="background:#1eb6ff"></span>
-                          <span v-else-if="cellState(p) === 'series'" class="led-dot sm" style="background:#e2b03c"></span>
-                          <span v-else-if="cellState(p) === 'recorded'" class="led-dot sm" style="background:#9a9289"></span>
-                          <span v-if="isSeriesScheduled(p)" class="led-dot sm" style="background:#e2b03c"></span>
-                          {{ fmtClock(p.start) }}
-                        </span>
-                      </template>
-                    </button>
-                  </div>
-                  </template>
-                </div>
-                </transition-group>
-                <div v-if="day === 0 && nowX != null" class="epg-nowline" :style="{ left: 'calc(var(--epg-rail-px) + ' + nowX + 'px)' }"></div>
-              </div>
-              </div>
-              <teleport to="body">
-              <div v-if="narrow && !selected && !channelsModal" class="epg-float-cluster" role="group" aria-label="Jump and zoom">
-                <button type="button" class="epg-float-btn" @click="jumpNow">NOW</button>
-                <button type="button" class="epg-float-btn" @click="jumpTonight">TONIGHT</button>
-                <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom out"
-                  :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
-                <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom in"
-                  :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
-              </div>
-              </teleport>
-            </div>
-            <p v-if="stateLine" class="epg-state-line font-mono text-ink-mute">{{ stateLine }}</p>
-          </template>
-
-          <template v-else-if="mode === 'upcoming'">
-            <p v-if="stateError" class="text-sm font-mono text-signal-orange-hi">{{ stateError }}</p>
-            <list-skeleton v-else-if="!state" :rows="6" />
-            <template v-else>
-              <p v-if="state?.stale" class="text-xs font-mono text-plex-yellow">TVHeadend is not answering. This is its last known state.</p>
-              <p v-if="upcoming.length === 0" class="text-ink-dim text-sm">Nothing scheduled in TVHeadend.</p>
-              <p v-else-if="upcomingFiltered.length === 0" class="text-ink-dim text-sm">No upcoming recordings match “{{ searchQ.trim() }}”.</p>
-              <div v-else class="space-y-3">
-                <article v-for="r in upcomingFiltered" :key="r.programId + '-' + r.source"
-                  class="deck-card deck-card-clickable deck-card-with-image" role="button" tabindex="0"
-                  @click="openUpcoming(r)"
-                  @keydown.enter.prevent="openUpcoming(r)"
-                  @keydown.space.prevent="openUpcoming(r)">
-                  <programme-image :event-id="r.hasImage ? r.programId : null" :channel-id="r.channelId" :has-logo="hasChannelLogo(r.channelId)" :title="r.name" />
-                  <div class="deck-card-text">
-                  <div class="flex items-start justify-between gap-3">
-                    <span class="deck-card-title">{{ r.name }}</span>
-                    <span class="pill-group end">
-                      <template v-if="r.source === 'series'">
-                        <span class="pill done">SERIES</span>
-                        <span class="pill">EXPECTED</span>
-                      </template>
-                      <template v-else>
-                        <span v-if="isSeriesRec(r)" class="pill done">SERIES</span>
-                        <span v-else class="pill">ONE-OFF</span>
-                        <span v-if="isActiveRecording(r)" class="pill recording">RECORDING</span>
-                        <span v-else class="pill scheduled">SCHEDULED</span>
-                      </template>
-                    </span>
-                  </div>
-                  <p class="deck-card-meta flex items-center gap-1.5">
-                    <channel-logo class="shrink-0" :channel-id="r.channelId" :has-logo="hasChannelLogo(r.channelId)" />
-                    <span>{{ channelName(r.channelId) }} · {{ fmtDayTime(tsOf(r.startDate)) }}–{{ fmtClock(tsOf(r.endDate)) }}<template v-if="r.episodeTitle"> · {{ r.episodeTitle }}</template></span>
-                  </p>
-                  </div>
-                </article>
-              </div>
-            </template>
-          </template>
-
+      <div class="guide-controls">
+        <div v-if="searchOpen" class="guide-search">
+          <label class="guide-search-field">
+            <search-glyph />
+            <input v-no-autofill v-autofocus v-model="searchQ" type="search" class="guide-search-input"
+              placeholder="Search the next 7 days" aria-label="Search the next 7 days" @keydown.esc.stop.prevent="closeSearch" />
+          </label>
         </div>
+        <div class="guide-days">
+          <div class="ui-chip-row is-scroll guide-day-chips" role="group" aria-label="Day">
+            <button v-for="d in dayChips" :key="d.day" type="button" class="ui-chip"
+              :aria-pressed="String(day === d.day && !searchActive)" @click="pickDay(d.day)">{{ d.label }}</button>
+          </div>
+          <div v-if="!narrow" class="ui-chip-row guide-jumps">
+            <button type="button" class="ui-chip" @click="jumpNow">Now</button>
+            <button type="button" class="ui-chip" @click="jumpTonight">Tonight</button>
+          </div>
+        </div>
+        <div class="guide-toolbar">
+          <button v-if="!narrow" type="button" class="ui-icon-button is-plain" aria-label="Refresh the guide" title="Refresh the guide"
+            :disabled="loading" @click="manualRefresh"><refresh-icon /></button>
+          <span class="guide-toolbar-spacer"></span>
+          <button type="button" role="switch" class="guide-images-toggle" :aria-checked="String(showImages)" @click="showImages = !showImages">
+            Images<span class="guide-switch" aria-hidden="true"></span>
+          </button>
+          <div class="ui-segmented is-compact guide-zoom" role="group" aria-label="Zoom">
+            <span class="ui-segmented-label" aria-hidden="true">Zoom</span>
+            <button v-for="level in zoomLevels" :key="level.key" type="button" class="ui-segment"
+              :aria-pressed="String(zoom === level.key)" :aria-label="level.label + ' zoom'" @click="setZoom(level.key)">{{ level.key.toUpperCase() }}</button>
+          </div>
+        </div>
+      </div>
+
+      <section v-if="searchActive" class="guide-results" aria-label="Search results">
+        <p class="ui-meta" role="status">{{ searching ? 'Searching…' : resultsLabel }}</p>
+        <div v-if="searchResults.length" class="ui-group">
+          <button v-for="p in searchResults" :key="p.program_id + '-' + p.start" type="button" class="ui-group-row is-tall guide-result"
+            @click="openProgram(p, channelById(p.channelId))">
+            <span class="guide-result-art">
+              <programme-image :event-id="p.has_image ? p.program_id : null" variant="thumb" :channel-id="p.channelId"
+                :has-logo="hasChannelLogo(p.channelId)" :title="p.title" />
+            </span>
+            <span class="ui-group-row-main">
+              <span class="ui-group-row-title">{{ p.title }}</span>
+              <span class="ui-group-row-meta">{{ p.channelName }} · {{ fmtDayTime(p.start) }}–{{ fmtClock(p.end) }}<template v-if="p.episode_title"> · {{ p.episode_title }}</template></span>
+            </span>
+            <span v-if="recordingStateText(p)" :class="['guide-result-state', cellState(p) || 'watching']">
+              <span class="guide-result-dot" aria-hidden="true"></span><span class="guide-result-state-text">{{ recordingStateText(p) }}</span>
+            </span>
+          </button>
+        </div>
+        <p v-else-if="!searching" class="ui-meta">Nothing in the next 7 days matches “{{ searchQ.trim() }}”.</p>
       </section>
 
-      <teleport to="body">
-      <transition name="epg-sheet">
-      <div v-if="selected" class="epg-modal-backdrop is-over-player" @click.self="closeModal">
-        <section class="panel epg-modal">
-          <header class="panel-header">
-            <span class="panel-title">{{ selected.program.title }}</span>
-            <button type="button" class="btn btn-icon epg-modal-x" @click="closeModal" aria-label="Close"><cross-icon /></button>
-          </header>
-          <programme-image v-if="selected.program.has_image" :key="selected.program.program_id" :event-id="selected.program.program_id" variant="hero"
-            :channel-id="selected.channel?.id ?? selected.program.channelId" :has-logo="hasChannelLogo(selected.channel?.id ?? selected.program.channelId)"
-            :title="selected.program.title" />
-          <div class="panel-body space-y-4">
-            <p class="text-sm font-mono text-ink-dim">
-              {{ selected.channel?.name || channelName(selected.program.channelId) }}<template v-if="selected.program.start"> ·
-              <span class="hidden md:inline">{{ fmtDayTime(selected.program.start) }}–{{ fmtClock(selected.program.end) }}</span><span class="md:hidden">{{ fmtShortRange(selected.program.start, selected.program.end) }}</span></template>
-              <template v-if="ratingLabel(selected.program)"> · {{ ratingLabel(selected.program) }}</template>
-              <template v-if="seLabel(selected.program)"> · {{ seLabel(selected.program) }}</template>
-            </p>
-            <p v-if="selected.program.episode_title" class="text-sm text-ink">{{ selected.program.episode_title }}</p>
-            <p v-if="selected.program.synopsis" class="text-sm text-ink-dim leading-relaxed">{{ selected.program.synopsis }}</p>
-            <p v-if="selectedStatusText" class="text-xs font-mono text-signal-blue-hi">{{ selectedStatusText }}</p>
-            <p v-else-if="cellState(selected.program) === 'series'" class="text-xs font-mono" style="color:#e2b03c">
-              A series recording in TVHeadend records this show.
-            </p>
-            <ul v-if="actionOutcomes.length && !cancelSeriesStep" class="action-outcomes">
-              <li v-for="o in actionOutcomes" :key="o.label"><span class="action-outcome-label">{{ o.label }}</span> {{ o.text }}</li>
-            </ul>
-            <div v-if="showRecordSettings" class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="field-label">START EARLY</label>
-                <select v-model.number="leadTime" class="field-input">
-                  <option v-for="m in leadOptions" :key="m" :value="m">{{ minutesLabel(m) }}</option>
-                </select>
-              </div>
-              <div>
-                <label class="field-label">RUN LATE</label>
-                <select v-model.number="lagTime" class="field-input">
-                  <option v-for="m in lagOptions" :key="m" :value="m">{{ minutesLabel(m) }}</option>
-                </select>
-              </div>
-              <div v-if="selected.program.series_link" class="col-span-2">
-                <label class="field-label">SERIES · EPISODES TO KEEP</label>
-                <select v-model.number="episodesToKeep" class="field-input">
-                  <option v-for="o in keepOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-                </select>
-              </div>
-              <div v-if="selected.program.series_link" class="col-span-2 space-y-1">
-                <toggle-switch v-model="anyChannel" :title="ANY_CHANNEL_HINT">RECORD ON ANY CHANNEL</toggle-switch>
-                <p class="text-xs font-mono text-ink-mute">{{ ANY_CHANNEL_HINT }}</p>
-              </div>
-              <div class="col-span-2 space-y-1">
-                <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
-                <p class="text-xs font-mono text-ink-mute">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/settings/system/series">SERIES</a>.</template></p>
-              </div>
-            </div>
-            <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
-              :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
-            <template v-else>
-            <div class="epg-modal-actions programme-actions flex flex-wrap items-center justify-end gap-2 pt-1">
-              <span v-if="modalStatusText" :class="['status-readout', modalStatusKind]">{{ modalStatusText }}</span>
-              <template v-if="cellState(selected.program) === 'recording'">
-                <button type="button" :class="['btn', 'btn-danger', { 'is-busy': modalAction === 'cancel' }]" @click="cancelSelected" :disabled="modalBusy">
-                  <span class="btn-label"><stop-icon /> STOP RECORDING</span>
-                  <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
-                </button>
-                <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
-                  CANCEL SERIES
-                </button>
-                <button v-else-if="selected.program.series_link" type="button" class="btn" :class="{ 'is-busy': modalAction === 'record-series' }" aria-label="Record series" @click="recordSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label"><series-record-icon /> SERIES</span>
-                  <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
-                </button>
-              </template>
-              <template v-else-if="cellState(selected.program) === 'scheduled'">
-                <button type="button" class="btn btn-danger" :class="{ 'is-busy': modalAction === 'cancel' }" @click="cancelSelected" :disabled="modalBusy">
-                  <span class="btn-label">CANCEL RECORDING</span>
-                  <span v-if="modalAction === 'cancel'" class="spinner spinner-overlay"></span>
-                </button>
-                <button v-if="selectedSeriesLink" type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
-                  CANCEL SERIES
-                </button>
-              </template>
-              <template v-else-if="cellState(selected.program) === 'series'">
-                <button type="button" class="btn btn-danger" @click="openCancelSeriesStep" :disabled="modalBusy">
-                  CANCEL SERIES
-                </button>
-              </template>
-              <template v-else-if="canRecord">
-                <button type="button" :class="['btn', { 'btn-primary': dialogFocus !== 'series' && (dialogFocus === 'record' || !canWatchLive), 'is-busy': modalAction === 'record' }]" @click="recordSelected" :disabled="modalBusy">
-                  <span class="btn-label"><record-icon /> RECORD</span>
-                  <span v-if="modalAction === 'record'" class="spinner spinner-overlay"></span>
-                </button>
-                <button v-if="selected.program.series_link" type="button" :class="['btn', { 'btn-primary': dialogFocus === 'series', 'is-busy': modalAction === 'record-series' }]" aria-label="Record series" @click="recordSelectedSeries" :disabled="modalBusy">
-                  <span class="btn-label"><series-record-icon /> SERIES</span>
-                  <span v-if="modalAction === 'record-series'" class="spinner spinner-overlay"></span>
-                </button>
-              </template>
-              <p v-else class="text-xs font-mono text-ink-mute">This programme has already aired.</p>
-              <button v-if="canWatchLive" type="button" class="btn btn-primary" @click="watchSelected"><tv-icon /> WATCH LIVE</button>
-            </div>
-            </template>
+      <template v-else>
+        <p v-if="guide?.stale" class="ui-banner is-warning">
+          <span class="ui-dot is-warn"></span>
+          <span class="ui-banner-text">Showing the saved guide. TVHeadend did not answer, so Freetvarr tries again shortly.</span>
+        </p>
+        <div v-if="errorCode === 'no-url'" class="ui-empty">
+          <h2 class="ui-empty-title">Connect TVHeadend</h2>
+          <p class="ui-empty-text">Set the TVHeadend address in Settings to see the guide.</p>
+          <div class="guide-empty-actions">
+            <a href="#/settings/system/tvheadend" class="ui-button ui-button-primary">Open Settings</a>
+            <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
           </div>
+        </div>
+        <div v-else-if="errorCode === 'no-channels'" class="ui-empty">
+          <h2 class="ui-empty-title">No channels yet</h2>
+          <p class="ui-empty-text">TVHeadend has no channels. Scan and map them in TVHeadend.</p>
+          <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
+        </div>
+        <div v-else-if="error" class="ui-empty">
+          <h2 class="ui-empty-title">The guide did not load</h2>
+          <p class="ui-empty-text">{{ error }} Check the TVHeadend connection in <a href="#/settings/system/tvheadend">Settings</a>.</p>
+          <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
+        </div>
+        <list-skeleton v-else-if="loading && !guide" class="guide-card" :rows="10" :row-height="guideRowRem + 'rem'" guide :guide-zoom="zoom" />
+        <div v-else-if="guide" class="guide-card" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
+          <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
+          <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} favourite{{ pinnedCount === 1 ? '' : 's' }}</button>
+          <button v-if="midnightOnScreen && day < 6" type="button" class="epg-pinned-chip epg-next-day-chip"
+            :style="{ right: 'calc(' + scrollbarW + 'px + 0.5rem)' }" :aria-label="'Go to ' + nextDayLongLabel"
+            @click="goToNextDay">{{ narrow ? nextDayWeekday : nextDayLabel }} <chevron-right-icon /></button>
+          <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming }]" ref="scrollEl"
+            @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
+            @pointerdown="hideTooltip" @focusin="onGridFocusIn" @focusout="onGridFocusOut">
+          <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
+            <div class="epg-ruler">
+              <div class="epg-ruler-corner">
+                <input v-no-autofill v-model="railFilter" type="search" class="epg-corner-filter"
+                  :placeholder="narrow ? 'Filter' : 'Filter channels'" aria-label="Filter channels by number or name" />
+                <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
+                <div class="epg-rail-resizer" title="Drag to resize the channel rail"
+                  :style="{ height: railStripH + 'px' }"
+                  @pointerdown="onRailResizeDown"
+                  @pointermove="onRailResizeMove"
+                  @pointerup="onRailResizeUp"
+                  @pointercancel="onRailResizeUp"></div>
+              </div>
+              <div class="epg-ruler-track" :style="{ width: trackWidth + 'px' }">
+                <span v-for="t in ticks" :key="t.x" :class="['epg-tick', { half: t.half }]" :style="{ left: t.x + 'px' }">{{ t.label }}</span>
+                <span class="epg-tick epg-midnight-tick" :style="{ left: midnightX + 'px' }"><calendar-icon /> {{ nextDayLabel }}</span>
+                <span v-if="day === 0 && nowX != null" class="epg-now-pill" :style="{ left: nowX + 'px' }" aria-hidden="true">{{ nowPill }}</span>
+              </div>
+            </div>
+            <div class="epg-midnight-line" aria-hidden="true" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }"></div>
+            <div v-if="day === 6" class="epg-guide-end-lane" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }">
+              <span class="epg-guide-end">Guide ends {{ lastDayLabel }}</span>
+            </div>
+            <transition-group name="epg-rows" tag="div">
+            <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
+              v-show="shown"
+              v-memo="[ch, label, shown, loadingIds.has(ch?.id), loadingNoteMaxPx, nowMs, state, watchedKeys, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
+              :data-channel-id="ch?.id"
+              :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === key, 'epg-drop-after': dropAfter && dropTargetId === key, 'epg-dragging': dragPinId === key }]">
+              <template v-if="kind === 'heading'">
+                <div class="epg-heading-rail"><span class="channel-group-heading">{{ label }}</span></div>
+                <div class="epg-heading-track"></div>
+              </template>
+              <template v-else>
+              <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]"
+                :title="ch.pinned ? 'Drag to reorder favourites' : null"
+                @pointerdown="onPinPointerDown(ch, $event)"
+                @pointermove="onPinPointerMove"
+                @pointerup="onPinPointerUp"
+                @pointercancel="onPinPointerCancel">
+                <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
+              </div>
+              <div class="epg-track" :style="{ width: trackWidth + 'px' }">
+                <span v-if="loadingIds.has(ch.id)" class="epg-loading-note" role="status"
+                  :title="LISTINGS_LOADING_TEXT"
+                  :style="{ left: (nowX ?? 0) + 8 + 'px', maxWidth: loadingNoteMaxPx + 'px' }">{{ LISTINGS_LOADING_TEXT }}</span>
+                <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
+                  :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'next-day': p.start >= guide.dayEnd, 'with-thumb': cellHasThumb(p) }]"
+                  :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
+                  @click="openProgram(p, ch)">
+                  <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
+                    :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
+                  <span v-if="cellShowsText(p)" class="epg-cell-text">
+                    <span class="epg-cell-title">{{ p.title }}</span>
+                    <span class="epg-cell-meta">{{ fmtClock(p.start) }}</span>
+                  </span>
+                  <span v-if="cellMarks(p).scheduledDot" class="epg-cell-dot" aria-hidden="true"></span>
+                  <span v-else-if="cellMarks(p).watchDot" class="epg-cell-dot is-watch" aria-hidden="true"></span>
+                </button>
+              </div>
+              </template>
+            </div>
+            </transition-group>
+            <div v-if="day === 0 && nowX != null" class="epg-nowline" :style="{ left: 'calc(var(--epg-rail-px) + ' + nowX + 'px)' }"></div>
+          </div>
+          </div>
+          <teleport to="body">
+          <div v-if="narrow && !selected && !channelsModal && !searchActive" class="epg-float-cluster" role="group" aria-label="Jump and zoom">
+            <button type="button" class="epg-float-btn" @click="jumpNow">Now</button>
+            <button type="button" class="epg-float-btn" @click="jumpTonight">Tonight</button>
+            <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom out"
+              :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
+            <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom in"
+              :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
+          </div>
+          </teleport>
+        </div>
+        <div v-if="guide" class="guide-legend">
+          <span class="guide-legend-item"><span class="guide-legend-ring" aria-hidden="true"></span>Recording now</span>
+          <span class="guide-legend-item"><span class="guide-legend-dot" aria-hidden="true"></span>Scheduled</span>
+          <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>Watching for</span>
+          <span v-if="stateMeta" class="guide-legend-meta">{{ stateMeta }}</span>
+        </div>
+      </template>
+
+      <div class="ui-toast-region" aria-live="polite">
+        <div v-if="flashText" :class="['ui-toast', { 'is-error': flashKind === 'err' }]">{{ flashText }}</div>
+      </div>
+
+      <teleport to="body">
+      <transition name="ui-sheet">
+      <div v-if="selected" class="ui-sheet-backdrop programme-sheet-backdrop" @click.self="closeModal">
+        <section ref="sheetEl" class="ui-sheet programme-sheet" role="dialog" aria-modal="true" aria-labelledby="programme-sheet-title" tabindex="-1">
+          <span class="ui-sheet-grab" aria-hidden="true"></span>
+          <div class="programme-sheet-art">
+            <programme-image :key="selected.program.program_id" :event-id="selected.program.has_image ? selected.program.program_id : null" variant="hero"
+              :channel-id="selected.channel?.id ?? selected.program.channelId" :has-logo="hasChannelLogo(selected.channel?.id ?? selected.program.channelId)"
+              :title="selected.program.title" />
+            <button type="button" class="ui-icon-button programme-sheet-close" aria-label="Close" @click="closeModal"><close-glyph /></button>
+          </div>
+          <div class="programme-sheet-heading">
+            <h2 id="programme-sheet-title" class="programme-sheet-title">{{ selected.program.title }}</h2>
+            <p class="programme-sheet-meta">{{ sheetMeta }}</p>
+          </div>
+          <p v-if="selected.program.synopsis" class="programme-sheet-synopsis">{{ selected.program.synopsis }}</p>
+          <p v-if="selectedStatusText" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ selectedStatusText }}</p>
+          <p v-else-if="cellState(selected.program) === 'series'" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>A series recording in TVHeadend records this show.</p>
+          <p v-else-if="selectedWatchItem && sheetStrength !== 'notify'" class="programme-sheet-status is-watch"><span class="ui-dot" aria-hidden="true"></span>You are watching for this show.</p>
+          <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
+            :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
+          <template v-else>
+            <div v-if="cancelActions.length" class="programme-sheet-cancels">
+              <div v-for="action in cancelActions" :key="action.key" class="programme-sheet-cancel">
+                <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-busy': modalAction === action.busyKey }]"
+                  :disabled="modalBusy" @click="action.run">
+                  <stop-icon v-if="action.key === 'stop'" />{{ action.label }}
+                  <span v-if="modalAction === action.busyKey" class="spinner" aria-hidden="true"></span>
+                </button>
+                <p class="programme-sheet-outcome">{{ action.outcome }}</p>
+              </div>
+            </div>
+            <template v-if="sheetStrengths.length">
+              <div v-if="sheetStrengths.length > 1" class="ui-segmented is-fill programme-sheet-strengths" role="tablist" aria-label="What to record">
+                <button v-for="s in sheetStrengths" :key="s.key" type="button" role="tab" class="ui-segment"
+                  :aria-selected="String(sheetStrength === s.key)" @click="sheetStrength = s.key">{{ s.label }}</button>
+              </div>
+              <p class="programme-sheet-line">{{ strengthLine }}</p>
+              <div v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="ui-group programme-sheet-options">
+                <div class="ui-group-row">
+                  <span class="ui-group-row-main" id="programme-lead-label">Start early</span>
+                  <span class="ui-stepper" role="group" aria-labelledby="programme-lead-label">
+                    <button type="button" class="ui-stepper-button" aria-label="Start less early" :disabled="!canStep({ steps: leadSteps, value: leadTime, step: -1 })" @click="leadTime = stepValue({ steps: leadSteps, value: leadTime, step: -1 })">−</button>
+                    <span class="ui-stepper-value" aria-live="polite">{{ minutesShort(leadTime) }}</span>
+                    <button type="button" class="ui-stepper-button" aria-label="Start earlier" :disabled="!canStep({ steps: leadSteps, value: leadTime, step: 1 })" @click="leadTime = stepValue({ steps: leadSteps, value: leadTime, step: 1 })">+</button>
+                  </span>
+                </div>
+                <div class="ui-group-row">
+                  <span class="ui-group-row-main" id="programme-lag-label">Finish late</span>
+                  <span class="ui-stepper" role="group" aria-labelledby="programme-lag-label">
+                    <button type="button" class="ui-stepper-button" aria-label="Finish less late" :disabled="!canStep({ steps: lagSteps, value: lagTime, step: -1 })" @click="lagTime = stepValue({ steps: lagSteps, value: lagTime, step: -1 })">−</button>
+                    <span class="ui-stepper-value" aria-live="polite">{{ minutesShort(lagTime) }}</span>
+                    <button type="button" class="ui-stepper-button" aria-label="Finish later" :disabled="!canStep({ steps: lagSteps, value: lagTime, step: 1 })" @click="lagTime = stepValue({ steps: lagSteps, value: lagTime, step: 1 })">+</button>
+                  </span>
+                </div>
+                <div v-if="sheetStrength === 'series'" class="ui-group-row">
+                  <span class="ui-group-row-main" id="programme-keep-label">Keep</span>
+                  <span class="ui-stepper" role="group" aria-labelledby="programme-keep-label">
+                    <button type="button" class="ui-stepper-button" aria-label="Keep fewer" :disabled="!canStep({ steps: keepSteps, value: episodesToKeep, step: -1 })" @click="episodesToKeep = stepValue({ steps: keepSteps, value: episodesToKeep, step: -1 })">−</button>
+                    <span class="ui-stepper-value" aria-live="polite">{{ keepLabel(episodesToKeep) }}</span>
+                    <button type="button" class="ui-stepper-button" aria-label="Keep more" :disabled="!canStep({ steps: keepSteps, value: episodesToKeep, step: 1 })" @click="episodesToKeep = stepValue({ steps: keepSteps, value: episodesToKeep, step: 1 })">+</button>
+                  </span>
+                </div>
+                <div v-if="sheetStrength === 'series'" class="ui-group-row">
+                  <span class="ui-group-row-main">
+                    <span class="ui-group-row-title">Any channel</span>
+                    <span class="ui-group-row-meta">Follow the show if it moves to another channel</span>
+                  </span>
+                  <button type="button" class="ui-switch" :aria-pressed="String(anyChannel)" aria-label="Record on any channel" :title="ANY_CHANNEL_HINT" @click="anyChannel = !anyChannel"></button>
+                </div>
+              </div>
+              <div v-else-if="sheetStrength === 'notify' && !selectedWatchItem" class="ui-group programme-sheet-options">
+                <div class="ui-group-row">
+                  <span class="ui-group-row-main">
+                    <span class="ui-group-row-title">Record when it appears</span>
+                    <span class="ui-group-row-meta">Sets an any-channel series recording the first time it is in the guide</span>
+                  </span>
+                  <button type="button" class="ui-switch" :aria-pressed="String(recordWhenSeen)" aria-label="Record when it appears" @click="recordWhenSeen = !recordWhenSeen"></button>
+                </div>
+              </div>
+              <details v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="programme-sheet-advanced">
+                <summary>Advanced</summary>
+                <div class="ui-group">
+                  <div class="ui-group-row">
+                    <span class="ui-group-row-main">
+                      <span class="ui-group-row-title">Add to library</span>
+                      <span class="ui-group-row-meta">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/settings/system/series">Series rules</a>.</template></span>
+                    </span>
+                    <button type="button" class="ui-switch" :aria-pressed="String(addToLibrary)" aria-label="Add to library" @click="addToLibrary = !addToLibrary"></button>
+                  </div>
+                </div>
+              </details>
+            </template>
+            <p v-if="!sheetStrengths.length && !cancelActions.length" class="programme-sheet-line">This programme has already aired.</p>
+            <p v-if="modalStatusText" :class="['programme-sheet-error', modalStatusKind]" role="status">{{ modalStatusText }}</p>
+            <div class="ui-sheet-footer programme-sheet-footer">
+              <button v-if="canWatchLive" type="button" class="ui-button ui-button-secondary ui-button-block" @click="watchSelected"><tv-icon /> Watch live</button>
+              <div class="programme-sheet-buttons">
+                <button type="button" class="ui-button ui-button-secondary programme-sheet-dismiss" @click="closeModal">Close</button>
+                <button v-if="primaryAction" type="button" :class="['ui-button', 'programme-sheet-primary', primaryClass]"
+                  :disabled="modalBusy" @click="runPrimaryAction">
+                  <span v-if="primaryAction.tone === 'record'" class="programme-sheet-rec-dot" aria-hidden="true"></span>{{ primaryAction.label }}
+                  <span v-if="modalAction === primaryAction.key" class="spinner" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+          </template>
         </section>
       </div>
       </transition>
       </teleport>
 
       <teleport to="body">
-      <transition name="epg-sheet">
-      <div v-if="hdOffer" class="epg-modal-backdrop is-over-player" @click.self="hdOffer = null">
-        <section class="panel epg-modal info-modal" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title">
-          <header class="panel-header">
-            <span id="hd-offer-title" class="panel-title">This is the SD channel</span>
-            <button type="button" class="btn btn-icon epg-modal-x" @click="hdOffer = null" aria-label="Close"><cross-icon /></button>
+      <transition name="ui-sheet">
+      <div v-if="hdOffer" class="ui-sheet-backdrop programme-sheet-backdrop is-top" @click.self="hdOffer = null">
+        <section class="ui-sheet programme-sheet is-compact" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title">
+          <span class="ui-sheet-grab" aria-hidden="true"></span>
+          <header class="ui-sheet-header">
+            <h2 id="hd-offer-title" class="ui-sheet-title">This is the SD channel</h2>
+            <button type="button" class="ui-icon-button is-plain" aria-label="Close" @click="hdOffer = null"><close-glyph /></button>
           </header>
-          <div class="panel-body space-y-4">
-            <p class="text-sm text-ink">{{ hdOffer.channel.name }} shows the same programme in HD.</p>
-            <div class="epg-modal-actions flex flex-wrap items-center justify-end gap-2">
-              <template v-if="hdOffer.action === 'record-series'">
-                <button type="button" class="btn" @click="recordOffered('sd')"><series-record-icon /> SERIES IN SD</button>
-                <button type="button" class="btn btn-primary" @click="recordOffered('hd')"><series-record-icon /> SERIES IN HD</button>
-              </template>
-              <template v-else>
-                <button type="button" class="btn" @click="recordOffered('sd')"><record-icon /> RECORD IN SD</button>
-                <button type="button" class="btn btn-primary" @click="recordOffered('hd')"><record-icon /> RECORD IN HD</button>
-              </template>
-            </div>
+          <p class="ui-sheet-subtitle">{{ hdOffer.channel.name }} shows the same programme in HD.</p>
+          <div class="programme-sheet-buttons">
+            <template v-if="hdOffer.action === 'record-series'">
+              <button type="button" class="ui-button ui-button-secondary" @click="recordOffered('sd')">Series in SD</button>
+              <button type="button" class="ui-button ui-button-record programme-sheet-primary" @click="recordOffered('hd')">Series in HD</button>
+            </template>
+            <template v-else>
+              <button type="button" class="ui-button ui-button-secondary" @click="recordOffered('sd')">Record in SD</button>
+              <button type="button" class="ui-button ui-button-record programme-sheet-primary" @click="recordOffered('hd')">Record in HD</button>
+            </template>
           </div>
         </section>
       </div>
@@ -474,8 +435,8 @@ export const EpgView = {
           <span v-if="tooltip.programme.episode_title">{{ tooltip.programme.episode_title }}</span>
         </div>
         <div class="epg-tooltip-meta">{{ fmtProgrammeRange(tooltip.programme) }} · {{ tooltip.channel.name }}</div>
-        <div v-if="recordingStateText(tooltip.programme)" :class="['epg-tooltip-state', cellState(tooltip.programme)]">
-          <span :class="['led-dot', 'sm', { live: cellState(tooltip.programme) === 'recording' }]"></span>
+        <div v-if="recordingStateText(tooltip.programme)" :class="['epg-tooltip-state', cellState(tooltip.programme) || 'watching']">
+          <span class="epg-tooltip-dot" aria-hidden="true"></span>
           {{ recordingStateText(tooltip.programme) }}
         </div>
         <p v-if="tooltip.programme.synopsis" class="epg-tooltip-synopsis">{{ tooltip.programme.synopsis }}</p>
@@ -484,7 +445,7 @@ export const EpgView = {
       </teleport>
 
       <teleport to="body">
-      <transition name="epg-sheet">
+      <transition name="ui-sheet">
       <channels-modal v-if="channelsModal" :channels="guide?.channels || []" :hidden-ids="guide?.hiddenIds || []"
         :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts" :hide-sd-channels="guide?.hideSdChannels"
         @close="channelsModal = false" @saved="onChannelPrefsSaved" />
@@ -494,11 +455,6 @@ export const EpgView = {
   `,
   setup() {
     const { flashText, flashKind, flash } = useFlash()
-    const mode = ref('guide')
-    const modes = [
-      { key: 'guide', label: 'GUIDE' },
-      { key: 'upcoming', label: 'UPCOMING' },
-    ]
     const day = ref(0)
     const guide = ref(null)
     const guideByDay = new Map()
@@ -517,6 +473,12 @@ export const EpgView = {
     const busyId = ref(null)
     const channelsModal = ref(false)
     const [modalStatusText, modalStatusKind, setModalStatus] = makeStatus()
+    const sheetEl = ref(null)
+    const searchOpen = ref(false)
+    const watchItems = ref([])
+    const libraryDefault = ref(true)
+    const sheetStrength = ref('')
+    const recordWhenSeen = ref(false)
 
     watch([selected, channelsModal], ([program, channels]) => {
       try { document.body.classList.toggle('sheet-open', Boolean(program || channels)) } catch { /* ignore */ }
@@ -556,7 +518,7 @@ export const EpgView = {
       if (moviesFolderSet.value && looksLikeFilm(program)) return { text: 'The guide lists this as a film, so it goes to the movies folder.' }
       if (!program.series_link) return { text: 'Goes to the one-off folder.' }
       return {
-        text: 'RECORD puts this airing in the one-off folder. SERIES gives the series its own folder in your TV library.',
+        text: 'Record puts this airing in the one-off folder. Record series gives the series its own folder in your TV library.',
         changeable: true,
       }
     })
@@ -674,7 +636,7 @@ export const EpgView = {
     const todayNumber = computed(() => localDayNumber({ ms: nowMs.value, timeZone: tz.value }))
 
     const dayChips = computed(() => Array.from({ length: 7 }, (_, d) => {
-      if (d === 0) return { day: 0, label: 'TODAY' }
+      if (d === 0) return { day: 0, label: 'Today' }
       return { day: d, label: weekdayOfDayNumber(todayNumber.value + d) }
     }))
 
@@ -685,9 +647,9 @@ export const EpgView = {
     const nextDayLongLabel = computed(() => formatDate(nextDayNoon.value.getTime(), tz.value, { long: true }))
     const lastDayLabel = computed(() => formatDate(noonOf(guide.value?.dayStart ?? 0).getTime(), tz.value))
 
-    const dayTitle = computed(() => {
+    const dateSubtitle = computed(() => {
       const middayOfDayNumber = (todayNumber.value + day.value) * 86_400_000 + 43_200_000
-      return formatDate(middayOfDayNumber, 'UTC', { weekday: narrow.value ? 'short' : 'long' })
+      return formatDate(middayOfDayNumber, 'UTC', { long: !narrow.value }).replace(',', '')
     })
 
     const scheduledByProgramId = computed(() => {
@@ -712,48 +674,36 @@ export const EpgView = {
       return set
     })
 
-    const upcoming = computed(() => {
-      const list = state.value?.upcomingRecordings
-        ?? (state.value?.futureRecordings || []).filter((r) => !r.pendingDelete)
-      return [...list].sort((a, b) => tsOf(a.startDate) - tsOf(b.startDate))
-    })
-
     const seriesTags = computed(() => state.value?.seriesTags || [])
 
     const scheduledCount = computed(() =>
       (state.value?.futureRecordings || []).filter((r) => !r.pendingDelete).length)
 
-    const stateLine = computed(() => {
+    const scheduledLabel = computed(() => `${scheduledCount.value} scheduled`)
+
+    const stateMeta = computed(() => {
       if (!state.value) return ''
       const bits = [
-        state.value.stale ? 'tvheadend unreachable' : 'tvheadend online',
-        `${scheduledCount.value} scheduled`,
+        state.value.stale && 'TVHeadend is not answering',
         `${seriesTags.value.length} series`,
+        state.value.tunerCount && `${state.value.tunerCount} tuner${state.value.tunerCount === 1 ? '' : 's'}`,
+        state.value.storageInfo?.free && `${fmtBytes(state.value.storageInfo.free)} free`,
       ]
-      if (state.value.tunerCount) {
-        bits.push(`${state.value.tunerCount} tuner${state.value.tunerCount === 1 ? '' : 's'}`)
-      }
-      if (state.value.storageInfo?.free) {
-        bits.push(`${fmtBytes(state.value.storageInfo.free)} free`)
-      }
-      return bits.join(' · ')
+      return bits.filter(Boolean).join(' · ')
     })
 
-    const searchActive = computed(() => searchQ.value.trim().length >= 2)
+    const searchActive = computed(() => searchOpen.value && searchQ.value.trim().length >= 2)
 
-    const searchPlaceholder = computed(() => {
-      if (mode.value === 'upcoming') return 'Filter upcoming…'
-      return 'Search the next 7 days…'
+    const resultsLabel = computed(() => {
+      const count = searchResults.value.length
+      return `${count} result${count === 1 ? '' : 's'} for “${searchQ.value.trim()}”`
     })
 
-    const listFilter = computed(() => searchQ.value.trim().toLowerCase())
+    const watchedKeys = computed(() => watchedKeysOf(watchItems.value))
 
-    const upcomingFiltered = computed(() => {
-      const q = listFilter.value
-      if (!q) return upcoming.value
-      return upcoming.value.filter((r) =>
-        `${r.name || ''} ${r.episodeTitle || ''} ${channelName(r.channelId) || ''}`.toLowerCase().includes(q))
-    })
+    const isWatched = (p) => watchedKeys.value.has(showKeyOf(p.title))
+
+    const nowPill = computed(() => clockWithoutPeriod(fmtClock(nowMs.value)))
 
     const canRecord = computed(() =>
       selected.value && selected.value.program.end > nowMs.value
@@ -812,16 +762,6 @@ export const EpgView = {
       return name ? `on ${name}` : 'on this channel'
     }
 
-    const recordOutcome = () => (isSelectedOnAir.value
-      ? `Records from now until ${fmtClock(selected.value.program.end)}. The part already aired is not included.`
-      : 'Records this airing only.')
-
-    const recordSeriesOutcome = ({ recordingNow: episodeRecording }) => {
-      const base = `Records every episode of "${selected.value.program.title}" ${selectedChannelLabel()}`
-      if (episodeRecording) return `${base}. This episode keeps recording.`
-      return isSelectedOnAir.value ? `${base}, starting with this one from now.` : `${base}.`
-    }
-
     const stopOutcome = () => {
       const recording = selectedRecording.value
       const text = stopRecordingOutcome({
@@ -834,38 +774,106 @@ export const EpgView = {
     const cancelSeriesOutcome = () =>
       `Stops TVHeadend recording new episodes of "${selected.value.program.title}". Asks what to do with the rest.`
 
-    const actionOutcomes = computed(() => {
+    const selectedState = computed(() => (selected.value ? cellState(selected.value.program) : ''))
+
+    const selectedWatchItem = computed(() => (selected.value
+      ? activeWatchItemFor({ items: watchItems.value, key: showKeyOf(selected.value.program.title) })
+      : null))
+
+    const sheetStrengths = computed(() => {
       const program = selected.value?.program
-      if (!program || program.past) return []
-      const state = cellState(program)
+      if (!program) return []
+      const ruled = Boolean(selectedSeriesLink.value) || selectedState.value === 'series'
+      return sheetStrengthsFor({
+        canRecordEpisode: canRecord.value && selectedState.value === '',
+        canRecordSeries: canRecord.value && Boolean(program.series_link) && !ruled,
+        canNotify: Boolean(program.title) && !ruled,
+      })
+    })
+
+    const resetStrength = () => {
+      sheetStrength.value = initialStrengthOf({ strengths: sheetStrengths.value, focus: dialogFocus.value })
+    }
+
+    watch(() => sheetStrengths.value.map((s) => s.key).join(), () => {
+      if (!sheetStrengths.value.some((s) => s.key === sheetStrength.value)) resetStrength()
+    })
+
+    const strengthLine = computed(() => {
+      const program = selected.value?.program
+      if (!program) return ''
+      return strengthLineOf({
+        strength: sheetStrength.value,
+        title: program.title,
+        channelLabel: selectedChannelLabel(),
+        onAirUntil: isSelectedOnAir.value ? fmtClock(program.end) : '',
+        recordWhenSeen: recordWhenSeen.value,
+        watching: Boolean(selectedWatchItem.value),
+      })
+    })
+
+    const primaryAction = computed(() => (cancelSeriesStep.value
+      ? null
+      : primaryActionOf({
+        strength: sheetStrength.value,
+        recordWhenSeen: recordWhenSeen.value,
+        watching: Boolean(selectedWatchItem.value),
+      })))
+
+    const primaryClass = computed(() => ({
+      record: 'ui-button-record',
+      primary: 'ui-button-primary',
+      secondary: 'ui-button-destructive',
+    })[primaryAction.value?.tone] || '')
+
+    const sheetMeta = computed(() => {
+      const program = selected.value?.program
+      if (!program) return ''
+      return sheetMetaLineOf({
+        seasonEpisode: seasonEpisodeShort(program),
+        episodeTitle: program.episode_title,
+        channelName: selected.value.channel?.name || channelName(program.channelId),
+        timeRange: program.start ? fmtSheetRange(program) : '',
+      })
+    })
+
+    const cancelActions = computed(() => {
+      const program = selected.value?.program
+      if (!program || program.past || cancelSeriesStep.value) return []
+      const state = selectedState.value
       const hasSeries = Boolean(selectedSeriesLink.value)
+      const cancelSeriesAction = {
+        key: 'cancel-series', busyKey: 'cancel-series', label: 'Cancel series',
+        outcome: cancelSeriesOutcome(), run: openCancelSeriesStep,
+      }
       if (state === 'recording') {
         return [
-          { label: 'STOP RECORDING', text: stopOutcome() },
-          hasSeries && { label: 'CANCEL SERIES', text: cancelSeriesOutcome() },
-          !hasSeries && program.series_link && { label: 'SERIES', text: recordSeriesOutcome({ recordingNow: true }) },
+          { key: 'stop', busyKey: 'cancel', label: 'Stop recording', outcome: stopOutcome(), run: cancelSelected },
+          hasSeries && cancelSeriesAction,
         ].filter(Boolean)
       }
       if (state === 'scheduled') {
         return [
-          { label: 'CANCEL RECORDING', text: isSeriesScheduled(program) ? 'Skips this episode. The series keeps recording the others.' : 'Removes this recording from the schedule.' },
-          hasSeries && { label: 'CANCEL SERIES', text: cancelSeriesOutcome() },
+          {
+            key: 'cancel', busyKey: 'cancel',
+            label: isSeriesScheduled(program) ? 'Skip this episode' : 'Cancel recording',
+            outcome: isSeriesScheduled(program) ? 'Skips this episode. The series keeps recording the others.' : 'Removes this recording from the schedule.',
+            run: cancelSelected,
+          },
+          hasSeries && cancelSeriesAction,
         ].filter(Boolean)
       }
-      if (state === 'series') return [{ label: 'CANCEL SERIES', text: cancelSeriesOutcome() }]
-      if (!canRecord.value) return []
-      return [
-        { label: 'RECORD', text: recordOutcome() },
-        program.series_link && { label: 'SERIES', text: recordSeriesOutcome({ recordingNow: false }) },
-      ].filter(Boolean)
+      if (state === 'series') return [cancelSeriesAction]
+      return []
     })
 
-    const showRecordSettings = computed(() => {
-      if (!canRecord.value || cancelSeriesStep.value) return false
-      const state = cellState(selected.value.program)
-      if (state === '') return true
-      return state === 'recording' && !selectedSeriesLink.value && Boolean(selected.value.program.series_link)
-    })
+    const runPrimaryAction = () => {
+      const key = primaryAction.value?.key
+      if (key === 'record') return recordSelected()
+      if (key === 'record-series') return recordSelectedSeries()
+      if (key === 'notify') return watchSelectedTitle()
+      if (key === 'stop-watching') return stopWatchingSelected()
+    }
 
     const openCancelSeriesStep = () => {
       const { program } = selected.value
@@ -890,7 +898,7 @@ export const EpgView = {
 
     const fmtDayTime = (ms) => `${formatDate(ms, tz.value)} ${fmtClock(ms)}`
 
-    const fmtShortRange = (start, end) => `${fmtDayTime(start)}–${fmtClock(end)}`
+    const fmtSheetRange = (p) => `${dateFormat({ weekday: 'short' }).format(new Date(p.start))} ${fmtClock(p.start)}–${fmtClock(p.end)}`
 
     const seLabel = seasonEpisodeOf
 
@@ -919,14 +927,21 @@ export const EpgView = {
 
     const recordingStateText = (p) => {
       const state = cellState(p)
-      if (state === 'recording') return 'recording now'
+      if (state === 'recording') return 'Recording now'
       if (state === 'scheduled') {
-        return isSeriesScheduled(p) ? 'series recording scheduled' : 'one-off recording scheduled'
+        return isSeriesScheduled(p) ? 'Series recording scheduled' : 'One-off recording scheduled'
       }
-      if (state === 'series') return 'series recording set'
-      if (state === 'recorded') return 'recorded'
+      if (state === 'series') return 'Series recording set'
+      if (state === 'recorded') return 'Recorded'
+      if (!p.past && isWatched(p)) return 'Watching for'
       return ''
     }
+
+    const cellMarks = (p) => cellMarksOf({
+      state: p.past || p.end <= nowMs.value ? '' : cellState(p),
+      seriesScheduled: !p.past && isSeriesScheduled(p),
+      watching: !p.past && p.end > nowMs.value && isWatched(p),
+    })
 
     const cellTitle = (p) => [p.title, recordingStateText(p)].filter(Boolean).join(' · ')
 
@@ -946,12 +961,6 @@ export const EpgView = {
     const cellShowsText = (p) => cellWidth(p) > EPG_CELL_TEXT_MIN_PX
 
     const cellHasThumb = (p) => showImages.value && p.has_image && cellWidth(p) >= thumbMinCellPx.value
-
-    const recordingFillPercent = (p) => {
-      const span = p.end - p.start
-      if (span <= 0) return 0
-      return Math.min(100, Math.max(0, ((nowMs.value - p.start) / span) * 100))
-    }
 
     const cellStyle = (p) => ({
       left: `${cellX(p.start)}px`,
@@ -1006,7 +1015,7 @@ export const EpgView = {
     const rollOverToToday = async () => {
       guideByDay.clear()
       await loadDay(0, { force: true })
-      if (mode.value === 'guide' && !searchActive.value) await scrollToNow()
+      if (!searchActive.value) await scrollToNow()
     }
 
     watch(nowMs, (ms) => {
@@ -1026,23 +1035,29 @@ export const EpgView = {
 
     const goToNextDay = () => setDay(day.value + 1, { atMs: leftEdgeMs() })
 
-    const setMode = async (m) => {
-      if (m !== mode.value) searchQ.value = ''
-      mode.value = m
-      if (m !== 'guide') {
-        loadState()
-        return
-      }
-      if (day.value === 0) await scrollToNow()
-      else await scrollToMs(clockOfDay(18))
+    const closeSearch = () => {
+      searchOpen.value = false
+      searchQ.value = ''
+    }
+
+    const toggleSearch = () => {
+      if (searchOpen.value) closeSearch()
+      else searchOpen.value = true
+    }
+
+    const pickDay = async (d) => {
+      if (searchActive.value) closeSearch()
+      await setDay(d)
     }
 
     const jumpNow = async () => {
+      if (searchActive.value) closeSearch()
       if (day.value !== 0) await setDay(0)
       else await scrollToNow()
     }
 
     const jumpTonight = async () => {
+      if (searchActive.value) closeSearch()
       if (day.value !== 0) { day.value = 0; await loadDay(0) }
       await scrollToMs(clockOfDay(19))
     }
@@ -1081,24 +1096,32 @@ export const EpgView = {
       requestAnimationFrame(() => { zooming.value = false })
     }
 
+    const setZoom = (key) => changeZoom(EPG_ZOOM_LEVELS.findIndex((l) => l.key === key) - zoomIndex.value)
+
     const manualRefresh = async () => {
       guideByDay.clear()
-      await Promise.all([loadDay(day.value, { force: true }), loadState({ fresh: true })])
+      await Promise.all([loadDay(day.value, { force: true }), loadState({ fresh: true }), loadWatchlist()])
       if (!error.value) flash({ msg: 'Guide refreshed.' })
     }
 
-    const openProgram = (p, channel) => {
+    let sheetReturnFocus = null
+
+    const openProgram = (p, channel, { focus = '' } = {}) => {
       leadTime.value = 2
       lagTime.value = 10
       episodesToKeep.value = 0
       anyChannel.value = false
-      addToLibrary.value = true
+      addToLibrary.value = libraryDefault.value
+      recordWhenSeen.value = false
       cancelSeriesStep.value = null
-      dialogFocus.value = ''
+      dialogFocus.value = focus
       modalAction.value = ''
       setModalStatus('')
+      if (!selected.value) sheetReturnFocus = document.activeElement
       selected.value = { program: p, channel }
+      resetStrength()
       loadShowRules()
+      nextTick(() => sheetEl.value?.focus())
     }
 
     const openUpcoming = (r) => {
@@ -1128,8 +1151,7 @@ export const EpgView = {
       if (handoff.upcoming) return openUpcoming(handoff.upcoming)
       const listed = (guide.value?.programs[handoff.channelId] || [])
         .find((p) => p.start === handoff.program.start)
-      openProgram(listed || handoff.program, channelById(handoff.channelId))
-      dialogFocus.value = handoff.focus || ''
+      openProgram(listed || handoff.program, channelById(handoff.channelId), { focus: handoff.focus || '' })
     }
 
     const closeModal = () => {
@@ -1138,6 +1160,8 @@ export const EpgView = {
       dialogFocus.value = ''
       hdOffer.value = null
       selected.value = null
+      sheetReturnFocus?.focus?.()
+      sheetReturnFocus = null
       if (!returnRoute) return
       const target = returnRoute
       returnRoute = ''
@@ -1272,6 +1296,69 @@ export const EpgView = {
       }
     }
 
+    const loadWatchlist = async () => {
+      try {
+        watchItems.value = (await api('GET', '/api/watchlist')).items || []
+      } catch {
+        watchItems.value = []
+      }
+    }
+
+    const loadLibraryDefault = async () => {
+      try {
+        libraryDefault.value = (await api('GET', '/api/recording-defaults')).add_to_library !== false
+      } catch {
+        libraryDefault.value = true
+      }
+    }
+
+    const watchedMessage = ({ title, item }) => {
+      if (item?.mode === 'record' && item.fulfilledAt) return `"${title}" is in the guide, so every episode now records on any channel.`
+      if (item?.mode === 'record') return `Freetvarr records "${title}" on any channel once it is in the guide.`
+      return `Watching for "${title}". It shows in Scheduled under Watching for.`
+    }
+
+    const watchSelectedTitle = async () => {
+      const { program } = selected.value
+      modalBusy.value = true
+      modalAction.value = 'notify'
+      try {
+        const { item } = await api('POST', '/api/watchlist', {
+          title: program.title,
+          mode: recordWhenSeen.value ? 'record' : 'notify',
+        })
+        flash({ msg: watchedMessage({ title: program.title, item }), ms: 6000 })
+        closeModal()
+        await loadWatchlist()
+        if (item?.fulfilledAt) {
+          refreshAfterRecordingChange()
+          await loadState({ fresh: true })
+        }
+      } catch (err) {
+        setModalStatus(`Notify me failed: ${err.message}`, 'err', 8000)
+      } finally {
+        modalBusy.value = false
+        modalAction.value = ''
+      }
+    }
+
+    const stopWatchingSelected = async () => {
+      const item = selectedWatchItem.value
+      if (!item) return
+      modalBusy.value = true
+      modalAction.value = 'stop-watching'
+      try {
+        await api('DELETE', `/api/watchlist/${item.id}`)
+        flash({ msg: `Stopped watching for "${item.title}".` })
+        await loadWatchlist()
+      } catch (err) {
+        setModalStatus(`Stop watching failed: ${err.message}`, 'err', 8000)
+      } finally {
+        modalBusy.value = false
+        modalAction.value = ''
+      }
+    }
+
     const reloadGuide = async () => {
       guideByDay.clear()
       await loadDay(day.value, { force: true })
@@ -1292,9 +1379,6 @@ export const EpgView = {
 
     const pinDrag = usePinDrag({ rowSelector: '.epg-row.pinned', currentPins, onReorder: reorderPins })
     const { dragPinId, dropTargetId, dropAfter, onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel } = pinDrag
-
-    const isSeriesRec = (r) =>
-      r?.seriesLinkId != null && seriesLinkSet.value.has(String(r.seriesLinkId))
 
     const pinsOffscreen = ref(false)
 
@@ -1538,12 +1622,12 @@ export const EpgView = {
       forgetHoveredCell()
     }
 
-    watch([selected, channelsModal, zoom, guide, mode], forgetHoveredCell)
+    watch([selected, channelsModal, zoom, guide, searchActive], forgetHoveredCell)
 
     let searchTimer = null
     watch(searchQ, () => {
       if (searchTimer) clearTimeout(searchTimer)
-      if (mode.value !== 'guide' || !searchActive.value) { searchResults.value = []; return }
+      if (!searchActive.value) { searchResults.value = []; return }
       searching.value = true
       searchTimer = setTimeout(async () => {
         try {
@@ -1558,7 +1642,7 @@ export const EpgView = {
     })
 
     watch(searchActive, async (active, wasActive) => {
-      if (active || !wasActive || mode.value !== 'guide') return
+      if (active || !wasActive) return
       if (day.value === 0) await scrollToNow()
       else await scrollToMs(clockOfDay(18))
     })
@@ -1568,6 +1652,7 @@ export const EpgView = {
       if (hdOffer.value) hdOffer.value = null
       else if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
+      else if (searchOpen.value) closeSearch()
       else return
       e.preventDefault()
     }
@@ -1580,6 +1665,8 @@ export const EpgView = {
       window.addEventListener('keydown', onKeydown)
       window.addEventListener('scroll', onAnyScroll, { capture: true, passive: true })
       loadState()
+      loadWatchlist()
+      loadLibraryDefault()
       await loadDay(0)
       openHandoff()
       await scrollToNow()
@@ -1595,33 +1682,34 @@ export const EpgView = {
     })
 
     return {
-      mode, modes, setMode, day, dayChips, dayTitle, setDay, LISTINGS_LOADING_TEXT,
+      day, dayChips, dateSubtitle, setDay, pickDay, LISTINGS_LOADING_TEXT,
       loadingIds, loadingNoteMaxPx,
-      guide, loading, error, errorCode, loadDay, state, stateError, stateLine,
-      scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs,
-      zoom, zoomIndex, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, guideRowRem, changeZoom,
+      guide, loading, error, errorCode, loadDay, state, stateMeta, scheduledLabel, scheduledHref: SCHEDULED_HREF,
+      scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs, nowPill,
+      zoom, zoomIndex, zoomLevels: EPG_ZOOM_LEVELS, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, guideRowRem, changeZoom, setZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
-      recordingStateText, fmtProgrammeRange, cellKey, cellShowsText,
+      recordingStateText, fmtProgrammeRange, cellKey, cellShowsText, cellMarks, watchedKeys,
       visibleChannels, railNum, railFilter, pinnedCount, pinsOffscreen, scrollRailTop,
       midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
-      cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled, isSeriesRec, recordingFillPercent,
+      cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled,
       jumpNow, jumpTonight, manualRefresh,
-      searchQ, searchActive, searchResults, searching, searchPlaceholder, upcomingFiltered,
-      selected, openProgram, openUpcoming, closeModal, modalBusy, modalAction, canRecord,
+      searchOpen, toggleSearch, closeSearch, searchQ, searchActive, searchResults, searching, resultsLabel,
+      selected, sheetEl, openProgram, closeModal, modalBusy, modalAction, canRecord,
       canWatchLive, watchSelected,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, ANY_CHANNEL_HINT, addToLibrary, libraryNote,
-      minutesLabel: (count) => formatMinutes(count, { long: true }), leadOptions: EPG_LEAD_OPTIONS, lagOptions: EPG_LAG_OPTIONS, keepOptions: EPG_KEEP_OPTIONS,
-      recordSelected, recordSelectedSeries, hdOffer, recordOffered, cancelSelected, cancelSelectedSeries,
-      dialogFocus, cancelSeriesStep, openCancelSeriesStep, showRecordSettings, selectedSeriesLink, selectedStatusText, actionOutcomes,
-      upcoming,
-      isActiveRecording: (r) => activeRecordingSet.value.has(String(r.programId)),
+      leadSteps: SHEET_LEAD_STEPS, lagSteps: SHEET_LAG_STEPS, keepSteps: SHEET_KEEP_STEPS,
+      stepValue, canStep, minutesShort, keepLabel,
+      sheetStrengths, sheetStrength, strengthLine, primaryAction, primaryClass, runPrimaryAction, recordWhenSeen,
+      sheetMeta, cancelActions, selectedWatchItem,
+      hdOffer, recordOffered, cancelSelectedSeries,
+      cancelSeriesStep, selectedStatusText,
       busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, cellHasThumb,
       dropTargetId, dropAfter, dragPinId,
       onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
-      channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, fmtShortRange, seLabel, ratingLabel, tsOf,
+      channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, seLabel,
       flashText, flashKind,
     }
   },

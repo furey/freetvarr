@@ -1,0 +1,131 @@
+.home-hero {
+  min-height: 360px;
+}
+
+.home-hero-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.home-hero-progress {
+  width: min(320px, 100%);
+  margin: 4px 0 8px;
+}
+
+.home-hero-skeleton {
+  min-height: 360px;
+}
+
+.home-skeleton-row {
+  overflow: hidden;
+}
+
+.home-card-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-card-button .ui-card-title,
+.home-card-button .ui-card-meta {
+  display: block;
+}
+
+.home-tonight {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-tonight-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 44px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-surface-1);
+  color: inherit;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.home-tonight-item:hover {
+  color: inherit;
+  text-decoration: none;
+  background: var(--color-surface-2);
+}
+
+.home-tonight-time {
+  flex: none;
+  width: 52px;
+  text-align: center;
+}
+
+.home-tonight-clock {
+  display: block;
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 800;
+}
+
+.home-tonight-period {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-2);
+}
+
+.home-tonight-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.home-tonight-title {
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-tonight-text .ui-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .home-hero,
+  .home-hero-skeleton {
+    min-height: 0;
+    aspect-ratio: 4 / 5;
+  }
+
+  .home-tonight {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-card-button .ui-card-art {
+    transition: none;
+  }
+}
+
+.home-page .ui-card-art > .programme-image {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}

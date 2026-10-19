@@ -11,12 +11,14 @@ import {
   enableSeriesTag,
   disableSeriesTag,
   setSeriesTagsEnabled,
+  updateSeriesTags,
   resolveConnection,
   getChannelIcon,
   fetchProgrammeImage,
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
+import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork } from './show-artwork.js'
 import {
@@ -432,6 +434,7 @@ const loadRecordingState = async (now) => {
     maxConcurrentRecordings: state.tunerCount,
     activeInputs: state.activeInputs,
     futureRecordings: state.futureRecordings,
+    skippedRecordings: state.skippedRecordings,
     upcomingRecordings,
     seriesTags: withSeriesImages({ seriesTags: state.seriesTags, guide, nowMs: now }),
     activeRecordingIds: state.activeRecordingIds,
@@ -499,6 +502,12 @@ export const pauseSeries = async ({ seriesLinkIds, paused }) => {
   return result
 }
 
+export const updateSeriesRule = async ({ seriesLinkIds, patch }) => {
+  const result = await updateSeriesTags({ seriesLinkIds, patch })
+  invalidateRecordingState()
+  return result
+}
+
 export const getChannelImage = async ({ channelId } = {}) => {
   const cacheKey = String(channelId)
   const cached = imageCache.get(cacheKey)
@@ -554,6 +563,23 @@ export const findShowThumbnail = async ({ title, width } = {}) => {
   })
   return { image: found.image, pending: artwork.pending || found.pending }
 }
+
+export const findShowPoster = async ({ title, width } = {}) => {
+  if (!title) return NO_IMAGE
+  const artwork = await showArtwork.artworkFor(title).catch(() => ({ sources: [], pending: false }))
+  const found = await firstImageWithin({
+    sources: artwork.sources,
+    load: posterThumbnailLoader(width),
+    budgetMs: SHOW_IMAGE_BUDGET_MS,
+  })
+  return { image: found.image, pending: artwork.pending || found.pending }
+}
+
+const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
+  key: `show-poster:${source}`,
+  width,
+  loadOriginal: async () => portraitOf(await programmeImages.imageFor(source)),
+})
 
 export const prepareThumbnailCache = () => thumbnailStore.prepare()
 

@@ -10,7 +10,7 @@ export const SETTINGS_GROUPS = [
       { id: 'pictures', label: 'Pictures', view: 'settings', section: 'pictures' },
       { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
       { id: 'tv-apps', label: 'Watch on TV', view: 'settings', section: 'tv-apps' },
-      { id: 'schedule', label: 'Sync schedule', view: 'settings', section: 'schedule' },
+      { id: 'schedule', label: 'Schedule', view: 'settings', section: 'schedule' },
     ],
   },
   {
@@ -30,7 +30,7 @@ export const SETTINGS_GROUPS = [
     label: 'About',
     pages: [
       { id: 'about', label: 'About Freetvarr', view: 'settings', section: 'help' },
-      { id: 'reset', label: 'Reset', view: 'settings', section: 'danger-zone' },
+      { id: 'reset', label: 'Danger zone', view: 'settings', section: 'danger-zone' },
     ],
   },
 ].map((group) => ({

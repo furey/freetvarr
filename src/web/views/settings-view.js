@@ -33,6 +33,13 @@ const SETTINGS_SECTIONS = [
   { id: 'danger-zone', label: 'Reset' },
 ]
 const SETTINGS_SECTION_GAP_PX = 24
+const LICENCES = [
+  { name: 'Freetvarr', note: 'By James Furey.', licence: 'GPL-3.0-or-later', href: 'https://github.com/furey/freetvarr/blob/main/LICENSE' },
+  { name: 'Figtree', note: 'Interface typeface, by Erik Kennedy.', licence: 'SIL OFL 1.1', href: '/fonts/figtree-OFL.txt' },
+  { name: 'JetBrains Mono', note: 'Typeface for paths and values.', licence: 'SIL OFL 1.1', href: 'https://github.com/JetBrains/JetBrainsMono/blob/master/OFL.txt' },
+  { name: 'Vue', note: 'Interface framework.', licence: 'MIT', href: 'https://github.com/vuejs/core/blob/main/LICENSE' },
+  { name: 'Hold music', note: '"Local Forecast – Elevator" by Kevin MacLeod (incompetech.com).', licence: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' },
+]
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
 
 const isCustomPlexPrefsPath = (path) => Boolean(path) && path !== DEFAULT_PLEX_PREFS_PATH
@@ -111,423 +118,469 @@ const useSettingsSections = () => {
 
 export const SettingsView = {
   template: `
-    <div class="view-reveal settings-page space-y-6 pb-24">
+    <div class="view-reveal settings-page pb-24">
       <nav ref="sectionNav" class="settings-sections" aria-label="Settings sections">
         <a v-for="s in sections" :key="s.id" :href="'#/settings/' + s.id"
           :data-active="activeSection === s.id" :aria-current="activeSection === s.id ? 'location' : null"
           class="settings-section-link" @click="openSection($event, s.id)">{{ s.label }}</a>
       </nav>
-      <form id="settings-form" @submit.prevent="save" class="space-y-6">
-        <section id="section-tvheadend" class="panel">
-          <header class="panel-header">
-            <span class="panel-heading">
-              <span class="panel-title">TVHEADEND</span>
-              <info-button title="TVHEADEND" doc="guide/tvheadend">
-                <p>The address and login Freetvarr uses for the TVHeadend API. Freetvarr reads the guide, channels, and recordings from it, and sets and cancels recordings.</p>
-                <p><strong>AUTO-DISCOVER TVHEADEND</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
-              </info-button>
-            </span>
-            <span class="text-xs font-mono text-ink-dim">the recorder</span>
-          </header>
-          <div class="panel-body grid gap-4 md:grid-cols-3">
-            <div class="md:col-span-3 flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
-                <template v-if="tvhDetecting">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER TVHEADEND</template>
-              </button>
-              <span v-if="tvhDiscoverText" :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
-              <span v-else class="text-xs font-mono text-ink-dim">looks on this computer, port 9981</span>
-            </div>
-            <div v-if="tvhCandidates.length > 1" class="md:col-span-3">
-              <p class="text-sm text-ink-dim mb-2">Several TVHeadend servers answered. Pick one:</p>
-              <ul class="space-y-2">
-                <li v-for="c in tvhCandidates" :key="c.url">
-                  <button type="button" class="btn" @click="useTvhCandidate(c)">
+      <form id="settings-form" @submit.prevent="save" class="settings-form">
+        <section id="section-tvheadend" class="settings-section">
+          <p class="settings-intro">
+            The address and login Freetvarr uses to read the guide, channels, and recordings, and to set recordings.
+            <info-button title="TVHeadend" doc="guide/tvheadend">
+              <p>The address and login Freetvarr uses for the TVHeadend API. Freetvarr reads the guide, channels, and recordings from it, and sets and cancels recordings.</p>
+              <p><strong>Auto-discover TVHeadend</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
+            </info-button>
+          </p>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Server</h3>
+            <div class="ui-group">
+              <div class="settings-row settings-row-actions">
+                <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
+                  <template v-if="tvhDetecting">Scanning…</template><template v-else><search-icon /> Auto-discover TVHeadend</template>
+                </button>
+                <span v-if="tvhDiscoverText" :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
+                <span v-else class="settings-row-meta">Looks on this computer, port 9981.</span>
+              </div>
+              <div v-if="tvhCandidates.length > 1" class="settings-row">
+                <p class="settings-row-meta">Several TVHeadend servers answered. Pick one:</p>
+                <div class="settings-row-actions">
+                  <button v-for="c in tvhCandidates" :key="c.url" type="button" class="btn btn-sm" @click="useTvhCandidate(c)">
                     Use {{ c.url }}
                   </button>
-                </li>
-              </ul>
+                </div>
+              </div>
+              <div class="settings-row">
+                <label class="field-label" for="settings-tvh-url">TVHeadend URL</label>
+                <input v-no-autofill id="settings-tvh-url" type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
+              </div>
+              <div class="settings-row settings-row-split">
+                <div>
+                  <label class="field-label" for="settings-tvh-username">Username</label>
+                  <input v-no-autofill id="settings-tvh-username" type="text" class="field-input" v-model="tvhUsername" placeholder="blank if TVHeadend is open" />
+                </div>
+                <div>
+                  <label class="field-label" for="settings-tvh-password">Password</label>
+                  <input v-no-autofill id="settings-tvh-password" type="password" class="field-input" v-model="tvhPassword"
+                    :placeholder="tvhPasswordSet ? '••••• (stored)' : 'blank if TVHeadend is open'" autocomplete="off" />
+                  <p class="settings-hint">Blank keeps the stored password.</p>
+                </div>
+              </div>
+              <div class="settings-row settings-row-actions">
+                <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
+                  <template v-if="tvhTesting">Testing…</template><template v-else><pulse-icon /> Test connection</template>
+                </button>
+                <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
+              </div>
             </div>
-            <div class="field-row md:col-span-3">
-              <label class="field-label">TVHeadend URL</label>
-              <input v-no-autofill type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
-            </div>
-            <div class="field-row">
-              <label class="field-label">Username</label>
-              <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" placeholder="blank if TVHeadend is open" />
-            </div>
-            <div class="field-row">
-              <label class="field-label">Password</label>
-              <input v-no-autofill type="password" class="field-input" v-model="tvhPassword"
-                :placeholder="tvhPasswordSet ? '••••• (stored)' : 'blank if TVHeadend is open'" autocomplete="off" />
-              <p class="text-xs text-ink-mute mt-1">Blank keeps the stored password.</p>
-            </div>
-            <div class="field-row md:col-span-3 flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
-                <template v-if="tvhTesting">TESTING…</template><template v-else><pulse-icon /> TEST CONNECTION</template>
-              </button>
-              <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
-            </div>
-            <div v-if="tvhOpenEntryBackupSet" class="field-row md:col-span-3 flex flex-wrap items-center gap-3">
-              <button type="button" class="btn btn-sm" @click="askUndoTvhSecure" :disabled="tvhUndoing">
-                <template v-if="tvhUndoing">RESTORING…</template><template v-else>RESTORE OPEN ACCESS</template>
-              </button>
-              <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
-              <span v-else class="text-xs text-ink-mute">Undoes the wizard's SECURE TVHEADEND: anyone on your network can change TVHeadend again. The logins stay.</span>
+          </div>
+          <div v-if="tvhOpenEntryBackupSet" class="settings-group">
+            <h3 class="ui-group-label">Open access</h3>
+            <div class="ui-group">
+              <div class="settings-row settings-row-actions">
+                <button type="button" class="btn btn-sm" @click="askUndoTvhSecure" :disabled="tvhUndoing">
+                  <template v-if="tvhUndoing">Restoring…</template><template v-else>Restore open access</template>
+                </button>
+                <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
+                <span v-else class="settings-row-meta">Undoes the wizard's Secure TVHeadend: anyone on your network can change TVHeadend again. The logins stay.</span>
+              </div>
             </div>
           </div>
         </section>
 
-        <section id="section-storage" class="panel">
-          <header class="panel-header">
-            <span class="panel-heading">
-              <span class="panel-title">STORAGE</span>
-              <info-button title="STORAGE" doc="guide/configuration#the-two-recordings-paths">
-                <ul><li><strong>MEDIA ROOT</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>ONE-OFF FOLDER</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>RECORDINGS FOLDER (AS FREETVARR SEES IT)</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>RECORDINGS FOLDER (AS TVHEADEND SEES IT)</strong>: the same folder, at the path TVHeadend reports.</li></ul>
-                <p>When both apps see the folder at the same path, the two recordings paths are the same. Keep the recordings and the media root inside one shared folder: imports are then instant and use no extra disk space.</p>
-              </info-button>
-            </span>
-            <span class="text-xs font-mono text-ink-dim">where recordings go</span>
-          </header>
-          <div class="panel-body space-y-4">
-            <div class="field-row">
-              <label class="field-label">Media root <span class="text-ink-mute">(inside container)</span></label>
-              <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
-              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.
-              </p>
+        <section id="section-storage" class="settings-section">
+          <p class="settings-intro">
+            Where recordings come from and where Freetvarr files them.
+            <info-button title="Recording folders" doc="guide/configuration#the-two-recordings-paths">
+              <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder (as Freetvarr sees it)</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>Recordings folder (as TVHeadend sees it)</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+              <p>When both apps see the folder at the same path, the two recordings paths are the same. Keep the recordings and the media root inside one shared folder: imports are then instant and use no extra disk space.</p>
+            </info-button>
+          </p>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Library folders</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <label class="field-label" for="settings-media-root">Media root <span class="settings-label-note">(inside container)</span></label>
+                <input v-no-autofill id="settings-media-root" type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
+                <p class="settings-hint">
+                  The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.
+                </p>
+                <div class="settings-row-actions">
+                  <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
+                    <template v-if="mediaRootTesting">Testing…</template><template v-else><pulse-icon /> Test path</template>
+                  </button>
+                  <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
+                </div>
+              </div>
+              <div class="settings-row">
+                <label class="field-label" for="settings-oneoff-root">One-off folder <span class="settings-label-note">(inside container)</span></label>
+                <input v-no-autofill id="settings-oneoff-root" type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
+                <p class="settings-hint">
+                  Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.
+                </p>
+                <div class="settings-row-actions">
+                  <button type="button" class="btn btn-sm" @click="testOneOffRoot" :disabled="oneOffRootTesting">
+                    <template v-if="oneOffRootTesting">Testing…</template><template v-else><pulse-icon /> Test path</template>
+                  </button>
+                  <span v-if="oneOffRootStatus" :class="['status-readout', oneOffRootStatusKind]">{{ oneOffRootStatus }}</span>
+                </div>
+              </div>
+              <div class="settings-row">
+                <label class="field-label" for="settings-movies-root">Movies folder <span class="settings-label-note">(inside container, optional)</span></label>
+                <input v-no-autofill id="settings-movies-root" type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
+                <p class="settings-hint">
+                  Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.
+                </p>
+                <div class="settings-row-actions">
+                  <button type="button" class="btn btn-sm" @click="testMoviesRoot" :disabled="moviesRootTesting || !moviesRoot.trim()">
+                    <template v-if="moviesRootTesting">Testing…</template><template v-else><pulse-icon /> Test path</template>
+                  </button>
+                  <span v-if="moviesRootStatus" :class="['status-readout', moviesRootStatusKind]">{{ moviesRootStatus }}</span>
+                </div>
+              </div>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
-                <template v-if="mediaRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
-              </button>
-              <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
-            </div>
-            <div class="field-row">
-              <label class="field-label">One-off folder <span class="text-ink-mute">(inside container)</span></label>
-              <input v-no-autofill type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
-              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.
-              </p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn btn-sm" @click="testOneOffRoot" :disabled="oneOffRootTesting">
-                <template v-if="oneOffRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
-              </button>
-              <span v-if="oneOffRootStatus" :class="['status-readout', oneOffRootStatusKind]">{{ oneOffRootStatus }}</span>
-            </div>
-            <div class="field-row">
-              <label class="field-label">Movies folder <span class="text-ink-mute">(inside container, optional)</span></label>
-              <input v-no-autofill type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
-              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.
-              </p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn btn-sm" @click="testMoviesRoot" :disabled="moviesRootTesting || !moviesRoot.trim()">
-                <template v-if="moviesRootTesting">TESTING…</template><template v-else><pulse-icon /> TEST PATH</template>
-              </button>
-              <span v-if="moviesRootStatus" :class="['status-readout', moviesRootStatusKind]">{{ moviesRootStatus }}</span>
-            </div>
-            <div class="settings-block">
-              <span class="settings-block-title">LIBRARY RULES</span>
-              <toggle-switch v-model="importUnmatched">IMPORT EVERY RECORDING</toggle-switch>
-              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                On: a recording that matches no series goes to the one-off folder, or to the movies folder if it is a film. Off: Freetvarr imports only your series, and recordings you made with ADD TO LIBRARY on. The others stay in TVHeadend; you can import them from the RECORDINGS tab.
-              </p>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2 pt-1">
-              <div class="field-row">
-                <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
-                <div class="flex flex-wrap items-center gap-3 mt-2">
+          </div>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Recordings folder</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <label class="field-label" for="settings-recordings-root">As Freetvarr sees it</label>
+                <input v-no-autofill id="settings-recordings-root" type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
+                <div class="settings-row-actions">
                   <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
-                    <template v-if="recordingsCheck.checking">CHECKING…</template><template v-else><pulse-icon /> TEST PATH</template>
+                    <template v-if="recordingsCheck.checking">Checking…</template><template v-else><pulse-icon /> Test path</template>
                   </button>
                   <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
                 </div>
               </div>
-              <div class="field-row">
-                <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
-                <div class="flex flex-wrap items-center gap-3 mt-2">
+              <div class="settings-row">
+                <label class="field-label" for="settings-tvh-recordings-path">As TVHeadend sees it</label>
+                <input v-no-autofill id="settings-tvh-recordings-path" type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                <div class="settings-row-actions">
                   <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
-                    <template v-if="tvhPathCheck.checking">CHECKING…</template><template v-else><pulse-icon /> CHECK TVHEADEND</template>
+                    <template v-if="tvhPathCheck.checking">Checking…</template><template v-else><pulse-icon /> Check TVHeadend</template>
                   </button>
                   <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
                 </div>
               </div>
             </div>
-            <p class="text-xs text-ink-mute leading-relaxed">
-              TVHeadend and Freetvarr must share this folder. Each can see it at a different path; enter the path each one sees.
-            </p>
+            <p class="settings-note">TVHeadend and Freetvarr must share this folder. Each can see it at a different path; enter the path each one sees.</p>
           </div>
         </section>
 
-        <section id="section-plex" class="panel">
-          <header class="panel-header">
-            <span class="panel-heading">
-              <span class="panel-title">PLEX</span>
-              <info-button title="PLEX" doc="guide/plex">
-                <p>Optional. After a sync imports an episode, Freetvarr asks Plex to refresh the library section, so new episodes show up without a manual scan.</p>
-                <p>Freetvarr needs the Plex address, a token, and the section. Without Plex, Freetvarr still imports and files episodes.</p>
-              </info-button>
-            </span>
-            <span class="text-xs font-mono text-ink-dim">updates Plex after each sync</span>
-          </header>
-          <div class="panel-body grid gap-4 md:grid-cols-2">
-            <div class="md:col-span-2 flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
-                <template v-if="plexDiscovering">SCANNING…</template><template v-else><search-icon /> AUTO-DISCOVER PLEX</template>
-              </button>
-              <span v-if="plexDiscoverText" :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
-              <span v-else class="text-xs font-mono text-ink-dim">looks on your home network</span>
+        <section id="section-plex" class="settings-section">
+          <p class="settings-intro">
+            What goes into your library, and how Freetvarr tells Plex about it.
+            <info-button title="Plex" doc="guide/plex">
+              <p>Optional. After a sync imports an episode, Freetvarr asks Plex to refresh the library section, so new episodes show up without a manual scan.</p>
+              <p>Freetvarr needs the Plex address, a token, and the section. Without Plex, Freetvarr still imports and files episodes.</p>
+            </info-button>
+          </p>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Library</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <toggle-switch v-model="addToLibraryDefault" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Add to library by default</span>
+                    <span class="settings-row-meta">New recordings you set in the Guide start with Add to library on. You can still change it for each recording.</span>
+                  </span>
+                </toggle-switch>
+              </div>
+              <div class="settings-row">
+                <toggle-switch v-model="importUnmatched" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Import every recording</span>
+                    <span class="settings-row-meta">On: a recording that matches no series goes to the one-off folder, or to the movies folder if it is a film. Off: Freetvarr imports only your series, and recordings you made with Add to library on. The others stay in TVHeadend; you can import them from the Recording log.</span>
+                  </span>
+                </toggle-switch>
+              </div>
             </div>
-            <div v-if="plexCandidates.length > 1" class="md:col-span-2">
-              <p class="text-sm text-ink-dim mb-2">Freetvarr found more than one Plex server. Pick yours:</p>
-              <ul class="space-y-2">
-                <li v-for="c in plexCandidates" :key="c.ip + ':' + c.port">
-                  <button type="button" class="btn" @click="usePlexCandidate(c)">
+          </div>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Plex server</h3>
+            <div class="ui-group">
+              <div class="settings-row settings-row-actions">
+                <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
+                  <template v-if="plexDiscovering">Scanning…</template><template v-else><search-icon /> Auto-discover Plex</template>
+                </button>
+                <span v-if="plexDiscoverText" :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
+                <span v-else class="settings-row-meta">Looks on your home network.</span>
+              </div>
+              <div v-if="plexCandidates.length > 1" class="settings-row">
+                <p class="settings-row-meta">Freetvarr found more than one Plex server. Pick yours:</p>
+                <div class="settings-row-actions">
+                  <button v-for="c in plexCandidates" :key="c.ip + ':' + c.port" type="button" class="btn btn-sm" @click="usePlexCandidate(c)">
                     Use {{ c.name || 'Plex' }} ({{ c.ip }}:{{ c.port }})
                   </button>
-                </li>
-              </ul>
-            </div>
-            <div class="field-row md:col-span-2">
-              <label class="field-label">Plex URL</label>
-              <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
-            </div>
-            <div class="field-row md:col-span-2">
-              <label class="field-label">Plex token</label>
-              <input v-no-autofill type="password" class="field-input" v-model="plexToken"
-                :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
-              <div class="mt-2 flex flex-wrap items-center gap-3">
-                <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetecting">
-                  <template v-if="plexDetecting">DETECTING…</template><template v-else><bolt-icon /> AUTO-DETECT TOKEN</template>
-                </button>
-                <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
-              </div>
-              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                AUTO-DETECT TOKEN reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file.
-              </p>
-            </div>
-            <details class="settings-disclosure md:col-span-2" :open="plexPrefsOpen">
-              <summary>Token not found?</summary>
-              <div class="settings-disclosure-body space-y-2">
-                <p class="text-xs text-ink-mute leading-relaxed">
-                  If you installed Plex yourself, share the folder that holds its <code>Preferences.xml</code> with Freetvarr in <code>docker-compose.yml</code>, then enter the path Freetvarr sees below. Or paste the token from Plex; <a href="https://furey.github.io/freetvarr/guide/plex#the-token" target="_blank" rel="noopener noreferrer">the Plex guide</a> says where to find it.
-                </p>
-                <div class="field-row">
-                  <label class="field-label">Preferences.xml path <span class="text-ink-mute">(inside container)</span></label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
                 </div>
               </div>
-            </details>
-            <div class="field-row md:col-span-2">
-              <label class="field-label">Plex TV section</label>
-              <select v-if="plexSections.length" class="field-input" v-model="plexSectionId">
-                <option value="">Pick a section</option>
-                <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
-                  {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
-                </option>
-              </select>
-              <input v-no-autofill v-else type="text" class="field-input" v-model="plexSectionId"
-                placeholder="section number; LOAD SECTIONS lists them" />
+              <div class="settings-row">
+                <label class="field-label" for="settings-plex-url">Plex URL</label>
+                <input v-no-autofill id="settings-plex-url" type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
+              </div>
+              <div class="settings-row">
+                <label class="field-label" for="settings-plex-token">Plex token</label>
+                <input v-no-autofill id="settings-plex-token" type="password" class="field-input" v-model="plexToken"
+                  :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
+                <div class="settings-row-actions">
+                  <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetecting">
+                    <template v-if="plexDetecting">Detecting…</template><template v-else><bolt-icon /> Auto-detect token</template>
+                  </button>
+                  <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
+                </div>
+                <p class="settings-hint">Auto-detect token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file.</p>
+                <details class="settings-disclosure" :open="plexPrefsOpen">
+                  <summary>Token not found?</summary>
+                  <div class="settings-disclosure-body">
+                    <p class="settings-hint">
+                      If you installed Plex yourself, share the folder that holds its <code>Preferences.xml</code> with Freetvarr in <code>docker-compose.yml</code>, then enter the path Freetvarr sees below. Or paste the token from Plex; <a href="https://furey.github.io/freetvarr/guide/plex#the-token" target="_blank" rel="noopener noreferrer">the Plex guide</a> says where to find it.
+                    </p>
+                    <label class="field-label" for="settings-plex-prefs">Preferences.xml path <span class="settings-label-note">(inside container)</span></label>
+                    <input v-no-autofill id="settings-plex-prefs" type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
+                  </div>
+                </details>
+              </div>
             </div>
-            <div class="field-row md:col-span-2">
-              <label class="field-label">Plex one-off section</label>
-              <select v-if="plexSections.length" class="field-input" v-model="plexOneOffSectionId">
-                <option value="">None</option>
-                <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
-                  {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
-                </option>
-              </select>
-              <input v-no-autofill v-else type="text" class="field-input" v-model="plexOneOffSectionId"
-                placeholder="section number of the one-off library" />
-            </div>
-            <div class="field-row md:col-span-2">
-              <label class="field-label">Plex movies section</label>
-              <select v-if="plexSections.length" class="field-input" v-model="plexMoviesSectionId">
-                <option value="">None</option>
-                <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
-                  {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
-                </option>
-              </select>
-              <input v-no-autofill v-else type="text" class="field-input" v-model="plexMoviesSectionId"
-                placeholder="section number of the movies library" />
-            </div>
-            <div class="md:col-span-2 flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="loadPlexSections" :disabled="plexProbing">
-                <template v-if="plexProbing">LOADING…</template><template v-else><download-icon /> LOAD SECTIONS</template>
-              </button>
-              <button type="button" class="btn" @click="refreshPlexNow" :disabled="plexRefreshing">
-                <template v-if="plexRefreshing">REFRESHING…</template><template v-else><refresh-icon /> REFRESH PLEX NOW</template>
-              </button>
-              <span v-if="plexStatus" :class="['status-readout', plexStatusKind]">{{ plexStatus }}</span>
-            </div>
-            <plex-library-setup :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
-              @created="usePlexLibraries" />
-            <div class="md:col-span-2">
-              <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="toggle-prose">
-                Wait for Plex before removing recordings from TVHeadend
-                <span class="text-ink-mute">(recommended: if Plex does not answer, the recording stays in TVHeadend)</span>
-              </toggle-switch>
+          </div>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Plex libraries</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <label class="field-label" for="settings-plex-tv">TV section</label>
+                <select v-if="plexSections.length" id="settings-plex-tv" class="field-input" v-model="plexSectionId">
+                  <option value="">Pick a section</option>
+                  <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
+                    {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
+                  </option>
+                </select>
+                <input v-no-autofill v-else id="settings-plex-tv" type="text" class="field-input" v-model="plexSectionId"
+                  placeholder="section number; Load sections lists them" />
+              </div>
+              <div class="settings-row">
+                <label class="field-label" for="settings-plex-oneoff">One-off section</label>
+                <select v-if="plexSections.length" id="settings-plex-oneoff" class="field-input" v-model="plexOneOffSectionId">
+                  <option value="">None</option>
+                  <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
+                    {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
+                  </option>
+                </select>
+                <input v-no-autofill v-else id="settings-plex-oneoff" type="text" class="field-input" v-model="plexOneOffSectionId"
+                  placeholder="section number of the one-off library" />
+              </div>
+              <div class="settings-row">
+                <label class="field-label" for="settings-plex-movies">Movies section</label>
+                <select v-if="plexSections.length" id="settings-plex-movies" class="field-input" v-model="plexMoviesSectionId">
+                  <option value="">None</option>
+                  <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
+                    {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
+                  </option>
+                </select>
+                <input v-no-autofill v-else id="settings-plex-movies" type="text" class="field-input" v-model="plexMoviesSectionId"
+                  placeholder="section number of the movies library" />
+              </div>
+              <div class="settings-row settings-row-actions">
+                <button type="button" class="btn btn-sm" @click="loadPlexSections" :disabled="plexProbing">
+                  <template v-if="plexProbing">Loading…</template><template v-else><download-icon /> Load sections</template>
+                </button>
+                <button type="button" class="btn btn-sm" @click="refreshPlexNow" :disabled="plexRefreshing">
+                  <template v-if="plexRefreshing">Refreshing…</template><template v-else><refresh-icon /> Refresh Plex now</template>
+                </button>
+                <span v-if="plexStatus" :class="['status-readout', plexStatusKind]">{{ plexStatus }}</span>
+              </div>
+              <plex-library-setup class="settings-row" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
+                @created="usePlexLibraries" />
+              <div class="settings-row">
+                <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Wait for Plex before removing recordings from TVHeadend</span>
+                    <span class="settings-row-meta">Recommended: if Plex does not answer, the recording stays in TVHeadend.</span>
+                  </span>
+                </toggle-switch>
+              </div>
             </div>
           </div>
         </section>
 
-        <section id="section-schedule" class="panel">
-          <header class="panel-header">
-            <span class="panel-heading">
-              <span class="panel-title">SCHEDULE</span>
-              <info-button title="SCHEDULE" doc="guide/syncs#scheduled-and-manual">
-                <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file only fills in the first choice; the zone you save here wins.</p>
-                <p>How often Freetvarr checks TVHeadend for new recordings to import. <strong>Custom</strong> takes a cron expression, such as <code>0 */2 * * *</code> for every two hours.</p>
-                <p>A change applies without a restart. <strong>SYNC NOW</strong> on the <strong>DASHBOARD</strong> runs a sync at any time.</p>
-              </info-button>
-            </span>
-            <span class="text-xs font-mono text-ink-dim">time zone and when Freetvarr syncs</span>
-          </header>
-          <div class="panel-body space-y-4">
-            <time-zone-field v-model="timeZone" :source="tzSource" />
-            <div class="field-row md:max-w-xs">
-              <label class="field-label" for="settings-sync-schedule">Sync schedule</label>
-              <select id="settings-sync-schedule" class="field-input" v-model="syncSchedule">
-                <option v-for="preset in syncSchedulePresets" :key="preset.cron" :value="preset.cron">{{ preset.label }}</option>
-                <option :value="customSyncSchedule">Custom</option>
-              </select>
+        <section id="section-schedule" class="settings-section">
+          <p class="settings-intro">
+            The time zone Freetvarr uses, and when it checks TVHeadend for new recordings.
+            <info-button title="Schedule" doc="guide/syncs#scheduled-and-manual">
+              <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file only fills in the first choice; the zone you save here wins.</p>
+              <p>How often Freetvarr checks TVHeadend for new recordings to import. <strong>Custom</strong> takes a cron expression, such as <code>0 */2 * * *</code> for every two hours.</p>
+              <p>A change applies without a restart. <strong>Sync now</strong> on the <strong>Health</strong> page runs a sync at any time.</p>
+            </info-button>
+          </p>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Time zone</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <time-zone-field v-model="timeZone" :source="tzSource" />
+              </div>
             </div>
-            <div v-if="syncSchedule === customSyncSchedule" class="field-row">
-              <label class="field-label" for="settings-sync-cron">Custom schedule <span class="text-ink-mute">(cron)</span></label>
-              <input v-no-autofill id="settings-sync-cron" type="text" class="field-input" v-model="syncCron" placeholder="0 */2 * * *" />
-              <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                Five fields: minute, hour, day of month, month, day of week. <code>0 */2 * * *</code> is every two hours.
-              </p>
-              <p v-if="syncCronEffective && syncCronEffective !== syncCron.trim()" class="text-xs text-ink-dim mt-2">
-                Freetvarr syncs on <code>{{ syncCronEffective }}</code> until you save a valid schedule.
-              </p>
+          </div>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Syncs</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <label class="field-label" for="settings-sync-schedule">Sync schedule</label>
+                <select id="settings-sync-schedule" class="field-input" v-model="syncSchedule">
+                  <option v-for="preset in syncSchedulePresets" :key="preset.cron" :value="preset.cron">{{ preset.label }}</option>
+                  <option :value="customSyncSchedule">Custom</option>
+                </select>
+              </div>
+              <div v-if="syncSchedule === customSyncSchedule" class="settings-row">
+                <label class="field-label" for="settings-sync-cron">Custom schedule <span class="settings-label-note">(cron)</span></label>
+                <input v-no-autofill id="settings-sync-cron" type="text" class="field-input ui-mono-input" v-model="syncCron" placeholder="0 */2 * * *" />
+                <p class="settings-hint">
+                  Five fields: minute, hour, day of month, month, day of week. <code>0 */2 * * *</code> is every two hours.
+                </p>
+                <p v-if="syncCronEffective && syncCronEffective !== syncCron.trim()" class="settings-hint">
+                  Freetvarr syncs on <code>{{ syncCronEffective }}</code> until you save a valid schedule.
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
-        <section id="section-pictures" class="panel">
-          <header class="panel-header">
-            <span class="panel-heading">
-              <span class="panel-title">PICTURES</span>
-              <info-button title="PICTURES" doc="guide/tv-guide#missing-pictures">
-                <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database.</p>
-                <p>A TVmaze lookup sends the programme title to TVmaze. Turn it off to keep every title on your network.</p>
-              </info-button>
-            </span>
-            <span class="text-xs font-mono text-ink-dim">where missing pictures come from</span>
-          </header>
-          <div class="panel-body space-y-4">
-            <toggle-switch v-model="showArtworkLookup">LOOK UP MISSING PICTURES ON TVMAZE</toggle-switch>
-            <p class="text-xs text-ink-mute leading-relaxed">
-              On: when the guide and Plex have no picture for a show, Freetvarr sends the title to <a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a> and uses its picture. Off: those shows get a title card.
-            </p>
+        <section id="section-pictures" class="settings-section">
+          <p class="settings-intro">
+            Where missing programme pictures come from.
+            <info-button title="Pictures" doc="guide/tv-guide#missing-pictures">
+              <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database.</p>
+              <p>A TVmaze lookup sends the programme title to TVmaze. Turn it off to keep every title on your network.</p>
+            </info-button>
+          </p>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Missing pictures</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <toggle-switch v-model="showArtworkLookup" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Look up missing pictures on TVmaze</span>
+                    <span class="settings-row-meta">On: when the guide and Plex have no picture for a show, Freetvarr sends the title to TVmaze and uses its picture. Off: those shows get a title card.</span>
+                  </span>
+                </toggle-switch>
+              </div>
+            </div>
+            <p class="settings-note"><a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a> is a free online TV database.</p>
           </div>
         </section>
 
-        <section id="section-ad-removal" class="panel">
-          <header class="panel-header">
-            <span class="panel-heading">
-              <span class="panel-title">AD REMOVAL</span>
-              <info-button title="AD REMOVAL" doc="guide/ad-removal">
-                <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
-                <p>Turn it on here, then set a mode for each series on the <strong>SERIES</strong> tab. <strong>DETECT</strong> saves the breaks in a <code>.edl</code> file beside the video, so apps that read it skip them. <strong>CUT</strong> removes them and keeps the original for a set number of days.</p>
-                <p>Detection is not always right. Use <strong>DETECT</strong> on a channel first, and check the breaks before you let it cut.</p>
-              </info-button>
-            </span>
-            <span class="text-xs font-mono text-ink-dim">optional</span>
-          </header>
-          <div class="panel-body space-y-4">
-            <div>
-              <toggle-switch v-model="adRemovalEnabled" class="toggle-prose">
-                Enable ad removal
-                <span class="text-ink-mute">(set the mode for each series on the SERIES tab)</span>
-              </toggle-switch>
+        <section id="section-ad-removal" class="settings-section">
+          <p class="settings-intro">
+            Optional. Finds the ad breaks in a recording, and can cut them out.
+            <info-button title="Ad removal" doc="guide/ad-removal">
+              <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
+              <p>Turn it on here, then set a mode for each series under <strong>Series rules</strong>. <strong>Detect</strong> saves the breaks in a <code>.edl</code> file beside the video, so apps that read it skip them. <strong>Cut</strong> removes them and keeps the original for a set number of days.</p>
+              <p>Detection is not always right. Use <strong>Detect</strong> on a channel first, and check the breaks before you let it cut.</p>
+            </info-button>
+          </p>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Ad removal</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <toggle-switch v-model="adRemovalEnabled" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Enable ad removal</span>
+                    <span class="settings-row-meta">Set the mode for each series under Series rules.</span>
+                  </span>
+                </toggle-switch>
+              </div>
+              <div class="settings-row settings-row-inline">
+                <label class="settings-row-title" for="settings-ad-retention">Keep the original after a cut for (days)</label>
+                <input v-no-autofill id="settings-ad-retention" type="number" min="1" class="field-input settings-number" v-model="adOriginalRetentionDays" />
+              </div>
+              <div class="settings-row settings-row-inline">
+                <span class="settings-row-title">Detection settings</span>
+                <span class="ui-group-row-value">{{ comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air' }}</span>
+              </div>
             </div>
-            <div class="field-row md:max-w-xs">
-              <label class="field-label">Keep the original after a cut for (days)</label>
-              <input v-no-autofill type="number" min="1" class="field-input" v-model="adOriginalRetentionDays" />
-            </div>
-            <p class="text-xs font-mono text-ink-dim">
-              Detection settings: <code>{{ comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air' }}</code>
-            </p>
-            <p class="text-xs text-ink-mute leading-relaxed">
-              Finding the ads uses a lot of processor time: expect several minutes for each episode. CUT saves the recording again without the ads, at the same picture quality, and keeps the original as <code>&lt;file&gt;.ts.orig</code> for the days above. Detection works better on some channels than others, so try DETECT before you use CUT.
+            <p class="settings-note">
+              Finding the ads uses a lot of processor time: expect several minutes for each episode. Cut saves the recording again without the ads, at the same picture quality, and keeps the original as <code>&lt;file&gt;.ts.orig</code> for the days above. Detection works better on some channels than others, so try Detect before you use Cut.
             </p>
           </div>
         </section>
       </form>
 
       <div class="settings-save-bar">
-        <div class="max-w-6xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-          <span v-if="status" :class="['status-readout', statusKind]">{{ status }}</span>
-          <span v-else class="hidden sm:inline text-xs font-mono text-ink-mute">Changes apply when you save.</span>
-          <button type="submit" form="settings-form" class="btn btn-primary ml-auto" :disabled="saving">
-            <template v-if="saving">SAVING…</template><template v-else><check-icon /> SAVE SETTINGS</template>
+        <div class="settings-save-bar-inner">
+          <span v-if="status" :class="['status-readout', statusKind]" role="status">{{ status }}</span>
+          <span v-else class="settings-save-hint">Changes apply when you save.</span>
+          <button type="submit" form="settings-form" class="ui-button ui-button-primary" :disabled="saving">
+            <template v-if="saving">Saving…</template><template v-else><check-icon /> Save settings</template>
           </button>
         </div>
       </div>
 
       <tv-apps-panel :tvh-url="tvhUrl" />
 
-      <section id="section-help" class="panel">
-        <header class="panel-header">
-          <span class="panel-heading">
-            <span class="panel-title">HELP</span>
-            <info-button title="HELP" doc="guide/troubleshooting#reporting-a-bug">
-              <p><strong>REOPEN WIZARD</strong> walks the first-run setup again, with your saved values filled in.</p>
-              <p><strong>RUN DOCTOR</strong> checks your setup and says what to fix.</p>
-              <p>The versions Freetvarr is running with. Include them when you report a bug. <strong>COPY</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser.</p>
+      <section id="section-help" class="settings-section">
+        <div class="settings-group">
+          <h3 class="ui-group-label">Setup</h3>
+          <div class="ui-group">
+            <div class="settings-row settings-row-inline">
+              <span class="settings-toggle-text">
+                <span class="settings-row-title">Setup wizard</span>
+                <span class="settings-row-meta">Open the guided setup again. Your saved values are filled in, and a saved password or token shows as <code>••••• (stored)</code>.</span>
+              </span>
+              <button type="button" class="btn btn-sm" @click="reopenWizard"><refresh-icon /> Reopen wizard</button>
+            </div>
+            <a class="settings-row settings-row-inline settings-row-link" href="#/settings/system/health">
+              <span class="settings-toggle-text">
+                <span class="settings-row-title">Health checks</span>
+                <span class="settings-row-meta">The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix.</span>
+              </span>
+              <chevron-glyph class="ui-group-row-chevron" />
+            </a>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-group-head">
+            <h3 class="ui-group-label">Versions</h3>
+            <info-button title="Versions" doc="guide/troubleshooting#reporting-a-bug">
+              <p>The versions Freetvarr is running with. Include them when you report a bug. <strong>Copy</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser.</p>
             </info-button>
-          </span>
-          <span class="text-xs font-mono text-ink-dim">setup, checks, and versions</span>
-        </header>
-        <div class="panel-body help-rows">
-          <div class="help-row">
-            <div class="max-w-2xl">
-              <span class="settings-block-title">SETUP WIZARD</span>
-              <p class="text-sm text-ink-dim leading-relaxed">
-                Open the guided setup again. Your saved values are filled in, and a saved password or token shows as <code>••••• (stored)</code>, so you can change one step without typing the rest again.
-              </p>
-            </div>
-            <button type="button" class="btn" @click="reopenWizard"><refresh-icon /> REOPEN WIZARD</button>
           </div>
-          <div class="help-row">
-            <div class="max-w-2xl">
-              <span class="settings-block-title">HEALTH CHECK</span>
-              <p class="text-sm text-ink-dim leading-relaxed">
-                The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix.
-              </p>
-            </div>
-            <a href="#/settings/system/health" class="btn no-hover-underline"><pulse-icon /> RUN DOCTOR</a>
+          <div class="ui-group settings-versions">
+            <versions-row />
           </div>
-          <versions-row />
+        </div>
+        <div id="section-licences" class="settings-group">
+          <h3 class="ui-group-label">Licences</h3>
+          <div class="ui-group">
+            <div v-for="item in licences" :key="item.name" class="settings-row settings-row-inline">
+              <span class="settings-toggle-text">
+                <span class="settings-row-title">{{ item.name }}</span>
+                <span class="settings-row-meta">{{ item.note }}</span>
+              </span>
+              <a :href="item.href" target="_blank" rel="noopener noreferrer" class="settings-licence-link">{{ item.licence }}</a>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="section-danger-zone" class="panel settings-reset">
-        <header class="panel-header">
-          <span class="panel-title">RESET</span>
-          <span class="text-xs font-mono text-ink-dim">cannot be undone</span>
-        </header>
-        <div class="panel-body space-y-4">
-          <div>
-            <p class="text-sm text-ink leading-relaxed">
-              Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard will start from the beginning.
-            </p>
-            <p class="text-xs text-ink-mute leading-relaxed mt-2">
-              Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders will stay where they are, and so will the recordings and settings in TVHeadend. You cannot reset while a sync is running.
-            </p>
+      <section id="section-danger-zone" class="settings-section settings-reset">
+        <div class="settings-group">
+          <h3 class="ui-group-label">Reset Freetvarr</h3>
+          <div class="ui-group settings-danger">
+            <div class="settings-row">
+              <p class="settings-row-body">
+                Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard will start from the beginning.
+              </p>
+              <p class="settings-hint">
+                Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders will stay where they are, and so will the recordings and settings in TVHeadend. You cannot reset while a sync is running.
+              </p>
+              <div class="settings-row-actions">
+                <button type="button" class="btn btn-danger" @click="askResetFreetvarr" :disabled="resetting">
+                  <template v-if="resetting">Resetting…</template><template v-else><trash-icon /> Reset Freetvarr</template>
+                </button>
+                <span v-if="resetError" class="status-readout err">{{ resetError }}</span>
+              </div>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-3">
-            <button type="button" class="btn btn-danger" @click="askResetFreetvarr" :disabled="resetting">
-              <template v-if="resetting">RESETTING…</template><template v-else><trash-icon /> RESET FREETVARR</template>
-            </button>
-            <span v-if="resetError" class="status-readout err">{{ resetError }}</span>
-          </div>
+          <p class="settings-note">This cannot be undone.</p>
         </div>
       </section>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
@@ -608,6 +661,7 @@ export const SettingsView = {
     const oneOffRootStatus = ref('')
     const oneOffRootStatusKind = ref('ok')
     const importUnmatched = ref(true)
+    const addToLibraryDefault = ref(true)
     const showArtworkLookup = ref(true)
     const plexOneOffSectionId = ref('')
     const moviesRoot = ref('')
@@ -661,6 +715,7 @@ export const SettingsView = {
       mediaRoot.value = s.media_root || ''
       oneOffRoot.value = s.oneoff_root || ''
       importUnmatched.value = s.import_unmatched !== false
+      loadRecordingDefaults()
       showArtworkLookup.value = s.show_artwork_lookup !== false
       plexOneOffSectionId.value = s.plex_oneoff_section_id || ''
       moviesRoot.value = s.movies_root || ''
@@ -701,6 +756,7 @@ export const SettingsView = {
         if (plexToken.value) body.plex_token = plexToken.value
         if (tvhPassword.value) body.tvh_password = tvhPassword.value
         await api('POST', '/api/settings', body)
+        await saveRecordingDefaults()
         tz.value = timeZone.value
         tzSource.value = 'setting'
         if (plexToken.value) {
@@ -719,6 +775,13 @@ export const SettingsView = {
         saving.value = false
       }
     }
+
+    const loadRecordingDefaults = async () => {
+      const defaults = await api('GET', '/api/recording-defaults').catch(() => null)
+      if (defaults) addToLibraryDefault.value = defaults.add_to_library !== false
+    }
+
+    const saveRecordingDefaults = () => api('PUT', '/api/recording-defaults', { add_to_library: addToLibraryDefault.value })
 
     const refreshSyncSchedule = async () => {
       const fresh = await fetchSettings().catch(() => null)
@@ -970,7 +1033,7 @@ export const SettingsView = {
       resetting, resetError, askResetFreetvarr, reopenWizard,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, showArtworkLookup, plexOneOffSectionId, plexMoviesSectionId,
+      importUnmatched, addToLibraryDefault, showArtworkLookup, licences: LICENCES, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,

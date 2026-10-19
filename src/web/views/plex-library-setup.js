@@ -10,12 +10,12 @@ export const PlexLibrarySetup = {
   },
   emits: ['created'],
   template: `
-    <div v-if="missing.length || statusText" class="md:col-span-2 space-y-3 border-t border-hairline pt-4">
+    <div v-if="missing.length || statusText" class="plex-library-setup">
       <template v-if="missing.length">
-        <p class="text-ink text-sm leading-relaxed">
-          Plex has no library for {{ missingSummary }}. Freetvarr can create {{ missing.length === 1 ? 'it' : 'them' }}. Check each name and folder, then press CREATE LIBRARIES.
+        <p class="plex-library-text">
+          Plex has no library for {{ missingSummary }}. Freetvarr can create {{ missing.length === 1 ? 'it' : 'them' }}. Check each name and folder, then press Create libraries.
         </p>
-        <div v-for="lib in missing" :key="lib.kind" class="grid gap-3 md:grid-cols-2">
+        <div v-for="lib in missing" :key="lib.kind" class="plex-library-fields">
           <div class="field-row">
             <label class="field-label" :for="'plex-library-name-' + lib.kind">{{ PLEX_LIBRARY_LABELS[lib.kind] }} library name</label>
             <input v-no-autofill :id="'plex-library-name-' + lib.kind" type="text" class="field-input" v-model="lib.name" />
@@ -25,13 +25,13 @@ export const PlexLibrarySetup = {
             <input v-no-autofill :id="'plex-library-folder-' + lib.kind" type="text" class="field-input" v-model="lib.location" />
           </div>
         </div>
-        <p class="text-xs text-ink-mute leading-relaxed">
+        <p class="settings-hint">
           Plex can see your files at a different path from Freetvarr. With the Plex in Freetvarr's compose file, the paths are the same. If you installed Plex yourself, enter the path that Plex shows when you add a folder to a library.
         </p>
       </template>
-      <div class="flex flex-wrap items-center gap-3">
+      <div class="plex-library-actions">
         <button v-if="missing.length" type="button" class="btn" @click="create" :disabled="creating">
-          <template v-if="creating">CREATING…</template><template v-else><plus-icon /> CREATE LIBRARIES</template>
+          <template v-if="creating">Creating…</template><template v-else><plus-icon /> Create libraries</template>
         </button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>

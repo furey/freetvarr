@@ -20,12 +20,12 @@ export const GuideSetupStep = {
 
       <div v-else-if="loadError" class="space-y-2">
         <p class="status-readout err">{{ loadError }}</p>
-        <button type="button" class="btn" @click="refresh"><refresh-icon /> CHECK AGAIN</button>
+        <button type="button" class="btn" @click="refresh"><refresh-icon /> Check again</button>
       </div>
 
       <template v-else-if="suggestion">
         <div v-if="showSteps" class="space-y-3">
-          <ol class="space-y-1 text-sm font-mono">
+          <ol class="welcome-steps">
             <li v-for="s in steps" :key="s.id" class="step-row">
               <span class="step-marker">
                 <span v-if="s.status === 'running'" class="step-spinner"></span>
@@ -39,11 +39,11 @@ export const GuideSetupStep = {
           <template v-if="result && result.ok">
             <div v-if="!result.total" class="space-y-2">
               <p class="status-readout err">There are no channels yet, so there is nothing to link a guide to.</p>
-              <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> BACK TO CHANNELS</button>
+              <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> Back to Channels</button>
             </div>
             <p v-else class="status-readout ok">{{ result.linked }} of {{ result.total }} channels have a guide.</p>
             <div v-if="result.unmatched.length" class="space-y-3">
-              <p class="text-sm text-ink">These channels have no guide yet. Check each pick, or choose No guide. NEXT saves your choices.</p>
+              <p class="text-sm text-ink">These channels have no guide yet. Check each pick, or choose No guide. Next saves your choices.</p>
               <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
                 <label class="text-sm text-ink" :for="'guide-' + c.id">{{ c.name }}<span v-if="c.number" class="text-ink-dim"> · {{ c.number }}</span></label>
                 <guide-combobox :input-id="'guide-' + c.id" v-model="picks[c.id]" :options="result.options"
@@ -54,25 +54,25 @@ export const GuideSetupStep = {
           <div v-if="result && !result.ok" class="space-y-2">
             <p class="status-readout err">{{ result.error }}</p>
             <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
-            <button type="button" class="btn" @click="restart"><refresh-icon /> TRY AGAIN</button>
+            <button type="button" class="btn" @click="restart"><refresh-icon /> Try again</button>
           </div>
         </div>
 
         <div v-else-if="!suggestion.channels" class="space-y-2">
           <p class="status-readout err">There are no channels yet, so there is nothing to link a guide to.</p>
-          <p class="text-sm text-ink">Go back to CHANNELS and scan for channels first. Then come back here to set up the guide.</p>
-          <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> BACK TO CHANNELS</button>
+          <p class="text-sm text-ink">Go back to Channels and scan for channels first. Then come back here to set up the guide.</p>
+          <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> Back to Channels</button>
         </div>
 
         <div v-else-if="!suggestion.available" class="space-y-2">
-          <p class="text-sm text-ink">This TVHeadend cannot download a guide from an address. It uses the guide that comes with the broadcast. Press NEXT.</p>
+          <p class="text-sm text-ink">This TVHeadend cannot download a guide from an address. It uses the guide that comes with the broadcast. Press Next.</p>
         </div>
 
         <div v-else-if="suggestion.state === 'has-guide' && !editing" class="space-y-2">
           <p class="status-readout ok">{{ suggestion.linked }} of {{ suggestion.channels }} channels have a guide.</p>
           <p class="text-sm text-ink-dim break-all">Guide address: {{ suggestion.url }}</p>
-          <p class="text-sm text-ink-dim">Press NEXT to keep it. To link channels that have no guide, or to change the address, set it up again.</p>
-          <button type="button" class="btn" @click="editing = true"><refresh-icon /> SET UP AGAIN</button>
+          <p class="text-sm text-ink-dim">Press Next to keep it. To link channels that have no guide, or to change the address, set it up again.</p>
+          <button type="button" class="btn" @click="editing = true"><refresh-icon /> Set up again</button>
         </div>
 
         <div v-else class="space-y-4">
@@ -96,7 +96,7 @@ export const GuideSetupStep = {
           </div>
           <div class="action-row flex flex-wrap items-center gap-3">
             <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
-              <tv-icon /> SET UP GUIDE
+              <tv-icon /> Set up guide
             </button>
           </div>
           <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
