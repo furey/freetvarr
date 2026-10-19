@@ -253,10 +253,6 @@
   color: var(--color-text-2);
 }
 
-.settings-intro .info-btn {
-  vertical-align: middle;
-}
-
 .settings-group {
   min-width: 0;
 }

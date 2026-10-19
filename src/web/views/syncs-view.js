@@ -76,6 +76,10 @@ export const SyncsView = {
         </button>
         <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
         <button type="button" class="btn btn-danger settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
+      </div>
+      <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
+      <p class="settings-meta-line">
+        <template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template>
         <info-button title="Activity" doc="guide/syncs">
           <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
           <p>Syncs run on the schedule in <strong>Settings</strong>, or when you press <strong>Sync now</strong>. Only one runs at a time.</p>
@@ -83,10 +87,6 @@ export const SyncsView = {
           <p>Press a sync to see each recording it imported, failed, or removed, and how long each step took. Its details also hold <strong>Delete sync</strong>, which removes that sync from the history.</p>
           <p>The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.</p>
         </info-button>
-      </div>
-      <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
-      <p v-if="scheduleFrequency || syncStatus.cron" class="settings-meta-line">
-        <template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template>
       </p>
 
       <div class="settings-filters">
