@@ -16,6 +16,8 @@ const SEGMENTS = [
 const FONT_WAIT_MS = 600
 const FLIGHT_MS = 380
 const FADE_MS = 200
+const HOLD_MS = 1000
+const SKIP_EVENT = 'brand-intro-skip'
 const ACTIVE_CLASS = 'is-brand-intro-active'
 const TARGET_SELECTOR = '[data-intro-target]'
 
@@ -46,6 +48,7 @@ const runIntro = async () => {
   overlay.classList.add('is-ready', 'is-playing')
   if (overlay.classList.contains('is-skipped')) finishAll(overlay)
   await animationsDone(overlay)
+  await holdUnlessSkipped(overlay)
   stopSkipping()
   overlay.classList.add('is-leaving')
   await leave(overlay)
@@ -100,6 +103,7 @@ const listenForSkip = (overlay) => {
   const skip = () => {
     overlay.classList.add('is-skipped')
     finishAll(overlay)
+    overlay.dispatchEvent(new Event(SKIP_EVENT))
   }
   const events = ['pointerdown', 'keydown']
   events.forEach((type) => window.addEventListener(type, skip, { capture: true }))
@@ -108,6 +112,17 @@ const listenForSkip = (overlay) => {
 
 const finishAll = (overlay) => overlay.getAnimations({ subtree: true })
   .forEach((animation) => animation.finish())
+
+const holdUnlessSkipped = (overlay) => {
+  if (overlay.classList.contains('is-skipped')) return Promise.resolve()
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, HOLD_MS)
+    overlay.addEventListener(SKIP_EVENT, () => {
+      clearTimeout(timer)
+      resolve()
+    }, { once: true })
+  })
+}
 
 const animationsDone = async (overlay) => {
   await nextFrame()
