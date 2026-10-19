@@ -26,6 +26,7 @@ import {
   forgetRecordingArtwork,
   rebaseFilePaths,
   resetInterruptedImports,
+  closeInterruptedSyncs,
   matchShow,
   createValidFilename,
 } from './sync.js'
@@ -2141,6 +2142,8 @@ const server = app.listen(PORT, async () => {
     const moved = await rebaseFilePaths()
     if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
     await resetInterruptedImports()
+    const closedSyncs = await closeInterruptedSyncs()
+    if (closedSyncs) console.log(`[sync] closed ${closedSyncs} sync(s) left running by a restart`)
     sweepLibraryStates().catch((err) => console.warn(`[sync] library check: ${err.message}`))
     shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
     prepareThumbnailCache()

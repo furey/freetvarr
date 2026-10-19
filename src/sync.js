@@ -80,6 +80,29 @@ export const rebasePrefix = ({ from, to }) => {
 export const resetInterruptedImports = () =>
   db('recordings').where({ status: 'importing' }).update({ status: 'pending', error: null })
 
+export const INTERRUPTED_SYNC_ERROR = 'Freetvarr restarted before this sync finished.'
+
+export const interruptedSyncSummaryOf = (summaryJson) => {
+  const summary = parseSummary(summaryJson)
+  return { ...summary, errors: [...(summary.errors || []), INTERRUPTED_SYNC_ERROR] }
+}
+
+export const closeInterruptedSyncs = async () => {
+  const stuck = await db('syncs').where({ status: 'running' }).whereNull('finished_at').select('id', 'summary_json')
+  for (const { id, summary_json } of stuck) {
+    await db('syncs').where({ id }).update({
+      status: 'error',
+      finished_at: db.fn.now(),
+      summary_json: JSON.stringify(interruptedSyncSummaryOf(summary_json)),
+    })
+  }
+  return stuck.length
+}
+
+const parseSummary = (summaryJson) => {
+  try { return JSON.parse(summaryJson || '{}') || {} } catch { return {} }
+}
+
 export const getMoviesRoot = async () => {
   const fromSetting = await getSetting('movies_root')
   if (fromSetting != null) return fromSetting.trim()
