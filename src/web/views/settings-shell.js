@@ -2,8 +2,10 @@ import { computed, watch } from '/vendor/vue.esm-browser.prod.js'
 import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
 import { EPG_NARROW_QUERY } from '/shared/constants.js'
+import { playBrandIntro } from '/components/brand-intro-overlay.js'
 import { health } from '/shared/health.js'
 import { routeParams } from '/shared/router.js'
+import { prefersReducedMotion } from '/shared/utils.js'
 import { DoctorView } from '/views/doctor-view.js'
 import { RecordingsView } from '/views/recordings-view.js'
 import { SeriesView } from '/views/series-view.js'
@@ -24,6 +26,7 @@ const PAGE_INTROS = {
   activity: 'Every sync Freetvarr has run, newest first.',
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
+  about: 'Records free-to-air TV from your TVHeadend-compatible tuner and saves it where your media player finds it.',
 }
 
 export const SettingsShell = {
@@ -47,7 +50,14 @@ export const SettingsShell = {
       <main v-if="page" class="settings-content" :data-settings-page="page.id" :data-settings-section="page.section || null">
         <a href="#/settings" class="settings-back ui-only-phone"><back-glyph /> Settings</a>
         <header v-if="!ownHeader" class="settings-page-header">
-          <h2 class="settings-page-title">{{ page.label }}</h2>
+          <h2 v-if="page.id === 'about'" class="settings-page-title settings-about-title">
+            <span class="ui-visually-hidden">About </span>
+            <button v-if="canReplayIntro" type="button" class="brand-wordmark-button" aria-label="Freetvarr, play the intro" @click="replayIntro">
+              <brand-wordmark class="settings-about-wordmark" data-intro-target />
+            </button>
+            <brand-wordmark v-else class="settings-about-wordmark" />
+          </h2>
+          <h2 v-else class="settings-page-title">{{ page.label }}</h2>
           <p v-if="intro" class="settings-page-intro">{{ intro }}</p>
         </header>
         <component :is="pageView.view" v-bind="pageView.props" :key="page.view === 'settings' ? 'settings' : page.id" />
@@ -65,7 +75,21 @@ export const SettingsShell = {
     const intro = computed(() => PAGE_INTROS[page.value?.id] || '')
     const healthDotClass = computed(() => ({ ok: 'is-ok', warn: 'is-warn', fail: 'is-fail' })[health.value.level])
     const healthDotLabel = computed(() => ({ ok: 'All good', warn: 'Needs a look', fail: 'Needs attention' })[health.value.level])
+    const canReplayIntro = !prefersReducedMotion()
+    const replayIntro = () => playBrandIntro()
     watch(page, () => window.scrollTo({ top: 0 }))
-    return { groups: SETTINGS_GROUPS, page, showNav, pageView, ownHeader, intro, health, healthDotClass, healthDotLabel }
+    return {
+      groups: SETTINGS_GROUPS,
+      page,
+      showNav,
+      pageView,
+      ownHeader,
+      intro,
+      health,
+      healthDotClass,
+      healthDotLabel,
+      canReplayIntro,
+      replayIntro,
+    }
   },
 }

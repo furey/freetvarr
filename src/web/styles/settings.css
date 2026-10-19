@@ -1097,8 +1097,8 @@ a.settings-row-link:hover {
   margin-bottom: 12px;
 }
 
-.welcome-brand span {
-  height: 6px;
+.welcome-wordmark {
+  font-size: 22px;
 }
 
 .welcome-later {
@@ -1384,4 +1384,13 @@ a.settings-row-link:hover {
 .settings-content[data-settings-section="danger-zone"] .settings-form,
 .settings-content[data-settings-section="tv-apps"] .settings-form {
   display: none;
+}
+
+.settings-about-title {
+  display: flex;
+  align-items: center;
+}
+
+.settings-about-wordmark {
+  font-size: 36px;
 }

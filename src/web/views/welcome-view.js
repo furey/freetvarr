@@ -37,7 +37,7 @@ export const WelcomeView = {
     <div class="view-reveal welcome-page">
       <header class="welcome-header">
         <div class="welcome-header-top">
-          <span class="app-brand-mark welcome-brand" role="img" aria-label="Freetvarr"><span></span><span></span><span></span></span>
+          <brand-wordmark class="welcome-wordmark" data-intro-target />
           <button v-if="step < totalSteps" type="button" class="welcome-later" @click="skipToSettings">Finish later <arrow-right-icon /></button>
         </div>
         <p class="welcome-step">Step {{ step }} of {{ totalSteps }}</p>

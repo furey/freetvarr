@@ -53,6 +53,8 @@ import {
   CaptionsIcon,
 } from '/components/icons.js'
 import { AppNav, BrandMark } from '/components/app-shell.js'
+import { startBrandIntro } from '/components/brand-intro-overlay.js'
+import { BrandWordmark } from '/components/brand-wordmark.js'
 import { ChannelLogo, ProgrammeImage } from '/components/images.js'
 import { InfoButton } from '/components/info-button.js'
 import { ListSkeleton } from '/components/list-skeleton.js'
@@ -153,6 +155,7 @@ const App = {
   },
 }
 
+startBrandIntro()
 checkForNewBuild()
 
 fetch('/api/settings')
@@ -176,6 +179,7 @@ installPullToRefresh({ onRefresh: refreshFromPull })
 const app = createApp(App)
 app.component('app-nav', AppNav)
 app.component('brand-mark', BrandMark)
+app.component('brand-wordmark', BrandWordmark)
 app.component('page-header', PageHeader)
 app.component('search-button', SearchButton)
 app.component('health-dot', HealthDot)
