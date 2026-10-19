@@ -43,7 +43,7 @@ export const LiveView = {
             <zoom-control :index="zoomIndex" :count="zoomLevelCount" :show-label="!narrow" @step="changeZoom" />
           </div>
           <p v-if="tvhConfigured === false" class="text-sm text-ink-dim">
-            Connect TVHeadend in <a href="#/settings/tvheadend">Settings</a> to watch live TV.
+            Connect TVHeadend in <a href="#/settings/system/tvheadend">Settings</a> to watch live TV.
           </p>
           <div v-else-if="error" class="flex flex-wrap items-center gap-3">
             <span class="status-readout err">Guide unavailable: {{ error }}</span>

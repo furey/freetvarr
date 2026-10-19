@@ -2,7 +2,7 @@ import { watch } from '/vendor/vue.esm-browser.prod.js'
 import { syncStatus } from '/shared/sync-status.js'
 
 const FAVICON_SIZE = 32
-const FAVICON_BG = '#28231b'
+const FAVICON_BG = '#141c24'
 const FAVICON_CHIP_BASE_Y = 13
 const FAVICON_CHIP_WIDTH = 8
 const FAVICON_CHIP_HEIGHT = 6
@@ -10,12 +10,12 @@ const FAVICON_BOB_AMPLITUDE = 4
 const FAVICON_BOB_PERIOD_MS = 900
 const FAVICON_FRAME_INTERVAL_MS = 90
 const FAVICON_CHIPS = [
-  { x: 3,  color: '#1eb6ff' },
-  { x: 12, color: '#ff8a00' },
-  { x: 21, color: '#e2b03c' },
+  { x: 3,  color: '#3ba4ff' },
+  { x: 12, color: '#f28c28' },
+  { x: 21, color: '#f5c542' },
 ]
 
-const FAVICON_REC_DISC = { x: 16, y: 16, radius: 6.5, color: '#ff8a00' }
+const FAVICON_REC_DISC = { x: 16, y: 16, radius: 6.5, color: '#ff4d4f' }
 
 let faviconCanvas = null
 let faviconCtx = null

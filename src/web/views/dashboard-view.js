@@ -172,7 +172,7 @@ export const DashboardView = {
               <play-icon v-if="!shownSyncId && !starting" /> {{ syncButtonLabel }}
             </button>
           </div>
-          <a href="#/syncs" class="deck-cell deck-cell-last no-hover-underline" :title="lastSyncCell.title">
+          <a href="#/settings/system/activity" class="deck-cell deck-cell-last no-hover-underline" :title="lastSyncCell.title">
             <span class="deck-cell-label">
               {{ lastSyncCell.label }}
             </span>
@@ -202,7 +202,7 @@ export const DashboardView = {
               <p>Below the bars, each of those tall-bar syncs has a row. Press a row to open its details on the <strong>SYNCS</strong> tab. <strong>SEE ALL</strong> opens the <strong>SYNCS</strong> tab with the full history.</p>
             </info-button>
           </span>
-          <a href="#/syncs" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
+          <a href="#/settings/system/activity" class="link-arrow text-xs font-mono uppercase tracking-[0.16em]">See all <arrow-right-icon /></a>
         </header>
         <div class="panel-body" :aria-busy="!syncsLoaded">
           <div v-if="!syncsLoaded" class="skeleton-reveal" aria-hidden="true">
@@ -360,7 +360,7 @@ export const DashboardView = {
       r?.seriesLinkId != null && guideSeriesLinks.value.has(String(r.seriesLinkId))
 
 
-    const syncDetailsHref = (s) => `#/syncs/${s.id}`
+    const syncDetailsHref = (s) => `#/settings/system/activity/${s.id}`
 
     const applySyncs = (syncs) => {
       recentSyncs.value = (syncs.syncs || []).slice(0, RECENT_SYNCS_COUNT)
@@ -394,10 +394,10 @@ export const DashboardView = {
     }
 
     const tvhCell = computed(() => {
-      const base = { label: 'TVHEADEND', href: '#/settings/tvheadend' }
+      const base = { label: 'TVHEADEND', href: '#/settings/system/tvheadend' }
       if (!statsLoaded.value) return { ...base, value: '...' }
       if (!tvhConfigured.value) return { ...base, value: 'not set up', cta: true }
-      if (!tvhReachable.value) return { ...base, href: '#/doctor/tvheadend', value: 'unreachable' }
+      if (!tvhReachable.value) return { ...base, href: '#/settings/system/health/tvheadend', value: 'unreachable' }
       const s = tvhState.value
       const bits = [
         ...(s?.tunerCount ? [`${s.tunerCount} tuner${s.tunerCount === 1 ? '' : 's'}`] : []),

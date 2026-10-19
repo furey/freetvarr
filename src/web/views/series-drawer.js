@@ -27,7 +27,7 @@ export const SeriesDrawer = {
         @saved="$emit('saved')" @deleted="$emit('deleted')" @cancel="$emit('close')" />
       <div v-else class="series-drawer-unassigned">
         <p v-if="series.savesTo?.path" class="text-sm text-ink">This series has no folder in your TV library, so its episodes save to the one-off folder: <code>{{ series.savesTo.path }}</code>.</p>
-        <p v-else class="text-sm text-ink">This series has no folder in your TV library, so its episodes wait in <a href="#/recordings">RECORDINGS</a>.</p>
+        <p v-else class="text-sm text-ink">This series has no folder in your TV library, so its episodes wait in <a href="#/settings/system/log">RECORDINGS</a>.</p>
         <p class="text-sm text-ink-dim">To save its episodes in their own folder in your TV library, press <strong>ASSIGN FOLDER</strong>. You can then set the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
         <div class="card-actions">
           <button type="button" class="btn btn-primary" @click="$emit('assign')" :disabled="busy"><plus-icon /> ASSIGN FOLDER</button>

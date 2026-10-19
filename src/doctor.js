@@ -884,9 +884,9 @@ const RIGHT_PROBES = [
   { right: 'Admin', path: 'status/inputs', params: {} },
   { right: 'Video recorder', path: 'dvr/entry/grid_upcoming', params: { limit: 1 } },
 ]
-const SETTINGS_TVHEADEND = { label: 'Open settings', href: '#/settings/tvheadend' }
+const SETTINGS_TVHEADEND = { label: 'Open settings', href: '#/settings/system/tvheadend' }
 const SETTINGS_STORAGE = { label: 'Open settings', href: '#/settings/storage' }
 const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
-const OPEN_SYNCS = { label: 'Open syncs', href: '#/syncs' }
+const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity' }
 const OPEN_WIZARD = { label: 'Open setup wizard', href: '#/welcome' }

@@ -56,6 +56,7 @@ test('stampIndexHtml: adds the build meta tag and versions the script and styles
     '<link rel="preload" href="/fonts/inter-variable.woff2" as="font" />',
     '<link rel="stylesheet" href="/tailwind.css" />',
     '<link rel="stylesheet" href="/styles.css" />',
+    '<link rel="stylesheet" href="/styles/base.css" />',
     '<link rel="icon" href="/favicon.svg" />',
     '<script type="module" src="/app.js"></script>',
   ].join('\n')
@@ -66,6 +67,7 @@ test('stampIndexHtml: adds the build meta tag and versions the script and styles
   assert.match(stamped, /href="\/vendor\/vue\.esm-browser\.prod\.js\?v=abc123"/)
   assert.match(stamped, /href="\/tailwind\.css\?v=abc123"/)
   assert.match(stamped, /href="\/styles\.css\?v=abc123"/)
+  assert.match(stamped, /href="\/styles\/base\.css\?v=abc123"/)
   assert.match(stamped, /href="\/fonts\/inter-variable\.woff2"/)
   assert.match(stamped, /href="\/favicon\.svg"/)
 })

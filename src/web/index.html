@@ -7,12 +7,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Freetvarr" />
     <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b1117" />
     <title>Freetvarr</title>
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="modulepreload" href="/app.js" />
+    <link rel="modulepreload" href="/components/app-shell.js" />
     <link rel="modulepreload" href="/components/cancel-series-step.js" />
     <link rel="modulepreload" href="/components/channel-identity.js" />
     <link rel="modulepreload" href="/components/channels-modal.js" />
@@ -22,29 +24,36 @@
     <link rel="modulepreload" href="/components/forms.js" />
     <link rel="modulepreload" href="/components/guide-combobox.js" />
     <link rel="modulepreload" href="/components/header-controls.js" />
+    <link rel="modulepreload" href="/components/header-widgets.js" />
     <link rel="modulepreload" href="/components/icons.js" />
     <link rel="modulepreload" href="/components/images.js" />
     <link rel="modulepreload" href="/components/info-button.js" />
     <link rel="modulepreload" href="/components/list-skeleton.js" />
     <link rel="modulepreload" href="/components/live-player.js" />
     <link rel="modulepreload" href="/components/manual-option.js" />
+    <link rel="modulepreload" href="/components/nav-icons.js" />
     <link rel="modulepreload" href="/components/player-controls.js" />
     <link rel="modulepreload" href="/components/player-parts.js" />
     <link rel="modulepreload" href="/components/progress-block.js" />
     <link rel="modulepreload" href="/components/recording-cards.js" />
     <link rel="modulepreload" href="/components/recording-drawer.js" />
     <link rel="modulepreload" href="/components/recording-player.js" />
+    <link rel="modulepreload" href="/components/recordings-tabs.js" />
+    <link rel="modulepreload" href="/components/search-overlay.js" />
     <link rel="modulepreload" href="/components/stale-build-banner.js" />
     <link rel="modulepreload" href="/components/summary-line.js" />
     <link rel="modulepreload" href="/components/sync-detail.js" />
     <link rel="modulepreload" href="/components/sync-status.js" />
+    <link rel="modulepreload" href="/components/title-art.js" />
     <link rel="modulepreload" href="/components/tv-apps-panel.js" />
+    <link rel="modulepreload" href="/components/ui-sheet.js" />
     <link rel="modulepreload" href="/components/versions-row.js" />
     <link rel="modulepreload" href="/shared/api.js" />
     <link rel="modulepreload" href="/shared/composables.js" />
     <link rel="modulepreload" href="/shared/constants.js" />
     <link rel="modulepreload" href="/shared/favicon.js" />
     <link rel="modulepreload" href="/shared/format.js" />
+    <link rel="modulepreload" href="/shared/health.js" />
     <link rel="modulepreload" href="/shared/live-session.js" />
     <link rel="modulepreload" href="/shared/path-check.js" />
     <link rel="modulepreload" href="/shared/pin-drag.js" />
@@ -66,25 +75,44 @@
     <link rel="modulepreload" href="/views/epg-view.js" />
     <link rel="modulepreload" href="/views/folder-editor.js" />
     <link rel="modulepreload" href="/views/guide-setup-step.js" />
+    <link rel="modulepreload" href="/views/home-view.js" />
     <link rel="modulepreload" href="/views/live-view.js" />
     <link rel="modulepreload" href="/views/plex-library-setup.js" />
+    <link rel="modulepreload" href="/views/recordings-library-view.js" />
     <link rel="modulepreload" href="/views/recordings-view.js" />
+    <link rel="modulepreload" href="/views/scheduled-view.js" />
     <link rel="modulepreload" href="/views/series-drawer.js" />
     <link rel="modulepreload" href="/views/series-view.js" />
+    <link rel="modulepreload" href="/views/settings-shell.js" />
     <link rel="modulepreload" href="/views/settings-view.js" />
+    <link rel="modulepreload" href="/views/show-view.js" />
     <link rel="modulepreload" href="/views/syncs-view.js" />
     <link rel="modulepreload" href="/views/welcome-shared.js" />
     <link rel="modulepreload" href="/views/welcome-view.js" />
+    <link rel="modulepreload" href="/art-fallback.js" />
+    <link rel="modulepreload" href="/health-level.js" />
+    <link rel="modulepreload" href="/recording-chip.js" />
+    <link rel="modulepreload" href="/route-table.js" />
+    <link rel="modulepreload" href="/search-results.js" />
+    <link rel="modulepreload" href="/settings-pages.js" />
+    <link rel="modulepreload" href="/show-key.js" />
     <link rel="modulepreload" href="/vendor/vue.esm-browser.prod.js" />
-    <link rel="preload" href="/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/figtree-latin-variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/jetbrains-mono-variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/tailwind.css" />
+    <link rel="stylesheet" href="/styles/base.css" />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles/home.css" />
+    <link rel="stylesheet" href="/styles/recordings.css" />
+    <link rel="stylesheet" href="/styles/scheduled.css" />
+    <link rel="stylesheet" href="/styles/guide.css" />
+    <link rel="stylesheet" href="/styles/live.css" />
+    <link rel="stylesheet" href="/styles/settings.css" />
   </head>
-  <body class="bg-surface-deep text-ink font-sans antialiased min-h-dvh">
+  <body class="bg-bg text-text-1 font-sans antialiased min-h-dvh">
     <div id="app">
-      <div class="grid min-h-dvh place-items-center text-ink-dim font-mono text-sm">
-        <span class="signal-boot"><svg viewBox="0 0 10 4" class="signal-bars" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="4" height="4"/><rect x="5.5" y="0" width="4" height="4"/></svg>initialising</span>
+      <div class="grid min-h-dvh place-items-center text-text-2 text-body">
+        <span class="app-brand-mark signal-boot" role="img" aria-label="Freetvarr is loading"><span></span><span></span><span></span></span>
       </div>
     </div>
     <script type="module" src="/app.js"></script>

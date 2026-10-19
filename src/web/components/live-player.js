@@ -416,7 +416,7 @@ export const LivePlayer = {
       openInGuide({
         channelId: live.channel.id,
         program: airing.value.now,
-        returnTo: window.location.hash || '#/dashboard',
+        returnTo: window.location.hash || '#/home',
         focus,
       })
     }

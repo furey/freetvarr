@@ -35,4 +35,4 @@ export const cacheControlFor = ({ requestedBuild, build }) => requestedBuild ===
 
 const SHIPPED_EXTENSIONS = ['.html', '.js', '.css']
 const BUILD_ID_LENGTH = 12
-const SCRIPT_AND_STYLE_URL = /(["'])(\/(?:(?:vendor|views|components|shared)\/)?[\w.-]+\.(?:m?js|css))\1/g
+const SCRIPT_AND_STYLE_URL = /(["'])(\/(?:(?:vendor|views|components|shared|styles)\/)?[\w.-]+\.(?:m?js|css))\1/g

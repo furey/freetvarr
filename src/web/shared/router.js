@@ -1,35 +1,29 @@
 import { ref, nextTick } from '/vendor/vue.esm-browser.prod.js'
+import { resolveRoute } from '/route-table.js'
 
-const ROUTES = ['dashboard', 'live', 'guide', 'series', 'syncs', 'recordings', 'settings', 'doctor', 'welcome']
-const DEFAULT_ROUTE = 'dashboard'
-const ROUTE_ALIASES = { shows: 'series' }
-
-const hashSegments = () => (window.location.hash || '').replace(/^#\/?/, '').toLowerCase().split('/')
-
-const parseHash = () => {
-  const [segment] = hashSegments()
-  const view = ROUTE_ALIASES[segment] || segment
-  return ROUTES.includes(view) ? view : DEFAULT_ROUTE
+const resolveCurrentHash = () => {
+  const resolved = resolveRoute(window.location.hash || '')
+  if (resolved.canonicalHash) history.replaceState(null, '', resolved.canonicalHash)
+  return resolved
 }
 
-const parseHashSection = () => hashSegments()[1] || ''
+const initial = resolveCurrentHash()
+export const route = ref(initial.view)
+export const routeParams = ref(initial.params)
+export const routeSection = ref(initial.section)
 
-const canonicaliseHash = () => {
-  const [segment, ...rest] = hashSegments()
-  const view = ROUTE_ALIASES[segment]
-  if (view) history.replaceState(null, '', `#/${[view, ...rest].join('/')}`)
-}
-
-canonicaliseHash()
-export const route = ref(parseHash())
-export const routeSection = ref(parseHashSection())
 window.addEventListener('hashchange', () => {
-  canonicaliseHash()
-  route.value = parseHash()
-  routeSection.value = parseHashSection()
+  const resolved = resolveCurrentHash()
+  route.value = resolved.view
+  routeParams.value = resolved.params
+  routeSection.value = resolved.section
 })
 
-const ROUTE_SECTION_ALIASES = { about: 'help' }
+export const navigate = (hash) => {
+  window.location.hash = hash
+}
+
+const ROUTE_SECTION_ALIASES = { about: 'help', reset: 'danger-zone' }
 
 export const routeSectionId = () => ROUTE_SECTION_ALIASES[routeSection.value] || routeSection.value
 

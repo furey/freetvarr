@@ -384,7 +384,7 @@ export const EpgView = {
               </div>
               <div class="col-span-2 space-y-1">
                 <toggle-switch v-model="addToLibrary">ADD TO LIBRARY</toggle-switch>
-                <p class="text-xs font-mono text-ink-mute">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/series">SERIES</a>.</template></p>
+                <p class="text-xs font-mono text-ink-mute">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/settings/system/series">SERIES</a>.</template></p>
               </div>
             </div>
             <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
@@ -1123,7 +1123,7 @@ export const EpgView = {
       const handoff = guideHandoff.value
       if (!handoff) return
       guideHandoff.value = null
-      returnRoute = handoff.returnTo || '#/dashboard'
+      returnRoute = handoff.returnTo || '#/home'
       if (recordDialogOverPlayer.value) loadState({ fresh: true })
       if (handoff.upcoming) return openUpcoming(handoff.upcoming)
       const listed = (guide.value?.programs[handoff.channelId] || [])

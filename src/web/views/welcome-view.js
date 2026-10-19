@@ -324,7 +324,7 @@ export const WelcomeView = {
               Next: open the <strong class="text-ink">TV Guide</strong>, pick a programme, and press <strong class="text-ink">RECORD</strong> or <strong class="text-ink">SERIES</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
-              To check the whole setup, <a href="#/doctor">run the Doctor</a>. It checks {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }} and lists anything to fix.
+              To check the whole setup, <a href="#/settings/system/health">run the Doctor</a>. It checks {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }} and lists anything to fix.
             </p>
           </div>
 

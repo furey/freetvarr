@@ -241,7 +241,7 @@ export const SyncsView = {
 
     const clearLinkedSync = () => {
       if (!linkedSyncId.value) return
-      history.replaceState(null, '', '#/syncs')
+      history.replaceState(null, '', '#/settings/system/activity')
       routeSection.value = ''
     }
 

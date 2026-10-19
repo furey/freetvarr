@@ -502,7 +502,7 @@ export const SettingsView = {
                 The Doctor checks the TVHeadend login and rights, the tuners, the guide, the folders, Plex, and live TV, then says what to fix.
               </p>
             </div>
-            <a href="#/doctor" class="btn no-hover-underline"><pulse-icon /> RUN DOCTOR</a>
+            <a href="#/settings/system/health" class="btn no-hover-underline"><pulse-icon /> RUN DOCTOR</a>
           </div>
           <versions-row />
         </div>

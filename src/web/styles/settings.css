@@ -1,0 +1,171 @@
+.settings-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-title {
+  margin-bottom: 8px;
+}
+
+.settings-nav-group {
+  margin: 18px 12px 6px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+}
+
+.settings-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--color-text-soft);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.settings-nav-link:hover {
+  color: var(--color-text-1);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-nav-link[aria-current="page"] {
+  background: var(--color-surface-2);
+  color: var(--color-text-1);
+  font-weight: 700;
+}
+
+.settings-nav-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-2);
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  max-width: 760px;
+}
+
+.settings-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  min-height: 44px;
+  margin: -12px 0 -16px -6px;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.settings-back svg {
+  width: 20px;
+  height: 20px;
+}
+
+.settings-page-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 800;
+}
+
+.settings-content a:not(.btn):not(.ui-button):not(.settings-back) {
+  color: var(--color-info);
+}
+
+.settings-content .settings-sections {
+  display: none;
+}
+
+.settings-content[data-settings-section] .settings-page section[id^="section-"] {
+  display: none;
+}
+
+.settings-content[data-settings-section="tvheadend"] #section-tvheadend,
+.settings-content[data-settings-section="storage"] #section-storage,
+.settings-content[data-settings-section="plex"] #section-plex,
+.settings-content[data-settings-section="schedule"] #section-schedule,
+.settings-content[data-settings-section="pictures"] #section-pictures,
+.settings-content[data-settings-section="ad-removal"] #section-ad-removal,
+.settings-content[data-settings-section="tv-apps"] #section-tv-apps,
+.settings-content[data-settings-section="help"] #section-help,
+.settings-content[data-settings-section="danger-zone"] #section-danger-zone {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .settings-nav-list {
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    background: var(--color-surface-1);
+    gap: 0;
+  }
+
+  .settings-nav-link {
+    min-height: 52px;
+    padding: 0 16px;
+    border-radius: 0;
+    border-top: 1px solid var(--color-hairline-soft);
+    color: var(--color-text-1);
+  }
+
+  .settings-nav-link:first-child {
+    border-top: 0;
+  }
+
+  .settings-nav-group {
+    margin: 24px 4px 8px;
+  }
+}
+
+@media (min-width: 768px) {
+  .settings-shell {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 32px;
+  }
+
+  .settings-nav {
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 28px);
+    flex: none;
+    width: 216px;
+  }
+
+  .settings-nav-title {
+    margin: 0 12px 8px;
+  }
+
+  .settings-content {
+    flex: 1;
+    padding-top: 4px;
+  }
+}
+
+.settings-content section[id^="section-"] {
+  scroll-margin-top: 100vh;
+}

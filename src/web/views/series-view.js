@@ -44,7 +44,7 @@ export const SeriesView = {
         </header>
         <div class="panel-body space-y-4">
           <p class="text-sm text-ink-dim leading-relaxed">
-            Series episodes go into their own folder in the TV library. Single recordings and films go to the one-off and movies folders; see <a href="#/recordings">RECORDINGS</a>.
+            Series episodes go into their own folder in the TV library. Single recordings and films go to the one-off and movies folders; see <a href="#/settings/system/log">RECORDINGS</a>.
           </p>
           <list-skeleton v-if="!loaded" :rows="6" />
           <template v-else>
@@ -120,7 +120,7 @@ export const SeriesView = {
                       </div>
                     </td>
                     <td class="series-next">{{ nextAiringLabel(s) }}</td>
-                    <td class="series-saves-to"><code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/recordings">RECORDINGS</a></template></td>
+                    <td class="series-saves-to"><code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/settings/system/log">RECORDINGS</a></template></td>
                     <td>
                       <div class="rec-actions flex items-center justify-end gap-2">
                         <folder-sync-button v-if="s.folder" :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
@@ -149,7 +149,7 @@ export const SeriesView = {
                       <span class="deck-card-title">{{ s.title }}<span v-if="!s.recording" class="pill skipped series-paused">PAUSED</span></span>
                       <p class="deck-card-meta">{{ channelsOf(s) }}<template v-if="s.episodesToKeep"> · keeps the latest {{ s.episodesToKeep }}</template></p>
                       <p class="deck-card-meta"><span class="deck-card-label">Next</span> {{ nextAiringLabel(s) }}</p>
-                      <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/recordings">RECORDINGS</a></template></p>
+                      <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in <a href="#/settings/system/log">RECORDINGS</a></template></p>
                     </div>
                   </div>
                   <folder-sync-button v-if="s.folder" :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
@@ -183,7 +183,7 @@ export const SeriesView = {
       </transition>
       </teleport>
 
-      <section class="panel">
+      <section id="section-folders" class="panel">
         <header class="panel-header">
           <span class="panel-heading">
             <span class="panel-title">TITLE MATCHES · {{ titleMatchCountLabel }}</span>
@@ -206,7 +206,7 @@ export const SeriesView = {
                   :aria-expanded="String(isEditingTitleMatch(f))" :aria-label="f.show_pattern + ': show settings'"
                   @click="toggleEdit('folder-' + f.id)" @keydown.enter.self.prevent="toggleEdit('folder-' + f.id)" @keydown.space.self.prevent="toggleEdit('folder-' + f.id)">
                   <td class="font-mono">{{ f.show_pattern }}</td>
-                  <td class="series-saves-to"><code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></td>
+                  <td class="series-saves-to"><code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/settings/system/log">RECORDINGS</a></template></td>
                   <td>
                     <div class="rec-actions flex items-center justify-end gap-2">
                       <folder-sync-button :folder="f" :syncing="syncingId === f.id" @sync="syncOne(f)" />
@@ -230,7 +230,7 @@ export const SeriesView = {
               <div class="list-row-main">
                 <div class="list-row-stack">
                   <span class="deck-card-title block">{{ f.show_pattern }}</span>
-                  <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/recordings">RECORDINGS</a></template></p>
+                  <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="f.savesTo?.path">{{ f.savesTo.path }}</code><template v-else>nowhere yet: recordings wait in <a href="#/settings/system/log">RECORDINGS</a></template></p>
                 </div>
                 <folder-sync-button :folder="f" :syncing="syncingId === f.id" @sync="syncOne(f)" />
               </div>
