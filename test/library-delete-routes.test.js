@@ -110,7 +110,7 @@ test('preview: lists the watched episodes of a show with the space they free', a
     count: 1,
     bytes: 100,
     missingCount: 0,
-    items: [{ recordingId: 'w1', title: 'The Block', episodeTitle: null, season: 22, episode: 1, bytes: 100 }],
+    items: [{ recordingId: 'w1', title: 'The Block', episodeTitle: null, season: 22, episode: 1, bytes: 100, missing: false }],
   })
   assert.deepEqual(fake.posts, [])
 })

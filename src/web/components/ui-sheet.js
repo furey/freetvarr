@@ -17,10 +17,17 @@ export const UiSheet = {
           <section ref="sheet" class="ui-sheet" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1">
             <span class="ui-sheet-grab" aria-hidden="true"></span>
             <header class="ui-sheet-header">
-              <h2 :id="titleId" class="ui-sheet-title">{{ title }}</h2>
+              <template v-if="$slots['header-lead']">
+                <slot name="header-lead" />
+                <div class="ui-sheet-heading">
+                  <h2 :id="titleId" class="ui-sheet-title">{{ title }}</h2>
+                  <p v-if="subtitle" class="ui-sheet-heading-subtitle">{{ subtitle }}</p>
+                </div>
+              </template>
+              <h2 v-else :id="titleId" class="ui-sheet-title">{{ title }}</h2>
               <slot name="header-actions" />
             </header>
-            <p v-if="subtitle" class="ui-sheet-subtitle">{{ subtitle }}</p>
+            <p v-if="subtitle && !$slots['header-lead']" class="ui-sheet-subtitle">{{ subtitle }}</p>
             <slot />
             <div v-if="$slots.footer" class="ui-sheet-footer"><slot name="footer" /></div>
           </section>

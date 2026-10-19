@@ -313,6 +313,7 @@ test('previewDeletion: totals the bytes and counts missing files', async () => {
   assert.equal(preview.count, 2)
   assert.equal(preview.missingCount, 1)
   assert.equal(preview.items[0].bytes, 50 + 6 + 8)
+  assert.deepEqual(preview.items.map((item) => item.missing), [false, true])
   assert.equal(preview.bytes, 64)
   assert.equal(await exists(file), true)
 })

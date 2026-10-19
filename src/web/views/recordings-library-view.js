@@ -1,4 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
+import { useLibraryActions } from '/components/library-actions.js'
+import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, LibraryToast, useLibraryToast } from '/components/library-menus.js'
+import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import {
   LIBRARY_SORTS,
   failedRecordingsOf,
@@ -24,6 +27,7 @@ const LIBRARY_POLL_MS = 60_000
 const SKELETON_POSTERS = 6
 
 export const RecordingsLibraryView = {
+  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, LibraryToast },
   template: `
     <div class="ui-page recordings-page">
       <page-header title="Recordings" subtitle="Everything you have, and everything on its way." />
@@ -75,15 +79,18 @@ export const RecordingsLibraryView = {
             <span class="ui-row-meta">{{ showsCountText(shelves.shows) }}</span>
           </div>
           <div class="ui-poster-grid">
-            <a v-for="show in shelves.shows" :key="show.key" :href="showHrefOf(show.title)" class="ui-poster"
-              :aria-label="posterLabel(show)">
-              <title-art shape="poster" :title="show.title" :src="posterSrc(show)">
-                <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
-                <span v-if="show.counts.new" class="ui-art-badge is-end"><span class="ui-count-badge">{{ show.counts.new }}</span></span>
-              </title-art>
-              <div class="ui-card-title">{{ show.title }}</div>
-              <div class="ui-card-meta">{{ posterMeta(show) }}</div>
-            </a>
+            <div v-for="show in shelves.shows" :key="show.key" class="library-poster">
+              <a :href="showHrefOf(show.title)" class="ui-poster" :aria-label="posterLabel(show)" @contextmenu="onPosterHold($event, show)">
+                <title-art shape="poster" :title="show.title" :src="posterSrc(show)">
+                  <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
+                  <span v-if="show.counts.new" class="ui-art-badge is-end"><span class="ui-count-badge">{{ show.counts.new }}</span></span>
+                </title-art>
+                <div class="ui-card-title">{{ show.title }}</div>
+                <div class="ui-card-meta">{{ posterMeta(show) }}</div>
+              </a>
+              <button type="button" class="ui-icon-button is-plain library-poster-more" :aria-label="'More actions for ' + show.title"
+                aria-haspopup="dialog" :disabled="menuLoadingKey === show.key" @click="openPosterMenu(show)"><more-glyph /></button>
+            </div>
           </div>
         </section>
 
@@ -119,6 +126,15 @@ export const RecordingsLibraryView = {
           </div>
         </section>
       </template>
+
+      <library-menu-sheet :open="showMenuOpen" :title="menuShow?.title || ''" :subtitle="showMenuSubtitle"
+        :art-src="menuShow ? posterSrc(menuShow) : ''" art-shape="poster" :groups="showGroups" :busy="busy"
+        @close="closeMenus" @choose="chooseShowAction" />
+      <library-info-sheet :open="Boolean(info)" :info="info" @close="info = null" />
+      <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeleted" />
+      <recording-options-sheet v-if="menuShow?.rule" :open="optionsOpen" :show="menuShow" @close="optionsOpen = false"
+        @changed="reloadMenuShow" @stopped="onStopped" @flash="onOptionsFlash" />
+      <library-toast :toast="toast" @dismiss="dismissToast" />
     </div>
   `,
   setup() {
@@ -177,12 +193,60 @@ export const RecordingsLibraryView = {
       if (previous && !current) refresh()
     })
 
+    const { toast, showToast, dismissToast } = useLibraryToast()
+    const menuShow = ref(null)
+    const menuLoadingKey = ref('')
+    const optionsOpen = ref(false)
+
+    const fetchShowDetail = (key) => api('GET', `/api/library/shows/${encodeURIComponent(key)}`)
+
+    const reloadMenuShow = async () => {
+      const key = menuShow.value?.key
+      await loadShows()
+      if (!key) return
+      menuShow.value = await fetchShowDetail(key).catch(() => null)
+    }
+
+    const actions = useLibraryActions({
+      show: menuShow,
+      reload: reloadMenuShow,
+      showToast,
+      openOptions: () => { optionsOpen.value = true },
+    })
+
+    const openPosterMenu = async (show) => {
+      menuLoadingKey.value = show.key
+      try {
+        menuShow.value = await fetchShowDetail(show.key)
+        actions.openShowMenu()
+      } catch (err) {
+        showToast({ kind: 'error', title: `Cannot load ${show.title}`, detail: err.message })
+      } finally {
+        menuLoadingKey.value = ''
+      }
+    }
+
+    const onPosterHold = (event, show) => {
+      event.preventDefault()
+      openPosterMenu(show)
+    }
+
+    const onStopped = async (message) => {
+      optionsOpen.value = false
+      showToast({ title: message })
+      await reloadMenuShow()
+    }
+
+    const onOptionsFlash = ({ msg, kind }) => showToast({ kind: kind === 'err' ? 'error' : 'ok', title: msg })
+
     const posterMeta = (show) => posterMetaOf({ show, timeZone: tz.value })
     const posterLabel = (show) => [show.title, show.recordingNow ? 'recording now' : '', posterMeta(show)].filter(Boolean).join(', ')
     const posterSrc = (show) => `${show.poster}&w=384`
     const cardSrc = (show) => show.image || `/api/epg/show-image?title=${encodeURIComponent(show.title)}&w=384`
 
     return {
+      ...actions,
+      toast, dismissToast, menuShow, menuLoadingKey, optionsOpen, openPosterMenu, onPosterHold, onStopped, onOptionsFlash, reloadMenuShow,
       shows, stale, loaded, error, shelves, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
       posterMeta, posterLabel, posterSrc, cardSrc, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,

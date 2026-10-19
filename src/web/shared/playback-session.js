@@ -58,7 +58,7 @@ let playHeartbeatTimer = null
 let lastSavedPosition = null
 let autoRestarts = 0
 
-export const playRecording = (recording) => {
+export const playRecording = (recording, { fromStart = false } = {}) => {
   if (live.open) stopLive()
   stopPlayback()
   lastSavedPosition = recording.playback_position_s ?? null
@@ -71,7 +71,7 @@ export const playRecording = (recording) => {
   })
   playInfoOpen.value = false
   playVideo?.play()?.catch(() => {})
-  startPlaybackAt(null)
+  startPlaybackAt(fromStart ? 0 : null)
 }
 
 export const stopPlayback = () => {

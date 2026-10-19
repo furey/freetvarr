@@ -104,6 +104,7 @@ export const previewDeletion = async ({ rows, roots, tvh, fs = fsp }) => {
       season: row.season ?? null,
       episode: row.episode ?? null,
       bytes: bytesFreed(itemEntries.entries),
+      missing: itemEntries.missing,
     })
   }
   return { count: rows.length, bytes: bytesFreed(entries), missingCount, items }
