@@ -424,8 +424,17 @@ a.scheduled-row:focus-visible {
   }
 
   .scheduled-week-day {
-    min-height: 64px;
-    padding-top: 10px;
+    min-height: 68px;
+    padding-top: 12px;
+  }
+
+  .scheduled-week-clash {
+    top: 4px;
+    right: auto;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    transform: translateX(-50%);
   }
 
   .scheduled-week-date {

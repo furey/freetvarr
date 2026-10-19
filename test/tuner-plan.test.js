@@ -8,6 +8,7 @@ import {
   tonightTimeline,
   tunerRecordingsOf,
   timelineTitle,
+  stackBars,
 } from '../src/web/tuner-plan.js'
 
 const MIN = 60_000
@@ -161,4 +162,21 @@ test('tonightTimeline: titles a daytime window found from an early morning now',
   const plan = planTuners({ recordings: [rec('noon', 960, 1020)], tunerCount: 1 })
   const timeline = tonightTimeline({ plan, nowMs: at(290), timeZone: 'UTC' })
   assert.equal(timeline.title, "Today's tuners")
+})
+
+test('stackBars: puts overlapping bars on separate sub-lanes and reuses a lane once it is clear', () => {
+  const bars = [
+    { key: 'a', left: 10, width: 30 },
+    { key: 'b', left: 30, width: 20 },
+    { key: 'c', left: 40, width: 10 },
+    { key: 'd', left: 55, width: 10 },
+  ]
+  assert.deepEqual(stackBars(bars).map((lane) => lane.map((bar) => bar.key)), [['a', 'c', 'd'], ['b']])
+  assert.deepEqual(stackBars([]), [])
+})
+
+test('tonightTimeline: overlapping clashes get their own clash rows', () => {
+  const plan = planTuners({ recordings: [rec('a', 0, 120), rec('b', 10, 60), rec('c', 30, 90)], tunerCount: 1 })
+  const timeline = tonightTimeline({ plan, nowMs: at(6), timeZone: 'UTC' })
+  assert.deepEqual(timeline.clashLanes.map((lane) => lane.map((bar) => bar.key)), [['b'], ['c']])
 })

@@ -77,10 +77,12 @@ export const tonightTimeline = ({ plan, nowMs, timeZone }) => {
     bars: lane.filter((r) => !r.joinedLate).map(place).filter(Boolean),
   }))
   const clashBars = plan.clashes.map(place).filter(Boolean)
+  const clashLanes = stackBars(clashBars)
   const clashes = plan.clashes.filter((clash) => clash.end > start && clash.start < end)
   return {
     lanes,
     clashBars,
+    clashLanes,
     clashes,
     isEmpty: clashBars.length === 0 && lanes.every((lane) => lane.bars.length === 0),
     nowPercent: nowMs >= start && nowMs <= end ? percentOf({ ms: nowMs, start, end }) : null,
@@ -101,6 +103,16 @@ const localHourOf = ({ ms, timeZone }) =>
 
 const longWeekdayOf = ({ ms, timeZone }) =>
   new Intl.DateTimeFormat('en-AU', { weekday: 'long', timeZone }).format(new Date(ms))
+
+export const stackBars = (bars = []) => {
+  const lanes = []
+  for (const bar of [...bars].sort((a, b) => a.left - b.left)) {
+    const lane = lanes.find((candidate) => candidate.at(-1).left + candidate.at(-1).width <= bar.left)
+    if (lane) lane.push(bar)
+    else lanes.push([bar])
+  }
+  return lanes
+}
 
 const timelineAnchor = ({ plan, nowMs, timeZone }) => {
   const start = floorToHour({ ms: nowMs, timeZone }) - WINDOW_LEAD_MS

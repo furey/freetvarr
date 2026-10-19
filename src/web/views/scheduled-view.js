@@ -88,10 +88,10 @@ const TunerTimeline = {
                 :style="{ left: bar.left + '%', width: bar.width + '%' }" :title="bar.title">{{ bar.title }}</span>
             </span>
           </div>
-          <div v-if="timeline.clashBars.length" class="tuner-lane is-clash">
-            <span class="tuner-lane-label">Clash</span>
+          <div v-for="(bars, index) in timeline.clashLanes" :key="'clash-' + index" class="tuner-lane is-clash">
+            <span class="tuner-lane-label">{{ index === 0 ? 'Clash' : '' }}</span>
             <span class="tuner-track">
-              <span v-for="bar in timeline.clashBars" :key="bar.key" class="tuner-bar is-clash"
+              <span v-for="bar in bars" :key="bar.key" class="tuner-bar is-clash"
                 :style="{ left: bar.left + '%', width: bar.width + '%' }" :title="bar.title">{{ bar.title }}</span>
             </span>
           </div>
