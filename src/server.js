@@ -2022,7 +2022,7 @@ app.get(['/', '/index.html'], async (req, res) => {
   res.type('html').send(stampIndexHtml({ html, build: BUILD_ID }))
 })
 
-app.get(/^\/[\w.-]+\.js$/, async (req, res, next) => {
+app.get(/^\/(?:(?:views|components|shared)\/)?[\w.-]+\.js$/, async (req, res, next) => {
   const source = await fs.readFile(path.join(WEB_ROOT, req.path), 'utf8').catch(() => null)
   if (source === null) return next()
   res.setHeader('Cache-Control', cacheControlForRequest(req))

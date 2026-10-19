@@ -89,6 +89,28 @@ test('stampAssetUrls: versions module imports, dynamic imports, and worker paths
   ].join('\n'))
 })
 
+test('stampAssetUrls: versions imports from the views, components, and shared folders', () => {
+  const source = [
+    "import { LiveView } from '/views/live-view.js'",
+    "import { api } from '/shared/api.js'",
+    "import { TvIcon } from '/components/icons.js'",
+  ].join('\n')
+  assert.equal(stampAssetUrls({ text: source, build: 'abc123' }), [
+    "import { LiveView } from '/views/live-view.js?v=abc123'",
+    "import { api } from '/shared/api.js?v=abc123'",
+    "import { TvIcon } from '/components/icons.js?v=abc123'",
+  ].join('\n'))
+})
+
+test('readBuildId: hashes scripts in subfolders', async () => {
+  const root = await tempWebRoot({ 'app.js': 'a' })
+  await fs.mkdir(path.join(root, 'views'))
+  await fs.writeFile(path.join(root, 'views', 'live-view.js'), 'one')
+  const before = await readBuildId({ webRoot: root, version: '1.0.2' })
+  await fs.writeFile(path.join(root, 'views', 'live-view.js'), 'two')
+  assert.notEqual(await readBuildId({ webRoot: root, version: '1.0.2' }), before)
+})
+
 test('cacheControlFor: only the current build is immutable', () => {
   assert.equal(cacheControlFor({ requestedBuild: 'abc123', build: 'abc123' }), 'public, max-age=31536000, immutable')
   assert.equal(cacheControlFor({ requestedBuild: 'old456', build: 'abc123' }), 'no-cache')

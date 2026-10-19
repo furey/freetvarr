@@ -5,9 +5,9 @@ import path from 'path'
 export const BUILD_HEADER = 'X-Freetvarr-Build'
 
 export const readBuildId = async ({ webRoot, version }) => {
-  const names = (await fs.readdir(webRoot, { withFileTypes: true }))
+  const names = (await fs.readdir(webRoot, { recursive: true, withFileTypes: true }))
     .filter((entry) => entry.isFile() && SHIPPED_EXTENSIONS.includes(path.extname(entry.name)))
-    .map((entry) => entry.name)
+    .map((entry) => path.relative(webRoot, path.join(entry.parentPath, entry.name)).split(path.sep).join('/'))
   const files = await Promise.all(names.map(async (name) => ({
     name,
     content: await fs.readFile(path.join(webRoot, name)),
@@ -35,4 +35,4 @@ export const cacheControlFor = ({ requestedBuild, build }) => requestedBuild ===
 
 const SHIPPED_EXTENSIONS = ['.html', '.js', '.css']
 const BUILD_ID_LENGTH = 12
-const SCRIPT_AND_STYLE_URL = /(["'])(\/(?:vendor\/)?[\w.-]+\.(?:m?js|css))\1/g
+const SCRIPT_AND_STYLE_URL = /(["'])(\/(?:(?:vendor|views|components|shared)\/)?[\w.-]+\.(?:m?js|css))\1/g
