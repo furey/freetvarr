@@ -50,6 +50,16 @@ test('the More menu offers pop out only where picture in picture works', () => {
   assert.deepEqual(keys({ canPip: false, pipActive: false, fullscreen: false }), ['fullscreen'])
 })
 
+test('the More menu lists Captions first, only when captions exist, with an On or Off state', () => {
+  const keys = (args) => playerMenuItemsOf(args).map((item) => item.key)
+  assert.deepEqual(keys({ hasCaptions: true, canPip: true, fullscreen: false }), ['captions', 'pip', 'fullscreen'])
+  assert.deepEqual(keys({ hasCaptions: false, canPip: true, fullscreen: false }), ['pip', 'fullscreen'])
+  const [off] = playerMenuItemsOf({ hasCaptions: true, captionsOn: false })
+  assert.deepEqual([off.label, off.value, off.on], ['Captions', 'Off', false])
+  const [on] = playerMenuItemsOf({ hasCaptions: true, captionsOn: true })
+  assert.deepEqual([on.value, on.on], ['On', true])
+})
+
 test('the More menu labels follow the picture in picture and full screen state', () => {
   const [pop, full] = playerMenuItemsOf({ canPip: true, pipActive: false, fullscreen: false })
   assert.equal(pop.label, 'Pop out (picture in picture)')

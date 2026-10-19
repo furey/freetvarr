@@ -1,8 +1,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
 import { muteButtonOf } from '/player-mute.js'
+import { controlsHideMsOf } from '/controls-hide.js'
 import {
-  MINI_TAP_HIDE_MS,
   isHoverPointer,
   miniControlsShownOf,
   miniMenuItemsOf,
@@ -72,7 +72,7 @@ export const PlayerMini = {
     const showForTouch = () => {
       tapShown.value = true
       clearTimeout(tapTimer)
-      tapTimer = setTimeout(() => { tapShown.value = false }, MINI_TAP_HIDE_MS)
+      tapTimer = setTimeout(() => { tapShown.value = false }, controlsHideMsOf(localStorage))
     }
     const onPointerEnter = (e) => { if (isHoverPointer(e.pointerType)) hovering.value = true }
     const onPointerLeave = (e) => { if (isHoverPointer(e.pointerType)) hovering.value = false }

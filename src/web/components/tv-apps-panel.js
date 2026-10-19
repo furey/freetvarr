@@ -2,8 +2,10 @@ import { ref, computed, onMounted, watch } from '/vendor/vue.esm-browser.prod.js
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
+import { ControlsHideSetting } from '/components/controls-hide-setting.js'
 
 export const TvAppsPanel = {
+  components: { 'controls-hide-setting': ControlsHideSetting },
   props: {
     tvhUrl: { type: String, default: '' },
   },
@@ -71,6 +73,7 @@ export const TvAppsPanel = {
         <p v-else class="settings-note">Enter the network address of the computer that runs TVHeadend.</p>
         <p class="settings-note">Anyone on your home network with these details can watch your channels. They cannot change your settings or your recordings.</p>
       </template>
+      <controls-hide-setting />
     </section>
   `,
 

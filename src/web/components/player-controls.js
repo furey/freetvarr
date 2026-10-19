@@ -2,6 +2,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from '/vendor/vue.esm-br
 import { DOUBLE_TAP_MS } from '/double-tap.js'
 import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
+import { controlsHideMsOf } from '/controls-hide.js'
 
 const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
   && !e.ctrlKey && !e.metaKey && !e.altKey
@@ -112,7 +113,7 @@ export const useControlsAutoHide = ({ enabled, holdShown, rootEl }) => {
     hideTimer = setTimeout(() => {
       if (isFocusInside()) return hideLater()
       controlsShown.value = false
-    }, CONTROLS_HIDE_MS)
+    }, controlsHideMsOf(localStorage))
   }
 
   const revealControls = () => {
@@ -175,5 +176,3 @@ export const useInfoDismissTaps = ({ infoOpen, onPointerDown, onPointerUp, onCli
 
   return { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick }
 }
-
-const CONTROLS_HIDE_MS = 3_000

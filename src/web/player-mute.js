@@ -12,7 +12,8 @@ export const muteButtonOf = ({ muted }) => (muted
   ? { label: 'Muted', audible: false, ariaLabel: 'Muted. Press to hear sound' }
   : { label: 'Sound', audible: true, ariaLabel: 'Sound on. Press to mute' })
 
-export const playerMenuItemsOf = ({ canPip, pipActive, fullscreen }) => [
+export const playerMenuItemsOf = ({ hasCaptions, captionsOn, canPip, pipActive, fullscreen }) => [
+  hasCaptions && { key: 'captions', label: 'Captions', value: captionsOn ? 'On' : 'Off', on: Boolean(captionsOn) },
   canPip && {
     key: 'pip',
     label: pipActive ? 'Close pop out (picture in picture)' : 'Pop out (picture in picture)',

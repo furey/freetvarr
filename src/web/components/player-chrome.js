@@ -2,6 +2,8 @@ import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
 import { muteButtonOf, playerMenuItemsOf } from '/player-mute.js'
 
+const MENU_EVENTS = { captions: 'toggle-captions', pip: 'toggle-pip', fullscreen: 'toggle-fullscreen' }
+
 export const PlayerTopBar = {
   components: PLAYER_ICON_COMPONENTS,
   props: {
@@ -25,13 +27,15 @@ export const PlayerTopBar = {
     const menuOpen = ref(false)
     const sound = computed(() => muteButtonOf({ muted: props.muted }))
     const menuItems = computed(() => playerMenuItemsOf({
+      hasCaptions: props.hasCaptions,
+      captionsOn: props.captionsOn,
       canPip: props.canPip,
       pipActive: props.pipActive,
       fullscreen: props.fullscreen,
     }))
     const chooseMenuItem = (key) => {
       menuOpen.value = false
-      emit(key === 'pip' ? 'toggle-pip' : 'toggle-fullscreen')
+      emit(MENU_EVENTS[key])
     }
     return { menuOpen, sound, menuItems, chooseMenuItem }
   },
@@ -47,10 +51,6 @@ export const PlayerTopBar = {
         <slot name="lead" />
         <button v-if="canMinimise" type="button" class="pl-round" aria-label="Mini player" title="Mini player" @click="$emit('minimise')"><minimise-icon /></button>
         <slot name="before" />
-        <button v-if="hasCaptions" type="button" class="pl-pill" :disabled="infoOpen" :aria-pressed="String(captionsOn)"
-          aria-label="Captions" @click="$emit('toggle-captions')">
-          <captions-icon /><span class="pl-pill-label">Captions</span>
-        </button>
         <button type="button" class="pl-pill" :aria-pressed="String(infoOpen)" :aria-expanded="String(infoOpen)"
           :aria-controls="infoId" aria-label="Programme info" @click="$emit('toggle-info')">
           <info-icon /><span class="pl-pill-label">Info</span>
@@ -68,8 +68,11 @@ export const PlayerTopBar = {
       </div>
       <ui-sheet :open="menuOpen" title="More" @close="menuOpen = false">
         <div class="ui-group">
-          <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row" @click="chooseMenuItem(item.key)">
+          <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row"
+            :role="item.key === 'captions' ? 'menuitemcheckbox' : null" :aria-checked="item.key === 'captions' ? String(item.on) : null"
+            @click="chooseMenuItem(item.key)">
             <span class="ui-group-row-main"><span class="ui-group-row-title">{{ item.label }}</span></span>
+            <span v-if="item.value" :class="['pl-mini-menu-value', { 'is-on': item.on }]">{{ item.value }}</span>
           </button>
         </div>
       </ui-sheet>

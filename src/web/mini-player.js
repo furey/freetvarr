@@ -39,7 +39,6 @@ export const togglePictureInPicture = async ({ video, doc }) => {
 }
 
 export const MINI_CAPTION_LINE = 90
-export const MINI_TAP_HIDE_MS = 3_000
 
 export const captionLineOf = ({ mini, lifted, liftedLine, restingLine }) => {
   if (mini) return MINI_CAPTION_LINE
