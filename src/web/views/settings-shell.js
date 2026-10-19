@@ -1,4 +1,5 @@
 import { computed, watch } from '/vendor/vue.esm-browser.prod.js'
+import { attentionPhraseOf, healthBadgeOf, healthReasonOf, healthRowNameOf } from '/health-level.js'
 import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
 import { EPG_NARROW_QUERY } from '/shared/constants.js'
@@ -39,14 +40,15 @@ export const SettingsShell = {
       <nav v-if="showNav" class="settings-nav" aria-label="Settings sections">
         <h1 class="ui-page-title settings-nav-title">Settings</h1>
         <template v-for="group in groups" :key="group.key">
-          <h2 class="settings-nav-group">{{ group.label }}</h2>
+          <h2 class="settings-nav-group">{{ group.label }}<template v-if="group.key === 'system' && healthBadge">
+            <span :class="['ui-dot', 'settings-nav-group-dot', 'is-' + healthBadge]" aria-hidden="true"></span><span class="ui-visually-hidden">, {{ attentionPhrase }}</span></template></h2>
           <div class="settings-nav-list">
             <a v-for="item in group.pages" :key="item.id" :href="item.href" class="settings-nav-link"
-              :aria-current="page && item.id === page.id ? 'page' : null">
-              <span class="settings-nav-label">{{ item.label }}</span>
-              <span v-if="item.id === 'health' && health.known" :class="['ui-dot', healthDotClass]"
-                :aria-label="healthDotLabel" role="img"></span>
-              <chevron-glyph v-else class="settings-nav-chevron ui-only-phone" />
+              :aria-current="page && item.id === page.id ? 'page' : null" :aria-label="item.id === 'health' && healthBadge ? healthRowName : null">
+              <span class="settings-nav-label">{{ item.label }}<span v-if="item.id === 'health' && healthBadge"
+                :class="['settings-nav-reason', 'is-' + healthBadge]">{{ healthReason }}</span></span>
+              <span v-if="item.id === 'health' && healthBadge" :class="['ui-dot', 'is-' + healthBadge]" aria-hidden="true"></span>
+              <chevron-glyph class="settings-nav-chevron ui-only-phone" />
             </a>
           </div>
         </template>
@@ -80,8 +82,10 @@ export const SettingsShell = {
     })
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))
     const intro = computed(() => PAGE_INTROS[page.value?.id] || '')
-    const healthDotClass = computed(() => ({ ok: 'is-ok', warn: 'is-warn', fail: 'is-fail' })[health.value.level])
-    const healthDotLabel = computed(() => ({ ok: 'All good', warn: 'Needs a look', fail: 'Needs attention' })[health.value.level])
+    const healthBadge = computed(() => healthBadgeOf(health.value))
+    const attentionPhrase = computed(() => attentionPhraseOf(healthBadge.value))
+    const healthReason = computed(() => healthReasonOf(health.value.sentence))
+    const healthRowName = computed(() => healthRowNameOf({ label: 'Health', badge: healthBadge.value, sentence: health.value.sentence }))
     const canReplayIntro = !prefersReducedMotion()
     const replayIntro = () => playBrandIntro()
     watch(page, () => window.scrollTo({ top: 0 }))
@@ -92,9 +96,10 @@ export const SettingsShell = {
       pageView,
       ownHeader,
       intro,
-      health,
-      healthDotClass,
-      healthDotLabel,
+      healthBadge,
+      attentionPhrase,
+      healthReason,
+      healthRowName,
       canReplayIntro,
       replayIntro,
     }

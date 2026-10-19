@@ -17,8 +17,9 @@ On a phone, a tab bar at the bottom holds the five destinations. On a tablet or 
 The header of each page has these controls:
 
 - **Search**: the magnifier opens a search over your shows and the Guide.
-- **Health dot**: green means all is well. Amber or red adds a short sentence, such as `The last sync failed.` Press it to open [Health](/guide/doctor).
 - **Recording chip**: appears while TVHeadend records, for example `Recording The Block`. Press it to open [Scheduled](/guide/recordings#scheduled).
+
+When a check fails, a dot appears on the Settings icon, and a red problem also shows an alert on Home. See [Health badge](/guide/doctor#health-badge).
 
 ## Where each screen went
 

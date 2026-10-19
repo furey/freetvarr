@@ -12,7 +12,8 @@ import {
   captionsShowing,
   captionPreferenceAfterChange,
 } from '/live-captions.js'
-import { isReadyToStart, seekFloorOf } from '/live-start.js'
+import { isReadyToStart } from '/live-start.js'
+import { liveWindowOf, rangesOf } from '/live-edge.js'
 import { captionLineOf } from '/mini-player.js'
 import { csrfToken, api } from '/shared/api.js'
 import {
@@ -21,7 +22,6 @@ import {
   captionTracksOf,
   playerWindowed,
   toggleStageFullscreen,
-  finiteOrNull,
   createSkipHintFlasher,
   tapZoneOf,
   isPictureTarget,
@@ -257,7 +257,10 @@ const attachLiveVideo = async (run, playlist, { eager = false, config = LIVE_HLS
   liveAttached = true
   if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager, config })
   liveVideo.addEventListener('loadedmetadata', () => {
-    if (live.fromStart && run === liveRun) liveVideo.currentTime = 0
+    if (live.fromStart && run === liveRun) {
+      liveVideo.currentTime = 0
+      playAfterSeek()
+    }
     markLiveStarted(run)
   }, { once: true })
   liveVideo.addEventListener('error', () => {
@@ -281,7 +284,7 @@ const startWhenBuffered = (run) => {
   if (run !== liveRun || !liveAttached || live.phase === 'ended') return
   if (liveStarted) return liveVideo.play()?.catch(() => {})
   const ready = isReadyToStart({
-    ranges: timeRangesOf(liveVideo.buffered),
+    ranges: rangesOf(liveVideo.buffered),
     position: liveVideo.currentTime,
     waitedMs: msSinceLiveMetadata(),
   })
@@ -298,9 +301,6 @@ const msSinceLiveMetadata = () => {
   if (!liveMetadataAt) liveMetadataAt = Date.now()
   return Date.now() - liveMetadataAt
 }
-
-const timeRangesOf = (ranges) =>
-  Array.from({ length: ranges.length }, (_, i) => [ranges.start(i), ranges.end(i)])
 
 const abandonEagerAttach = (run) => {
   if (run !== liveRun) return
@@ -478,25 +478,44 @@ export const onLiveFullscreenExit = () => {
   setTimeout(resumeAfterFullscreen, 100)
 }
 
-const liveEdgeOf = (video) => {
-  const { seekable } = video
-  return seekable.length ? finiteOrNull(seekable.end(seekable.length - 1)) : null
-}
+const currentLiveWindow = () => liveWindowOf({
+  seekable: rangesOf(liveVideo.seekable),
+  duration: liveVideo.duration,
+  currentTime: liveVideo.currentTime,
+  hlsSyncPosition: liveHls?.liveSyncPosition ?? null,
+  hlsOldestSecond: liveHls?.latestLevelDetails?.fragments?.[0]?.start ?? null,
+  fromStart: Boolean(live.fromStart),
+  bufferSeconds: live.fromStart ? 0 : live.bufferSeconds,
+})
 
 export const trackBehindLive = () => {
   const ready = liveVideo?.readyState >= HAVE_CURRENT_DATA
-  const target = ready ? liveTargetSecond() : null
-  const behind = target == null ? null : finiteOrNull(target - liveVideo.currentTime)
-  live.behindSeconds = behind == null ? 0 : Math.max(0, behind)
-  live.bufferTo = target
-  live.bufferFrom = ready ? liveSeekFloor() : null
+  const liveWindow = ready ? currentLiveWindow() : null
+  live.behindSeconds = liveWindow ? liveWindow.behind : 0
+  live.bufferTo = liveWindow ? liveWindow.target : null
+  live.bufferFrom = liveWindow ? liveWindow.floor : null
   live.position = ready ? liveVideo.currentTime : 0
 }
 
 export const seekLiveTo = (second) => {
-  if (!canSkip() || live.bufferFrom == null || live.bufferTo == null) return
+  if (!canSkip() || live.bufferFrom == null || live.bufferTo == null) return false
   liveVideo.currentTime = Math.max(live.bufferFrom, Math.min(live.bufferTo, second))
   trackBehindLive()
+  return true
+}
+
+export const seekLiveAndPlay = (second) => {
+  if (!seekLiveTo(second)) return
+  playAfterSeek()
+}
+
+const playAfterSeek = () => {
+  liveVideo.play()?.catch(() => {})
+  if (liveVideo.seeking) liveVideo.addEventListener('seeked', resumeIfPaused, { once: true })
+}
+
+const resumeIfPaused = () => {
+  if (liveAttached && liveVideo.paused) liveVideo.play()?.catch(() => {})
 }
 
 export const placeLiveCaptions = () => {
@@ -511,24 +530,8 @@ export const placeLiveCaptions = () => {
   }
 }
 
-const oldestKeptSecond = () => {
-  const fromHls = finiteOrNull(liveHls?.latestLevelDetails?.fragments?.[0]?.start)
-  if (fromHls != null) return fromHls
-  const { seekable } = liveVideo
-  return seekable.length ? finiteOrNull(seekable.start(0)) : null
-}
-
-const liveTargetSecond = () => {
-  const fromHls = finiteOrNull(liveHls?.liveSyncPosition)
-  if (fromHls != null) return fromHls
-  const edge = liveEdgeOf(liveVideo)
-  return edge == null ? null : Math.max(0, edge - NATIVE_LIVE_HOLD_BACK_S)
-}
-
-const liveSeekFloor = () => (live.fromStart ? 0 : seekFloorOf({ oldest: oldestKeptSecond(), target: liveTargetSecond() }))
-
 export const keepSeekInsideBuffer = () => {
-  const floor = liveSeekFloor()
+  const { floor } = currentLiveWindow()
   if (floor != null && liveVideo.currentTime < floor) liveVideo.currentTime = floor
 }
 
@@ -621,11 +624,12 @@ const registerLiveTap = ({ side, force }) => {
 const skipLive = (result) => {
   if (result.kind !== 'skip') return
   const direction = result.side === 'back' ? -1 : 1
+  const { floor, target } = currentLiveWindow()
   const { to, applied } = clampSkip({
     base: result.base,
     delta: direction * result.total,
-    floor: liveSeekFloor(),
-    ceiling: liveTargetSecond(),
+    floor,
+    ceiling: target,
   })
   if (!applied) return
   liveVideo.currentTime = to
@@ -641,9 +645,10 @@ export const skipLiveByKey = (side) => {
 
 export const jumpToLive = () => {
   if (!liveVideo) return
-  const target = liveTargetSecond()
-  if (target != null) liveVideo.currentTime = target
-  liveVideo.play()?.catch(() => {})
+  const { target } = currentLiveWindow()
+  if (target != null && Math.abs(target - liveVideo.currentTime) > LIVE_SEEK_EPSILON_S) liveVideo.currentTime = target
+  playAfterSeek()
+  trackBehindLive()
 }
 
 export const onLivePause = () => {
@@ -668,7 +673,7 @@ const FROM_START_PLAYER = `from-start-${crypto.randomUUID?.() ?? String(Math.ran
 const LIVE_START_CHECK_MS = 100
 const LIVE_POLL_PLAYING_MS = 10_000
 
-const NATIVE_LIVE_HOLD_BACK_S = 6
+const LIVE_SEEK_EPSILON_S = 0.5
 const HAVE_METADATA = 1
 const HAVE_CURRENT_DATA = 2
 

@@ -3,20 +3,23 @@ import { watchRowLabel } from '/live-info.js'
 import { OFF_AIR_MESSAGE, channelGroupLabel } from '/components/channel-identity.js'
 import { togglePinnedChannel } from '/components/channels-modal.js'
 import { api, fetchSettings } from '/shared/api.js'
-import { useFlash } from '/shared/composables.js'
-import { CHANNELS_SAVED_TEXT } from '/shared/constants.js'
 import { onNowPercent } from '/shared/format.js'
 import { groupsOf, matchesFilter, timeLeftLabel, nextLabel } from '/live-list.js'
 import { watchLive } from '/shared/live-session.js'
-import { usePinDrag } from '/shared/pin-drag.js'
+import { useFavouriteOrderSave, useSortable } from '/shared/pin-drag.js'
+import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
+import { arrangeByOrder } from '/sortable-math.js'
+import { useFlash, useMediaQuery } from '/shared/composables.js'
+import { CHANNELS_SAVED_TEXT, EPG_NARROW_QUERY } from '/shared/constants.js'
 import { isRecordingChannel } from '/shared/recording-now.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
 import { openInGuide } from '/shared/store.js'
 import { now, fmtClockTz } from '/shared/time.js'
 
 export const LiveView = {
+  components: SORT_PART_COMPONENTS,
   template: `
-    <div class="ui-page live-page">
+    <div ref="pageEl" class="ui-page live-page">
       <page-header title="Live TV">
         <template #actions>
           <span v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</span>
@@ -40,7 +43,7 @@ export const LiveView = {
             :aria-pressed="String(zoom === level)" :aria-label="zoomLabels[level]" @click="zoom = level">{{ level.toUpperCase() }}</button>
         </div>
         <button type="button" class="ui-icon-button live-settings" aria-label="Channel settings" title="Channel settings"
-          :disabled="!data" @click="channelsModal = true"><sliders-icon /></button>
+          :disabled="!data" @click="openChannelsModal"><sliders-icon /></button>
       </div>
       <p v-if="tvhConfigured === false" class="live-note">
         Connect TVHeadend in <a href="#/settings/system/tvheadend">Settings</a> to watch live TV.
@@ -54,15 +57,23 @@ export const LiveView = {
       <p v-else-if="!groups.length" class="live-note">{{ emptyText }}</p>
       <div :class="['live-groups', 'live-zoom-' + zoom]">
         <section v-for="g in groups" :key="g.key" class="live-group" :aria-label="g.label">
-          <h2 class="ui-group-label">{{ g.label }}</h2>
-          <ul class="live-list">
-            <li v-for="e in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
-              :class="['live-row', { pinned: e.channel.pinned, 'is-off-air': e.channel.offAir, 'epg-drop-target': dropTargetId === String(e.channel.id), 'epg-drop-after': dropAfter && dropTargetId === String(e.channel.id), 'epg-dragging': dragPinId === String(e.channel.id) }]">
-              <div class="live-row-handle" :title="e.channel.pinned ? 'Drag to reorder favourites' : null"
-                @pointerdown="onPinPointerDown(e.channel, $event)"
-                @pointermove="onPinPointerMove"
-                @pointerup="onPinPointerUp"
-                @pointercancel="onPinPointerCancel">
+          <div class="live-group-head">
+            <h2 class="ui-group-label">{{ g.label }}</h2>
+            <button v-if="g.key === 'pinned' && narrow && g.entries.length >= 2" type="button" class="sort-edit-order"
+              @click="openOrderEditor">Edit order</button>
+          </div>
+          <ul :class="['live-list', { 'is-sortable': g.key === 'pinned' && canSort }]">
+            <li v-for="(e, i) in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
+              :data-sort-id="g.key === 'pinned' && canSort ? String(e.channel.id) : null"
+              :class="['live-row', { pinned: e.channel.pinned, 'is-off-air': e.channel.offAir }]">
+              <button v-if="g.key === 'pinned' && canSort" type="button" class="sort-handle live-sort-handle" data-sort-handle
+                aria-roledescription="sortable" title="Drag to reorder"
+                :aria-label="'Reorder ' + e.channel.name + ', position ' + (i + 1) + ' of ' + g.entries.length + '. Press Space to pick up.'"
+                @pointerdown="sort.onPointerDown(String(e.channel.id), $event)"
+                @keydown="sort.onKeydown(String(e.channel.id), $event)"
+                @blur="sort.onBlur(String(e.channel.id))"><sort-grip-icon /></button>
+              <span v-else-if="!narrow" class="sort-gutter" aria-hidden="true"></span>
+              <div class="live-row-lead">
                 <button type="button" :class="['live-star', { pinned: e.channel.pinned }]" :aria-pressed="String(Boolean(e.channel.pinned))"
                   :title="e.channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
                   :aria-label="e.channel.pinned ? 'Remove ' + e.channel.name + ' from favourites' : 'Add ' + e.channel.name + ' to favourites'"
@@ -101,11 +112,15 @@ export const LiveView = {
           </ul>
         </section>
       </div>
+      <sort-announcer :message="sort.announcement.value" :keyboard-active="sort.keyboardActive.value" />
+      <div class="ui-toast-region" aria-live="polite">
+        <sort-undo-toast :toast="orderToast" @undo="undoOrder" />
+      </div>
       <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="data?.channels || []" :hidden-ids="data?.hiddenIds || []"
         :sort="data?.sort" :hide-sd-simulcasts="data?.hideSdSimulcasts" :hide-sd-channels="data?.hideSdChannels"
-        @close="channelsModal = false" @saved="onChannelPrefsSaved" />
+        :start-mode="channelsModalMode" @close="channelsModal = false" @saved="onChannelPrefsSaved" />
       </transition>
       </teleport>
     </div>
@@ -120,6 +135,9 @@ export const LiveView = {
     const showImages = storedFlag({ key: LIVE_IMAGES_KEY, fallback: true })
     const zoom = storedChoice({ key: LIVE_ZOOM_KEY, options: LIVE_ZOOM_LEVELS, fallback: 'm' })
     const channelsModal = ref(false)
+    const channelsModalMode = ref('channels')
+    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+    const pageEl = ref(null)
     let pollTimer = null
     let boundaryTimer = null
 
@@ -170,19 +188,40 @@ export const LiveView = {
 
     const currentPins = () => (data.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
 
-    const reorderPins = async (pins) => {
-      try {
-        await api('PUT', '/api/epg/channel-prefs', { pinned_ids: pins })
-        await load()
-      } catch (err) {
-        flash({ msg: `Reorder failed: ${err.message}`, kind: 'err', ms: 6000 })
+    const channelNameOf = (id) => (data.value?.channels || []).find((c) => String(c.id) === String(id))?.name || 'Channel'
+
+    const applyPinOrder = (pins) => {
+      if (!data.value) return
+      data.value = {
+        ...data.value,
+        entries: arrangeByOrder({ items: data.value.entries || [], order: pins, idOf: (e) => String(e.channel.id) }),
+        channels: arrangeByOrder({ items: data.value.channels || [], order: pins, idOf: (c) => String(c.id) }),
       }
     }
 
-    const pinDrag = usePinDrag({ rowSelector: '.live-row.pinned', currentPins, onReorder: reorderPins, grabSelector: '.live-star, .live-logo' })
+    const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: load, nameOf: channelNameOf })
+
+    const canSort = computed(() => !narrow.value && !filterQ.value.trim())
+    const sortableIds = () => (groups.value.find((g) => g.key === 'pinned')?.entries || []).map((e) => String(e.channel.id))
+
+    const sort = useSortable({
+      listEl: () => pageEl.value?.querySelector('.live-list.is-sortable'),
+      ids: sortableIds,
+      nameOf: channelNameOf,
+      onDrop: orderSave.onDrop,
+    })
+
+    const openChannelsModal = () => {
+      channelsModalMode.value = 'channels'
+      channelsModal.value = true
+    }
+
+    const openOrderEditor = () => {
+      channelsModalMode.value = 'order'
+      channelsModal.value = true
+    }
 
     const togglePin = async (channel) => {
-      if (pinDrag.didDrag()) return
       const pinnedIds = currentPins()
       try {
         await togglePinnedChannel({ pinnedIds, channelId: channel.id })
@@ -219,10 +258,8 @@ export const LiveView = {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, groups, favouritesHint, emptyText,
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
       OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
-      zoom,
-      dragPinId: pinDrag.dragPinId, dropTargetId: pinDrag.dropTargetId, dropAfter: pinDrag.dropAfter,
-      onPinPointerDown: pinDrag.onPinPointerDown, onPinPointerMove: pinDrag.onPinPointerMove,
-      onPinPointerUp: pinDrag.onPinPointerUp, onPinPointerCancel: pinDrag.onPinPointerCancel,
+      zoom, pageEl, narrow, canSort, sort, channelsModalMode, openChannelsModal, openOrderEditor,
+      orderToast: orderSave.toast, undoOrder: orderSave.undo,
       isRecordingChannel, onNowPercent, fmtClockTz, flashText, flashKind,
     }
   },

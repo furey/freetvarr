@@ -15,21 +15,26 @@ export const fromStartOption = ({ recording, clockText }) => {
   }
 }
 
-export const tunedInOption = ({ bufferStartMs, nowMs, clockText }) => {
-  if (bufferStartMs == null) return null
+export const tunedInOption = ({ bufferStartMs, hasBuffer = bufferStartMs != null, nowMs, clockText }) => {
+  if (!hasBuffer) return null
+  if (bufferStartMs == null) {
+    return { key: 'tuned-in', title: 'Back to when you tuned in', detail: NOTHING_BUFFERED_TEXT, disabled: true }
+  }
   const minutes = minutesAgo({ atMs: bufferStartMs, nowMs })
   return {
     key: 'tuned-in',
     title: 'Back to when you tuned in',
     detail: `${clockText(bufferStartMs)} · ${minutesAgoText(minutes)}`,
-    disabled: minutes < 1,
+    disabled: false,
   }
 }
 
-export const startOverOptionsOf = ({ recording, bufferStartMs, nowMs, clockText }) => [
+export const startOverOptionsOf = ({ recording, bufferStartMs, hasBuffer, nowMs, clockText }) => [
   fromStartOption({ recording, clockText }),
-  tunedInOption({ bufferStartMs, nowMs, clockText }),
+  tunedInOption({ bufferStartMs, hasBuffer, nowMs, clockText }),
 ].filter(Boolean)
+
+export const NOTHING_BUFFERED_TEXT = 'Nothing to go back to yet. Ready a few seconds after you tune in.'
 
 export const behindLiveText = (seconds) => {
   const minutes = Math.max(1, Math.round(seconds / 60))

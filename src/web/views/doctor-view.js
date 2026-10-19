@@ -1,11 +1,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
   checkedAgoText,
+  doctorCheckGroupsOf,
   driveLabelOf,
   healthHeadlineOf,
   lastSyncText,
   nextSyncText,
   storageUsageOf,
+  workingSummaryOf,
 } from '/health-page.js'
 import { revealStepMs } from '/paced-reveal.js'
 import { formatSeconds } from '/time-format.js'
@@ -100,26 +102,38 @@ export const DoctorView = {
           <div class="ui-progress"><div :class="['ui-progress-fill', { 'is-indeterminate': phase === 'scanning' }]" :style="phase === 'scanning' ? null : { width: progressPercent + '%' }"></div></div>
         </div>
         <p v-if="error" class="status-readout err">The checks could not run: {{ error }}</p>
-        <div v-if="orderedChecks.length" class="ui-group">
-          <div v-for="c in orderedChecks" :key="c.id" :id="anchorFor(c)"
-            :class="['ui-group-row', 'health-check', 'is-' + rowState(c), rowState(c) === 'resolved' ? 'is-' + c.status : '']">
-            <span class="health-check-mark">
-              <doctor-spinner v-if="rowState(c) === 'active'" />
-              <span v-else-if="rowState(c) === 'resolved'" :class="['ui-dot', dotClassFor(c.status)]" role="img" :aria-label="statusLabelFor(c.status)"></span>
-              <span v-else class="health-check-pending" aria-label="Waiting" role="img"></span>
-            </span>
-            <span class="ui-group-row-main">
-              <span class="ui-group-row-title">{{ titleOf(c) }}</span>
-              <template v-if="rowState(c) === 'resolved'">
-                <span class="ui-group-row-meta health-check-detail">{{ c.detail }}</span>
-                <span v-if="needsFix(c) && c.fix" class="health-check-fix">{{ c.fix }}</span>
-                <span v-if="(needsFix(c) && c.doc) || c.action" class="health-check-links">
-                  <a v-if="c.action" :href="c.action.href">{{ c.action.label }}</a>
-                  <a v-if="needsFix(c) && c.doc" :href="docsUrl(c.doc)" target="_blank" rel="noopener noreferrer">Read more <external-link-icon /></a>
+        <div v-if="orderedChecks.length" class="health-check-groups">
+          <p v-if="allWorking" class="health-checks-summary">Everything's working</p>
+          <div v-for="group in checkGroups" :key="group.key" class="health-check-group">
+            <h4 v-if="group.label" class="ui-group-label health-check-group-label">{{ group.label }}</h4>
+            <div class="ui-group">
+              <button v-if="group.collapsible && !workingExpanded" type="button" class="ui-group-row health-working-toggle"
+                aria-expanded="false" @click="workingExpanded = true">
+                <span class="health-check-mark"><span class="ui-dot is-ok" aria-hidden="true"></span></span>
+                <span class="ui-group-row-main"><span class="ui-group-row-title">{{ workingSummaryOf(group.checks) }}</span></span>
+                <chevron-glyph class="ui-group-row-chevron" />
+              </button>
+              <div v-else v-for="c in group.checks" :key="c.id" :id="anchorFor(c)"
+                :class="['ui-group-row', 'health-check', 'is-' + rowState(c), rowState(c) === 'resolved' ? 'is-' + c.status : '']">
+                <span class="health-check-mark">
+                  <doctor-spinner v-if="rowState(c) === 'active'" />
+                  <span v-else-if="rowState(c) === 'resolved'" :class="['ui-dot', dotClassFor(c.status)]" role="img" :aria-label="statusLabelFor(c.status)"></span>
+                  <span v-else class="health-check-pending" aria-label="Waiting" role="img"></span>
                 </span>
-              </template>
-              <span v-else class="health-check-placeholder" aria-hidden="true"></span>
-            </span>
+                <span class="ui-group-row-main">
+                  <span class="ui-group-row-title">{{ titleOf(c) }}</span>
+                  <template v-if="rowState(c) === 'resolved'">
+                    <span class="ui-group-row-meta health-check-detail">{{ c.detail }}</span>
+                    <span v-if="needsFix(c) && c.fix" class="health-check-fix">{{ c.fix }}</span>
+                    <span v-if="(needsFix(c) && c.doc) || c.action" class="health-check-links">
+                      <a v-if="c.action" :href="c.action.href">{{ c.action.label }}</a>
+                      <a v-if="needsFix(c) && c.doc" :href="docsUrl(c.doc)" target="_blank" rel="noopener noreferrer">Read more <external-link-icon /></a>
+                    </span>
+                  </template>
+                  <span v-else class="health-check-placeholder" aria-hidden="true"></span>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
         <div v-else-if="checking" class="ui-group" aria-hidden="true">
@@ -156,7 +170,10 @@ export const DoctorView = {
     const starting = ref(false)
     let runId = 0
 
-    const orderedChecks = computed(() => sortDoctorChecks(report.value?.checks || []))
+    const checkGroups = computed(() => doctorCheckGroupsOf(sortDoctorChecks(report.value?.checks || [])))
+    const orderedChecks = computed(() => checkGroups.value.flatMap((group) => group.checks))
+    const allWorking = computed(() => checkGroups.value[0]?.key === 'all')
+    const workingExpanded = ref(Boolean(routeSection.value))
     const revealOrder = computed(() => new Map(orderedChecks.value.map((c, i) => [c.id, i])))
     const firstOfGroup = computed(() => new Set(DOCTOR_GROUP_ORDER
       .map((group) => orderedChecks.value.find((c) => c.group === group)?.id)
@@ -308,7 +325,8 @@ export const DoctorView = {
     })
 
     return {
-      report, checking, error, phase, runChecks, orderedChecks, rowState, countsLabel,
+      report, checking, error, phase, runChecks, orderedChecks, checkGroups, allWorking, workingExpanded,
+      workingSummaryOf, rowState, countsLabel,
       progressPercent, progressText, ranLabel, durationLabel, needsFix, docsUrl,
       headlineLine, lastSyncLabel, nextSyncLabel, importedLabel, syncCountLabel, drives,
       syncStatus, syncRunning, starting, syncNow, flashText, flashKind,

@@ -7,7 +7,7 @@ description: >-
 
 # Health
 
-Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → System → **Health**, from the health dot in the header, or from **Health checks** in Settings → About. The old address `#/doctor` redirects to it.
+Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → System → **Health**, from the alert on Home, or from **Health checks** in Settings → About. The old address `#/doctor` redirects to it.
 
 The page has three groups:
 
@@ -17,9 +17,11 @@ The page has three groups:
 
 The sentence under the page title summarises the result, for example `Everything is working.`
 
-## Health dot
+## Health badge
 
-The dot in the header shows the worst result of the health checks and the last sync. Green says `All good`. Amber or red adds a sentence, such as `TVHeadend is not answering.` or `The last sync failed.` Press the dot to open Health. On a phone, the dot becomes a banner at the top of the page while the result is amber or red.
+When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, on the System group in Settings, and on the Health row. Amber means it needs a look. Red means it needs attention. The Health row also gives the reason, such as `The last sync failed`.
+
+While the result is red, Home also shows the reason as an alert under the greeting. Press it to open Health. Press **×** to hide that alert for a day. A new problem shows again at once. The dot stays until the problem is fixed.
 
 ## Results
 
@@ -86,7 +88,7 @@ Makes a real test hardlink from the recordings folder into the media folder and 
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk. The real limit is your computer's own disk.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `10GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk. The real limit is your computer's own disk.
 
 ## Plex library {#plex-reach}
 

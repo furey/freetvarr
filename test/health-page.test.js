@@ -2,11 +2,13 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   checkedAgoText,
+  doctorCheckGroupsOf,
   driveLabelOf,
   healthHeadlineOf,
   lastSyncText,
   nextSyncText,
   storageUsageOf,
+  workingSummaryOf,
   worstHealthOf,
 } from '../src/web/health-page.js'
 
@@ -56,4 +58,32 @@ test('driveLabelOf: one drive is the recordings drive, two are told apart', () =
   assert.equal(driveLabelOf({ key: 'media', count: 1 }), 'Recordings drive')
   assert.equal(driveLabelOf({ key: 'media', count: 2 }), 'TV library drive')
   assert.equal(driveLabelOf({ key: 'recordings', count: 2 }), 'Recordings drive')
+})
+
+const checkOf = (id, status) => ({ id, status })
+
+test('doctorCheckGroupsOf: all passing is one ungrouped list', () => {
+  const checks = [checkOf('a', 'pass'), checkOf('b', 'skip'), checkOf('c', 'pass')]
+  assert.deepEqual(doctorCheckGroupsOf(checks), [{ key: 'all', label: null, checks, collapsible: false }])
+  assert.deepEqual(doctorCheckGroupsOf([]), [])
+})
+
+test('doctorCheckGroupsOf: problems group as attention, look, then working', () => {
+  const checks = [checkOf('a', 'pass'), checkOf('b', 'warn'), checkOf('c', 'fail'), checkOf('d', 'skip'), checkOf('e', 'fail')]
+  const groups = doctorCheckGroupsOf(checks)
+  assert.deepEqual(groups.map((group) => group.label), ['Needs attention', 'Needs a look', 'Working'])
+  assert.deepEqual(groups.map((group) => group.checks.map((check) => check.id)), [['c', 'e'], ['b'], ['a', 'd']])
+  assert.deepEqual(groups.map((group) => group.collapsible), [false, false, true])
+})
+
+test('doctorCheckGroupsOf: empty groups are hidden', () => {
+  const groups = doctorCheckGroupsOf([checkOf('a', 'warn'), checkOf('b', 'pass')])
+  assert.deepEqual(groups.map((group) => group.key), ['look', 'working'])
+  assert.deepEqual(doctorCheckGroupsOf([checkOf('a', 'fail')]).map((group) => group.key), ['attention'])
+})
+
+test('workingSummaryOf: counts passed checks and names skipped ones apart', () => {
+  assert.equal(workingSummaryOf([checkOf('a', 'pass')]), '1 check working')
+  const checks = [...Array.from({ length: 17 }, (_, i) => checkOf(`p${i}`, 'pass')), checkOf('s', 'skip')]
+  assert.equal(workingSummaryOf(checks), '17 checks working · 1 skipped')
 })

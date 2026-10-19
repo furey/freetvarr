@@ -34,7 +34,7 @@ export const HomeView = {
   components: { ForYouOverlays, ForYouRows, HomeHeroCarousel, RecordingOptionsSheet },
   template: `
     <div class="ui-page home-page">
-      <page-header :title="greeting" brand />
+      <page-header :title="greeting" brand health-alert />
       <template v-if="!loaded">
         <div class="ui-skeleton is-hero home-hero-skeleton"></div>
         <div class="ui-scroller home-skeleton-row">

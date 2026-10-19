@@ -7,7 +7,7 @@ import { ConfirmDialog } from '/components/dialogs.js'
 import { ErrorDiagnosis } from '/components/error-diagnosis.js'
 import { noAutofill, ToggleSwitch, TimeZoneField } from '/components/forms.js'
 import { GuideCombobox } from '/components/guide-combobox.js'
-import { ClockLabel, HealthDot, PageHeader, RecordingChip, SearchButton } from '/components/header-widgets.js'
+import { ClockLabel, HealthAlert, PageHeader, RecordingChip, SearchButton } from '/components/header-widgets.js'
 import {
   TvIcon,
   SeriesRecordIcon,
@@ -55,7 +55,7 @@ import {
 import { AppNav, BrandMark } from '/components/app-shell.js'
 import { startBrandIntro } from '/components/brand-intro-overlay.js'
 import { BrandWordmark } from '/components/brand-wordmark.js'
-import { ChannelLogo, ProgrammeImage } from '/components/images.js'
+import { ChannelLogo, GuideCellImage, ProgrammeImage } from '/components/images.js'
 import { InfoButton } from '/components/info-button.js'
 import { ListSkeleton } from '/components/list-skeleton.js'
 import { LivePlayer } from '/components/live-player.js'
@@ -184,7 +184,7 @@ app.component('brand-mark', BrandMark)
 app.component('brand-wordmark', BrandWordmark)
 app.component('page-header', PageHeader)
 app.component('search-button', SearchButton)
-app.component('health-dot', HealthDot)
+app.component('health-alert', HealthAlert)
 app.component('recording-chip', RecordingChip)
 app.component('clock-label', ClockLabel)
 app.component('search-overlay', SearchOverlay)
@@ -212,6 +212,7 @@ app.component('recording-status', RecordingStatus)
 app.component('recording-drawer', RecordingDrawer)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
+app.component('guide-cell-image', GuideCellImage)
 app.component('channel-logo', ChannelLogo)
 app.component('toggle-switch', ToggleSwitch)
 app.component('cancel-series-step', CancelSeriesStep)

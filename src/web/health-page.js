@@ -16,6 +16,26 @@ export const healthHeadlineOf = ({ level, sentence } = {}) => {
   return sentence
 }
 
+export const doctorCheckGroupsOf = (checks = []) => {
+  const hasProblems = checks.some((check) => PROBLEM_STATUSES.includes(check.status))
+  if (!hasProblems) return checks.length ? [{ key: 'all', label: null, checks, collapsible: false }] : []
+  return CHECK_GROUPS
+    .map(({ key, label, statuses }) => ({
+      key,
+      label,
+      checks: checks.filter((check) => statuses.includes(check.status)),
+      collapsible: key === 'working',
+    }))
+    .filter((group) => group.checks.length)
+}
+
+export const workingSummaryOf = (checks = []) => {
+  const passed = checks.filter((check) => check.status === 'pass').length
+  const skipped = checks.filter((check) => check.status === 'skip').length
+  const working = `${passed} ${passed === 1 ? 'check' : 'checks'} working`
+  return skipped ? `${working} · ${skipped} skipped` : working
+}
+
 export const checkedAgoText = ({ ranAtMs, nowMs }) => {
   if (!Number.isFinite(ranAtMs)) return ''
   const minutes = Math.floor((nowMs - ranAtMs) / 60_000)
@@ -52,6 +72,14 @@ export const driveLabelOf = ({ key, count }) => {
   if (count === 1) return 'Recordings drive'
   return key === 'media' ? 'TV library drive' : 'Recordings drive'
 }
+
+const PROBLEM_STATUSES = ['fail', 'warn']
+
+const CHECK_GROUPS = [
+  { key: 'attention', label: 'Needs attention', statuses: ['fail'] },
+  { key: 'look', label: 'Needs a look', statuses: ['warn'] },
+  { key: 'working', label: 'Working', statuses: ['pass', 'skip'] },
+]
 
 const diskSize = (bytes) => formatDiskSize(bytes).replace(/([\d.])([A-Z])/, '$1 $2')
 

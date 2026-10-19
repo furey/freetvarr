@@ -6,6 +6,7 @@ import {
   watch,
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
+import { GUIDE_SCROLL_SELECTOR, NEAR_VIEW_MARGIN, observeInScroller, unobserveInScroller } from '/shared/scroll-proximity.js'
 
 export const ChannelLogo = {
   props: { channelId: { type: [String, Number], default: null }, hasLogo: Boolean },
@@ -183,5 +184,38 @@ export const ProgrammeImage = {
         <channel-logo :channel-id="channelId" :has-logo="hasLogo" />
       </span>
     </div>
+  `,
+}
+
+export const GuideCellImage = {
+  props: {
+    eventId: { type: [String, Number], default: null },
+    channelId: { type: [String, Number], default: null },
+    hasLogo: Boolean,
+    title: { type: String, default: null },
+  },
+  setup() {
+    const placeholder = ref(null)
+    const near = ref(false)
+    let observed = null
+    const stopObserving = () => {
+      if (observed) unobserveInScroller(observed)
+      observed = null
+    }
+    const showWhenNear = (isNear) => {
+      if (!isNear) return
+      stopObserving()
+      near.value = true
+    }
+    onMounted(() => {
+      observed = placeholder.value
+      observeInScroller({ el: observed, rootSelector: GUIDE_SCROLL_SELECTOR, rootMargin: NEAR_VIEW_MARGIN, onChange: showWhenNear })
+    })
+    onUnmounted(stopObserving)
+    return { placeholder, near }
+  },
+  template: `
+    <programme-image v-if="near" :event-id="eventId" variant="cell" :channel-id="channelId" :has-logo="hasLogo" :title="title" />
+    <div v-else ref="placeholder" class="programme-image cell is-loading"></div>
   `,
 }

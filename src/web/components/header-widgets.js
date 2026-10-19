@@ -1,8 +1,9 @@
 import { computed } from '/vendor/vue.esm-browser.prod.js'
-import { healthLabelOf } from '/health-level.js'
+import { healthAlertOf } from '/health-level.js'
 import { recordingChipOf } from '/recording-chip.js'
+import { WarningGlyph } from '/components/nav-icons.js'
 import { openSearch } from '/components/search-overlay.js'
-import { health } from '/shared/health.js'
+import { dismissHealthAlert, health, healthAlertDismissal } from '/shared/health.js'
 import { recordingNow } from '/shared/recording-now.js'
 import { now, fmtClockTz } from '/shared/time.js'
 
@@ -21,32 +22,34 @@ export const ClockLabel = {
   setup: () => ({ clock: computed(() => fmtClockTz(now.value.getTime())) }),
 }
 
-export const HealthDot = {
+export const HealthAlert = {
   props: { variant: { type: String, default: 'chip' } },
+  components: { WarningGlyph },
   template: `
-    <template v-if="variant === 'banner'">
-      <a v-if="needsAttention" :href="href" :class="['ui-banner', 'ui-only-phone', 'ui-page-banner', level === 'fail' ? 'is-error' : 'is-warning']">
-        <span :class="['ui-dot', dotClass]"></span>
-        <span class="ui-banner-text">{{ label }}</span>
-        <chevron-glyph class="ui-group-row-chevron" />
+    <div v-if="alert && variant === 'banner'" class="ui-banner health-alert ui-only-phone ui-page-banner" role="status">
+      <a :href="href" class="health-alert-link">
+        <warning-glyph class="health-alert-icon" />
+        <span class="ui-banner-text health-alert-text">{{ alert.sentence }}</span>
+        <chevron-glyph class="health-alert-chevron" />
       </a>
-    </template>
-    <template v-else>
-      <a :href="href" :class="['ui-header-chip', 'ui-only-wide', chipClass]" :aria-label="'System health: ' + label">
-        <span :class="['ui-dot', dotClass]"></span><span>{{ label }}</span>
+      <button type="button" class="health-alert-close" aria-label="Hide for a day" @click="dismiss"><close-glyph /></button>
+    </div>
+    <span v-else-if="alert" class="ui-header-chip health-alert-chip ui-only-wide" role="status">
+      <a :href="href" class="health-alert-link">
+        <warning-glyph class="health-alert-icon" />
+        <span>{{ alert.sentence }}</span>
       </a>
-      <a v-if="!needsAttention" :href="href" class="ui-health-button ui-only-phone" :aria-label="'System health: ' + label" :title="label">
-        <span :class="['ui-dot', dotClass]"></span>
-      </a>
-    </template>
+      <button type="button" class="health-alert-close" aria-label="Hide for a day" @click="dismiss"><close-glyph /></button>
+    </span>
   `,
   setup() {
-    const level = computed(() => (health.value.known ? health.value.level : 'unknown'))
-    const needsAttention = computed(() => level.value === 'warn' || level.value === 'fail')
-    const label = computed(() => (health.value.known ? healthLabelOf(health.value) : 'Checking'))
-    const dotClass = computed(() => ({ ok: 'is-ok', warn: 'is-warn', fail: 'is-fail' })[level.value] || '')
-    const chipClass = computed(() => ({ warn: 'is-warn', fail: 'is-fail' })[level.value] || '')
-    return { href: HEALTH_HREF, level, needsAttention, label, dotClass, chipClass }
+    const alert = computed(() => healthAlertOf({
+      health: health.value,
+      dismissal: healthAlertDismissal.value,
+      nowMs: now.value.getTime(),
+    }))
+    const dismiss = () => dismissHealthAlert({ sentence: alert.value.sentence, nowMs: now.value.getTime() })
+    return { href: HEALTH_HREF, alert, dismiss }
   },
 }
 
@@ -76,6 +79,7 @@ export const PageHeader = {
     subtitle: { type: String, default: '' },
     brand: { type: Boolean, default: false },
     widgets: { type: Boolean, default: true },
+    healthAlert: { type: Boolean, default: false },
   },
   template: `
     <header class="ui-page-header">
@@ -87,15 +91,15 @@ export const PageHeader = {
       <div v-if="widgets || $slots.actions" class="ui-page-actions">
         <slot name="actions" />
         <template v-if="widgets">
+          <health-alert v-if="healthAlert" />
           <recording-chip />
-          <health-dot />
           <clock-label />
           <search-button />
         </template>
       </div>
       <template v-if="widgets">
+        <health-alert v-if="healthAlert" variant="banner" />
         <recording-chip variant="banner" />
-        <health-dot variant="banner" />
       </template>
       <slot name="below" />
     </header>

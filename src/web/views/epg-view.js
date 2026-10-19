@@ -49,7 +49,10 @@ import { EPG_NARROW_QUERY, CHANNELS_SAVED_TEXT } from '/shared/constants.js'
 import { fmtBytes } from '/shared/format.js'
 import { liveChannelOf, watchLive } from '/shared/live-session.js'
 import { makeStatus } from '/shared/path-check.js'
-import { setDragLock, usePinDrag } from '/shared/pin-drag.js'
+import { setDragLock, useFavouriteOrderSave, useSortable } from '/shared/pin-drag.js'
+import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
+import { railEdgeDirective } from '/shared/scroll-proximity.js'
+import { arrangeByOrder } from '/sortable-math.js'
 import { live } from '/shared/player-shared.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
 import {
@@ -93,6 +96,8 @@ const SCHEDULED_HREF = '#/recordings/scheduled'
 const ANY_CHANNEL_HINT = 'Records this series whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again.'
 
 export const EpgView = {
+  components: SORT_PART_COMPONENTS,
+  directives: { railEdge: railEdgeDirective },
   template: `
     <div class="ui-page guide-page view-reveal">
       <page-header title="Guide" :subtitle="dateSubtitle" :widgets="false">
@@ -101,7 +106,6 @@ export const EpgView = {
             <span class="guide-scheduled-dot" aria-hidden="true"></span>{{ scheduledLabel }}
           </a>
           <recording-chip />
-          <health-dot />
           <button type="button" class="ui-icon-button" aria-label="Channels" title="Channels" :disabled="!guide" @click="openChannelsModal"><sliders-icon /></button>
           <button type="button" class="ui-icon-button" :aria-label="searchOpen ? 'Close search' : 'Search the next 7 days'"
             :title="searchOpen ? 'Close search' : 'Search the next 7 days'" :aria-expanded="String(searchOpen)" @click="toggleSearch">
@@ -110,7 +114,6 @@ export const EpgView = {
         </template>
         <template #below>
           <recording-chip variant="banner" />
-          <health-dot variant="banner" />
         </template>
       </page-header>
 
@@ -198,7 +201,7 @@ export const EpgView = {
           <button v-if="midnightOnScreen && day < 6" type="button" class="epg-pinned-chip epg-next-day-chip"
             :style="{ right: 'calc(' + scrollbarW + 'px + 0.5rem)' }" :aria-label="'Go to ' + nextDayLongLabel"
             @click="goToNextDay">{{ narrow ? nextDayWeekday : nextDayLabel }} <chevron-right-icon /></button>
-          <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming }]" ref="scrollEl"
+          <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming, 'epg-images-off': !showImages }]" ref="scrollEl"
             @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
             @pointerdown="hideTooltip" @focusin="onGridFocusIn" @focusout="onGridFocusOut">
           <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
@@ -224,34 +227,41 @@ export const EpgView = {
             <div v-if="day === 6" class="epg-guide-end-lane" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }">
               <span class="epg-guide-end">Guide ends {{ lastDayLabel }}</span>
             </div>
-            <transition-group name="epg-rows" tag="div">
-            <div v-for="{ kind, key, label, shown, ch } in railItems" :key="key"
+            <transition-group name="epg-rows" tag="div" class="epg-rows">
+            <div v-for="{ kind, key, label, shown, ch, pinIndex } in railItems" :key="key"
               v-show="shown"
-              v-memo="[ch, label, shown, loadingIds.has(ch?.id), loadingNoteMaxPx, nowMs, state, watchedKeys, railNumWidth, showImages, zoom, thumbMinCellPx, dropTargetId === key, dropTargetId === key && dropAfter, dragPinId === key]"
+              v-memo="[ch, label, shown, loadingIds.has(ch?.id), loadingNoteMaxPx, nowMs, state, watchedKeys, railNumWidth, zoom, thumbMinCellPx, narrow, canSort, pinIndex, pinnedCount]"
               :data-channel-id="ch?.id"
-              :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned, 'epg-drop-target': dropTargetId === key, 'epg-drop-after': dropAfter && dropTargetId === key, 'epg-dragging': dragPinId === key }]">
+              :data-sort-id="ch?.pinned && canSort ? key : null"
+              :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned }]">
               <template v-if="kind === 'heading'">
-                <div class="epg-heading-rail"><span class="channel-group-heading">{{ label }}</span></div>
+                <div class="epg-heading-rail">
+                  <span class="channel-group-heading">{{ label }}</span>
+                  <button v-if="key === 'h-fav' && narrow && pinnedCount >= 2" type="button" class="sort-edit-order epg-edit-order"
+                    @click="openOrderEditor">Edit order</button>
+                </div>
                 <div class="epg-heading-track"></div>
               </template>
               <template v-else>
-              <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]"
-                :title="ch.pinned ? 'Drag to reorder favourites' : null"
-                @pointerdown="onPinPointerDown(ch, $event)"
-                @pointermove="onPinPointerMove"
-                @pointerup="onPinPointerUp"
-                @pointercancel="onPinPointerCancel">
+              <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]">
+                <button v-if="ch.pinned && canSort" type="button" class="sort-handle epg-sort-handle" data-sort-handle
+                  aria-roledescription="sortable" title="Drag to reorder"
+                  :aria-label="'Reorder ' + ch.name + ', position ' + (pinIndex + 1) + ' of ' + pinnedCount + '. Press Space to pick up.'"
+                  @pointerdown="sort.onPointerDown(key, $event)"
+                  @keydown="sort.onKeydown(key, $event)"
+                  @blur="sort.onBlur(key)"><sort-grip-icon /></button>
+                <span v-else-if="!narrow" class="sort-gutter" aria-hidden="true"></span>
                 <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
               </div>
               <div class="epg-track" :style="{ width: trackWidth + 'px' }">
                 <span v-if="loadingIds.has(ch.id)" class="epg-loading-note" role="status"
                   :title="LISTINGS_LOADING_TEXT"
                   :style="{ left: (nowX ?? 0) + 8 + 'px', maxWidth: loadingNoteMaxPx + 'px' }">{{ LISTINGS_LOADING_TEXT }}</span>
-                <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" type="button"
+                <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" v-rail-edge type="button"
                   :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'next-day': p.start >= guide.dayEnd, 'with-thumb': cellHasThumb(p) }]"
                   :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
                   @click="openProgram(p, ch)">
-                  <programme-image v-if="cellHasThumb(p)" :event-id="p.program_id" variant="cell"
+                  <guide-cell-image v-if="cellHasThumb(p)" :event-id="p.program_id"
                     :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
                   <span v-if="cellShowsText(p)" class="epg-cell-text">
                     <span class="epg-cell-title"><span v-if="cellMarks(p).scheduledDot" class="epg-cell-dot is-inline" aria-hidden="true"></span><span v-else-if="cellMarks(p).watchDot" class="epg-cell-dot is-inline is-watch" aria-hidden="true"></span>{{ p.title }}</span>
@@ -290,7 +300,9 @@ export const EpgView = {
 
       <div class="ui-toast-region" aria-live="polite">
         <div v-if="flashText" :class="['ui-toast', { 'is-error': flashKind === 'err' }]">{{ flashText }}</div>
+        <sort-undo-toast :toast="orderToast" @undo="undoOrder" />
       </div>
+      <sort-announcer :message="sort.announcement.value" :keyboard-active="sort.keyboardActive.value" />
 
       <teleport to="body">
       <transition name="ui-sheet">
@@ -451,7 +463,7 @@ export const EpgView = {
       <transition name="ui-sheet">
       <channels-modal v-if="channelsModal" :channels="guide?.channels || []" :hidden-ids="guide?.hiddenIds || []"
         :sort="guide?.sort" :hide-sd-simulcasts="guide?.hideSdSimulcasts" :hide-sd-channels="guide?.hideSdChannels"
-        @close="channelsModal = false" @saved="onChannelPrefsSaved" />
+        :start-mode="channelsModalMode" @close="channelsModal = false" @saved="onChannelPrefsSaved" />
       </transition>
       </teleport>
     </div>
@@ -475,6 +487,7 @@ export const EpgView = {
     const modalAction = ref('')
     const busyId = ref(null)
     const channelsModal = ref(false)
+    const channelsModalMode = ref('channels')
     const [modalStatusText, modalStatusKind, setModalStatus] = makeStatus()
     const sheetEl = ref(null)
     const searchOpen = ref(false)
@@ -589,9 +602,11 @@ export const EpgView = {
         label: channelGroupLabel({ pinned, anyPinned }),
         shown: groupShown(pinned),
       })
+      const pinnedIds = visibleChannels.value.filter((c) => c.pinned).map((c) => String(c.id))
       return visibleChannels.value.flatMap((ch) => {
         const pinned = Boolean(ch.pinned)
-        const entry = { kind: 'channel', key: String(ch.id), shown: rowShown(ch), ch }
+        const pinIndex = pinned ? pinnedIds.indexOf(String(ch.id)) : -1
+        const entry = { kind: 'channel', key: String(ch.id), shown: rowShown(ch), ch, pinIndex }
         if (headedGroups.has(pinned)) return [entry]
         headedGroups.add(pinned)
         return [groupHeading(pinned), entry]
@@ -963,7 +978,7 @@ export const EpgView = {
 
     const cellShowsText = (p) => cellWidth(p) > EPG_CELL_TEXT_MIN_PX
 
-    const cellHasThumb = (p) => showImages.value && p.has_image && cellWidth(p) >= thumbMinCellPx.value
+    const cellHasThumb = (p) => p.has_image && cellWidth(p) >= thumbMinCellPx.value
 
     const cellStyle = (p) => ({
       left: `${cellX(p.start)}px`,
@@ -1377,17 +1392,28 @@ export const EpgView = {
       .filter((c) => c.pinned)
       .map((c) => String(c.id))
 
-    const reorderPins = async (pins) => {
-      try {
-        await api('PUT', '/api/epg/channel-prefs', { pinned_ids: pins })
-        await reloadGuide()
-      } catch (err) {
-        flash({ msg: `Reorder failed: ${err.message}`, kind: 'err', ms: 6000 })
+    const channelNameOf = (id) => channelById(id)?.name || 'Channel'
+
+    const applyPinOrder = (pins) => {
+      if (!guide.value) return
+      guide.value = {
+        ...guide.value,
+        channels: arrangeByOrder({ items: guide.value.channels || [], order: pins, idOf: (c) => String(c.id) }),
       }
     }
 
-    const pinDrag = usePinDrag({ rowSelector: '.epg-row.pinned', currentPins, onReorder: reorderPins })
-    const { dragPinId, dropTargetId, dropAfter, onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel } = pinDrag
+    const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: reloadGuide, nameOf: channelNameOf })
+
+    const canSort = computed(() => !narrow.value && !railFilter.value.trim())
+
+    const sort = useSortable({
+      listEl: () => scrollEl.value?.querySelector('.epg-rows'),
+      ids: () => visibleChannels.value.filter((c) => c.pinned).map((c) => String(c.id)),
+      nameOf: channelNameOf,
+      onDrop: orderSave.onDrop,
+      liftScale: 1,
+      edgeInsetTop: () => scrollEl.value?.querySelector('.epg-ruler')?.offsetHeight || 0,
+    })
 
     const pinsOffscreen = ref(false)
 
@@ -1466,7 +1492,6 @@ export const EpgView = {
     }
 
     const togglePin = async (ch) => {
-      if (pinDrag.didDrag()) return
       const pinnedIds = (guide.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
       try {
         await togglePinnedChannel({ pinnedIds, channelId: ch.id })
@@ -1477,6 +1502,12 @@ export const EpgView = {
     }
 
     const openChannelsModal = () => {
+      channelsModalMode.value = 'channels'
+      channelsModal.value = true
+    }
+
+    const openOrderEditor = () => {
+      channelsModalMode.value = 'order'
       channelsModal.value = true
     }
 
@@ -1714,10 +1745,9 @@ export const EpgView = {
       sheetMeta, cancelActions, selectedWatchItem,
       hdOffer, recordOffered, cancelSelectedSeries,
       cancelSeriesStep, selectedStatusText,
-      busyId, channelsModal, openChannelsModal, onChannelPrefsSaved,
+      busyId, channelsModal, channelsModalMode, openChannelsModal, openOrderEditor, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, cellHasThumb,
-      dropTargetId, dropAfter, dragPinId,
-      onPinPointerDown, onPinPointerMove, onPinPointerUp, onPinPointerCancel,
+      canSort, sort, orderToast: orderSave.toast, undoOrder: orderSave.undo,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
       channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, seLabel,
       flashText, flashKind,

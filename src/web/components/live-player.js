@@ -24,6 +24,7 @@ import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
 import { startOverOptionsOf, startOverNoteOf, behindLiveText, fromStartRecordingOf } from '/start-over.js'
 import { behindPillText, liveEdgeOf, liveHintText, percentWithin, programmeRangeText, joinedParts } from '/player-labels.js'
+import { canRewind } from '/live-edge.js'
 import { api } from '/shared/api.js'
 import {
   liveVideo,
@@ -53,6 +54,7 @@ import {
   returnToLive,
   watchFromStart,
   onLivePause,
+  seekLiveAndPlay,
   setLiveVideo,
 } from '/shared/live-session.js'
 import { multi, slotClassOf, watchAlongside, changePictureChannel, applySingleMuting, togglePlayerMuted } from '/shared/multi-session.js'
@@ -147,7 +149,7 @@ export const LivePlayer = {
         </player-top-bar>
         <p v-if="conflictText && live.phase === 'live'" class="pl-notice" role="status">{{ conflictText }}</p>
         <player-center-controls v-if="live.phase === 'live' && chips === 'hidden' && !infoOpen" :paused="live.paused"
-          :show-start-over="true" :start-over-disabled="!startOverOptions.length" start-over-title="Start over"
+          :show-start-over="startOverOptions.length > 0" start-over-title="Start over"
           @start-over="openStartOver" @toggle-pause="toggleLivePause">
           <template #end>
             <span v-if="liveEdge.atEdge" class="pl-live-status"><i aria-hidden="true"></i>LIVE</span>
@@ -299,7 +301,7 @@ export const LivePlayer = {
     const bufferSpan = computed(() =>
       (live.bufferFrom == null || live.bufferTo == null ? 0 : live.bufferTo - live.bufferFrom))
     const hasBufferBar = computed(() =>
-      live.phase === 'live' && live.bufferSeconds > 0 && bufferSpan.value >= MIN_BUFFER_BAR_S)
+      live.phase === 'live' && live.bufferSeconds > 0 && canRewind({ span: bufferSpan.value }))
     const shownLivePosition = computed(() => (live.scrubbing ? live.scrubValue : live.position))
     const liveFillPercent = computed(() =>
       (bufferSpan.value
@@ -343,6 +345,7 @@ export const LivePlayer = {
     }))
     const startOverOptions = computed(() => startOverOptionsOf({
       recording: fromStartRecording.value || (live.fromStart ? { ...live.fromStart, canPlayFromStart: true, start: live.fromStart.recordingStartedAt } : null),
+      hasBuffer: live.bufferSeconds > 0 && !live.fromStart,
       bufferStartMs: hasBufferBar.value && !live.fromStart ? now.value.getTime() - bufferSpan.value * 1000 : null,
       nowMs: now.value.getTime(),
       clockText: fmtClockTz,
@@ -351,8 +354,8 @@ export const LivePlayer = {
     const openStartOver = () => { startOverOpen.value = true }
     const chooseStartOver = (key) => {
       startOverOpen.value = false
-      if (key === 'tuned-in') return live.bufferFrom != null && seekLiveTo(live.bufferFrom)
-      if (live.fromStart) return seekLiveTo(0)
+      if (key === 'tuned-in') return live.bufferFrom != null && seekLiveAndPlay(live.bufferFrom)
+      if (live.fromStart) return seekLiveAndPlay(0)
       if (fromStartRecording.value) watchFromStart(fromStartRecording.value)
     }
 
@@ -635,4 +638,3 @@ const HAVE_FUTURE_DATA = 3
 const PLAYER_OPEN_CLASS = 'player-open'
 const PLAYER_MINI_CLASS = 'player-mini-open'
 
-const MIN_BUFFER_BAR_S = 10

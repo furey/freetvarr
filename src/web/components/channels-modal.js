@@ -4,6 +4,9 @@ import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
 import { overlayStack } from '/overlay-stack.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
+import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
+import { useSortable } from '/shared/pin-drag.js'
+import { menuMovesFor, moveItem, movedText } from '/sortable-math.js'
 
 const CHANNEL_SORT_OPTIONS = [
   { key: 'default', label: 'TVHeadend' },
@@ -12,16 +15,53 @@ const CHANNEL_SORT_OPTIONS = [
 ]
 
 export const ChannelsModal = {
-  props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts', 'hideSdChannels'],
+  components: SORT_PART_COMPONENTS,
+  props: ['channels', 'hiddenIds', 'sort', 'hideSdSimulcasts', 'hideSdChannels', 'startMode'],
   emits: ['close', 'saved'],
   template: `
     <div class="ui-sheet-backdrop channels-sheet-backdrop" :style="{ zIndex }" @click.self="$emit('close')">
-      <section ref="sheet" class="ui-sheet channels-sheet" role="dialog" aria-modal="true" aria-labelledby="channels-sheet-title" tabindex="-1">
+      <section ref="sheet" :class="['ui-sheet', 'channels-sheet', { 'is-order-mode': orderMode }]" role="dialog" aria-modal="true" aria-labelledby="channels-sheet-title" tabindex="-1">
         <span class="ui-sheet-grab" aria-hidden="true"></span>
+        <template v-if="orderMode">
+        <header class="ui-sheet-header">
+          <h2 id="channels-sheet-title" class="ui-sheet-title">Favourite order</h2>
+        </header>
+        <p class="ui-meta channels-order-hint">Drag <sort-grip-icon class="icon-inline" /> to move a channel, or use <sort-dots-icon class="icon-inline" />.</p>
+        <transition-group ref="orderListRef" name="channels-order-rows" tag="div" class="ui-group channels-order-list">
+          <div v-for="(id, i) in pinnedDraft" :key="id" :data-sort-id="id" class="ui-group-row channels-order-row">
+            <span class="channels-order-number" aria-hidden="true">{{ positionOf(id) }}</span>
+            <span class="channels-order-logo"><channel-logo :channel-id="id" :has-logo="hasLogoOf(id)" /></span>
+            <span class="ui-group-row-main channels-row-name"><span class="channels-row-title">{{ draftName(id) }}</span></span>
+            <button type="button" class="channels-order-more" data-sort-menu :aria-label="'Move ' + draftName(id)" aria-haspopup="menu"
+              :aria-expanded="String(menuFor === id)" @click="openMenu(id, $event)"><sort-dots-icon /></button>
+            <button type="button" class="sort-handle channels-order-handle" data-sort-handle aria-roledescription="sortable"
+              :aria-label="'Reorder ' + draftName(id) + ', position ' + (i + 1) + ' of ' + pinnedDraft.length + '. Press Space to pick up.'"
+              @pointerdown="sorter.onPointerDown(id, $event)" @keydown="sorter.onKeydown(id, $event)" @blur="sorter.onBlur(id)"><sort-grip-icon /></button>
+          </div>
+        </transition-group>
+        <div v-if="menuFor" class="channels-order-menu-backdrop" @click="closeMenu"></div>
+        <div v-if="menuFor" ref="menuEl" class="channels-order-menu" role="menu" :style="menuStyle" :aria-label="'Move ' + draftName(menuFor)">
+          <button v-for="move in menuMoves" :key="move.key" type="button" role="menuitem" class="channels-order-menu-item"
+            @click="applyMenuMove(move)">{{ move.label }}</button>
+          <hr v-if="menuMoves.length" class="channels-order-menu-rule" />
+          <button type="button" role="menuitem" class="channels-order-menu-item is-quiet" @click="removeFromOrder(menuFor)">Remove from favourites</button>
+        </div>
+        <sort-announcer :message="sorter.announcement.value" :keyboard-active="sorter.keyboardActive.value" />
+        <div class="ui-sheet-footer channels-footer">
+          <span v-if="statusText" :class="['status-readout', statusKind]" role="status">{{ statusText }}</span>
+          <div class="channels-footer-buttons is-order">
+            <button type="button" class="ui-button ui-button-secondary" @click="cancelOrder">Cancel</button>
+            <button type="button" class="ui-button ui-button-primary" @click="finishOrder" :disabled="savingPrefs">
+              {{ savingPrefs ? 'Saving…' : 'Done' }}
+            </button>
+          </div>
+        </div>
+        </template>
+        <template v-else>
         <header class="ui-sheet-header">
           <h2 id="channels-sheet-title" class="ui-sheet-title">Channels</h2>
           <info-button title="Channels" doc="guide/tv-guide#favourites">
-            <p>Favourites sit at the top of Live TV and the Guide, in the order set here. Press a star to add or remove a favourite, and use the arrows to change the order.</p>
+            <p>Favourites sit at the top of Live TV and the Guide, in the order set here. Press a star to add or remove a favourite, and press Edit order to change the order.</p>
             <p>Turn a channel off to hide it from both pages. A favourite is always shown. The sort order, Hide SD simulcasts, and Hide SD channels apply to the other channels.</p>
             <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the Guide.</p>
           </info-button>
@@ -30,21 +70,23 @@ export const ChannelsModal = {
         <div class="channels-grid">
           <div class="channels-settings">
             <section class="channels-section" aria-labelledby="channels-favourites-label">
-              <h3 id="channels-favourites-label" class="ui-label">Favourites, shown first in this order</h3>
+              <div class="channels-favourites-head">
+                <h3 id="channels-favourites-label" class="ui-label">Favourites, shown first in this order</h3>
+                <button v-if="pinnedDraft.length >= 2" type="button" class="sort-edit-order" @click="enterOrderMode">Edit order</button>
+              </div>
               <p v-if="pinnedDraft.length === 0" class="ui-meta">
                 No favourites yet. Tap the <span class="whitespace-nowrap"><star-icon class="icon-inline" /> next</span> to a channel below, in the Guide rail, or in Live TV.
               </p>
               <div v-else class="ui-group">
-                <div v-for="(id, i) in pinnedDraft" :key="id" class="ui-group-row channels-pin-row">
+                <div v-for="id in shownFavourites" :key="id" class="ui-group-row channels-pin-row">
                   <button type="button" class="epg-pin pinned" @click="toggleDraftPin(id)"
                     title="Remove from favourites" :aria-label="'Remove ' + draftName(id) + ' from favourites'"><star-icon /></button>
-                  <span class="ui-group-row-main channels-row-name">{{ draftName(id) }}</span>
-                  <button type="button" class="ui-icon-button is-plain" :disabled="i === 0"
-                    @click="movePin(i, -1)" title="Move up" :aria-label="'Move ' + draftName(id) + ' up'"><arrow-up-icon /></button>
-                  <button type="button" class="ui-icon-button is-plain" :disabled="i === pinnedDraft.length - 1"
-                    @click="movePin(i, 1)" title="Move down" :aria-label="'Move ' + draftName(id) + ' down'"><arrow-down-icon /></button>
+                  <span class="channels-order-logo"><channel-logo :channel-id="id" :has-logo="hasLogoOf(id)" /></span>
+                  <span class="ui-group-row-main channels-row-name"><span class="channels-row-title">{{ draftName(id) }}</span></span>
                 </div>
               </div>
+              <button v-if="hiddenFavouriteCount > 0" type="button" class="channels-more-favourites"
+                @click="showAllFavourites = true">+{{ hiddenFavouriteCount }} more</button>
             </section>
             <section class="channels-section" aria-labelledby="channels-sort-label">
               <h3 id="channels-sort-label" class="ui-label">Sort other channels by</h3>
@@ -134,6 +176,7 @@ export const ChannelsModal = {
             </button>
           </div>
         </div>
+        </template>
       </section>
     </div>
   `,
@@ -201,8 +244,10 @@ export const ChannelsModal = {
     const onKeydown = (event) => {
       if (!overlayStack.isTop(layer.id)) return
       if (event.key === 'Tab') return keepFocusInside({ event, root: sheet.value })
-      if (event.key !== 'Escape' || editingId.value !== null) return
+      if (event.key !== 'Escape' || editingId.value !== null || sorter.isActive()) return
       event.stopImmediatePropagation()
+      if (menuFor.value) return closeMenu({ refocus: true })
+      if (orderMode.value) return cancelOrder()
       emit('close')
     }
 
@@ -234,11 +279,101 @@ export const ChannelsModal = {
       hiddenDraft.value = next
     }
 
-    const movePin = (i, delta) => {
-      const next = [...pinnedDraft.value]
-      const [moved] = next.splice(i, 1)
-      next.splice(i + delta, 0, moved)
-      pinnedDraft.value = next
+    const hasLogoOf = (id) => {
+      const channel = props.channels.find((c) => String(c.id) === String(id))
+      return Boolean(channel?.hasLogo || channel?.logos?.length)
+    }
+
+    const showAllFavourites = ref(false)
+    const shownFavourites = computed(() => (showAllFavourites.value
+      ? pinnedDraft.value
+      : pinnedDraft.value.slice(0, IDLE_FAVOURITES_SHOWN)))
+    const hiddenFavouriteCount = computed(() => pinnedDraft.value.length - shownFavourites.value.length)
+
+    const orderMode = ref(props.startMode === 'order')
+    const openedInOrderMode = props.startMode === 'order'
+    let orderSnapshot = [...pinnedDraft.value]
+    const orderListRef = ref(null)
+    const menuFor = ref(null)
+    const menuStyle = ref({})
+    const menuEl = ref(null)
+
+    const sorter = useSortable({
+      listEl: () => orderListRef.value?.$el,
+      ids: () => pinnedDraft.value,
+      nameOf: draftName,
+      onDrop: ({ order }) => { pinnedDraft.value = order },
+    })
+
+    const positionOf = (id) => (sorter.previewOrder.value || pinnedDraft.value).indexOf(id) + 1
+
+    const enterOrderMode = () => {
+      orderSnapshot = [...pinnedDraft.value]
+      orderMode.value = true
+      nextTick(() => sheet.value?.focus())
+    }
+
+    const leaveOrderMode = () => {
+      closeMenu()
+      if (openedInOrderMode) return emit('close')
+      orderMode.value = false
+      nextTick(() => sheet.value?.focus())
+    }
+
+    const cancelOrder = () => {
+      pinnedDraft.value = orderSnapshot
+      leaveOrderMode()
+    }
+
+    const finishOrder = async () => {
+      savingPrefs.value = true
+      const saved = await savePrefs()
+      savingPrefs.value = false
+      if (!saved) return
+      if (openedInOrderMode) return emit('saved', { listingsLoading: false })
+      orderSnapshot = [...pinnedDraft.value]
+      setStatus('Order saved.', 'ok')
+      leaveOrderMode()
+    }
+
+    const menuMoves = computed(() => (menuFor.value
+      ? menuMovesFor({ index: pinnedDraft.value.indexOf(menuFor.value), count: pinnedDraft.value.length })
+      : []))
+
+    const openMenu = (id, event) => {
+      const button = event.currentTarget.getBoundingClientRect()
+      const box = sheet.value.getBoundingClientRect()
+      menuStyle.value = {
+        top: `${button.bottom - box.top + sheet.value.scrollTop + 4}px`,
+        right: `${box.right - button.right}px`,
+      }
+      menuFor.value = id
+      nextTick(() => menuEl.value?.querySelector('button')?.focus())
+    }
+
+    const focusMenuButtonOf = (id) => nextTick(() =>
+      orderListRef.value?.$el?.querySelector(`[data-sort-id="${id}"] [data-sort-menu]`)?.focus())
+
+    const closeMenu = ({ refocus = false } = {}) => {
+      const id = menuFor.value
+      menuFor.value = null
+      if (refocus && id) focusMenuButtonOf(id)
+    }
+
+    const applyMenuMove = (move) => {
+      const id = menuFor.value
+      const from = pinnedDraft.value.indexOf(id)
+      pinnedDraft.value = moveItem({ list: pinnedDraft.value, from, to: move.to })
+      menuFor.value = null
+      sorter.announce(movedText({ name: draftName(id), index: move.to, count: pinnedDraft.value.length }))
+      focusMenuButtonOf(id)
+    }
+
+    const removeFromOrder = (id) => {
+      menuFor.value = null
+      toggleDraftPin(id)
+      sorter.announce(`${draftName(id)} removed from favourites.`)
+      if (pinnedDraft.value.length === 0) leaveOrderMode()
     }
 
     const toggleHidden = (ch) => {
@@ -293,13 +428,18 @@ export const ChannelsModal = {
 
     return {
       CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, hideSdChannelsDraft, listedChannels, savingPrefs,
-      statusText, statusKind, draftName, toggleDraftPin, movePin, toggleHidden, save,
+      statusText, statusKind, draftName, toggleDraftPin, toggleHidden, save,
+      hasLogoOf, showAllFavourites, shownFavourites, hiddenFavouriteCount,
+      orderMode, orderListRef, sorter, positionOf, enterOrderMode, cancelOrder, finishOrder,
+      menuFor, menuStyle, menuEl, menuMoves, openMenu, closeMenu, applyMenuMove, removeFromOrder,
       guideLinks, guideLoading, guideLoadError, guideDraft, showGuideColumn, guideStatusText, guideStatusKind,
       editingId, editValue, guideNameFor, isGuideChanged, startGuideEdit, cancelGuideEdit, confirmGuideEdit,
       onRowEscape, paddedNumber, sheet, zIndex,
     }
   },
 }
+
+const IDLE_FAVOURITES_SHOWN = 5
 
 export const togglePinnedChannel = async ({ pinnedIds, channelId }) => {
   const key = String(channelId)

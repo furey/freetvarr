@@ -326,9 +326,11 @@ test('runDoctor: a real link between the test folders passes the hardlink check'
   assert.match(check.detail, /hardlink\.$/)
 })
 
-test('classifyDiskFree: under 2 GB fails, under 20 GB or 10% warns', () => {
+test('classifyDiskFree: under 10 GB fails, under 20 GB or 10% warns', () => {
   assert.equal(classifyDiskFree({ free: 1 * GB, total: 1000 * GB }), 'fail')
   assert.equal(classifyDiskFree({ free: 15 * GB, total: 50 * GB }), 'warn')
+  assert.equal(classifyDiskFree({ free: 9 * GB, total: 1000 * GB }), 'fail')
+  assert.equal(classifyDiskFree({ free: 10 * GB, total: 50 * GB }), 'warn')
   assert.equal(classifyDiskFree({ free: 90 * GB, total: 1000 * GB }), 'warn')
   assert.equal(classifyDiskFree({ free: 200 * GB, total: 1000 * GB }), 'pass')
 })

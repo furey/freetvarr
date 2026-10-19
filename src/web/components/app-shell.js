@@ -1,5 +1,7 @@
 import { computed } from '/vendor/vue.esm-browser.prod.js'
+import { badgedNameOf, healthBadgeOf } from '/health-level.js'
 import { NAV_DESTINATIONS, activeDestinationOf } from '/route-table.js'
+import { health } from '/shared/health.js'
 import { route } from '/shared/router.js'
 import { syncStatus } from '/shared/sync-status.js'
 
@@ -27,21 +29,24 @@ export const AppNav = {
       <a href="#/home" class="no-hover-underline" aria-label="Freetvarr home"><brand-mark /></a>
       <template v-for="item in items" :key="item.key">
         <span v-if="item.key === 'settings'" class="app-rail-spacer"></span>
-        <a :href="item.href" class="app-nav-item" :aria-current="item.key === active ? 'page' : null">
-          <span class="app-nav-pill"><component :is="item.icon" /></span>{{ item.label }}
+        <a :href="item.href" class="app-nav-item" :aria-current="item.key === active ? 'page' : null" :aria-label="nameOf(item)">
+          <span class="app-nav-pill"><span class="app-nav-icon"><component :is="item.icon" /><span v-if="badgeOf(item)" :class="['app-nav-badge', 'is-' + badgeOf(item)]" aria-hidden="true"></span></span></span>{{ item.label }}
         </a>
       </template>
     </nav>
     <nav class="app-tabbar" aria-label="Main">
       <a v-for="item in items" :key="item.key" :href="item.href" class="app-nav-item"
-        :aria-current="item.key === active ? 'page' : null">
-        <span class="app-nav-pill"><component :is="item.icon" /></span>{{ item.label }}
+        :aria-current="item.key === active ? 'page' : null" :aria-label="nameOf(item)">
+        <span class="app-nav-pill"><span class="app-nav-icon"><component :is="item.icon" /><span v-if="badgeOf(item)" :class="['app-nav-badge', 'is-' + badgeOf(item)]" aria-hidden="true"></span></span></span>{{ item.label }}
       </a>
     </nav>
   `,
   setup() {
     const items = NAV_DESTINATIONS.map((item) => ({ ...item, icon: NAV_ICONS[item.key] }))
     const active = computed(() => activeDestinationOf(route.value))
-    return { items, active }
+    const settingsBadge = computed(() => healthBadgeOf(health.value))
+    const badgeOf = (item) => (item.key === 'settings' ? settingsBadge.value : null)
+    const nameOf = (item) => (badgeOf(item) ? badgedNameOf({ label: item.label, badge: badgeOf(item) }) : null)
+    return { items, active, badgeOf, nameOf }
   },
 }

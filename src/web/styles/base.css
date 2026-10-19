@@ -1458,30 +1458,132 @@ a.ui-banner:hover {
   color: var(--color-live-text);
 }
 
-.ui-header-chip.is-warn {
-  background: var(--color-warning-tint);
-  color: var(--color-warning);
+.app-nav-icon {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 22px;
 }
 
-.ui-header-chip.is-fail {
-  background: rgba(255, 77, 79, 0.14);
+.app-nav-badge {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--color-surface-1);
+  border-radius: 50%;
+  box-sizing: content-box;
+}
+
+.app-rail .app-nav-badge {
+  border-color: var(--color-rail);
+}
+
+.app-nav-badge.is-warn { background: var(--color-warning); }
+.app-nav-badge.is-fail { background: var(--color-live); }
+
+.health-alert {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--color-surface-2);
+  color: var(--color-live-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.health-alert-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.health-alert .health-alert-link {
+  min-height: 44px;
+  padding-left: 14px;
+}
+
+.health-alert-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.health-alert-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.health-alert-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-alert-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  stroke-width: 2.5;
+}
+
+.health-alert-close {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-left: 1px solid var(--color-hairline);
+  color: var(--color-text-2);
+}
+
+.health-alert-close svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+.ui-header-chip.health-alert-chip {
+  max-width: 360px;
+  padding: 0 0 0 12px;
+  gap: 4px;
+  background: var(--color-surface-2);
   color: var(--color-live-text);
 }
 
-.ui-health-button {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-button);
-  background: var(--color-surface-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.health-alert-chip .health-alert-link {
+  gap: 8px;
 }
 
-.ui-health-button .ui-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 5px;
+.health-alert-chip .health-alert-link > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.health-alert-chip .health-alert-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.health-alert-chip .health-alert-close {
+  width: 32px;
+  height: 32px;
+  border-left: 0;
+  border-radius: 16px;
+  color: var(--color-live-text);
+  opacity: 0.8;
+}
+
+.health-alert-close:hover {
+  color: var(--color-text-1);
+  opacity: 1;
 }
 
 .ui-clock {
@@ -1695,4 +1797,14 @@ a.ui-banner:hover {
 
 .recording-drawer-text.is-dim {
   color: var(--color-text-2);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"],
+      [type="reset"], [type="color"], [type="file"], [type="image"], [type="hidden"]),
+  textarea,
+  select,
+  [contenteditable]:not([contenteditable="false"]) {
+    font-size: max(16px, 1em) !important;
+  }
 }

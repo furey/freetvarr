@@ -497,16 +497,6 @@
   color: var(--color-primary);
 }
 
-.guide-page .epg-row.epg-drop-target,
-.guide-page .epg-row.epg-drop-target .epg-rail-cell {
-  box-shadow: inset 0 2px 0 0 var(--color-primary);
-}
-
-.guide-page .epg-row.epg-drop-target.epg-drop-after,
-.guide-page .epg-row.epg-drop-target.epg-drop-after .epg-rail-cell {
-  box-shadow: inset 0 -2px 0 0 var(--color-primary);
-}
-
 .guide-page .epg-rail-resizer:hover::after,
 .guide-page .epg-rail-resizer:active::after {
   background: rgba(92, 225, 198, 0.5);
@@ -538,7 +528,7 @@
 }
 
 .guide-page .epg-cell.with-thumb {
-  padding-left: calc(var(--epg-thumb-w) + 15px);
+  padding-left: 10px;
 }
 
 .guide-page .programme-image.cell {
@@ -552,16 +542,35 @@
 }
 
 .guide-page .epg-cell-text {
-  position: sticky;
-  left: calc(var(--epg-rail-px, 200px) + 10px);
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
+.guide-page .epg-cell[data-at-rail-edge] .epg-cell-text {
+  position: sticky;
+  left: calc(var(--epg-rail-px, 200px) + 10px);
+}
+
 .guide-page .epg-cell.with-thumb .epg-cell-text {
+  margin-left: calc(var(--epg-thumb-w) + 5px);
+}
+
+.guide-page .epg-cell.with-thumb[data-at-rail-edge] .epg-cell-text {
   left: calc(var(--epg-rail-px, 200px) + var(--epg-thumb-w) + 15px);
+}
+
+.guide-page .epg-images-off .epg-cell.with-thumb .epg-cell-text {
+  margin-left: 0;
+}
+
+.guide-page .epg-images-off .epg-cell.with-thumb[data-at-rail-edge] .epg-cell-text {
+  left: calc(var(--epg-rail-px, 200px) + 10px);
+}
+
+.guide-page .epg-images-off .programme-image.cell {
+  display: none;
 }
 
 .guide-page .epg-cell-title {
@@ -1331,5 +1340,426 @@
 
   .guide-scheduled-chip:active {
     transform: none;
+  }
+}
+
+.sort-handle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-3);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: opacity var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard);
+}
+
+.sort-handle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sort-handle:focus-visible {
+  outline: none;
+  opacity: 1;
+  color: var(--color-text-1);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.sort-gutter {
+  flex: none;
+  width: 32px;
+}
+
+:is(.live-sort-handle, .epg-sort-handle) {
+  opacity: 0.45;
+}
+
+@media (hover: hover) {
+  :is(.live-sort-handle, .epg-sort-handle) {
+    opacity: 0;
+  }
+
+  [data-sort-id]:hover :is(.live-sort-handle, .epg-sort-handle),
+  :is(.live-sort-handle, .epg-sort-handle):focus-visible {
+    opacity: 1;
+    color: var(--color-text-1);
+  }
+
+  [data-sort-id]:hover :is(.live-sort-handle, .epg-sort-handle):hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.sort-edit-order {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sort-edit-order:focus-visible {
+  outline: none;
+  border-radius: 8px;
+  box-shadow: var(--focus-ring);
+}
+
+.is-sorting {
+  position: relative;
+}
+
+.is-sorting [data-sort-id] {
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.is-sorting [data-sort-id].is-sort-lifted {
+  position: relative;
+  z-index: 8;
+  border-radius: var(--radius-card);
+  border-top-color: transparent;
+  background: var(--color-surface-3);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  transition: box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.is-sort-keyboard [data-sort-id].is-sort-lifted,
+.is-sorting [data-sort-id].is-sort-settling {
+  transition: transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.is-sorting [data-sort-id].is-sort-settling {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+
+.is-sorting .is-sort-lifted .sort-handle {
+  opacity: 1;
+  color: var(--color-primary);
+  cursor: grabbing;
+}
+
+.sort-slot {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  z-index: 0;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary) 50%, transparent);
+  pointer-events: none;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.is-sort-commit [data-sort-id],
+.is-sort-commit .sort-slot,
+.is-sort-commit :is(.epg-rows-move, .channels-order-rows-move) {
+  transition: none !important;
+}
+
+.is-sort-reduced [data-sort-id],
+.is-sort-reduced .sort-slot {
+  transition: none !important;
+}
+
+.is-sort-reduced [data-sort-id].is-sort-lifted {
+  box-shadow: inset 0 0 0 1.5px var(--color-primary);
+}
+
+.is-sort-reduced .sort-slot {
+  box-shadow: none;
+  outline: 1.5px dashed color-mix(in srgb, var(--color-primary) 60%, transparent);
+  outline-offset: -1.5px;
+}
+
+.sort-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--app-tabbar-h) + 24px);
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  color: var(--color-text-1);
+  font-size: 15px;
+  font-weight: 600;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.sort-hint kbd {
+  min-width: 24px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--color-surface-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sort-hint span {
+  margin-right: 6px;
+}
+
+.sort-toast {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 8px 6px 16px;
+}
+
+.sort-toast-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.sort-toast-undo {
+  flex: none;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sort-toast-undo:focus-visible {
+  outline: 2px solid var(--color-primary);
+}
+
+.epg-canvas:has(.is-sorting) .epg-ruler {
+  z-index: 10;
+}
+
+.epg-canvas:has(.is-sorting) .epg-ruler-corner {
+  z-index: 11;
+}
+
+.guide-page .epg-rail-cell .sort-handle,
+.guide-page .epg-rail-cell .sort-gutter {
+  margin: 0 -6px 0 -6px;
+}
+
+.guide-page .epg-row.is-sort-lifted .epg-rail-cell {
+  background: var(--color-surface-3);
+}
+
+.guide-page .epg-row.is-sort-lifted .epg-track {
+  opacity: 0.55;
+}
+
+.guide-page .epg-edit-order {
+  margin: -6px 0 -6px auto;
+  font-size: 13px;
+}
+
+.channels-sheet {
+  position: relative;
+}
+
+.channels-favourites-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -12px 0;
+}
+
+.channels-more-favourites {
+  align-self: flex-start;
+  min-height: 44px;
+  margin: -8px 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-3);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.channels-order-hint {
+  margin: -4px 0 0;
+}
+
+.channels-order-hint .icon-inline {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.channels-order-logo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background: var(--color-surface-2);
+}
+
+.channels-order-logo .epg-rail-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.channels-pin-row .channels-order-logo {
+  width: 36px;
+  height: 36px;
+}
+
+.channels-order-row {
+  min-height: 56px;
+  padding: 0 0 0 12px;
+  gap: 12px;
+}
+
+.channels-order-number {
+  flex: none;
+  width: 20px;
+  color: var(--color-text-3);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.channels-order-more {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+.channels-order-more svg,
+.channels-order-handle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.channels-order-more:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  border-radius: 8px;
+}
+
+.sort-handle.channels-order-handle {
+  width: 48px;
+  height: 56px;
+  color: var(--color-text-2);
+}
+
+.channels-order-list.is-sorting {
+  overflow: visible;
+}
+
+.channels-order-rows-move {
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.channels-order-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+}
+
+.channels-order-menu {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-3);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
+}
+
+.channels-order-menu-item {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-1);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.channels-order-menu-item:hover,
+.channels-order-menu-item:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.channels-order-menu-item.is-quiet {
+  color: var(--color-text-2);
+}
+
+.channels-order-menu-rule {
+  margin: 4px 8px;
+  border: 0;
+  border-top: 1px solid var(--color-hairline);
+}
+
+.channels-footer-buttons.is-order > .ui-button:first-child {
+  flex: 0 0 auto;
+  min-width: 112px;
+}
+
+@media (min-width: 768px) {
+  .channels-sheet.is-order-mode {
+    max-width: 560px;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .guide-page .epg-heading-row .epg-heading-rail {
+    width: auto;
+    min-width: var(--epg-rail-px, 200px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-sorting [data-sort-id],
+  .sort-slot,
+  .channels-order-rows-move {
+    transition: none !important;
   }
 }

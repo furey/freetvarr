@@ -20,6 +20,8 @@ export const ChevronGlyph = strokeIcon('<path d="m9 18 6-6-6-6"/>')
 
 export const BackGlyph = strokeIcon('<path d="m15 18-6-6 6-6"/>')
 
+export const WarningGlyph = strokeIcon('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>')
+
 export const CloseGlyph = strokeIcon('<path d="M18 6 6 18M6 6l12 12"/>')
 
 export const PlayGlyph = {

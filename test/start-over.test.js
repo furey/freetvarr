@@ -6,6 +6,7 @@ import {
   startOverNoteOf,
   behindLiveText,
   fromStartRecordingOf,
+  NOTHING_BUFFERED_TEXT,
 } from '../src/web/start-over.js'
 
 const clockText = (ms) => `@${new Date(ms).toISOString().slice(11, 16)}`
@@ -34,10 +35,32 @@ test('only the buffer option shows when nothing is recording', () => {
   assert.match(startOverNoteOf(options), /shows only when Freetvarr is recording/)
 })
 
-test('the buffer option is disabled when tuned in under a minute ago', () => {
+test('the buffer option is ready seconds after tuning in', () => {
   const [option] = startOverOptionsOf({ recording: null, bufferStartMs: NOW - 20_000, nowMs: NOW, clockText })
-  assert.equal(option.disabled, true)
+  assert.equal(option.disabled, false)
+  assert.equal(option.detail, '@09:52 · just now')
   assert.equal(minutesAgoText(0), 'just now')
+})
+
+test('the buffer option explains itself before anything is buffered', () => {
+  const options = startOverOptionsOf({ recording: null, hasBuffer: true, bufferStartMs: null, nowMs: NOW, clockText })
+  assert.deepEqual(options.map((o) => [o.key, o.disabled, o.detail]), [['tuned-in', true, NOTHING_BUFFERED_TEXT]])
+  assert.match(startOverNoteOf(options), /shows only when Freetvarr is recording/)
+})
+
+test('from the start is offered at once while recording, even with nothing buffered', () => {
+  const options = startOverOptionsOf({
+    recording: { title: 'The Block', start: NOW - 22 * MIN, canPlayFromStart: true },
+    hasBuffer: true,
+    bufferStartMs: null,
+    nowMs: NOW,
+    clockText,
+  })
+  assert.deepEqual(options.map((o) => [o.key, Boolean(o.disabled)]), [['from-start', false], ['tuned-in', true]])
+})
+
+test('no options without a buffer or a recording', () => {
+  assert.deepEqual(startOverOptionsOf({ recording: null, hasBuffer: false, bufferStartMs: null, nowMs: NOW, clockText }), [])
 })
 
 test('behindLiveText rounds to whole minutes, at least one', () => {
