@@ -1,4 +1,4 @@
-import { ref, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, nextTick, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
   autoScrollStep, cancelledText, clampOffset, keyboardTarget, mergeVisibleOrder, moveItem,
   movedText, offsetsFor, pickedUpText, positionText, slotOffsetFor, targetIndexFor,
@@ -282,6 +282,19 @@ export const useSortable = ({ listEl, ids, nameOf, onDrop, threshold = 4, liftSc
   })
 
   return { activeId, keyboardActive, previewOrder, announcement, announce, isActive, onPointerDown, onKeydown, onBlur }
+}
+
+export const useOrderEditing = ({ canEdit }) => {
+  const editing = ref(false)
+  const sortable = computed(() => editing.value && canEdit.value)
+  const toggle = () => { editing.value = !editing.value }
+  const stop = () => {
+    if (!editing.value) return false
+    editing.value = false
+    return true
+  }
+  watch(canEdit, (can) => { if (!can) editing.value = false })
+  return { editing, sortable, toggle, stop }
 }
 
 export const useFavouriteOrderSave = ({ currentPins, applyOrder, reload, nameOf }) => {

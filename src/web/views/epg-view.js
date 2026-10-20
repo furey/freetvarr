@@ -55,7 +55,7 @@ import { EPG_NARROW_QUERY, CHANNELS_SAVED_TEXT } from '/shared/constants.js'
 import { fmtBytes } from '/shared/format.js'
 import { liveChannelOf, watchLive } from '/shared/live-session.js'
 import { makeStatus } from '/shared/path-check.js'
-import { setDragLock, useFavouriteOrderSave, useSortable } from '/shared/pin-drag.js'
+import { setDragLock, useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { GUIDE_ROW_CONTEXT, GuideRow } from '/components/guide-row.js'
 import { GUIDE_IMAGES_ON } from '/components/images.js'
@@ -1507,10 +1507,7 @@ export const EpgView = {
     const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: reloadGuide, nameOf: channelNameOf })
 
     const canEditOrder = computed(() => canEditOrderOf({ narrow: narrow.value, filter: railFilter.value, pinnedCount: pinnedCount.value }))
-    const editingOrder = ref(false)
-    const canSort = computed(() => editingOrder.value && canEditOrder.value)
-    const toggleOrderEditing = () => { editingOrder.value = !editingOrder.value }
-    watch(canEditOrder, (can) => { if (!can) editingOrder.value = false })
+    const { editing: editingOrder, sortable: canSort, toggle: toggleOrderEditing, stop: stopOrderEditing } = useOrderEditing({ canEdit: canEditOrder })
 
     const sort = useSortable({
       listEl: () => scrollEl.value?.querySelector('.epg-rows'),
@@ -1865,8 +1862,7 @@ export const EpgView = {
       else if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
       else if (searchOpen.value) closeSearch()
-      else if (editingOrder.value) editingOrder.value = false
-      else return
+      else if (!stopOrderEditing()) return
       e.preventDefault()
     }
 

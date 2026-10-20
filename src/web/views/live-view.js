@@ -6,7 +6,8 @@ import { api, fetchSettings } from '/shared/api.js'
 import { onNowPercent } from '/shared/format.js'
 import { groupsOf, matchesFilter, timeLeftLabel, nextLabel } from '/live-list.js'
 import { watchLive } from '/shared/live-session.js'
-import { useFavouriteOrderSave, useSortable } from '/shared/pin-drag.js'
+import { canEditOrderOf } from '/guide-rail.js'
+import { useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { arrangeByOrder } from '/sortable-math.js'
 import { useFlash, useMediaQuery } from '/shared/composables.js'
@@ -62,18 +63,18 @@ export const LiveView = {
             <h2 class="ui-group-label">{{ g.label }}</h2>
             <button v-if="g.key === 'pinned' && narrow && g.entries.length >= 2" type="button" class="sort-edit-order"
               @click="openOrderEditor">Edit order</button>
+            <sort-edit-toggle v-else-if="g.key === 'pinned' && canEditOrder" :on="editingOrder" @toggle="toggleOrderEditing" />
           </div>
           <ul :class="['live-list', { 'is-sortable': g.key === 'pinned' && canSort }]">
             <li v-for="(e, i) in g.entries" :key="e.channel.id" :data-channel-id="e.channel.id"
               :data-sort-id="g.key === 'pinned' && canSort ? String(e.channel.id) : null"
               :class="['live-row', { pinned: e.channel.pinned, 'is-off-air': e.channel.offAir }]">
-              <button v-if="g.key === 'pinned' && canSort" type="button" class="sort-handle live-sort-handle" data-sort-handle
-                aria-roledescription="sortable" title="Drag to reorder"
+              <button v-if="g.key === 'pinned' && !narrow" type="button" class="sort-handle live-sort-handle" data-sort-handle
+                aria-roledescription="sortable" title="Drag to reorder" :inert="!canSort"
                 :aria-label="'Reorder ' + e.channel.name + ', position ' + (i + 1) + ' of ' + g.entries.length + '. Press Space to pick up.'"
-                @pointerdown="sort.onPointerDown(String(e.channel.id), $event)"
-                @keydown="sort.onKeydown(String(e.channel.id), $event)"
+                @pointerdown="canSort && sort.onPointerDown(String(e.channel.id), $event)"
+                @keydown="canSort && sort.onKeydown(String(e.channel.id), $event)"
                 @blur="sort.onBlur(String(e.channel.id))"><sort-grip-icon /></button>
-              <span v-else-if="!narrow" class="sort-gutter" aria-hidden="true"></span>
               <div class="live-row-lead">
                 <button type="button" :class="['live-star', { pinned: e.channel.pinned }]" :aria-pressed="String(Boolean(e.channel.pinned))"
                   :title="e.channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
@@ -203,8 +204,13 @@ export const LiveView = {
 
     const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: load, nameOf: channelNameOf })
 
-    const canSort = computed(() => !narrow.value && !filterQ.value.trim())
     const sortableIds = () => (groups.value.find((g) => g.key === 'pinned')?.entries || []).map((e) => String(e.channel.id))
+    const canEditOrder = computed(() => canEditOrderOf({ narrow: narrow.value, filter: filterQ.value, pinnedCount: sortableIds().length }))
+    const { editing: editingOrder, sortable: canSort, toggle: toggleOrderEditing, stop: stopOrderEditing } = useOrderEditing({ canEdit: canEditOrder })
+    const onKeydown = (event) => {
+      if (event.key !== 'Escape' || channelsModal.value) return
+      if (stopOrderEditing()) event.preventDefault()
+    }
 
     const sort = useSortable({
       listEl: () => pageEl.value?.querySelector('.live-list.is-sortable'),
@@ -249,18 +255,20 @@ export const LiveView = {
       load()
       pollTimer = setInterval(load, LIVE_LIST_POLL_MS)
       document.addEventListener('visibilitychange', onVisibility)
+      window.addEventListener('keydown', onKeydown)
     })
     onUnmounted(() => {
       clearInterval(pollTimer)
       clearTimeout(boundaryTimer)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('keydown', onKeydown)
     })
 
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, groups, favouritesHint, emptyText,
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
       OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
-      zoom, pageEl, narrow, canSort, sort, channelsModalMode, openChannelsModal, openOrderEditor,
+      zoom, pageEl, narrow, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,
       orderToast: orderSave.toast, undoOrder: orderSave.undo,
       isRecordingChannel, onNowPercent, fmtClockTz, flashText, flashKind,
     }

@@ -24,16 +24,8 @@ export const GuideRow = {
           <span class="channel-group-heading">{{ label }}</span>
           <button v-if="rowKey === 'h-fav' && narrow && pinnedCount >= 2" type="button" class="sort-edit-order epg-edit-order"
             @click="openOrderEditor">Edit order</button>
-          <button v-else-if="rowKey === 'h-fav' && canEditOrder" type="button"
-            :class="['epg-order-toggle', { 'is-icon': railLayout.orderControl === 'icon', 'is-on': editingOrder }]"
-            :aria-pressed="String(editingOrder)"
-            :aria-label="railLayout.orderControl === 'icon' ? (editingOrder ? 'Done' : 'Edit order') : null"
-            :title="railLayout.orderControl === 'icon' ? (editingOrder ? 'Done' : 'Edit order') : null"
-            @click="toggleOrderEditing">
-            <template v-if="railLayout.orderControl === 'icon'"><check-icon v-if="editingOrder" /><sort-order-icon v-else /></template>
-            <template v-else-if="editingOrder">Done</template>
-            <template v-else><sort-order-icon />Edit order</template>
-          </button>
+          <sort-edit-toggle v-else-if="rowKey === 'h-fav' && canEditOrder" :on="editingOrder"
+            :icon-only="railLayout.orderControl === 'icon'" @toggle="toggleOrderEditing" />
         </div>
         <div class="epg-heading-track"></div>
       </template>

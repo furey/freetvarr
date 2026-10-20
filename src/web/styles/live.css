@@ -151,9 +151,50 @@
   gap: 10px;
 }
 
-.live-row .sort-handle,
-.live-row .sort-gutter {
-  margin-right: -10px;
+.live-groups {
+  --live-order-shift: 36px;
+}
+
+.live-row .live-sort-handle {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  margin-top: -22px;
+  color: var(--color-text-1);
+  opacity: 0;
+  translate: calc(-1 * var(--live-order-shift)) 0;
+  pointer-events: none;
+  transition: translate var(--motion-fast) var(--ease-standard), opacity var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard);
+}
+
+.live-row > :not(.live-sort-handle) {
+  transition: translate var(--motion-fast) var(--ease-standard);
+}
+
+.live-list.is-sortable .live-row.pinned .live-sort-handle {
+  opacity: 1;
+  translate: 0 0;
+  pointer-events: auto;
+}
+
+.live-list.is-sortable .live-row.pinned > :not(.live-sort-handle) {
+  translate: var(--live-order-shift) 0;
+}
+
+.live-list.is-sortable .live-row.pinned {
+  padding-right: calc(12px + var(--live-order-shift));
+}
+
+@media (hover: hover) {
+  .live-list.is-sortable .live-sort-handle:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-row > * {
+    transition: none;
+  }
 }
 
 .live-group-head {
@@ -170,6 +211,10 @@
 
 .live-group-head .sort-edit-order {
   margin: -12px 0;
+}
+
+.live-group-head .sort-edit-toggle {
+  margin-right: 0;
 }
 
 .live-list.is-sorting {
