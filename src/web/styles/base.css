@@ -719,17 +719,6 @@ body.sheet-open .app-tabbar {
   pointer-events: none;
 }
 
-.classification-chip.is-thumb {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 1;
-}
-
-.ui-art-bar ~ .classification-chip.is-thumb {
-  bottom: 18px;
-}
-
 .classification-chip.is-g {
   background: #1f9d55;
 }

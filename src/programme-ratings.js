@@ -38,8 +38,9 @@ export const createProgrammeRatings = ({
   missTtlMs = MISS_TTL_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
+  waitMs = 0,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
@@ -54,10 +55,10 @@ export const createProgrammeRatings = ({
     return { apiKey, kind: ratingKind, year: filmYear, cacheKey, ratingsOn, reviewsOn }
   }
 
-  const ratingsFor = async (title, { kind = null, year = null } = {}) => {
+  const ratingsFor = async (title, { kind = null, year = null, wait = true } = {}) => {
     const settings = await settingsFor({ title, kind, year })
     if (!settings) return NO_RATINGS
-    const { status, found } = await lookups.foundFor({ title, ...settings })
+    const { status, found } = await lookups.foundFor({ title, ...settings, wait })
     if (status === 'pending') return PENDING_RATINGS
     return status === 'ready' ? ratingsResponseOf({ found, ...settings }) : NO_RATINGS
   }
@@ -70,10 +71,19 @@ export const createProgrammeRatings = ({
     }
   }
 
-  return { ratingsFor, forget }
+  const warm = async (programmes = []) => {
+    const unique = new Map(programmes
+      .filter((programme) => programme?.title)
+      .map((programme) => [`${artworkKindOf(programme.kind) || ''}|${showTitleKey(programme.title)}`, programme]))
+    for (const programme of unique.values()) {
+      await ratingsFor(programme.title, { kind: programme.kind, wait: false }).catch(() => null)
+    }
+  }
+
+  return { ratingsFor, forget, warm }
 }
 
-export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter }) => {
+export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0 }) => {
   const inflight = new Map()
   const failedUntil = new Map()
 
@@ -103,12 +113,15 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
     return pending
   }
 
-  const foundFor = async ({ cacheKey, ...request }) => {
+  const foundFor = async ({ cacheKey, wait = true, ...request }) => {
     if (recentlyFailed(cacheKey)) return { status: 'none', found: null }
     const cached = await cachedFound(cacheKey)
     if (cached) return { status: 'ready', found: cached.found }
-    startLookup({ cacheKey, ...request })
-    return { status: 'pending', found: null }
+    const lookup = startLookup({ cacheKey, ...request })
+    if (!wait || waitMs <= 0) return PENDING_LOOKUP
+    const settled = await settledWithin({ promise: lookup, ms: waitMs })
+    if (!settled.done || recentlyFailed(cacheKey)) return settled.done ? { status: 'none', found: null } : PENDING_LOOKUP
+    return { status: 'ready', found: settled.value }
   }
 
   const forget = async (cacheKey) => {
@@ -118,6 +131,12 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
 
   return { foundFor, forget }
 }
+
+export const forYouProgrammesOf = (result) => [result?.topPick, ...(result?.sections || []).flatMap((section) => section.items || [])]
+  .filter(Boolean)
+
+export const upcomingFilmsOf = ({ guide, nowMs, windowMs }) => [...(guide?.programByEventId?.values() || [])]
+  .filter((programme) => programme.kind === FILM_KIND && programme.end > nowMs && programme.start < nowMs + windowMs)
 
 export const ratingsResponseOf = ({ found, ratingsOn = true, reviewsOn = true }) => {
   const scored = ratingsOn && found?.score != null
@@ -376,3 +395,13 @@ export const LOOKUP_CONCURRENCY = 2
 export const LOOKUP_MAX_QUEUE = 300
 const MIN_REQUESTED_YEAR = 1900
 const MAX_REQUESTED_YEAR = 2100
+
+const PENDING_LOOKUP = { status: 'pending', found: null }
+
+const settledWithin = ({ promise, ms }) => new Promise((resolve) => {
+  const timer = setTimeout(() => resolve({ done: false }), ms)
+  promise.then((value) => {
+    clearTimeout(timer)
+    resolve({ done: true, value })
+  })
+})

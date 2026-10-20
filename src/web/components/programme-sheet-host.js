@@ -60,7 +60,7 @@ export const ProgrammeSheetHost = {
             :channel-id="selectedChannelId" :has-logo="hasChannelLogo(selectedChannelId)"
             :title="selected.program.title" />
           <button type="button" class="ui-icon-button programme-sheet-close" aria-label="Close" @click="closeModal"><close-glyph /></button>
-          <programme-art-badges :classification="selected.program.classification" :score="ratingScore" v-model:open="ratingCardOpen" />
+          <programme-art-badges :classification="selected.program.classification" :score="ratingScore" :loading="ratingLoading" v-model:open="ratingCardOpen" />
         </div>
         <div class="programme-sheet-heading">
           <h2 id="programme-sheet-title" class="programme-sheet-title">{{ selected.program.title }}</h2>
@@ -190,7 +190,7 @@ export const ProgrammeSheetHost = {
     const hdOffer = ref(null)
     const dayOffset = ref(0)
     const sheetProgramme = computed(() => selected.value?.program || null)
-    const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen } = useProgrammeRatings(sheetProgramme)
+    const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen, loading: ratingLoading } = useProgrammeRatings(sheetProgramme)
 
     const nowMs = computed(() => Math.floor(now.value.getTime() / 60_000) * 60_000)
     const fmtClock = fmtClockTz
@@ -712,7 +712,7 @@ export const ProgrammeSheetHost = {
       sheetMeta, cancelActions, selectedState, selectedStatusText,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,
-      ratingScore, ratingReview, ratingCardOpen,
+      ratingScore, ratingReview, ratingCardOpen, ratingLoading,
     }
   },
 }

@@ -216,7 +216,7 @@ A classification is the age label of a programme: `G`, `PG`, `M`, `MA15+`, `R18+
 - **Programme sheet**: on the picture, for any programme that has a label.
 - **Show page**: in the header of a recorded show, with the label of the latest episode ([Recordings](/guide/recordings#show-pages)).
 - **Live player**: when you tune in to a channel, and when a new programme starts on it, the label shows over the picture for 5 seconds. The label also shows in the programme info panel ([Live TV](/guide/live-tv#programme-info)). It does not show in the miniplayer or in Multiview.
-- **Thumbnails**: For you cards, Home cards and the Home hero, and Recordings library cards show a label only for `MA15+` and `R18+`. The TV guide grid and Live TV rows show no label.
+- **Lists**: no list shows a label. TV guide cells, Live TV rows, and cards on Home, For you, and Recordings stay plain; open a programme or show to see its label.
 
 Freetvarr reads each label from the XMLTV guide feed as it loads the feed. When the feed has no label for a programme, Freetvarr uses the age rating that TVHeadend holds for it, but only when that rating is `MA15+` or `R18+`. A programme with neither source has no label.
 

@@ -1558,6 +1558,7 @@ body.library-selecting .ui-toast-region {
 }
 
 .show-hero-badges .programme-score,
+.show-hero-badges .programme-score-loading,
 .show-hero-badges .programme-classification {
   position: relative;
   inset: auto;

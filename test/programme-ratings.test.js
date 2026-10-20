@@ -5,11 +5,13 @@ import {
   createGuideHints,
   createProgrammeRatings,
   createRatingsLookup,
+  forYouProgrammesOf,
   isCinematicSeries,
   pickRatedShow,
   ratingsResponseOf,
   requestedYearOf,
   tmdbScoreOf,
+  upcomingFilmsOf,
 } from '../src/programme-ratings.js'
 import { programmeHintsOf } from '../src/artwork-match.js'
 
@@ -393,4 +395,41 @@ test('a recorded film no longer in the guide matches on exact title and year alo
   assert.equal((await settled(ratings, 'Heat', { kind: 'movie', year: 1995 })).score, 7.9)
   assert.equal((await settled(ratings, 'Heat', { kind: 'movie' })).status, 'none')
   assert.equal((await settled(ratings, 'Heat', { kind: 'movie', year: 1970 })).status, 'none')
+})
+
+const waitingRatings = ({ lookUpMs, waitMs }) => createProgrammeRatings({
+  lookUp: () => new Promise((resolve) => setTimeout(() => resolve({ score: 8, votes: 900, source: 'tmdb', url: 'https://www.themoviedb.org/movie/1', reviews: null }), lookUpMs)),
+  cache: memoryCache(),
+  ratingsEnabled: async () => true,
+  reviewsEnabled: async () => true,
+  tmdbKey: async () => 'k',
+  waitMs,
+})
+
+test('a lookup that finishes within the wait answers ready on the first request', async () => {
+  const ratings = waitingRatings({ lookUpMs: 5, waitMs: 200 })
+  assert.equal((await ratings.ratingsFor('Heat', { kind: 'movie' })).score, 8)
+})
+
+test('a lookup slower than the wait answers pending, and warm never waits', async () => {
+  const slow = waitingRatings({ lookUpMs: 100, waitMs: 10 })
+  assert.equal((await slow.ratingsFor('Heat', { kind: 'movie' })).status, 'pending')
+  const warmed = waitingRatings({ lookUpMs: 5, waitMs: 1000 })
+  const started = Date.now()
+  await warmed.warm([{ title: 'Heat', kind: 'movie' }, { title: 'Heat', kind: 'movie' }, { title: null }])
+  assert.ok(Date.now() - started < 500)
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal((await warmed.ratingsFor('Heat', { kind: 'movie', wait: false })).score, 8)
+})
+
+test('warm targets For you items and films airing within the window', () => {
+  const result = { topPick: { title: 'A' }, sections: [{ items: [{ title: 'B' }] }, { items: [] }] }
+  assert.deepEqual(forYouProgrammesOf(result).map(({ title }) => title), ['A', 'B'])
+  const guide = { programByEventId: new Map([
+    [1, { title: 'Soon', kind: 'movie', start: 2000, end: 5000 }],
+    [2, { title: 'Show', kind: 'show', start: 2000, end: 5000 }],
+    [3, { title: 'Later', kind: 'movie', start: 90000, end: 99000 }],
+    [4, { title: 'Over', kind: 'movie', start: 0, end: 900 }],
+  ]) }
+  assert.deepEqual(upcomingFilmsOf({ guide, nowMs: 1000, windowMs: 10000 }).map(({ title }) => title), ['Soon'])
 })

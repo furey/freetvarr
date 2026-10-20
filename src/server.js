@@ -183,7 +183,7 @@ import { mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
-import { createGuideHints, createProgrammeRatings, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING } from './programme-ratings.js'
+import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
@@ -739,8 +739,18 @@ app.get('/api/epg/show-image', serveImage({
 }))
 
 const guideHints = createGuideHints({ loadGuide: getGuideSnapshot })
-const programmeRatings = createProgrammeRatings({ hintsFor: guideHints })
-const programmeCredits = createProgrammeCredits({ hintsFor: guideHints })
+const LOOKUP_WAIT_MS = 1500
+const FILM_WARM_DELAY_MS = 2 * 60_000
+const FILM_WARM_WINDOW_MS = 24 * 60 * 60_000
+const programmeRatings = createProgrammeRatings({ hintsFor: guideHints, waitMs: LOOKUP_WAIT_MS })
+const programmeCredits = createProgrammeCredits({ hintsFor: guideHints, waitMs: LOOKUP_WAIT_MS })
+
+const warmUpcomingFilms = async () => {
+  const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
+  programmeRatings.warm(upcomingFilmsOf({ guide, nowMs: Date.now(), windowMs: FILM_WARM_WINDOW_MS }))
+}
+setTimeout(warmUpcomingFilms, FILM_WARM_DELAY_MS).unref?.()
+setInterval(warmUpcomingFilms, FILM_WARM_WINDOW_MS / 24).unref?.()
 
 const ratingsLimiter = rateLimit({
   windowMs: 60_000,
@@ -1245,7 +1255,13 @@ mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
 mountTmdbKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountSearchRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
-mountForYou({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
+const warmedForYou = new WeakSet()
+const warmForYou = (result) => {
+  if (warmedForYou.has(result)) return
+  warmedForYou.add(result)
+  return programmeRatings.warm(forYouProgrammesOf(result))
+}
+mountForYou({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onResult: warmForYou })
 mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
 mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })

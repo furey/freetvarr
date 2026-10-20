@@ -46,7 +46,6 @@ export const ForYouCard = {
           <span v-if="progress != null" class="ui-art-bar ui-progress is-live" aria-hidden="true">
             <span class="ui-progress-fill" :style="{ width: progress + '%' }"></span>
           </span>
-          <classification-chip :classification="item.classification" />
         </title-art>
         <span class="home-on-now-text">
           <span v-if="showsLogo" class="home-on-now-logo"><channel-logo :channel-id="item.channelId" has-logo /><channel-twin-tag :channel-id="item.channelId" /></span>

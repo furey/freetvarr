@@ -45,7 +45,7 @@ export const ShowView = {
         <span class="show-hero-scrim"></span>
         <a :href="backTarget.route" class="show-back" @click.prevent="goBack"><back-glyph /> {{ backTarget.label }}</a>
         <div v-if="show" class="show-hero-badges">
-          <programme-art-badges :classification="show.classification || null" :score="ratingScore" v-model:open="ratingCardOpen" />
+          <programme-art-badges :classification="show.classification || null" :score="ratingScore" :loading="ratingLoading" v-model:open="ratingCardOpen" />
         </div>
         <div class="show-hero-body">
           <h1 class="show-title">{{ title }}</h1>
@@ -254,7 +254,7 @@ export const ShowView = {
     const programmeInfo = computed(() => (show.value
       ? { title: show.value.title, kind: show.value.kind === 'movie' ? 'movie' : '', year: show.value.year ?? null }
       : null))
-    const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen } = useProgrammeRatings(programmeInfo, { lateReviews: true })
+    const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen, loading: ratingLoading } = useProgrammeRatings(programmeInfo, { lateReviews: true })
     const { credits, answered: creditsAnswered } = useProgrammeCredits(programmeInfo)
     const castList = computed(() => shownCastOf(credits.value))
     const crewLines = computed(() => crewLinesOf(credits.value))
@@ -364,7 +364,7 @@ export const ShowView = {
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
       episodePress, isLocked, checkLabel, isRecordingNow, selectionTitle,
-      episodeHeading, seasonLabel, ratingScore, ratingReview, ratingCardOpen, aboutSynopsis, castList, crewLines,
+      episodeHeading, seasonLabel, ratingScore, ratingReview, ratingCardOpen, ratingLoading, aboutSynopsis, castList, crewLines,
       episodeMeta: (episode) => episodeMetaOf({ episode, timeZone: tz.value }),
       episodeImage: (episode) => episode.image,
     }

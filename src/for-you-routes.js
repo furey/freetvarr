@@ -10,13 +10,14 @@ import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
 import { isViewingHistoryEnabled, logUserEvent, setViewingHistoryEnabled } from './user-events-log.js'
 
-export const mountForYou = ({ app, csrf, limiter = passThrough, start = true }) => {
+export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, onResult = () => {} }) => {
   app.get('/api/for-you', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     if (!(await isForYouEnabled())) return res.json({ enabled: false, tier: (await currentTier()).tier, coldStart: false, generatedAt: Date.now(), topPick: null, sections: [] })
     try {
       const result = await getForYou()
       res.json(publicResultOf({ result, limit: limitFrom(req.query.limit) }))
+      Promise.resolve().then(() => onResult(result)).catch(() => {})
     } catch (err) {
       res.status(503).json({ error: `Suggestions are not available right now: ${err.message}` })
     }

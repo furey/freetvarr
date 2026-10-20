@@ -54,8 +54,8 @@ test('ratings key and URL use movie only for films', () => {
   assert.equal(ratingsUrlOf({ title: 'Heat', kind: 'movie', year: 'n/a' }), '/api/epg/programme-ratings?title=Heat&kind=movie')
 })
 
-test('pending ratings retry after 4, 12, and 30 seconds, then stop', () => {
-  assert.deepEqual([0, 1, 2, 3].map(retryDelayOf), [4000, 12000, 30000, null])
+test('pending ratings retry after 1, 2, 4, 8, and 15 seconds, then stop', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map(retryDelayOf), [1000, 2000, 4000, 8000, 15000, null])
   assert.equal(isSettledRatings({ status: 'pending' }), false)
   assert.equal(isSettledRatings({ status: 'none' }), true)
   assert.equal(isSettledRatings(null), false)

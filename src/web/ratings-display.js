@@ -1,4 +1,4 @@
-export const RATINGS_RETRY_DELAYS_MS = [4000, 12000, 30000]
+export const RATINGS_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000]
 export const MIN_TMDB_VOTES = 50
 export const REVIEW_LINK_GAP_PX = 12
 

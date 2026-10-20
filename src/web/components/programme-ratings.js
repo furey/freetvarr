@@ -17,17 +17,27 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
   const ratings = shallowRef(null)
   const reviewAllowed = ref(false)
   const cardOpen = ref(false)
+  const loading = ref(false)
   let token = 0
   let retryTimer = null
+  let loadingTimer = null
   let openedAt = 0
+
+  const stopLoading = () => {
+    clearTimeout(loadingTimer)
+    loadingTimer = null
+    loading.value = false
+  }
 
   const stop = () => {
     clearTimeout(retryTimer)
     retryTimer = null
+    stopLoading()
     token += 1
   }
 
   const settle = (result) => {
+    stopLoading()
     ratings.value = result
     reviewAllowed.value = lateReviews || Date.now() - openedAt <= REVIEW_INSERT_WINDOW_MS
   }
@@ -40,7 +50,7 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
       return settle(result)
     }
     const delay = result?.status === 'pending' ? retryDelayOf(attempt) : null
-    if (delay == null) return
+    if (delay == null) return stopLoading()
     retryTimer = setTimeout(() => load({ request, attempt: attempt + 1 }), delay)
   }
 
@@ -54,6 +64,7 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
     openedAt = Date.now()
     const cached = ratingsCache.get(key)
     if (cached) return settle(cached)
+    loadingTimer = setTimeout(() => { loading.value = true }, LOADING_DELAY_MS)
     load({ request: { key, title: program.title, kind: program.kind, year: program.year, token }, attempt: 0 })
   }
 
@@ -62,7 +73,7 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
 
   const score = computed(() => shownScoreOf(ratings.value))
   const review = computed(() => (reviewAllowed.value ? shownReviewOf(ratings.value) : null))
-  return { score, review, cardOpen }
+  return { score, review, cardOpen, loading }
 }
 
 export const ProgrammeArtBadges = {
@@ -70,9 +81,15 @@ export const ProgrammeArtBadges = {
     classification: { type: String, default: null },
     score: { type: Object, default: null },
     open: Boolean,
+    loading: Boolean,
   },
   emits: ['update:open'],
   template: `
+    <transition name="programme-score-loading">
+      <span v-if="loading && !score" class="programme-art-badge programme-score-loading" role="status" aria-label="Loading rating">
+        <i></i><i></i><i></i>
+      </span>
+    </transition>
     <div v-if="score" ref="scoreWrap" class="programme-score">
       <transition name="programme-score-card">
         <div v-if="open" :id="cardId" class="programme-score-card" role="group" :aria-label="score.ariaLabel">
@@ -175,3 +192,4 @@ const ratingsCache = new Map()
 let nextCardId = 1
 
 const REVIEW_INSERT_WINDOW_MS = 2500
+const LOADING_DELAY_MS = 300

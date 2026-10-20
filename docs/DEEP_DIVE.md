@@ -337,7 +337,7 @@ The show page (`src/web/views/show-view.js`) takes the About synopsis from the c
 
 A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`. `src/classification-labels.js` reads the `<rating>` elements of each XMLTV programme as the guide feed loads (an Australian system first) and keeps the label per title and start time in a store (migration `0016`). When the feed has no label, `fallbackClassification` maps the TVHeadend `rating` age to `MA15+` (age `15`) or `R18+` (age `18`) only. A recording gets its label when `src/sync.js` creates or imports it (migration `0018`, column `recordings.classification`) and keeps it; recordings from before the migration hold `null`. `/api/library/shows/:key` returns the latest episode label as `classification`, and each episode row returns its own.
 
-Guide cells, live now/next, For you items, Home row items, and Recordings library items carry `classification`. The client decides where to show it: the programme sheet, the show header, the live info panel, and the live player (for `5 s` after tune-in or a change of programme) show any label; thumbnails on For you, Home, the Home hero, and Recordings show only `MA15+` and `R18+`. Scores and reviews are never part of list payloads.
+Guide cells, live now/next, For you items, Home row items, and Recordings library items carry `classification`. The client decides where to show it: the programme sheet, the show header, the live info panel, and the live player (for `5 s` after tune-in or a change of programme) show it; no list or thumbnail does. Scores and reviews are never part of list payloads.
 
 ## Live TV
 

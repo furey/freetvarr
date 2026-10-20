@@ -10,7 +10,6 @@ import {
   oneOffMetaOf,
   posterMetaOf,
   shelvesOf,
-  showClassificationOf,
   showsCountText,
 } from '/library-shelves.js'
 import { diagnoseRecordingError } from '/recording-error.js'
@@ -89,7 +88,6 @@ export const RecordingsLibraryView = {
                 <title-art shape="poster" :title="show.title" :src="posterSrc(show)">
                   <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
                   <span v-if="show.counts.new" class="ui-art-badge is-end"><span class="ui-count-badge">{{ show.counts.new }}</span></span>
-                  <classification-chip :classification="showClassificationOf(show)" />
                 </title-art>
                 <div class="ui-card-title">{{ show.title }}</div>
                 <div class="ui-card-meta">{{ posterMeta(show) }}</div>
@@ -109,7 +107,6 @@ export const RecordingsLibraryView = {
             <a v-for="show in shelves.movies" :key="show.key" :href="showHrefOf(show.title)" class="ui-poster">
               <title-art shape="poster" :title="show.title" :src="posterSrc(show)">
                 <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
-                <classification-chip :classification="showClassificationOf(show)" />
               </title-art>
               <div class="ui-card-title">{{ show.title }}</div>
               <div class="ui-card-meta">{{ movieMetaOf({ show }) }}</div>
@@ -126,7 +123,6 @@ export const RecordingsLibraryView = {
             <a v-for="show in shelves.oneoffs" :key="show.key" :href="showHrefOf(show.title)" class="ui-card">
               <title-art :title="show.title" :src="cardSrc(show)">
                 <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
-                <classification-chip :classification="showClassificationOf(show)" />
               </title-art>
               <div class="ui-card-title">{{ show.title }}</div>
               <div class="ui-card-meta">{{ oneOffMetaOf({ show, timeZone: tz }) }}</div>
@@ -260,7 +256,6 @@ export const RecordingsLibraryView = {
       shows, stale, loaded, error, shelves, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
       posterMeta, posterLabel, posterSrc, cardSrc, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,
-      showClassificationOf,
     }
   },
 }
