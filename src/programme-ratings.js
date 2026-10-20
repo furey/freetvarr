@@ -134,6 +134,7 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
 
 export const forYouProgrammesOf = (result) => [result?.topPick, ...(result?.sections || []).flatMap((section) => section.items || [])]
   .filter(Boolean)
+  .map((item) => ({ title: item.title, kind: item.programmeKind ?? null }))
 
 export const upcomingFilmsOf = ({ guide, nowMs, windowMs }) => [...(guide?.programByEventId?.values() || [])]
   .filter((programme) => programme.kind === FILM_KIND && programme.end > nowMs && programme.start < nowMs + windowMs)

@@ -423,8 +423,8 @@ test('a lookup slower than the wait answers pending, and warm never waits', asyn
 })
 
 test('warm targets For you items and films airing within the window', () => {
-  const result = { topPick: { title: 'A' }, sections: [{ items: [{ title: 'B' }] }, { items: [] }] }
-  assert.deepEqual(forYouProgrammesOf(result).map(({ title }) => title), ['A', 'B'])
+  const result = { topPick: { title: 'A', kind: 'liked', programmeKind: 'movie' }, sections: [{ items: [{ title: 'B', kind: 'similar', programmeKind: 'series' }] }, { items: [] }] }
+  assert.deepEqual(forYouProgrammesOf(result), [{ title: 'A', kind: 'movie' }, { title: 'B', kind: 'series' }])
   const guide = { programByEventId: new Map([
     [1, { title: 'Soon', kind: 'movie', start: 2000, end: 5000 }],
     [2, { title: 'Show', kind: 'show', start: 2000, end: 5000 }],
