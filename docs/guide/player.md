@@ -31,7 +31,7 @@ The top bar has these controls:
 
 The centre of the picture has **Start over**, the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
 
-On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `3` seconds; change the delay in [Player settings](#player-settings).
+On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `2` seconds; change the delay in [Player settings](#player-settings).
 
 Double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further.
 
@@ -117,7 +117,7 @@ With two channels playing:
 Settings → **Player** holds two choices for the device you use:
 
 - **Start muted**: every video starts with the sound off. This is the same choice as the sound button.
-- **Hide player controls after**: `1 s` to `5 s`. The default is `3 s`.
+- **Hide player controls after**: `1 s` to `5 s`. The default is `2 s`.
 
 Both are saved in the browser, so each device keeps its own.
 

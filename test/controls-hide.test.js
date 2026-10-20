@@ -24,9 +24,9 @@ const brokenStorage = {
   setItem: () => { throw new Error('blocked') },
 }
 
-test('controls hide after 3 seconds until a choice is saved', () => {
-  assert.equal(loadControlsHideS(memoryStorage()), 3)
-  assert.equal(controlsHideMsOf(memoryStorage()), 3000)
+test('controls hide after 2 seconds until a choice is saved', () => {
+  assert.equal(loadControlsHideS(memoryStorage()), 2)
+  assert.equal(controlsHideMsOf(memoryStorage()), 2000)
 })
 
 test('a saved choice from 1 to 5 seconds is read back', () => {
@@ -37,16 +37,16 @@ test('a saved choice from 1 to 5 seconds is read back', () => {
   assert.equal(controlsHideMsOf(storage), 5000)
 })
 
-test('values outside the choices fall back to 3 seconds and are not saved', () => {
-  assert.equal(loadControlsHideS(memoryStorage({ [CONTROLS_HIDE_KEY]: '9' })), 3)
-  assert.equal(loadControlsHideS(memoryStorage({ [CONTROLS_HIDE_KEY]: 'abc' })), 3)
+test('values outside the choices fall back to 2 seconds and are not saved', () => {
+  assert.equal(loadControlsHideS(memoryStorage({ [CONTROLS_HIDE_KEY]: '9' })), 2)
+  assert.equal(loadControlsHideS(memoryStorage({ [CONTROLS_HIDE_KEY]: 'abc' })), 2)
   const storage = memoryStorage()
   saveControlsHideS(storage, 7)
   assert.deepEqual(storage.data, {})
 })
 
 test('blocked storage keeps the default and does not throw', () => {
-  assert.equal(loadControlsHideS(brokenStorage), 3)
+  assert.equal(loadControlsHideS(brokenStorage), 2)
   assert.doesNotThrow(() => saveControlsHideS(brokenStorage, 2))
 })
 

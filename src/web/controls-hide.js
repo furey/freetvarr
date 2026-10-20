@@ -1,6 +1,6 @@
 export const CONTROLS_HIDE_KEY = 'freetvarr.controlsHideAfterS'
 export const CONTROLS_HIDE_CHOICES_S = [1, 2, 3, 4, 5]
-export const DEFAULT_CONTROLS_HIDE_S = 3
+export const DEFAULT_CONTROLS_HIDE_S = 2
 
 const isChoice = (seconds) => CONTROLS_HIDE_CHOICES_S.includes(seconds)
 
