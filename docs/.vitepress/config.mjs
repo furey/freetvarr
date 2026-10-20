@@ -76,7 +76,7 @@ export default withMermaid(defineConfig({
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/freetvarr/favicon.svg' }],
-    ['meta', { name: 'theme-color', content: '#1a1611' }],
+    ['meta', { name: 'theme-color', content: '#0b1117' }],
     ['meta', { name: 'color-scheme', content: 'dark' }]
   ],
 
