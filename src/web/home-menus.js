@@ -1,11 +1,13 @@
+import { recordWordingOf } from './record-wording.js'
+
 export const PROGRAMME_INFO = { key: 'programme-info', label: 'Programme info', icon: 'info' }
 export const GO_TO_SHOW = { key: 'show', label: 'Go to show', icon: 'show' }
 
-export const onNowMenuOf = ({ channelName = '', seriesLink = false }) => [
+export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null }) => [
   [
     { key: 'watch-live', label: 'Watch live', icon: 'play', detail: channelName },
-    { key: 'record-episode', label: 'Record this episode', icon: 'record', detail: 'From now' },
-    seriesLink && { key: 'record-series', label: 'Record series', icon: 'series' },
+    { key: 'record-episode', label: recordWordingOf({ kind }).menuLabel, icon: 'record', detail: 'From now' },
+    seriesLink && kind !== 'movie' && { key: 'record-series', label: 'Record series', icon: 'series' },
   ],
   [PROGRAMME_INFO],
 ].map(compact).filter((group) => group.length)
@@ -18,15 +20,15 @@ export const recordingNowMenuOf = ({ channelName = '', canStartOver = false }) =
   [PROGRAMME_INFO, GO_TO_SHOW],
 ].map(compact).filter((group) => group.length)
 
-export const scheduledMenuOf = ({ hasRule = false }) => [
+export const scheduledMenuOf = ({ hasRule = false, kind = null }) => [
   [PROGRAMME_INFO, GO_TO_SHOW, hasRule && { key: 'options', label: 'Recording options', icon: 'options' }],
-  [{ key: 'skip', label: 'Don\'t record this episode', icon: 'skip', danger: true }],
+  [{ key: 'skip', label: recordWordingOf({ kind, hasRule }).skipLabel, icon: 'skip', danger: true }],
 ].map(compact)
 
-export const guideMatchMenuOf = ({ when = '', seriesLink = false }) => [
+export const guideMatchMenuOf = ({ when = '', seriesLink = false, kind = null }) => [
   [
-    { key: 'record-episode', label: 'Record this episode', icon: 'record', detail: when },
-    seriesLink && { key: 'record-series', label: 'Record series', icon: 'series' },
+    { key: 'record-episode', label: recordWordingOf({ kind }).menuLabel, icon: 'record', detail: when },
+    seriesLink && kind !== 'movie' && { key: 'record-series', label: 'Record series', icon: 'series' },
   ],
   [PROGRAMME_INFO],
 ].map(compact)
@@ -62,7 +64,7 @@ export const programmeArtOf = (program) => (program.has_image && program.program
   ? `/api/epg/image/${encodeURIComponent(program.program_id)}?w=384`
   : showArtOf(program.title))
 
-export const skippedTextOf = (title) => `Won't record this episode of ${title}`
+export const skippedTextOf = (title, kind = null) => recordWordingOf({ kind }).skippedText(title)
 
 const SECONDARY_MENU_KEYS = { 'watch-live': 'watch-live', record: 'record-episode', guide: 'programme-info' }
 

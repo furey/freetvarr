@@ -24,7 +24,7 @@ import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeO
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
 import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource } from './fallback-artwork.js'
 import { programmeHintsByTitle } from './artwork-match.js'
-import { rememberTvmazeShow } from './genre-enrichment.js'
+import { loadTitleGenres, rememberTvmazeShow } from './genre-enrichment.js'
 import { createGuideSearchCache, searchGuideListings } from './guide-search.js'
 import { loadSearchAliases, rememberKnownAsFromTvmaze } from './search-aliases.js'
 import {
@@ -37,6 +37,7 @@ import {
 import { findArtwork, saveArtwork } from './artwork.js'
 import { createGuideCache } from './guide-cache.js'
 import { invalidateRecordingNow } from './recording-now.js'
+import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -47,7 +48,7 @@ export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   for (const channel of guide.channels) {
     const rows = guide.programsByChannel[String(channel.epgId)] || []
     const live = programsInWindow({ rows, fromMs: dayStart, toMs: spillEnd })
-    const saved = endedByChannel?.get(String(channel.epgId)) || []
+    const saved = savedWithKinds({ guide, saved: endedByChannel?.get(String(channel.epgId)) })
     programs[channel.id] = mergeGuidePrograms({ live, saved }).map((program) => toGuideCell({ program, nowMs }))
   }
   const prefs = await getChannelPrefs()
@@ -235,6 +236,7 @@ export const projectUpcomingRecordings = ({
       seriesLinkId: r.seriesLinkId || null,
       season: r.season ?? null,
       hasImage: Boolean(guide?.programByEventId?.get(String(r.programId))?.image),
+      kind: guide?.programByEventId?.get(String(r.programId))?.kind ?? null,
       source: 'timer',
     }))
   const timerProgramIds = new Set([...timers.map((t) => String(t.programId)), ...skippedProgramIds.map(String)])
@@ -274,6 +276,7 @@ export const projectUpcomingRecordings = ({
           episodeNo: p.episode_no ?? null,
           season: p.series_no ?? null,
           hasImage: Boolean(p.image),
+          kind: p.kind ?? null,
           source: 'series',
         })
       }
@@ -287,7 +290,7 @@ export const channelAiringAt = ({ guide, channelId, atMs, endedByChannel = null 
   const channel = guide.channels.find((c) => String(c.id) === String(channelId))
   if (!channel) return { now: null, next: null }
   const live = guide.programsByChannel[String(channel.epgId)] || []
-  const saved = endedByChannel?.get(String(channel.epgId)) || []
+  const saved = savedWithKinds({ guide, saved: endedByChannel?.get(String(channel.epgId)) })
   const rows = mergeGuidePrograms({ live, saved })
   const now = rows.find((p) => p.start <= atMs && p.end > atMs) || null
   const next = earliestStartingFrom({ rows, fromMs: now ? now.end : atMs })
@@ -306,7 +309,7 @@ export const programmeSheetAt = ({ guide, channelId, startMs, nowMs = Date.now()
   if (!channel) return { channel: null, programme: null, hdEpisode: null, hdSeries: null }
   const rowsOf = (c) => mergeGuidePrograms({
     live: guide.programsByChannel[String(c.epgId)] || [],
-    saved: endedByChannel?.get(String(c.epgId)) || [],
+    saved: savedWithKinds({ guide, saved: endedByChannel?.get(String(c.epgId)) }),
   })
   const rows = rowsOf(channel)
   const listed = rows.find((p) => p.start === startMs) || rows.find((p) => p.start <= startMs && p.end > startMs) || null
@@ -329,6 +332,10 @@ export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now()
     : null
   return programmeSheetAt({ guide, channelId, startMs, nowMs, endedByChannel })
 }
+
+export const savedWithKinds = ({ guide, saved = [] }) => (guide?.kindOf
+  ? withDisplayKinds({ programmes: saved, kindOf: guide.kindOf })
+  : saved)
 
 const earliestStartingFrom = ({ rows, fromMs }) => rows
   .filter((p) => p.start >= fromMs)
@@ -354,6 +361,7 @@ const trimProgram = (p) => p == null ? null : {
   start: p.start,
   end: p.end,
   series_link: p.series_link || null,
+  kind: p.kind ?? null,
 }
 
 const parseJsonArray = (raw) => {
@@ -709,10 +717,13 @@ const getCachedGuide = () => guideCache.get(localMidnightMs())
 const loadGuide = async (startMs) => {
   const conn = await resolveConnection()
   const endMs = guideDayWindow({ startMs, day: GUIDE_DAYS - 1 }).dayEnd
-  const [channels, events] = await Promise.all([
+  const [channels, listed, recordsByKey] = await Promise.all([
     listChannels(conn),
     listEvents({ startMs, endMs, conn }),
+    loadTitleGenres().catch(() => new Map()),
   ])
+  const kindOf = createDisplayKinds({ programmes: listed, recordsByKey })
+  const events = withDisplayKinds({ programmes: listed, kindOf })
   if (channels.length === 0) {
     throw new TvheadendError(
       'TVHeadend has no channels yet. Scan the mux and map services to channels in TVHeadend first.',
@@ -734,6 +745,7 @@ const loadGuide = async (startMs) => {
     programsByChannel,
     programByEventId,
     imagesByTitle: imagesByTitleOf(events),
+    kindOf,
     fetchedAt: Date.now(),
     expiresAt: Date.now() + (events.length ? GUIDE_TTL_MS : GUIDE_EMPTY_TTL_MS),
   }

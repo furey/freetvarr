@@ -78,6 +78,8 @@ The menu depends on the row:
 | **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                           |
 | **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a series rule), and **Don't record this episode**. |
 
+For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
+
 **Episode info** shows the details of a recording. **Programme info** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home. **Don't record this episode** cancels that one recording; a series rule still records the next episodes.
 
 ## Health alert

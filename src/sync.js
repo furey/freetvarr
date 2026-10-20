@@ -16,6 +16,7 @@ import { makeImportProgress } from './progress.js'
 import { sweepLibraryStates } from './library-files.js'
 import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from './artwork.js'
 import { pruneSyncHistory } from './sync-history.js'
+import { looksLikeFilm } from './film-rule.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
@@ -109,11 +110,7 @@ export const getMoviesRoot = async () => {
   return (process.env.MOVIES_ROOT || '').trim()
 }
 
-export const looksLikeFilm = ({ genres = [], season, episode, start, end }) =>
-  genres.some((g) => g >= FILM_GENRE_MIN && g <= FILM_GENRE_MAX)
-  && season == null
-  && episode == null
-  && end - start >= FILM_MIN_MS
+export { looksLikeFilm }
 
 export const filmName = (item) => {
   const title = createValidFilename(item.title) || 'Film'
@@ -657,9 +654,6 @@ const upsertRecording = async ({ item, show, file_path, status, error }) => {
 const DEFAULT_MEDIA_ROOT = '/media/tv'
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const DEFAULT_ONEOFF_ROOT = '/media/one-offs'
-const FILM_GENRE_MIN = 0x10
-const FILM_GENRE_MAX = 0x1f
-const FILM_MIN_MS = 75 * 60 * 1000
 const HOLD_REASONS = {
   excluded: 'Kept out of the library',
   recordedOff: 'Recorded with Add to library off',

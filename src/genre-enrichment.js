@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import { db, getSetting } from './db.js'
 import { showTitleKey } from './show-artwork.js'
+import { FILM_MIN_MS } from './film-rule.js'
 import { showKeyOf } from './web/show-key.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
@@ -74,8 +75,8 @@ export const keywordCategoriesOf = (title) => {
 }
 
 export const isMovieLike = (programme) => {
-  const minutes = (Number(programme?.end) - Number(programme?.start)) / 60_000
-  if (!(minutes >= MOVIE_MIN_MINUTES)) return false
+  const lengthMs = Number(programme?.end) - Number(programme?.start)
+  if (!(lengthMs >= FILM_MIN_MS)) return false
   if (categoriesOfEtsi(programme?.genre).includes('movie')) return true
   return programme?.series_no == null && programme?.episode_no == null && !programme?.episode_title
 }
@@ -394,7 +395,6 @@ const NEWS_TITLE = /\bnews\b|^today\b|^weekend today|sunrise$|^sunrise\b|a curre
 const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|rugby|netball|racing|races|supercars|motogp|formula 1|f1|olympics?|basketball|nba|nfl|boxing|ufc|wwe|sports?|grand prix|world cup|a-league|surfing|cycling|tour de france|bathurst|grand final|wimbledon|test match|big bash|state of origin)\b/i
 
 const FAILED = Symbol('failed')
-const MOVIE_MIN_MINUTES = 75
 const MAX_FILM_AIRINGS = 2
 const DEFAULT_BUDGET = 1500
 const LOOKUP_GAP_MS = 700

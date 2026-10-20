@@ -24,6 +24,7 @@ import { findSeriesLink } from '/series-link.js'
 import { showKeyOf } from '/show-key.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
+import { canRecordSeriesOf } from '/record-wording.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
@@ -246,9 +247,6 @@ export const ProgrammeSheetHost = {
       moviesFolderSet.value = Boolean(s.movies_root)
     }
 
-    const looksLikeFilm = (p) => p.genre >= 0x10 && p.genre <= 0x1f
-      && p.series_no == null && p.episode_no == null && p.end - p.start >= 75 * 60_000
-
     const ruleFor = (title) => {
       const t = String(title || '').toLowerCase()
       return showRules.value
@@ -262,7 +260,7 @@ export const ProgrammeSheetHost = {
       if (!addToLibrary.value) return { text: 'Stays in TVHeadend. Freetvarr does not import it.' }
       const folder = ruleFor(program.title)
       if (folder) return { text: `Episodes go into ${folder.dest_folder} in your TV library.`, changeable: true }
-      if (moviesFolderSet.value && looksLikeFilm(program)) return { text: 'The guide lists this as a film, so it goes to the movies folder.' }
+      if (moviesFolderSet.value && program.kind === 'movie') return { text: 'The guide lists this as a film, so it goes to the movies folder.' }
       if (!program.series_link) return { text: 'Goes to the one-off folder.' }
       return {
         text: 'Record puts this airing in the one-off folder. Record series gives the series its own folder in your TV library.',
@@ -350,8 +348,9 @@ export const ProgrammeSheetHost = {
       const ruled = Boolean(selectedSeriesLink.value) || selectedState.value === 'series'
       return sheetStrengthsFor({
         canRecordEpisode: canRecord.value && selectedState.value === '',
-        canRecordSeries: canRecord.value && Boolean(program.series_link) && !ruled,
+        canRecordSeries: canRecord.value && canRecordSeriesOf(program) && !ruled,
         canNotify: Boolean(program.title) && !ruled,
+        kind: ruled ? 'series' : program.kind,
       })
     })
 
@@ -373,6 +372,7 @@ export const ProgrammeSheetHost = {
         onAirUntil: isSelectedOnAir.value ? fmtClock(program.end) : '',
         recordWhenSeen: recordWhenSeen.value,
         watching: Boolean(selectedWatchItem.value),
+        kind: program.kind,
       })
     })
 

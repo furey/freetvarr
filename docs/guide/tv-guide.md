@@ -52,8 +52,8 @@ Press a programme's cell to open its programme sheet: the programme image, title
 
 A switch in the sheet picks what to do. One line under it says what the main button does.
 
-- **This episode** with **Record** schedules the single airing. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
-- **Every episode** with **Record series** creates a series recording in TVHeadend. **Keep** sets how many episodes to keep. **Any channel** follows the show to another channel. See [How a series recording works](/guide/series#how-a-series-recording-works).
+- **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
+- **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** follows the show to another channel. See [How a series recording works](/guide/series#how-a-series-recording-works).
 - **Notify me** lists the show to watch for. See [Notify me](#notify-me).
 - **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the series folder, so the episodes go to the TV library. The note under the switch says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. The default is in Settings → Library and Plex. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
@@ -65,6 +65,12 @@ A switch in the sheet picks what to do. One line under it says what the main but
 Many networks show the same programme on an SD channel and an HD channel, such as 7 Sydney and 7HD Sydney. If you press **Record** or **Record series** on the SD channel and the TV guide has the same programme at the same time on an HD channel, Freetvarr asks whether to record the HD channel instead. Your padding, episodes-to-keep, and **Add to library** choices carry over.
 
 The same sheet opens from [Home](/guide/home), [For you](/guide/for-you), [Live TV](/guide/live-tv), [Search](/guide/home#search), and the [player](/guide/live-tv#record-from-the-player). It opens over the page you are on, and closing it leaves you there.
+
+Freetvarr decides from the guide whether a programme is a movie, part of a series, or a one-off:
+
+- **Movie**: it runs `75` minutes or more and has no season number, episode number, or episode title, and it airs no more than twice in the next 7 days. A programme the guide lists as a movie counts even when it airs more often. A long documentary special counts as a movie too. News and sport never count, unless the movie lookups for [For you](/guide/for-you) know the title as a film.
+- **Series**: it has a season number, an episode number, or an episode title, or it airs `3` or more times in the next 7 days, or TVmaze knows it as a TV show. A show with a series recording always counts as a series.
+- **One-off**: anything else, such as a sports final or a short special.
 
 [Scheduled](/guide/recordings#scheduled) lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. [Series rules](/guide/series) lists the series recordings themselves.
 

@@ -1,3 +1,5 @@
+import { recordWordingOf } from './record-wording.js'
+
 export const SHEET_LEAD_STEPS = [0, 1, 2, 3, 5, 10, 15]
 export const SHEET_LAG_STEPS = [0, 5, 10, 15, 30, 60]
 export const SHEET_KEEP_STEPS = [1, 2, 3, 5, 10, 20, 0]
@@ -14,8 +16,8 @@ export const minutesShort = (minutes) => `${minutes}m`
 
 export const keepLabel = (count) => (count === 0 ? 'All' : String(count))
 
-export const sheetStrengthsFor = ({ canRecordEpisode, canRecordSeries, canNotify }) => [
-  canRecordEpisode && { key: 'episode', label: 'This episode' },
+export const sheetStrengthsFor = ({ canRecordEpisode, canRecordSeries, canNotify, kind = null }) => [
+  canRecordEpisode && { key: 'episode', label: recordWordingOf({ kind }).strengthLabel },
   canRecordSeries && { key: 'series', label: 'Every episode' },
   canNotify && { key: 'notify', label: 'Notify me' },
 ].filter(Boolean)
@@ -26,11 +28,11 @@ export const initialStrengthOf = ({ strengths, focus = '' }) => {
   return keys[0] ?? ''
 }
 
-export const strengthLineOf = ({ strength, title, channelLabel = '', onAirUntil = '', recordWhenSeen = false, watching = false }) => {
+export const strengthLineOf = ({ strength, title, channelLabel = '', onAirUntil = '', recordWhenSeen = false, watching = false, kind = null }) => {
   if (strength === 'episode') {
     return onAirUntil
       ? `Records from now until ${onAirUntil}. The part already aired is not included.`
-      : 'Records this airing only.'
+      : recordWordingOf({ kind }).strengthLine
   }
   if (strength === 'series') return `Records every new episode of ${title} ${channelLabel}.`.replace(/ \./, '.')
   if (strength !== 'notify') return ''

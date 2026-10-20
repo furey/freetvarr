@@ -1,5 +1,6 @@
 import { localDayNumber } from './guide-time.js'
 import { formatClock } from './time-format.js'
+import { canRecordSeriesOf, recordWordingOf } from './record-wording.js'
 import { showKeyOf } from './show-key.js'
 import { artIdentityFrom, pickDistinctArt } from './hero-art.js'
 import { episodeCodeOf, minutesLeftOf, watchedFractionOf, showHrefOf } from './home-feed.js'
@@ -212,7 +213,7 @@ const upcomingSlideOf = ({ upcoming, activeProgramIds, shows, nowMs, timeZone })
     eyebrow: recordingWhenEyebrowOf({ startMs: item.startDate, nowMs, timeZone }),
     badge: null,
     title: item.name,
-    meta: joinMeta([formatClock(item.startDate, timeZone), item.channelName, code, hasRule ? 'Records every new episode' : 'Records this episode']),
+    meta: joinMeta([formatClock(item.startDate, timeZone), item.channelName, code, hasRule ? 'Records every new episode' : recordWordingOf({ kind: item.kind }).scheduledMeta]),
     metaShort: joinMeta([formatClock(item.startDate, timeZone), item.channelName]),
     progress: null,
     art: { image: showImageOf(item.name), title: item.name },
@@ -239,7 +240,7 @@ const watchlistSlideOf = ({ items, nowMs, timeZone }) => {
     metaShort: joinMeta([airingWhenOf({ ms: match.start, nowMs, timeZone }), match.channelName]),
     progress: null,
     art: { image: programmeImageOf(match), title: item.title },
-    primary: match.series_link
+    primary: canRecordSeriesOf(match)
       ? { action: 'record-series', label: 'Record series', icon: null }
       : { action: 'record', label: 'Record', icon: null },
     secondary: { action: 'guide', label: 'Details' },

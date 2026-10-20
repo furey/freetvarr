@@ -381,6 +381,7 @@ const scoreAiring = ({ programme, context }) => {
       stop: Number(programme.end ?? programme.stop),
       onNow: Number(programme.start) <= nowMs && Number(programme.end ?? programme.stop) > nowMs,
       kind,
+      programmeKind: programme.kind ?? null,
       reason: top.text,
       score: Math.round(total * 1000) / 1000,
       canRecordSeries: Boolean(programme.series_link) && !movie,

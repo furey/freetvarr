@@ -1,6 +1,7 @@
 import { airingWhenOf, durationText } from './home-hero.js'
 import { localDayNumber } from './guide-time.js'
 import { showKeyOf } from './show-key.js'
+import { recordWordingOf } from './record-wording.js'
 
 export const FOR_YOU_URL = '/api/for-you'
 export const FOR_YOU_HREF = '#/for-you'
@@ -135,7 +136,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
     item.onNow && { key: 'watch-live', label: 'Watch live', icon: 'play', detail: item.channelName || '' },
     !scheduled && {
       key: 'record-episode',
-      label: 'Record this episode',
+      label: recordWordingOf({ kind: item.programmeKind }).menuLabel,
       icon: 'record',
       detail: item.onNow ? 'From now' : (start ? airingWhenOf({ ms: start, nowMs, timeZone }) : ''),
     },
@@ -158,6 +159,7 @@ export const programOf = (item) => ({
   title: item.title,
   episode_title: item.episodeTitle || null,
   synopsis: item.synopsis || null,
+  kind: item.programmeKind ?? null,
   start: msOf(item.start),
   end: msOf(item.stop),
   channelId: item.channelId,

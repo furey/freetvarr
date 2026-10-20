@@ -305,7 +305,7 @@ export const HomeView = {
     const skipUpcoming = async (upcoming) => {
       try {
         await api('POST', '/api/epg/cancel', { program_id: upcoming.programId })
-        toast({ text: skippedTextOf(upcoming.name) })
+        toast({ text: skippedTextOf(upcoming.name, hasRuleFor(showKeyOf(upcoming.name)) ? 'series' : upcoming.kind) })
         refreshAfterRecordingChange()
       } catch (err) {
         toast({ text: 'TVHeadend did not skip that episode', detail: err.message, kind: 'error' })
@@ -320,7 +320,7 @@ export const HomeView = {
         title: upcoming.name,
         subtitle,
         art: showArtOf(upcoming.name),
-        groups: scheduledMenuOf({ hasRule: hasRuleFor(showKey) }),
+        groups: scheduledMenuOf({ hasRule: hasRuleFor(showKey), kind: upcoming.kind }),
         actions: {
           'programme-info': () => openUpcoming(upcoming),
           show: () => goToShow(showKey),
@@ -332,7 +332,7 @@ export const HomeView = {
 
     const SLIDE_MENUS = {
       'on-now': (slide) => ({
-        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link) }),
+        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind }),
         actions: {
           'watch-live': () => SLIDE_ACTIONS['watch-live'](slide),
           'record-episode': () => openSlideProgramme(slide, 'episode'),
@@ -354,7 +354,7 @@ export const HomeView = {
       },
       upcoming: (slide) => scheduledMenu({ upcoming: slide.target.upcoming, subtitle: slide.metaShort }),
       watchlist: (slide) => ({
-        groups: guideMatchMenuOf({ seriesLink: Boolean(slide.target.program.series_link) }),
+        groups: guideMatchMenuOf({ seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind }),
         actions: {
           'record-episode': () => openSlideProgramme(slide, 'episode'),
           'record-series': () => openSlideProgramme(slide, 'series'),
@@ -389,7 +389,7 @@ export const HomeView = {
         title: item.program.title,
         subtitle: onNowMetaOf({ item }),
         art: programmeArtOf(item.program),
-        groups: onNowMenuOf({ channelName: item.channel.name, seriesLink: Boolean(item.program.series_link) }),
+        groups: onNowMenuOf({ channelName: item.channel.name, seriesLink: Boolean(item.program.series_link), kind: item.program.kind }),
         actions: {
           'watch-live': () => watchChannel(item),
           'record-episode': () => openOnNow(item, 'episode'),
