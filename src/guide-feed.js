@@ -77,7 +77,7 @@ export const shiftProgrammes = ({ xml, shifts }) => {
 }
 
 export const programmeClassifications = ({ xml, shifts = [] }) => {
-  if (!xml.includes(RATING_TAG)) return []
+  if (!xml.includes(RATING_TAG) && !xml.includes(CATEGORY_TAG)) return []
   return [...xml.matchAll(PROGRAMME_ELEMENT)].flatMap(([programme]) => {
     const entry = programmeClassificationEntry({ programmeXml: programme, parseTime: parseXmltvTime })
     if (!entry) return []
@@ -203,6 +203,7 @@ const decodeAttribute = (value) => value
 
 const PROGRAMME_TAG = '<programme'
 const RATING_TAG = '<rating'
+const CATEGORY_TAG = '<category'
 const PROGRAMME_ELEMENT = /<programme\b[^>]*?(?:\/>|>[\s\S]*?<\/programme>)/g
 const OPEN_TAG = /^<programme\b[^>]*>/
 const CHANNEL_ATTRIBUTE = /\bchannel="([^"]*)"/

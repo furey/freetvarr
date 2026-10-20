@@ -19,7 +19,7 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
-import { createClassificationLookup, createClassificationStore, programmeClassification } from './classification-labels.js'
+import { createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
@@ -349,8 +349,12 @@ export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now()
 
 export const withClassification = async ({ sheet, store }) => {
   if (!sheet.programme) return sheet
-  const classification = await programmeClassification({ programme: sheet.programme, store })
-  return { ...sheet, programme: { ...sheet.programme, classification } }
+  const [classification, category] = await Promise.all([
+    programmeClassification({ programme: sheet.programme, store }),
+    store.categoryAt?.({ title: sheet.programme.title, startMs: sheet.programme.start }).catch(() => null) ?? null,
+  ])
+  const ratingsLikely = isRatingsLikely({ kind: sheet.programme.kind, category })
+  return { ...sheet, programme: { ...sheet.programme, classification, ratingsLikely } }
 }
 
 const classificationStore = createClassificationStore()

@@ -73,7 +73,8 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
 
   const score = computed(() => shownScoreOf(ratings.value))
   const review = computed(() => (reviewAllowed.value ? shownReviewOf(ratings.value) : null))
-  return { score, review, cardOpen, loading }
+  const likely = computed(() => Boolean(programme.value?.ratingsLikely) || programme.value?.kind === 'movie')
+  return { score, review, cardOpen, loading: computed(() => loading.value && likely.value) }
 }
 
 export const ProgrammeArtBadges = {

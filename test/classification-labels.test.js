@@ -15,6 +15,7 @@ const {
   createClassificationStore,
   normaliseClassification,
   programmeClassification,
+  isRatingsLikely,
   programmeClassificationEntry,
 } = await import('../src/classification-labels.js')
 const { withClassification } = await import('../src/epg.js')
@@ -70,8 +71,20 @@ test('programmeClassificationEntry keys a label by the plain title and start tim
     titleKey: 'law & order',
     startMs: NOW,
     label: 'MA15+',
+    category: null,
   })
   assert.equal(programmeClassificationEntry({ programmeXml: rated(), parseTime: parseXmltvTime }), null)
+  const categorised = rated().replace('</title>', '</title><category lang="en">Drama</category><category>Crime</category>')
+  assert.equal(programmeClassificationEntry({ programmeXml: categorised, parseTime: parseXmltvTime }).category, 'drama')
+})
+
+test('isRatingsLikely is true for films and story categories only', () => {
+  assert.equal(isRatingsLikely({ kind: 'movie', category: null }), true)
+  assert.equal(isRatingsLikely({ kind: 'series', category: 'drama' }), true)
+  assert.equal(isRatingsLikely({ kind: 'series', category: 'documentary' }), true)
+  assert.equal(isRatingsLikely({ kind: 'series', category: 'special interest' }), false)
+  assert.equal(isRatingsLikely({ kind: 'series', category: 'reality' }), false)
+  assert.equal(isRatingsLikely({ kind: 'series', category: null }), false)
 })
 
 test('classificationFromAgeRating maps only the unambiguous TVHeadend ages', () => {

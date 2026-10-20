@@ -11,7 +11,7 @@ import {
   ratingsResponseOf,
   requestedYearOf,
   tmdbScoreOf,
-  upcomingFilmsOf,
+  upcomingProgrammesOf,
 } from '../src/programme-ratings.js'
 import { programmeHintsOf } from '../src/artwork-match.js'
 
@@ -20,7 +20,7 @@ const memoryCache = () => {
   return {
     rows,
     read: async (key) => rows.get(key) || null,
-    write: async ({ key, found, expiresAt }) => { rows.set(key, { found, expiresAt }) },
+    write: async ({ key, found, expiresAt, missReason = null }) => { rows.set(key, { found, expiresAt, missReason }) },
     remove: async (key) => { rows.delete(key) },
   }
 }
@@ -222,7 +222,7 @@ test('a reality series gets no score and the miss is cached', async () => {
   const reality = { ...UTOPIA_AU, name: 'MasterChef Australia', type: 'Reality', externals: {} }
   const { ratings, cache } = ratingsWith({ routes: { '/search/shows': [{ show: reality }] } })
   assert.equal((await settled(ratings, 'MasterChef Australia')).status, 'none')
-  assert.deepEqual(cache.rows.get('tmdb:masterchef australia'), { found: null, expiresAt: 1010 })
+  assert.deepEqual(cache.rows.get('tmdb:masterchef australia'), { found: null, expiresAt: 1010, missReason: 'not-story:Reality' })
 })
 
 test('the TMDB type gates a series when TVmaze gives none', async () => {
@@ -422,7 +422,7 @@ test('a lookup slower than the wait answers pending, and warm never waits', asyn
   assert.equal((await warmed.ratingsFor('Heat', { kind: 'movie', wait: false })).score, 8)
 })
 
-test('warm targets For you items and films airing within the window', () => {
+test('warm targets For you items and programmes airing within the window', () => {
   const result = { topPick: { title: 'A', kind: 'liked', programmeKind: 'movie' }, sections: [{ items: [{ title: 'B', kind: 'similar', programmeKind: 'series' }] }, { items: [] }] }
   assert.deepEqual(forYouProgrammesOf(result), [{ title: 'A', kind: 'movie' }, { title: 'B', kind: 'series' }])
   const guide = { programByEventId: new Map([
@@ -431,5 +431,31 @@ test('warm targets For you items and films airing within the window', () => {
     [3, { title: 'Later', kind: 'movie', start: 90000, end: 99000 }],
     [4, { title: 'Over', kind: 'movie', start: 0, end: 900 }],
   ]) }
-  assert.deepEqual(upcomingFilmsOf({ guide, nowMs: 1000, windowMs: 10000 }).map(({ title }) => title), ['Soon'])
+  assert.deepEqual(upcomingProgrammesOf({ guide, nowMs: 1000, windowMs: 10000 }).map(({ title }) => title), ['Soon', 'Show'])
+})
+
+test('a lookup that finds nothing caches why', async () => {
+  const reality = { ...UTOPIA_AU, id: 77, name: 'Renters', type: 'Reality', externals: {} }
+  const { ratings, cache } = ratingsWith({ routes: { '/search/shows': [{ show: reality }] }, apiKey: null })
+  assert.equal((await settled(ratings, 'Renters')).status, 'none')
+  assert.deepEqual([...cache.rows.values()].map(({ found, missReason }) => [found, missReason]), [[null, 'not-story:Reality']])
+  const films = ratingsWith({ routes: { '/search/movie': { results: [] } }, hints: null })
+  await settled(films.ratings, 'Obscure Film', { kind: 'movie' })
+  assert.deepEqual([...films.cache.rows.values()].map(({ missReason }) => missReason), ['no-guide-details'])
+})
+
+test('same-name shows are told apart by the guide episode titles', async () => {
+  const friends = { id: 431, name: 'Friends', premiered: '1994-09-22', type: 'Scripted', language: 'English', weight: 99, rating: { average: 8.5 }, url: 'https://www.tvmaze.com/shows/431/friends', externals: {}, network: { country: { code: 'US' } } }
+  const older = { ...friends, id: 5000, premiered: '1979-03-25', weight: 57, rating: { average: 6 }, url: 'https://www.tvmaze.com/shows/5000/friends' }
+  const hints = programmeHintsOf([{ title: 'Friends', synopsis: 'Ross is surprised.', episode_title: 'The One With The Lottery', series_no: 9 }])
+  const routes = {
+    '/search/shows': [{ show: friends }, { show: older }],
+    '/shows/431/episodes': [{ name: 'The One Where Monica Gets a Roommate' }, { name: 'The One with the Lottery' }],
+    '/shows/5000/episodes': [{ name: 'Pilot' }],
+  }
+  const { ratings } = ratingsWith({ routes, hints, apiKey: null })
+  assert.equal((await settled(ratings, 'Friends')).score, 8.5)
+  const unknown = programmeHintsOf([{ title: 'Friends', synopsis: 'Ross is surprised.', episode_title: 'Episode 4' }])
+  const vague = ratingsWith({ routes, hints: unknown, apiKey: null })
+  assert.equal((await settled(vague.ratings, 'Friends')).status, 'none')
 })

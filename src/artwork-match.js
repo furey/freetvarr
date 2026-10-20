@@ -16,8 +16,14 @@ export const programmeHintsOf = (programs = []) => {
     years: yearsOf(`${title} ${synopsis}`),
     releaseYears: releaseYearsOf({ title, synopsis }),
     castNames: castNamesOf(synopsis),
+    episodeTitles: [...new Set(matching.map((program) => episodeTitleKeyOf(program.episode_title)).filter(Boolean))],
     ...evidenceWordsOf({ synopsis, title }),
   }
+}
+
+export const episodeTitleKeyOf = (value) => {
+  const key = String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return key.length >= MIN_EPISODE_TITLE_LENGTH && !GENERIC_EPISODE_TITLE.test(key) ? key : null
 }
 
 export const programmeHintsByTitle = (programs = []) => {
@@ -299,3 +305,5 @@ const MAX_ENTITY_CANDIDATES = 3
 const MAX_SEARCH_RANK = 10
 const MAX_TMDB_CAST = 15
 const MAX_PROGRAMMES_PER_TITLE = 8
+const MIN_EPISODE_TITLE_LENGTH = 6
+const GENERIC_EPISODE_TITLE = /^(episode|part|series|season|chapter)\b|^\d+$/

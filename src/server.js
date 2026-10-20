@@ -183,7 +183,8 @@ import { mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
-import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf } from './programme-ratings.js'
+import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
+import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
@@ -740,17 +741,21 @@ app.get('/api/epg/show-image', serveImage({
 
 const guideHints = createGuideHints({ loadGuide: getGuideSnapshot })
 const LOOKUP_WAIT_MS = 1500
-const FILM_WARM_DELAY_MS = 2 * 60_000
-const FILM_WARM_WINDOW_MS = 24 * 60 * 60_000
+const RATINGS_WARM_DELAY_MS = 2 * 60_000
+const RATINGS_WARM_WINDOW_MS = 24 * 60 * 60_000
 const programmeRatings = createProgrammeRatings({ hintsFor: guideHints, waitMs: LOOKUP_WAIT_MS })
 const programmeCredits = createProgrammeCredits({ hintsFor: guideHints, waitMs: LOOKUP_WAIT_MS })
 
-const warmUpcomingFilms = async () => {
+const programmeCategories = createClassificationStore()
+const warmUpcomingRatings = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
-  programmeRatings.warm(upcomingFilmsOf({ guide, nowMs: Date.now(), windowMs: FILM_WARM_WINDOW_MS }))
+  const upcoming = upcomingProgrammesOf({ guide, nowMs: Date.now(), windowMs: RATINGS_WARM_WINDOW_MS })
+  const categories = await programmeCategories.categoriesAt(upcoming.map((programme) => programme.start)).catch(() => new Map())
+  const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start }))
+  programmeRatings.warm(upcoming.filter((programme) => isRatingsLikely({ kind: programme.kind, category: categoryOf(programme) })))
 }
-setTimeout(warmUpcomingFilms, FILM_WARM_DELAY_MS).unref?.()
-setInterval(warmUpcomingFilms, FILM_WARM_WINDOW_MS / 24).unref?.()
+setTimeout(warmUpcomingRatings, RATINGS_WARM_DELAY_MS).unref?.()
+setInterval(warmUpcomingRatings, RATINGS_WARM_WINDOW_MS / 24).unref?.()
 
 const ratingsLimiter = rateLimit({
   windowMs: 60_000,

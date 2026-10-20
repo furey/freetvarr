@@ -7,6 +7,7 @@ import { countryForTimeZone } from './zone-countries.js'
 import { pickReviewSnippet } from './review-snippet.js'
 import {
   artworkKindOf,
+  episodeTitleKeyOf,
   hintsForKind,
   lookupExpiryOf,
   matchEvidenceOf,
@@ -99,9 +100,9 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
     const pending = lookupLimiter.run(async () =>
       lookUp({ title, kind, year, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }))
       .then(async (found) => {
-        const result = found || null
+        const result = found?.missReason ? null : found || null
         const expiresAt = lookupExpiryOf({ found: Boolean(result), nowMs: now(), hitTtlMs, missTtlMs })
-        await cache.write({ key: cacheKey, found: result, expiresAt }).catch(() => {})
+        await cache.write({ key: cacheKey, found: result, expiresAt, missReason: found?.missReason ?? null }).catch(() => {})
         return result
       })
       .catch(() => {
@@ -136,8 +137,8 @@ export const forYouProgrammesOf = (result) => [result?.topPick, ...(result?.sect
   .filter(Boolean)
   .map((item) => ({ title: item.title, kind: item.programmeKind ?? null }))
 
-export const upcomingFilmsOf = ({ guide, nowMs, windowMs }) => [...(guide?.programByEventId?.values() || [])]
-  .filter((programme) => programme.kind === FILM_KIND && programme.end > nowMs && programme.start < nowMs + windowMs)
+export const upcomingProgrammesOf = ({ guide, nowMs, windowMs }) => [...(guide?.programByEventId?.values() || [])]
+  .filter((programme) => programme.end > nowMs && programme.start < nowMs + windowMs)
 
 export const ratingsResponseOf = ({ found, ratingsOn = true, reviewsOn = true }) => {
   const scored = ratingsOn && found?.score != null
@@ -161,15 +162,17 @@ export const createRatingsLookup = ({
 } = {}) => {
   const filmRatings = async ({ title, hints, apiKey, year }) => {
     const details = await matcher.matchedFilm({ title, hints, apiKey, year })
-    return details ? filmRatingsOf(details) : null
+    if (!details) return missOf(hints || year ? 'no-match' : 'no-guide-details')
+    return filmRatingsOf(details) || missOf('no-score')
   }
 
   const seriesRatings = async ({ title, hints, apiKey }) => {
     const show = await matcher.tvmazeShow({ title, hints })
-    if (!show || (show.type && !isCinematicSeries({ tvmazeType: show.type }))) return null
+    if (!show) return missOf('no-match')
+    if (show.type && !isCinematicSeries({ tvmazeType: show.type })) return missOf('not-story', show.type)
     const details = await matcher.tmdbShow({ title, show, apiKey })
-    if (!show.type && !isCinematicSeries({ tmdbType: details?.type })) return null
-    return seriesRatingsOf({ show, details })
+    if (!show.type && !isCinematicSeries({ tmdbType: details?.type })) return missOf('not-story', details?.type || 'unknown')
+    return seriesRatingsOf({ show, details }) || missOf('no-score')
   }
 
   return async ({ title, kind, hints, apiKey, year = null }) => (artworkKindOf(kind)
@@ -229,10 +232,23 @@ export const createTitleMatcher = ({
   const tvmazeShow = async ({ title, hints }) => {
     for (const variant of titleVariantsOf(title)) {
       const results = await client.getJson({ url: `${TVMAZE_API}/search/shows`, params: { q: variant } })
-      const show = pickRatedShow({ results: results || [], key: showTitleKey(variant), hints, country: countryCode() })
+      const key = showTitleKey(variant)
+      const show = pickRatedShow({ results: results || [], key, hints, country: countryCode() })
+        || await episodeMatchedShow({ candidates: exactShowsOf({ results: results || [], key }), hints })
       if (show) return show
     }
     return null
+  }
+
+  const episodeMatchedShow = async ({ candidates, hints }) => {
+    const wanted = new Set(hints?.episodeTitles || [])
+    if (!wanted.size || candidates.length > MAX_EPISODE_CHECKS) return null
+    const matched = []
+    for (const show of candidates) {
+      const episodes = await client.getJson({ url: `${TVMAZE_API}/shows/${encodeURIComponent(show.id)}/episodes` }).catch(() => null)
+      if ((episodes || []).some((episode) => wanted.has(episodeTitleKeyOf(episode?.name)))) matched.push(show)
+    }
+    return matched.length === 1 ? matched[0] : null
   }
 
   const tmdbShowId = async ({ title, show, apiKey }) => {
@@ -266,8 +282,12 @@ export const requestedYearOf = (value) => {
   return Number.isInteger(year) && year >= MIN_REQUESTED_YEAR && year <= MAX_REQUESTED_YEAR ? year : null
 }
 
+export const exactShowsOf = ({ results = [], key }) => results
+  .map((result) => result?.show)
+  .filter((show) => show && showTitleKey(show.name) === key)
+
 export const pickRatedShow = ({ results = [], key, hints, country }) => {
-  const candidates = results.map((result) => result?.show).filter((show) => show && showTitleKey(show.name) === key)
+  const candidates = exactShowsOf({ results, key })
   if (!candidates.length) return null
   const verdicts = candidates.map((show) => ({ show, evidence: tvmazeEvidenceOf({ show, hints }) }))
   const proven = verdicts.find(({ evidence }) => evidence?.accepted)
@@ -370,12 +390,14 @@ export const databaseCacheOf = (table) => ({
     const row = await db(table).where({ lookup_key: key }).first()
     return row ? { found: JSON.parse(row.found_json), expiresAt: Number(row.expires_at) } : null
   },
-  write: ({ key, found, expiresAt }) => db(table)
-    .insert({ lookup_key: key, found_json: JSON.stringify(found), expires_at: expiresAt })
+  write: ({ key, found, expiresAt, missReason = null }) => db(table)
+    .insert({ lookup_key: key, found_json: JSON.stringify(found), expires_at: expiresAt, miss_reason: missReason })
     .onConflict('lookup_key')
     .merge(),
   remove: (key) => db(table).where({ lookup_key: key }).del(),
 })
+
+const missOf = (reason, detail = null) => ({ missReason: detail ? `${reason}:${detail}` : reason })
 
 const NO_RATINGS = { status: 'none', score: null, votes: null, source: null, url: null, reviews: null }
 const PENDING_RATINGS = { ...NO_RATINGS, status: 'pending' }
@@ -383,6 +405,7 @@ const FILM_KIND = 'movie'
 const TVMAZE_API = 'https://api.tvmaze.com'
 export const TMDB_WEB = 'https://www.themoviedb.org'
 const TMDB_LANGUAGE = 'en-US'
+const MAX_EPISODE_CHECKS = 4
 const MIN_DOMINANT_WEIGHT = 50
 const DOMINANT_WEIGHT_RATIO = 3
 const TVMAZE_CINEMATIC_TYPES = new Set(['Scripted', 'Animation', 'Documentary'])

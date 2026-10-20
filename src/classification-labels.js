@@ -27,25 +27,45 @@ export const classificationKeyOf = ({ title, startMs }) => `${classificationTitl
 export const fallbackClassification = ({ rating, ratingLabel } = {}) =>
   normaliseClassification(ratingLabel) ?? classificationFromAgeRating(rating)
 
+export const categoryOfProgramme = (programmeXml) => {
+  const category = String(programmeXml).match(CATEGORY_ELEMENT)?.[1]
+  return category ? decodeEntities(category).trim().toLowerCase() || null : null
+}
+
+export const isRatingsLikely = ({ kind, category }) => kind === FILM_KIND || RATED_CATEGORIES.has(category)
+
 export const programmeClassificationEntry = ({ programmeXml, parseTime }) => {
-  if (!programmeXml.includes('<rating')) return null
-  const label = classificationOfProgramme(programmeXml)
-  if (!label) return null
+  const label = programmeXml.includes('<rating') ? classificationOfProgramme(programmeXml) : null
+  const category = programmeXml.includes('<category') ? categoryOfProgramme(programmeXml) : null
+  if (!label && !category) return null
   const title = programmeXml.match(TITLE_ELEMENT)?.[1]
   const startMs = parseTime(programmeXml.match(START_ATTRIBUTE)?.[1])
   if (!title || startMs === null) return null
-  return { titleKey: classificationTitleKey(decodeEntities(title)), startMs, label }
+  return { titleKey: classificationTitleKey(decodeEntities(title)), startMs, label, category }
 }
 
 export const createClassificationStore = ({ db = defaultDb, keepMs = KEEP_PAST_MS } = {}) => {
   let writes = Promise.resolve()
-  const save = async (entries) => {
-    for (let i = 0; i < entries.length; i += WRITE_BATCH) {
-      await db('programme_classifications')
-        .insert(entries.slice(i, i + WRITE_BATCH).map(toRow))
+  const saveRows = async ({ table, rows }) => {
+    for (let i = 0; i < rows.length; i += WRITE_BATCH) {
+      await db(table)
+        .insert(rows.slice(i, i + WRITE_BATCH))
         .onConflict(['title_key', 'start_ms'])
         .merge()
     }
+  }
+  const save = async (entries) => {
+    await saveRows({ table: 'programme_classifications', rows: entries.filter((entry) => entry.label).map(toRow) })
+    await saveRows({ table: 'programme_categories', rows: entries.filter((entry) => entry.category).map(toCategoryRow) })
+  }
+  const categoriesAt = async (startTimes) => {
+    const starts = [...new Set(startTimes.map(Number).filter(Number.isFinite))]
+    if (!starts.length) return new Map()
+    const query = db('programme_categories').select('title_key', 'start_ms', 'category')
+    const rows = starts.length > MAX_LISTED_STARTS
+      ? await query.whereBetween('start_ms', [Math.min(...starts), Math.max(...starts)])
+      : await query.whereIn('start_ms', starts)
+    return new Map(rows.map((row) => [`${row.title_key}|${Number(row.start_ms)}`, row.category]))
   }
   const queue = (work) => {
     writes = writes.then(work).catch((err) => console.warn(`[classification] could not save labels: ${err.message}`))
@@ -81,9 +101,17 @@ export const createClassificationStore = ({ db = defaultDb, keepMs = KEEP_PAST_M
     prune: ({ nowMs = Date.now() } = {}) => queue(async () => {
       await keepForRecordings()
       await db('programme_classifications').where('start_ms', '<', nowMs - keepMs).delete()
+      await db('programme_categories').where('start_ms', '<', nowMs - keepMs).delete()
     }),
     copyToRecordings,
     labelsAt,
+    categoriesAt,
+    categoryAt: async ({ title, startMs }) => {
+      const row = await db('programme_categories')
+        .where({ title_key: classificationTitleKey(title), start_ms: startMs })
+        .first('category')
+      return row?.category ?? null
+    },
     settled: () => writes,
     lookup: async ({ title, startMs }) => {
       const row = await db('programme_classifications')
@@ -135,6 +163,8 @@ const groupIdsByLabel = ({ recordings, labels }) => {
 
 const toRow = ({ titleKey, startMs, label }) => ({ title_key: titleKey, start_ms: startMs, label })
 
+const toCategoryRow = ({ titleKey, startMs, category }) => ({ title_key: titleKey, start_ms: startMs, category })
+
 const isAustralianSystem = (system) => !system || AUSTRALIAN_SYSTEM.test(system)
 
 const decodeEntities = (value) => value
@@ -146,6 +176,13 @@ const decodeEntities = (value) => value
   .replace(/&#x([0-9a-f]+);/gi, (all, code) => String.fromCodePoint(parseInt(code, 16)))
   .replace(/&amp;/g, '&')
 
+const FILM_KIND = 'movie'
+const CATEGORY_ELEMENT = /<category\b[^>]*>([^<]*)<\/category>/
+const RATED_CATEGORIES = new Set([
+  'drama', 'comedy', 'crime', 'documentary', 'movies', 'movie', 'film', 'action & adventure', 'action', 'adventure',
+  'horror', 'thriller', 'mystery', 'sci-fi', 'science fiction', 'fantasy', 'animation', 'romance', 'war', 'western',
+  'history', 'nature', 'science', 'factual', 'biography', 'musical', 'family',
+])
 const AGE_RATING_LABELS = new Map([[15, 'MA15+'], [18, 'R18+']])
 const MISSING_PLUS = /^(?:MA15|AV15|R18)$/
 const RATING_ELEMENT = /<rating\b([^>]*)>([\s\S]*?)<\/rating>/g
