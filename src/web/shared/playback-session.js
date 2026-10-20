@@ -67,7 +67,7 @@ export const playRecording = (recording, { fromStart = false } = {}) => {
   Object.assign(playback, {
     open: true, recording, sessionId: null, offset: 0, duration: recording.duration_s || 0,
     position: 0, phase: 'starting', message: '', resumed: false, started: false,
-    paused: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [], source: '', captions: false,
+    paused: false, stuck: false, waiting: false, scrubbing: false, skipHint: null, adBreaks: [], source: '', captions: false,
   })
   playInfoOpen.value = false
   playVideo?.play()?.catch(() => {})
@@ -258,7 +258,7 @@ export const togglePlayback = () => {
   if (!playback.sessionId && playback.phase === 'playing') return startPlaybackAt(Math.floor(playback.position))
   if (!playVideo || playback.phase !== 'playing') return
   if (playVideo.ended) return seekPlaybackTo(0)
-  if (playVideo.paused) return playVideo.play()?.catch(() => {})
+  if (playVideo.paused || playback.stuck) return playVideo.play()?.catch(() => {})
   playVideo.pause()
 }
 

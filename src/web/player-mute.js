@@ -12,11 +12,13 @@ export const muteButtonOf = ({ muted }) => (muted
   ? { label: 'Muted', audible: false, ariaLabel: 'Muted. Press to hear sound' }
   : { label: 'Sound', audible: true, ariaLabel: 'Sound on. Press to mute' })
 
-export const playerMenuItemsOf = ({ hasCaptions, captionsOn, canPip, pipActive, fullscreen }) => [
-  hasCaptions && { key: 'captions', label: 'Captions', value: captionsOn ? 'On' : 'Off', on: Boolean(captionsOn) },
+export const playerMenuItemsOf = ({ overflow = [], hasCaptions, captionsOn, canPip, pipActive, fullscreen }) => [
+  ...overflow,
+  hasCaptions && { key: 'captions', label: 'Captions', icon: 'captions-icon', value: captionsOn ? 'On' : 'Off', on: Boolean(captionsOn) },
   canPip && {
     key: 'pip',
     label: pipActive ? 'Close pop out (picture in picture)' : 'Pop out (picture in picture)',
+    icon: pipActive ? 'exit-pip-icon' : 'pop-out-icon',
   },
-  { key: 'fullscreen', label: fullscreen ? 'Exit full screen' : 'Full screen' },
+  { key: 'fullscreen', label: fullscreen ? 'Exit full screen' : 'Full screen', icon: fullscreen ? 'exit-fullscreen-icon' : 'fullscreen-icon' },
 ].filter(Boolean)

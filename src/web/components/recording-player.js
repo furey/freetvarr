@@ -50,12 +50,16 @@ import {
   captionTracksOf,
   isStageFullscreen,
   toggleStageFullscreen,
+  enterStageFullscreen,
+  useRotateToFullscreen,
+  usePausedResync,
   FILLED_CAPTION_LINE,
   playback,
   playerMini,
   playerMuted,
 } from '/shared/player-shared.js'
-import { tz, fmtTime } from '/shared/time.js'
+import { tz, fmtTime, now } from '/shared/time.js'
+import { VIDEO_STATE_EVENTS, initialPausedState, pausedStateAfter } from '/player-paused.js'
 import { SKIP_STEP_S } from '/double-tap.js'
 
 export const RecordingPlayer = {
@@ -98,12 +102,9 @@ export const RecordingPlayer = {
           back-label="Close" :info-open="infoOpen" info-id="play-info" :has-captions="playback.captions"
           :captions-on="captionsOn" :fullscreen="isStageFullscreen" :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
           @back="stopPlayback" @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions" @toggle-fullscreen="toggleFullscreen"
-          @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted">
-          <button v-if="playback.airplay" type="button" class="pl-pill" aria-label="AirPlay" @click="showAirplay">
-            <airplay-icon /><span class="pl-pill-label">AirPlay</span>
-          </button>
-        </player-top-bar>
-        <player-center-controls v-if="playback.phase !== 'ended' && !infoOpen" :paused="playback.paused"
+          @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
+          :actions="topActions" @action="onTopAction" />
+        <player-center-controls v-if="playback.phase !== 'ended' && !infoOpen" :paused="shownPaused"
           :show-start-over="playback.resumed" @start-over="startPlaybackOver" @toggle-pause="togglePlayback" />
         <div v-if="playback.phase === 'ended'" class="pl-ended">
           <p class="pl-ended-message">{{ playback.message }}</p>
@@ -125,7 +126,7 @@ export const RecordingPlayer = {
         </div>
         <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
         <player-mini v-if="mini" :title="header.title" :meta="miniMeta" :progress="fillPercent"
-          :paused="playback.paused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
+          :paused="shownPaused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
           :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" @toggle-captions="togglePlayCaptions"
           @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
@@ -138,6 +139,7 @@ export const RecordingPlayer = {
     const stageEl = ref(null)
     const recording = computed(() => playback.recording)
     const infoOpen = playInfoOpen
+    const shownPaused = computed(() => playback.paused || playback.stuck)
 
     const header = computed(() => {
       const r = playback.recording
@@ -235,7 +237,7 @@ export const RecordingPlayer = {
       controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,
     } = useControlsAutoHide({
       enabled: computed(() => playback.open && !mini.value),
-      holdShown: computed(() => playback.paused || playback.phase !== 'playing' || playback.waiting
+      holdShown: computed(() => shownPaused.value || playback.phase !== 'playing' || playback.waiting
         || playback.scrubbing || infoOpen.value),
       rootEl: stageEl,
     })
@@ -253,6 +255,25 @@ export const RecordingPlayer = {
     watch(captionLine, placeCaptions)
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
+    const topActions = computed(() => [{
+      key: 'airplay', order: 5, priority: 2, icon: 'airplay-icon', label: 'AirPlay', ariaLabel: 'AirPlay', menuLabel: 'AirPlay',
+      hidden: !playback.airplay,
+    }])
+    const onTopAction = (key) => {
+      if (key === 'airplay') showAirplay()
+    }
+
+    let pausedState = initialPausedState
+    const syncPaused = (event) => {
+      const type = event?.type ?? 'sync'
+      pausedState = pausedStateAfter(pausedState, { type, video: playVideo, nowMs: Date.now(), pageVisible: document.visibilityState !== 'hidden' })
+      const isPlaying = playback.phase === 'playing'
+      if (isPlaying || DIRECT_PAUSE_EVENTS.has(type)) playback.paused = pausedState.paused
+      playback.stuck = pausedState.stuck && isPlaying
+      if (isPlaying && !DIRECT_PAUSE_EVENTS.has(type)) playback.waiting = pausedState.buffering
+    }
+    watch(now, () => syncPaused({ type: 'tick' }))
+    usePausedResync(syncPaused)
 
     const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
       infoOpen,
@@ -330,8 +351,8 @@ export const RecordingPlayer = {
       applyMuting()
       playVideo.addEventListener('timeupdate', onTimeUpdate)
       playVideo.addEventListener('playing', onPlaying)
-      playVideo.addEventListener('play', () => { playback.paused = false })
       playVideo.addEventListener('pause', onPause)
+      for (const type of VIDEO_STATE_EVENTS) playVideo.addEventListener(type, syncPaused)
       playVideo.addEventListener('waiting', () => { playback.waiting = true })
       playVideo.addEventListener('ended', onEnded)
       playVideo.textTracks?.addEventListener?.('addtrack', (e) => {
@@ -343,6 +364,11 @@ export const RecordingPlayer = {
         playback.airplay = e.availability === 'available'
       })
     })
+    useRotateToFullscreen({
+      isEligible: () => playback.open && !mini.value && playback.phase === 'playing',
+      enter: () => enterStageFullscreen({ stage: stageEl.value, video: playVideo }),
+      getVideo: () => playVideo,
+    })
 
     return {
       playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
@@ -350,12 +376,14 @@ export const RecordingPlayer = {
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, isStageFullscreen, showAirplay,
+      toggleFullscreen, isStageFullscreen, showAirplay, topActions, onTopAction, shownPaused,
       captionsOn: liveCaptionsOn, togglePlayCaptions,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       mini, minimise, expand, miniMeta, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
     }
   },
 }
+
+const DIRECT_PAUSE_EVENTS = new Set(['play', 'playing', 'pause', 'ended'])
 
 const RECORDING_HINT_TEXT = `Double-tap either side to skip ${SKIP_STEP_S} seconds.`

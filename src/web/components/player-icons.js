@@ -12,6 +12,8 @@ export const PictureInPictureIcon = icon('<rect x="1.75" y="3" width="12.5" heig
 
 export const MinimiseIcon = PictureInPictureIcon
 
+export const PopOutIcon = icon('<path d="M13.25 9.5v2.25a1.5 1.5 0 0 1-1.5 1.5h-8.5a1.5 1.5 0 0 1-1.5-1.5v-6.5a1.5 1.5 0 0 1 1.5-1.5H6.5"/><path d="M9.25 2.25h4.5v4.5M13.75 2.25 8.25 7.75"/>')
+
 export const ExitPictureInPictureIcon = icon('<rect x="1.75" y="3" width="12.5" height="10" rx="1.5"/><rect x="8.25" y="8" width="4.25" height="3.25" rx="0.6"/><path d="M7.25 7.25 4.5 4.5M4.5 7.25V4.5h2.75"/>')
 
 export const ExpandArrowsIcon = icon('<path d="M9.5 2.75h3.75V6.5M13.25 2.75 8.75 7.25M6.5 13.25H2.75V9.5M2.75 13.25l4.5-4.5"/>')
@@ -42,6 +44,7 @@ export const PhoneRotateIcon = icon('<rect x="4.5" y="1.75" width="7" height="12
 
 export const PLAYER_ICON_COMPONENTS = {
   'pip-icon': PictureInPictureIcon,
+  'pop-out-icon': PopOutIcon,
   'minimise-icon': MinimiseIcon,
   'watch-alongside-icon': WatchAlongsideIcon,
   'swap-icon': SwapIcon,

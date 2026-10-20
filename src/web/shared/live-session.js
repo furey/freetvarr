@@ -15,6 +15,7 @@ import {
 import { isReadyToStart } from '/live-start.js'
 import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/live-edge.js'
 import { captionLineOf } from '/mini-player.js'
+import { initialPausedState, pausedStateAfter } from '/player-paused.js'
 import { csrfToken, api } from '/shared/api.js'
 import {
   live,
@@ -606,12 +607,19 @@ export const onLiveClick = (e) => {
 
 export const toggleLivePause = () => {
   if (!liveAttached) return
-  if (!liveVideo.paused) return liveVideo.pause()
+  if (!liveVideo.paused && !live.stuck) return liveVideo.pause()
   liveVideo.play()?.catch(() => {})
 }
 
-export const syncLivePaused = () => {
-  live.paused = Boolean(liveVideo?.paused) && live.phase === 'live'
+let livePausedState = initialPausedState
+
+export const syncLivePaused = (event) => {
+  livePausedState = pausedStateAfter(livePausedState, {
+    type: event?.type ?? 'sync', video: liveVideo, nowMs: Date.now(), pageVisible: document.visibilityState !== 'hidden',
+  })
+  const isLive = live.phase === 'live'
+  live.paused = livePausedState.paused && isLive
+  live.stuck = livePausedState.stuck && isLive
 }
 
 export const onLiveDoubleClick = (e) => {

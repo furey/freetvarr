@@ -1,8 +1,10 @@
-import { ref, reactive, watch } from '/vendor/vue.esm-browser.prod.js'
+import { ref, reactive, watch, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { zoneOf, skipLabel, skipSpoken } from '/double-tap.js'
 import { LIVE_CAPTIONS_KEY } from '/shared/constants.js'
 import { storedFlag, browserStorage } from '/shared/storage.js'
 import { loadPlayerMuted, savePlayerMuted } from '/player-mute.js'
+import { PAGE_RESYNC_EVENTS } from '/player-paused.js'
+import { initialRotateState, rotateStepOf, fullscreenExitedState, isPhoneScreen } from '/rotate-fullscreen.js'
 
 export const live = reactive({
   open: false,
@@ -26,6 +28,7 @@ export const live = reactive({
   skipHint: null,
   captions: false,
   paused: false,
+  stuck: false,
   fromStart: null,
 })
 
@@ -73,6 +76,60 @@ export const toggleStageFullscreen = ({ stage, video }) => {
   video?.webkitEnterFullscreen?.()
 }
 
+export const enterStageFullscreen = ({ stage, video }) => {
+  if (document.fullscreenElement || video?.webkitDisplayingFullscreen) return
+  if (stage?.requestFullscreen) return stage.requestFullscreen().catch(() => {})
+  try { video?.webkitEnterFullscreen?.() } catch {}
+}
+
+export const useRotateToFullscreen = ({ isEligible, enter, getVideo }) => {
+  const landscapeQuery = window.matchMedia?.('(orientation: landscape)')
+  let state = initialRotateState(landscapeQuery?.matches)
+  const isFullscreen = () => Boolean(document.fullscreenElement || getVideo()?.webkitDisplayingFullscreen)
+  const isPhone = () => isPhoneScreen({
+    coarsePointer: window.matchMedia?.('(pointer: coarse)').matches,
+    screenWidth: window.screen?.width ?? window.innerWidth,
+    screenHeight: window.screen?.height ?? window.innerHeight,
+  })
+  const onTurn = () => {
+    const step = rotateStepOf(state, {
+      landscape: landscapeQuery?.matches,
+      eligible: isPhone() && isEligible(),
+      fullscreen: isFullscreen(),
+      nowMs: Date.now(),
+    })
+    state = step.state
+    if (step.enter) enter()
+  }
+  const onFullscreenChange = () => {
+    if (!isFullscreen()) state = fullscreenExitedState(state, Date.now())
+  }
+  let video = null
+  onMounted(() => {
+    video = getVideo()
+    landscapeQuery?.addEventListener?.('change', onTurn)
+    window.screen?.orientation?.addEventListener?.('change', onTurn)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    video?.addEventListener('webkitendfullscreen', onFullscreenChange)
+  })
+  onUnmounted(() => {
+    landscapeQuery?.removeEventListener?.('change', onTurn)
+    window.screen?.orientation?.removeEventListener?.('change', onTurn)
+    document.removeEventListener('fullscreenchange', onFullscreenChange)
+    video?.removeEventListener('webkitendfullscreen', onFullscreenChange)
+  })
+}
+
+export const usePausedResync = (resync) => {
+  const targetOf = (name) => (name === 'document' ? document : window)
+  onMounted(() => {
+    for (const { target, type } of PAGE_RESYNC_EVENTS) targetOf(target).addEventListener(type, resync)
+  })
+  onUnmounted(() => {
+    for (const { target, type } of PAGE_RESYNC_EVENTS) targetOf(target).removeEventListener(type, resync)
+  })
+}
+
 export const finiteOrNull = (seconds) => (Number.isFinite(seconds) ? seconds : null)
 
 export const createSkipHintFlasher = (target) => {
@@ -113,6 +170,7 @@ export const playback = reactive({
   resumed: false,
   started: false,
   paused: true,
+  stuck: false,
   waiting: false,
   scrubbing: false,
   scrubValue: 0,

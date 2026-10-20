@@ -20,7 +20,7 @@ const MiniMenuIcon = {
     <speaker-icon v-else-if="name === 'sound'" class="pl-mini-menu-icon" />
     <expand-arrows-icon v-else-if="name === 'expand'" class="pl-mini-menu-icon" />
     <captions-icon v-else-if="name === 'captions'" class="pl-mini-menu-icon" />
-    <pip-icon v-else class="pl-mini-menu-icon" />
+    <pop-out-icon v-else class="pl-mini-menu-icon" />
   `,
 }
 

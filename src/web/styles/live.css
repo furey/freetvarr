@@ -1197,27 +1197,53 @@ body.player-open .app-tabbar {
 }
 
 @container (max-width: 560px) {
-  .pl-top {
-    flex-wrap: wrap;
-    row-gap: 8px;
-  }
-
   .pl-notice {
-    top: calc(env(safe-area-inset-top, 0px) + 128px);
     border-radius: 16px;
     white-space: normal;
-  }
-
-  .pl-actions {
-    flex-basis: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    row-gap: 8px;
   }
 
   .pl-actions > * {
     flex: none;
   }
+}
+
+.pl-pill.is-record.is-compact {
+  justify-content: center;
+  width: 40px;
+  padding: 0;
+}
+
+.pl-pill.is-record.is-compact .pl-record-text,
+.pl-pill.is-sound.is-compact .pl-sound-label {
+  display: none;
+}
+
+.pl-pill.is-sound.is-compact {
+  justify-content: center;
+  width: 40px;
+  padding: 0;
+}
+
+@media (max-width: 480px) {
+  .pl-actions {
+    gap: 6px;
+  }
+}
+
+.pl-menu-row {
+  color: var(--color-text-1);
+}
+
+.pl-menu-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pl-menu-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-2);
 }
 
 .pl-frame:has(.live-skip-hint) .pl-centre {
