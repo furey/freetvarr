@@ -24,15 +24,19 @@ export const ForYouView = {
   template: `
     <div class="ui-page for-you-page">
       <a href="#/home" class="for-you-back"><back-glyph /> Home</a>
-      <header class="ui-page-header for-you-header">
-        <div class="ui-page-heading">
-          <h1 class="ui-page-title">For you</h1>
-          <p class="ui-page-subtitle">{{ intro }}</p>
-        </div>
-        <a :href="suggestionsHref" class="ui-icon-button for-you-tune-button" aria-label="For you settings">
-          <for-you-icon name="sliders" />
-        </a>
-      </header>
+      <page-header title="For you" :subtitle="intro" :widgets="false" class="for-you-header">
+        <template #actions>
+          <recording-chip />
+          <clock-label />
+          <a :href="suggestionsHref" class="ui-icon-button" aria-label="For you settings" title="For you settings">
+            <for-you-icon name="sliders" />
+          </a>
+          <search-button />
+        </template>
+        <template #below>
+          <recording-chip variant="banner" />
+        </template>
+      </page-header>
 
       <template v-if="!loaded">
         <div v-for="n in 2" :key="n" class="ui-section">

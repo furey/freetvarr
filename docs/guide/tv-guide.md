@@ -26,11 +26,12 @@ Channels run down the page and time runs across. The Guide opens at the current 
 - The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does.
 - The **Channels** button opens the channel settings.
 - The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). It replaces the old `UPCOMING` view.
-- A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme you watch for has its own dot; the legend under the grid names it **Watching for**. Past programmes are dimmed, and programmes on air have a lighter cell.
+- A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme you watch for has its own dot; the legend names it **Watching for**. On a tablet or computer the legend sits above the grid, on the right; on a phone it sits under the grid. Past programmes are dimmed, and programmes on air have a lighter cell.
 - A line marks the current time.
 - Programmes that ended earlier today stay in the grid. TVHeadend drops a programme once it ends, but Freetvarr keeps its own copy.
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
-- Drag the edge of the channel column to make it wider or narrower. At its narrowest the column shows only the stars and channel logos, and the filter box reads **Filter**. Each browser remembers the width.
+- The **Filter** box narrows the grid to channels whose name contains what you type, or whose number starts with it. On a tablet or computer it sits beside **CHANNELS** above the grid, and the top corner of the grid shows how many channels match. On a phone it sits at the top of the channel column. Press **×** in the box to clear it.
+- Drag the edge of the channel column to make it wider or narrower. At its narrowest the column shows only the stars and channel logos. Each browser remembers the width.
 - A dimmed channel with `OFF AIR` beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
 - Each channel in the channel settings shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. Where TVHeadend reports no type, a name with `HD` in it (such as `9GemHD Sydney`) counts as HD. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin. The pairing ignores spaces, punctuation, `HD`, and the word Channel, so `ABC TV` pairs with `ABCTV` and `Channel 9 Sydney` with `9HD Sydney`.
 - While **Hide SD simulcasts** and **Hide SD channels** are both off, each channel logo shows a small `HD` or `SD` tag: in the grid, on Live TV, in the player, in the Multiview channel list, and on Home. While either setting is on, the tags are gone.

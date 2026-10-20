@@ -164,6 +164,19 @@ export const EpgView = {
       </section>
 
       <template v-else>
+        <div v-if="guide && !narrow" class="guide-label-row">
+          <h2 class="ui-group-label">Channels</h2>
+          <label class="guide-filter">
+            <search-glyph />
+            <input v-no-autofill v-model="railFilter" type="search" placeholder="Filter"
+              aria-label="Filter channels by number or name" @keydown.esc.stop.prevent="railFilter = ''" />
+          </label>
+          <div class="guide-legend guide-key">
+            <span class="guide-legend-item"><span class="guide-legend-ring" aria-hidden="true"></span>Recording now</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot" aria-hidden="true"></span>Scheduled</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>Watching for</span>
+          </div>
+        </div>
         <p v-if="guide?.stale" class="ui-banner is-warning">
           <span class="ui-dot is-warn"></span>
           <span class="ui-banner-text">Showing the saved guide. TVHeadend did not answer, so Freetvarr tries again shortly.</span>
@@ -199,8 +212,10 @@ export const EpgView = {
           <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
             <div class="epg-ruler">
               <div class="epg-ruler-corner">
-                <input v-no-autofill v-model="railFilter" type="search" class="epg-corner-filter"
+                <input v-if="narrow" v-no-autofill v-model="railFilter" type="search" class="epg-corner-filter"
                   :placeholder="railLayout.filterPlaceholder" aria-label="Filter channels by number or name" />
+                <span v-else-if="railMatchIds" class="epg-filter-count" role="status" :aria-label="filterCountLabel"><span
+                  class="epg-filter-count-num">{{ railMatchIds.size }}</span>{{ railMatchIds.size === 1 ? 'channel' : 'channels' }}</span>
                 <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                 <div class="epg-rail-resizer" title="Drag to resize the channel rail"
                   :style="{ height: railStripH + 'px' }"
@@ -219,7 +234,7 @@ export const EpgView = {
             <div v-if="day === 6" class="epg-guide-end-lane" :style="{ left: 'calc(var(--epg-rail-px) + ' + midnightX + 'px)' }">
               <span class="epg-guide-end">Guide ends {{ lastDayLabel }}</span>
             </div>
-            <transition-group name="epg-rows" tag="div" class="epg-rows">
+            <transition-group name="epg-rows" tag="div" :class="['epg-rows', { 'is-filtering': filtering }]">
             <guide-row v-for="{ kind, key, label, shown, ch, pinIndex } in railItems" :key="key" v-show="shown"
               :kind="kind" :row-key="key" :label="label" :ch="ch" :pin-index="pinIndex" />
             </transition-group>
@@ -238,9 +253,11 @@ export const EpgView = {
           </teleport>
         </div>
         <div v-if="guide" class="guide-legend">
-          <span class="guide-legend-item"><span class="guide-legend-ring" aria-hidden="true"></span>Recording now</span>
-          <span class="guide-legend-item"><span class="guide-legend-dot" aria-hidden="true"></span>Scheduled</span>
-          <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>Watching for</span>
+          <template v-if="narrow">
+            <span class="guide-legend-item"><span class="guide-legend-ring" aria-hidden="true"></span>Recording now</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot" aria-hidden="true"></span>Scheduled</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>Watching for</span>
+          </template>
           <span v-if="stateMeta" class="guide-legend-meta">{{ stateMeta }}</span>
         </div>
       </template>
@@ -347,6 +364,17 @@ export const EpgView = {
         }
       }
       return set
+    })
+
+    const filtering = ref(false)
+    watch(railFilter, () => {
+      filtering.value = true
+      requestAnimationFrame(() => requestAnimationFrame(() => { filtering.value = false }))
+    })
+
+    const filterCountLabel = computed(() => {
+      const n = railMatchIds.value?.size ?? 0
+      return `Showing ${n} of ${visibleChannels.value.length} channels`
     })
 
     const rowShown = (ch) => !railMatchIds.value || railMatchIds.value.has(String(ch.id))
@@ -622,6 +650,12 @@ export const EpgView = {
 
     watch([railItems, zoom, narrow, scrollEl, railPx], measureRowBands, { flush: 'post' })
     watch(guide, () => requestAnimationFrame(syncCellWindow))
+
+    const measureGridTop = () => {
+      const card = scrollEl.value?.closest('.guide-card')
+      if (card) card.style.setProperty('--guide-grid-top', `${card.getBoundingClientRect().top + window.scrollY}px`)
+    }
+    watch([scrollEl, guide, () => guide.value?.stale], measureGridTop, { flush: 'post' })
 
     let dayFreshAt = 0
     const loadDay = async (d, { force = false } = {}) => {
@@ -1186,6 +1220,7 @@ export const EpgView = {
     let staleCheckTimer = null
     onMounted(async () => {
       window.addEventListener('keydown', onKeydown)
+      window.addEventListener('resize', measureGridTop)
       window.addEventListener('scroll', onAnyScroll, { capture: true, passive: true })
       loadState()
       loadWatchlist()
@@ -1199,6 +1234,7 @@ export const EpgView = {
     })
     onUnmounted(() => {
       window.removeEventListener('keydown', onKeydown)
+      window.removeEventListener('resize', measureGridTop)
       window.removeEventListener('scroll', onAnyScroll, { capture: true })
       hideTooltip()
       if (statePollTimer) clearInterval(statePollTimer)
@@ -1223,7 +1259,7 @@ export const EpgView = {
       zoom, zoomIndex, zoomLevels: EPG_ZOOM_LEVELS, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, guideRowRem, changeZoom, setZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
       recordingStateText, fmtProgrammeRange, cellKey, cellShowsText, cellMarks, watchedKeys,
-      visibleChannels, railNum, railFilter, pinnedCount, pinsOffscreen, scrollRailTop,
+      visibleChannels, railNum, railFilter, railMatchIds, filterCountLabel, filtering, pinnedCount, pinsOffscreen, scrollRailTop,
       midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled,
       jumpNow, jumpTonight,

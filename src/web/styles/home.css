@@ -666,26 +666,15 @@
   text-decoration: none;
 }
 
+@media (min-width: 768px) and (min-height: 501px) {
+  .for-you-back {
+    display: none;
+  }
+}
+
 .for-you-back svg {
   width: 20px;
   height: 20px;
-}
-
-.for-you-header {
-  flex-wrap: nowrap;
-  align-items: flex-start;
-}
-
-.for-you-header .ui-page-heading {
-  min-width: 0;
-}
-
-.for-you-tune-button {
-  flex: none;
-  width: 52px;
-  height: 52px;
-  margin-top: 8px;
-  border-radius: 12px;
 }
 
 .for-you-skeleton-title {
@@ -997,11 +986,6 @@
   .for-you-header .ui-page-title {
     font-size: 30px;
     line-height: 36px;
-  }
-
-  .for-you-tune-button {
-    width: 56px;
-    height: 56px;
   }
 
   .for-you-chooser {

@@ -54,6 +54,7 @@ export const greetingFor = ({ nowMs, timeZone }) => {
   const hour = Number(new Intl.DateTimeFormat('en-AU', {
     hour: 'numeric', hourCycle: 'h23', timeZone,
   }).format(nowMs))
+  if (hour < 5) return 'Late night'
   if (hour < 12) return 'Good morning'
   if (hour < 18) return 'Good afternoon'
   return 'Good evening'

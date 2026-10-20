@@ -31,6 +31,9 @@ test('episodeCodeOf, minutesLeftOf, watchedFractionOf', () => {
 
 test('greetingFor: follows the hour in the zone', () => {
   const at = (iso) => greetingFor({ nowMs: Date.parse(iso), timeZone: 'Australia/Sydney' })
+  assert.equal(at('2026-10-18T14:00:00Z'), 'Late night')
+  assert.equal(at('2026-10-18T17:59:00Z'), 'Late night')
+  assert.equal(at('2026-10-18T18:00:00Z'), 'Good morning')
   assert.equal(at('2026-10-19T00:00:00Z'), 'Good morning')
   assert.equal(at('2026-10-19T03:00:00Z'), 'Good afternoon')
   assert.equal(at('2026-10-19T08:00:00Z'), 'Good evening')
