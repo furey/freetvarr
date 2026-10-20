@@ -76,7 +76,7 @@ export const PlayerTopBar = {
       .sort((a, b) => a.order - b.order))
 
     const menuItems = computed(() => playerMenuItemsOf({
-      overflow: moreMenuKeysOf({ overflow: layout.value.overflow, available: allActions.value.map((action) => action.key) })
+      overflow: moreMenuKeysOf({ overflow: layout.value.overflow })
         .map((key) => allActions.value.find((action) => action.key === key))
         .filter(Boolean)
         .map(menuItemOf),

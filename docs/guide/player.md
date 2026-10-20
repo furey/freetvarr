@@ -27,7 +27,7 @@ The top bar has these controls:
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
 - **Info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
 - The sound button: turns the sound on or off. See [Sound](#sound).
-- **⋯** (**More**): **Miniplayer**, **Captions**, **Pop out (picture in picture)**, and **Full screen**. On a narrow screen, the buttons that do not fit in the top bar also move into this menu.
+- **⋯** (**More**): **Captions**, **Pop out (picture in picture)**, and **Full screen**. Buttons that do not fit in the top bar, such as **Multiview** or **Miniplayer**, move into this menu.
 
 The centre of the picture has **Start over**, the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
 
@@ -64,7 +64,7 @@ Open **⋯**, then press **Captions** to turn captions on or off. The menu row s
 
 ## Miniplayer
 
-Press **Miniplayer** in the top bar or in the **⋯** menu to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
+Press **Miniplayer** in the top bar (or in the **⋯** menu, when the bar has no room for it) to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
 
 - On a phone, the Miniplayer is a bar above the tab bar.
 - On a tablet or computer, it is a small card in a corner of the screen.

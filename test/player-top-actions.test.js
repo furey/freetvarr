@@ -103,12 +103,10 @@ test('moved actions list in menu order whatever order they overflow in', () => {
   assert.deepEqual(menuOrderOf(['minimise', 'airplay', 'info']), ['info', 'minimise', 'airplay'])
 })
 
-test('Miniplayer is always in the More menu, once, in its menu place', () => {
-  const available = ['multiview', 'minimise', 'series', 'info']
-  assert.deepEqual(moreMenuKeysOf({ overflow: [], available }), ['minimise'])
-  assert.deepEqual(moreMenuKeysOf({ overflow: ['multiview', 'minimise', 'info'], available }), ['info', 'multiview', 'minimise'])
-  assert.deepEqual(moreMenuKeysOf({ overflow: ['multiview'], available }), ['multiview', 'minimise'])
-  assert.deepEqual(moreMenuKeysOf({ overflow: ['info'], available: ['info'] }), ['info'])
+test('the More menu holds only the actions that do not fit the bar, in menu order', () => {
+  assert.deepEqual(moreMenuKeysOf({ overflow: [] }), [])
+  assert.deepEqual(moreMenuKeysOf({ overflow: ['multiview', 'minimise', 'info'] }), ['info', 'multiview', 'minimise'])
+  assert.deepEqual(moreMenuKeysOf({ overflow: ['multiview'] }), ['multiview'])
 })
 
 test('a labelled Miniplayer drops to the menu after Multiview and before Series', () => {

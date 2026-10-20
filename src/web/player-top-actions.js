@@ -48,11 +48,7 @@ export const optionalWidthOf = ({ key, round = false, labelled = false }) => {
 export const menuOrderOf = (keys) =>
   [...keys].sort((a, b) => MENU_ORDER.indexOf(a) - MENU_ORDER.indexOf(b))
 
-export const ALWAYS_IN_MENU = ['minimise']
-
-export const moreMenuKeysOf = ({ overflow = [], available = [] }) => menuOrderOf([
-  ...new Set([...overflow, ...ALWAYS_IN_MENU.filter((key) => available.includes(key))]),
-])
+export const moreMenuKeysOf = ({ overflow = [] }) => menuOrderOf([...new Set(overflow)])
 
 const layoutPlansOf = ({ optional, pinned, hasLogo }) => {
   const levels = [...new Set([0, ...pinned.filter(isCompactable).map((action) => action.compactAt)])].sort((a, b) => a - b)
