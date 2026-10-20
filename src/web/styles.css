@@ -743,6 +743,21 @@ input[type="search"]::-webkit-search-cancel-button {
   }
 }
 
+.toggle.is-pending .toggle-track {
+  background: linear-gradient(90deg, var(--color-surface-1) 0%, var(--color-surface-2) 50%, var(--color-surface-1) 100%);
+  background-size: 200% 100%;
+  animation: ui-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.toggle.is-pending .toggle-knob {
+  visibility: hidden;
+}
+
+.toggle.is-instant .toggle-track,
+.toggle.is-instant .toggle-knob {
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toggle-track,
   .toggle-knob {

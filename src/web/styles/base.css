@@ -1744,6 +1744,7 @@ a.ui-banner:hover {
 .ui-skeleton.is-hero { width: 100%; aspect-ratio: 16 / 7; border-radius: var(--radius-hero); }
 .ui-skeleton.is-row { height: 52px; border-radius: 0; }
 .ui-skeleton.is-line { height: 12px; border-radius: 6px; }
+.ui-skeleton.is-text { display: inline-block; width: var(--skeleton-w, 12em); max-width: 100%; height: 0.8em; border-radius: 4px; vertical-align: -0.05em; }
 
 @keyframes ui-skeleton-shimmer {
   from { background-position: 100% 0; }

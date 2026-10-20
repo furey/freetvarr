@@ -1,4 +1,4 @@
-import { ref, computed, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { formatClock, formatDate } from '/time-format.js'
 
 const noAutofillAttrs = {
@@ -16,15 +16,25 @@ export const noAutofill = {
 }
 
 export const ToggleSwitch = {
-  props: { modelValue: Boolean, label: { type: String, default: '' } },
+  props: { modelValue: Boolean, label: { type: String, default: '' }, pending: Boolean },
   emits: ['update:modelValue'],
   template: `
-    <button type="button" role="switch" :class="['toggle', { on: modelValue }]" :aria-checked="String(modelValue)"
+    <button type="button" role="switch" :class="['toggle', { on: modelValue && !pending, 'is-pending': pending, 'is-instant': settling }]"
+      :aria-checked="String(modelValue)" :aria-busy="pending ? 'true' : null" :disabled="pending || null"
       @click="$emit('update:modelValue', !modelValue)">
       <span class="toggle-track" aria-hidden="true"><span class="toggle-knob"></span></span>
       <span class="toggle-label"><slot>{{ label }}</slot></span>
     </button>
   `,
+  setup(props) {
+    const settling = ref(false)
+    watch(() => props.pending, (pending, wasPending) => {
+      if (pending || !wasPending) return
+      settling.value = true
+      requestAnimationFrame(() => requestAnimationFrame(() => { settling.value = false }))
+    })
+    return { settling }
+  },
 }
 
 export const TimeZoneField = {

@@ -21,7 +21,7 @@ export const SuggestionsSettingsView = {
         <h3 class="ui-group-label">For you</h3>
         <div class="ui-group">
           <div class="settings-row">
-            <toggle-switch :model-value="settings.enabled !== false" class="settings-toggle" :disabled="!loaded"
+            <toggle-switch :model-value="settings.enabled !== false" class="settings-toggle" :pending="!loaded"
               @update:model-value="save({ enabled: $event })">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Show For you</span>
@@ -30,7 +30,7 @@ export const SuggestionsSettingsView = {
             </toggle-switch>
           </div>
           <div class="settings-row">
-            <toggle-switch :model-value="Boolean(settings.genreLookup)" class="settings-toggle" :disabled="!loaded"
+            <toggle-switch :model-value="Boolean(settings.genreLookup)" class="settings-toggle" :pending="!loaded"
               @update:model-value="save({ genreLookup: $event })">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Use TVmaze and Wikidata to find genres</span>
@@ -48,7 +48,7 @@ export const SuggestionsSettingsView = {
               <span class="settings-row-title">Hidden shows</span>
               <span class="settings-row-meta">Shows you marked Not interested</span>
             </span>
-            <span class="suggestions-count ui-tabular">{{ hidden.length }}</span>
+            <span class="suggestions-count ui-tabular"><span v-if="!hiddenLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ hidden.length }}</template></span>
             <chevron-glyph class="suggestions-chevron" />
           </button>
         </div>
@@ -59,8 +59,8 @@ export const SuggestionsSettingsView = {
         <div class="ui-group">
           <div class="settings-row suggestions-level">
             <span class="settings-toggle-text">
-              <span class="settings-row-title">{{ tierSummary }}</span>
-              <span class="settings-row-meta">{{ tierReason }}</span>
+              <span class="settings-row-title"><span v-if="!loaded" class="ui-skeleton is-text" style="--skeleton-w: 13em"></span><template v-else>{{ tierSummary }}</template></span>
+              <span class="settings-row-meta"><span v-if="!loaded" class="ui-skeleton is-text" style="--skeleton-w: 16em"></span><template v-else>{{ tierReason }}</template></span>
             </span>
             <button type="button" class="ui-button ui-button-secondary suggestions-probe" :disabled="probing || !loaded" @click="checkAgain">
               {{ probing ? 'Checking…' : 'Check again' }}
@@ -69,7 +69,7 @@ export const SuggestionsSettingsView = {
           <div class="settings-row">
             <div class="ui-segmented is-fill suggestions-tiers" role="radiogroup" aria-label="Suggestion level">
               <button v-for="option in tierOptions" :key="option.key" type="button" role="radio" class="ui-segment"
-                :aria-checked="String(tierOverride === option.key)" :class="{ 'is-selected': tierOverride === option.key }"
+                :aria-checked="String(loaded && tierOverride === option.key)" :class="{ 'is-selected': loaded && tierOverride === option.key }"
                 :disabled="!loaded" @click="save({ tierOverride: option.key })">{{ option.label }}</button>
             </div>
             <p class="settings-row-meta suggestions-tier-note">Auto uses the level this box can run. Higher levels compare more about each show and use more of the processor.</p>
@@ -81,7 +81,7 @@ export const SuggestionsSettingsView = {
         <h3 class="ui-group-label">Viewing history</h3>
         <div class="ui-group">
           <div class="settings-row">
-            <toggle-switch :model-value="settings.historyEnabled === false" class="settings-toggle" :disabled="!loaded"
+            <toggle-switch :model-value="settings.historyEnabled === false" class="settings-toggle" :pending="!loaded"
               @update:model-value="save({ historyEnabled: !$event })">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Pause history</span>
@@ -92,7 +92,7 @@ export const SuggestionsSettingsView = {
           <div class="settings-row settings-row-inline">
             <span class="settings-toggle-text">
               <span class="settings-row-title">Clear viewing history</span>
-              <span class="settings-row-meta">{{ clearCopy }}</span>
+              <span class="settings-row-meta"><span v-if="!countLoaded" class="ui-skeleton is-text" style="--skeleton-w: 20em"></span><template v-else>{{ clearCopy }}</template></span>
             </span>
             <button type="button" class="ui-button ui-button-destructive suggestions-clear" :disabled="!loaded" @click="askClear">Clear</button>
           </div>
@@ -120,6 +120,8 @@ export const SuggestionsSettingsView = {
     const hidden = ref([])
     const eventCount = ref(0)
     const loaded = ref(false)
+    const hiddenLoaded = ref(false)
+    const countLoaded = ref(false)
     const probing = ref(false)
     const hiddenOpen = ref(false)
     const unhiding = ref('')
@@ -134,13 +136,15 @@ export const SuggestionsSettingsView = {
 
     const loadHidden = async () => {
       hidden.value = hiddenShowsOf(await api('GET', '/api/for-you/hidden').catch(() => []))
+      hiddenLoaded.value = true
     }
 
     const loadCount = async () => {
       eventCount.value = (await api('GET', '/api/events/settings').catch(() => ({}))).event_count ?? 0
+      countLoaded.value = true
     }
 
-    const load = async () => {
+    const loadSettings = async () => {
       try {
         settings.value = await api('GET', '/api/for-you/settings')
         loaded.value = true
@@ -150,8 +154,9 @@ export const SuggestionsSettingsView = {
           ? 'For you is not ready on this box yet.'
           : `Could not load suggestion settings: ${err.message}`
       }
-      await Promise.all([loadHidden(), loadCount()])
     }
+
+    const load = () => Promise.all([loadSettings(), loadHidden(), loadCount()])
 
     const save = async (patch) => {
       const previous = settings.value
@@ -214,7 +219,7 @@ export const SuggestionsSettingsView = {
     onMounted(load)
 
     return {
-      settings, hidden, loaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits,
+      settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits,
       tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
     }
   },
