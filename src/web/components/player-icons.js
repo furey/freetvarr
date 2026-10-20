@@ -36,6 +36,20 @@ export const RewindToStartIcon = icon('<path d="M2.75 8a5.25 5.25 0 1 0 1.6-3.8"
 
 export const ClockIcon = icon('<circle cx="8" cy="8" r="5.75"/><path d="M8 4.75V8l2.25 1.5"/>')
 
+export const ResizeArrowsIcon = icon('<path d="M2.5 8h11M5 5.5 2.5 8 5 10.5M11 5.5l2.5 2.5-2.5 2.5"/>')
+
+export const CornerGripIcon = {
+  props: {
+    corner: { type: String, default: 'top-left' },
+  },
+  setup: () => ({ turnOf }),
+  template: `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path :transform="turnOf(corner)" d="M4.5 11.5V7.25a2.75 2.75 0 0 1 2.75-2.75h4.25"/>
+    </svg>
+  `,
+}
+
 export const MoreDotsIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -65,4 +79,11 @@ export const PLAYER_ICON_COMPONENTS = {
   'speaker-muted-icon': SpeakerMutedIcon,
   'more-dots-icon': MoreDotsIcon,
   'phone-rotate-icon': PhoneRotateIcon,
+  'resize-arrows-icon': ResizeArrowsIcon,
+  'corner-grip-icon': CornerGripIcon,
 }
+
+
+const BRACKET_TURNS = { 'top-left': 0, 'top-right': 90, 'bottom-right': 180, 'bottom-left': 270 }
+
+const turnOf = (corner) => `rotate(${BRACKET_TURNS[corner] ?? 0} 8 8)`

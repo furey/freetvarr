@@ -69,6 +69,7 @@ import {
   multi,
   slotClassOf,
   slotStyleOf,
+  insetStyleOf,
   canAddPicture,
   watchAlongside,
   changePictureChannel,
@@ -426,16 +427,7 @@ export const LivePlayer = {
     }
     const primarySlotClass = computed(() => slotClassOf('primary'))
     const primarySlotStyle = computed(() => slotStyleOf('primary'))
-    const multiFrameStyle = computed(() => {
-      const box = multi.active ? multi.insetBox : null
-      if (!box) return null
-      return {
-        '--mv-inset-left': `${box.left}px`,
-        '--mv-inset-top': `${box.top}px`,
-        '--mv-inset-w': `${box.width}px`,
-        '--mv-inset-h': `${box.height}px`,
-      }
-    })
+    const multiFrameStyle = computed(insetStyleOf)
 
     const {
       controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,

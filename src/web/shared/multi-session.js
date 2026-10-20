@@ -18,6 +18,7 @@ import {
   PICTURES,
 } from '/multi-view.js'
 import { EMPTY_TUNER_STATUS } from '/tuner-status.js'
+import { SIZES_KEY, parseSizes, sizesAfterSet } from '/multi-resize.js'
 import { keyPictureOf } from '/multi-picture.js'
 import { steadyLiveWindowOf, videoLiveInputOf } from '/live-edge.js'
 import { api, csrfToken } from '/shared/api.js'
@@ -43,12 +44,34 @@ export const multi = reactive({
   view: initialMultiView(),
   companions: emptyCompanions(),
   insetBox: null,
+  resizeFrom: null,
   boxes: {},
   tunerStatus: EMPTY_TUNER_STATUS,
   tunerLoaded: false,
 })
 
 export const portraitPhone = ref(false)
+
+const readSizes = () => {
+  try {
+    return parseSizes(localStorage.getItem(SIZES_KEY))
+  } catch {
+    return {}
+  }
+}
+
+const saveSizes = (sizes) => {
+  try { localStorage.setItem(SIZES_KEY, JSON.stringify(sizes)) } catch {}
+}
+
+export const multiSizes = ref(readSizes())
+
+export const setMultiSize = (key, share) => {
+  multiSizes.value = sizesAfterSet({ sizes: multiSizes.value, key, share })
+  saveSizes(multiSizes.value)
+}
+
+export const resetMultiSize = (key) => setMultiSize(key, null)
 
 export const compactScreen = ref(false)
 
@@ -149,13 +172,30 @@ export const slotClassOf = (picture) => (multi.active
 export const slotStyleOf = (picture) => {
   const box = multi.active ? multi.boxes[picture] : null
   if (!box) return null
+  const from = multi.resizeFrom?.boxes?.[picture] ?? box
   return {
     '--mv-x': `${box.left}px`,
     '--mv-y': `${box.top}px`,
-    '--mv-w': `${box.width}px`,
-    '--mv-h': `${box.height}px`,
+    '--mv-w': `${from.width}px`,
+    '--mv-h': `${from.height}px`,
+    '--mv-s': String(scaleBetween(from, box)),
   }
 }
+
+export const insetStyleOf = () => {
+  const box = multi.active ? multi.insetBox : null
+  if (!box) return null
+  const from = multi.resizeFrom?.inset ?? box
+  return {
+    '--mv-inset-left': `${box.left}px`,
+    '--mv-inset-top': `${box.top}px`,
+    '--mv-inset-w': `${from.width}px`,
+    '--mv-inset-h': `${from.height}px`,
+    '--mv-inset-s': String(scaleBetween(from, box)),
+  }
+}
+
+const scaleBetween = (from, to) => (from.width ? to.width / from.width : 1)
 
 export const companionsShown = () => multi.view.order.filter((id) => id !== 'primary')
 

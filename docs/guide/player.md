@@ -108,6 +108,7 @@ With two channels playing:
 - **Side by side** shows the two pictures next to each other. **Big and small** shows one picture full size and the other in a corner. On a phone held upright, the pictures stack instead; turn the phone sideways to choose a layout.
 - The swap button swaps the two pictures.
 - In **Big and small**, drag the small picture to any corner. Double-tap it (double-click with a mouse) to make it the big picture.
+- On a tablet or computer, you can resize the pictures. In **Side by side**, drag the bar between the pictures. Each picture takes from `30%` to `70%` of the width, and the bar snaps at a third, a half, and two thirds. In **Big and small**, drag the grip on the small picture's inner corner (the corner nearest the middle of the screen). The small picture takes from `20%` to `45%` of the screen width, and its outer corner stays where it is.
 - Point at a picture with the mouse, or tap it, to show its own controls: **Start over** (back to when you tuned in), **Pause** or **Play**, **Go live** or the `LIVE` mark, and a position bar. The first tap only shows the controls; it never pauses. Tap the picture again, or wait, and the controls hide.
 - A paused picture dims, its badge reads `PAUSED`, and a large **Play** button stays on it until you press it. Each picture pauses and plays on its own.
 - Each picture has its own **Sound** or **Muted** button. Press **Muted** on a picture to hear it; the other picture mutes. Press **Sound** on the picture you hear to mute both. An outline marks the picture you hear.
@@ -119,9 +120,14 @@ With three or four channels playing:
 - **Grid** shows the pictures in two rows of two. **Big and small** shows one main picture and the others in a strip: on the right when the screen is wider than it is tall, and below the main picture otherwise. The swap button goes away.
 - While you can add another channel, the free place in the layout is an **Add channel** slot.
 - Double-tap a small picture in **Big and small** (double-click with a mouse) to make it the main picture.
+- In **Big and small** on a tablet or computer, drag the bar between the main picture and the strip to resize them. The main picture takes from `60%` to `80%` of the width. The bar is there only when the strip is on the right. **Grid** has no bar.
 - Only one picture has the sound. Press **Muted** on any picture to hear it; the others mute.
 - Each picture's **⋯** menu has **Make main**, **Change channel**, **Full screen** (keep this channel and stop the others), and **Remove**.
 - The back button stops every channel and closes the player.
+
+To find a bar or grip, point at it with the mouse. On a touch screen, tap a picture: the bar or grip shows while the picture's controls show. While you drag, a label shows the new size, and in **Big and small** dashed outlines show the smallest and largest sizes. With the keyboard, press Tab to reach the bar or grip, then use the arrow keys to change the size in `5%` steps, and **Home** or **End** to go to the smallest or largest size.
+
+Freetvarr remembers the size for each layout and number of pictures in this browser. The swap button and **Make main** keep the size. **Reset size** in the Multiview header shows when a size is not the default; press it, double-click the bar or grip, or press **Enter** on it, to go back to the default. Phones always use the default sizes.
 
 If a recording needs a tuner that Multiview uses, only the pictures on that tuner stop. The stopped picture says `Stopped for a recording:` and the programme name, with **Pick a channel** and **Remove**. If you were listening to it, the sound moves to the main picture. When Freetvarr starts a picture, it asks TVHeadend to take the tuner of the newest picture first.
 

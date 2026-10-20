@@ -21,6 +21,9 @@ import {
   clampInsetBox,
   watchingTitle,
   tileBoxesOf,
+  splitBoxesOf,
+  stripShareOf,
+  isStripSideways,
   slotCountOf,
   pictureLimitOf,
   mainPictureOf,
@@ -28,7 +31,20 @@ import {
   COMPANIONS,
   SMALL_TILE_WIDTH,
 } from '/multi-view.js'
+import {
+  SIZE_RULES,
+  sizeKeyOf,
+  ruleOfKey,
+  clampShare,
+  shareAtPosition,
+  keyActionOf,
+  insetGrowthOf,
+  innerCornerOf,
+  percentOf,
+  ratioTextOf,
+} from '/multi-resize.js'
 import { pickerRowsOf, streamsLimitReached } from '/tuner-status.js'
+import { RefreshIcon } from '/components/icons.js'
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { TunerCells, TunerExplainerSheet, useTunerStatusWhile, tunerMeter } from '/components/tuner-list.js'
 import { api } from '/shared/api.js'
@@ -53,6 +69,9 @@ import {
   goLiveCompanion,
   startCompanionOver,
   pictureStateOf,
+  multiSizes,
+  setMultiSize,
+  resetMultiSize,
 } from '/shared/multi-session.js'
 import { returnToLive, seekLiveTo, seekLiveAndPlay } from '/shared/live-session.js'
 import { lineupOf, rememberLineup } from '/shared/channel-twins.js'
@@ -60,14 +79,16 @@ import { live } from '/shared/player-shared.js'
 import { fmtClockTz, now } from '/shared/time.js'
 
 export const MultiViewLayer = {
-  components: { ...PLAYER_CHROME_COMPONENTS, 'tuner-cells': TunerCells, 'tuner-explainer-sheet': TunerExplainerSheet },
+  components: {
+    ...PLAYER_CHROME_COMPONENTS, 'tuner-cells': TunerCells, 'tuner-explainer-sheet': TunerExplainerSheet, 'refresh-icon': RefreshIcon,
+  },
   props: {
     primaryTitle: { type: String, default: '' },
     primaryMeta: { type: String, default: '' },
   },
   emits: ['change-channel', 'add-channel', 'close'],
   template: `
-    <div ref="layerEl" :class="['mv-layer', 'is-' + shownLayout]">
+    <div ref="layerEl" :class="['mv-layer', 'is-' + shownLayout, { 'is-resizing': resizing, 'is-handles-shown': Boolean(controlsFor) }]">
       <video v-for="id in COMPANIONS" :key="id" :ref="(el) => setCompanionVideo(id, el)"
         :class="['live-video', 'pl-video', 'mv-companion', companionSlotClass(id), {
           'is-veiled': pictureStateOf(id).phase !== 'live', 'is-unused': !multi.view.order.includes(id),
@@ -85,6 +106,9 @@ export const MultiViewLayer = {
             <strip-layout-icon v-if="count > 2" /><inset-layout-icon v-else /><span class="mv-segment-label">Big and small</span>
           </button>
         </div>
+        <button v-if="isResized" type="button" class="mv-reset" aria-label="Reset size" @click="resetSize">
+          <refresh-icon /><span class="mv-segment-label">Reset size</span>
+        </button>
         <button v-if="count === 2" type="button" class="pl-round" :aria-label="swapLabel" @click="swapMultiPictures">
           <swap-vertical-icon v-if="portraitPhone" /><swap-icon v-else />
         </button>
@@ -163,6 +187,24 @@ export const MultiViewLayer = {
         <span class="mv-add-slot-label">Add channel</span>
         <span v-if="meter.freeText" class="mv-add-slot-meta">{{ meter.freeText }}</span>
       </button>
+      <div v-for="limit in limitOutlines" :key="limit.key" :class="['mv-resize-limit', 'is-' + limit.key]" :style="limit.style" aria-hidden="true">
+        <span class="mv-resize-limit-label">{{ limit.label }}</span>
+      </div>
+      <div v-if="barHandle" :class="['mv-resizer', { 'is-active': resizing }]" :style="barHandle.style"
+        role="separator" aria-orientation="vertical" tabindex="0" :aria-label="barHandle.label"
+        :aria-valuemin="handleRange.min" :aria-valuemax="handleRange.max" :aria-valuenow="handleRange.now"
+        @pointerdown="onResizePointerDown" @pointermove="onResizePointerMove" @pointerup="finishResize"
+        @lostpointercapture="finishResize" @pointercancel="cancelResize" @dblclick="resetSize" @keydown="onResizeKeydown">
+        <span class="mv-resize-pill"><resize-arrows-icon /></span>
+      </div>
+      <div v-if="cornerHandle" :class="['mv-corner-grip', 'is-' + cornerHandle.corner, { 'is-active': resizing }]" :style="cornerHandle.style"
+        role="separator" tabindex="0" aria-label="Resize the small picture"
+        :aria-valuemin="handleRange.min" :aria-valuemax="handleRange.max" :aria-valuenow="handleRange.now"
+        @pointerdown="onResizePointerDown" @pointermove="onResizePointerMove" @pointerup="finishResize"
+        @lostpointercapture="finishResize" @pointercancel="cancelResize" @dblclick="resetSize" @keydown="onResizeKeydown">
+        <span class="mv-resize-pill"><corner-grip-icon :corner="cornerHandle.corner" /></span>
+      </div>
+      <span v-if="resizeChip" class="mv-resize-chip" :style="resizeChip.style" aria-hidden="true">{{ resizeChip.text }}</span>
       <footer class="mv-bottom">
         <p class="mv-hint">{{ hint }}</p>
         <p v-if="portraitPhone && count === 2" class="mv-rotate"><phone-rotate-icon />Turn your phone sideways for side by side or big and small</p>
@@ -266,12 +308,30 @@ export const MultiViewLayer = {
 
     const slotCount = computed(() => slotCountOf({ count: count.value, canAdd: canAddPicture.value }))
 
-    const tileBoxes = computed(() => {
-      if (!isTiled.value || !area.value) return []
-      return tileBoxesOf({ layout: shownLayout.value, slots: slotCount.value, area: area.value })
+    const resize = ref(null)
+    const resizing = computed(() => Boolean(resize.value))
+    const resizable = computed(() => !compactScreen.value
+      && (shownLayout.value !== 'strip' || Boolean(area.value && isStripSideways(area.value))))
+    const sizeKey = computed(() => sizeKeyOf({ layout: shownLayout.value, count: count.value, resizable: resizable.value }))
+    const sizeRule = computed(() => ruleOfKey(sizeKey.value))
+    const chosenShare = computed(() => {
+      if (!sizeKey.value) return null
+      if (resize.value?.key === sizeKey.value) return resize.value.share
+      return multiSizes.value[sizeKey.value] ?? null
+    })
+    const isResized = computed(() => Boolean(sizeKey.value) && multiSizes.value[sizeKey.value] != null)
+
+    const layoutBoxes = computed(() => {
+      if (!area.value) return []
+      if (isTiled.value) {
+        const share = shownLayout.value === 'strip' ? chosenShare.value : null
+        return tileBoxesOf({ layout: shownLayout.value, slots: slotCount.value, area: area.value, share })
+      }
+      if (shownLayout.value !== 'split') return []
+      return splitBoxesOf({ area: area.value, centreY: frameSize.value.height / 2, share: chosenShare.value ?? SIZE_RULES.split.fallback })
     })
 
-    watch([tileBoxes, () => multi.view.order], ([boxes, order]) => {
+    watch([layoutBoxes, () => multi.view.order], ([boxes, order]) => {
       multi.boxes = Object.fromEntries(order.map((id, i) => [id, boxes[i]]).filter(([, box]) => box))
     }, { immediate: true })
 
@@ -279,7 +339,7 @@ export const MultiViewLayer = {
       (shownLayout.value === 'strip' && index > 0) || box.width < SMALL_TILE_WIDTH)
 
     const addSlot = computed(() => {
-      const box = tileBoxes.value[count.value]
+      const box = isTiled.value ? layoutBoxes.value[count.value] : null
       if (!box) return null
       return { small: isSmallSlot(count.value, box), style: styleOfBox(box) }
     })
@@ -296,14 +356,14 @@ export const MultiViewLayer = {
       const position = shownPositionOf(id, playback)
       const minutes = behindMinutes[id]
       const nowMs = now.value.getTime()
-      const box = tileBoxes.value[index]
+      const box = layoutBoxes.value[index]
       return {
         id,
         name,
         slot,
         slotClass: `mv-slot-${slot}`,
         small: isSmallSlot(index, box),
-        style: slot === 'tile' ? slotStyleOf(id) : null,
+        style: slotStyleOf(id),
         title: isPrimary ? props.primaryTitle : companionTitleOf(id),
         meta: isPrimary ? props.primaryMeta : companionMetaOf(id),
         status: statusOf(state),
@@ -336,7 +396,7 @@ export const MultiViewLayer = {
 
     const hideIfIdle = () => {
       const root = pictureEls[controlsFor.value]
-      const busy = scrub.value || holdsControlsForFocus({ focused: document.activeElement, root })
+      const busy = scrub.value || resize.value || holdsControlsForFocus({ focused: document.activeElement, root })
       if (busy) return applyControlsEvent(controlsFor.value, 'point')
       applyControlsEvent(null, 'timeout')
     }
@@ -396,7 +456,11 @@ export const MultiViewLayer = {
       chooseFor(picture, action)
     }
 
-    const insetWidth = () => (frameSize.value.width < 700 ? 220 : 340)
+    const insetWidth = () => {
+      const share = shownLayout.value === 'inset' ? chosenShare.value : null
+      if (share != null) return share * frameSize.value.width
+      return frameSize.value.width < 700 ? 220 : 340
+    }
 
     const placeInset = () => {
       const { width, height } = frameSize.value
@@ -415,7 +479,7 @@ export const MultiViewLayer = {
       })
     }
 
-    watch([shownLayout, () => multi.view.insetCorner, frameSize], placeInset, { immediate: true })
+    watch([shownLayout, () => multi.view.insetCorner, frameSize, chosenShare], placeInset, { immediate: true })
 
     const canMakeMainByTap = (picture) => picture.slot === 'inset'
       || (picture.slot === 'tile' && shownLayout.value === 'strip' && mainPictureOf(multi.view) !== picture.id)
@@ -482,6 +546,174 @@ export const MultiViewLayer = {
       placeInset()
     }
 
+    const shownShare = computed(() => {
+      if (!sizeKey.value) return null
+      if (chosenShare.value != null) return chosenShare.value
+      if (shownLayout.value === 'split') return SIZE_RULES.split.fallback
+      if (shownLayout.value === 'strip') return stripShareOf(layoutBoxes.value)
+      const width = frameSize.value.width
+      return multi.insetBox && width ? clampShare({ rule: SIZE_RULES.inset, share: multi.insetBox.width / width }) : null
+    })
+
+    const handleRange = computed(() => ({
+      min: sizeRule.value ? percentOf(sizeRule.value.min) : 0,
+      max: sizeRule.value ? percentOf(sizeRule.value.max) : 100,
+      now: shownShare.value == null ? 50 : percentOf(shownShare.value),
+    }))
+
+    const barHandle = computed(() => {
+      if (!sizeKey.value || shownLayout.value === 'inset') return null
+      const boxes = layoutBoxes.value
+      const [main, next] = boxes
+      if (!main || !next) return null
+      const mainRight = main.left + main.width
+      const top = Math.min(...boxes.map((box) => box.top))
+      const bottom = Math.max(...boxes.map((box) => box.top + box.height))
+      return {
+        x: (mainRight + next.left) / 2,
+        top,
+        label: shownLayout.value === 'split' ? 'Resize the pictures' : 'Resize the main picture',
+        style: { '--mv-x': `${(mainRight + next.left) / 2}px`, '--mv-y': `${top}px`, '--mv-h': `${bottom - top}px` },
+      }
+    })
+
+    const cornerHandle = computed(() => {
+      const box = multi.insetBox
+      if (!sizeKey.value || shownLayout.value !== 'inset' || !box || dragging.value) return null
+      const corner = innerCornerOf(multi.view.insetCorner)
+      const [vertical, horizontal] = corner.split('-')
+      const x = horizontal === 'left' ? box.left : box.left + box.width
+      const y = vertical === 'top' ? box.top : box.top + box.height
+      return { corner, x, y, style: { '--mv-x': `${x}px`, '--mv-y': `${y}px` } }
+    })
+
+    const resizeChip = computed(() => {
+      if (!resizing.value || shownShare.value == null) return null
+      const text = ratioTextOf({ layout: shownLayout.value, share: shownShare.value })
+      const anchor = barHandle.value
+        ? { x: barHandle.value.x, y: barHandle.value.top >= CHIP_ROOM ? barHandle.value.top - 40 : barHandle.value.top + 8 }
+        : cornerChipAnchor()
+      return anchor ? { text, style: { '--mv-x': `${anchor.x}px`, '--mv-y': `${anchor.y}px` } } : null
+    })
+
+    const cornerChipAnchor = () => {
+      const box = multi.insetBox
+      if (!box) return null
+      const below = multi.view.insetCorner.startsWith('top')
+      return { x: box.left + box.width / 2, y: below ? box.top + box.height + 12 : box.top - 40 }
+    }
+
+    const limitOutlines = computed(() => {
+      if (!resizing.value || shownLayout.value !== 'inset' || !frameSize.value.width) return []
+      const rule = SIZE_RULES.inset
+      return [
+        { key: 'largest', label: `Largest · ${percentOf(rule.max)}%`, share: rule.max },
+        { key: 'smallest', label: `Smallest · ${percentOf(rule.min)}%`, share: rule.min },
+      ].map((limit) => ({ ...limit, style: styleOfBox(insetBoxFor(limit.share)) }))
+    })
+
+    const insetBoxFor = (share) => {
+      const { width, height } = frameSize.value
+      return insetBoxAt({
+        corner: multi.view.insetCorner,
+        frameWidth: width,
+        frameHeight: height,
+        insetWidth: share * width,
+        margin: 16,
+        topReserve: height < 500 ? 56 : 72,
+        bottomReserve: height < 500 ? 8 : 48,
+      })
+    }
+
+    let resizeDrag = null
+    let resizeFrame = 0
+    let pendingShare = null
+
+    const onResizePointerDown = (e) => {
+      if (!e.isPrimary || !sizeKey.value || shownShare.value == null || e.button > 0) return
+      e.preventDefault()
+      resizeDrag = {
+        key: sizeKey.value,
+        rule: sizeRule.value,
+        x: e.clientX,
+        y: e.clientY,
+        start: shownShare.value,
+        barX: barHandle.value?.x ?? 0,
+        insetWidth: multi.insetBox?.width ?? 0,
+        corner: multi.view.insetCorner,
+      }
+      pendingShare = null
+      multi.resizeFrom = { boxes: { ...multi.boxes }, inset: multi.insetBox ? { ...multi.insetBox } : null }
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+      if (controlsFor.value) revealFor(controlsFor.value)
+    }
+
+    const onResizePointerMove = (e) => {
+      if (!resizeDrag || !e.isPrimary) return
+      pendingShare = shareFromPointer(e)
+      if (!resizeFrame) resizeFrame = requestAnimationFrame(flushResize)
+    }
+
+    const shareFromPointer = (e) => {
+      const dx = e.clientX - resizeDrag.x
+      const dy = e.clientY - resizeDrag.y
+      const { rule, start } = resizeDrag
+      if (resizeDrag.key.startsWith('inset')) {
+        const width = resizeDrag.insetWidth + insetGrowthOf({ corner: resizeDrag.corner, dx, dy })
+        return clampShare({ rule, share: width / Math.max(1, frameSize.value.width) })
+      }
+      if (!area.value) return start
+      return shareAtPosition({ rule, positionOf: barPositionAt, target: resizeDrag.barX + dx })
+    }
+
+    const barPositionAt = (share) => {
+      const [main, next] = shownLayout.value === 'split'
+        ? splitBoxesOf({ area: area.value, centreY: frameSize.value.height / 2, share })
+        : tileBoxesOf({ layout: 'strip', slots: slotCount.value, area: area.value, share })
+      return (main.left + main.width + next.left) / 2
+    }
+
+    const flushResize = () => {
+      resizeFrame = 0
+      if (resizeDrag && pendingShare != null) resize.value = { key: resizeDrag.key, share: pendingShare }
+    }
+
+    const finishResize = () => {
+      if (!resizeDrag) return
+      const { key } = resizeDrag
+      cancelAnimationFrame(resizeFrame)
+      resizeFrame = 0
+      resizeDrag = null
+      if (pendingShare != null) setMultiSize(key, pendingShare)
+      pendingShare = null
+      resize.value = null
+      multi.resizeFrom = null
+    }
+
+    const cancelResize = () => {
+      cancelAnimationFrame(resizeFrame)
+      resizeFrame = 0
+      resizeDrag = null
+      pendingShare = null
+      resize.value = null
+      multi.resizeFrom = null
+    }
+
+    const resetSize = () => {
+      if (sizeKey.value) resetMultiSize(sizeKey.value)
+    }
+
+    const onResizeKeydown = (e) => {
+      if (!sizeRule.value || shownShare.value == null) return
+      const action = keyActionOf({ rule: sizeRule.value, share: shownShare.value, key: e.key })
+      if (!action) return
+      e.preventDefault()
+      if (action.reset) return resetSize()
+      setMultiSize(sizeKey.value, action.share)
+    }
+
+    onUnmounted(() => cancelAnimationFrame(resizeFrame))
+
     const loadAiring = async (id, channelId) => {
       airings[id] = null
       if (!channelId) return
@@ -520,7 +752,8 @@ export const MultiViewLayer = {
       pictures, addSlot, hint, menuFor, menuTitle, menuItems, chooseMenu, chooseFor, explainerOpen, dragging,
       setPictureEl, revealFor, togglePause, goLive, startOver, onScrub, onScrubCommit,
       onPicturePointerDown, onPicturePointerMove, onPicturePointerUp, onPicturePointerLeave, cancelDrag,
-      tapPictureSound, swapMultiPictures, setMultiLayout,
+      tapPictureSound, swapMultiPictures, setMultiLayout, controlsFor, resizing, isResized, resetSize, barHandle, cornerHandle,
+      handleRange, resizeChip, limitOutlines, onResizePointerDown, onResizePointerMove, finishResize, cancelResize, onResizeKeydown,
     }
   },
 }
@@ -654,5 +887,7 @@ const styleOfBox = (box) => ({
 })
 
 const isHoverPointer = (e) => e.pointerType === 'mouse'
+
+const CHIP_ROOM = 116
 
 const DRAG_START_PX = 6

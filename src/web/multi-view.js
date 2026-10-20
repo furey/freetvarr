@@ -100,9 +100,28 @@ export const slotOf = ({ state, picture, portraitPhone }) => {
 
 export const slotCountOf = ({ count, canAdd }) => (count > 2 && canAdd ? Math.min(count + 1, MAX_PICTURES) : count)
 
-export const tileBoxesOf = ({ layout, slots, area, gap = 12 }) => {
-  if (layout === 'strip') return stripBoxesOf({ slots, area, gap })
+export const tileBoxesOf = ({ layout, slots, area, gap = 12, share = null }) => {
+  if (layout === 'strip') return stripBoxesOf({ slots, area, gap, share })
   return gridBoxesOf({ slots, area, gap })
+}
+
+export const isStripSideways = (area) => area.width >= area.height
+
+export const splitBoxesOf = ({ area, centreY = area.top + area.height / 2, share = 0.5, gap = 12 }) => {
+  const usable = Math.max(0, area.width - gap)
+  const room = Math.max(0, 2 * Math.min(centreY - area.top, area.top + area.height - centreY))
+  const widthOf = (part) => Math.round(Math.min(usable * part, (room * 16) / 9))
+  const leftWidth = widthOf(share)
+  const rightWidth = widthOf(1 - share)
+  const left = area.left + (area.width - (leftWidth + gap + rightWidth)) / 2
+  const boxOf = (x, width) => roundBox({ left: x, top: centreY - (width * 9) / 32, width, height: (width * 9) / 16 })
+  return [boxOf(left, leftWidth), boxOf(left + leftWidth + gap, rightWidth)]
+}
+
+export const stripShareOf = (boxes) => {
+  const [main, strip] = boxes
+  if (!main || !strip) return null
+  return main.width / (main.width + strip.width)
 }
 
 export const snapCorner = ({ centreX, centreY, width, height }) => {
@@ -112,7 +131,8 @@ export const snapCorner = ({ centreX, centreY, width, height }) => {
 }
 
 export const insetBoxAt = ({ corner, frameWidth, frameHeight, insetWidth, margin, topReserve = 0, bottomReserve = 0 }) => {
-  const width = Math.min(insetWidth, Math.max(0, frameWidth - margin * 2))
+  const roomHeight = Math.max(0, frameHeight - margin * 2 - topReserve - bottomReserve)
+  const width = Math.round(Math.min(insetWidth, Math.max(0, frameWidth - margin * 2), (roomHeight * 16) / 9))
   const height = Math.round((width * 9) / 16)
   const [vertical, horizontal] = corner.split('-')
   const left = horizontal === 'left' ? margin : frameWidth - margin - width
@@ -142,10 +162,32 @@ const gridBoxesOf = ({ slots, area, gap }) => {
   }))
 }
 
-const stripBoxesOf = ({ slots, area, gap }) => {
-  const sideways = area.width >= area.height
-  const layout = sideways ? stripRightOf({ area, gap }) : stripBelowOf({ area, gap })
+const stripBoxesOf = ({ slots, area, gap, share }) => {
+  const layout = stripLayoutOf({ area, gap, share })
   return Array.from({ length: slots }, (_, i) => roundBox(i === 0 ? layout.main : layout.strip(i - 1)))
+}
+
+const stripLayoutOf = ({ area, gap, share }) => {
+  if (!isStripSideways(area)) return stripBelowOf({ area, gap })
+  return share == null ? stripRightOf({ area, gap }) : stripRightSharedOf({ area, gap, share })
+}
+
+const stripRightSharedOf = ({ area, gap, share }) => {
+  const total = Math.max(0, area.width - gap)
+  const fullMainHeight = (total * share * 9) / 16
+  const fullStripHeight = (total * (1 - share) * 9) / 16
+  const scale = Math.max(0, Math.min(1, area.height / fullMainHeight, (area.height - gap * 2) / (fullStripHeight * 3)))
+  const mainWidth = total * share * scale
+  const stripWidth = total * (1 - share) * scale
+  const stripHeight = (stripWidth * 9) / 16
+  const mainHeight = (mainWidth * 9) / 16
+  const columnHeight = stripHeight * 3 + gap * 2
+  const left = area.left + (area.width - (mainWidth + gap + stripWidth)) / 2
+  const middle = area.top + area.height / 2
+  return {
+    main: { left, top: middle - mainHeight / 2, width: mainWidth, height: mainHeight },
+    strip: (i) => ({ left: left + mainWidth + gap, top: middle - columnHeight / 2 + i * (stripHeight + gap), width: stripWidth, height: stripHeight }),
+  }
 }
 
 const stripRightOf = ({ area, gap }) => {
