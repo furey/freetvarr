@@ -1,15 +1,14 @@
 import { ref, computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
-import { muteButtonOf, playerMenuItemsOf } from '/player-mute.js'
+import { soundToggleOf, playerMenuItemsOf } from '/player-mute.js'
 import {
   topBarLayoutOf,
   optionalWidthOf,
-  menuOrderOf,
+  moreMenuKeysOf,
   ROUND_WIDTH,
   ICON_PILL_WIDTH,
   LOGO_WIDTH,
   LABELLED_PILL_WIDTHS,
-  EARLY_COMPACT,
   LATE_COMPACT,
 } from '/player-top-actions.js'
 
@@ -40,14 +39,14 @@ export const PlayerTopBar = {
     const barEl = ref(null)
     const actionsEl = ref(null)
     const menuOpen = ref(false)
-    const measure = ref({ barWidth: 0, frameWidth: 0, gap: 10, actionsGap: 8, soundLabelled: false, fullscreenShown: false })
-    const sound = computed(() => muteButtonOf({ muted: props.muted }))
+    const measure = ref({ barWidth: 0, frameWidth: 0, gap: 10, actionsGap: 8 })
+    const sound = computed(() => soundToggleOf({ muted: props.muted }))
 
     const allActions = computed(() => [
       ...props.actions,
       props.canMinimise && {
-        key: 'minimise', order: 2, priority: 3, round: true, icon: 'minimise-icon', ariaLabel: 'Mini player', title: 'Mini player',
-        menuLabel: 'Mini player',
+        key: 'minimise', order: 2, priority: 3, icon: 'minimise-icon', label: 'Miniplayer', ariaLabel: 'Miniplayer',
+        menuLabel: 'Miniplayer',
       },
       {
         key: 'info', order: 4, priority: 1, icon: 'info-icon', label: 'Info', ariaLabel: 'Programme info', menuLabel: 'Programme info',
@@ -56,18 +55,15 @@ export const PlayerTopBar = {
     ].filter((action) => action && !action.hidden))
 
     const layout = computed(() => {
-      const { barWidth, frameWidth, gap, actionsGap, soundLabelled, fullscreenShown } = measure.value
+      const { barWidth, frameWidth, gap, actionsGap } = measure.value
       const labelled = frameWidth > PILL_LABEL_MIN_FRAME
       const optional = [...allActions.value]
         .sort((a, b) => a.priority - b.priority)
         .map((action) => ({ key: action.key, width: optionalWidthOf({ key: action.key, round: action.round, labelled }) }))
       const pinned = [
         props.hasRecord && { key: 'record', width: LABELLED_PILL_WIDTHS.record, compactWidth: ICON_PILL_WIDTH, compactAt: LATE_COMPACT },
-        soundLabelled
-          ? { key: 'sound', width: LABELLED_PILL_WIDTHS.sound, compactWidth: ICON_PILL_WIDTH, compactAt: EARLY_COMPACT }
-          : { key: 'sound', width: ICON_PILL_WIDTH },
+        { key: 'sound', width: ROUND_WIDTH },
         { key: 'more', width: ROUND_WIDTH },
-        fullscreenShown && { key: 'fullscreen', width: ROUND_WIDTH },
       ].filter(Boolean)
       if (!barWidth) return { inline: optional.map((action) => action.key), overflow: [], compact: [], showLogo: true }
       return topBarLayoutOf({
@@ -80,7 +76,7 @@ export const PlayerTopBar = {
       .sort((a, b) => a.order - b.order))
 
     const menuItems = computed(() => playerMenuItemsOf({
-      overflow: menuOrderOf(layout.value.overflow)
+      overflow: moreMenuKeysOf({ overflow: layout.value.overflow, available: allActions.value.map((action) => action.key) })
         .map((key) => allActions.value.find((action) => action.key === key))
         .filter(Boolean)
         .map(menuItemOf),
@@ -111,8 +107,6 @@ export const PlayerTopBar = {
         frameWidth: bar.clientWidth,
         gap: parseFloat(barStyle.columnGap) || 0,
         actionsGap: parseFloat(actionsStyle?.columnGap) || 0,
-        soundLabelled: window.innerWidth >= SOUND_LABEL_MIN_VIEWPORT,
-        fullscreenShown: !window.matchMedia?.('(pointer: coarse)').matches,
       }
     }
 
@@ -147,15 +141,11 @@ export const PlayerTopBar = {
           </button>
         </template>
         <slot :compact="layout.compact.includes('record')" />
-        <button type="button" :class="['pl-pill', 'is-sound', { 'is-on': sound.audible, 'is-compact': layout.compact.includes('sound') }]" :aria-pressed="String(sound.audible)"
-          :aria-label="sound.ariaLabel" @click="$emit('toggle-mute')">
-          <speaker-icon v-if="sound.audible" /><speaker-muted-icon v-else /><span class="pl-sound-label">{{ sound.label }}</span>
+        <button type="button" :class="['pl-round', 'pl-sound', { 'is-muted': sound.muted }]" :aria-label="sound.ariaLabel"
+          :title="sound.title" aria-keyshortcuts="m" @click="$emit('toggle-mute')">
+          <speaker-muted-icon v-if="sound.muted" /><speaker-icon v-else />
         </button>
-        <button type="button" class="pl-round pl-more" aria-label="More" title="More" @click="menuOpen = true"><more-dots-icon /></button>
-        <button type="button" class="pl-round pl-fullscreen" :aria-label="fullscreen ? 'Exit full screen' : 'Full screen'"
-          @click="$emit('toggle-fullscreen')">
-          <exit-fullscreen-icon v-if="fullscreen" /><fullscreen-icon v-else />
-        </button>
+        <button type="button" class="pl-round pl-more" aria-label="More" title="More" aria-haspopup="dialog" @click="menuOpen = true"><more-dots-icon /></button>
       </div>
       <ui-sheet :open="menuOpen" title="More" @close="menuOpen = false">
         <div class="ui-group">
@@ -185,7 +175,6 @@ const menuItemOf = (action) => ({
 })
 
 const PILL_LABEL_MIN_FRAME = 1000
-const SOUND_LABEL_MIN_VIEWPORT = 768
 
 export const PlayerCenterControls = {
   components: PLAYER_ICON_COMPONENTS,

@@ -163,7 +163,7 @@ A Freetvarr browser tab left open during the update offers a card with **Reload*
 
 - [What's new in 2.0](/guide/whats-new): the five destinations of the app.
 - [Home and search](/guide/home): what to watch now, and how to find a show.
-- [Player](/guide/player): live TV and recordings, Start over, the mini player, and Multiview.
+- [Player](/guide/player): live TV and recordings, Start over, the Miniplayer, and Multiview.
 - [Guide](/guide/tv-guide): schedule recordings from the browser.
 - [Series rules and folders](/guide/series): assign series folders and sync recordings into your library.
 - [Configuration](/guide/configuration): the full `.env` reference.

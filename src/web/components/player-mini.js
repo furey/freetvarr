@@ -164,7 +164,7 @@ export const PlayerMini = {
           @click="openMore"><more-dots-icon /></button>
         <button type="button" class="pl-mini-button pl-mini-close" aria-label="Stop and close" @click="$emit('close')"><cross-icon /></button>
       </div>
-      <div v-if="menuOpen" class="pl-mini-menu" role="menu" aria-label="Mini player options">
+      <div v-if="menuOpen" class="pl-mini-menu" role="menu" aria-label="Miniplayer options">
         <button v-for="item in menuItems" :key="item.key" type="button" class="pl-mini-menu-item"
           :role="item.key === 'captions' ? 'menuitemcheckbox' : 'menuitem'" :aria-checked="item.key === 'captions' ? String(item.on) : null"
           @click="chooseItem(item.key)">

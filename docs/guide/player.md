@@ -2,7 +2,7 @@
 title: Player
 description: >-
   Freetvarr's full-screen player for live TV and recordings: Start over, sound,
-  captions, the mini player, Pop out, Multiview, and the player settings.
+  captions, the Miniplayer, Pop out, Multiview, and the player settings.
 ---
 
 # Player
@@ -23,11 +23,11 @@ The top bar has these controls:
 - The channel logo and the title of what is playing.
 - **Multiview** (live TV only): watch a second channel. See [Multiview](#multiview).
 - **AirPlay** (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
-- **Mini player**: shrinks the player so you can use the rest of Freetvarr. See [Mini player](#mini-player).
+- **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer).
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
 - **Info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
-- **Sound** or **Muted**: turns the sound on or off. See [Sound](#sound).
-- **⋯** (**More**): **Captions**, **Pop out (picture in picture)**, and **Full screen**. On a narrow screen, the buttons that do not fit in the top bar also move into this menu.
+- The sound button: turns the sound on or off. See [Sound](#sound).
+- **⋯** (**More**): **Miniplayer**, **Captions**, **Pop out (picture in picture)**, and **Full screen**. On a narrow screen, the buttons that do not fit in the top bar also move into this menu.
 
 The centre of the picture has **Start over**, the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
 
@@ -39,10 +39,12 @@ Double-tap (phone or tablet) or double-click (computer) the left third of the pi
 
 **Start over** works differently for live TV and for recordings.
 
-For live TV, **Start over** opens a choice:
+For live TV, **Start over** does one of these:
 
-- **From the start**: plays the programme from its first minute, while TVHeadend keeps recording it. This choice shows only when TVHeadend is recording that programme on that channel. Freetvarr plays the recording in progress, so you can watch a show you started late from the beginning.
-- **Back to when you tuned in**: jumps to the oldest part of the rewind buffer. The choice shows the clock time and how many minutes ago that was. It is greyed out for the first few seconds after you tune in.
+- **From the start**: plays the programme from its first minute, while TVHeadend keeps recording it. This is possible only when TVHeadend is recording that programme on that channel. Freetvarr plays the recording in progress, so you can watch a show you started late from the beginning.
+- **Back to when you tuned in**: jumps to the oldest part of the rewind buffer. This is possible a few seconds after you tune in.
+
+When both are possible, **Start over** asks which one you want and shows the clock time for each. When only one is possible, **Start over** does it straight away. In Multiview, **Start over** always goes back to when you tuned in.
 
 While you are behind live, **Go live** returns to now, and the text under it says how far behind you are, such as `2 min behind`.
 
@@ -50,7 +52,7 @@ For a recording, **Start over** shows when the player resumed where you stopped,
 
 ## Sound
 
-**Sound** means the sound is on. **Muted** means it is off. Press the button, or press `m` on a keyboard, to switch. Freetvarr remembers the choice on each device, and the next channel or recording starts the same way.
+The sound button at the right of the top bar shows a speaker. When the sound is off, the button turns amber and the speaker has a cross. Press the button, or press `m` on a keyboard, to switch. Point at the button with the mouse to see **Mute (M)** or **Unmute (M)**. Freetvarr remembers the choice on each device, and the next channel or recording starts the same way.
 
 To start every video muted on a device, turn on **Start muted** in [Player settings](#player-settings).
 
@@ -60,14 +62,14 @@ Open **⋯**, then press **Captions** to turn captions on or off. The menu row s
 
 **Captions** shows only when the channel or the recording carries the broadcast's Teletext subtitles. Some programmes on such a channel still have none. See [Captions](/guide/live-tv#captions).
 
-## Mini player
+## Miniplayer
 
-Press **Mini player** in the top bar to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
+Press **Miniplayer** in the top bar or in the **⋯** menu to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
 
-- On a phone, the mini player is a bar above the tab bar.
+- On a phone, the Miniplayer is a bar above the tab bar.
 - On a tablet or computer, it is a small card in a corner of the screen.
 
-Tap the mini player, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
+Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
 
 ## Pop out
 
@@ -75,7 +77,7 @@ Tap the mini player, or point at it with the mouse, to show its controls: pause,
 
 ## Full screen
 
-On a computer, press the full-screen button at the right of the top bar, or press `f`. **Full screen** in the **⋯** menu does the same on every device.
+Open **⋯**, then press **Full screen**. On a computer, you can also press `f`, or double-click the picture.
 
 On a phone, turn the phone sideways while the player is open, and the player goes full screen.
 
@@ -103,7 +105,9 @@ With two channels playing:
 
 - **Side by side** shows the two pictures next to each other. **Big and small** shows one picture full size and the other in a corner. On a phone held upright, the pictures stack instead; turn the phone sideways to choose a layout.
 - The swap button swaps the two pictures.
-- In **Big and small**, drag the small picture to any corner. Double-tap it to make it the big picture.
+- In **Big and small**, drag the small picture to any corner. Double-tap it (double-click with a mouse) to make it the big picture.
+- Point at a picture with the mouse, or tap it, to show its own controls: **Start over** (back to when you tuned in), **Pause** or **Play**, **Go live** or the `LIVE` mark, and a position bar. The first tap only shows the controls; it never pauses. Tap the picture again, or wait, and the controls hide.
+- A paused picture dims, its badge reads `PAUSED`, and a large **Play** button stays on it until you press it. Each picture pauses and plays on its own.
 - Each picture has its own **Sound** or **Muted** button. Press **Muted** on a picture to hear it; the other picture mutes. Press **Sound** on the picture you hear to mute both. An outline marks the picture you hear.
 - Each picture's **⋯** menu has **Full screen** (keep this channel and stop the other), **Change channel**, and **Stop watching**.
 - The back button stops both channels and closes the player.
@@ -112,7 +116,7 @@ With two channels playing:
 
 Settings → **Player** holds two choices for the device you use:
 
-- **Start muted**: every video starts with the sound off. This is the same choice as the **Sound** button.
+- **Start muted**: every video starts with the sound off. This is the same choice as the sound button.
 - **Hide player controls after**: `1 s` to `5 s`. The default is `3 s`.
 
 Both are saved in the browser, so each device keeps its own.
@@ -131,10 +135,10 @@ On a computer, the player takes these keys:
 
 | Key                   | What it does                                                              |
 | --------------------- | ------------------------------------------------------------------------- |
-| Space or `k`          | Pauses, or carries on.                                                    |
+| Space or `k`          | Pauses, or carries on. In Multiview, acts on the picture you hear.        |
 | Left and right arrows | Skip back or forward `10` seconds. For live TV, within the rewind buffer. |
 | `f`                   | Enters or exits full screen.                                              |
 | `i`                   | Shows or hides the programme or recording info.                           |
 | `c`                   | Turns captions on or off, when the channel or recording has them.         |
-| `m`                   | Switches between **Sound** and **Muted**.                                 |
+| `m`                   | Mutes or unmutes. In Multiview, acts on the picture you hear.             |
 | `Esc`                 | Closes the info panel, or else closes the player.                         |

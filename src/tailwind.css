@@ -24,6 +24,8 @@
   --color-success: #3dd68c;
   --color-warning: #ffb547;
   --color-warning-tint: rgba(255, 181, 71, 0.14);
+  --color-warning-hi: #ffc773;
+  --color-on-warning: #2a1a00;
   --color-info: #62cfff;
   --color-info-hi: #9adfff;
   --color-brand-blue: #3ba4ff;

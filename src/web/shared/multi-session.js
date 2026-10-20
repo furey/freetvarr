@@ -10,6 +10,8 @@ import {
   otherPictureOf,
 } from '/multi-view.js'
 import { EMPTY_TUNER_STATUS } from '/tuner-status.js'
+import { keyPictureOf } from '/multi-picture.js'
+import { steadyLiveWindowOf, videoLiveInputOf } from '/live-edge.js'
 import { api, csrfToken } from '/shared/api.js'
 import {
   liveVideo,
@@ -17,11 +19,13 @@ import {
   adoptLiveSession,
   retuneLive,
   liveReasonText,
+  toggleLivePause,
 } from '/shared/live-session.js'
 import { live, playerMuted } from '/shared/player-shared.js'
 
 const emptySecondary = () => ({
   channel: null, sessionId: null, playlist: '', bufferSeconds: 0, captions: false, phase: 'idle', message: '',
+  paused: false, behindSeconds: 0, bufferFrom: null, bufferTo: null, position: 0,
 })
 
 export const multi = reactive({
@@ -41,13 +45,71 @@ portraitPhoneQuery?.addEventListener?.('change', (e) => { portraitPhone.value = 
 
 export let companionVideo = null
 let companionHls = null
+let companionEdgeAnchor = null
 let companionRun = 0
 let companionPollTimer = null
 let companionAttached = false
 let tunerTimer = null
 let tunerWatchers = 0
 
-export const setCompanionVideo = (el) => { companionVideo = el }
+export const setCompanionVideo = (el) => {
+  for (const type of COMPANION_TRACK_EVENTS) companionVideo?.removeEventListener(type, trackCompanion)
+  companionVideo = el
+  for (const type of COMPANION_TRACK_EVENTS) companionVideo?.addEventListener(type, trackCompanion)
+}
+
+export const trackCompanion = () => {
+  const video = companionVideo
+  const ready = companionAttached && video?.readyState >= HAVE_CURRENT_DATA
+  if (!ready) companionEdgeAnchor = null
+  const edge = ready ? companionWindow() : null
+  Object.assign(multi.secondary, {
+    paused: Boolean(ready && video.paused && multi.secondary.phase === 'live'),
+    behindSeconds: edge ? edge.behind : 0,
+    bufferTo: edge ? edge.target : null,
+    bufferFrom: edge ? edge.floor : null,
+    position: ready ? video.currentTime : 0,
+  })
+}
+
+const companionWindow = () => {
+  const steady = steadyLiveWindowOf({
+    ...videoLiveInputOf(companionVideo),
+    hlsSyncPosition: companionHls?.liveSyncPosition ?? null,
+    hlsOldestSecond: companionHls?.latestLevelDetails?.fragments?.[0]?.start ?? null,
+    bufferSeconds: multi.secondary.bufferSeconds,
+    anchor: companionEdgeAnchor,
+    wallS: performance.now() / 1000,
+  })
+  companionEdgeAnchor = steady.anchor
+  return steady
+}
+
+export const seekCompanionTo = (second) => {
+  const { bufferFrom, bufferTo } = multi.secondary
+  if (!companionAttached || bufferFrom == null || bufferTo == null) return false
+  companionVideo.currentTime = Math.max(bufferFrom, Math.min(bufferTo, second))
+  trackCompanion()
+  return true
+}
+
+export const goLiveCompanion = () => {
+  if (!companionAttached) return
+  const { bufferTo } = multi.secondary
+  if (bufferTo != null) companionVideo.currentTime = bufferTo
+  companionVideo.play()?.catch(() => {})
+  trackCompanion()
+}
+
+export const startCompanionOver = () => {
+  if (seekCompanionTo(multi.secondary.bufferFrom ?? 0)) companionVideo.play()?.catch(() => {})
+}
+
+export const togglePicturePause = (picture) => (picture === 'primary' ? toggleLivePause() : toggleSecondaryPause())
+
+export const toggleKeyPicturePause = () => togglePicturePause(keyPictureOf(multi.view))
+
+export const toggleKeyPictureSound = () => tapPictureSound(keyPictureOf(multi.view))
 
 export const slotClassOf = (picture) => (multi.active
   ? `mv-slot-${slotOf({ state: multi.view, picture, portraitPhone: portraitPhone.value })}`
@@ -250,6 +312,7 @@ const detachCompanionVideo = () => {
   companionHls?.destroy()
   companionHls = null
   companionAttached = false
+  companionEdgeAnchor = null
   if (!companionVideo) return
   companionVideo.pause()
   companionVideo.removeAttribute('src')
@@ -301,6 +364,8 @@ const COMPANION_HLS_CONFIG = {
   liveMaxLatencyDuration: Infinity,
   backBufferLength: 10,
 }
+const COMPANION_TRACK_EVENTS = ['play', 'pause', 'playing', 'seeked', 'timeupdate', 'waiting', 'loadeddata']
+const HAVE_CURRENT_DATA = 2
 const POLL_TUNING_MS = 1_000
 const POLL_PLAYING_MS = 10_000
 const TUNER_POLL_MS = 5_000

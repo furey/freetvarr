@@ -34,6 +34,13 @@ export const startOverOptionsOf = ({ recording, bufferStartMs, hasBuffer, nowMs,
   tunedInOption({ bufferStartMs, hasBuffer, nowMs, clockText }),
 ].filter(Boolean)
 
+export const startOverActionOf = (options = []) => {
+  const enabled = options.filter((option) => !option.disabled)
+  if (enabled.length === 0) return { kind: 'none' }
+  if (enabled.length === 1) return { kind: 'direct', key: enabled[0].key, title: `${enabled[0].title}: ${enabled[0].detail}` }
+  return { kind: 'sheet' }
+}
+
 export const NOTHING_BUFFERED_TEXT = 'Nothing to go back to yet. Ready a few seconds after you tune in.'
 
 export const behindLiveText = (seconds) => {

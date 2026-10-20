@@ -1,5 +1,9 @@
-import { ref, computed, watch, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { DOUBLE_TAP_MS } from '/double-tap.js'
+import { controlsHideMsOf, holdsControlsForFocus, isControlTarget } from '/controls-hide.js'
+import { pictureControlsAfter, pictureBadgeOf, resumeLabelOf, pictureOverlayOf, multiHintOf } from '/multi-picture.js'
+import { liveEdgeOf, steadyBehindMinutesOf, percentWithin } from '/player-labels.js'
+import { canRewind } from '/live-edge.js'
 import {
   soundButtonOf,
   shownLayoutOf,
@@ -11,7 +15,7 @@ import {
   PICTURES,
 } from '/multi-view.js'
 import { pickerRowsOf, streamsLimitReached } from '/tuner-status.js'
-import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
+import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { TunerCells, TunerExplainerSheet, useTunerStatusWhile, tunerMeter } from '/components/tuner-list.js'
 import { api } from '/shared/api.js'
 import {
@@ -26,12 +30,18 @@ import {
   setInsetCorner,
   stopWatchingPicture,
   fullScreenPicture,
+  togglePicturePause,
+  trackCompanion,
+  seekCompanionTo,
+  goLiveCompanion,
+  startCompanionOver,
 } from '/shared/multi-session.js'
+import { returnToLive, seekLiveTo, seekLiveAndPlay } from '/shared/live-session.js'
 import { live } from '/shared/player-shared.js'
-import { fmtClockTz } from '/shared/time.js'
+import { fmtClockTz, now } from '/shared/time.js'
 
 export const MultiViewLayer = {
-  components: { ...PLAYER_ICON_COMPONENTS, 'tuner-cells': TunerCells, 'tuner-explainer-sheet': TunerExplainerSheet },
+  components: { ...PLAYER_CHROME_COMPONENTS, 'tuner-cells': TunerCells, 'tuner-explainer-sheet': TunerExplainerSheet },
   props: {
     primaryTitle: { type: String, default: '' },
     primaryMeta: { type: String, default: '' },
@@ -60,11 +70,21 @@ export const MultiViewLayer = {
           <tuner-cells :cells="meter.cells" /><span class="mv-meter-text">{{ meter.text }}</span>
         </button>
       </header>
-      <div v-for="picture in pictures" :key="picture.id" :class="['mv-picture', picture.slotClass, { 'is-audible': picture.sound.audible, 'is-dragging': dragging && picture.slot === 'inset' }]"
-        @pointerdown="onPicturePointerDown($event, picture)" @pointermove="onPicturePointerMove" @pointerup="onPicturePointerUp($event, picture)"
-        @pointercancel="cancelDrag">
+      <div v-for="picture in pictures" :key="picture.id" :ref="(el) => setPictureEl(picture.id, el)"
+        :class="['mv-picture', picture.slotClass, {
+          'is-audible': picture.sound.audible, 'is-dragging': dragging && picture.slot === 'inset',
+          'is-controls-shown': picture.overlay.controls, 'is-paused': picture.overlay.dim, 'is-resting': picture.overlay.resume,
+        }]"
+        @pointerdown="onPicturePointerDown($event, picture)" @pointermove="onPicturePointerMove($event, picture)"
+        @pointerup="onPicturePointerUp($event, picture)" @pointerleave="onPicturePointerLeave($event, picture)"
+        @pointercancel="cancelDrag" @focusin="revealFor(picture.id)">
+        <span class="mv-picture-dim" aria-hidden="true"></span>
         <div class="mv-picture-top">
-          <span class="ui-live-badge"><span class="ui-live-dot" aria-hidden="true"></span>Live</span>
+          <span v-if="picture.playing" :class="['mv-badge', 'is-' + picture.badge.kind]">
+            <span v-if="picture.badge.kind === 'live'" class="mv-badge-dot" aria-hidden="true"></span>
+            <pause-icon v-else-if="picture.badge.kind === 'paused'" />{{ picture.badge.text }}
+          </span>
+          <span v-else></span>
           <span class="mv-picture-actions">
             <button type="button" :class="['mv-sound', { 'is-on': picture.sound.audible }]" :aria-pressed="String(picture.sound.audible)"
               :aria-label="picture.sound.ariaLabel" @click="tapPictureSound(picture.id)">
@@ -74,9 +94,33 @@ export const MultiViewLayer = {
           </span>
         </div>
         <p v-if="picture.status" class="mv-picture-status" role="status">{{ picture.status }}</p>
+        <template v-if="picture.playing">
+          <player-center-controls class="mv-centre" :paused="picture.paused" :show-start-over="picture.hasBar"
+            start-over-title="Start over: back to when you tuned in" @start-over="startOver(picture.id)" @toggle-pause="togglePause(picture.id)">
+            <template #end>
+              <span v-if="picture.edge.atEdge" class="pl-live-status"><i aria-hidden="true"></i>LIVE</span>
+              <template v-else>
+                <button type="button" class="pl-go-live" :aria-label="'Go live on ' + picture.name" @click="goLive(picture.id)"><go-live-icon /><span class="mv-go-live-text">Go live</span></button>
+                <span class="pl-centre-label">{{ picture.edge.label }}</span>
+              </template>
+            </template>
+          </player-center-controls>
+          <div class="mv-resume">
+            <button type="button" class="pl-control is-large" :aria-label="'Play ' + picture.name" tabindex="-1"
+              @click="togglePause(picture.id)"><play-icon /></button>
+            <span class="pl-centre-label">{{ picture.resumeLabel }}</span>
+          </div>
+        </template>
         <div class="mv-picture-text">
           <p class="mv-picture-title">{{ picture.title }}</p>
           <p v-if="picture.meta" class="mv-picture-meta">{{ picture.meta }}</p>
+        </div>
+        <div v-if="picture.playing" class="mv-picture-bottom">
+          <p class="mv-picture-title">{{ picture.title }}</p>
+          <player-scrubber v-if="picture.hasBar" :min="picture.from" :max="picture.to" :value="picture.position"
+            :fill-percent="picture.fill" :start-text="picture.startText" :end-text="picture.endText"
+            :aria-label="'Position in the live buffer for ' + picture.name"
+            @scrub="onScrub(picture.id, $event)" @commit="onScrubCommit(picture.id, $event)" />
         </div>
       </div>
       <footer class="mv-bottom">
@@ -125,10 +169,60 @@ export const MultiViewLayer = {
       return ''
     }
 
+    const controlsFor = ref(null)
+    const scrub = ref(null)
+    const behindMinutes = reactive({ primary: 0, secondary: 0 })
+    const pictureEls = {}
+    let hideTimer = null
+
+    const setPictureEl = (id, el) => { pictureEls[id] = el }
+
+    const playbackOf = (id) => (id === 'primary'
+      ? {
+        phase: live.phase,
+        paused: live.paused || live.stuck,
+        bufferSeconds: live.bufferSeconds,
+        from: live.bufferFrom,
+        to: live.bufferTo,
+        position: live.position,
+        behindSeconds: live.behindSeconds,
+      }
+      : {
+        phase: multi.secondary.phase,
+        paused: multi.secondary.paused,
+        bufferSeconds: multi.secondary.bufferSeconds,
+        from: multi.secondary.bufferFrom,
+        to: multi.secondary.bufferTo,
+        position: multi.secondary.position,
+        behindSeconds: multi.secondary.behindSeconds,
+      })
+
+    const shownPositionOf = (id, playback) => (scrub.value?.picture === id ? scrub.value.value : playback.position)
+
+    for (const id of PICTURES) {
+      watch(() => {
+        const playback = playbackOf(id)
+        if (scrub.value?.picture !== id || playback.to == null) return playback.behindSeconds
+        return playback.to - scrub.value.value
+      }, (seconds) => {
+        const previous = scrub.value?.picture === id ? 0 : behindMinutes[id]
+        behindMinutes[id] = playbackOf(id).phase === 'live' ? steadyBehindMinutesOf({ seconds, previous }) : 0
+      }, { immediate: true })
+    }
+
+    watch(now, trackCompanion)
+
     const pictures = computed(() => PICTURES.map((id) => {
       const isPrimary = id === 'primary'
       const name = isPrimary ? live.channel?.name || '' : multi.secondary.channel?.name || ''
       const slot = slotOf({ state: multi.view, picture: id, portraitPhone: portraitPhone.value })
+      const playback = playbackOf(id)
+      const playing = playback.phase === 'live'
+      const span = playback.from == null || playback.to == null ? 0 : playback.to - playback.from
+      const hasBar = playing && playback.bufferSeconds > 0 && canRewind({ span })
+      const position = shownPositionOf(id, playback)
+      const minutes = behindMinutes[id]
+      const nowMs = now.value.getTime()
       return {
         id,
         name,
@@ -138,14 +232,74 @@ export const MultiViewLayer = {
         meta: isPrimary ? props.primaryMeta : secondaryMeta.value,
         status: isPrimary ? statusOf(live) : statusOf(multi.secondary),
         sound: soundButtonOf({ audible: multi.view.audible, picture: id, channelName: name }),
+        playing,
+        paused: playback.paused,
+        overlay: pictureOverlayOf({ playing, controlsShown: controlsFor.value === id, paused: playback.paused }),
+        badge: pictureBadgeOf({ paused: playback.paused, behindMinutes: minutes }),
+        edge: liveEdgeOf({ behindMinutes: minutes }),
+        resumeLabel: resumeLabelOf({ behindMinutes: minutes }),
+        hasBar,
+        from: playback.from ?? 0,
+        to: playback.to ?? 0,
+        position,
+        fill: span ? percentWithin({ value: position, min: playback.from, max: playback.to }) : 100,
+        startText: fmtClockTz(nowMs - span * 1000),
+        endText: fmtClockTz(nowMs),
       }
     }))
 
-    const hint = computed(() => {
-      const sound = 'Tap Muted to hear a picture; the other mutes. Tap Sound to mute both. You hear the picture with the mint frame.'
-      if (shownLayout.value === 'inset') return `${sound} Drag the small picture to any corner; double-tap it to make it the big picture.`
-      return sound
-    })
+    const hoverPointer = window.matchMedia?.('(hover: hover)')
+    const hint = computed(() => multiHintOf({ layout: shownLayout.value, hover: Boolean(hoverPointer?.matches) }))
+
+    const applyControlsEvent = (picture, event) => {
+      controlsFor.value = pictureControlsAfter({ shownFor: controlsFor.value, picture, event })
+      clearTimeout(hideTimer)
+      if (controlsFor.value) hideTimer = setTimeout(hideIfIdle, controlsHideMsOf(localStorage))
+    }
+
+    const hideIfIdle = () => {
+      const root = pictureEls[controlsFor.value]
+      const busy = scrub.value || holdsControlsForFocus({ focused: document.activeElement, root })
+      if (busy) return applyControlsEvent(controlsFor.value, 'point')
+      applyControlsEvent(null, 'timeout')
+    }
+
+    const revealFor = (picture) => applyControlsEvent(picture, 'point')
+
+    const togglePause = (picture) => {
+      togglePicturePause(picture)
+      revealFor(picture)
+    }
+
+    const goLive = (picture) => {
+      if (picture === 'primary') returnToLive()
+      else goLiveCompanion()
+      revealFor(picture)
+    }
+
+    const startOver = (picture) => {
+      if (picture === 'primary') seekLiveAndPlay(live.bufferFrom ?? 0)
+      else startCompanionOver()
+      revealFor(picture)
+    }
+
+    const onScrub = (picture, value) => {
+      scrub.value = { picture, value }
+      revealFor(picture)
+    }
+
+    const onScrubCommit = (picture, value) => {
+      scrub.value = null
+      if (picture === 'primary') seekLiveTo(value)
+      else seekCompanionTo(value)
+      revealFor(picture)
+    }
+
+    const onPicturePointerLeave = (e, picture) => {
+      if (isHoverPointer(e) && !scrub.value) applyControlsEvent(picture.id, 'leave')
+    }
+
+    onUnmounted(() => clearTimeout(hideTimer))
 
     const menuTitle = computed(() => pictures.value.find((p) => p.id === menuFor.value)?.name || 'Picture')
 
@@ -181,12 +335,14 @@ export const MultiViewLayer = {
     const isInsetPicture = (picture) => picture.slot === 'inset'
 
     const onPicturePointerDown = (e, picture) => {
-      if (!isInsetPicture(picture) || !e.isPrimary || e.target.closest('button') || !multi.insetBox) return
+      if (isControlTarget(e.target) && controlsFor.value === picture.id) revealFor(picture.id)
+      if (!isInsetPicture(picture) || !e.isPrimary || isControlTarget(e.target) || !multi.insetBox) return
       dragStart = { x: e.clientX, y: e.clientY, box: { ...multi.insetBox }, moved: false }
       e.currentTarget.setPointerCapture?.(e.pointerId)
     }
 
-    const onPicturePointerMove = (e) => {
+    const onPicturePointerMove = (e, picture) => {
+      if (isHoverPointer(e) && !dragStart && controlsFor.value !== picture.id) revealFor(picture.id)
       if (!dragStart) return
       const dx = e.clientX - dragStart.x
       const dy = e.clientY - dragStart.y
@@ -206,15 +362,17 @@ export const MultiViewLayer = {
     const onPicturePointerUp = (e, picture) => {
       const start = dragStart
       dragStart = null
-      if (!isInsetPicture(picture) || !start) return
-      if (start.moved) return dropInset()
-      if (e.target.closest('button')) return
+      if (start?.moved) return dropInset()
+      if (isControlTarget(e.target) || !e.isPrimary) return
+      if (isInsetPicture(picture) && isSecondTap()) return makeMainPicture(picture.id)
+      applyControlsEvent(picture.id, isHoverPointer(e) ? 'point' : 'tap')
+    }
+
+    const isSecondTap = () => {
       const tappedAt = Date.now()
-      if (tappedAt - lastInsetTapAt < DOUBLE_TAP_MS) {
-        lastInsetTapAt = 0
-        return makeMainPicture(picture.id)
-      }
-      lastInsetTapAt = tappedAt
+      const second = tappedAt - lastInsetTapAt < DOUBLE_TAP_MS
+      lastInsetTapAt = second ? 0 : tappedAt
+      return second
     }
 
     const dropInset = () => {
@@ -265,8 +423,9 @@ export const MultiViewLayer = {
 
     return {
       layerEl, companionEl, multi, portraitPhone, shownLayout, title, meter, secondarySlotClass, swapLabel,
-      pictures, hint, menuFor, menuTitle, chooseMenu, explainerOpen, dragging,
-      onPicturePointerDown, onPicturePointerMove, onPicturePointerUp, cancelDrag,
+      pictures, hint, menuFor, menuTitle, chooseMenu, explainerOpen, dragging, setPictureEl, revealFor,
+      togglePause, goLive, startOver, onScrub, onScrubCommit,
+      onPicturePointerDown, onPicturePointerMove, onPicturePointerUp, onPicturePointerLeave, cancelDrag,
       tapPictureSound, swapMultiPictures, setMultiLayout,
     }
   },
@@ -358,5 +517,7 @@ export const MultiviewSheet = {
     return { entries, explainerOpen, isAdding, groups, meter, meterText, subtitle, airingText, multi }
   },
 }
+
+const isHoverPointer = (e) => e.pointerType === 'mouse'
 
 const DRAG_START_PX = 6

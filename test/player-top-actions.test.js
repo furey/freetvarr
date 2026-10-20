@@ -4,6 +4,7 @@ import {
   topBarLayoutOf,
   optionalWidthOf,
   menuOrderOf,
+  moreMenuKeysOf,
   HEADING_MIN_SHARE,
   ICON_PILL_WIDTH,
   ROUND_WIDTH,
@@ -100,4 +101,34 @@ test('pill widths follow whether labels show', () => {
 test('moved actions list in menu order whatever order they overflow in', () => {
   assert.deepEqual(menuOrderOf(['multiview', 'minimise', 'info', 'series']), ['info', 'series', 'multiview', 'minimise'])
   assert.deepEqual(menuOrderOf(['minimise', 'airplay', 'info']), ['info', 'minimise', 'airplay'])
+})
+
+test('Miniplayer is always in the More menu, once, in its menu place', () => {
+  const available = ['multiview', 'minimise', 'series', 'info']
+  assert.deepEqual(moreMenuKeysOf({ overflow: [], available }), ['minimise'])
+  assert.deepEqual(moreMenuKeysOf({ overflow: ['multiview', 'minimise', 'info'], available }), ['info', 'multiview', 'minimise'])
+  assert.deepEqual(moreMenuKeysOf({ overflow: ['multiview'], available }), ['multiview', 'minimise'])
+  assert.deepEqual(moreMenuKeysOf({ overflow: ['info'], available: ['info'] }), ['info'])
+})
+
+test('a labelled Miniplayer drops to the menu after Multiview and before Series', () => {
+  const optional = [
+    { key: 'info', width: LABELLED_PILL_WIDTHS.info },
+    { key: 'series', width: LABELLED_PILL_WIDTHS.series },
+    { key: 'minimise', width: LABELLED_PILL_WIDTHS.minimise },
+    { key: 'multiview', width: LABELLED_PILL_WIDTHS.multiview },
+  ]
+  const pinned = [
+    { key: 'record', width: LABELLED_PILL_WIDTHS.record, compactWidth: ICON_PILL_WIDTH, compactAt: LATE_COMPACT },
+    { key: 'sound', width: ROUND_WIDTH },
+    { key: 'more', width: ROUND_WIDTH },
+  ]
+  const overflowAt = (barWidth) => topBarLayoutOf({ gap: 14, actionsGap: 10, logoWidth: LOGO_WIDTH, barWidth, pinned, optional }).overflow
+  assert.deepEqual(overflowAt(1600), [])
+  const shrinking = [1400, 1300, 1200, 1100, 1000, 900, 800].map(overflowAt)
+  assert.ok(shrinking.some((overflow) => overflow.length === 2))
+  for (const overflow of shrinking) {
+    const order = ['multiview', 'minimise', 'series', 'info'].slice(0, overflow.length)
+    assert.deepEqual([...overflow].sort(), [...order].sort())
+  }
 })

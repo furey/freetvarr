@@ -4,6 +4,7 @@ import {
   minutesAgoText,
   startOverOptionsOf,
   startOverNoteOf,
+  startOverActionOf,
   behindLiveText,
   fromStartRecordingOf,
   NOTHING_BUFFERED_TEXT,
@@ -75,4 +76,26 @@ test('fromStartRecordingOf matches the channel and the current airing only', () 
   assert.equal(fromStartRecordingOf({ active: [{ ...rec, failed: true }], channelId: 9, nowMs: NOW }), null)
   assert.equal(fromStartRecordingOf({ active: [{ ...rec, canPlayFromStart: false }], channelId: 9, nowMs: NOW }), null)
   assert.equal(fromStartRecordingOf({ active: [rec], channelId: 9, nowMs: NOW + 40 * MIN }), null)
+})
+
+test('startOverActionOf acts directly when only one choice is available', () => {
+  const tunedIn = { key: 'tuned-in', title: 'Back to when you tuned in', detail: '@07:30 · 5 minutes ago', disabled: false }
+  assert.deepEqual(startOverActionOf([tunedIn]), {
+    kind: 'direct',
+    key: 'tuned-in',
+    title: 'Back to when you tuned in: @07:30 · 5 minutes ago',
+  })
+})
+
+test('startOverActionOf skips disabled choices', () => {
+  const fromStart = { key: 'from-start', title: 'From the start', detail: 'Watch X from @07:00 while it keeps recording' }
+  const tunedIn = { key: 'tuned-in', title: 'Back to when you tuned in', detail: NOTHING_BUFFERED_TEXT, disabled: true }
+  assert.equal(startOverActionOf([fromStart, tunedIn]).key, 'from-start')
+  assert.deepEqual(startOverActionOf([tunedIn]), { kind: 'none' })
+})
+
+test('startOverActionOf opens the sheet when both choices are available', () => {
+  const fromStart = { key: 'from-start', title: 'From the start', detail: 'x' }
+  const tunedIn = { key: 'tuned-in', title: 'Back to when you tuned in', detail: 'y', disabled: false }
+  assert.deepEqual(startOverActionOf([fromStart, tunedIn]), { kind: 'sheet' })
 })

@@ -22,7 +22,7 @@ import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/player-mini.js'
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
-import { startOverOptionsOf, startOverNoteOf, behindLiveText, fromStartRecordingOf } from '/start-over.js'
+import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT } from '/start-over.js'
 import {
   behindPillText,
   liveEdgeOf,
@@ -65,7 +65,16 @@ import {
   seekLiveAndPlay,
   setLiveVideo,
 } from '/shared/live-session.js'
-import { multi, slotClassOf, watchAlongside, changePictureChannel, applySingleMuting, togglePlayerMuted } from '/shared/multi-session.js'
+import {
+  multi,
+  slotClassOf,
+  watchAlongside,
+  changePictureChannel,
+  applySingleMuting,
+  togglePlayerMuted,
+  toggleKeyPicturePause,
+  toggleKeyPictureSound,
+} from '/shared/multi-session.js'
 import {
   live,
   playback,
@@ -94,7 +103,7 @@ export const LivePlayer = {
   template: `
     <teleport to="body">
     <transition name="pl-fade">
-    <div v-show="live.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Mini player' : 'Live TV'">
+    <div v-show="live.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Live TV'">
       <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
@@ -153,7 +162,7 @@ export const LivePlayer = {
         </player-top-bar>
         <p v-if="conflictText && live.phase === 'live'" class="pl-notice" role="status">{{ conflictText }}</p>
         <player-center-controls v-if="live.phase === 'live' && chips === 'hidden' && !infoOpen" :paused="shownPaused"
-          :show-start-over="startOverOptions.length > 0" start-over-title="Start over"
+          :show-start-over="startOverOptions.length > 0" :start-over-disabled="startOverAction.kind === 'none'" :start-over-title="startOverButtonTitle"
           @start-over="openStartOver" @toggle-pause="toggleLivePause">
           <template #end>
             <span v-if="liveEdge.atEdge" class="pl-live-status"><i aria-hidden="true"></i>LIVE</span>
@@ -364,7 +373,17 @@ export const LivePlayer = {
       clockText: fmtClockTz,
     }))
     const startOverNote = computed(() => startOverNoteOf(startOverOptions.value))
-    const openStartOver = () => { startOverOpen.value = true }
+    const startOverAction = computed(() => startOverActionOf(startOverOptions.value))
+    const startOverButtonTitle = computed(() => {
+      if (startOverAction.value.kind === 'direct') return startOverAction.value.title
+      if (startOverAction.value.kind === 'none') return NOTHING_BUFFERED_TEXT
+      return 'Start over'
+    })
+    const openStartOver = () => {
+      const action = startOverAction.value
+      if (action.kind === 'direct') return chooseStartOver(action.key)
+      if (action.kind === 'sheet') startOverOpen.value = true
+    }
     const chooseStartOver = (key) => {
       startOverOpen.value = false
       if (key === 'tuned-in') return live.bufferFrom != null && seekLiveAndPlay(live.bufferFrom)
@@ -470,10 +489,10 @@ export const LivePlayer = {
       toggleInfo,
       canToggleCaptions: () => live.captions && !infoOpen.value,
       toggleCaptions: toggleLiveCaptions,
-      togglePause: toggleLivePause,
+      togglePause: () => (multi.active ? toggleKeyPicturePause() : toggleLivePause()),
       skip: skipLiveByKey,
       toggleFullscreen: toggleLiveFullscreen,
-      toggleMute: togglePlayerMuted,
+      toggleMute: () => (multi.active ? toggleKeyPictureSound() : togglePlayerMuted()),
     })
 
     const isCurrentChannel = (channelId) => live.open && live.channel?.id === channelId
@@ -634,7 +653,7 @@ export const LivePlayer = {
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
       isBehindLive, jumpToLive, hasBufferBar, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
       bufferStartText, bufferEndText, hintText, playerTitle, playerSubtitle,
-      returnToLive, startOverOpen, startOverOptions, startOverNote, openStartOver, chooseStartOver,
+      returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
       canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, expand, miniMeta, miniProgress,
       multi, primarySlotClass, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,

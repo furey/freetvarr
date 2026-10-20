@@ -29,7 +29,7 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Open **Live TV** and press a channel to watch it. You can also press a card under **On now** on [Home](/guide/home), or press **Watch live** in a programme sheet of the [Guide](/guide/tv-guide). A channel with no guide listing plays too. The [player](/guide/player) fills the screen. Press the back button at the top left to close the player and free the tuner, or press **Mini player** to keep watching while you use the rest of Freetvarr.
+Open **Live TV** and press a channel to watch it. You can also press a card under **On now** on [Home](/guide/home), or press **Watch live** in a programme sheet of the [Guide](/guide/tv-guide). A channel with no guide listing plays too. The [player](/guide/player) fills the screen. Press the back button at the top left to close the player and free the tuner, or press **Miniplayer** to keep watching while you use the rest of Freetvarr.
 
 The page has these controls:
 
@@ -56,7 +56,7 @@ A dimmed channel marked `Off air` is not broadcasting right now, so a press show
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-The [Player](/guide/player) page covers the controls that live TV shares with recordings: **Start over**, sound, captions, the mini player, **Pop out (picture in picture)**, full screen, [Multiview](/guide/player#multiview), and the keyboard shortcuts.
+The [Player](/guide/player) page covers the controls that live TV shares with recordings: **Start over**, sound, captions, the Miniplayer, **Pop out (picture in picture)**, full screen, [Multiview](/guide/player#multiview), and the keyboard shortcuts.
 
 ## Programme info
 

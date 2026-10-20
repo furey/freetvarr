@@ -67,7 +67,7 @@ export const RecordingPlayer = {
   template: `
     <teleport to="body">
     <transition name="pl-fade">
-    <div v-show="playback.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Mini player' : 'Recording player'">
+    <div v-show="playback.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Recording player'">
       <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-controls-hidden': !controlsShown && !mini }]"
         @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll" @pointercancel="cancelPlayTap"
         @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">

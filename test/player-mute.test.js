@@ -5,6 +5,7 @@ import {
   loadPlayerMuted,
   savePlayerMuted,
   muteButtonOf,
+  soundToggleOf,
   playerMenuItemsOf,
 } from '../src/web/player-mute.js'
 import { initialMultiView, isMutedIn } from '../src/web/multi-view.js'
@@ -42,6 +43,11 @@ test('blocked storage neither throws nor mutes', () => {
 test('muteButtonOf names the current state and the action', () => {
   assert.deepEqual(muteButtonOf({ muted: false }), { label: 'Sound', audible: true, ariaLabel: 'Sound on. Press to mute' })
   assert.deepEqual(muteButtonOf({ muted: true }), { label: 'Muted', audible: false, ariaLabel: 'Muted. Press to hear sound' })
+})
+
+test('the player sound button carries its words in the label and tooltip', () => {
+  assert.deepEqual(soundToggleOf({ muted: false }), { muted: false, ariaLabel: 'Mute', title: 'Mute (M)' })
+  assert.deepEqual(soundToggleOf({ muted: true }), { muted: true, ariaLabel: 'Unmute', title: 'Unmute (M)' })
 })
 
 test('the More menu offers pop out only where picture in picture works', () => {

@@ -77,7 +77,7 @@ Live TV and recordings play in one full-screen player with its own controls. See
 
 - **Start over** on live TV offers **From the start**, which plays a programme TVHeadend is recording from its first minute, and **Back to when you tuned in**. **Go live** returns to now.
 - **Sound** and **Muted** in the top bar, and the `m` key, switch the sound. Settings → **Player** has **Start muted** and how soon the controls hide.
-- **Mini player** shrinks the player to a bar or a corner card, so you can browse Freetvarr while you watch.
+- **Miniplayer** shrinks the player to a bar or a corner card, so you can browse Freetvarr while you watch.
 - **Pop out (picture in picture)** and **Captions** are in the **⋯** menu.
 - On a phone, turning the phone sideways goes full screen.
 - **Multiview** plays two live channels at once, **Side by side** or **Big and small**, with one sound button for each picture. The channel list says which channels need a free tuner.
