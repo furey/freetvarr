@@ -15,7 +15,7 @@ import { CHANNELS_SAVED_TEXT, EPG_NARROW_QUERY } from '/shared/constants.js'
 import { rememberLineup } from '/shared/channel-twins.js'
 import { isRecordingChannel } from '/shared/recording-now.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
-import { openInGuide } from '/shared/store.js'
+import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, fmtClockTz } from '/shared/time.js'
 
 export const LiveView = {
@@ -245,7 +245,8 @@ export const LiveView = {
       flash({ msg: CHANNELS_SAVED_TEXT })
     }
 
-    const openDetails = (e, program) => openInGuide({ channelId: e.channel.id, program, returnTo: '#/live' })
+    const { openProgramme } = useProgrammeSheet()
+    const openDetails = (e, programme) => openProgramme({ channelId: e.channel.id, programme, channelHint: e.channel })
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') load()

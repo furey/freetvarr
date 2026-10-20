@@ -116,6 +116,7 @@ import {
   getOnNowForPinned,
   getOnNowAll,
   getChannelAiring,
+  getProgrammeSheet,
   clearGuideCache,
   guideDayWindow,
   localMidnightMs,
@@ -891,6 +892,18 @@ app.get('/api/epg/channel-now', async (req, res) => {
     res.json(await getChannelAiring({ channelId, atMs }))
   } catch (err) {
     epgError(res, err, 'channel-now')
+  }
+})
+
+app.get('/api/epg/programme', async (req, res) => {
+  const channelId = String(req.query.channel || '')
+  const startMs = Number(req.query.start)
+  if (!channelId) return res.status(400).json({ error: 'channel is required' })
+  if (!Number.isFinite(startMs)) return res.status(400).json({ error: 'start must be a time in milliseconds' })
+  try {
+    res.json(await getProgrammeSheet({ channelId, startMs }))
+  } catch (err) {
+    epgError(res, err, 'programme')
   }
 })
 

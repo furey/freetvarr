@@ -158,7 +158,6 @@ export const ForYouView = {
 
     const ctl = useForYouActions({
       source: 'for-you',
-      returnTo: '#/for-you',
       isScheduled: (item) => isScheduled({ item, scheduledKeys: scheduledKeys.value }),
       onChanged: load,
     })

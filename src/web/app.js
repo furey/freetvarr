@@ -77,6 +77,7 @@ import {
   MoreGlyph,
 } from '/components/nav-icons.js'
 import { PlayerInfoPanel } from '/components/player-parts.js'
+import { ProgrammeSheetHost } from '/components/programme-sheet-host.js'
 import { ProgressBlock } from '/components/progress-block.js'
 import { RecordingStatus, RecordingDrawer } from '/components/recording-drawer.js'
 import { RecordingPlayer } from '/components/recording-player.js'
@@ -147,6 +148,7 @@ const App = {
       <search-overlay />
       <live-player />
       <recording-player />
+      <programme-sheet-host />
     </div>
   `,
   setup() {
@@ -231,6 +233,7 @@ app.component('step-mark-icon', StepMarkIcon)
 app.component('sort-arrow', SortArrow)
 app.component('list-skeleton', ListSkeleton)
 app.component('live-player', LivePlayer)
+app.component('programme-sheet-host', ProgrammeSheetHost)
 app.component('live-streams-setting', LiveStreamsSetting)
 app.component('tuner-status-panel', TunerStatusPanel)
 app.component('tmdb-key-setting', TmdbKeySetting)

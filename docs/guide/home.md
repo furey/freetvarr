@@ -45,7 +45,7 @@ Freetvarr picks the slides from these, in this order, and leaves out any that ha
 | **Now in the guide**            | A show you asked to be told about, now in the Guide.                                           | **Record** or **Record series**, **Details**                              |
 | **Unwatched movie**             | A film you recorded and have not watched.                                                      | **Play** or **Resume**, **Details**                                       |
 
-**Details** opens the programme sheet in the [Guide](/guide/tv-guide#recording-a-programme), where you can record it or ask to be told when it airs.
+**Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it or ask to be told when it airs.
 
 ## Rows
 

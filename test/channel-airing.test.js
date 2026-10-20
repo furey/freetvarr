@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { channelAiringAt } from '../src/epg.js'
+import { channelAiringAt, programmeSheetAt } from '../src/epg.js'
 
 const NOW = 1_000_000_000_000
 const HOUR = 3_600_000
@@ -101,4 +101,38 @@ test('channelAiringAt: the live guide wins over an overlapping saved programme',
 test('channelAiringAt: matches a numeric channel id to its string form', () => {
   const numericGuide = { channels: [{ id: 7, epgId: 101 }], programsByChannel: guide.programsByChannel }
   assert.equal(channelAiringAt({ guide: numericGuide, channelId: '7', atMs: NOW }).now.program_id, 'now')
+})
+
+const sheetGuide = {
+  channels: [
+    { id: 'sd', epgId: 1, name: '7 Sydney' },
+    { id: 'hd', epgId: 2, name: '7HD Sydney' },
+    { id: 'other', epgId: 3, name: 'ABC TV HD' },
+  ],
+  programsByChannel: {
+    1: [programme({ id: 'sd-show', start: NOW, end: NOW + HOUR, title: 'The Chase', series_link: 'crid://chase' })],
+    2: [
+      programme({ id: 'hd-show', start: NOW + 60_000, end: NOW + HOUR, title: 'The Chase' }),
+      programme({ id: 'hd-later', start: NOW + HOUR, end: NOW + 2 * HOUR, title: 'The Chase' }),
+    ],
+    3: [programme({ id: 'abc', start: NOW, end: NOW + HOUR, title: 'News' })],
+  },
+}
+
+test('programmeSheetAt: the listed programme, its channel, and the HD twin for one airing', () => {
+  const sheet = programmeSheetAt({ guide: sheetGuide, channelId: 'sd', startMs: NOW, nowMs: NOW - HOUR })
+  assert.equal(sheet.channel.name, '7 Sydney')
+  assert.equal(sheet.programme.program_id, 'sd-show')
+  assert.equal(sheet.programme.synopsis, 'About sd-show')
+  assert.equal(sheet.programme.has_image, true)
+  assert.equal(sheet.programme.past, false)
+  assert.equal(sheet.hdEpisode.channel.id, 'hd')
+  assert.equal(sheet.hdEpisode.program.program_id, 'hd-show')
+  assert.equal(sheet.hdSeries, null)
+})
+
+test('programmeSheetAt: finds the airing at a time inside it, and nothing for an unknown channel', () => {
+  assert.equal(programmeSheetAt({ guide: sheetGuide, channelId: 'hd', startMs: NOW + HOUR + 60_000, nowMs: NOW }).programme.program_id, 'hd-later')
+  assert.equal(programmeSheetAt({ guide: sheetGuide, channelId: 'hd', startMs: NOW + HOUR + 60_000, nowMs: NOW }).hdEpisode, null)
+  assert.deepEqual(programmeSheetAt({ guide: sheetGuide, channelId: 'gone', startMs: NOW }), { channel: null, programme: null, hdEpisode: null, hdSeries: null })
 })

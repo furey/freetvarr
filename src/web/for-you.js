@@ -155,21 +155,21 @@ export const menuMetaOf = ({ item, nowMs, timeZone }) => cardMetaOf({ item, nowM
 export const programOf = (item) => ({
   program_id: item.programId ?? item.id,
   title: item.title,
-  subtitle: item.episodeTitle || '',
-  summary: item.synopsis || '',
+  episode_title: item.episodeTitle || null,
+  synopsis: item.synopsis || null,
   start: msOf(item.start),
   end: msOf(item.stop),
   channelId: item.channelId,
   series_link: item.seriesLink ?? null,
-  has_image: false,
+  has_image: String(item.image || '').startsWith('/api/epg/image/'),
 })
 
-export const guideHandoffOf = ({ item, action, nowMs, timeZone, returnTo }) => ({
+export const sheetRequestOf = ({ item, action, nowMs, timeZone }) => ({
   channelId: item.channelId,
-  program: programOf(item),
+  programme: programOf(item),
+  channelHint: { name: item.channelName || '', hasLogo: true },
   focus: sheetFocusOf(action),
   dayOffset: dayOffsetOf({ ms: msOf(item.start) ?? nowMs, nowMs, timeZone }),
-  returnTo,
 })
 
 export const dayOffsetOf = ({ ms, nowMs, timeZone }) =>

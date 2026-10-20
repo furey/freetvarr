@@ -29,7 +29,7 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Open **Live TV** and press a channel to watch it. You can also press a card under **On now** on [Home](/guide/home), or press **Watch live** in a programme sheet of the [Guide](/guide/tv-guide). A channel with no guide listing plays too. The [player](/guide/player) fills the screen. Press the back button at the top left to close the player and free the tuner, or press **Miniplayer** to keep watching while you use the rest of Freetvarr.
+Open **Live TV** and press a channel to watch it. You can also press a card under **On now** on [Home](/guide/home), or press **Watch live** in a [programme sheet](/guide/tv-guide#recording-a-programme). A channel with no guide listing plays too. The [player](/guide/player) fills the screen. Press the back button at the top left to close the player and free the tuner, or press **Miniplayer** to keep watching while you use the rest of Freetvarr.
 
 The page has these controls:
 
@@ -46,7 +46,7 @@ To reorder the favourites:
 
 After a drag on the Live TV page, **Undo** puts the old order back.
 
-Each row shows the channel number and logo, the programme on now with a progress bar and the time left, and **Next** with the programme after it. A `REC` badge marks a channel that records now. Press **Next**, or the info button at the end of a row, to open that programme's sheet in the Guide.
+Each row shows the channel number and logo, the programme on now with a progress bar and the time left, and **Next** with the programme after it. A `REC` badge marks a channel that records now. Press **Next**, or the info button at the end of a row, to open that programme's [sheet](/guide/tv-guide#recording-a-programme) over the list.
 
 A dimmed channel marked `Off air` is not broadcasting right now, so a press shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
 
@@ -80,7 +80,7 @@ Captions come from the broadcast's Teletext subtitles. **Captions** shows only f
 
 ## Record from the player
 
-Press **Record** in the top bar to record the programme on now, or **Series** to record every episode. Both buttons open the programme sheet of the [Guide](/guide/tv-guide#recording-a-programme), with **Record** for this airing, **Record series** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. A recording starts from the moment you confirm, so the part that already aired is not included. On a narrow screen, **Series** is **Record series** in the **⋯** menu.
+Press **Record** in the top bar to record the programme on now, or **Series** to record every episode. Both buttons open the [programme sheet](/guide/tv-guide#recording-a-programme) over the player, with **Record** for this airing, **Record series** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. A recording starts from the moment you confirm, so the part that already aired is not included. On a narrow screen, **Series** is **Record series** in the **⋯** menu.
 
 If the guide has no listing for what is on now, both buttons are dimmed. **Series** turns on while a series recording records the programme; press it to change or cancel the series.
 

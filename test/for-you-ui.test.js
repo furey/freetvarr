@@ -8,7 +8,7 @@ import {
   doneLabelOf,
   feedbackOf,
   forYouSlideOf,
-  guideHandoffOf,
+  sheetRequestOf,
   hiddenToastOf,
   historyClearCopyOf,
   homeRowOf,
@@ -139,14 +139,15 @@ test('menuOf: Watch live only while on, record actions until scheduled, and the 
   assert.deepEqual(later.more.map((a) => a.label), ['Not interested in Grand Designs Australia', 'Why this?'])
 })
 
-test('guideHandoffOf: opens the programme on its guide day with the right strength', () => {
-  const handoff = guideHandoffOf({ item: item(), action: 'record-series', nowMs, timeZone, returnTo: '#/for-you' })
-  assert.equal(handoff.dayOffset, 2)
-  assert.equal(handoff.focus, 'series')
-  assert.equal(handoff.channelId, 'c2')
-  assert.equal(handoff.program.program_id, 'e1')
-  assert.equal(handoff.program.start, item().start)
-  assert.equal(handoff.returnTo, '#/for-you')
+test('sheetRequestOf: opens the programme sheet on its guide day with the right strength', () => {
+  const request = sheetRequestOf({ item: item(), action: 'record-series', nowMs, timeZone })
+  assert.equal(request.dayOffset, 2)
+  assert.equal(request.focus, 'series')
+  assert.equal(request.channelId, 'c2')
+  assert.equal(request.programme.program_id, 'e1')
+  assert.equal(request.programme.start, item().start)
+  assert.equal(request.programme.synopsis, item().synopsis || null)
+  assert.equal(request.channelHint.name, item().channelName || '')
 })
 
 test('feedbackOf and shownBatchesOf: events the feedback endpoint accepts, in batches of up to 50', () => {

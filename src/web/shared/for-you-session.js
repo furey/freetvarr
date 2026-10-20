@@ -1,12 +1,12 @@
 import { ref, reactive } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import { watchLive } from '/shared/live-session.js'
-import { openInGuide } from '/shared/store.js'
+import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, tz } from '/shared/time.js'
 import { showHrefOf } from '/show-key.js'
 import {
   feedbackOf,
-  guideHandoffOf,
+  sheetRequestOf,
   hiddenToastOf,
   identityOf,
   liveChannelOfItem,
@@ -24,7 +24,7 @@ export const sendShown = ({ items, source }) => shownBatchesOf({ items, source }
 
 export const unhideShow = (seriesKey) => api('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
 
-export const useForYouActions = ({ source, returnTo, isScheduled = () => false, onChanged = () => {} }) => {
+export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)
   const why = reactive({ item: null, data: null, loading: false, failed: false })
   const toast = ref(null)
@@ -35,7 +35,9 @@ export const useForYouActions = ({ source, returnTo, isScheduled = () => false, 
 
   const accept = (item) => sendFeedback(feedbackOf({ kind: 'suggestion_accepted', item, source }))
 
-  const toGuide = (item, action) => openInGuide(guideHandoffOf({ item, action, nowMs: nowMs(), timeZone: tz.value, returnTo }))
+  const { openProgramme } = useProgrammeSheet()
+
+  const openSheet = (item, action) => openProgramme(sheetRequestOf({ item, action, nowMs: nowMs(), timeZone: tz.value }))
 
   const ACTIONS = {
     'watch-live': (item) => {
@@ -44,15 +46,15 @@ export const useForYouActions = ({ source, returnTo, isScheduled = () => false, 
     },
     'record-episode': (item) => {
       accept(item)
-      toGuide(item, 'record-episode')
+      openSheet(item, 'record-episode')
     },
     'record-series': (item) => {
       accept(item)
-      toGuide(item, 'record-series')
+      openSheet(item, 'record-series')
     },
     notify: (item) => {
       accept(item)
-      toGuide(item, 'notify')
+      openSheet(item, 'notify')
     },
     show: (item) => { window.location.hash = showHrefOf(item.title) },
     'thumb-up': (item) => toggleThumb(item, 'up'),

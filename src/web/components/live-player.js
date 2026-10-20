@@ -89,7 +89,7 @@ import {
 } from '/shared/player-shared.js'
 import { VIDEO_STATE_EVENTS } from '/player-paused.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
-import { recordDialogOverPlayer, openInGuide } from '/shared/store.js'
+import { programmeSheetOpen, useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, fmtClockTz } from '/shared/time.js'
 
 export const LivePlayer = {
@@ -438,7 +438,7 @@ export const LivePlayer = {
     } = useControlsAutoHide({
       enabled: computed(() => live.open && !mini.value && !multi.active),
       holdShown: computed(() => shownPaused.value || live.phase !== 'live' || live.scrubbing || infoOpen.value
-        || chips.value !== 'hidden' || recordDialogOverPlayer.value),
+        || chips.value !== 'hidden' || programmeSheetOpen.value),
       rootEl: frameEl,
     })
     watch(controlsShown, (shown) => {
@@ -483,7 +483,7 @@ export const LivePlayer = {
     usePlayerFocus({ isOpen: computed(() => live.open), isMini: mini, rootEl: frameEl })
 
     usePlayerKeys({
-      isActive: () => live.open && !mini.value && !recordDialogOverPlayer.value && !startOverOpen.value && !pickerOpen.value,
+      isActive: () => live.open && !mini.value && !programmeSheetOpen.value && !startOverOpen.value && !pickerOpen.value,
       infoOpen,
       close: stopLive,
       toggleInfo,
@@ -572,18 +572,18 @@ export const LivePlayer = {
       recordingProgramIds: recordingProgramIdsOf(recordingNow.value.active),
     }))
 
-    const openNowInGuide = (focus) => {
-      recordDialogOverPlayer.value = true
-      openInGuide({
-        channelId: live.channel.id,
-        program: airing.value.now,
-        returnTo: window.location.hash || '#/home',
-        focus,
-      })
-    }
+    const { openProgramme } = useProgrammeSheet()
+
+    const openNowInSheet = (focus) => openProgramme({
+      channelId: live.channel.id,
+      channelHint: live.channel,
+      programme: airing.value.now,
+      focus,
+      freshState: true,
+    })
 
     const recordFromLive = () => {
-      if (!recordButton.value.disabled) openNowInGuide('record')
+      if (!recordButton.value.disabled) openNowInSheet('record')
     }
 
     const liveSeriesTags = ref(null)
@@ -605,7 +605,7 @@ export const LivePlayer = {
       pollRecordingNow()
     }, { immediate: true })
 
-    watch(recordDialogOverPlayer, (open) => {
+    watch(programmeSheetOpen, (open) => {
       if (!open && live.open) loadLiveSeriesState({ fresh: true })
     })
 
@@ -614,7 +614,7 @@ export const LivePlayer = {
     })
 
     watch(recordingNow, () => {
-      if (live.open && !recordDialogOverPlayer.value) loadLiveSeriesState()
+      if (live.open && !programmeSheetOpen.value) loadLiveSeriesState()
     })
 
     const liveChannelName = (id) =>
@@ -628,7 +628,7 @@ export const LivePlayer = {
     }))
 
     const recordSeriesFromLive = () => {
-      if (!seriesButton.value.disabled) openNowInGuide('series')
+      if (!seriesButton.value.disabled) openNowInSheet('series')
     }
 
     const topActions = computed(() => [

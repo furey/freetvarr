@@ -1017,6 +1017,61 @@
   font-weight: 800;
 }
 
+.programme-sheet-actions {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+
+.programme-sheet-actions.is-ready {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .programme-sheet-actions {
+    transition: none;
+  }
+}
+
+.programme-sheet-guide-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  align-self: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: none;
+  color: var(--color-text-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.programme-sheet-guide-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) {
+  .programme-sheet-guide-link:hover {
+    color: var(--color-text-1);
+  }
+}
+
+.programme-sheet-guide-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .programme-sheet-rec-dot {
   flex: none;
   width: 10px;

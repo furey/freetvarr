@@ -2,7 +2,7 @@ import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-bro
 import { buildShowSearch, guideRowsOf, searchShowsOf } from '/search-results.js'
 import { showHrefOf, showKeyOf } from '/show-key.js'
 import { api } from '/shared/api.js'
-import { openInGuide } from '/shared/store.js'
+import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { fmtClockTz, fmtRelativeDay } from '/shared/time.js'
 
 export const searchOpen = ref(false)
@@ -43,7 +43,7 @@ export const SearchOverlay = {
                   <h2 class="ui-group-label">In the guide</h2>
                   <div class="ui-group">
                     <button v-for="programme in programmes" :key="programme.key" type="button" class="ui-group-row"
-                      @click="openProgramme(programme)">
+                      @click="openResult(programme)">
                       <span class="ui-group-row-main">
                         <span class="ui-group-row-title search-row-line">{{ programme.title }}</span>
                         <span v-if="programme.episode" class="search-row-episode search-row-line">{{ programme.episode }}</span>
@@ -134,15 +134,16 @@ export const SearchOverlay = {
       searchOpen.value = false
       query.value = ''
     }
-    const openProgramme = ({ programme }) => {
+    const { openProgramme } = useProgrammeSheet()
+    const openResult = ({ programme }) => {
       close()
-      openInGuide({ channelId: programme.channelId, program: programme, returnTo: '#/guide' })
+      openProgramme({ channelId: programme.channelId, programme })
     }
     onUnmounted(() => {
       setBodyLock(false)
       window.removeEventListener('keydown', onKeydown, true)
     })
-    return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, close, openProgramme }
+    return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, close, openResult }
   },
 }
 

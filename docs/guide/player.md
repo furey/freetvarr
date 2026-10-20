@@ -7,7 +7,7 @@ description: >-
 
 # Player
 
-Freetvarr has one player for live TV and for recordings. It works in any modern browser, on a phone, a tablet, or a computer, and it fills the screen. Open it from [Live TV](/guide/live-tv), from a programme sheet in the [Guide](/guide/tv-guide) with **Watch live**, or from an episode in [Recordings](/guide/recordings#playback).
+Freetvarr has one player for live TV and for recordings. It works in any modern browser, on a phone, a tablet, or a computer, and it fills the screen. Open it from [Live TV](/guide/live-tv), from a [programme sheet](/guide/tv-guide#recording-a-programme) with **Watch live**, or from an episode in [Recordings](/guide/recordings#playback).
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/live">

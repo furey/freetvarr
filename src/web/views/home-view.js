@@ -25,7 +25,7 @@ import { playRecording } from '/shared/playback-session.js'
 import { watchLive, watchRecordingFromStart, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
 import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
-import { openInGuide } from '/shared/store.js'
+import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, tz, fmtClockTz } from '/shared/time.js'
 
 const HERO_POOL_WAIT_MS = 2000
@@ -235,12 +235,14 @@ export const HomeView = {
       load()
     }
 
-    const guideHandoff = ({ target }, focus = '') => openInGuide({
+    const { openProgramme, openUpcoming } = useProgrammeSheet()
+
+    const openSlideProgramme = ({ target }, focus = '') => openProgramme({
       channelId: target.channel.id,
-      program: target.program,
+      channelHint: target.channel,
+      programme: target.program,
       focus,
       dayOffset: target.dayOffset,
-      returnTo: '#/home',
     })
 
     const SLIDE_ACTIONS = {
@@ -251,10 +253,10 @@ export const HomeView = {
         recording: target.recording,
         nowTitle: title,
       }),
-      record: (slide) => guideHandoff(slide),
-      'record-series': (slide) => guideHandoff(slide, 'series'),
-      guide: (slide) => guideHandoff(slide),
-      upcoming: ({ target }) => openInGuide({ upcoming: target.upcoming, returnTo: '#/home' }),
+      record: (slide) => openSlideProgramme(slide),
+      'record-series': (slide) => openSlideProgramme(slide, 'series'),
+      guide: (slide) => openSlideProgramme(slide),
+      upcoming: ({ target }) => openUpcoming(target.upcoming),
       options: ({ target }) => openRecordingOptions(target.showKey),
     }
 
@@ -265,7 +267,6 @@ export const HomeView = {
 
     const forYou = useForYouActions({
       source: 'home',
-      returnTo: '#/home',
       isScheduled: (item) => isScheduled({ item, scheduledKeys: scheduledKeys.value }),
       onChanged: load,
     })

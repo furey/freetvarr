@@ -32,7 +32,7 @@ Press a card to act on it. What happens depends on the suggestion:
 
 - On now: plays the channel live.
 - Already scheduled: opens the show page.
-- A new season or a returning show: opens the programme sheet in the Guide with **Every episode** picked.
+- A new season or a returning show: opens the programme sheet with **Every episode** picked.
 - A premiere or a new show: opens the programme sheet with **Notify me** picked.
 - Anything else: opens the programme sheet with **This episode** picked.
 

@@ -2,7 +2,7 @@ import fs from 'fs/promises'
 
 import { getSetting, setSetting } from './db.js'
 import { anyChannelLinkFor } from './web/series-link.js'
-import { sdSimulcastIds } from './web/simulcast.js'
+import { SIMULCAST_START_TOLERANCE_MS, findHdSimulcast, isHdChannel, sdSimulcastIds } from './web/simulcast.js'
 import {
   listChannels,
   listEvents,
@@ -299,6 +299,35 @@ export const getChannelAiring = async ({ channelId, atMs = Date.now(), nowMs = D
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: atMs, toMs: nowMs, nowMs })
     .catch(logHistoryError('load'))
   return channelAiringAt({ guide, channelId, atMs, endedByChannel })
+}
+
+export const programmeSheetAt = ({ guide, channelId, startMs, nowMs = Date.now(), endedByChannel = null }) => {
+  const channel = guide.channels.find((c) => String(c.id) === String(channelId)) || null
+  if (!channel) return { channel: null, programme: null, hdEpisode: null, hdSeries: null }
+  const rowsOf = (c) => mergeGuidePrograms({
+    live: guide.programsByChannel[String(c.epgId)] || [],
+    saved: endedByChannel?.get(String(c.epgId)) || [],
+  })
+  const rows = rowsOf(channel)
+  const listed = rows.find((p) => p.start === startMs) || rows.find((p) => p.start <= startMs && p.end > startMs) || null
+  const programme = listed && toGuideCell({ program: listed, nowMs })
+  const programsByChannel = Object.fromEntries(guide.channels
+    .filter((c) => c !== channel && isHdChannel(c))
+    .map((c) => [c.id, rowsOf(c)
+      .filter((p) => Math.abs(p.start - (programme?.start ?? startMs)) <= SIMULCAST_START_TOLERANCE_MS)
+      .map((program) => toGuideCell({ program, nowMs }))]))
+  const hdTwinFor = (needsSeriesLink) => (programme
+    ? findHdSimulcast({ program: programme, channelId: channel.id, channels: guide.channels, programsByChannel, needsSeriesLink })
+    : null)
+  return { channel, programme, hdEpisode: hdTwinFor(false), hdSeries: hdTwinFor(true) }
+}
+
+export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now() }) => {
+  const guide = await getCachedGuide()
+  const endedByChannel = startMs < nowMs
+    ? await loadEndedProgramsByChannel({ fromMs: startMs, toMs: nowMs, nowMs }).catch(logHistoryError('load'))
+    : null
+  return programmeSheetAt({ guide, channelId, startMs, nowMs, endedByChannel })
 }
 
 const earliestStartingFrom = ({ rows, fromMs }) => rows
