@@ -123,7 +123,7 @@ export const PlayerTopBar = {
   template: `
     <header ref="barEl" class="pl-top">
       <button type="button" class="pl-round" :aria-label="backLabel" @click="$emit('back')"><arrow-left-icon /></button>
-      <span v-if="channelId && layout.showLogo" class="pl-logo"><channel-logo :channel-id="channelId" :has-logo="hasLogo" /></span>
+      <span v-if="channelId && layout.showLogo" class="pl-logo"><channel-logo :channel-id="channelId" :has-logo="hasLogo" /><channel-twin-tag :channel-id="channelId" /></span>
       <div class="pl-heading">
         <h2 class="pl-title">{{ title }}</h2>
         <p v-if="subtitle" class="pl-subtitle">{{ subtitle }}</p>

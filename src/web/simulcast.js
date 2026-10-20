@@ -6,6 +6,22 @@ export const isHdChannelName = (name = '') =>
 export const isHdChannel = (channel) =>
   typeof channel.hd === 'boolean' ? channel.hd : isHdChannelName(channel.name)
 
+export const isSimulcastHd = (channel) => channel.hd === true || /hd$/i.test((channel.name || '').trim())
+
+export const simulcastBaseKey = (name) => {
+  const base = (name || '').toLowerCase().replace(/\s*hd$/, '').trim()
+  return SIMULCAST_ALIASES[base] || base
+}
+
+export const sdSimulcastIds = (channels) => new Set(simulcastPairsOf(channels)
+  .flat()
+  .filter((channel) => !isSimulcastHd(channel))
+  .map((channel) => String(channel.id)))
+
+export const twinFormatsOf = (channels) => new Map(simulcastPairsOf(channels)
+  .flat()
+  .map((channel) => [String(channel.id), isSimulcastHd(channel) ? 'HD' : 'SD']))
+
 export const findHdSimulcast = ({ program, channelId, channels = [], programsByChannel = {}, needsSeriesLink = false }) => {
   const pressed = channels.find((c) => String(c.id) === String(channelId))
   if (!pressed || !program || isHdChannel(pressed)) return null
@@ -27,6 +43,19 @@ export const findHdSimulcast = ({ program, channelId, channels = [], programsByC
     .map((m) => ({ ...m, score: tokenOverlap(pressedTokens, nameTokens(m.channel.name)) }))
     .sort((a, b) => b.score - a.score)
     .map(({ channel, program: hdProgram }) => ({ channel, program: hdProgram }))[0]
+}
+
+const SIMULCAST_ALIASES = { nine: '9', seven: '7', ten: '10' }
+
+const simulcastPairsOf = (channels) => {
+  const groups = new Map()
+  for (const channel of channels) {
+    const key = simulcastBaseKey(channel.name)
+    if (!key) continue
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(channel)
+  }
+  return [...groups.values()].filter((group) => group.some(isSimulcastHd) && !group.every(isSimulcastHd))
 }
 
 const normaliseTitle = (title) => (title || '').trim().toLowerCase()

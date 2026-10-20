@@ -30,6 +30,7 @@ Channels run down the page and time runs across. The Guide opens at the current 
 - A line marks the current time.
 - Programmes that ended earlier today stay in the grid. TVHeadend drops a programme once it ends, but Freetvarr keeps its own copy.
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
+- Drag the edge of the channel column to make it wider or narrower. At its narrowest the column shows only the stars and channel logos, and the filter box reads **Filter**. Each browser remembers the width.
 - A dimmed channel with `OFF AIR` beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
 - Each channel in the channel settings shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin, even when both have the same name.
 
@@ -77,7 +78,15 @@ Freetvarr sends no push message or email. The list in Scheduled is the notice.
 
 ## Favourites
 
-Press the star next to a channel to make it a favourite. Favourites sit at the top of the grid and of [Live TV](/guide/live-tv). To reorder them, press **Edit order** in the channel settings, or reorder them on the [Live TV](/guide/live-tv#in-freetvarr) page.
+Press the star next to a channel to make it a favourite. Favourites sit at the top of the grid and of [Live TV](/guide/live-tv).
+
+To reorder them on a tablet or computer:
+
+1. Press **Edit order** at the right of the **Favourites** heading. In a narrow channel column it is an icon with two arrows.
+2. Drag a favourite by its handle (three lines) to its new place. With the keyboard, tab to a handle, press Space, move it with the arrow keys, then press Space again.
+3. Press **Done**, or press Esc.
+
+**Edit order** shows when you have two or more favourites and the filter box is empty. On a phone, **Edit order** opens a list to reorder instead. You can also reorder favourites in the channel settings, or on the [Live TV](/guide/live-tv#in-freetvarr) page.
 
 In Australia, the wizard's channel scan starts you with five favourites: the HD channels of ABC, Seven, Nine, 10, and SBS, or the SD channel where a network has no HD channel. The wizard does this only when you have no favourites, and only once. Remove or reorder them like any other favourite.
 
@@ -143,7 +152,7 @@ Some programmes in a guide feed have no image, or an image link that no longer w
 
 For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wikidata.org) by exact title, then checks the match before it uses a picture: a year in the synopsis must match the release year, a cast list in the synopsis must name someone in the article, and otherwise names and words from the synopsis must appear in the article. A programme with no synopsis gets no picture from these steps. An episode never matches a film.
 
-While Freetvarr looks, the guide shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture.
+While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 
 A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. When a service does not answer, Freetvarr waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Pictures and turn off **Look up missing pictures online**.
 

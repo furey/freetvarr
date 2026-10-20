@@ -16,7 +16,8 @@ import {
   spillLengthMin,
   rulerTickMinutes,
 } from '/guide-time.js'
-import { cellWindowOf, crossesRailEdge, nearRowKeysOf, pinsScrolledAway, sameCellWindow, scrollLeadOf, spanOnScreen, windowedCellsByRow } from '/guide-window.js'
+import { cellArtOf, cellWindowOf, crossesRailEdge, nearRowKeysOf, pinsScrolledAway, sameCellWindow, scrollLeadOf, spanOnScreen, windowedCellsByRow } from '/guide-window.js'
+import { GUIDE_RAIL_DEFAULT_PX, canEditOrderOf, clampRailPx, railLayoutOf, railShownPxOf } from '/guide-rail.js'
 import { findSeriesLink } from '/series-link.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordingProgramIdsOf } from '/live-record.js'
@@ -57,6 +58,8 @@ import { makeStatus } from '/shared/path-check.js'
 import { setDragLock, useFavouriteOrderSave, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { GUIDE_ROW_CONTEXT, GuideRow } from '/components/guide-row.js'
+import { GUIDE_IMAGES_ON } from '/components/images.js'
+import { rememberLineup } from '/shared/channel-twins.js'
 import { RAIL_EDGE_ATTRIBUTE } from '/shared/scroll-proximity.js'
 import { arrangeByOrder } from '/sortable-math.js'
 import { live } from '/shared/player-shared.js'
@@ -86,9 +89,6 @@ const EPG_THUMB_TEXT_MIN_PX = 72
 const EPG_TOOLTIP_DELAY_MS = 250
 const EPG_TOOLTIP_GAP_PX = 12
 const EPG_TOOLTIP_EDGE_PX = 8
-const EPG_RAIL_DEFAULT_PX = 200
-const EPG_RAIL_MIN_PX = 90
-const EPG_RAIL_MAX_PX = 320
 const EPG_RAIL_KEY = 'freetvarr.epgRailPx'
 const EPG_IMAGES_KEY = 'freetvarr.guideImages'
 const EPG_NO_CELLS = Object.freeze([])
@@ -201,7 +201,7 @@ export const EpgView = {
           <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
         </div>
         <list-skeleton v-else-if="loading && !guide" class="guide-card" :rows="10" :row-height="guideRowRem + 'rem'" guide :guide-zoom="zoom" />
-        <div v-else-if="guide" class="guide-card" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
+        <div v-else-if="guide" :class="['guide-card', { 'is-rail-compact': railLayout.compact, 'is-order-editing': canSort }]" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
           <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
           <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} favourite{{ pinnedCount === 1 ? '' : 's' }}</button>
           <button v-if="midnightOnScreen && day < 6" type="button" class="epg-pinned-chip epg-next-day-chip"
@@ -214,7 +214,7 @@ export const EpgView = {
             <div class="epg-ruler">
               <div class="epg-ruler-corner">
                 <input v-no-autofill v-model="railFilter" type="search" class="epg-corner-filter"
-                  :placeholder="narrow ? 'Filter' : 'Filter channels'" aria-label="Filter channels by number or name" />
+                  :placeholder="railLayout.filterPlaceholder" aria-label="Filter channels by number or name" />
                 <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                 <div class="epg-rail-resizer" title="Drag to resize the channel rail"
                   :style="{ height: railStripH + 'px' }"
@@ -501,14 +501,19 @@ export const EpgView = {
       }
     })
 
-    const clampRailPx = (px) => Math.min(EPG_RAIL_MAX_PX, Math.max(EPG_RAIL_MIN_PX, px))
     const storedRailPx = () => {
       try {
         const px = Number(localStorage.getItem(EPG_RAIL_KEY))
-        return Number.isFinite(px) && px > 0 ? clampRailPx(px) : EPG_RAIL_DEFAULT_PX
-      } catch { return EPG_RAIL_DEFAULT_PX }
+        return Number.isFinite(px) && px > 0 ? clampRailPx(px) : GUIDE_RAIL_DEFAULT_PX
+      } catch { return GUIDE_RAIL_DEFAULT_PX }
     }
+    const narrow = useMediaQuery(EPG_NARROW_QUERY)
     const railPx = ref(storedRailPx())
+    const viewportW = ref(window.innerWidth)
+    const railLayout = computed(() => railLayoutOf({
+      shownPx: railShownPxOf({ railPx: railPx.value, viewportWidth: viewportW.value }),
+      narrow: narrow.value,
+    }))
 
     const zoom = storedChoice({ key: EPG_ZOOM_KEY, options: EPG_ZOOM_LEVELS.map((l) => l.key), fallback: 'm' })
     const zoomIndex = computed(() => EPG_ZOOM_LEVELS.findIndex((l) => l.key === zoom.value))
@@ -517,7 +522,6 @@ export const EpgView = {
     const trackWidth = computed(() => (guide.value ? spillLengthMin(guide.value) : 24 * 60) * pxPerMin.value)
     const midnightX = computed(() => (guide.value ? dayLengthMin(guide.value) : 24 * 60) * pxPerMin.value)
     const zooming = ref(false)
-    const narrow = useMediaQuery(EPG_NARROW_QUERY)
 
     const guideRowRem = computed(() => (narrow.value ? zoomLevel.value.narrowRowRem : zoomLevel.value.rowRem))
 
@@ -535,6 +539,7 @@ export const EpgView = {
 
     const visibleChannels = computed(() =>
       (guide.value?.channels || []).filter((c) => !c.hidden))
+    watch(visibleChannels, (channels) => { if (guide.value) rememberLineup(channels) }, { immediate: true })
 
     // The filter hides rows with v-show instead of removing them from the
     // v-for: toggling display is a style flip, while remove-and-remount pays
@@ -940,7 +945,9 @@ export const EpgView = {
 
     const cellShowsText = (p) => cellWidth(p) > EPG_CELL_TEXT_MIN_PX
 
-    const cellHasThumb = (p) => p.has_image && cellWidth(p) >= thumbMinCellPx.value
+    const cellArt = (p) => cellArtOf({ hasImage: p.has_image, widthPx: cellWidth(p), thumbMinPx: thumbMinCellPx.value })
+
+    const cellHasThumb = (p) => cellArt(p) === 'own'
 
     const cellStyle = (p) => ({
       left: `${cellX(p.start)}px`,
@@ -956,13 +963,16 @@ export const EpgView = {
     }))
 
     const cellViewFor = (p) => {
-      const hasThumb = cellHasThumb(p)
+      const art = cellArt(p)
       const playing = p.start <= nowMs.value && p.end > nowMs.value
       return {
-        className: ['epg-cell', cellState(p), { past: p.past || p.end <= nowMs.value, 'on-now': playing, 'next-day': p.start >= guide.value.dayEnd, 'with-thumb': hasThumb }],
+        className: ['epg-cell', cellState(p), {
+          past: p.past || p.end <= nowMs.value, 'on-now': playing, 'next-day': p.start >= guide.value.dayEnd,
+          'with-thumb': art === 'own', 'maybe-thumb': art === 'fallback',
+        }],
         style: cellStyle(p),
         title: cellTitle(p),
-        hasThumb,
+        art,
         showsText: cellShowsText(p),
         marks: cellMarks(p),
         clock: fmtClock(p.start),
@@ -1496,7 +1506,11 @@ export const EpgView = {
 
     const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: reloadGuide, nameOf: channelNameOf })
 
-    const canSort = computed(() => !narrow.value && !railFilter.value.trim())
+    const canEditOrder = computed(() => canEditOrderOf({ narrow: narrow.value, filter: railFilter.value, pinnedCount: pinnedCount.value }))
+    const editingOrder = ref(false)
+    const canSort = computed(() => editingOrder.value && canEditOrder.value)
+    const toggleOrderEditing = () => { editingOrder.value = !editingOrder.value }
+    watch(canEditOrder, (can) => { if (!can) editingOrder.value = false })
 
     const sort = useSortable({
       listEl: () => scrollEl.value?.querySelector('.epg-rows'),
@@ -1602,6 +1616,7 @@ export const EpgView = {
       railStripH.value = scrollEl.value?.clientHeight || 0
       scrollbarW.value = scrollEl.value ? scrollEl.value.offsetWidth - scrollEl.value.clientWidth : 0
       scrollViewW.value = scrollEl.value?.clientWidth || 0
+      viewportW.value = window.innerWidth
     }
 
     let scrollRo = null
@@ -1850,6 +1865,7 @@ export const EpgView = {
       else if (selected.value) closeModal()
       else if (channelsModal.value) channelsModal.value = false
       else if (searchOpen.value) closeSearch()
+      else if (editingOrder.value) editingOrder.value = false
       else return
       e.preventDefault()
     }
@@ -1878,8 +1894,10 @@ export const EpgView = {
       if (searchTimer) clearTimeout(searchTimer)
     })
 
+    provide(GUIDE_IMAGES_ON, showImages)
     provide(GUIDE_ROW_CONTEXT, {
       narrow, pinnedCount, openOrderEditor, canSort, sort, railNum, togglePin,
+      canEditOrder, editingOrder, toggleOrderEditing, railLayout,
       trackWidth, loadingIds, LISTINGS_LOADING_TEXT, nowX, loadingNoteMaxPx, guide, nowMs,
       rowCells, cellViewOf, cellKey, openProgram,
     })
@@ -1910,7 +1928,7 @@ export const EpgView = {
       cancelSeriesStep, selectedStatusText,
       busyId, channelsModal, channelsModalMode, openChannelsModal, openOrderEditor, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, cellHasThumb,
-      canSort, sort, orderToast: orderSave.toast, undoOrder: orderSave.undo,
+      canSort, railLayout, sort, orderToast: orderSave.toast, undoOrder: orderSave.undo,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
       channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, seLabel,
       flashText, flashKind,

@@ -11,6 +11,7 @@ import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { arrangeByOrder } from '/sortable-math.js'
 import { useFlash, useMediaQuery } from '/shared/composables.js'
 import { CHANNELS_SAVED_TEXT, EPG_NARROW_QUERY } from '/shared/constants.js'
+import { rememberLineup } from '/shared/channel-twins.js'
 import { isRecordingChannel } from '/shared/recording-now.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
 import { openInGuide } from '/shared/store.js'
@@ -78,7 +79,7 @@ export const LiveView = {
                   :title="e.channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
                   :aria-label="e.channel.pinned ? 'Remove ' + e.channel.name + ' from favourites' : 'Add ' + e.channel.name + ' to favourites'"
                   @click="togglePin(e.channel)"><star-icon /></button>
-                <span class="live-logo"><channel-logo :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" /></span>
+                <span class="live-logo"><channel-logo :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" /><channel-twin-tag :channel-id="e.channel.id" /></span>
                 <span class="live-number">{{ paddedNumber(e.channel.number) }}</span>
               </div>
               <button type="button" class="live-watch" :title="e.channel.offAir ? OFF_AIR_MESSAGE : null"
@@ -179,6 +180,7 @@ export const LiveView = {
       if (!tvhConfigured.value) return
       try {
         data.value = await api('GET', '/api/epg/now?all=1')
+        rememberLineup((data.value.entries || []).map((entry) => entry.channel))
         error.value = ''
         scheduleBoundaryReload()
       } catch (err) {

@@ -37,6 +37,7 @@ import {
   startCompanionOver,
 } from '/shared/multi-session.js'
 import { returnToLive, seekLiveTo, seekLiveAndPlay } from '/shared/live-session.js'
+import { rememberLineup } from '/shared/channel-twins.js'
 import { live } from '/shared/player-shared.js'
 import { fmtClockTz, now } from '/shared/time.js'
 
@@ -454,7 +455,7 @@ export const MultiviewSheet = {
           <div class="ui-group">
             <button v-for="row in group.rows" :key="row.entry.channel.id" type="button" class="ui-group-row is-tall mv-channel-row"
               :disabled="row.tag.disabled" @click="$emit('choose', row.entry.channel)">
-              <span class="mv-channel-tile"><channel-logo :channel-id="row.entry.channel.id" :has-logo="Boolean(row.entry.channel.hasLogo)" /></span>
+              <span class="mv-channel-tile"><channel-logo :channel-id="row.entry.channel.id" :has-logo="Boolean(row.entry.channel.hasLogo)" /><channel-twin-tag :channel-id="row.entry.channel.id" /></span>
               <span class="ui-group-row-main">
                 <span class="ui-group-row-title">{{ row.entry.channel.name }}</span>
                 <span class="ui-group-row-meta">{{ airingText(row.entry) }}</span>
@@ -479,6 +480,7 @@ export const MultiviewSheet = {
     watch(() => props.open, async (open) => {
       if (!open) return
       const result = await api('GET', '/api/epg/now?all=1').catch(() => null)
+      if (result?.entries) rememberLineup(result.entries.map((entry) => entry.channel))
       entries.value = (result?.entries || []).filter((entry) => entry.channel && !entry.channel.offAir)
     })
 

@@ -24,18 +24,27 @@ export const GuideRow = {
           <span class="channel-group-heading">{{ label }}</span>
           <button v-if="rowKey === 'h-fav' && narrow && pinnedCount >= 2" type="button" class="sort-edit-order epg-edit-order"
             @click="openOrderEditor">Edit order</button>
+          <button v-else-if="rowKey === 'h-fav' && canEditOrder" type="button"
+            :class="['epg-order-toggle', { 'is-icon': railLayout.orderControl === 'icon', 'is-on': editingOrder }]"
+            :aria-pressed="String(editingOrder)"
+            :aria-label="railLayout.orderControl === 'icon' ? (editingOrder ? 'Done' : 'Edit order') : null"
+            :title="railLayout.orderControl === 'icon' ? (editingOrder ? 'Done' : 'Edit order') : null"
+            @click="toggleOrderEditing">
+            <template v-if="railLayout.orderControl === 'icon'"><check-icon v-if="editingOrder" /><sort-order-icon v-else /></template>
+            <template v-else-if="editingOrder">Done</template>
+            <template v-else><sort-order-icon />Edit order</template>
+          </button>
         </div>
         <div class="epg-heading-track"></div>
       </template>
       <template v-else>
       <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]">
-        <button v-if="ch.pinned && canSort" type="button" class="sort-handle epg-sort-handle" data-sort-handle
-          aria-roledescription="sortable" title="Drag to reorder"
+        <button v-if="ch.pinned && !narrow" type="button" class="sort-handle epg-sort-handle" data-sort-handle
+          aria-roledescription="sortable" title="Drag to reorder" :inert="!canSort"
           :aria-label="'Reorder ' + ch.name + ', position ' + (pinIndex + 1) + ' of ' + pinnedCount + '. Press Space to pick up.'"
-          @pointerdown="sort.onPointerDown(rowKey, $event)"
-          @keydown="sort.onKeydown(rowKey, $event)"
+          @pointerdown="canSort && sort.onPointerDown(rowKey, $event)"
+          @keydown="canSort && sort.onKeydown(rowKey, $event)"
           @blur="sort.onBlur(rowKey)"><sort-grip-icon /></button>
-        <span v-else-if="!narrow" class="sort-gutter" aria-hidden="true"></span>
         <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
       </div>
       <div class="epg-track" :style="{ width: trackWidth + 'px' }">
@@ -45,7 +54,7 @@ export const GuideRow = {
         <button v-for="p in rowCells(ch)" :key="p.program_id + '-' + p.start" v-memo="[cellViewOf(p)]" type="button"
           :class="cellViewOf(p).className" :style="cellViewOf(p).style" :aria-label="cellViewOf(p).title" :data-key="cellKey(ch, p)"
           @click="openProgram(p, ch)">
-          <guide-cell-image v-if="cellViewOf(p).hasThumb" :event-id="p.program_id"
+          <guide-cell-image v-if="cellViewOf(p).art !== 'none'" :event-id="p.program_id" :fallback="cellViewOf(p).art === 'fallback'"
             :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
           <span v-if="cellViewOf(p).showsText" class="epg-cell-text">
             <span class="epg-cell-title"><span v-if="cellViewOf(p).marks.scheduledDot" class="epg-cell-dot is-inline" aria-hidden="true"></span><span v-else-if="cellViewOf(p).marks.watchDot" class="epg-cell-dot is-inline is-watch" aria-hidden="true"></span>{{ p.title }}</span>

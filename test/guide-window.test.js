@@ -11,6 +11,7 @@ import {
   scrollLeadOf,
   pinsScrolledAway,
   spanOnScreen,
+  cellArtOf,
 } from '../src/web/guide-window.js'
 
 const MIN = 60_000
@@ -156,4 +157,14 @@ test('windowedCellsByRow keeps cells it already built when asked to retain them'
   const moved = { rows, isNear: () => true, startMs: DAY_START + 600 * MIN, endMs: DAY_START + 660 * MIN, keyOf, previous: first }
   assert.deepEqual(windowedCellsByRow({ ...moved, retain: true }).get('1'), [early, late])
   assert.deepEqual(windowedCellsByRow(moved).get('1'), [late])
+})
+
+test('cellArtOf shows a programme picture only in cells wide enough for a thumbnail', () => {
+  assert.equal(cellArtOf({ hasImage: true, widthPx: 171, thumbMinPx: 172 }), 'none')
+  assert.equal(cellArtOf({ hasImage: false, widthPx: 171, thumbMinPx: 172 }), 'none')
+})
+
+test('cellArtOf asks the server for a fallback picture when the guide has none', () => {
+  assert.equal(cellArtOf({ hasImage: true, widthPx: 172, thumbMinPx: 172 }), 'own')
+  assert.equal(cellArtOf({ hasImage: false, widthPx: 300, thumbMinPx: 172 }), 'fallback')
 })

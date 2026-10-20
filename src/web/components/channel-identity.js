@@ -9,7 +9,7 @@ export const ChannelIdentity = {
       :title="channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
       :aria-label="channel.pinned ? 'Remove ' + channel.name + ' from favourites' : 'Add ' + channel.name + ' to favourites'"
       @click="$emit('pin')"><star-icon /></button>
-    <span class="channel-logo"><channel-logo :channel-id="channel.id" :has-logo="hasLogo" /></span>
+    <span class="channel-logo"><channel-logo :channel-id="channel.id" :has-logo="hasLogo" /><channel-twin-tag :channel-id="channel.id" /></span>
     <span class="channel-name" :title="channel.offAir ? OFF_AIR_MESSAGE : channel.name">
       <span v-if="number" class="channel-number">{{ number }}</span>
       {{ channel.name }}

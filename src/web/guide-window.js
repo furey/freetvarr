@@ -69,3 +69,8 @@ export const windowedCellsByRow = ({ rows, isNear, startMs, endMs, keepKey, keyO
   }
   return byRow
 }
+
+export const cellArtOf = ({ hasImage, widthPx, thumbMinPx }) => {
+  if (widthPx < thumbMinPx) return 'none'
+  return hasImage ? 'own' : 'fallback'
+}

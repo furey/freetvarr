@@ -2,6 +2,7 @@ import fs from 'fs/promises'
 
 import { getSetting, setSetting } from './db.js'
 import { anyChannelLinkFor } from './web/series-link.js'
+import { sdSimulcastIds } from './web/simulcast.js'
 import {
   listChannels,
   listEvents,
@@ -66,35 +67,7 @@ export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   }
 }
 
-// An SD channel is a simulcast sibling when another channel shares its base name
-// (name minus a trailing "HD", with AU aliases like Nine↔9) and that sibling is
-// the HD one. Anything unpaired stays visible.
-const SIMULCAST_ALIASES = { nine: '9', seven: '7', ten: '10' }
-
-const simulcastBaseKey = (name) => {
-  const base = (name || '').toLowerCase().replace(/\s*hd$/, '').trim()
-  return SIMULCAST_ALIASES[base] || base
-}
-
-const isHdChannel = (c) => c.hd === true || /hd$/i.test((c.name || '').trim())
-
-export const sdSimulcastIds = (channels) => {
-  const groups = new Map()
-  for (const c of channels) {
-    const key = simulcastBaseKey(c.name)
-    if (!key) continue
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key).push(c)
-  }
-  const ids = new Set()
-  for (const group of groups.values()) {
-    if (group.length < 2 || !group.some(isHdChannel)) continue
-    for (const c of group) {
-      if (!isHdChannel(c)) ids.add(String(c.id))
-    }
-  }
-  return ids
-}
+export { sdSimulcastIds }
 
 // Pinned channels float to the top in pin order; the rest follow in the chosen
 // sort. Hidden and pinned are mutually exclusive (enforced on save).
@@ -219,6 +192,7 @@ export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
         hasLogo: channel.logos.length > 0,
         offAir: Boolean(channel.offAir),
         pinned: channel.pinned,
+        hd: channel.hd === true,
       },
       now: now && toBrowserProgram(now),
       next: next && toBrowserProgram(next),

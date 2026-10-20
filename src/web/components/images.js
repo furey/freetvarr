@@ -1,12 +1,16 @@
 import {
   ref,
   computed,
+  inject,
   onMounted,
   onUnmounted,
   watch,
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
+import { createRequestGate } from '/shared/request-gate.js'
 import { GUIDE_SCROLL_SELECTOR, NEAR_VIEW_MARGIN, observeInScroller, unobserveInScroller } from '/shared/scroll-proximity.js'
+
+export const GUIDE_IMAGES_ON = Symbol('guide-images-on')
 
 export const ChannelLogo = {
   props: { channelId: { type: [String, Number], default: null }, hasLogo: Boolean },
@@ -29,6 +33,10 @@ export const ChannelLogo = {
 const CHANNEL_LOGO_WIDTHS = [96, 192]
 
 const IMAGE_RETRY_DELAY_MS = 5000
+const FALLBACK_CELL_REQUEST_LIMIT = 4
+const FALLBACK_CELL_SLOT_MAX_MS = 3000
+
+const fallbackCellGate = createRequestGate({ limit: FALLBACK_CELL_REQUEST_LIMIT })
 const TITLE_CARD_DELAY_MS = 500
 
 const PROGRAMME_IMAGE_WIDTHS = {
@@ -71,7 +79,8 @@ export const ProgrammeImage = {
     hasLogo: Boolean,
     title: { type: String, default: null },
   },
-  setup(props) {
+  emits: ['settle'],
+  setup(props, { emit }) {
     const img = ref(null)
     const status = ref('loading')
     const instant = ref(false)
@@ -167,6 +176,7 @@ export const ProgrammeImage = {
       await nextTick()
       settleFromCache()
     })
+    watch(status, (now) => { if (now !== 'loading') emit('settle', now) })
     const titleCardStyle = computed(() => ({ '--title-hue': titleHueOf(props.title) }))
     const titleInitials = computed(() => initialsOf(props.title))
     return { img, status, instant, upgrading, titleCardShown, src, srcset, onLoad, onError, titleCardStyle, titleInitials }
@@ -192,29 +202,53 @@ export const GuideCellImage = {
     channelId: { type: [String, Number], default: null },
     hasLogo: Boolean,
     title: { type: String, default: null },
+    fallback: Boolean,
   },
-  setup() {
+  setup(props) {
+    const imagesOn = inject(GUIDE_IMAGES_ON, ref(true))
     const placeholder = ref(null)
     const near = ref(false)
+    const granted = ref(!props.fallback)
     let observed = null
+    let leaveGate = null
+    let slotTimer = null
     const stopObserving = () => {
       if (observed) unobserveInScroller(observed)
       observed = null
+    }
+    const leaveFallbackGate = () => {
+      clearTimeout(slotTimer)
+      leaveGate?.()
+      leaveGate = null
+    }
+    const takeFallbackSlot = () => {
+      granted.value = true
+      slotTimer = setTimeout(leaveFallbackGate, FALLBACK_CELL_SLOT_MAX_MS)
+    }
+    const askForFallback = () => {
+      if (granted.value || leaveGate || !near.value || !imagesOn.value) return
+      leaveGate = fallbackCellGate.enter(takeFallbackSlot)
     }
     const showWhenNear = (isNear) => {
       if (!isNear) return
       stopObserving()
       near.value = true
+      askForFallback()
     }
+    watch(imagesOn, askForFallback)
     onMounted(() => {
       observed = placeholder.value
       observeInScroller({ el: observed, rootSelector: GUIDE_SCROLL_SELECTOR, rootMargin: NEAR_VIEW_MARGIN, onChange: showWhenNear })
     })
-    onUnmounted(stopObserving)
-    return { placeholder, near }
+    onUnmounted(() => {
+      stopObserving()
+      leaveFallbackGate()
+    })
+    return { placeholder, near, granted, leaveFallbackGate }
   },
   template: `
-    <programme-image v-if="near" :event-id="eventId" variant="cell" :channel-id="channelId" :has-logo="hasLogo" :title="title" />
+    <programme-image v-if="near && granted" :event-id="eventId" variant="cell" :channel-id="channelId" :has-logo="hasLogo" :title="title"
+      @settle="leaveFallbackGate" />
     <div v-else ref="placeholder" class="programme-image cell is-loading"></div>
   `,
 }

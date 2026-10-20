@@ -6,6 +6,14 @@ export const SortGripIcon = {
   `,
 }
 
+export const SortOrderIcon = {
+  template: `
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M6.5 16V4M3.5 7l3-3 3 3M13.5 4v12M10.5 13l3 3 3-3"/>
+    </svg>
+  `,
+}
+
 export const SortDotsIcon = {
   template: `
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -41,6 +49,7 @@ export const SortUndoToast = {
 
 export const SORT_PART_COMPONENTS = {
   'sort-grip-icon': SortGripIcon,
+  'sort-order-icon': SortOrderIcon,
   'sort-dots-icon': SortDotsIcon,
   'sort-announcer': SortAnnouncer,
   'sort-undo-toast': SortUndoToast,

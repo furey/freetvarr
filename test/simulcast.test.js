@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import { findHdSimulcast, isHdChannelName } from '../src/web/simulcast.js'
+import { findHdSimulcast, isHdChannelName, sdSimulcastIds, twinFormatsOf } from '../src/web/simulcast.js'
 
 const grid = JSON.parse(readFileSync(new URL('./fixtures/tvh-setup/channel-grid.json', import.meta.url)))
 const START = Date.parse('2026-10-06T19:30:00+11:00')
@@ -105,4 +105,35 @@ test('a series offer needs a series link on the HD airing', () => {
   const rows = [['SBS ONE', airing({ id: 1, series_link: 's1' })], ['SBS ONE HD', airing({ id: 2 })]]
   assert.equal(lookup({ pressedName: 'SBS ONE', rows, needsSeriesLink: true }), null)
   assert.equal(lookup({ pressedName: 'SBS ONE', rows }).channel.name, 'SBS ONE HD')
+})
+
+const lineup = [
+  { id: 1, name: '10', hd: false },
+  { id: 2, name: '10 HD', hd: true },
+  { id: 3, name: 'Nine', hd: false },
+  { id: 4, name: '9HD', hd: true },
+  { id: 5, name: '7flix Sydney', hd: false },
+  { id: 6, name: 'SBS ONE', hd: false },
+  { id: 7, name: 'SBS ONE HD', hd: false },
+  { id: 8, name: '7mate HD', hd: true },
+]
+
+test('twinFormatsOf tags both channels of each visible SD and HD pair', () => {
+  assert.deepEqual([...twinFormatsOf(lineup)], [['1', 'SD'], ['2', 'HD'], ['3', 'SD'], ['4', 'HD'], ['6', 'SD'], ['7', 'HD']])
+})
+
+test('twinFormatsOf leaves channels with no twin untagged', () => {
+  const formats = twinFormatsOf(lineup)
+  assert.equal(formats.has('5'), false)
+  assert.equal(formats.has('8'), false)
+})
+
+test('twinFormatsOf tags nothing once the SD twins are hidden', () => {
+  const hiddenSd = sdSimulcastIds(lineup)
+  assert.equal(twinFormatsOf(lineup.filter((c) => !hiddenSd.has(String(c.id)))).size, 0)
+  assert.equal(twinFormatsOf(lineup.filter((c) => c.hd)).size, 0)
+})
+
+test('sdSimulcastIds picks the SD channel of each pair', () => {
+  assert.deepEqual([...sdSimulcastIds(lineup)], ['1', '3', '6'])
 })

@@ -1,6 +1,7 @@
 import { createApp, computed } from '/vendor/vue.esm-browser.prod.js'
 import { CancelSeriesStep } from '/components/cancel-series-step.js'
 import { ChannelIdentity } from '/components/channel-identity.js'
+import { ChannelTwinTag } from '/components/channel-twin-tag.js'
 import { ChannelsModal } from '/components/channels-modal.js'
 import { CopyRow } from '/components/copy-row.js'
 import { ConfirmDialog } from '/components/dialogs.js'
@@ -215,6 +216,7 @@ app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('guide-cell-image', GuideCellImage)
 app.component('channel-logo', ChannelLogo)
+app.component('channel-twin-tag', ChannelTwinTag)
 app.component('toggle-switch', ToggleSwitch)
 app.component('cancel-series-step', CancelSeriesStep)
 app.component('time-zone-field', TimeZoneField)
