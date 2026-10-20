@@ -4,12 +4,15 @@ import { canRecordSeriesOf, recordWordingOf } from './record-wording.js'
 import { showKeyOf } from './show-key.js'
 import { artIdentityFrom, pickDistinctArt } from './hero-art.js'
 import { episodeCodeOf, minutesLeftOf, watchedFractionOf, showHrefOf } from './home-feed.js'
+import { hourlyOrderOf } from './hero-remix.js'
 
 export const HERO_SLIDE_LIMIT = 5
-export const MOVIES_URL = '/api/library/episodes?state=unwatched&kind=movie&limit=1'
+export const HERO_SLIDES_PER_KIND = 2
+export const MOVIES_URL = `/api/library/episodes?state=unwatched&kind=movie&limit=${HERO_SLIDES_PER_KIND}`
 
-export const heroSlidesOf = ({ pools = {}, limit = HERO_SLIDE_LIMIT, ...feed }) => {
-  const candidates = heroCandidatesOf(feed)
+export const heroSlidesOf = ({ pools = {}, limit = HERO_SLIDE_LIMIT, remix = true, ...feed }) => {
+  const ranked = heroCandidatesOf(feed)
+  const candidates = remix ? hourlyOrderOf({ candidates: ranked, nowMs: feed.nowMs, timeZone: feed.timeZone }) : ranked
   return arrangeHero({ chosen: candidates.slice(0, limit), waiting: candidates.slice(limit), pools, limit })
 }
 
@@ -27,17 +30,16 @@ export const heroCandidatesOf = ({
   nowMs,
   timeZone,
 }) => {
-  const continueEpisode = inProgress[0] ?? null
   const recording = activeRecordingOf({ active: recordingNow, nowMs })
   const ranked = [
-    continueSlideOf({ episode: continueEpisode }),
-    newEpisodeSlideOf({ newEpisodes, shows, inProgress, nowMs, timeZone }),
+    ...firstOfKind(inProgress).map((episode) => continueSlideOf({ episode })),
+    ...newEpisodeSlidesOf({ newEpisodes, shows, inProgress, nowMs, timeZone }),
     recording && recordingNowSlideOf({ recording, nowEntries, nowMs, timeZone }),
     forYou,
     onNowSlideOf({ entries: nowEntries, recording, nowMs, timeZone }),
-    upcomingSlideOf({ upcoming, activeProgramIds, shows, nowMs, timeZone }),
-    watchlistSlideOf({ items: watchlist, nowMs, timeZone }),
-    movieSlideOf({ movie: movies[0] ?? null, nowMs, timeZone }),
+    ...upcomingSlidesOf({ upcoming, activeProgramIds, shows, nowMs, timeZone }),
+    ...watchlistSlidesOf({ items: watchlist, nowMs, timeZone }),
+    ...firstOfKind(movies).map((movie) => movieSlideOf({ movie, nowMs, timeZone })),
   ]
   return withoutRepeats(ranked.filter(Boolean))
 }
@@ -102,11 +104,14 @@ export const recordingWhenEyebrowOf = ({ startMs, nowMs, timeZone }) => {
   return `Recording ${dateFormat({ weekday: 'long', timeZone }).format(startMs)}`
 }
 
-export const nextUpcomingOf = ({ upcoming = [], activeProgramIds = [], nowMs }) => {
+export const nextUpcomingOf = ({ upcoming = [], activeProgramIds = [], nowMs }) =>
+  soonestUpcomingOf({ upcoming, activeProgramIds, nowMs })[0] ?? null
+
+export const soonestUpcomingOf = ({ upcoming = [], activeProgramIds = [], nowMs }) => {
   const active = new Set(activeProgramIds.map(String))
   return upcoming
     .filter((u) => u.startDate > nowMs && !active.has(String(u.programId)))
-    .sort((a, b) => a.startDate - b.startDate)[0] ?? null
+    .sort((a, b) => a.startDate - b.startDate)
 }
 
 export const watchedShowKeysOf = ({ shows = [], inProgress = [] }) => new Set([
@@ -118,24 +123,24 @@ export const activeRecordingOf = ({ active = [], nowMs }) => active
   .filter((r) => !r.failed && r.start <= nowMs && nowMs < r.stop)
   .sort((a, b) => a.start - b.start)[0] ?? null
 
-const continueSlideOf = ({ episode }) => {
-  if (!episode) return null
-  return {
-    ...recordingSlideBase({ type: 'continue', episode }),
-    eyebrow: 'Continue watching',
-    meta: joinMeta([episodeCodeOf(episode), episode.episodeTitle, episode.channelName, `${minutesLeftOf(episode)} min left`]),
-    metaShort: joinMeta([episodeCodeOf(episode), `${minutesLeftOf(episode)} min left`]),
-    progress: { percent: Math.round(watchedFractionOf(episode) * 100), live: false, label: 'Watched' },
-    primary: { action: 'play', label: 'Resume', icon: 'play' },
-    secondary: { label: 'Episodes', href: showHrefOf(episode) },
-  }
+const continueSlideOf = ({ episode }) => ({
+  ...recordingSlideBase({ type: 'continue', episode }),
+  eyebrow: 'Continue watching',
+  meta: joinMeta([episodeCodeOf(episode), episode.episodeTitle, episode.channelName, `${minutesLeftOf(episode)} min left`]),
+  metaShort: joinMeta([episodeCodeOf(episode), `${minutesLeftOf(episode)} min left`]),
+  progress: { percent: Math.round(watchedFractionOf(episode) * 100), live: false, label: 'Watched' },
+  primary: { action: 'play', label: 'Resume', icon: 'play' },
+  secondary: { label: 'Episodes', href: showHrefOf(episode) },
+})
+
+const newEpisodeSlidesOf = ({ newEpisodes, shows, inProgress, nowMs, timeZone }) => {
+  const watched = watchedShowKeysOf({ shows, inProgress })
+  const continuing = new Set(firstOfKind(inProgress).map((e) => e.recordingId))
+  const episodes = newEpisodes.filter((e) => e.kind === 'show' && watched.has(e.showKey) && !continuing.has(e.recordingId))
+  return firstOfKind(onePerShow(episodes)).map((episode) => newEpisodeSlideOf({ episode, nowMs, timeZone }))
 }
 
-const newEpisodeSlideOf = ({ newEpisodes, shows, inProgress, nowMs, timeZone }) => {
-  const watched = watchedShowKeysOf({ shows, inProgress })
-  const continuing = inProgress[0]?.recordingId
-  const episode = newEpisodes.find((e) => e.kind === 'show' && watched.has(e.showKey) && e.recordingId !== continuing)
-  if (!episode) return null
+const newEpisodeSlideOf = ({ episode, nowMs, timeZone }) => {
   const recorded = recordedWhenOf({ ms: episode.airedAt, nowMs, timeZone })
   return {
     ...recordingSlideBase({ type: 'new', episode }),
@@ -200,9 +205,12 @@ const onNowSlideOf = ({ entries, recording, nowMs, timeZone }) => {
   }
 }
 
-const upcomingSlideOf = ({ upcoming, activeProgramIds, shows, nowMs, timeZone }) => {
-  const item = nextUpcomingOf({ upcoming, activeProgramIds, nowMs })
-  if (!item) return null
+const upcomingSlidesOf = ({ upcoming, activeProgramIds, shows, nowMs, timeZone }) => {
+  const items = onePerShow(soonestUpcomingOf({ upcoming, activeProgramIds, nowMs }), (item) => showKeyOf(item.name))
+  return firstOfKind(items).map((item) => upcomingSlideOf({ item, shows, nowMs, timeZone }))
+}
+
+const upcomingSlideOf = ({ item, shows, nowMs, timeZone }) => {
   const showKey = showKeyOf(item.name)
   const show = shows.find((s) => s.key === showKey)
   const hasRule = Boolean(show?.rule)
@@ -226,9 +234,11 @@ const upcomingSlideOf = ({ upcoming, activeProgramIds, shows, nowMs, timeZone })
   }
 }
 
-const watchlistSlideOf = ({ items, nowMs, timeZone }) => {
-  const item = items.find((i) => i.mode === 'notify' && !i.fulfilledAt && i.nextMatch && i.nextMatch.end > nowMs)
-  if (!item) return null
+const watchlistSlidesOf = ({ items, nowMs, timeZone }) => firstOfKind(
+  items.filter((i) => i.mode === 'notify' && !i.fulfilledAt && i.nextMatch && i.nextMatch.end > nowMs),
+).map((item) => watchlistSlideOf({ item, nowMs, timeZone }))
+
+const watchlistSlideOf = ({ item, nowMs, timeZone }) => {
   const match = item.nextMatch
   return {
     key: `watchlist:${item.id}`,
@@ -250,7 +260,6 @@ const watchlistSlideOf = ({ items, nowMs, timeZone }) => {
 }
 
 const movieSlideOf = ({ movie, nowMs, timeZone }) => {
-  if (!movie) return null
   const resumes = (movie.positionS ?? 0) > 0
   return {
     ...recordingSlideBase({ type: 'movie', episode: movie }),
@@ -280,6 +289,18 @@ const withoutRepeats = (slides) => {
     const id = slide.recordingId ?? slide.key
     if (seen.has(id)) return false
     seen.add(id)
+    return true
+  })
+}
+
+const firstOfKind = (items) => items.slice(0, HERO_SLIDES_PER_KIND)
+
+const onePerShow = (items, showKeyFor = (item) => item.showKey) => {
+  const seen = new Set()
+  return items.filter((item) => {
+    const key = showKeyFor(item)
+    if (seen.has(key)) return false
+    seen.add(key)
     return true
   })
 }

@@ -30,20 +30,29 @@ While anything records, the browser tab title also starts with `● REC`.
 
 ## Highlights
 
-The top of Home is a set of up to five slides that take turns. Press a dot to pick a slide, or swipe on a touch screen. The pause button keeps the current slide in place.
+The top of Home is a set of up to five slides that take turns. To move between slides:
 
-Freetvarr picks the slides from these, in this order, and leaves out any that has nothing to show:
+- Tap or click near the right edge of a slide to go to the next slide.
+- Tap or click near the left edge to go back.
+- Swipe on a touch screen.
+- Press a dot to pick a slide.
 
-| Slide                           | What it shows                                                                                  | Buttons                                                                   |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| **Continue watching**           | The recording you started most recently and have not finished.                                 | **Resume**, **Episodes**                                                  |
-| **New episode**                 | A new episode of a show you watch.                                                             | **Play**, **Episodes**                                                    |
-| **Recording now**               | A programme TVHeadend records now.                                                             | **Watch from the start** (when it can play the recording), **Watch live** |
-| **For you**                     | A suggestion from [For you](/guide/for-you), with the reason.                                  | **Record** or **Record series**, **Details**                              |
-| **Live news** or **Live sport** | A news or sports programme on now on a favourite channel.                                      | **Watch live**, **Record**                                                |
-| **Recording tonight**           | The next recording, with **Recording today** or **Recording tomorrow** when it is not tonight. | **Recording options** or **Details**, **Scheduled**                       |
-| **Now in the guide**            | A show you asked to be told about, now in the TV guide.                                        | **Record** or **Record series**, **Details**                              |
-| **Unwatched movie**             | A film you recorded and have not watched.                                                      | **Play** or **Resume**, **Details**                                       |
+The buttons on a slide do their own job only; a tap on a button never changes the slide. The pause button keeps the current slide in place.
+
+Freetvarr picks the slides from the list below and leaves out any that has nothing to show. Some kinds can give two slides, for example two recordings in progress or two films you have not watched.
+
+The order changes each hour. **Recording now** and **Live news** or **Live sport** always come first, because they are on now. The other slides take turns: each hour gets a new mix, with different kinds of slide near the front, and a different first slide from the hour before. Every phone, tablet, and computer shows the same order in the same hour, and a reload in that hour does not change it. When the hour changes while Home is open, the new order starts at the next slide.
+
+| Slide                           | What it shows                                                                                          | Buttons                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| **Continue watching**           | A recording you started and have not finished.                                                         | **Resume**, **Episodes**                                                  |
+| **New episode**                 | A new episode of a show you watch.                                                                     | **Play**, **Episodes**                                                    |
+| **Recording now**               | A programme TVHeadend records now.                                                                     | **Watch from the start** (when it can play the recording), **Watch live** |
+| **For you**                     | A suggestion from [For you](/guide/for-you), with the reason.                                          | **Record** or **Record series**, **Details**                              |
+| **Live news** or **Live sport** | A news or sports programme on now on a favourite channel.                                              | **Watch live**, **Record**                                                |
+| **Recording tonight**           | One of the next recordings, with **Recording today** or **Recording tomorrow** when it is not tonight. | **Recording options** or **Details**, **Scheduled**                       |
+| **Now in the guide**            | A show you asked to be told about, now in the TV guide.                                                | **Record** or **Record series**, **Details**                              |
+| **Unwatched movie**             | A film you recorded and have not watched.                                                              | **Play** or **Resume**, **Details**                                       |
 
 **Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it.
 
@@ -90,8 +99,8 @@ When something Freetvarr needs is broken, such as TVHeadend not answering or the
 
 Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the TV guide. The results come in two groups:
 
-- **SHOWS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
-- **IN THE GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.
+- **IN RECORDINGS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
+- **IN THE TV GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.
 
 When nothing in the next 7 days matches, the results end with **Watch for “title”**. Press it to list the show under **Watching for** in Scheduled, or to record it when it is in the TV guide. See [Watch for](/guide/tv-guide#watch-for).
 

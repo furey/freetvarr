@@ -10,12 +10,17 @@ import {
   fillFractionOf,
   wrapIndex,
 } from '/hero-rotation.js'
+import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
 
 const SWIPE_GAP_PX = 12
 const SWIPE_COMMIT_FRACTION = 0.2
 const SWIPE_INTENT_PX = 8
 const SETTLE_MS = 280
 const DOT_KEY_STEPS = { ArrowRight: 1, ArrowLeft: -1 }
+const EDGE_FRACTION = 0.22
+const TAP_MAX_MS = 500
+const TAP_VERDICT_MS = 800
+const ACTION_SELECTOR = 'button, a, input, select, textarea, [role="button"], [tabindex]'
 
 export const HomeHeroCarousel = {
   props: {
@@ -24,13 +29,14 @@ export const HomeHeroCarousel = {
   emits: ['action', 'menu'],
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
-      :class="{ 'is-reduced': rotation.reducedMotion, 'is-instant': instant }"
+      :class="{ 'is-reduced': rotation.reducedMotion, 'is-instant': instant, 'is-edge-back': hoverEdge === -1, 'is-edge-forward': hoverEdge === 1 }"
       @pointerenter="onPointerEnter" @pointerleave="onPointerLeave" @focusin="onFocusIn">
       <div class="hero-carousel-viewport">
         <div ref="stage" class="hero-carousel-stage" :aria-live="advancing ? 'off' : 'polite'"
-          @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp">
-          <article v-for="(slide, i) in slides" :key="slide.key" :id="slideId(i)" role="group" aria-roledescription="slide"
-            :aria-label="(i + 1) + ' of ' + slides.length" :aria-hidden="i === rotation.index ? null : 'true'"
+          @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp"
+          @pointerleave="clearHoverEdge" @click="onStageClick">
+          <article v-for="(slide, i) in orderedSlides" :key="slide.key" :id="slideId(i)" role="group" aria-roledescription="slide"
+            :aria-label="(i + 1) + ' of ' + orderedSlides.length" :aria-hidden="i === rotation.index ? null : 'true'"
             :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index }]"
             :style="slideStyle(i)">
             <div class="hero-slide-backdrop ui-art-fallback" :style="fallbackStyleOf(slide)">
@@ -70,11 +76,11 @@ export const HomeHeroCarousel = {
           </article>
         </div>
       </div>
-      <div v-if="slides.length > 1" class="hero-carousel-controls">
+      <div v-if="orderedSlides.length > 1" class="hero-carousel-controls">
         <div class="hero-carousel-dots" role="tablist" aria-label="Choose a slide" @keydown="onDotKey">
-          <button v-for="(slide, i) in slides" :key="slide.key" :ref="(el) => setDotRef(el, i)" type="button" role="tab"
+          <button v-for="(slide, i) in orderedSlides" :key="slide.key" :ref="(el) => setDotRef(el, i)" type="button" role="tab"
             :class="['hero-carousel-dot', { 'is-on': i === rotation.index }]" :aria-selected="String(i === rotation.index)"
-            :aria-controls="slideId(i)" :aria-label="'Slide ' + (i + 1) + ' of ' + slides.length"
+            :aria-controls="slideId(i)" :aria-label="'Slide ' + (i + 1) + ' of ' + orderedSlides.length"
             :tabindex="i === rotation.index ? 0 : -1" @click="goTo(i)">
             <i><em v-if="i === rotation.index" :ref="setFillRef"></em></i>
           </button>
@@ -90,6 +96,10 @@ export const HomeHeroCarousel = {
   setup(props, { emit }) {
     const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     let state = rotationStart({ count: props.slides.length, reducedMotion: reducedQuery.matches })
+    const displayKeys = ref(props.slides.map((slide) => slide.key))
+    const slidesByKey = computed(() => new Map(props.slides.map((slide) => [slide.key, slide])))
+    const orderedSlides = computed(() => displayKeys.value.map((key) => slidesByKey.value.get(key)).filter(Boolean))
+    const hoverEdge = ref(0)
     const rotation = shallowRef(state)
     const clockMs = ref(Date.now())
     const stage = ref(null)
@@ -102,13 +112,23 @@ export const HomeHeroCarousel = {
     let frame = null
     let lastFrameAt = 0
     let pointerStart = null
+    let pendingKeys = null
+    let tapVerdict = null
 
     const dispatch = (event) => {
-      const next = nextRotation(state, event)
+      const next = withPendingOrder(nextRotation(state, event))
       if (next === state) return
       const onlyFillMoved = Object.keys(next).every((key) => key === 'elapsedMs' || next[key] === state[key])
       state = next
       if (!onlyFillMoved) rotation.value = next
+    }
+
+    const withPendingOrder = (next) => {
+      if (!pendingKeys || next.index === state.index) return next
+      const adopted = adoptedOrderOf({ pendingKeys, targetKey: displayKeys.value[next.index] })
+      pendingKeys = null
+      displayKeys.value = adopted.keys
+      return { ...next, index: adopted.index }
     }
 
     const advancing = computed(() => isAdvancing(rotation.value, clockMs.value))
@@ -172,9 +192,16 @@ export const HomeHeroCarousel = {
       syncClock()
     }, { immediate: true })
 
-    watch(() => props.slides.map((s) => s.key).join('|'), (keys, previousKeys) => {
-      const currentKey = (previousKeys ?? '').split('|')[rotation.value.index]
-      dispatch({ type: 'sync', count: props.slides.length, index: keys.split('|').indexOf(currentKey) })
+    watch(() => props.slides.map((s) => s.key).join('|'), (joined) => {
+      const keys = joined ? joined.split('|') : []
+      if (sameKeySet(keys, displayKeys.value)) {
+        pendingKeys = joined === displayKeys.value.join('|') ? null : keys
+        return
+      }
+      const currentKey = displayKeys.value[rotation.value.index]
+      pendingKeys = null
+      displayKeys.value = keys
+      dispatch({ type: 'sync', count: keys.length, index: keys.indexOf(currentKey) })
     })
 
     const setFillRef = (el) => {
@@ -189,7 +216,7 @@ export const HomeHeroCarousel = {
     const goTo = (index) => dispatch({ type: 'goTo', index })
 
     const onDotKey = (e) => {
-      const count = props.slides.length
+      const count = orderedSlides.value.length
       const target = {
         ...Object.fromEntries(Object.entries(DOT_KEY_STEPS).map(([key, delta]) => [key, rotation.value.index + delta])),
         Home: 0,
@@ -210,17 +237,51 @@ export const HomeHeroCarousel = {
 
     const stageWidth = () => stage.value?.offsetWidth || 1
 
+    const edgeOf = (e) => {
+      if (orderedSlides.value.length < 2 || e.target.closest?.(ACTION_SELECTOR)) return 0
+      const rect = stage.value?.getBoundingClientRect()
+      if (!rect?.width) return 0
+      const fraction = (e.clientX - rect.left) / rect.width
+      if (fraction < EDGE_FRACTION) return -1
+      if (fraction > 1 - EDGE_FRACTION) return 1
+      return 0
+    }
+
+    const trackHoverEdge = (e) => {
+      const edge = edgeOf(e)
+      if (edge !== hoverEdge.value) hoverEdge.value = edge
+    }
+
+    const clearHoverEdge = () => { hoverEdge.value = 0 }
+
+    const isTapAllowed = () => {
+      const verdict = tapVerdict
+      tapVerdict = null
+      return !verdict || Date.now() - verdict.at > TAP_VERDICT_MS || verdict.allowed
+    }
+
+    const hasTextSelection = () => Boolean(window.getSelection?.()?.toString())
+
+    const onStageClick = (e) => {
+      if (!isTapAllowed() || drag.value || hasTextSelection()) return
+      const delta = edgeOf(e)
+      if (delta) dispatch({ type: 'step', delta })
+    }
+
     const onPointerDown = (e) => {
       if (e.pointerType !== 'touch') return
       dispatch({ type: 'touchStart' })
-      if (props.slides.length < 2 || drag.value?.settling) return
-      pointerStart = { x: e.clientX, y: e.clientY, id: e.pointerId, swiping: false }
+      tapVerdict = null
+      if (orderedSlides.value.length < 2 || drag.value?.settling) return
+      pointerStart = { x: e.clientX, y: e.clientY, id: e.pointerId, at: Date.now(), swiping: false, moved: false }
     }
 
     const onPointerMove = (e) => {
+      if (e.pointerType === 'mouse') trackHoverEdge(e)
       if (!pointerStart || e.pointerId !== pointerStart.id) return
       const dx = e.clientX - pointerStart.x
       const dy = e.clientY - pointerStart.y
+      if (Math.hypot(dx, dy) >= SWIPE_INTENT_PX) pointerStart.moved = true
       if (!pointerStart.swiping) {
         if (Math.abs(dx) < SWIPE_INTENT_PX || Math.abs(dx) < Math.abs(dy)) return
         pointerStart.swiping = true
@@ -233,10 +294,17 @@ export const HomeHeroCarousel = {
       if (e.pointerType !== 'touch') return
       dispatch({ type: 'touchEnd', nowMs: Date.now() })
       const swiped = pointerStart?.swiping && drag.value
+      tapVerdict = { at: Date.now(), allowed: isCleanTap(e) }
       pointerStart = null
       if (!swiped) return
       settleSwipe(drag.value.dx)
     }
+
+    const isCleanTap = (e) => Boolean(pointerStart)
+      && e.type === 'pointerup'
+      && !pointerStart.moved
+      && !pointerStart.swiping
+      && Date.now() - pointerStart.at <= TAP_MAX_MS
 
     const settleSwipe = (dx) => {
       const width = stageWidth()
@@ -256,7 +324,7 @@ export const HomeHeroCarousel = {
     const neighbourIndex = () => {
       const { dx, direction } = drag.value
       const delta = (direction ?? (dx < 0 ? -1 : 1)) < 0 ? 1 : -1
-      return wrapIndex({ index: rotation.value.index + delta, count: props.slides.length })
+      return wrapIndex({ index: rotation.value.index + delta, count: orderedSlides.value.length })
     }
 
     const slideStyle = (i) => {
@@ -275,7 +343,7 @@ export const HomeHeroCarousel = {
     const markArtFailed = (slide) => { failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true } }
 
     return {
-      rotation, stage, failedArt, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
+      rotation, stage, failedArt, orderedSlides, hoverEdge, clearHoverEdge, onStageClick, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerEnter, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
     }

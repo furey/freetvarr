@@ -53,6 +53,7 @@ const fullFeed = () => ({
   movies: [movie()],
   nowMs,
   timeZone,
+  remix: false,
 })
 
 test('heroSlidesOf: ranks slides, caps them at five, and skips repeated art without a pool', () => {
@@ -156,7 +157,7 @@ test('movie slide: unwatched movie with length and when recorded', () => {
   assert.equal(slide.eyebrow, 'Unwatched movie')
   assert.equal(slide.meta, 'Movie · 1 h 41 min · Recorded last night · 9HD')
   assert.equal(slide.secondary.label, 'Details')
-  assert.equal(MOVIES_URL, '/api/library/episodes?state=unwatched&kind=movie&limit=1')
+  assert.equal(MOVIES_URL, '/api/library/episodes?state=unwatched&kind=movie&limit=2')
 })
 
 test('heroSlidesOf: one recording never appears twice', () => {
@@ -253,7 +254,35 @@ test('reusedArtSlidesOf: later slides whose art already appeared', () => {
 })
 
 test('heroSlidesOf: the last slide never shares art with the first', () => {
-  const slides = heroSlidesOf({ inProgress: [episode()], upcoming: [upcomingItem({ name: 'The Block' })], nowMs, timeZone })
+  const slides = heroSlidesOf({ inProgress: [episode()], upcoming: [upcomingItem({ name: 'The Block' })], nowMs, timeZone, remix: false })
   assert.deepEqual(slides.map((s) => s.type), ['continue'])
   assert.equal(showArt('The Block'), slides[0].art.image)
+})
+
+test('heroSlidesOf: up to two of a kind, one per show, to mix through the day', () => {
+  const feed = {
+    inProgress: [episode(), episode({ recordingId: 'r4', showKey: 'mkr', title: 'MKR' }), episode({ recordingId: 'r5', showKey: 'qi', title: 'QI' })],
+    upcoming: [upcomingItem(), upcomingItem({ programId: 78, startDate: nowMs + 90 * MIN }), upcomingItem({ programId: 79, name: 'Hard Quiz' })],
+    movies: [movie(), movie({ recordingId: 'm2', showKey: 'jaws', title: 'Jaws' })],
+    nowMs,
+    timeZone,
+  }
+  const candidates = heroCandidatesOf(feed)
+  assert.deepEqual(keys(candidates), ['continue:r1', 'continue:r4', 'upcoming:77', 'upcoming:79', 'movie:m1', 'movie:m2'])
+})
+
+test('heroSlidesOf: remixes by the hour with recording now first', () => {
+  const feed = {
+    ...fullFeed(),
+    remix: true,
+    newEpisodes: [episode({ recordingId: 'n1', showKey: 'mkr', title: 'MKR' })],
+    shows: [show({ key: 'mkr' })],
+    recordingNow: [recording({ title: 'Gogglebox', channelId: 'c10', stop: nowMs + 30 * 60 * MIN })],
+    nowEntries: [entry({ now: { end: nowMs + 30 * 60 * MIN } })],
+    upcoming: [upcomingItem({ name: 'Hard Quiz', programId: 79, startDate: nowMs + 30 * 60 * MIN })],
+  }
+  const hourly = Array.from({ length: 24 }, (_, h) => heroSlidesOf({ ...feed, nowMs: nowMs + h * 3_600_000 }))
+  assert.ok(hourly.every((slides) => slides[0].type === 'recording' && slides[1].type === 'on-now'))
+  assert.ok(new Set(hourly.map((slides) => keys(slides).join())).size > 1)
+  assert.deepEqual(keys(heroSlidesOf(feed)), keys(heroSlidesOf({ ...feed, nowMs: nowMs + 30 * MIN })))
 })
