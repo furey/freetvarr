@@ -62,7 +62,7 @@ export const ChannelsModal = {
         <header class="ui-sheet-header">
           <h2 id="channels-sheet-title" class="ui-sheet-title">Channels</h2>
           <info-button title="Channels" doc="guide/tv-guide#favourites">
-            <p>Favourites sit at the top of Live TV and the Guide, in the order set here. Press a star to add or remove a favourite, and press Edit order to change the order.</p>
+            <p>Favourites sit at the top of Live TV and the TV guide, in the order set here. Press a star to add or remove a favourite, and press Edit order to change the order.</p>
             <p>Turn a channel off to hide it from both pages. A favourite is always shown. The sort order, Hide SD simulcasts, and Hide SD channels apply to the other channels.</p>
             <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the Guide.</p>
           </info-button>
@@ -76,7 +76,7 @@ export const ChannelsModal = {
                 <button v-if="pinnedDraft.length >= 2" type="button" class="sort-edit-order" @click="enterOrderMode">Edit order</button>
               </div>
               <p v-if="pinnedDraft.length === 0" class="ui-meta">
-                No favourites yet. Tap the <span class="whitespace-nowrap"><star-icon class="icon-inline" /> next</span> to a channel below, in the Guide rail, or in Live TV.
+                No favourites yet. Tap the <span class="whitespace-nowrap"><star-icon class="icon-inline" /> next</span> to a channel below, in the TV guide rail, or in Live TV.
               </p>
               <div v-else class="ui-group">
                 <div v-for="id in shownFavourites" :key="id" class="ui-group-row channels-pin-row">
@@ -109,7 +109,7 @@ export const ChannelsModal = {
               <div class="ui-group-row">
                 <span class="ui-group-row-main">
                   <span class="ui-group-row-title">Hide SD channels</span>
-                  <span class="ui-group-row-meta">Shows only HD channels. SD-only channels (for example 7flix) are hidden too. Applies to the Guide, search, and Live TV; a favourite is never hidden.</span>
+                  <span class="ui-group-row-meta">Shows only HD channels. SD-only channels (for example 7flix) are hidden too. Applies to the TV guide, search, and Live TV; a favourite is never hidden.</span>
                 </span>
                 <button type="button" class="ui-switch" aria-label="Hide SD channels"
                   :aria-pressed="String(hideSdChannelsDraft)" @click="hideSdChannelsDraft = !hideSdChannelsDraft"></button>

@@ -41,7 +41,7 @@ features:
       vendor who can retire your recorder.
     link: /guide/hardware
     linkText: What to buy
-  - title: Guide
+  - title: TV guide
     details: >-
       A 7-day programme guide in the browser: schedule, cancel, and
       series-record in TVHeadend, see which tuner records what, or ask to be
@@ -50,7 +50,7 @@ features:
     linkText: Browse and record
   - title: Series folders
     details: >-
-      Record a series from the Guide, match it to a folder under your media
+      Record a series from the TV guide, match it to a folder under your media
       root, set a season template, and Freetvarr imports new episodes on your
       schedule.
     link: /guide/series

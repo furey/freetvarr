@@ -438,7 +438,7 @@ const channelsAddedText = (result) => {
 const defaultFavouritesText = (result) => {
   const names = (result?.ok && result.favourites || []).map((f) => f.name)
   if (!names.length) return ''
-  return `Favourites: ${names.join(', ')}. To change them, press the channel settings button in the Guide.`
+  return `Favourites: ${names.join(', ')}. To change them, press the channel settings button in the TV guide.`
 }
 
 const scanOrMapDetail = (step) => {

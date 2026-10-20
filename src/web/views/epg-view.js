@@ -90,7 +90,7 @@ export const EpgView = {
   components: { ...SORT_PART_COMPONENTS, GuideRow },
   template: `
     <div class="ui-page guide-page view-reveal">
-      <page-header title="Guide" :subtitle="dateSubtitle" :widgets="false">
+      <page-header title="TV guide" :subtitle="dateSubtitle" :widgets="false">
         <template #actions>
           <a href="#/recordings/scheduled" class="guide-scheduled-chip" :aria-label="scheduledLabel + '. Open Scheduled'">
             <span class="guide-scheduled-dot" aria-hidden="true"></span>{{ scheduledLabel }}
@@ -184,7 +184,7 @@ export const EpgView = {
         </p>
         <div v-if="errorCode === 'no-url'" class="ui-empty">
           <h2 class="ui-empty-title">Connect TVHeadend</h2>
-          <p class="ui-empty-text">Set the TVHeadend address in Settings to see the guide.</p>
+          <p class="ui-empty-text">Set the TVHeadend address in Settings to see the TV guide.</p>
           <div class="guide-empty-actions">
             <a href="#/settings/system/tvheadend" class="ui-button ui-button-primary">Open Settings</a>
             <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
@@ -196,7 +196,7 @@ export const EpgView = {
           <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
         </div>
         <div v-else-if="error" class="ui-empty">
-          <h2 class="ui-empty-title">The guide did not load</h2>
+          <h2 class="ui-empty-title">The TV guide did not load</h2>
           <p class="ui-empty-text">{{ error }} Check the TVHeadend connection in <a href="#/settings/system/tvheadend">Settings</a>.</p>
           <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
         </div>
@@ -688,7 +688,7 @@ export const EpgView = {
         dayFreshAt = Date.now()
         if (day.value === d) guide.value = g
       } catch (err) {
-        error.value = `Guide load failed: ${err.message}`
+        error.value = `TV guide load failed: ${err.message}`
         errorCode.value = err.code || ''
       } finally {
         loading.value = false

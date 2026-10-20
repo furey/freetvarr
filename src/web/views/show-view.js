@@ -86,7 +86,7 @@ export const ShowView = {
             <span class="show-rule-headline">{{ ruleStatus.headline }}</span>
             <span class="show-rule-detail">{{ ruleStatus.detail }}</span>
           </span>
-          <a href="#/guide" class="ui-button ui-button-sm">Guide</a>
+          <a href="#/guide" class="ui-button ui-button-sm">TV guide</a>
         </div>
 
         <section v-if="show.seasons.length" ref="episodesSection" class="show-episodes" aria-labelledby="show-episodes-title">

@@ -337,7 +337,7 @@ export const WelcomeView = {
               </ul>
             </div>
             <p class="text-ink-dim text-sm leading-relaxed">
-              Next: open the <strong class="text-ink">Guide</strong>, pick a programme, and press <strong class="text-ink">Record</strong> or <strong class="text-ink">Record series</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
+              Next: open the <strong class="text-ink">TV guide</strong>, pick a programme, and press <strong class="text-ink">Record</strong> or <strong class="text-ink">Record series</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
             </p>
             <p class="text-ink-dim text-sm leading-relaxed">
               To check the whole setup, <a href="#/settings/system/health">run the health checks</a>. It checks {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }} and lists anything to fix.
@@ -555,7 +555,7 @@ export const WelcomeView = {
       if (!channelState.value.channels) {
         return [{
           step: 3,
-          text: 'No channels yet. The TV Guide stays empty until you scan for channels.',
+          text: 'No channels yet. The TV guide stays empty until you scan for channels.',
           action: 'Go to Channels',
         }]
       }
@@ -563,7 +563,7 @@ export const WelcomeView = {
         return [{
           step: 4,
           text: 'No guide linked yet. Freetvarr cannot record a show by name without one.',
-          action: 'Go to Guide',
+          action: 'Go to the TV guide',
         }]
       }
       return []
@@ -588,7 +588,7 @@ export const WelcomeView = {
     const plexIsSetUp = computed(() => plexWillSave.value || Boolean(saved.plexUrl))
 
     const nextLabel = computed(() => {
-      if (step.value === totalSteps) return 'Open the Guide'
+      if (step.value === totalSteps) return 'Open the TV guide'
       if (step.value === 2) return 'Save and next'
       if (step.value === 3) return channelState.value.channels ? 'Next' : 'Skip'
       if (step.value === 4) {

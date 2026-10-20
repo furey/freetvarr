@@ -74,7 +74,7 @@ In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** i
 
 ## No channels
 
-Freetvarr reports `0 channels`, or the Guide has no rows.
+Freetvarr reports `0 channels`, or the TV guide has no rows.
 
 - Each tuner in **TV adapters** needs **Enabled** ticked and your network set in its **Networks** field ([TVHeadend step 3](/guide/tvheadend#_3-add-the-tuner)).
 - Every mux in **Configuration → DVB Inputs → Muxes** ending `FAIL` means the wrong pre-defined mux list, or an antenna that doesn't reach that transmitter. Pick the list for the transmitter your antenna points at ([step 4](/guide/tvheadend#_4-scan-the-muxes)).
@@ -83,19 +83,19 @@ Freetvarr reports `0 channels`, or the Guide has no rows.
 
 ## Empty guide
 
-The Guide shows channels but no programmes, or only about a day of them.
+The TV guide shows channels but no programmes, or only about a day of them.
 
 - Without an XMLTV feed you get only what the broadcast signal carries. In Australia that is about a day of thin data. UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
 - TVHeadend's log (`docker compose logs tvheadend`) says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. In TVHeadend's web interface, link them under **Configuration → Channel/EPG → EPG Grabber Channels**, then press **Re-run internal EPG grabbers**.
 - With the feed loaded but one channel blank, that channel isn't linked to a feed channel. See [Wrong programmes on a channel](#wrong-programmes-on-a-channel).
 - After you install a grabber script, restart TVHeadend (`docker compose restart tvheadend`). TVHeadend looks for grabbers at startup only, so a running TVHeadend never loads a new one.
-- Freetvarr keeps a copy of the TV guide for an hour, or a minute when it has no programmes. Freetvarr loads the TV guide again after guide setup and after a guide link change. After you fix TVHeadend, press the refresh button on the Guide.
+- Freetvarr keeps a copy of the TV guide for an hour, or a minute when it has no programmes. Freetvarr loads the TV guide again after guide setup and after a guide link change. After you fix TVHeadend, press the refresh button on the TV guide.
 
 ## Wrong programmes on a channel
 
-The Guide shows another channel's programmes on a channel, or no programmes on one channel while others have them. The channel is linked to the wrong guide channel, or to none.
+The TV guide shows another channel's programmes on a channel, or no programmes on one channel while others have them. The channel is linked to the wrong guide channel, or to none.
 
-- In the Guide, press **Channels**, press the pencil (**Change guide source**) next to the channel, pick the matching guide channel, then press **Save**. See [Channel listings](/guide/tv-guide#channel-listings).
+- In the TV guide, press **Channels**, press the pencil (**Change guide source**) next to the channel, pick the matching guide channel, then press **Save**. See [Channel listings](/guide/tv-guide#channel-listings).
 - Series recordings match on title and channel, so check [Scheduled](/guide/recordings#scheduled) after you change a link.
 
 ## Missing channel logos
@@ -137,7 +137,7 @@ TVHeadend's first-run wizard opens on every page load. The `wizard` value in **C
 
 TVHeadend finished a recording, but nothing appears in Recordings or in your media library.
 
-- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)). Pick **Every episode** and press **Record series** in the Guide, or use **Add title** in Settings → System → [Folders](/guide/series#title-matches).
+- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)). Pick **Every episode** and press **Record series** in the TV guide, or use **Add title** in Settings → System → [Folders](/guide/series#title-matches).
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.
 - **The sync hasn't run yet.** The default **Sync schedule** is `Every 30 minutes`. Press **Sync now** in Settings → System → [Activity](/guide/syncs) to run one at once.
 - **It came in as SKIPPED or PARTIAL.** See the next two sections.

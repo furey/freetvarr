@@ -84,7 +84,7 @@ The first visit to `http://<host-ip>:3733` in a browser opens the setup wizard:
 
 1. **Welcome**: confirm your time zone.
 2. **TVHeadend**: if Freetvarr installed TVHeadend for you, choose an admin username and password (press the eye button to check what you typed), check the allowed networks, then press **Secure TVHeadend and connect Freetvarr** to save the login in TVHeadend and connect Freetvarr to it. If you installed TVHeadend yourself, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
-3. **Channels**: check the tuners and the transmitter your antenna points at, then press **Find channels** to scan for channels. The scan takes a few minutes. If TVHeadend already has channels, press **Next** to skip the scan, or **Scan again** to add channels that are missing. If the wizard finds no tuner, enter the tuner's IP address and press **Use this address**. In Australia, the scan also makes the HD channels of ABC, Seven, Nine, 10, and SBS your favourites, in that order, if you have no favourites yet. The step lists them; to change them, press **Channels** in the Guide ([Favourites](/guide/tv-guide#favourites)).
+3. **Channels**: check the tuners and the transmitter your antenna points at, then press **Find channels** to scan for channels. The scan takes a few minutes. If TVHeadend already has channels, press **Next** to skip the scan, or **Scan again** to add channels that are missing. If the wizard finds no tuner, enter the tuner's IP address and press **Use this address**. In Australia, the scan also makes the HD channels of ABC, Seven, Nine, 10, and SBS your favourites, in that order, if you have no favourites yet. The step lists them; to change them, press **Channels** in the TV guide ([Favourites](/guide/tv-guide#favourites)).
 4. **Guide**: check the TV guide region, then press **Set up guide**. For any channel left without TV guide listings, the wizard pre-selects its best guess (check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number to find the channel), then press **Save and next** to save the choices and move to the next step. A +1 channel, such as `10 HD +1`, gets the listings of its main channel one hour later ([+1 channels](/guide/tvheadend#_1-channels)). Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press **Skip**.
 5. **Storage**: Freetvarr checks the recordings folder and the TV folder of your media library. If the checks pass, press **Next**. If a check fails, do what its message says, or change the folders under **Advanced: change folders**.
 6. **Plex**: optional. Freetvarr looks for Plex and its access token. If Freetvarr connects to Plex, check the Plex TV library, press **Create libraries** if Plex has no library for your recordings yet, then press **Next**. Without Plex, press **Skip**. To enter the Plex address and token yourself, open **Advanced: connect Plex by hand** ([Plex](/guide/plex)).
@@ -93,10 +93,10 @@ Every value can be changed later in Freetvarr's Settings.
 
 ## 3. Record something
 
-In Freetvarr, open the [Guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in Settings → Schedule) and imports each one into your library ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
+In Freetvarr, open the [TV guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in Settings → Schedule) and imports each one into your library ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
 
 <!-- markdownlint-disable-next-line MD033 -->
-<BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the Guide: press the programme and press Record for one airing, then pick Every episode on another programme and press Record series" />
+<BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the TV guide: press the programme and press Record for one airing, then pick Every episode on another programme and press Record series" />
 
 ## 4. Save it as an app
 
@@ -164,7 +164,7 @@ A Freetvarr browser tab left open during the update offers a card with **Reload*
 - [What's new in 2.0](/guide/whats-new): the five destinations of the app.
 - [Home and search](/guide/home): what to watch now, and how to find a show.
 - [Player](/guide/player): live TV and recordings, Start over, the Miniplayer, and Multiview.
-- [Guide](/guide/tv-guide): schedule recordings from the browser.
+- [TV guide](/guide/tv-guide): schedule recordings from the browser.
 - [Series rules and folders](/guide/series): assign series folders and sync recordings into your library.
 - [Configuration](/guide/configuration): the full `.env` reference.
 - [Troubleshooting](/guide/troubleshooting): if the TVHeadend connection, an import, or Plex does not work.

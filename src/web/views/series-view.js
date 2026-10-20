@@ -37,7 +37,7 @@ export const SeriesView = {
           </p>
           <info-button title="Series rules" doc="guide/series">
             <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
-            <p>To record a new series, open the <strong>Guide</strong>, pick a programme, and press <strong>Record series</strong>. An SD and an HD recording of the same title show as one series.</p>
+            <p>To record a new series, open the <strong>TV guide</strong>, pick a programme, and press <strong>Record series</strong>. An SD and an HD recording of the same title show as one series.</p>
             <p>Press a row to open the series under it. There you change where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
             <p>A series with no folder in your TV library saves to the one-off folder. Open it and press <strong>Assign folder</strong> to give it one. <strong>Unassign folder</strong> in the same place takes it away again. Episodes already imported stay where they are.</p>
             <p><strong>Pause</strong>, in the open series, stops TVHeadend recording new episodes of this series, and the row shows <strong>Paused</strong>. Episodes already recorded still import. <strong>Resume</strong> starts it again.</p>
@@ -50,7 +50,7 @@ export const SeriesView = {
           <p v-if="error" class="ui-banner is-error">Cannot read the series recordings from TVHeadend: {{ error }}</p>
           <p v-else-if="stale" class="ui-banner is-warning">TVHeadend is not answering. This is its last known state.</p>
           <div v-if="!error && series.length === 0" class="ui-group">
-            <p class="settings-empty">No series recordings yet. Open the <a href="#/guide">Guide</a>, pick a programme, and press <strong>Record series</strong>.</p>
+            <p class="settings-empty">No series recordings yet. Open the <a href="#/guide">TV guide</a>, pick a programme, and press <strong>Record series</strong>.</p>
           </div>
           <template v-else>
             <div class="settings-filters">

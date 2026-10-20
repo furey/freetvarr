@@ -65,7 +65,7 @@ export const RecordingsLibraryView = {
       <section v-else-if="!shows.length" class="ui-empty" aria-label="Library">
         <h2 class="ui-empty-title">Nothing recorded yet</h2>
         <p class="ui-empty-text">Shows, movies, and one-offs you record appear here.</p>
-        <a href="#/guide" class="ui-button ui-button-primary">Find a show in the Guide</a>
+        <a href="#/guide" class="ui-button ui-button-primary">Find a show in the TV guide</a>
       </section>
 
       <section v-else-if="nothingShown" class="ui-empty" aria-label="Library">

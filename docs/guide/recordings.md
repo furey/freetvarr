@@ -32,7 +32,7 @@ Press a poster to open the show page. Press **⋯** under a poster, or hold the 
 
 When recent imports failed, a banner sits above the shelves. Press **Review** to open the [recording log](#recording-log), filtered to the failures.
 
-An empty library says `Nothing recorded yet` and offers **Find a show in the Guide**.
+An empty library says `Nothing recorded yet` and offers **Find a show in the TV guide**.
 
 ## Show pages
 
@@ -124,7 +124,7 @@ An episode whose library file is already gone is listed in the dialog. Freetvarr
 
 ## Scheduled
 
-**Scheduled** lists what TVHeadend records now and what it will record over the next 7 days. The Guide's `N scheduled` chip, the **Recording tonight** row on Home, and the recording chip in the header open it.
+**Scheduled** lists what TVHeadend records now and what it will record over the next 7 days. The TV guide's `N scheduled` chip, the **Recording tonight** row on Home, and the recording chip in the header open it.
 
 The list has these sections:
 
@@ -142,9 +142,9 @@ A strip of the next 7 days sits at the top of Scheduled on a phone, and beside t
 
 On a wide screen, a timeline beside the list shows what each tuner records over the next few hours, such as `Tonight's tuners`, with one line for each tuner. It looks ahead to the first clash, if there is one.
 
-A clash is a time when more programmes record than you have tuners. The timeline shows the clash on its own line, and a sentence under it says what to do, for example `The Block needs a third tuner from 8:30 to 9:00 pm. Skip one of the three, or it misses its first 30 minutes.` In the list, each clashing row says `No free tuner` with the times. To fix a clash, turn off the switch of one of the recordings, or move one to another airing in the [Guide](/guide/tv-guide).
+A clash is a time when more programmes record than you have tuners. The timeline shows the clash on its own line, and a sentence under it says what to do, for example `The Block needs a third tuner from 8:30 to 9:00 pm. Skip one of the three, or it misses its first 30 minutes.` In the list, each clashing row says `No free tuner` with the times. To fix a clash, turn off the switch of one of the recordings, or move one to another airing in the [TV guide](/guide/tv-guide).
 
-An empty list says `Nothing scheduled. Record from the Guide.` and offers **Open the Guide**.
+An empty list says `Nothing scheduled. Record from the TV guide.` and offers **Open the TV guide**.
 
 ## Playback
 

@@ -101,7 +101,7 @@ SiliconDust also sells a recording service, its [DVR service](https://info.hdhom
 
 This is the author's setup. The tuner sends TV to TVHeadend, free recording software that runs on an always-on computer at home. Freetvarr runs alongside it and gives you:
 
-- A 7-day [Guide](/guide/tv-guide), where you record one programme or a whole series.
+- A 7-day [TV guide](/guide/tv-guide), where you record one programme or a whole series.
 - [Recordings](/guide/recordings) filed into your media library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 - [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, watch live TV with the 7-day guide in Jellyfin or Kodi: Freetvarr shows the addresses to copy into the app ([TV apps](/guide/tv-apps)).
@@ -111,11 +111,11 @@ The clip below shows Freetvarr in use.
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Recording works like the record button on the Fetch remote. In Freetvarr's [Guide](/guide/tv-guide), press a programme to open it, then press **Record** for one episode. Pick **Every episode** and press **Record series** for every episode.
+Recording works like the record button on the Fetch remote. In Freetvarr's [TV guide](/guide/tv-guide), press a programme to open it, then press **Record** for one episode. Pick **Every episode** and press **Record series** for every episode.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme sheet in the Guide, with its image, description, padding settings, and Record, Record series, and Watch live buttons" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme sheet in the TV guide, with its image, description, padding settings, and Record, Record series, and Watch live buttons" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

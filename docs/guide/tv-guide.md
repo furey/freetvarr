@@ -1,25 +1,25 @@
 ---
-title: Guide
+title: TV guide
 description: >-
   A 7-day programme guide in the browser: schedule, cancel, series-record, and
   watch for a show in TVHeadend without opening TVHeadend.
 ---
 
-# Guide
+# TV guide
 
-The Guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or ask to be told when it airs. Freetvarr imports each recording into your library after TVHeadend records it.
+The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or ask to be told when it airs. Freetvarr imports each recording into your library after TVHeadend records it.
 
-The Guide shows only the listings you loaded into TVHeadend. With the XMLTV guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
+The TV guide shows only the listings you loaded into TVHeadend. With the XMLTV guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-guide.png" alt="The Guide" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-guide.png" alt="The TV guide" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
 ## The grid
 
-Channels run down the page and time runs across. The Guide opens at the current half hour.
+Channels run down the page and time runs across. The TV guide opens at the current half hour.
 
 - The **day chips** switch between today and the next six days. **Now** and **Tonight** jump within the day.
 - **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. In a narrower window, **Zoom** shows **−** and **+** instead. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
@@ -57,7 +57,7 @@ A switch in the sheet picks what to do. One line under it says what the main but
 - **Notify me** lists the show to watch for. See [Notify me](#notify-me).
 - **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the series folder, so the episodes go to the TV library. The note under the switch says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. The default is in Settings → Library and Plex. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
-- **Show in Guide** shows when you open the sheet outside the Guide. It opens the Guide at that channel and time.
+- **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
 - A scheduled programme shows **Cancel recording** instead. For an episode of a series recording, the button reads **Skip this episode**: TVHeadend keeps the episode disabled, so the series recording does not schedule it again. To turn it back on, open the episode later and press **Record**.
 - A programme that is recording now shows **Stop recording**. After `5` minutes or more, the part recorded so far stays and imports to your library; before `5` minutes, Freetvarr deletes it. The sheet says which applies.
 - A programme with a series recording also shows **Cancel series**. See [Cancel a series recording](/guide/series#cancel-a-series-recording).
@@ -70,14 +70,14 @@ The same sheet opens from [Home](/guide/home), [For you](/guide/for-you), [Live 
 
 ## Notify me
 
-**Notify me** is for a show that is not in the Guide yet, or one you are not sure about. Freetvarr lists the show under **Watching for** in Scheduled, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
+**Notify me** is for a show that is not in the TV guide yet, or one you are not sure about. Freetvarr lists the show under **Watching for** in Scheduled, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
 
 1. Press a programme of the show.
 2. Pick **Notify me**.
 3. To record the show as soon as it airs, turn on **Record when it appears**.
 4. Press **Notify me**. With the switch on, the button reads **Record when it appears**.
 
-**Record when it appears** sets an any-channel series recording the first time the show is in the Guide. The sheet of a show you already watch for says `You are watching for this show.` and offers **Stop watching**.
+**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide. The sheet of a show you already watch for says `You are watching for this show.` and offers **Stop watching**.
 
 Freetvarr sends no push message or email. The list in Scheduled is the notice.
 
@@ -116,7 +116,7 @@ Press **Save** to apply the changes. Press **Cancel** to close without saving.
 
 Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the **Guide** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard). The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
 
-1. In the Guide, press **Channels** above the grid.
+1. In the TV guide, press **Channels** above the grid.
 2. Press the pencil next to the channel (**Change guide source**). The row shows the current guide channel in a box you can type in.
 3. Type part of the guide channel's name to find it (`7` finds Seven and 7two), then pick the one that matches. Guide channels with no shows in the guide are at the end of the list, marked `(no shows in this guide)`, and you cannot pick them. The arrow keys and `Enter` also work, and `Esc` closes the list. Press the tick (**Use this guide source**, or `Enter` with the list closed). Press the cross (**Keep the current guide source**, or `Esc`) to keep the current pick.
 4. Press **Save** to save the new listings.
@@ -125,11 +125,11 @@ Each row shows the name of its guide channel, or `No listings`. A row you change
 
 Pick **No listings** to remove a channel's shows. The channel's shows go at once. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
 
-Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks TVHeadend to load the TV guide again. The channel stays empty while TVHeadend downloads the guide. In the channel's row, after the current time, the Guide shows `Loading the new listings. This can take a couple of minutes.` When the new shows are in TVHeadend, the Guide shows them and the note goes.
+Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks TVHeadend to load the TV guide again. The channel stays empty while TVHeadend downloads the guide. In the channel's row, after the current time, the TV guide shows `Loading the new listings. This can take a couple of minutes.` When the new shows are in TVHeadend, the TV guide shows them and the note goes.
 
 Freetvarr also turns off TVHeadend's **Auto EPG channel** setting for a channel you change. TVHeadend then does not add a guide channel to it again by name or number.
 
-Shows that already ended stay in the Guide under their old listings. A scheduled recording on the channel stays at its time, but no longer follows a guide programme.
+Shows that already ended stay in the TV guide under their old listings. A scheduled recording on the channel stays at its time, but no longer follows a guide programme.
 
 If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and proceed to its **Guide** step.
 
@@ -139,7 +139,7 @@ If saving the listings fails, the dialog says so on its own line. Your favourite
 
 ## On a phone
 
-The Guide works in a phone browser, with **Now**, **Tonight**, and the zoom buttons over the grid. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-save-it-as-an-app). In that Home Screen app, pull down from the top of a page to refresh it (see [Pull to refresh](/guide/syncs#pull-to-refresh)).
+The TV guide works in a phone browser, with **Now**, **Tonight**, and the zoom buttons over the grid. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-save-it-as-an-app). In that Home Screen app, pull down from the top of a page to refresh it (see [Pull to refresh](/guide/syncs#pull-to-refresh)).
 
 ## Live TV page
 
@@ -175,4 +175,4 @@ The key stays on the Freetvarr server; the browser never receives it. **Remove k
 
 ## Caching
 
-Freetvarr keeps a copy of the TV guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. The Guide fetches them again every 5 minutes while it is open, and when you come back to it after 5 minutes or more. If TVHeadend stops answering, the Guide shows its cached copy with a note, and updates when TVHeadend is back.
+Freetvarr keeps a copy of the TV guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. The TV guide fetches them again every 5 minutes while it is open, and when you come back to it after 5 minutes or more. If TVHeadend stops answering, the TV guide shows its cached copy with a note, and updates when TVHeadend is back.

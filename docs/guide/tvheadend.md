@@ -261,4 +261,4 @@ curl --digest -u freetvarr:<password> -o /dev/null -w '%{http_code}\n' \
 ## Where next
 
 - **[Getting started](/guide/getting-started)**: run Freetvarr and point it at this TVHeadend.
-- **[Guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from Freetvarr instead of TVHeadend's own web interface.
+- **[TV guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from Freetvarr instead of TVHeadend's own web interface.

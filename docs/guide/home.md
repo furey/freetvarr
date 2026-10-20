@@ -18,7 +18,7 @@ Home is the first page Freetvarr opens. It answers one question: what can I watc
 
 ## Navigation
 
-Freetvarr has five destinations: **Home**, **Live TV**, **Guide**, **Recordings**, and **Settings**. On a phone, a tab bar at the bottom holds them. On a tablet or computer, a rail down the left side holds them, with Settings at the bottom. The rail also has **For you** under Recordings, unless you turn For you off in Settings.
+Freetvarr has five destinations: **Home**, **Live TV**, **TV guide**, **Recordings**, and **Settings**. On a phone, a tab bar at the bottom holds them. On a tablet or computer, a rail down the left side holds them, with Settings at the bottom. The rail also has **For you** under Recordings, unless you turn For you off in Settings.
 
 Each page has these controls in its header:
 
@@ -42,7 +42,7 @@ Freetvarr picks the slides from these, in this order, and leaves out any that ha
 | **For you**                     | A suggestion from [For you](/guide/for-you), with the reason.                                  | **Record** or **Record series**, **Details**                              |
 | **Live news** or **Live sport** | A news or sports programme on now on a favourite channel.                                      | **Watch live**, **Record**                                                |
 | **Recording tonight**           | The next recording, with **Recording today** or **Recording tomorrow** when it is not tonight. | **Recording options** or **Details**, **Scheduled**                       |
-| **Now in the guide**            | A show you asked to be told about, now in the Guide.                                           | **Record** or **Record series**, **Details**                              |
+| **Now in the guide**            | A show you asked to be told about, now in the TV guide.                                        | **Record** or **Record series**, **Details**                              |
 | **Unwatched movie**             | A film you recorded and have not watched.                                                      | **Play** or **Resume**, **Details**                                       |
 
 **Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it or ask to be told when it airs.
@@ -54,13 +54,13 @@ Each slide also has a **⋯** button. It opens the same actions as the matching 
 Under the highlights, Home has these rows. A row with nothing in it is left out. A row title opens the same page as the link at the right end of the row.
 
 - **New recordings**: episodes you have not watched, newest first, with a `NEW` badge. Press a card to open the show page. **See all** opens [Recordings](/guide/recordings).
-- **For you**: suggestions from the next week of the Guide. Until Freetvarr knows what you like, this row is called **New this week**. **See all** opens the [For you](/guide/for-you) page.
+- **For you**: suggestions from the next week of the TV guide. Until Freetvarr knows what you like, this row is called **New this week**. **See all** opens the [For you](/guide/for-you) page.
 - **On now**: what is on your favourite channels, with the channel logo beside each title and a bar that shows how far through each programme is. Press a card to watch the channel live. **Live TV** opens the [Live TV](/guide/live-tv) page.
 - **Recording tonight**: up to three recordings for tonight. Press one to open [Scheduled](/guide/recordings#scheduled).
 
-**On now** shows only favourite channels. To fill it, press the star next to some channels in [Live TV](/guide/live-tv) or the [Guide](/guide/tv-guide#favourites).
+**On now** shows only favourite channels. To fill it, press the star next to some channels in [Live TV](/guide/live-tv) or the [TV guide](/guide/tv-guide#favourites).
 
-An empty Home says `Nothing recorded yet` and offers **Find a show in the Guide**.
+An empty Home says `Nothing recorded yet` and offers **Find a show in the TV guide**.
 
 ## More actions
 
@@ -86,7 +86,7 @@ When something Freetvarr needs is broken, such as TVHeadend not answering or the
 
 ## Search
 
-Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the Guide. The results come in two groups:
+Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the TV guide. The results come in two groups:
 
 - **SHOWS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
 - **IN THE GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.

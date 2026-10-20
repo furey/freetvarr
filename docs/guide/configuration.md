@@ -55,7 +55,7 @@ The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/med
 
 The optional **movies folder** (`movies_root`, or `MOVIES_ROOT`) takes [films](/guide/series#films) with no series folder. Leave it empty to send films to the one-off folder. It must sit inside the same shared mount as the recordings, for example `/data/media/movies`.
 
-**Import every recording**, under **Library** in Settings → Library and Plex, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **Add to library** on. **Add to library by default** in the same group sets the starting choice for new recordings in the Guide. To have Plex refresh the one-off library after an import, choose it as the **One-off section**; for films, choose the **Movies section**.
+**Import every recording**, under **Library** in Settings → Library and Plex, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **Add to library** on. **Add to library by default** in the same group sets the starting choice for new recordings in the TV guide. To have Plex refresh the one-off library after an import, choose it as the **One-off section**; for films, choose the **Movies section**.
 
 ## One shared mount
 

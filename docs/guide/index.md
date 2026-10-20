@@ -43,11 +43,11 @@ Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PC
 
 ## What Freetvarr isn't
 
-- **Not an indexer integration** (Sonarr / Radarr / Prowlarr). Freetvarr works with the recordings TVHeadend has made, and its [Guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content.
+- **Not an indexer integration** (Sonarr / Radarr / Prowlarr). Freetvarr works with the recordings TVHeadend has made, and its [TV guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content.
 - **Not a tuner.** TVHeadend drives the tuner, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never controls the hardware. See [TVHeadend](/guide/tvheadend).
 - **Not authenticated.** There's no login, so it's built for a home network you trust. The usual web hardening is in place (CSRF protection, rate limiting, a strict content-security policy), but anyone who can reach the page can change its settings, so don't expose it to the internet. See the [security model](/deep-dive#security-model).
 - **Not a converter.** Files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad removal drops the ad sections without re-encoding, so there's no quality loss. If you want `.mkv`, run the files through Tdarr or similar afterwards.
-- **Not a notifier.** No Discord / ntfy / push integration. **Notify me** in the [Guide](/guide/tv-guide#notify-me) adds a show to a list in the app; it sends no message.
+- **Not a notifier.** No Discord / ntfy / push integration. **Notify me** in the [TV guide](/guide/tv-guide#notify-me) adds a show to a list in the app; it sends no message.
 
 > [!IMPORTANT]<br>
 > Tested against TVHeadend `4.3` fed by an HDHomeRun Flex Quatro, with Plex Media Server. Other tuners and TVHeadend versions are unverified.
@@ -64,7 +64,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 - **[What's new in 2.0](/guide/whats-new)**: the five destinations, and where each old screen went.
 - **[Home and search](/guide/home)** and **[For you](/guide/for-you)**: what to watch now, and suggestions.
 - **[Live TV](/guide/live-tv)** and **[Player](/guide/player)**: watch live and recorded TV in the browser.
-- **[Guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
+- **[TV guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
 - **[Recordings](/guide/recordings)**: your library, show pages, and what records next.
 - **[Settings](/guide/settings)**: what each Settings page holds.
 - **[Series rules and folders](/guide/series)**: record a series and choose its folder.
@@ -82,7 +82,7 @@ It works on a phone, too.
     <img src="../img/screenshot-mobile-dashboard.png" alt="Home on a phone" width="780" height="1688" loading="lazy">
   </BrowserFrame>
   <BrowserFrame phone label="freetvarr.lan/#/guide">
-    <img src="../img/screenshot-mobile-guide.png" alt="The Guide on a phone" width="780" height="1688" loading="lazy">
+    <img src="../img/screenshot-mobile-guide.png" alt="The TV guide on a phone" width="780" height="1688" loading="lazy">
   </BrowserFrame>
   <BrowserFrame phone label="freetvarr.lan/#/live">
     <img src="../img/screenshot-mobile-live.png" alt="Live TV on a phone" width="780" height="1688" loading="lazy">

@@ -18,7 +18,7 @@ test('backTargetOf: opened from Scheduled says Scheduled', () => {
 })
 
 test('backTargetOf: opened from Guide, Live TV, or Settings uses that destination name', () => {
-  assert.equal(backTargetOf({ previousHash: '#/guide', currentHash: SHOW }).label, 'Guide')
+  assert.equal(backTargetOf({ previousHash: '#/guide', currentHash: SHOW }).label, 'TV guide')
   assert.equal(backTargetOf({ previousHash: '#/live', currentHash: SHOW }).label, 'Live TV')
   assert.equal(backTargetOf({ previousHash: '#/settings/system/health', currentHash: SHOW }).label, 'Settings')
 })
@@ -35,7 +35,7 @@ test('backTargetOf: a direct link or the same page falls back to Recordings', ()
 })
 
 test('backTargetOf: a caller can supply its own fallback', () => {
-  const fallback = { label: 'Guide', route: '#/guide', usesHistory: false }
+  const fallback = { label: 'TV guide', route: '#/guide', usesHistory: false }
   assert.equal(backTargetOf({ previousHash: null, fallback }), fallback)
 })
 

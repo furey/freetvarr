@@ -82,8 +82,8 @@ export const HomeView = {
 
         <section v-if="!inProgress.length && !newRecordings.length" class="ui-empty" aria-label="Nothing recorded yet">
           <h2 class="ui-empty-title">Nothing recorded yet</h2>
-          <p class="ui-empty-text">Find a show in the Guide and record it. New recordings show up here.</p>
-          <a href="#/guide" class="ui-button ui-button-primary">Find a show in the Guide</a>
+          <p class="ui-empty-text">Find a show in the TV guide and record it. New recordings show up here.</p>
+          <a href="#/guide" class="ui-button ui-button-primary">Find a show in the TV guide</a>
         </section>
 
         <section v-if="forYouRow" ref="forYouSection" class="ui-section home-for-you" aria-labelledby="home-for-you-title">

@@ -162,7 +162,7 @@ export const ProgrammeSheetHost = {
                 {{ modalAction === primaryAction.key ? pendingActionLabelOf(primaryAction.key) : primaryAction.label }}
               </button>
             </div>
-            <button v-if="canShowInGuide" type="button" class="programme-sheet-guide-link" @click="showSelectedInGuide">Show in Guide <chevron-right-icon /></button>
+            <button v-if="canShowInGuide" type="button" class="programme-sheet-guide-link" @click="showSelectedInGuide">Show in TV guide <chevron-right-icon /></button>
           </div>
         </template>
         </div>

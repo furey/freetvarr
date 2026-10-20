@@ -292,7 +292,7 @@ export const SettingsView = {
                 <toggle-switch v-model="addToLibraryDefault" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Add to library by default</span>
-                    <span class="settings-row-meta">New recordings you set in the Guide start with Add to library on. You can still change it for each recording.</span>
+                    <span class="settings-row-meta">New recordings you set in the TV guide start with Add to library on. You can still change it for each recording.</span>
                   </span>
                 </toggle-switch>
               </div>

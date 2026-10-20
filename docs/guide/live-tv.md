@@ -36,7 +36,7 @@ The page has these controls:
 - **All channels** and **Favourites** switch the list. The channels under **FAVOURITES** come first.
 - The **Filter channels or shows** field narrows the list by channel name or programme title.
 - **Images** shows a picture of what is on. **Zoom** has three levels, **S**, **M**, and **L**. Each browser remembers both.
-- The **Channel settings** button opens the same settings as the Guide: favourites, sort order, hidden channels, and listings. See [Favourites](/guide/tv-guide#favourites).
+- The **Channel settings** button opens the same settings as the TV guide: favourites, sort order, hidden channels, and listings. See [Favourites](/guide/tv-guide#favourites).
 - The star adds a channel to the favourites, or removes it.
 
 To reorder the favourites:

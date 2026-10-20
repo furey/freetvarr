@@ -173,8 +173,8 @@ export const ScheduledView = {
           </section>
 
           <section v-if="isEmpty" class="ui-empty" aria-label="Nothing scheduled">
-            <h2 class="ui-empty-title">Nothing scheduled. Record from the Guide.</h2>
-            <a href="#/guide" class="ui-button ui-button-primary">Open the Guide</a>
+            <h2 class="ui-empty-title">Nothing scheduled. Record from the TV guide.</h2>
+            <a href="#/guide" class="ui-button ui-button-primary">Open the TV guide</a>
           </section>
         </div>
 

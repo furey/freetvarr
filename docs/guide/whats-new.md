@@ -10,7 +10,7 @@ description: >-
 
 ## 2.0.0
 
-Freetvarr 2.0 redesigns the app around five destinations: **Home**, **Live TV**, **Guide**, **Recordings**, and **Settings**. Your recordings, series rules, folders, settings, and sync history carry over.
+Freetvarr 2.0 redesigns the app around five destinations: **Home**, **Live TV**, **TV guide**, **Recordings**, and **Settings**. Your recordings, series rules, folders, settings, and sync history carry over.
 
 ### Navigation
 
@@ -26,7 +26,7 @@ When a check fails, a dot shows on the Settings icon, and a red problem also sho
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Dashboard                               | [Home](/guide/home)                                                                                                         |
 | LIVE TV tab                             | [Live TV](/guide/live-tv)                                                                                                   |
-| TV GUIDE tab                            | [Guide](/guide/tv-guide)                                                                                                    |
+| TV GUIDE tab                            | [TV guide](/guide/tv-guide)                                                                                                 |
 | `UPCOMING` view in the TV Guide         | Recordings → [Scheduled](/guide/recordings#scheduled)                                                                       |
 | RECORDINGS tab                          | Recordings → [Library](/guide/recordings#library), and Settings → System → [Recording log](/guide/recordings#recording-log) |
 | SERIES tab                              | Settings → System → [Series rules](/guide/series) and [Folders](/guide/series#title-matches)                                |
@@ -50,7 +50,7 @@ A bookmark to an old address opens the new page:
 ### Home
 
 - **Highlights**: up to five slides at the top of Home, such as the episode to carry on with, a new episode, what records now, and a suggestion. Each slide has its own buttons, such as **Resume**, **Watch live**, or **Record series**.
-- **For you**: suggestions from the next week of the Guide, made on your own computer from what you record and watch. Home has a **For you** row, and **See all** opens the For you page. Suggestions start once Freetvarr knows about five of your shows; until then the row lists what is new this week. Settings → **Suggestions** turns them off, picks how much processor time they use, and pauses or clears your viewing history. See [For you](/guide/for-you).
+- **For you**: suggestions from the next week of the TV guide, made on your own computer from what you record and watch. Home has a **For you** row, and **See all** opens the For you page. Suggestions start once Freetvarr knows about five of your shows; until then the row lists what is new this week. Settings → **Suggestions** turns them off, picks how much processor time they use, and pauses or clears your viewing history. See [For you](/guide/for-you).
 - **New recordings**, **On now**, and **Recording tonight** rows. See [Home and search](/guide/home#rows).
 
 ### Recordings
@@ -65,9 +65,9 @@ Recordings has two views: **Library** and **Scheduled**.
 - **Recording options** holds the channels, how many episodes to keep, the start and finish padding, ad removal, and pause. Under **Advanced**, **Also known as** adds your own names for a show to search. See [Recording options](/guide/recordings#recording-options).
 - **Scheduled** lists what records now, today, tomorrow, and later this week, with a strip of the week's days. On a wide screen, a timeline shows what each tuner records and warns when two recordings need more tuners than you have. It replaces the `UPCOMING` view. See [Scheduled](/guide/recordings#scheduled).
 
-### Guide
+### TV guide
 
-The programme sheet has a third choice beside **This episode** and **Every episode**: **Notify me**. Pick it for a show that is not in the Guide yet. Freetvarr watches the Guide and lists the show under **Watching for** in Scheduled. Turn on **Record when it appears** to start an any-channel series recording the first time the show is in the Guide. See [Notify me](/guide/tv-guide#notify-me).
+The programme sheet has a third choice beside **This episode** and **Every episode**: **Notify me**. Pick it for a show that is not in the TV guide yet. Freetvarr watches the TV guide and lists the show under **Watching for** in Scheduled. Turn on **Record when it appears** to start an any-channel series recording the first time the show is in the TV guide. See [Notify me](/guide/tv-guide#notify-me).
 
 **Add to library** now has a default. Set it in Settings → Library and Plex. The programme sheet shows the choice under **Advanced**, so you can change it for one recording.
 

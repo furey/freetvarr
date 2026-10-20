@@ -1,14 +1,14 @@
 ---
 title: For you
 description: >-
-  Suggestions from the next week of the Guide, made on your own computer from
+  Suggestions from the next week of the TV guide, made on your own computer from
   what you record and watch. How they work, how to tune them, and the
   For you settings.
 ---
 
 # For you
 
-**For you** suggests programmes from the next 7 days of the Guide, based on what you record and watch. Freetvarr works out the suggestions on the computer that runs it. Your viewing history never leaves that computer.
+**For you** suggests programmes from the next 7 days of the TV guide, based on what you record and watch. Freetvarr works out the suggestions on the computer that runs it. Your viewing history never leaves that computer.
 
 Suggestions show in three places:
 
@@ -47,14 +47,14 @@ Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 
 Freetvarr needs to know about at least five shows before it makes personal suggestions. A show counts once you have recorded it, started an episode, asked to record it, or pressed **More like this** on it. Until then:
 
-- The Home row is called **New this week**, and lists premieres and films from the Guide.
-- The For you page asks you to **Pick a few shows you like** from this week's Guide. This is optional. Press the posters you like, then **Done**. Press **Skip** to hide the question for a week.
+- The Home row is called **New this week**, and lists premieres and films from the TV guide.
+- The For you page asks you to **Pick a few shows you like** from this week's TV guide. This is optional. Press the posters you like, then **Done**. Press **Skip** to hide the question for a week.
 
 If you already have recordings when you upgrade, they count, so suggestions start at once.
 
 ## How it works
 
-Freetvarr scores each programme in the next 7 days of the Guide against what you have recorded and watched. It looks at:
+Freetvarr scores each programme in the next 7 days of the TV guide against what you have recorded and watched. It looks at:
 
 - The genres of the shows you like. Freetvarr looks up the genres of each show on [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org), two free online databases.
 - The channels and times of day you usually watch.

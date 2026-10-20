@@ -5,7 +5,7 @@ export const DEFAULT_ROUTE = 'home'
 export const NAV_DESTINATIONS = [
   { key: 'home', label: 'Home', href: '#/home' },
   { key: 'live', label: 'Live TV', href: '#/live' },
-  { key: 'guide', label: 'Guide', href: '#/guide' },
+  { key: 'guide', label: 'TV guide', href: '#/guide' },
   { key: 'recordings', label: 'Recordings', href: '#/recordings' },
   { key: 'settings', label: 'Settings', href: '#/settings' },
 ]

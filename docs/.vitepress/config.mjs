@@ -111,7 +111,7 @@ export default withMermaid(defineConfig({
           { text: 'For you', link: '/guide/for-you' },
           { text: 'Live TV', link: '/guide/live-tv' },
           { text: 'Player', link: '/guide/player' },
-          { text: 'Guide', link: '/guide/tv-guide' },
+          { text: 'TV guide', link: '/guide/tv-guide' },
           { text: 'Recordings', link: '/guide/recordings' },
           { text: 'Settings', link: '/guide/settings' }
         ]

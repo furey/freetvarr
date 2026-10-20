@@ -164,7 +164,7 @@ export const RecordingsView = {
         </div>
         <div v-else-if="total === 0" class="ui-group">
           <p class="settings-empty">
-            No recordings yet. To make a recording, open the <a href="#/guide">Guide</a>, pick a programme, and press <strong>Record</strong> or <strong>Record series</strong>. Recordings show here once TVHeadend starts them.
+            No recordings yet. To make a recording, open the <a href="#/guide">TV guide</a>, pick a programme, and press <strong>Record</strong> or <strong>Record series</strong>. Recordings show here once TVHeadend starts them.
           </p>
         </div>
       </div>

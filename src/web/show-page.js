@@ -78,7 +78,7 @@ export const ruleStatusOf = ({ show, activeRecording, timeZone }) => {
     return {
       tone: 'idle',
       headline: 'Not recording new episodes',
-      detail: 'To record new episodes, find the show in the Guide and choose Record series.',
+      detail: 'To record new episodes, find the show in the TV guide and choose Record series.',
     }
   }
   return { tone: toneOf({ rule, activeRecording }), headline: headlineOf({ show, activeRecording, timeZone }), detail: rule.summary }

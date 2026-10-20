@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Freetvarr",
   "short_name": "Freetvarr",
-  "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into your media library.",
+  "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the TV guide, schedule recordings, and sync them into your media library.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

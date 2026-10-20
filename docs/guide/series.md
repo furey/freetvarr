@@ -1,7 +1,7 @@
 ---
 title: Series rules and folders
 description: >-
-  Record a series from the Guide, give it a series folder, and set where
+  Record a series from the TV guide, give it a series folder, and set where
   episodes are saved and how they are named.
 ---
 
@@ -19,7 +19,7 @@ Series rules and Folders replace the SERIES tab of earlier versions; the old add
 
 ## Add a series
 
-1. In Freetvarr, open the [Guide](/guide/tv-guide#recording-a-programme).
+1. In Freetvarr, open the [TV guide](/guide/tv-guide#recording-a-programme).
 2. Press a programme of the series.
 3. Pick **Every episode**.
 4. Press **Record series**.
@@ -77,7 +77,7 @@ The group title shows how many series match. **Clear filters** shows all series 
 
 ## Cancel a series recording
 
-In Series rules, press a row, then **Cancel series**. **Stop recording this show** in [Recording options](/guide/recordings#recording-options), the programme sheet of the Guide, and the live player reach the same question. TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files. Before it cancels, Freetvarr asks:
+In Series rules, press a row, then **Cancel series**. **Stop recording this show** in [Recording options](/guide/recordings#recording-options), the programme sheet of the TV guide, and the live player reach the same question. TVHeadend stops recording new episodes and removes the upcoming ones. Episodes already recorded stay, and so do their files. Before it cancels, Freetvarr asks:
 
 - **Stop the episode on now** (shown while an episode records): on by default. After `5` minutes or more of recording, the episode stops and the part recorded so far stays. Before `5` minutes, Freetvarr deletes it. Turn the switch off to let the episode record to the end.
 - **Keep title match** (shown when a [title match](#title-matches) saves this series): off by default when **Record series** made the title match, so cancelling removes it. A title match records nothing by itself; it only decides the folder for recordings with that text in the title. Turn the switch on to keep saving them to the same folder.
