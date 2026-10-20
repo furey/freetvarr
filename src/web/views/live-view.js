@@ -55,7 +55,7 @@ export const LiveView = {
       <list-skeleton v-else-if="!data" class="live-skeleton" :rows="8" logo :thumb="showImages" />
       <p v-else-if="!groups.length && favouritesHint" class="live-note">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
       <p v-else-if="!groups.length" class="live-note">{{ emptyText }}</p>
-      <div :class="['live-groups', 'live-zoom-' + zoom]">
+      <div :class="['live-groups', 'live-zoom-' + zoom, { 'live-images-off': !showImages }]">
         <section v-for="g in groups" :key="g.key" class="live-group" :aria-label="g.label">
           <div class="live-group-head">
             <h2 class="ui-group-label">{{ g.label }}</h2>
@@ -83,7 +83,7 @@ export const LiveView = {
               </div>
               <button type="button" class="live-watch" :title="e.channel.offAir ? OFF_AIR_MESSAGE : null"
                 :aria-label="watchRowLabel({ channel: e.channel, now: e.now })" @click="watchLive({ channel: e.channel, nowTitle: e.now?.title || '' })">
-                <span v-if="showImages" class="live-thumb">
+                <span class="live-thumb">
                   <programme-image v-if="e.now" :event-id="e.now.has_image ? e.now.program_id : null"
                     :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" :title="e.now.title" />
                 </span>

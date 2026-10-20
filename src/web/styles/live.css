@@ -274,6 +274,10 @@
   transition: transform var(--motion-fast) var(--ease-standard);
 }
 
+.live-images-off .live-thumb {
+  display: none;
+}
+
 .live-thumb .programme-image.thumb {
   width: 100%;
   height: 100%;

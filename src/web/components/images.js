@@ -147,7 +147,6 @@ export const ProgrammeImage = {
     const fadeInFromCache = () => {
       const cached = src.value == null ? 'failed' : imageStatusOf(img.value)
       if (cached !== 'loaded') return settleFromCache()
-      getComputedStyle(img.value).opacity
       status.value = 'loaded'
     }
     onMounted(() => {

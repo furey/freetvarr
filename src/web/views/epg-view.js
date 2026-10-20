@@ -1,8 +1,10 @@
 import {
   ref,
+  shallowRef,
   computed,
   onMounted,
   onUnmounted,
+  provide,
   watch,
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
@@ -14,6 +16,7 @@ import {
   spillLengthMin,
   rulerTickMinutes,
 } from '/guide-time.js'
+import { cellWindowOf, crossesRailEdge, nearRowKeysOf, pinsScrolledAway, sameCellWindow, scrollLeadOf, spanOnScreen, windowedCellsByRow } from '/guide-window.js'
 import { findSeriesLink } from '/series-link.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordingProgramIdsOf } from '/live-record.js'
@@ -53,7 +56,8 @@ import { liveChannelOf, watchLive } from '/shared/live-session.js'
 import { makeStatus } from '/shared/path-check.js'
 import { setDragLock, useFavouriteOrderSave, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
-import { railEdgeDirective } from '/shared/scroll-proximity.js'
+import { GUIDE_ROW_CONTEXT, GuideRow } from '/components/guide-row.js'
+import { RAIL_EDGE_ATTRIBUTE } from '/shared/scroll-proximity.js'
 import { arrangeByOrder } from '/sortable-math.js'
 import { live } from '/shared/player-shared.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
@@ -87,6 +91,7 @@ const EPG_RAIL_MIN_PX = 90
 const EPG_RAIL_MAX_PX = 320
 const EPG_RAIL_KEY = 'freetvarr.epgRailPx'
 const EPG_IMAGES_KEY = 'freetvarr.guideImages'
+const EPG_NO_CELLS = Object.freeze([])
 
 const EPG_STATE_POLL_MS = 60_000
 const LISTINGS_REFRESH_MS = 10_000
@@ -98,8 +103,7 @@ const SCHEDULED_HREF = '#/recordings/scheduled'
 const ANY_CHANNEL_HINT = 'Records this series whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again.'
 
 export const EpgView = {
-  components: SORT_PART_COMPONENTS,
-  directives: { railEdge: railEdgeDirective },
+  components: { ...SORT_PART_COMPONENTS, GuideRow },
   template: `
     <div class="ui-page guide-page view-reveal">
       <page-header title="Guide" :subtitle="dateSubtitle" :widgets="false">
@@ -230,53 +234,8 @@ export const EpgView = {
               <span class="epg-guide-end">Guide ends {{ lastDayLabel }}</span>
             </div>
             <transition-group name="epg-rows" tag="div" class="epg-rows">
-            <div v-for="{ kind, key, label, shown, ch, pinIndex } in railItems" :key="key"
-              v-show="shown"
-              v-memo="[ch, label, shown, loadingIds.has(ch?.id), loadingNoteMaxPx, nowMs, state, watchedKeys, railNumWidth, zoom, thumbMinCellPx, narrow, canSort, pinIndex, pinnedCount]"
-              :data-channel-id="ch?.id"
-              :data-sort-id="ch?.pinned && canSort ? key : null"
-              :class="kind === 'heading' ? 'epg-heading-row' : ['epg-row', { pinned: ch.pinned }]">
-              <template v-if="kind === 'heading'">
-                <div class="epg-heading-rail">
-                  <span class="channel-group-heading">{{ label }}</span>
-                  <button v-if="key === 'h-fav' && narrow && pinnedCount >= 2" type="button" class="sort-edit-order epg-edit-order"
-                    @click="openOrderEditor">Edit order</button>
-                </div>
-                <div class="epg-heading-track"></div>
-              </template>
-              <template v-else>
-              <div :class="['epg-rail-cell', { 'off-air': ch.offAir }]">
-                <button v-if="ch.pinned && canSort" type="button" class="sort-handle epg-sort-handle" data-sort-handle
-                  aria-roledescription="sortable" title="Drag to reorder"
-                  :aria-label="'Reorder ' + ch.name + ', position ' + (pinIndex + 1) + ' of ' + pinnedCount + '. Press Space to pick up.'"
-                  @pointerdown="sort.onPointerDown(key, $event)"
-                  @keydown="sort.onKeydown(key, $event)"
-                  @blur="sort.onBlur(key)"><sort-grip-icon /></button>
-                <span v-else-if="!narrow" class="sort-gutter" aria-hidden="true"></span>
-                <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
-              </div>
-              <div class="epg-track" :style="{ width: trackWidth + 'px' }">
-                <span v-if="loadingIds.has(ch.id)" class="epg-loading-note" role="status"
-                  :title="LISTINGS_LOADING_TEXT"
-                  :style="{ left: (nowX ?? 0) + 8 + 'px', maxWidth: loadingNoteMaxPx + 'px' }">{{ LISTINGS_LOADING_TEXT }}</span>
-                <button v-for="p in guide.programs[ch.id]" :key="p.program_id + '-' + p.start" v-rail-edge type="button"
-                  :class="['epg-cell', cellState(p), { past: p.past || p.end <= nowMs, 'on-now': p.start <= nowMs && p.end > nowMs, 'next-day': p.start >= guide.dayEnd, 'with-thumb': cellHasThumb(p) }]"
-                  :style="cellStyle(p)" :aria-label="cellTitle(p)" :data-key="cellKey(ch, p)"
-                  @click="openProgram(p, ch)">
-                  <guide-cell-image v-if="cellHasThumb(p)" :event-id="p.program_id"
-                    :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
-                  <span v-if="cellShowsText(p)" class="epg-cell-text">
-                    <span class="epg-cell-title"><span v-if="cellMarks(p).scheduledDot" class="epg-cell-dot is-inline" aria-hidden="true"></span><span v-else-if="cellMarks(p).watchDot" class="epg-cell-dot is-inline is-watch" aria-hidden="true"></span>{{ p.title }}</span>
-                    <span class="epg-cell-meta">{{ fmtClock(p.start) }}</span>
-                  </span>
-                  <template v-else>
-                    <span v-if="cellMarks(p).scheduledDot" class="epg-cell-dot" aria-hidden="true"></span>
-                    <span v-else-if="cellMarks(p).watchDot" class="epg-cell-dot is-watch" aria-hidden="true"></span>
-                  </template>
-                </button>
-              </div>
-              </template>
-            </div>
+            <guide-row v-for="{ kind, key, label, shown, ch, pinIndex } in railItems" :key="key" v-show="shown"
+              :kind="kind" :row-key="key" :label="label" :ch="ch" :pin-index="pinIndex" />
             </transition-group>
             <div v-if="day === 0 && nowX != null" class="epg-nowline" :style="{ left: 'calc(var(--epg-rail-px) + ' + nowX + 'px)' }"></div>
           </div>
@@ -988,6 +947,126 @@ export const EpgView = {
       width: `${cellWidth(p)}px`,
     })
 
+    const cellViewCache = computed(() => ({
+      inputs: [
+        guide.value, nowMs.value, pxPerMin.value, thumbMinCellPx.value, tz.value, watchedKeys.value,
+        scheduledByProgramId.value, activeRecordingSet.value, seriesLinkSet.value,
+      ],
+      views: new WeakMap(),
+    }))
+
+    const cellViewFor = (p) => {
+      const hasThumb = cellHasThumb(p)
+      const playing = p.start <= nowMs.value && p.end > nowMs.value
+      return {
+        className: ['epg-cell', cellState(p), { past: p.past || p.end <= nowMs.value, 'on-now': playing, 'next-day': p.start >= guide.value.dayEnd, 'with-thumb': hasThumb }],
+        style: cellStyle(p),
+        title: cellTitle(p),
+        hasThumb,
+        showsText: cellShowsText(p),
+        marks: cellMarks(p),
+        clock: fmtClock(p.start),
+      }
+    }
+
+    const cellViewOf = (p) => {
+      const { views } = cellViewCache.value
+      if (!views.has(p)) views.set(p, cellViewFor(p))
+      return views.get(p)
+    }
+
+    const cellWindow = shallowRef(null)
+    const rowBands = shallowRef([])
+    const focusedCellKey = ref(null)
+
+    const nearRowKeys = computed(() => (cellWindow.value
+      ? nearRowKeysOf({ bands: rowBands.value, topPx: cellWindow.value.topPx, bottomPx: cellWindow.value.bottomPx })
+      : new Set()))
+
+    let previousCellsByRow = null
+    const retainedFor = { guide: null, pxPerMin: null }
+    const cellsByRow = computed(() => {
+      const shown = cellWindow.value
+      const current = guide.value
+      if (!shown || !current || shown.dayStart !== current.dayStart) {
+        previousCellsByRow = null
+        return new Map()
+      }
+      const retain = retainedFor.guide === current && retainedFor.pxPerMin === pxPerMin.value
+      retainedFor.guide = current
+      retainedFor.pxPerMin = pxPerMin.value
+      previousCellsByRow = windowedCellsByRow({
+        retain,
+        rows: visibleChannels.value.map((ch) => ({ key: String(ch.id), programmes: current.programs[ch.id] })),
+        isNear: (key) => nearRowKeys.value.has(key),
+        startMs: shown.startMs,
+        endMs: shown.endMs,
+        keepKey: focusedCellKey.value,
+        keyOf: (row, p) => `${row.key}|${p.program_id}|${p.start}`,
+        previous: previousCellsByRow,
+      })
+      return previousCellsByRow
+    })
+
+    const rowCells = (ch) => cellsByRow.value.get(String(ch.id)) || EPG_NO_CELLS
+
+    const scrollGeometry = { railW: 0, viewW: 0, viewH: 0, rulerH: 0 }
+    const scrollMotion = { left: 0, top: 0, leadX: 0, leadY: 0 }
+
+    const measureScrollGeometry = () => {
+      const el = scrollEl.value
+      if (!el) return
+      scrollGeometry.railW = railWidthOf(el)
+      scrollGeometry.viewW = el.clientWidth
+      scrollGeometry.viewH = el.clientHeight
+      scrollGeometry.rulerH = el.querySelector('.epg-ruler')?.offsetHeight || 0
+    }
+
+    const trackViewWidth = () => Math.max(scrollGeometry.viewW - scrollGeometry.railW, 0)
+
+    const scrollPosition = { left: 0, top: 0 }
+
+    const readScrollPosition = (el) => {
+      scrollPosition.left = el.scrollLeft
+      scrollPosition.top = el.scrollTop
+      return scrollPosition
+    }
+
+    const viewportOf = ({ left, top }) => ({
+      leftMin: left / pxPerMin.value,
+      widthMin: trackViewWidth() / pxPerMin.value,
+      topPx: top,
+      heightPx: scrollGeometry.viewH,
+      leadX: scrollMotion.leadX,
+      leadY: scrollMotion.leadY,
+    })
+
+    const aimCellWindow = (viewport) => {
+      if (!guide.value) return
+      const next = cellWindowOf({ dayStart: guide.value.dayStart, ...viewport })
+      if (!sameCellWindow(cellWindow.value, next)) cellWindow.value = next
+    }
+
+    const syncCellWindow = () => {
+      if (scrollEl.value) aimCellWindow(viewportOf(readScrollPosition(scrollEl.value)))
+    }
+
+    const measureRowBands = () => {
+      measureScrollGeometry()
+      const rows = scrollEl.value ? [...scrollEl.value.querySelectorAll('.epg-row')] : []
+      rowBands.value = rows
+        .filter((row) => row.offsetHeight > 0)
+        .map((row) => ({
+          key: row.dataset.channelId,
+          top: row.offsetTop,
+          bottom: row.offsetTop + row.offsetHeight,
+          pinned: row.classList.contains('pinned'),
+        }))
+    }
+
+    watch([railItems, zoom, narrow, scrollEl, railPx], measureRowBands, { flush: 'post' })
+    watch(guide, () => requestAnimationFrame(syncCellWindow))
+
     const loadDay = async (d, { force = false } = {}) => {
       error.value = ''
       errorCode.value = ''
@@ -1030,6 +1109,7 @@ export const EpgView = {
       const trackWidth = scrollEl.value.clientWidth - railWidthOf(scrollEl.value)
       const offset = anchor ? trackWidth * anchor : leadPx
       scrollEl.value.scrollLeft = Math.max(0, x - offset)
+      syncCellWindow()
     }
 
     const scrollToNow = () => scrollToMs(Date.now(), { anchor: EPG_NOW_ANCHOR })
@@ -1104,6 +1184,13 @@ export const EpgView = {
       return { minutes: (el.scrollLeft + screenX) / pxPerMin.value, screenX, row: firstVisibleRow(el) }
     }
 
+    const zoomedViewport = ({ el, anchor, pxPerMin }) => ({
+      leftMin: anchor.minutes - anchor.screenX / pxPerMin,
+      widthMin: Math.max(el.clientWidth - railWidthOf(el), 0) / pxPerMin,
+      topPx: el.scrollTop,
+      heightPx: el.clientHeight,
+    })
+
     const restoreZoomAnchor = (el, { minutes, screenX, row }) => {
       el.scrollLeft = minutes * pxPerMin.value - screenX
       if (row) el.scrollTop = row.el.offsetTop - row.offset
@@ -1115,9 +1202,11 @@ export const EpgView = {
       const el = scrollEl.value
       const anchor = el && guide.value ? captureZoomAnchor(el) : null
       zooming.value = true
+      if (anchor) aimCellWindow(zoomedViewport({ el, anchor, pxPerMin: level.pxPerMin }))
       zoom.value = level.key
       await nextTick()
       if (anchor) restoreZoomAnchor(el, anchor)
+      syncCellWindow()
       requestAnimationFrame(() => { zooming.value = false })
     }
 
@@ -1422,13 +1511,8 @@ export const EpgView = {
 
     const updatePinsOffscreen = () => {
       const el = scrollEl.value
-      if (!el) { pinsOffscreen.value = false; return }
-      const rects = [...el.querySelectorAll('.epg-row.pinned')]
-        .map((row) => row.getBoundingClientRect())
-        .filter((r) => r.height > 0)
-      if (!rects.length) { pinsOffscreen.value = false; return }
-      const rulerBottom = el.getBoundingClientRect().top + el.querySelector('.epg-ruler').offsetHeight
-      pinsOffscreen.value = rects[rects.length - 1].bottom < rulerBottom
+      pinsOffscreen.value = Boolean(el)
+        && pinsScrolledAway({ bands: rowBands.value, scrollTop: scrollPosition.top, rulerHeight: scrollGeometry.rulerH })
     }
 
     const scrollRailTop = () => scrollEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1437,9 +1521,8 @@ export const EpgView = {
 
     const updateMidnightOnScreen = () => {
       const el = scrollEl.value
-      if (!el || !guide.value) { midnightOnScreen.value = false; return }
-      const viewW = el.clientWidth - railWidthOf(el)
-      midnightOnScreen.value = midnightX.value >= el.scrollLeft && midnightX.value <= el.scrollLeft + viewW
+      midnightOnScreen.value = Boolean(el && guide.value)
+        && spanOnScreen({ x: midnightX.value, scrollLeft: scrollPosition.left, viewWidth: trackViewWidth() })
     }
 
     const updateFloatingChips = () => {
@@ -1448,6 +1531,70 @@ export const EpgView = {
     }
 
     watch([midnightX, guide], () => nextTick(updateMidnightOnScreen))
+    watch(rowBands, updatePinsOffscreen)
+
+    const railEdgeSlackMs = () => (trackViewWidth() / 4 / pxPerMin.value) * 60_000
+
+    let railEdgeKeys = new Set()
+
+    const railEdgeKeysNow = () => {
+      const el = scrollEl.value
+      const keys = new Set()
+      if (!el || !guide.value) return keys
+      const edgeMs = guide.value.dayStart + (scrollPosition.left / pxPerMin.value) * 60_000
+      const slackMs = railEdgeSlackMs()
+      const rowsNearView = nearRowKeysOf({
+        bands: rowBands.value,
+        topPx: scrollPosition.top - scrollGeometry.viewH / 2,
+        bottomPx: scrollPosition.top + scrollGeometry.viewH * 1.5,
+      })
+      for (const [rowKey, cells] of cellsByRow.value) {
+        if (!rowsNearView.has(rowKey)) continue
+        for (const programme of cells) {
+          if (crossesRailEdge({ programme, edgeMs, slackMs })) keys.add(`${rowKey}|${programme.program_id}|${programme.start}`)
+        }
+      }
+      return keys
+    }
+
+    const cellElementOf = (key) => scrollEl.value?.querySelector(`.epg-cell[data-key="${CSS.escape(key)}"]`)
+
+    const markRailEdges = () => {
+      const keys = railEdgeKeysNow()
+      for (const key of railEdgeKeys) if (!keys.has(key)) cellElementOf(key)?.removeAttribute(RAIL_EDGE_ATTRIBUTE)
+      for (const key of keys) if (!railEdgeKeys.has(key)) cellElementOf(key)?.setAttribute(RAIL_EDGE_ATTRIBUTE, '')
+      railEdgeKeys = keys
+    }
+
+    const markAllRailEdges = () => {
+      railEdgeKeys = railEdgeKeysNow()
+      for (const cell of scrollEl.value?.querySelectorAll('.epg-cell') || []) {
+        const atEdge = railEdgeKeys.has(cell.dataset.key)
+        if (cell.hasAttribute(RAIL_EDGE_ATTRIBUTE) !== atEdge) cell.toggleAttribute(RAIL_EDGE_ATTRIBUTE, atEdge)
+      }
+    }
+
+    watch([cellsByRow, rowBands, zoom, showImages], markAllRailEdges, { flush: 'post' })
+
+    let scrollFrame = 0
+
+    const followScroll = () => {
+      scrollFrame = 0
+      const el = scrollEl.value
+      if (!el) return
+      const { left, top } = readScrollPosition(el)
+      scrollMotion.leadX = scrollLeadOf({ delta: left - scrollMotion.left, previous: scrollMotion.leadX })
+      scrollMotion.leadY = scrollLeadOf({ delta: top - scrollMotion.top, previous: scrollMotion.leadY })
+      scrollMotion.left = left
+      scrollMotion.top = top
+      aimCellWindow(viewportOf(scrollPosition))
+      markRailEdges()
+      updateFloatingChips()
+    }
+
+    const onGridScroll = () => {
+      if (!scrollFrame) scrollFrame = requestAnimationFrame(followScroll)
+    }
 
     const railStripH = ref(0)
     const scrollbarW = ref(0)
@@ -1459,17 +1606,22 @@ export const EpgView = {
 
     let scrollRo = null
     watch(scrollEl, (el, prev) => {
-      if (prev) prev.removeEventListener('scroll', updateFloatingChips)
+      if (prev) prev.removeEventListener('scroll', onGridScroll)
       if (scrollRo) { scrollRo.disconnect(); scrollRo = null }
       if (el) {
-        el.addEventListener('scroll', updateFloatingChips, { passive: true })
-        scrollRo = new ResizeObserver(() => { syncScrollSize(); updateFloatingChips() })
+        el.addEventListener('scroll', onGridScroll, { passive: true })
+        scrollRo = new ResizeObserver(() => { syncScrollSize(); measureRowBands(); syncCellWindow(); updateFloatingChips() })
         scrollRo.observe(el)
+        const rowsEl = el.querySelector('.epg-rows')
+        if (rowsEl) scrollRo.observe(rowsEl)
       }
       syncScrollSize()
       updateFloatingChips()
     })
-    onUnmounted(() => { if (scrollRo) scrollRo.disconnect() })
+    onUnmounted(() => {
+      if (scrollRo) scrollRo.disconnect()
+      cancelAnimationFrame(scrollFrame)
+    })
 
     const railResize = { active: false, startX: 0, startW: 0 }
 
@@ -1649,6 +1801,7 @@ export const EpgView = {
 
     const onGridFocusIn = (e) => {
       const cell = e.target.closest?.('.epg-cell')
+      if (cell) focusedCellKey.value = cell.dataset.key
       if (!cell || !cell.matches(':focus-visible') || !cellIsTruncated(cell)) return forgetHoveredCell()
       hideTooltip()
       hover.cell = cell
@@ -1723,6 +1876,12 @@ export const EpgView = {
       hideTooltip()
       if (statePollTimer) clearInterval(statePollTimer)
       if (searchTimer) clearTimeout(searchTimer)
+    })
+
+    provide(GUIDE_ROW_CONTEXT, {
+      narrow, pinnedCount, openOrderEditor, canSort, sort, railNum, togglePin,
+      trackWidth, loadingIds, LISTINGS_LOADING_TEXT, nowX, loadingNoteMaxPx, guide, nowMs,
+      rowCells, cellViewOf, cellKey, openProgram,
     })
 
     return {
