@@ -1,9 +1,10 @@
-import { ref, computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { watchRowLabel } from '/live-info.js'
 import { OFF_AIR_MESSAGE, channelGroupLabel } from '/components/channel-identity.js'
 import { togglePinnedChannel } from '/components/channels-modal.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { onNowPercent } from '/shared/format.js'
+import { animateImagesToggle, viewportWithin } from '/shared/guide-images-motion.js'
 import { groupsOf, matchesFilter, timeLeftLabel, nextLabel } from '/live-list.js'
 import { watchLive } from '/shared/live-session.js'
 import { canEditOrderOf } from '/guide-rail.js'
@@ -32,7 +33,7 @@ export const LiveView = {
           <search-icon />
           <input v-no-autofill v-model="filterQ" type="search" placeholder="Filter channels or shows" aria-label="Filter channels or shows" />
         </label>
-        <button type="button" class="live-images-toggle" role="switch" :aria-checked="String(showImages)" @click="showImages = !showImages">
+        <button type="button" class="live-images-toggle" role="switch" :aria-checked="String(showImages)" @click="toggleImages">
           Images<span class="live-images-track" aria-hidden="true"></span>
         </button>
         <div class="ui-segmented is-compact live-zoom" role="group" aria-label="Zoom">
@@ -53,7 +54,7 @@ export const LiveView = {
       <list-skeleton v-else-if="!data" class="live-skeleton" :rows="8" logo :thumb="showImages" />
       <p v-else-if="!groups.length && favouritesHint" class="live-note">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
       <p v-else-if="!groups.length" class="live-note">{{ emptyText }}</p>
-      <div :class="['live-groups', 'live-zoom-' + zoom, { 'live-images-off': !showImages }]">
+      <div :class="['live-groups', 'live-zoom-' + zoom, { 'live-images-off': !showImages, 'live-images-leaving': imagesLeaving }]" ref="groupsEl">
         <section v-for="g in groups" :key="g.key" class="live-group" :aria-label="g.label">
           <div class="live-group-head">
             <h2 class="ui-group-label">{{ g.label }}</h2>
@@ -128,6 +129,21 @@ export const LiveView = {
     const filterQ = ref('')
     const pinnedOnly = storedFlag({ key: LIVE_FAVOURITES_ONLY_KEY, fallback: false })
     const showImages = storedFlag({ key: LIVE_IMAGES_KEY, fallback: true })
+    const groupsEl = ref(null)
+    const imagesLeaving = ref(false)
+    const toggleImages = () => animateImagesToggle({
+      scrollEl: groupsEl.value,
+      textSelector: '.live-watch .live-row-text',
+      thumbOf: (text) => text.parentElement.querySelector(':scope > .live-thumb'),
+      viewOf: viewportWithin,
+      flip: async () => {
+        showImages.value = !showImages.value
+        imagesLeaving.value = !showImages.value
+        await nextTick()
+        return !showImages.value
+      },
+      settle: () => { imagesLeaving.value = false },
+    })
     const zoom = storedChoice({ key: LIVE_ZOOM_KEY, options: LIVE_ZOOM_LEVELS, fallback: 'm' })
     const channelsModal = ref(false)
     const channelsModalMode = ref('channels')
@@ -259,7 +275,7 @@ export const LiveView = {
     })
 
     return {
-      data, error, tvhConfigured, filterQ, pinnedOnly, showImages, channelsModal, groups, favouritesHint, emptyText,
+      data, error, tvhConfigured, filterQ, pinnedOnly, showImages, toggleImages, imagesLeaving, groupsEl, channelsModal, groups, favouritesHint, emptyText,
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
       OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
       zoom, pageEl, narrow, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,

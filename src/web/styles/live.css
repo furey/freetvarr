@@ -330,6 +330,11 @@
   display: none;
 }
 
+.live-images-off.live-images-leaving .live-thumb {
+  display: block;
+  position: absolute;
+}
+
 .live-thumb .programme-image.thumb {
   width: 100%;
   height: 100%;

@@ -3,7 +3,8 @@ export const IMAGES_STAGGER_SPAN_MS = 100
 const EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
 const THUMB_HIDDEN = { opacity: 0, transform: 'translateX(-24px) scale(0.86)' }
 const THUMB_SHOWN = { opacity: 1, transform: 'none' }
-const TEXT_SELECTOR = '.epg-cell:is(.with-thumb, .maybe-thumb) .epg-cell-text'
+const GUIDE_TEXT_SELECTOR = '.epg-cell:is(.with-thumb, .maybe-thumb) .epg-cell-text'
+const guideThumbOf = (text) => text.parentElement.querySelector(':scope > .programme-image.cell')
 
 export const staggerDelayOf = ({ rect, view, spanMs = IMAGES_STAGGER_SPAN_MS }) => {
   const reach = view.width + view.height
@@ -12,20 +13,28 @@ export const staggerDelayOf = ({ rect, view, spanMs = IMAGES_STAGGER_SPAN_MS }) 
   return Math.min(spanMs, Math.max(0, (along / reach) * spanMs))
 }
 
-export const animateImagesToggle = async ({ scrollEl, flip, settle }) => {
+export const animateImagesToggle = async ({
+  scrollEl,
+  flip,
+  settle,
+  textSelector = GUIDE_TEXT_SELECTOR,
+  thumbOf = guideThumbOf,
+  viewOf = (el) => el.getBoundingClientRect(),
+}) => {
   if (!scrollEl || prefersReducedMotion()) {
     await flip()
+    settle()
     return
   }
   scrollEl.getAnimations({ subtree: true }).forEach((a) => a.cancel())
-  const before = new Map(visibleTexts(scrollEl).map(({ el, rect }) => [el, rect.left]))
+  const before = new Map(visibleTexts({ scrollEl, textSelector, view: viewOf(scrollEl) }).map(({ el, rect }) => [el, rect.left]))
   const goingOff = await flip()
-  const view = scrollEl.getBoundingClientRect()
+  const view = viewOf(scrollEl)
   const animations = [...before].filter(([el]) => el.isConnected).flatMap(([el, oldLeft]) => {
     const rect = el.getBoundingClientRect()
     const delay = staggerDelayOf({ rect, view })
     const dx = oldLeft - rect.left
-    const thumb = el.parentElement.querySelector(':scope > .programme-image.cell')
+    const thumb = thumbOf(el)
     return [
       Math.abs(dx) > 0.5 ? slideText({ el, dx, delay }) : null,
       thumb ? fadeThumb({ el: thumb, goingOff, delay }) : null,
@@ -36,12 +45,16 @@ export const animateImagesToggle = async ({ scrollEl, flip, settle }) => {
   settle()
 }
 
-const visibleTexts = (scrollEl) => {
-  const view = scrollEl.getBoundingClientRect()
-  return [...scrollEl.querySelectorAll(TEXT_SELECTOR)]
-    .map((el) => ({ el, rect: el.getBoundingClientRect() }))
-    .filter(({ rect }) => isOnScreen(rect, view))
+export const viewportWithin = (el) => {
+  const rect = el.getBoundingClientRect()
+  const top = Math.max(rect.top, 0)
+  const bottom = Math.min(rect.bottom, window.innerHeight)
+  return { left: rect.left, right: rect.right, width: rect.width, top, bottom, height: Math.max(0, bottom - top) }
 }
+
+const visibleTexts = ({ scrollEl, textSelector, view }) => [...scrollEl.querySelectorAll(textSelector)]
+  .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+  .filter(({ rect }) => isOnScreen(rect, view))
 
 const isOnScreen = (rect, view) =>
   rect.right > view.left && rect.left < view.right && rect.bottom > view.top && rect.top < view.bottom
