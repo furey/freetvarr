@@ -51,6 +51,8 @@ export const processRecordingAds = async ({ filePath, mode, recordingId }) => {
   }
 }
 
+export const adScansRunning = () => scansInFlight.size
+
 export const startManualAdScan = ({ filePath, mode, recordingId }) => {
   if (scansInFlight.has(recordingId)) return false
   processRecordingAds({ filePath, mode, recordingId })

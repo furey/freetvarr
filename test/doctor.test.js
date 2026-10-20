@@ -522,15 +522,19 @@ test('host.env: a Docker VM omits its internal address', async () => {
   assert.doesNotMatch(byId(report)['host.env'].detail, /192\.168\.139\.2/)
 })
 
-test('live.streams: names the measured speed and the limit', () => {
-  const check = liveStreamsCheck({ max_live_streams: 2, benchmark: { encoder: 'vaapi', speed: 6.2, estimated: 4 } })
+test('live.streams: names the measured streams and the limit', () => {
+  const benchmark = { encoder: 'vaapi', speed: 3.6, estimated: 4, rounds: [{ streams: 4, speed: 1.3, smooth: true }] }
+  const check = liveStreamsCheck({ max_live_streams: 2, benchmark })
   assert.equal(check.status, 'pass')
-  assert.equal(check.detail, 'Hardware transcoding measured at 6.2× real time, enough for 4 at once. Freetvarr plays up to 2 at once.')
+  assert.equal(check.detail, 'Hardware transcoding measured smooth for 4 live streams at once, each at 1.3× real time or better. Freetvarr plays up to 2 at once.')
 })
 
 test('live.streams: warns when the limit is above the estimate, skips before the first run', () => {
   const check = liveStreamsCheck({ max_live_streams: 2, benchmark: { encoder: 'software', speed: 2.1, estimated: 1 } })
   assert.equal(check.status, 'warn')
   assert.match(check.fix, /Set Live streams at once to 1\./)
+  const tooSlow = liveStreamsCheck({ max_live_streams: 1, benchmark: { encoder: 'software', speed: 0.9, estimated: 0 } })
+  assert.equal(tooSlow.status, 'warn')
+  assert.equal(tooSlow.fix, 'Pictures may stutter even with 1 live stream.')
   assert.equal(liveStreamsCheck({ max_live_streams: 1, benchmark: null }).status, 'skip')
 })

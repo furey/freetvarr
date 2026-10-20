@@ -594,11 +594,15 @@ export const liveStreamsCheck = (streams) => {
     return {
       status: 'warn',
       detail: `${measured}. ${limit}`,
-      fix: `Pictures may stutter. Set Live streams at once to ${streams.benchmark.estimated}.`,
+      fix: liveStreamsFix(streams.benchmark.estimated),
     }
   }
   return { status: 'pass', detail: `${measured}. ${limit}` }
 }
+
+const liveStreamsFix = (estimated) => estimated
+  ? `Pictures may stutter. Set Live streams at once to ${estimated}.`
+  : 'Pictures may stutter even with 1 live stream.'
 
 const runCheck = async ({ spec, ctx }) => {
   const base = { id: spec.id, group: spec.group, title: spec.title, doc: spec.doc, fix: '' }

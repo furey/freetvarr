@@ -123,6 +123,7 @@ import {
   keepGuideWarm,
 } from './epg.js'
 import {
+  adScansRunning,
   startManualAdScan,
   parseEdl,
   skipMarkerPath,
@@ -934,7 +935,7 @@ const liveStreams = createLiveStreams({
   encoderReady: liveEncoderReady,
   getSetting,
   setSetting,
-  isBusy: () => liveSessions.activeCount() + playbackSessions.activeCount() > 0,
+  isBusy: () => liveSessions.activeCount() + playbackSessions.activeCount() + adScansRunning() > 0,
 })
 liveStreams.load()
   .then(() => liveStreams.measure())

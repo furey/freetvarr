@@ -1,5 +1,5 @@
 import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
-import { streamChoicesOf, tooManyNoteOf, measuredText } from '/tuner-status.js'
+import { streamChoicesOf, isOverMeasured, measuredText } from '/tuner-status.js'
 import { TunerList, useTunerStatusWhile } from '/components/tuner-list.js'
 import { api } from '/shared/api.js'
 import { multi } from '/shared/multi-session.js'
@@ -18,9 +18,8 @@ export const LiveStreamsSetting = {
               :class="{ 'is-over-estimate': choice.tooMany }" :aria-pressed="String(current === choice.value)"
               :disabled="saving || !loaded" @click="choose(choice.value)">{{ choice.label }}</button>
           </div>
-          <p class="settings-hint">Two lets you use Multiview, and needs hardware transcoding; Freetvarr turns this on when it detects it.</p>
-          <p v-if="showTooMany" class="settings-hint live-streams-warn">{{ tooManyNote }}</p>
-          <p class="settings-hint">{{ measured }}</p>
+          <p class="settings-hint">Two lets you watch two channels at once in Multiview.</p>
+          <p class="settings-hint" :class="{ 'live-streams-warn': overMeasured }">{{ measured }}</p>
           <div class="settings-row-actions">
             <button type="button" class="btn btn-sm" :disabled="measuring || !loaded" @click="measure">
               <template v-if="measuring">Measuring…</template><template v-else><pulse-icon /> Measure again</template>
@@ -41,9 +40,8 @@ export const LiveStreamsSetting = {
     const benchmark = computed(() => state.value?.benchmark || null)
     const current = computed(() => state.value?.max_live_streams ?? null)
     const choices = computed(() => streamChoicesOf({ choices: state.value?.choices || [1, 2], benchmark: benchmark.value }))
-    const tooManyNote = computed(() => tooManyNoteOf(benchmark.value))
-    const showTooMany = computed(() => choices.value.some((choice) => choice.tooMany))
-    const measured = computed(() => measuredText({ benchmark: benchmark.value, clockText: fmtTime }))
+    const overMeasured = computed(() => isOverMeasured({ benchmark: benchmark.value, chosen: current.value }))
+    const measured = computed(() => measuredText({ benchmark: benchmark.value, chosen: current.value, clockText: fmtTime }))
 
     const load = async () => {
       try {
@@ -72,7 +70,7 @@ export const LiveStreamsSetting = {
 
     const measure = async () => {
       measuring.value = true
-      statusText.value = 'Measuring. This takes about 20 seconds.'
+      statusText.value = 'Measuring. This takes up to 30 seconds.'
       statusKind.value = 'busy'
       try {
         const r = await api('POST', '/api/live/benchmark')
@@ -81,7 +79,7 @@ export const LiveStreamsSetting = {
         statusKind.value = 'ok'
         load()
       } catch (err) {
-        statusText.value = err.code === 'busy' ? 'Stop live TV and recordings playback first, then measure again.' : `Could not measure: ${err.message}`
+        statusText.value = err.code === 'busy' ? 'Measure again once live TV, playback, and ad scans finish.' : `Could not measure: ${err.message}`
         statusKind.value = 'err'
       } finally {
         measuring.value = false
@@ -90,7 +88,7 @@ export const LiveStreamsSetting = {
 
     onMounted(load)
 
-    return { loaded, saving, measuring, current, choices, tooManyNote, showTooMany, measured, statusText, statusKind, choose, measure }
+    return { loaded, saving, measuring, current, choices, overMeasured, measured, statusText, statusKind, choose, measure }
   },
 }
 

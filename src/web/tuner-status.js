@@ -71,14 +71,11 @@ export const pickerRowsOf = ({ entries = [], status, excludeIds = [], conflictTe
 export const capacityText = (streams) => {
   const max = streams?.max ?? 1
   const plays = max === 1 ? 'Freetvarr plays 1 live stream at a time.' : `Freetvarr plays up to ${max} at once.`
-  if (!streams || !streams.encoder) return `Freetvarr can convert ${max === 1 ? '1 live stream' : `${max} live streams`} at once on this NAS.`
+  if (!streams?.encoder || streams.estimated == null) return plays
   if (streams.encoder === 'copy') return `This NAS sends live TV without converting it. ${plays}`
-  const how = streams.encoder === 'vaapi' ? 'with hardware' : 'in software'
-  const speed = Number(streams.speed || 0).toFixed(1)
-  const estimated = streams.estimated ?? max
-  const enough = estimated === 1 ? 'enough for 1 stream' : `enough for ${estimated} streams at once`
-  const tail = estimated === max ? '' : ` ${plays}`
-  return `This NAS converts live TV ${how} at ${speed}× real time, ${enough}.${tail}`
+  if (max > streams.estimated) return overChoiceText({ chosen: max, estimated: streams.estimated })
+  const measured = measuredCapacityText({ ...streams, clockText: null })
+  return max < streams.estimated ? `${measured} ${plays}` : measured
 }
 
 export const tunerExplainerOf = (status) => {
@@ -97,19 +94,40 @@ export const tunerExplainerOf = (status) => {
   ].filter(Boolean)
 }
 
-export const measuredText = ({ benchmark, clockText }) => {
+export const measuredText = ({ benchmark, chosen, clockText }) => {
   if (!benchmark) return 'Not measured yet.'
-  const when = benchmark.measuredAt ? ` Measured ${clockText(benchmark.measuredAt)}.` : ''
-  return `${capacityText({ ...benchmark, max: benchmark.estimated })}${when}`
+  if (benchmark.encoder === 'copy') return 'This NAS sends live TV without converting it.'
+  if (isOverMeasured({ benchmark, chosen })) return `${overChoiceText({ chosen, estimated: benchmark.estimated })} Measure again.`
+  return measuredCapacityText({ ...benchmark, clockText })
 }
 
-export const streamChoicesOf = ({ choices = [1, 2], benchmark }) => choices.map((value) => {
-  const tooMany = Boolean(benchmark?.estimated) && value > benchmark.estimated
-  return { value, label: String(value), tooMany }
-})
+export const isOverMeasured = ({ benchmark, chosen }) =>
+  Boolean(benchmark) && benchmark.encoder !== 'copy' && chosen > benchmark.estimated
 
-export const tooManyNoteOf = (benchmark) => {
-  if (!benchmark?.estimated) return ''
-  const n = benchmark.estimated
-  return `Your hardware measured enough for ${n}.`
+export const measuredCapacityText = ({ encoder, estimated, measuredAt, clockText }) => {
+  const how = encoder === 'vaapi' ? 'hardware' : 'software'
+  const when = clockText && measuredAt ? `, measured ${clockText(measuredAt)}` : ''
+  if (!estimated) return `Measured: this NAS cannot convert live TV smoothly (${how}${when}).`
+  return `Measured: this NAS can convert ${liveStreamsText(estimated)} at once (${how}${when}).`
 }
+
+export const overChoiceText = ({ chosen, estimated }) => {
+  const managed = estimated ? `managed ${estimated} smoothly` : 'could not convert even 1 smoothly'
+  return `You chose ${chosen}. The last measurement ${managed}, so ${stutterText({ chosen, estimated })}.`
+}
+
+export const streamChoicesOf = ({ choices = [1, 2], benchmark }) => choices.map((value) => ({
+  value,
+  label: String(value),
+  tooMany: isOverMeasured({ benchmark, chosen: value }),
+}))
+
+const stutterText = ({ chosen, estimated }) => {
+  if (chosen === 1) return 'the picture may stutter'
+  if (chosen - estimated === 1) return `the ${ORDINALS[chosen] || `${chosen}th`} picture may stutter`
+  return 'some pictures may stutter'
+}
+
+const liveStreamsText = (n) => (n === 1 ? '1 live stream' : `${n} live streams`)
+
+const ORDINALS = { 2: 'second', 3: 'third', 4: 'fourth' }

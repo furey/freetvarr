@@ -134,7 +134,7 @@ export const mountLiveStreams = ({ app, csrf, limiter, liveStreams }) => {
     try {
       const outcome = await liveStreams.measure()
       if (outcome.skipped) {
-        return res.status(409).json({ ok: false, code: 'busy', error: 'Stop live TV and recordings first, then measure again.' })
+        return res.status(409).json({ ok: false, code: 'busy', error: 'Measure again once live TV, playback, and ad scans finish.' })
       }
       res.json({ ok: true, benchmark: outcome.benchmark })
     } catch (err) {
