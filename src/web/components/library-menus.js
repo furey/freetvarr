@@ -216,7 +216,7 @@ export const DeleteConfirm = {
         returnFocus?.focus?.()
         return
       }
-      const layer = overlayStack.push()
+      const layer = overlayStack.push({ onBack: cancel })
       layerId = layer.id
       zIndex.value = layer.zIndex
       try { document.body.classList.add('sheet-open') } catch {}

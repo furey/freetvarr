@@ -23,7 +23,7 @@ import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/
 import { useConfirm } from '/components/dialogs.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
-import { EPG_NARROW_QUERY } from '/shared/constants.js'
+import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import { fmtBytes, seasonEpisodeLabel } from '/shared/format.js'
 import { playRecording } from '/shared/playback-session.js'
 import { storedChoice } from '/shared/storage.js'
@@ -281,7 +281,7 @@ export const RecordingsView = {
     const setSince = (v) => { sinceFilter.value = v; page.value = 1 }
     const setDeleted = (v) => { deletedFilter.value = v; page.value = 1 }
 
-    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+    const narrow = useMediaQuery(PHONE_LAYOUT_QUERY)
 
     const chipGroups = computed(() => [
       {

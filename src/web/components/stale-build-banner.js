@@ -3,6 +3,7 @@ import { staleBuild, serverAbout, loadedBuild, latestBuild, fetchServerAbout } f
 import { live, playback, playerMini } from '/shared/player-shared.js'
 import { overlayStack } from '/overlay-stack.js'
 import { nextPaint } from '/shared/composables.js'
+import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import {
   UPDATE_APPEAR_DELAY_MS,
   laterAfterPlaybackOf,
@@ -122,16 +123,16 @@ export const StaleBuildBanner = {
   },
 }
 
-const PHONE_QUERY = '(max-width: 767px)'
-const RAIL_WIDTH = 88
 const CLOCK_TICK_MS = 30_000
 
+const railWidthOf = () => document.querySelector('.app-rail')?.getBoundingClientRect().width ?? 0
+
 const viewportOf = () => {
-  const phone = window.matchMedia(PHONE_QUERY).matches
+  const phone = window.matchMedia(PHONE_LAYOUT_QUERY).matches
   return {
     phone,
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
-    railWidth: phone ? 0 : RAIL_WIDTH,
+    railWidth: phone ? 0 : railWidthOf(),
   }
 }

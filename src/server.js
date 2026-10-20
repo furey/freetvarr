@@ -186,7 +186,7 @@ import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
 import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
-import { createTvLogin, TvLoginError } from './tv-login.js'
+import { createTvLogin, deleteTvLoginRoute, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
 import { mountForYou } from './for-you-routes.js'
 import {
@@ -1647,6 +1647,13 @@ app.post('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, async (req, re
     res.status(502).json({ ok: false, error: `TVHeadend did not make the TV login: ${err.message}` })
   }
 })
+
+app.delete('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, deleteTvLoginRoute({
+  http: bootstrapHttp,
+  resolveConnection: () => resolveConnection(),
+  readLogin: () => readTvLogin(),
+  clearLogin: () => db('settings').whereIn('key', Object.values(TV_LOGIN_KEYS)).delete(),
+}))
 
 const TV_LOGIN_KEYS = { username: 'tv_login_username', password: 'tv_login_password', authCode: 'tv_login_auth_code' }
 

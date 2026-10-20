@@ -6,21 +6,21 @@ export const isHdChannelName = (name = '') =>
 export const isHdChannel = (channel) =>
   typeof channel.hd === 'boolean' ? channel.hd : isHdChannelName(channel.name)
 
-export const isSimulcastHd = (channel) => channel.hd === true || /hd$/i.test((channel.name || '').trim())
+export const isSimulcastHd = (channel) => channel.hd === true || isHdChannelName(channel.name)
 
-export const simulcastBaseKey = (name) => {
-  const base = (name || '').toLowerCase().replace(/\s*hd$/, '').trim()
-  return SIMULCAST_ALIASES[base] || base
-}
+export const simulcastBaseKey = (name) => simulcastTokens(name)
+  .map((token) => SIMULCAST_ALIASES[token] || token)
+  .join('')
 
 export const sdSimulcastIds = (channels) => new Set(simulcastPairsOf(channels)
   .flat()
   .filter((channel) => !isSimulcastHd(channel))
   .map((channel) => String(channel.id)))
 
-export const twinFormatsOf = (channels) => new Map(simulcastPairsOf(channels)
-  .flat()
-  .map((channel) => [String(channel.id), isSimulcastHd(channel) ? 'HD' : 'SD']))
+export const channelFormatsOf = ({ channels = [], hideSdSimulcasts = false, hideSdChannels = false }) =>
+  (hideSdSimulcasts || hideSdChannels
+    ? new Map()
+    : new Map(channels.map((channel) => [String(channel.id), isSimulcastHd(channel) ? 'HD' : 'SD'])))
 
 export const findHdSimulcast = ({ program, channelId, channels = [], programsByChannel = {}, needsSeriesLink = false }) => {
   const pressed = channels.find((c) => String(c.id) === String(channelId))
@@ -46,6 +46,14 @@ export const findHdSimulcast = ({ program, channelId, channels = [], programsByC
 }
 
 const SIMULCAST_ALIASES = { nine: '9', seven: '7', ten: '10' }
+
+const SIMULCAST_NOISE = new Set(['hd', 'channel'])
+
+const simulcastTokens = (name) => (name || '')
+  .replace(/([A-Za-z0-9])HD\b/g, '$1 ')
+  .toLowerCase()
+  .split(/[^a-z0-9+]+/)
+  .filter((token) => token && !SIMULCAST_NOISE.has(token))
 
 const simulcastPairsOf = (channels) => {
   const groups = new Map()

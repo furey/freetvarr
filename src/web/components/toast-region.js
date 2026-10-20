@@ -3,6 +3,7 @@ import { WarningGlyph } from '/components/nav-icons.js'
 import { live, playback, playerMini } from '/shared/player-shared.js'
 import { currentToast, dismissToast, pauseToast, resumeToast, runToastAction } from '/shared/toast.js'
 import { toastPlacementOf } from '/toast-queue.js'
+import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 
 export const ToastRegion = {
   components: { WarningGlyph },
@@ -39,7 +40,7 @@ export const ToastRegion = {
     const measure = () => {
       if (!regionEl.value) return
       placement.value = toastPlacementOf({
-        phone: window.matchMedia(PHONE_QUERY).matches,
+        phone: window.matchMedia(PHONE_LAYOUT_QUERY).matches,
         viewportHeight: window.innerHeight,
         toastLeft: regionEl.value.getBoundingClientRect().left,
         obstacles: visibleObstacles(),
@@ -72,7 +73,6 @@ export const ToastRegion = {
   },
 }
 
-const PHONE_QUERY = '(max-width: 767px)'
 const SETTLE_MS = 400
 const OBSTACLES = [
   { selector: '.pl-backdrop.is-mini', gap: 8 },

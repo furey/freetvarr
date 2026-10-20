@@ -4,6 +4,7 @@ import axios from 'axios'
 import { getSetting, setSetting } from './db.js'
 import { authorizationFor, createChallengeCache } from './http-auth.js'
 import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
+import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 
 export class TvheadendError extends Error {
@@ -111,7 +112,7 @@ export const isHdChannel = ({ name = '', serviceIds = [], services = new Map() }
     .map((service) => service.serviceType)
   if (types.some((type) => HD_SERVICE_TYPES.has(type))) return true
   if (types.some((type) => SD_SERVICE_TYPES.has(type))) return false
-  return /hd$/i.test((name || '').trim())
+  return isHdChannelName(name)
 }
 
 export const isOffAir = ({ serviceIds = [], services }) =>

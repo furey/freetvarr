@@ -44,14 +44,18 @@ export const ForYouCard = {
           <span v-if="badge" :class="['ui-art-badge', 'for-you-badge', 'is-' + badge.tone]">
             <span v-if="badge.tone !== 'plain'" class="for-you-badge-dot" aria-hidden="true"></span>{{ badge.label }}
           </span>
-          <span v-if="shape !== 'poster' && item.channelName" class="ui-art-badge ui-channel-tag is-end for-you-channel">{{ item.channelName }}</span>
           <span v-if="progress != null" class="ui-art-bar ui-progress is-live" aria-hidden="true">
             <span class="ui-progress-fill" :style="{ width: progress + '%' }"></span>
           </span>
         </title-art>
-        <span class="ui-card-title">{{ item.title }}</span>
-        <span class="ui-card-meta">{{ meta }}</span>
-        <span v-if="reason" class="for-you-reason">{{ reason }}</span>
+        <span class="home-on-now-text">
+          <span v-if="showsLogo" class="home-on-now-logo"><channel-logo :channel-id="item.channelId" has-logo /><channel-twin-tag :channel-id="item.channelId" /></span>
+          <span class="home-on-now-lines">
+            <span class="ui-card-title">{{ item.title }}</span>
+            <span class="ui-card-meta">{{ meta }}</span>
+            <span v-if="reason" class="for-you-reason">{{ reason }}</span>
+          </span>
+        </span>
       </button>
       <button type="button" class="for-you-more" :aria-label="'More for ' + item.title" aria-haspopup="dialog" @click="$emit('menu', item)">
         <more-glyph />
@@ -65,10 +69,11 @@ export const ForYouCard = {
     const reason = computed(() => reasonOf(props.item))
     const progress = computed(() => liveProgressOf({ item: props.item, nowMs: nowMs.value }))
     const label = computed(() => cardLabelOf({ item: props.item, meta: meta.value, reason: reason.value, badge: badge.value }))
+    const showsLogo = computed(() => props.shape !== 'poster' && props.item.channelId != null)
     const { onPointerDown, onPointerMove, onPointerEnd, onContextMenu } = useLongPress(() => emit('menu', props.item))
     const onClick = () => emit('open', props.item)
 
-    return { badge, meta, reason, progress, label, onClick, onPointerDown, onPointerMove, onPointerEnd, onContextMenu }
+    return { badge, meta, reason, progress, label, showsLogo, onClick, onPointerDown, onPointerMove, onPointerEnd, onContextMenu }
   },
 }
 

@@ -32,7 +32,8 @@ Channels run down the page and time runs across. The Guide opens at the current 
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
 - Drag the edge of the channel column to make it wider or narrower. At its narrowest the column shows only the stars and channel logos, and the filter box reads **Filter**. Each browser remembers the width.
 - A dimmed channel with `OFF AIR` beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
-- Each channel in the channel settings shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin, even when both have the same name.
+- Each channel in the channel settings shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. Where TVHeadend reports no type, a name with `HD` in it (such as `9GemHD Sydney`) counts as HD. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin. The pairing ignores spaces, punctuation, `HD`, and the word Channel, so `ABC TV` pairs with `ABCTV` and `Channel 9 Sydney` with `9HD Sydney`.
+- While **Hide SD simulcasts** and **Hide SD channels** are both off, each channel logo shows a small `HD` or `SD` tag: in the grid, on Live TV, in the player, in the Multiview channel list, and on Home. While either setting is on, the tags are gone.
 
 ## After midnight
 

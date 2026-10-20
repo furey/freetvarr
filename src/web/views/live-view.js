@@ -11,8 +11,8 @@ import { useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { arrangeByOrder } from '/sortable-math.js'
 import { useFlash, useMediaQuery } from '/shared/composables.js'
-import { CHANNELS_SAVED_TEXT, EPG_NARROW_QUERY } from '/shared/constants.js'
-import { rememberLineup } from '/shared/channel-twins.js'
+import { CHANNELS_SAVED_TEXT, PHONE_LAYOUT_QUERY } from '/shared/constants.js'
+import { lineupOf, rememberLineup } from '/shared/channel-twins.js'
 import { isRecordingChannel } from '/shared/recording-now.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
@@ -131,7 +131,7 @@ export const LiveView = {
     const zoom = storedChoice({ key: LIVE_ZOOM_KEY, options: LIVE_ZOOM_LEVELS, fallback: 'm' })
     const channelsModal = ref(false)
     const channelsModalMode = ref('channels')
-    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+    const narrow = useMediaQuery(PHONE_LAYOUT_QUERY)
     const pageEl = ref(null)
     let pollTimer = null
     let boundaryTimer = null
@@ -174,7 +174,7 @@ export const LiveView = {
       if (!tvhConfigured.value) return
       try {
         data.value = await api('GET', '/api/epg/now?all=1')
-        rememberLineup((data.value.entries || []).map((entry) => entry.channel))
+        rememberLineup(lineupOf(data.value))
         error.value = ''
         scheduleBoundaryReload()
       } catch (err) {

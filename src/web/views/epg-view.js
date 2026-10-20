@@ -25,7 +25,7 @@ import { channelGroupLabel } from '/components/channel-identity.js'
 import { togglePinnedChannel } from '/components/channels-modal.js'
 import { api } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
-import { EPG_NARROW_QUERY, CHANNELS_SAVED_TEXT } from '/shared/constants.js'
+import { PHONE_LAYOUT_QUERY, CHANNELS_SAVED_TEXT } from '/shared/constants.js'
 import { fmtBytes } from '/shared/format.js'
 import { setDragLock, useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
@@ -293,7 +293,7 @@ export const EpgView = {
         return Number.isFinite(px) && px > 0 ? clampRailPx(px) : GUIDE_RAIL_DEFAULT_PX
       } catch { return GUIDE_RAIL_DEFAULT_PX }
     }
-    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+    const narrow = useMediaQuery(PHONE_LAYOUT_QUERY)
     const railPx = ref(storedRailPx())
     const viewportW = ref(window.innerWidth)
     const railLayout = computed(() => railLayoutOf({
@@ -325,7 +325,9 @@ export const EpgView = {
 
     const visibleChannels = computed(() =>
       (guide.value?.channels || []).filter((c) => !c.hidden))
-    watch(visibleChannels, (channels) => { if (guide.value) rememberLineup(channels) }, { immediate: true })
+    watch(visibleChannels, (channels) => {
+      if (guide.value) rememberLineup({ channels, hideSdSimulcasts: guide.value.hideSdSimulcasts, hideSdChannels: guide.value.hideSdChannels })
+    }, { immediate: true })
 
     // The filter hides rows with v-show instead of removing them from the
     // v-for: toggling display is a style flip, while remove-and-remount pays

@@ -3,6 +3,9 @@ import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
 import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
+import { toast } from '/shared/toast.js'
+import { useConfirm } from '/components/dialogs.js'
+import { deleteTvLoginConfirm } from '/confirm-copy.js'
 
 export const TvAppsPanel = {
   props: {
@@ -74,7 +77,22 @@ export const TvAppsPanel = {
         </template>
         <p v-else class="settings-note">Enter the network address of the computer that runs TVHeadend.</p>
         <p class="settings-note">Anyone on your home network with these details can watch your channels. They cannot change your settings or your recordings.</p>
+        <div class="settings-group">
+          <h3 class="ui-group-label">TV login</h3>
+          <div class="ui-group">
+            <div class="settings-row">
+              <p class="settings-row-meta">Your TV login is “{{ login.username }}”. Delete it when no TV app uses it any more; TV apps that use it stop getting channels.</p>
+              <div class="settings-row-actions">
+                <button type="button" class="btn btn-danger" @click="askDeleteLogin" :disabled="Boolean(confirming)">
+                  <trash-icon /> Delete TV login
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
+        :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </section>
   `,
 
@@ -98,11 +116,28 @@ export const TvAppsPanel = {
         making.value = false
       }
     }
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+    const deleteLogin = async () => {
+      const { username } = login.value
+      try {
+        await api('DELETE', '/api/tv-login', { username })
+        login.value = {}
+        name.value = DEFAULT_TV_LOGIN_NAME
+        setStatus('', 'ok', 0)
+        toast({ text: `Deleted the TV login ${username}` })
+      } catch (err) {
+        toast({ text: `TV login not deleted: ${err.message}`, kind: 'error' })
+      }
+    }
+    const askDeleteLogin = () => askConfirm({ dialog: deleteTvLoginConfirm({ username: login.value.username }), icon: 'trash-icon', run: deleteLogin })
     watch(() => props.tvhUrl, prefillHost, { immediate: true })
     onMounted(async () => {
       login.value = await api('GET', '/api/tv-login').catch(() => ({}))
     })
-    return { login, name, host, making, statusText, statusKind, addresses, makeLogin }
+    return {
+      login, name, host, making, statusText, statusKind, addresses, makeLogin,
+      confirming, confirmBusy, closeConfirm, runConfirmed, askDeleteLogin,
+    }
   },
 }
 

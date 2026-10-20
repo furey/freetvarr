@@ -43,7 +43,7 @@ export const BrandMark = {
 export const AppNav = {
   template: `
     <nav class="app-rail" aria-label="Main">
-      <a href="#/home" class="no-hover-underline" aria-label="Freetvarr home"><brand-mark /></a>
+      <a href="#/home" class="app-brand-link" aria-label="Freetvarr home"><brand-mark /></a>
       <template v-for="item in railItems" :key="item.key">
         <span v-if="item.key === 'settings'" class="app-rail-spacer"></span>
         <div :class="['app-rail-slot', { 'is-collapsed': item.collapsed, 'is-animated': animated }]" :inert="item.collapsed">

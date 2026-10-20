@@ -8,7 +8,7 @@ import {
 } from '/series-order.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
-import { EPG_NARROW_QUERY } from '/shared/constants.js'
+import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import { makeStatus } from '/shared/path-check.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
 import { refreshAfterRecordingChange } from '/shared/recording-now.js'
@@ -345,7 +345,7 @@ export const SeriesView = {
     const filterQ = ref('')
     const statusFilter = ref('all')
     const sortKey = storedChoice({ key: SERIES_SORT_KEY, options: SERIES_SORTS.map((o) => o.key), fallback: 'az' })
-    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+    const narrow = useMediaQuery(PHONE_LAYOUT_QUERY)
     const nowMs = ref(Date.now())
     const clock = setInterval(() => (nowMs.value = Date.now()), 30000)
     onUnmounted(() => clearInterval(clock))

@@ -11,6 +11,7 @@ import {
   isInPictureInPicture,
   togglePictureInPicture,
 } from '/mini-player.js'
+import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 
 const MiniMenuIcon = {
   components: PLAYER_ICON_COMPONENTS,
@@ -191,10 +192,8 @@ export const PlayerMini = {
   `,
 }
 
-const PHONE_QUERY = '(max-width: 767px)'
-
 const usePhoneLayout = () => {
-  const query = window.matchMedia(PHONE_QUERY)
+  const query = window.matchMedia(PHONE_LAYOUT_QUERY)
   const phone = ref(query.matches)
   const sync = () => { phone.value = query.matches }
   onMounted(() => query.addEventListener('change', sync))

@@ -298,4 +298,7 @@ app.component('ad-scan-icon', AdScanIcon)
 app.component('confirm-dialog', ConfirmDialog)
 app.component('external-link-icon', ExternalLinkIcon)
 document.addEventListener('touchstart', () => {}, { passive: true })
+const PAGE_ZOOM_GESTURES = ['gesturestart', 'gesturechange']
+const stopPageZoom = (event) => event.preventDefault()
+PAGE_ZOOM_GESTURES.forEach((type) => document.addEventListener(type, stopPageZoom, { passive: false }))
 app.mount('#app')

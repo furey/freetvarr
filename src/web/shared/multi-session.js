@@ -1,4 +1,5 @@
 import { reactive, ref, computed, watch } from '/vendor/vue.esm-browser.prod.js'
+import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import {
   initialMultiView,
   tapSound,
@@ -58,7 +59,7 @@ const watchQuery = (query, target) => {
 }
 
 watchQuery('(max-width: 767px) and (orientation: portrait)', portraitPhone)
-watchQuery('(max-width: 767px), (max-height: 500px)', compactScreen)
+watchQuery(PHONE_LAYOUT_QUERY, compactScreen)
 
 export const canAddPicture = computed(() => canAddPictureOf({
   count: multi.view.order.length,

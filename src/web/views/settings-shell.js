@@ -2,7 +2,7 @@ import { computed, watch } from '/vendor/vue.esm-browser.prod.js'
 import { attentionPhraseOf, healthBadgeOf, healthReasonOf, healthRowNameOf } from '/health-level.js'
 import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
-import { EPG_NARROW_QUERY } from '/shared/constants.js'
+import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import { playBrandIntro } from '/components/brand-intro-overlay.js'
 import { health } from '/shared/health.js'
 import { routeParams } from '/shared/router.js'
@@ -71,7 +71,7 @@ export const SettingsShell = {
     </div>
   `,
   setup() {
-    const narrow = useMediaQuery(EPG_NARROW_QUERY)
+    const narrow = useMediaQuery(PHONE_LAYOUT_QUERY)
     const page = computed(() => settingsPageOf({ params: routeParams.value, narrow: narrow.value }))
     const showNav = computed(() => !narrow.value || !page.value)
     const pageView = computed(() => {

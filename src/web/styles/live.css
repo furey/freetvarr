@@ -521,7 +521,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .live-scope {
     display: flex;
     flex: 1 1 100%;
@@ -1202,7 +1202,7 @@ body.player-open .app-tabbar {
   pointer-events: none;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .pl-frame {
     --pl-edge-left: calc(env(safe-area-inset-left, 0px) + 16px);
     --pl-edge-right: calc(env(safe-area-inset-right, 0px) + 16px);
@@ -1228,7 +1228,7 @@ body.player-open .app-tabbar {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .pl-pill.is-sound {
     justify-content: center;
     width: 40px;

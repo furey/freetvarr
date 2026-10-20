@@ -55,7 +55,7 @@ import {
   pictureStateOf,
 } from '/shared/multi-session.js'
 import { returnToLive, seekLiveTo, seekLiveAndPlay } from '/shared/live-session.js'
-import { rememberLineup } from '/shared/channel-twins.js'
+import { lineupOf, rememberLineup } from '/shared/channel-twins.js'
 import { live } from '/shared/player-shared.js'
 import { fmtClockTz, now } from '/shared/time.js'
 
@@ -581,7 +581,7 @@ export const MultiviewSheet = {
     watch(() => props.open, async (open) => {
       if (!open) return
       const result = await api('GET', '/api/epg/now?all=1').catch(() => null)
-      if (result?.entries) rememberLineup(result.entries.map((entry) => entry.channel))
+      if (result?.entries) rememberLineup(lineupOf(result))
       entries.value = (result?.entries || []).filter((entry) => entry.channel && !entry.channel.offAir)
     })
 

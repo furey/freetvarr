@@ -239,7 +239,7 @@ export const ChannelsModal = {
     }
 
     const sheet = ref(null)
-    const layer = overlayStack.push()
+    const layer = overlayStack.push({ onBack: () => emit('close') })
     const zIndex = ref(layer.zIndex)
     let returnFocus = null
     const onKeydown = (event) => {

@@ -12,7 +12,7 @@
   gap: 8px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (min-height: 501px) {
   .library-filters {
     margin-left: auto;
   }
@@ -722,7 +722,7 @@
   min-height: 48px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (min-height: 501px) {
   .show-hero {
     min-height: 470px;
     margin-top: calc((env(safe-area-inset-top, 0px) + 28px) * -1);
@@ -1446,7 +1446,7 @@ body.library-selecting .ui-toast-region {
   width: 40px;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .show-episodes-header .ui-section-title {
     flex: 1;
   }
@@ -1461,7 +1461,7 @@ body.library-selecting .ui-toast-region {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (min-height: 501px) {
   .show-seasons {
     order: 0;
   }

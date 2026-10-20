@@ -90,7 +90,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .home-hero-skeleton {
     min-height: 0;
     aspect-ratio: 4 / 5;
@@ -303,7 +303,7 @@
   background: #fff;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .hero-carousel {
     margin-bottom: -6px;
   }
@@ -337,6 +337,30 @@
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .home-hero-skeleton {
+    aspect-ratio: auto;
+    min-height: 200px;
+  }
+
+  .hero-carousel-stage {
+    aspect-ratio: auto;
+    height: 200px;
+  }
+
+  .hero-carousel .hero-slide-body {
+    max-width: 440px;
+  }
+
+  .hero-carousel .hero-slide-title {
+    -webkit-line-clamp: 1;
+  }
+
+  .hero-carousel .hero-slide-actions > .ui-button-primary {
+    flex: none;
   }
 }
 
@@ -450,14 +474,6 @@
   background: #fff;
 }
 
-.for-you-channel {
-  max-width: 40%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: opacity var(--motion-fast) var(--ease-standard);
-}
-
 .for-you-more,
 .menu-card-more {
   position: absolute;
@@ -497,18 +513,10 @@
   opacity: 1;
 }
 
-.for-you-card:focus-within .for-you-channel {
-  opacity: 0;
-}
-
 @media (hover: hover) {
   .for-you-card:hover .for-you-more,
   .menu-card:hover .menu-card-more {
     opacity: 1;
-  }
-
-  .for-you-card:hover .for-you-channel {
-    opacity: 0;
   }
 }
 
@@ -586,9 +594,37 @@
   transform: translateY(-50%);
 }
 
+.hero-slide-body {
+  container: hero-body / inline-size;
+}
+
+.hero-slide-actions {
+  flex-wrap: nowrap;
+}
+
+.hero-slide-actions > .ui-button-primary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hero-slide-secondary {
+  display: none;
+}
+
 .hero-slide-more {
+  flex: none;
   width: 48px;
   padding: 0;
+}
+
+@container hero-body (min-width: 440px) {
+  .hero-slide-secondary {
+    display: inline-flex;
+  }
+
+  .hero-slide-actions > .ui-button-primary {
+    flex: 0 1 auto;
+  }
 }
 
 .hero-slide-more svg {
@@ -957,7 +993,7 @@
   width: 112px;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .for-you-header .ui-page-title {
     font-size: 30px;
     line-height: 36px;
@@ -1006,7 +1042,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .for-you-more,
-  .for-you-channel,
   .for-you-card .ui-card-art,
   .for-you-card .ui-poster-art {
     transition: none;

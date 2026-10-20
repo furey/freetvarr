@@ -11,29 +11,43 @@ export const useLongPress = (onPress) => {
   const clear = () => {
     clearTimeout(press?.timer)
     press = null
+    CANCEL_EVENTS.forEach((type) => window.removeEventListener(type, cancelOnGesture, true))
+  }
+
+  const cancelOnGesture = (event) => {
+    if (event.type === 'touchstart' && event.touches.length < 2) return
+    clear()
+  }
+
+  const watchForGestures = () => {
+    CANCEL_EVENTS.forEach((type) => window.addEventListener(type, cancelOnGesture, { capture: true, passive: true }))
   }
 
   const stopSwallowing = () => {
     swallowing = false
-    window.removeEventListener('click', swallowClick, true)
+    SWALLOWED_EVENTS.forEach((type) => window.removeEventListener(type, swallowEvent, true))
   }
 
   const startSwallowing = () => {
     swallowing = true
-    window.addEventListener('click', swallowClick, true)
+    clearSelection()
+    SWALLOWED_EVENTS.forEach((type) => window.addEventListener(type, swallowEvent, { capture: true, passive: false }))
   }
 
-  const onPointerDown = (event) => {
+  const onPointerDown = (event, payload) => {
     lastPointerType = event.pointerType
     if (event.pointerType === 'mouse') return
+    if (press || !event.isPrimary) return clear()
     stopSwallowing()
+    watchForGestures()
     press = {
       x: event.clientX,
       y: event.clientY,
       timer: setTimeout(() => {
-        press = null
+        clear()
+        if (isPageZoomed()) return
         startSwallowing()
-        onPress()
+        onPress(payload)
       }, LONG_PRESS_MS),
     }
   }
@@ -45,12 +59,14 @@ export const useLongPress = (onPress) => {
 
   const onPointerEnd = () => {
     clear()
-    if (swallowing) setTimeout(stopSwallowing, CLICK_AFTER_RELEASE_MS)
+    if (!swallowing) return
+    clearSelection()
+    setTimeout(stopSwallowing, CLICK_AFTER_RELEASE_MS)
   }
 
-  const onContextMenu = (event) => {
+  const onContextMenu = (event, payload) => {
     event.preventDefault()
-    if (lastPointerType !== 'touch' && lastPointerType !== 'pen') onPress()
+    if (lastPointerType !== 'touch' && lastPointerType !== 'pen') onPress(payload)
   }
 
   onUnmounted(() => {
@@ -63,7 +79,17 @@ export const useLongPress = (onPress) => {
 
 const CLICK_AFTER_RELEASE_MS = 400
 
-const swallowClick = (event) => {
-  event.preventDefault()
+const CANCEL_EVENTS = ['touchstart', 'gesturestart', 'scroll']
+
+const isPageZoomed = () => (window.visualViewport?.scale ?? 1) > 1.01
+
+const SWALLOWED_EVENTS = ['click', 'touchend', 'selectstart', 'contextmenu']
+
+const swallowEvent = (event) => {
+  if (event.cancelable) event.preventDefault()
   event.stopPropagation()
+}
+
+const clearSelection = () => {
+  try { window.getSelection()?.removeAllRanges() } catch {}
 }

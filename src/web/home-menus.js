@@ -31,6 +31,20 @@ export const guideMatchMenuOf = ({ when = '', seriesLink = false }) => [
   [PROGRAMME_INFO],
 ].map(compact)
 
+export const withLeadItem = ({ groups, item }) => {
+  if (!item) return groups
+  const existing = groups.flat().find((entry) => entry.key === item.key)
+  const rest = groups.map((group) => group.filter((entry) => entry.key !== item.key)).filter((group) => group.length)
+  return [[existing || item, ...(rest[0] || [])], ...rest.slice(1)]
+}
+
+export const slideLeadItemOf = (secondary) => {
+  if (!secondary) return null
+  if (secondary.href) return { key: 'secondary-link', label: secondary.label, icon: 'check-list' }
+  const key = SECONDARY_MENU_KEYS[secondary.action]
+  return key ? { key, label: secondary.label, icon: 'info' } : null
+}
+
 export const withGoToShow = (groups) => groups.map((group) => group.flatMap((item) => (item.key === 'episode-info' ? [item, GO_TO_SHOW] : [item])))
 
 export const programmeOfRecording = (recording) => ({
@@ -49,5 +63,7 @@ export const programmeArtOf = (program) => (program.has_image && program.program
   : showArtOf(program.title))
 
 export const skippedTextOf = (title) => `Won't record this episode of ${title}`
+
+const SECONDARY_MENU_KEYS = { 'watch-live': 'watch-live', record: 'record-episode', guide: 'programme-info' }
 
 const compact = (group) => group.filter(Boolean)

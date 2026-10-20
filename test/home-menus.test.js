@@ -7,7 +7,9 @@ import {
   recordingNowMenuOf,
   scheduledMenuOf,
   skippedTextOf,
+  slideLeadItemOf,
   withGoToShow,
+  withLeadItem,
 } from '../src/web/home-menus.js'
 
 const keysOf = (groups) => groups.map((group) => group.map((item) => item.key))
@@ -52,4 +54,24 @@ test('programmeOfRecording: maps a recording to the programme sheet shape', () =
     program_id: 42, title: 'The Block', episode_title: null, start: 1, end: 2, channelId: 'c9',
   })
   assert.equal(skippedTextOf('Utopia'), "Won't record this episode of Utopia")
+})
+
+test('the hero menu leads with the slide secondary action when the menu already has it', () => {
+  const groups = onNowMenuOf({ channelName: 'ABC', seriesLink: true })
+  const led = withLeadItem({ groups, item: slideLeadItemOf({ action: 'record', label: 'Record' }) })
+  assert.equal(led[0][0].key, 'record-episode')
+  assert.equal(led[0][0].label, 'Record this episode')
+  assert.equal(led.flat().filter((entry) => entry.key === 'record-episode').length, 1)
+})
+
+test('a secondary link the menu lacks is added at the top', () => {
+  const groups = scheduledMenuOf({ hasRule: false })
+  const led = withLeadItem({ groups, item: slideLeadItemOf({ label: 'Scheduled', href: '#/recordings/scheduled' }) })
+  assert.deepEqual(led[0][0], { key: 'secondary-link', label: 'Scheduled', icon: 'check-list' })
+  assert.equal(led.flat().length, groups.flat().length + 1)
+})
+
+test('a slide without a secondary action keeps its menu', () => {
+  const groups = recordingNowMenuOf({ channelName: 'ABC', canStartOver: false })
+  assert.deepEqual(withLeadItem({ groups, item: slideLeadItemOf(null) }), groups)
 })

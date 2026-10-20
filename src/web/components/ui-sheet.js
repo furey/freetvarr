@@ -1,4 +1,5 @@
 import { ref, watch, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
 
 let sheetCount = 0
@@ -14,7 +15,8 @@ export const UiSheet = {
     <teleport to="body">
       <transition name="ui-sheet">
         <div v-if="open" class="ui-sheet-backdrop" :style="{ zIndex }" @click.self="$emit('close')">
-          <section ref="sheet" class="ui-sheet" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1">
+          <section ref="sheet" class="ui-sheet" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1"
+            @touchstart.passive="onSwipeStart" @touchend="onSwipeEnd">
             <span class="ui-sheet-grab" aria-hidden="true"></span>
             <header class="ui-sheet-header">
               <template v-if="$slots['header-lead']">
@@ -57,7 +59,7 @@ export const UiSheet = {
         returnFocus?.focus?.()
         return
       }
-      const layer = overlayStack.push()
+      const layer = overlayStack.push({ onBack: () => emit('close') })
       layerId = layer.id
       zIndex.value = layer.zIndex
       try { document.body.classList.add('sheet-open') } catch {}
@@ -66,6 +68,21 @@ export const UiSheet = {
       await nextTick()
       sheet.value?.focus()
     }
+    let swipeStart = null
+    const onSwipeStart = (event) => {
+      const touch = event.touches[0]
+      const onHandle = Boolean(event.target.closest?.(SWIPE_HANDLES))
+      swipeStart = onHandle && event.touches.length === 1 && (sheet.value?.scrollTop ?? 0) <= 0
+        ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+        : null
+    }
+    const onSwipeEnd = (event) => {
+      const from = swipeStart
+      swipeStart = null
+      const touch = event.changedTouches[0]
+      if (!from || !touch) return
+      if (isSwipeDown({ startX: from.x, startY: from.y, endX: touch.clientX, endY: touch.clientY, ms: Date.now() - from.at })) emit('close')
+    }
     watch(() => props.open, setOpen)
     onMounted(() => {
       if (props.open) setOpen(true)
@@ -73,7 +90,7 @@ export const UiSheet = {
     onUnmounted(() => {
       if (props.open) setOpen(false)
     })
-    return { sheet, titleId, zIndex }
+    return { sheet, titleId, zIndex, onSwipeStart, onSwipeEnd }
   },
 }
 
@@ -90,6 +107,8 @@ export const keepFocusInside = ({ event, root }) => {
   const target = event.shiftKey ? last : first
   target.focus()
 }
+
+const SWIPE_HANDLES = '.ui-sheet-grab, .ui-sheet-header, .ui-sheet-subtitle'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
 

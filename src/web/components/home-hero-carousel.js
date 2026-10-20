@@ -60,8 +60,8 @@ export const HomeHeroCarousel = {
                   {{ slide.primary.label }}
                 </button>
                 <template v-if="slide.secondary">
-                  <a v-if="slide.secondary.href" :href="slide.secondary.href" class="ui-button ui-button-secondary">{{ slide.secondary.label }}</a>
-                  <button v-else type="button" class="ui-button ui-button-secondary" @click="emitAction(slide, slide.secondary)">{{ slide.secondary.label }}</button>
+                  <a v-if="slide.secondary.href" :href="slide.secondary.href" class="ui-button ui-button-secondary hero-slide-secondary">{{ slide.secondary.label }}</a>
+                  <button v-else type="button" class="ui-button ui-button-secondary hero-slide-secondary" @click="emitAction(slide, slide.secondary)">{{ slide.secondary.label }}</button>
                 </template>
                 <button type="button" class="ui-button ui-button-secondary hero-slide-more" :aria-label="'More for ' + slide.title"
                   aria-haspopup="dialog" @click="$emit('menu', slide)"><more-glyph /></button>

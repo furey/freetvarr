@@ -995,9 +995,9 @@ p > .info-btn {
 
 .update-card {
   position: fixed;
-  right: 8px;
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
   bottom: calc(var(--app-tabbar-h) + 8px);
-  left: 8px;
+  left: calc(env(safe-area-inset-left, 0px) + 8px);
   z-index: 35;
   display: flex;
   flex-direction: column;
@@ -1131,7 +1131,7 @@ p > .info-btn {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (min-height: 501px) {
   .update-card {
     right: auto;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
@@ -1166,15 +1166,11 @@ a {
 }
 
 @media (hover: hover) {
-  a:hover {
+  a:not([class]):hover {
     color: var(--color-primary-hi);
     text-decoration: underline;
     text-underline-offset: 3px;
     text-decoration-thickness: 1px;
-  }
-
-  .no-hover-underline:hover {
-    text-decoration: none;
   }
 }
 
@@ -2055,7 +2051,7 @@ body.epg-drag-lock * {
   gap: 1.25rem;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (min-height: 501px) {
 
   .channels-modal .channels-grid {
     flex: 1;
@@ -2100,7 +2096,7 @@ body.epg-drag-lock * {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .epg-scroll {
     --epg-rail-inset: 1rem;
     max-height: 65vh;
@@ -2149,7 +2145,7 @@ body.epg-drag-lock * {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .field-input {
     font-size: 1rem;
   }
@@ -2185,7 +2181,7 @@ body.epg-drag-lock * {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
 
   .deck-card-title {
     display: block;
@@ -2285,7 +2281,7 @@ body.epg-drag-lock * {
   flex-basis: 100%;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .card-actions > .btn {
     flex: 1 1 auto;
     justify-content: center;
@@ -3079,7 +3075,7 @@ table.recordings-table tbody td {
 .live-zoom-l .live-skeleton .skeleton-row { height: 7.125rem; }
 .live-zoom-l .live-skeleton .skeleton-thumb { width: 9rem; }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .live-skeleton .skeleton-row { height: 7.1rem; }
   .live-zoom-s .live-skeleton .skeleton-row { height: 5.9rem; }
   .live-zoom-l .live-skeleton .skeleton-row { height: 9.2rem; }
@@ -3142,7 +3138,7 @@ table.recordings-table tbody td {
   padding-bottom: 0.9rem;
   border-bottom: 1px dashed var(--color-hairline);
 }
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .series-drawer-tvh > .card-actions { flex-basis: 100%; }
 }
 .series-drawer-state { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-soft); }
@@ -3165,7 +3161,7 @@ table.recordings-table tbody td {
 .sync-facts dt { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-3); align-self: center; }
 .sync-facts dd { color: var(--color-text-2); }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .sync-item { grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
 }
 

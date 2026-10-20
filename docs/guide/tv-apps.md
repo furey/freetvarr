@@ -29,6 +29,16 @@ Freetvarr then fills in **TVHeadend address for TV apps** with the address your 
 > [!NOTE]<br>
 > The playlist and TV guide addresses carry a code instead of a password. Anyone on your home network who has them can watch your channels, but they cannot change TVHeadend or your recordings.
 
+### Delete the TV login
+
+Delete the TV login when no TV app uses it any more, or to stop everyone who has its details.
+
+1. In Freetvarr, open Settings → **Watch on TV**.
+2. Under **TV login**, press **Delete TV login**.
+3. Read the confirmation, then press **Delete TV login** again.
+
+Freetvarr deletes only the login it made: the TVHeadend user and password with that name and Freetvarr's note. Other TVHeadend logins stay. TV apps that use the deleted login stop getting channels until you make a new TV login and enter its details in each app.
+
 ## Jellyfin
 
 Jellyfin has its own TVHeadend plugin, but each plugin release suits only some Jellyfin versions. The tuner and TV guide addresses below work with any recent Jellyfin.

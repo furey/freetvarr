@@ -473,7 +473,7 @@ export const ProgrammeSheetHost = {
     let sheetReturnFocus = null
 
     const holdLayer = () => {
-      if (layerId == null) layerId = overlayStack.push().id
+      if (layerId == null) layerId = overlayStack.push({ onBack: () => closeModal() }).id
     }
 
     const releaseLayer = () => {

@@ -45,6 +45,12 @@ test('unknown or missing types fall back to the name rule', () => {
   assert.equal(hd('ABC', ['missing']), false)
 })
 
+test('the name rule finds HD joined to the channel name', () => {
+  assert.equal(hd('9GemHD Sydney', []), true)
+  assert.equal(hd('9HD Sydney', []), true)
+  assert.equal(hd('Channel 9 Sydney', []), false)
+})
+
 const sdTen = { id: 'sd', name: '10', hd: false }
 const hdTen = { id: 'hd', name: '10', hd: true }
 

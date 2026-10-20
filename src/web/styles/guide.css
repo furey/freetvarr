@@ -718,7 +718,7 @@
 }
 
 .epg-float-cluster {
-  right: 16px;
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
   bottom: calc(var(--app-tabbar-h, 0px) + 16px);
   gap: 2px;
   padding: 4px;
@@ -1225,7 +1225,7 @@
   pointer-events: none;
 }
 
-:is(.channel-logo, .live-logo, .pl-logo, .mv-channel-tile):has(> .channel-twin-tag) {
+:is(.channel-logo, .live-logo, .pl-logo, .mv-channel-tile, .home-on-now-logo):has(> .channel-twin-tag) {
   position: relative;
   overflow: hidden;
 }
@@ -1288,7 +1288,7 @@
   transition: transform var(--motion-sheet) var(--ease-standard);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .guide-page .ui-page-heading {
     min-width: 0;
   }
@@ -1361,7 +1361,69 @@
   }
 }
 
-@media (min-width: 768px) {
+@media (max-height: 500px) and (orientation: landscape) {
+  .guide-page {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .guide-page > *,
+  .guide-page .ui-page-banner {
+    grid-column: 1 / -1;
+  }
+
+  .guide-page > .ui-page-header {
+    display: contents;
+  }
+
+  .guide-page .ui-page-heading {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .guide-page .ui-page-subtitle {
+    display: none;
+  }
+
+  .guide-page > .guide-controls {
+    grid-column: 2;
+    grid-row: 1;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .guide-page .ui-page-actions {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .guide-controls > * {
+    flex: none;
+  }
+
+  .guide-controls .guide-day-chips {
+    overflow: visible;
+  }
+
+  .guide-controls .guide-search {
+    width: 280px;
+  }
+
+  .guide-page .guide-card .epg-scroll {
+    max-height: calc(100dvh - var(--app-tabbar-h) - 8px);
+  }
+
+  .programme-sheet-art {
+    aspect-ratio: auto;
+    height: 160px;
+  }
+}
+
+@media (min-width: 768px) and (min-height: 501px) {
   .programme-sheet-art {
     aspect-ratio: auto;
     height: 220px;
@@ -1877,14 +1939,14 @@
   min-width: 112px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (min-height: 501px) {
   .channels-sheet.is-order-mode {
     max-width: 560px;
     overflow-y: auto;
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) {
   .guide-page .epg-heading-row .epg-heading-rail {
     width: auto;
     min-width: var(--epg-rail-px, 200px);

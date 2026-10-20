@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import { findHdSimulcast, isHdChannelName, sdSimulcastIds, twinFormatsOf } from '../src/web/simulcast.js'
+import { channelFormatsOf, findHdSimulcast, isHdChannelName, sdSimulcastIds, simulcastBaseKey } from '../src/web/simulcast.js'
 
 const grid = JSON.parse(readFileSync(new URL('./fixtures/tvh-setup/channel-grid.json', import.meta.url)))
 const START = Date.parse('2026-10-06T19:30:00+11:00')
@@ -118,20 +118,48 @@ const lineup = [
   { id: 8, name: '7mate HD', hd: true },
 ]
 
-test('twinFormatsOf tags both channels of each visible SD and HD pair', () => {
-  assert.deepEqual([...twinFormatsOf(lineup)], [['1', 'SD'], ['2', 'HD'], ['3', 'SD'], ['4', 'HD'], ['6', 'SD'], ['7', 'HD']])
+test('channelFormatsOf tags every channel HD or SD when both hide settings are off', () => {
+  assert.deepEqual([...channelFormatsOf({ channels: lineup })], [
+    ['1', 'SD'], ['2', 'HD'], ['3', 'SD'], ['4', 'HD'], ['5', 'SD'], ['6', 'SD'], ['7', 'HD'], ['8', 'HD'],
+  ])
 })
 
-test('twinFormatsOf leaves channels with no twin untagged', () => {
-  const formats = twinFormatsOf(lineup)
-  assert.equal(formats.has('5'), false)
-  assert.equal(formats.has('8'), false)
+test('channelFormatsOf tags nothing when either hide setting is on', () => {
+  assert.equal(channelFormatsOf({ channels: lineup, hideSdSimulcasts: true }).size, 0)
+  assert.equal(channelFormatsOf({ channels: lineup, hideSdChannels: true }).size, 0)
 })
 
-test('twinFormatsOf tags nothing once the SD twins are hidden', () => {
-  const hiddenSd = sdSimulcastIds(lineup)
-  assert.equal(twinFormatsOf(lineup.filter((c) => !hiddenSd.has(String(c.id)))).size, 0)
-  assert.equal(twinFormatsOf(lineup.filter((c) => c.hd)).size, 0)
+test('channelFormatsOf trusts the TVHeadend service type over a name without HD', () => {
+  const formats = channelFormatsOf({ channels: [{ id: 20, name: 'ABCTV', hd: true }, { id: 2, name: 'ABC TV', hd: false }] })
+  assert.deepEqual([...formats], [['20', 'HD'], ['2', 'SD']])
+})
+
+test('simulcastBaseKey ignores spacing, punctuation, HD, and the word Channel', () => {
+  assert.equal(simulcastBaseKey('ABCTV'), simulcastBaseKey('ABC TV'))
+  assert.equal(simulcastBaseKey('9HD Sydney'), simulcastBaseKey('Channel 9 Sydney'))
+  assert.equal(simulcastBaseKey('7HD Sydney'), simulcastBaseKey('7 Sydney'))
+  assert.equal(simulcastBaseKey('SBS ONE HD'), simulcastBaseKey('SBS ONE'))
+  assert.equal(simulcastBaseKey('Nine'), simulcastBaseKey('9HD'))
+})
+
+test('simulcastBaseKey keeps different channels apart', () => {
+  assert.notEqual(simulcastBaseKey('10 HD +1'), simulcastBaseKey('10'))
+  assert.notEqual(simulcastBaseKey('9GemHD Sydney'), simulcastBaseKey('9HD Sydney'))
+  assert.notEqual(simulcastBaseKey('9Go!HD Sydney'), simulcastBaseKey('Channel 9 Sydney'))
+})
+
+test('sdSimulcastIds pairs the Sydney twins whose names differ in spacing or HD placement', () => {
+  const sydney = [
+    { id: 'abc-hd', name: 'ABCTV', hd: true },
+    { id: 'abc-sd', name: 'ABC TV', hd: false },
+    { id: 'nine-hd', name: '9HD Sydney', hd: true },
+    { id: 'nine-sd', name: 'Channel 9 Sydney', hd: false },
+    { id: 'gem-hd', name: '9GemHD Sydney', hd: true },
+    { id: 'ten-plus', name: '10 HD +1', hd: true },
+    { id: 'ten-sd', name: '10', hd: false },
+    { id: 'flix', name: '7flix Sydney', hd: false },
+  ]
+  assert.deepEqual([...sdSimulcastIds(sydney)].sort(), ['abc-sd', 'nine-sd'])
 })
 
 test('sdSimulcastIds picks the SD channel of each pair', () => {

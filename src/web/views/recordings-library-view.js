@@ -16,6 +16,7 @@ import { diagnoseRecordingError } from '/recording-error.js'
 import { scheduledCountOfState } from '/scheduled-groups.js'
 import { showHrefOf } from '/show-key.js'
 import { api } from '/shared/api.js'
+import { useLongPress } from '/shared/long-press.js'
 import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
 import { storedChoice, storedFlag } from '/shared/storage.js'
 import { syncStatus } from '/shared/sync-status.js'
@@ -81,7 +82,9 @@ export const RecordingsLibraryView = {
           </div>
           <div class="ui-poster-grid">
             <div v-for="show in shelves.shows" :key="show.key" class="library-poster">
-              <a :href="showHrefOf(show.title)" class="ui-poster" :aria-label="posterLabel(show)" @contextmenu="onPosterHold($event, show)">
+              <a :href="showHrefOf(show.title)" class="ui-poster" :aria-label="posterLabel(show)" @contextmenu="posterPress.onContextMenu($event, show)"
+                @pointerdown="posterPress.onPointerDown($event, show)" @pointermove="posterPress.onPointerMove" @pointerup="posterPress.onPointerEnd"
+                @pointercancel="posterPress.onPointerEnd" @pointerleave="posterPress.onPointerEnd">
                 <title-art shape="poster" :title="show.title" :src="posterSrc(show)">
                   <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
                   <span v-if="show.counts.new" class="ui-art-badge is-end"><span class="ui-count-badge">{{ show.counts.new }}</span></span>
@@ -232,10 +235,7 @@ export const RecordingsLibraryView = {
       }
     }
 
-    const onPosterHold = (event, show) => {
-      event.preventDefault()
-      openPosterMenu(show)
-    }
+    const posterPress = useLongPress(openPosterMenu)
 
     const onStopped = async (message) => {
       optionsOpen.value = false
@@ -252,7 +252,7 @@ export const RecordingsLibraryView = {
 
     return {
       ...actions,
-      menuShow, menuLoadingKey, optionsOpen, openPosterMenu, onPosterHold, onStopped, onOptionsFlash, reloadMenuShow,
+      menuShow, menuLoadingKey, optionsOpen, openPosterMenu, posterPress, onStopped, onOptionsFlash, reloadMenuShow,
       shows, stale, loaded, error, shelves, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
       posterMeta, posterLabel, posterSrc, cardSrc, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,

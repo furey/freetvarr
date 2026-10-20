@@ -24,6 +24,7 @@ import { useLibraryActions } from '/components/library-actions.js'
 import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuIcon, useLibraryToast } from '/components/library-menus.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { api } from '/shared/api.js'
+import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
 import { playback } from '/shared/player-shared.js'
 import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
@@ -101,7 +102,9 @@ export const ShowView = {
           <ul class="show-episode-list">
             <li v-for="e in visibleEpisodes" :key="e.recordingId"
               :class="['show-episode', { 'is-failed': e.failed, 'is-playable': e.playable && !selecting, 'is-selected': selecting && selected.has(e.recordingId), 'is-locked': selecting && isLocked(e) }]"
-              @click="onEpisodeRowClick(e)" @contextmenu="onEpisodeHold($event, e)">
+              @click="onEpisodeRowClick(e)" @contextmenu="episodePress.onContextMenu($event, e)" @pointerdown="episodePress.onPointerDown($event, e)"
+              @pointermove="episodePress.onPointerMove" @pointerup="episodePress.onPointerEnd" @pointercancel="episodePress.onPointerEnd"
+              @pointerleave="episodePress.onPointerEnd">
               <button v-if="selecting" type="button" role="checkbox" :class="['show-episode-check', { 'is-on': selected.has(e.recordingId) }]"
                 :aria-checked="String(selected.has(e.recordingId))" :aria-disabled="String(isLocked(e))"
                 :aria-label="checkLabel(e)" @click.stop="toggleEpisode(e)">
@@ -283,11 +286,9 @@ export const ShowView = {
       await actions.onDeleted(outcome)
     }
 
-    const onEpisodeHold = (event, episode) => {
-      if (selecting.value) return
-      event.preventDefault()
-      actions.openEpisodeMenu(episode)
-    }
+    const episodePress = useLongPress((episode) => {
+      if (!selecting.value) actions.openEpisodeMenu(episode)
+    })
 
     const onSelectKeydown = (event) => {
       if (event.key === 'Escape' && selecting.value && overlayStack.size() === 0) stopSelecting()
@@ -337,7 +338,7 @@ export const ShowView = {
       flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable,
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
-      onEpisodeHold, isLocked, checkLabel, isRecordingNow, selectionTitle,
+      episodePress, isLocked, checkLabel, isRecordingNow, selectionTitle,
       episodeHeading, seasonLabel,
       episodeMeta: (episode) => episodeMetaOf({ episode, timeZone: tz.value }),
       episodeImage: (episode) => episode.image,

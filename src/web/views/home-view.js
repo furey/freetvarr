@@ -30,7 +30,9 @@ import {
   scheduledMenuOf,
   showArtOf,
   skippedTextOf,
+  slideLeadItemOf,
   withGoToShow,
+  withLeadItem,
 } from '/home-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
 import { showKeyOf } from '/show-key.js'
@@ -111,7 +113,7 @@ export const HomeView = {
                 </span>
               </span>
               <span class="home-on-now-text">
-                <span class="home-on-now-logo"><channel-logo :channel-id="item.channel.id" :has-logo="item.channel.hasLogo" /></span>
+                <span class="home-on-now-logo"><channel-logo :channel-id="item.channel.id" :has-logo="item.channel.hasLogo" /><channel-twin-tag :channel-id="item.channel.id" /></span>
                 <span class="home-on-now-lines">
                   <span class="ui-card-title">{{ item.program.title }}</span>
                   <span class="ui-card-meta">{{ onNowMetaOf({ item }) }}</span>
@@ -365,7 +367,14 @@ export const HomeView = {
       if (slide.type === 'for-you') return forYou.openMenu(slide.target.item)
       if (slide.recordingId) return openEpisodeMenu({ showKey: slide.showKey, recordingId: slide.recordingId })
       const menu = SLIDE_MENUS[slide.type]?.(slide)
-      if (menu) homeMenu.value = { title: slide.title, subtitle: slide.metaShort, art: slide.art.image, ...menu }
+      if (!menu) return
+      homeMenu.value = {
+        title: slide.title,
+        subtitle: slide.metaShort,
+        art: slide.art.image,
+        groups: withLeadItem({ groups: menu.groups, item: slideLeadItemOf(slide.secondary) }),
+        actions: { 'secondary-link': () => { window.location.hash = slide.secondary.href }, ...menu.actions },
+      }
     }
 
     const openOnNow = (item, focus = '') => openProgramme({

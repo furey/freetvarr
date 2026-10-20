@@ -33,6 +33,17 @@ export const restoreOpenAccessConfirm = () => ({
   danger: true,
 })
 
+export const deleteTvLoginConfirm = ({ username }) => ({
+  title: `Delete the TV login “${username}”?`,
+  body: [
+    `Freetvarr deletes the login “${username}” from TVHeadend. Your other TVHeadend logins stay.`,
+    'TV apps that use this login stop getting channels until you make a new TV login and enter it in each app.',
+  ],
+  confirmLabel: 'Delete TV login',
+  busyLabel: 'Deleting…',
+  danger: true,
+})
+
 export const resetConfirm = ({ mediaRoot }) => ({
   title: 'Reset Freetvarr',
   body: [
