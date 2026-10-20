@@ -121,6 +121,7 @@ import {
   guideDayWindow,
   localMidnightMs,
   keepGuideWarm,
+  getGuideSnapshot,
 } from './epg.js'
 import {
   adScansRunning,
@@ -182,6 +183,8 @@ import { mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
+import { createGuideHints, createProgrammeRatings, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING } from './programme-ratings.js'
+import { createProgrammeCredits, CREDITS_SETTING } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
@@ -246,6 +249,7 @@ const IMAGE_MAX_AGE_S = 24 * 60 * 60
 const MISSING_IMAGE_MAX_AGE_S = 5 * 60
 const CONNECT_ATTEMPT_TIMEOUT_MS = 2500
 const MAX_SHOW_TITLE_LENGTH = 200
+const RATINGS_MAX_AGE_S = 5 * 60
 
 dns.setDefaultResultOrder('ipv4first')
 net.setDefaultAutoSelectFamilyAttemptTimeout(CONNECT_ATTEMPT_TIMEOUT_MS)
@@ -733,6 +737,39 @@ app.get('/api/epg/show-image', serveImage({
     kind: artworkKindOf(req.query.kind),
   }),
 }))
+
+const guideHints = createGuideHints({ loadGuide: getGuideSnapshot })
+const programmeRatings = createProgrammeRatings({ hintsFor: guideHints })
+const programmeCredits = createProgrammeCredits({ hintsFor: guideHints })
+
+const ratingsLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 240,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+})
+
+app.get('/api/epg/programme-ratings', ratingsLimiter, async (req, res) => {
+  const title = String(req.query.title || '').trim().slice(0, MAX_SHOW_TITLE_LENGTH)
+  if (!title) return res.status(400).json({ error: 'title is required' })
+  const ratings = await programmeRatings.ratingsFor(title, {
+    kind: artworkKindOf(req.query.kind),
+    year: requestedYearOf(req.query.year),
+  })
+  res.setHeader('Cache-Control', ratings.status === 'pending' ? 'no-store' : `private, max-age=${RATINGS_MAX_AGE_S}`)
+  res.json(ratings)
+})
+
+app.get('/api/epg/programme-credits', ratingsLimiter, async (req, res) => {
+  const title = String(req.query.title || '').trim().slice(0, MAX_SHOW_TITLE_LENGTH)
+  if (!title) return res.status(400).json({ error: 'title is required' })
+  const credits = await programmeCredits.creditsFor(title, {
+    kind: artworkKindOf(req.query.kind),
+    year: requestedYearOf(req.query.year),
+  })
+  res.setHeader('Cache-Control', credits.status === 'pending' ? 'no-store' : `private, max-age=${RATINGS_MAX_AGE_S}`)
+  res.json(credits)
+})
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
   const { channel_id, program_id, epg_program_id, lead_time, lag_time, add_to_library } = req.body || {}
@@ -1364,6 +1401,9 @@ app.get('/api/settings', async (req, res) => {
     storedTimeZone,
     welcomeDismissed,
     showArtworkLookup,
+    ratingsLookup,
+    reviewsLookup,
+    creditsLookup,
   ] = await Promise.all([
     getSetting('tvh_url'),
     getSetting('tvh_username'),
@@ -1389,6 +1429,9 @@ app.get('/api/settings', async (req, res) => {
     getSetting('time_zone'),
     isWelcomeDismissed(),
     getSetting('show_artwork_lookup'),
+    getSetting(RATINGS_SETTING),
+    getSetting(REVIEWS_SETTING),
+    getSetting(CREDITS_SETTING),
   ])
   res.json({
     tvh_url: tvhUrl,
@@ -1427,6 +1470,9 @@ app.get('/api/settings', async (req, res) => {
     comskip_ini_override: comskipIniOverride,
     welcome_dismissed: welcomeDismissed,
     show_artwork_lookup: showArtworkLookup !== 'false',
+    ratings_lookup_enabled: ratingsLookup !== 'false',
+    reviews_lookup_enabled: reviewsLookup !== 'false',
+    credits_lookup_enabled: creditsLookup !== 'false',
   })
 })
 
@@ -1457,6 +1503,15 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   await writeString('plex_movies_section_id', body.plex_movies_section_id, { trim: true })
   if (body.show_artwork_lookup !== undefined) {
     await setSetting('show_artwork_lookup', body.show_artwork_lookup ? 'true' : 'false')
+  }
+  if (body.ratings_lookup_enabled !== undefined) {
+    await setSetting(RATINGS_SETTING, body.ratings_lookup_enabled ? 'true' : 'false')
+  }
+  if (body.reviews_lookup_enabled !== undefined) {
+    await setSetting(REVIEWS_SETTING, body.reviews_lookup_enabled ? 'true' : 'false')
+  }
+  if (body.credits_lookup_enabled !== undefined) {
+    await setSetting(CREDITS_SETTING, body.credits_lookup_enabled ? 'true' : 'false')
   }
   if (body.import_unmatched !== undefined) {
     await setSetting('import_unmatched', body.import_unmatched ? 'true' : 'false')

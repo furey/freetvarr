@@ -73,6 +73,7 @@ export const HomeView = {
               <span class="ui-card-art ui-art-fallback" :style="fallbackStyleOf(r.title)">
                 <programme-image :source="r.image" :title="r.title" variant="info" />
                 <span class="ui-art-badge ui-new-badge">NEW</span>
+                <classification-chip :classification="r.classification" />
               </span>
               <span class="ui-card-title">{{ r.title }}</span>
               <span class="ui-card-meta">{{ newCardMeta(r) }}</span>
@@ -111,6 +112,7 @@ export const HomeView = {
                   :aria-valuenow="item.percent" aria-valuemin="0" aria-valuemax="100">
                   <span class="ui-progress-fill" :style="{ width: item.percent + '%' }"></span>
                 </span>
+                <classification-chip :classification="item.program.classification" />
               </span>
               <span class="home-on-now-text">
                 <span class="home-on-now-logo"><channel-logo :channel-id="item.channel.id" :has-logo="item.channel.hasLogo" /><channel-twin-tag :channel-id="item.channel.id" /></span>

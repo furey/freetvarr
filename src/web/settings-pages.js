@@ -7,7 +7,7 @@ export const SETTINGS_GROUPS = [
     pages: [
       { id: 'storage', label: 'Recording', view: 'settings', section: 'storage' },
       { id: 'plex', label: 'Library and Plex', view: 'settings', section: 'plex' },
-      { id: 'pictures', label: 'Pictures', view: 'settings', section: 'pictures' },
+      { id: 'film-tv-info', label: 'Film and TV info', view: 'settings', section: 'film-tv-info' },
       { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
       { id: 'tv-apps', label: 'Watch on TV', view: 'settings', section: 'tv-apps' },
       { id: 'player', label: 'Player', view: 'player' },
@@ -49,6 +49,6 @@ export const settingsPageOf = ({ params = [], narrow = false }) => {
   return narrow ? null : ALL_PAGES[0]
 }
 
-const PAGE_ALIASES = { suggestions: 'for-you', help: 'about', 'danger-zone': 'reset' }
+const PAGE_ALIASES = { pictures: 'film-tv-info', suggestions: 'for-you', help: 'about', 'danger-zone': 'reset' }
 
 const ALL_PAGES = SETTINGS_GROUPS.flatMap((group) => group.pages.map((page) => ({ ...page, group: group.key })))

@@ -17,6 +17,7 @@ import { sweepLibraryStates } from './library-files.js'
 import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from './artwork.js'
 import { pruneSyncHistory } from './sync-history.js'
 import { looksLikeFilm } from './film-rule.js'
+import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
@@ -277,11 +278,12 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
     return
   }
 
+  const classificationOf = await recordingClassifications(finished)
   const importsStartedAt = Date.now()
   for (const entry of finished) {
     const show = matchShow(shows, entry.name)
     if (showId != null && show?.id !== showId) continue
-    const item = toItem({ entry, tvhRecordingsPath, recordingsRoot })
+    const item = { ...toItem({ entry, tvhRecordingsPath, recordingsRoot }), classification: classificationOf(entry) }
     try {
       const existing = await saveRecordingDetails({ item, conn })
       const decision = libraryDecision({ existing, libraryChoice: entry.libraryChoice, show, importUnmatched })
@@ -327,6 +329,17 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
   await finishSync(syncId, finalStatus, summary)
 }
 
+const recordingClassifications = async (entries) => {
+  const sourceOf = (entry) => ({
+    title: entry.name,
+    start: entry.startDate,
+    rating: entry.rating,
+    ratingLabel: entry.ratingLabel,
+  })
+  const lookup = await createClassificationLookup({ programmes: entries.map(sourceOf), store: classificationStore })
+  return (entry) => lookup(sourceOf(entry))
+}
+
 const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   id: entry.uuid,
   title: entry.name,
@@ -363,11 +376,12 @@ const saveRecordingDetails = async ({ item, conn }) => {
     synopsis: item.description,
     image_url: item.image,
     tvh_filename: item.tvhFilename,
+    ...(item.year ? { year: item.year } : {}),
   }
   await db('recordings')
-    .insert({ recording_id: item.id, status: 'pending', ...details })
+    .insert({ recording_id: item.id, status: 'pending', ...details, classification: item.classification ?? null })
     .onConflict('recording_id')
-    .merge(details)
+    .merge({ ...details, classification: db.raw('coalesce(recordings.classification, excluded.classification)') })
   const row = await db('recordings').where({ recording_id: item.id }).first()
   if (!row.image_checked_at) await saveRecordingImage({ item, conn })
   return row
@@ -666,3 +680,4 @@ const RECORDING_TOMBSTONE_TTL_DAYS = 30
 
 let inFlight = null
 const failedArtworkSources = new Set()
+const classificationStore = createClassificationStore()

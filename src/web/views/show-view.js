@@ -23,6 +23,9 @@ import {
 import { useLibraryActions } from '/components/library-actions.js'
 import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuIcon, useLibraryToast } from '/components/library-menus.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
+import { useProgrammeRatings } from '/components/programme-ratings.js'
+import { ShowAbout, ShowCast, useProgrammeCredits } from '/components/show-credits.js'
+import { crewLinesOf, newestSynopsisOf, overviewOf, shownCastOf } from '/credits-display.js'
 import { api } from '/shared/api.js'
 import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
@@ -34,13 +37,16 @@ import { syncStatus } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 
 export const ShowView = {
-  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon },
+  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast },
   template: `
     <div :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
         <img v-if="heroSrc && !heroFailed" class="show-hero-art" :src="heroSrc" alt="" @error="heroFailed = true" />
         <span class="show-hero-scrim"></span>
         <a :href="backTarget.route" class="show-back" @click.prevent="goBack"><back-glyph /> {{ backTarget.label }}</a>
+        <div v-if="show" class="show-hero-badges">
+          <programme-art-badges :classification="show.classification || null" :score="ratingScore" v-model:open="ratingCardOpen" />
+        </div>
         <div class="show-hero-body">
           <h1 class="show-title">{{ title }}</h1>
           <p v-if="heroMeta" class="show-hero-meta">{{ heroMeta }}</p>
@@ -137,6 +143,9 @@ export const ShowView = {
           <h2 class="ui-empty-title">No episodes yet</h2>
           <p class="ui-empty-text">{{ firstEpisodeLine }}</p>
         </section>
+
+        <show-about :synopsis="aboutSynopsis" :review="ratingReview" />
+        <show-cast :cast="castList" :crew="crewLines" />
       </div>
 
       <template v-if="selecting">
@@ -242,6 +251,18 @@ export const ShowView = {
       const seasons = show.value?.seasons || []
       return (seasons.find((s) => s.season === selectedSeason.value) || seasons[0])?.episodes || []
     })
+    const programmeInfo = computed(() => (show.value
+      ? { title: show.value.title, kind: show.value.kind === 'movie' ? 'movie' : '', year: show.value.year ?? null }
+      : null))
+    const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen } = useProgrammeRatings(programmeInfo, { lateReviews: true })
+    const { credits, answered: creditsAnswered } = useProgrammeCredits(programmeInfo)
+    const castList = computed(() => shownCastOf(credits.value))
+    const crewLines = computed(() => crewLinesOf(credits.value))
+    const aboutSynopsis = ref('')
+    const settleAboutSynopsis = () => {
+      if (aboutSynopsis.value || !creditsAnswered.value) return
+      aboutSynopsis.value = overviewOf(credits.value) || newestSynopsisOf(show.value)
+    }
     const allEpisodes = computed(() => (show.value?.seasons || []).flatMap((s) => s.episodes))
     const selectedEpisodes = computed(() => allEpisodes.value.filter((e) => selected.value.has(e.recordingId)))
     const seasonAllSelected = computed(() => allSelectedIn({ episodes: visibleEpisodes.value, selected: selected.value, activeIds: activeIds.value }))
@@ -291,7 +312,9 @@ export const ShowView = {
     })
 
     const onSelectKeydown = (event) => {
-      if (event.key === 'Escape' && selecting.value && overlayStack.size() === 0) stopSelecting()
+      if (event.key !== 'Escape' || overlayStack.size() > 0) return
+      if (ratingCardOpen.value) ratingCardOpen.value = false
+      else if (selecting.value) stopSelecting()
     }
 
     const onStopped = async (message) => {
@@ -312,11 +335,13 @@ export const ShowView = {
       window.removeEventListener('keydown', onSelectKeydown)
       document.body.classList.remove('library-selecting')
     })
+    watch([credits, creditsAnswered, show], settleAboutSynopsis)
     watch(selecting, (on) => document.body.classList.toggle('library-selecting', on))
     watch(key, () => {
       loaded.value = false
       show.value = null
       heroFailed.value = false
+      aboutSynopsis.value = ''
       stopSelecting()
       load()
     })
@@ -339,7 +364,7 @@ export const ShowView = {
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
       episodePress, isLocked, checkLabel, isRecordingNow, selectionTitle,
-      episodeHeading, seasonLabel,
+      episodeHeading, seasonLabel, ratingScore, ratingReview, ratingCardOpen, aboutSynopsis, castList, crewLines,
       episodeMeta: (episode) => episodeMetaOf({ episode, timeZone: tz.value }),
       episodeImage: (episode) => episode.image,
     }

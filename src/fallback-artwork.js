@@ -271,7 +271,7 @@ export const fetchFallbackImage = (source) => artworkClient.getImage({ url: sour
 
 const cacheKeyOf = ({ mode, kind, key }) => (kind ? `${mode}:${kind}:${key}` : `${mode}:${key}`)
 
-const storedTmdbKey = async () => String((await getSetting(TMDB_KEY_SETTING)) || '').trim() || null
+export const storedTmdbKey = async () => String((await getSetting(TMDB_KEY_SETTING)) || '').trim() || null
 
 const databaseCache = {
   read: async (key) => {
@@ -289,10 +289,10 @@ const WIKIDATA_API = 'https://www.wikidata.org/w/api.php'
 const WIKIDATA_SPARQL = 'https://query.wikidata.org/sparql'
 const WIKIPEDIA_API = 'https://en.wikipedia.org/w/api.php'
 const TMDB_API_HOST = 'api.themoviedb.org'
-const TMDB_API = `https://${TMDB_API_HOST}/3`
+export const TMDB_API = `https://${TMDB_API_HOST}/3`
 const IMAGE_HOSTS = new Set(['upload.wikimedia.org', 'image.tmdb.org'])
 
-const artworkClient = createOutboundClient({
+export const artworkClient = createOutboundClient({
   hosts: {
     'www.wikidata.org': { concurrency: 2, gapMs: 200 },
     'query.wikidata.org': { concurrency: 1, gapMs: 1000 },
@@ -300,6 +300,7 @@ const artworkClient = createOutboundClient({
     'upload.wikimedia.org': { concurrency: 2, gapMs: 250 },
     [TMDB_API_HOST]: { concurrency: 4, gapMs: 50 },
     'image.tmdb.org': { concurrency: 4, gapMs: 50 },
+    'api.tvmaze.com': { concurrency: 1, gapMs: 500 },
   },
 })
 

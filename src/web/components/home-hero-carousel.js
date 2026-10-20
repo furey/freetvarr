@@ -11,6 +11,7 @@ import {
   wrapIndex,
 } from '/hero-rotation.js'
 import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
+import { slideClassificationOf } from '/components/classification-chip.js'
 
 const SWIPE_GAP_PX = 12
 const SWIPE_COMMIT_FRACTION = 0.2
@@ -44,6 +45,7 @@ export const HomeHeroCarousel = {
                 :loading="i === rotation.index ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
+            <classification-chip class="hero-slide-classification" :classification="slideClassificationOf(slide)" />
             <div class="ui-hero-body hero-slide-body">
               <div :class="['ui-hero-kicker', 'hero-slide-eyebrow', { 'is-live': slide.badge }]">
                 <span v-if="slide.badge" class="ui-live-badge"><span class="ui-live-dot"></span>{{ slide.badge }}</span>
@@ -345,7 +347,7 @@ export const HomeHeroCarousel = {
     return {
       rotation, stage, failedArt, orderedSlides, hoverEdge, clearHoverEdge, onStageClick, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerEnter, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
-      setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
+      setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed, slideClassificationOf,
     }
   },
 }

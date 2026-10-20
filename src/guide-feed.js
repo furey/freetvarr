@@ -4,18 +4,31 @@ import { pipeline } from 'node:stream/promises'
 import { StringDecoder } from 'node:string_decoder'
 
 import { openFeedStream, parseFeedChannels, parseXmltvTime } from './tvheadend-guide.js'
+import {
+  createClassificationRecorder,
+  createClassificationStore,
+  programmeClassificationEntry,
+} from './classification-labels.js'
 
 export const GUIDE_FEED_PATH = '/guide/xmltv.xml'
 
 export const GUIDE_SOURCE_KEY = 'guide_source_url'
 
-export const serveShiftedFeed = async ({ sourceUrl, res, planShifts, openFeed = openFeedStream }) => {
+export const serveShiftedFeed = async ({
+  sourceUrl,
+  res,
+  planShifts,
+  openFeed = openFeedStream,
+  classifications = defaultClassifications(),
+}) => {
   const source = await openFeed(sourceUrl)
   res.setHeader('Content-Type', 'application/xml; charset=utf-8')
-  await pipeline(source, createShiftedFeedStream({ planShifts }), res)
+  const recorder = createClassificationRecorder({ store: classifications })
+  await pipeline(source, createShiftedFeedStream({ planShifts, onClassifications: recorder.add }), res)
+  recorder.finish()
 }
 
-export const createShiftedFeedStream = ({ planShifts }) => {
+export const createShiftedFeedStream = ({ planShifts, onClassifications = () => {} }) => {
   const decoder = new StringDecoder('utf8')
   let pending = ''
   let shifts = null
@@ -35,8 +48,10 @@ export const createShiftedFeedStream = ({ planShifts }) => {
         }
         const cut = pending.lastIndexOf(PROGRAMME_TAG)
         if (cut > 0) {
-          this.push(shiftProgrammes({ xml: pending.slice(0, cut), shifts }))
+          const xml = pending.slice(0, cut)
           pending = pending.slice(cut)
+          this.push(shiftProgrammes({ xml, shifts }))
+          onClassifications(programmeClassifications({ xml, shifts }))
         }
         callback()
       } catch (err) {
@@ -46,6 +61,7 @@ export const createShiftedFeedStream = ({ planShifts }) => {
     flush(callback) {
       pending += decoder.end()
       this.push(shifts ? shiftProgrammes({ xml: pending, shifts }) : pending)
+      if (shifts) onClassifications(programmeClassifications({ xml: pending, shifts }))
       callback()
     },
   })
@@ -57,6 +73,19 @@ export const shiftProgrammes = ({ xml, shifts }) => {
     const channel = decodeAttribute(programme.match(CHANNEL_ATTRIBUTE)?.[1] ?? '')
     const copies = shifts.filter((s) => s.baseId === channel).map((shift) => shiftedProgramme({ programme, shift }))
     return [programme, ...copies].join('\n  ')
+  })
+}
+
+export const programmeClassifications = ({ xml, shifts = [] }) => {
+  if (!xml.includes(RATING_TAG)) return []
+  return [...xml.matchAll(PROGRAMME_ELEMENT)].flatMap(([programme]) => {
+    const entry = programmeClassificationEntry({ programmeXml: programme, parseTime: parseXmltvTime })
+    if (!entry) return []
+    const channel = decodeAttribute(programme.match(CHANNEL_ATTRIBUTE)?.[1] ?? '')
+    const copies = shifts
+      .filter((shift) => shift.baseId === channel)
+      .map((shift) => ({ ...entry, startMs: entry.startMs + shift.hours * HOUR_MS }))
+    return [entry, ...copies]
   })
 }
 
@@ -139,6 +168,12 @@ export const createRequestWatch = ({ now = Date.now } = {}) => {
   }
 }
 
+let sharedClassifications = null
+const defaultClassifications = () => {
+  sharedClassifications ??= createClassificationStore()
+  return sharedClassifications
+}
+
 const shiftedProgramme = ({ programme, shift }) => {
   const openTag = programme.match(OPEN_TAG)[0]
   const shiftedTag = openTag
@@ -167,6 +202,7 @@ const decodeAttribute = (value) => value
   .replace(/&amp;/g, '&')
 
 const PROGRAMME_TAG = '<programme'
+const RATING_TAG = '<rating'
 const PROGRAMME_ELEMENT = /<programme\b[^>]*?(?:\/>|>[\s\S]*?<\/programme>)/g
 const OPEN_TAG = /^<programme\b[^>]*>/
 const CHANNEL_ATTRIBUTE = /\bchannel="([^"]*)"/

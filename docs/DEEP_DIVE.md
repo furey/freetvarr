@@ -15,6 +15,7 @@ The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob
 - [Live progress indicators](#live-progress-indicators)
 - [Guide days and history](#guide-days-and-history)
 - [Programme pictures](#programme-pictures)
+- [Ratings and reviews](#ratings-and-reviews)
 - [Live TV](#live-tv)
 - [Library delete](#library-delete)
 - [For you](#for-you)
@@ -62,7 +63,7 @@ flowchart TB
   end
 
   xmltv["XMLTV feed<br>e.g. i.mjh.nz/au/&lt;Region&gt;/epg.xml"]
-  lookups["TVmaze · Wikidata · Wikipedia · TMDB<br>pictures, genres, other titles"]
+  lookups["TVmaze · Wikidata · Wikipedia · TMDB<br>pictures, genres, ratings, reviews"]
 
   hdhr --> tvhsrv
   xmltv -->|"tv_grab_ script, on cron"| tvhsrv
@@ -315,6 +316,28 @@ Every request to Wikidata, Wikipedia, and TMDB goes through `src/outbound-http.j
 - **Identity**: the User-Agent `Freetvarr (https://github.com/furey/freetvarr)`, as the Wikimedia policy asks. Errors name the host and status, never the address, so the TMDB key never reaches a log.
 
 The TMDB key is set through `PUT /api/artwork/tmdb`, which checks it against `GET /3/configuration` first. A key with a dot that is longer than 40 characters is sent as a bearer token; any other key goes as the `api_key` parameter. `GET /api/artwork/tmdb` returns only whether a key is set.
+
+## Ratings and reviews
+
+`GET /api/epg/programme-ratings?title=&kind=movie|` returns `{ status, score, votes, source, url, reviews }`, where `status` is `ready`, `pending`, or `none` and `reviews` is `{ snippet, count, url }` or `null`. A `pending` answer means the background lookup is still running; the client asks again after `4 s`, `12 s`, and `30 s`. The route never waits for a third party. `GET /api/epg/programme` adds `programme.classification` (`G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, `AV15+`, or `null`).
+
+Films use TMDB (`vote_average`, `vote_count`, `/movie/{id}/reviews`), which needs the `tmdb_api_key` setting. Series use TVmaze (`type`, `rating.average`, `url`), which needs no key; with a TMDB key, `externals.imdb` goes through TMDB `/find` to reach the series reviews. Matching reuses `matchEvidenceOf` and `programmeHintsOf` from `src/artwork-match.js`, so a title with no confident match gets no score and no reviews. Only films and series of type Scripted, Animation, Documentary, or Miniseries qualify; with no type, the guide genre decides. A TMDB score with fewer than `50` votes is dropped.
+
+`src/review-snippet.js` picks the review sentence: it strips HTML and markdown, keeps sentences of `50`–`170` characters, drops spoiler-risk sentences, and scores the rest by judgement words, the gap between the review's own rating and the average, and whether the sentence opens its review. The best score wins; none means no review line.
+
+Each answer is stored per title and kind (migration `0015`): `30` days on a hit, `7` days on a miss, and a `10`-minute in-memory backoff on a failure. TMDB data is never older than `6` months. The settings `ratings_lookup_enabled` and `reviews_lookup_enabled` (default on, saved through the same settings routes as `show_artwork_lookup`) turn each lookup off; reviews also need a TMDB key.
+
+### Cast and crew
+
+`GET /api/epg/programme-credits?title=&kind=movie|&year=` returns `{ status, overview, cast, crew, source, url }`. Each cast entry is `{ name, character, image, url }`, up to `12` in billing order; `image` is an https hotlink (TMDB `w185`, TVmaze `medium`) or `null`, and `url` is the TMDB or TVmaze page of the person. Films use TMDB credits and need a TMDB key; without one the route answers `none`. Films keep the director, up to `2` writers, and up to `2` producers. Series use TVmaze for the show, crew, and fallback cast; with a TMDB key, `src/programme-credits.js` replaces the cast with the TMDB cast of the current season. Series keep the creators and up to `2` executive producers. The cinematic rule of ratings does not apply, so reality hosts appear. Answers use the same pending, retry, cache, and backoff rules as ratings, in the table `programme_credits` (migration `0017`). The setting `credits_lookup_enabled` (default on) turns the lookup off.
+
+The show page (`src/web/views/show-view.js`) takes the About synopsis from the credits `overview`, or from the newest episode synopsis when there is none. `src/web/components/show-credits.js` renders the About and Cast and crew sections after the page shows.
+
+### Classification
+
+A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`. `src/classification-labels.js` reads the `<rating>` elements of each XMLTV programme as the guide feed loads (an Australian system first) and keeps the label per title and start time in a store (migration `0016`). When the feed has no label, `fallbackClassification` maps the TVHeadend `rating` age to `MA15+` (age `15`) or `R18+` (age `18`) only. A recording gets its label when `src/sync.js` creates or imports it (migration `0018`, column `recordings.classification`) and keeps it; recordings from before the migration hold `null`. `/api/library/shows/:key` returns the latest episode label as `classification`, and each episode row returns its own.
+
+Guide cells, live now/next, For you items, Home row items, and Recordings library items carry `classification`. The client decides where to show it: the programme sheet, the show header, the live info panel, and the live player (for `5 s` after tune-in or a change of programme) show any label; thumbnails on For you, Home, the Home hero, and Recordings show only `MA15+` and `R18+`. Scores and reviews are never part of list payloads.
 
 ## Live TV
 

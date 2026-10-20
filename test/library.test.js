@@ -14,6 +14,7 @@ import {
   ruleSummaryOf,
   rulePatchFrom,
   seasonsOf,
+  showDetailOf,
   showSummariesOf,
   updateShowRule,
 } from '../src/library.js'
@@ -125,6 +126,27 @@ test('showSummariesOf: groups by show key, counts new and unwatched, and keeps r
   assert.equal(designs.rule.paused, true)
   assert.equal(designs.latestAt, NOW + DAY_MS)
   assert.equal(shows.find((s) => s.key === 'melbourne-cup').kind, 'oneoff')
+})
+
+test('library payloads carry each episode label, the latest show label, and a film year', () => {
+  const rows = [
+    row({ recording_id: 'a', season: 22, episode: 45, aired_at: NOW - DAY_MS, classification: null }),
+    row({ recording_id: 'b', season: 22, episode: 44, aired_at: NOW - 2 * DAY_MS, classification: 'PG' }),
+    row({ recording_id: 'c', season: 22, episode: 43, aired_at: NOW - 3 * DAY_MS, classification: 'G' }),
+    row({ recording_id: 'm', title: 'Heat', file_path: '/media/movies/Heat (1995)/Heat.ts', classification: 'MA15+', year: 1995 }),
+  ]
+  const shows = showSummariesOf({ rows, moviesRoot: '/media/movies' })
+  const block = shows.find((s) => s.key === 'the-block')
+  const heat = shows.find((s) => s.key === 'heat')
+  assert.equal(block.classification, 'PG')
+  assert.equal(block.year, null)
+  assert.equal(heat.classification, 'MA15+')
+  assert.equal(heat.year, 1995)
+  const detail = showDetailOf({ key: 'the-block', rows: rows.slice(0, 3) })
+  assert.equal(detail.classification, 'PG')
+  assert.deepEqual(detail.seasons[0].episodes.map((e) => e.classification), [null, 'PG', 'G'])
+  const episodes = libraryEpisodesOf({ rows, state: 'unwatched', moviesRoot: '/media/movies' })
+  assert.deepEqual(episodes.map((e) => [e.recordingId, e.classification]), [['a', null], ['m', 'MA15+'], ['b', 'PG'], ['c', 'G']])
 })
 
 test('seasonsOf: newest season first, unknown season last, newest episode first', () => {

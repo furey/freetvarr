@@ -18,6 +18,7 @@ test('settingsPageOf: preference sections and system pages resolve', () => {
 test('settingsPageOf: old section names still open their page', () => {
   assert.equal(settingsPageOf({ params: ['help'] }).id, 'about')
   assert.equal(settingsPageOf({ params: ['danger-zone'] }).section, 'danger-zone')
+  assert.equal(settingsPageOf({ params: ['pictures'] }).label, 'Film and TV info')
 })
 
 test('settingsPageOf: no page on a phone shows the index, wide screens open the first page', () => {

@@ -28,7 +28,7 @@ const SETTINGS_SECTIONS = [
   { id: 'storage', label: 'Storage' },
   { id: 'plex', label: 'Plex' },
   { id: 'schedule', label: 'Schedule' },
-  { id: 'pictures', label: 'Pictures' },
+  { id: 'film-tv-info', label: 'Film and TV info' },
   { id: 'ad-removal', label: 'Ad removal' },
   { id: 'tv-apps', label: 'TV apps' },
   { id: 'help', label: 'Help' },
@@ -454,29 +454,55 @@ export const SettingsView = {
           </div>
         </section>
 
-        <section id="section-pictures" class="settings-section">
+        <section id="section-film-tv-info" class="settings-section">
           <p class="settings-intro">
-            Where missing programme pictures come from.
-            <info-button title="Pictures" doc="guide/tv-guide#missing-pictures">
+            Pictures, ratings, reviews, and cast from online film and TV databases.
+            <info-button title="Film and TV info" doc="guide/tv-guide#missing-pictures">
               <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database. For films and other shows TVmaze does not list, it finds the matching Wikipedia article through Wikidata and uses its picture, or the TMDB poster when you add a TMDB key.</p>
-              <p>A lookup sends the programme title to those services. Turn it off to keep every title on your network.</p>
+              <p>Films and drama series also get a score on the programme sheet, from TMDB users for films and TVmaze users for shows. With a TMDB key, the sheet also shows a line from a TMDB review.</p>
+              <p>A recorded show's page lists its cast and crew from TMDB and TVmaze, reality hosts included.</p>
+              <p>A lookup sends the programme title to those services. Turn the switches off to keep every title on your network.</p>
             </info-button>
           </p>
           <div class="settings-group">
-            <h3 class="ui-group-label">Missing pictures</h3>
+            <h3 class="ui-group-label">Look up online</h3>
             <div class="ui-group">
               <div class="settings-row">
                 <toggle-switch v-model="showArtworkLookup" class="settings-toggle">
                   <span class="settings-toggle-text">
-                    <span class="settings-row-title">Look up missing pictures online</span>
-                    <span class="settings-row-meta">On: when the guide and Plex have no picture for a show, Freetvarr sends the title to TVmaze, Wikidata, and Wikipedia (and TMDB, with a key) and uses the picture it finds. Off: those shows get a title card.</span>
+                    <span class="settings-row-title">Missing pictures</span>
+                    <span class="settings-row-meta">TVmaze, Wikipedia, and TMDB</span>
+                  </span>
+                </toggle-switch>
+              </div>
+              <div class="settings-row">
+                <toggle-switch v-model="ratingsLookupEnabled" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Ratings</span>
+                    <span class="settings-row-meta">Scores for films and drama series from TVmaze and TMDB</span>
+                  </span>
+                </toggle-switch>
+              </div>
+              <div class="settings-row">
+                <toggle-switch :model-value="reviewsLookupEnabled && tmdbKeySet" @update:model-value="reviewsLookupEnabled = $event" :disabled="!tmdbKeySet" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Reviews</span>
+                    <span class="settings-row-meta">A line from a TMDB review of films and drama series. Needs a TMDB key.</span>
+                  </span>
+                </toggle-switch>
+              </div>
+              <div class="settings-row">
+                <toggle-switch v-model="creditsLookupEnabled" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Cast and crew</span>
+                    <span class="settings-row-meta">Cast and crew from TMDB and TVmaze</span>
                   </span>
                 </toggle-switch>
               </div>
             </div>
-            <p class="settings-note"><a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a> is a free online TV database. Wikipedia pictures keep their own licences.</p>
+            <p class="settings-note">Off keeps every title on your network.</p>
           </div>
-          <tmdb-key-setting />
+          <tmdb-key-setting @key-change="tmdbKeySet = $event" />
         </section>
 
         <section id="section-ad-removal" class="settings-section">
@@ -681,6 +707,10 @@ export const SettingsView = {
     const importUnmatched = ref(true)
     const addToLibraryDefault = ref(true)
     const showArtworkLookup = ref(true)
+    const ratingsLookupEnabled = ref(true)
+    const reviewsLookupEnabled = ref(true)
+    const creditsLookupEnabled = ref(true)
+    const tmdbKeySet = ref(false)
     const plexOneOffSectionId = ref('')
     const moviesRoot = ref('')
     const moviesRootTesting = ref(false)
@@ -739,6 +769,9 @@ export const SettingsView = {
       importUnmatched.value = s.import_unmatched !== false
       loadRecordingDefaults()
       showArtworkLookup.value = s.show_artwork_lookup !== false
+      ratingsLookupEnabled.value = s.ratings_lookup_enabled !== false
+      reviewsLookupEnabled.value = s.reviews_lookup_enabled !== false
+      creditsLookupEnabled.value = s.credits_lookup_enabled !== false
       plexOneOffSectionId.value = s.plex_oneoff_section_id || ''
       moviesRoot.value = s.movies_root || ''
       plexMoviesSectionId.value = s.plex_movies_section_id || ''
@@ -767,6 +800,9 @@ export const SettingsView = {
           oneoff_root: oneOffRoot.value,
           import_unmatched: importUnmatched.value,
           show_artwork_lookup: showArtworkLookup.value,
+          ratings_lookup_enabled: ratingsLookupEnabled.value,
+          reviews_lookup_enabled: reviewsLookupEnabled.value,
+          credits_lookup_enabled: creditsLookupEnabled.value,
           plex_oneoff_section_id: plexOneOffSectionId.value,
           movies_root: moviesRoot.value,
           plex_movies_section_id: plexMoviesSectionId.value,
@@ -1044,7 +1080,7 @@ export const SettingsView = {
       resetting, resetError, askResetFreetvarr,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, addToLibraryDefault, showArtworkLookup, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
+      importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, reviewsLookupEnabled, creditsLookupEnabled, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,

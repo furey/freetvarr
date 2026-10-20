@@ -46,6 +46,8 @@ export const oneOffMetaOf = ({ show, timeZone }) => [
   show.latest?.airedAt ? dayMonthOf({ ms: show.latest.airedAt, timeZone }) : '',
 ].filter(Boolean).join(' · ')
 
+export const showClassificationOf = (show) => show?.classification ?? show?.latest?.classification ?? null
+
 export const showsCountText = (shows) => {
   const episodes = shows.reduce((sum, s) => sum + s.counts.total, 0)
   return [countText(shows.length, 'show'), episodes ? countText(episodes, 'episode') : ''].filter(Boolean).join(' · ')

@@ -1073,3 +1073,10 @@
     transition: none;
   }
 }
+
+.classification-chip.hero-slide-classification {
+  z-index: 2;
+  top: 14px;
+  right: 14px;
+  bottom: auto;
+}

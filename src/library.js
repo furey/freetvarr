@@ -202,6 +202,7 @@ export const episodeOf = ({ row, playable = false }) => {
     synopsis: row.synopsis ?? null,
     channelId: row.channel_id ?? null,
     channelName: row.channel_name ?? null,
+    classification: row.classification ?? null,
     image: recordingImageOf(row),
     status: row.status,
     libraryState: row.library_state ?? null,
@@ -265,10 +266,13 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot }) => {
   const title = latestRow?.title || series?.title || key
   const watchable = rows.filter((row) => !isFailed(row))
   const latestAiredAt = latestRow ? airedMsOf(latestRow) : null
+  const kind = kindOf({ rows, hasRule: Boolean(series), moviesRoot })
   return {
     key,
     title,
-    kind: kindOf({ rows, hasRule: Boolean(series), moviesRoot }),
+    kind,
+    classification: newestFirst.find((row) => row.classification)?.classification ?? null,
+    year: kind === 'movie' ? newestFirst.find((row) => row.year)?.year ?? null : null,
     poster: `/api/epg/show-image?title=${encodeURIComponent(title)}&shape=poster`,
     image: newestFirst.map(recordingImageOf).find(Boolean) || null,
     counts: {
@@ -342,6 +346,7 @@ const libraryEpisodeOf = ({ row, kind }) => {
     synopsis: episode.synopsis,
     channelId: episode.channelId,
     channelName: episode.channelName,
+    classification: episode.classification,
     image: episode.image,
     positionS: episode.positionS,
     playedAt: episode.playedAt,

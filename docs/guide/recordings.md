@@ -43,12 +43,24 @@ A show page has these parts:
 - **Recording options**: opens the [Recording options](#recording-options) of a show with a series recording.
 - **⋯**: opens the [show menu](#show-menu).
 - **Status line**: what the series recording does next, such as `Next: Tue 8:30 pm on 9HD`, `Recording now`, or `Paused`, with a summary such as `Records every new episode on 9HD · keeps the latest 10 · ads removed`. Press it to open Recording options. A show with no series recording says `Not recording new episodes`, with a **Guide** button.
+- **Classification**: the age label of the latest episode, such as `M` or `MA15+`. A show recorded before this version has none.
+- **About**: the synopsis of the show, and a line from a review. See [About and cast and crew](#about-and-cast-and-crew).
+- **Cast and crew**: the people in the show. See [About and cast and crew](#about-and-cast-and-crew).
 - **Season chips**: pick a season when the show has more than one.
 - **Episodes**: a row for each episode, with a thumbnail and a bar for how much you watched, the title, the air date and channel, and the synopsis. A `New` badge marks an episode you have not started, and a `REC` badge an episode that records now.
 
 Press an episode row to play it. Press **⋯** on the row, or hold the row on a touch screen, to open the [episode menu](#episode-menu).
 
 A show with a series recording but no episodes yet still gets a poster. The page says when the first episode records, for example `First episode records Tue 8:30 pm`.
+
+### About and cast and crew
+
+The **About** and **Cast and crew** sections load after the page opens, so the episodes show first.
+
+- **About**: the show synopsis from TMDB or TVmaze, or the synopsis of the newest episode when they have none. Below it, one line from a TMDB review shows with a link to the reviews. The score shows in the header; press it for the source. See [Ratings and reviews](/guide/tv-guide#ratings-and-reviews).
+- **Cast and crew**: up to 12 cast members, each with a photo (initials when there is no photo), a name, and the character. Crew shows as lines, such as `Director: Jane Smith`. For a film, the crew is the director, up to 2 writers, and up to 2 producers. For a series, it is the creators and up to 2 executive producers. Press a person to open their TMDB or TVmaze page in a new tab.
+
+A show with no match gets neither section. Reality and game show hosts appear in the cast. A film needs a [TMDB key](/guide/tv-guide#tmdb-key) for its cast and crew. To turn the lookup off, go to Settings → Film and TV info and turn off **Cast and crew**.
 
 ### Show menu
 

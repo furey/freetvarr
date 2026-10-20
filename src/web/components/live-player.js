@@ -122,6 +122,10 @@ export const LivePlayer = {
         </div>
         <span v-if="chips === 'tuning'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText || TUNING_TEXT }}</span>
         <div class="pl-scrim is-top" aria-hidden="true"></div>
+        <transition name="pl-classification">
+          <classification-chip v-if="tuneInClassification && !infoOpen && live.phase === 'live'" variant="player"
+            class="pl-classification" :classification="tuneInClassification" />
+        </transition>
         <div class="pl-scrim is-bottom" aria-hidden="true"></div>
         <player-info-panel :open="infoOpen" panel-id="live-info">
           <template #image>
@@ -141,7 +145,10 @@ export const LivePlayer = {
                 <span>{{ fmtClockTz(info.now.start) }}–{{ fmtClockTz(info.now.end) }}</span>
                 <div class="progress-track"><div class="progress-fill" :style="{ width: infoProgress + '%' }"></div></div>
               </div>
-              <p v-if="infoMetaLine" class="live-info-meta">{{ infoMetaLine }}</p>
+              <p v-if="infoMetaLine || infoClassification" class="live-info-meta">
+                <span v-if="infoMetaLine">{{ infoMetaLine }}</span>
+                <classification-chip v-if="infoClassification" variant="inline" :classification="infoClassification" />
+              </p>
               <p v-if="info.now.synopsis" class="live-info-synopsis">{{ info.now.synopsis }}</p>
             </template>
             <p v-else-if="info.loaded && !info.next" class="live-info-empty">{{ NO_GUIDE_TEXT }}</p>
@@ -550,9 +557,44 @@ export const LivePlayer = {
       return program ? [seasonEpisodeOf(program), program.episode_title].filter(Boolean).join(' · ') : ''
     })
 
-    const infoMetaLine = computed(() => {
+    const infoMetaLine = computed(() => genreLabel(info.value.now?.genre))
+    const infoClassification = computed(() => ratingLabel(info.value.now))
+
+    const tuneInClassification = ref(null)
+    let tuneInTimer = null
+    let lastBadgeKey = null
+
+    const hideTuneInBadge = () => {
+      clearTimeout(tuneInTimer)
+      tuneInClassification.value = null
+    }
+
+    const showTuneInBadge = (code) => {
+      hideTuneInBadge()
+      if (!code || mini.value || multi.active) return
+      tuneInClassification.value = code
+      tuneInTimer = setTimeout(hideTuneInBadge, TUNE_IN_BADGE_MS)
+    }
+
+    const badgeKey = computed(() => {
       const program = info.value.now
-      return program ? [genreLabel(program.genre), ratingLabel(program)].filter(Boolean).join(' · ') : ''
+      return program && live.channel ? `${live.channel.id}|${program.program_id}` : null
+    })
+    const videoShowing = computed(() => live.open && live.phase === 'live' && chips.value === 'hidden')
+
+    watch(() => live.open && live.channel?.id, () => {
+      lastBadgeKey = null
+      hideTuneInBadge()
+    })
+
+    watch([badgeKey, videoShowing], ([key, showing]) => {
+      if (!key || !showing || key === lastBadgeKey) return
+      lastBadgeKey = key
+      showTuneInBadge(infoClassification.value)
+    })
+
+    watch(() => mini.value || multi.active, (hidden) => {
+      if (hidden) hideTuneInBadge()
     })
 
     const infoProgress = computed(() => {
@@ -560,7 +602,10 @@ export const LivePlayer = {
       return program ? programmeProgress({ program, atMs: playingAtMs.value }) : 0
     })
 
-    onUnmounted(() => clearTimeout(airingTimer))
+    onUnmounted(() => {
+      clearTimeout(airingTimer)
+      clearTimeout(tuneInTimer)
+    })
 
     const recordButton = computed(() => liveRecordButton({
       program: airing.value.now,
@@ -655,7 +700,8 @@ export const LivePlayer = {
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
-      infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,
+      infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
+      tuneInClassification,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT, TUNING_TEXT,
     }
@@ -674,6 +720,8 @@ const fetchChannelAiring = async ({ channelId, atMs }) => {
 
 const EMPTY_AIRING = { now: null, next: null, atMs: 0, loaded: false }
 const AIRING_BOUNDARY_GRACE_MS = 1_000
+
+const TUNE_IN_BADGE_MS = 5_000
 
 const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800

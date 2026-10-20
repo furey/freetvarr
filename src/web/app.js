@@ -78,6 +78,7 @@ import {
 } from '/components/nav-icons.js'
 import { PaddingRows } from '/components/padding-rows.js'
 import { PlayerInfoPanel } from '/components/player-parts.js'
+import { ProgrammeArtBadges, ProgrammeReviewCard } from '/components/programme-ratings.js'
 import { ProgrammeSheetHost } from '/components/programme-sheet-host.js'
 import { ProgressBlock } from '/components/progress-block.js'
 import { RecordingStatus, RecordingDrawer } from '/components/recording-drawer.js'
@@ -89,6 +90,7 @@ import { SummaryLine } from '/components/summary-line.js'
 import { SyncDetail } from '/components/sync-detail.js'
 import { SyncStatusIcon, SyncResult } from '/components/sync-status.js'
 import { TitleArt } from '/components/title-art.js'
+import { ClassificationChip } from '/components/classification-chip.js'
 import { ToastRegion } from '/components/toast-region.js'
 import { TvAppsPanel } from '/components/tv-apps-panel.js'
 import { UiSheet } from '/components/ui-sheet.js'
@@ -206,6 +208,7 @@ app.component('clock-label', ClockLabel)
 app.component('search-overlay', SearchOverlay)
 app.component('recordings-tabs', RecordingsTabs)
 app.component('title-art', TitleArt)
+app.component('classification-chip', ClassificationChip)
 app.component('ui-sheet', UiSheet)
 app.component('home-nav-icon', HomeNavIcon)
 app.component('live-nav-icon', LiveNavIcon)
@@ -246,6 +249,8 @@ app.component('sort-arrow', SortArrow)
 app.component('list-skeleton', ListSkeleton)
 app.component('live-player', LivePlayer)
 app.component('programme-sheet-host', ProgrammeSheetHost)
+app.component('programme-art-badges', ProgrammeArtBadges)
+app.component('programme-review-card', ProgrammeReviewCard)
 app.component('watch-for-sheet', WatchForSheet)
 app.component('padding-rows', PaddingRows)
 app.component('live-streams-setting', LiveStreamsSetting)

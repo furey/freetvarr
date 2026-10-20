@@ -170,11 +170,11 @@ For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wi
 
 While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 
-A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. When a service does not answer, Freetvarr waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Pictures and turn off **Look up missing pictures online**.
+A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. When a service does not answer, Freetvarr waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Film and TV info and turn off **Missing pictures**.
 
 ### TMDB key
 
-A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and backdrops, which are often sharper than the Wikipedia picture. To add one:
+A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and backdrops, which are often sharper than the Wikipedia picture. It also adds film ratings and a line from a TMDB review on the programme sheet; see [Ratings and reviews](#ratings-and-reviews). To add one:
 
 1. Sign up at [themoviedb.org](https://www.themoviedb.org/signup).
 2. Open [TMDB API settings](https://www.themoviedb.org/settings/api) and request a free developer key. TMDB asks about your "application". You are using Freetvarr at home, so answer for that:
@@ -188,10 +188,49 @@ A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and b
 
    TMDB also asks for your name, email address, phone number, and street address before it shows the key.
 3. TMDB shows two values: an **API Key** (32 letters and numbers) and an **API Read Access Token** (a much longer one). Either works in Freetvarr. Copy the **API Key**; it is shorter to paste.
-4. In Freetvarr, go to Settings → Pictures and paste it into **TMDB API key (optional)**.
+4. In Freetvarr, go to Settings → Film and TV info and paste it into **TMDB API key (optional)** under **TMDB key**.
 5. Press **Test key**, then **Save key**.
 
-The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.
+The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Show ratings come from [TVmaze](https://www.tvmaze.com).
+
+## Ratings and reviews
+
+The programme sheet can show a score, a classification, and a review line for a programme. Each loads after the sheet opens, so the sheet never waits for it.
+
+- **Classification**: a badge such as `G`, `PG`, `M`, `MA15+`, or `R18+` on the bottom-right of the picture. It shows for every programme that has a classification. See [Classification](#classification).
+- **Score**: a star and a score out of `10` on the bottom-left of the picture. Press the score to see the source (TMDB users with the number of votes, or TVmaze users) and a link that opens the programme on that site in a new tab. Press outside the card or `Esc` to close it.
+- **Review line**: one sentence from a TMDB review, below the synopsis, with a **Read N reviews** link to the reviews on TMDB. Freetvarr picks a sentence that judges the programme and skips ones that give away the plot. It shows no reviewer name.
+
+Scores and reviews appear only after you open a programme or a show. They never appear on the TV guide, Home, For you, Live TV, or the Recordings library.
+
+Only films and scripted, animated, documentary, and miniseries shows get a score or a review line. Reality, game shows, talk, news, sport, variety, panel shows, and lifestyle programmes never do. When no source gives a show's type, Freetvarr uses the guide genre: film and drama count; game show, news, and sport do not.
+
+Films come from [TMDB](https://www.themoviedb.org), which needs a [TMDB key](#tmdb-key). Series come from [TVmaze](https://www.tvmaze.com), which needs no key; with a TMDB key, Freetvarr also reads TMDB reviews for series. Freetvarr matches a title with the same checks as [Missing pictures](#missing-pictures), and shows nothing when it is not sure of the match. A score from TMDB with fewer than `50` votes is hidden.
+
+Freetvarr keeps each answer for 30 days, or 7 days when there is no match. To turn these off, go to Settings → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
+
+### Classification
+
+A classification is the age label of a programme: `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`. It shows in these places:
+
+- **Programme sheet**: on the picture, for any programme that has a label.
+- **Show page**: in the header of a recorded show, with the label of the latest episode ([Recordings](/guide/recordings#show-pages)).
+- **Live player**: when you tune in to a channel, and when a new programme starts on it, the label shows over the picture for 5 seconds. The label also shows in the programme info panel ([Live TV](/guide/live-tv#programme-info)). It does not show in the miniplayer or in Multiview.
+- **Thumbnails**: For you cards, Home cards and the Home hero, and Recordings library cards show a label only for `MA15+` and `R18+`. The TV guide grid and Live TV rows show no label.
+
+Freetvarr reads each label from the XMLTV guide feed as it loads the feed. When the feed has no label for a programme, Freetvarr uses the age rating that TVHeadend holds for it, but only when that rating is `MA15+` or `R18+`. A programme with neither source has no label.
+
+A recording keeps the label it had when it was recorded or imported. A recording made before this version has no label, and its show page shows none.
+
+### Cast and crew
+
+The page of a recorded show lists its cast and crew; see [Recordings](/guide/recordings#about-and-cast-and-crew). Freetvarr looks them up by the show title, so reality and game show hosts appear too.
+
+- **Films**: from TMDB, which needs a [TMDB key](#tmdb-key). Without a key, a film page shows no cast.
+- **Series with a TMDB key**: the cast of the current season, from TMDB. The crew comes from TVmaze.
+- **Series without a key**: the cast and crew come from TVmaze.
+
+Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match.
 
 ## Caching
 

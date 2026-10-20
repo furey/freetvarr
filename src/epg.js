@@ -19,6 +19,7 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
+import { createClassificationLookup, createClassificationStore, programmeClassification } from './classification-labels.js'
 import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
@@ -44,14 +45,20 @@ export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: guide.startMs, day })
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: spillEnd, nowMs })
     .catch(logHistoryError('load'))
-  const programs = {}
-  for (const channel of guide.channels) {
+  const merged = guide.channels.map((channel) => {
     const rows = guide.programsByChannel[String(channel.epgId)] || []
     const live = programsInWindow({ rows, fromMs: dayStart, toMs: spillEnd })
     const saved = savedWithKinds({ guide, saved: endedByChannel?.get(String(channel.epgId)) })
-    programs[channel.id] = mergeGuidePrograms({ live, saved }).map((program) => toGuideCell({ program, nowMs }))
-  }
-  const prefs = await getChannelPrefs()
+    return [channel.id, mergeGuidePrograms({ live, saved })]
+  })
+  const [classificationOf, prefs] = await Promise.all([
+    classificationLookupFor(merged.flatMap(([, rows]) => rows)),
+    getChannelPrefs(),
+  ])
+  const programs = Object.fromEntries(merged.map(([channelId, rows]) => [
+    channelId,
+    rows.map((program) => ({ ...toGuideCell({ program, nowMs }), classification: classificationOf(program) })),
+  ]))
   return {
     day,
     dayStart,
@@ -142,24 +149,23 @@ export const getOnNowForPinned = async ({ nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
   const { pinnedIds } = await getChannelPrefs()
   const byId = new Map(guide.channels.map((c) => [String(c.id), c]))
-  const entries = []
-  for (const id of pinnedIds) {
-    const channel = byId.get(String(id))
-    if (!channel) continue
-    const rows = guide.programsByChannel[String(channel.epgId)] || []
-    const { now, next } = nowAndNext(rows, nowMs)
-    entries.push({
-      channel: {
-        id: channel.id,
-        name: channel.name,
-        number: channel.number ?? null,
-        hasLogo: channel.logos.length > 0,
-        offAir: Boolean(channel.offAir),
-      },
-      now,
-      next,
-    })
-  }
+  const airings = pinnedIds
+    .map((id) => byId.get(String(id)))
+    .filter(Boolean)
+    .map((channel) => ({ channel, ...airingPair(guide.programsByChannel[String(channel.epgId)] || [], nowMs) }))
+  const classificationOf = await classificationLookupFor(airings.flatMap(({ now, next }) => [now, next]))
+  const classified = (program) => program && { ...trimProgram(program), classification: classificationOf(program) }
+  const entries = airings.map(({ channel, now, next }) => ({
+    channel: {
+      id: channel.id,
+      name: channel.name,
+      number: channel.number ?? null,
+      hasLogo: channel.logos.length > 0,
+      offAir: Boolean(channel.offAir),
+    },
+    now: classified(now),
+    next: classified(next),
+  }))
   return { entries }
 }
 
@@ -182,23 +188,25 @@ const airingPair = (programs, nowMs) => {
 export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
   const [guide, prefs] = await Promise.all([getCachedGuide(), getChannelPrefs()])
   const channels = orderChannels({ channels: guide.channels, ...prefs })
-  const entries = channels.filter((c) => !c.hidden).map((channel) => {
-    const rows = guide.programsByChannel[String(channel.epgId)] || []
-    const { now, next } = airingPair(rows, nowMs)
-    return {
-      channel: {
-        id: channel.id,
-        name: channel.name,
-        number: channel.number ?? null,
-        hasLogo: channel.logos.length > 0,
-        offAir: Boolean(channel.offAir),
-        pinned: channel.pinned,
-        hd: channel.hd === true,
-      },
-      now: now && toBrowserProgram(now),
-      next: next && toBrowserProgram(next),
-    }
-  })
+  const airings = channels.filter((c) => !c.hidden).map((channel) => ({
+    channel,
+    ...airingPair(guide.programsByChannel[String(channel.epgId)] || [], nowMs),
+  }))
+  const classificationOf = await classificationLookupFor(airings.flatMap(({ now, next }) => [now, next]))
+  const classified = (program) => program && { ...toBrowserProgram(program), classification: classificationOf(program) }
+  const entries = airings.map(({ channel, now, next }) => ({
+    channel: {
+      id: channel.id,
+      name: channel.name,
+      number: channel.number ?? null,
+      hasLogo: channel.logos.length > 0,
+      offAir: Boolean(channel.offAir),
+      pinned: channel.pinned,
+      hd: channel.hd === true,
+    },
+    now: classified(now),
+    next: classified(next),
+  }))
   return {
     fetchedAt: guide.fetchedAt,
     stale: Boolean(guide.stale),
@@ -301,7 +309,12 @@ export const getChannelAiring = async ({ channelId, atMs = Date.now(), nowMs = D
   const guide = await getCachedGuide()
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: atMs, toMs: nowMs, nowMs })
     .catch(logHistoryError('load'))
-  return channelAiringAt({ guide, channelId, atMs, endedByChannel })
+  const { now, next } = channelAiringAt({ guide, channelId, atMs, endedByChannel })
+  const classificationOf = await classificationLookupFor([now, next])
+  return {
+    now: now && { ...now, classification: classificationOf(now) },
+    next: next && { ...next, classification: classificationOf(next) },
+  }
 }
 
 export const programmeSheetAt = ({ guide, channelId, startMs, nowMs = Date.now(), endedByChannel = null }) => {
@@ -330,8 +343,22 @@ export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now()
   const endedByChannel = startMs < nowMs
     ? await loadEndedProgramsByChannel({ fromMs: startMs, toMs: nowMs, nowMs }).catch(logHistoryError('load'))
     : null
-  return programmeSheetAt({ guide, channelId, startMs, nowMs, endedByChannel })
+  const sheet = programmeSheetAt({ guide, channelId, startMs, nowMs, endedByChannel })
+  return withClassification({ sheet, store: classificationStore })
 }
+
+export const withClassification = async ({ sheet, store }) => {
+  if (!sheet.programme) return sheet
+  const classification = await programmeClassification({ programme: sheet.programme, store })
+  return { ...sheet, programme: { ...sheet.programme, classification } }
+}
+
+const classificationStore = createClassificationStore()
+
+const classificationLookupFor = (programmes) => createClassificationLookup({
+  programmes: programmes.filter(Boolean),
+  store: classificationStore,
+})
 
 export const savedWithKinds = ({ guide, saved = [] }) => (guide?.kindOf
   ? withDisplayKinds({ programmes: saved, kindOf: guide.kindOf })
@@ -418,12 +445,16 @@ const loadRecordingState = async (now) => {
     getCachedGuide().catch(() => null),
     recordingsStorageInfo(),
   ])
-  const upcomingRecordings = projectUpcomingRecordings({
-    seriesTags: state.seriesTags,
+  const upcomingRecordings = await withUpcomingClassifications({
+    upcoming: projectUpcomingRecordings({
+      seriesTags: state.seriesTags,
+      futureRecordings: state.futureRecordings,
+      skippedProgramIds: state.skippedProgramIds,
+      guide,
+      nowMs: now,
+    }),
     futureRecordings: state.futureRecordings,
-    skippedProgramIds: state.skippedProgramIds,
     guide,
-    nowMs: now,
   })
   await syncSavedDvrState({ futureRecordings: state.futureRecordings, nowMs: now })
     .catch(logHistoryError('dvr sync'))
@@ -443,6 +474,22 @@ const loadRecordingState = async (now) => {
   stateCache = { value, expiresAt: now + STATE_TTL_MS }
   stateFailedUntil = 0
   return value
+}
+
+const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
+  const timerById = new Map(futureRecordings.map((recording) => [String(recording.programId), recording]))
+  const sources = upcoming.map((recording) => {
+    const timer = timerById.get(String(recording.programId))
+    const listed = guide?.programByEventId?.get(String(recording.programId))
+    return {
+      title: recording.name,
+      start: recording.startDate,
+      rating: timer?.rating ?? listed?.rating ?? null,
+      ratingLabel: timer?.ratingLabel ?? null,
+    }
+  })
+  const classificationOf = await classificationLookupFor(sources)
+  return upcoming.map((recording, i) => ({ ...recording, classification: classificationOf(sources[i]) }))
 }
 
 export const withSeriesImages = ({ seriesTags = [], guide, nowMs = Date.now() }) => {

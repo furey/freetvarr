@@ -1,6 +1,7 @@
 import { db, getSetting, setSetting } from './db.js'
 import { getGuideSnapshot, getRecordingState } from './epg.js'
 import { buildForYou } from './for-you.js'
+import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { pickableShowsOf } from './for-you-pickable.js'
 import {
   SETTINGS,
@@ -27,7 +28,10 @@ export const getForYou = async ({ nowMs = Date.now() } = {}) => {
   const signature = signatureOf({ inputs, nowMs })
   if (cached?.signature === signature) return cached.result
   const started = Date.now()
-  const result = buildForYou({ ...inputs, nowMs, limit: CACHED_LIMIT })
+  const result = await withClassifications({
+    result: buildForYou({ ...inputs, nowMs, limit: CACHED_LIMIT }),
+    programmes: inputs.programmes,
+  })
   result.computeMs = Date.now() - started
   cached = { signature, result }
   return result
@@ -182,6 +186,22 @@ const loadInputs = async ({ nowMs }) => {
   }
 }
 
+export const withClassifications = async ({ result, programmes, store = classificationStore }) => {
+  const items = [result.topPick, ...result.sections.flatMap((section) => section.items)].filter(Boolean)
+  const wanted = new Set(items.map((item) => item.programmeKey))
+  const ratingByKey = new Map(programmes
+    .map((programme) => [`${programme.channel_id}:${programme.start}`, programme.rating])
+    .filter(([key]) => wanted.has(key)))
+  const sourceOf = (item) => ({ title: item.title, start: item.start, rating: ratingByKey.get(item.programmeKey) })
+  const classificationOf = await createClassificationLookup({ programmes: items.map(sourceOf), store })
+  const classified = (item) => item && { ...item, classification: classificationOf(sourceOf(item)) }
+  return {
+    ...result,
+    topPick: classified(result.topPick),
+    sections: result.sections.map((section) => ({ ...section, items: section.items.map(classified) })),
+  }
+}
+
 const signatureOf = ({ inputs, nowMs }) => JSON.stringify({ ...inputs.stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
 const recordingStampOf = (recordings) => [
@@ -206,6 +226,7 @@ const isPrimeTime = (ms) => {
 
 let cached = null
 let upkeeping = null
+const classificationStore = createClassificationStore()
 const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFromTvmaze, onFilm: rememberKnownAsFromWikidata })
 
 const CACHED_LIMIT = 20

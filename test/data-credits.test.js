@@ -4,8 +4,8 @@ import { FALLBACK_ATTRIBUTION, dataCreditsOf } from '../src/web/data-credits.js'
 
 test('dataCreditsOf turns attribution into credits with licence links', () => {
   const [tvmaze, wikidata] = dataCreditsOf(FALLBACK_ATTRIBUTION)
-  assert.equal(tvmaze.note, 'Show genres and some artwork from TVmaze.')
-  assert.equal(tvmaze.lead, 'Show genres and some artwork')
+  assert.equal(tvmaze.note, 'Show genres, show ratings, cast, and some artwork from TVmaze.')
+  assert.equal(tvmaze.lead, 'Show genres, show ratings, cast, and some artwork')
   assert.equal(tvmaze.siteHref, 'https://www.tvmaze.com')
   assert.equal(tvmaze.licenceHref, 'https://creativecommons.org/licenses/by-sa/4.0/')
   assert.equal(wikidata.licence, 'CC0')

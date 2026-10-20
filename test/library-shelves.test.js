@@ -8,6 +8,7 @@ import {
   oneOffMetaOf,
   posterMetaOf,
   shelvesOf,
+  showClassificationOf,
   showsCountText,
 } from '../src/web/library-shelves.js'
 import {
@@ -192,4 +193,11 @@ test('recordingRowOf: gives the player and confirm copy the row fields they read
 test('posterMetaOf: a paused rule with no episodes says so', () => {
   assert.equal(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: true } }), timeZone: TZ }), 'Paused')
   assert.equal(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: false } }), timeZone: TZ }), 'Not in the guide yet')
+})
+
+test('showClassificationOf reads the show label, else the latest episode label', () => {
+  assert.equal(showClassificationOf({ classification: 'MA15+', latest: { classification: 'M' } }), 'MA15+')
+  assert.equal(showClassificationOf({ latest: { classification: 'R18+' } }), 'R18+')
+  assert.equal(showClassificationOf({ latest: null }), null)
+  assert.equal(showClassificationOf(null), null)
 })

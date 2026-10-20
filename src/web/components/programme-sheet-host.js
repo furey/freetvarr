@@ -21,6 +21,7 @@ import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
+import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
 import { liveChannelOf, watchLive } from '/shared/live-session.js'
@@ -59,12 +60,14 @@ export const ProgrammeSheetHost = {
             :channel-id="selectedChannelId" :has-logo="hasChannelLogo(selectedChannelId)"
             :title="selected.program.title" />
           <button type="button" class="ui-icon-button programme-sheet-close" aria-label="Close" @click="closeModal"><close-glyph /></button>
+          <programme-art-badges :classification="selected.program.classification" :score="ratingScore" v-model:open="ratingCardOpen" />
         </div>
         <div class="programme-sheet-heading">
           <h2 id="programme-sheet-title" class="programme-sheet-title">{{ selected.program.title }}</h2>
           <p class="programme-sheet-meta">{{ sheetMeta }}</p>
         </div>
         <p v-if="selected.program.synopsis" class="programme-sheet-synopsis">{{ selected.program.synopsis }}</p>
+        <programme-review-card v-if="ratingReview" :key="selected.program.title" :review="ratingReview" />
         <div :class="['programme-sheet-actions', { 'is-ready': sheetReady }]" :aria-busy="String(!sheetReady)">
         <p v-if="selectedStatusText" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ selectedStatusText }}</p>
         <p v-else-if="selectedState === 'series'" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>A series recording in TVHeadend records this show.</p>
@@ -186,6 +189,8 @@ export const ProgrammeSheetHost = {
     const cancelSeriesStep = ref(null)
     const hdOffer = ref(null)
     const dayOffset = ref(0)
+    const sheetProgramme = computed(() => selected.value?.program || null)
+    const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen } = useProgrammeRatings(sheetProgramme)
 
     const nowMs = computed(() => Math.floor(now.value.getTime() / 60_000) * 60_000)
     const fmtClock = fmtClockTz
@@ -675,6 +680,7 @@ export const ProgrammeSheetHost = {
       e.stopImmediatePropagation()
       e.preventDefault()
       if (hdOffer.value) hdOffer.value = null
+      else if (ratingCardOpen.value) ratingCardOpen.value = false
       else closeModal()
     }
 
@@ -706,6 +712,7 @@ export const ProgrammeSheetHost = {
       sheetMeta, cancelActions, selectedState, selectedStatusText,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,
+      ratingScore, ratingReview, ratingCardOpen,
     }
   },
 }

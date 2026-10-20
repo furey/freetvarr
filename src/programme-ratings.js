@@ -1,0 +1,378 @@
+import { db, getSetting } from './db.js'
+import { showTitleKey } from './show-artwork.js'
+import { createHostLimiter } from './outbound-http.js'
+import { artworkClient, storedTmdbKey, TMDB_API } from './fallback-artwork.js'
+import { currentTimeZone } from './time-zone.js'
+import { countryForTimeZone } from './zone-countries.js'
+import { pickReviewSnippet } from './review-snippet.js'
+import {
+  artworkKindOf,
+  hintsForKind,
+  lookupExpiryOf,
+  matchEvidenceOf,
+  programmeHintsByTitle,
+  tmdbAuthOf,
+  tmdbCandidatesOf,
+  tmdbSearchOf,
+  tmdbTextOf,
+  tmdbYearOf,
+  titleVariantsOf,
+} from './artwork-match.js'
+
+export const RATINGS_SETTING = 'ratings_lookup_enabled'
+export const REVIEWS_SETTING = 'reviews_lookup_enabled'
+
+export const ratingsLookupEnabled = async () => (await getSetting(RATINGS_SETTING)) !== 'false'
+
+export const reviewsLookupEnabled = async () => (await getSetting(REVIEWS_SETTING)) !== 'false'
+
+export const createProgrammeRatings = ({
+  lookUp = createRatingsLookup(),
+  cache = databaseCacheOf('programme_ratings'),
+  ratingsEnabled = ratingsLookupEnabled,
+  reviewsEnabled = reviewsLookupEnabled,
+  tmdbKey = storedTmdbKey,
+  hintsFor = async () => null,
+  now = Date.now,
+  hitTtlMs = HIT_TTL_MS,
+  missTtlMs = MISS_TTL_MS,
+  failureBackoffMs = FAILURE_BACKOFF_MS,
+  lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
+} = {}) => {
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter })
+
+  const settingsFor = async ({ title, kind, year }) => {
+    const key = showTitleKey(title)
+    if (!key) return null
+    const [ratingsOn, reviewsOn] = await Promise.all([ratingsEnabled(), reviewsEnabled()])
+    if (!ratingsOn && !reviewsOn) return null
+    const apiKey = await tmdbKey()
+    const ratingKind = artworkKindOf(kind)
+    if (ratingKind && !apiKey) return null
+    const filmYear = ratingKind ? year : null
+    const cacheKey = cacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: ratingKind, key, year: filmYear })
+    return { apiKey, kind: ratingKind, year: filmYear, cacheKey, ratingsOn, reviewsOn }
+  }
+
+  const ratingsFor = async (title, { kind = null, year = null } = {}) => {
+    const settings = await settingsFor({ title, kind, year })
+    if (!settings) return NO_RATINGS
+    const { status, found } = await lookups.foundFor({ title, ...settings })
+    if (status === 'pending') return PENDING_RATINGS
+    return status === 'ready' ? ratingsResponseOf({ found, ...settings }) : NO_RATINGS
+  }
+
+  const forget = async (title) => {
+    const key = showTitleKey(title)
+    if (!key) return
+    for (const mode of ['open', 'tmdb']) {
+      for (const kind of [null, artworkKindOf('movie')]) await lookups.forget(cacheKeyOf({ mode, kind, key }))
+    }
+  }
+
+  return { ratingsFor, forget }
+}
+
+export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter }) => {
+  const inflight = new Map()
+  const failedUntil = new Map()
+
+  const recentlyFailed = (cacheKey) => (failedUntil.get(cacheKey) || 0) > now()
+
+  const cachedFound = async (cacheKey) => {
+    const cached = await cache.read(cacheKey).catch(() => null)
+    return cached && cached.expiresAt > now() ? cached : null
+  }
+
+  const startLookup = ({ title, kind, year, apiKey, cacheKey }) => {
+    if (inflight.has(cacheKey)) return inflight.get(cacheKey)
+    const pending = lookupLimiter.run(async () =>
+      lookUp({ title, kind, year, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }))
+      .then(async (found) => {
+        const result = found || null
+        const expiresAt = lookupExpiryOf({ found: Boolean(result), nowMs: now(), hitTtlMs, missTtlMs })
+        await cache.write({ key: cacheKey, found: result, expiresAt }).catch(() => {})
+        return result
+      })
+      .catch(() => {
+        failedUntil.set(cacheKey, now() + failureBackoffMs)
+        return null
+      })
+      .finally(() => inflight.delete(cacheKey))
+    inflight.set(cacheKey, pending)
+    return pending
+  }
+
+  const foundFor = async ({ cacheKey, ...request }) => {
+    if (recentlyFailed(cacheKey)) return { status: 'none', found: null }
+    const cached = await cachedFound(cacheKey)
+    if (cached) return { status: 'ready', found: cached.found }
+    startLookup({ cacheKey, ...request })
+    return { status: 'pending', found: null }
+  }
+
+  const forget = async (cacheKey) => {
+    failedUntil.delete(cacheKey)
+    await cache.remove?.(cacheKey).catch(() => {})
+  }
+
+  return { foundFor, forget }
+}
+
+export const ratingsResponseOf = ({ found, ratingsOn = true, reviewsOn = true }) => {
+  const scored = ratingsOn && found?.score != null
+  const reviews = reviewsOn && found?.reviews ? found.reviews : null
+  if (!scored && !reviews) return NO_RATINGS
+  return {
+    status: 'ready',
+    score: scored ? found.score : null,
+    votes: scored ? found.votes ?? null : null,
+    source: scored ? found.source : null,
+    url: scored ? found.url : null,
+    reviews,
+  }
+}
+
+export const createRatingsLookup = ({
+  client = artworkClient,
+  countryCode = () => countryForTimeZone(currentTimeZone()),
+  knownReference = storedTmdbReference,
+  matcher = createTitleMatcher({ client, countryCode, knownReference }),
+} = {}) => {
+  const filmRatings = async ({ title, hints, apiKey, year }) => {
+    const details = await matcher.matchedFilm({ title, hints, apiKey, year })
+    return details ? filmRatingsOf(details) : null
+  }
+
+  const seriesRatings = async ({ title, hints, apiKey }) => {
+    const show = await matcher.tvmazeShow({ title, hints })
+    if (!show || (show.type && !isCinematicSeries({ tvmazeType: show.type }))) return null
+    const details = await matcher.tmdbShow({ title, show, apiKey })
+    if (!show.type && !isCinematicSeries({ tmdbType: details?.type })) return null
+    return seriesRatingsOf({ show, details })
+  }
+
+  return async ({ title, kind, hints, apiKey, year = null }) => (artworkKindOf(kind)
+    ? filmRatings({ title, hints, apiKey, year })
+    : seriesRatings({ title, hints, apiKey }))
+}
+
+export const createTitleMatcher = ({
+  client = artworkClient,
+  countryCode = () => countryForTimeZone(currentTimeZone()),
+  knownReference = storedTmdbReference,
+} = {}) => {
+  const tmdbGet = ({ apiKey, path, params = {} }) => {
+    const auth = tmdbAuthOf(apiKey)
+    return client.getJson({ url: `${TMDB_API}${path}`, params: { ...auth.params, ...params }, headers: auth.headers })
+  }
+
+  const tmdbDetails = ({ apiKey, type, id }) => tmdbGet({
+    apiKey,
+    path: `/${type}/${encodeURIComponent(id)}`,
+    params: { language: TMDB_LANGUAGE, append_to_response: 'credits,reviews' },
+  })
+
+  const matchedFilm = async ({ title, hints, apiKey, year = null }) => {
+    const known = await knownReference({ title, kind: FILM_KIND })
+    if (known?.type === 'movie') {
+      const details = await tmdbDetails({ apiKey, type: 'movie', id: known.id })
+      if (details && releaseYearFits({ details, year })) return details
+    }
+    if (!hints) return year ? datedFilm({ title, apiKey, year }) : null
+    for (const variant of titleVariantsOf(title)) {
+      const found = await searchedFilm({ title: variant, hints, apiKey, year })
+      if (found) return found
+    }
+    return null
+  }
+
+  const datedFilm = async ({ title, apiKey, year }) => {
+    const found = await tmdbGet({ apiKey, path: '/search/movie', params: { query: title, year, include_adult: 'false', language: TMDB_LANGUAGE } })
+    const key = showTitleKey(title)
+    const exact = (found?.results || []).filter((result) => showTitleKey(result.title) === key || showTitleKey(result.original_title) === key)
+    const dated = exact.filter((result) => releaseYearFits({ details: result, year }))
+    return dated.length === 1 ? tmdbDetails({ apiKey, type: 'movie', id: dated[0].id }) : null
+  }
+
+  const searchedFilm = async ({ title, hints, apiKey, year }) => {
+    const search = tmdbSearchOf({ title, hints })
+    const found = await tmdbGet({ apiKey, path: search.path, params: { ...search.params, include_adult: 'false', language: TMDB_LANGUAGE } })
+    const results = (found?.results || []).map((result) => ({ ...result, media_type: result.media_type || search.mediaType }))
+    for (const result of tmdbCandidatesOf({ results, title, hints })) {
+      const details = await tmdbDetails({ apiKey, type: 'movie', id: result.id })
+      if (details && releaseYearFits({ details, year }) && filmEvidenceAccepted({ details, hints })) return details
+    }
+    return null
+  }
+
+  const tvmazeShow = async ({ title, hints }) => {
+    for (const variant of titleVariantsOf(title)) {
+      const results = await client.getJson({ url: `${TVMAZE_API}/search/shows`, params: { q: variant } })
+      const show = pickRatedShow({ results: results || [], key: showTitleKey(variant), hints, country: countryCode() })
+      if (show) return show
+    }
+    return null
+  }
+
+  const tmdbShowId = async ({ title, show, apiKey }) => {
+    const known = await knownReference({ title, kind: null })
+    if (known?.type === 'tv') return known.id
+    const imdb = show.externals?.imdb
+    if (!imdb) return null
+    const found = await tmdbGet({ apiKey, path: `/find/${encodeURIComponent(imdb)}`, params: { external_source: 'imdb_id' } })
+    return found?.tv_results?.[0]?.id ?? null
+  }
+
+  const tmdbShow = async ({ title, show, apiKey }) => {
+    if (!apiKey) return null
+    const id = await tmdbShowId({ title, show, apiKey })
+    return id == null ? null : tmdbDetails({ apiKey, type: 'tv', id })
+  }
+
+  const tvmazeGet = (path) => client.getJson({ url: `${TVMAZE_API}${path}` })
+
+  return { matchedFilm, tvmazeShow, tmdbShow, tvmazeGet }
+}
+
+export const releaseYearFits = ({ details, year }) => {
+  if (!year) return true
+  const released = tmdbYearOf(details)
+  return Boolean(released) && Math.abs(released - year) <= 1
+}
+
+export const requestedYearOf = (value) => {
+  const year = Number(value)
+  return Number.isInteger(year) && year >= MIN_REQUESTED_YEAR && year <= MAX_REQUESTED_YEAR ? year : null
+}
+
+export const pickRatedShow = ({ results = [], key, hints, country }) => {
+  const candidates = results.map((result) => result?.show).filter((show) => show && showTitleKey(show.name) === key)
+  if (!candidates.length) return null
+  const verdicts = candidates.map((show) => ({ show, evidence: tvmazeEvidenceOf({ show, hints }) }))
+  const proven = verdicts.find(({ evidence }) => evidence?.accepted)
+  if (proven) return proven.show
+  const plausible = verdicts.filter(({ evidence }) => !CONTRADICTIONS.has(evidence?.reason))
+  const local = plausible.filter(({ show }) => country && showCountryOf(show) === country)
+  if (local.length === 1) return local[0].show
+  if (candidates.length === 1 && plausible.length === 1) return plausible[0].show
+  const english = plausible.filter(({ show }) => show.language === 'English')
+  if (english.length === 1) return english[0].show
+  return dominantShowOf(english)
+}
+
+const dominantShowOf = (verdicts) => {
+  const [top, next] = [...verdicts].sort((a, b) => (b.show.weight || 0) - (a.show.weight || 0))
+  if (!top || (top.show.weight || 0) < MIN_DOMINANT_WEIGHT) return null
+  return !next || top.show.weight >= (next.show.weight || 0) * DOMINANT_WEIGHT_RATIO ? top.show : null
+}
+
+export const isCinematicSeries = ({ tvmazeType = null, tmdbType = null }) => (tvmazeType
+  ? TVMAZE_CINEMATIC_TYPES.has(tvmazeType)
+  : TMDB_CINEMATIC_TYPES.has(tmdbType))
+
+export const filmRatingsOf = (details) => {
+  const { score, votes } = tmdbScoreOf(details)
+  const reviews = tmdbReviewsOf({ type: 'movie', details })
+  if (score == null && !reviews) return null
+  return { score, votes, source: 'tmdb', url: `${TMDB_WEB}/movie/${details.id}`, reviews }
+}
+
+export const seriesRatingsOf = ({ show, details = null }) => {
+  const average = Number(show.rating?.average)
+  const score = Number.isFinite(average) && average > 0 ? roundedScore(average) : null
+  const reviews = details ? tmdbReviewsOf({ type: 'tv', details, average: score }) : null
+  if (score == null && !reviews) return null
+  return { score, votes: null, source: 'tvmaze', url: show.url || null, reviews }
+}
+
+export const tmdbScoreOf = (details) => {
+  const votes = Number(details?.vote_count) || 0
+  const average = Number(details?.vote_average)
+  const shown = votes >= MIN_TMDB_VOTES && Number.isFinite(average) && average > 0
+  return { score: shown ? roundedScore(average) : null, votes: shown ? votes : null }
+}
+
+export const tmdbReviewsOf = ({ type, details, average = null }) => {
+  const reviews = details?.reviews?.results || []
+  const snippet = pickReviewSnippet({ reviews, average: Number(details?.vote_average) || average })
+  if (!snippet) return null
+  return {
+    snippet,
+    count: Number(details.reviews.total_results) || reviews.length,
+    url: `${TMDB_WEB}/${type}/${details.id}/reviews`,
+  }
+}
+
+export const createGuideHints = ({ loadGuide }) => {
+  const hintsByGuide = new WeakMap()
+  return async (title) => {
+    const guide = await Promise.resolve().then(loadGuide).catch(() => null)
+    if (!guide?.programByEventId) return null
+    if (!hintsByGuide.has(guide)) hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()]))
+    return hintsByGuide.get(guide).get(showTitleKey(title)) || null
+  }
+}
+
+const filmEvidenceAccepted = ({ details, hints }) =>
+  matchEvidenceOf({ hints, candidateYear: tmdbYearOf(details), text: tmdbTextOf(details) }).accepted
+
+const tvmazeEvidenceOf = ({ show, hints }) => (hints
+  ? matchEvidenceOf({ hints: { ...hints, castNames: [] }, candidateYear: premiereYearOf(show), text: tvmazeTextOf(show) })
+  : null)
+
+const tvmazeTextOf = (show) => `${show.name || ''} ${String(show.summary || '').replace(/<[^>]*>/g, ' ')}`
+
+const premiereYearOf = (show) => {
+  const year = Number(String(show.premiered || '').slice(0, 4))
+  return year > 0 ? year : null
+}
+
+const showCountryOf = (show) => show.network?.country?.code || show.webChannel?.country?.code || null
+
+const roundedScore = (value) => Math.round(value * 10) / 10
+
+export const cacheKeyOf = ({ mode, kind, key, year = null }) => {
+  const base = kind ? `${mode}:${kind}:${key}` : `${mode}:${key}`
+  return kind && year ? `${base}@${year}` : base
+}
+
+export const storedTmdbReference = async ({ title, kind }) => {
+  const key = showTitleKey(title)
+  if (!key) return null
+  const row = await db('artwork_lookups').where({ lookup_key: cacheKeyOf({ mode: 'tmdb', kind, key }) }).first().catch(() => null)
+  const match = String(row?.reference || '').match(/^tmdb:(movie|tv):(\d+)$/)
+  return match ? { type: match[1], id: match[2] } : null
+}
+
+export const databaseCacheOf = (table) => ({
+  read: async (key) => {
+    const row = await db(table).where({ lookup_key: key }).first()
+    return row ? { found: JSON.parse(row.found_json), expiresAt: Number(row.expires_at) } : null
+  },
+  write: ({ key, found, expiresAt }) => db(table)
+    .insert({ lookup_key: key, found_json: JSON.stringify(found), expires_at: expiresAt })
+    .onConflict('lookup_key')
+    .merge(),
+  remove: (key) => db(table).where({ lookup_key: key }).del(),
+})
+
+const NO_RATINGS = { status: 'none', score: null, votes: null, source: null, url: null, reviews: null }
+const PENDING_RATINGS = { ...NO_RATINGS, status: 'pending' }
+const FILM_KIND = 'movie'
+const TVMAZE_API = 'https://api.tvmaze.com'
+export const TMDB_WEB = 'https://www.themoviedb.org'
+const TMDB_LANGUAGE = 'en-US'
+const MIN_DOMINANT_WEIGHT = 50
+const DOMINANT_WEIGHT_RATIO = 3
+const TVMAZE_CINEMATIC_TYPES = new Set(['Scripted', 'Animation', 'Documentary'])
+const TMDB_CINEMATIC_TYPES = new Set(['Scripted', 'Documentary', 'Miniseries'])
+const CONTRADICTIONS = new Set(['year', 'cast'])
+const MIN_TMDB_VOTES = 50
+export const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
+export const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
+export const FAILURE_BACKOFF_MS = 10 * 60 * 1000
+export const LOOKUP_CONCURRENCY = 2
+export const LOOKUP_MAX_QUEUE = 300
+const MIN_REQUESTED_YEAR = 1900
+const MAX_REQUESTED_YEAR = 2100

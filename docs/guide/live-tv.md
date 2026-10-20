@@ -70,6 +70,8 @@ Press **Info** in the top bar of the player to show what is on. On a narrow scre
 
 On a wide screen, the panel also shows the programme picture. While you watch from the rewind buffer, the panel describes what you are watching, not what is on air, and reads `FROM BUFFER`. The title at the top of the player changes when a new programme starts. If the guide has nothing for the channel, the panel says so.
 
+When you tune in to a channel, and when a new programme starts, the classification (such as `M` or `MA15+`) shows over the picture for 5 seconds. The panel also shows it. The label does not show in the miniplayer or in Multiview. See [Classification](/guide/tv-guide#classification).
+
 Press **Info** again, or click the picture above the panel, to close it. That click closes the panel only: it does not pause or skip.
 
 ## Captions

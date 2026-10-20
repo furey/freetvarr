@@ -9,6 +9,7 @@ import {
   guideFeedUrl,
   isGuideFeedUrl,
   localAddressToward,
+  programmeClassifications,
   serveShiftedFeed,
   shiftXmltvTime,
 } from '../src/guide-feed.js'
@@ -33,6 +34,16 @@ const FEED = `${HEAD}${[
   programme({ channel: 'mjh-10-nsw', start: '20261009223000 +0000', stop: '20261009233000 +0000', title: 'The Project' }),
   programme({ channel: 'mjh-10-nsw', start: '20261009233000 +0000', stop: '20261010003000 +0000', title: 'Gogglebox – Café' }),
   programme({ channel: 'mjh-abc-nsw', start: '20261009223000 +0000', stop: '20261009233000 +0000', title: 'News' }),
+].join('')}</tv>\n`
+
+const ratedProgramme = ({ rating, ...rest }) =>
+  programme(rest).replace('</title>', `</title>\n    <rating>\n      <value>${rating}</value>\n    </rating>`)
+
+const RATED_FEED = `${HEAD}${[
+  ratedProgramme({ channel: 'mjh-10-nsw', start: '20261009223000 +0000', stop: '20261009233000 +0000', title: 'The Project', rating: 'PG' }),
+  ratedProgramme({ channel: 'mjh-10-nsw', start: '20261009233000 +0000', stop: '20261010003000 +0000', title: 'Gogglebox – Café &amp; Co', rating: 'MA 15+' }),
+  ratedProgramme({ channel: 'mjh-abc-nsw', start: '20261009223000 +0000', stop: '20261009233000 +0000', title: 'News', rating: 'G' }),
+  ratedProgramme({ channel: 'mjh-abc-nsw', start: '20261009233000 +0000', stop: '20261010003000 +0000', title: 'Unrated', rating: 'NA' }),
 ].join('')}</tv>\n`
 
 const TEN_PLUS_ONE = { id: 'mjh-10-nsw.plus1', baseId: 'mjh-10-nsw', hours: 1, names: ['10 HD +1'], lcn: 14 }
@@ -93,16 +104,53 @@ test('serveShiftedFeed answers with the shifted feed as XML', async () => {
     sourceUrl: 'https://i.mjh.nz/au/Sydney/epg.xml',
     res,
     planShifts: async () => [TEN_PLUS_ONE],
-    openFeed: async () => Readable.from([FEED]),
+    openFeed: async () => Readable.from([RATED_FEED]),
+    classifications: { record: async (entries) => recorded.push(...entries), prune: async () => { pruned += 1 } },
   }))
+  const recorded = []
+  let pruned = 0
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   try {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/guide/xmltv.xml`)
     assert.equal(response.headers.get('content-type'), 'application/xml; charset=utf-8')
     assert.ok((await response.text()).includes('channel="mjh-10-nsw.plus1"'))
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.deepEqual(recorded.map((e) => [e.titleKey, e.label]), [
+      ['the project', 'PG'],
+      ['the project', 'PG'],
+      ['gogglebox – café & co', 'MA15+'],
+      ['gogglebox – café & co', 'MA15+'],
+      ['news', 'G'],
+    ])
+    assert.equal(pruned, 1)
   } finally {
     server.close()
   }
+})
+
+test('createShiftedFeedStream reports each rated programme and its shifted copies, in step with the feed', async () => {
+  const reported = []
+  const bytes = Buffer.from(RATED_FEED)
+  const chunks = Array.from({ length: Math.ceil(bytes.length / 11) }, (_, i) => bytes.subarray(i * 11, (i + 1) * 11))
+  const stream = Readable.from(chunks).pipe(createShiftedFeedStream({
+    planShifts: async () => [TEN_PLUS_ONE],
+    onClassifications: (entries) => reported.push(...entries),
+  }))
+  let out = ''
+  for await (const chunk of stream) out += chunk
+  assert.ok(out.includes('<value>MA 15+</value>'))
+  const start = Date.UTC(2026, 9, 9, 22, 30)
+  assert.deepEqual(reported, [
+    { titleKey: 'the project', startMs: start, label: 'PG' },
+    { titleKey: 'the project', startMs: start + 60 * 60_000, label: 'PG' },
+    { titleKey: 'gogglebox – café & co', startMs: start + 60 * 60_000, label: 'MA15+' },
+    { titleKey: 'gogglebox – café & co', startMs: start + 2 * 60 * 60_000, label: 'MA15+' },
+    { titleKey: 'news', startMs: start, label: 'G' },
+  ])
+})
+
+test('programmeClassifications skips a chunk with no ratings', () => {
+  assert.deepEqual(programmeClassifications({ xml: FEED, shifts: [TEN_PLUS_ONE] }), [])
 })
 
 test('localAddressToward finds the address Freetvarr uses to reach TVHeadend', async () => {
