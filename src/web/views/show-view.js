@@ -144,7 +144,7 @@ export const ShowView = {
         </header>
         <div class="show-select-actions" role="toolbar" :aria-label="selected.size ? 'Actions for ' + selectionTitle(selected.size) + ' episodes' : 'Actions'">
           <button type="button" class="show-select-action" :disabled="!selected.size || busy" @click="markSelected(true)"><menu-icon name="check" />Mark watched</button>
-          <button type="button" class="show-select-action" :disabled="!selected.size || busy" @click="markSelected(false)"><menu-icon name="circle" />Mark unwatched</button>
+          <button type="button" class="show-select-action" :disabled="!selected.size || busy" @click="markSelected(false)"><menu-icon name="unwatched" />Mark unwatched</button>
           <button type="button" class="show-select-action is-danger" :disabled="!selected.size || busy" @click="deleteSelected"><menu-icon name="trash" />Delete</button>
         </div>
       </template>

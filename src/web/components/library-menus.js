@@ -353,7 +353,7 @@ const rect = (x, y, width, height) => ({ tag: 'rect', attrs: { x, y, width, heig
 const MENU_ICONS = {
   play: [path('M7 4v16l13-8z')],
   check: [path('M20 6 9 17l-5-5')],
-  circle: [circle(12, 12, 9)],
+  unwatched: [{ tag: 'circle', attrs: { cx: 12, cy: 12, r: 9, 'stroke-dasharray': '3.2 3.2' } }],
   options: [circle(12, 12, 3), path('M12 2v3M12 19v3M2 12h3M19 12h3')],
   pause: [rect(6, 5, 4, 14), rect(14, 5, 4, 14)],
   info: [circle(12, 12, 9), path('M12 11v6M12 7.5v.5')],

@@ -38,7 +38,7 @@ export const showMenuOf = ({ show, activeIds = new Set() }) => {
     [
       next && { key: 'play-next', label: 'Play next unwatched', icon: 'play', detail: next.episode != null ? `E${next.episode}` : '' },
       episodes.some((e) => !e.watched && !e.failed) && { key: 'mark-all-watched', label: 'Mark all as watched', icon: 'check' },
-      episodes.some((e) => e.watched || e.positionS > 0) && { key: 'mark-all-unwatched', label: 'Mark all as unwatched', icon: 'circle' },
+      episodes.some((e) => e.watched || e.positionS > 0) && { key: 'mark-all-unwatched', label: 'Mark all as unwatched', icon: 'unwatched' },
     ],
     [
       show.rule && { key: 'options', label: 'Recording options', icon: 'options' },
@@ -67,7 +67,7 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
         ? { key: 'play-start', label: 'Play from the start', icon: 'restart' }
         : { key: 'play-start', label: 'Play', icon: 'play' }),
       !episode.failed && (episode.watched
-        ? { key: 'unwatched', label: 'Mark as unwatched', icon: 'circle' }
+        ? { key: 'unwatched', label: 'Mark as unwatched', icon: 'unwatched' }
         : { key: 'watched', label: 'Mark as watched', icon: 'check' }),
       hasUnwatchedEarlier && { key: 'watched-earlier', label: 'Mark earlier episodes as watched', icon: 'check-list' },
     ],
