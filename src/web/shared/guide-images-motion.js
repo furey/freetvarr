@@ -13,6 +13,20 @@ export const staggerDelayOf = ({ rect, view, spanMs = IMAGES_STAGGER_SPAN_MS }) 
   return Math.min(spanMs, Math.max(0, (along / reach) * spanMs))
 }
 
+export const LIST_STAGGER_SPAN_MS = 160
+export const LIST_JITTER_MS = 24
+
+export const rowStaggerDelaysOf = ({ tops, spanMs = LIST_STAGGER_SPAN_MS, jitterMs = LIST_JITTER_MS }) => {
+  const order = [...new Set(tops)].sort((a, b) => a - b)
+  const last = Math.max(1, order.length - 1)
+  return tops.map((top, index) => {
+    const rank = order.indexOf(top)
+    return Math.max(0, (rank / last) * spanMs + jitterOf(index) * jitterMs)
+  })
+}
+
+const jitterOf = (index) => (((index * 7919) % 13) / 12) - 0.5
+
 export const animateImagesToggle = async ({
   scrollEl,
   flip,
@@ -20,6 +34,7 @@ export const animateImagesToggle = async ({
   textSelector = GUIDE_TEXT_SELECTOR,
   thumbOf = guideThumbOf,
   viewOf = (el) => el.getBoundingClientRect(),
+  stagger = 'diagonal',
 }) => {
   if (!scrollEl || prefersReducedMotion()) {
     await flip()
@@ -30,9 +45,10 @@ export const animateImagesToggle = async ({
   const before = new Map(visibleTexts({ scrollEl, textSelector, view: viewOf(scrollEl) }).map(({ el, rect }) => [el, rect.left]))
   const goingOff = await flip()
   const view = viewOf(scrollEl)
-  const animations = [...before].filter(([el]) => el.isConnected).flatMap(([el, oldLeft]) => {
-    const rect = el.getBoundingClientRect()
-    const delay = staggerDelayOf({ rect, view })
+  const moved = [...before].filter(([el]) => el.isConnected).map(([el, oldLeft]) => ({ el, oldLeft, rect: el.getBoundingClientRect() }))
+  const rowDelays = stagger === 'rows' ? rowStaggerDelaysOf({ tops: moved.map(({ rect }) => Math.round(rect.top)) }) : null
+  const animations = moved.flatMap(({ el, oldLeft, rect }, index) => {
+    const delay = rowDelays ? rowDelays[index] : staggerDelayOf({ rect, view })
     const dx = oldLeft - rect.left
     const thumb = thumbOf(el)
     return [

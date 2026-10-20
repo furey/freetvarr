@@ -136,6 +136,7 @@ export const LiveView = {
       textSelector: '.live-watch .live-row-text',
       thumbOf: (text) => text.parentElement.querySelector(':scope > .live-thumb'),
       viewOf: viewportWithin,
+      stagger: 'rows',
       flip: async () => {
         showImages.value = !showImages.value
         imagesLeaving.value = !showImages.value
