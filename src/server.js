@@ -178,6 +178,7 @@ import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
+import { mountTmdbKey } from './tmdb-key.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
@@ -1187,6 +1188,7 @@ mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter 
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
+mountTmdbKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountSearchRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
 mountForYou({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })

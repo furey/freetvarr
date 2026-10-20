@@ -7,6 +7,7 @@ import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
 import { getForYou, getHiddenShows, getPickable, isForYouEnabled, startForYou, titlesForKeys, unhideShow } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
+import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
 import { isViewingHistoryEnabled, logUserEvent, setViewingHistoryEnabled } from './user-events-log.js'
 
 export const mountForYou = ({ app, csrf, limiter = passThrough, start = true }) => {
@@ -207,7 +208,4 @@ const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 20
 const MAX_PICKS = 30
 const SERIES_KEY = /^[a-z0-9-]{1,200}$/
-const ATTRIBUTION = [
-  { name: 'TVmaze', url: 'https://www.tvmaze.com', licence: 'CC BY-SA 4.0', use: 'show genres and some artwork' },
-  { name: 'Wikidata', url: 'https://www.wikidata.org', licence: 'CC0', use: 'movie genres' },
-]
+const ATTRIBUTION = FALLBACK_ATTRIBUTION

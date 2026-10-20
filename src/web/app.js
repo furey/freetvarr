@@ -60,6 +60,7 @@ import { InfoButton } from '/components/info-button.js'
 import { ListSkeleton } from '/components/list-skeleton.js'
 import { LivePlayer } from '/components/live-player.js'
 import { LiveStreamsSetting, TunerStatusPanel } from '/components/live-streams-settings.js'
+import { TmdbKeySetting } from '/components/tmdb-key-setting.js'
 import { ManualOption } from '/components/manual-option.js'
 import {
   HomeNavIcon,
@@ -230,6 +231,7 @@ app.component('list-skeleton', ListSkeleton)
 app.component('live-player', LivePlayer)
 app.component('live-streams-setting', LiveStreamsSetting)
 app.component('tuner-status-panel', TunerStatusPanel)
+app.component('tmdb-key-setting', TmdbKeySetting)
 app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)
 app.component('fullscreen-icon', FullscreenIcon)

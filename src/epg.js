@@ -20,7 +20,9 @@ import {
 import { createProgrammeImages } from './programme-images.js'
 import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
-import { createShowArtwork } from './show-artwork.js'
+import { createShowArtwork, showTitleKey } from './show-artwork.js'
+import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource } from './fallback-artwork.js'
+import { programmeHintsByTitle } from './artwork-match.js'
 import { rememberTvmazeShow } from './genre-enrichment.js'
 import { createGuideSearchCache, searchGuideListings } from './guide-search.js'
 import { loadSearchAliases, rememberKnownAsFromTvmaze } from './search-aliases.js'
@@ -542,7 +544,7 @@ export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, w
 
 export const findShowThumbnail = async ({ title, width } = {}) => {
   if (!title) return NO_IMAGE
-  const artwork = await showArtwork.artworkFor(title).catch(() => ({ sources: [], pending: false }))
+  const artwork = await showArtworkFor(title)
   const found = await firstImageWithin({
     sources: artwork.sources,
     load: showThumbnailLoader(width),
@@ -553,7 +555,7 @@ export const findShowThumbnail = async ({ title, width } = {}) => {
 
 export const findShowPoster = async ({ title, width } = {}) => {
   if (!title) return NO_IMAGE
-  const artwork = await showArtwork.artworkFor(title).catch(() => ({ sources: [], pending: false }))
+  const artwork = await showArtworkFor(title)
   const found = await firstImageWithin({
     sources: artwork.sources,
     load: posterThumbnailLoader(width),
@@ -585,7 +587,28 @@ const programmeImageSources = async ({ eventId, fallbackSource }) => {
   return { sources, title }
 }
 
-const showArtSources = (title) => (title ? showArtwork.sourcesFor(title).catch(() => []) : [])
+const showArtSources = async (title) => {
+  if (!title) return []
+  const sources = await showArtwork.sourcesFor(title).catch(() => [])
+  return sources.length ? sources : fallbackArtwork.sourcesFor(title).catch(() => [])
+}
+
+const showArtworkFor = async (title) => {
+  const artwork = await showArtwork.artworkFor(title).catch(() => NO_ARTWORK)
+  if (artwork.sources.length) return artwork
+  if (artwork.pending) {
+    showArtSources(title)
+    return artwork
+  }
+  return fallbackArtwork.artworkFor(title).catch(() => NO_ARTWORK)
+}
+
+const programmeHintsFor = async (title) => {
+  const guide = await getCachedGuide().catch(() => null)
+  if (!guide) return null
+  if (!hintsByGuide.has(guide)) hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()]))
+  return hintsByGuide.get(guide).get(showTitleKey(title)) || null
+}
 
 const guideThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
   key: `programme:${source}`,
@@ -733,13 +756,15 @@ let stateFailedUntil = 0
 let stateLastError = null
 const imageCache = new Map()
 const programmeImages = createProgrammeImages({
-  fetchImage: (source) => fetchProgrammeImage({ source }),
+  fetchImage: (source) => (isFallbackImageSource(source) ? fetchFallbackImage(source) : fetchProgrammeImage({ source })),
 })
 const showArtwork = createShowArtwork({
   onTvmazeShow: (found) => Promise.all([rememberTvmazeShow(found), rememberKnownAsFromTvmaze(found)]),
 })
+const fallbackArtwork = createFallbackArtwork({ hintsFor: programmeHintsFor })
+const hintsByGuide = new WeakMap()
 const guideSearchFor = createGuideSearchCache()
-export const forgetShowArtwork = (title) => showArtwork.forget(title)
+export const forgetShowArtwork = (title) => Promise.all([showArtwork.forget(title), fallbackArtwork.forget(title)])
 const thumbnailStore = createThumbnailStore({
   dir: getThumbnailRoot(),
   maxBytes: imageCacheBytesFrom(process.env.IMAGE_CACHE_MAX_MB),
@@ -752,6 +777,7 @@ const GUIDE_IMAGE_BUDGET_MS = 1500
 const SHOW_IMAGE_BUDGET_MS = 3000
 const TIMED_OUT = Symbol('timed out')
 const NO_IMAGE = { image: null, pending: false }
+const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_IMAGE = { image: null, pending: true }
 const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'

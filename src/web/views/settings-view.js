@@ -452,8 +452,8 @@ export const SettingsView = {
           <p class="settings-intro">
             Where missing programme pictures come from.
             <info-button title="Pictures" doc="guide/tv-guide#missing-pictures">
-              <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database.</p>
-              <p>A TVmaze lookup sends the programme title to TVmaze. Turn it off to keep every title on your network.</p>
+              <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database. For films and other shows TVmaze does not list, it finds the matching Wikipedia article through Wikidata and uses its picture, or the TMDB poster when you add a TMDB key.</p>
+              <p>A lookup sends the programme title to those services. Turn it off to keep every title on your network.</p>
             </info-button>
           </p>
           <div class="settings-group">
@@ -462,14 +462,15 @@ export const SettingsView = {
               <div class="settings-row">
                 <toggle-switch v-model="showArtworkLookup" class="settings-toggle">
                   <span class="settings-toggle-text">
-                    <span class="settings-row-title">Look up missing pictures on TVmaze</span>
-                    <span class="settings-row-meta">On: when the guide and Plex have no picture for a show, Freetvarr sends the title to TVmaze and uses its picture. Off: those shows get a title card.</span>
+                    <span class="settings-row-title">Look up missing pictures online</span>
+                    <span class="settings-row-meta">On: when the guide and Plex have no picture for a show, Freetvarr sends the title to TVmaze, Wikidata, and Wikipedia (and TMDB, with a key) and uses the picture it finds. Off: those shows get a title card.</span>
                   </span>
                 </toggle-switch>
               </div>
             </div>
-            <p class="settings-note"><a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a> is a free online TV database.</p>
+            <p class="settings-note"><a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a> is a free online TV database. Wikipedia pictures keep their own licences.</p>
           </div>
+          <tmdb-key-setting />
         </section>
 
         <section id="section-ad-removal" class="settings-section">

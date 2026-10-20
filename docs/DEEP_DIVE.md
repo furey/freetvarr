@@ -14,6 +14,7 @@ The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob
 - [Ad removal](#ad-removal)
 - [Live progress indicators](#live-progress-indicators)
 - [Guide days and history](#guide-days-and-history)
+- [Programme pictures](#programme-pictures)
 - [Live TV](#live-tv)
 - [Library delete](#library-delete)
 - [For you](#for-you)
@@ -61,7 +62,7 @@ flowchart TB
   end
 
   xmltv["XMLTV feed<br>e.g. i.mjh.nz/au/&lt;Region&gt;/epg.xml"]
-  lookups["TVmaze · Wikidata<br>pictures, genres, other titles"]
+  lookups["TVmaze · Wikidata · Wikipedia · TMDB<br>pictures, genres, other titles"]
 
   hdhr --> tvhsrv
   xmltv -->|"tv_grab_ script, on cron"| tvhsrv
@@ -85,6 +86,7 @@ flowchart TB
   server --> foryou
   foryou --> db
   foryou -->|"title lookups, optional"| lookups
+  epg -->|"picture lookups, optional"| lookups
 ```
 
 A single Node process runs everything. The Express server (`src/server.js`) serves the Vue 3 SPA and the REST API; the scheduler (`src/scheduler.js`) wires `node-cron` to the sync engine and reloads whenever the cron setting changes; the sync engine (`src/sync.js`) lists TVHeadend's finished recordings, matches them to series folders, imports new episodes into the media library, and persists every outcome to SQLite. The guide layer (`src/epg.js`) caches TVHeadend's EPG and recording state for the Guide, Home, and Scheduled. After any sync that imported something, the Plex client (`src/plex.js`) refreshes the configured library section, and only then is a remove queued back to TVHeadend. The live TV layer (`src/live-tv.js`) pulls a channel's transport stream from TVHeadend, pipes it through ffmpeg into rolling HLS files under the temp folder, and serves them to the browser player ([Live TV](#live-tv)). The For you layer (`src/for-you*.js`) scores the next week of the guide against the viewing history in `user_events`, and runs its heavy work once a night ([For you](#for-you)).
@@ -289,6 +291,31 @@ TVHeadend deletes a guide event once it ends, so on its own the guide has nothin
 
 Each guide day is built from calendar dates in Freetvarr's time zone (`guideDayWindow` in `src/epg.js`, client helpers in `src/web/guide-time.js`), so a daylight-saving day is 23 or 25 hours long and its ruler labels stay right. The window runs from local midnight to 3am the next day (`spillEnd`); a programme that crosses midnight comes back once, at full width. At midnight the client reloads today. `test/guide-day.test.js` covers the Sydney changes on `2026-10-04` and `2027-04-04`.
 
+## Programme pictures
+
+`GET /api/epg/image/:eventId` (guide cells, Live TV thumbnails, the programme sheet) and `GET /api/epg/show-image?title=` (For you, show pages) try these sources in order, and stop at the first image that loads:
+
+1. The event's own XMLTV image, then other airings with the same title (`imagesByTitle` in `src/epg.js`).
+2. Plex art for a show or film with the same title (`src/show-artwork.js`).
+3. TVmaze, series only, matched by exact title (`src/show-artwork.js`, table `show_artwork`).
+4. TMDB, only with a key in the `tmdb_api_key` setting (`src/fallback-artwork.js`).
+5. The lead image of the English Wikipedia article (`src/fallback-artwork.js`).
+
+Steps 4 and 5 share one lookup. `wbsearchentities` finds Wikidata items whose label or alias matches the title; when none does, a Wikipedia search supplies articles with the same title, minus any bracketed disambiguation. One SPARQL query keeps items that are a film or a television programme (`P31/P279*`), and reads the release year (`P577` or `P580`), the English article, and the TMDB (`P4947`, `P4983`) and IMDb (`P345`) ids. An episode (season, episode number, or episode title) only matches a television programme. Candidates rank by year fit, then by database ids, then by search order. For each candidate, `prop=pageimages|extracts&pilicense=any` returns the article image and plain text, and `matchEvidenceOf` in `src/artwork-match.js` must accept the match against hints from the guide: a synopsis year within one year, a trailing cast list with at least one name in the text, or synopsis names and long words found in the text. With a key, the TMDB id (or `find` by IMDb id) gives the backdrop (`w1280`) and poster (`w780`); with a key and no Wikidata match, `search/multi` candidates are checked the same way against the TMDB overview and cast. A programme without a synopsis gets no picture from these steps.
+
+Each answer is stored in `artwork_lookups` (migration `0013`) under `open:<title>` or `tmdb:<title>`, for 30 days on a hit and 7 days on a miss. A failed lookup is not stored; the title waits 10 minutes in memory. The routes never wait for a lookup: an unresolved title returns a `404` with `Cache-Control: no-store`, the browser shows its title card, and it asks once more five seconds later. Images then go through the shared programme image cache and the thumbnail store (`src/image-thumbnails.js`).
+
+Every request to Wikidata, Wikipedia, and TMDB goes through `src/outbound-http.js`:
+
+- **Allow-list**: plain `https` to `www.wikidata.org`, `query.wikidata.org`, `en.wikipedia.org`, `upload.wikimedia.org`, `api.themoviedb.org`, and `image.tmdb.org` only, redirects included.
+- **Limits**: `8 s` per JSON request (`20 s` for SPARQL), `10 s` per image, `2 MB` per JSON response, `4 MB` per image, and JPEG, PNG, WebP, or GIF only.
+- **Pacing**: a concurrency cap and a minimum gap per host (one SPARQL query a second), two title lookups at a time, and a bounded queue.
+- **Retries**: on a timeout, a network error, `429`, or `5xx` only, with exponential backoff and jitter, honouring `Retry-After` up to `8 s`.
+- **Backoff**: five failures in a row stop requests to that host for one minute, doubling up to 30 minutes; one success resets it.
+- **Identity**: the User-Agent `Freetvarr (https://github.com/furey/freetvarr)`, as the Wikimedia policy asks. Errors name the host and status, never the address, so the TMDB key never reaches a log.
+
+The TMDB key is set through `PUT /api/artwork/tmdb`, which checks it against `GET /3/configuration` first. A key with a dot that is longer than 40 characters is sent as a bearer token; any other key goes as the `api_key` parameter. `GET /api/artwork/tmdb` returns only whether a key is set.
+
 ## Live TV
 
 The browser plays live TV as HLS that Freetvarr makes itself. TVHeadend streams MPEG-TS, which no browser plays, and TVHeadend's own transcoding profiles vary by build, so Freetvarr uses the ffmpeg already in its image.
@@ -331,7 +358,7 @@ Teardown runs in a fixed order: abort the upstream request, `SIGTERM` ffmpeg (`S
 
 The preflight (`GET /api/live/preflight?channel=<uuid>`) reads `status/inputs` live and compares multiplex names. A tuner already on the channel's multiplex is shared; otherwise an idle tuner is needed. For recordings whose padded start falls in the next `60` minutes, it counts the distinct multiplexes needed at that start: recordings running then, that recording, and this stream. More than the tuner count is a conflict, returned with the recording's title and start. Recordings come from the `45 s` recording-state cache, so the player's poll every `10 s` costs TVHeadend only a few small status reads.
 
-The player is one Vue component mounted once in the app shell and teleported to `<body>`, so playback continues across page changes, in full screen or as the mini player. It uses hls.js wherever Media Source Extensions exist and recovers a capped number of media errors. It uses native HLS only where they do not exist (iPhone Safari). It imports hls.js only when a stream starts: `/vendor/hls.mjs` is served from `node_modules` at a pinned version, with its worker at `/vendor/hls.worker.js`. iOS allows playback only from a tap, so the tap handler calls `video.play()` on the empty element at once and sets the source when the stream is ready. When the page becomes hidden (a locked phone, another app, another tab) it sends a `keepalive` `POST /api/live/:session/hold` with the CSRF header. A hold sets `heldUntil` to now plus the buffer length, and the reaper skips the idle check until then; with no buffer, a hold acts as a leave. On `pagehide` the page sends `DELETE` unless the page is going into the back-forward cache (`event.persisted`), in which case it sends a hold. When the page becomes visible again it polls at once, and that poll refreshes the last-seen time.
+The player is one Vue component mounted once in the app shell and teleported to `<body>`, so playback continues across page changes, in full screen or as the Miniplayer. It uses hls.js wherever Media Source Extensions exist and recovers a capped number of media errors. It uses native HLS only where they do not exist (iPhone Safari). It imports hls.js only when a stream starts: `/vendor/hls.mjs` is served from `node_modules` at a pinned version, with its worker at `/vendor/hls.worker.js`. iOS allows playback only from a tap, so the tap handler calls `video.play()` on the empty element at once and sets the source when the stream is ready. When the page becomes hidden (a locked phone, another app, another tab) it sends a `keepalive` `POST /api/live/:session/hold` with the CSRF header. A hold sets `heldUntil` to now plus the buffer length, and the reaper skips the idle check until then; with no buffer, a hold acts as a leave. On `pagehide` the page sends `DELETE` unless the page is going into the back-forward cache (`event.persisted`), in which case it sends a hold. When the page becomes visible again it polls at once, and that poll refreshes the last-seen time.
 
 Pause and rewind work inside the playlist window. The session view carries `bufferSeconds`, and the player turns its controls off when it is `0`. The player measures how far behind live it is once a second (`timeupdate` stops while paused), against hls.js's `liveSyncPosition`, or `6 s` before the seekable end on native HLS. A `seeking` handler moves any seek before the oldest kept segment to `4 s` after it, because ffmpeg has deleted the older files. hls.js runs with `liveMaxLatencyDuration` set to `Infinity`, so it never jumps a paused viewer back to live. On touch screens, `touchend` on the player frame detects taps (under `10 px` of movement and `300 ms`); a double-tap in the left or right `40%` of the picture, above the native control bar, skips `10 s`, and further taps on that side within `0.7 s` add `10 s` each. Safari on an iPhone plays native HLS and shows no timeline for a live stream, so double-tap is its only way to rewind. hls.js through ManagedMediaSource would give a timeline, but hls.js then sets `disableRemotePlayback`, which turns AirPlay off.
 
@@ -570,7 +597,7 @@ Node 24's built-in test runner, with no additional test dependencies. Unit tests
 - **Library routing**: `libraryDecision` (series folder, the RECORD choice, the row choice), longest-pattern `matchShow`, one-off and film paths, film detection, and the stored-path move when a root changes.
 - **Artwork and playback**: the artwork store (safe ids, orphan pruning, image shrinking) and the recording player (path guard, resume rule, seek-or-restart decision, the shared stream limit).
 - **TVHeadend bootstrap**: fresh-instance detection, the ordered plan, abort and rollback before the open entry is removed, and undo. `npm run test:integration` runs the same flow against a real, disposable TVHeadend container.
-- **2.0 interface helpers**: the route table and old addresses, the Home highlights and their rotation, the library menus and delete dialog copy, Scheduled grouping and the tuner plan, the search index, the player labels, mute, top bar layout, mini player, and the Multiview sound rule.
+- **2.0 interface helpers**: the route table and old addresses, the Home highlights and their rotation, the library menus and delete dialog copy, Scheduled grouping and the tuner plan, the search index, the player labels, mute, top bar layout, Miniplayer, and the Multiview sound rule and per-picture controls.
 - **2.0 server**: library delete and its routes, From the start over a growing file, the stream limit, the For you scoring, profile, capability probe, and routes, the search aliases, and the viewing-history routes.
 - **Folder matcher**: a real on-disk fixture under `os.tmpdir()` exercising `listShowFolders` and `matchShowFolder` against realistic disambiguated folder names.
 

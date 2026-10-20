@@ -138,10 +138,26 @@ Some programmes in a guide feed have no image, or an image link that no longer w
 1. Another airing of the same programme in the guide.
 2. The show's background or poster in your Plex TV or movies library, matched by title.
 3. The show's picture on [TVmaze](https://www.tvmaze.com), a free online TV database, matched by exact title.
+4. With a [TMDB key](#tmdb-key), the film or show's backdrop or poster on [TMDB](https://www.themoviedb.org).
+5. The lead picture of the film or show's English [Wikipedia](https://en.wikipedia.org) article.
 
-If none of these has a picture, Freetvarr shows a title card: the programme's name on a coloured background.
+For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wikidata.org) by exact title, then checks the match before it uses a picture: a year in the synopsis must match the release year, a cast list in the synopsis must name someone in the article, and otherwise names and words from the synopsis must appear in the article. A programme with no synopsis gets no picture from these steps. An episode never matches a film.
 
-A TVmaze lookup sends the programme title to TVmaze. Freetvarr keeps each answer for 30 days, or 7 days when TVmaze has no match. To turn the lookups off, go to Settings → Pictures and turn off **Look up missing pictures on TVmaze**.
+While Freetvarr looks, the guide shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture.
+
+A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. When a service does not answer, Freetvarr waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Pictures and turn off **Look up missing pictures online**.
+
+### TMDB key
+
+A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and backdrops, which are often sharper than the Wikipedia picture. To add one:
+
+1. Sign up at [themoviedb.org](https://www.themoviedb.org/signup).
+2. Open [TMDB API settings](https://www.themoviedb.org/settings/api) and request a free developer key.
+3. Copy the **API Key** or the **API Read Access Token**.
+4. In Freetvarr, go to Settings → Pictures and paste it into **TMDB API key (optional)**.
+5. Press **Test key**, then **Save key**.
+
+The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ## Caching
 
