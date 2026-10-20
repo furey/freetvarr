@@ -28,6 +28,12 @@ export const SETTINGS = {
   upkeep: 'for_you_upkeep_last',
 }
 
+export const fetchOllamaTags = (url) => axios.get(`${url}/api/tags`, {
+  timeout: OLLAMA_TIMEOUT_MS,
+  maxContentLength: OLLAMA_TAGS_MAX_BYTES,
+  validateStatus: () => true,
+})
+
 export const forYouEnabledFrom = (stored) => stored !== 'false'
 
 export const modelCacheDir = () => path.join(path.dirname(process.env.DB_PATH || path.join(REPO_ROOT, 'config', 'state.db')), 'models')
@@ -143,7 +149,7 @@ const checkOllama = async () => {
   const url = String((await getSetting(SETTINGS.ollamaUrl)) || '').trim().replace(/\/$/, '')
   if (!url) return null
   try {
-    const res = await axios.get(`${url}/api/tags`, { timeout: OLLAMA_TIMEOUT_MS, validateStatus: () => true })
+    const res = await fetchOllamaTags(url)
     if (res.status !== 200) return { url, model: null, error: `HTTP ${res.status}` }
     const model = embedModelIn({ tags: res.data?.models || [], wanted: (await getSetting(SETTINGS.ollamaModel)) || null })
     return { url, model, error: model ? null : 'no embedding model listed' }
@@ -220,7 +226,10 @@ const embedWithOllama = async ({ embedder, texts }) => {
   const started = Date.now()
   for (let i = 0; i < texts.length; i += OLLAMA_BATCH) {
     const batch = texts.slice(i, i + OLLAMA_BATCH)
-    const res = await axios.post(`${embedder.url}/api/embed`, { model: embedder.model, input: batch.map((item) => item.text) }, { timeout: OLLAMA_EMBED_TIMEOUT_MS })
+    const res = await axios.post(`${embedder.url}/api/embed`, { model: embedder.model, input: batch.map((item) => item.text) }, {
+      timeout: OLLAMA_EMBED_TIMEOUT_MS,
+      maxContentLength: OLLAMA_EMBED_MAX_BYTES,
+    })
     const vectors = res.data?.embeddings || []
     const rows = batch.map((item, index) => vectors[index] && ({
       text_hash: item.hash,
@@ -346,3 +355,5 @@ const EMBED_TIMEOUT_MS = 90 * 60 * 1000
 const OLLAMA_TIMEOUT_MS = 3000
 const OLLAMA_EMBED_TIMEOUT_MS = 60 * 1000
 const OLLAMA_BATCH = 32
+const OLLAMA_TAGS_MAX_BYTES = 1024 * 1024
+const OLLAMA_EMBED_MAX_BYTES = 32 * 1024 * 1024

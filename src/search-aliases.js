@@ -14,6 +14,11 @@ export const nicknameFrom = (raw) => {
   return nameKey.length >= 2 ? { name, nameKey } : null
 }
 
+export const showKeyFrom = (raw) => {
+  const key = String(raw ?? '')
+  return key.length <= MAX_SHOW_KEY_LENGTH && SHOW_KEY.test(key) ? key : null
+}
+
 export const showCatalogueOf = (rows = []) => {
   const shows = new Map()
   for (const row of rows) {
@@ -58,22 +63,27 @@ export const mountSearchRoutes = ({ app, csrf, limiter = passThrough }) => {
   })
 
   app.get('/api/show-nicknames/:key', async (req, res) => {
+    const showKey = showKeyFrom(req.params.key)
+    if (!showKey) return res.status(400).json({ error: SHOW_KEY_ERROR })
     try {
-      res.json({ nicknames: await nicknamesOf(req.params.key) })
+      res.json({ nicknames: await nicknamesOf(showKey) })
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
   })
 
   app.post('/api/show-nicknames/:key', limiter, csrf, async (req, res) => {
+    const showKey = showKeyFrom(req.params.key)
+    if (!showKey) return res.status(400).json({ error: SHOW_KEY_ERROR })
     const nickname = nicknameFrom(req.body?.name)
     if (!nickname) return res.status(400).json({ error: `name is required (up to ${MAX_NICKNAME_LENGTH} characters)` })
     try {
-      const showKey = req.params.key
       const existing = await db('show_nicknames').where({ show_key: showKey, name_key: nickname.nameKey }).first()
       if (!existing) {
         const count = await db('show_nicknames').where({ show_key: showKey }).count({ count: 'id' }).first()
         if (Number(count?.count) >= MAX_NICKNAMES) return res.status(400).json({ error: `up to ${MAX_NICKNAMES} names per show` })
+        const total = await db('show_nicknames').count({ count: 'id' }).first()
+        if (Number(total?.count) >= MAX_TOTAL_NICKNAMES) return res.status(400).json({ error: `up to ${MAX_TOTAL_NICKNAMES} names in all` })
         await db('show_nicknames').insert({ show_key: showKey, name: nickname.name, name_key: nickname.nameKey, created_at: Date.now() })
         invalidateSearchAliases()
       }
@@ -84,11 +94,13 @@ export const mountSearchRoutes = ({ app, csrf, limiter = passThrough }) => {
   })
 
   app.delete('/api/show-nicknames/:key/:id', limiter, csrf, async (req, res) => {
+    const showKey = showKeyFrom(req.params.key)
+    if (!showKey) return res.status(400).json({ error: SHOW_KEY_ERROR })
     try {
-      const removed = await db('show_nicknames').where({ show_key: req.params.key, id: Number(req.params.id) }).delete()
+      const removed = await db('show_nicknames').where({ show_key: showKey, id: Number(req.params.id) }).delete()
       if (!removed) return res.status(404).json({ error: 'name not found' })
       invalidateSearchAliases()
-      res.json({ ok: true, nicknames: await nicknamesOf(req.params.key) })
+      res.json({ ok: true, nicknames: await nicknamesOf(showKey) })
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
@@ -114,3 +126,7 @@ let curatedLoad = null
 const CURATED_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'show-aliases.json')
 const MAX_NICKNAME_LENGTH = 60
 const MAX_NICKNAMES = 20
+const MAX_TOTAL_NICKNAMES = 2000
+const MAX_SHOW_KEY_LENGTH = 200
+const SHOW_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const SHOW_KEY_ERROR = 'key must be a show key'
