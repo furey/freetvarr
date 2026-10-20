@@ -9,7 +9,7 @@ description: >-
 
 A series has two parts: a series recording in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync. Settings → System → **Series rules** lists both parts together. Settings → System → **Folders** lists the [title matches](#title-matches).
 
-To change one show, you can also use [Recording options](/guide/recordings#recording-options) on its show page.
+Series rules and Folders replace the SERIES tab of earlier versions; the old addresses `#/series` and `#/shows` open Series rules. To change one show, you can also use [Recording options](/guide/recordings#recording-options) on its show page.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/series">
@@ -168,4 +168,4 @@ TVHeadend already wrote the file to a folder Freetvarr can see, so there is noth
 These options are set per series folder in the [edit form](#edit-a-series-folder):
 
 - **Remove after import**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
-- **Ad removal mode**: `off`, `DETECT`, or `CUT`. See [Ad removal](/guide/ad-removal).
+- **Ad removal**: **Off**, **Detect**, or **Cut**. See [Ad removal](/guide/ad-removal).

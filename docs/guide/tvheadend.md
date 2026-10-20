@@ -67,7 +67,7 @@ When the wizard finds a TVHeadend with only the default entry, it asks for three
 
 - **An admin username and password.** You sign in to TVHeadend's web interface with these. Freetvarr sends them to TVHeadend once and does not store them. The password has one field with a show and hide button, so check it for typos before you continue.
 - **The allowed networks.** Both logins work only from these address ranges. The wizard fills in one `/24` range for each address of the Freetvarr host and for the network of your browser, plus `127.0.0.0/8` (a host at `192.168.86.254` gives `192.168.86.0/24`). Add any other network you sign in from.
-- **Confirmation.** Press `SECURE TVHEADEND AND CONNECT FREETVARR` to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
+- **Confirmation.** Press **Secure TVHeadend and connect Freetvarr** to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/welcome">
@@ -99,7 +99,7 @@ Finish or cancel the wizard, even if you configured TVHeadend by hand. An unfini
 
 ## 3. Add the tuner
 
-The **CHANNELS** step of the Freetvarr wizard does steps 3 to 5 for an antenna or cable tuner, and sets **Re-record if errors** from step 7. Follow steps 3 to 5 by hand for a satellite tuner, or to choose each setting yourself.
+The **Channels** step of the Freetvarr wizard does steps 3 to 5 for an antenna or cable tuner, and sets **Re-record if errors** from step 7. Follow steps 3 to 5 by hand for a satellite tuner, or to choose each setting yourself.
 
 The linuxserver image is built with `--enable-hdhomerun_client`, so TVHeadend discovers HDHomeRun tuners on your home network by itself. The author's tuner is an HDHomeRun Flex Quatro, and the screens below follow it.
 
@@ -138,7 +138,7 @@ The channels appear in **Configuration → Channel/EPG → Channels**. Fix the n
 
 ## 6. Load the XMLTV guide
 
-The **GUIDE** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
+The **Guide** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
 
 Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and episode naming work. The Australian feed below is the example. [Outside Australia](#outside-australia) lists the source to use in other countries.
 
@@ -213,7 +213,7 @@ Switch the view level to Advanced or Expert if the fields are hidden.
 
 In TVHeadend's web interface, go to **Configuration → Recording → Digital Video Recorder Profiles** and open the default profile (the one with an empty name, listed as `(Default profile)`). Freetvarr records with that profile and reads its path. Set **Recording system path** to `/recordings`, the container path from step 1, and press **Save**.
 
-The path is the one inside the TVHeadend Docker container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. The Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
+The path is the one inside the TVHeadend Docker container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. The Freetvarr wizard's **Check TVHeadend** button compares the two.
 
 Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series rules](/guide/series)).
 
@@ -239,12 +239,12 @@ If you already set up TVHeadend users, create one for Freetvarr by hand in TVHea
 
 | Right              | Tick                              | Why Freetvarr needs it                                                                                                                            |
 | ------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for `CHECK TVHEADEND`)                      |
+| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for **Check TVHeadend**)                    |
 | **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series recordings, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend |
 | **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                         |
 | **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web interface as this user                                                                                 |
 
-Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, `TEST CONNECTION` still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
+Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, **Test connection** still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
 
 TVHeadend's default configuration accepts only HTTP Digest logins. Freetvarr answers whichever challenge TVHeadend sends, Digest or Basic, so leave TVHeadend's authentication setting as it is.
 

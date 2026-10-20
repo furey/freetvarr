@@ -1,13 +1,14 @@
 ---
 title: Recordings
 description: >-
-  Your library of shows, movies, and one-offs; show pages with episodes and
-  recording options; the Scheduled list; and the recording log.
+  Your library of shows, movies, and one-offs; show pages with episodes, menus,
+  and recording options; deleting episodes; the Scheduled list with its tuner
+  timeline; and the recording log.
 ---
 
 # Recordings
 
-The Recordings page holds everything Freetvarr has recorded and everything TVHeadend will record. A switch at the top picks **Library** or **Scheduled**. Press a show to open its [show page](#show-pages).
+The Recordings page holds everything Freetvarr has recorded and everything TVHeadend will record. A switch at the top picks **Library** or **Scheduled**. The **Scheduled** label also shows how many recordings are coming up.
 
 Freetvarr saves each programme image while the recording is still scheduled, because TV guide image links often stop working once the programme has aired. A recording with no saved image shows a title card.
 
@@ -21,100 +22,149 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 
 The library groups your recordings in shelves:
 
-- **Shows**: a poster for each series. A number badge counts the episodes you have not watched. A red **REC** badge means an episode is recording now.
+- **Shows**: a poster for each series. A number badge counts the episodes you have not started. A `REC` badge means an episode is recording now.
 - **Movies**: films that Freetvarr filed in the movies folder.
 - **Specials and one-offs**: single recordings, such as a sports final.
 
-**Sort** has two choices: **Recent** (the default) and **A–Z**. A leading "The" is ignored, so `The Block` sorts under B. The **Unwatched** chip hides shows you have finished. The browser remembers both choices.
+**Sort** has two choices: **Recent** (the default) and **A–Z**. A leading "The" is ignored, so `The Block` sorts under B. The **Unwatched** chip hides shows you have finished; when you have watched everything, the page says `You are all caught up`. The browser remembers both choices.
 
-When recent imports failed, a red banner sits above the shelves. Press **Review** to open the [recording log](#recording-log), filtered to the failures.
+Press a poster to open the show page. Press **⋯** under a poster, or hold the poster on a touch screen, to open the [show menu](#show-menu) without opening the show.
 
-An empty library says `Nothing recorded yet` and links to the Guide.
+When recent imports failed, a banner sits above the shelves. Press **Review** to open the [recording log](#recording-log), filtered to the failures.
+
+An empty library says `Nothing recorded yet` and offers **Find a show in the Guide**.
 
 ## Show pages
 
-Press a poster to open the show page. It has these parts:
+A show page has these parts:
 
-- **Hero**: the show's picture, its title, and the **Play** or **Resume** button for the next episode you have not watched.
-- **Status line**: what the recording rule does, such as `Records every new episode on 9HD`, with the number of episodes it keeps and whether it removes ads. Press it to open [Recording options](#recording-options). A show with no rule says `Not recording new episodes`.
-- **Next airing**: when the next episode is on.
+- **Back**: returns to the page you came from, such as Home or Scheduled. A show page opened from a link returns to Recordings.
+- **Play** or **Resume**: plays the next episode you have not watched.
+- **Recording options**: opens the [Recording options](#recording-options) of a show with a series recording.
+- **⋯**: opens the [show menu](#show-menu).
+- **Status line**: what the series recording does next, such as `Next: Tue 8:30 pm on 9HD`, `Recording now`, or `Paused`, with a summary such as `Records every new episode on 9HD · keeps the latest 10 · ads removed`. Press it to open Recording options. A show with no series recording says `Not recording new episodes`, with a **Guide** button.
 - **Season chips**: pick a season when the show has more than one.
-- **Episodes**: a row for each episode, with a thumbnail and a bar for how much you watched, the title, the air date and channel, and the synopsis. A **New** badge marks an episode you have not watched.
+- **Episodes**: a row for each episode, with a thumbnail and a bar for how much you watched, the title, the air date and channel, and the synopsis. A `New` badge marks an episode you have not started, and a `REC` badge an episode that records now.
 
-A show with a rule but no episodes still gets a poster. The status line says when the first episode records, for example `First episode records Tue 8:30 pm`.
+Press an episode row to play it. Press **⋯** on the row, or hold the row on a touch screen, to open the [episode menu](#episode-menu).
+
+A show with a series recording but no episodes yet still gets a poster. The page says when the first episode records, for example `First episode records Tue 8:30 pm`.
+
+### Show menu
+
+The show menu has these items. An item shows only when it applies.
+
+| Item                                                    | What it does                                                                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Play next unwatched**                                 | Plays the next episode you have not watched.                                                                 |
+| **Mark all as watched** and **Mark all as unwatched**   | Sets the watched mark on every episode.                                                                      |
+| **Recording options**                                   | Opens [Recording options](#recording-options).                                                               |
+| **Pause recording** or **Resume recording**             | Pauses or resumes the series recording. Episodes already recorded still import.                              |
+| **Show info**                                           | Shows the episode count, the series recording, the next airing, the folder it saves to, and its other names. |
+| **Open in Plex**                                        | Opens the show in Plex, when the show has a file in your library.                                            |
+| **Refresh artwork**                                     | Fetches the show's pictures again.                                                                           |
+| **Delete watched episodes** and **Delete all episodes** | Deletes episodes. See [Delete episodes](#delete-episodes).                                                   |
 
 ### Episode menu
 
-The **⋯** button on an episode opens its menu:
+| Item                                         | What it does                                                                                                                                                                                   |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Resume**                                   | Plays from where you stopped.                                                                                                                                                                  |
+| **Play from the start** or **Play**          | Plays from the beginning.                                                                                                                                                                      |
+| **Mark as watched** or **Mark as unwatched** | Sets the watched mark. Playing an episode to the end sets it too.                                                                                                                              |
+| **Mark earlier episodes as watched**         | Marks every earlier episode of the show as watched.                                                                                                                                            |
+| **Episode info**                             | Shows when it aired, the channel, the length, how much you watched, and the file it saves to.                                                                                                  |
+| **Import**, **Import again**, or **Retry**   | Imports the recording now. **Import** shows for a recording Freetvarr has not imported, **Import again** for one whose library file is gone, and **Retry** for one that failed or was skipped. |
+| **Remove ads again**                         | Scans the episode for ads again, with ad removal on. See [Re-scan and re-cut](#re-scan-and-re-cut).                                                                                            |
+| **Open in Plex**                             | Opens the episode in Plex.                                                                                                                                                                     |
+| **Delete episode**                           | Deletes the episode. See [Delete episodes](#delete-episodes). It does not show while the episode records.                                                                                      |
 
-- **Mark watched** or **Mark unwatched**: sets the watched mark. Playing an episode to the end sets it too.
-- **Import** or **Import again**: imports the recording now. It shows for a recording that Freetvarr has not imported, or whose library file is gone.
-- **Retry**: tries the import again for a recording that failed or was skipped, while TVHeadend still has it.
-- **Delete**: for an imported recording that TVHeadend still has, removes the TVHeadend copy. See [Remove from TVHeadend](#remove-from-tvheadend). For other rows, clears the row from the list. A dialog says which before anything changes.
+### Select mode
+
+Press **Select** above the episodes to mark or delete several episodes at once:
+
+1. Press **Select**.
+2. Press each episode you want, or press **Select all** to pick every episode of the season. An episode that records now cannot be picked.
+3. Press **Mark watched**, **Mark unwatched**, or **Delete**.
+4. Press **Cancel** to leave Select mode.
+
+### Delete episodes
+
+**Delete episode**, **Delete watched episodes**, **Delete all episodes**, and **Delete** in Select mode all work the same way. Freetvarr deletes:
+
+- The episode files in your media library, which removes them from Plex or any other media server that reads the library.
+- The recordings in TVHeadend. TVHeadend keeps a note that it recorded each episode, so a series recording does not record it again ([Remove from TVHeadend](/guide/remove-from-tvheadend)).
+
+After the delete, Freetvarr refreshes Plex, if you use it. The series recording stays on, so new episodes still record.
+
+Before anything changes, a dialog lists **What gets deleted**, with the number of episodes and their size, and **What stays**. **Delete all episodes** on a show with a series recording also offers **Stop recording this show too**. Press the delete button in the dialog to go ahead, or **Cancel** to leave everything as it is. You cannot undo a delete.
+
+An episode whose library file is already gone is listed in the dialog. Freetvarr then deletes only its TVHeadend recording.
 
 ## Recording options
 
-**Recording options** is a panel that opens from the show page. On a phone it slides up from the bottom. On a wide screen it opens as a dialog. It changes the recording rule for the show, and each change saves by itself. Press **Done** to close it.
+**Recording options** is a panel that opens from the show page. On a phone it slides up from the bottom. On a wide screen it opens as a dialog. It changes the series recording of the show, and each change saves by itself. Press **Done** to close it.
 
 | Option              | What it does                                                                                                      |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Channels**        | The channels the rule records on. Turn on **Any channel** to record the show wherever it airs.                    |
+| **Channels**        | The channels the series recording uses. Pick **Any channel** to record the show wherever it airs.                 |
 | **Keep the latest** | The number of episodes TVHeadend keeps. **All** keeps every episode.                                              |
 | **Start early**     | Minutes to start before the programme.                                                                            |
 | **Finish late**     | Minutes to finish after the programme.                                                                            |
 | **Remove ads**      | Cuts the ad breaks from new episodes. It needs ad removal on in Settings → Ad removal, and a folder for the show. |
 | **Pause recording** | Stops recording new episodes. Episodes already recorded still import.                                             |
 
-**Advanced** shows the folder the show saves to and the title that Freetvarr matches. **Edit folder and title match** opens the same fields as [Series rules](/guide/series#edit-a-series-folder). A show with no folder offers **Assign folder**.
+**Advanced** has these parts:
 
-**Stop recording this show** cancels the rule. A second step asks what to do with an episode that records now, and whether to keep the title match. See [Cancel a series recording](/guide/series#cancel-a-series-recording).
+- **Saves to**: the folder the show saves to.
+- **Also match titles containing**: the title match for the folder. **Edit folder and title match** opens the same fields as [Series rules](/guide/series#edit-a-series-folder). A show with no folder offers **Assign folder** instead.
+- **Also known as**: your own names for the show, such as `MKR`. Type a name and press **Add**. [Search](/guide/home#search) then finds the show by that name too. Press the cross on a name to remove it.
+
+**Stop recording this show** cancels the series recording. A second step asks what to do with an episode that records now, and whether to keep the title match. See [Cancel a series recording](/guide/series#cancel-a-series-recording).
 
 ## Scheduled
 
-**Scheduled** lists what TVHeadend records now and what it will record. It replaces the `UPCOMING` view of the old TV Guide. The Guide's `N scheduled` chip and the red recording chip in the header open it.
+**Scheduled** lists what TVHeadend records now and what it will record over the next 7 days. The Guide's `N scheduled` chip, the **Recording tonight** row on Home, and the recording chip in the header open it.
 
 The list has these sections:
 
-- **Recording now**: each recording with a progress bar.
-- **Today**, **Tomorrow**, and **Later this week**: the recordings that TVHeadend has scheduled, plus the episodes that your series rules will catch.
-- **Watching for**: the shows you asked to be told about. See [Notify me](/guide/tv-guide#notify-me).
+- **RECORDING NOW**: each recording with a progress bar.
+- **TODAY**, **TOMORROW**, and **LATER THIS WEEK**: the recordings that TVHeadend has scheduled, plus the episodes that your series recordings will catch.
+- **WATCHING FOR**: the shows you asked to be told about, with when each one next airs and whether it will record automatically. A number badge counts new airings. See [Notify me](/guide/tv-guide#notify-me).
 
-Each row has a switch. Turn it off to skip that episode. Turn it on to record it again. The series rule keeps recording the other episodes. A row marked as expected has no switch yet; TVHeadend adds the episode to its schedule nearer the time. Press a row to open the show.
+Each row has a switch. Turn it off to skip that episode; the row then says `Skipped`. Turn it on to record it again. The series recording keeps recording the other episodes. A row the series recording will catch has no working switch yet, because TVHeadend adds the episode to its schedule nearer the time. Press a row to open the show.
 
-An empty list says `Nothing scheduled. Record from the Guide.`
+### The week
+
+A strip of the next 7 days sits at the top of Scheduled on a phone, and beside the list on a wide screen. Each day shows how many recordings it has. Press a day to jump to it in the list. A day marked with a warning has a tuner clash.
+
+### Tuners
+
+On a wide screen, a timeline beside the list shows what each tuner records over the next few hours, such as `Tonight's tuners`, with one line for each tuner. It looks ahead to the first clash, if there is one.
+
+A clash is a time when more programmes record than you have tuners. The timeline shows the clash on its own line, and a sentence under it says what to do, for example `The Block needs a third tuner from 8:30 to 9:00 pm. Skip one of the three, or it misses its first 30 minutes.` In the list, each clashing row says `No free tuner` with the times. To fix a clash, turn off the switch of one of the recordings, or move one to another airing in the [Guide](/guide/tv-guide).
+
+An empty list says `Nothing scheduled. Record from the Guide.` and offers **Open the Guide**.
 
 ## Playback
 
-Press the play button on an episode, or **Play** or **Resume** on the show page, to watch it in Freetvarr's player. The player works in any browser, on a phone or a computer, and fills the screen.
+Press an episode row, or **Play** or **Resume** on the show page, to watch it in Freetvarr's [player](/guide/player). The player works in any browser, on a phone or a computer, and fills the screen. It remembers where you stopped and starts there next time.
 
-- The top bar has a back button, the show and episode title, **Captions**, **Info**, and a full-screen button.
-- **Pause** and **Play** sit in the centre. **Start over** plays the episode from the start when Freetvarr resumed where you stopped.
-- The position bar under the picture moves through the recording.
-- **Captions** turns the broadcast's Teletext subtitles on or off, when the recording kept them. The choice is shared with the [live TV player](/guide/live-tv).
+The recording player adds these to the [player controls](/guide/player#controls):
+
 - **Skip ad** appears at the bottom right while you watch an ad break that detection found (see [Ad removal](/guide/ad-removal)). Press it to jump to the end of the break.
-- **AirPlay** sends the episode to an Apple TV, on an iPhone.
+- The position bar marks the ad breaks, and a pill says how many minutes are left.
+- **AirPlay** sends the episode to an Apple TV, from Safari.
 
-The player uses the imported file, or the TVHeadend copy when the recording is not imported. Freetvarr remembers where you stopped and starts there next time. Double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. On a computer, the left and right arrow keys skip `10` seconds too.
+The player uses the imported file, or the TVHeadend copy when the recording is not imported. A recording still in progress cannot play here until it finishes; to watch it from the start while it records, use **Start over** → **From the start** in the [live player](/guide/player#start-over).
 
-### Keyboard shortcuts
-
-On a computer, the player takes these keys:
-
-| Key                   | What it does                                                |
-| --------------------- | ----------------------------------------------------------- |
-| Space or `k`          | Pauses, or carries on.                                      |
-| Left and right arrows | Skip back or forward `10` seconds.                          |
-| `f`                   | Enters or exits full screen.                                |
-| `i`                   | Shows or hides the recording info.                          |
-| `c`                   | Turns captions on or off, when the recording kept them.     |
-| `m`                   | Mutes or unmutes the sound. Freetvarr remembers the choice. |
-| `Esc`                 | Closes the recording info, or else closes the player.       |
+The player converts the file as it plays, the same way it converts [live TV](/guide/live-tv#stream-handling), so recordings count against [Live streams at once](/guide/player#live-streams-at-once). On the TV itself, a media player that reads your library (Plex, Jellyfin, Kodi, or Infuse) is still the better way to watch.
 
 ### Recording info
 
 **Info** shows the recording's details over the picture:
 
-- The channel, and **FROM LIBRARY** or **FROM TVHEADEND** for the file that plays.
+- The channel, and `FROM LIBRARY` or `FROM TVHEADEND` for the file that plays.
 - The title, the season and episode, and the episode title.
 - When it aired, with a bar for how much you have watched.
 - The length, and the import status.
@@ -122,11 +172,9 @@ On a computer, the player takes these keys:
 - **ADS**: the ad breaks a scan found or cut.
 - **SAVES TO**: the library file. It reads **REPLACED BY** and the other file when another app replaced it, and **FILE MISSING** when Freetvarr cannot find the file. The player then plays the TVHeadend copy if TVHeadend still has it.
 
-The player converts the file as it plays, the same way it converts [live TV](/guide/live-tv#stream-handling), so live channels and recordings share the `LIVE_TV_MAX_SESSIONS` limit. A recording still in progress cannot play until it finishes. On the TV itself, a media player that reads your library (Plex, Jellyfin, Kodi, or Infuse) is still the better way to watch.
-
 ## Recording log
 
-The recording log lists every recording TVHeadend has finished, with its programme image, show, air time, and what Freetvarr did with it. Open it from Settings → System → Recording log. The library and the show pages show the same recordings in a friendlier form; the log keeps the full admin detail.
+The recording log lists every recording TVHeadend has finished, with its programme image, show, air time, and what Freetvarr did with it. Open it from Settings → System → **Recording log**. The library and the show pages show the same recordings for watching; the log keeps the full import detail.
 
 ### Sort
 
@@ -142,12 +190,12 @@ The recording log lists every recording TVHeadend has finished, with its program
 
 Press a row to open the recording's details under it. Press the row again to close them. The details show the description and these facts, when they are known:
 
-- **CHANNEL**, **AIRED**, **LENGTH**, and **SIZE**.
-- **IMPORTED**: when Freetvarr imported the recording.
-- **FILE**: the file in your library.
-- **TVHEADEND**: whether TVHeadend still has its copy.
-- **ADS**: the ad status, with the number of breaks and minutes of ads.
-- **PLAYBACK**: where you stopped watching.
+- **Channel**, **Aired**, **Length**, and **Size**.
+- **Imported**: when Freetvarr imported the recording.
+- **File**: the file in your library.
+- **TVHeadend**: whether TVHeadend still has its copy.
+- **Ads**: the ad status, with the number of breaks and minutes of ads.
+- **Playback**: where you stopped watching.
 
 The buttons under the facts depend on the recording: **Play**, **Import** or **Import again**, **Scan for ads**, and **Remove from TVHeadend** or **Clear from list**.
 

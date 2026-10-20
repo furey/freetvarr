@@ -7,12 +7,12 @@ description: >-
 
 # Health
 
-Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → System → **Health**, from the alert on Home, or from **Health checks** in Settings → About. The old address `#/doctor` redirects to it.
+Health checks the parts Freetvarr depends on and says what to fix. It replaces the Doctor of earlier versions. Open it from Settings → System → **Health**, from the alert on [Home](/guide/home#health-alert), or from **Health checks** in Settings → About. The old address `#/doctor` opens it.
 
 The page has three groups:
 
 - **Sync**: the last sync, the next sync, and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs). **Sync now** at the top runs a sync at once.
-- **Checks**: the set of read-only checks, called the **Doctor**, described below.
+- **Checks**: the read-only checks described below. Settings → About calls them **Health checks**.
 - **Storage**: the free space on the recordings and media folders, with a bar for each.
 
 The sentence under the page title summarises the result, for example `Everything is working.`
@@ -25,16 +25,16 @@ While the result is red, Home also shows the reason as an alert under the greeti
 
 ## Results
 
-The Doctor only reads. It sends `GET` requests to TVHeadend and Plex, and it looks at folders without writing to them. It never saves settings, changes TVHeadend, refreshes Plex, or starts a test encode.
+The checks only read. They send `GET` requests to TVHeadend and Plex, and look at folders without writing to them. They never save settings, change TVHeadend, refresh Plex, or start a test encode.
 
-Each check gets one of these results:
+Each check gets one of these results, shown as a dot beside the check:
 
-- **PASS**: nothing to do.
-- **WARN**: Freetvarr works, but something costs you space, guide data, or picture quality.
-- **FAIL**: something Freetvarr needs is broken. The row says how to fix it and links to the matching docs.
-- **SKIP**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
+- **Pass**: nothing to do.
+- **Warn**: Freetvarr works, but something costs you space, guide data, or picture quality.
+- **Fail**: something Freetvarr needs is broken. The row says how to fix it, and **Read more** opens the matching docs.
+- **Skip**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
 
-Failing rows come first. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
+When every check passes, the page says `Everything's working`. Otherwise the checks are grouped as **Needs attention** (fails), **Needs a look** (warnings), and **Working**. The **Working** group folds into one row, such as `12 checks working`; press it to see each check. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
 
 From a source checkout, `npm run doctor` outputs the same checks in the terminal. It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
 
@@ -48,7 +48,7 @@ Checks that TVHeadend accepts the username and password. A `401` means TVHeadend
 
 ## User rights {#tvh-rights}
 
-Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the TVHeadend access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The Doctor cannot test the **Streaming** rights without starting a stream, so it does not check them.
+Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the TVHeadend access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The checks cannot test the **Streaming** rights without starting a stream, so it does not check them.
 
 ## Open access {#tvh-open}
 
@@ -60,7 +60,7 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0` (the `CHANNELS` step of the [setup wizard](/guide/getting-started#_2-run-the-wizard) adds them). See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0` (the **Channels** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard) adds them). See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 
@@ -72,11 +72,11 @@ Counts the channels that have a TVHeadend icon. It skips when there are no chann
 
 ## Recordings folder {#paths-recordings}
 
-Checks that the recordings folder exists inside the Freetvarr Docker container and is readable. See [TEST PATH failures](/guide/troubleshooting#test-path-failures).
+Checks that the recordings folder exists inside the Freetvarr Docker container and is readable. See [Test path failures](/guide/troubleshooting#test-path-failures).
 
 ## TVHeadend recording path {#paths-match}
 
-Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in Settings → Recording. They must match. See [CHECK TVHEADEND mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
+Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in Settings → Recording. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
 
 ## Media folder {#paths-media}
 
@@ -101,6 +101,10 @@ Reads the last finished sync and the sync schedule. It warns when the last sync 
 ## Live TV encoder {#live-encoder}
 
 Reports the video encoder Freetvarr chose for live TV when it started. It fails when `ffmpeg` is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes, and so does Docker on a Mac or Windows PC, which cannot use the graphics chip. See [Hardware transcoding](/guide/hardware#hardware-transcoding).
+
+## Live streams {#live-streams}
+
+Reports the result of the live TV speed test that Freetvarr runs when it starts, and how many live streams Freetvarr plays at once. It skips until the test has run. It warns when [Live streams at once](/guide/player#live-streams-at-once) is set higher than the test says the computer can manage, because the picture can then stutter.
 
 ## Ad removal tools {#ads-comskip}
 

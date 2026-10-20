@@ -7,7 +7,7 @@ description: >-
 
 # Activity
 
-A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. **Activity** is the history of those passes. Open it from Settings → System → Activity, or from the **Activity** row on [Health](/guide/doctor).
+A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. **Activity** is the history of those passes. It replaces the SYNCS tab of earlier versions. Open it from Settings → System → **Activity**, or from the **Activity** row on [Health](/guide/doctor). The old address `#/syncs` opens it.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/activity">
@@ -40,7 +40,7 @@ Activity groups syncs under a heading for each day: `Today`, `Yesterday`, or a d
 - the result in words, such as `2 imported`, `1 failed`, `1 removed`, or `nothing new`;
 - how long the sync took.
 
-A failed sync also shows its first error under the row. On a wider screen, a **DETAILS** column shows whether the schedule or you started the sync, how many recordings it skipped, and the Plex result.
+A failed sync also shows its first error under the row. On a wider screen, a **Details** column shows whether the schedule or you started the sync, how many recordings it skipped, and the Plex result.
 
 A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording) counts as a failure, not a skip. A sync that runs past midnight sits under the day it started, such as `11:58pm – 12:04am`.
 
@@ -69,7 +69,7 @@ Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, t
 
 Two filters choose which syncs Activity lists:
 
-- **Show**: **Imports**, **Fails**, **Removals**, and **Empty**. Turn on as many as you like. **Empty** is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** on that line to turn **Empty** on.
+- **Show**: **Imports**, **Fails**, **Removals**, and **Empty**. Turn on as many as you like. **Empty** is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** (or **Show it**) on that line to turn **Empty** on.
 - **From**: **Any**, **Schedule** (syncs the sync schedule started), or **Manual** (syncs you started).
 
 The browser remembers your choice. A running sync always shows.

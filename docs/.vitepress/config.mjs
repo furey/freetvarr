@@ -107,11 +107,22 @@ export default withMermaid(defineConfig({
         text: 'Using Freetvarr',
         collapsed: false,
         items: [
+          { text: 'Home and search', link: '/guide/home' },
+          { text: 'For you', link: '/guide/for-you' },
+          { text: 'Live TV', link: '/guide/live-tv' },
+          { text: 'Player', link: '/guide/player' },
           { text: 'Guide', link: '/guide/tv-guide' },
           { text: 'Recordings', link: '/guide/recordings' },
-          { text: 'Series rules and folders', link: '/guide/series' },
+          { text: 'Settings', link: '/guide/settings' }
+        ]
+      },
+      {
+        text: 'Settings → System',
+        collapsed: false,
+        items: [
+          { text: 'Health', link: '/guide/doctor' },
           { text: 'Activity', link: '/guide/syncs' },
-          { text: 'Ad removal', link: '/guide/ad-removal' }
+          { text: 'Series rules and folders', link: '/guide/series' }
         ]
       },
       {
@@ -120,7 +131,7 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Plex', link: '/guide/plex' },
           { text: 'Remove from TVHeadend', link: '/guide/remove-from-tvheadend' },
-          { text: 'Live TV', link: '/guide/live-tv' },
+          { text: 'Ad removal', link: '/guide/ad-removal' },
           { text: 'TV apps', link: '/guide/tv-apps' }
         ]
       },
@@ -137,8 +148,7 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
-          { text: 'Troubleshooting', link: '/guide/troubleshooting' },
-          { text: 'Health', link: '/guide/doctor' }
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' }
         ]
       },
       {

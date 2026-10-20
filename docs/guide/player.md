@@ -1,0 +1,140 @@
+---
+title: Player
+description: >-
+  Freetvarr's full-screen player for live TV and recordings: Start over, sound,
+  captions, the mini player, Pop out, Multiview, and the player settings.
+---
+
+# Player
+
+Freetvarr has one player for live TV and for recordings. It works in any modern browser, on a phone, a tablet, or a computer, and it fills the screen. Open it from [Live TV](/guide/live-tv), from a programme sheet in the [Guide](/guide/tv-guide) with **Watch live**, or from an episode in [Recordings](/guide/recordings#playback).
+
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/live">
+  <img src="../img/screenshot-player.png" alt="The full-screen player" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
+## Controls
+
+The top bar has these controls:
+
+- The back button closes the player. For live TV, closing also frees the tuner.
+- The channel logo and the title of what is playing.
+- **Multiview** (live TV only): watch a second channel. See [Multiview](#multiview).
+- **AirPlay** (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
+- **Mini player**: shrinks the player so you can use the rest of Freetvarr. See [Mini player](#mini-player).
+- **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
+- **Info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
+- **Sound** or **Muted**: turns the sound on or off. See [Sound](#sound).
+- **⋯** (**More**): **Captions**, **Pop out (picture in picture)**, and **Full screen**. On a narrow screen, the buttons that do not fit in the top bar also move into this menu.
+
+The centre of the picture has **Start over**, the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
+
+On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `3` seconds; change the delay in [Player settings](#player-settings).
+
+Double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further.
+
+## Start over
+
+**Start over** works differently for live TV and for recordings.
+
+For live TV, **Start over** opens a choice:
+
+- **From the start**: plays the programme from its first minute, while TVHeadend keeps recording it. This choice shows only when TVHeadend is recording that programme on that channel. Freetvarr plays the recording in progress, so you can watch a show you started late from the beginning.
+- **Back to when you tuned in**: jumps to the oldest part of the rewind buffer. The choice shows the clock time and how many minutes ago that was. It is greyed out for the first few seconds after you tune in.
+
+While you are behind live, **Go live** returns to now, and the text under it says how far behind you are, such as `2 min behind`.
+
+For a recording, **Start over** shows when the player resumed where you stopped, and plays the episode from the start.
+
+## Sound
+
+**Sound** means the sound is on. **Muted** means it is off. Press the button, or press `m` on a keyboard, to switch. Freetvarr remembers the choice on each device, and the next channel or recording starts the same way.
+
+To start every video muted on a device, turn on **Start muted** in [Player settings](#player-settings).
+
+## Captions
+
+Open **⋯**, then press **Captions** to turn captions on or off. The menu row shows **On** or **Off**. On a keyboard, press `c`. Each browser remembers the choice, for live TV and recordings alike.
+
+**Captions** shows only when the channel or the recording carries the broadcast's Teletext subtitles. Some programmes on such a channel still have none. See [Captions](/guide/live-tv#captions).
+
+## Mini player
+
+Press **Mini player** in the top bar to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
+
+- On a phone, the mini player is a bar above the tab bar.
+- On a tablet or computer, it is a small card in a corner of the screen.
+
+Tap the mini player, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
+
+## Pop out
+
+**Pop out (picture in picture)** in the **⋯** menu moves the video into a small window that the browser keeps on top of other apps and windows. It shows only in a browser that supports picture in picture. Press **Close pop out (picture in picture)** to bring the video back.
+
+## Full screen
+
+On a computer, press the full-screen button at the right of the top bar, or press `f`. **Full screen** in the **⋯** menu does the same on every device.
+
+On a phone, turn the phone sideways while the player is open, and the player goes full screen.
+
+## Multiview
+
+**Multiview** plays two live channels at once, for example two sports matches. It needs two live streams; see [Live streams at once](#live-streams-at-once).
+
+1. Open a channel in the player.
+2. Press **Multiview** in the top bar. A sheet lists your favourite channels first, then the other channels.
+3. Press the second channel.
+
+Each channel in the sheet has a tag that says what it costs:
+
+| Tag                                     | What it means                                                                                       |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `Uses a free tuner`                     | A tuner is free, and the channel takes it.                                                          |
+| `No extra tuner`                        | The channel shares a multiplex (a group of channels on one frequency) with a channel already tuned. |
+| `Unavailable: all tuners busy`          | Every tuner is in use. You cannot pick the channel.                                                 |
+| `Unavailable: off air`                  | The channel is not broadcasting now.                                                                |
+| `Unavailable: 1 stream already playing` | Freetvarr already plays as many live streams as **Live streams at once** allows.                    |
+
+The tuner count at the top of the sheet, such as `2 of 4 tuners`, opens **How this works**, which explains tuners and multiplexes for your hardware. Recordings always come first: if a recording needs a tuner, it takes one from live TV.
+
+With two channels playing:
+
+- **Side by side** shows the two pictures next to each other. **Big and small** shows one picture full size and the other in a corner. On a phone held upright, the pictures stack instead; turn the phone sideways to choose a layout.
+- The swap button swaps the two pictures.
+- In **Big and small**, drag the small picture to any corner. Double-tap it to make it the big picture.
+- Each picture has its own **Sound** or **Muted** button. Press **Muted** on a picture to hear it; the other picture mutes. Press **Sound** on the picture you hear to mute both. An outline marks the picture you hear.
+- Each picture's **⋯** menu has **Full screen** (keep this channel and stop the other), **Change channel**, and **Stop watching**.
+- The back button stops both channels and closes the player.
+
+## Player settings
+
+Settings → **Player** holds two choices for the device you use:
+
+- **Start muted**: every video starts with the sound off. This is the same choice as the **Sound** button.
+- **Hide player controls after**: `1 s` to `5 s`. The default is `3 s`.
+
+Both are saved in the browser, so each device keeps its own.
+
+## Live streams at once
+
+**Live streams at once**, under **LIVE TV** in Settings → **Recording**, sets how many live streams Freetvarr plays at the same time: `1` or `2`. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
+
+Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The setting shows the result, such as `This NAS converts live TV with hardware at 6.5× real time, enough for 2 streams at once.` Press **Measure again** to run the measurement again; it takes about `20` seconds, and it waits until no live TV or recording plays. A choice above the measured number is marked, because playback can stutter.
+
+`LIVE_TV_MAX_SESSIONS` in the `.env` sets a hard limit that the setting cannot go above. See [Configuration](/guide/configuration#compose-environment).
+
+## Keyboard shortcuts
+
+On a computer, the player takes these keys:
+
+| Key                   | What it does                                                              |
+| --------------------- | ------------------------------------------------------------------------- |
+| Space or `k`          | Pauses, or carries on.                                                    |
+| Left and right arrows | Skip back or forward `10` seconds. For live TV, within the rewind buffer. |
+| `f`                   | Enters or exits full screen.                                              |
+| `i`                   | Shows or hides the programme or recording info.                           |
+| `c`                   | Turns captions on or off, when the channel or recording has them.         |
+| `m`                   | Switches between **Sound** and **Muted**.                                 |
+| `Esc`                 | Closes the info panel, or else closes the player.                         |

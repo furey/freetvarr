@@ -24,8 +24,8 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 | `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in the wizard; a zone chosen in Settings → Schedule wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                       |
 | `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Both Docker containers use the same pair                                                                        |
 | `FREETVARR_PORT`         | Host port to serve on (default `3733`)                                                                                                                                                                                                              |
-| `TVH_URL`                | Optional. Fixes the address `AUTO-DISCOVER TVHEADEND` offers; omit to let Freetvarr probe port `9981` on the host                                                                                                                                   |
-| `LIVE_TV_MAX_SESSIONS`   | Optional. How many channels the [live TV](/guide/live-tv#stream-handling) player streams at once (default `2`)                                                                                                                                      |
+| `TVH_URL`                | Optional. Fixes the address **Auto-discover TVHeadend** offers; omit to let Freetvarr probe port `9981` on the host                                                                                                                                 |
+| `LIVE_TV_MAX_SESSIONS`   | Optional. The most live streams the [player](/guide/player#live-streams-at-once) plays at once. Unset, Freetvarr measures the computer and lets you choose `1` or `2` in Settings → Recording                                                       |
 | `LIVE_TV_BUFFER_MINUTES` | Optional. How many minutes of [live TV](/guide/live-tv#pause-and-rewind) the player can pause and rewind (default `30`, `0` turns it off, maximum `120`)                                                                                            |
 | `LIVE_TV_TRANSCODE`      | Optional. How [live TV](/guide/live-tv#video-handling) handles H.264: `auto` (default), `hardware`, `software`, or `copy`                                                                                                                           |
 | `LIVE_TV_VAAPI_DEVICE`   | Optional. The render device for hardware encoding (default `/dev/dri/renderD128`)                                                                                                                                                                   |
@@ -85,11 +85,11 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 
 The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's **Settings** (or in its [setup wizard](/guide/getting-started#_2-run-the-wizard)) and stored in Freetvarr's database. Settings groups its pages as follows:
 
-- **Preferences**: Recording, Library and Plex, Pictures, Ad removal, Watch on TV, and Schedule.
+- **Preferences**: Recording, Library and Plex, Pictures, Ad removal, Watch on TV, Player, Suggestions, and Schedule.
 - **System**: Health, Activity, Series rules, Folders, Recording log, and TVHeadend.
 - **About**: About Freetvarr (the setup wizard, versions, and licences) and Danger zone.
 
-Press **Save settings** to keep your changes. **Test path** checks the media root and Freetvarr's recordings folder, and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
+[Settings](/guide/settings) describes each page. Press **Save settings** to keep your changes. **Test path** checks the media root and Freetvarr's recordings folder, and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings">

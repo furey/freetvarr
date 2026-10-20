@@ -23,14 +23,14 @@ Channels run down the page and time runs across. The Guide opens at the current 
 
 - The **day chips** switch between today and the next six days. **Now** and **Tonight** jump within the day.
 - **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
-- The **search** button covers all 7 days on the grid.
+- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does.
 - The **Channels** button opens the channel settings.
 - The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). It replaces the old `UPCOMING` view.
-- A red dot on a cell marks a scheduled recording. A red ring marks a recording now. A programme you watch for shows a different dot. Past programmes are dimmed, and programmes on air have a lighter cell.
-- A red line marks the current time.
+- A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme you watch for has its own dot; the legend under the grid names it **Watching for**. Past programmes are dimmed, and programmes on air have a lighter cell.
+- A line marks the current time.
 - Programmes that ended earlier today stay in the grid. TVHeadend drops a programme once it ends, but Freetvarr keeps its own copy.
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
-- A dimmed channel with **OFF AIR** beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
+- A dimmed channel with `OFF AIR` beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
 - Each channel in the channel settings shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin, even when both have the same name.
 
 ## After midnight
@@ -77,17 +77,17 @@ Freetvarr sends no push message or email. The list in Scheduled is the notice.
 
 ## Favourites
 
-Press the star next to a channel to make it a favourite. Favourites sit at the top of the grid and of [Live TV](/guide/live-tv). To reorder them, hold a favourite until it lifts, then drag it. Reordering also works on the Live TV page.
+Press the star next to a channel to make it a favourite. Favourites sit at the top of the grid and of [Live TV](/guide/live-tv). To reorder them, press **Edit order** in the channel settings, or reorder them on the [Live TV](/guide/live-tv#in-freetvarr) page.
 
 In Australia, the wizard's channel scan starts you with five favourites: the HD channels of ABC, Seven, Nine, 10, and SBS, or the SD channel where a network has no HD channel. The wizard does this only when you have no favourites, and only once. Remove or reorder them like any other favourite.
 
 The **Channels** button above the grid opens the channel settings. The same settings open from the channel settings button on Live TV. On a phone, the settings come first and the list follows. The settings are:
 
-- **Favourites**: reorder or remove them.
+- **Favourites, shown first in this order**: remove a favourite, or press **Edit order** to reorder them.
 - **Sort other channels by**: TVHeadend order, channel number, or name.
 - **Hide SD simulcasts**: hides an SD channel when its HD twin is in the lineup. SD-only channels stay.
 - **Hide SD channels**: shows only HD channels. SD-only channels (for example 7flix) are hidden too. It applies to the grid, search, Live TV, and the channel list. Favourites are never hidden. While it is on, **Hide SD simulcasts** is on and locked, because it hides the same channels.
-- **All channels**: untick a channel to hide it. Favourites are always shown.
+- **All channels**: turn a channel off to hide it. Favourites are always shown.
 - **Listings**: fix the shows of a channel that has the wrong ones, or none. See [Channel listings](#channel-listings).
 
 Press **Save** to apply the changes. Press **Cancel** to close without saving.
@@ -100,7 +100,7 @@ Press **Save** to apply the changes. Press **Cancel** to close without saving.
 
 ## Channel listings
 
-Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the `GUIDE` step of the [setup wizard](/guide/getting-started#_2-run-the-wizard). The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
+Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the **Guide** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard). The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
 
 1. In the Guide, press **Channels** above the grid.
 2. Press the pencil next to the channel (**Change guide source**). The row shows the current guide channel in a box you can type in.
@@ -111,13 +111,13 @@ Each row shows the name of its guide channel, or `No listings`. A row you change
 
 Pick **No listings** to remove a channel's shows. The channel's shows go at once. Two channels can use the same guide channel, such as `SBS ONE` and `SBS ONE HD`.
 
-Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks TVHeadend to load the TV guide again. The channel stays empty while TVHeadend downloads the guide. In the channel's row, to the right of the orange now line, the Guide shows `Loading the new listings. This can take a couple of minutes.` When the new shows are in TVHeadend, the Guide shows them and the note goes.
+Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks TVHeadend to load the TV guide again. The channel stays empty while TVHeadend downloads the guide. In the channel's row, after the current time, the Guide shows `Loading the new listings. This can take a couple of minutes.` When the new shows are in TVHeadend, the Guide shows them and the note goes.
 
 Freetvarr also turns off TVHeadend's **Auto EPG channel** setting for a channel you change. TVHeadend then does not add a guide channel to it again by name or number.
 
 Shows that already ended stay in the Guide under their old listings. A scheduled recording on the channel stays at its time, but no longer follows a guide programme.
 
-If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and proceed to its `GUIDE` step.
+If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and proceed to its **Guide** step.
 
 A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's listings, that channel gets different programmes, so its series recordings can catch different episodes. Check [Scheduled](/guide/recordings#scheduled) after the change.
 
@@ -125,24 +125,11 @@ If saving the listings fails, the dialog says so on its own line. Your favourite
 
 ## On a phone
 
-The Guide works in a phone browser, and you can reorder favourites by touch. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-save-it-as-an-app). In that Home Screen app, pull down from the top of a page to refresh it (see [Pull to refresh](/guide/syncs#pull-to-refresh)).
+The Guide works in a phone browser, with **Now**, **Tonight**, and the zoom buttons over the grid. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-save-it-as-an-app). In that Home Screen app, pull down from the top of a page to refresh it (see [Pull to refresh](/guide/syncs#pull-to-refresh)).
 
 ## Live TV page
 
 The Live TV page lists every channel with what is on now and next, favourites first. See [Live TV](/guide/live-tv).
-
-## Home {#on-the-dashboard}
-
-Home shows what to watch now. Open the Guide to fill it: the **On now** row shows your favourite channels, so press the star next to some channels.
-
-- **Continue watching**: the recording you started most recently and have not finished, with **Resume**.
-- **New recordings**: episodes you have not watched, newest first.
-- **On now**: what is on your favourite channels, with a progress bar. Press a card to watch live.
-- **Recording tonight**: up to three recordings for tonight. Press one to open [Scheduled](/guide/recordings#scheduled).
-
-While TVHeadend records, a red chip in the header names the recording, for example `Recording The Block`. Press it to open Scheduled, which shows each recording's progress. If TVHeadend reports a recording as failed, the [recording log](/guide/recordings#recording-log) shows TVHeadend's reason. While anything records, the browser tab title starts with `● REC`.
-
-An empty Home says `Nothing recorded yet` and links to the Guide.
 
 ## Missing pictures
 
