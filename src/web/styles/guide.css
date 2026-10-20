@@ -731,16 +731,20 @@
   left: calc(var(--epg-rail-px, 200px) + var(--epg-thumb-w) + 15px);
 }
 
-.guide-page .epg-images-off .epg-cell:is(.with-thumb, .maybe-thumb) .epg-cell-text {
+.guide-page .epg-images-off .epg-cell:is(.with-thumb, .maybe-thumb:has(> .programme-image.is-loaded)) .epg-cell-text {
   margin-left: 0;
 }
 
-.guide-page .epg-images-off .epg-cell:is(.with-thumb, .maybe-thumb)[data-at-rail-edge] .epg-cell-text {
+.guide-page .epg-images-off .epg-cell:is(.with-thumb, .maybe-thumb:has(> .programme-image.is-loaded))[data-at-rail-edge] .epg-cell-text {
   left: calc(var(--epg-rail-px, 200px) + 10px);
 }
 
 .guide-page .epg-images-off .programme-image.cell {
   display: none;
+}
+
+.guide-page .epg-images-off.epg-images-leaving .programme-image.cell {
+  display: block;
 }
 
 .guide-page .epg-cell-title {

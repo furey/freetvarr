@@ -27,6 +27,7 @@ import { api } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
 import { PHONE_LAYOUT_QUERY, CHANNELS_SAVED_TEXT } from '/shared/constants.js'
 import { fmtBytes } from '/shared/format.js'
+import { animateImagesToggle } from '/shared/guide-images-motion.js'
 import { setDragLock, useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { GUIDE_ROW_CONTEXT, GuideRow } from '/components/guide-row.js'
@@ -126,7 +127,7 @@ export const EpgView = {
         </div>
         <div class="guide-toolbar">
           <span class="guide-toolbar-spacer"></span>
-          <button type="button" role="switch" class="guide-images-toggle" :aria-checked="String(showImages)" @click="showImages = !showImages">
+          <button type="button" role="switch" class="guide-images-toggle" :aria-checked="String(showImages)" @click="toggleImages">
             Images<span class="guide-switch" aria-hidden="true"></span>
           </button>
           <div class="ui-segmented is-compact guide-zoom" role="group" aria-label="Zoom">
@@ -206,7 +207,7 @@ export const EpgView = {
           <button v-if="midnightOnScreen && day < 6" type="button" class="epg-pinned-chip epg-next-day-chip"
             :style="{ right: 'calc(' + scrollbarW + 'px + 0.5rem)' }" :aria-label="'Go to ' + nextDayLongLabel"
             @click="goToNextDay">{{ narrow ? nextDayWeekday : nextDayLabel }} <chevron-right-icon /></button>
-          <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming, 'epg-images-off': !showImages }]" ref="scrollEl"
+          <div :class="['epg-scroll', 'epg-zoom-' + zoom, { 'epg-zooming': zooming, 'epg-images-off': !showImages, 'epg-images-leaving': imagesLeaving }]" ref="scrollEl"
             @pointerover="onGridPointer" @pointermove="onGridPointer" @pointerout="onGridPointerOut"
             @pointerdown="hideTooltip" @focusin="onGridFocusIn" @focusout="onGridFocusOut">
           <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
@@ -344,6 +345,17 @@ export const EpgView = {
 
     const railFilter = ref('')
     const showImages = storedFlag({ key: EPG_IMAGES_KEY, fallback: true })
+    const imagesLeaving = ref(false)
+    const toggleImages = () => animateImagesToggle({
+      scrollEl: scrollEl.value,
+      flip: async () => {
+        showImages.value = !showImages.value
+        imagesLeaving.value = !showImages.value
+        await nextTick()
+        return !showImages.value
+      },
+      settle: () => { imagesLeaving.value = false },
+    })
 
     const visibleChannels = computed(() =>
       (guide.value?.channels || []).filter((c) => !c.hidden))
@@ -1266,7 +1278,7 @@ export const EpgView = {
       searchOpen, toggleSearch, closeSearch, searchQ, searchActive, searchResults, searching, resultsLabel,
       openProgram, programmeSheetOpen,
       channelsModal, channelsModalMode, openChannelsModal, openOrderEditor, onChannelPrefsSaved,
-      togglePin, railItems, narrow, showImages, cellHasThumb,
+      togglePin, railItems, narrow, showImages, toggleImages, imagesLeaving, cellHasThumb,
       canSort, railLayout, sort,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
       channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, seLabel,
