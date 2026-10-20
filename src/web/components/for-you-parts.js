@@ -1,5 +1,4 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
-import { artFallbackStyle } from '/art-fallback.js'
 import {
   badgeOf,
   cardLabelOf,
@@ -100,8 +99,8 @@ export const ForYouOverlays = {
   template: `
     <ui-sheet :open="Boolean(menuItem)" :title="menuItem?.title || ''" :subtitle="menuMeta" @close="ctl.closeMenu()">
       <template #header-lead>
-        <span class="library-menu-art ui-art-fallback is-wide" :style="artStyle(menuItem)" aria-hidden="true">
-          <img v-if="menuItem?.image && !failedArt[menuItem.image]" :src="menuItem.image" alt="" @error="markFailed(menuItem.image)" />
+        <span v-if="menuItem?.image && !failedArt[menuItem.image]" class="library-menu-art is-wide" aria-hidden="true">
+          <img :src="menuItem.image" alt="" @error="markFailed(menuItem.image)" />
         </span>
       </template>
       <div v-if="menuItem" class="library-menu for-you-menu">
@@ -132,8 +131,8 @@ export const ForYouOverlays = {
 
     <ui-sheet :open="Boolean(whyItem)" title="Why this?" :subtitle="whySubtitle" @close="ctl.closeWhy()">
       <template #header-lead>
-        <span class="library-menu-art ui-art-fallback is-wide for-you-why-art" :style="artStyle(whyItem)" aria-hidden="true">
-          <img v-if="whyItem?.image && !failedArt[whyItem.image]" :src="whyItem.image" alt="" @error="markFailed(whyItem.image)" />
+        <span v-if="whyItem?.image && !failedArt[whyItem.image]" class="library-menu-art is-wide for-you-why-art" aria-hidden="true">
+          <img :src="whyItem.image" alt="" @error="markFailed(whyItem.image)" />
         </span>
       </template>
       <template #header-actions>
@@ -188,10 +187,9 @@ export const ForYouOverlays = {
       : ''))
     const whyRows = computed(() => whyRowsOf(props.ctl.why.data))
     const signals = computed(() => props.ctl.why.data?.signals ?? [])
-    const artStyle = (item) => artFallbackStyle(item?.title)
     const failedArt = ref({})
     const markFailed = (src) => { failedArt.value = { ...failedArt.value, [src]: true } }
-    return { failedArt, markFailed, menuItem, whyItem, menu, menuMeta, menuReason, thumb, whyThumb, whySubtitle, whyRows, signals, artStyle }
+    return { failedArt, markFailed, menuItem, whyItem, menu, menuMeta, menuReason, thumb, whyThumb, whySubtitle, whyRows, signals }
   },
 }
 
