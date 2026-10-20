@@ -1,7 +1,9 @@
 import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { artFallbackStyle } from '/art-fallback.js'
 import { deleteConfirmOf, deleteOutcomeOf, deleteRefusalOf } from '/delete-copy.js'
+import { menuPendingLabelOf } from '/library-menus.js'
 import { overlayStack } from '/overlay-stack.js'
+import { holdAtLeast } from '/pending.js'
 import { episodeHeading } from '/show-page.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { api } from '/shared/api.js'
@@ -35,6 +37,7 @@ export const LibraryMenuSheet = {
     groups: { type: Array, default: () => [] },
     tip: { type: String, default: '' },
     busy: Boolean,
+    pendingKey: { type: String, default: '' },
   },
   emits: ['close', 'choose'],
   template: `
@@ -46,10 +49,11 @@ export const LibraryMenuSheet = {
       </template>
       <div class="library-menu">
         <div v-for="(group, g) in groups" :key="g" class="ui-group library-menu-group">
-          <button v-for="item in group" :key="item.key" type="button" :class="['ui-group-row', 'library-menu-item', { 'is-danger': item.danger }]"
-            :disabled="busy" @click="$emit('choose', item.key)">
-            <menu-icon :name="item.icon" />
-            <span class="library-menu-label">{{ item.label }}</span>
+          <button v-for="item in group" :key="item.key" type="button"
+            :class="['ui-group-row', 'library-menu-item', { 'is-danger': item.danger, 'is-pending': pendingKey === item.key }]"
+            :disabled="busy" :aria-busy="pendingKey === item.key" @click="$emit('choose', item.key)">
+            <span v-if="pendingKey === item.key" class="spinner library-menu-spinner" aria-hidden="true"></span><menu-icon v-else :name="item.icon" />
+            <span class="library-menu-label">{{ pendingKey === item.key ? menuPendingLabelOf(item.key) : item.label }}</span>
             <small v-if="item.detail" class="library-menu-detail">{{ item.detail }}</small>
           </button>
         </div>
@@ -61,7 +65,7 @@ export const LibraryMenuSheet = {
     const artFailed = ref(false)
     watch(() => props.artSrc, () => { artFailed.value = false })
     const artStyle = computed(() => artFallbackStyle(props.title))
-    return { artFailed, artStyle }
+    return { artFailed, artStyle, menuPendingLabelOf }
   },
 }
 
@@ -142,8 +146,9 @@ export const DeleteConfirm = {
             </div>
             <div class="library-dialog-buttons">
               <button type="button" class="library-dialog-cancel" :disabled="busy" @click="cancel">Cancel</button>
-              <button type="button" class="library-dialog-go" :disabled="busy || !copy || !preview?.count" @click="confirm">
-                {{ busy ? copy?.busyLabel : (copy?.confirmLabel || 'Delete') }}
+              <button type="button" :class="['library-dialog-go', { 'is-pending': busy }]" :disabled="busy || !copy || !preview?.count"
+                :aria-busy="busy" @click="confirm">
+                <span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? copy?.busyLabel : (copy?.confirmLabel || 'Delete') }}
               </button>
             </div>
           </section>
@@ -254,9 +259,11 @@ export const DeleteConfirm = {
       refusal.value = ''
       stopPlayingTarget()
       try {
-        const body = await api('POST', '/api/library/delete', {
-          recording_ids: preview.value.items.map((item) => item.recordingId),
-          expected_count: preview.value.count,
+        const body = await holdAtLeast({
+          task: () => api('POST', '/api/library/delete', {
+            recording_ids: preview.value.items.map((item) => item.recordingId),
+            expected_count: preview.value.count,
+          }),
         })
         const seriesFailure = copy.value.offersStopSeries && stopSeries.value ? await stopSeriesRecording() : ''
         const labelsById = Object.fromEntries(props.request.episodes.map((episode) => [episode.recordingId, episodeHeading(episode)]))

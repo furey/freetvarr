@@ -1,4 +1,5 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
+import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
 
@@ -53,8 +54,8 @@ export const FolderEditor = {
         <span class="settings-row-title">Remove from TVHeadend after import</span>
       </toggle-switch>
       <div class="card-actions">
-        <button type="submit" class="btn btn-primary" :disabled="saving">
-          <template v-if="saving">Saving…</template><template v-else><check-icon /> Save</template>
+        <button type="submit" :class="['btn', 'btn-primary', { 'is-pending': saving && !confirming }]" :disabled="saving" :aria-busy="saving && !confirming">
+          <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save</template>
         </button>
         <button type="button" class="btn btn-danger" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
@@ -65,8 +66,8 @@ export const FolderEditor = {
           <p>{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
         </div>
         <template #footer>
-          <button type="button" class="ui-button ui-button-destructive ui-button-block" @click="remove" :disabled="saving">
-            <template v-if="saving">Removing…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
+          <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-pending': saving }]" @click="remove" :disabled="saving" :aria-busy="saving">
+            <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Removing…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
           </button>
           <button type="button" class="ui-button ui-button-block" @click="confirming = false" :disabled="saving">Cancel</button>
         </template>
@@ -101,13 +102,15 @@ export const FolderEditor = {
       }
       saving.value = true
       try {
-        await api('PATCH', `/api/shows/${props.folder.id}`, {
-          dest_folder: destFolder.value.trim(),
-          season_template: seasonTemplate.value.trim() || 'Season {season}',
-          show_pattern: pattern.value.trim(),
-          enabled: true,
-          delete_after_import: deleteAfter.value,
-          ...(props.adRemovalEnabled ? { ad_removal: adRemoval.value } : {}),
+        await holdAtLeast({
+          task: () => api('PATCH', `/api/shows/${props.folder.id}`, {
+            dest_folder: destFolder.value.trim(),
+            season_template: seasonTemplate.value.trim() || 'Season {season}',
+            show_pattern: pattern.value.trim(),
+            enabled: true,
+            delete_after_import: deleteAfter.value,
+            ...(props.adRemovalEnabled ? { ad_removal: adRemoval.value } : {}),
+          }),
         })
         emit('saved')
       } catch (err) {
@@ -124,7 +127,7 @@ export const FolderEditor = {
     const remove = async () => {
       saving.value = true
       try {
-        await api('DELETE', `/api/shows/${props.folder.id}`)
+        await holdAtLeast({ task: () => api('DELETE', `/api/shows/${props.folder.id}`) })
         confirming.value = false
         emit('deleted')
       } catch (err) {

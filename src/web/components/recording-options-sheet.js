@@ -15,12 +15,14 @@ import { api, fetchSettings } from '/shared/api.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
 import { refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { mediaRootPrefix } from '/views/folder-editor.js'
+import { AlsoKnownAs } from '/components/also-known-as.js'
 
 const RULE_SAVE_DELAY_MS = 600
 const DEFAULT_LEAD_MINUTES = 2
 const DEFAULT_LAG_MINUTES = 10
 
 export const RecordingOptionsSheet = {
+  components: { AlsoKnownAs },
   props: {
     open: Boolean,
     show: { type: Object, required: true },
@@ -115,9 +117,10 @@ export const RecordingOptionsSheet = {
               <datalist id="options-assign-folders"><option v-for="d in folders" :key="d" :value="d" /></datalist>
               <button type="submit" class="ui-button ui-button-sm" :disabled="busy || !assignDest.trim()">Assign folder</button>
             </form>
+            <also-known-as :show-key="show.key" @flash="$emit('flash', $event)" />
           </div>
         </details>
-        <p class="options-hint options-advanced-hint">Open Advanced to see where files are saved and any title matching.</p>
+        <p class="options-hint options-advanced-hint">Open Advanced to see where files are saved, any title matching, and other names for the show.</p>
         <p class="ui-visually-hidden" aria-live="polite">{{ statusText }}</p>
       </template>
 

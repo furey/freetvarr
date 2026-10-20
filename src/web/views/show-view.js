@@ -143,17 +143,23 @@ export const ShowView = {
           <button type="button" class="show-select-bar-button is-end" :disabled="!seasonSelectable" @click="selectSeason">{{ seasonAllSelected ? 'Deselect all' : 'Select all' }}</button>
         </header>
         <div class="show-select-actions" role="toolbar" :aria-label="selected.size ? 'Actions for ' + selectionTitle(selected.size) + ' episodes' : 'Actions'">
-          <button type="button" class="show-select-action" :disabled="!selected.size || busy" @click="markSelected(true)"><menu-icon name="check" />Mark watched</button>
-          <button type="button" class="show-select-action" :disabled="!selected.size || busy" @click="markSelected(false)"><menu-icon name="unwatched" />Mark unwatched</button>
+          <button type="button" :class="['show-select-action', { 'is-pending': pendingKey === 'select-watched' }]" :disabled="!selected.size || busy"
+            :aria-busy="pendingKey === 'select-watched'" @click="markSelected(true)">
+            <span v-if="pendingKey === 'select-watched'" class="spinner" aria-hidden="true"></span><menu-icon v-else name="check" />{{ pendingKey === 'select-watched' ? 'Marking…' : 'Mark watched' }}
+          </button>
+          <button type="button" :class="['show-select-action', { 'is-pending': pendingKey === 'select-unwatched' }]" :disabled="!selected.size || busy"
+            :aria-busy="pendingKey === 'select-unwatched'" @click="markSelected(false)">
+            <span v-if="pendingKey === 'select-unwatched'" class="spinner" aria-hidden="true"></span><menu-icon v-else name="unwatched" />{{ pendingKey === 'select-unwatched' ? 'Marking…' : 'Mark unwatched' }}
+          </button>
           <button type="button" class="show-select-action is-danger" :disabled="!selected.size || busy" @click="deleteSelected"><menu-icon name="trash" />Delete</button>
         </div>
       </template>
 
       <library-menu-sheet :open="showMenuOpen" :title="title" :subtitle="showMenuSubtitle" :art-src="posterSrc" art-shape="poster"
-        :groups="showGroups" :busy="busy" @close="closeMenus" @choose="chooseShowAction" />
+        :groups="showGroups" :busy="busy" :pending-key="pendingKey" @close="closeMenus" @choose="chooseShowAction" />
 
       <library-menu-sheet :open="Boolean(menuEpisode)" :title="menuEpisode ? episodeHeading(menuEpisode) : ''" :subtitle="menuEpisode ? episodeMeta(menuEpisode) : ''"
-        :art-src="menuEpisode ? episodeImage(menuEpisode) || '' : ''" :groups="episodeGroups" :tip="episodeTip" :busy="busy"
+        :art-src="menuEpisode ? episodeImage(menuEpisode) || '' : ''" :groups="episodeGroups" :tip="episodeTip" :busy="busy" :pending-key="pendingKey"
         @close="closeMenus" @choose="chooseEpisodeAction" />
 
       <library-info-sheet :open="Boolean(info)" :info="info" @close="info = null" />
@@ -269,7 +275,7 @@ export const ShowView = {
       selected.value = selectAllIn({ episodes: visibleEpisodes.value, selected: selected.value, activeIds: activeIds.value })
     }
     const markSelected = async (watched) => {
-      await actions.setEpisodesWatched(selectedEpisodes.value, watched)
+      await actions.runPending(watched ? 'select-watched' : 'select-unwatched', () => actions.setEpisodesWatched(selectedEpisodes.value, watched))
       stopSelecting()
     }
     const deleteSelected = () => actions.askDelete({ variant: 'selected', list: selectedEpisodes.value })

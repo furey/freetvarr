@@ -48,6 +48,8 @@ export const primaryActionOf = ({ strength, recordWhenSeen = false, watching = f
   return { key: 'notify', label: recordWhenSeen ? 'Record when it appears' : 'Notify me', tone: 'primary' }
 }
 
+export const pendingActionLabelOf = (key) => PENDING_ACTION_LABELS[key] || 'Saving…'
+
 export const sheetMetaLineOf = ({ seasonEpisode, episodeTitle, channelName, timeRange }) =>
   [seasonEpisode, episodeTitle, channelName, timeRange].filter(Boolean).join(' · ')
 
@@ -67,3 +69,12 @@ export const cellMarksOf = ({ state, seriesScheduled = false, watching = false }
 })
 
 export const clockWithoutPeriod = (clock) => String(clock).replace(/\s?[ap]\.?m\.?$/i, '')
+
+const PENDING_ACTION_LABELS = {
+  record: 'Scheduling…',
+  'record-series': 'Setting up…',
+  notify: 'Saving…',
+  'stop-watching': 'Stopping…',
+  cancel: 'Cancelling…',
+  stop: 'Stopping…',
+}

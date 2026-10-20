@@ -13,6 +13,7 @@ import {
   vectorsVersion,
 } from './for-you-engine.js'
 import { createGenreEnrichment, isMovieLike, loadTitleGenres, yearOf } from './genre-enrichment.js'
+import { rememberKnownAsFromTvmaze, rememberKnownAsFromWikidata } from './search-aliases.js'
 import { showKeyOf } from './web/show-key.js'
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { eventRowOf } from './user-events.js'
@@ -205,7 +206,7 @@ const isPrimeTime = (ms) => {
 
 let cached = null
 let upkeeping = null
-const genreEnrichment = createGenreEnrichment()
+const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFromTvmaze, onFilm: rememberKnownAsFromWikidata })
 
 const CACHED_LIMIT = 20
 const HIDING_KINDS = ['not_interested', 'not_interested_undo']

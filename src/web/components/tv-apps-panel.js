@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { tvAppsAddresses, tvAppsHost } from '/tv-apps.js'
+import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
 
@@ -32,8 +33,8 @@ export const TvAppsPanel = {
               <label class="field-label" for="tv-login-name">Login name</label>
               <input v-no-autofill id="tv-login-name" type="text" class="field-input" v-model="name" />
             </div>
-            <button type="button" class="btn" @click="makeLogin" :disabled="making">
-              <template v-if="making">Making…</template><template v-else><tv-icon /> Make a TV login</template>
+            <button type="button" :class="['btn', { 'is-pending': making }]" @click="makeLogin" :disabled="making" :aria-busy="making">
+              <template v-if="making"><span class="spinner" aria-hidden="true"></span> Making…</template><template v-else><tv-icon /> Make a TV login</template>
             </button>
           </div>
           <p v-if="statusText" :class="['settings-row', 'status-readout', statusKind]">{{ statusText }}</p>
@@ -87,7 +88,7 @@ export const TvAppsPanel = {
     const makeLogin = async () => {
       making.value = true
       try {
-        login.value = await api('POST', '/api/tv-login', { username: name.value })
+        login.value = await holdAtLeast({ task: () => api('POST', '/api/tv-login', { username: name.value }) })
       } catch (err) {
         setStatus(err.message, 'err', 0)
       } finally {

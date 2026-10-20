@@ -1,5 +1,6 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { optionLabel } from '/typeahead.js'
+import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
 import { overlayStack } from '/overlay-stack.js'
@@ -51,8 +52,8 @@ export const ChannelsModal = {
           <span v-if="statusText" :class="['status-readout', statusKind]" role="status">{{ statusText }}</span>
           <div class="channels-footer-buttons is-order">
             <button type="button" class="ui-button ui-button-secondary" @click="cancelOrder">Cancel</button>
-            <button type="button" class="ui-button ui-button-primary" @click="finishOrder" :disabled="savingPrefs">
-              {{ savingPrefs ? 'Saving…' : 'Done' }}
+            <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': savingPrefs }]" @click="finishOrder" :disabled="savingPrefs" :aria-busy="savingPrefs">
+              <span v-if="savingPrefs" class="spinner" aria-hidden="true"></span>{{ savingPrefs ? 'Saving…' : 'Done' }}
             </button>
           </div>
         </div>
@@ -171,8 +172,8 @@ export const ChannelsModal = {
           <span v-if="statusText" :class="['status-readout', statusKind]" role="status">{{ statusText }}</span>
           <div class="channels-footer-buttons">
             <button type="button" class="ui-button ui-button-secondary" @click="$emit('close')">Cancel</button>
-            <button type="button" class="ui-button ui-button-primary" @click="save" :disabled="savingPrefs || guideLoading">
-              {{ savingPrefs ? 'Saving…' : 'Save' }}
+            <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': savingPrefs }]" @click="save" :disabled="savingPrefs || guideLoading" :aria-busy="savingPrefs">
+              <span v-if="savingPrefs" class="spinner" aria-hidden="true"></span>{{ savingPrefs ? 'Saving…' : 'Save' }}
             </button>
           </div>
         </div>
@@ -327,7 +328,7 @@ export const ChannelsModal = {
 
     const finishOrder = async () => {
       savingPrefs.value = true
-      const saved = await savePrefs()
+      const saved = await holdAtLeast({ task: savePrefs })
       savingPrefs.value = false
       if (!saved) return
       if (openedInOrderMode) return emit('saved', { listingsLoading: false })
@@ -419,7 +420,7 @@ export const ChannelsModal = {
 
     const save = async () => {
       savingPrefs.value = true
-      const prefsSaved = await savePrefs()
+      const prefsSaved = await holdAtLeast({ task: savePrefs })
       if (prefsSaved) setStatus('Channels saved.', 'ok')
       const links = await saveGuideLinks()
       savingPrefs.value = false

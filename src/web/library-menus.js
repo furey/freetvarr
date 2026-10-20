@@ -83,6 +83,8 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
 }
 
+export const menuPendingLabelOf = (key) => MENU_PENDING_LABELS[key] || ''
+
 export const selectionTitle = (count) => (count ? `${count} selected` : 'Select episodes')
 
 export const toggledSelection = ({ selected, recordingId }) => {
@@ -132,7 +134,7 @@ export const episodeInfoOf = ({ episode, showTitle, timeZone }) => ({
   ].filter((row) => row.value),
 })
 
-export const showInfoOf = ({ show, timeZone }) => {
+export const showInfoOf = ({ show, timeZone, nicknames = [] }) => {
   const episodes = allEpisodesOf(show)
   const unwatched = episodes.filter((e) => !e.watched && !e.failed).length
   const next = show.nextAiring
@@ -145,6 +147,7 @@ export const showInfoOf = ({ show, timeZone }) => {
       { label: 'Series recording', value: show.rule ? show.rule.summary || 'On' : 'Not recording new episodes' },
       { label: 'Next airing', value: next ? `${weekdayClockOf({ ms: next.startDate, timeZone })}${next.channelName ? ` on ${next.channelName}` : ''}` : '' },
       { label: 'Saves to', value: show.rule?.savesTo?.path || '', mono: true },
+      { label: 'Also known as', value: nicknames.join(', ') },
     ].filter((row) => row.value),
   }
 }
@@ -165,3 +168,16 @@ const importLabelOf = (episode) => {
 const canRescan = (episode) => episode.status === 'done' && Boolean(episode.filePath) && !episode.libraryState
 
 const IMPORTABLE_STATES = ['not_imported', 'not_in_library', 'failed', 'skipped']
+
+const MENU_PENDING_LABELS = {
+  'mark-all-watched': 'Marking as watched…',
+  'mark-all-unwatched': 'Marking as unwatched…',
+  'pause-series': 'Pausing…',
+  'resume-series': 'Resuming…',
+  'refresh-artwork': 'Refreshing artwork…',
+  watched: 'Marking as watched…',
+  unwatched: 'Marking as unwatched…',
+  'watched-earlier': 'Marking as watched…',
+  import: 'Importing…',
+  'remove-ads': 'Starting…',
+}

@@ -31,6 +31,7 @@ import {
   initialStrengthOf,
   keepLabel,
   minutesShort,
+  pendingActionLabelOf,
   primaryActionOf,
   seasonEpisodeShort,
   sheetMetaLineOf,
@@ -39,6 +40,7 @@ import {
   strengthLineOf,
   watchedKeysOf,
 } from '/programme-sheet.js'
+import { holdAtLeast } from '/pending.js'
 import { showKeyOf } from '/show-key.js'
 import { channelGroupLabel } from '/components/channel-identity.js'
 import { togglePinnedChannel } from '/components/channels-modal.js'
@@ -328,10 +330,10 @@ export const EpgView = {
           <template v-else>
             <div v-if="cancelActions.length" class="programme-sheet-cancels">
               <div v-for="action in cancelActions" :key="action.key" class="programme-sheet-cancel">
-                <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-busy': modalAction === action.busyKey }]"
-                  :disabled="modalBusy" @click="action.run">
-                  <stop-icon v-if="action.key === 'stop'" />{{ action.label }}
-                  <span v-if="modalAction === action.busyKey" class="spinner" aria-hidden="true"></span>
+                <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-busy': modalAction === action.busyKey, 'is-pending': modalAction === action.busyKey }]"
+                  :disabled="modalBusy" :aria-busy="modalAction === action.busyKey" @click="action.run">
+                  <span v-if="modalAction === action.busyKey" class="spinner" aria-hidden="true"></span><stop-icon v-else-if="action.key === 'stop'" />
+                  {{ modalAction === action.busyKey ? pendingActionLabelOf(action.key) : action.label }}
                 </button>
                 <p class="programme-sheet-outcome">{{ action.outcome }}</p>
               </div>
@@ -403,10 +405,11 @@ export const EpgView = {
               <button v-if="canWatchLive" type="button" class="ui-button ui-button-secondary ui-button-block" @click="watchSelected"><tv-icon /> Watch live</button>
               <div class="programme-sheet-buttons">
                 <button type="button" class="ui-button ui-button-secondary programme-sheet-dismiss" @click="closeModal">Close</button>
-                <button v-if="primaryAction" type="button" :class="['ui-button', 'programme-sheet-primary', primaryClass]"
-                  :disabled="modalBusy" @click="runPrimaryAction">
-                  <span v-if="primaryAction.tone === 'record'" class="programme-sheet-rec-dot" aria-hidden="true"></span>{{ primaryAction.label }}
+                <button v-if="primaryAction" type="button" :class="['ui-button', 'programme-sheet-primary', primaryClass, { 'is-pending': modalAction === primaryAction.key }]"
+                  :disabled="modalBusy" :aria-busy="modalAction === primaryAction.key" @click="runPrimaryAction">
                   <span v-if="modalAction === primaryAction.key" class="spinner" aria-hidden="true"></span>
+                  <span v-else-if="primaryAction.tone === 'record'" class="programme-sheet-rec-dot" aria-hidden="true"></span>
+                  {{ modalAction === primaryAction.key ? pendingActionLabelOf(primaryAction.key) : primaryAction.label }}
                 </button>
               </div>
             </div>
@@ -1224,14 +1227,14 @@ export const EpgView = {
       modalBusy.value = true
       modalAction.value = 'record'
       try {
-        await api('POST', '/api/epg/record', {
+        await holdAtLeast({ task: () => api('POST', '/api/epg/record', {
           channel_id: channel?.id ?? program.channelId,
           program_id: program.program_id,
           epg_program_id: program.epg_program_id,
           lead_time: leadTime.value,
           lag_time: lagTime.value,
           add_to_library: addToLibrary.value,
-        })
+        }) })
         flash({ msg: `Scheduled "${program.title}".` })
         closeModal()
         refreshAfterRecordingChange()
@@ -1249,7 +1252,7 @@ export const EpgView = {
       modalBusy.value = true
       modalAction.value = 'record-series'
       try {
-        const result = await api('POST', '/api/epg/record-series', {
+        const result = await holdAtLeast({ task: () => api('POST', '/api/epg/record-series', {
           series_link: program.series_link,
           channel_id: channel?.id ?? program.channelId,
           program_id: program.program_id,
@@ -1259,7 +1262,7 @@ export const EpgView = {
           episodes_to_keep: episodesToKeep.value,
           any_channel: anyChannel.value,
           add_show_rule: addToLibrary.value,
-        })
+        }) })
         const ruleNote = result.showRule ? ` Episodes go into ${result.showRule.dest_folder}.` : ''
         flash({ msg: `Series recording set for "${program.title}".${ruleNote}`, ms: ruleNote ? 6000 : undefined })
         closeModal()
@@ -1284,7 +1287,7 @@ export const EpgView = {
       modalBusy.value = true
       modalAction.value = 'cancel'
       try {
-        const result = await api('POST', '/api/epg/cancel', { program_id: program.program_id })
+        const result = await holdAtLeast({ task: () => api('POST', '/api/epg/cancel', { program_id: program.program_id }) })
         flash({ msg: cancelledMessage({ title: program.title, result }) })
         closeModal()
         refreshAfterRecordingChange()
@@ -1302,11 +1305,11 @@ export const EpgView = {
       modalBusy.value = true
       modalAction.value = 'cancel-series'
       try {
-        await api('POST', '/api/epg/cancel-series', {
+        await holdAtLeast({ task: () => api('POST', '/api/epg/cancel-series', {
           series_link_id: step.link,
           stop_recording_now: stopRecordingNow,
           title_match_id: removeTitleMatch ? step.titleMatch.id : null,
-        })
+        }) })
         flash({ msg: `Cancelled the series recording of "${step.title}".` })
         closeModal()
         refreshAfterRecordingChange()
@@ -1347,10 +1350,10 @@ export const EpgView = {
       modalBusy.value = true
       modalAction.value = 'notify'
       try {
-        const { item } = await api('POST', '/api/watchlist', {
+        const { item } = await holdAtLeast({ task: () => api('POST', '/api/watchlist', {
           title: program.title,
           mode: recordWhenSeen.value ? 'record' : 'notify',
-        })
+        }) })
         flash({ msg: watchedMessage({ title: program.title, item }), ms: 6000 })
         closeModal()
         await loadWatchlist()
@@ -1372,7 +1375,7 @@ export const EpgView = {
       modalBusy.value = true
       modalAction.value = 'stop-watching'
       try {
-        await api('DELETE', `/api/watchlist/${item.id}`)
+        await holdAtLeast({ task: () => api('DELETE', `/api/watchlist/${item.id}`) })
         flash({ msg: `Stopped watching for "${item.title}".` })
         await loadWatchlist()
       } catch (err) {
@@ -1723,6 +1726,7 @@ export const EpgView = {
     })
 
     return {
+      pendingActionLabelOf,
       day, dayChips, dateSubtitle, setDay, pickDay, LISTINGS_LOADING_TEXT,
       loadingIds, loadingNoteMaxPx,
       guide, loading, error, errorCode, loadDay, state, stateMeta, scheduledLabel, scheduledHref: SCHEDULED_HREF,

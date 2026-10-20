@@ -6,12 +6,15 @@ import {
   episodeMenuOf,
   latestEarlierEpisodeOf,
   markedText,
+  menuPendingLabelOf,
   showInfoOf,
   showMenuOf,
   watchedChangeTargets,
 } from '/library-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
 import { openPlexLink } from '/components/library-menus.js'
+import { loadNicknames } from '/components/also-known-as.js'
+import { holdAtLeast } from '/pending.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { playRecording } from '/shared/playback-session.js'
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
@@ -25,6 +28,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   const info = ref(null)
   const deleteRequest = ref(null)
   const busy = ref(false)
+  const pendingKey = ref('')
   const adRemovalEnabled = ref(false)
   const artworkVersion = ref(0)
 
@@ -56,12 +60,30 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   const run = async (what, task) => {
     busy.value = true
     try {
-      await task()
+      await holdAtLeast({ task })
     } catch (err) {
       showToast({ kind: 'error', title: `${what} failed`, detail: err.message })
     } finally {
       busy.value = false
     }
+  }
+
+  const runPending = async (key, action) => {
+    pendingKey.value = key
+    try {
+      await action()
+    } finally {
+      pendingKey.value = ''
+    }
+  }
+
+  const runFromMenu = async (key, action) => {
+    if (!menuPendingLabelOf(key)) {
+      closeMenus()
+      return action()
+    }
+    await runPending(key, action)
+    closeMenus()
   }
 
   const play = (episode, options) => playRecording(recordingRowOf(episode), options)
@@ -96,6 +118,13 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     showToast({ title: 'Refreshing the artwork', detail: 'New pictures appear in a moment.' })
     await reload()
   })
+
+  const openShowInfo = async (current) => {
+    info.value = showInfoOf({ show: current, timeZone: tz.value })
+    const nicknames = await loadNicknames(current.key).catch(() => [])
+    if (!nicknames.length || info.value?.title !== current.title) return
+    info.value = showInfoOf({ show: current, timeZone: tz.value, nicknames: nicknames.map((nickname) => nickname.name) })
+  }
 
   const openInPlex = (url) => openPlexLink({
     url,
@@ -142,8 +171,9 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     await reload()
   }
 
-  const chooseShowAction = (key) => {
-    closeMenus()
+  const chooseShowAction = (key) => runFromMenu(key, () => startShowAction(key))
+
+  const startShowAction = (key) => {
     const current = show.value
     if (key === 'play-next') {
       const next = episodeById({ show: current, recordingId: current.resumeNext?.recordingId })
@@ -154,10 +184,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     if (key === 'options') return openOptions?.()
     if (key === 'pause-series') return setSeriesPaused(true)
     if (key === 'resume-series') return setSeriesPaused(false)
-    if (key === 'show-info') {
-      info.value = showInfoOf({ show: current, timeZone: tz.value })
-      return
-    }
+    if (key === 'show-info') return openShowInfo(current)
     if (key === 'plex') return openInPlex(`${keyPath()}/plex-link`)
     if (key === 'refresh-artwork') return refreshArtwork()
     if (key === 'delete-watched') return askDelete({ variant: 'watched', list: episodes.value.filter((e) => e.watched) })
@@ -166,7 +193,10 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   const chooseEpisodeAction = (key) => {
     const episode = menuEpisode.value
-    closeMenus()
+    return runFromMenu(key, () => startEpisodeAction(key, episode))
+  }
+
+  const startEpisodeAction = (key, episode) => {
     if (!episode) return
     if (key === 'resume') return play(episode)
     if (key === 'play-start') return play(episode, { fromStart: episode.positionS > 0 && !episode.watched })
@@ -187,9 +217,9 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   }
 
   return {
-    menuEpisode, showMenuOpen, info, deleteRequest, busy, adRemovalEnabled, artworkVersion, activeIds,
+    menuEpisode, showMenuOpen, info, deleteRequest, busy, pendingKey, adRemovalEnabled, artworkVersion, activeIds,
     showGroups, episodeGroups, showMenuSubtitle, episodeTip,
     openShowMenu, openEpisodeMenu, closeMenus, chooseShowAction, chooseEpisodeAction,
-    askDelete, cancelDelete, onDeleted, setEpisodesWatched, play,
+    askDelete, cancelDelete, onDeleted, setEpisodesWatched, runPending, play,
   }
 }

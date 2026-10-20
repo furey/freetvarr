@@ -129,7 +129,7 @@ export const RecordingsLibraryView = {
       </template>
 
       <library-menu-sheet :open="showMenuOpen" :title="menuShow?.title || ''" :subtitle="showMenuSubtitle"
-        :art-src="menuShow ? posterSrc(menuShow) : ''" art-shape="poster" :groups="showGroups" :busy="busy"
+        :art-src="menuShow ? posterSrc(menuShow) : ''" art-shape="poster" :groups="showGroups" :busy="busy" :pending-key="pendingKey"
         @close="closeMenus" @choose="chooseShowAction" />
       <library-info-sheet :open="Boolean(info)" :info="info" @close="info = null" />
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeleted" />

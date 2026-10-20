@@ -176,6 +176,7 @@ import { mountArtPoolRoutes } from './art-pool.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { mountWatchlist } from './watchlist.js'
+import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
@@ -1186,6 +1187,7 @@ mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter 
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
+mountSearchRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
 mountForYou({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })

@@ -22,6 +22,8 @@ import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork } from './show-artwork.js'
 import { rememberTvmazeShow } from './genre-enrichment.js'
+import { createGuideSearchCache, searchGuideListings } from './guide-search.js'
+import { loadSearchAliases, rememberKnownAsFromTvmaze } from './search-aliases.js'
 import {
   saveGuidePrograms,
   loadEndedProgramsByChannel,
@@ -359,27 +361,11 @@ const parseJsonArray = (raw) => {
 }
 
 export const searchGuide = async ({ q } = {}) => {
-  const needle = (q || '').trim().toLowerCase()
-  if (needle.length < 2) return { results: [] }
-  const guide = await getCachedGuide()
-  const prefs = await getChannelPrefs()
-  const searchChannels = orderChannels({ channels: guide.channels, ...prefs })
-    .filter((c) => !c.hidden)
-  const nowMs = Date.now()
-  const results = []
-  for (const channel of searchChannels) {
-    const rows = guide.programsByChannel[String(channel.epgId)] || []
-    for (const p of rows) {
-      if (p.end <= nowMs) continue
-      const haystack = `${p.title || ''} ${p.episode_title || ''}`.toLowerCase()
-      if (!haystack.includes(needle)) continue
-      results.push({ ...toBrowserProgram(p), channelId: channel.id, channelName: channel.name })
-      if (results.length >= SEARCH_RESULT_CAP) break
-    }
-    if (results.length >= SEARCH_RESULT_CAP) break
-  }
-  results.sort((a, b) => a.start - b.start)
-  return { results }
+  if ((q || '').trim().length < 2) return { results: [] }
+  const [guide, prefs, aliases] = await Promise.all([getCachedGuide(), getChannelPrefs(), loadSearchAliases()])
+  const channels = orderChannels({ channels: guide.channels, ...prefs }).filter((c) => !c.hidden)
+  const built = guideSearchFor({ guide, aliases })
+  return { results: searchGuideListings({ built, channels, query: q, toProgramme: toBrowserProgram }) }
 }
 
 // Concurrent requests share one TVHeadend round-trip, a failure opens a
@@ -749,7 +735,10 @@ const imageCache = new Map()
 const programmeImages = createProgrammeImages({
   fetchImage: (source) => fetchProgrammeImage({ source }),
 })
-const showArtwork = createShowArtwork({ onTvmazeShow: rememberTvmazeShow })
+const showArtwork = createShowArtwork({
+  onTvmazeShow: (found) => Promise.all([rememberTvmazeShow(found), rememberKnownAsFromTvmaze(found)]),
+})
+const guideSearchFor = createGuideSearchCache()
 export const forgetShowArtwork = (title) => showArtwork.forget(title)
 const thumbnailStore = createThumbnailStore({
   dir: getThumbnailRoot(),
@@ -774,7 +763,6 @@ const STATE_TTL_MS = 45 * 1000
 const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
-const SEARCH_RESULT_CAP = 100
 const guideCache = createGuideCache({ load: loadGuide, staleRetryMs: GUIDE_STALE_RETRY_MS })
 
 const episodeKey = (p) => `${anyChannelLinkFor(p.series_link) ?? p.series_link}|${p.series_no}x${p.episode_no}`

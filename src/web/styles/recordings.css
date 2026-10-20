@@ -632,6 +632,90 @@
   border-color: var(--color-primary);
 }
 
+.search-row-line {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.search-row-episode {
+  display: block;
+  font-size: 14px;
+  line-height: 19px;
+  color: var(--color-text-1);
+}
+
+.aka {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-hairline);
+}
+
+.aka .options-label,
+.aka .options-hint {
+  margin: 0;
+}
+
+.aka-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aka-chip {
+  gap: 2px;
+  padding-right: 2px;
+  color: var(--color-text-1);
+}
+
+.aka-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+.aka-remove::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.aka-remove svg {
+  width: 14px;
+  height: 14px;
+}
+
+.aka-remove:hover {
+  color: var(--color-text-1);
+}
+
+.aka-remove:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.aka-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aka-add .ui-button {
+  min-height: 44px;
+}
+
 .options-folder-editor {
   width: 100%;
 }

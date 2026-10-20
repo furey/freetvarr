@@ -10,6 +10,7 @@ import {
   initialStrengthOf,
   keepLabel,
   minutesShort,
+  pendingActionLabelOf,
   primaryActionOf,
   seasonEpisodeShort,
   sheetMetaLineOf,
@@ -113,4 +114,13 @@ test('clockWithoutPeriod: drops am or pm for the now pill', () => {
   assert.equal(clockWithoutPeriod('7:33pm'), '7:33')
   assert.equal(clockWithoutPeriod('11:05 am'), '11:05')
   assert.equal(clockWithoutPeriod('19:33'), '19:33')
+})
+
+test('pendingActionLabelOf: each sheet action has its own -ing label', () => {
+  assert.equal(pendingActionLabelOf('record'), 'Scheduling…')
+  assert.equal(pendingActionLabelOf('record-series'), 'Setting up…')
+  assert.equal(pendingActionLabelOf('notify'), 'Saving…')
+  assert.equal(pendingActionLabelOf('stop'), 'Stopping…')
+  assert.equal(pendingActionLabelOf('cancel'), 'Cancelling…')
+  assert.equal(pendingActionLabelOf('unknown'), 'Saving…')
 })

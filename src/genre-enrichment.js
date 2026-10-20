@@ -156,6 +156,8 @@ export const createGenreEnrichment = ({
   now = Date.now,
   gapMs = LOOKUP_GAP_MS,
   sleep = wait,
+  onTvmazeShow = () => {},
+  onFilm = () => {},
 } = {}) => {
   let running = null
 
@@ -166,6 +168,7 @@ export const createGenreEnrichment = ({
     }
     await sleep(gapMs)
     const show = pickTvmazeShow({ results: await searchTvmaze(title), title })
+    if (show) notify(() => onTvmazeShow({ title, show }))
     return show ? tvmazeRecordOf(show) : null
   }
 
@@ -175,6 +178,7 @@ export const createGenreEnrichment = ({
     if (!ids.length) return null
     await sleep(gapMs)
     const film = pickFilm({ rows: filmRowsOf(await queryWikidata(filmQueryOf(ids))), title, year })
+    if (film) notify(() => onFilm({ title, id: film.id }))
     return film ? { genres: film.genres, categories: categoriesOfFilmGenres(film.genres), source: `wikidata:${film.id}` } : null
   }
 
@@ -231,6 +235,8 @@ const tvmazeRecordOf = (show) => ({
   categories: categoriesOfTvmaze({ genres: show.genres || [], type: show.type || null }),
   source: `tvmaze:${show.id}`,
 })
+
+const notify = (hook) => Promise.resolve().then(hook).catch(() => {})
 
 const countryOf = (show) => show.network?.country?.code || show.webChannel?.country?.code || null
 

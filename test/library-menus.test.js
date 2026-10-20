@@ -12,6 +12,7 @@ import {
   selectAllIn,
   selectionTitle,
   showInfoOf,
+  menuPendingLabelOf,
   showMenuOf,
   toggledSelection,
   watchedChangeTargets,
@@ -143,4 +144,12 @@ test('episodeInfoOf and showInfoOf: plain rows, empty ones left out', () => {
     { label: 'Episodes', value: '2 recorded · 1 unwatched' },
     { label: 'Series recording', value: 'Not recording new episodes' },
   ])
+})
+
+test('menuPendingLabelOf: actions that wait keep the menu open with an -ing label', () => {
+  assert.equal(menuPendingLabelOf('refresh-artwork'), 'Refreshing artwork…')
+  assert.equal(menuPendingLabelOf('mark-all-watched'), 'Marking as watched…')
+  assert.equal(menuPendingLabelOf('watched'), 'Marking as watched…')
+  assert.equal(menuPendingLabelOf('play-next'), '')
+  assert.equal(menuPendingLabelOf('delete-all'), '')
 })

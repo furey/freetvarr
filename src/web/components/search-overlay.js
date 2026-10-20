@@ -1,5 +1,5 @@
 import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
-import { searchShowsOf } from '/search-results.js'
+import { buildShowSearch, guideRowsOf, searchShowsOf } from '/search-results.js'
 import { showHrefOf, showKeyOf } from '/show-key.js'
 import { api } from '/shared/api.js'
 import { openInGuide } from '/shared/store.js'
@@ -45,7 +45,8 @@ export const SearchOverlay = {
                     <button v-for="programme in programmes" :key="programme.key" type="button" class="ui-group-row"
                       @click="openProgramme(programme)">
                       <span class="ui-group-row-main">
-                        <span class="ui-group-row-title">{{ programme.title }}</span>
+                        <span class="ui-group-row-title search-row-line">{{ programme.title }}</span>
+                        <span v-if="programme.episode" class="search-row-episode search-row-line">{{ programme.episode }}</span>
                         <span class="ui-group-row-meta">{{ programme.meta }}</span>
                       </span>
                       <chevron-glyph class="ui-group-row-chevron" />
@@ -66,18 +67,18 @@ export const SearchOverlay = {
     const input = ref(null)
     const query = ref('')
     const guideResults = ref([])
-    const library = ref({ recordings: [], series: [] })
+    const library = ref({ shows: [], series: [], curated: [], aliases: [] })
     const searching = ref(false)
     const hasQuery = computed(() => query.value.trim().length >= MIN_QUERY_LENGTH)
+    const showIndex = computed(() => buildShowSearch({ keyOf: showKeyOf, ...library.value }))
     const shows = computed(() => (hasQuery.value
-      ? searchShowsOf({ query: query.value, keyOf: showKeyOf, ...library.value }).map((show) => ({ ...show, href: showHrefOf(show.title) }))
+      ? searchShowsOf({ index: showIndex.value, query: query.value }).map((show) => ({ ...show, href: showHrefOf(show.title) }))
       : []))
-    const programmes = computed(() => guideResults.value.map((programme) => ({
-      key: `${programme.channelId}:${programme.start}`,
-      title: programme.episode_title ? `${programme.title}: ${programme.episode_title}` : programme.title,
-      meta: `${fmtRelativeDay(programme.start)} ${fmtClockTz(programme.start)} · ${programme.channelName}`,
-      programme,
-    })))
+    const programmes = computed(() => guideRowsOf({
+      results: guideResults.value,
+      query: query.value,
+      whenOf: (start) => `${fmtRelativeDay(start)} ${fmtClockTz(start)}`,
+    }))
     let debounceTimer = null
     let requestId = 0
     const searchGuide = async (text) => {
@@ -96,11 +97,16 @@ export const SearchOverlay = {
       debounceTimer = setTimeout(() => searchGuide(text.trim()), SEARCH_DEBOUNCE_MS)
     })
     const loadLibrary = async () => {
-      const [recordings, series] = await Promise.all([
-        api('GET', `/api/recordings?pageSize=${LIBRARY_PAGE_SIZE}`).catch(() => ({})),
+      const [catalogue, series] = await Promise.all([
+        api('GET', '/api/search/catalogue').catch(() => ({})),
         api('GET', '/api/series').catch(() => ({})),
       ])
-      library.value = { recordings: recordings.recordings ?? [], series: series.series ?? [] }
+      library.value = {
+        shows: catalogue.shows ?? [],
+        series: series.series ?? [],
+        curated: catalogue.curated ?? [],
+        aliases: catalogue.aliases ?? [],
+      }
     }
     const onKeydown = (event) => {
       if (event.key !== 'Escape') return
@@ -143,4 +149,3 @@ export const SearchOverlay = {
 const MIN_QUERY_LENGTH = 2
 const SEARCH_DEBOUNCE_MS = 200
 const MAX_GUIDE_RESULTS = 30
-const LIBRARY_PAGE_SIZE = 200

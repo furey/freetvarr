@@ -9,6 +9,7 @@ import {
 import { resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import { useConfirm } from '/components/dialogs.js'
 import { dataCreditsOf } from '/data-credits.js'
+import { holdAtLeast } from '/pending.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { tvhDetectSummary, tvhTestSummary } from '/shared/format.js'
@@ -511,8 +512,8 @@ export const SettingsView = {
         <div class="settings-save-bar-inner">
           <span v-if="status" :class="['status-readout', statusKind]" role="status">{{ status }}</span>
           <span v-else class="settings-save-hint">Changes apply when you save.</span>
-          <button type="submit" form="settings-form" class="ui-button ui-button-primary" :disabled="saving">
-            <template v-if="saving">Saving…</template><template v-else><check-icon /> Save settings</template>
+          <button type="submit" form="settings-form" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving }]" :disabled="saving" :aria-busy="saving">
+            <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save settings</template>
           </button>
         </div>
       </div>
@@ -528,7 +529,9 @@ export const SettingsView = {
                 <span class="settings-row-title">Setup wizard</span>
                 <span class="settings-row-meta">Open the guided setup again. Your saved values are filled in, and a saved password or token shows as <code>••••• (stored)</code>.</span>
               </span>
-              <button type="button" class="btn btn-sm" @click="reopenWizard"><refresh-icon /> Reopen wizard</button>
+              <button type="button" :class="['btn', 'btn-sm', { 'is-pending': reopening }]" :disabled="reopening" :aria-busy="reopening" @click="reopenWizard">
+                <template v-if="reopening"><span class="spinner" aria-hidden="true"></span> Opening…</template><template v-else><refresh-icon /> Reopen wizard</template>
+              </button>
             </div>
             <a class="settings-row settings-row-inline settings-row-link" href="#/settings/system/health">
               <span class="settings-toggle-text">
@@ -769,7 +772,7 @@ export const SettingsView = {
         body.time_zone = timeZone.value
         if (plexToken.value) body.plex_token = plexToken.value
         if (tvhPassword.value) body.tvh_password = tvhPassword.value
-        await api('POST', '/api/settings', body)
+        await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
         await saveRecordingDefaults()
         tz.value = timeZone.value
         tzSource.value = 'setting'
@@ -998,10 +1001,13 @@ export const SettingsView = {
       }
     }
 
+    const reopening = ref(false)
     const reopenWizard = async () => {
+      reopening.value = true
       try {
-        await api('POST', '/api/settings', { welcome_dismissed: false })
+        await holdAtLeast({ task: () => api('POST', '/api/settings', { welcome_dismissed: false }) })
       } catch { /* wizard still opens */ }
+      reopening.value = false
       if (window.location.hash === '#/welcome') {
         window.location.reload()
       } else {
@@ -1044,7 +1050,7 @@ export const SettingsView = {
       deleteAfterPlexRefreshOnly,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
-      resetting, resetError, askResetFreetvarr, reopenWizard,
+      resetting, resetError, askResetFreetvarr, reopenWizard, reopening,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
       importUnmatched, addToLibraryDefault, showArtworkLookup, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,

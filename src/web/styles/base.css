@@ -244,8 +244,13 @@ body.sheet-open .app-tabbar {
 }
 
 .app-nav-item:hover {
-  color: var(--color-text-1);
   text-decoration: none;
+}
+
+@media (hover: hover) {
+  .app-nav-item:hover {
+    color: var(--color-text-1);
+  }
 }
 
 .app-nav-item[aria-current="page"] {
@@ -924,8 +929,13 @@ body.sheet-open .app-tabbar {
 }
 
 .ui-segment:hover {
-  color: var(--color-text-1);
   text-decoration: none;
+}
+
+@media (hover: hover) {
+  .ui-segment:hover {
+    color: var(--color-text-1);
+  }
 }
 
 .ui-segment[aria-selected="true"],
@@ -989,8 +999,13 @@ body.sheet-open .app-tabbar {
 }
 
 .ui-chip:hover {
-  color: var(--color-text-1);
   text-decoration: none;
+}
+
+@media (hover: hover) {
+  .ui-chip:hover {
+    color: var(--color-text-1);
+  }
 }
 
 .ui-chip[aria-pressed="true"],
@@ -1051,7 +1066,13 @@ a.ui-group-row:hover,
 button.ui-group-row:hover {
   color: inherit;
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.03);
+}
+
+@media (hover: hover) {
+  a.ui-group-row:hover,
+  button.ui-group-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
 }
 
 button.ui-group-row {
@@ -1806,5 +1827,88 @@ a.ui-banner:hover {
   select,
   [contenteditable]:not([contenteditable="false"]) {
     font-size: max(16px, 1em) !important;
+  }
+}
+
+html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-switch, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
+  -webkit-tap-highlight-color: transparent;
+  transition-property: background-color, color, border-color, opacity, transform, filter;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-standard);
+}
+
+html :is(.ui-button, .ui-icon-button:not(.is-plain), .ui-chip, .ui-stepper-button, .ui-switch, .btn:not(.btn-link, .btn-danger), .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .for-you-thumb, .library-dialog-go, .ui-segment.is-selected, .ui-segment[aria-selected="true"], .ui-segment[aria-pressed="true"], .ui-segment[aria-current="page"]):active:not(:disabled, .is-pending) {
+  filter: brightness(0.92);
+}
+
+html :is(.ui-button.ui-button-destructive, .btn.btn-danger):active:not(:disabled, .is-pending) {
+  filter: none;
+  background-color: rgba(255, 77, 79, 0.14);
+}
+
+html :is(.ui-icon-button.is-plain, .btn-link, .ui-row-link, .show-select-action, .library-dialog-cancel, .ui-segment:not(.is-selected, [aria-selected="true"], [aria-pressed="true"], [aria-current="page"])):active:not(:disabled, .is-pending) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-switch, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending) {
+  transform: scale(0.97);
+  transition-duration: 70ms;
+}
+
+html :is(.ui-group-row:is(a, button), .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, a.ui-banner, button.ui-banner):active:not(:disabled, .is-pending) {
+  background-color: rgba(255, 255, 255, 0.06);
+  transition-duration: 70ms;
+}
+
+html .app-nav-item:active .app-nav-pill {
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: scale(0.94);
+  transition-duration: 70ms;
+}
+
+html .app-nav-item[aria-current="page"]:active .app-nav-pill {
+  background-color: var(--color-primary-tint);
+}
+
+.app-nav-pill {
+  transition-property: background-color, transform;
+}
+
+.is-pending {
+  cursor: progress;
+}
+
+html :is(.ui-button, .btn, .ui-icon-button, .pl-round, .pl-pill, .pl-control, .ui-chip, .show-select-action, .for-you-thumb, .library-menu-item, .library-dialog-go).is-pending:disabled {
+  opacity: 0.8;
+  cursor: progress;
+}
+
+:is(.ui-button, .btn, .ui-chip, .show-select-action, .for-you-thumb) {
+  --spinner-size: 16px;
+  --spinner-gap: 0px;
+}
+
+.library-dialog-go {
+  --spinner-size: 16px;
+}
+
+.library-menu-item {
+  --spinner-size: 20px;
+  --spinner-gap: 0px;
+}
+
+:is(.ui-icon-button, .pl-round, .pl-control, .pl-mini-button, .epg-float-btn) {
+  --spinner-size: 18px;
+  --spinner-gap: 0px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-switch, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
+    transition-duration: 0.01ms;
+  }
+
+  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-switch, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending),
+  html .app-nav-item:active .app-nav-pill {
+    transform: none;
   }
 }

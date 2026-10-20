@@ -10,6 +10,7 @@ import {
   workingSummaryOf,
 } from '/health-page.js'
 import { revealStepMs } from '/paced-reveal.js'
+import { holdAtLeast } from '/pending.js'
 import { formatSeconds } from '/time-format.js'
 import { api } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
@@ -58,12 +59,13 @@ export const DoctorView = {
           <p class="settings-page-intro" aria-live="polite">{{ headlineLine }}</p>
         </div>
         <div class="health-actions">
-          <button type="button" class="ui-button ui-button-secondary" @click="runChecks" :disabled="checking">
+          <button type="button" :class="['ui-button', 'ui-button-secondary', { 'is-pending': checking }]" @click="runChecks" :disabled="checking" :aria-busy="checking">
             <template v-if="checking"><doctor-spinner /> Checking…</template><template v-else>Run checks</template>
           </button>
-          <button type="button" class="ui-button ui-button-primary health-sync-button" @click="syncNow" :disabled="starting || syncRunning">
-            <span v-if="syncRunning || starting" class="spinner"></span><refresh-icon v-else />
-            {{ syncRunning ? 'Syncing…' : starting ? 'Starting…' : 'Sync now' }}
+          <button type="button" :class="['ui-button', 'ui-button-primary', 'health-sync-button', { 'is-pending': starting || syncRunning }]" @click="syncNow"
+            :disabled="starting || syncRunning" :aria-busy="starting || syncRunning">
+            <span v-if="syncRunning || starting" class="spinner" aria-hidden="true"></span><refresh-icon v-else />
+            {{ syncRunning || starting ? 'Syncing…' : 'Sync now' }}
           </button>
         </div>
       </header>
@@ -242,7 +244,7 @@ export const DoctorView = {
     const syncNow = async () => {
       starting.value = true
       try {
-        const r = await api('POST', '/api/sync')
+        const r = await holdAtLeast({ task: () => api('POST', '/api/sync') })
         if (r.alreadyRunning) flash({ msg: 'A sync is already running.', kind: 'info' })
         else flashUntilSyncDone({ msg: `Started sync #${r.syncId}.` })
         await loadSyncStatus()

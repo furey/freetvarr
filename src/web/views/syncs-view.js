@@ -7,6 +7,7 @@ import {
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
 import { describeSyncFrequency } from '/sync-schedule.js'
+import { holdAtLeast } from '/pending.js'
 import { clearSyncHistoryConfirm, deleteSyncConfirm } from '/confirm-copy.js'
 import { syncDay, syncTime } from '/sync-when.js'
 import { firstSyncError, groupSyncsByDay } from '/sync-row.js'
@@ -69,9 +70,9 @@ export const SyncsView = {
   template: `
     <div class="view-reveal settings-page activity-page">
       <div class="settings-toolbar">
-        <button type="button" class="ui-button ui-button-primary" @click="syncNow" :disabled="starting || !!syncStatus.activeSyncId">
-          <template v-if="syncStatus.activeSyncId"><span class="spinner"></span> Syncing…</template>
-          <template v-else-if="starting">Starting…</template>
+        <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting || !!syncStatus.activeSyncId }]" @click="syncNow"
+          :disabled="starting || !!syncStatus.activeSyncId" :aria-busy="starting || !!syncStatus.activeSyncId">
+          <template v-if="starting || syncStatus.activeSyncId"><span class="spinner" aria-hidden="true"></span> Syncing…</template>
           <template v-else><refresh-icon /> Sync now</template>
         </button>
         <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
@@ -299,7 +300,7 @@ export const SyncsView = {
     const syncNow = async () => {
       starting.value = true
       try {
-        const r = await api('POST', '/api/sync')
+        const r = await holdAtLeast({ task: () => api('POST', '/api/sync') })
         if (r.alreadyRunning) flash({ msg: 'A sync is already running.', kind: 'info' })
         else flashUntilSyncDone({ msg: `Started sync #${r.syncId}.` })
         await loadSyncStatus()

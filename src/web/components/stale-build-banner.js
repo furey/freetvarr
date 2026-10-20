@@ -2,6 +2,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from '/vendor/
 import { staleBuild, serverAbout, loadedBuild, latestBuild, fetchServerAbout } from '/shared/api.js'
 import { live, playback, playerMini } from '/shared/player-shared.js'
 import { overlayStack } from '/overlay-stack.js'
+import { nextPaint } from '/shared/composables.js'
 import {
   UPDATE_APPEAR_DELAY_MS,
   laterAfterPlaybackOf,
@@ -30,9 +31,11 @@ export const StaleBuildBanner = {
             </div>
           </div>
           <div class="update-card-actions">
-            <button type="button" class="ui-button ui-button-secondary update-card-button" @click="chooseLater">Later</button>
-            <button type="button" class="ui-button ui-button-primary update-card-button" @click="reloadPage">
-              <refresh-icon /> {{ copy.reloadLabel }}
+            <button type="button" class="ui-button ui-button-secondary update-card-button" :disabled="reloading" @click="chooseLater">Later</button>
+            <button type="button" :class="['ui-button', 'ui-button-primary', 'update-card-button', { 'is-pending': reloading }]"
+              :disabled="reloading" :aria-busy="reloading" @click="reloadPage">
+              <span v-if="reloading" class="spinner" aria-hidden="true"></span><refresh-icon v-else />
+              {{ reloading ? 'Reloading…' : copy.reloadLabel }}
             </button>
           </div>
         </section>
@@ -42,6 +45,7 @@ export const StaleBuildBanner = {
 
   setup() {
     const ready = ref(false)
+    const reloading = ref(false)
     const later = ref(null)
     const nowMs = ref(Date.now())
     const loadedVersion = ref(null)
@@ -88,7 +92,11 @@ export const StaleBuildBanner = {
     const chooseLater = () => {
       later.value = laterOf({ playing: playing.value, nowMs: Date.now() })
     }
-    const reloadPage = () => window.location.reload()
+    const reloadPage = async () => {
+      reloading.value = true
+      await nextPaint()
+      window.location.reload()
+    }
     const onKeydown = (e) => {
       if (e.key !== 'Escape' || !visible.value || overlayStack.size() > 0 || e.defaultPrevented) return
       chooseLater()
@@ -110,7 +118,7 @@ export const StaleBuildBanner = {
       window.removeEventListener('keydown', onKeydown)
     })
 
-    return { visible, copy, placementStyle, chooseLater, reloadPage }
+    return { visible, copy, placementStyle, chooseLater, reloadPage, reloading }
   },
 }
 
