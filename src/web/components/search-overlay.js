@@ -30,7 +30,7 @@ export const SearchOverlay = {
               <p v-if="!hasQuery" class="ui-search-hint">Type at least two letters to search recordings, series rules, and the next week of the guide.</p>
               <template v-else>
                 <section v-if="shows.length">
-                  <h2 class="ui-group-label">Shows</h2>
+                  <h2 class="ui-group-label">In Recordings</h2>
                   <div class="ui-group">
                     <a v-for="show in shows" :key="show.key" class="ui-group-row" :href="show.href" @click="close">
                       <span class="ui-group-row-main">
@@ -42,7 +42,7 @@ export const SearchOverlay = {
                   </div>
                 </section>
                 <section v-if="programmes.length">
-                  <h2 class="ui-group-label">In the guide</h2>
+                  <h2 class="ui-group-label">In the TV guide</h2>
                   <div class="ui-group">
                     <button v-for="programme in programmes" :key="programme.key" type="button" class="ui-group-row"
                       @click="openResult(programme)">

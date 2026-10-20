@@ -161,7 +161,7 @@ import {
   view as playbackView,
 } from './playback.js'
 import { BUILD_HEADER, cacheControlFor, readBuildId, stampAssetUrls, stampIndexHtml } from './build-id.js'
-import { getDoctorReport } from './doctor.js'
+import { getDoctorReport, scheduleDoctorChecks } from './doctor.js'
 import { healthSummaryRoute } from './health-summary.js'
 import {
   isTvheadendUnconfigured,
@@ -2165,6 +2165,7 @@ const escapesMediaRoot = (value) =>
 
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
+  scheduleDoctorChecks()
   await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
   try {
     const moved = await rebaseFilePaths()

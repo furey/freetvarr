@@ -30,6 +30,18 @@ export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   return reportInflight
 }
 
+export const scheduleDoctorChecks = ({ firstDelayMs = DOCTOR_FIRST_RUN_MS, everyMs = DOCTOR_EVERY_MS, run = () => getDoctorReport({ fresh: true }) } = {}) => {
+  const runQuietly = () => run().catch((err) => console.warn(`[doctor] background check failed: ${err.message}`))
+  const first = setTimeout(runQuietly, firstDelayMs)
+  const repeat = setInterval(runQuietly, everyMs)
+  first.unref?.()
+  repeat.unref?.()
+  return () => {
+    clearTimeout(first)
+    clearInterval(repeat)
+  }
+}
+
 export const peekDoctorReport = ({ nowMs = Date.now() } = {}) => {
   if (!reportCache) return null
   return { report: reportCache.value, ageMs: Math.max(0, nowMs - Date.parse(reportCache.value.ranAt)) }
@@ -892,6 +904,8 @@ const STATUSES = ['pass', 'warn', 'fail', 'skip']
 const STATUS_RANK = { fail: 0, warn: 1, pass: 2, skip: 3 }
 const DEFAULT_TIMEOUT_MS = 8000
 const REPORT_TTL_MS = 15_000
+const DOCTOR_FIRST_RUN_MS = 2 * 60 * 1000
+const DOCTOR_EVERY_MS = 3 * 60 * 60 * 1000
 const MIN_API_VERSION = 19
 const CHANNEL_LIMIT = 1000
 const HOUR_MS = 60 * 60 * 1000

@@ -19,7 +19,7 @@ The sentence under the page title summarises the result, for example `Everything
 
 ## Health badge
 
-When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, on the System group in Settings, and on the Health row. Amber means it needs a look. Red means it needs attention. The Health row also gives the reason, such as `The last sync failed`.
+Freetvarr runs the checks by itself 2 minutes after it starts and every 3 hours after that, so the badge is up to date without opening Health. When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, on the System group in Settings, and on the Health row. Amber means it needs a look. Red means it needs attention. The Health row also gives the reason, such as `The last sync failed`.
 
 While the result is red, Home also shows the reason as an alert under the greeting. Press it to open Health. Press **×** to hide that alert for a day. A new problem shows again at once. The dot stays until the problem is fixed.
 
