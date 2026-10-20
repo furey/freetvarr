@@ -249,6 +249,7 @@ const pollLive = async (run) => {
   } catch {
     if (run !== liveRun) return
   }
+  clearTimeout(livePollTimer)
   livePollTimer = setTimeout(() => pollLive(run), liveAttached ? LIVE_POLL_PLAYING_MS : LIVE_POLL_TUNING_MS)
 }
 

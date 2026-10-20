@@ -224,12 +224,14 @@ const copyInto = async ({ stream, sink, signal }) => {
   return copied
 }
 
-const abortableSleep = (ms, signal) => new Promise((resolve) => {
-  const timer = setTimeout(resolve, ms)
-  signal?.addEventListener('abort', () => {
+export const abortableSleep = (ms, signal) => new Promise((resolve) => {
+  const wake = () => {
     clearTimeout(timer)
+    signal?.removeEventListener('abort', wake)
     resolve()
-  }, { once: true })
+  }
+  const timer = setTimeout(wake, ms)
+  signal?.addEventListener('abort', wake, { once: true })
 })
 
 const FINAL_READS = 2

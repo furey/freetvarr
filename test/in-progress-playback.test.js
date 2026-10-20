@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { PassThrough, Readable } from 'stream'
+import { getEventListeners } from 'events'
 
-import { feedGrowing, recordingChecker, recordingStartedAtOf, skipFirstBytes } from '../src/in-progress-playback.js'
+import { abortableSleep, feedGrowing, recordingChecker, recordingStartedAtOf, skipFirstBytes } from '../src/in-progress-playback.js'
 import { playbackArgsFor, view } from '../src/playback.js'
 
 const collect = (sink) => {
@@ -52,6 +53,22 @@ test('feedGrowing: keeps waiting while the recording runs, and stops on abort', 
   })
   assert.equal(written, 0)
   assert.equal(sink.writableEnded, false)
+})
+
+test('abortableSleep: removes its abort listener after each wait', async () => {
+  const controller = new AbortController()
+  for (let i = 0; i < 20; i += 1) await abortableSleep(0, controller.signal)
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0)
+})
+
+test('abortableSleep: wakes early on abort', async () => {
+  const controller = new AbortController()
+  const started = Date.now()
+  const sleeping = abortableSleep(60_000, controller.signal)
+  controller.abort()
+  await sleeping
+  assert.ok(Date.now() - started < 1000)
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0)
 })
 
 test('recordingChecker: asks TVHeadend at most every 5 s and keeps the last answer on errors', async () => {
