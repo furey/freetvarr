@@ -93,6 +93,8 @@ Press **Search** in any page header, then type at least two letters. Search cove
 - **SHOWS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
 - **IN THE GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.
 
+When nothing in the next 7 days matches, the results end with **Watch for “title”**. Press it to list the show under **Watching for** in Scheduled, or to record it when it is in the TV guide. See [Notify me](/guide/tv-guide#notify-me).
+
 Search finds a show in these ways:
 
 - **The title**, or any part of it.

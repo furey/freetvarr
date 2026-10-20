@@ -5,9 +5,11 @@ import {
   inGuideCountOf,
   recordTargetOf,
   seenThroughFrom,
+  seriesPaddingOf,
   watchKeyOf,
   watchlistItemOf,
   watchModeFrom,
+  watchPaddingFrom,
   watchRowChangesFor,
   watchTitleFrom,
 } from '../src/watchlist-items.js'
@@ -108,4 +110,30 @@ test('watchRowChangesFor: switching to notify clears a fulfilled record entry', 
     watchRowChangesFor({ existing: { mode: 'notify' }, mode: 'record', channelId: null }),
     { mode: 'record', channel_id: null, fulfilled_at: null },
   )
+})
+
+test('watchPaddingFrom: keeps whole minutes up to 240 for record and clears them for notify', () => {
+  assert.deepEqual(watchPaddingFrom({ mode: 'record', leadTime: 2, lagTime: '10' }), { lead_time: 2, lag_time: 10 })
+  assert.deepEqual(watchPaddingFrom({ mode: 'record' }), { lead_time: null, lag_time: null })
+  assert.deepEqual(watchPaddingFrom({ mode: 'notify', leadTime: 5, lagTime: 5 }), { lead_time: null, lag_time: null })
+  assert.ok(watchPaddingFrom({ mode: 'record', leadTime: -1 }).error)
+  assert.ok(watchPaddingFrom({ mode: 'record', lagTime: 241 }).error)
+  assert.ok(watchPaddingFrom({ mode: 'notify', lagTime: 'soon' }).error)
+})
+
+test('seriesPaddingOf: passes stored padding and leaves the defaults when none is stored', () => {
+  assert.deepEqual(seriesPaddingOf({ lead_time: 0, lag_time: 30 }), { leadTime: 0, lagTime: 30 })
+  assert.deepEqual(seriesPaddingOf({ lead_time: null, lag_time: undefined }), {})
+})
+
+test('watchTitleFrom: rejects titles with no letters or digits', () => {
+  assert.equal(watchTitleFrom('??'), null)
+  assert.equal(watchTitleFrom('Untitled'), 'Untitled')
+  assert.equal(watchTitleFrom(' 60 Minutes '), '60 Minutes')
+})
+
+test('watchlistItemOf: carries the padding', () => {
+  const item = watchlistItemOf({ row: { id: 1, title: 'Utopia', title_key: 'utopia', mode: 'record', lead_time: 5, lag_time: 15 } })
+  assert.equal(item.leadTime, 5)
+  assert.equal(item.lagTime, 15)
 })

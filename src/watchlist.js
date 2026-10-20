@@ -5,9 +5,11 @@ import {
   inGuideCountOf,
   recordTargetOf,
   seenThroughFrom,
+  seriesPaddingOf,
   watchKeyOf,
   watchlistItemOf,
   watchModeFrom,
+  watchPaddingFrom,
   watchRowChangesFor,
   watchTitleFrom,
 } from './watchlist-items.js'
@@ -28,20 +30,22 @@ export const mountWatchlist = ({ app, csrf, limiter = passThrough, onSeriesCreat
   })
 
   app.post('/api/watchlist', limiter, csrf, async (req, res) => {
-    const { title: rawTitle, mode: rawMode, channel_id: rawChannelId } = req.body || {}
+    const { title: rawTitle, mode: rawMode, channel_id: rawChannelId, lead_time: leadTime, lag_time: lagTime } = req.body || {}
     const title = watchTitleFrom(rawTitle)
     const mode = watchModeFrom(rawMode)
     if (!title) return res.status(400).json({ error: 'title is required (up to 200 characters)' })
     if (!mode) return res.status(400).json({ error: "mode must be 'notify' or 'record'" })
+    const padding = watchPaddingFrom({ mode, leadTime, lagTime })
+    if (padding.error) return res.status(400).json({ error: padding.error })
     const channelId = rawChannelId == null || rawChannelId === '' ? null : String(rawChannelId)
     try {
       const key = watchKeyOf(title)
       const existing = await db('watchlist').where({ title_key: key }).first()
       if (existing) {
         await db('watchlist').where({ id: existing.id })
-          .update(watchRowChangesFor({ existing, mode, channelId: rawChannelId === undefined ? undefined : channelId }))
+          .update(watchRowChangesFor({ existing, mode, padding, channelId: rawChannelId === undefined ? undefined : channelId }))
       } else {
-        await db('watchlist').insert({ title, title_key: key, mode, channel_id: channelId })
+        await db('watchlist').insert({ title, title_key: key, mode, channel_id: channelId, ...padding })
       }
       if (mode === 'record') await sweeper.sweep()
       const item = await itemByKey(key)
@@ -126,6 +130,7 @@ const fulfil = async ({ row, target, onSeriesCreated }) => {
     epgProgramId: target.epg_program_id,
     programId: target.program_id,
     anyChannel: true,
+    ...seriesPaddingOf(row),
   })
   await db('watchlist').where({ id: row.id })
     .update({ fulfilled_at: db.fn.now(), series_link_id: result.seriesLinkId ?? null })

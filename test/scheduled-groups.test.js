@@ -151,6 +151,20 @@ test('watchingRows: describes matches and missing matches', () => {
   assert.equal(rows[1].unseen, 2)
 })
 
+test('watchingRows: shows the padding for Record when it appears', () => {
+  const rows = watchingRows({
+    timeZone: 'UTC',
+    items: [
+      { id: 1, title: 'Utopia', mode: 'record', leadTime: 2, lagTime: 5, nextMatch: null },
+      { id: 2, title: 'Gruen', mode: 'record', leadTime: null, lagTime: null, nextMatch: null },
+      { id: 3, title: 'Bluey', mode: 'notify', leadTime: 2, lagTime: 5, nextMatch: null },
+    ],
+  })
+  assert.equal(rows[0].meta, 'Not in the guide yet · record automatically · starts 2m early, finishes 5m late')
+  assert.equal(rows[1].meta, 'Not in the guide yet · record automatically')
+  assert.equal(rows[2].meta, 'Not in the guide yet · notify me')
+})
+
 test('episodeMetaParts: turns placeholder episode titles into a season and episode number', () => {
   assert.deepEqual(episodeMetaParts({ season: 16, episodeTitle: 'Episode 9 of Season 16' }), ['S16 E9'])
   assert.deepEqual(episodeMetaParts({ season: 22, episodeTitle: 'episode 47' }), ['S22 E47'])

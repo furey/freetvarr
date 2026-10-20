@@ -23,7 +23,7 @@ Channels run down the page and time runs across. The TV guide opens at the curre
 
 - The **day chips** switch between today and the next six days. **Now** and **Tonight** jump within the day.
 - **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. In a narrower window, **Zoom** shows **−** and **+** instead. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
-- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does.
+- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. When nothing matches, **Watch for** lists the show for later. See [Notify me](#notify-me).
 - The **Channels** button opens the channel settings.
 - The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). It replaces the old `UPCOMING` view.
 - A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme you watch for has its own dot; the legend names it **Watching for**. On a tablet or computer the legend sits above the grid, on the right; on a phone it sits under the grid. Past programmes are dimmed, and programmes on air have a lighter cell.
@@ -76,14 +76,22 @@ Freetvarr decides from the guide whether a programme is a movie, part of a serie
 
 ## Notify me
 
-**Notify me** is for a show that is not in the TV guide yet, or one you are not sure about. Freetvarr lists the show under **Watching for** in Scheduled, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
+**Notify me** lists a show under **Watching for** in Scheduled. Each time a programme with the same title is in the TV guide, the list shows when it next airs, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
 
-1. Press a programme of the show.
-2. Pick **Notify me**.
-3. To record the show as soon as it airs, turn on **Record when it appears**.
-4. Press **Notify me**. With the switch on, the button reads **Record when it appears**.
+There are two ways to watch for a show:
 
-**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide. The sheet of a show you already watch for says `You are watching for this show.` and offers **Stop watching**.
+- **From a programme in the TV guide**: press the programme, then pick **Notify me**.
+- **From Search, for a show that is not in the next 7 days**: search for the title. When nothing in the TV guide matches, the results end with **Watch for “title”**. Press it, check the title, and change it if you need to. This works in [Search](/guide/home#search) and in the search of the TV guide.
+
+Then:
+
+1. To record the show as soon as it is in the TV guide, turn on **Record when it appears**.
+2. With the switch on, set **Start early** and **Finish late**. They start at `2m` and `10m`, the same as for **This episode** and **Every episode**.
+3. Press the button. It reads **Notify me** or **Watch for** with the switch off, and **Record when it appears** with the switch on.
+
+Freetvarr matches by title. Case, accents, and punctuation do not matter, so `Gogglebox` also matches `GOGGLEBOX`. A different title does not match: a watch for `Utopia` does not catch `Utopia: The Series`.
+
+**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide, with the padding you set. Freetvarr checks the TV guide every 15 minutes. The sheet of a show you already watch for says `You are watching for this show.` and offers **Stop watching**.
 
 Freetvarr sends no push message or email. The list in Scheduled is the notice.
 
@@ -172,8 +180,17 @@ A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TM
 A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and backdrops, which are often sharper than the Wikipedia picture. To add one:
 
 1. Sign up at [themoviedb.org](https://www.themoviedb.org/signup).
-2. Open [TMDB API settings](https://www.themoviedb.org/settings/api) and request a free developer key.
-3. Copy the **API Key** or the **API Read Access Token**.
+2. Open [TMDB API settings](https://www.themoviedb.org/settings/api) and request a free developer key. TMDB asks about your "application". You are using Freetvarr at home, so answer for that:
+
+| Field               | What to enter                                                                |
+| ------------------- | ---------------------------------------------------------------------------- |
+| Application Name    | `Freetvarr (personal)`                                                       |
+| Application URL     | `https://github.com/furey/freetvarr`                                         |
+| Type of Use         | **Personal** or **Other**, whichever the list offers                         |
+| Application Summary | `Personal use: posters and backdrops for my own Freetvarr TV guide at home.` |
+
+   TMDB also asks for your name, email address, phone number, and street address before it shows the key.
+3. TMDB shows two values: an **API Key** (32 letters and numbers) and an **API Read Access Token** (a much longer one). Either works in Freetvarr. Copy the **API Key**; it is shorter to paste.
 4. In Freetvarr, go to Settings → Pictures and paste it into **TMDB API key (optional)**.
 5. Press **Test key**, then **Save key**.
 

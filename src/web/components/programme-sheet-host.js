@@ -3,13 +3,10 @@ import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
 import {
   SHEET_KEEP_STEPS,
-  SHEET_LAG_STEPS,
-  SHEET_LEAD_STEPS,
   activeWatchItemFor,
   canStep,
   initialStrengthOf,
   keepLabel,
-  minutesShort,
   pendingActionLabelOf,
   primaryActionOf,
   seasonEpisodeShort,
@@ -25,6 +22,7 @@ import { showKeyOf } from '/show-key.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import { canRecordSeriesOf } from '/record-wording.js'
+import { watchRequestOf, watchedMessageOf } from '/watch-for.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
@@ -96,22 +94,7 @@ export const ProgrammeSheetHost = {
             </div>
             <p class="programme-sheet-line">{{ strengthLine }}</p>
             <div v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="ui-group programme-sheet-options">
-              <div class="ui-group-row">
-                <span class="ui-group-row-main" id="programme-lead-label">Start early</span>
-                <span class="ui-stepper" role="group" aria-labelledby="programme-lead-label">
-                  <button type="button" class="ui-stepper-button" aria-label="Start less early" :disabled="!canStep({ steps: leadSteps, value: leadTime, step: -1 })" @click="leadTime = stepValue({ steps: leadSteps, value: leadTime, step: -1 })">−</button>
-                  <span class="ui-stepper-value" aria-live="polite">{{ minutesShort(leadTime) }}</span>
-                  <button type="button" class="ui-stepper-button" aria-label="Start earlier" :disabled="!canStep({ steps: leadSteps, value: leadTime, step: 1 })" @click="leadTime = stepValue({ steps: leadSteps, value: leadTime, step: 1 })">+</button>
-                </span>
-              </div>
-              <div class="ui-group-row">
-                <span class="ui-group-row-main" id="programme-lag-label">Finish late</span>
-                <span class="ui-stepper" role="group" aria-labelledby="programme-lag-label">
-                  <button type="button" class="ui-stepper-button" aria-label="Finish less late" :disabled="!canStep({ steps: lagSteps, value: lagTime, step: -1 })" @click="lagTime = stepValue({ steps: lagSteps, value: lagTime, step: -1 })">−</button>
-                  <span class="ui-stepper-value" aria-live="polite">{{ minutesShort(lagTime) }}</span>
-                  <button type="button" class="ui-stepper-button" aria-label="Finish later" :disabled="!canStep({ steps: lagSteps, value: lagTime, step: 1 })" @click="lagTime = stepValue({ steps: lagSteps, value: lagTime, step: 1 })">+</button>
-                </span>
-              </div>
+              <padding-rows v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme" />
               <div v-if="sheetStrength === 'series'" class="ui-group-row">
                 <span class="ui-group-row-main" id="programme-keep-label">Keep</span>
                 <span class="ui-stepper" role="group" aria-labelledby="programme-keep-label">
@@ -136,6 +119,7 @@ export const ProgrammeSheetHost = {
                 </span>
                 <button type="button" class="ui-switch" :aria-pressed="String(recordWhenSeen)" aria-label="Record when it appears" @click="recordWhenSeen = !recordWhenSeen"></button>
               </div>
+              <padding-rows v-if="recordWhenSeen" v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme-watch" />
             </div>
             <details v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="programme-sheet-advanced">
               <summary>Advanced</summary>
@@ -700,23 +684,19 @@ export const ProgrammeSheetHost = {
       })
     }
 
-    const watchedMessage = ({ title, item }) => {
-      if (item?.mode === 'record' && item.fulfilledAt) return `"${title}" is in the guide, so every episode now records on any channel.`
-      if (item?.mode === 'record') return `Freetvarr records "${title}" on any channel once it is in the guide.`
-      return `Watching for "${title}". It shows in Scheduled under Watching for.`
-    }
-
     const watchSelectedTitle = () => {
       const { program } = selected.value
       return runSheetAction({
         key: 'notify',
         failure: 'Notify me failed',
         task: async () => {
-          const { item } = await holdAtLeast({ task: () => api('POST', '/api/watchlist', {
+          const { item } = await holdAtLeast({ task: () => api('POST', '/api/watchlist', watchRequestOf({
             title: program.title,
-            mode: recordWhenSeen.value ? 'record' : 'notify',
-          }) })
-          flash({ msg: watchedMessage({ title: program.title, item }) })
+            recordWhenSeen: recordWhenSeen.value,
+            leadTime: leadTime.value,
+            lagTime: lagTime.value,
+          })) })
+          flash({ msg: watchedMessageOf({ title: program.title, item }) })
           closeModal()
           await loadWatchlist()
           if (!item?.fulfilledAt) return
@@ -789,8 +769,8 @@ export const ProgrammeSheetHost = {
       canWatchLive, watchSelected, canShowInGuide, showSelectedInGuide,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
-      leadSteps: SHEET_LEAD_STEPS, lagSteps: SHEET_LAG_STEPS, keepSteps: SHEET_KEEP_STEPS,
-      stepValue, canStep, minutesShort, keepLabel,
+      keepSteps: SHEET_KEEP_STEPS,
+      stepValue, canStep, keepLabel,
       sheetStrengths, sheetStrength, strengthLine, primaryAction, primaryClass, runPrimaryAction, recordWhenSeen,
       sheetMeta, cancelActions, selectedWatchItem, selectedState, selectedStatusText,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,

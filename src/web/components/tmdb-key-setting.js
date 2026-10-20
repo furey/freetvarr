@@ -19,8 +19,9 @@ export const TmdbKeySetting = {
           </div>
           <p v-if="statusText" :class="['status-readout', 'field-status', statusKind]" role="status">{{ statusText }}</p>
           <p class="settings-hint">
-            Adds film and TV posters from TMDB when the guide, Plex, and TVmaze have none. TMDB pictures replace the Wikipedia ones. The key is free: sign up at TMDB, then copy the key from
-            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">TMDB API settings</a>. The key stays on this server.
+            Adds film and TV posters from TMDB when the guide, Plex, and TVmaze have none. TMDB pictures replace the Wikipedia ones. The key is free:
+            <a href="https://furey.github.io/freetvarr/guide/tv-guide#tmdb-key" target="_blank" rel="noopener noreferrer">How to get a TMDB key</a> shows what to enter in TMDB's form.
+            Paste either the API key or the API read access token; both work. The key stays on this server.
           </p>
           <div class="field-action-more">
             <button type="button" :class="['btn', { 'is-pending': busy === 'save' }]" :disabled="busy || !typedKey" @click="saveKey">

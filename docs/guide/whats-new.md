@@ -67,7 +67,7 @@ Recordings has two views: **Library** and **Scheduled**.
 
 ### TV guide
 
-The programme sheet has a third choice beside **This episode** and **Every episode**: **Notify me**. Pick it for a show that is not in the TV guide yet. Freetvarr watches the TV guide and lists the show under **Watching for** in Scheduled. Turn on **Record when it appears** to start an any-channel series recording the first time the show is in the TV guide. See [Notify me](/guide/tv-guide#notify-me).
+The programme sheet has a third choice beside **This episode** and **Every episode**: **Notify me**. Freetvarr lists the show under **Watching for** in Scheduled whenever it is in the TV guide. For a show that is not in the next 7 days, search for its title and press **Watch for**. Turn on **Record when it appears** to start an any-channel series recording, with your start and finish padding, the first time the show is in the TV guide. See [Notify me](/guide/tv-guide#notify-me).
 
 **Add to library** now has a default. Set it in Settings → Library and Plex. The programme sheet shows the choice under **Advanced**, so you can change it for one recording.
 

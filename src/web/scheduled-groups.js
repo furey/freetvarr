@@ -167,9 +167,15 @@ const seasonEpisodeText = ({ season, episode }) =>
 
 const watchingMeta = ({ item, timeZone }) => {
   const mode = item.mode === 'record' ? 'record automatically' : 'notify me'
+  const padding = item.mode === 'record' ? watchPaddingText(item) : ''
   const start = item.nextMatch?.start
-  if (start == null) return `Not in the guide yet · ${mode}`
+  if (start == null) return ['Not in the guide yet', mode, padding].filter(Boolean).join(' · ')
   const when = `${formatDate(Number(start), timeZone, { weekday: 'short' }).split(',')[0]} ${formatClock(Number(start), timeZone)}`
   const channel = item.nextMatch.channelName
-  return [`Next ${when}`, channel, mode].filter(Boolean).join(' · ')
+  return [`Next ${when}`, channel, mode, padding].filter(Boolean).join(' · ')
 }
+
+const watchPaddingText = ({ leadTime, lagTime }) => [
+  leadTime != null && `starts ${leadTime}m early`,
+  lagTime != null && `finishes ${lagTime}m late`,
+].filter(Boolean).join(', ')

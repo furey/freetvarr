@@ -44,8 +44,8 @@ features:
   - title: TV guide
     details: >-
       A 7-day programme guide in the browser: schedule, cancel, and
-      series-record in TVHeadend, see which tuner records what, or ask to be
-      told when a show airs.
+      series-record in TVHeadend, see which tuner records what, or watch for a
+      show that is not in the guide yet.
     link: /guide/tv-guide
     linkText: Browse and record
   - title: Series folders

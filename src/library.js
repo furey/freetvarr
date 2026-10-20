@@ -4,6 +4,7 @@ import { db } from './db.js'
 import { getRecordingNow } from './recording-now.js'
 import { getRecordingState, updateSeriesRule } from './epg.js'
 import { refreshLibraryStates } from './library-files.js'
+import { MAX_PADDING_MINUTES } from './recording-padding.js'
 import { RESUME_END_MARGIN_S } from './playback.js'
 import { getSeries } from './series.js'
 import { getMoviesRoot } from './sync.js'
@@ -444,6 +445,5 @@ const loadTimedSeriesTags = async () => (await getRecordingState()).seriesTags |
 
 const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }
 const MAX_EPISODES_TO_KEEP = 999
-const MAX_PADDING_MINUTES = 240
 const DEFAULT_EPISODE_LIMIT = 20
 const MAX_EPISODE_LIMIT = 50

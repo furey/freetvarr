@@ -1532,3 +1532,17 @@ body.library-selecting .ui-toast-region {
     transform: none;
   }
 }
+
+.watch-for-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.watch-for-input {
+  width: 100%;
+}
+
+.watch-for-form .options-hint {
+  margin: -6px 0 0;
+}

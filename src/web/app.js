@@ -76,6 +76,7 @@ import {
   PlayGlyph,
   MoreGlyph,
 } from '/components/nav-icons.js'
+import { PaddingRows } from '/components/padding-rows.js'
 import { PlayerInfoPanel } from '/components/player-parts.js'
 import { ProgrammeSheetHost } from '/components/programme-sheet-host.js'
 import { ProgressBlock } from '/components/progress-block.js'
@@ -92,6 +93,7 @@ import { ToastRegion } from '/components/toast-region.js'
 import { TvAppsPanel } from '/components/tv-apps-panel.js'
 import { UiSheet } from '/components/ui-sheet.js'
 import { VersionsRow } from '/components/versions-row.js'
+import { WatchForSheet } from '/components/watch-for-sheet.js'
 import { noteBuild, checkForNewBuild } from '/shared/api.js'
 import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.js'
 import { pollHealth } from '/shared/health.js'
@@ -150,6 +152,7 @@ const App = {
       <live-player />
       <recording-player />
       <programme-sheet-host />
+      <watch-for-sheet />
       <toast-region />
     </div>
   `,
@@ -236,6 +239,8 @@ app.component('sort-arrow', SortArrow)
 app.component('list-skeleton', ListSkeleton)
 app.component('live-player', LivePlayer)
 app.component('programme-sheet-host', ProgrammeSheetHost)
+app.component('watch-for-sheet', WatchForSheet)
+app.component('padding-rows', PaddingRows)
 app.component('live-streams-setting', LiveStreamsSetting)
 app.component('tuner-status-panel', TunerStatusPanel)
 app.component('tmdb-key-setting', TmdbKeySetting)

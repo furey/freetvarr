@@ -21,8 +21,10 @@ import { GUIDE_RAIL_DEFAULT_PX, canEditOrderOf, clampRailPx, railLayoutOf, railS
 import { seasonEpisodeOf } from '/live-info.js'
 import { formatDate } from '/time-format.js'
 import { cellMarksOf, clockWithoutPeriod } from '/programme-sheet.js'
+import { watchForOfferOf } from '/watch-for.js'
 import { channelGroupLabel } from '/components/channel-identity.js'
 import { togglePinnedChannel } from '/components/channels-modal.js'
+import { openWatchFor } from '/components/watch-for-sheet.js'
 import { api } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
 import { PHONE_LAYOUT_QUERY, CHANNELS_SAVED_TEXT } from '/shared/constants.js'
@@ -162,6 +164,14 @@ export const EpgView = {
           </button>
         </div>
         <p v-else-if="!searching" class="ui-meta">Nothing in the next 7 days matches “{{ searchQ.trim() }}”.</p>
+        <div v-if="watchForOffer" class="ui-group">
+          <button type="button" class="ui-group-row" @click="openWatchFor(watchForOffer)">
+            <span class="ui-group-row-main">
+              <span class="ui-group-row-title">Watch for “{{ watchForOffer }}”</span>
+              <span class="ui-group-row-meta">List it in Scheduled, or record it, when it is in the TV guide</span>
+            </span>
+          </button>
+        </div>
       </section>
 
       <template v-else>
@@ -487,6 +497,10 @@ export const EpgView = {
     })
 
     const searchActive = computed(() => searchOpen.value && searchQ.value.trim().length >= 2)
+
+    const watchForOffer = computed(() => (searchActive.value
+      ? watchForOfferOf({ query: searchQ.value, searching: searching.value, guideCount: searchResults.value.length })
+      : null))
 
     const resultsLabel = computed(() => {
       const count = searchResults.value.length
@@ -1275,7 +1289,7 @@ export const EpgView = {
       midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled,
       jumpNow, jumpTonight,
-      searchOpen, toggleSearch, closeSearch, searchQ, searchActive, searchResults, searching, resultsLabel,
+      searchOpen, toggleSearch, closeSearch, searchQ, searchActive, searchResults, searching, resultsLabel, watchForOffer, openWatchFor,
       openProgram, programmeSheetOpen,
       channelsModal, channelsModalMode, openChannelsModal, openOrderEditor, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, toggleImages, imagesLeaving, cellHasThumb,

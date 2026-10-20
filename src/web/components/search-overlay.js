@@ -1,8 +1,10 @@
 import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { buildShowSearch, guideRowsOf, searchShowsOf } from '/search-results.js'
 import { showHrefOf, showKeyOf } from '/show-key.js'
+import { watchForOfferOf } from '/watch-for.js'
 import { api } from '/shared/api.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
+import { openWatchFor } from '/components/watch-for-sheet.js'
 import { fmtClockTz, fmtRelativeDay } from '/shared/time.js'
 
 export const searchOpen = ref(false)
@@ -55,6 +57,18 @@ export const SearchOverlay = {
                 </section>
                 <p v-if="searching && !shows.length && !programmes.length" class="ui-search-hint">Searching…</p>
                 <p v-else-if="!searching && !shows.length && !programmes.length" class="ui-search-hint">Nothing matches “{{ query.trim() }}”.</p>
+                <section v-if="watchForOffer">
+                  <h2 class="ui-group-label">Not in the next 7 days</h2>
+                  <div class="ui-group">
+                    <button type="button" class="ui-group-row" @click="watchFor">
+                      <span class="ui-group-row-main">
+                        <span class="ui-group-row-title search-row-line">Watch for “{{ watchForOffer }}”</span>
+                        <span class="ui-group-row-meta">List it in Scheduled, or record it, when it is in the TV guide</span>
+                      </span>
+                      <chevron-glyph class="ui-group-row-chevron" />
+                    </button>
+                  </div>
+                </section>
               </template>
             </div>
           </section>
@@ -78,6 +92,12 @@ export const SearchOverlay = {
       results: guideResults.value,
       query: query.value,
       whenOf: (start) => `${fmtRelativeDay(start)} ${fmtClockTz(start)}`,
+    }))
+    const watchForOffer = computed(() => watchForOfferOf({
+      query: query.value,
+      searching: searching.value,
+      guideCount: programmes.value.length,
+      minLength: MIN_QUERY_LENGTH,
     }))
     let debounceTimer = null
     let requestId = 0
@@ -139,11 +159,16 @@ export const SearchOverlay = {
       close()
       openProgramme({ channelId: programme.channelId, programme })
     }
+    const watchFor = () => {
+      const title = watchForOffer.value
+      close()
+      openWatchFor(title)
+    }
     onUnmounted(() => {
       setBodyLock(false)
       window.removeEventListener('keydown', onKeydown, true)
     })
-    return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, close, openResult }
+    return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, close, openResult, watchForOffer, watchFor }
   },
 }
 
