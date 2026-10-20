@@ -879,37 +879,6 @@ body.player-mini-open .app-content {
   transform: translate3d(calc(var(--mv-x, 0px) - 50%), var(--mv-y, 0px), 0);
 }
 
-.mv-resize-limit {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 3;
-  width: var(--mv-w, 0);
-  height: var(--mv-h, 0);
-  border: 2px dashed rgba(255, 255, 255, 0.35);
-  border-radius: var(--radius-card);
-  pointer-events: none;
-  transform: translate3d(var(--mv-x, 0px), var(--mv-y, 0px), 0);
-}
-
-.mv-resize-limit.is-largest {
-  border-color: rgba(92, 225, 198, 0.55);
-}
-
-.mv-resize-limit-label {
-  position: absolute;
-  top: 6px;
-  left: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-2);
-}
-
-.mv-resize-limit.is-largest .mv-resize-limit-label {
-  top: auto;
-  bottom: 6px;
-}
-
 .mv-picture {
   position: absolute;
   z-index: 2;

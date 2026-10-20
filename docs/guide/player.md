@@ -125,7 +125,7 @@ With three or four channels playing:
 - Each picture's **⋯** menu has **Make main**, **Change channel**, **Full screen** (keep this channel and stop the others), and **Remove**.
 - The back button stops every channel and closes the player.
 
-To find a bar or grip, point at it with the mouse. On a touch screen, tap a picture: the bar or grip shows while the picture's controls show. While you drag, a label shows the new size, and in **Big and small** dashed outlines show the smallest and largest sizes. With the keyboard, press Tab to reach the bar or grip, then use the arrow keys to change the size in `5%` steps, and **Home** or **End** to go to the smallest or largest size.
+To find a bar or grip, point at it with the mouse. On a touch screen, tap a picture: the bar or grip shows while the picture's controls show. While you drag, a label shows the new size. With the keyboard, press Tab to reach the bar or grip, then use the arrow keys to change the size in `5%` steps, and **Home** or **End** to go to the smallest or largest size.
 
 Freetvarr remembers the size for each layout and number of pictures in this browser. The swap button and **Make main** keep the size. **Reset size** in the Multiview header shows when a size is not the default; press it, double-click the bar or grip, or press **Enter** on it, to go back to the default. Phones always use the default sizes.
 

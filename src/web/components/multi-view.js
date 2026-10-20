@@ -187,9 +187,6 @@ export const MultiViewLayer = {
         <span class="mv-add-slot-label">Add channel</span>
         <span v-if="meter.freeText" class="mv-add-slot-meta">{{ meter.freeText }}</span>
       </button>
-      <div v-for="limit in limitOutlines" :key="limit.key" :class="['mv-resize-limit', 'is-' + limit.key]" :style="limit.style" aria-hidden="true">
-        <span class="mv-resize-limit-label">{{ limit.label }}</span>
-      </div>
       <div v-if="barHandle" :class="['mv-resizer', { 'is-active': resizing }]" :style="barHandle.style"
         role="separator" aria-orientation="vertical" tabindex="0" :aria-label="barHandle.label"
         :aria-valuemin="handleRange.min" :aria-valuemax="handleRange.max" :aria-valuenow="handleRange.now"
@@ -603,28 +600,6 @@ export const MultiViewLayer = {
       return { x: box.left + box.width / 2, y: below ? box.top + box.height + 12 : box.top - 40 }
     }
 
-    const limitOutlines = computed(() => {
-      if (!resizing.value || shownLayout.value !== 'inset' || !frameSize.value.width) return []
-      const rule = SIZE_RULES.inset
-      return [
-        { key: 'largest', label: `Largest · ${percentOf(rule.max)}%`, share: rule.max },
-        { key: 'smallest', label: `Smallest · ${percentOf(rule.min)}%`, share: rule.min },
-      ].map((limit) => ({ ...limit, style: styleOfBox(insetBoxFor(limit.share)) }))
-    })
-
-    const insetBoxFor = (share) => {
-      const { width, height } = frameSize.value
-      return insetBoxAt({
-        corner: multi.view.insetCorner,
-        frameWidth: width,
-        frameHeight: height,
-        insetWidth: share * width,
-        margin: 16,
-        topReserve: height < 500 ? 56 : 72,
-        bottomReserve: height < 500 ? 8 : 48,
-      })
-    }
-
     let resizeDrag = null
     let resizeFrame = 0
     let pendingShare = null
@@ -753,7 +728,7 @@ export const MultiViewLayer = {
       setPictureEl, revealFor, togglePause, goLive, startOver, onScrub, onScrubCommit,
       onPicturePointerDown, onPicturePointerMove, onPicturePointerUp, onPicturePointerLeave, cancelDrag,
       tapPictureSound, swapMultiPictures, setMultiLayout, controlsFor, resizing, isResized, resetSize, barHandle, cornerHandle,
-      handleRange, resizeChip, limitOutlines, onResizePointerDown, onResizePointerMove, finishResize, cancelResize, onResizeKeydown,
+      handleRange, resizeChip, onResizePointerDown, onResizePointerMove, finishResize, cancelResize, onResizeKeydown,
     }
   },
 }
