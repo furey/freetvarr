@@ -48,7 +48,7 @@ export const resetConfirm = ({ mediaRoot }) => ({
   title: 'Reset Freetvarr',
   body: [
     "Freetvarr deletes its settings, series, list of recordings, and sync history."
-      + ' The next time you open Freetvarr, the setup wizard starts from the beginning.',
+      + ' The next time you open Freetvarr, setup starts from the beginning.',
     `Your video files in ${mediaRoot || '/media/tv'} and the other library folders stay where they are,`
       + ' and so do the recordings and settings in TVHeadend.',
     'You cannot undo this.',

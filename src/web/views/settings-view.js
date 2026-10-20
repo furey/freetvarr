@@ -185,7 +185,7 @@ export const SettingsView = {
                   <template v-if="tvhUndoing">Restoring…</template><template v-else>Restore open access</template>
                 </button>
                 <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
-                <span v-else class="settings-row-meta">Undoes the wizard's Secure TVHeadend: anyone on your network can change TVHeadend again. The logins stay.</span>
+                <span v-else class="settings-row-meta">Undoes Secure and connect from setup: anyone on your network can change TVHeadend again. The logins stay.</span>
               </div>
             </div>
           </div>
@@ -531,15 +531,13 @@ export const SettingsView = {
         <div class="settings-group">
           <h3 class="ui-group-label">Setup</h3>
           <div class="ui-group">
-            <div class="settings-row settings-row-inline">
+            <a class="settings-row settings-row-inline settings-row-link" href="#/settings/system/setup">
               <span class="settings-toggle-text">
-                <span class="settings-row-title">Setup wizard</span>
-                <span class="settings-row-meta">Open the guided setup again. Your saved values are filled in, and a saved password or token shows as <code>••••• (stored)</code>.</span>
+                <span class="settings-row-title">Setup</span>
+                <span class="settings-row-meta">Check or change TVHeadend, channels, the guide, folders, and Plex, or run setup from the start.</span>
               </span>
-              <button type="button" :class="['btn', 'btn-sm', { 'is-pending': reopening }]" :disabled="reopening" :aria-busy="reopening" @click="reopenWizard">
-                <template v-if="reopening"><span class="spinner" aria-hidden="true"></span> Opening…</template><template v-else><refresh-icon /> Reopen wizard</template>
-              </button>
-            </div>
+              <chevron-glyph class="ui-group-row-chevron" />
+            </a>
             <a class="settings-row settings-row-inline settings-row-link" href="#/settings/system/health">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Health checks</span>
@@ -587,7 +585,7 @@ export const SettingsView = {
           <div class="ui-group settings-danger">
             <div class="settings-row">
               <p class="settings-row-body">
-                Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, the setup wizard will start from the beginning.
+                Delete Freetvarr's settings, series, list of recordings, and sync history. The next time you open Freetvarr, setup starts from the beginning.
               </p>
               <p class="settings-hint">
                 Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders will stay where they are, and so will the recordings and settings in TVHeadend. You cannot reset while a sync is running.
@@ -1008,20 +1006,6 @@ export const SettingsView = {
       }
     }
 
-    const reopening = ref(false)
-    const reopenWizard = async () => {
-      reopening.value = true
-      try {
-        await holdAtLeast({ task: () => api('POST', '/api/settings', { welcome_dismissed: false }) })
-      } catch { /* wizard still opens */ }
-      reopening.value = false
-      if (window.location.hash === '#/welcome') {
-        window.location.reload()
-      } else {
-        window.location.hash = '#/welcome'
-      }
-    }
-
     const refreshPlexNow = async () => {
       plexRefreshing.value = true
       try {
@@ -1057,7 +1041,7 @@ export const SettingsView = {
       deleteAfterPlexRefreshOnly,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
-      resetting, resetError, askResetFreetvarr, reopenWizard, reopening,
+      resetting, resetError, askResetFreetvarr,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
       importUnmatched, addToLibraryDefault, showArtworkLookup, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,

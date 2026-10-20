@@ -40,7 +40,7 @@ From a source checkout, `npm run doctor` outputs the same checks in the terminal
 
 ## Connection {#tvh-reach}
 
-Asks TVHeadend for its version (`/api/serverinfo`). It fails when no TVHeadend address is set, or when nothing answers at that address. It warns when TVHeadend is older than a 4.3 build. See [Wizard connection test](/guide/troubleshooting#wizard-connection-test).
+Asks TVHeadend for its version (`/api/serverinfo`). It fails when no TVHeadend address is set, or when nothing answers at that address. It warns when TVHeadend is older than a 4.3 build. See [Setup connection test](/guide/troubleshooting#setup-connection-test).
 
 ## Login {#tvh-auth}
 
@@ -60,7 +60,7 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0` (the **Channels** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard) adds them). See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0` (the **Channels** step of [setup](/guide/getting-started#_2-run-setup) adds them). See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 

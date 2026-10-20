@@ -32,3 +32,9 @@ test('settingsPageOf: the Player page sits in Preferences with its own view', ()
   assert.equal(page.group, 'preferences')
   assert.equal(page.href, '#/settings/player')
 })
+
+test('settingsPageOf: the setup page and its drawer links resolve', () => {
+  assert.equal(SETTINGS_GROUPS[1].pages[0].href, '#/settings/system/setup')
+  assert.equal(settingsPageOf({ params: ['system', 'setup'] }).id, 'setup')
+  assert.equal(settingsPageOf({ params: ['system', 'setup', 'channels'] }).id, 'setup')
+})

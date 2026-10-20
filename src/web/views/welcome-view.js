@@ -3,6 +3,7 @@ import {
   reactive,
   computed,
   onMounted,
+  onUnmounted,
   watch,
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
@@ -11,6 +12,29 @@ import { DEFAULT_SYNC_CRON, SYNC_SCHEDULE_PRESETS, syncSchedulePreset } from '/s
 import { withBrowserNetwork } from '/lan-network.js'
 import { wizardSkipConfirm } from '/wizard-skip.js'
 import { useConfirm } from '/components/dialogs.js'
+import { morphBarsIntoChips } from '/components/setup-morph.js'
+import {
+  SETUP_STEPS,
+  partFills,
+  stepCaption,
+  railGroups,
+  stepDoneValues,
+  readySummaryRows,
+  isSetupComplete,
+} from '/setup-steps.js'
+import {
+  failedCheck,
+  changedSettings,
+  storageSummaryText,
+  storageCheckOutcome,
+  folderRows,
+  guessPlexTvSection,
+  plexServerUrl,
+  plexNoTokenProblem,
+  plexUnreachableProblem,
+  LOCAL_PLEX_URL,
+} from '/setup-folders.js'
+import { formatClock } from '/time-format.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { DOCS_BASE } from '/shared/constants.js'
@@ -25,7 +49,7 @@ import {
 } from '/shared/path-check.js'
 import { tz, browserTimeZone } from '/shared/time.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
-import { secureStepDot, BOOTSTRAP_REVEAL_POLL_MS } from '/views/welcome-shared.js'
+import { SetupRunList, SetupStatusIcon, BOOTSTRAP_REVEAL_POLL_MS } from '/views/welcome-shared.js'
 
 const syncFrequency = (cron) => {
   const preset = SYNC_SCHEDULE_PRESETS.find((p) => p.cron === syncSchedulePreset(cron))
@@ -33,330 +57,312 @@ const syncFrequency = (cron) => {
 }
 
 export const WelcomeView = {
+  components: { SetupRunList, SetupStatusIcon },
   template: `
-    <div class="view-reveal welcome-page">
-      <header class="welcome-header">
-        <div class="welcome-header-top">
-          <brand-wordmark class="welcome-wordmark" data-intro-target />
-          <button v-if="step < totalSteps" type="button" class="welcome-later" @click="skipToSettings">Finish later <arrow-right-icon /></button>
+    <div :class="['setup-page', { 'has-rail': step > 1 }]">
+      <section v-if="step === 1" class="setup-hero" aria-labelledby="setup-hero-title">
+        <button type="button" class="setup-later setup-hero-later" @click="skipToSettings">Finish later</button>
+        <div class="setup-hero-inner">
+          <h1 id="setup-hero-title" class="setup-hero-title"><brand-wordmark class="setup-hero-word" data-intro-target /></h1>
+          <p class="setup-hero-lede">Record free-to-air TV and watch it on any screen.</p>
+          <p class="setup-hero-sub">Setup connects Freetvarr to your tuner. Most of it runs by itself; you check what it finds.</p>
         </div>
-        <p class="welcome-step">Step {{ step }} of {{ totalSteps }}</p>
-        <h1 class="ui-page-title">{{ stepTitle }}</h1>
-        <div class="welcome-progress" role="progressbar" :aria-valuenow="step" aria-valuemin="1" :aria-valuemax="totalSteps"
-          :aria-label="'Setup step ' + step + ' of ' + totalSteps">
-          <span v-for="n in totalSteps" :key="n" :class="['welcome-progress-step', { 'is-done': n < step, 'is-current': n === step }]"></span>
+        <div class="setup-hero-inner">
+          <ol class="ui-group setup-plan">
+            <li v-for="(part, index) in PLAN" :key="part.title" class="ui-group-row">
+              <span class="setup-plan-num" aria-hidden="true">{{ index + 1 }}</span>
+              <span class="ui-group-row-main"><span class="ui-group-row-title">{{ part.title }}</span><span class="ui-group-row-meta">{{ part.meta }}</span></span>
+            </li>
+          </ol>
         </div>
-      </header>
-      <section class="welcome-card" :aria-label="stepTitle">
-        <div class="welcome-body">
-
-          <div v-if="step === 1" class="space-y-4">
-            <p class="text-ink text-base leading-relaxed">
-              Freetvarr gives you a TV guide, records shows and series, and lets you watch live and recorded TV on any screen. Recordings are saved into your media library.
-            </p>
-            <p class="text-ink-dim text-sm leading-relaxed">
-              Setup takes about two minutes. The only step you must finish is connecting to TVHeadend, the program that runs your tuner. Plex is optional.
-            </p>
-            <p v-if="hasExistingConfig" class="ui-banner is-info">
-              Your existing settings are filled in. Leave a field as it is to keep its stored value; stored secrets show as <code>••••• (stored)</code>.
-            </p>
-            <time-zone-field v-model="timeZone" :source="tzSource" hint />
+        <div class="setup-hero-inner setup-block">
+          <div class="ui-group">
+            <div class="setup-select-row">
+              <label class="ui-group-row-main" for="setup-time-zone">
+                <span class="ui-group-row-title">Time zone</span>
+                <span class="ui-group-row-meta ui-tabular">Now {{ zoneClock }}</span>
+              </label>
+              <select id="setup-time-zone" class="field-input" v-model="timeZone">
+                <option v-for="zone in zones" :key="zone" :value="zone">{{ zone }}</option>
+              </select>
+            </div>
           </div>
+          <p class="setup-quiet-text">{{ zoneSourceText }}</p>
+          <p v-if="hasExistingConfig" class="setup-quiet-text">Your saved settings are filled in. A field you leave as it is keeps its saved value.</p>
+        </div>
+        <div class="setup-hero-inner setup-hero-start">
+          <button type="button" class="ui-button ui-button-primary" @click="next" :disabled="saving">Start setup <arrow-right-icon /></button>
+          <span class="ui-meta">About 5 minutes, most of it the channel scan</span>
+          <p v-if="saveStatusText" class="setup-hint is-error">{{ saveStatusText }}</p>
+        </div>
+      </section>
 
-          <div v-if="step === 2" class="space-y-4">
-            <p class="text-ink text-sm leading-relaxed">
-              Freetvarr needs the address of your TVHeadend server.
+      <template v-else>
+        <div class="setup-top">
+          <div :class="['setup-progress', { 'is-hidden': markState === 'chips' }]" role="progressbar" aria-valuemin="0" :aria-valuemax="STEP_COUNT"
+            :aria-valuenow="Math.min(current, STEP_COUNT)" :aria-label="caption">
+            <div v-for="(fill, index) in fills" :key="index" class="setup-progress-chip"><span class="setup-progress-track" data-morph-chrome></span><span class="setup-progress-fill" data-morph-bar :style="{ transform: 'scaleX(' + fill + ')' }"></span></div>
+          </div>
+          <div class="setup-top-row" data-morph-chrome>
+            <span class="ui-meta">{{ caption }}</span>
+            <button v-if="!isReady" type="button" class="setup-later" @click="skipToSettings">Finish later</button>
+          </div>
+        </div>
+
+        <aside class="setup-rail" aria-label="Setup steps">
+          <div v-for="group in rail" :key="group.label" class="setup-rail-group">
+            <p class="setup-rail-label">
+              <span :class="['setup-rail-bar', { 'is-hidden': markState === 'chips' }]"><span class="setup-progress-track" data-morph-chrome></span><span class="setup-progress-fill" data-morph-bar :style="{ transform: 'scaleX(' + group.fill + ')' }"></span></span>
+              {{ group.label }}
             </p>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" class="btn" @click="detectTvh()" :disabled="tvhDetecting">
-                <template v-if="tvhDetecting && !tvhAutoScanning">Scanning…</template><template v-else><search-icon /> Auto-discover TVHeadend</template>
+            <template v-for="item in group.steps" :key="item.key">
+              <button v-if="item.state === 'done' && !isReady" type="button" class="setup-rail-step is-done" @click="jumpTo(item.index)">
+                <span class="setup-rail-step-title">{{ item.title }}</span>
+                <span v-if="item.value" class="setup-rail-step-value">{{ item.value }}</span>
               </button>
-              <span v-if="tvhDiscoverText"
-                :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
-            </div>
-            <div v-if="tvhCandidates.length > 1" class="space-y-2">
-              <p class="text-sm text-ink-dim">Several TVHeadend servers answered. Pick one:</p>
-              <ul class="space-y-2">
-                <li v-for="c in tvhCandidates" :key="c.url">
-                  <button type="button" class="btn" @click="useTvhCandidate(c)">
-                    Use {{ c.url }}
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div class="field-row">
-              <label class="field-label">TVHeadend URL</label>
-              <input v-no-autofill type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
-            </div>
-            <div v-if="showSecure && !secureStepsVisible" class="space-y-4">
-              <p class="text-ink text-sm leading-relaxed">
-                <strong class="welcome-alert">This TVHeadend has no logins yet</strong>, so anyone on your network can change it. Freetvarr can secure it: it makes an admin login for you and a separate login for itself, then turns off the open access.
-              </p>
-              <div class="grid gap-4 md:grid-cols-2">
+              <div v-else :class="['setup-rail-step', 'is-' + item.state]" :aria-current="item.state === 'current' ? 'step' : null">
+                <span class="setup-rail-step-title">{{ item.title }}</span>
+                <span v-if="item.value" class="setup-rail-step-value">{{ item.value }}</span>
+              </div>
+            </template>
+          </div>
+          <div class="setup-rail-foot">
+            <button v-if="!isReady" type="button" class="setup-later" @click="skipToSettings">Finish later</button>
+          </div>
+        </aside>
+
+        <main class="setup-main">
+          <header class="setup-head">
+            <brand-mark v-if="isReady && complete" ref="doneMark" :class="['setup-done-mark', { 'is-shown': markState === 'chips' }]" />
+            <h1 ref="heading" tabindex="-1" class="ui-page-title">{{ stepTitle }}</h1>
+            <p v-if="subtitle" class="ui-page-subtitle">{{ subtitle }}</p>
+          </header>
+
+          <div v-if="step === 2" class="setup-body">
+            <div class="setup-block">
+              <div class="setup-fields">
                 <div class="field-row">
-                  <label class="field-label">Admin username</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="secureAdminUsername" :disabled="securing" />
-                </div>
-                <div class="field-row">
-                  <label class="field-label">Admin password</label>
-                  <div class="field-action-controls keeps-inline">
-                    <input v-no-autofill.new-password ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" :disabled="securing" />
-                    <button type="button" class="btn btn-icon" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
-                  </div>
+                  <label class="field-label" for="setup-tvh-url">TVHeadend address</label>
+                  <input v-no-autofill id="setup-tvh-url" type="text" inputmode="url" :class="['field-input', { 'is-invalid': tvhKind === 'err' }]" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
+                  <p v-if="tvhKind === 'err' && tvhText" class="setup-hint is-error" role="status">{{ tvhText }}</p>
+                  <p v-else-if="tvhDetecting" class="setup-hint"><span class="setup-spinner" aria-hidden="true"></span>Searching your network…</p>
+                  <p v-else-if="tvhDiscoverText" class="setup-hint">
+                    <span :class="tvhDiscoverKind === 'err' ? 'setup-text-error' : tvhDiscoverKind === 'ok' ? 'setup-text-ok' : ''">{{ tvhDiscoverText }}</span>
+                    · <button type="button" class="setup-inline-link" @click="detectTvh()">Search again</button>
+                  </p>
+                  <p v-else class="setup-hint"><button type="button" class="setup-inline-link" @click="detectTvh()">Search your network</button></p>
                 </div>
               </div>
-              <div class="field-row">
-                <label class="field-label">Allowed networks</label>
-                <input v-no-autofill type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
-                <p class="text-xs text-ink-mute mt-2 leading-relaxed">
-                  Both logins work only from these networks. Freetvarr guessed them from this computer's networks and this browser's network; add any network you sign in to TVHeadend from.
-                </p>
-              </div>
-              <p class="text-xs text-ink-mute leading-relaxed">
-                Keep the admin password somewhere safe: you sign in to TVHeadend with it, and Freetvarr does not store it. Freetvarr signs in as <code>freetvarr</code> with a random password it keeps for itself.
-              </p>
-              <div class="action-row flex flex-wrap items-center gap-3">
-                <button type="button" class="btn btn-primary" @click="secureTvh" :disabled="securing || !secureReady">
-                  <template v-if="securing">Securing…</template><template v-else>Secure TVHeadend and connect Freetvarr</template>
+              <div v-if="tvhCandidates.length > 1" class="ui-group">
+                <button v-for="c in tvhCandidates" :key="c.url" type="button" class="ui-group-row" @click="useTvhCandidate(c)">
+                  <span class="ui-group-row-main"><span class="ui-group-row-title">Use this TVHeadend</span><span class="ui-group-row-meta setup-mono">{{ c.url }}</span></span>
                 </button>
-                <span v-if="secureInputProblem" class="welcome-hint is-warning">{{ secureInputProblem }}</span>
               </div>
-              <manual-option label="Enter a login instead" :disabled="securing" @choose="useManualLogin">
-                Make your own TVHeadend logins, then give Freetvarr the one you made for it.
-              </manual-option>
             </div>
-            <ol v-if="secureStepsVisible" class="welcome-steps">
-              <li v-for="s in secureShownSteps" :key="s.id" class="step-row">
-                <span class="step-marker">
-                  <span v-if="s.status === 'running'" class="step-spinner"></span>
-                  <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
-                </span>
-                <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">{{ s.label }}</span>
-              </li>
-            </ol>
-            <div v-if="secureError" class="space-y-1">
-              <p class="status-readout err">{{ secureError }}</p>
-              <p v-if="secureNext" class="text-sm text-ink">{{ secureNext }}</p>
-              <button v-if="showSecure && !securing" type="button" class="btn btn-sm" @click="backToSecureForm">
-                Back to the form
-              </button>
-            </div>
-            <p v-if="securedAs" class="status-readout ok">
-              TVHeadend is secured. Sign in to TVHeadend as {{ securedAs }} from now on; Freetvarr signs in as freetvarr.
-            </p>
-            <template v-if="!showSecure">
-              <p v-if="!securedAs" class="welcome-group-intro">
-                Enter the TVHeadend login Freetvarr should use. Leave both blank if TVHeadend allows anonymous access.
-              </p>
-              <div class="grid gap-4 md:grid-cols-2">
+
+            <div v-if="showSecure && !secureStepsVisible" class="setup-block">
+              <h2 class="ui-group-label">Secure TVHeadend</h2>
+              <div class="ui-banner is-warning"><span class="ui-banner-text">This TVHeadend has no logins yet, so anyone on your network can change it. Freetvarr makes an admin login for you and one for itself, then turns off open access.</span></div>
+              <div class="setup-fields is-two">
                 <div class="field-row">
-                  <label class="field-label">Username</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="tvhUsername" v-autofocus="manualLogin" />
+                  <label class="field-label" for="setup-admin-user">Admin username</label>
+                  <input v-no-autofill id="setup-admin-user" type="text" class="field-input" v-model="secureAdminUsername" :disabled="securing" />
                 </div>
                 <div class="field-row">
-                  <label class="field-label">Password</label>
-                  <input v-no-autofill type="password" class="field-input" v-model="tvhPassword"
+                  <label class="field-label" for="setup-admin-password">Admin password</label>
+                  <div class="field-action-controls keeps-inline">
+                    <input v-no-autofill.new-password id="setup-admin-password" ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" :disabled="securing" />
+                    <button type="button" class="ui-icon-button" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
+                  </div>
+                  <p class="setup-hint">You sign in to TVHeadend with this. Freetvarr does not keep it.</p>
+                </div>
+                <div class="field-row is-wide">
+                  <label class="field-label" for="setup-prefixes">Allowed networks</label>
+                  <input v-no-autofill id="setup-prefixes" type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
+                  <p class="setup-hint">Both logins work only from these networks. Freetvarr guessed them from this computer and this browser; add any network you sign in to TVHeadend from.</p>
+                </div>
+              </div>
+              <p class="setup-hint">Freetvarr signs in as <span class="setup-mono">freetvarr</span> with a password it makes and keeps for itself.</p>
+              <button type="button" class="setup-quiet-link" :disabled="securing" @click="useManualLogin">Use my own TVHeadend login instead</button>
+            </div>
+
+            <div v-if="secureStepsVisible" class="setup-block">
+              <setup-run-list :steps="secureShownSteps" />
+            </div>
+            <div v-if="secureError" class="setup-block">
+              <p class="setup-hint is-error">{{ secureError }}</p>
+              <p v-if="secureNext" class="setup-hint">{{ secureNext }}</p>
+              <button v-if="showSecure && !securing" type="button" class="setup-quiet-link" @click="backToSecureForm">Back to the form</button>
+            </div>
+            <p v-if="securedAs" class="setup-hint"><span class="setup-text-ok">TVHeadend is secured.</span> Sign in to TVHeadend as {{ securedAs }} from now on; Freetvarr signs in as freetvarr.</p>
+
+            <div v-if="!showSecure" class="setup-block">
+              <div class="setup-fields is-two">
+                <div class="field-row">
+                  <label class="field-label" for="setup-tvh-user">Username</label>
+                  <input v-no-autofill id="setup-tvh-user" type="text" class="field-input" v-model="tvhUsername" v-autofocus="manualLogin" />
+                </div>
+                <div class="field-row">
+                  <label class="field-label" for="setup-tvh-password">Password</label>
+                  <input v-no-autofill id="setup-tvh-password" type="password" class="field-input" v-model="tvhPassword"
                     :placeholder="tvhPasswordSet ? '••••• (stored)' : ''" autocomplete="off" />
                 </div>
               </div>
-              <div class="flex flex-wrap items-center gap-3">
-                <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
-                  <template v-if="tvhTesting">Testing…</template><template v-else><pulse-icon /> Test connection</template>
-                </button>
-                <span v-if="tvhText" :class="['status-readout', tvhKind]">{{ tvhText }}</span>
-              </div>
-            </template>
+              <p v-if="tvhTesting" class="setup-hint"><span class="setup-spinner" aria-hidden="true"></span>Contacting TVHeadend…</p>
+              <p v-else-if="tvhKind === 'ok' && tvhText" class="setup-hint setup-text-ok" role="status">{{ tvhText }}</p>
+              <p v-else-if="!securedAs" class="setup-hint">Leave both blank if TVHeadend allows access without a login.</p>
+              <button v-if="canSecureAgain" type="button" class="setup-quiet-link" @click="manualLogin = false">Let Freetvarr secure TVHeadend instead</button>
+            </div>
           </div>
 
-          <channel-setup-step v-if="step === 3" :tvh-url="tvhUrl" @state="channelState = $event" />
+          <channel-setup-step v-if="step === 3" ref="channelStep" :tvh-url="tvhUrl" action-in-bar @state="channelState = $event" />
 
-          <guide-setup-step v-if="step === 4" :tvh-url="tvhUrl" ref="guideStep" @state="guideState = $event" @back="step = 3" />
+          <guide-setup-step v-if="step === 4" ref="guideStep" :tvh-url="tvhUrl" action-in-bar @state="guideState = $event" @back="step = 3" />
 
-          <div v-if="step === 5" class="space-y-4">
-            <p v-if="storageChecking" class="status-readout busy">Checking the folders…</p>
-            <template v-else-if="storageChecked">
-              <template v-if="!storageProblems.length">
-                <p class="text-ink text-sm leading-relaxed">{{ storageSummary }}</p>
-                <p class="status-readout ok">The folder checks passed.</p>
+          <div v-if="step === 5" class="setup-body">
+            <div class="setup-block">
+              <setup-run-list v-if="storageChecking" :steps="FOLDER_CHECK_STEPS" />
+              <div v-else-if="storageChecked" class="ui-group">
+                <div v-for="row in storageRows" :key="row.key" class="ui-group-row">
+                  <setup-status-icon :status="row.ok ? 'done' : 'failed'" />
+                  <span class="ui-group-row-main"><span class="ui-group-row-title">{{ row.title }}</span><span class="ui-group-row-meta setup-mono">{{ row.path }}</span></span>
+                  <span class="ui-group-row-value">{{ row.value }}</span>
+                </div>
+              </div>
+              <template v-for="p in storageProblems" :key="p.text">
+                <p class="setup-hint is-error">{{ p.text }}</p>
+                <p class="setup-hint">{{ p.fix }}</p>
               </template>
-              <div v-for="p in storageProblems" :key="p.text" class="space-y-1">
-                <p class="status-readout err">{{ p.text }}</p>
-                <p class="text-sm text-ink leading-relaxed">{{ p.fix }}</p>
+              <p v-for="note in storageNotes" :key="note" class="setup-hint">{{ note }}</p>
+              <div class="setup-link-row">
+                <button v-if="storageChecked" type="button" class="setup-quiet-link" @click="checkStorage">Check again</button>
+                <button type="button" class="setup-quiet-link" :aria-expanded="String(storageAdvancedOpen)" @click="storageAdvancedOpen = !storageAdvancedOpen">Change folders</button>
               </div>
-              <p v-for="note in storageNotes" :key="note" class="status-readout info">{{ note }}</p>
-              <button v-if="storageProblems.length" type="button" class="btn btn-sm" @click="checkStorage">
-                <refresh-icon /> Check again
-              </button>
-            </template>
-            <details class="settings-disclosure" :open="storageAdvancedOpen" @toggle="storageAdvancedOpen = $event.target.open">
-              <summary @click="focusFirstFieldOnOpen">Advanced: change folders</summary>
-              <div class="settings-disclosure-body space-y-4">
-                <p class="text-xs text-ink-mute leading-relaxed">
-                  Enter each folder as the app sees it inside its container, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change a folder there, change it here too. The data folder is the one that <code>DATA_PATH</code> sets in <code>.env</code>.
-                </p>
+            </div>
+            <div v-if="storageAdvancedOpen" class="setup-block">
+              <div class="setup-fields">
                 <div class="field-row">
-                  <label class="field-label">TV library folder</label>
-                  <div class="field-action">
-                    <div class="field-action-controls">
-                      <input v-no-autofill type="text" :class="['field-input', { 'is-invalid': mediaRootStatus && mediaRootStatusKind === 'err' }]" v-model="mediaRoot" @input="clearStaleLibraryStatus" placeholder="/data/media/tv" />
-                      <button type="button" :class="['btn', { 'is-pending': mediaRootTesting }]" @click="testMediaRoot" :disabled="mediaRootTesting">
-                        <template v-if="mediaRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
-                      </button>
-                    </div>
+                  <label class="field-label" for="setup-media-root">TV library folder</label>
+                  <div class="field-action-controls">
+                    <input v-no-autofill v-autofocus id="setup-media-root" type="text" :class="['field-input', 'setup-mono-input', { 'is-invalid': mediaRootStatus && mediaRootStatusKind === 'err' }]" v-model="mediaRoot" @input="clearStaleLibraryStatus" placeholder="/data/media/tv" />
+                    <button type="button" class="ui-button ui-button-secondary" @click="testMediaRoot" :disabled="mediaRootTesting">Test</button>
                   </div>
-                  <p v-if="mediaRootStatus" :class="['status-readout', 'field-status', mediaRootStatusKind]" role="status">{{ mediaRootStatus }}</p>
+                  <p v-if="mediaRootStatus && !mediaRootTesting" :class="['setup-hint', { 'is-error': mediaRootStatusKind === 'err' }]" role="status">{{ mediaRootStatus }}</p>
                 </div>
-                <div class="grid gap-4 md:grid-cols-2">
-                  <div class="field-row">
-                    <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                    <div class="field-action">
-                      <div class="field-action-controls">
-                        <input v-no-autofill type="text" :class="['field-input', { 'is-invalid': recordingsCheck.text && recordingsCheck.kind === 'err' }]" v-model="recordingsRoot" @input="recordingsCheck.clear" placeholder="/data/recordings" />
-                        <button type="button" :class="['btn', { 'is-pending': recordingsCheck.checking }]" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
-                          <template v-if="recordingsCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Test path</template>
-                        </button>
-                      </div>
-                    </div>
-                    <p v-if="recordingsCheck.text" :class="['status-readout', 'field-status', recordingsCheck.kind]" role="status">{{ recordingsCheck.text }}</p>
+                <div class="field-row">
+                  <label class="field-label" for="setup-recordings-root">Recordings folder, as Freetvarr sees it</label>
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="setup-recordings-root" type="text" :class="['field-input', 'setup-mono-input', { 'is-invalid': recordingsCheck.text && recordingsCheck.kind === 'err' }]" v-model="recordingsRoot" @input="recordingsCheck.clear" placeholder="/data/recordings" />
+                    <button type="button" class="ui-button ui-button-secondary" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">Test</button>
                   </div>
-                  <div class="field-row">
-                    <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                    <div class="field-action">
-                      <div class="field-action-controls">
-                        <input v-no-autofill type="text" :class="['field-input', { 'is-invalid': tvhPathCheck.text && tvhPathCheck.kind === 'err' }]" v-model="tvhRecordingsPath" @input="tvhPathCheck.clear" placeholder="/recordings" />
-                        <button type="button" :class="['btn', { 'is-pending': tvhPathCheck.checking }]" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
-                          <template v-if="tvhPathCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Check TVHeadend</template>
-                        </button>
-                      </div>
-                    </div>
-                    <p v-if="tvhPathCheck.text" :class="['status-readout', 'field-status', tvhPathCheck.kind]" role="status">{{ tvhPathCheck.text }}</p>
-                  </div>
+                  <p v-if="recordingsCheck.text && !recordingsCheck.checking" :class="['setup-hint', { 'is-error': recordingsCheck.kind === 'err' }]" role="status">{{ recordingsCheck.text }}</p>
                 </div>
-                <p class="text-xs text-ink-mute leading-relaxed">
-                  TVHeadend and Freetvarr share the recordings folder. Each can see it at a different path.
-                </p>
+                <div class="field-row">
+                  <label class="field-label" for="setup-tvh-path">Recordings folder, as TVHeadend sees it</label>
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="setup-tvh-path" type="text" :class="['field-input', 'setup-mono-input', { 'is-invalid': tvhPathCheck.text && tvhPathCheck.kind === 'err' }]" v-model="tvhRecordingsPath" @input="tvhPathCheck.clear" placeholder="/recordings" />
+                    <button type="button" class="ui-button ui-button-secondary" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">Test</button>
+                  </div>
+                  <p v-if="tvhPathCheck.text && !tvhPathCheck.checking" :class="['setup-hint', { 'is-error': tvhPathCheck.kind === 'err' }]" role="status">{{ tvhPathCheck.text }}</p>
+                </div>
               </div>
-            </details>
+              <p class="setup-hint">Enter each folder as Freetvarr sees it inside its container, from the volumes in docker-compose.yml. If you change a folder there, change it here too. TVHeadend and Freetvarr share the recordings folder, and each can see it at a different path.</p>
+            </div>
           </div>
 
-          <div v-if="step === 6" class="space-y-4">
-            <p v-if="plexChecking" class="status-readout busy">Looking for Plex…</p>
-            <template v-else-if="plexConnected">
-              <p class="status-readout ok">Connected to Plex at {{ plexUrl }}.</p>
-              <div v-if="plexShowSections.length" class="field-row">
-                <label class="field-label" for="wizard-plex-tv-library">TV library</label>
-                <select id="wizard-plex-tv-library" class="field-input" v-model="plexSectionId">
-                  <option value="">Pick a library</option>
-                  <option v-for="sec in plexShowSections" :key="sec.key" :value="sec.key">{{ sec.title }}</option>
-                </select>
-                <p class="text-xs text-ink-mute mt-1 leading-relaxed">
-                  After each sync, Freetvarr asks Plex to refresh this library.
-                </p>
+          <div v-if="step === 6" class="setup-body">
+            <div class="setup-block">
+              <setup-run-list v-if="plexChecking" :steps="PLEX_LOOK_STEPS" />
+              <div v-else-if="plexConnected" class="ui-group">
+                <div class="ui-group-row">
+                  <setup-status-icon status="done" />
+                  <span class="ui-group-row-main"><span class="ui-group-row-title">Plex</span><span class="ui-group-row-meta setup-mono">{{ plexUrl }}</span></span>
+                  <span class="ui-group-row-value">Connected</span>
+                </div>
+                <div v-if="plexShowSections.length" class="setup-select-row">
+                  <label class="ui-group-row-main" for="wizard-plex-tv-library"><span class="ui-group-row-title">TV library</span></label>
+                  <select id="wizard-plex-tv-library" class="field-input" v-model="plexSectionId">
+                    <option value="">Pick a library</option>
+                    <option v-for="sec in plexShowSections" :key="sec.key" :value="sec.key">{{ sec.title }}</option>
+                  </select>
+                </div>
               </div>
-            </template>
-            <div v-else-if="plexCandidates.length > 1" class="space-y-2">
-              <p class="text-sm text-ink-dim">Freetvarr found more than one Plex server. Pick yours:</p>
-              <ul class="space-y-2">
-                <li v-for="c in plexCandidates" :key="c.ip + ':' + c.port">
-                  <button type="button" class="btn" @click="usePlexCandidate(c)">
-                    Use {{ c.name || 'Plex' }} ({{ c.ip }}:{{ c.port }})
-                  </button>
-                </li>
-              </ul>
+              <div v-else-if="plexCandidates.length > 1" class="ui-group">
+                <button v-for="c in plexCandidates" :key="c.ip + ':' + c.port" type="button" class="ui-group-row" @click="usePlexCandidate(c)">
+                  <span class="ui-group-row-main"><span class="ui-group-row-title">{{ c.name || 'Plex' }}</span><span class="ui-group-row-meta setup-mono">{{ c.ip }}:{{ c.port }}</span></span>
+                </button>
+              </div>
+              <template v-else-if="plexProblem">
+                <p class="setup-hint is-error">{{ plexProblem.text }}</p>
+                <p class="setup-hint">{{ plexProblem.fix }} <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a> has the details.</p>
+                <button type="button" class="setup-quiet-link" @click="findPlex">Check again</button>
+              </template>
+              <p v-else class="setup-hint">Freetvarr did not find Plex. Recordings still go into your TV library folder for any media player. To add Plex, see <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a>.</p>
+              <plex-library-setup v-if="!plexChecking" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
+                @created="usePlexLibraries" />
+              <button type="button" class="setup-quiet-link" :aria-expanded="String(plexAdvancedOpen)" @click="plexAdvancedOpen = !plexAdvancedOpen">Connect Plex by hand</button>
             </div>
-            <div v-else-if="plexProblem" class="space-y-2">
-              <p class="status-readout err">{{ plexProblem.text }}</p>
-              <p class="text-sm text-ink leading-relaxed">{{ plexProblem.fix }} <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a> has the details.</p>
-              <button type="button" class="btn btn-sm" @click="findPlex"><refresh-icon /> Check again</button>
-            </div>
-            <template v-else>
-              <p class="text-ink text-sm leading-relaxed">
-                Freetvarr works without Plex. Recordings still go into your TV library folder for any media player.
-              </p>
-              <p class="text-ink-dim text-sm leading-relaxed">
-                To add Plex, see <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a>.
-              </p>
-            </template>
-            <plex-library-setup v-if="!plexChecking" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
-              @created="usePlexLibraries" />
-            <details class="settings-disclosure" :open="plexAdvancedOpen" @toggle="plexAdvancedOpen = $event.target.open">
-              <summary @click="focusFirstFieldOnOpen">Advanced: connect Plex by hand</summary>
-              <div class="settings-disclosure-body space-y-4">
+            <div v-if="plexAdvancedOpen" class="setup-block">
+              <div class="setup-fields">
                 <div class="field-row">
-                  <label class="field-label">Plex address</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" />
+                  <label class="field-label" for="setup-plex-url">Plex address</label>
+                  <input v-no-autofill v-autofocus id="setup-plex-url" type="text" class="field-input" v-model="plexUrl" placeholder="e.g. http://192.168.1.10:32400" />
                 </div>
                 <div class="field-row">
-                  <label class="field-label">Plex token</label>
-                  <div class="field-action">
-                    <div class="field-action-controls">
-                      <input v-no-autofill type="password" :class="['field-input', { 'is-invalid': plexTokenStatus && plexTokenStatusKind === 'err' }]" v-model="plexToken"
-                        :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
-                      <button type="button" :class="['btn', { 'is-pending': plexDetectingToken }]" @click="detectPlexToken" :disabled="plexDetectingToken">
-                        <template v-if="plexDetectingToken"><span class="spinner" aria-hidden="true"></span> Detecting…</template><template v-else><bolt-icon /> Auto-detect token</template>
-                      </button>
-                    </div>
+                  <label class="field-label" for="setup-plex-token">Plex token</label>
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="setup-plex-token" type="password" :class="['field-input', { 'is-invalid': plexTokenStatus && plexTokenStatusKind === 'err' }]" v-model="plexToken"
+                      :placeholder="plexTokenSet ? '••••• (stored)' : 'Paste your Plex token'" autocomplete="off" />
+                    <button type="button" class="ui-button ui-button-secondary" @click="detectPlexToken" :disabled="plexDetectingToken">Find token</button>
                   </div>
-                  <p v-if="plexTokenStatus" :class="['status-readout', 'field-status', plexTokenStatusKind]" role="status">{{ plexTokenStatus }}</p>
-                  <p class="text-xs text-ink-mute mt-2 leading-relaxed">
-                    Auto-detect token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file. For another Plex, enter the path to its <code>Preferences.xml</code> below, or paste the token from Plex.
-                  </p>
+                  <p v-if="plexTokenStatus" :class="['setup-hint', { 'is-error': plexTokenStatusKind === 'err' }]" role="status">{{ plexTokenStatus }}</p>
+                  <p class="setup-hint">Find token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file. If you installed Plex yourself, enter the path to its Preferences.xml below, or paste the token from Plex.</p>
                 </div>
                 <div class="field-row">
-                  <label class="field-label">Preferences.xml path <span class="text-ink-mute">(as Freetvarr sees it)</span></label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexPrefsPath"
+                  <label class="field-label" for="setup-plex-prefs">Preferences.xml path, as Freetvarr sees it</label>
+                  <input v-no-autofill id="setup-plex-prefs" type="text" class="field-input setup-mono-input" v-model="plexPrefsPath"
                     placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 </div>
                 <div v-if="!plexShowSections.length" class="field-row">
-                  <label class="field-label">TV library number</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="plexSectionId"
-                    placeholder="Connect lists your libraries" />
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
-                  <button type="button" class="btn" @click="loadPlexSections()" :disabled="plexProbing || !plexUrl.trim()">
-                    <template v-if="plexProbing">Connecting…</template><template v-else><pulse-icon /> Connect</template>
-                  </button>
-                  <span v-if="plexSectionsText"
-                    :class="['status-readout', plexSectionsKind]">{{ plexSectionsText }}</span>
+                  <label class="field-label" for="setup-plex-section">TV library number</label>
+                  <input v-no-autofill id="setup-plex-section" type="text" class="field-input" v-model="plexSectionId" placeholder="Connect lists your libraries" />
                 </div>
               </div>
-            </details>
-          </div>
-
-          <div v-if="step === 7" class="space-y-4">
-            <p v-if="!readySkipped.length" class="welcome-done">
-              <span class="ui-dot is-ok" aria-hidden="true"></span> Setup is done. Freetvarr is ready to record.
-            </p>
-            <div v-else class="space-y-2">
-              <p class="text-ink text-base leading-relaxed">Setup is not finished yet.</p>
-              <ul class="space-y-1 text-sm text-ink-dim">
-                <li v-for="item in readySkipped" :key="item.step">
-                  {{ item.text }}
-                  <button type="button" class="btn-link" @click="step = item.step">{{ item.action }}</button>
-                </li>
-              </ul>
+              <p v-if="plexSectionsText" :class="['setup-hint', { 'is-error': plexSectionsKind === 'err' }]">{{ plexSectionsText }}</p>
+              <button type="button" class="setup-quiet-link" @click="loadPlexSections()" :disabled="plexProbing || !plexUrl.trim()">Connect</button>
             </div>
-            <p class="text-ink-dim text-sm leading-relaxed">
-              Next: open the <strong class="text-ink">TV guide</strong>, pick a programme, and press <strong class="text-ink">Record</strong> or <strong class="text-ink">Record series</strong>. Freetvarr checks for finished recordings {{ syncFrequencyText }} and adds them to your library. You can change how often in Settings.
-            </p>
-            <p class="text-ink-dim text-sm leading-relaxed">
-              To check the whole setup, <a href="#/settings/system/health">run the health checks</a>. It checks {{ plexIsSetUp ? 'TVHeadend, Plex, and the folders' : 'TVHeadend and the folders' }} and lists anything to fix.
-            </p>
           </div>
 
-        </div>
-        <footer class="welcome-footer">
-          <button type="button" class="btn" @click="back" :disabled="step === 1 || saving"><arrow-left-icon /> Back</button>
-          <div class="welcome-footer-end">
-            <span v-if="saveStatusText"
-              :class="['status-readout', saveStatusKind]">{{ saveStatusText }}</span>
-            <span v-else-if="!canAdvance" class="welcome-hint is-warning">{{ advanceHint }}</span>
-            <button type="button" :class="['btn', 'welcome-next', { 'btn-primary': nextIsPrimary }]" @click="next" :disabled="!canAdvance || saving">
-              {{ nextLabel }} <arrow-right-icon />
+          <div v-if="isReady" class="setup-body">
+            <div class="ui-group">
+              <div v-for="row in summaryRows" :key="row.key" class="ui-group-row">
+                <setup-status-icon :status="row.ok ? 'done' : 'failed'" />
+                <span class="ui-group-row-main">
+                  <span class="ui-group-row-title">{{ row.title }}</span>
+                  <span class="ui-group-row-meta">{{ row.meta }}</span>
+                  <button v-if="row.fix" type="button" class="setup-inline-link" @click="jumpToKey(row.fix.step)">{{ row.fix.label }}</button>
+                </span>
+                <span v-if="row.value" :class="['ui-group-row-value', { 'setup-mono': row.mono }]">{{ row.value }}</span>
+              </div>
+            </div>
+            <p class="setup-quiet-text">Change any of this later in Settings → Setup. To check everything, <a href="#/settings/system/health">run the health checks</a>.</p>
+            <button type="button" class="ui-button ui-button-primary setup-ready-action" @click="primary.run">{{ primary.label }}</button>
+          </div>
+        </main>
+
+        <div :class="['setup-bar', { 'is-ready': isReady }]">
+          <div class="setup-bar-inner">
+            <button v-if="!isReady" type="button" class="ui-button ui-button-secondary setup-back" @click="back" :disabled="saving || securing" aria-label="Back">
+              <arrow-left-icon /><span class="setup-back-label">Back</span>
+            </button>
+            <span :class="['setup-bar-note', { 'is-error': barNote.error }]" role="status">{{ barNote.text }}</span>
+            <button v-if="secondary" type="button" class="ui-button ui-button-secondary" @click="secondary.run" :disabled="saving">{{ secondary.label }}</button>
+            <button type="button" class="ui-button ui-button-primary setup-next" @click="primary.run" :disabled="primary.disabled">
+              {{ primary.label }}
             </button>
           </div>
-        </footer>
-      </section>
+        </div>
+      </template>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
         :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
@@ -366,17 +372,11 @@ export const WelcomeView = {
     const [tvhText, tvhKind, setTvhText] = makeStatus()
     const [saveStatusText, saveStatusKind, setSaveStatus, clearSaveStatus] = makeStatus()
     const step = ref(1)
-    const totalSteps = 7
-    const STEP_TITLES = {
-      1: 'Welcome',
-      2: 'TVHeadend',
-      3: 'Channels',
-      4: 'Guide',
-      5: 'Storage',
-      6: 'Plex',
-      7: 'Ready',
-    }
-    const stepTitle = computed(() => STEP_TITLES[step.value] || 'Welcome')
+    const totalSteps = FIRST_STEP + SETUP_STEPS.length
+    const current = computed(() => step.value - FIRST_STEP)
+    const isReady = computed(() => step.value === totalSteps)
+    const fills = computed(() => partFills(current.value))
+    const caption = computed(() => stepCaption(current.value))
     const saving = ref(false)
 
     const tvhUrl = ref('')
@@ -398,6 +398,23 @@ export const WelcomeView = {
 
     const timeZone = ref(browserTimeZone())
     const tzSource = ref('system')
+    const clockMs = ref(Date.now())
+    const clockTimer = setInterval(() => (clockMs.value = Date.now()), 15000)
+    onUnmounted(() => clearInterval(clockTimer))
+    const zones = computed(() => {
+      const known = Intl.supportedValuesOf('timeZone')
+      return timeZone.value && !known.includes(timeZone.value) ? [timeZone.value, ...known] : known
+    })
+    const zoneClock = computed(() => {
+      try {
+        return formatClock(clockMs.value, timeZone.value)
+      } catch {
+        return ''
+      }
+    })
+    const zoneSourceText = computed(() => (tzSource.value === 'env'
+      ? 'Pre-filled from TZ in your .env file.'
+      : 'Pre-filled from this browser. Freetvarr uses it for the guide, recordings, and the sync schedule.'))
 
     const plexUrl = ref('')
     const plexToken = ref('')
@@ -482,6 +499,7 @@ export const WelcomeView = {
     const storageChecked = ref(false)
     const storageProblems = ref([])
     const storageNotes = ref([])
+    const storageRows = ref([])
     const storageAdvancedOpen = ref(false)
     const storageSummary = computed(() => storageSummaryText({
       mediaRoot: mediaRoot.value,
@@ -523,6 +541,7 @@ export const WelcomeView = {
       tvhPathCheck.show(describeTvhRecordingsPath({ r: tvh, fill: (value) => (tvhRecordingsPath.value = value) }))
       const outcome = storageCheckOutcome({ folders, library, recordings, tvh })
       storageProblems.value = outcome.problems
+      storageRows.value = folderRows({ folders, library, recordings, tvh })
       storageNotes.value = outcome.notes
       storageAdvancedOpen.value = outcome.problems.length > 0
       storageChecked.value = true
@@ -547,27 +566,10 @@ export const WelcomeView = {
       sectionAutoLoadTimer = setTimeout(() => loadPlexSections({ silent: true }), 600)
     })
 
-    const channelState = ref({ busy: false, channels: 0, actionShown: false })
+    const channelState = ref({ busy: false, channels: 0, actionShown: false, action: null, intro: '', favourites: [] })
+    const channelStep = ref(null)
     const guideStep = ref(null)
-    const guideState = ref({ busy: false, linked: 0, pending: 0 })
-
-    const readySkipped = computed(() => {
-      if (!channelState.value.channels) {
-        return [{
-          step: 3,
-          text: 'No channels yet. The TV guide stays empty until you scan for channels.',
-          action: 'Go to Channels',
-        }]
-      }
-      if (!guideState.value.linked) {
-        return [{
-          step: 4,
-          text: 'No guide linked yet. Freetvarr cannot record a show by name without one.',
-          action: 'Go to the TV guide',
-        }]
-      }
-      return []
-    })
+    const guideState = ref({ busy: false, linked: 0, total: 0, region: '', pending: 0, action: null, intro: '' })
 
     const canAdvance = computed(() => {
       if (step.value === 2) return Boolean(tvhUrl.value.trim()) && !showSecure.value
@@ -576,38 +578,150 @@ export const WelcomeView = {
       return true
     })
 
-    const advanceHint = computed(() => {
-      if (step.value === 3) return 'Wait for the channel setup to finish.'
-      if (step.value === 4) return 'Wait for the guide setup to finish.'
-      return tvhUrl.value.trim()
-        ? 'Secure TVHeadend first, or choose to set up users yourself.'
-        : 'A TVHeadend URL is required to continue.'
-    })
-
     const plexWillSave = computed(() => plexConnected.value || plexEditedByHand.value)
     const plexIsSetUp = computed(() => plexWillSave.value || Boolean(saved.plexUrl))
+    const plexLibrary = computed(() => plexShowSections.value.find((sec) => String(sec.key) === String(plexSectionId.value))?.title || '')
 
     const nextLabel = computed(() => {
-      if (step.value === totalSteps) return 'Open the TV guide'
-      if (step.value === 2) return 'Save and next'
-      if (step.value === 3) return channelState.value.channels ? 'Next' : 'Skip'
+      if (step.value === 2) return tvhKind.value === 'err' ? 'Try again' : 'Save and next'
+      if (step.value === 3) return channelState.value.channels || channelState.value.busy ? 'Next' : 'Skip'
       if (step.value === 4) {
         if (guideState.value.pending) return 'Save and next'
-        return guideState.value.linked ? 'Next' : 'Skip'
+        return guideState.value.linked || guideState.value.busy ? 'Next' : 'Skip'
       }
       if (step.value === 5) return Object.keys(storageChanges.value).length ? 'Save and next' : 'Next'
-      if (step.value === 6) {
-        if (plexConnected.value) return 'Next'
-        return plexEditedByHand.value ? 'Save and next' : 'Skip'
-      }
+      if (step.value === 6) return plexEditedByHand.value && !plexConnected.value ? 'Save and next' : 'Next'
       return 'Next'
     })
 
-    const nextIsPrimary = computed(() => {
-      if (nextLabel.value === 'Skip') return false
-      if (step.value === 2) return !showSecure.value
-      if (step.value === 3) return !channelState.value.actionShown
-      return true
+    const stepTitle = computed(() => {
+      if (isReady.value) return complete.value ? 'You’re set' : 'Nearly there'
+      return SETUP_STEPS[current.value]?.title || ''
+    })
+
+    const subtitle = computed(() => {
+      if (step.value === 2) return tvheadendSubtitle()
+      if (step.value === 3) return channelState.value.intro
+      if (step.value === 4) return guideState.value.intro
+      if (step.value === 5) return storageSummary.value
+      if (step.value === 6) return 'Optional. Freetvarr asks Plex to refresh after each sync, so new recordings show up there.'
+      return complete.value
+        ? 'Freetvarr is ready to record. Open the TV guide, pick a programme, and press Record.'
+        : 'Freetvarr needs channels and a guide before it can record a show by name.'
+    })
+
+    const tvheadendSubtitle = () => {
+      if (securedAs.value) return 'TVHeadend is secured and Freetvarr is connected.'
+      if (showSecure.value) {
+        return tvhDiscoverKind.value === 'ok'
+          ? 'Freetvarr found TVHeadend on your network. Check the address, then secure it.'
+          : 'Check the TVHeadend address, then secure it.'
+      }
+      if (manualLogin.value) return 'Enter the login you made for Freetvarr in TVHeadend.'
+      return 'Enter the address of your TVHeadend server and the login Freetvarr should use.'
+    }
+
+    const doneValues = computed(() => stepDoneValues({
+      tvhUrl: tvhUrl.value,
+      channels: channelState.value.channels,
+      guideLinked: guideState.value.linked,
+      guideTotal: guideState.value.total,
+      folderProblems: storageProblems.value.length,
+      plexLibrary: plexLibrary.value,
+      plexConnected: plexWillSave.value,
+    }))
+    const rail = computed(() => railGroups({ current: current.value, doneValues: doneValues.value }))
+
+    const summaryRows = computed(() => readySummaryRows({
+      tvhUrl: tvhUrl.value,
+      tvhUsername: tvhUsername.value,
+      channels: channelState.value.channels,
+      favourites: channelState.value.favourites,
+      guideLinked: guideState.value.linked,
+      guideTotal: guideState.value.total,
+      guideRegion: guideState.value.region,
+      syncText: syncFrequencyText.value,
+      plexLibrary: plexIsSetUp.value ? plexLibrary.value : '',
+      mediaRoot: mediaRoot.value,
+    }))
+    const complete = computed(() => isSetupComplete(summaryRows.value))
+
+    const primary = computed(() => {
+      if (isReady.value) return { label: complete.value ? 'Start watching' : 'Open Freetvarr', disabled: false, run: finish }
+      if (step.value === 2 && showSecure.value && !securedAs.value) {
+        return { label: securing.value ? 'Securing…' : 'Secure and connect', disabled: securing.value || !secureReady.value, run: secureTvh }
+      }
+      const child = { 3: [channelState, channelStep], 4: [guideState, guideStep] }[step.value]
+      const action = child?.[0].value.action
+      if (action) return { label: action.label, disabled: action.disabled || saving.value, run: () => child[1].value?.runAction() }
+      return { label: saving.value ? 'Saving…' : nextLabel.value, disabled: !canAdvance.value || saving.value, run: next }
+    })
+
+    const secondary = computed(() => {
+      const childState = { 3: channelState, 4: guideState }[step.value]?.value
+      if (childState?.action && !childState.busy) {
+        const kept = step.value === 3 ? childState.channels : childState.linked
+        return { label: kept ? 'Next' : 'Skip', run: next }
+      }
+      if (step.value === 6 && plexWillSave.value) return { label: 'Skip Plex', run: skipPlex }
+      return null
+    })
+
+    const barNote = computed(() => {
+      if (saveStatusText.value) return { text: saveStatusText.value, error: saveStatusKind.value === 'err' }
+      if (step.value === 2 && showSecure.value && !securing.value && !secureStepsVisible.value) return { text: secureInputProblem.value }
+      if (step.value === 2 && !tvhUrl.value.trim()) return { text: 'Enter the TVHeadend address to continue.' }
+      if (step.value === 3 && channelState.value.busy) return { text: 'Next unlocks when the scan finishes.' }
+      if (step.value === 4 && guideState.value.busy) return { text: 'Next unlocks when the guide is set up.' }
+      return { text: '' }
+    })
+
+    const canSecureAgain = computed(() => Boolean(bootstrap.value?.fresh) && manualLogin.value && !securedAs.value)
+
+    const jumpTo = (index) => {
+      clearSaveStatus()
+      step.value = FIRST_STEP + index
+    }
+
+    const jumpToKey = (key) => jumpTo(SETUP_STEPS.findIndex((item) => item.key === key))
+
+    const skipPlex = () => {
+      clearSaveStatus()
+      step.value = totalSteps
+    }
+
+    const heading = ref(null)
+    const doneMark = ref(null)
+    const markState = ref('bars')
+
+    const visibleOf = (selector) => [...document.querySelectorAll(selector)]
+      .filter((element) => element.getBoundingClientRect().width > 0)
+
+    const playDoneMorph = async () => {
+      await wait(PROGRESS_FILL_MS + MORPH_HOLD_MS)
+      const mark = doneMark.value?.$el
+      if (!isReady.value || !complete.value || !mark) return
+      const cleanup = await morphBarsIntoChips({
+        bars: visibleOf('[data-morph-bar]'),
+        chrome: visibleOf('[data-morph-chrome]'),
+        mark,
+      })
+      markState.value = 'chips'
+      await nextTick()
+      cleanup()
+    }
+
+    const railShown = () => window.matchMedia(RAIL_LAYOUT_QUERY).matches
+
+    watch(step, (curr) => {
+      markState.value = curr === totalSteps && railShown() ? 'chips' : 'bars'
+    }, { flush: 'sync' })
+
+    watch(step, async (curr) => {
+      window.scrollTo({ top: 0 })
+      await nextTick()
+      heading.value?.focus({ preventScroll: true })
+      if (curr === totalSteps && complete.value && markState.value === 'bars') playDoneMorph()
     })
 
     const dismiss = async () => {
@@ -617,6 +731,11 @@ export const WelcomeView = {
     }
 
     const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+
+    const finish = async () => {
+      await dismiss()
+      window.location.hash = '#/home'
+    }
 
     const leaveSetup = async () => {
       await dismiss()
@@ -662,11 +781,7 @@ export const WelcomeView = {
     }
 
     const next = async () => {
-      if (step.value === totalSteps) {
-        await dismiss()
-        window.location.hash = '#/guide'
-        return
-      }
+      if (step.value === totalSteps) return finish()
       clearSaveStatus()
       saving.value = true
       try {
@@ -676,10 +791,7 @@ export const WelcomeView = {
           tzSource.value = 'setting'
         } else if (step.value === 2) {
           const connected = await testTvh()
-          if (!connected) {
-            setSaveStatus('Connection failed. Correct the TVHeadend details to continue.', 'err', 0)
-            return
-          }
+          if (!connected) return
         } else if (step.value === 4) {
           await guideStep.value?.saveLinks()
         } else if (step.value === 5) {
@@ -814,31 +926,31 @@ export const WelcomeView = {
     const useTvhCandidate = (c) => {
       tvhUrl.value = c.url
       tvhCandidates.value = []
-      setTvhDiscover(tvhDetectSummary(c), c.loopback ? 'info' : 'ok', 0)
+      setTvhDiscover(c.loopback ? tvhDetectSummary(c) : 'Found on your network', c.loopback ? 'info' : 'ok', 0)
     }
     const tvhAutoScanning = ref(false)
     const detectTvh = async ({ quiet = false } = {}) => {
       tvhDetecting.value = true
       tvhAutoScanning.value = quiet
       tvhCandidates.value = []
-      setTvhDiscover('Scanning this host (~2s)…', 'busy', 0)
+      setTvhDiscover('', 'busy', 0)
       try {
         const r = await api('POST', '/api/tvh-detect')
         if (r.candidates.length === 1) useTvhCandidate(r.candidates[0])
-        else {
+        else if (r.candidates.length) {
           tvhCandidates.value = r.candidates
-          setTvhDiscover(`${r.candidates.length} TVHeadend servers answered.`, 'info', 0)
-        }
+          setTvhDiscover(`${r.candidates.length} TVHeadend servers answered. Pick one.`, 'info', 0)
+        } else setTvhDiscover('Freetvarr did not find TVHeadend. Enter its address.', 'info', 0)
       } catch (err) {
-        if (quiet) setTvhDiscover('', 'info', 0)
-        else setTvhDiscover(`Auto-discover failed: ${err.message}`, 'err', 8000)
+        if (quiet) setTvhDiscover('Freetvarr did not find TVHeadend. Enter its address.', 'info', 0)
+        else setTvhDiscover(`The search failed: ${err.message}`, 'err', 0)
       } finally {
         tvhDetecting.value = false
         tvhAutoScanning.value = false
       }
     }
     watch(step, (curr) => {
-      if (curr === 2 && !tvhUrl.value.trim()) detectTvh({ quiet: true })
+      if (curr === 2 && !tvhUrl.value.trim() && !tvhDiscoverText.value) detectTvh({ quiet: true })
       if (curr === 2) checkBootstrap()
       if (curr === 5) checkStorage()
       if (curr === 6) findPlex()
@@ -905,12 +1017,6 @@ export const WelcomeView = {
       secureNext.value = ''
       await nextTick()
       secureAdminPasswordInput.value?.focus()
-    }
-
-    const focusFirstFieldOnOpen = (event) => {
-      const disclosure = event.currentTarget.parentElement
-      if (disclosure.open) return
-      requestAnimationFrame(() => disclosure.querySelector('input')?.focus())
     }
 
     const useManualLogin = () => {
@@ -998,7 +1104,7 @@ export const WelcomeView = {
         tvhConnected.value = true
         return true
       } catch (err) {
-        setTvhText(`Failed: ${err.message}`, 'err', 0)
+        setTvhText(err.message, 'err', 0)
         return false
       } finally {
         tvhTesting.value = false
@@ -1006,26 +1112,29 @@ export const WelcomeView = {
     }
 
     return {
-      step, totalSteps, stepTitle, saving, canAdvance, nextLabel, nextIsPrimary, plexIsSetUp, syncFrequencyText, guideStep, hasExistingConfig, channelState, guideState, readySkipped,
-      timeZone, tzSource,
+      step, totalSteps, current, isReady, fills, caption, rail, stepTitle, subtitle, saving, primary, secondary, barNote,
+      summaryRows, complete, markState, doneMark, heading, jumpTo, jumpToKey, channelStep, guideStep,
+      hasExistingConfig, channelState, guideState, plexIsSetUp, syncFrequencyText,
+      timeZone, tzSource, zones, zoneClock, zoneSourceText,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
       plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
       plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, plexShowSections, findPlex,
-      storageChecking, storageChecked, storageProblems, storageNotes, storageAdvancedOpen, storageSummary, checkStorage, clearStaleLibraryStatus,
-      focusFirstFieldOnOpen, manualLogin,
+      storageChecking, storageChecked, storageProblems, storageNotes, storageRows, storageAdvancedOpen, storageSummary, checkStorage, clearStaleLibraryStatus,
+      manualLogin, canSecureAgain,
       plexTokenStatus, plexTokenStatusKind,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
-      back, next, skipToSettings, confirming, confirmBusy, closeConfirm, runConfirmed, loadPlexSections, testTvh, advanceHint,
+      back, next, skipToSettings, confirming, confirmBusy, closeConfirm, runConfirmed, loadPlexSections, testTvh,
       showSecure, secureStepsVisible, backToSecureForm, securing, securedAs, secureAdminUsername, secureAdminPassword, secureShowPassword, secureAdminPasswordInput,
       securePrefixes, secureShownSteps, secureError, secureNext, secureInputProblem, secureReady,
-      secureTvh, useManualLogin, secureStepDot,
+      secureTvh, useManualLogin,
       detectTvh, tvhDetecting, tvhAutoScanning, tvhCandidates, useTvhCandidate, tvhDiscoverText, tvhDiscoverKind,
       usePlexCandidate, detectPlexToken,
       plexSectionsText, plexSectionsKind,
       tvhText, tvhKind,
       saveStatusText, saveStatusKind,
+      PLAN, STEP_COUNT: SETUP_STEPS.length, FOLDER_CHECK_STEPS, PLEX_LOOK_STEPS,
     }
   },
 }
@@ -1037,99 +1146,19 @@ const bootstrapInputProblem = ({ username, password, prefixes }) => {
   return ''
 }
 
-const failedCheck = (err) => ({ ok: false, problem: 'request', error: err.message })
+const FIRST_STEP = 2
+const RAIL_LAYOUT_QUERY = '(min-width: 768px) and (min-height: 501px)'
+const PROGRESS_FILL_MS = 280
+const MORPH_HOLD_MS = 700
 
-const changedSettings = (entries) => Object.fromEntries(
-  entries.filter(([, value, savedValue]) => value !== savedValue).map(([key, value]) => [key, value]),
-)
+const PLAN = [
+  { title: 'Connect to TVHeadend', meta: 'The program that runs your tuner' },
+  { title: 'Find channels and the guide', meta: 'A scan takes a few minutes' },
+  { title: 'Choose where recordings save', meta: 'Plex is optional' },
+]
 
-const storageSummaryText = ({ mediaRoot, recordingsRoot }) => {
-  const inDataFolder = [mediaRoot, recordingsRoot].every((folder) => isInsideFolder({ folder, root: COMPOSE_DATA_ROOT }))
-  if (inDataFolder) return 'Recordings and your TV library are saved in the data folder inside the folder you installed Freetvarr to.'
-  return `Freetvarr reads recordings from ${recordingsRoot} and saves your TV library to ${mediaRoot}.`
-}
-
-const storageCheckOutcome = ({ folders, library, recordings, tvh }) => {
-  const problems = [
-    folderProblem({ result: library, path: folders.mediaRoot, name: 'TV library folder', access: 'save to' }),
-    folderProblem({ result: recordings, path: folders.recordingsRoot, name: 'recordings folder', access: 'read' }),
-    tvhFolderProblem({ result: tvh, configured: folders.tvhRecordingsPath }),
-  ].filter(Boolean)
-  const notes = recordings.ok && recordings.hardlinks === false ? [COPY_IMPORT_NOTE] : []
-  return { problems, notes }
-}
-
-const folderProblem = ({ result, path, name, access }) => {
-  if (result.ok) return null
-  const changeIt = `Change the ${name} under Advanced: change folders.`
-  const problems = {
-    empty: { text: `The ${name} is blank.`, fix: changeIt },
-    relative: { text: `The ${name} must start with /.`, fix: changeIt },
-    'not-folder': { text: `${path} is a file, not a folder.`, fix: changeIt },
-    missing: {
-      text: `Your ${name} ${path} does not exist.`,
-      fix: `Check that docker-compose.yml shares this folder with Freetvarr, then run docker compose up -d. Or change the ${name} under Advanced: change folders.`,
-    },
-    denied: {
-      text: `Freetvarr cannot ${access} your ${name} ${path}.`,
-      fix: 'Set PUID and PGID in .env to the owner of the data folder, then run docker compose up -d.',
-    },
-    request: { text: `Freetvarr could not check your ${name}: ${withoutFullStop(result.error)}.`, fix: 'Press Check again.' },
-  }
-  return problems[result.problem]
-    || { text: `Freetvarr cannot ${access} your ${name} ${path}: ${withoutFullStop(result.error)}.`, fix: changeIt }
-}
-
-const tvhFolderProblem = ({ result, configured }) => {
-  if (!result.ok) {
-    return {
-      text: 'Freetvarr could not ask TVHeadend where it saves recordings.',
-      fix: 'Go back to the TVHeadend step and press Test connection.',
-    }
-  }
-  if (!result.tvhPath) {
-    return {
-      text: 'TVHeadend has no folder set for recordings.',
-      fix: 'In TVHeadend, set the recording path in the DVR profile, then press Check again.',
-    }
-  }
-  if (result.matches || !result.configured) return null
-  return {
-    text: `TVHeadend saves recordings to ${result.tvhPath}, but Freetvarr expects ${configured}.`,
-    fix: `Set the recording path in TVHeadend's DVR profile to ${configured}, or change the folders under Advanced: change folders.`,
-  }
-}
-
-const guessPlexTvSection = ({ sections, mediaRoot }) => sections
-  .find((sec) => sec.type === 'show' && (sec.locations || []).some((folder) => sameFolder(folder, mediaRoot)))
-  ?.key || ''
-
-const plexServerUrl = (server) => `http://${server.ip}:${server.port}`
-
-const plexNoTokenProblem = (url) => ({
-  text: `Found Plex at ${url}, but Freetvarr could not find its token.`,
-  fix: 'Paste the token under Advanced: connect Plex by hand.',
-})
-
-const plexUnreachableProblem = ({ url, error }) => ({
-  text: `Freetvarr could not connect to Plex at ${url}: ${withoutFullStop(error)}.`,
-  fix: 'Check that Plex is running, then press Check again. Skip leaves your Plex settings as they are.',
-})
-
-const isInsideFolder = ({ folder, root }) => {
-  const path = withoutTrailingSlash(folder)
-  return path === root || path.startsWith(`${root}/`)
-}
-
-const sameFolder = (a, b) => withoutTrailingSlash(a) === withoutTrailingSlash(b)
-
-const withoutTrailingSlash = (path) => String(path || '').trim().replace(/(.)\/+$/, '$1')
-
-const withoutFullStop = (text) => String(text || '').trim().replace(/\.+$/, '')
-
-const COMPOSE_DATA_ROOT = '/data'
-const LOCAL_PLEX_URL = 'http://127.0.0.1:32400'
-const COPY_IMPORT_NOTE = 'Recordings and your TV library are on different disks or mounts, so each import makes a full copy of the recording.'
+const FOLDER_CHECK_STEPS = [{ id: 'folders', label: 'Check the folders', status: 'running' }]
+const PLEX_LOOK_STEPS = [{ id: 'plex', label: 'Look for Plex', status: 'running' }]
 
 const BOOTSTRAP_CHECK_DELAY_MS = 500
 const BOOTSTRAP_POLL_MS = 400

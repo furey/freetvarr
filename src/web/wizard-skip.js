@@ -3,7 +3,7 @@ export const wizardSkipConfirm = ({ tvhConnected }) => ({
   body: [
     'Setup is not finished. Freetvarr keeps what you saved so far and opens Settings.',
     ...(tvhConnected ? [] : ['Freetvarr cannot record until it connects to TVHeadend.']),
-    'To finish later, open Settings → About Freetvarr → Reopen wizard.',
+    'To finish later, open Settings → Setup.',
   ],
   confirmLabel: 'Finish later',
   busyLabel: 'Leaving…',

@@ -36,19 +36,20 @@ On the Recording, Library and Plex, Pictures, Ad removal, and Schedule pages, pr
 
 The System pages hold the screens that were tabs before Freetvarr 2.0:
 
-| Page              | What it holds                                                                                                                 |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Health**        | The checks, the last and next sync, **Sync now**, and the free disk space ([Health](/guide/doctor)).                          |
-| **Activity**      | The history of syncs ([Activity](/guide/syncs)).                                                                              |
-| **Series rules**  | Every series recording with its folder ([Series rules and folders](/guide/series)).                                           |
-| **Folders**       | The title matches that save recordings to a folder without a series recording ([Title matches](/guide/series#title-matches)). |
-| **Recording log** | Every recording TVHeadend has finished, with the full import detail ([Recording log](/guide/recordings#recording-log)).       |
-| **TVHeadend**     | The TVHeadend address and login, and the TVHeadend open-access check ([TVHeadend](/guide/tvheadend)).                         |
+| Page              | What it holds                                                                                                                                                                                                                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Setup**         | What Freetvarr uses now: TVHeadend, channels, the TV guide, folders, Plex, and the time zone. Press a row to check or change that part, such as **Scan again** for channels. **Run the whole setup from the start** opens setup again ([Getting started](/guide/getting-started#_2-run-setup)). |
+| **Health**        | The checks, the last and next sync, **Sync now**, and the free disk space ([Health](/guide/doctor)).                                                                                                                                                                                            |
+| **Activity**      | The history of syncs ([Activity](/guide/syncs)).                                                                                                                                                                                                                                                |
+| **Series rules**  | Every series recording with its folder ([Series rules and folders](/guide/series)).                                                                                                                                                                                                             |
+| **Folders**       | The title matches that save recordings to a folder without a series recording ([Title matches](/guide/series#title-matches)).                                                                                                                                                                   |
+| **Recording log** | Every recording TVHeadend has finished, with the full import detail ([Recording log](/guide/recordings#recording-log)).                                                                                                                                                                         |
+| **TVHeadend**     | The TVHeadend address and login, and the TVHeadend open-access check ([TVHeadend](/guide/tvheadend)).                                                                                                                                                                                           |
 
 ## About
 
-- **About Freetvarr**: **Reopen wizard** to run the [setup wizard](/guide/getting-started#_2-run-the-wizard) again, **Health checks**, the versions of Freetvarr, TVHeadend, and Node with the uptime, the licences, and the data credits.
-- **Danger zone**: **Reset Freetvarr** deletes Freetvarr's settings, series folders, list of recordings, and sync history, then the setup wizard starts from the beginning. Your video files, and the recordings and settings in TVHeadend, stay where they are. You cannot undo a reset, and you cannot reset while a sync runs.
+- **About Freetvarr**: links to **Setup** and **Health checks**, the versions of Freetvarr, TVHeadend, and Node with the uptime, the licences, and the data credits.
+- **Danger zone**: **Reset Freetvarr** deletes Freetvarr's settings, series folders, list of recordings, and sync history, then setup starts from the beginning. Your video files, and the recordings and settings in TVHeadend, stay where they are. You cannot undo a reset, and you cannot reset while a sync runs.
 
 ## Old addresses
 

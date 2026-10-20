@@ -22,6 +22,7 @@ export const canonicalSegments = (segments) => {
   const view = head.toLowerCase()
   if (SHOW_PAGE_ALIASES.includes(view) && rest.length) return ['recordings', 'show', ...rest]
   if (ROUTE_ALIASES[view]) return [...ROUTE_ALIASES[view], ...lowerCase(rest)]
+  if (view === 'welcome' && rest.length) return [...SETUP_PAGE, ...setupDrawerPath(lowerCase(rest))]
   if (view === 'settings') return ['settings', ...canonicalSettingsPath(lowerCase(rest))]
   if (view === 'recordings' && rest[0]?.toLowerCase() === 'show') return ['recordings', 'show', ...rest.slice(1)]
   return [view, ...lowerCase(rest)]
@@ -56,6 +57,17 @@ const ROUTE_ALIASES = {
   shows: ['settings', 'system', 'series'],
   syncs: ['settings', 'system', 'activity'],
   doctor: ['settings', 'system', 'health'],
+  setup: ['settings', 'system', 'setup'],
+  wizard: ['settings', 'system', 'setup'],
+}
+
+const SETUP_PAGE = ['settings', 'system', 'setup']
+
+const WIZARD_STEP_ALIASES = { storage: 'folders', tvh: 'tvheadend', epg: 'guide' }
+
+const setupDrawerPath = ([first = '']) => {
+  const drawer = WIZARD_STEP_ALIASES[first] ?? first
+  return drawer ? [drawer] : []
 }
 
 const SHOW_PAGE_ALIASES = ['series', 'shows']
@@ -65,6 +77,7 @@ const SETTINGS_ALIASES = {
   health: ['system', 'health'],
   activity: ['system', 'activity'],
   log: ['system', 'log'],
+  setup: ['system', 'setup'],
 }
 
 const canonicalSettingsPath = (rest) => {

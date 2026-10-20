@@ -25,7 +25,7 @@ In the Freetvarr Home Screen app on an iPhone, pull down from the top of a page 
 
 ## Scheduled and manual
 
-Choose how often Freetvarr checks TVHeadend in Settings → Schedule, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup wizard](/guide/getting-started#_2-run-the-wizard) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and title match at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
+Choose how often Freetvarr checks TVHeadend in Settings → Schedule, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup](/guide/getting-started#_2-run-setup) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and title match at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
 
 Activity states the schedule in plain words, such as "Syncs run every 30 minutes." A schedule that has no plain description shows its cron expression instead.
 

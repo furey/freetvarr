@@ -189,7 +189,7 @@ test('runDoctor: the open default access entry warns that anyone can change TVHe
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /0\.0\.0\.0\/0,::\/0/)
   assert.match(check.detail, /anyone on your network can change TVHeadend/)
-  assert.match(check.fix, /SECURE TVHEADEND/)
+  assert.match(check.fix, /SECURE AND CONNECT/)
   assert.equal(check.doc, 'guide/tvheadend#_2-secure-tvheadend')
 })
 
@@ -213,8 +213,8 @@ test('runDoctor: an empty hardware tree and no inputs fails the tuner check', as
   const tuners = byId(report)['tvh.tuners']
   assert.equal(tuners.status, 'fail')
   assert.doesNotMatch(tuners.fix, /network_mode/)
-  assert.match(tuners.fix, /tuner's address in the CHANNELS step/)
-  assert.equal(tuners.action.href, '#/welcome')
+  assert.match(tuners.fix, /tuner's address under SETTINGS → SETUP → CHANNELS/)
+  assert.equal(tuners.action.href, '#/settings/system/setup/channels')
   assert.equal(tuners.doc, 'guide/troubleshooting#missing-tuner')
 })
 

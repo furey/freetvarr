@@ -32,7 +32,7 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
-[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
+[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
 
 > [!TIP]<br>
 > If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
@@ -223,7 +223,7 @@ Do these in order. The times are for someone doing it the first time.
 4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch live TV. `10 minutes`.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
 6. **Install Freetvarr** ([Getting started](/guide/getting-started)). The install script also installs TVHeadend. To get Plex as well, add your Plex claim code before you run it ([No Plex yet?](/guide/plex#no-plex-yet)). If you already run TVHeadend or Plex, Freetvarr connects to them instead ([An existing TVHeadend](/guide/getting-started#an-existing-tvheadend)). `15–30 minutes`.
-7. **Run the Freetvarr [setup wizard](/guide/getting-started#_2-run-the-wizard)**. It secures TVHeadend, scans for channels, loads the TV guide, sets the recording folders, and creates your Plex libraries. `30–60 minutes`.
+7. **Run the Freetvarr [setup](/guide/getting-started#_2-run-setup)**. It secures TVHeadend, scans for channels, loads the TV guide, sets the recording folders, and creates your Plex libraries. `30–60 minutes`.
 8. **[Add your Fetch recordings](#adding-them-to-your-media-library)** to your media library (e.g. Plex, Jellyfin, or Kodi): drag them into Freetvarr's `media` folder. `15 minutes`, plus copying time.
 9. **Watch [Live TV](/guide/live-tv)** in Freetvarr in a browser to check that the whole setup works. `5 minutes`.
 

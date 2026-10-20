@@ -21,7 +21,7 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 | `COMPOSE_PROFILES`       | Optional. `plex` adds the Plex service to `docker compose up -d` ([No Plex yet?](/guide/plex#no-plex-yet))                                                                                                                                          |
 | `PLEX_CLAIM`             | Optional, `plex` profile only. The claim code from `https://plex.tv/claim`, which signs the new Plex in to your Plex account. A code expires 4 minutes after you get it                                                                             |
 | `CSRF_SECRET`            | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`. See [CSRF secret](#csrf-secret)                                                                                    |
-| `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in the wizard; a zone chosen in Settings → Schedule wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                       |
+| `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in setup; a zone chosen in Settings → Schedule wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                            |
 | `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Both Docker containers use the same pair                                                                        |
 | `FREETVARR_PORT`         | Host port to serve on (default `3733`)                                                                                                                                                                                                              |
 | `TVH_URL`                | Optional. Fixes the address **Auto-discover TVHeadend** offers; omit to let Freetvarr probe port `9981` on the host                                                                                                                                 |
@@ -83,11 +83,11 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 
 ## Runtime settings
 
-The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's **Settings** (or in its [setup wizard](/guide/getting-started#_2-run-the-wizard)) and stored in Freetvarr's database. Settings groups its pages as follows:
+The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's **Settings** (or in its [setup](/guide/getting-started#_2-run-setup)) and stored in Freetvarr's database. Settings groups its pages as follows:
 
 - **Preferences**: Recording, Library and Plex, Pictures, Ad removal, Watch on TV, Player, For you, and Schedule.
-- **System**: Health, Activity, Series rules, Folders, Recording log, and TVHeadend.
-- **About**: About Freetvarr (the setup wizard, versions, and licences) and Danger zone.
+- **System**: Setup, Health, Activity, Series rules, Folders, Recording log, and TVHeadend.
+- **About**: About Freetvarr (versions and licences) and Danger zone.
 
 [Settings](/guide/settings) describes each page. Press **Save settings** to keep your changes. An optional TMDB API key for film and TV pictures goes in Settings → Pictures ([TMDB key](/guide/tv-guide#tmdb-key)); Freetvarr stores it in its database and never sends it to the browser. **Test path** checks the media root and Freetvarr's recordings folder, and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
 

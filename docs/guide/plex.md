@@ -11,7 +11,7 @@ Plex is optional. Without it, Freetvarr still imports and files episodes (you re
 
 ## No Plex yet?
 
-The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex token itself, and Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) creates the Plex libraries. Do these steps before you run the install script, or now if Freetvarr already runs.
+The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex token itself, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) creates the Plex libraries. Do these steps before you run the install script, or now if Freetvarr already runs.
 
 1. In a browser, open `https://plex.tv/claim` and sign in to your Plex account (a free account works).
 2. Copy the claim code. It expires 4 minutes after Plex shows it, so do the next steps straight away.
@@ -23,7 +23,7 @@ The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the
    ```
 
 4. In a terminal in the `freetvarr` folder, start the Docker containers: `docker compose up -d`. The first start downloads the Plex Docker image. If you have not installed Freetvarr yet, run the [install script](/guide/getting-started#_1-install) instead.
-5. In Freetvarr in a browser, proceed to the setup wizard's **Plex** step. Freetvarr finds Plex and its token itself. If you already finished the wizard, open Settings → Library and Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
+5. In Freetvarr in a browser, proceed to the **Plex** step of setup. Freetvarr finds Plex and its token itself. If you already finished setup, open Settings → Library and Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
 6. Check the library names and folders, then press **Create libraries** to create the libraries in Plex.
 
 Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a movies folder, it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings → Library and Plex. Each library uses the language and rating system of the country from your time zone.
@@ -37,13 +37,13 @@ If the claim code expired before Plex started, Plex runs without an account and 
 
 ## Point Freetvarr at Plex
 
-The wizard's **Plex** step looks for Plex servers on your network and reads the token from Plex's settings file. When the wizard connects to Plex, it picks the TV library that reads Freetvarr's TV folder. Check that library, or pick another. If the wizard finds no Plex server, press **Skip**. If it finds Plex but no token, open **Advanced: connect Plex by hand** and paste the token ([The token](#the-token)).
+The **Plex** step of setup looks for Plex servers on your network and reads the token from Plex's settings file. When setup connects to Plex, it picks the TV library that reads Freetvarr's TV folder. Check that library, or pick another. If setup finds no Plex server, press **Next**. If it finds Plex but no token, press **Connect Plex by hand** and paste the token ([The token](#the-token)).
 
 In Settings → Library and Plex, set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. **Auto-discover Plex** finds Plex servers on your network.
 
 ## Create the libraries
 
-When Plex has no library for a Freetvarr folder, the wizard's **Plex** step and Settings → Library and Plex show **Create libraries**. The button needs the Plex URL and token. To check for missing libraries, press **Load sections** in Settings → Library and Plex.
+When Plex has no library for a Freetvarr folder, the **Plex** step of setup and Settings → Library and Plex show **Create libraries**. The button needs the Plex URL and token. To check for missing libraries, press **Load sections** in Settings → Library and Plex.
 
 Each library has a name and a folder. The folder is the path as Plex sees it. With the Plex from the Docker compose file, that path is the same as Freetvarr's. For a Plex installed some other way, enter the path that Plex shows when you add a folder to a library. Freetvarr refuses a folder that Plex cannot see.
 
@@ -59,7 +59,7 @@ If you set a movies folder, point a **Movies** library at it and choose that lib
 
 ## The token
 
-- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and the wizard does this for you. If you installed Plex yourself on the same computer, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the Freetvarr Docker container: run `docker compose up -d freetvarr` in a terminal in the `freetvarr` folder. If you share the file with Freetvarr at another path, open **Token not found?** in Settings → Library and Plex and enter the path Freetvarr sees.
+- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and setup does this for you. If you installed Plex yourself on the same computer, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the Freetvarr Docker container: run `docker compose up -d freetvarr` in a terminal in the `freetvarr` folder. If you share the file with Freetvarr at another path, open **Token not found?** in Settings → Library and Plex and enter the path Freetvarr sees.
 - Otherwise **paste the token manually** into Settings → Library and Plex. Copy it from `app.plex.tv` (Plex's own support article explains how to find your token).
 
 Where `Preferences.xml` lives depends on how Plex is installed:

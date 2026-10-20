@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: 'Fixes keyed by symptom: the TVHeadend login, the wizard checks, tuners, channels, the TV guide, logos, imports, and Plex.'
+description: 'Fixes keyed by symptom: the TVHeadend login, the setup checks, tuners, channels, the TV guide, logos, imports, and Plex.'
 ---
 
 # Troubleshooting
@@ -14,7 +14,7 @@ Each section starts from what you see, then gives the cause and the fix. The sec
 
 ## TVHeadend 401 or 403
 
-Freetvarr shows `Failed: TVHeadend rejected the credentials (HTTP 401).` or the same with `HTTP 403`, in the wizard, in Settings, or on a page that reads from TVHeadend. Settings adds the API path that failed, such as `(stage: serverinfo)`.
+Freetvarr shows `Failed: TVHeadend rejected the credentials (HTTP 401).` or the same with `HTTP 403`, in setup, in Settings, or on a page that reads from TVHeadend. Settings adds the API path that failed, such as `(stage: serverinfo)`.
 
 - **`401` with an empty username**: TVHeadend asks for a login and Freetvarr sent none. Enter the username and password of the TVHeadend user ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 - **`403` at `serverinfo`**: TVHeadend refused the login. Check these in order:
@@ -31,9 +31,9 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
   http://<host-ip>:9981/api/serverinfo
 ```
 
-## Wizard connection test
+## Setup connection test
 
-**Save and next** on the TVHeadend step runs **Test connection** and stays on the step until it passes. **Finish later** opens a dialog: press **Finish later** again to leave the wizard and keep what you saved, or close the dialog to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open Settings → About → **Reopen wizard**.
+**Save and next** on the TVHeadend step tests the connection and stays on the step until it passes. The error shows under the TVHeadend address. **Finish later** opens a dialog: press **Finish later** again to leave setup and keep what you saved, or close the dialog to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open Settings → System → Setup.
 
 - **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither Docker container is on a Docker bridge network, so container names don't resolve).
 - **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run `docker compose logs tvheadend` in a terminal in the `freetvarr` folder.
@@ -64,11 +64,11 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
 
 ## Missing tuner
 
-In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) reports `0 tuners`.
+In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or Freetvarr's [setup](/guide/getting-started#_2-run-setup) reports `0 tuners`.
 
 - The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server (those broadcasts don't cross Docker's private bridge network). A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.
-- On a Mac, Docker Desktop and OrbStack cannot find a network tuner on their own. In the wizard's **Channels** step, enter the tuner's IP address and this computer's IP address, then press **Use this address**. The **Tuners** check on [Health](/guide/doctor#tvh-tuners) links to the wizard. Or run Freetvarr with Docker on Linux (a NAS, mini PC, or Raspberry Pi).
-- The tuner has to be on the same part of the network as the host (those broadcasts don't cross between subnets). For a tuner on another subnet, press **Enter the tuner's address** in the wizard's **Channels** step. A tuner plugged straight into a spare NAS port gets a link-local `169.254.x.x` address. TVHeadend still finds it, but nothing else on the LAN can reach it ([Hardware](/guide/hardware#direct-to-a-spare-nas-port)).
+- On a Mac, Docker Desktop and OrbStack cannot find a network tuner on their own. In Settings → System → Setup, press **Channels**, enter the tuner's IP address and this computer's IP address, then press **Use this address**. The **Tuners** check on [Health](/guide/doctor#tvh-tuners) links there. Or run Freetvarr with Docker on Linux (a NAS, mini PC, or Raspberry Pi).
+- The tuner has to be on the same part of the network as the host (those broadcasts don't cross between subnets). For a tuner on another subnet, press **Enter the tuner's address** in the **Channels** step of setup. A tuner plugged straight into a spare NAS port gets a link-local `169.254.x.x` address. TVHeadend still finds it, but nothing else on the LAN can reach it ([Hardware](/guide/hardware#direct-to-a-spare-nas-port)).
 - Check the tuner answers at all. On an HDHomeRun, open `http://<hdhr-ip>/tuners.html` in a browser. If the page does not load, the tuner has a power or network cable problem, not a TVHeadend one. See [Hardware](/guide/hardware#checking-the-signal). On a USB or PCIe tuner, check `/dev/dvb` exists on the host and inside the container.
 - TVHeadend lists the tuner but Freetvarr reports `0 tuners`: the Freetvarr user lacks **Admin**, which TVHeadend requires for the tuner status.
 
@@ -255,7 +255,7 @@ Freetvarr's own captions show inside the picture. Open **⋯** in the player and
 
 ## Wrong timestamps
 
-- Freetvarr uses the time zone you chose in the wizard. If Health warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings → Schedule. Freetvarr shows every time in that zone, on every device.
+- Freetvarr uses the time zone you chose in setup. If Health warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings → Schedule. Freetvarr shows every time in that zone, on every device.
 - A `TZ` in your `.env` only pre-fills the zone. The zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings → Schedule, or correct `TZ` (e.g. `Australia/Sydney`) and run `docker compose up -d` to recreate the Docker containers.
 - TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
 

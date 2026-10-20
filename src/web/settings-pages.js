@@ -19,6 +19,7 @@ export const SETTINGS_GROUPS = [
     key: 'system',
     label: 'System',
     pages: [
+      { id: 'setup', label: 'Setup', view: 'system' },
       { id: 'health', label: 'Health', view: 'system' },
       { id: 'activity', label: 'Activity', view: 'system' },
       { id: 'series', label: 'Series rules', view: 'system' },

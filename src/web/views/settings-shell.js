@@ -12,10 +12,12 @@ import { PlayerSettingsView } from '/views/player-settings-view.js'
 import { RecordingsView } from '/views/recordings-view.js'
 import { SeriesView } from '/views/series-view.js'
 import { SettingsView } from '/views/settings-view.js'
+import { SetupSettingsView } from '/views/setup-settings-view.js'
 import { SuggestionsSettingsView } from '/views/suggestions-settings-view.js'
 import { SyncsView } from '/views/syncs-view.js'
 
 const SYSTEM_VIEWS = {
+  setup: { view: SetupSettingsView, props: {} },
   health: { view: DoctorView, props: {} },
   activity: { view: SyncsView, props: {} },
   series: { view: SeriesView, props: { part: 'series' } },
@@ -26,6 +28,7 @@ const SYSTEM_VIEWS = {
 const PAGES_WITH_OWN_HEADER = ['health']
 
 const PAGE_INTROS = {
+  setup: 'What Freetvarr uses now. Press a part to check or change it.',
   activity: 'Every sync Freetvarr has run, newest first.',
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',

@@ -89,3 +89,13 @@ test('resolveRoute: the For you page keeps Home selected in the nav', () => {
   assert.equal(resolved.canonicalHash, null)
   assert.equal(activeDestinationOf('for-you'), 'home')
 })
+
+test('resolveRoute: setup links open the Settings setup page and its drawers', () => {
+  assert.equal(resolveRoute('#/setup').canonicalHash, '#/settings/system/setup')
+  assert.equal(resolveRoute('#/wizard').canonicalHash, '#/settings/system/setup')
+  assert.equal(resolveRoute('#/settings/setup').canonicalHash, '#/settings/system/setup')
+  assert.equal(resolveRoute('#/welcome/channels').canonicalHash, '#/settings/system/setup/channels')
+  assert.equal(resolveRoute('#/welcome/storage').canonicalHash, '#/settings/system/setup/folders')
+  assert.deepEqual(resolveRoute('#/welcome/guide').params, ['system', 'setup', 'guide'])
+  assert.equal(resolveRoute('#/welcome').view, 'welcome')
+})

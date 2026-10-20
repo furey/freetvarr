@@ -134,13 +134,19 @@ const VIEW_MAP = {
   welcome: WelcomeView,
 }
 
+const FULL_SCREEN_VIEWS = ['welcome']
+
 const viewFor = ({ view, params }) => (view === 'recordings'
   ? RECORDINGS_VIEWS[recordingsPageOf(params).page]
   : VIEW_MAP[view] || HomeView)
 
 const App = {
   template: `
-    <div class="app-shell">
+    <div v-if="fullScreen" class="app-setup">
+      <component :is="currentView" :key="viewKey" />
+      <toast-region />
+    </div>
+    <div v-else class="app-shell">
       <app-nav />
       <div class="app-main">
         <stale-build-banner />
@@ -162,7 +168,8 @@ const App = {
       const page = route.value === 'recordings' ? `:${routeParams.value.join('/')}` : ''
       return `${route.value}${page}:${refreshTick.value}`
     })
-    return { route, currentView, viewKey }
+    const fullScreen = computed(() => FULL_SCREEN_VIEWS.includes(route.value))
+    return { route, currentView, viewKey, fullScreen }
   },
 }
 

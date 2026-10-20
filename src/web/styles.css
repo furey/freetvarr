@@ -779,7 +779,7 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 
 @media (hover: hover) {
-  .btn-link:hover { color: var(--color-info); }
+  .btn-link:hover { color: var(--color-primary-hi); }
 }
 
 input[type="checkbox"].chk {
@@ -2739,7 +2739,7 @@ section[id^="section-"] {
 .about-list .about-code { font-family: var(--font-mono); font-weight: 500; }
 .about-list .about-muted { color: var(--color-text-2); }
 .about-list .about-current { color: var(--color-success); }
-.about-list a.about-update { color: var(--color-info); }
+.about-list a.about-update { color: var(--color-primary); }
 
 .live-skip-hint {
   position: absolute;

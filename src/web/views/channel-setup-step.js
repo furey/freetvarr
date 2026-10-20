@@ -11,175 +11,160 @@ import {
 } from '/hold-music.js'
 import { api } from '/shared/api.js'
 import { fmtClockTz } from '/shared/time.js'
-import { usePacedJob, SETUP_POLL_MS, secureStepDot } from '/views/welcome-shared.js'
+import { usePacedJob, SETUP_POLL_MS, SetupRunList } from '/views/welcome-shared.js'
 
 const holdMusicAudioContext = audioContextOnce(window)
 
 export const ChannelSetupStep = {
   props: {
     tvhUrl: { type: String, default: '' },
+    actionInBar: { type: Boolean, default: false },
+    startEditing: { type: Boolean, default: false },
   },
   emits: ['state'],
+  components: { SetupRunList },
   template: `
-    <div class="space-y-4">
-      <p v-if="loading && !status" class="status-readout busy">Looking for your tuner…</p>
+    <div class="setup-body">
+      <p v-if="!actionInBar" class="setup-hint">{{ intro }}</p>
+      <setup-run-list v-if="loading && !status" :steps="LOOKING_STEPS" />
 
-      <div v-else-if="loadError" class="space-y-2">
-        <p class="status-readout err">{{ loadError }}</p>
-        <button type="button" class="btn" @click="refresh"><refresh-icon /> Check again</button>
+      <div v-else-if="loadError" class="setup-block">
+        <p class="setup-hint is-error">{{ loadError }}</p>
+        <button type="button" class="setup-quiet-link" @click="refresh">Check again</button>
       </div>
 
       <template v-else-if="status">
-        <div v-if="showSteps" class="space-y-3">
-          <ol class="welcome-steps">
-            <li v-for="s in steps" :key="s.id" class="step-row">
-              <span class="step-marker">
-                <span v-if="s.status === 'running'" class="step-spinner"></span>
-                <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
-              </span>
-              <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
-                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span><transition name="hold-music-fade"><span v-if="s.id === 'scan' && s.status === 'running'" class="hold-music">
-                  <span aria-hidden="true">·</span>
-                  <button type="button" class="hold-music-toggle" @click="toggleMusic"
-                    :aria-label="musicToggleLabel" :title="musicToggleLabel">
-                    <speaker-icon v-if="musicAudible" /><speaker-muted-icon v-else />
-                  </button>
-                  <music-notes-icon :class="['hold-music-notes', { 'is-audible': musicAudible }]" />
-                </span></transition>
-              </span>
-            </li>
-          </ol>
-          <p v-if="waitingForTuner" class="status-readout info">
-            Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
-          </p>
-          <p v-else-if="scanStarting" class="status-readout busy">
-            {{ scanLine }}
-          </p>
-          <p v-if="result && result.ok" class="status-readout ok">{{ doneText }}</p>
-          <p v-if="favouritesText" class="text-sm text-ink">{{ favouritesText }}</p>
-          <button v-if="result && result.ok" type="button" class="btn" @click="restart"><search-icon /> Scan again</button>
-          <div v-if="result && !result.ok" class="space-y-2">
-            <p class="status-readout err">{{ result.error }}</p>
-            <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
-            <button type="button" class="btn" @click="restart"><refresh-icon /> Try again</button>
-          </div>
-        </div>
-
-        <div v-else-if="state === 'no-tuner'" class="space-y-4">
-          <p v-if="addressSaved" class="status-readout busy">
-            Looking for the tuner at {{ addressSaved }}. This can take a minute.
-          </p>
-          <div v-else class="space-y-2">
-            <p class="status-readout err">No TV tuner found yet.</p>
-            <p v-if="dockerVm" class="text-sm text-ink">
-              Docker on a Mac or Windows PC cannot find a network tuner by itself. Enter the tuner's address below.
+        <template v-if="showSteps">
+          <div class="setup-block">
+            <setup-run-list :steps="steps">
+              <template #extra="{ step }">
+                <transition name="hold-music-fade">
+                  <span v-if="step.id === 'scan' && step.status === 'running'" class="hold-music">
+                    <button type="button" class="hold-music-toggle" @click="toggleMusic"
+                      :aria-label="musicToggleLabel" :title="musicToggleLabel">
+                      <speaker-icon v-if="musicAudible" /><speaker-muted-icon v-else />
+                    </button>
+                    <music-notes-icon :class="['hold-music-notes', { 'is-audible': musicAudible }]" />
+                  </span>
+                </transition>
+              </template>
+            </setup-run-list>
+            <p v-if="waitingForTuner" class="setup-hint">
+              Waiting for a free tuner. Live TV or a recording is using them; the scan carries on when one is free.
             </p>
-            <p v-else class="text-sm text-ink">Check that the tuner is on and connected to your network, then press Check again.</p>
-            <p v-if="savedAddress" class="text-sm text-ink-dim">TVHeadend looks for a tuner at {{ savedAddress }}.</p>
-            <button v-if="!dockerVm" type="button" class="btn" @click="refresh" :disabled="loading">
-              <template v-if="loading">Checking…</template><template v-else><refresh-icon /> Check again</template>
-            </button>
-          </div>
-          <form v-if="addressOpen" class="welcome-subform" @submit.prevent="saveAddress">
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="field-row">
-                <label class="field-label" for="tuner-address">Tuner address</label>
-                <input v-no-autofill id="tuner-address" v-autofocus type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
-              </div>
-              <div v-if="dockerVm" class="field-row">
-                <label class="field-label" for="tuner-host-address">This computer's address</label>
-                <input v-no-autofill id="tuner-host-address" type="text" inputmode="decimal" class="field-input" v-model="hostAddress" placeholder="e.g. 192.168.1.20" />
-              </div>
+            <p v-else-if="scanStarting" class="setup-hint">{{ scanLine }}</p>
+            <div :class="['hold-music-credit', { 'is-audible': musicAudible }]">
+              <p class="hold-music-credit-text setup-hint">
+                Music: "Local Forecast – Elevator" by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+              </p>
             </div>
-            <p class="text-xs text-ink-dim">
+          </div>
+          <div v-if="result && result.ok" class="setup-block">
+            <p v-if="favouritesText" class="setup-hint">{{ favouritesText }}</p>
+            <button type="button" class="setup-quiet-link" @click="restart">Scan again</button>
+          </div>
+          <div v-if="result && !result.ok" class="setup-block">
+            <p class="setup-hint is-error">{{ result.error }}</p>
+            <p v-if="result.next" class="setup-hint">{{ result.next }}</p>
+            <button type="button" class="setup-quiet-link" @click="restart">Try again</button>
+          </div>
+        </template>
+
+        <div v-else-if="state === 'no-tuner'" class="setup-block">
+          <setup-run-list v-if="addressSaved" :steps="[{ id: 'address', label: 'Look for the tuner at ' + addressSaved, status: 'running' }]" />
+          <template v-else>
+            <p class="setup-hint is-error">No TV tuner found yet.</p>
+            <p v-if="dockerVm" class="setup-hint">Docker on a Mac or Windows PC cannot find a network tuner by itself. Enter the tuner's address below.</p>
+            <p v-else class="setup-hint">Check that the tuner is on and connected to your network, then press Check again.</p>
+            <p v-if="savedAddress" class="setup-hint">TVHeadend looks for a tuner at <span class="setup-mono">{{ savedAddress }}</span>.</p>
+            <button v-if="!dockerVm" type="button" class="setup-quiet-link" @click="refresh" :disabled="loading">Check again</button>
+          </template>
+          <form v-if="addressOpen" class="setup-fields is-two" @submit.prevent="saveAddress">
+            <div class="field-row">
+              <label class="field-label" for="tuner-address">Tuner address</label>
+              <input v-no-autofill id="tuner-address" v-autofocus type="text" inputmode="decimal" class="field-input" v-model="tunerAddress" placeholder="e.g. 192.168.1.50" />
+            </div>
+            <div v-if="dockerVm" class="field-row">
+              <label class="field-label" for="tuner-host-address">This computer's address</label>
+              <input v-no-autofill id="tuner-host-address" type="text" inputmode="decimal" class="field-input" v-model="hostAddress" placeholder="e.g. 192.168.1.20" />
+            </div>
+            <p class="setup-hint is-wide">
               Find the tuner's address in your router's list of devices, or in the tuner's own app.<template v-if="dockerVm"> This computer's address is the one other devices on your network use to reach this Mac or PC.<template v-if="hostGuessed"> Freetvarr guessed it from the address in your browser.</template></template>
             </p>
-            <div class="action-row flex">
-              <button type="submit" class="btn btn-primary" :disabled="savingAddress || Boolean(addressSaved) || !tunerAddress">
-                <search-icon /> Use this address
-              </button>
+            <p v-if="addressError" class="setup-hint is-error is-wide">{{ addressError }}</p>
+            <div v-if="!actionInBar" class="setup-inline-actions is-wide">
+              <button type="submit" class="ui-button ui-button-primary" :disabled="actionDisabled">Use this address</button>
             </div>
-            <p v-if="addressError" class="status-readout err">{{ addressError }}</p>
           </form>
-          <button v-else type="button" class="btn-link" @click="addressOpen = true">Enter the tuner's address</button>
+          <button v-else type="button" class="setup-quiet-link" @click="addressOpen = true">Enter the tuner's address</button>
         </div>
 
-        <div v-else-if="state === 'unsupported-tuner'" class="space-y-2">
-          <p class="text-sm text-ink">Freetvarr cannot set up this kind of tuner yet. Set up its channels in TVHeadend, then press Check again.</p>
-          <button type="button" class="btn" @click="refresh"><refresh-icon /> Check again</button>
+        <div v-else-if="state === 'unsupported-tuner'" class="setup-block">
+          <p class="setup-hint">Freetvarr cannot set up this kind of tuner yet. Set up its channels in TVHeadend, then press Check again.</p>
+          <button type="button" class="setup-quiet-link" @click="refresh">Check again</button>
         </div>
 
-        <div v-else-if="state === 'has-channels' && !editing" class="space-y-2">
-          <p class="status-readout ok">TVHeadend already has {{ status.channels }} channels.</p>
-          <p class="text-sm text-ink-dim">Press Next to keep them. To add channels that are missing, scan again.</p>
-          <button type="button" class="btn" @click="editing = true"><search-icon /> Scan again</button>
+        <div v-else-if="state === 'has-channels' && !editing" class="setup-block">
+          <button type="button" class="setup-quiet-link" @click="editing = true">Scan again</button>
         </div>
 
-        <div v-else class="space-y-4">
-          <p class="text-ink text-sm leading-relaxed">
-            Freetvarr can scan for channels and add them to TVHeadend. Check the choices below, then press Find channels.
-          </p>
-          <div class="field-row">
-            <span class="field-label">Tuners</span>
-            <label v-for="t in tuners" :key="t.id" class="welcome-check">
-              <input type="checkbox" class="chk" :value="t.id" v-model="tunerIds" />
-              {{ t.name }}
-            </label>
-          </div>
-          <div v-if="networks.length" class="field-row">
-            <label class="field-label" for="channel-network">TV network</label>
-            <select id="channel-network" class="field-input" v-model="networkId">
-              <option v-for="n in networks" :key="n.id" :value="n.id">{{ transmitterLabel(n.name) }} (existing)</option>
-              <option value="">Scan a transmitter instead</option>
-            </select>
-          </div>
-          <template v-if="!networkId">
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="field-row">
-                <label class="field-label" for="channel-country">Country</label>
-                <select id="channel-country" class="field-input" v-model="country">
-                  <option value="">Pick a country</option>
-                  <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.name }}</option>
-                </select>
-              </div>
-              <div class="field-row">
-                <label class="field-label" for="channel-transmitter">Transmitter</label>
-                <select id="channel-transmitter" class="field-input" v-model="transmitterKey" :disabled="!country">
-                  <option value="">Pick a transmitter</option>
-                  <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ transmitterLabel(t.name) }}</option>
-                </select>
+        <template v-else>
+          <div class="setup-block">
+            <h2 class="ui-group-label">Tuners</h2>
+            <div class="ui-group">
+              <div v-for="t in tuners" :key="t.id" class="ui-group-row">
+                <span class="ui-group-row-main"><span class="ui-group-row-title">{{ t.name }}</span></span>
+                <button type="button" class="ui-switch" role="switch" :aria-checked="String(tunerIds.includes(t.id))"
+                  :aria-label="'Use ' + t.name" @click="toggleTuner(t.id)"></button>
               </div>
             </div>
-            <p class="text-xs text-ink-dim">
-              Pick the transmitter your antenna points at.<template v-if="guessed"> Freetvarr guessed it from your time zone.</template>
-            </p>
-          </template>
-          <p v-if="recordingNow" class="status-readout info">{{ recordingNow }}</p>
-          <div class="action-row flex flex-wrap items-center gap-3">
-            <button type="button" class="btn btn-primary" @click="apply" :disabled="!ready || starting">
-              <search-icon /> Find channels
-            </button>
           </div>
-          <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
-          <p class="text-xs text-ink-mute">A scan takes a few minutes. Freetvarr keeps any channels you already have.</p>
-          <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
-            Scan and add channels yourself in TVHeadend, then come back here.
-          </manual-option>
-        </div>
+          <div class="setup-block">
+            <h2 class="ui-group-label">Transmitter</h2>
+            <div class="setup-fields is-two">
+              <div v-if="networks.length" class="field-row is-wide">
+                <label class="field-label" for="channel-network">TV network</label>
+                <select id="channel-network" class="field-input" v-model="networkId">
+                  <option v-for="n in networks" :key="n.id" :value="n.id">{{ transmitterLabel(n.name) }} (existing)</option>
+                  <option value="">Scan a transmitter instead</option>
+                </select>
+              </div>
+              <template v-if="!networkId">
+                <div class="field-row">
+                  <label class="field-label" for="channel-country">Country</label>
+                  <select id="channel-country" class="field-input" v-model="country">
+                    <option value="">Pick a country</option>
+                    <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                  </select>
+                </div>
+                <div class="field-row">
+                  <label class="field-label" for="channel-transmitter">Transmitter</label>
+                  <select id="channel-transmitter" class="field-input" v-model="transmitterKey" :disabled="!country">
+                    <option value="">Pick a transmitter</option>
+                    <option v-for="t in countryTransmitters" :key="t.key" :value="t.key">{{ transmitterLabel(t.name) }}</option>
+                  </select>
+                </div>
+              </template>
+            </div>
+            <p class="setup-hint">
+              {{ transmitterHint }}
+            </p>
+            <div v-if="recordingNow" class="ui-banner is-warning"><span class="ui-banner-text">{{ recordingNow }}</span></div>
+            <p v-if="applyError" class="setup-hint is-error">{{ applyError }}</p>
+            <div v-if="!actionInBar" class="setup-inline-actions">
+              <button type="button" class="ui-button ui-button-primary" @click="runAction" :disabled="actionDisabled">{{ actionLabel }}</button>
+            </div>
+            <a v-if="tvhUrl" class="setup-quiet-link" :href="tvhUrl" target="_blank" rel="noopener">Add channels yourself in TVHeadend</a>
+          </div>
+        </template>
       </template>
-
-      <div v-if="showSteps" :class="['hold-music-credit', { 'is-audible': musicAudible }]">
-        <p class="hold-music-credit-text text-xs text-ink-dim">
-        Music: "Local Forecast – Elevator" by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
-        </p>
-      </div>
     </div>
   `,
   setup(props, { emit }) {
     const status = ref(null)
     const loading = ref(false)
     const loadError = ref('')
-    const editing = ref(false)
+    const editing = ref(props.startEditing)
     const tunerIds = ref([])
     const networkId = ref('')
     const country = ref('')
@@ -241,13 +226,56 @@ export const ChannelSetupStep = {
       return state.value !== 'unsupported-tuner' && (state.value !== 'has-channels' || editing.value)
     })
 
-    watch([running, starting, channelCount, actionShown], () => {
+    const actionLabel = computed(() => {
+      if (state.value === 'no-tuner') return 'Use this address'
+      return channelCount.value ? 'Scan again' : 'Find channels'
+    })
+    const actionDisabled = computed(() => {
+      if (state.value === 'no-tuner') return savingAddress.value || Boolean(addressSaved.value) || !tunerAddress.value
+      return !ready.value || starting.value
+    })
+    const scanningWhat = computed(() => {
+      const network = networks.value.find((n) => n.id === networkId.value)
+      const transmitter = countryTransmitters.value.find((t) => t.key === transmitterKey.value)
+      const name = network?.name || transmitter?.name
+      return name ? transmitterLabel(name) : ''
+    })
+    const intro = computed(() => channelIntro({
+      loading: loading.value && !status.value,
+      loadError: loadError.value,
+      state: state.value,
+      editing: editing.value,
+      running: showSteps.value && !result.value,
+      result: result.value,
+      channels: channelCount.value,
+      scanningWhat: scanningWhat.value,
+      doneText: doneText.value,
+    }))
+    const transmitterHint = computed(() => [
+      !networkId.value && 'Pick the transmitter your antenna points at.',
+      !networkId.value && guessed.value && 'Freetvarr guessed it from your time zone.',
+      'A scan takes a few minutes. Channels you already have stay, and each frequency is scanned again.',
+    ].filter(Boolean).join(' '))
+    const favourites = computed(() => (result.value?.ok && result.value.favourites || []).map((f) => f.name))
+
+    watch([running, starting, channelCount, actionShown, actionLabel, actionDisabled, intro, favourites], () => {
       emit('state', {
         busy: running.value || starting.value,
         channels: channelCount.value,
         actionShown: actionShown.value,
+        action: actionShown.value ? { label: actionLabel.value, disabled: actionDisabled.value } : null,
+        intro: intro.value,
+        favourites: favourites.value,
       })
     }, { immediate: true })
+
+    const toggleTuner = (id) => {
+      tunerIds.value = tunerIds.value.includes(id)
+        ? tunerIds.value.filter((tunerId) => tunerId !== id)
+        : [...tunerIds.value, id]
+    }
+
+    const runAction = () => (state.value === 'no-tuner' ? saveAddress() : apply())
 
     watch(country, (curr, prev) => {
       if (prev !== undefined && prev !== '' && curr !== prev) {
@@ -398,8 +426,6 @@ export const ChannelSetupStep = {
       refresh()
     }
 
-    const stepDetail = (s) => scanOrMapDetail(s)
-
     onMounted(refresh)
     onUnmounted(() => {
       clearInterval(pollTimer)
@@ -413,8 +439,8 @@ export const ChannelSetupStep = {
       steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, favouritesText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
-      refresh, apply, restart, stepDetail, secureStepDot, saveAddress,
-      running, musicAudible, musicToggleLabel, toggleMusic,
+      refresh, apply, restart, saveAddress, toggleTuner, runAction, actionLabel, actionDisabled,
+      running, musicAudible, musicToggleLabel, toggleMusic, LOOKING_STEPS, intro, transmitterHint,
     }
   },
 }
@@ -441,19 +467,20 @@ const defaultFavouritesText = (result) => {
   return `Favourites: ${names.join(', ')}. To change them, press the channel settings button in the TV guide.`
 }
 
-const scanOrMapDetail = (step) => {
-  const d = step.detail
-  if (!d) return ''
-  if (step.id === 'scan') {
-    if (!d.frequencies) return ''
-    return d.scanned ? `${d.scanned} of ${d.frequencies}` : ''
-  }
-  if (step.id === 'map') {
-    if (!d.total) return 'nothing new to add'
-    return `${Math.round(((d.ok + d.fail) / d.total) * 100)}% done`
-  }
-  return ''
+const channelIntro = ({ loading, loadError, state, editing, running, result, channels, scanningWhat, doneText }) => {
+  if (loading) return 'Freetvarr checks your tuner first.'
+  if (loadError) return 'Freetvarr could not read the tuner settings from TVHeadend.'
+  if (running) return `Scanning${scanningWhat ? ` ${scanningWhat}` : ''}. This takes a few minutes; you can leave this page open.`
+  if (result?.ok) return doneText
+  if (result) return 'The channel scan stopped.'
+  if (state === 'no-tuner') return 'Freetvarr needs a TV tuner on your network.'
+  if (state === 'unsupported-tuner') return 'Freetvarr found a tuner it cannot set up yet.'
+  if (channels && editing) return `TVHeadend has ${channels} channels. Check the tuners and the transmitter, then scan again to add any that are missing.`
+  if (state === 'has-channels' && !editing) return `TVHeadend already has ${channels} channels. Press Next to keep them, or scan again to add any that are missing.`
+  return 'Freetvarr picked these from your tuner and time zone. Change anything that is wrong, then find channels.'
 }
+
+const LOOKING_STEPS = [{ id: 'look', label: 'Look for your tuner', status: 'running' }]
 
 const browserLanAddress = () => {
   const host = window.location.hostname

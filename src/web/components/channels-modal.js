@@ -123,7 +123,7 @@ export const ChannelsModal = {
             <h3 id="channels-all-label" class="ui-label">All channels</h3>
             <p v-if="guideLoadError" class="status-readout err">{{ guideLoadError }}</p>
             <p v-else-if="guideLinks && !guideLinks.ready" class="ui-meta">
-              Set up the TV guide first to change the listings of a channel. <a href="#/welcome" @click="$emit('close')">Open the setup wizard</a> and go to its Guide step.
+              Set up the TV guide first to change the listings of a channel. <a href="#/settings/system/setup/guide" @click="$emit('close')">Set up the guide</a>.
             </p>
             <div class="ui-group">
               <div v-for="ch in listedChannels" :key="ch.id" class="ui-group-row channels-row" @keydown.esc="onRowEscape">

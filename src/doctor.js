@@ -101,7 +101,7 @@ const TVH_REACH = {
   id: 'tvh.reach',
   group: 'tvheadend',
   title: 'Connection',
-  doc: 'guide/troubleshooting#wizard-connection-test',
+  doc: 'guide/troubleshooting#setup-connection-test',
   run: async (ctx) => {
     try {
       ctx.conn = await ctx.deps.connection()
@@ -193,7 +193,7 @@ const LATER_CHECKS = [
       return {
         status: 'warn',
         detail: `TVHeadend has an access entry with username * and admin rights (${networks}): anyone on your network can change TVHeadend.`,
-        fix: 'If Freetvarr installed TVHeadend for you, run the setup wizard and choose SECURE TVHEADEND. If you installed TVHeadend yourself, make an admin user in TVHeadend, then delete the * entry under Configuration → Users → Access Entries.',
+        fix: 'If Freetvarr installed TVHeadend for you, press RUN THE WHOLE SETUP FROM THE START under SETTINGS → SETUP, then press SECURE AND CONNECT. If you installed TVHeadend yourself, make an admin user in TVHeadend, then delete the * entry under Configuration → Users → Access Entries.',
       }
     },
   },
@@ -215,7 +215,7 @@ const LATER_CHECKS = [
         return {
           status: 'warn',
           detail: `TVHeadend sees ${plural(count, 'tuner')}, but none is turned on.`,
-          fix: 'Run the CHANNELS step of the setup wizard, or turn the tuner on in TVHeadend under Configuration → DVB Inputs → TV adapters.',
+          fix: 'Scan for channels under SETTINGS → SETUP → CHANNELS, or turn the tuner on in TVHeadend under Configuration → DVB Inputs → TV adapters.',
         }
       }
       const detail = `${plural(count, 'tuner')}: ${inputs.join('; ')}.`
@@ -243,7 +243,7 @@ const LATER_CHECKS = [
         return {
           status: 'fail',
           detail: 'TVHeadend has no channels.',
-          fix: 'No channels yet. Run the CHANNELS step of the setup wizard, or scan and map services in TVHeadend.',
+          fix: 'No channels yet. Scan for channels under SETTINGS → SETUP → CHANNELS, or scan and map services in TVHeadend.',
         }
       }
       return { status: 'pass', detail: `${plural(total, 'channel')} in TVHeadend.` }
@@ -737,16 +737,16 @@ const noTunerFix = ({ dockerVm, interfaces }) => {
   const vm = dockerVm()
   if (vm) {
     return {
-      fix: `Docker on a Mac or Windows PC (${vm}) cannot find a network tuner by itself. Enter the tuner's address in the CHANNELS step of the setup wizard, or run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi).`,
-      action: OPEN_WIZARD,
+      fix: `Docker on a Mac or Windows PC (${vm}) cannot find a network tuner by itself. Enter the tuner's address under SETTINGS → SETUP → CHANNELS, or run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi).`,
+      action: OPEN_SETUP_CHANNELS,
     }
   }
   const network = isBridgeOnly(interfaces())
     ? 'Set network_mode: host on the tvheadend and freetvarr services.'
     : 'Check that the tuner is on and connected to your network.'
   return {
-    fix: `${network} Or enter the tuner's address in the CHANNELS step of the setup wizard. For a USB or PCIe tuner, pass /dev/dvb into the tvheadend service.`,
-    action: OPEN_WIZARD,
+    fix: `${network} Or enter the tuner's address under SETTINGS → SETUP → CHANNELS. For a USB or PCIe tuner, pass /dev/dvb into the tvheadend service.`,
+    action: OPEN_SETUP_CHANNELS,
   }
 }
 
@@ -935,4 +935,4 @@ const SETTINGS_STORAGE = { label: 'Open settings', href: '#/settings/storage' }
 const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
 const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity' }
-const OPEN_WIZARD = { label: 'Open setup wizard', href: '#/welcome' }
+const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }

@@ -104,7 +104,7 @@ To reorder them on a tablet or computer:
 
 **Edit order** shows when you have two or more favourites and the filter box is empty. On a phone, **Edit order** opens a list to reorder instead. You can also reorder favourites in the channel settings, or on the [Live TV](/guide/live-tv#in-freetvarr) page.
 
-In Australia, the wizard's channel scan starts you with five favourites: the HD channels of ABC, Seven, Nine, 10, and SBS, or the SD channel where a network has no HD channel. The wizard does this only when you have no favourites, and only once. Remove or reorder them like any other favourite.
+In Australia, the channel scan in setup starts you with five favourites: the HD channels of ABC, Seven, Nine, 10, and SBS, or the SD channel where a network has no HD channel. Setup does this only when you have no favourites, and only once. Remove or reorder them like any other favourite.
 
 The **Channels** button above the grid opens the channel settings. The same settings open from the channel settings button on Live TV. On a phone, the settings come first and the list follows. The settings are:
 
@@ -125,7 +125,7 @@ Press **Save** to apply the changes. Press **Cancel** to close without saving.
 
 ## Channel listings
 
-Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the **Guide** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard). The setup wizard links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
+Each channel's shows come from one channel in the TV guide you set up, such as the Sydney guide chosen in the **Guide** step of the [setup](/guide/getting-started#_2-run-setup). Setup links each channel to a guide channel for you. If a channel shows the wrong shows, or none, pick a different guide channel for it:
 
 1. In the TV guide, press **Channels** above the grid.
 2. Press the pencil next to the channel (**Change guide source**). The row shows the current guide channel in a box you can type in.
@@ -142,7 +142,7 @@ Freetvarr also turns off TVHeadend's **Auto EPG channel** setting for a channel 
 
 Shows that already ended stay in the TV guide under their old listings. A scheduled recording on the channel stays at its time, but no longer follows a guide programme.
 
-If the pencils are missing, the TV guide is not set up yet. Open the setup wizard and proceed to its **Guide** step.
+If the pencils are missing, the TV guide is not set up yet. Open Settings → System → Setup and press **Guide**.
 
 A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's listings, that channel gets different programmes, so its series recordings can catch different episodes. Check [Scheduled](/guide/recordings#scheduled) after the change.
 

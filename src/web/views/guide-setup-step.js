@@ -7,103 +7,98 @@ import {
   watch,
 } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
-import { usePacedJob, SETUP_POLL_MS, secureStepDot } from '/views/welcome-shared.js'
+import { usePacedJob, SETUP_POLL_MS, SetupRunList } from '/views/welcome-shared.js'
 
 export const GuideSetupStep = {
   props: {
     tvhUrl: { type: String, default: '' },
+    actionInBar: { type: Boolean, default: false },
+    startEditing: { type: Boolean, default: false },
   },
   emits: ['state', 'back'],
+  components: { SetupRunList },
   template: `
-    <div class="space-y-4">
-      <p v-if="loading && !status" class="status-readout busy">Reading the TV guide settings…</p>
+    <div class="setup-body">
+      <p v-if="!actionInBar" class="setup-hint">{{ intro }}</p>
+      <setup-run-list v-if="loading && !status" :steps="READING_STEPS" />
 
-      <div v-else-if="loadError" class="space-y-2">
-        <p class="status-readout err">{{ loadError }}</p>
-        <button type="button" class="btn" @click="refresh"><refresh-icon /> Check again</button>
+      <div v-else-if="loadError" class="setup-block">
+        <p class="setup-hint is-error">{{ loadError }}</p>
+        <button type="button" class="setup-quiet-link" @click="refresh">Check again</button>
       </div>
 
       <template v-else-if="suggestion">
-        <div v-if="showSteps" class="space-y-3">
-          <ol class="welcome-steps">
-            <li v-for="s in steps" :key="s.id" class="step-row">
-              <span class="step-marker">
-                <span v-if="s.status === 'running'" class="step-spinner"></span>
-                <span v-else :class="['led-dot', 'sm', secureStepDot(s.status)]"></span>
-              </span>
-              <span :class="s.status === 'pending' ? 'text-ink-mute' : 'text-ink'">
-                {{ s.label }}<span v-if="stepDetail(s)" class="text-ink-dim"> · {{ stepDetail(s) }}</span>
-              </span>
-            </li>
-          </ol>
-          <template v-if="result && result.ok">
-            <div v-if="!result.total" class="space-y-2">
-              <p class="status-readout err">There are no channels yet, so there is nothing to link a guide to.</p>
-              <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> Back to Channels</button>
-            </div>
-            <p v-else class="status-readout ok">{{ result.linked }} of {{ result.total }} channels have a guide.</p>
-            <div v-if="result.unmatched.length" class="space-y-3">
-              <p class="text-sm text-ink">These channels have no guide yet. Check each pick, or choose No guide. Next saves your choices.</p>
-              <div v-for="c in result.unmatched" :key="c.id" class="grid gap-2 md:grid-cols-2 items-center">
-                <label class="text-sm text-ink" :for="'guide-' + c.id">{{ c.name }}<span v-if="c.number" class="text-ink-dim"> · {{ c.number }}</span></label>
+        <template v-if="showSteps">
+          <div class="setup-block">
+            <setup-run-list :steps="steps" />
+          </div>
+          <div v-if="result && result.ok && !result.total" class="setup-block">
+            <button v-if="actionInBar" type="button" class="setup-quiet-link" @click="$emit('back')">Back to Channels</button>
+          </div>
+          <div v-if="result && result.ok && result.unmatched.length" class="setup-block">
+            <h2 class="ui-group-label">Channels without a guide</h2>
+            <div class="ui-group">
+              <div v-for="c in result.unmatched" :key="c.id" class="setup-select-row">
+                <label class="ui-group-row-main" :for="'guide-' + c.id">
+                  <span class="ui-group-row-title">{{ c.name }}</span>
+                  <span v-if="c.number" class="ui-group-row-meta ui-tabular">{{ c.number }}</span>
+                </label>
                 <guide-combobox :input-id="'guide-' + c.id" v-model="picks[c.id]" :options="result.options"
                   none-label="No guide" :label="'Guide for ' + c.name" />
               </div>
             </div>
-          </template>
-          <div v-if="result && !result.ok" class="space-y-2">
-            <p class="status-readout err">{{ result.error }}</p>
-            <p v-if="result.next" class="text-sm text-ink">{{ result.next }}</p>
-            <button type="button" class="btn" @click="restart"><refresh-icon /> Try again</button>
+            <p class="setup-hint">Check each pick, or choose No guide.<template v-if="actionInBar"> Save and next keeps your choices.</template></p>
+            <div v-if="!actionInBar && pickedCount" class="setup-inline-actions">
+              <button type="button" class="ui-button ui-button-primary" @click="saveLinks">Save guide choices</button>
+            </div>
           </div>
+          <div v-if="result && result.ok && result.total" class="setup-block">
+            <button type="button" class="setup-quiet-link" @click="restart">Set up the guide again</button>
+          </div>
+          <div v-if="result && !result.ok" class="setup-block">
+            <p class="setup-hint is-error">{{ result.error }}</p>
+            <p v-if="result.next" class="setup-hint">{{ result.next }}</p>
+            <button type="button" class="setup-quiet-link" @click="restart">Try again</button>
+          </div>
+        </template>
+
+        <div v-else-if="!suggestion.channels" class="setup-block">
+          <button v-if="actionInBar" type="button" class="setup-quiet-link" @click="$emit('back')">Back to Channels</button>
         </div>
 
-        <div v-else-if="!suggestion.channels" class="space-y-2">
-          <p class="status-readout err">There are no channels yet, so there is nothing to link a guide to.</p>
-          <p class="text-sm text-ink">Go back to Channels and scan for channels first. Then come back here to set up the guide.</p>
-          <button type="button" class="btn" @click="$emit('back')"><arrow-left-icon /> Back to Channels</button>
+        <div v-else-if="!suggestion.available" class="setup-block"></div>
+
+        <div v-else-if="suggestion.state === 'has-guide' && !editing" class="setup-block">
+          <div class="ui-group">
+            <div class="ui-group-row">
+              <span class="ui-group-row-main"><span class="ui-group-row-title">Guide address</span><span class="ui-group-row-meta setup-mono">{{ suggestion.url }}</span></span>
+            </div>
+          </div>
+          <button type="button" class="setup-quiet-link" @click="editing = true">Set up the guide again</button>
         </div>
 
-        <div v-else-if="!suggestion.available" class="space-y-2">
-          <p class="text-sm text-ink">This TVHeadend cannot download a guide from an address. It uses the guide that comes with the broadcast. Press Next.</p>
-        </div>
-
-        <div v-else-if="suggestion.state === 'has-guide' && !editing" class="space-y-2">
-          <p class="status-readout ok">{{ suggestion.linked }} of {{ suggestion.channels }} channels have a guide.</p>
-          <p class="text-sm text-ink-dim break-all">Guide address: {{ suggestion.url }}</p>
-          <p class="text-sm text-ink-dim">Press Next to keep it. To link channels that have no guide, or to change the address, set it up again.</p>
-          <button type="button" class="btn" @click="editing = true"><refresh-icon /> Set up again</button>
-        </div>
-
-        <div v-else class="space-y-4">
-          <p class="text-ink text-sm leading-relaxed">
-            A guide feed gives Freetvarr a week of listings with episode numbers, so it can record a show by name.
-          </p>
-          <div v-if="suggestion.feeds.length" class="field-row">
-            <label class="field-label" for="guide-feed">Guide</label>
-            <select id="guide-feed" class="field-input" v-model="choice">
-              <option value="">Pick a region</option>
-              <option v-for="f in suggestion.feeds" :key="f.url" :value="f.url">{{ f.region }}</option>
-              <option :value="OTHER">Another address</option>
-            </select>
+        <div v-else class="setup-block">
+          <div class="setup-fields">
+            <div v-if="suggestion.feeds.length" class="field-row">
+              <label class="field-label" for="guide-feed">Guide</label>
+              <select id="guide-feed" class="field-input" v-model="choice">
+                <option value="">Pick a region</option>
+                <option v-for="f in suggestion.feeds" :key="f.url" :value="f.url">{{ f.region }}</option>
+                <option :value="OTHER">Another address</option>
+              </select>
+            </div>
+            <div v-if="!suggestion.feeds.length || choice === OTHER" class="field-row">
+              <label class="field-label" for="guide-url">Guide address (XMLTV)</label>
+              <input v-no-autofill id="guide-url" v-autofocus type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
+            </div>
           </div>
-          <p v-else class="text-sm text-ink-dim">
-            Freetvarr has no free guide feed for your country yet. TVHeadend uses the guide that comes with the broadcast. If you have an XMLTV guide address, enter it below.
-          </p>
-          <div v-if="!suggestion.feeds.length || choice === OTHER" class="field-row">
-            <label class="field-label" for="guide-url">Guide address (XMLTV)</label>
-            <input v-no-autofill id="guide-url" v-autofocus type="text" class="field-input" v-model="customUrl" placeholder="https://example.com/epg.xml" />
+          <p v-if="!suggestion.feeds.length" class="setup-hint">Freetvarr has no free guide feed for your country yet. TVHeadend uses the guide that comes with the broadcast. If you have an XMLTV guide address, enter it above.</p>
+          <p v-if="suggestion.linked" class="setup-hint">Freetvarr keeps the guide links you already have.</p>
+          <p v-if="applyError" class="setup-hint is-error">{{ applyError }}</p>
+          <div v-if="!actionInBar" class="setup-inline-actions">
+            <button type="button" class="ui-button ui-button-primary" @click="apply" :disabled="!url || starting">Set up guide</button>
           </div>
-          <div class="action-row flex flex-wrap items-center gap-3">
-            <button type="button" class="btn btn-primary" @click="apply" :disabled="!url || starting">
-              <tv-icon /> Set up guide
-            </button>
-          </div>
-          <p v-if="applyError" class="status-readout err">{{ applyError }}</p>
-          <p v-if="suggestion.linked" class="text-xs text-ink-mute">Freetvarr keeps the guide links you already have.</p>
-          <manual-option v-if="tvhUrl" :href="tvhUrl" label="Open TVHeadend">
-            Load a guide yourself in TVHeadend, then come back here.
-          </manual-option>
+          <a v-if="tvhUrl" class="setup-quiet-link" :href="tvhUrl" target="_blank" rel="noopener">Load a guide yourself in TVHeadend</a>
         </div>
       </template>
     </div>
@@ -113,7 +108,7 @@ export const GuideSetupStep = {
     const status = ref(null)
     const loading = ref(false)
     const loadError = ref('')
-    const editing = ref(false)
+    const editing = ref(props.startEditing)
     const choice = ref('')
     const customUrl = ref('')
     const job = ref(null)
@@ -133,8 +128,30 @@ export const GuideSetupStep = {
     const linked = computed(() => (result.value?.ok ? result.value.linked : suggestion.value?.linked || 0))
     const pickedCount = computed(() => Object.values(picks).filter(Boolean).length)
 
-    watch([running, starting, linked, pickedCount], () => {
-      emit('state', { busy: running.value || starting.value, linked: linked.value, pending: pickedCount.value })
+    const total = computed(() => (result.value?.ok ? result.value.total : suggestion.value?.channels || 0))
+    const region = computed(() => (suggestion.value?.feeds || []).find((f) => f.url === (url.value || suggestion.value?.url))?.region || '')
+    const formShown = computed(() => Boolean(suggestion.value) && !showSteps.value && !loadError.value
+      && Boolean(suggestion.value.channels) && suggestion.value.available
+      && (suggestion.value.state !== 'has-guide' || editing.value))
+    const intro = computed(() => guideIntro({
+      loading: loading.value && !status.value,
+      loadError: loadError.value,
+      suggestion: suggestion.value,
+      editing: editing.value,
+      running: showSteps.value && !result.value,
+      result: result.value,
+    }))
+
+    watch([running, starting, linked, pickedCount, formShown, url, intro, total, region], () => {
+      emit('state', {
+        busy: running.value || starting.value,
+        linked: linked.value,
+        total: total.value,
+        region: region.value,
+        pending: pickedCount.value,
+        action: formShown.value ? { label: 'Set up guide', disabled: !url.value || starting.value } : null,
+        intro: intro.value,
+      })
     }, { immediate: true })
 
     watch(() => result.value?.unmatched, (unmatched) => {
@@ -214,17 +231,31 @@ export const GuideSetupStep = {
       refresh()
     }
 
-    const stepDetail = (s) => (s.id === 'download' && s.detail?.expected && s.detail.found
-      ? `${s.detail.found} of ${s.detail.expected} guide channels loaded`
-      : '')
-
     onMounted(refresh)
     onUnmounted(() => clearInterval(pollTimer))
 
     return {
       OTHER, status, loading, loadError, editing, suggestion, choice, customUrl, url,
       steps, result, showSteps, starting, applyError, picks, pickedCount,
-      refresh, apply, saveLinks, restart, stepDetail, secureStepDot,
+      refresh, apply, saveLinks, restart, runAction: apply, READING_STEPS, intro,
     }
   },
 }
+
+const guideIntro = ({ loading, loadError, suggestion, editing, running, result }) => {
+  if (loading) return 'Freetvarr reads the TV guide settings from TVHeadend.'
+  if (loadError) return 'Freetvarr could not read the TV guide settings from TVHeadend.'
+  if (running) return 'Setting up the guide. This takes a minute.'
+  if (result?.ok && !result.total) return 'There are no channels yet, so there is nothing to link a guide to.'
+  if (result?.ok) {
+    const others = result.unmatched.length
+    return `${result.linked} of ${result.total} channels have a guide.${others ? ` Check the picks for the other ${others === 1 ? 'one' : others}.` : ''}`
+  }
+  if (result) return 'The guide setup stopped.'
+  if (!suggestion?.channels) return 'There are no channels yet, so there is nothing to link a guide to. Scan for channels first.'
+  if (!suggestion.available) return 'This TVHeadend cannot download a guide from an address. It uses the guide that comes with the broadcast. Press Next.'
+  if (suggestion.state === 'has-guide' && !editing) return `${suggestion.linked} of ${suggestion.channels} channels have a guide. Press Next to keep it.`
+  return 'A guide feed gives Freetvarr a week of listings with episode numbers, so it can record a show by name.'
+}
+
+const READING_STEPS = [{ id: 'read', label: 'Read the TV guide settings', status: 'running' }]
