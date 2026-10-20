@@ -7,6 +7,8 @@ import {
   castNamesOf,
   entityRowsOf,
   evidenceWordsOf,
+  guideKindsByTitle,
+  hintsForKind,
   lookupExpiryOf,
   matchEvidenceOf,
   programmeHintsByTitle,
@@ -14,6 +16,7 @@ import {
   rankEntities,
   tmdbAuthOf,
   tmdbCandidatesOf,
+  tmdbSearchOf,
   tmdbSourcesOf,
   titleVariantsOf,
   yearsOf,
@@ -189,4 +192,53 @@ test('titleVariantsOf adds the title without a country suffix', () => {
   assert.deepEqual(titleVariantsOf('The Celebrity Traitors UK'), ['The Celebrity Traitors UK', 'The Celebrity Traitors'])
   assert.deepEqual(titleVariantsOf('Spelling Bee (NZ)'), ['Spelling Bee (NZ)', 'Spelling Bee'])
   assert.deepEqual(titleVariantsOf('Cool Runnings'), ['Cool Runnings'])
+})
+
+test('titleVariantsOf adds the title without a release year', () => {
+  assert.deepEqual(titleVariantsOf('Training Day (2001)'), ['Training Day (2001)', 'Training Day'])
+  assert.deepEqual(titleVariantsOf('Gold Rush (2019) UK'), ['Gold Rush (2019) UK', 'Gold Rush (2019)'])
+})
+
+test('hintsForKind treats a film as a film even when the guide gives it an episode title', () => {
+  const hints = programmeHintsOf([{ title: 'Training Day (2001)', episode_title: 'Training Day', synopsis: 'A rookie cop. (Denzel Washington)' }])
+  assert.equal(hints.isEpisode, true)
+  assert.deepEqual(hintsForKind({ hints, kind: 'movie' }), { ...hints, kind: 'movie', isEpisode: false })
+  assert.equal(hintsForKind({ hints, kind: 'series' }), hints)
+  assert.equal(hintsForKind({ hints: null, kind: 'movie' }), null)
+})
+
+test('rankEntities keeps only films for a film', () => {
+  const rows = [
+    { id: 'Q1', kind: 'series', year: 2017, article: 'Training Day (TV series)', imdb: 'tt1' },
+    { id: 'Q2', kind: 'film', year: 2001, article: 'Training Day', imdb: 'tt2' },
+  ]
+  assert.deepEqual(rankEntities({ rows, hints: { kind: 'movie', isEpisode: false, years: [] }, order: ['Q1', 'Q2'] }).map((row) => row.id), ['Q2'])
+})
+
+test('tmdbCandidatesOf keeps only movies for a film', () => {
+  const results = [
+    { media_type: 'tv', id: 1, name: 'Training Day' },
+    { media_type: 'movie', id: 2, title: 'Training Day' },
+  ]
+  assert.deepEqual(tmdbCandidatesOf({ results, title: 'Training Day', hints: { kind: 'movie' } }).map((r) => r.id), [2])
+})
+
+test('tmdbSearchOf searches movies with the release year for films, shows for episodes, and both otherwise', () => {
+  assert.deepEqual(tmdbSearchOf({ title: 'Training Day', hints: { kind: 'movie', releaseYears: [2001] } }), {
+    path: '/search/movie', mediaType: 'movie', params: { query: 'Training Day', year: 2001 },
+  })
+  assert.deepEqual(tmdbSearchOf({ title: 'Heat', hints: { kind: 'movie', releaseYears: [] } }).params, { query: 'Heat' })
+  assert.equal(tmdbSearchOf({ title: 'Bluey', hints: { isEpisode: true } }).path, '/search/tv')
+  assert.equal(tmdbSearchOf({ title: 'Bluey', hints: { isEpisode: false } }).path, '/search/multi')
+})
+
+test('guideKindsByTitle marks a title as a film only when every airing is a film', () => {
+  const kinds = guideKindsByTitle([
+    { title: 'Training Day (2001)', kind: 'movie' },
+    { title: 'Training Day', kind: 'movie' },
+    { title: 'Heat', kind: 'movie' },
+    { title: 'Heat', kind: 'series' },
+    { title: 'Bluey', kind: 'series' },
+  ])
+  assert.deepEqual([...kinds], [['training day', 'movie']])
 })

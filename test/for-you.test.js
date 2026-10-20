@@ -262,6 +262,14 @@ test('movies are films only, never series', () => {
   assert.deepEqual(sectionOf(result, 'movies').items.map((item) => item.title), ['A Big Movie'])
 })
 
+test('a film without a guide picture asks for film artwork', () => {
+  const events = baseEvents().concat(watched('Fifth', { episodes: 2 }))
+  const evening = Math.floor(NOW / DAY) * DAY + 19 * HOUR
+  const film = airing('Training Day (2001)', { start: evening, end: evening + 2 * HOUR, image: null })
+  const result = run({ programmes: [film], events })
+  assert.equal(itemFor(result, 'Training Day (2001)').image, '/api/epg/show-image?title=Training%20Day%20(2001)&kind=movie')
+})
+
 test('hidden shows list and undo', () => {
   const events = [feedback('not_interested', 'The Block', 10), feedback('not_interested', 'MKR', 100), feedback('not_interested', 'Rake', 5), feedback('not_interested_undo', 'Rake', 4)]
   const hidden = hiddenShowsOf({ profile: profileOf({ events, nowMs: NOW }), nowMs: NOW })

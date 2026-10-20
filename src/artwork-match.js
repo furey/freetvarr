@@ -31,6 +31,17 @@ export const programmeHintsByTitle = (programs = []) => {
   return new Map([...grouped].map(([key, group]) => [key, programmeHintsOf(group)]))
 }
 
+export const guideKindsByTitle = (programs = []) => {
+  const kinds = new Map()
+  for (const program of programs) {
+    const key = showTitleKey(program?.title)
+    if (!key) continue
+    const everyEarlierFilm = kinds.has(key) ? kinds.get(key) : true
+    kinds.set(key, everyEarlierFilm && program.kind === FILM_KIND)
+  }
+  return new Map([...kinds].filter(([, isFilm]) => isFilm).map(([key]) => [key, FILM_KIND]))
+}
+
 export const yearsOf = (text) => [...new Set(
   [...String(text || '').matchAll(/\b(19[2-9]\d|20[0-4]\d)\b/g)].map((match) => Number(match[1])),
 )]
@@ -52,8 +63,24 @@ export const castNamesOf = (synopsis) => {
 
 export const titleVariantsOf = (title) => {
   const trimmed = String(title || '').trim()
-  const withoutRegion = trimmed.replace(REGION_SUFFIX, '').trim()
-  return withoutRegion && withoutRegion !== trimmed ? [trimmed, withoutRegion] : [trimmed]
+  const withoutYear = trimmed.replace(YEAR_SUFFIX, '').trim()
+  const withoutRegion = withoutYear.replace(REGION_SUFFIX, '').trim()
+  return [...new Set([trimmed, withoutYear, withoutRegion].filter(Boolean))]
+}
+
+export const artworkKindOf = (kind) => (kind === FILM_KIND ? FILM_KIND : null)
+
+export const hintsForKind = ({ hints, kind }) => (hints && artworkKindOf(kind)
+  ? { ...hints, kind: FILM_KIND, isEpisode: false }
+  : hints)
+
+export const tmdbSearchOf = ({ title, hints }) => {
+  if (hints?.kind === FILM_KIND) {
+    const year = hints.releaseYears?.length === 1 ? { year: hints.releaseYears[0] } : {}
+    return { path: '/search/movie', mediaType: 'movie', params: { query: title, ...year } }
+  }
+  if (hints?.isEpisode) return { path: '/search/tv', mediaType: 'tv', params: { query: title } }
+  return { path: '/search/multi', mediaType: null, params: { query: title } }
 }
 
 export const evidenceWordsOf = ({ synopsis, title }) => {
@@ -137,7 +164,7 @@ export const entityRowsOf = (sparql) => (sparql?.results?.bindings || []).map((b
 })
 
 export const rankEntities = ({ rows = [], hints, order = [] }) => rows
-  .filter((row) => row.article && (!hints?.isEpisode || row.kind === 'series'))
+  .filter((row) => row.article && entityKindFits({ row, hints }))
   .map((row) => ({ row, score: entityScoreOf({ row, hints, position: order.indexOf(row.id) }) }))
   .sort((a, b) => b.score - a.score)
   .map(({ row }) => row)
@@ -183,13 +210,23 @@ export const tmdbCandidatesOf = ({ results = [], title, hints }) => {
   const key = showTitleKey(title)
   return results
     .filter((result) => ['movie', 'tv'].includes(result.media_type))
-    .filter((result) => !hints?.isEpisode || result.media_type === 'tv')
+    .filter((result) => tmdbKindFits({ result, hints }))
     .filter((result) => [result.title, result.name, result.original_title, result.original_name]
       .some((name) => name && showTitleKey(name) === key))
     .slice(0, MAX_ENTITY_CANDIDATES)
 }
 
 export const lookupExpiryOf = ({ found, nowMs, hitTtlMs, missTtlMs }) => nowMs + (found ? hitTtlMs : missTtlMs)
+
+const entityKindFits = ({ row, hints }) => {
+  if (hints?.kind === FILM_KIND) return row.kind === 'film'
+  return !hints?.isEpisode || row.kind === 'series'
+}
+
+const tmdbKindFits = ({ result, hints }) => {
+  if (hints?.kind === FILM_KIND) return result.media_type === 'movie'
+  return !hints?.isEpisode || result.media_type === 'tv'
+}
 
 const entityScoreOf = ({ row, hints, position }) => {
   const hasIds = row.tmdbMovie || row.tmdbTv || row.imdb ? 4 : 0
@@ -250,6 +287,8 @@ const COMMON_PROPER_NOUNS = new Set([
 ])
 
 const REGION_SUFFIX = /\s*(?:\((?:UK|US|USA|NZ|AU|Aus)\)|\b(?:UK|US|USA|NZ|Australia|New Zealand))$/
+const YEAR_SUFFIX = /\s*\((?:19|20)\d{2}\)$/
+const FILM_KIND = 'movie'
 const FILM_CLASS = 'Q11424'
 const TELEVISION_PROGRAM_CLASS = 'Q15416'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'

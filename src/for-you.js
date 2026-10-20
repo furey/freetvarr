@@ -374,7 +374,9 @@ const scoreAiring = ({ programme, context }) => {
       title,
       episodeTitle: programme.episode_title || null,
       synopsis: programme.synopsis || '',
-      image: programme.image ? `/api/epg/image/${encodeURIComponent(programme.program_id)}` : `/api/epg/show-image?title=${encodeURIComponent(title)}`,
+      image: programme.image
+        ? `/api/epg/image/${encodeURIComponent(programme.program_id)}`
+        : showImageUrlOf({ title, isFilm: movie || programme.kind === 'movie' }),
       channelId,
       channelName,
       start: Number(programme.start),
@@ -391,6 +393,9 @@ const scoreAiring = ({ programme, context }) => {
     },
   }
 }
+
+const showImageUrlOf = ({ title, isFilm }) =>
+  `/api/epg/show-image?title=${encodeURIComponent(title)}${isFilm ? '&kind=movie' : ''}`
 
 const reasonOf = (contributions) => {
   const leading = contributions.find((contribution) => LEADING_FEATURES.has(contribution.feature))

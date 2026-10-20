@@ -3,15 +3,18 @@ import { showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { createOutboundClient, createHostLimiter } from './outbound-http.js'
 import {
   articleCandidateIdsOf,
+  artworkKindOf,
   candidateIdsOf,
   entityQueryOf,
   entityRowsOf,
+  hintsForKind,
   lookupExpiryOf,
   matchEvidenceOf,
   pageArtOf,
   rankEntities,
   tmdbAuthOf,
   tmdbCandidatesOf,
+  tmdbSearchOf,
   tmdbSourcesOf,
   tmdbTextOf,
   tmdbYearOf,
@@ -37,11 +40,12 @@ export const createFallbackArtwork = ({
 
   const recentlyFailed = (cacheKey) => (failedUntil.get(cacheKey) || 0) > now()
 
-  const settingsFor = async (title) => {
+  const settingsFor = async ({ title, kind }) => {
     const key = showTitleKey(title)
     if (!key || !(await isEnabled())) return null
     const apiKey = await tmdbKey()
-    return { key, apiKey, cacheKey: `${apiKey ? 'tmdb' : 'open'}:${key}` }
+    const artworkKind = artworkKindOf(kind)
+    return { key, apiKey, kind: artworkKind, cacheKey: cacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: artworkKind, key }) }
   }
 
   const cachedSources = async (cacheKey) => {
@@ -49,9 +53,10 @@ export const createFallbackArtwork = ({
     return cached && cached.expiresAt > now() ? cached.sources : null
   }
 
-  const startLookup = ({ title, apiKey, cacheKey }) => {
+  const startLookup = ({ title, kind, apiKey, cacheKey }) => {
     if (inflight.has(cacheKey)) return inflight.get(cacheKey)
-    const pending = lookupLimiter.run(async () => lookUp({ title, hints: await hintsFor(title), apiKey }))
+    const pending = lookupLimiter.run(async () =>
+      lookUp({ title, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }))
       .then(async (found) => {
         const sources = found?.sources || []
         const expiresAt = lookupExpiryOf({ found: sources.length > 0, nowMs: now(), hitTtlMs, missTtlMs })
@@ -67,16 +72,16 @@ export const createFallbackArtwork = ({
     return pending
   }
 
-  const sourcesFor = async (title) => {
-    const settings = await settingsFor(title)
+  const sourcesFor = async (title, { kind = null } = {}) => {
+    const settings = await settingsFor({ title, kind })
     if (!settings || recentlyFailed(settings.cacheKey)) return []
     const cached = await cachedSources(settings.cacheKey)
     if (cached) return cached
     return startLookup({ title, ...settings })
   }
 
-  const artworkFor = async (title) => {
-    const settings = await settingsFor(title)
+  const artworkFor = async (title, { kind = null } = {}) => {
+    const settings = await settingsFor({ title, kind })
     if (!settings || recentlyFailed(settings.cacheKey)) return NO_ARTWORK
     const cached = await cachedSources(settings.cacheKey)
     if (cached) return { sources: cached, pending: false }
@@ -88,8 +93,11 @@ export const createFallbackArtwork = ({
     const key = showTitleKey(title)
     if (!key) return
     for (const mode of ['open', 'tmdb']) {
-      failedUntil.delete(`${mode}:${key}`)
-      await cache.remove?.(`${mode}:${key}`).catch(() => {})
+      for (const kind of [null, artworkKindOf('movie')]) {
+        const cacheKey = cacheKeyOf({ mode, kind, key })
+        failedUntil.delete(cacheKey)
+        await cache.remove?.(cacheKey).catch(() => {})
+      }
     }
   }
 
@@ -208,7 +216,9 @@ export const createArtworkLookup = ({ client = artworkClient } = {}) => {
   }
 
   const tmdbSearchFor = async ({ apiKey, title, hints }) => {
-    const results = (await tmdbGet({ apiKey, path: '/search/multi', params: { query: title, include_adult: 'false', language: 'en-AU' } }))?.results
+    const search = tmdbSearchOf({ title, hints })
+    const found = await tmdbGet({ apiKey, path: search.path, params: { ...search.params, include_adult: 'false', language: 'en-AU' } })
+    const results = (found?.results || []).map((result) => ({ ...result, media_type: result.media_type || search.mediaType }))
     for (const result of tmdbCandidatesOf({ results, title, hints })) {
       const details = await tmdbDetails({ apiKey, type: result.media_type, id: result.id, withCredits: true })
       if (!details) continue
@@ -258,6 +268,8 @@ export const isFallbackImageSource = (source) => artworkClient.isAllowedUrl(sour
   && IMAGE_HOSTS.has(new URL(source).hostname)
 
 export const fetchFallbackImage = (source) => artworkClient.getImage({ url: source }).catch(() => null)
+
+const cacheKeyOf = ({ mode, kind, key }) => (kind ? `${mode}:${kind}:${key}` : `${mode}:${key}`)
 
 const storedTmdbKey = async () => String((await getSetting(TMDB_KEY_SETTING)) || '').trim() || null
 

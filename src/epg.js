@@ -23,7 +23,7 @@ import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
 import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource } from './fallback-artwork.js'
-import { programmeHintsByTitle } from './artwork-match.js'
+import { artworkKindOf, guideKindsByTitle, programmeHintsByTitle } from './artwork-match.js'
 import { loadTitleGenres, rememberTvmazeShow } from './genre-enrichment.js'
 import { createGuideSearchCache, searchGuideListings } from './guide-search.js'
 import { loadSearchAliases, rememberKnownAsFromTvmaze } from './search-aliases.js'
@@ -534,28 +534,28 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
 }
 
 export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
-  const { sources, title } = await programmeImageSources({ eventId, fallbackSource })
+  const { sources, title, kind } = await programmeImageSources({ eventId, fallbackSource })
   return await firstImageOf({ sources, load: (source) => programmeImages.imageFor(source) })
-    || await firstImageOf({ sources: await showArtSources(title), load: showArtOriginal })
+    || await firstImageOf({ sources: await showArtSources({ title, kind }), load: showArtOriginal })
 }
 
 export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
 
 export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
-  const { sources, title } = await programmeImageSources({ eventId, fallbackSource })
+  const { sources, title, kind } = await programmeImageSources({ eventId, fallbackSource })
   const fromGuide = await firstImageWithin({
     sources,
     load: guideThumbnailLoader(width),
     budgetMs: GUIDE_IMAGE_BUDGET_MS,
   })
   if (fromGuide.image) return fromGuide
-  const fromShow = await findShowThumbnail({ title, width })
+  const fromShow = await findShowThumbnail({ title, width, kind })
   return { image: fromShow.image, pending: fromGuide.pending || fromShow.pending }
 }
 
-export const findShowThumbnail = async ({ title, width } = {}) => {
+export const findShowThumbnail = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
-  const artwork = await showArtworkFor(title)
+  const artwork = await showArtworkFor({ title, kind })
   const found = await firstImageWithin({
     sources: artwork.sources,
     load: showThumbnailLoader(width),
@@ -564,9 +564,9 @@ export const findShowThumbnail = async ({ title, width } = {}) => {
   return { image: found.image, pending: artwork.pending || found.pending }
 }
 
-export const findShowPoster = async ({ title, width } = {}) => {
+export const findShowPoster = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
-  const artwork = await showArtworkFor(title)
+  const artwork = await showArtworkFor({ title, kind })
   const found = await firstImageWithin({
     sources: artwork.sources,
     load: posterThumbnailLoader(width),
@@ -595,23 +595,35 @@ const programmeImageSources = async ({ eventId, fallbackSource }) => {
   const title = inGuide?.title ?? saved?.title
   const sameTitle = guide?.imagesByTitle.get(titleKeyOf(title)) || []
   const sources = [...new Set([own, ...sameTitle].filter(Boolean))].slice(0, MAX_IMAGE_SOURCES)
-  return { sources, title }
+  return { sources, title, kind: inGuide?.kind ?? null }
 }
 
-const showArtSources = async (title) => {
+const showArtSources = async ({ title, kind = null }) => {
   if (!title) return []
-  const sources = await showArtwork.sourcesFor(title).catch(() => [])
-  return sources.length ? sources : fallbackArtwork.sourcesFor(title).catch(() => [])
+  const artworkKind = kind ?? await guideKindFor(title)
+  const sources = isFilmKind(artworkKind) ? [] : await showArtwork.sourcesFor(title).catch(() => [])
+  return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => [])
 }
 
-const showArtworkFor = async (title) => {
+const showArtworkFor = async ({ title, kind = null }) => {
+  const artworkKind = kind ?? await guideKindFor(title)
+  if (isFilmKind(artworkKind)) return fallbackArtwork.artworkFor(title, { kind: artworkKind }).catch(() => NO_ARTWORK)
   const artwork = await showArtwork.artworkFor(title).catch(() => NO_ARTWORK)
   if (artwork.sources.length) return artwork
   if (artwork.pending) {
-    showArtSources(title)
+    showArtSources({ title, kind: artworkKind })
     return artwork
   }
-  return fallbackArtwork.artworkFor(title).catch(() => NO_ARTWORK)
+  return fallbackArtwork.artworkFor(title, { kind: artworkKind }).catch(() => NO_ARTWORK)
+}
+
+const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
+
+const guideKindFor = async (title) => {
+  const guide = await getCachedGuide().catch(() => null)
+  if (!guide) return null
+  if (!kindsByGuide.has(guide)) kindsByGuide.set(guide, guideKindsByTitle([...guide.programByEventId.values()]))
+  return kindsByGuide.get(guide).get(showTitleKey(title)) || null
 }
 
 const programmeHintsFor = async (title) => {
@@ -778,6 +790,7 @@ const showArtwork = createShowArtwork({
 })
 const fallbackArtwork = createFallbackArtwork({ hintsFor: programmeHintsFor })
 const hintsByGuide = new WeakMap()
+const kindsByGuide = new WeakMap()
 const guideSearchFor = createGuideSearchCache()
 export const forgetShowArtwork = (title) => Promise.all([showArtwork.forget(title), fallbackArtwork.forget(title)])
 const thumbnailStore = createThumbnailStore({

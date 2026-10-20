@@ -177,6 +177,7 @@ import { mountLibraryRoutes } from './library-routes.js'
 import { mountArtPoolRoutes } from './art-pool.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
+import { artworkKindOf } from './artwork-match.js'
 import { mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
@@ -723,12 +724,13 @@ app.get('/api/epg/image/:eventId', serveImage({
 
 app.get('/api/epg/show-image', serveImage({
   widths: PROGRAMME_IMAGE_WIDTHS,
-  loadImage: ({ width, title, shape }) => (shape === POSTER_SHAPE
-    ? findShowPoster({ title, width })
-    : findShowThumbnail({ title, width })),
+  loadImage: ({ width, title, shape, kind }) => (shape === POSTER_SHAPE
+    ? findShowPoster({ title, width, kind })
+    : findShowThumbnail({ title, width, kind })),
   paramsOf: (req) => ({
     title: String(req.query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
     shape: showImageShapeFrom(req.query.shape),
+    kind: artworkKindOf(req.query.kind),
   }),
 }))
 

@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createFallbackArtwork } from '../src/fallback-artwork.js'
+import { createArtworkLookup, createFallbackArtwork } from '../src/fallback-artwork.js'
+import { programmeHintsOf } from '../src/artwork-match.js'
 
 const memoryCache = () => {
   const rows = new Map()
@@ -96,4 +97,62 @@ test('a TMDB key gets its own cache entries and is passed to the lookup', async 
   assert.ok(cache.rows.has('tmdb:film'))
   await artwork.forget('Film')
   assert.equal(cache.rows.size, 0)
+})
+
+test('a film gets its own cache entry and film hints, so an old show miss does not hide it', async () => {
+  const seen = []
+  const cache = memoryCache()
+  cache.rows.set('tmdb:training day', { sources: [], expiresAt: 10_000 })
+  const { artwork } = fallbackWith({
+    apiKey: 'k',
+    cache,
+    lookUp: async ({ hints }) => { seen.push(hints); return { sources: ['https://image.tmdb.org/t/p/w780/td.jpg'] } },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Training Day'), [])
+  assert.deepEqual(await artwork.sourcesFor('Training Day', { kind: 'movie' }), ['https://image.tmdb.org/t/p/w780/td.jpg'])
+  assert.deepEqual(seen, [{ title: 'Training Day', kind: 'movie', isEpisode: false }])
+  assert.ok(cache.rows.has('tmdb:movie:training day'))
+  await artwork.forget('Training Day')
+  assert.equal(cache.rows.size, 0)
+})
+
+const TRAINING_DAY = {
+  title: 'Training Day (2001)',
+  episode_title: 'Training Day',
+  synopsis: 'This crime tale shadows a veteran narcotics detective as he tests the resolve of wide-eyed, idealistic rookie Jake Hoyt. (Denzel Washington)',
+}
+
+const fakeClient = (routes) => {
+  const calls = []
+  return {
+    calls,
+    getJson: async ({ url, params }) => {
+      calls.push({ path: new URL(url).pathname, params })
+      return routes(new URL(url).pathname, params) ?? {}
+    },
+  }
+}
+
+test('a film whose guide entry has an episode title is found through a TMDB movie search with its year', async () => {
+  const client = fakeClient((path, params) => {
+    if (path === '/3/search/movie' && params.query === 'Training Day' && params.year === 2001) {
+      return { results: [{ id: 2034, title: 'Training Day', release_date: '2001-10-05' }] }
+    }
+    if (path === '/3/movie/2034') {
+      return { title: 'Training Day', release_date: '2001-10-05', backdrop_path: '/b.jpg', credits: { cast: [{ name: 'Denzel Washington' }] } }
+    }
+    return null
+  })
+  const lookUp = createArtworkLookup({ client })
+  const hints = { ...programmeHintsOf([TRAINING_DAY]), kind: 'movie', isEpisode: false }
+  const found = await lookUp({ title: TRAINING_DAY.title, hints, apiKey: 'k' })
+  assert.deepEqual(found, { sources: ['https://image.tmdb.org/t/p/w1280/b.jpg'], reference: 'tmdb:movie:2034' })
+  assert.ok(!client.calls.some((call) => call.path === '/3/search/multi' || call.path === '/3/search/tv'))
+})
+
+test('an episode searches TMDB shows only', async () => {
+  const client = fakeClient(() => null)
+  const lookUp = createArtworkLookup({ client })
+  await lookUp({ title: 'Bluey', hints: programmeHintsOf([{ title: 'Bluey', episode_title: 'Keepy Uppy', synopsis: 'Balloon game.' }]), apiKey: 'k' })
+  assert.deepEqual([...new Set(client.calls.filter((call) => call.path.startsWith('/3/search')).map((call) => call.path))], ['/3/search/tv'])
 })
