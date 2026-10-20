@@ -138,10 +138,16 @@ export const HomeHeroCarousel = {
       frame = null
     }
 
+    const playerOpen = () => live.open || playback.open
+
+    const syncClock = () => {
+      if (document.hidden || playerOpen()) stopClock()
+      else startClock()
+    }
+
     const onVisibility = () => {
       dispatch({ type: 'hidden', hidden: document.hidden })
-      if (document.hidden) stopClock()
-      else startClock()
+      syncClock()
     }
 
     const onReducedChange = () => dispatch({ type: 'reducedMotion', reduced: reducedQuery.matches })
@@ -150,7 +156,7 @@ export const HomeHeroCarousel = {
       document.addEventListener('visibilitychange', onVisibility)
       reducedQuery.addEventListener('change', onReducedChange)
       dispatch({ type: 'hidden', hidden: document.hidden })
-      if (!document.hidden) startClock()
+      syncClock()
     })
 
     onUnmounted(() => {
@@ -159,7 +165,10 @@ export const HomeHeroCarousel = {
       stopClock()
     })
 
-    watch(() => live.open || playback.open, (open) => dispatch({ type: 'playerOpen', open }), { immediate: true })
+    watch(playerOpen, (open) => {
+      dispatch({ type: 'playerOpen', open })
+      syncClock()
+    }, { immediate: true })
 
     watch(() => props.slides.map((s) => s.key).join('|'), (keys, previousKeys) => {
       const currentKey = (previousKeys ?? '').split('|')[rotation.value.index]
