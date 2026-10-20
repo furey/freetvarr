@@ -205,42 +205,42 @@ export const SettingsView = {
             <div class="ui-group">
               <div class="settings-row">
                 <label class="field-label" for="settings-media-root">Media root <span class="settings-label-note">(inside container)</span></label>
-                <input v-no-autofill id="settings-media-root" type="text" class="field-input" v-model="mediaRoot" placeholder="/data/media/tv" />
-                <p class="settings-hint">
-                  The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.
-                </p>
-                <div class="settings-row-actions">
-                  <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
-                    <template v-if="mediaRootTesting">Testing…</template><template v-else><pulse-icon /> Test path</template>
-                  </button>
-                  <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
+                <div class="field-action">
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="settings-media-root" type="text" :class="['field-input', { 'is-invalid': mediaRootStatus && mediaRootStatusKind === 'err' }]" v-model="mediaRoot" placeholder="/data/media/tv" />
+                    <button type="button" :class="['btn', { 'is-pending': mediaRootTesting }]" @click="testMediaRoot" :disabled="mediaRootTesting">
+                      <template v-if="mediaRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
+                    </button>
+                  </div>
                 </div>
+                <p v-if="mediaRootStatus" :class="['status-readout', 'field-status', mediaRootStatusKind]" role="status">{{ mediaRootStatus }}</p>
+                <p class="settings-hint">The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.</p>
               </div>
               <div class="settings-row">
                 <label class="field-label" for="settings-oneoff-root">One-off folder <span class="settings-label-note">(inside container)</span></label>
-                <input v-no-autofill id="settings-oneoff-root" type="text" class="field-input" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
-                <p class="settings-hint">
-                  Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.
-                </p>
-                <div class="settings-row-actions">
-                  <button type="button" class="btn btn-sm" @click="testOneOffRoot" :disabled="oneOffRootTesting">
-                    <template v-if="oneOffRootTesting">Testing…</template><template v-else><pulse-icon /> Test path</template>
-                  </button>
-                  <span v-if="oneOffRootStatus" :class="['status-readout', oneOffRootStatusKind]">{{ oneOffRootStatus }}</span>
+                <div class="field-action">
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="settings-oneoff-root" type="text" :class="['field-input', { 'is-invalid': oneOffRootStatus && oneOffRootStatusKind === 'err' }]" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
+                    <button type="button" :class="['btn', { 'is-pending': oneOffRootTesting }]" @click="testOneOffRoot" :disabled="oneOffRootTesting">
+                      <template v-if="oneOffRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
+                    </button>
+                  </div>
                 </div>
+                <p v-if="oneOffRootStatus" :class="['status-readout', 'field-status', oneOffRootStatusKind]" role="status">{{ oneOffRootStatus }}</p>
+                <p class="settings-hint">Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.</p>
               </div>
               <div class="settings-row">
                 <label class="field-label" for="settings-movies-root">Movies folder <span class="settings-label-note">(inside container, optional)</span></label>
-                <input v-no-autofill id="settings-movies-root" type="text" class="field-input" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
-                <p class="settings-hint">
-                  Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.
-                </p>
-                <div class="settings-row-actions">
-                  <button type="button" class="btn btn-sm" @click="testMoviesRoot" :disabled="moviesRootTesting || !moviesRoot.trim()">
-                    <template v-if="moviesRootTesting">Testing…</template><template v-else><pulse-icon /> Test path</template>
-                  </button>
-                  <span v-if="moviesRootStatus" :class="['status-readout', moviesRootStatusKind]">{{ moviesRootStatus }}</span>
+                <div class="field-action">
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="settings-movies-root" type="text" :class="['field-input', { 'is-invalid': moviesRootStatus && moviesRootStatusKind === 'err' }]" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
+                    <button type="button" :class="['btn', { 'is-pending': moviesRootTesting }]" @click="testMoviesRoot" :disabled="moviesRootTesting || !moviesRoot.trim()">
+                      <template v-if="moviesRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
+                    </button>
+                  </div>
                 </div>
+                <p v-if="moviesRootStatus" :class="['status-readout', 'field-status', moviesRootStatusKind]" role="status">{{ moviesRootStatus }}</p>
+                <p class="settings-hint">Films that match no series go here, as <code>Title (Year)/Title (Year).ts</code>. In Plex, add a "Movies" library for this folder.</p>
               </div>
             </div>
           </div>
@@ -249,23 +249,27 @@ export const SettingsView = {
             <div class="ui-group">
               <div class="settings-row">
                 <label class="field-label" for="settings-recordings-root">As Freetvarr sees it</label>
-                <input v-no-autofill id="settings-recordings-root" type="text" class="field-input" v-model="recordingsRoot" placeholder="/data/recordings" />
-                <div class="settings-row-actions">
-                  <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
-                    <template v-if="recordingsCheck.checking">Checking…</template><template v-else><pulse-icon /> Test path</template>
-                  </button>
-                  <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
+                <div class="field-action">
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="settings-recordings-root" type="text" :class="['field-input', { 'is-invalid': recordingsCheck.text && recordingsCheck.kind === 'err' }]" v-model="recordingsRoot" placeholder="/data/recordings" />
+                    <button type="button" :class="['btn', { 'is-pending': recordingsCheck.checking }]" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
+                      <template v-if="recordingsCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Test path</template>
+                    </button>
+                  </div>
                 </div>
+                <p v-if="recordingsCheck.text" :class="['status-readout', 'field-status', recordingsCheck.kind]" role="status">{{ recordingsCheck.text }}</p>
               </div>
               <div class="settings-row">
                 <label class="field-label" for="settings-tvh-recordings-path">As TVHeadend sees it</label>
-                <input v-no-autofill id="settings-tvh-recordings-path" type="text" class="field-input" v-model="tvhRecordingsPath" placeholder="/recordings" />
-                <div class="settings-row-actions">
-                  <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
-                    <template v-if="tvhPathCheck.checking">Checking…</template><template v-else><pulse-icon /> Check TVHeadend</template>
-                  </button>
-                  <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
+                <div class="field-action">
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="settings-tvh-recordings-path" type="text" :class="['field-input', { 'is-invalid': tvhPathCheck.text && tvhPathCheck.kind === 'err' }]" v-model="tvhRecordingsPath" placeholder="/recordings" />
+                    <button type="button" :class="['btn', { 'is-pending': tvhPathCheck.checking }]" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
+                      <template v-if="tvhPathCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Check TVHeadend</template>
+                    </button>
+                  </div>
                 </div>
+                <p v-if="tvhPathCheck.text" :class="['status-readout', 'field-status', tvhPathCheck.kind]" role="status">{{ tvhPathCheck.text }}</p>
               </div>
             </div>
             <p class="settings-note">TVHeadend and Freetvarr must share this folder. Each can see it at a different path; enter the path each one sees.</p>
@@ -326,14 +330,16 @@ export const SettingsView = {
               </div>
               <div class="settings-row">
                 <label class="field-label" for="settings-plex-token">Plex token</label>
-                <input v-no-autofill id="settings-plex-token" type="password" class="field-input" v-model="plexToken"
-                  :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
-                <div class="settings-row-actions">
-                  <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetecting">
-                    <template v-if="plexDetecting">Detecting…</template><template v-else><bolt-icon /> Auto-detect token</template>
-                  </button>
-                  <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
+                <div class="field-action">
+                  <div class="field-action-controls">
+                    <input v-no-autofill id="settings-plex-token" type="password" :class="['field-input', { 'is-invalid': plexTokenStatus && plexTokenStatusKind === 'err' }]" v-model="plexToken"
+                      :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
+                    <button type="button" :class="['btn', { 'is-pending': plexDetecting }]" @click="detectPlexToken" :disabled="plexDetecting">
+                      <template v-if="plexDetecting"><span class="spinner" aria-hidden="true"></span> Detecting…</template><template v-else><bolt-icon /> Auto-detect token</template>
+                    </button>
+                  </div>
                 </div>
+                <p v-if="plexTokenStatus" :class="['status-readout', 'field-status', plexTokenStatusKind]" role="status">{{ plexTokenStatus }}</p>
                 <p class="settings-hint">Auto-detect token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file.</p>
                 <details class="settings-disclosure" :open="plexPrefsOpen">
                   <summary>Token not found?</summary>

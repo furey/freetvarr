@@ -53,22 +53,10 @@ export const SortAnnouncer = {
   `,
 }
 
-export const SortUndoToast = {
-  props: { toast: { type: Object, default: null } },
-  emits: ['undo'],
-  template: `
-    <div v-if="toast" :class="['ui-toast', 'sort-toast', { 'is-error': toast.error }]" role="status">
-      <span class="sort-toast-text">{{ toast.text }}</span>
-      <button v-if="toast.previous" type="button" class="sort-toast-undo" @click="$emit('undo')">Undo</button>
-    </div>
-  `,
-}
-
 export const SORT_PART_COMPONENTS = {
   'sort-grip-icon': SortGripIcon,
   'sort-order-icon': SortOrderIcon,
   'sort-edit-toggle': SortEditToggle,
   'sort-dots-icon': SortDotsIcon,
   'sort-announcer': SortAnnouncer,
-  'sort-undo-toast': SortUndoToast,
 }

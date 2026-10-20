@@ -22,7 +22,7 @@ import { sentenceCase } from '/sentence-case.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 import { useConfirm } from '/components/dialogs.js'
 import { api, fetchSettings } from '/shared/api.js'
-import { useMediaQuery, useFlash, FLASH_DEFAULT_MS } from '/shared/composables.js'
+import { useMediaQuery, useFlash } from '/shared/composables.js'
 import { EPG_NARROW_QUERY } from '/shared/constants.js'
 import { fmtBytes, seasonEpisodeLabel } from '/shared/format.js'
 import { playRecording } from '/shared/playback-session.js'
@@ -60,7 +60,6 @@ export const RecordingsView = {
           <p>Press a row to see the recording's details: its channel, length, size, file, ads, and the full error if it has one. The buttons there play, import, scan for ads, or remove it.</p>
         </info-button>
       </div>
-      <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
 
       <div class="settings-filters">
         <div class="settings-filter-bar">
@@ -181,7 +180,7 @@ export const RecordingsView = {
     </div>
   `,
   setup() {
-    const { flashText, flashKind, flash } = useFlash()
+    const { flash } = useFlash()
     const recordings = ref([])
     const shows = ref([])
     const deletingId = ref(null)
@@ -243,7 +242,7 @@ export const RecordingsView = {
         await refresh()
         flash({ msg: `Refreshed ${total.value} recording${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
-        flash({ msg: `Refresh failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Refresh failed: ${err.message}`, kind: 'err' })
       }
     }
 
@@ -364,7 +363,7 @@ export const RecordingsView = {
         flash({ msg: `Importing "${r.title}".` })
         await refresh()
       } catch (err) {
-        flash({ msg: `Import failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Import failed: ${err.message}`, kind: 'err' })
       } finally {
         importingId.value = null
       }
@@ -418,7 +417,7 @@ export const RecordingsView = {
         flash({ msg: `Ad scan started for "${r.title}". This can take minutes.` })
         await refresh()
       } catch (err) {
-        flash({ msg: `Ad scan failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Ad scan failed: ${err.message}`, kind: 'err' })
       } finally {
         adScanningId.value = null
       }
@@ -433,14 +432,10 @@ export const RecordingsView = {
           flash({ msg: `Removed "${r.title}" from TVHeadend.` })
           await refresh()
         } else {
-          flash({
-            msg: `TVHeadend remove failed: ${result.error} (stage: ${result.stage || '?'})`,
-            kind: 'err',
-            ms: 8000,
-          })
+          flash({ msg: `TVHeadend remove failed: ${result.error} (stage: ${result.stage || '?'})`, kind: 'err' })
         }
       } catch (err) {
-        flash({ msg: `TVHeadend remove failed: ${err.message}`, kind: 'err', ms: 8000 })
+        flash({ msg: `TVHeadend remove failed: ${err.message}`, kind: 'err' })
       } finally {
         deletingId.value = null
       }
@@ -451,11 +446,11 @@ export const RecordingsView = {
       try {
         await api('DELETE', `/api/recordings/${encodeURIComponent(r.recording_id)}`)
         const undoable = Boolean(r.deleted_from_tvh_at)
-        flash({ msg: `Cleared "${r.title}" from the list.`, ms: undoable ? UNDO_WINDOW_MS : FLASH_DEFAULT_MS })
+        flash({ msg: `Cleared "${r.title}" from the list.` })
         if (undoable) offerUndo([r.recording_id])
         await refresh()
       } catch (err) {
-        flash({ msg: `Clear failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Clear failed: ${err.message}`, kind: 'err' })
       } finally {
         removingId.value = null
       }
@@ -465,11 +460,11 @@ export const RecordingsView = {
       clearing.value = true
       try {
         const r = await api('DELETE', '/api/recordings?deleted=true')
-        flash({ msg: clearedListMessage(r.deleted), ms: UNDO_WINDOW_MS })
+        flash({ msg: clearedListMessage(r.deleted) })
         offerUndo(r.ids)
         await refresh()
       } catch (err) {
-        flash({ msg: `Clear failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Clear failed: ${err.message}`, kind: 'err' })
       } finally {
         clearing.value = false
       }
@@ -513,7 +508,7 @@ export const RecordingsView = {
         flash({ msg: restoredListMessage(r.restored) })
         await refresh()
       } catch (err) {
-        flash({ msg: `Undo failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Undo failed: ${err.message}`, kind: 'err' })
       } finally {
         restoring.value = false
       }
@@ -581,7 +576,6 @@ export const RecordingsView = {
       setStatus, setShow, setSince, setDeleted, toggleSort, sortDirFor,
       narrow, chipGroups, activeFilters, clearSheetFilters, clearAllFilters, sentenceCase,
       se: seasonEpisodeLabel, fmtBytes, fmtTime,
-      flashText, flashKind,
     }
   },
 }

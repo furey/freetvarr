@@ -8,23 +8,27 @@ export const TmdbKeySetting = {
       <div class="ui-group">
         <div class="settings-row">
           <label class="field-label" for="settings-tmdb-key">TMDB API key (optional)</label>
-          <input v-no-autofill id="settings-tmdb-key" type="password" class="field-input" v-model="typedKey"
-            :placeholder="keySet ? '••••• (stored)' : 'Paste an API key or read access token'" autocomplete="off" spellcheck="false" />
+          <div class="field-action">
+            <div class="field-action-controls">
+              <input v-no-autofill id="settings-tmdb-key" type="password" :class="['field-input', { 'is-invalid': statusText && statusKind === 'err' }]" v-model="typedKey"
+                :placeholder="keySet ? '••••• (stored)' : 'Paste an API key or read access token'" autocomplete="off" spellcheck="false" />
+              <button type="button" :class="['btn', { 'is-pending': busy === 'test' }]" :disabled="busy || (!typedKey && !keySet)" @click="testKey">
+                <template v-if="busy === 'test'"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test key</template>
+              </button>
+            </div>
+          </div>
+          <p v-if="statusText" :class="['status-readout', 'field-status', statusKind]" role="status">{{ statusText }}</p>
           <p class="settings-hint">
             Adds film and TV posters from TMDB when the guide, Plex, and TVmaze have none. TMDB pictures replace the Wikipedia ones. The key is free: sign up at TMDB, then copy the key from
             <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">TMDB API settings</a>. The key stays on this server.
           </p>
-          <div class="settings-row-actions">
-            <button type="button" class="btn btn-sm" :disabled="busy || (!typedKey && !keySet)" @click="testKey">
-              <template v-if="busy === 'test'">Testing…</template><template v-else><pulse-icon /> Test key</template>
+          <div class="field-action-more">
+            <button type="button" :class="['btn', { 'is-pending': busy === 'save' }]" :disabled="busy || !typedKey" @click="saveKey">
+              <template v-if="busy === 'save'"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else>Save key</template>
             </button>
-            <button type="button" class="btn btn-sm" :disabled="busy || !typedKey" @click="saveKey">
-              <template v-if="busy === 'save'">Saving…</template><template v-else>Save key</template>
+            <button v-if="keySet" type="button" :class="['btn', { 'is-pending': busy === 'remove' }]" :disabled="busy" @click="removeKey">
+              <template v-if="busy === 'remove'"><span class="spinner" aria-hidden="true"></span> Removing…</template><template v-else>Remove key</template>
             </button>
-            <button v-if="keySet" type="button" class="btn btn-sm" :disabled="busy" @click="removeKey">
-              <template v-if="busy === 'remove'">Removing…</template><template v-else>Remove key</template>
-            </button>
-            <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
           </div>
         </div>
       </div>

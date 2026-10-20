@@ -22,11 +22,7 @@ export const LiveView = {
   components: SORT_PART_COMPONENTS,
   template: `
     <div ref="pageEl" class="ui-page live-page">
-      <page-header title="Live TV">
-        <template #actions>
-          <span v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</span>
-        </template>
-      </page-header>
+      <page-header title="Live TV" />
       <div class="live-toolbar">
         <div class="ui-segmented live-scope" role="group" aria-label="Channels shown">
           <button type="button" class="ui-segment" :aria-pressed="String(!pinnedOnly)" @click="pinnedOnly = false">All channels</button>
@@ -115,9 +111,6 @@ export const LiveView = {
         </section>
       </div>
       <sort-announcer :message="sort.announcement.value" :keyboard-active="sort.keyboardActive.value" />
-      <div class="ui-toast-region" aria-live="polite">
-        <sort-undo-toast :toast="orderToast" @undo="undoOrder" />
-      </div>
       <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="data?.channels || []" :hidden-ids="data?.hiddenIds || []"
@@ -128,7 +121,7 @@ export const LiveView = {
     </div>
   `,
   setup() {
-    const { flashText, flashKind, flash } = useFlash()
+    const { flash } = useFlash()
     const data = ref(null)
     const error = ref('')
     const tvhConfigured = ref(null)
@@ -202,7 +195,7 @@ export const LiveView = {
       }
     }
 
-    const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: load, nameOf: channelNameOf })
+    const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: load })
 
     const sortableIds = () => (groups.value.find((g) => g.key === 'pinned')?.entries || []).map((e) => String(e.channel.id))
     const canEditOrder = computed(() => canEditOrderOf({ narrow: narrow.value, filter: filterQ.value, pinnedCount: sortableIds().length }))
@@ -235,7 +228,7 @@ export const LiveView = {
         await togglePinnedChannel({ pinnedIds, channelId: channel.id })
         await load()
       } catch (err) {
-        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err' })
       }
     }
 
@@ -270,8 +263,7 @@ export const LiveView = {
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
       OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
       zoom, pageEl, narrow, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,
-      orderToast: orderSave.toast, undoOrder: orderSave.undo,
-      isRecordingChannel, onNowPercent, fmtClockTz, flashText, flashKind,
+      isRecordingChannel, onNowPercent, fmtClockTz,
     }
   },
 }

@@ -130,12 +130,12 @@ test('tapActionOf: scheduled opens the show, on now watches, kinds pick the shee
 
 test('menuOf: Watch live only while on, record actions until scheduled, and the show name in Not interested', () => {
   const onNow = menuOf({ item: item({ onNow: true, channelName: '7mate' }), nowMs, timeZone })
-  assert.deepEqual(onNow.actions.map((a) => a.key), ['watch-live', 'record-episode', 'record-series', 'notify'])
+  assert.deepEqual(onNow.actions.map((a) => a.key), ['watch-live', 'record-episode', 'record-series', 'notify', 'programme-info'])
   assert.equal(onNow.actions[1].detail, 'From now')
   const later = menuOf({ item: item({ canRecordSeries: false }), nowMs, timeZone })
-  assert.deepEqual(later.actions.map((a) => a.key), ['record-episode', 'notify'])
+  assert.deepEqual(later.actions.map((a) => a.key), ['record-episode', 'notify', 'programme-info'])
   assert.equal(later.actions[0].detail, 'Wed 7:30pm')
-  assert.deepEqual(menuOf({ item: item(), scheduled: true, nowMs, timeZone }).actions.map((a) => a.key), ['show', 'notify'])
+  assert.deepEqual(menuOf({ item: item(), scheduled: true, nowMs, timeZone }).actions.map((a) => a.key), ['show', 'notify', 'programme-info'])
   assert.deepEqual(later.more.map((a) => a.label), ['Not interested in Grand Designs Australia', 'Why this?'])
 })
 

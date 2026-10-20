@@ -1,4 +1,4 @@
-import { ref, computed, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { artFallbackStyle } from '/art-fallback.js'
 import {
   badgeOf,
@@ -10,10 +10,8 @@ import {
   reasonOf,
   whyRowsOf,
 } from '/for-you.js'
+import { useLongPress } from '/shared/long-press.js'
 import { now, tz } from '/shared/time.js'
-
-const LONG_PRESS_MS = 500
-const LONG_PRESS_SLOP_PX = 10
 
 export const ForYouIcon = {
   props: { name: { type: String, required: true } },
@@ -38,10 +36,10 @@ export const ForYouCard = {
   },
   emits: ['open', 'menu'],
   template: `
-    <div :class="['for-you-card', shape === 'poster' ? 'ui-poster' : 'ui-card']" @contextmenu.prevent="$emit('menu', item)">
+    <div :class="['for-you-card', shape === 'poster' ? 'ui-poster' : 'ui-card']" @contextmenu="onContextMenu">
       <button type="button" class="for-you-card-hit" :aria-label="label" @click="onClick"
-        @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="clearPress" @pointercancel="clearPress"
-        @pointerleave="clearPress">
+        @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerEnd" @pointercancel="onPointerEnd"
+        @pointerleave="onPointerEnd">
         <title-art :title="item.title" :src="item.image || ''" :shape="shape">
           <span v-if="badge" :class="['ui-art-badge', 'for-you-badge', 'is-' + badge.tone]">
             <span v-if="badge.tone !== 'plain'" class="for-you-badge-dot" aria-hidden="true"></span>{{ badge.label }}
@@ -55,7 +53,7 @@ export const ForYouCard = {
         <span class="ui-card-meta">{{ meta }}</span>
         <span v-if="reason" class="for-you-reason">{{ reason }}</span>
       </button>
-      <button type="button" class="for-you-more" :aria-label="'More for ' + item.title" @click="$emit('menu', item)">
+      <button type="button" class="for-you-more" :aria-label="'More for ' + item.title" aria-haspopup="dialog" @click="$emit('menu', item)">
         <more-glyph />
       </button>
     </div>
@@ -67,44 +65,10 @@ export const ForYouCard = {
     const reason = computed(() => reasonOf(props.item))
     const progress = computed(() => liveProgressOf({ item: props.item, nowMs: nowMs.value }))
     const label = computed(() => cardLabelOf({ item: props.item, meta: meta.value, reason: reason.value, badge: badge.value }))
-    let press = null
-    let pressed = false
+    const { onPointerDown, onPointerMove, onPointerEnd, onContextMenu } = useLongPress(() => emit('menu', props.item))
+    const onClick = () => emit('open', props.item)
 
-    const clearPress = () => {
-      clearTimeout(press?.timer)
-      press = null
-    }
-
-    const onPointerDown = (event) => {
-      if (event.pointerType === 'mouse') return
-      pressed = false
-      press = {
-        x: event.clientX,
-        y: event.clientY,
-        timer: setTimeout(() => {
-          pressed = true
-          press = null
-          emit('menu', props.item)
-        }, LONG_PRESS_MS),
-      }
-    }
-
-    const onPointerMove = (event) => {
-      if (!press) return
-      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > LONG_PRESS_SLOP_PX) clearPress()
-    }
-
-    const onClick = () => {
-      if (pressed) {
-        pressed = false
-        return
-      }
-      emit('open', props.item)
-    }
-
-    onUnmounted(clearPress)
-
-    return { badge, meta, reason, progress, label, onClick, onPointerDown, onPointerMove, clearPress }
+    return { badge, meta, reason, progress, label, onClick, onPointerDown, onPointerMove, onPointerEnd, onContextMenu }
   },
 }
 
@@ -202,15 +166,6 @@ export const ForYouOverlays = {
         </button>
       </template>
     </ui-sheet>
-
-    <teleport to="body">
-      <div class="ui-toast-region for-you-toast-region" aria-live="polite">
-        <div v-if="ctl.toast.value" class="ui-toast for-you-toast" role="status">
-          <span class="for-you-toast-text">{{ ctl.toast.value.text }}</span>
-          <button type="button" class="for-you-toast-undo" @click="ctl.undoHide()">Undo</button>
-        </div>
-      </div>
-    </teleport>
   `,
   setup(props) {
     const nowMs = computed(() => now.value.getTime())
@@ -267,8 +222,12 @@ const FOR_YOU_ICONS = {
     { tag: 'path', attrs: { d: 'm2 2 20 20' } },
   ],
   info: [
-    { tag: 'circle', attrs: { cx: 12, cy: 12, r: 10 } },
-    { tag: 'path', attrs: { d: 'M12 16v-4M12 8h.01' } },
+    { tag: 'circle', attrs: { cx: 12, cy: 12, r: 9 } },
+    { tag: 'path', attrs: { d: 'M12 11v6M12 7.5v.5' } },
+  ],
+  why: [
+    { tag: 'circle', attrs: { cx: 12, cy: 12, r: 9 } },
+    { tag: 'path', attrs: { d: 'M9.1 9a3 3 0 0 1 5.8 1c0 2-2.9 2.6-2.9 4M12 17.5v.01' } },
   ],
   history: [
     { tag: 'path', attrs: { d: 'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8' } },

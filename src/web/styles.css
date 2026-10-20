@@ -458,8 +458,8 @@ table.deck-table tbody tr.active {
 .field-input {
   width: 100%;
   min-height: 44px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-hairline);
+  background-color: var(--field-fill, var(--color-bg));
+  border: 1px solid var(--color-field-edge);
   color: var(--color-text-1);
   font-family: var(--font-sans);
   font-size: 15px;
@@ -487,7 +487,22 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .field-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(92, 225, 198, 0.18);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.field-input:disabled {
+  color: var(--color-text-3);
+  border-color: var(--color-hairline-soft);
+}
+
+.field-input.is-invalid {
+  border-color: var(--color-live-text);
+}
+
+@media (pointer: coarse) {
+  .field-input {
+    font-size: 16px;
+  }
 }
 
 .field-label {
@@ -501,6 +516,57 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .field-row {
   margin-bottom: 1rem;
+}
+
+.field-action {
+  container-type: inline-size;
+}
+
+.field-action-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.field-action-controls > .field-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field-action-controls > .btn {
+  flex: none;
+  min-height: 44px;
+  height: auto;
+  font-size: 15px;
+}
+
+.field-action-controls > .btn-icon {
+  min-width: 44px;
+}
+
+@container (max-width: 420px) {
+  .field-action-controls:not(.keeps-inline) {
+    flex-direction: column;
+  }
+
+  .field-action-controls:not(.keeps-inline) > .btn {
+    width: 100%;
+  }
+}
+
+.field-status {
+  display: flex;
+  align-items: flex-start;
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.field-action-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .btn {
@@ -517,7 +583,7 @@ input[type="search"]::-webkit-search-cancel-button {
   line-height: 1.2;
   border-radius: 12px;
   border: 1px solid transparent;
-  background: var(--color-surface-2);
+  background: var(--color-surface-3);
   color: var(--color-text-1);
   cursor: pointer;
   text-decoration: none;
@@ -531,7 +597,7 @@ input[type="search"]::-webkit-search-cancel-button {
 
 @media (hover: hover) {
   .btn:hover:not(:disabled) {
-    background: var(--color-surface-3);
+    background: var(--color-surface-4);
     color: var(--color-text-1);
     text-decoration: none;
   }
@@ -1345,8 +1411,8 @@ svg.epg-rail-logo {
   font-family: var(--font-mono);
   font-size: 0.88rem;
   color: var(--color-text-2);
-  background: var(--color-bg);
-  border: 1px solid var(--color-hairline);
+  background: var(--field-fill, var(--color-bg));
+  border: 1px solid var(--color-field-edge);
   border-right: 0;
   border-radius: 0.25rem 0 0 0.25rem;
 }

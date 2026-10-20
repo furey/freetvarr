@@ -21,7 +21,7 @@ import {
   toggledSelection,
 } from '/library-menus.js'
 import { useLibraryActions } from '/components/library-actions.js'
-import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, LibraryToast, MenuIcon, useLibraryToast } from '/components/library-menus.js'
+import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuIcon, useLibraryToast } from '/components/library-menus.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { api } from '/shared/api.js'
 import { overlayStack } from '/overlay-stack.js'
@@ -33,7 +33,7 @@ import { syncStatus } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 
 export const ShowView = {
-  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, LibraryToast, MenuIcon },
+  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon },
   template: `
     <div :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
@@ -169,11 +169,10 @@ export const ShowView = {
       <recording-options-sheet v-if="show?.rule" :open="optionsOpen" :show="show" @close="optionsOpen = false"
         @changed="load" @stopped="onStopped" @flash="flash" />
 
-      <library-toast :toast="toast" @dismiss="dismissToast" />
     </div>
   `,
   setup() {
-    const { toast, showToast, dismissToast } = useLibraryToast()
+    const { showToast } = useLibraryToast()
     const key = computed(() => recordingsPageOf(routeParams.value).showKey || '')
     const show = ref(null)
     const loaded = ref(false)
@@ -335,7 +334,7 @@ export const ShowView = {
       ...actions,
       show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
       ruleStatus, firstEpisodeLine, visibleEpisodes, selectedSeason, optionsOpen, failedImages,
-      toast, dismissToast, flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable,
+      flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable,
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
       onEpisodeHold, isLocked, checkLabel, isRecordingNow, selectionTitle,

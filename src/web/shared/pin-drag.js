@@ -4,6 +4,7 @@ import {
   movedText, offsetsFor, pickedUpText, positionText, slotOffsetFor, targetIndexFor,
 } from '/sortable-math.js'
 import { api } from '/shared/api.js'
+import { toast } from '/shared/toast.js'
 
 export const setDragLock = (on) => {
   try { document.body.classList.toggle('epg-drag-lock', on) } catch { /* ignore */ }
@@ -297,47 +298,21 @@ export const useOrderEditing = ({ canEdit }) => {
   return { editing, sortable, toggle, stop }
 }
 
-export const useFavouriteOrderSave = ({ currentPins, applyOrder, reload, nameOf }) => {
-  const toast = ref(null)
-  let timer = null
-
-  const showToast = (next) => {
-    clearTimeout(timer)
-    toast.value = next
-    timer = setTimeout(() => { toast.value = null }, next.error ? ERROR_TOAST_MS : UNDO_TOAST_MS)
-  }
-
+export const useFavouriteOrderSave = ({ currentPins, applyOrder, reload }) => {
   const savePins = (pins) => api('PUT', '/api/epg/channel-prefs', { pinned_ids: pins })
 
-  const saveOrder = async ({ pins, previous, text }) => {
+  const onDrop = async ({ order }) => {
+    const pins = mergeVisibleOrder({ all: currentPins(), visible: order })
     applyOrder(pins)
     try {
       await savePins(pins)
-      showToast({ text, previous })
     } catch (err) {
-      showToast({ text: `Reorder failed: ${err.message}`, error: true })
+      toast({ text: `Reorder failed: ${err.message}`, kind: 'error' })
     }
     await reload()
   }
 
-  const onDrop = ({ order, id, to }) => {
-    const previous = currentPins()
-    const pins = mergeVisibleOrder({ all: previous, visible: order })
-    const text = `${movedText({ name: nameOf(id), index: to, count: order.length })} Order saved.`
-    return saveOrder({ pins, previous, text })
-  }
-
-  const undo = () => {
-    const previous = toast.value?.previous
-    if (!previous) return
-    clearTimeout(timer)
-    toast.value = null
-    return saveOrder({ pins: previous, previous: null, text: 'Order restored.' })
-  }
-
-  onUnmounted(() => clearTimeout(timer))
-
-  return { toast, onDrop, undo }
+  return { onDrop }
 }
 
 const cssEscape = (value) => (window.CSS?.escape ? CSS.escape(String(value)) : String(value).replace(/"/g, '\\"'))
@@ -375,5 +350,3 @@ const viewBoxOf = (scroller) => {
 
 const SETTLE_MS = 160
 const KEYBOARD_SCROLL_MARGIN_PX = 8
-const UNDO_TOAST_MS = 5000
-const ERROR_TOAST_MS = 6000

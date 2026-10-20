@@ -45,7 +45,6 @@ export const SeriesView = {
             <p>Type in the filter box to find a series by title, channel, or folder. <strong>Sort</strong> orders the rows, and <strong>Status</strong> shows only paused series, series not in the TV guide, or series recording now.</p>
           </info-button>
         </div>
-        <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
         <list-skeleton v-if="!loaded" :rows="6" />
         <template v-else>
           <p v-if="error" class="ui-banner is-error">Cannot read the series recordings from TVHeadend: {{ error }}</p>
@@ -160,7 +159,6 @@ export const SeriesView = {
             <p><strong>Add title</strong> adds one. Freetvarr suggests a folder under your media root, and matches folders that are already there.</p>
           </info-button>
         </div>
-        <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
         <section id="section-folders" class="settings-group">
           <div class="settings-group-head">
             <h3 class="ui-group-label">Title matches</h3>
@@ -223,12 +221,14 @@ export const SeriesView = {
           <div class="ui-group">
             <div class="settings-row">
               <label class="field-label" for="new-title-pattern">Recording titles that contain</label>
-              <div class="settings-input-with-button">
-                <input v-no-autofill id="new-title-pattern" type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input" />
-                <button type="button" class="btn btn-sm" @click="loadTvhShows" :disabled="loadingShows"
-                  title="List the titles TVHeadend has finished recordings for.">
-                  <template v-if="loadingShows">Listing…</template><template v-else><refresh-icon /> Refresh titles</template>
-                </button>
+              <div class="field-action">
+                <div class="field-action-controls">
+                  <input v-no-autofill id="new-title-pattern" type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input" />
+                  <button type="button" :class="['btn', { 'is-pending': loadingShows }]" @click="loadTvhShows" :disabled="loadingShows"
+                    title="List the titles TVHeadend has finished recordings for.">
+                    <template v-if="loadingShows"><span class="spinner" aria-hidden="true"></span> Listing…</template><template v-else><refresh-icon /> Refresh titles</template>
+                  </button>
+                </div>
               </div>
               <datalist id="tvh-shows">
                 <option v-for="fs in tvhShows" :key="fs.id" :value="fs.title" />
@@ -315,7 +315,7 @@ export const SeriesView = {
     </div>
   `,
   setup() {
-    const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
+    const { flash, flashUntilSyncDone } = useFlash()
     const [formStatusText, formStatusKind, setFormStatus] = makeStatus()
     const series = ref([])
     const titleMatches = ref([])
@@ -490,7 +490,7 @@ export const SeriesView = {
         busyKey.value = ''
         assigning.value = null
         await refresh()
-        flash({ msg: `Episodes of "${s.title}" save to ${destFolder}. Open the series to change it.`, ms: 6000 })
+        flash({ msg: `Episodes of "${s.title}" save to ${destFolder}. Open the series to change it.` })
       } catch (err) {
         setAssignStatus(`Error: ${err.message}`, 'err', 5000)
       } finally {
@@ -528,7 +528,7 @@ export const SeriesView = {
       } catch (err) {
         busyKey.value = ''
         cancelling.value = null
-        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err', ms: 8000 })
+        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err' })
         await refresh()
       } finally {
         busyKey.value = ''
@@ -545,7 +545,7 @@ export const SeriesView = {
         await refresh()
         flash({ msg: paused ? `Paused the series recording of "${s.title}".` : `Resumed the series recording of "${s.title}".` })
       } catch (err) {
-        flash({ msg: `${paused ? 'Pause' : 'Resume'} failed: ${err.message}`, kind: 'err', ms: 8000 })
+        flash({ msg: `${paused ? 'Pause' : 'Resume'} failed: ${err.message}`, kind: 'err' })
         await refresh()
       } finally {
         busyKey.value = ''
@@ -604,7 +604,7 @@ export const SeriesView = {
         await loadSyncStatus()
         ensureSyncPolling()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        flash({ msg: `Error: ${err.message}`, kind: 'err' })
       } finally {
         syncingId.value = null
       }
@@ -621,7 +621,7 @@ export const SeriesView = {
       channelsOf, nextAiringLabel, edit, isEditing, isEditingTitleMatch, toggleEdit, onSaved, onDeleted, pauseSeries,
       cancelling, openCancelSeries, closeCancelSeries, cancelSeries,
       add, loadTvhShows, syncOne,
-      flashText, flashKind, formStatusText, formStatusKind,
+      formStatusText, formStatusKind,
     }
   },
 }

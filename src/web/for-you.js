@@ -4,7 +4,7 @@ import { showKeyOf } from './show-key.js'
 
 export const FOR_YOU_URL = '/api/for-you'
 export const FOR_YOU_HREF = '#/for-you'
-export const SUGGESTIONS_HREF = '#/settings/suggestions'
+export const SUGGESTIONS_HREF = '#/settings/for-you'
 export const HOME_ROW_LIMIT = 12
 export const CHOOSER_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000
 export const MAX_SHOWN_EVENTS = 50
@@ -142,10 +142,11 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
     !scheduled && item.canRecordSeries && { key: 'record-series', label: 'Record series', icon: 'series' },
     scheduled && { key: 'show', label: 'Go to show', icon: 'options' },
     { key: 'notify', label: 'Notify me', icon: 'bell' },
+    { key: 'programme-info', label: 'Programme info', icon: 'info' },
   ].filter(Boolean)
   const more = [
     { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
-    { key: 'why', label: 'Why this?', icon: 'info' },
+    { key: 'why', label: 'Why this?', icon: 'why' },
   ]
   return { actions, more }
 }

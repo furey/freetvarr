@@ -78,7 +78,6 @@ export const SyncsView = {
         <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
         <button type="button" class="btn btn-danger settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
       </div>
-      <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
       <p class="settings-meta-line">
         <template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template>
         <info-button title="Activity" doc="guide/syncs">
@@ -182,7 +181,7 @@ export const SyncsView = {
     </div>
   `,
   setup() {
-    const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
+    const { flash, flashUntilSyncDone } = useFlash()
     const syncs = ref([])
     const starting = ref(false)
     const outcomes = ref(loadSyncFilter().outcomes)
@@ -253,7 +252,7 @@ export const SyncsView = {
         await refresh()
       }
       if (!syncs.value.some((s) => s.id === id)) {
-        flash({ msg: `Sync #${id} is no longer in the history.`, kind: 'info', ms: 5000 })
+        flash({ msg: `Sync #${id} is no longer in the history.`, kind: 'info' })
         clearLinkedSync()
         return
       }
@@ -293,7 +292,7 @@ export const SyncsView = {
         await refresh()
         flash({ msg: `Refreshed ${total.value} sync${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
-        flash({ msg: `Refresh failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Refresh failed: ${err.message}`, kind: 'err' })
       }
     }
 
@@ -307,7 +306,7 @@ export const SyncsView = {
         ensureSyncPolling()
         await refresh()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        flash({ msg: `Error: ${err.message}`, kind: 'err' })
       } finally {
         starting.value = false
       }
@@ -331,7 +330,7 @@ export const SyncsView = {
         await api('DELETE', `/api/syncs/${s.id}`)
         await refresh()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        flash({ msg: `Error: ${err.message}`, kind: 'err' })
       }
     }
 
@@ -341,7 +340,7 @@ export const SyncsView = {
         flash({ msg: `Deleted ${r.deleted} sync${r.deleted === 1 ? '' : 's'}.` })
         await refresh()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        flash({ msg: `Error: ${err.message}`, kind: 'err' })
       }
     }
 
@@ -367,7 +366,6 @@ export const SyncsView = {
       syncNow, refresh, manualRefresh, askRemoveSync, askClearAll,
       confirming, confirmBusy, closeConfirm, runConfirmed,
       fmtTime,
-      flashText, flashKind,
     }
   },
 }

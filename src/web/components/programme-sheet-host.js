@@ -195,15 +195,9 @@ export const ProgrammeSheetHost = {
     </div>
     </transition>
     </teleport>
-
-    <teleport to="body">
-      <div class="ui-toast-region programme-sheet-toasts" aria-live="polite">
-        <div v-if="flashText" :class="['ui-toast', { 'is-error': flashKind === 'err' }]">{{ flashText }}</div>
-      </div>
-    </teleport>
   `,
   setup() {
-    const { flashText, flashKind, flash } = useFlash()
+    const { flash } = useFlash()
     const { closeProgramme } = useProgrammeSheet()
     const selected = ref(null)
     const guideDay = shallowRef(null)
@@ -659,7 +653,7 @@ export const ProgrammeSheetHost = {
             add_show_rule: addToLibrary.value,
           }) })
           const ruleNote = result.showRule ? ` Episodes go into ${result.showRule.dest_folder}.` : ''
-          flash({ msg: `Series recording set for "${program.title}".${ruleNote}`, ms: ruleNote ? 6000 : undefined })
+          flash({ msg: `Series recording set for "${program.title}".${ruleNote}` })
           await afterRecordingChange()
         },
       })
@@ -722,7 +716,7 @@ export const ProgrammeSheetHost = {
             title: program.title,
             mode: recordWhenSeen.value ? 'record' : 'notify',
           }) })
-          flash({ msg: watchedMessage({ title: program.title, item }), ms: 6000 })
+          flash({ msg: watchedMessage({ title: program.title, item }) })
           closeModal()
           await loadWatchlist()
           if (!item?.fulfilledAt) return
@@ -801,7 +795,6 @@ export const ProgrammeSheetHost = {
       sheetMeta, cancelActions, selectedWatchItem, selectedState, selectedStatusText,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,
-      flashText, flashKind,
     }
   },
 }

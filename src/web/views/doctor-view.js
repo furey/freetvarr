@@ -69,7 +69,6 @@ export const DoctorView = {
           </button>
         </div>
       </header>
-      <p v-if="flashText" :class="['status-readout', flashKind]" role="status">{{ flashText }}</p>
 
       <section class="settings-group" aria-labelledby="health-sync-label">
         <h3 id="health-sync-label" class="ui-group-label">Sync</h3>
@@ -163,7 +162,7 @@ export const DoctorView = {
     </div>
   `,
   setup() {
-    const { flashText, flashKind, flash, flashUntilSyncDone } = useFlash()
+    const { flash, flashUntilSyncDone } = useFlash()
     const report = ref(null)
     const checking = ref(false)
     const error = ref('')
@@ -250,7 +249,7 @@ export const DoctorView = {
         await loadSyncStatus()
         ensureSyncPolling()
       } catch (err) {
-        flash({ msg: `Sync failed to start: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Sync failed to start: ${err.message}`, kind: 'err' })
       } finally {
         starting.value = false
       }
@@ -331,7 +330,7 @@ export const DoctorView = {
       workingSummaryOf, rowState, countsLabel,
       progressPercent, progressText, ranLabel, durationLabel, needsFix, docsUrl,
       headlineLine, lastSyncLabel, nextSyncLabel, importedLabel, syncCountLabel, drives,
-      syncStatus, syncRunning, starting, syncNow, flashText, flashKind,
+      syncStatus, syncRunning, starting, syncNow,
       anchorFor, titleOf, dotClassFor, statusLabelFor,
     }
   },

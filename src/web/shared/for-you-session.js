@@ -3,6 +3,7 @@ import { api } from '/shared/api.js'
 import { watchLive } from '/shared/live-session.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, tz } from '/shared/time.js'
+import { toast } from '/shared/toast.js'
 import { showHrefOf } from '/show-key.js'
 import {
   feedbackOf,
@@ -14,9 +15,9 @@ import {
   tapActionOf,
 } from '/for-you.js'
 
-const TOAST_MS = 6000
-
 export const forYouHidden = ref(new Set())
+
+export const forYouShown = ref(null)
 
 export const sendFeedback = (body) => api('POST', '/api/events/feedback', body).catch(() => {})
 
@@ -27,9 +28,7 @@ export const unhideShow = (seriesKey) => api('DELETE', `/api/for-you/hidden/${en
 export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)
   const why = reactive({ item: null, data: null, loading: false, failed: false })
-  const toast = ref(null)
   const thumbs = ref({})
-  let toastTimer = null
 
   const nowMs = () => now.value.getTime()
 
@@ -56,6 +55,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
       accept(item)
       openSheet(item, 'notify')
     },
+    'programme-info': (item) => openSheet(item, 'programme-info'),
     show: (item) => { window.location.hash = showHrefOf(item.title) },
     'thumb-up': (item) => toggleThumb(item, 'up'),
     'thumb-down': (item) => toggleThumb(item, 'down'),
@@ -65,7 +65,10 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
 
   const openItem = (item) => ACTIONS[tapActionOf({ item, scheduled: isScheduled(item) })]?.(item)
 
-  const openMenu = (item) => { menuItem.value = item }
+  const openMenu = (item) => {
+    menuItem.value = item
+    whyResultOf(item)
+  }
 
   const closeMenu = () => { menuItem.value = null }
 
@@ -84,46 +87,59 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     if (turningOn) sendFeedback(feedbackOf({ kind: direction === 'up' ? 'thumb_up' : 'thumb_down', item, source }))
   }
 
-  const showToast = (value) => {
-    clearTimeout(toastTimer)
-    toast.value = value
-    toastTimer = setTimeout(() => { toast.value = null }, TOAST_MS)
-  }
-
   const hide = (item) => {
     const key = identityOf(item)
     closeWhy()
     forYouHidden.value = new Set([...forYouHidden.value, key])
     sendFeedback(feedbackOf({ kind: 'not_interested', item, source }))
-    showToast({ text: hiddenToastOf(item.title), item })
+    toast({ text: hiddenToastOf(item.title), action: { label: 'Undo', run: () => undoHide(item) } })
   }
 
-  const undoHide = async () => {
-    const item = toast.value?.item
-    clearTimeout(toastTimer)
-    toast.value = null
-    if (!item) return
+  const undoHide = async (item) => {
     const key = identityOf(item)
     forYouHidden.value = new Set([...forYouHidden.value].filter((hidden) => hidden !== key))
     await unhideShow(key).catch(() => {})
     onChanged()
   }
 
-  const openWhy = async (item) => {
-    Object.assign(why, { item, data: null, loading: true, failed: false })
-    try {
-      const data = await api('GET', `/api/for-you/why/${encodeURIComponent(item.id)}`)
-      if (why.item === item) why.data = data
-    } catch {
-      if (why.item === item) why.failed = true
-    } finally {
-      if (why.item === item) why.loading = false
+  const whyRequests = new Map()
+
+  const whyResultOf = (item) => {
+    if (!whyRequests.has(item.id)) {
+      const request = api('GET', `/api/for-you/why/${encodeURIComponent(item.id)}`)
+        .then((data) => ({ data, failed: false }))
+        .catch(() => {
+          whyRequests.delete(item.id)
+          return { data: null, failed: true }
+        })
+      whyRequests.set(item.id, request)
     }
+    return whyRequests.get(item.id)
   }
 
-  const closeWhy = () => { why.item = null }
+  let whyWanted = null
 
-  return { menuItem, why, toast, openItem, openMenu, closeMenu, choose, thumbOf, closeWhy, undoHide, isScheduled }
+  const openWhy = async (item) => {
+    whyWanted = item
+    const result = whyResultOf(item)
+    const early = await Promise.race([result, delay(WHY_WAIT_MS)])
+    if (whyWanted !== item) return
+    Object.assign(why, { item, data: early?.data ?? null, loading: !early, failed: Boolean(early?.failed) })
+    if (early) return
+    const late = await result
+    if (why.item === item) Object.assign(why, { data: late.data, loading: false, failed: late.failed })
+  }
+
+  const closeWhy = () => {
+    whyWanted = null
+    why.item = null
+  }
+
+  return { menuItem, why, openItem, openMenu, closeMenu, choose, thumbOf, closeWhy, undoHide, isScheduled }
 }
 
 const KEEPS_MENU_OPEN = new Set(['thumb-up', 'thumb-down'])
+
+const WHY_WAIT_MS = 1200
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))

@@ -495,24 +495,6 @@
   cursor: not-allowed;
 }
 
-.show-toast {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.show-toast-action {
-  min-height: 44px;
-  margin: -12px -8px -12px 0;
-  padding: 0 8px;
-  border: 0;
-  background: transparent;
-  color: var(--color-primary);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .options-done {
   min-height: 40px;
 }
@@ -629,9 +611,9 @@
   min-width: 0;
   height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--color-hairline);
+  border: 1px solid var(--color-field-edge);
   border-radius: 10px;
-  background: var(--color-surface-2);
+  background: var(--field-fill, var(--color-bg));
   color: var(--color-text-1);
   font: inherit;
 }
@@ -639,6 +621,13 @@
 .options-input:focus {
   outline: none;
   border-color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+@media (pointer: coarse) {
+  .options-input {
+    font-size: 16px;
+  }
 }
 
 .search-row-line {
@@ -1241,64 +1230,6 @@
   transform: scale(0.96);
 }
 
-.library-toast {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  box-sizing: border-box;
-  font-weight: 400;
-}
-
-.library-toast-icon {
-  display: flex;
-  flex: none;
-  padding-top: 1px;
-  color: var(--color-success);
-}
-
-.library-toast-icon svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: 2.5;
-}
-
-.library-toast.is-error .library-toast-icon {
-  color: var(--color-warning);
-}
-
-.library-toast-text {
-  flex: 1;
-  min-width: 0;
-  font-size: 15px;
-  line-height: 20px;
-}
-
-.library-toast-text b {
-  display: block;
-  font-weight: 700;
-}
-
-.library-toast.is-error .library-toast-text {
-  color: var(--color-text-1);
-}
-
-.library-toast-detail {
-  display: block;
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--color-text-2);
-}
-
-.library-toast-close {
-  margin: -12px -10px -12px 0;
-}
-
-.library-toast.is-error {
-  background: #3a2326;
-}
-
 .show-more-button {
   width: 48px;
   height: 48px;
@@ -1495,7 +1426,7 @@ body.library-selecting .app-tabbar {
 }
 
 body.library-selecting .ui-toast-region {
-  bottom: calc(var(--app-tabbar-safe-bottom) + 92px);
+  --toast-base: calc(var(--app-tabbar-safe-bottom) + 92px);
 }
 
 .library-poster {
@@ -1582,7 +1513,7 @@ body.library-selecting .ui-toast-region {
   }
 
   body.library-selecting .ui-toast-region {
-    bottom: 112px;
+    --toast-base: 112px;
   }
 }
 

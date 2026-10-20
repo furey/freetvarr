@@ -47,18 +47,38 @@ Freetvarr picks the slides from these, in this order, and leaves out any that ha
 
 **Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it or ask to be told when it airs.
 
+Each slide also has a **⋯** button. It opens the same actions as the matching row below: the episode menu for a recording, the For you menu for a suggestion, and the live or scheduled menu for a programme. See [More actions](#more-actions).
+
 ## Rows
 
 Under the highlights, Home has these rows. A row with nothing in it is left out. A row title opens the same page as the link at the right end of the row.
 
 - **New recordings**: episodes you have not watched, newest first, with a `NEW` badge. Press a card to open the show page. **See all** opens [Recordings](/guide/recordings).
 - **For you**: suggestions from the next week of the Guide. Until Freetvarr knows what you like, this row is called **New this week**. **See all** opens the [For you](/guide/for-you) page.
-- **On now**: what is on your favourite channels, with a bar that shows how far through each programme is. Press a card to watch the channel live. **Live TV** opens the [Live TV](/guide/live-tv) page.
+- **On now**: what is on your favourite channels, with the channel logo beside each title and a bar that shows how far through each programme is. Press a card to watch the channel live. **Live TV** opens the [Live TV](/guide/live-tv) page.
 - **Recording tonight**: up to three recordings for tonight. Press one to open [Scheduled](/guide/recordings#scheduled).
 
 **On now** shows only favourite channels. To fill it, press the star next to some channels in [Live TV](/guide/live-tv) or the [Guide](/guide/tv-guide#favourites).
 
 An empty Home says `Nothing recorded yet` and offers **Find a show in the Guide**.
+
+## More actions
+
+Every card and every **Recording tonight** row has a **⋯** menu. To open it:
+
+- On a computer, point at the card or move to it with the Tab key, then press **⋯**. You can also right-click the card.
+- On a touch screen, press and hold the card for half a second.
+
+The menu depends on the row:
+
+| Row                   | Menu                                                                                                                          |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                   |
+| **For you**           | **Record this episode**, **Record series**, **Notify me**, **Programme info**, feedback, and **Why this?**.                   |
+| **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                           |
+| **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a series rule), and **Don't record this episode**. |
+
+**Episode info** shows the details of a recording. **Programme info** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home. **Don't record this episode** cancels that one recording; a series rule still records the next episodes.
 
 ## Health alert
 

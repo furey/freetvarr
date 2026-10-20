@@ -99,16 +99,16 @@ export const WelcomeView = {
                 </div>
                 <div class="field-row">
                   <label class="field-label">Admin password</label>
-                  <div class="flex items-center gap-2">
+                  <div class="field-action-controls keeps-inline">
                     <input v-no-autofill.new-password ref="secureAdminPasswordInput" :type="secureShowPassword ? 'text' : 'password'" class="field-input" v-model="secureAdminPassword" :disabled="securing" />
-                    <button type="button" class="btn btn-sm btn-icon" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
+                    <button type="button" class="btn btn-icon" @click="secureShowPassword = !secureShowPassword" :aria-label="secureShowPassword ? 'Hide password' : 'Show password'" :aria-pressed="secureShowPassword"><eye-off-icon v-if="secureShowPassword" /><eye-icon v-else /></button>
                   </div>
                 </div>
               </div>
               <div class="field-row">
                 <label class="field-label">Allowed networks</label>
                 <input v-no-autofill type="text" class="field-input" v-model="securePrefixes" :disabled="securing" placeholder="e.g. 192.168.1.0/24, 127.0.0.0/8" />
-                <p class="text-xs text-ink-mute mt-1 leading-relaxed">
+                <p class="text-xs text-ink-mute mt-2 leading-relaxed">
                   Both logins work only from these networks. Freetvarr guessed them from this computer's networks and this browser's network; add any network you sign in to TVHeadend from.
                 </p>
               </div>
@@ -145,7 +145,7 @@ export const WelcomeView = {
               TVHeadend is secured. Sign in to TVHeadend as {{ securedAs }} from now on; Freetvarr signs in as freetvarr.
             </p>
             <template v-if="!showSecure">
-              <p v-if="!securedAs" class="text-ink-dim text-sm leading-relaxed">
+              <p v-if="!securedAs" class="welcome-group-intro">
                 Enter the TVHeadend login Freetvarr should use. Leave both blank if TVHeadend allows anonymous access.
               </p>
               <div class="grid gap-4 md:grid-cols-2">
@@ -196,34 +196,40 @@ export const WelcomeView = {
                 </p>
                 <div class="field-row">
                   <label class="field-label">TV library folder</label>
-                  <input v-no-autofill type="text" class="field-input" v-model="mediaRoot" @input="clearStaleLibraryStatus" placeholder="/data/media/tv" />
-                  <div class="flex flex-wrap items-center gap-3 mt-2">
-                    <button type="button" class="btn btn-sm" @click="testMediaRoot" :disabled="mediaRootTesting">
-                      <template v-if="mediaRootTesting">Testing…</template><template v-else><pulse-icon /> Test path</template>
-                    </button>
-                    <span v-if="mediaRootStatus" :class="['status-readout', mediaRootStatusKind]">{{ mediaRootStatus }}</span>
+                  <div class="field-action">
+                    <div class="field-action-controls">
+                      <input v-no-autofill type="text" :class="['field-input', { 'is-invalid': mediaRootStatus && mediaRootStatusKind === 'err' }]" v-model="mediaRoot" @input="clearStaleLibraryStatus" placeholder="/data/media/tv" />
+                      <button type="button" :class="['btn', { 'is-pending': mediaRootTesting }]" @click="testMediaRoot" :disabled="mediaRootTesting">
+                        <template v-if="mediaRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
+                      </button>
+                    </div>
                   </div>
+                  <p v-if="mediaRootStatus" :class="['status-readout', 'field-status', mediaRootStatusKind]" role="status">{{ mediaRootStatus }}</p>
                 </div>
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as Freetvarr sees it)</label>
-                    <input v-no-autofill type="text" class="field-input" v-model="recordingsRoot" @input="recordingsCheck.clear" placeholder="/data/recordings" />
-                    <div class="flex flex-wrap items-center gap-3 mt-2">
-                      <button type="button" class="btn btn-sm" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
-                        <template v-if="recordingsCheck.checking">Checking…</template><template v-else><pulse-icon /> Test path</template>
-                      </button>
-                      <span v-if="recordingsCheck.text" :class="['status-readout', recordingsCheck.kind]">{{ recordingsCheck.text }}</span>
+                    <div class="field-action">
+                      <div class="field-action-controls">
+                        <input v-no-autofill type="text" :class="['field-input', { 'is-invalid': recordingsCheck.text && recordingsCheck.kind === 'err' }]" v-model="recordingsRoot" @input="recordingsCheck.clear" placeholder="/data/recordings" />
+                        <button type="button" :class="['btn', { 'is-pending': recordingsCheck.checking }]" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
+                          <template v-if="recordingsCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Test path</template>
+                        </button>
+                      </div>
                     </div>
+                    <p v-if="recordingsCheck.text" :class="['status-readout', 'field-status', recordingsCheck.kind]" role="status">{{ recordingsCheck.text }}</p>
                   </div>
                   <div class="field-row">
                     <label class="field-label">Recordings folder (as TVHeadend sees it)</label>
-                    <input v-no-autofill type="text" class="field-input" v-model="tvhRecordingsPath" @input="tvhPathCheck.clear" placeholder="/recordings" />
-                    <div class="flex flex-wrap items-center gap-3 mt-2">
-                      <button type="button" class="btn btn-sm" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
-                        <template v-if="tvhPathCheck.checking">Checking…</template><template v-else><pulse-icon /> Check TVHeadend</template>
-                      </button>
-                      <span v-if="tvhPathCheck.text" :class="['status-readout', tvhPathCheck.kind]">{{ tvhPathCheck.text }}</span>
+                    <div class="field-action">
+                      <div class="field-action-controls">
+                        <input v-no-autofill type="text" :class="['field-input', { 'is-invalid': tvhPathCheck.text && tvhPathCheck.kind === 'err' }]" v-model="tvhRecordingsPath" @input="tvhPathCheck.clear" placeholder="/recordings" />
+                        <button type="button" :class="['btn', { 'is-pending': tvhPathCheck.checking }]" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
+                          <template v-if="tvhPathCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Check TVHeadend</template>
+                        </button>
+                      </div>
                     </div>
+                    <p v-if="tvhPathCheck.text" :class="['status-readout', 'field-status', tvhPathCheck.kind]" role="status">{{ tvhPathCheck.text }}</p>
                   </div>
                 </div>
                 <p class="text-xs text-ink-mute leading-relaxed">
@@ -282,14 +288,16 @@ export const WelcomeView = {
                 </div>
                 <div class="field-row">
                   <label class="field-label">Plex token</label>
-                  <input v-no-autofill type="password" class="field-input" v-model="plexToken"
-                    :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
-                  <div class="mt-2 flex flex-wrap items-center gap-3">
-                    <button type="button" class="btn btn-sm" @click="detectPlexToken" :disabled="plexDetectingToken">
-                      <template v-if="plexDetectingToken">Detecting…</template><template v-else><bolt-icon /> Auto-detect token</template>
-                    </button>
-                    <span v-if="plexTokenStatus" :class="['status-readout', plexTokenStatusKind]">{{ plexTokenStatus }}</span>
+                  <div class="field-action">
+                    <div class="field-action-controls">
+                      <input v-no-autofill type="password" :class="['field-input', { 'is-invalid': plexTokenStatus && plexTokenStatusKind === 'err' }]" v-model="plexToken"
+                        :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
+                      <button type="button" :class="['btn', { 'is-pending': plexDetectingToken }]" @click="detectPlexToken" :disabled="plexDetectingToken">
+                        <template v-if="plexDetectingToken"><span class="spinner" aria-hidden="true"></span> Detecting…</template><template v-else><bolt-icon /> Auto-detect token</template>
+                      </button>
+                    </div>
                   </div>
+                  <p v-if="plexTokenStatus" :class="['status-readout', 'field-status', plexTokenStatusKind]" role="status">{{ plexTokenStatus }}</p>
                   <p class="text-xs text-ink-mute mt-2 leading-relaxed">
                     Auto-detect token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file. For another Plex, enter the path to its <code>Preferences.xml</code> below, or paste the token from Plex.
                   </p>
@@ -596,8 +604,9 @@ export const WelcomeView = {
     })
 
     const nextIsPrimary = computed(() => {
-      if (step.value === 3) return channelState.value.channels > 0 && !channelState.value.actionShown
-      if (step.value === 4) return nextLabel.value !== 'Skip'
+      if (nextLabel.value === 'Skip') return false
+      if (step.value === 2) return !showSecure.value
+      if (step.value === 3) return !channelState.value.actionShown
       return true
     })
 

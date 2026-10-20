@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { useLibraryActions } from '/components/library-actions.js'
-import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, LibraryToast, useLibraryToast } from '/components/library-menus.js'
+import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import {
   LIBRARY_SORTS,
@@ -28,7 +28,7 @@ const LIBRARY_POLL_MS = 60_000
 const SKELETON_POSTERS = 6
 
 export const RecordingsLibraryView = {
-  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, LibraryToast },
+  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm },
   template: `
     <div class="ui-page recordings-page">
       <page-header title="Recordings" subtitle="Everything you have, and everything on its way." />
@@ -135,7 +135,6 @@ export const RecordingsLibraryView = {
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeleted" />
       <recording-options-sheet v-if="menuShow?.rule" :open="optionsOpen" :show="menuShow" @close="optionsOpen = false"
         @changed="reloadMenuShow" @stopped="onStopped" @flash="onOptionsFlash" />
-      <library-toast :toast="toast" @dismiss="dismissToast" />
     </div>
   `,
   setup() {
@@ -200,7 +199,7 @@ export const RecordingsLibraryView = {
       if (previous && !current) refresh()
     })
 
-    const { toast, showToast, dismissToast } = useLibraryToast()
+    const { showToast } = useLibraryToast()
     const menuShow = ref(null)
     const menuLoadingKey = ref('')
     const optionsOpen = ref(false)
@@ -253,7 +252,7 @@ export const RecordingsLibraryView = {
 
     return {
       ...actions,
-      toast, dismissToast, menuShow, menuLoadingKey, optionsOpen, openPosterMenu, onPosterHold, onStopped, onOptionsFlash, reloadMenuShow,
+      menuShow, menuLoadingKey, optionsOpen, openPosterMenu, onPosterHold, onStopped, onOptionsFlash, reloadMenuShow,
       shows, stale, loaded, error, shelves, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
       posterMeta, posterLabel, posterSrc, cardSrc, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,

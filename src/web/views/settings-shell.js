@@ -30,7 +30,7 @@ const PAGE_INTROS = {
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
   player: 'How the player starts and behaves on this device.',
-  suggestions: 'For you picks shows from the guide based on what this household watches and records.',
+  'for-you': 'For you picks shows from the guide based on what this household watches and records.',
   about: 'Records free-to-air TV from your TVHeadend-compatible tuner and saves it where your media player finds it.',
 }
 
@@ -76,7 +76,7 @@ export const SettingsShell = {
     const showNav = computed(() => !narrow.value || !page.value)
     const pageView = computed(() => {
       if (page.value?.view === 'system') return SYSTEM_VIEWS[page.value.id]
-      if (page.value?.view === 'suggestions') return { view: SuggestionsSettingsView, props: {} }
+      if (page.value?.view === 'for-you') return { view: SuggestionsSettingsView, props: {} }
       if (page.value?.view === 'player') return { view: PlayerSettingsView, props: {} }
       return { view: SettingsView, props: {} }
     })

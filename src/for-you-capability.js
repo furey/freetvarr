@@ -88,11 +88,11 @@ export const probeKeyOf = ({ version, host, arch }) => `${version}|${host}|${arc
 
 const autoTierOf = ({ capability, onnx, bench, dailyTexts, ollama }) => {
   if (ollama?.model) return { tier: 'plus', reason: `Ollama has the embedding model ${ollama.model}` }
-  if (!onnx.ok) return { tier: 'basic', reason: `The ONNX runtime does not run here (${onnx.error || 'failed to load'})` }
+  if (!onnx.ok) return { tier: 'basic', reason: 'This box cannot run the suggestion model', detail: onnx.error || 'failed to load' }
   if (Number.isFinite(capability.headroomMb) && capability.headroomMb < MIN_HEADROOM_MB) {
     return { tier: 'basic', reason: `Only ${capability.headroomMb} MB of memory is free (needs ${MIN_HEADROOM_MB} MB)` }
   }
-  if (!bench?.ok) return { tier: 'basic', reason: `The benchmark failed (${bench?.error || 'no result'})` }
+  if (!bench?.ok) return { tier: 'basic', reason: 'The speed check did not finish', detail: bench?.error || 'no result' }
   const dailySeconds = (bench.msPerText * dailyTexts) / 1000
   if (dailySeconds > BASIC_BUDGET_S) {
     return { tier: 'basic', reason: `Embedding ${dailyTexts} new texts a day would take ${Math.round(dailySeconds)} s` }

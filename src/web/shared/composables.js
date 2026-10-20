@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { holdAtLeast, PENDING_MIN_MS } from '/pending.js'
+import { toast, dismissToast } from '/shared/toast.js'
 
 export const useMediaQuery = (query) => {
   const list = window.matchMedia(query)
@@ -12,32 +13,20 @@ export const useMediaQuery = (query) => {
 }
 
 export const useFlash = () => {
-  const flashText = ref('')
-  const flashKind = ref('ok')
-  const flash = ({ msg, kind = 'ok', ms = FLASH_DEFAULT_MS }) => {
-    flashText.value = msg
-    flashKind.value = kind
-    if (ms > 0) setTimeout(() => (flashText.value = ''), ms)
-  }
+  const flash = ({ msg, kind = 'ok' }) => toast({ text: msg, kind })
   const flashUntilSyncDone = ({ msg, kind = 'ok' }) => {
-    flashText.value = msg
-    flashKind.value = kind
-    const ourMsg = msg
-    const clearIfStillOurs = () => {
-      if (flashText.value === ourMsg) flashText.value = ''
+    const id = toast({ text: msg, kind, persist: true })
+    const clear = () => {
+      dismissToast(id)
+      stop()
+      clearTimeout(safetyTimer)
     }
     const stop = watch(() => syncStatus.value.activeSyncId, (curr, prev) => {
-      if (!curr && prev) {
-        clearIfStillOurs()
-        stop()
-      }
+      if (!curr && prev) clear()
     })
-    setTimeout(() => {
-      clearIfStillOurs()
-      stop()
-    }, SYNC_FLASH_SAFETY_MS)
+    const safetyTimer = setTimeout(clear, SYNC_FLASH_SAFETY_MS)
   }
-  return { flashText, flashKind, flash, flashUntilSyncDone }
+  return { flash, flashUntilSyncDone }
 }
 
 export const usePending = ({ minMs = PENDING_MIN_MS } = {}) => {

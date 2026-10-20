@@ -3,7 +3,7 @@ title: For you
 description: >-
   Suggestions from the next week of the Guide, made on your own computer from
   what you record and watch. How they work, how to tune them, and the
-  Suggestions settings.
+  For you settings.
 ---
 
 # For you
@@ -64,9 +64,9 @@ Freetvarr scores each programme in the next 7 days of the Guide against what you
 
 Freetvarr updates the genres and the description data once a night, between 2am and 6am, and soon after it starts if the last update is more than a day and a half old.
 
-## Suggestions settings
+## For you settings
 
-Open Settings → **Suggestions**, or press the settings button at the top of the For you page.
+Open Settings → **For you**, or press the settings button at the top of the For you page.
 
 | Setting                                    | What it does                                                                                                          |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |

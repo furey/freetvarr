@@ -63,7 +63,8 @@ test('daily distinct texts come from the guide span, with a default', () => {
 test('basic when ONNX fails to load or crashes', () => {
   const decision = decideTier({ capability: roomy, onnx: { ok: false, error: 'SIGILL' }, bench: null })
   assert.equal(decision.tier, 'basic')
-  assert.match(decision.reason, /SIGILL/)
+  assert.equal(decision.reason, 'This box cannot run the suggestion model')
+  assert.match(decision.detail, /SIGILL/)
 })
 
 test('basic when memory headroom is under 400 MB', () => {

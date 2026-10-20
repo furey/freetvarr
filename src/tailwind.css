@@ -7,6 +7,9 @@
   --color-surface-1: #141c24;
   --color-surface-2: #1c2630;
   --color-surface-3: #26323e;
+  --color-surface-4: #303d4a;
+  --color-well: #070b0f;
+  --color-field-edge: rgba(255, 255, 255, 0.14);
   --color-rail: #0e151c;
   --color-hairline: rgba(255, 255, 255, 0.08);
   --color-hairline-soft: rgba(255, 255, 255, 0.06);

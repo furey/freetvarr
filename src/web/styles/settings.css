@@ -506,6 +506,11 @@ a.settings-row-link:hover {
   gap: 12px;
 }
 
+.settings-filters,
+.settings-search-block {
+  --field-fill: var(--color-well);
+}
+
 .settings-filter-bar .settings-search {
   flex: 1 1 240px;
 }
@@ -555,18 +560,6 @@ a.settings-row-link:hover {
 .settings-pager-buttons {
   display: flex;
   gap: 8px;
-}
-
-.settings-input-with-button {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.settings-input-with-button .field-input {
-  flex: 1 1 12rem;
-  min-width: 0;
 }
 
 .settings-editor-grid {
@@ -635,32 +628,36 @@ a.settings-row-link:hover {
   }
 }
 
-.settings-content .field-input {
-  border-color: transparent;
-  background: var(--color-surface-2);
-}
-
-.settings-content .field-input:focus {
-  border-color: var(--color-primary);
-}
-
 .settings-content .field-row {
   margin-bottom: 0;
 }
 
 .settings-content .field-prefix,
-.welcome-page .field-prefix {
-  align-content: center;
-  border: 0;
+.welcome-page .field-prefix,
+.ui-sheet .series-editor .field-prefix {
   border-radius: 12px 0 0 12px;
-  background: var(--color-surface-3);
-  padding: 0 10px;
+  padding: 0 4px 0 12px;
+  color: var(--color-text-3);
   font-size: 13px;
 }
 
 .settings-content .field-prefixed .field-input,
-.welcome-page .field-prefixed .field-input {
+.welcome-page .field-prefixed .field-input,
+.ui-sheet .series-editor .field-prefixed .field-input {
+  border-left: 0;
   border-radius: 0 12px 12px 0;
+  padding-left: 0;
+}
+
+.field-prefixed:focus-within .field-prefix {
+  border-color: var(--color-primary);
+  box-shadow: inset 1px 1px 0 0 var(--color-primary), inset 0 -1px 0 0 var(--color-primary);
+}
+
+.settings-content .field-prefixed .field-input:focus,
+.welcome-page .field-prefixed .field-input:focus,
+.ui-sheet .series-editor .field-prefixed .field-input:focus {
+  box-shadow: inset 0 1px 0 0 var(--color-primary), inset -1px -1px 0 0 var(--color-primary);
 }
 
 .settings-content .settings-disclosure {
@@ -1189,17 +1186,15 @@ a.settings-row-link:hover {
   line-height: 18px;
 }
 
-.welcome-body .field-input {
-  border-color: transparent;
-  background: var(--color-surface-2);
-}
-
-.welcome-body .field-input:focus {
-  border-color: var(--color-primary);
-}
-
 .welcome-body .field-row {
   margin-bottom: 0;
+}
+
+.welcome-body .welcome-group-intro {
+  margin-top: 24px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-2);
 }
 
 .welcome-body code {
@@ -1346,28 +1341,6 @@ a.settings-row-link:hover {
 .ui-sheet .series-editor {
   border-top: 0;
   padding-top: 0;
-}
-
-.ui-sheet .series-editor .field-input {
-  border-color: transparent;
-  background: var(--color-surface-3);
-}
-
-.ui-sheet .series-editor .field-input:focus {
-  border-color: var(--color-primary);
-}
-
-.ui-sheet .series-editor .field-prefix {
-  align-content: center;
-  border: 0;
-  border-radius: 12px 0 0 12px;
-  background: var(--color-surface-1);
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.ui-sheet .series-editor .field-prefixed .field-input {
-  border-radius: 0 12px 12px 0;
 }
 
 .ui-sheet .series-editor .toggle.settings-toggle {

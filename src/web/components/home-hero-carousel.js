@@ -21,7 +21,7 @@ export const HomeHeroCarousel = {
   props: {
     slides: { type: Array, required: true },
   },
-  emits: ['action'],
+  emits: ['action', 'menu'],
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
       :class="{ 'is-reduced': rotation.reducedMotion, 'is-instant': instant }"
@@ -41,7 +41,7 @@ export const HomeHeroCarousel = {
             <div class="ui-hero-body hero-slide-body">
               <div :class="['ui-hero-kicker', 'hero-slide-eyebrow', { 'is-live': slide.badge }]">
                 <span v-if="slide.badge" class="ui-live-badge"><span class="ui-live-dot"></span>{{ slide.badge }}</span>
-                <template v-if="slide.eyebrowAccent"><span class="hero-slide-eyebrow-accent">{{ slide.eyebrowAccent }}</span><span class="hero-slide-eyebrow-reason">· {{ slide.eyebrow }}</span></template>
+                <template v-if="slide.eyebrowAccent"><span class="hero-slide-eyebrow-accent">{{ slide.eyebrowAccent }}</span><span class="hero-slide-eyebrow-dot" aria-hidden="true">·</span><span class="hero-slide-eyebrow-reason">{{ slide.eyebrow }}</span></template>
                 <template v-else>{{ slide.eyebrow }}</template>
               </div>
               <h2 class="ui-hero-title hero-slide-title">{{ slide.title }}</h2>
@@ -53,7 +53,7 @@ export const HomeHeroCarousel = {
                 <span class="ui-progress-fill" :style="{ width: slide.progress.percent + '%' }"></span>
               </div>
               <div class="ui-hero-actions hero-slide-actions">
-                <button type="button" class="ui-button ui-button-primary" @click="emitAction(slide, slide.primary)">
+                <button type="button" :class="['ui-button', 'ui-button-primary', { 'ui-button-record': slide.primary.icon === 'record' }]" @click="emitAction(slide, slide.primary)">
                   <play-icon v-if="slide.primary.icon === 'play'" />
                   <start-over-icon v-else-if="slide.primary.icon === 'start-over'" />
                   <span v-else-if="slide.primary.icon === 'record'" class="hero-slide-record-dot" aria-hidden="true"></span>
@@ -63,6 +63,8 @@ export const HomeHeroCarousel = {
                   <a v-if="slide.secondary.href" :href="slide.secondary.href" class="ui-button ui-button-secondary">{{ slide.secondary.label }}</a>
                   <button v-else type="button" class="ui-button ui-button-secondary" @click="emitAction(slide, slide.secondary)">{{ slide.secondary.label }}</button>
                 </template>
+                <button type="button" class="ui-button ui-button-secondary hero-slide-more" :aria-label="'More for ' + slide.title"
+                  aria-haspopup="dialog" @click="$emit('menu', slide)"><more-glyph /></button>
               </div>
             </div>
           </article>

@@ -240,10 +240,6 @@ export const EpgView = {
         </div>
       </template>
 
-      <div class="ui-toast-region" aria-live="polite">
-        <div v-if="flashText" :class="['ui-toast', { 'is-error': flashKind === 'err' }]">{{ flashText }}</div>
-        <sort-undo-toast :toast="orderToast" @undo="undoOrder" />
-      </div>
       <sort-announcer :message="sort.announcement.value" :keyboard-active="sort.keyboardActive.value" />
 
       <teleport to="body">
@@ -274,7 +270,7 @@ export const EpgView = {
     </div>
   `,
   setup() {
-    const { flashText, flashKind, flash } = useFlash()
+    const { flash } = useFlash()
     const { openProgramme } = useProgrammeSheet()
     const day = ref(0)
     const guide = ref(null)
@@ -800,7 +796,7 @@ export const EpgView = {
       }
     }
 
-    const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: reloadGuide, nameOf: channelNameOf })
+    const orderSave = useFavouriteOrderSave({ currentPins, applyOrder: applyPinOrder, reload: reloadGuide })
 
     const canEditOrder = computed(() => canEditOrderOf({ narrow: narrow.value, filter: railFilter.value, pinnedCount: pinnedCount.value }))
     const { editing: editingOrder, sortable: canSort, toggle: toggleOrderEditing, stop: stopOrderEditing } = useOrderEditing({ canEdit: canEditOrder })
@@ -960,7 +956,7 @@ export const EpgView = {
         await togglePinnedChannel({ pinnedIds, channelId: ch.id })
         await reloadGuide()
       } catch (err) {
-        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err', ms: 6000 })
+        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err' })
       }
     }
 
@@ -1205,10 +1201,9 @@ export const EpgView = {
       openProgram, programmeSheetOpen,
       channelsModal, channelsModalMode, openChannelsModal, openOrderEditor, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, cellHasThumb,
-      canSort, railLayout, sort, orderToast: orderSave.toast, undoOrder: orderSave.undo,
+      canSort, railLayout, sort,
       onRailResizeDown, onRailResizeMove, onRailResizeUp,
       channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, seLabel,
-      flashText, flashKind,
     }
   },
 }

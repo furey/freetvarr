@@ -44,7 +44,7 @@ To reorder the favourites:
 - On a phone, press **Edit order** above the favourites. The **Favourite order** sheet opens. Drag a channel by its handle, or press the menu button on its row and pick a move. Press **Done** to save the order.
 - On a tablet or computer, press **Edit order** at the right of the **FAVOURITES** heading. A handle (three lines) appears at the start of each favourite. Drag a favourite by its handle to its new place. With a keyboard, tab to a handle, press Space to pick the channel up, move it with the arrow keys, and press Space again to drop it. Press **Done**, or press Esc, to hide the handles.
 
-After a drag on the Live TV page, **Undo** puts the old order back.
+Each drop saves the new order. To go back, drag the channel to its old place.
 
 Each row shows the channel number and logo, the programme on now with a progress bar and the time left, and **Next** with the programme after it. A `REC` badge marks a channel that records now. Press **Next**, or the info button at the end of a row, to open that programme's [sheet](/guide/tv-guide#recording-a-programme) over the list.
 

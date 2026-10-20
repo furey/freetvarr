@@ -29,7 +29,7 @@ export const ForYouView = {
           <h1 class="ui-page-title">For you</h1>
           <p class="ui-page-subtitle">{{ intro }}</p>
         </div>
-        <a :href="suggestionsHref" class="ui-icon-button for-you-tune-button" aria-label="Suggestion settings">
+        <a :href="suggestionsHref" class="ui-icon-button for-you-tune-button" aria-label="For you settings">
           <for-you-icon name="sliders" />
         </a>
       </header>
@@ -218,7 +218,7 @@ const UNAVAILABLE = {
   off: {
     title: 'For you is off',
     text: 'Turn on Show For you to get suggestions from the guide.',
-    action: 'Open Suggestions',
+    action: 'Open For you settings',
     href: SUGGESTIONS_HREF,
   },
 }

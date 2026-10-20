@@ -28,16 +28,19 @@ export const TvAppsPanel = {
           <div class="settings-row">
             <p class="settings-row-meta">A TV app needs its own login to get your channels. Press Make a TV login, and Freetvarr makes a login that can only watch TV. It then shows the details to copy into the app.</p>
           </div>
-          <div class="settings-row settings-row-actions">
-            <div class="field-row mb-0!">
-              <label class="field-label" for="tv-login-name">Login name</label>
-              <input v-no-autofill id="tv-login-name" type="text" class="field-input" v-model="name" />
+          <div class="settings-row">
+            <label class="field-label" for="tv-login-name">Login name</label>
+            <div class="field-action">
+              <div class="field-action-controls">
+                <input v-no-autofill id="tv-login-name" type="text" :class="['field-input', { 'is-invalid': statusKind === 'err' && statusText }]"
+                  v-model="name" :disabled="making" :aria-invalid="statusKind === 'err' && Boolean(statusText)" />
+                <button type="button" :class="['btn', 'btn-primary', { 'is-pending': making }]" @click="makeLogin" :disabled="making" :aria-busy="making">
+                  <template v-if="making"><span class="spinner" aria-hidden="true"></span> Making…</template><template v-else><tv-icon /> Make a TV login</template>
+                </button>
+              </div>
             </div>
-            <button type="button" :class="['btn', { 'is-pending': making }]" @click="makeLogin" :disabled="making" :aria-busy="making">
-              <template v-if="making"><span class="spinner" aria-hidden="true"></span> Making…</template><template v-else><tv-icon /> Make a TV login</template>
-            </button>
+            <p v-if="statusText" :class="['status-readout', 'field-status', statusKind]" role="status">{{ statusText }}</p>
           </div>
-          <p v-if="statusText" :class="['settings-row', 'status-readout', statusKind]">{{ statusText }}</p>
         </div>
       </div>
       <template v-else>

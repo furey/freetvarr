@@ -11,7 +11,7 @@ export const SETTINGS_GROUPS = [
       { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
       { id: 'tv-apps', label: 'Watch on TV', view: 'settings', section: 'tv-apps' },
       { id: 'player', label: 'Player', view: 'player' },
-      { id: 'suggestions', label: 'Suggestions', view: 'suggestions' },
+      { id: 'for-you', label: 'For you', view: 'for-you' },
       { id: 'schedule', label: 'Schedule', view: 'settings', section: 'schedule' },
     ],
   },
@@ -48,6 +48,6 @@ export const settingsPageOf = ({ params = [], narrow = false }) => {
   return narrow ? null : ALL_PAGES[0]
 }
 
-const PAGE_ALIASES = { help: 'about', 'danger-zone': 'reset' }
+const PAGE_ALIASES = { suggestions: 'for-you', help: 'about', 'danger-zone': 'reset' }
 
 const ALL_PAGES = SETTINGS_GROUPS.flatMap((group) => group.pages.map((page) => ({ ...page, group: group.key })))

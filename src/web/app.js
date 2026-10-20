@@ -88,6 +88,7 @@ import { SummaryLine } from '/components/summary-line.js'
 import { SyncDetail } from '/components/sync-detail.js'
 import { SyncStatusIcon, SyncResult } from '/components/sync-status.js'
 import { TitleArt } from '/components/title-art.js'
+import { ToastRegion } from '/components/toast-region.js'
 import { TvAppsPanel } from '/components/tv-apps-panel.js'
 import { UiSheet } from '/components/ui-sheet.js'
 import { VersionsRow } from '/components/versions-row.js'
@@ -149,6 +150,7 @@ const App = {
       <live-player />
       <recording-player />
       <programme-sheet-host />
+      <toast-region />
     </div>
   `,
   setup() {
@@ -245,6 +247,7 @@ app.component('airplay-icon', AirplayIcon)
 app.component('start-over-icon', StartOverIcon)
 app.component('player-info-panel', PlayerInfoPanel)
 app.component('stale-build-banner', StaleBuildBanner)
+app.component('toast-region', ToastRegion)
 app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
 app.component('series-folder-editor', FolderEditor)

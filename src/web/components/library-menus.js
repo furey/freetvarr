@@ -10,6 +10,7 @@ import { api } from '/shared/api.js'
 import { stopPlayback } from '/shared/playback-session.js'
 import { playback } from '/shared/player-shared.js'
 import { refreshAfterRecordingChange } from '/shared/recording-now.js'
+import { toast } from '/shared/toast.js'
 
 export const MenuIcon = {
   props: { name: { type: String, required: true } },
@@ -52,7 +53,7 @@ export const LibraryMenuSheet = {
           <button v-for="item in group" :key="item.key" type="button"
             :class="['ui-group-row', 'library-menu-item', { 'is-danger': item.danger, 'is-pending': pendingKey === item.key }]"
             :disabled="busy" :aria-busy="pendingKey === item.key" @click="$emit('choose', item.key)">
-            <span v-if="pendingKey === item.key" class="spinner library-menu-spinner" aria-hidden="true"></span><menu-icon v-else :name="item.icon" />
+            <span v-if="pendingKey === item.key" class="spinner library-menu-spinner" aria-hidden="true"></span><menu-icon v-else :name="item.icon" :class="'is-' + item.icon" />
             <span class="library-menu-label">{{ pendingKey === item.key ? menuPendingLabelOf(item.key) : item.label }}</span>
             <small v-if="item.detail" class="library-menu-detail">{{ item.detail }}</small>
           </button>
@@ -295,40 +296,10 @@ export const DeleteConfirm = {
   },
 }
 
-export const LibraryToast = {
-  components: { MenuIcon },
-  props: { toast: { type: Object, default: null } },
-  emits: ['dismiss'],
-  template: `
-    <div class="ui-toast-region library-toast-region" aria-live="polite">
-      <div v-if="toast" :class="['ui-toast', 'library-toast', 'is-' + toast.kind]" role="status">
-        <span class="library-toast-icon"><menu-icon :name="toast.kind === 'ok' ? 'check' : 'warning'" /></span>
-        <span class="library-toast-text">
-          <b>{{ toast.title }}</b>
-          <span v-if="toast.detail" class="library-toast-detail">{{ toast.detail }}</span>
-          <span v-for="line in toast.failures || []" :key="line" class="library-toast-detail">{{ line }}</span>
-        </span>
-        <button v-if="toast.kind !== 'ok'" type="button" class="ui-icon-button is-plain library-toast-close" aria-label="Dismiss" @click="$emit('dismiss')"><close-glyph /></button>
-      </div>
-    </div>
-  `,
-}
-
 export const useLibraryToast = () => {
-  const toast = ref(null)
-  let timer = null
-  const showToast = ({ kind = 'ok', title, detail = '', failures = [], ms }) => {
-    clearTimeout(timer)
-    toast.value = { kind, title, detail, failures }
-    const visibleMs = ms ?? (kind === 'ok' ? TOAST_MS : TOAST_PROBLEM_MS)
-    if (visibleMs > 0) timer = setTimeout(() => { toast.value = null }, visibleMs)
-  }
-  const dismissToast = () => {
-    clearTimeout(timer)
-    toast.value = null
-  }
-  onUnmounted(() => clearTimeout(timer))
-  return { toast, showToast, dismissToast }
+  const showToast = ({ kind = 'ok', title, detail = '', failures = [] }) =>
+    toast({ text: title, detail: [detail, ...failures].filter(Boolean).join('\n'), kind })
+  return { showToast }
 }
 
 export const openPlexLink = async ({ url, onMissing }) => {
@@ -350,12 +321,11 @@ export const openPlexLink = async ({ url, onMissing }) => {
 
 let dialogCount = 0
 
-const TOAST_MS = 4500
-const TOAST_PROBLEM_MS = 12_000
 
 const path = (d) => ({ tag: 'path', attrs: { d } })
 const circle = (cx, cy, r) => ({ tag: 'circle', attrs: { cx, cy, r } })
 const rect = (x, y, width, height) => ({ tag: 'rect', attrs: { x, y, width, height } })
+const dot = (r) => ({ tag: 'circle', attrs: { cx: 12, cy: 12, r, fill: 'currentColor', stroke: 'none' } })
 
 const MENU_ICONS = {
   play: [path('M7 4v16l13-8z')],
@@ -371,4 +341,8 @@ const MENU_ICONS = {
   'check-list': [path('M4 12h10M4 6h16M4 18h7'), path('m16 15 2 2 4-4')],
   ads: [path('M6 4v16M18 4v16M6 12h12')],
   warning: [path('M12 3 2 20h20z'), path('M12 10v4M12 17v.5')],
+  record: [dot(6)],
+  series: [circle(12, 12, 9), dot(4.5)],
+  show: [{ tag: 'rect', attrs: { x: 3, y: 4, width: 18, height: 13, rx: 2 } }, path('M8 21h8M12 17v4')],
+  skip: [circle(12, 12, 9), path('m5.6 5.6 12.8 12.8')],
 }

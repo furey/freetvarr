@@ -9,7 +9,7 @@ import {
 } from '/for-you.js'
 import { api } from '/shared/api.js'
 import { dataCreditsOf } from '/data-credits.js'
-import { forYouHidden, unhideShow } from '/shared/for-you-session.js'
+import { forYouHidden, forYouShown, unhideShow } from '/shared/for-you-session.js'
 
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
@@ -18,7 +18,7 @@ export const SuggestionsSettingsView = {
       <p v-if="error" class="ui-banner is-error" role="alert">{{ error }}</p>
 
       <div class="settings-group">
-        <h3 class="ui-group-label">Suggestions</h3>
+        <h3 class="ui-group-label">For you</h3>
         <div class="ui-group">
           <div class="settings-row">
             <toggle-switch :model-value="settings.enabled !== false" class="settings-toggle" :disabled="!loaded"
@@ -144,9 +144,10 @@ export const SuggestionsSettingsView = {
       try {
         settings.value = await api('GET', '/api/for-you/settings')
         loaded.value = true
+        forYouShown.value = settings.value.enabled !== false
       } catch (err) {
         error.value = err.status === 404
-          ? 'Suggestions are not ready on this box yet.'
+          ? 'For you is not ready on this box yet.'
           : `Could not load suggestion settings: ${err.message}`
       }
       await Promise.all([loadHidden(), loadCount()])
@@ -155,6 +156,7 @@ export const SuggestionsSettingsView = {
     const save = async (patch) => {
       const previous = settings.value
       settings.value = { ...previous, ...patch }
+      forYouShown.value = settings.value.enabled !== false
       error.value = ''
       try {
         settings.value = { ...settings.value, ...(await api('PUT', '/api/for-you/settings', patch)) }
@@ -162,6 +164,7 @@ export const SuggestionsSettingsView = {
         settings.value = previous
         error.value = `Could not save: ${err.message}`
       }
+      forYouShown.value = settings.value.enabled !== false
     }
 
     const checkAgain = async () => {
