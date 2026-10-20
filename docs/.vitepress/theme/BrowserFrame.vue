@@ -194,9 +194,9 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
   border-radius: 50%;
 }
 
-.browser-frame__dot--blue { background: #1eb6ff; }
-.browser-frame__dot--orange { background: #ff8a00; }
-.browser-frame__dot--yellow { background: #e2b03c; }
+.browser-frame__dot--blue { background: #3ba4ff; }
+.browser-frame__dot--orange { background: #f28c28; }
+.browser-frame__dot--yellow { background: #f5c542; }
 
 .browser-frame__url {
   position: absolute;
@@ -240,7 +240,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
 
 .browser-frame__screen {
   aspect-ratio: 1280 / 800;
-  background: #1a1611;
+  background: #0b1117;
 }
 
 .browser-frame__shot :slotted(img) {

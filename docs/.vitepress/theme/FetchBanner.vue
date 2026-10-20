@@ -33,7 +33,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
   box-sizing: border-box;
   height: var(--vp-layout-top-height);
   padding: 0 16px;
-  background: #007bb6;
+  background: #12403a;
   color: #fff;
   font-size: 14px;
   line-height: 1.5;
@@ -42,7 +42,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
 }
 
 .fetch-banner:hover {
-  background-color: #006da3;
+  background-color: #175048;
 }
 
 .fetch-banner:hover .fetch-banner__text {
@@ -64,7 +64,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
 
 .fetch-banner__text strong {
   margin-right: 4px;
-  color: inherit;
+  color: #8bebd7;
   font-weight: 700;
 }
 

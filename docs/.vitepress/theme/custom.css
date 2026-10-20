@@ -1,26 +1,43 @@
 /*
-  Brand styling for the freetvarr docs.
-  Palette and fonts are lifted from the web app (src/web/index.html @theme,
-  src/web/styles.css): warm near-black #1a1611 canvas, #fffcfb ink, signal-blue
-  interactive accent, with orange and Plex-yellow as the wordmark's other two chips.
+  Brand styling for the Freetvarr docs, matching the 2.0 web app: the tokens in
+  src/tailwind.css, Figtree for text, Geist Mono for machine data, mint for
+  primary actions, and the three brand colours only in the wordmark and mark.
 */
 
 @font-face {
-  font-family: "Inter";
+  font-family: "Figtree";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("./fonts/inter-variable.woff2") format("woff2-variations"),
-       url("./fonts/inter-variable.woff2") format("woff2");
+  src: url("./fonts/figtree-latin-variable.woff2") format("woff2-variations"),
+       url("./fonts/figtree-latin-variable.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-  font-family: "JetBrains Mono";
+  font-family: "Figtree";
   font-style: normal;
-  font-weight: 100 800;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("./fonts/jetbrains-mono-variable.woff2") format("woff2-variations"),
-       url("./fonts/jetbrains-mono-variable.woff2") format("woff2");
+  src: url("./fonts/figtree-latin-ext-variable.woff2") format("woff2-variations"),
+       url("./fonts/figtree-latin-ext-variable.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/geist-mono-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/geist-mono-latin-500-normal.woff2") format("woff2");
 }
 
 :root:has(.fetch-banner) {
@@ -28,61 +45,114 @@
 }
 
 :root {
-  --vp-font-family-base: "Inter", ui-sans-serif, system-ui, -apple-system,
+  --ftv-bg: #0b1117;
+  --ftv-rail: #0e151c;
+  --ftv-surface-1: #141c24;
+  --ftv-surface-2: #1c2630;
+  --ftv-surface-3: #26323e;
+  --ftv-hairline: rgba(255, 255, 255, 0.08);
+  --ftv-text-1: #f2f5f7;
+  --ftv-text-2: #a9b4be;
+  --ftv-text-3: #8d9aa7;
+  --ftv-primary: #5ce1c6;
+  --ftv-primary-hi: #8bebd7;
+  --ftv-primary-tint: rgba(92, 225, 198, 0.14);
+  --ftv-on-primary: #04201a;
+  --ftv-live: #ff4d4f;
+  --ftv-live-text: #ff8486;
+  --ftv-success: #3dd68c;
+  --ftv-warning: #ffb547;
+  --ftv-info: #62cfff;
+  --ftv-brand-blue: #3ba4ff;
+  --ftv-brand-orange: #f28c28;
+  --ftv-brand-yellow: #f5c542;
+
+  --vp-font-family-base: "Figtree", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
-  --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+  --vp-font-family-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo,
     "Courier New", monospace;
 
-  --vp-c-brand-1: #0a9fe6;
-  --vp-c-brand-2: #1eb6ff;
-  --vp-c-brand-3: #62cfff;
-  --vp-c-brand-soft: rgba(30, 182, 255, 0.16);
-  --vp-c-brand-softer: rgba(30, 182, 255, 0.08);
+  --vp-c-brand-1: var(--ftv-primary);
+  --vp-c-brand-2: var(--ftv-primary-hi);
+  --vp-c-brand-3: var(--ftv-primary);
+  --vp-c-brand-soft: var(--ftv-primary-tint);
+  --vp-c-brand-softer: rgba(92, 225, 198, 0.08);
 
   --vp-button-brand-border: transparent;
-  --vp-button-brand-text: #1a1611;
-  --vp-button-brand-bg: #1eb6ff;
+  --vp-button-brand-text: var(--ftv-on-primary);
+  --vp-button-brand-bg: var(--ftv-primary);
   --vp-button-brand-hover-border: transparent;
-  --vp-button-brand-hover-text: #1a1611;
-  --vp-button-brand-hover-bg: #62cfff;
+  --vp-button-brand-hover-text: var(--ftv-on-primary);
+  --vp-button-brand-hover-bg: var(--ftv-primary-hi);
   --vp-button-brand-active-border: transparent;
-  --vp-button-brand-active-text: #1a1611;
-  --vp-button-brand-active-bg: #0a9fe6;
+  --vp-button-brand-active-text: var(--ftv-on-primary);
+  --vp-button-brand-active-bg: var(--ftv-primary);
 
-  --vp-home-hero-name-color: var(--vp-c-text-1);
-  --hero-line-2: #c25e00;
-  --vp-home-hero-image-background-image: linear-gradient(
-    135deg,
-    rgba(98, 207, 255, 0.4),
-    rgba(30, 182, 255, 0.32) 45%,
-    rgba(255, 138, 0, 0.7)
+  --vp-button-alt-border: transparent;
+  --vp-button-alt-text: var(--ftv-text-1);
+  --vp-button-alt-bg: var(--ftv-surface-2);
+  --vp-button-alt-hover-border: transparent;
+  --vp-button-alt-hover-text: var(--ftv-text-1);
+  --vp-button-alt-hover-bg: var(--ftv-surface-3);
+  --vp-button-alt-active-border: transparent;
+  --vp-button-alt-active-text: var(--ftv-text-1);
+  --vp-button-alt-active-bg: var(--ftv-surface-2);
+
+  --vp-c-tip-1: var(--ftv-primary);
+  --vp-c-tip-2: var(--ftv-primary-hi);
+  --vp-c-tip-3: var(--ftv-primary);
+  --vp-c-tip-soft: var(--ftv-primary-tint);
+  --vp-c-note-1: var(--ftv-info);
+  --vp-c-note-soft: rgba(98, 207, 255, 0.12);
+  --vp-c-important-1: #b9a5ff;
+  --vp-c-important-soft: rgba(185, 165, 255, 0.12);
+  --vp-c-warning-1: var(--ftv-warning);
+  --vp-c-warning-soft: rgba(255, 181, 71, 0.12);
+  --vp-c-caution-1: var(--ftv-live-text);
+  --vp-c-caution-soft: rgba(255, 77, 79, 0.12);
+  --vp-c-danger-1: var(--ftv-live-text);
+  --vp-c-danger-soft: rgba(255, 77, 79, 0.12);
+
+  --vp-home-hero-name-color: var(--ftv-text-1);
+  --vp-home-hero-image-background-image: radial-gradient(
+    closest-side,
+    rgba(92, 225, 198, 0.32),
+    rgba(59, 164, 255, 0.18) 60%,
+    transparent
   );
-  --vp-home-hero-image-filter: blur(52px);
+  --vp-home-hero-image-filter: blur(56px);
+
+  --vp-code-block-bg: var(--ftv-surface-1);
+  --vp-code-bg: var(--ftv-surface-2);
+  --vp-code-color: var(--ftv-text-1);
+  --vp-code-font-size: 0.875em;
 }
 
 .dark {
-  --hero-line-2: #ff8a00;
-  --vp-c-brand-1: #62cfff;
-  --vp-c-brand-2: #1eb6ff;
-  --vp-c-brand-3: #0a9fe6;
+  --vp-c-bg: var(--ftv-bg);
+  --vp-c-bg-alt: var(--ftv-rail);
+  --vp-c-bg-soft: var(--ftv-surface-1);
+  --vp-c-bg-elv: var(--ftv-surface-2);
+  --vp-c-bg-elv-mute: var(--ftv-surface-3);
 
-  --vp-c-bg: #1a1611;
-  --vp-c-bg-alt: #201b15;
-  --vp-c-bg-soft: #28231b;
-  --vp-c-bg-elv: #28231b;
-  --vp-c-bg-elv-mute: #332f21;
+  --vp-c-gutter: #070b0f;
+  --vp-c-divider: var(--ftv-hairline);
+  --vp-c-border: rgba(255, 255, 255, 0.12);
+  --vp-c-default-soft: var(--ftv-surface-2);
 
-  --vp-c-gutter: #12100c;
-  --vp-c-divider: #3d3829;
-  --vp-c-border: #3d3829;
+  --vp-c-text-1: var(--ftv-text-1);
+  --vp-c-text-2: var(--ftv-text-2);
+  --vp-c-text-3: var(--ftv-text-3);
 
-  --vp-c-text-1: #fffcfb;
-  --vp-c-text-2: #b0a89e;
-  --vp-c-text-3: #8b837e;
+  --vp-code-block-bg: var(--ftv-surface-1);
+  --vp-code-bg: var(--ftv-surface-2);
 }
 
-/* The app renders numbers tabular so live readings hold their width; carry the
-   same tabular figures into code and tables here. */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 .vp-doc table,
 .vp-doc code,
 .vp-doc kbd,
@@ -90,61 +160,254 @@ kbd {
   font-feature-settings: "tnum" 1;
 }
 
-/* Headings use the web app's tighter tracking rather than the looser default. */
-.vp-doc h1,
-.vp-doc h2,
-.vp-doc h3,
-.vp-doc h4,
-.vp-doc h5,
-.vp-doc h6,
+.vp-doc h1 {
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.vp-doc h2 {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border-top-color: var(--ftv-hairline);
+}
+
+.vp-doc h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.vp-doc h4 {
+  font-weight: 700;
+}
+
 .VPHero .name,
 .VPHero .text,
 .VPFeature .title {
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
 }
 
-/* The hero name is the wordmark: three chips, then Freetvarr in mono. */
-.VPHero .name .hero-brand {
+.vp-doc a {
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(92, 225, 198, 0.4);
+}
+
+.vp-doc a:hover {
+  text-decoration-color: currentColor;
+}
+
+.vp-doc :not(pre) > code {
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-weight: 500;
+}
+
+.vp-doc div[class*="language-"],
+.vp-doc .vp-code-group .tabs {
+  border-radius: 12px;
+}
+
+.vp-doc div[class*="language-"] {
+  border: 1px solid var(--ftv-hairline);
+}
+
+.vp-doc table {
+  border-radius: 12px;
+  border: 1px solid var(--ftv-hairline);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+.vp-doc tr {
+  background: transparent;
+  border-top: 0;
+}
+
+.vp-doc tr:nth-child(2n) {
+  background: transparent;
+}
+
+.vp-doc th,
+.vp-doc td {
+  border: 0;
+  border-top: 1px solid var(--ftv-hairline);
+}
+
+.vp-doc thead th {
+  border-top: 0;
+  background: var(--ftv-surface-1);
+  color: var(--ftv-text-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.custom-block {
+  border-radius: 12px;
+  border: 0;
+  border-left: 3px solid currentColor;
+}
+
+.custom-block.note { color: var(--ftv-info); }
+.custom-block.tip { color: var(--ftv-primary); }
+.custom-block.important { color: #b9a5ff; }
+.custom-block.warning { color: var(--ftv-warning); }
+.custom-block.caution,
+.custom-block.danger { color: var(--ftv-live); }
+
+.custom-block > :not(.custom-block-title) {
+  color: var(--ftv-text-1);
+}
+
+.custom-block .custom-block-title {
+  font-weight: 700;
+}
+
+.VPNavBar.has-sidebar .content-body,
+.VPNavBar:not(.home) .content-body,
+.VPNavBar .divider-line {
+  background-color: var(--vp-c-bg);
+}
+
+.VPNavBarTitle .title {
+  gap: 10px;
+}
+
+.VPNavBarTitle .title > span:not(.ftv-nav-wordmark) {
+  display: none;
+}
+
+.ftv-mark {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.ftv-mark i {
+  display: block;
+  width: 8px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+.ftv-mark i:nth-child(1) { background: var(--ftv-brand-blue); }
+.ftv-mark i:nth-child(2) { background: var(--ftv-brand-orange); }
+.ftv-mark i:nth-child(3) { background: var(--ftv-brand-yellow); }
+
+.ftv-nav-wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 0.49em;
-  font-size: 0.8em;
-  font-family: var(--vp-font-family-mono);
-  font-weight: 400;
-  letter-spacing: 0;
+  gap: 10px;
 }
 
-.VPHero .hero-chips {
+.ftv-wordmark {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ftv-nav-wordmark .ftv-wordmark {
+  font-size: 19px;
+}
+
+.ftv-wordmark-free { color: var(--ftv-brand-blue); }
+.ftv-wordmark-tv { color: var(--ftv-brand-orange); }
+.ftv-wordmark-arr { color: var(--ftv-brand-yellow); }
+
+.ftv-wordmark [class^="ftv-wordmark-"] {
+  -webkit-text-fill-color: currentColor;
+}
+
+.VPSidebar .VPSidebarItem.level-0 > .item .text {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ftv-text-3);
+}
+
+.VPSidebarItem.is-active > .item .link > .text {
+  color: var(--ftv-primary);
+  font-weight: 600;
+}
+
+.VPSidebarItem.level-1 .item {
+  border-radius: 8px;
+}
+
+.VPDocAsideOutline .outline-link.active {
+  color: var(--ftv-primary);
+}
+
+.VPButton.VPButton {
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.VPButton.medium {
+  min-height: 44px;
+  line-height: 42px;
+}
+
+.VPButton.big {
+  min-height: 48px;
+  line-height: 46px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+.VPFeature.VPFeature {
+  border-radius: 12px;
+  border: 1px solid var(--ftv-hairline);
+  background: var(--ftv-surface-1);
+}
+
+.VPFeature.link:hover {
+  border-color: rgba(92, 225, 198, 0.4);
+  background: var(--ftv-surface-2);
+}
+
+.VPFeature .title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.VPFeature .link-text-value {
+  color: var(--ftv-primary);
+  font-weight: 700;
+}
+
+.VPHero .name .hero-brand {
   display: inline-flex;
-  gap: 0.23em;
+  font-size: 1em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
-
-.VPHero .hero-chips i {
-  width: 0.55em;
-  height: 0.41em;
-}
-
-.VPHero .hero-chips i:nth-child(1) { background: #1eb6ff; }
-.VPHero .hero-chips i:nth-child(2) { background: #ff8a00; }
-.VPHero .hero-chips i:nth-child(3) { background: #e2b03c; }
 
 .VPHero .text .hero-line-1,
-.VPHero .text .hero-line-2 { display: block; color: var(--hero-line-2); }
+.VPHero .text .hero-line-2 { display: block; color: var(--ftv-text-2); }
 
-.VPHero .text .hero-em { color: var(--vp-c-text-1); font-style: normal; }
+.VPHero .text .hero-em { color: var(--ftv-text-1); font-style: normal; }
 
 .VPHero .heading .name:has(.hero-brand) {
-  padding-bottom: 0.45em;
+  padding-bottom: 0.3em;
+  line-height: 1;
 }
 
 .VPHero .text:has(.hero-line-1) {
-  font-size: clamp(30px, 3.6vw, 44px);
+  font-size: clamp(28px, 3.4vw, 40px);
   line-height: 1.15;
+  font-weight: 700;
 }
 
 .VPHero .tagline.tagline {
-  padding-top: 38px;
-  line-height: 1.25;
+  padding-top: 28px;
+  line-height: 1.4;
+  font-size: 18px;
+  color: var(--ftv-text-2);
 }
 
 .VPHero .actions.actions {
@@ -201,6 +464,16 @@ kbd {
 @media (max-width: 959px) {
   .VPHero .image {
     margin-top: 0;
+  }
+
+  .VPHero.VPHero {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 32px);
+  }
+}
+
+@media (max-width: 639px) {
+  .VPHero.VPHero {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 16px);
   }
 }
 
@@ -325,21 +598,4 @@ kbd {
   .vp-doc table:has(th:nth-child(3)) :is(th, td):first-child {
     min-width: 6em;
   }
-}
-
-/* Homepage hero buttons: outlined in the site blue, white on hover. */
-.VPHero {
-  --vp-button-brand-hover-border: #fffcfb;
-  --vp-button-brand-hover-bg: #fffcfb;
-  --vp-button-brand-active-border: var(--vp-c-text-2);
-  --vp-button-brand-active-bg: var(--vp-c-text-2);
-  --vp-button-alt-border: var(--vp-c-brand-2);
-  --vp-button-alt-text: var(--vp-c-brand-1);
-  --vp-button-alt-bg: transparent;
-  --vp-button-alt-hover-border: #fffcfb;
-  --vp-button-alt-hover-text: #fffcfb;
-  --vp-button-alt-hover-bg: transparent;
-  --vp-button-alt-active-border: var(--vp-c-text-2);
-  --vp-button-alt-active-text: var(--vp-c-text-2);
-  --vp-button-alt-active-bg: transparent;
 }

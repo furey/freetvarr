@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: >-
-    <span class="hero-brand"><span class="hero-chips" aria-hidden="true"><i></i><i></i><i></i></span>Freetvarr</span>
+    <span class="hero-brand"><span class="ftv-wordmark" role="img" aria-label="Freetvarr"><span class="ftv-wordmark-free" aria-hidden="true">Free</span><span class="ftv-wordmark-tv" aria-hidden="true">tv</span><span class="ftv-wordmark-arr" aria-hidden="true">arr</span></span></span>
   text: >-
     <span class="hero-line-1"><em class="hero-em">Live TV</em> in your browser.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
@@ -31,10 +31,10 @@ hero:
 features:
   - title: Live TV
     details: >-
-      Watch any channel in the browser, on a phone or a desktop, and pause or
-      rewind up to 30 minutes. See what's on now and next across every channel.
-    link: /guide/live-tv
-    linkText: Watch live
+      Watch any channel in the browser, on a phone or a desktop. Pause, rewind,
+      start a show over while it records, or watch two channels with Multiview.
+    link: /guide/player
+    linkText: The player
   - title: Free to run
     details: >-
       A tuner you own and a free XMLTV guide. No subscription, no levy, no
@@ -44,7 +44,8 @@ features:
   - title: Guide
     details: >-
       A 7-day programme guide in the browser: schedule, cancel, and
-      series-record in TVHeadend, or ask to be told when a show airs.
+      series-record in TVHeadend, see which tuner records what, or ask to be
+      told when a show airs.
     link: /guide/tv-guide
     linkText: Browse and record
   - title: Series folders
