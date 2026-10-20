@@ -46,8 +46,8 @@ export const HomeView = {
 
         <section v-if="newRecordingsRow.length" class="ui-section" aria-labelledby="home-new-title">
           <div class="ui-row-header">
-            <h2 id="home-new-title" class="ui-section-title">New recordings</h2>
-            <a href="#/recordings" class="ui-row-link">See all</a>
+            <h2 id="home-new-title" class="ui-section-title"><a href="#/recordings" class="ui-row-title-link">New recordings<chevron-glyph class="ui-row-chevron" /></a></h2>
+            <a href="#/recordings" class="ui-row-link" tabindex="-1" aria-hidden="true">See all</a>
           </div>
           <div class="ui-scroller">
             <a v-for="r in newRecordingsRow" :key="r.recordingId" :href="showHref(r)" class="ui-card"
@@ -70,16 +70,16 @@ export const HomeView = {
 
         <section v-if="forYouRow" ref="forYouSection" class="ui-section home-for-you" aria-labelledby="home-for-you-title">
           <div class="ui-row-header">
-            <h2 id="home-for-you-title" class="ui-section-title">{{ forYouRow.title }}</h2>
-            <a :href="forYouHref" class="ui-row-link">See all</a>
+            <h2 id="home-for-you-title" class="ui-section-title"><a :href="forYouHref" class="ui-row-title-link">{{ forYouRow.title }}<chevron-glyph class="ui-row-chevron" /></a></h2>
+            <a :href="forYouHref" class="ui-row-link" tabindex="-1" aria-hidden="true">See all</a>
           </div>
           <for-you-rows :rows="[{ shape: 'card', items: forYouRow.items }]" :ctl="forYou" with-lead />
         </section>
 
         <section v-if="onNow.length" class="ui-section" aria-labelledby="home-on-now-title">
           <div class="ui-row-header">
-            <h2 id="home-on-now-title" class="ui-section-title">On now</h2>
-            <a href="#/live" class="ui-row-link">Live TV</a>
+            <h2 id="home-on-now-title" class="ui-section-title"><a href="#/live" class="ui-row-title-link">On now<chevron-glyph class="ui-row-chevron" /></a></h2>
+            <a href="#/live" class="ui-row-link" tabindex="-1" aria-hidden="true">Live TV</a>
           </div>
           <div class="ui-scroller">
             <button v-for="item in onNow" :key="item.channel.id" type="button" class="ui-card home-card-button"
@@ -103,8 +103,8 @@ export const HomeView = {
 
         <section v-if="tonight.length" class="ui-section" aria-labelledby="home-tonight-title">
           <div class="ui-row-header">
-            <h2 id="home-tonight-title" class="ui-section-title">Recording tonight</h2>
-            <a href="#/recordings/scheduled" class="ui-row-link">Scheduled</a>
+            <h2 id="home-tonight-title" class="ui-section-title"><a href="#/recordings/scheduled" class="ui-row-title-link">Recording tonight<chevron-glyph class="ui-row-chevron" /></a></h2>
+            <a href="#/recordings/scheduled" class="ui-row-link" tabindex="-1" aria-hidden="true">Scheduled</a>
           </div>
           <ul class="home-tonight">
             <li v-for="item in tonight" :key="item.programId">

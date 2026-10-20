@@ -14,7 +14,7 @@ Suggestions show in three places:
 
 - The **For you** row on [Home](/guide/home#rows).
 - A **For you** slide in the [highlights](/guide/home#highlights) on Home.
-- The **For you** page. Press **See all** on the Home row to open it.
+- The **For you** page. Press **See all** or the row title on Home to open it. On a tablet or computer, **For you** in the rail opens it too.
 
 ## The For you page
 

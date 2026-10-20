@@ -18,7 +18,7 @@ Home is the first page Freetvarr opens. It answers one question: what can I watc
 
 ## Navigation
 
-Freetvarr has five destinations: **Home**, **Live TV**, **Guide**, **Recordings**, and **Settings**. On a phone, a tab bar at the bottom holds them. On a tablet or computer, a rail down the left side holds them, with Settings at the bottom.
+Freetvarr has five destinations: **Home**, **Live TV**, **Guide**, **Recordings**, and **Settings**. On a phone, a tab bar at the bottom holds them. On a tablet or computer, a rail down the left side holds them, with Settings at the bottom. The rail also has **For you** under Recordings, unless you turn For you off in Settings.
 
 Each page has these controls in its header:
 
@@ -49,7 +49,7 @@ Freetvarr picks the slides from these, in this order, and leaves out any that ha
 
 ## Rows
 
-Under the highlights, Home has these rows. A row with nothing in it is left out.
+Under the highlights, Home has these rows. A row with nothing in it is left out. A row title opens the same page as the link at the right end of the row.
 
 - **New recordings**: episodes you have not watched, newest first, with a `NEW` badge. Press a card to open the show page. **See all** opens [Recordings](/guide/recordings).
 - **For you**: suggestions from the next week of the Guide. Until Freetvarr knows what you like, this row is called **New this week**. **See all** opens the [For you](/guide/for-you) page.

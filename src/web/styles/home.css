@@ -387,15 +387,6 @@
   display: block;
 }
 
-.for-you-card-hit:focus-visible {
-  outline: none;
-}
-
-.for-you-card-hit:focus-visible .ui-card-art,
-.for-you-card-hit:focus-visible .ui-poster-art {
-  box-shadow: 0 0 0 2px var(--color-primary);
-}
-
 .for-you-card:active .ui-card-art,
 .for-you-card:active .ui-poster-art {
   transform: scale(0.97);
@@ -509,11 +500,6 @@
   .for-you-card:hover .for-you-channel {
     opacity: 0;
   }
-
-  .for-you-card:hover .ui-card-art,
-  .for-you-card:hover .ui-poster-art {
-    box-shadow: 0 0 0 2px var(--color-primary);
-  }
 }
 
 .for-you-card .ui-art-title {
@@ -529,10 +515,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.for-you-scroller {
-  padding-bottom: 4px;
 }
 
 .for-you-back {
@@ -615,6 +597,9 @@
 .for-you-picks {
   display: flex;
   gap: 12px;
+  margin: -6px;
+  padding: 6px;
+  scroll-padding-inline: 6px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
@@ -652,11 +637,6 @@
 
 .for-you-pick[aria-pressed="true"] .for-you-pick-art {
   border-color: var(--color-primary);
-}
-
-.for-you-pick:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
 }
 
 .for-you-pick-title {

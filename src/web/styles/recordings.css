@@ -336,11 +336,11 @@
   }
 
   .show-episode-thumb > img {
-    transition: filter var(--motion-fast) var(--ease-standard);
+    transition: transform 320ms var(--ease-standard);
   }
 
   .show-episode.is-playable:hover .show-episode-thumb > img {
-    filter: brightness(1.08);
+    transform: scale(1.05);
   }
 
   .show-episode-play svg {
@@ -360,6 +360,10 @@
   .show-episode-play svg {
     transition: none;
   }
+
+  .show-episode.is-playable:hover .show-episode-thumb > img {
+    transform: none;
+  }
 }
 
 .show-episode-thumb {
@@ -378,6 +382,11 @@
   box-sizing: border-box;
   cursor: pointer;
   transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.show-episode-thumb:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .show-episode-thumb.is-unplayable {

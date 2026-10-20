@@ -393,6 +393,61 @@ body.sheet-open .app-tabbar {
   text-decoration: none;
 }
 
+.ui-row-title-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -9px 0 -9px -8px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ui-row-title-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ui-row-title-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.ui-row-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: 3px;
+  color: var(--color-text-2);
+  stroke-width: 2.25;
+  opacity: 0;
+  transform: translate(-4px, 1px);
+  transition: opacity var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard);
+}
+
+.ui-row-title-link:focus-visible .ui-row-chevron {
+  opacity: 1;
+  transform: translateY(1px);
+}
+
+@media (hover: hover) {
+  .ui-row-title-link:hover .ui-row-chevron {
+    opacity: 1;
+    transform: translateY(1px);
+  }
+
+  .ui-row-header:has(.ui-row-title-link:hover) .ui-row-link {
+    color: var(--color-text-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-row-chevron {
+    transform: translateY(1px);
+  }
+}
+
 .ui-group-label {
   margin: 0 4px 8px;
   font-size: 13px;
@@ -407,7 +462,9 @@ body.sheet-open .app-tabbar {
   display: flex;
   gap: 12px;
   margin-inline: calc(var(--gutter) * -1);
+  margin-block: -6px;
   padding-inline: var(--gutter);
+  padding-block: 6px;
   scroll-padding-inline: var(--gutter);
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -500,11 +557,46 @@ body.sheet-open .app-tabbar {
   transform: scale(0.97);
 }
 
-@media (hover: hover) {
-  .ui-card:hover .ui-card-art,
-  .ui-poster:hover .ui-poster-art {
-    transform: translateY(-2px);
+.ui-art-fallback:is(.ui-card-art, .ui-poster-art)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: inherit;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(.ui-card-art, .ui-poster-art) > :is(img, .programme-image),
+  .ui-art-fallback:is(.ui-card-art, .ui-poster-art)::before {
+    transition: transform 320ms var(--ease-standard);
   }
+
+  :is(.ui-card, .ui-poster):focus-visible :is(.ui-card-art, .ui-poster-art) > :is(img, .programme-image),
+  :is(.ui-card, .ui-poster):focus-visible .ui-art-fallback::before,
+  .for-you-card-hit:focus-visible :is(.ui-card-art, .ui-poster-art) > :is(img, .programme-image),
+  .for-you-card-hit:focus-visible .ui-art-fallback::before,
+  .for-you-pick:focus-visible .ui-poster-art > img,
+  .for-you-pick:focus-visible .ui-art-fallback::before {
+    transform: scale(1.05);
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :is(.ui-card, .ui-poster, .for-you-pick):hover :is(.ui-card-art, .ui-poster-art) > :is(img, .programme-image),
+  :is(.ui-card, .ui-poster, .for-you-pick):hover .ui-art-fallback::before {
+    transform: scale(1.05);
+  }
+}
+
+:is(.ui-card, .ui-poster):focus-visible,
+.for-you-card-hit:focus-visible,
+.for-you-pick:focus-visible {
+  outline: none;
+}
+
+:is(.ui-card, .ui-poster):focus-visible :is(.ui-card-art, .ui-poster-art),
+.for-you-card-hit:focus-visible :is(.ui-card-art, .ui-poster-art),
+.for-you-pick:focus-visible .ui-poster-art {
+  box-shadow: var(--focus-ring);
 }
 
 .ui-art-fallback {
@@ -1830,7 +1922,7 @@ a.ui-banner:hover {
   }
 }
 
-html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-switch, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
+html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-switch, .ui-row-link, .ui-row-title-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
   -webkit-tap-highlight-color: transparent;
   transition-property: background-color, color, border-color, opacity, transform, filter;
   transition-duration: var(--motion-fast);
@@ -1846,7 +1938,7 @@ html :is(.ui-button.ui-button-destructive, .btn.btn-danger):active:not(:disabled
   background-color: rgba(255, 77, 79, 0.14);
 }
 
-html :is(.ui-icon-button.is-plain, .btn-link, .ui-row-link, .show-select-action, .library-dialog-cancel, .ui-segment:not(.is-selected, [aria-selected="true"], [aria-pressed="true"], [aria-current="page"])):active:not(:disabled, .is-pending) {
+html :is(.ui-icon-button.is-plain, .btn-link, .ui-row-link, .ui-row-title-link, .show-select-action, .library-dialog-cancel, .ui-segment:not(.is-selected, [aria-selected="true"], [aria-pressed="true"], [aria-current="page"])):active:not(:disabled, .is-pending) {
   background-color: rgba(255, 255, 255, 0.08);
 }
 
