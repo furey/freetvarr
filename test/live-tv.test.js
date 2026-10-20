@@ -9,6 +9,7 @@ import {
   ffmpegArgsFor,
   tunerVerdict,
   stallReason,
+  liveStreamWeightOf,
   createLiveSessions,
   missingStreamParameters,
   LIVE_FILE_PATTERN,
@@ -923,4 +924,8 @@ test('withCaptionDateTimes: gives each caption segment the date time of its vide
     .join('\n')
   assert.equal(withCaptionDateTimes({ captions, media }), ['#EXTINF:2.000000,', dated(2), 'live7.vtt',
     '#EXTINF:2.000000,', dated(4), 'live8.vtt', '#EXTINF:2.000000,', 'live9.vtt'].join('\n'))
+})
+
+test('liveStreamWeightOf: later pictures ask TVHeadend for a lower weight so a recording takes their tuner first', () => {
+  assert.deepEqual([0, 1, 2, 3, 9, -1, undefined].map(liveStreamWeightOf), [50, 40, 30, 20, 20, 50, 50])
 })

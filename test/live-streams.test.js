@@ -20,13 +20,15 @@ test('envStreamCapFrom: only a set, positive LIVE_TV_MAX_SESSIONS caps the limit
   assert.equal(envStreamCapFrom('3'), 3)
 })
 
-test('storedStreamsFrom: accepts 1 or 2 only', () => {
-  assert.deepEqual([1, 2, '2', 3, 0, '', null].map(storedStreamsFrom), [1, 2, 2, null, null, null, null])
+test('storedStreamsFrom: accepts 1 to 4 only', () => {
+  assert.deepEqual([1, 2, '2', 3, 4, 5, 0, '', null].map(storedStreamsFrom), [1, 2, 2, 3, 4, null, null, null, null])
 })
 
 test('defaultLiveStreams: env wins, then the benchmark capped by tuners and the player, then the encoder', () => {
   assert.equal(defaultLiveStreams({ cap: 3, benchmark: BENCHMARK, tunerCount: 1, encoderKind: 'software' }), 3)
-  assert.equal(defaultLiveStreams({ cap: null, benchmark: BENCHMARK, tunerCount: 4, encoderKind: 'vaapi' }), 2)
+  assert.equal(defaultLiveStreams({ cap: null, benchmark: BENCHMARK, tunerCount: 4, encoderKind: 'vaapi' }), 4)
+  assert.equal(defaultLiveStreams({ cap: null, benchmark: { ...BENCHMARK, estimated: 6 }, tunerCount: 8 }), 4)
+  assert.equal(defaultLiveStreams({ cap: null, benchmark: BENCHMARK, tunerCount: 3, encoderKind: 'vaapi' }), 3)
   assert.equal(defaultLiveStreams({ cap: null, benchmark: BENCHMARK, tunerCount: 1, encoderKind: 'vaapi' }), 1)
   assert.equal(defaultLiveStreams({ cap: null, benchmark: { ...BENCHMARK, estimated: 1 }, tunerCount: null }), 1)
   assert.equal(defaultLiveStreams({ cap: null, benchmark: null, encoderKind: 'vaapi' }), 2)
@@ -42,6 +44,14 @@ test('liveStreamLimit: a stored choice beats the default but never the env cap',
     { max: chosen.max_live_streams, default: chosen.default, choices: chosen.choices, hw: chosen.hardware_transcode },
     { max: 1, default: 2, choices: [1, 2], hw: true },
   )
+})
+
+test('liveStreamLimit: choices run 1 to 4 and stop at the tuner count', () => {
+  assert.deepEqual(liveStreamLimit({ stored: null, cap: null, benchmark: BENCHMARK, tunerCount: 4 }).choices, [1, 2, 3, 4])
+  assert.deepEqual(liveStreamLimit({ stored: null, cap: null, benchmark: BENCHMARK, tunerCount: 3 }).choices, [1, 2, 3])
+  assert.deepEqual(liveStreamLimit({ stored: null, cap: null, benchmark: null, tunerCount: null }).choices, [1, 2, 3, 4])
+  const over = liveStreamLimit({ stored: 4, cap: null, benchmark: BENCHMARK, tunerCount: 2 })
+  assert.deepEqual({ max: over.max_live_streams, choices: over.choices }, { max: 2, choices: [1, 2] })
 })
 
 test('benchmarkFrom: reads a saved result and ignores junk', () => {

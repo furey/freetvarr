@@ -28,6 +28,10 @@ export const SplitLayoutIcon = icon('<rect x="1.75" y="3" width="5.5" height="10
 
 export const InsetLayoutIcon = icon('<rect x="1.75" y="3" width="12.5" height="10" rx="1.5"/><rect x="8" y="8" width="4.5" height="3.25" rx="0.6" fill="currentColor" stroke="none"/>')
 
+export const GridLayoutIcon = icon('<rect x="1.75" y="2.75" width="5.5" height="4.5" rx="1"/><rect x="8.75" y="2.75" width="5.5" height="4.5" rx="1"/><rect x="1.75" y="8.75" width="5.5" height="4.5" rx="1"/><rect x="8.75" y="8.75" width="5.5" height="4.5" rx="1"/>')
+
+export const StripLayoutIcon = icon('<rect x="1.75" y="3" width="8.5" height="10" rx="1.2"/><rect x="11.5" y="3" width="2.75" height="2.5" rx=".5" fill="currentColor" stroke="none"/><rect x="11.5" y="6.75" width="2.75" height="2.5" rx=".5" fill="currentColor" stroke="none"/><rect x="11.5" y="10.5" width="2.75" height="2.5" rx=".5" fill="currentColor" stroke="none"/>')
+
 export const RewindToStartIcon = icon('<path d="M2.75 8a5.25 5.25 0 1 0 1.6-3.8"/><path d="M2.75 2.75v2.5h2.5"/>')
 
 export const ClockIcon = icon('<circle cx="8" cy="8" r="5.75"/><path d="M8 4.75V8l2.25 1.5"/>')
@@ -51,6 +55,8 @@ export const PLAYER_ICON_COMPONENTS = {
   'swap-vertical-icon': SwapVerticalIcon,
   'split-layout-icon': SplitLayoutIcon,
   'inset-layout-icon': InsetLayoutIcon,
+  'grid-layout-icon': GridLayoutIcon,
+  'strip-layout-icon': StripLayoutIcon,
   'rewind-to-start-icon': RewindToStartIcon,
   'clock-icon': ClockIcon,
   'exit-pip-icon': ExitPictureInPictureIcon,

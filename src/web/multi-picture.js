@@ -31,9 +31,29 @@ export const pictureOverlayOf = ({ playing, controlsShown, paused }) => {
 
 export const multiHintOf = ({ layout, hover }) => {
   const reveal = hover ? 'Point at a picture for its own controls.' : 'Tap a picture for its own controls.'
+  const makeMain = hover ? 'double-click' : 'double-tap'
   if (layout === 'inset') {
-    const makeMain = hover ? 'double-click' : 'double-tap'
     return `${reveal} Drag the small picture to any corner; ${makeMain} it to make it the big picture.`
   }
-  return `${reveal} Tap Muted to hear a picture; the other mutes. You hear the picture with the mint frame.`
+  if (layout === 'strip') return `${reveal} ${capitalise(makeMain)} a small picture to make it the big picture.`
+  const others = layout === 'grid' ? 'the others mute' : 'the other mutes'
+  return `${reveal} Tap Muted to hear a picture; ${others}. You hear the picture with the mint frame.`
 }
+
+export const pictureMenuOf = ({ count, isMain }) => {
+  if (count <= 2) {
+    return [{ key: 'full', label: 'Full screen' }, { key: 'change', label: 'Change channel' }, { key: 'stop', label: 'Stop watching' }]
+  }
+  return [
+    ...(isMain ? [] : [{ key: 'main', label: 'Make main' }]),
+    { key: 'change', label: 'Change channel' },
+    { key: 'full', label: 'Full screen' },
+    { key: 'stop', label: 'Remove' },
+  ]
+}
+
+export const endedActionsOf = ({ multiActive, phase }) => (multiActive && phase === 'ended'
+  ? [{ key: 'change', label: 'Pick a channel' }, { key: 'stop', label: 'Remove' }]
+  : [])
+
+const capitalise = (text) => text.charAt(0).toUpperCase() + text.slice(1)

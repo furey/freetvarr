@@ -68,6 +68,8 @@ import {
 import {
   multi,
   slotClassOf,
+  slotStyleOf,
+  canAddPicture,
   watchAlongside,
   changePictureChannel,
   applySingleMuting,
@@ -107,7 +109,7 @@ export const LivePlayer = {
       <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
-        <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" playsinline controlslist="nofullscreen"></video>
+        <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline controlslist="nofullscreen"></video>
         <div class="player-tap-layer" aria-hidden="true"></div>
         <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
           <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
@@ -194,7 +196,7 @@ export const LivePlayer = {
         </div>
         <span class="sr-only" aria-live="polite">{{ live.skipHint?.spoken || '' }}</span>
         <multi-view-layer v-if="multi.active && !mini" :primary-title="playerTitle" :primary-meta="miniMeta"
-          @change-channel="openPickerFor" @close="stopLive" />
+          @change-channel="openPickerFor" @add-channel="openAddPicker" @close="stopLive" />
         <player-mini v-if="mini" :title="playerTitle" :meta="miniMeta" is-live :progress="miniProgress"
           :paused="shownPaused" :pause-disabled="live.phase !== 'live'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
           :has-captions="Boolean(live.captions)" :captions-on="captionsOn" @toggle-captions="toggleLiveCaptions"
@@ -409,19 +411,21 @@ export const LivePlayer = {
     const pickerOpen = ref(false)
     const pickerTarget = ref('add')
     const openPicker = () => {
-      pickerTarget.value = multi.active ? 'secondary' : 'add'
+      pickerTarget.value = !multi.active || canAddPicture.value ? 'add' : 'secondary'
       pickerOpen.value = true
     }
     const openPickerFor = (picture) => {
       pickerTarget.value = picture
       pickerOpen.value = true
     }
+    const openAddPicker = () => openPickerFor('add')
     const choosePickerChannel = (channel) => {
       pickerOpen.value = false
       if (pickerTarget.value === 'add') return watchAlongside(channel)
       changePictureChannel({ picture: pickerTarget.value, channel })
     }
     const primarySlotClass = computed(() => slotClassOf('primary'))
+    const primarySlotStyle = computed(() => slotStyleOf('primary'))
     const multiFrameStyle = computed(() => {
       const box = multi.active ? multi.insetBox : null
       if (!box) return null
@@ -655,7 +659,8 @@ export const LivePlayer = {
       bufferStartText, bufferEndText, hintText, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
       canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, expand, miniMeta, miniProgress,
-      multi, primarySlotClass, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor, choosePickerChannel,
+      multi, primarySlotClass, primarySlotStyle, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor,
+      openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoProgress,

@@ -21,7 +21,7 @@ The top bar has these controls:
 
 - The back button closes the player. For live TV, closing also frees the tuner.
 - The channel logo and the title of what is playing.
-- **Multiview** (live TV only): watch a second channel. See [Multiview](#multiview).
+- **Multiview** (live TV only): watch up to four channels at once. See [Multiview](#multiview).
 - **AirPlay** (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
 - **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer).
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
@@ -83,7 +83,7 @@ On a phone, turn the phone sideways while the player is open, and the player goe
 
 ## Multiview
 
-**Multiview** plays two live channels at once, for example two sports matches. It needs two live streams; see [Live streams at once](#live-streams-at-once).
+**Multiview** plays up to four live channels at once, for example several sports matches. A tablet or computer shows up to `4` pictures; a phone shows up to `2`. Each picture needs a live stream, so **Live streams at once** also sets the most pictures you get; see [Live streams at once](#live-streams-at-once).
 
 1. Open a channel in the player.
 2. Press **Multiview** in the top bar. A sheet lists your favourite channels first, then the other channels.
@@ -101,6 +101,8 @@ Each channel in the sheet has a tag that says what it costs:
 
 The tuner count at the top of the sheet, such as `2 of 4 tuners`, opens **How this works**, which explains tuners and multiplexes for your hardware. Recordings always come first: if a recording needs a tuner, it takes one from live TV.
 
+To add a third or fourth channel, press **Add channel** in the Multiview header, or the empty **Add channel** slot. The sheet shows a box for each picture on screen and one for the new picture. On a phone, the sheet says that phones show up to `2` pictures.
+
 With two channels playing:
 
 - **Side by side** shows the two pictures next to each other. **Big and small** shows one picture full size and the other in a corner. On a phone held upright, the pictures stack instead; turn the phone sideways to choose a layout.
@@ -111,6 +113,17 @@ With two channels playing:
 - Each picture has its own **Sound** or **Muted** button. Press **Muted** on a picture to hear it; the other picture mutes. Press **Sound** on the picture you hear to mute both. An outline marks the picture you hear.
 - Each picture's **⋯** menu has **Full screen** (keep this channel and stop the other), **Change channel**, and **Stop watching**.
 - The back button stops both channels and closes the player.
+
+With three or four channels playing:
+
+- **Grid** shows the pictures in two rows of two. **Big and small** shows one main picture and the others in a strip: on the right when the screen is wider than it is tall, and below the main picture otherwise. The swap button goes away.
+- While you can add another channel, the free place in the layout is an **Add channel** slot.
+- Double-tap a small picture in **Big and small** (double-click with a mouse) to make it the main picture.
+- Only one picture has the sound. Press **Muted** on any picture to hear it; the others mute.
+- Each picture's **⋯** menu has **Make main**, **Change channel**, **Full screen** (keep this channel and stop the others), and **Remove**.
+- The back button stops every channel and closes the player.
+
+If a recording needs a tuner that Multiview uses, only the pictures on that tuner stop. The stopped picture says `Stopped for a recording:` and the programme name, with **Pick a channel** and **Remove**. If you were listening to it, the sound moves to the main picture. When Freetvarr starts a picture, it asks TVHeadend to take the tuner of the newest picture first.
 
 ## Player settings
 
@@ -123,7 +136,7 @@ Both are saved in the browser, so each device keeps its own.
 
 ## Live streams at once
 
-**Live streams at once**, under **LIVE TV** in Settings → **Recording**, sets how many live streams Freetvarr plays at the same time: `1` or `2`. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
+**Live streams at once**, under **LIVE TV** in Settings → **Recording**, sets how many live streams Freetvarr plays at the same time: `1` to `4`. The choices stop at your tuner count. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
 
 Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or ad scan runs.
 

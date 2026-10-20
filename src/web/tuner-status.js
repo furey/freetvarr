@@ -122,6 +122,13 @@ export const streamChoicesOf = ({ choices = [1, 2], benchmark }) => choices.map(
   tooMany: isOverMeasured({ benchmark, chosen: value }),
 }))
 
+export const streamsHintOf = ({ tunerCount }) => {
+  const multiview = 'Multiview shows this many pictures on a tablet or computer, and up to 2 on a phone.'
+  if (!(tunerCount > 0) || tunerCount >= 4) return multiview
+  const tuners = tunerCount === 1 ? '1 tuner' : `${tunerCount} tuners`
+  return `${multiview} Choices stop at your ${tuners}.`
+}
+
 const stutterText = ({ chosen, estimated }) => {
   if (chosen === 1) return 'the picture may stutter'
   if (chosen - estimated === 1) return `the ${ORDINALS[chosen] || `${chosen}th`} picture may stutter`

@@ -6,6 +6,7 @@ import {
   isOverMeasured,
   measuredText,
   streamChoicesOf,
+  streamsHintOf,
   tunerExplainerOf,
 } from '../src/web/tuner-status.js'
 
@@ -67,4 +68,16 @@ test('capacityText: agrees with the settings message', () => {
 test('tunerExplainerOf: ends with the capacity message', () => {
   const lines = tunerExplainerOf({ total: 2, muxSharing: false, streams: { max: 2, encoder: 'vaapi', estimated: 4 } })
   assert.equal(lines.at(-1), 'Measured: this NAS can convert 4 live streams at once (hardware). Freetvarr plays up to 2 at once.')
+})
+
+test('streamsHintOf: explains the phone cap and names a tuner count below 4', () => {
+  assert.equal(streamsHintOf({ tunerCount: 4 }), 'Multiview shows this many pictures on a tablet or computer, and up to 2 on a phone.')
+  assert.match(streamsHintOf({ tunerCount: 3 }), /Choices stop at your 3 tuners\.$/)
+  assert.match(streamsHintOf({ tunerCount: 1 }), /your 1 tuner\.$/)
+  assert.doesNotMatch(streamsHintOf({ tunerCount: null }), /Choices/)
+})
+
+test('streamChoicesOf: marks choices above the measurement', () => {
+  const choices = streamChoicesOf({ choices: [1, 2, 3, 4], benchmark: { ...MEASURED, estimated: 3 } })
+  assert.deepEqual(choices.map((c) => c.tooMany), [false, false, false, true])
 })

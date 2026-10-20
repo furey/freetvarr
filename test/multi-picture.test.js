@@ -7,6 +7,8 @@ import {
   resumeLabelOf,
   pictureOverlayOf,
   multiHintOf,
+  pictureMenuOf,
+  endedActionsOf,
 } from '../src/web/multi-picture.js'
 
 test('keys act on the picture you hear, or the main picture when both are muted', () => {
@@ -53,4 +55,22 @@ test('the hint names pointing or tapping, and the gesture that makes the small p
   assert.match(multiHintOf({ layout: 'stacked', hover: false }), /^Tap a picture/)
   assert.match(multiHintOf({ layout: 'inset', hover: true }), /double-click it/)
   assert.match(multiHintOf({ layout: 'inset', hover: false }), /double-tap it/)
+})
+
+test('the hint names the others once a third picture joins, and how to make a small one main', () => {
+  assert.match(multiHintOf({ layout: 'grid', hover: true }), /the others mute/)
+  assert.match(multiHintOf({ layout: 'split', hover: true }), /the other mutes/)
+  assert.match(multiHintOf({ layout: 'strip', hover: false }), /Double-tap a small picture/)
+})
+
+test('the picture menu keeps 2-picture items and adds Make main and Remove from 3 pictures', () => {
+  assert.deepEqual(pictureMenuOf({ count: 2, isMain: false }).map((i) => i.label), ['Full screen', 'Change channel', 'Stop watching'])
+  assert.deepEqual(pictureMenuOf({ count: 3, isMain: false }).map((i) => i.label), ['Make main', 'Change channel', 'Full screen', 'Remove'])
+  assert.deepEqual(pictureMenuOf({ count: 4, isMain: true }).map((i) => i.key), ['change', 'full', 'stop'])
+})
+
+test('a stopped picture in Multiview offers Pick a channel and Remove', () => {
+  assert.deepEqual(endedActionsOf({ multiActive: true, phase: 'ended' }).map((a) => a.label), ['Pick a channel', 'Remove'])
+  assert.deepEqual(endedActionsOf({ multiActive: true, phase: 'live' }), [])
+  assert.deepEqual(endedActionsOf({ multiActive: false, phase: 'ended' }), [])
 })

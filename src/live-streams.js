@@ -3,7 +3,7 @@ import { getTunerStatus } from './tvheadend.js'
 
 export const MAX_LIVE_STREAMS_KEY = 'max_live_streams'
 export const LIVE_BENCHMARK_KEY = 'live_benchmark'
-export const PLAYER_STREAM_CHOICES = [1, 2]
+export const PLAYER_STREAM_CHOICES = [1, 2, 3, 4]
 
 export const envStreamCapFrom = (value) => {
   if (value == null || String(value).trim() === '') return null
@@ -34,14 +34,22 @@ export const defaultLiveStreams = ({ cap, benchmark, tunerCount, encoderKind }) 
   return encoderKind === 'vaapi' ? 2 : 1
 }
 
+export const streamChoicesFor = ({ cap, tunerCount }) => {
+  const ceiling = Math.min(cap ?? Infinity, tunerCount > 0 ? tunerCount : Infinity)
+  const choices = PLAYER_STREAM_CHOICES.filter((n) => n <= ceiling)
+  return choices.length ? choices : [PLAYER_STREAM_CHOICES[0]]
+}
+
 export const liveStreamLimit = ({ stored, cap, benchmark, tunerCount, encoderKind }) => {
   const fallback = defaultLiveStreams({ cap, benchmark, tunerCount, encoderKind })
-  const effective = stored == null ? fallback : Math.min(stored, cap ?? Infinity)
+  const choices = streamChoicesFor({ cap, tunerCount })
+  const effective = stored == null ? fallback : Math.min(stored, cap ?? Math.max(...choices))
   return {
     max_live_streams: effective,
     default: fallback,
     cap,
-    choices: PLAYER_STREAM_CHOICES.filter((n) => cap == null || n <= cap),
+    choices,
+    tuner_count: tunerCount > 0 ? tunerCount : null,
     hardware_transcode: encoderKind === 'vaapi',
     stored,
     benchmark: benchmark || null,

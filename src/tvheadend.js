@@ -450,11 +450,11 @@ export const getDefaultLanguages = async (conn) => {
   return languagesCache
 }
 
-export const openChannelStream = async ({ channelId, signal, userAgent, conn } = {}) => {
+export const openChannelStream = async ({ channelId, signal, userAgent, weight = LIVE_STREAM_WEIGHT, conn } = {}) => {
   const c = conn || (await resolveConnection())
   const url = new URL(`${c.url}/stream/channel/${encodeURIComponent(channelId)}`)
   url.searchParams.set('profile', 'pass')
-  url.searchParams.set('weight', String(LIVE_STREAM_WEIGHT))
+  url.searchParams.set('weight', String(weight))
   const res = await sendAuthenticated({
     method: 'get',
     url: url.toString(),

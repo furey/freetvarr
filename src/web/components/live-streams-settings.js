@@ -1,5 +1,5 @@
 import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
-import { streamChoicesOf, isOverMeasured, measuredText } from '/tuner-status.js'
+import { streamChoicesOf, isOverMeasured, measuredText, streamsHintOf } from '/tuner-status.js'
 import { TunerList, useTunerStatusWhile } from '/components/tuner-list.js'
 import { api } from '/shared/api.js'
 import { multi } from '/shared/multi-session.js'
@@ -18,7 +18,7 @@ export const LiveStreamsSetting = {
               :class="{ 'is-over-estimate': choice.tooMany }" :aria-pressed="String(current === choice.value)"
               :disabled="saving || !loaded" @click="choose(choice.value)">{{ choice.label }}</button>
           </div>
-          <p class="settings-hint">Two lets you watch two channels at once in Multiview.</p>
+          <p class="settings-hint">{{ hint }}</p>
           <p class="settings-hint" :class="{ 'live-streams-warn': overMeasured }">{{ measured }}</p>
           <div class="settings-row-actions">
             <button type="button" class="btn btn-sm" :disabled="measuring || !loaded" @click="measure">
@@ -41,6 +41,7 @@ export const LiveStreamsSetting = {
     const current = computed(() => state.value?.max_live_streams ?? null)
     const choices = computed(() => streamChoicesOf({ choices: state.value?.choices || [1, 2], benchmark: benchmark.value }))
     const overMeasured = computed(() => isOverMeasured({ benchmark: benchmark.value, chosen: current.value }))
+    const hint = computed(() => streamsHintOf({ tunerCount: state.value?.tuner_count ?? null }))
     const measured = computed(() => measuredText({ benchmark: benchmark.value, chosen: current.value, clockText: fmtTime }))
 
     const load = async () => {
@@ -88,7 +89,7 @@ export const LiveStreamsSetting = {
 
     onMounted(load)
 
-    return { loaded, saving, measuring, current, choices, overMeasured, measured, statusText, statusKind, choose, measure }
+    return { loaded, saving, measuring, current, choices, overMeasured, measured, hint, statusText, statusKind, choose, measure }
   },
 }
 

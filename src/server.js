@@ -960,7 +960,8 @@ app.post('/api/live', liveLimiter, doubleCsrfProtection, async (req, res) => {
   const channelId = String(req.body?.channel_id || '')
   if (!channelId) return res.status(400).json({ error: 'channel_id is required' })
   try {
-    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady })) })
+    const pictureRank = Number(req.body?.picture_rank) || 0
+    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady, pictureRank })) })
   } catch (err) {
     liveError(res, err, 'live start')
   }

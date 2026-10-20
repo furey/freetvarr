@@ -1,4 +1,4 @@
-import { reactive, ref, watch } from '/vendor/vue.esm-browser.prod.js'
+import { reactive, ref, computed, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
   initialMultiView,
   tapSound,
@@ -7,7 +7,14 @@ import {
   setLayout,
   slotOf,
   isMutedIn,
-  otherPictureOf,
+  addPicture,
+  removePicture,
+  promoteIntoPrimary,
+  soundAfterStop,
+  canAddPictureOf,
+  nextPictureOf,
+  COMPANIONS,
+  PICTURES,
 } from '/multi-view.js'
 import { EMPTY_TUNER_STATUS } from '/tuner-status.js'
 import { keyPictureOf } from '/multi-picture.js'
@@ -23,48 +30,68 @@ import {
 } from '/shared/live-session.js'
 import { live, playerMuted } from '/shared/player-shared.js'
 
-const emptySecondary = () => ({
+const emptyCompanion = () => ({
   channel: null, sessionId: null, playlist: '', bufferSeconds: 0, captions: false, phase: 'idle', message: '',
   paused: false, behindSeconds: 0, bufferFrom: null, bufferTo: null, position: 0,
 })
 
+const emptyCompanions = () => Object.fromEntries(COMPANIONS.map((id) => [id, emptyCompanion()]))
+
 export const multi = reactive({
   active: false,
   view: initialMultiView(),
-  secondary: emptySecondary(),
+  companions: emptyCompanions(),
   insetBox: null,
+  boxes: {},
   tunerStatus: EMPTY_TUNER_STATUS,
   tunerLoaded: false,
 })
 
 export const portraitPhone = ref(false)
 
-const portraitPhoneQuery = window.matchMedia?.('(max-width: 767px) and (orientation: portrait)')
-portraitPhone.value = Boolean(portraitPhoneQuery?.matches)
-portraitPhoneQuery?.addEventListener?.('change', (e) => { portraitPhone.value = e.matches })
+export const compactScreen = ref(false)
 
-export let companionVideo = null
-let companionHls = null
-let companionEdgeAnchor = null
-let companionRun = 0
-let companionPollTimer = null
-let companionAttached = false
-let tunerTimer = null
-let tunerWatchers = 0
-
-export const setCompanionVideo = (el) => {
-  for (const type of COMPANION_TRACK_EVENTS) companionVideo?.removeEventListener(type, trackCompanion)
-  companionVideo = el
-  for (const type of COMPANION_TRACK_EVENTS) companionVideo?.addEventListener(type, trackCompanion)
+const watchQuery = (query, target) => {
+  const list = window.matchMedia?.(query)
+  target.value = Boolean(list?.matches)
+  list?.addEventListener?.('change', (e) => { target.value = e.matches })
 }
 
-export const trackCompanion = () => {
-  const video = companionVideo
-  const ready = companionAttached && video?.readyState >= HAVE_CURRENT_DATA
-  if (!ready) companionEdgeAnchor = null
-  const edge = ready ? companionWindow() : null
-  Object.assign(multi.secondary, {
-    paused: Boolean(ready && video.paused && multi.secondary.phase === 'live'),
+watchQuery('(max-width: 767px) and (orientation: portrait)', portraitPhone)
+watchQuery('(max-width: 767px), (max-height: 500px)', compactScreen)
+
+export const canAddPicture = computed(() => canAddPictureOf({
+  count: multi.view.order.length,
+  compact: compactScreen.value,
+  streams: multi.tunerStatus.streams,
+}))
+
+const rigs = Object.fromEntries(COMPANIONS.map((id) => [id, {
+  video: null, hls: null, edgeAnchor: null, run: 0, pollTimer: null, attached: false, track: () => trackCompanion(id),
+}]))
+
+export const setCompanionVideo = (id, el) => {
+  const rig = rigs[id]
+  if (!rig || rig.video === el) return
+  for (const type of COMPANION_TRACK_EVENTS) rig.video?.removeEventListener(type, rig.track)
+  rig.video = el
+  for (const type of COMPANION_TRACK_EVENTS) rig.video?.addEventListener(type, rig.track)
+  if (el) applyMuting()
+}
+
+export const trackCompanions = () => {
+  for (const id of companionsShown()) trackCompanion(id)
+}
+
+export const trackCompanion = (id) => {
+  const rig = rigs[id]
+  const state = multi.companions[id]
+  const video = rig.video
+  const ready = rig.attached && video?.readyState >= HAVE_CURRENT_DATA
+  if (!ready) rig.edgeAnchor = null
+  const edge = ready ? companionWindow(id) : null
+  Object.assign(state, {
+    paused: Boolean(ready && video.paused && state.phase === 'live'),
     behindSeconds: edge ? edge.behind : 0,
     bufferTo: edge ? edge.target : null,
     bufferFrom: edge ? edge.floor : null,
@@ -72,40 +99,43 @@ export const trackCompanion = () => {
   })
 }
 
-const companionWindow = () => {
+const companionWindow = (id) => {
+  const rig = rigs[id]
   const steady = steadyLiveWindowOf({
-    ...videoLiveInputOf(companionVideo),
-    hlsSyncPosition: companionHls?.liveSyncPosition ?? null,
-    hlsOldestSecond: companionHls?.latestLevelDetails?.fragments?.[0]?.start ?? null,
-    bufferSeconds: multi.secondary.bufferSeconds,
-    anchor: companionEdgeAnchor,
+    ...videoLiveInputOf(rig.video),
+    hlsSyncPosition: rig.hls?.liveSyncPosition ?? null,
+    hlsOldestSecond: rig.hls?.latestLevelDetails?.fragments?.[0]?.start ?? null,
+    bufferSeconds: multi.companions[id].bufferSeconds,
+    anchor: rig.edgeAnchor,
     wallS: performance.now() / 1000,
   })
-  companionEdgeAnchor = steady.anchor
+  rig.edgeAnchor = steady.anchor
   return steady
 }
 
-export const seekCompanionTo = (second) => {
-  const { bufferFrom, bufferTo } = multi.secondary
-  if (!companionAttached || bufferFrom == null || bufferTo == null) return false
-  companionVideo.currentTime = Math.max(bufferFrom, Math.min(bufferTo, second))
-  trackCompanion()
+export const seekCompanionTo = (id, second) => {
+  const rig = rigs[id]
+  const { bufferFrom, bufferTo } = multi.companions[id]
+  if (!rig.attached || bufferFrom == null || bufferTo == null) return false
+  rig.video.currentTime = Math.max(bufferFrom, Math.min(bufferTo, second))
+  trackCompanion(id)
   return true
 }
 
-export const goLiveCompanion = () => {
-  if (!companionAttached) return
-  const { bufferTo } = multi.secondary
-  if (bufferTo != null) companionVideo.currentTime = bufferTo
-  companionVideo.play()?.catch(() => {})
-  trackCompanion()
+export const goLiveCompanion = (id) => {
+  const rig = rigs[id]
+  if (!rig.attached) return
+  const { bufferTo } = multi.companions[id]
+  if (bufferTo != null) rig.video.currentTime = bufferTo
+  rig.video.play()?.catch(() => {})
+  trackCompanion(id)
 }
 
-export const startCompanionOver = () => {
-  if (seekCompanionTo(multi.secondary.bufferFrom ?? 0)) companionVideo.play()?.catch(() => {})
+export const startCompanionOver = (id) => {
+  if (seekCompanionTo(id, multi.companions[id].bufferFrom ?? 0)) rigs[id].video.play()?.catch(() => {})
 }
 
-export const togglePicturePause = (picture) => (picture === 'primary' ? toggleLivePause() : toggleSecondaryPause())
+export const togglePicturePause = (picture) => (picture === 'primary' ? toggleLivePause() : toggleCompanionPause(picture))
 
 export const toggleKeyPicturePause = () => togglePicturePause(keyPictureOf(multi.view))
 
@@ -115,10 +145,32 @@ export const slotClassOf = (picture) => (multi.active
   ? `mv-slot-${slotOf({ state: multi.view, picture, portraitPhone: portraitPhone.value })}`
   : '')
 
+export const slotStyleOf = (picture) => {
+  const box = multi.active ? multi.boxes[picture] : null
+  if (!box) return null
+  return {
+    '--mv-x': `${box.left}px`,
+    '--mv-y': `${box.top}px`,
+    '--mv-w': `${box.width}px`,
+    '--mv-h': `${box.height}px`,
+  }
+}
+
+export const companionsShown = () => multi.view.order.filter((id) => id !== 'primary')
+
+export const pictureStateOf = (picture) => (picture === 'primary' ? live : multi.companions[picture])
+
 export const watchAlongside = (channel) => {
-  if (multi.active) return changeSecondary(channel)
-  Object.assign(multi, { active: true, view: initialMultiView({ muted: playerMuted.value }), insetBox: null })
-  startCompanion(channel)
+  if (multi.active) return addPictureChannel(channel)
+  Object.assign(multi, { active: true, view: initialMultiView({ muted: playerMuted.value }), insetBox: null, boxes: {} })
+  startCompanion('secondary', channel)
+}
+
+export const addPictureChannel = (channel) => {
+  const picture = nextPictureOf(multi.view.order)
+  if (!picture || !canAddPicture.value) return changeCompanion('secondary', channel)
+  multi.view = addPicture(multi.view)
+  startCompanion(picture, channel)
 }
 
 export const tapPictureSound = (picture) => { multi.view = tapSound(multi.view, picture) }
@@ -132,28 +184,37 @@ export const setMultiLayout = (layout) => { multi.view = setLayout(multi.view, l
 export const setInsetCorner = (corner) => { multi.view = { ...multi.view, insetCorner: corner } }
 
 export const changePictureChannel = ({ picture, channel }) => {
-  if (picture === 'secondary') return changeSecondary(channel)
+  if (picture !== 'primary') return changeCompanion(picture, channel)
   retuneLive({ channel, nowTitle: '' })
 }
 
 export const stopWatchingPicture = (picture) => {
-  if (picture === 'secondary' || !multi.secondary.sessionId) {
-    stopCompanion()
+  if (multi.view.order.length > 2) return removeOneOfMany(picture)
+  if (picture !== 'primary' || !multi.companions[companionsShown()[0]]?.sessionId) {
+    for (const id of companionsShown()) stopCompanion(id)
     return exitMultiKeepingSound('primary')
   }
-  const { channel, sessionId, playlist, bufferSeconds, captions } = multi.secondary
-  releaseCompanionVideo()
-  multi.secondary = emptySecondary()
-  exitMultiKeepingSound('secondary')
+  const survivor = companionsShown()[0]
+  const { channel, sessionId, playlist, bufferSeconds, captions } = multi.companions[survivor]
+  releaseCompanionVideo(survivor)
+  multi.companions[survivor] = emptyCompanion()
+  exitMultiKeepingSound(survivor)
   adoptLiveSession({ channel, session: { id: sessionId, playlist, bufferSeconds, captions } })
 }
 
-export const fullScreenPicture = (picture) => stopWatchingPicture(otherPictureOf(picture))
+export const fullScreenPicture = (picture) => {
+  for (const id of companionsShown().filter((id) => id !== picture)) {
+    if (multi.view.order.length > 2) removeOneOfMany(id)
+  }
+  const other = multi.view.order.find((id) => id !== picture)
+  if (other) stopWatchingPicture(other)
+}
 
-export const toggleSecondaryPause = () => {
-  if (!companionVideo || !companionAttached) return
-  if (companionVideo.paused) companionVideo.play()?.catch(() => {})
-  else companionVideo.pause()
+export const toggleCompanionPause = (id) => {
+  const rig = rigs[id]
+  if (!rig?.video || !rig.attached) return
+  if (rig.video.paused) rig.video.play()?.catch(() => {})
+  else rig.video.pause()
 }
 
 export const loadTunerStatus = async () => {
@@ -174,6 +235,34 @@ export const watchTunerStatus = () => {
   }
 }
 
+export const applySingleMuting = () => {
+  if (liveVideo) liveVideo.muted = playerMuted.value
+}
+
+export const togglePlayerMuted = () => {
+  if (!multi.active) playerMuted.value = !playerMuted.value
+}
+
+export const isMultiActive = () => multi.active && live.open
+
+let tunerTimer = null
+let tunerWatchers = 0
+
+const removeOneOfMany = (picture) => {
+  if (picture !== 'primary') {
+    stopCompanion(picture)
+    multi.view = removePicture(multi.view, picture)
+    return
+  }
+  const survivor = companionsShown().find((id) => multi.companions[id].sessionId) ?? companionsShown()[0]
+  const { channel, sessionId, playlist, bufferSeconds, captions } = multi.companions[survivor]
+  releaseCompanionVideo(survivor)
+  multi.companions[survivor] = emptyCompanion()
+  multi.view = promoteIntoPrimary(multi.view, survivor)
+  if (sessionId) return adoptLiveSession({ channel, session: { id: sessionId, playlist, bufferSeconds, captions } })
+  retuneLive({ channel, nowTitle: '' })
+}
+
 const pollTunerStatus = async () => {
   clearTimeout(tunerTimer)
   await loadTunerStatus()
@@ -183,6 +272,7 @@ const pollTunerStatus = async () => {
 const exitMulti = () => {
   multi.active = false
   multi.insetBox = null
+  multi.boxes = {}
   multi.view = initialMultiView()
   applySingleMuting()
 }
@@ -192,143 +282,160 @@ const exitMultiKeepingSound = (survivor) => {
   exitMulti()
 }
 
-export const applySingleMuting = () => {
-  if (liveVideo) liveVideo.muted = playerMuted.value
+const changeCompanion = (id, channel) => {
+  stopCompanion(id)
+  startCompanion(id, channel)
 }
 
-export const togglePlayerMuted = () => {
-  if (!multi.active) playerMuted.value = !playerMuted.value
-}
-
-const changeSecondary = (channel) => {
-  stopCompanion()
-  startCompanion(channel)
-}
-
-const startCompanion = async (channel) => {
-  const run = ++companionRun
-  multi.secondary = { ...emptySecondary(), channel, phase: 'tuning' }
+const startCompanion = async (id, channel) => {
+  const rig = rigs[id]
+  const run = ++rig.run
+  multi.companions[id] = { ...emptyCompanion(), channel, phase: 'tuning' }
   applyMuting()
   try {
-    const r = await api('POST', '/api/live', { channel_id: channel.id })
-    if (run !== companionRun) {
+    const r = await api('POST', '/api/live', { channel_id: channel.id, picture_rank: PICTURES.indexOf(id) })
+    if (run !== rig.run) {
       api('DELETE', `/api/live/${r.session.id}`).catch(() => {})
       return
     }
-    Object.assign(multi.secondary, {
+    Object.assign(multi.companions[id], {
       sessionId: r.session.id,
       playlist: r.session.playlist,
       bufferSeconds: r.session.bufferSeconds || 0,
       captions: Boolean(r.session.captions),
     })
-    if (r.session.status === 'ended') return endCompanion(run, liveReasonText(r.session.reason))
-    if (r.session.status === 'live') await attachCompanion(run, r.session.playlist)
-    pollCompanion(run)
+    if (r.session.status === 'ended') return endCompanion(id, run, liveReasonText(r.session.reason))
+    if (r.session.status === 'live') await attachCompanion(id, run, r.session.playlist)
+    pollCompanion(id, run)
   } catch (err) {
-    if (run !== companionRun) return
-    multi.secondary.phase = 'ended'
-    multi.secondary.message = companionErrorText(err)
+    if (run !== rig.run) return
+    multi.companions[id].phase = 'ended'
+    multi.companions[id].message = companionErrorText(err)
   }
 }
 
-const pollCompanion = async (run) => {
-  if (run !== companionRun) return
+const pollCompanion = async (id, run) => {
+  const rig = rigs[id]
+  if (run !== rig.run) return
+  const state = multi.companions[id]
   try {
-    const params = new URLSearchParams({ channel: multi.secondary.channel.id, session: multi.secondary.sessionId })
+    const params = new URLSearchParams({ channel: state.channel.id, session: state.sessionId })
     const r = await api('GET', `/api/live/preflight?${params}`)
-    if (run !== companionRun) return
+    if (run !== rig.run) return
     const session = r.session
-    if (!session || session.id !== multi.secondary.sessionId || session.status === 'ended') {
-      return endCompanion(run, liveReasonText(session?.reason))
+    if (!session || session.id !== state.sessionId || session.status === 'ended') {
+      return endCompanion(id, run, liveReasonText(session?.reason))
     }
-    if (session.status === 'live' && !companionAttached) await attachCompanion(run, session.playlist)
+    if (session.status === 'live' && !rig.attached) await attachCompanion(id, run, session.playlist)
   } catch {
-    if (run !== companionRun) return
+    if (run !== rig.run) return
   }
-  companionPollTimer = setTimeout(() => pollCompanion(run), companionAttached ? POLL_PLAYING_MS : POLL_TUNING_MS)
+  rig.pollTimer = setTimeout(() => pollCompanion(id, run), rig.attached ? POLL_PLAYING_MS : POLL_TUNING_MS)
 }
 
-const attachCompanion = async (run, playlist) => {
-  if (!companionVideo) return
-  companionAttached = true
+const attachCompanion = async (id, run, playlist) => {
+  const rig = rigs[id]
+  if (!rig.video) return
+  rig.attached = true
   applyMuting()
-  const nativeOnly = !('MediaSource' in window) && companionVideo.canPlayType('application/vnd.apple.mpegurl') !== ''
+  const video = rig.video
+  const nativeOnly = !('MediaSource' in window) && video.canPlayType('application/vnd.apple.mpegurl') !== ''
   if (nativeOnly) {
-    companionVideo.addEventListener('loadedmetadata', () => markCompanionLive(run), { once: true })
-    companionVideo.src = playlist
-    companionVideo.play()?.catch(() => {})
+    video.addEventListener('loadedmetadata', () => markCompanionLive(id, run), { once: true })
+    video.src = playlist
+    video.play()?.catch(() => {})
     return
   }
   const { default: Hls } = await import('/vendor/hls.mjs')
-  if (run !== companionRun) return
-  if (!Hls.isSupported()) return endCompanion(run, 'This browser cannot play live TV.')
-  companionHls = new Hls(COMPANION_HLS_CONFIG)
+  if (run !== rig.run) return
+  if (!Hls.isSupported()) return endCompanion(id, run, 'This browser cannot play live TV.')
+  const hls = new Hls(COMPANION_HLS_CONFIG)
+  rig.hls = hls
   let recovered = false
-  companionHls.on(Hls.Events.ERROR, (event, data) => {
-    if (!data.fatal || run !== companionRun) return
+  hls.on(Hls.Events.ERROR, (event, data) => {
+    if (!data.fatal || run !== rig.run) return
     if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !recovered) {
       recovered = true
-      return companionHls.recoverMediaError()
+      return hls.recoverMediaError()
     }
-    endCompanion(run, `Playback failed: ${data.details}`)
+    endCompanion(id, run, `Playback failed: ${data.details}`)
   })
-  companionHls.once(Hls.Events.FRAG_BUFFERED, () => markCompanionLive(run))
-  companionHls.loadSource(playlist)
-  companionHls.attachMedia(companionVideo)
-  companionVideo.play()?.catch(() => {})
+  hls.once(Hls.Events.FRAG_BUFFERED, () => markCompanionLive(id, run))
+  hls.loadSource(playlist)
+  hls.attachMedia(video)
+  video.play()?.catch(() => {})
 }
 
-const markCompanionLive = (run) => {
-  if (run !== companionRun || multi.secondary.phase === 'ended') return
-  multi.secondary.phase = 'live'
-  companionVideo?.play()?.catch(() => {})
+const markCompanionLive = (id, run) => {
+  if (run !== rigs[id].run || multi.companions[id].phase === 'ended') return
+  multi.companions[id].phase = 'live'
+  rigs[id].video?.play()?.catch(() => {})
 }
 
-const endCompanion = (run, message) => {
-  if (run !== companionRun) return
-  clearTimeout(companionPollTimer)
-  detachCompanionVideo()
-  if (multi.secondary.sessionId) api('DELETE', `/api/live/${multi.secondary.sessionId}`).catch(() => {})
-  multi.secondary.sessionId = null
-  multi.secondary.phase = 'ended'
-  multi.secondary.message = message
+const endCompanion = (id, run, message) => {
+  const rig = rigs[id]
+  if (run !== rig.run) return
+  clearTimeout(rig.pollTimer)
+  detachCompanionVideo(id)
+  const state = multi.companions[id]
+  if (state.sessionId) api('DELETE', `/api/live/${state.sessionId}`).catch(() => {})
+  state.sessionId = null
+  state.phase = 'ended'
+  state.message = message
+  moveSoundFrom(id)
 }
 
-const stopCompanion = () => {
-  companionRun += 1
-  clearTimeout(companionPollTimer)
-  detachCompanionVideo()
-  if (multi.secondary.sessionId) api('DELETE', `/api/live/${multi.secondary.sessionId}`).catch(() => {})
-  multi.secondary = emptySecondary()
+const moveSoundFrom = (stopped) => {
+  if (!multi.active) return
+  const ended = PICTURES.filter((p) => pictureStateOf(p)?.phase === 'ended')
+  multi.view = { ...multi.view, audible: soundAfterStop({ audible: multi.view.audible, stopped, order: multi.view.order, ended }) }
 }
 
-const releaseCompanionVideo = () => {
-  companionRun += 1
-  clearTimeout(companionPollTimer)
-  detachCompanionVideo()
+const stopCompanion = (id) => {
+  const rig = rigs[id]
+  rig.run += 1
+  clearTimeout(rig.pollTimer)
+  detachCompanionVideo(id)
+  const state = multi.companions[id]
+  if (state.sessionId) api('DELETE', `/api/live/${state.sessionId}`).catch(() => {})
+  multi.companions[id] = emptyCompanion()
 }
 
-const detachCompanionVideo = () => {
-  companionHls?.destroy()
-  companionHls = null
-  companionAttached = false
-  companionEdgeAnchor = null
-  if (!companionVideo) return
-  companionVideo.pause()
-  companionVideo.removeAttribute('src')
-  companionVideo.load()
+const releaseCompanionVideo = (id) => {
+  const rig = rigs[id]
+  rig.run += 1
+  clearTimeout(rig.pollTimer)
+  detachCompanionVideo(id)
+}
+
+const detachCompanionVideo = (id) => {
+  const rig = rigs[id]
+  rig.hls?.destroy()
+  rig.hls = null
+  rig.attached = false
+  rig.edgeAnchor = null
+  if (!rig.video) return
+  rig.video.pause()
+  rig.video.removeAttribute('src')
+  rig.video.load()
 }
 
 const applyMuting = () => {
   if (!multi.active) return
   if (liveVideo) liveVideo.muted = isMutedIn({ audible: multi.view.audible, picture: 'primary' })
-  if (companionVideo) companionVideo.muted = isMutedIn({ audible: multi.view.audible, picture: 'secondary' })
+  for (const id of COMPANIONS) {
+    if (rigs[id].video) rigs[id].video.muted = isMutedIn({ audible: multi.view.audible, picture: id })
+  }
 }
 
 watch(() => [multi.active, multi.view.audible], applyMuting)
 
 watch(playerMuted, () => {
   if (!multi.active) applySingleMuting()
+})
+
+watch(() => live.phase, (phase) => {
+  if (multi.active && phase === 'ended') moveSoundFrom('primary')
 })
 
 const companionErrorText = (err) => {
@@ -342,21 +449,21 @@ const companionErrorText = (err) => {
 }
 
 liveStopHooks.add(() => {
-  stopCompanion()
+  for (const id of COMPANIONS) stopCompanion(id)
   exitMulti()
 })
 
 window.addEventListener('pagehide', (event) => {
-  const sessionId = multi.secondary.sessionId
-  if (!sessionId) return
-  fetch(`/api/live/${sessionId}${event.persisted ? '/hold' : ''}`, {
-    method: event.persisted ? 'POST' : 'DELETE',
-    keepalive: true,
-    headers: { 'x-csrf-token': csrfToken || '' },
-  }).catch(() => {})
+  for (const id of COMPANIONS) {
+    const sessionId = multi.companions[id].sessionId
+    if (!sessionId) continue
+    fetch(`/api/live/${sessionId}${event.persisted ? '/hold' : ''}`, {
+      method: event.persisted ? 'POST' : 'DELETE',
+      keepalive: true,
+      headers: { 'x-csrf-token': csrfToken || '' },
+    }).catch(() => {})
+  }
 })
-
-export const isMultiActive = () => multi.active && live.open
 
 const COMPANION_HLS_CONFIG = {
   workerPath: '/vendor/hls.worker.js',

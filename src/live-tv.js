@@ -268,6 +268,11 @@ export const tunerVerdict = ({
   }
 }
 
+export const liveStreamWeightOf = (pictureRank = 0) => {
+  const rank = Math.min(Math.max(0, Math.floor(Number(pictureRank) || 0)), MAX_PICTURE_RANK)
+  return LIVE_MAIN_WEIGHT - rank * LIVE_WEIGHT_STEP
+}
+
 export const stallReason = ({ subscriptions = [], userAgent, sessionStartedAt = 0 }) => {
   const recording = subscriptions
     .filter((s) => DVR_TITLE.test(s.title) && s.startedAt >= sessionStartedAt)
@@ -309,7 +314,7 @@ export const createLiveSessions = ({
   const sessions = new Map()
   const ended = new Map()
 
-  const start = async ({ channelId, plan, label = null }) => {
+  const start = async ({ channelId, plan, label = null, weight = liveStreamWeightOf(0) }) => {
     const existing = forChannel(channelId)
     if (existing) {
       existing.viewers += 1
@@ -334,6 +339,7 @@ export const createLiveSessions = ({
       lastSeenAt: now(),
       lastByteAt: now(),
       viewers: 1,
+      weight,
       heldUntil: 0,
       bufferSeconds: bufferMinutes * 60,
       controller: new AbortController(),
@@ -426,6 +432,7 @@ export const createLiveSessions = ({
         channelId: session.channelId,
         signal: session.controller.signal,
         userAgent: session.userAgent,
+        weight: session.weight,
       })
       if (session.ending) return upstream.destroy?.()
       session.upstream = upstream
@@ -635,7 +642,7 @@ export const preflightChannel = async ({ channelId, now = Date.now() }) => {
   return { ...verdict, channel: { id: channel.id, name: channel.name } }
 }
 
-export const startLiveChannel = async ({ channelId, sessions, encoder }) => {
+export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRank = 0 }) => {
   const existing = sessions.forChannel(channelId)
   const verdict = existing ? null : await preflightChannel({ channelId })
   if (verdict && !verdict.ok) {
@@ -645,7 +652,9 @@ export const startLiveChannel = async ({ channelId, sessions, encoder }) => {
     })
   }
   const plan = existing ? null : await planForChannel({ channelId, encoder })
-  const { session, shared } = await sessions.start({ channelId, plan, label: verdict?.channel?.name })
+  const { session, shared } = await sessions.start({
+    channelId, plan, label: verdict?.channel?.name, weight: liveStreamWeightOf(pictureRank),
+  })
   return { session: sessions.view(session), shared, conflict: verdict?.conflict || null }
 }
 
@@ -656,8 +665,8 @@ export const describeStallFor = async (session) =>
     sessionStartedAt: session.startedAt,
   })
 
-export const openUpstreamFor = ({ channelId, signal, userAgent }) =>
-  openChannelStream({ channelId, signal, userAgent })
+export const openUpstreamFor = ({ channelId, signal, userAgent, weight }) =>
+  openChannelStream({ channelId, signal, userAgent, weight })
 
 const planForChannel = async ({ channelId, encoder }) => {
   const channel = await findChannel(channelId)
@@ -786,6 +795,9 @@ const MAX_INTERLEAVE_MICROSECONDS = 500_000
 const TELETEXT_FAILURE = /teletext|zvbi|txt_/i
 const PLAYLIST_NAMES = new Set([MASTER_PLAYLIST, MEDIA_PLAYLIST, CAPTIONS_PLAYLIST])
 const MAX_ERROR_LINES = 20
+const LIVE_MAIN_WEIGHT = 50
+const LIVE_WEIGHT_STEP = 10
+const MAX_PICTURE_RANK = 3
 const LIVE_REFUSALS = {
   'off-air': "This channel isn't broadcasting right now, so TVHeadend can't tune it.",
   'no-tuner': 'Every tuner is busy on another multiplex.',
