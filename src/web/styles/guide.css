@@ -164,6 +164,62 @@
   min-width: 44px;
 }
 
+.guide-zoom-steps {
+  display: none;
+  align-items: center;
+}
+
+.guide-zoom-steps .ui-segment {
+  min-height: 38px;
+  min-width: 44px;
+}
+
+.guide-zoom-steps .ui-segment svg {
+  width: 18px;
+  height: 18px;
+}
+
+.guide-zoom-steps .ui-segment:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (min-width: 768px) and (min-height: 501px) {
+  .guide-controls {
+    container-type: inline-size;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 10px;
+  }
+
+  .guide-controls .guide-search {
+    flex-basis: 100%;
+  }
+
+  .guide-controls .guide-days {
+    flex: 1 1 0;
+  }
+
+  .guide-controls .guide-toolbar {
+    flex: none;
+  }
+
+  .guide-controls .guide-toolbar-spacer {
+    display: none;
+  }
+
+  @container (max-width: 920px) {
+    .guide-controls .guide-zoom {
+      display: none;
+    }
+
+    .guide-controls .guide-zoom-steps {
+      display: inline-flex;
+    }
+  }
+}
+
 .guide-page .ui-page-heading {
   min-width: 200px;
 }

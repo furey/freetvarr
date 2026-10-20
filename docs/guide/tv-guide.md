@@ -22,7 +22,7 @@ The Guide shows only the listings you loaded into TVHeadend. With the XMLTV guid
 Channels run down the page and time runs across. The Guide opens at the current half hour.
 
 - The **day chips** switch between today and the next six days. **Now** and **Tonight** jump within the day.
-- **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
+- **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. In a narrower window, **Zoom** shows **−** and **+** instead. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
 - The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does.
 - The **Channels** button opens the channel settings.
 - The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). It replaces the old `UPCOMING` view.
@@ -174,4 +174,4 @@ The key stays on the Freetvarr server; the browser never receives it. **Remove k
 
 ## Caching
 
-Freetvarr keeps a copy of the TV guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. Press the refresh button to fetch them again. If TVHeadend stops answering, the Guide shows its cached copy with a note, and updates when TVHeadend is back.
+Freetvarr keeps a copy of the TV guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. The Guide fetches them again every 5 minutes while it is open, and when you come back to it after 5 minutes or more. If TVHeadend stops answering, the Guide shows its cached copy with a note, and updates when TVHeadend is back.

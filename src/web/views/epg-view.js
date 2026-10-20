@@ -78,6 +78,8 @@ const EPG_NO_CELLS = Object.freeze([])
 
 const EPG_STATE_POLL_MS = 60_000
 const LISTINGS_REFRESH_MS = 10_000
+const GUIDE_AUTO_REFRESH_MS = 5 * 60_000
+const GUIDE_STALE_CHECK_MS = 30_000
 const LISTINGS_LOADING_TEXT = 'Loading the new listings. This can take a couple of minutes.'
 
 const EPG_SEARCH_DEBOUNCE_MS = 300
@@ -123,8 +125,6 @@ export const EpgView = {
           </div>
         </div>
         <div class="guide-toolbar">
-          <button v-if="!narrow" type="button" class="ui-icon-button is-plain" aria-label="Refresh the guide" title="Refresh the guide"
-            :disabled="loading" @click="manualRefresh"><refresh-icon /></button>
           <span class="guide-toolbar-spacer"></span>
           <button type="button" role="switch" class="guide-images-toggle" :aria-checked="String(showImages)" @click="showImages = !showImages">
             Images<span class="guide-switch" aria-hidden="true"></span>
@@ -133,6 +133,11 @@ export const EpgView = {
             <span class="ui-segmented-label" aria-hidden="true">Zoom</span>
             <button v-for="level in zoomLevels" :key="level.key" type="button" class="ui-segment"
               :aria-pressed="String(zoom === level.key)" :aria-label="level.label + ' zoom'" @click="setZoom(level.key)">{{ level.key.toUpperCase() }}</button>
+          </div>
+          <div v-if="!narrow" class="ui-segmented is-compact guide-zoom-steps" role="group" aria-label="Zoom">
+            <span class="ui-segmented-label" aria-hidden="true">Zoom</span>
+            <button type="button" class="ui-segment" aria-label="Zoom out" :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
+            <button type="button" class="ui-segment" aria-label="Zoom in" :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
           </div>
         </div>
       </div>
@@ -618,6 +623,7 @@ export const EpgView = {
     watch([railItems, zoom, narrow, scrollEl, railPx], measureRowBands, { flush: 'post' })
     watch(guide, () => requestAnimationFrame(syncCellWindow))
 
+    let dayFreshAt = 0
     const loadDay = async (d, { force = false } = {}) => {
       error.value = ''
       errorCode.value = ''
@@ -633,6 +639,7 @@ export const EpgView = {
           return
         }
         guideByDay.set(d, g)
+        dayFreshAt = Date.now()
         if (day.value === d) guide.value = g
       } catch (err) {
         error.value = `Guide load failed: ${err.message}`
@@ -756,10 +763,26 @@ export const EpgView = {
 
     const setZoom = (key) => changeZoom(EPG_ZOOM_LEVELS.findIndex((l) => l.key === key) - zoomIndex.value)
 
-    const manualRefresh = async () => {
-      guideByDay.clear()
-      await Promise.all([loadDay(day.value, { force: true }), loadState({ fresh: true }), loadWatchlist()])
-      if (!error.value) flash({ msg: 'Guide refreshed.' })
+    const refreshDayQuietly = async () => {
+      const d = day.value
+      try {
+        const g = await api('GET', `/api/epg/guide?day=${d}`)
+        if (g.configured === false) return
+        guideByDay.clear()
+        guideByDay.set(d, g)
+        dayFreshAt = Date.now()
+        if (day.value === d) guide.value = g
+      } catch {
+        return
+      }
+      loadState({ fresh: true })
+      loadWatchlist()
+    }
+
+    const isDayStale = () => Date.now() - dayFreshAt >= GUIDE_AUTO_REFRESH_MS
+    const refreshDayIfStale = () => {
+      if (document.hidden || loading.value || !guide.value || guide.value.loadingListings?.length) return
+      if (isDayStale()) refreshDayQuietly()
     }
 
     const openProgram = (p, channel) => openProgramme({ channelId: channel?.id ?? p.channelId, programme: p, channel, guideDay: guide.value })
@@ -1160,6 +1183,7 @@ export const EpgView = {
     watch(recordingChangeTick, () => loadState({ fresh: true }))
 
     let statePollTimer = null
+    let staleCheckTimer = null
     onMounted(async () => {
       window.addEventListener('keydown', onKeydown)
       window.addEventListener('scroll', onAnyScroll, { capture: true, passive: true })
@@ -1170,12 +1194,16 @@ export const EpgView = {
       const jumped = await followGuideJump()
       if (!jumped && day.value === 0) await scrollToNow()
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
+      staleCheckTimer = setInterval(refreshDayIfStale, GUIDE_STALE_CHECK_MS)
+      document.addEventListener('visibilitychange', refreshDayIfStale)
     })
     onUnmounted(() => {
       window.removeEventListener('keydown', onKeydown)
       window.removeEventListener('scroll', onAnyScroll, { capture: true })
       hideTooltip()
       if (statePollTimer) clearInterval(statePollTimer)
+      clearInterval(staleCheckTimer)
+      document.removeEventListener('visibilitychange', refreshDayIfStale)
       if (searchTimer) clearTimeout(searchTimer)
     })
 
@@ -1198,7 +1226,7 @@ export const EpgView = {
       visibleChannels, railNum, railFilter, pinnedCount, pinsOffscreen, scrollRailTop,
       midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled,
-      jumpNow, jumpTonight, manualRefresh,
+      jumpNow, jumpTonight,
       searchOpen, toggleSearch, closeSearch, searchQ, searchActive, searchResults, searching, resultsLabel,
       openProgram, programmeSheetOpen,
       channelsModal, channelsModalMode, openChannelsModal, openOrderEditor, onChannelPrefsSaved,
