@@ -33,12 +33,12 @@ Press a card to act on it. What happens depends on the suggestion:
 - On now: plays the channel live.
 - Already scheduled: opens the show page.
 - A new season or a returning show: opens the programme sheet with **Every episode** picked.
-- A premiere or a new show: opens the programme sheet with **Notify me** picked.
+- A premiere or a new show: opens the programme sheet with **Every episode** picked, or **This episode** for a movie.
 - Anything else: opens the programme sheet with **This episode** picked (**This movie** for a movie, **This showing** for a one-off).
 
 Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 
-- **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Notify me**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
+- **Watch live**, **Record this episode**, **Record series**, and **Go to show**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
 - **More like this** and **Fewer like this**: tell Freetvarr what you think of the show.
 - **Not interested in** the show: hides it from For you for 90 days.
 - **Why this?**: lists the reasons for the suggestion, such as a genre you watch or a channel you often watch at that time.

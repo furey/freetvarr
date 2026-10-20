@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import {
   SHEET_KEEP_STEPS,
   SHEET_LEAD_STEPS,
-  activeWatchItemFor,
   canStep,
   cellMarksOf,
   clockWithoutPeriod,
@@ -40,26 +39,22 @@ test('keep steps: All comes after the largest number', () => {
 
 test('sheetStrengthsFor: lists only the strengths that apply, in order', () => {
   assert.deepEqual(
-    sheetStrengthsFor({ canRecordEpisode: true, canRecordSeries: true, canNotify: true }).map((s) => s.label),
-    ['This episode', 'Every episode', 'Notify me'],
+    sheetStrengthsFor({ canRecordEpisode: true, canRecordSeries: true }).map((s) => s.label),
+    ['This episode', 'Every episode'],
   )
-  assert.deepEqual(
-    sheetStrengthsFor({ canRecordEpisode: false, canRecordSeries: false, canNotify: true }).map((s) => s.key),
-    ['notify'],
-  )
+  assert.deepEqual(sheetStrengthsFor({ canRecordEpisode: false, canRecordSeries: false }), [])
 })
 
 test('initialStrengthOf: series focus picks Every episode when it is offered', () => {
-  const strengths = sheetStrengthsFor({ canRecordEpisode: true, canRecordSeries: true, canNotify: true })
+  const strengths = sheetStrengthsFor({ canRecordEpisode: true, canRecordSeries: true })
   assert.equal(initialStrengthOf({ strengths }), 'episode')
   assert.equal(initialStrengthOf({ strengths, focus: 'series' }), 'series')
-  assert.equal(initialStrengthOf({ strengths: strengths.slice(2), focus: 'series' }), 'notify')
+  assert.equal(initialStrengthOf({ strengths: strengths.slice(1), focus: 'episode' }), 'series')
   assert.equal(initialStrengthOf({ strengths: [] }), '')
 })
 
-test('initialStrengthOf: notify focus picks Notify me, and an unoffered focus falls back to the first', () => {
-  const strengths = sheetStrengthsFor({ canRecordEpisode: true, canRecordSeries: false, canNotify: true })
-  assert.equal(initialStrengthOf({ strengths, focus: 'notify' }), 'notify')
+test('initialStrengthOf: an unoffered focus falls back to the first', () => {
+  const strengths = sheetStrengthsFor({ canRecordEpisode: true, canRecordSeries: false })
   assert.equal(initialStrengthOf({ strengths, focus: 'series' }), 'episode')
 })
 
@@ -72,15 +67,12 @@ test('strengthLineOf: one line that says what each strength does', () => {
   )
   assert.match(strengthLineOf({ strength: 'notify', title: 'The Rookie' }), /Nothing records\.$/)
   assert.match(strengthLineOf({ strength: 'notify', title: 'The Rookie', recordWhenSeen: true }), /any channel/)
-  assert.match(strengthLineOf({ strength: 'notify', title: 'The Rookie', watching: true }), /^You are watching for/)
 })
 
-test('primaryActionOf: red for recording, mint for notify', () => {
+test('primaryActionOf: red for recording, nothing otherwise', () => {
   assert.deepEqual(primaryActionOf({ strength: 'episode' }), { key: 'record', label: 'Record', tone: 'record' })
   assert.equal(primaryActionOf({ strength: 'series' }).label, 'Record series')
-  assert.deepEqual(primaryActionOf({ strength: 'notify' }), { key: 'notify', label: 'Notify me', tone: 'primary' })
-  assert.equal(primaryActionOf({ strength: 'notify', recordWhenSeen: true }).label, 'Record when it appears')
-  assert.equal(primaryActionOf({ strength: 'notify', watching: true }).key, 'stop-watching')
+  assert.equal(primaryActionOf({ strength: 'notify' }), null)
   assert.equal(primaryActionOf({ strength: '' }), null)
 })
 
@@ -97,8 +89,6 @@ test('sheetMetaLineOf and seasonEpisodeShort: skip the parts a programme lacks',
 test('watch items: fulfilled entries no longer count as watched', () => {
   const items = [{ key: 'the-rookie' }, { key: 'gruen', fulfilledAt: 'x' }]
   assert.deepEqual([...watchedKeysOf(items)], ['the-rookie'])
-  assert.equal(activeWatchItemFor({ items, key: 'gruen' }), null)
-  assert.equal(activeWatchItemFor({ items, key: 'the-rookie' }), items[0])
 })
 
 test('cellMarksOf: ring for recording, red dot for scheduled or series, mint dot otherwise', () => {
@@ -119,7 +109,6 @@ test('clockWithoutPeriod: drops am or pm for the now pill', () => {
 test('pendingActionLabelOf: each sheet action has its own -ing label', () => {
   assert.equal(pendingActionLabelOf('record'), 'Scheduling…')
   assert.equal(pendingActionLabelOf('record-series'), 'Setting up…')
-  assert.equal(pendingActionLabelOf('notify'), 'Saving…')
   assert.equal(pendingActionLabelOf('stop'), 'Stopping…')
   assert.equal(pendingActionLabelOf('cancel'), 'Cancelling…')
   assert.equal(pendingActionLabelOf('unknown'), 'Saving…')

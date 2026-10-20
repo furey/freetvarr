@@ -45,7 +45,7 @@ Freetvarr picks the slides from these, in this order, and leaves out any that ha
 | **Now in the guide**            | A show you asked to be told about, now in the TV guide.                                        | **Record** or **Record series**, **Details**                              |
 | **Unwatched movie**             | A film you recorded and have not watched.                                                      | **Play** or **Resume**, **Details**                                       |
 
-**Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it or ask to be told when it airs.
+**Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it.
 
 Each slide also has a **⋯** button. It opens the same actions as the matching row below: the episode menu for a recording, the For you menu for a suggestion, and the live or scheduled menu for a programme. See [More actions](#more-actions).
 
@@ -74,7 +74,7 @@ The menu depends on the row:
 | Row                   | Menu                                                                                                                          |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                   |
-| **For you**           | **Record this episode**, **Record series**, **Notify me**, **Programme info**, feedback, and **Why this?**.                   |
+| **For you**           | **Record this episode**, **Record series**, **Programme info**, feedback, and **Why this?**.                                  |
 | **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                           |
 | **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a series rule), and **Don't record this episode**. |
 
@@ -93,7 +93,7 @@ Press **Search** in any page header, then type at least two letters. Search cove
 - **SHOWS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
 - **IN THE GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.
 
-When nothing in the next 7 days matches, the results end with **Watch for “title”**. Press it to list the show under **Watching for** in Scheduled, or to record it when it is in the TV guide. See [Notify me](/guide/tv-guide#notify-me).
+When nothing in the next 7 days matches, the results end with **Watch for “title”**. Press it to list the show under **Watching for** in Scheduled, or to record it when it is in the TV guide. See [Watch for](/guide/tv-guide#watch-for).
 
 Search finds a show in these ways:
 

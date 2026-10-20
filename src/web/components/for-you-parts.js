@@ -200,10 +200,6 @@ const FOR_YOU_ICONS = {
     { tag: 'circle', attrs: { cx: 12, cy: 12, r: 9 } },
     { tag: 'circle', attrs: { cx: 12, cy: 12, r: 4.5, fill: 'currentColor', stroke: 'none' } },
   ],
-  bell: [
-    { tag: 'path', attrs: { d: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9' } },
-    { tag: 'path', attrs: { d: 'M10.3 21a1.94 1.94 0 0 0 3.4 0' } },
-  ],
   options: [
     { tag: 'path', attrs: { d: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h7M15 18h5' } },
     { tag: 'circle', attrs: { cx: 16, cy: 6, r: 2 } },

@@ -16,10 +16,9 @@ export const minutesShort = (minutes) => `${minutes}m`
 
 export const keepLabel = (count) => (count === 0 ? 'All' : String(count))
 
-export const sheetStrengthsFor = ({ canRecordEpisode, canRecordSeries, canNotify, kind = null }) => [
+export const sheetStrengthsFor = ({ canRecordEpisode, canRecordSeries, kind = null }) => [
   canRecordEpisode && { key: 'episode', label: recordWordingOf({ kind }).strengthLabel },
   canRecordSeries && { key: 'series', label: 'Every episode' },
-  canNotify && { key: 'notify', label: 'Notify me' },
 ].filter(Boolean)
 
 export const initialStrengthOf = ({ strengths, focus = '' }) => {
@@ -28,7 +27,7 @@ export const initialStrengthOf = ({ strengths, focus = '' }) => {
   return keys[0] ?? ''
 }
 
-export const strengthLineOf = ({ strength, title, channelLabel = '', onAirUntil = '', recordWhenSeen = false, watching = false, kind = null }) => {
+export const strengthLineOf = ({ strength, title, channelLabel = '', onAirUntil = '', recordWhenSeen = false, kind = null }) => {
   if (strength === 'episode') {
     return onAirUntil
       ? `Records from now until ${onAirUntil}. The part already aired is not included.`
@@ -36,18 +35,15 @@ export const strengthLineOf = ({ strength, title, channelLabel = '', onAirUntil 
   }
   if (strength === 'series') return `Records every new episode of ${title} ${channelLabel}.`.replace(/ \./, '.')
   if (strength !== 'notify') return ''
-  if (watching) return `You are watching for ${title}. New airings show in Scheduled under Watching for.`
   return recordWhenSeen
     ? `Records every episode of ${title} on any channel as soon as it is in the guide.`
     : `Lists ${title} in Scheduled under Watching for whenever it is in the guide. Nothing records.`
 }
 
-export const primaryActionOf = ({ strength, recordWhenSeen = false, watching = false }) => {
+export const primaryActionOf = ({ strength }) => {
   if (strength === 'episode') return { key: 'record', label: 'Record', tone: 'record' }
   if (strength === 'series') return { key: 'record-series', label: 'Record series', tone: 'record' }
-  if (strength !== 'notify') return null
-  if (watching) return { key: 'stop-watching', label: 'Stop watching', tone: 'secondary' }
-  return { key: 'notify', label: recordWhenSeen ? 'Record when it appears' : 'Notify me', tone: 'primary' }
+  return null
 }
 
 export const pendingActionLabelOf = (key) => PENDING_ACTION_LABELS[key] || 'Saving…'
@@ -57,9 +53,6 @@ export const sheetMetaLineOf = ({ seasonEpisode, episodeTitle, channelName, time
 
 export const seasonEpisodeShort = ({ series_no: season, episode_no: episode }) =>
   [season != null && `S${season}`, episode != null && `E${episode}`].filter(Boolean).join(' ')
-
-export const activeWatchItemFor = ({ items = [], key }) =>
-  items.find((item) => item.key === key && !item.fulfilledAt) ?? null
 
 export const watchedKeysOf = (items = []) =>
   new Set(items.filter((item) => !item.fulfilledAt).map((item) => item.key))
@@ -75,8 +68,6 @@ export const clockWithoutPeriod = (clock) => String(clock).replace(/\s?[ap]\.?m\
 const PENDING_ACTION_LABELS = {
   record: 'Scheduling…',
   'record-series': 'Setting up…',
-  notify: 'Saving…',
-  'stop-watching': 'Stopping…',
   cancel: 'Cancelling…',
   stop: 'Stopping…',
 }

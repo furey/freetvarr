@@ -23,7 +23,7 @@ Channels run down the page and time runs across. The TV guide opens at the curre
 
 - The **day chips** switch between today and the next six days. **Now** and **Tonight** jump within the day.
 - **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. In a narrower window, **Zoom** shows **−** and **+** instead. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
-- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. When nothing matches, **Watch for** lists the show for later. See [Notify me](#notify-me).
+- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. When nothing matches, **Watch for** lists the show for later. See [Watch for](#watch-for).
 - The **Channels** button opens the channel settings.
 - The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). It replaces the old `UPCOMING` view.
 - A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme you watch for has its own dot; the legend names it **Watching for**. On a tablet or computer the legend sits above the grid, on the right; on a phone it sits under the grid. Past programmes are dimmed, and programmes on air have a lighter cell.
@@ -46,7 +46,7 @@ Press a programme's cell to open its programme sheet: the programme image, title
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme sheet with This episode, Every episode, and Notify me" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme sheet with This episode and Every episode" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -54,7 +54,6 @@ A switch in the sheet picks what to do. One line under it says what the main but
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** follows the show to another channel. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **Notify me** lists the show to watch for. See [Notify me](#notify-me).
 - **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the series folder, so the episodes go to the TV library. The note under the switch says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. The default is in Settings → Library and Plex. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
 - **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
@@ -74,24 +73,22 @@ Freetvarr decides from the guide whether a programme is a movie, part of a serie
 
 [Scheduled](/guide/recordings#scheduled) lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. [Series rules](/guide/series) lists the series recordings themselves.
 
-## Notify me
+## Watch for
 
-**Notify me** lists a show under **Watching for** in Scheduled. Each time a programme with the same title is in the TV guide, the list shows when it next airs, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
+**Watch for** lists a show under **Watching for** in [Scheduled](/guide/recordings#scheduled) when nothing in the next 7 days matches its title. Each time a programme with the same title is in the TV guide, the list shows when it next airs, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
 
-There are two ways to watch for a show:
+To watch for a show:
 
-- **From a programme in the TV guide**: press the programme, then pick **Notify me**.
-- **From Search, for a show that is not in the next 7 days**: search for the title. When nothing in the TV guide matches, the results end with **Watch for “title”**. Press it, check the title, and change it if you need to. This works in [Search](/guide/home#search) and in the search of the TV guide.
-
-Then:
-
-1. To record the show as soon as it is in the TV guide, turn on **Record when it appears**.
-2. With the switch on, set **Start early** and **Finish late**. They start at `2m` and `10m`, the same as for **This episode** and **Every episode**.
-3. Press the button. It reads **Notify me** or **Watch for** with the switch off, and **Record when it appears** with the switch on.
+1. Search for the title in [Search](/guide/home#search) or in the search of the TV guide.
+2. When nothing in the TV guide matches, press **Watch for “title”** at the end of the results.
+3. Check the title, and change it if you need to.
+4. To record the show as soon as it is in the TV guide, turn on **Record when it appears**.
+5. With the switch on, set **Start early** and **Finish late**. They start at `2m` and `10m`, the same as for **This episode** and **Every episode**.
+6. Press the button. It reads **Watch for** with the switch off, and **Record when it appears** with the switch on.
 
 Freetvarr matches by title. Case, accents, and punctuation do not matter, so `Gogglebox` also matches `GOGGLEBOX`. A different title does not match: a watch for `Utopia` does not catch `Utopia: The Series`.
 
-**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide, with the padding you set. Freetvarr checks the TV guide every 15 minutes. The sheet of a show you already watch for says `You are watching for this show.` and offers **Stop watching**.
+**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide, with the padding you set. Freetvarr checks the TV guide every 15 minutes. To stop watching for a show, open **Scheduled**, then **Watching for**, and press **Stop watching**.
 
 Freetvarr sends no push message or email. The list in Scheduled is the notice.
 

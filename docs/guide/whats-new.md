@@ -67,7 +67,7 @@ Recordings has two views: **Library** and **Scheduled**.
 
 ### TV guide
 
-The programme sheet has a third choice beside **This episode** and **Every episode**: **Notify me**. Freetvarr lists the show under **Watching for** in Scheduled whenever it is in the TV guide. For a show that is not in the next 7 days, search for its title and press **Watch for**. Turn on **Record when it appears** to start an any-channel series recording, with your start and finish padding, the first time the show is in the TV guide. See [Notify me](/guide/tv-guide#notify-me).
+For a show that is not in the next 7 days, search for its title and press **Watch for**. Freetvarr lists the show under **Watching for** in Scheduled whenever it is in the TV guide. Turn on **Record when it appears** to start an any-channel series recording, with your start and finish padding, the first time the show is in the TV guide. See [Watch for](/guide/tv-guide#watch-for).
 
 **Add to library** now has a default. Set it in Settings → Library and Plex. The programme sheet shows the choice under **Advanced**, so you can change it for one recording.
 
@@ -89,6 +89,6 @@ Settings groups its pages as Preferences, System, and About. System holds the ad
 
 ### Upgrading
 
-Freetvarr 2.0 keeps the Docker image name, the `.env` values, and your data. On the first start, Freetvarr adds tables to its database for watched marks, the Notify me list, your viewing history, suggestions, and the extra show names that search uses. Nothing needs setting up again.
+Freetvarr 2.0 keeps the Docker image name, the `.env` values, and your data. On the first start, Freetvarr adds tables to its database for watched marks, the Watching for list, your viewing history, suggestions, and the extra show names that search uses. Nothing needs setting up again.
 
 If you set `LIVE_TV_MAX_SESSIONS` in your `.env`, it is now the upper limit for **Live streams at once**. Without it, Freetvarr picks the number from a measurement of your computer.

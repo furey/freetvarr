@@ -51,10 +51,6 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
       accept(item)
       openSheet(item, 'record-series')
     },
-    notify: (item) => {
-      accept(item)
-      openSheet(item, 'notify')
-    },
     'programme-info': (item) => openSheet(item, 'programme-info'),
     show: (item) => { window.location.hash = showHrefOf(item.title) },
     'thumb-up': (item) => toggleThumb(item, 'up'),

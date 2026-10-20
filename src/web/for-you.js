@@ -123,8 +123,8 @@ export const tapActionOf = ({ item, scheduled = false }) => {
   if (scheduled) return 'show'
   if (item.onNow) return 'watch-live'
   const kind = kindOf(item)
-  if ((kind === 'new-season' || kind === 'returning') && item.canRecordSeries) return 'record-series'
-  if (kind === 'premiere' || kind === 'new-show') return 'notify'
+  const seriesKinds = ['new-season', 'returning', 'premiere', 'new-show']
+  if (seriesKinds.includes(kind) && item.canRecordSeries) return 'record-series'
   return 'record-episode'
 }
 
@@ -142,7 +142,6 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
     },
     !scheduled && item.canRecordSeries && { key: 'record-series', label: 'Record series', icon: 'series' },
     scheduled && { key: 'show', label: 'Go to show', icon: 'options' },
-    { key: 'notify', label: 'Notify me', icon: 'bell' },
     { key: 'programme-info', label: 'Programme info', icon: 'info' },
   ].filter(Boolean)
   const more = [
@@ -344,5 +343,4 @@ const CAROUSEL_REASONS = {
 const SHEET_FOCUS = {
   'record-episode': 'episode',
   'record-series': 'series',
-  notify: 'notify',
 }

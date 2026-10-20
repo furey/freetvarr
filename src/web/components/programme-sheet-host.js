@@ -3,7 +3,6 @@ import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
 import {
   SHEET_KEEP_STEPS,
-  activeWatchItemFor,
   canStep,
   initialStrengthOf,
   keepLabel,
@@ -18,11 +17,9 @@ import {
 import { guideChannelOf, listedProgrammeOf } from '/programme-state.js'
 import { holdAtLeast } from '/pending.js'
 import { findSeriesLink } from '/series-link.js'
-import { showKeyOf } from '/show-key.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import { canRecordSeriesOf } from '/record-wording.js'
-import { watchRequestOf, watchedMessageOf } from '/watch-for.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
@@ -37,13 +34,11 @@ import {
   isSeriesScheduled,
   libraryDefault,
   loadEpgState,
-  loadWatchlist,
   programmeSheetRequest,
   scheduledByProgramId,
   seriesLinkSet,
   seriesTags,
   useProgrammeSheet,
-  watchItems,
 } from '/shared/programme-sheet-store.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
@@ -73,7 +68,6 @@ export const ProgrammeSheetHost = {
         <div :class="['programme-sheet-actions', { 'is-ready': sheetReady }]" :aria-busy="String(!sheetReady)">
         <p v-if="selectedStatusText" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ selectedStatusText }}</p>
         <p v-else-if="selectedState === 'series'" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>A series recording in TVHeadend records this show.</p>
-        <p v-else-if="selectedWatchItem && sheetStrength !== 'notify'" class="programme-sheet-status is-watch"><span class="ui-dot" aria-hidden="true"></span>You are watching for this show.</p>
         <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
           :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
         <template v-else>
@@ -110,16 +104,6 @@ export const ProgrammeSheetHost = {
                 </span>
                 <button type="button" class="ui-switch" :aria-pressed="String(anyChannel)" aria-label="Record on any channel" :title="ANY_CHANNEL_HINT" @click="anyChannel = !anyChannel"></button>
               </div>
-            </div>
-            <div v-else-if="sheetStrength === 'notify' && !selectedWatchItem" class="ui-group programme-sheet-options">
-              <div class="ui-group-row">
-                <span class="ui-group-row-main">
-                  <span class="ui-group-row-title">Record when it appears</span>
-                  <span class="ui-group-row-meta">Sets an any-channel series recording the first time it is in the guide</span>
-                </span>
-                <button type="button" class="ui-switch" :aria-pressed="String(recordWhenSeen)" aria-label="Record when it appears" @click="recordWhenSeen = !recordWhenSeen"></button>
-              </div>
-              <padding-rows v-if="recordWhenSeen" v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme-watch" />
             </div>
             <details v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="programme-sheet-advanced">
               <summary>Advanced</summary>
@@ -191,7 +175,6 @@ export const ProgrammeSheetHost = {
     const modalAction = ref('')
     const [modalStatusText, modalStatusKind, setModalStatus] = makeStatus()
     const sheetStrength = ref('')
-    const recordWhenSeen = ref(false)
     const leadTime = ref(2)
     const lagTime = ref(10)
     const episodesToKeep = ref(0)
@@ -322,10 +305,6 @@ export const ProgrammeSheetHost = {
     const cancelSeriesOutcome = () =>
       `Stops TVHeadend recording new episodes of "${selected.value.program.title}". Asks what to do with the rest.`
 
-    const selectedWatchItem = computed(() => (selected.value
-      ? activeWatchItemFor({ items: watchItems.value, key: showKeyOf(selected.value.program.title) })
-      : null))
-
     const sheetStrengths = computed(() => {
       const program = selected.value?.program
       if (!program) return []
@@ -333,7 +312,6 @@ export const ProgrammeSheetHost = {
       return sheetStrengthsFor({
         canRecordEpisode: canRecord.value && selectedState.value === '',
         canRecordSeries: canRecord.value && canRecordSeriesOf(program) && !ruled,
-        canNotify: Boolean(program.title) && !ruled,
         kind: ruled ? 'series' : program.kind,
       })
     })
@@ -354,24 +332,16 @@ export const ProgrammeSheetHost = {
         title: program.title,
         channelLabel: selectedChannelLabel(),
         onAirUntil: isSelectedOnAir.value ? fmtClock(program.end) : '',
-        recordWhenSeen: recordWhenSeen.value,
-        watching: Boolean(selectedWatchItem.value),
         kind: program.kind,
       })
     })
 
     const primaryAction = computed(() => (cancelSeriesStep.value
       ? null
-      : primaryActionOf({
-        strength: sheetStrength.value,
-        recordWhenSeen: recordWhenSeen.value,
-        watching: Boolean(selectedWatchItem.value),
-      })))
+      : primaryActionOf({ strength: sheetStrength.value })))
 
     const primaryClass = computed(() => ({
       record: 'ui-button-record',
-      primary: 'ui-button-primary',
-      secondary: 'ui-button-destructive',
     })[primaryAction.value?.tone] || '')
 
     const sheetMeta = computed(() => {
@@ -419,8 +389,6 @@ export const ProgrammeSheetHost = {
       const key = primaryAction.value?.key
       if (key === 'record') return recordSelected()
       if (key === 'record-series') return recordSelectedSeries()
-      if (key === 'notify') return watchSelectedTitle()
-      if (key === 'stop-watching') return stopWatchingSelected()
     }
 
     const openCancelSeriesStep = () => {
@@ -476,7 +444,6 @@ export const ProgrammeSheetHost = {
       episodesToKeep.value = 0
       anyChannel.value = false
       addToLibrary.value = libraryDefault.value
-      recordWhenSeen.value = false
       cancelSeriesStep.value = null
       dialogFocus.value = focus
       modalAction.value = ''
@@ -684,42 +651,6 @@ export const ProgrammeSheetHost = {
       })
     }
 
-    const watchSelectedTitle = () => {
-      const { program } = selected.value
-      return runSheetAction({
-        key: 'notify',
-        failure: 'Notify me failed',
-        task: async () => {
-          const { item } = await holdAtLeast({ task: () => api('POST', '/api/watchlist', watchRequestOf({
-            title: program.title,
-            recordWhenSeen: recordWhenSeen.value,
-            leadTime: leadTime.value,
-            lagTime: lagTime.value,
-          })) })
-          flash({ msg: watchedMessageOf({ title: program.title, item }) })
-          closeModal()
-          await loadWatchlist()
-          if (!item?.fulfilledAt) return
-          refreshAfterRecordingChange()
-          await loadEpgState({ fresh: true })
-        },
-      })
-    }
-
-    const stopWatchingSelected = () => {
-      const item = selectedWatchItem.value
-      if (!item) return
-      return runSheetAction({
-        key: 'stop-watching',
-        failure: 'Stop watching failed',
-        task: async () => {
-          await holdAtLeast({ task: () => api('DELETE', `/api/watchlist/${item.id}`) })
-          flash({ msg: `Stopped watching for "${item.title}".` })
-          await loadWatchlist()
-        },
-      })
-    }
-
     const swipe = { start: null }
 
     const onSwipeStart = (e) => {
@@ -771,8 +702,8 @@ export const ProgrammeSheetHost = {
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,
       stepValue, canStep, keepLabel,
-      sheetStrengths, sheetStrength, strengthLine, primaryAction, primaryClass, runPrimaryAction, recordWhenSeen,
-      sheetMeta, cancelActions, selectedWatchItem, selectedState, selectedStatusText,
+      sheetStrengths, sheetStrength, strengthLine, primaryAction, primaryClass, runPrimaryAction,
+      sheetMeta, cancelActions, selectedState, selectedStatusText,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,
     }

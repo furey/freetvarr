@@ -1078,14 +1078,6 @@
   color: var(--color-live-text);
 }
 
-.programme-sheet-status.is-watch {
-  color: var(--color-primary);
-}
-
-.programme-sheet-status.is-watch .ui-dot {
-  background: var(--color-primary);
-}
-
 .programme-sheet-strengths .ui-segment {
   min-height: 44px;
   padding: 0 8px;
