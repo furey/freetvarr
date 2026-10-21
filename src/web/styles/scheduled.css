@@ -234,8 +234,16 @@ a.scheduled-row:focus-visible {
   opacity: 0.75;
 }
 
-.scheduled-clash.is-repeat {
-  font-weight: 400;
+.scheduled-row .scheduled-clash.is-repeat {
+  margin-top: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: var(--weight-small);
+}
+
+.scheduled-row.is-repeat .ui-group-row-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-3);
 }
 
 .ui-chip.scheduled-repeat-chip {

@@ -123,8 +123,12 @@ export const repeatOriginalText = ({ repeatOf, timeZone = 'UTC' }) => {
   return `${repeatOf.status === 'recorded' ? 'recorded' : 'scheduled'} ${airingWhenOf({ repeatOf, timeZone })}`
 }
 
-export const repeatSkippedText = ({ repeatOf, timeZone = 'UTC' }) =>
-  `Skipped: ${repeatOriginalText({ repeatOf, timeZone }) || 'already recorded'}`
+export const repeatSkippedText = ({ repeatOf, timeZone = 'UTC' }) => {
+  if (!repeatOf) return 'Skipped: already recorded'
+  if (repeatOf.status === 'recording') return 'Skipped: recording now'
+  const when = airingWhenOf({ repeatOf, timeZone })
+  return repeatOf.status === 'recorded' ? `Skipped: recorded ${when}` : `Skipped: records ${when} instead`
+}
 
 export const repeatNoticeOf = ({ repeatOf, timeZone = 'UTC' }) =>
   `Repeat of the episode ${repeatOriginalPhraseOf({ repeatOf, timeZone })}, so it won't record. If that one fails, this one records.`

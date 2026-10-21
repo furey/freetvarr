@@ -219,6 +219,14 @@ test('scheduledCountOfState and weekStrip: repeats never count', () => {
   assert.equal(weekStrip({ groups, nowMs: NOW })[0].count, 1)
 })
 
+test('repeatSkippedText: says when the original recorded or will record', async () => {
+  const { repeatSkippedText } = await import('../src/web/scheduled-groups.js')
+  const startDate = Date.UTC(2026, 9, 25, 8, 0, 0)
+  assert.equal(repeatSkippedText({ repeatOf: { status: 'recorded', startDate }, timeZone: 'Australia/Sydney' }), 'Skipped: recorded Sun 7:00pm')
+  assert.equal(repeatSkippedText({ repeatOf: { status: 'scheduled', startDate }, timeZone: 'Australia/Sydney' }), 'Skipped: records Sun 7:00pm instead')
+  assert.equal(repeatSkippedText({ repeatOf: null }), 'Skipped: already recorded')
+})
+
 test('repeatOriginalText: names a scheduled, recorded, or recording original', async () => {
   const { repeatOriginalText } = await import('../src/web/scheduled-groups.js')
   const startDate = Date.UTC(2026, 9, 25, 8, 0, 0)
