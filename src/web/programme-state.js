@@ -20,11 +20,12 @@ export const seriesLinkSetOf = (seriesTags = []) => {
   return set
 }
 
-export const programmeStateOf = ({ programme, scheduledByProgramId, activeRecordingSet, seriesLinks }) => {
+export const programmeStateOf = ({ programme, scheduledByProgramId, activeRecordingSet, seriesLinks, repeatByProgramId = new Map() }) => {
   if (programme.past) return programme.recorded ? 'recorded' : ''
   const scheduled = scheduledByProgramId.get(programmeIdOf(programme))
   if (scheduled && activeRecordingSet.has(String(scheduled.programId))) return 'recording'
   if (scheduled) return 'scheduled'
+  if (repeatByProgramId.has(programmeIdOf(programme))) return 'repeat'
   if (findSeriesLink({ links: seriesLinks, seriesLink: programme.series_link })) return 'series'
   return ''
 }
@@ -38,6 +39,7 @@ export const recordingStateTextOf = ({ state, seriesScheduled = false, past = fa
   if (state === 'recording') return 'Recording now'
   if (state === 'scheduled') return seriesScheduled ? 'Series recording scheduled' : 'One-off recording scheduled'
   if (state === 'series') return 'Series recording set'
+  if (state === 'repeat') return 'Repeat, skipped'
   if (state === 'recorded') return 'Recorded'
   if (!past && watched) return 'On watchlist'
   return ''

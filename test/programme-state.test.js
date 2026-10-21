@@ -92,3 +92,16 @@ test('channelHintOf: a channel name and logo flag from whatever channel the call
   assert.deepEqual(channelHintOf({ channel: { id: 'c1' }, programme: { channelName: '7 Sydney' } }), { name: '7 Sydney', hasLogo: false })
   assert.deepEqual(channelHintOf({}), { name: '', hasLogo: false })
 })
+
+test('programmeStateOf: a skipped repeat reads as a repeat, not a series airing', () => {
+  const programme = { program_id: 'encore', series_link: 'sl', past: false }
+  const state = programmeStateOf({
+    programme,
+    scheduledByProgramId: new Map(),
+    activeRecordingSet: new Set(),
+    seriesLinks: new Set(['sl']),
+    repeatByProgramId: new Map([['encore', { programId: 'encore' }]]),
+  })
+  assert.equal(state, 'repeat')
+  assert.equal(recordingStateTextOf({ state }), 'Repeat, skipped')
+})

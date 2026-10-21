@@ -48,6 +48,8 @@ export const loadLibraryDefault = async () => {
 
 export const scheduledByProgramId = computed(() => scheduledByProgramIdOf(epgState.value?.futureRecordings || []))
 
+export const repeatByProgramId = computed(() => scheduledByProgramIdOf(epgState.value?.repeatRecordings || []))
+
 export const activeRecordingSet = computed(() => new Set([
   ...(epgState.value?.activeRecordingIds || []).map(String),
   ...recordingProgramIdsOf(recordingNow.value.active),
@@ -64,6 +66,7 @@ export const cellState = (programme) => programmeStateOf({
   scheduledByProgramId: scheduledByProgramId.value,
   activeRecordingSet: activeRecordingSet.value,
   seriesLinks: seriesLinkSet.value,
+  repeatByProgramId: repeatByProgramId.value,
 })
 
 export const isSeriesScheduled = (programme) => isSeriesScheduledOf({

@@ -24,6 +24,7 @@ import {
 
 const REFRESH_MS = 60_000
 const EXPECTED_HINT = 'TVHeadend schedules this nearer the time'
+const REPEAT_HINT = 'TVHeadend skips repeats of an episode it has already recorded or scheduled'
 const WIDE_QUERY = '(min-width: 1024px)'
 const WARNING_ICON = '<svg class="scheduled-warning-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>'
 const BELL_ICON = '<svg class="scheduled-bell" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg>'
@@ -162,7 +163,7 @@ export const ScheduledView = {
             <h2 class="ui-group-label">{{ section.label }}</h2>
             <div class="ui-group">
               <div v-for="row in section.rows" :key="row.key" class="ui-group-row is-tall scheduled-row"
-                :class="{ 'is-off': row.state === 'off' }" :data-day="row.dayNumber">
+                :class="{ 'is-off': row.state === 'off' || row.state === 'repeat' }" :data-day="row.dayNumber">
                 <a :href="'#/recordings/show/' + row.showKey" class="scheduled-row-link">
                   <span class="scheduled-time ui-tabular">{{ row.time }}<small>{{ row.day ? row.day + ' ' : '' }}{{ row.period }}</small></span>
                   <span class="scheduled-thumb">
@@ -174,10 +175,10 @@ export const ScheduledView = {
                     <span v-if="clashTextFor(row)" class="scheduled-clash">${WARNING_ICON}No free tuner {{ clashTextFor(row) }}</span>
                   </span>
                 </a>
-                <toggle-switch :model-value="row.state !== 'off'"
+                <toggle-switch :model-value="row.state !== 'off' && row.state !== 'repeat'"
                   :aria-label="switchLabel(row)"
-                  :title="row.state === 'expected' ? expectedHint : ''"
-                  :disabled="row.state === 'expected' || busyIds.has(String(row.programId))"
+                  :title="switchHintOf(row)"
+                  :disabled="row.state === 'expected' || row.state === 'repeat' || busyIds.has(String(row.programId))"
                   @update:model-value="toggle(row)" />
               </div>
             </div>
@@ -235,6 +236,7 @@ export const ScheduledView = {
     const groups = computed(() => groupScheduled({
       upcoming: state.value?.upcomingRecordings || [],
       skipped: [...(state.value?.skippedRecordings || []), ...localSkipped.value.values()],
+      repeats: state.value?.repeatRecordings || [],
       activeProgramIds: activeProgramIds.value,
       nowMs: now.value.getTime(),
       timeZone: tz.value,
@@ -363,7 +365,7 @@ export const ScheduledView = {
     }
 
     const toggle = async (row) => {
-      if (row.state === 'expected') return
+      if (row.state === 'expected' || row.state === 'repeat') return
       actionError.value = ''
       setBusy(row.programId, true)
       try {
@@ -378,9 +380,17 @@ export const ScheduledView = {
       }
     }
 
-    const switchLabel = (row) => row.state === 'off'
-      ? `Record ${row.title} at ${row.time}${row.period}`
-      : `Skip ${row.title} at ${row.time}${row.period}`
+    const switchHintOf = (row) => {
+      if (row.state === 'expected') return EXPECTED_HINT
+      if (row.state === 'repeat') return REPEAT_HINT
+      return ''
+    }
+
+    const switchLabel = (row) => {
+      const when = `${row.title} at ${row.time}${row.period}`
+      if (row.state === 'repeat') return `${when} is a repeat and will not record`
+      return row.state === 'off' ? `Record ${when}` : `Skip ${when}`
+    }
 
     watch(recordingChangeTick, () => loadState({ fresh: true }))
 
@@ -393,7 +403,7 @@ export const ScheduledView = {
 
     return {
       state, loaded, loadError, actionError, busyIds, recordingRows, visibleSections, watching, removingWatchKey, removeWatch,
-      count, isEmpty, toggle, switchLabel, expectedHint: EXPECTED_HINT, isWide, todayNumber, plan,
+      count, isEmpty, toggle, switchLabel, switchHintOf, isWide, todayNumber, plan,
       clashTextFor, timeline, clashSentences, weekDays, scrollToDay,
     }
   },

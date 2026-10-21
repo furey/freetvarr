@@ -50,6 +50,7 @@ import {
   loadWatchlist,
   programmeSheetOpen,
   recordingStateText,
+  repeatByProgramId,
   scheduledByProgramId,
   seriesLinkSet,
   seriesTags,
@@ -576,7 +577,7 @@ export const EpgView = {
     const cellViewCache = computed(() => ({
       inputs: [
         guide.value, nowMs.value, pxPerMin.value, thumbMinCellPx.value, tz.value, watchedKeys.value,
-        scheduledByProgramId.value, activeRecordingSet.value, seriesLinkSet.value,
+        scheduledByProgramId.value, activeRecordingSet.value, seriesLinkSet.value, repeatByProgramId.value,
       ],
       views: new WeakMap(),
     }))

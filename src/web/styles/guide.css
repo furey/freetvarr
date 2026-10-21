@@ -486,7 +486,8 @@
   background: var(--color-live);
 }
 
-.guide-result-state.recorded .guide-result-dot {
+.guide-result-state.recorded .guide-result-dot,
+.guide-result-state.repeat .guide-result-dot {
   background: var(--color-text-3);
 }
 
@@ -1052,7 +1053,8 @@
   background: var(--color-live);
 }
 
-.epg-tooltip-state.recorded .epg-tooltip-dot {
+.epg-tooltip-state.recorded .epg-tooltip-dot,
+.epg-tooltip-state.repeat .epg-tooltip-dot {
   background: var(--color-text-3);
 }
 
@@ -1357,6 +1359,10 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--color-live-text);
+}
+
+.programme-sheet-status.is-muted {
+  color: var(--color-text-2);
 }
 
 .programme-sheet-strengths .ui-segment {

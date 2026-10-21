@@ -15,6 +15,7 @@ export const SCHEDULED_SECTIONS = [
 export const groupScheduled = ({
   upcoming = [],
   skipped = [],
+  repeats = [],
   activeProgramIds = [],
   nowMs = Date.now(),
   timeZone = 'UTC',
@@ -26,6 +27,7 @@ export const groupScheduled = ({
   const entries = [
     ...upcoming.map((entry) => ({ entry, state: entryStateOf(entry) })),
     ...skipped.map((entry) => ({ entry, state: 'off' })),
+    ...repeats.map((entry) => ({ entry, state: 'repeat' })),
   ]
   for (const { entry, state } of entries) {
     const id = String(entry.programId)
@@ -67,7 +69,7 @@ export const weekStrip = ({ groups, recordingNowCount = 0, clashDays = [], nowMs
   const clashDaySet = new Set(clashDays)
   const counts = new Map()
   for (const row of Object.values(groups).flat()) {
-    if (row.state === 'off') continue
+    if (isSkippedRow(row)) continue
     counts.set(row.dayNumber, (counts.get(row.dayNumber) || 0) + 1)
   }
   return Array.from({ length: LATER_DAYS + 1 }, (_, offset) => {
@@ -98,13 +100,24 @@ export const scheduledCountOfState = ({ state, skipped = [], activeProgramIds = 
   scheduledCount(groupScheduled({
     upcoming: state?.upcomingRecordings || [],
     skipped: [...(state?.skippedRecordings || []), ...skipped],
+    repeats: state?.repeatRecordings || [],
     activeProgramIds: [...(state?.activeRecordingIds || []), ...activeProgramIds],
     nowMs,
     timeZone,
   }))
 
 export const scheduledCount = (groups) =>
-  Object.values(groups).flat().filter((row) => row.state !== 'off').length
+  Object.values(groups).flat().filter((row) => !isSkippedRow(row)).length
+
+export const isSkippedRow = (row) => row.state === 'off' || row.state === 'repeat'
+
+export const repeatOriginalText = ({ repeatOf, timeZone = 'UTC' }) => {
+  if (!repeatOf) return ''
+  if (repeatOf.status === 'recording') return 'recording now'
+  const startMs = Number(repeatOf.startDate)
+  const day = formatDate(startMs, timeZone, { weekday: 'short' }).split(',')[0]
+  return `${repeatOf.status === 'recorded' ? 'recorded' : 'scheduled'} ${day} ${formatClock(startMs, timeZone)}`
+}
 
 export const progressPercent = ({ start, stop, nowMs }) => {
   const span = Number(stop) - Number(start)
@@ -136,7 +149,7 @@ const rowOf = ({ entry, state, timeZone, showDay }) => {
     dayNumber: localDayNumber({ ms: startMs, timeZone }),
     day,
     imageProgramId: entry.hasImage ? entry.programId : null,
-    key: `${entry.programId}-${state === 'expected' ? 'series' : 'timer'}`,
+    key: `${entry.programId}-${rowKeySuffixOf(state)}`,
     programId: entry.programId,
     channelId: entry.channelId,
     title: entry.name,
@@ -146,11 +159,19 @@ const rowOf = ({ entry, state, timeZone, showDay }) => {
     period,
     state,
     meta: [
+      state === 'repeat' && 'Repeat, skipped',
+      state === 'repeat' && repeatOriginalText({ repeatOf: entry.repeatOf, timeZone }),
       ...episodeMetaParts(entry),
       entry.channelName,
       durationText({ start: entry.startDate, end: entry.endDate }),
     ].filter(Boolean).join(' · '),
   }
+}
+
+const rowKeySuffixOf = (state) => {
+  if (state === 'expected') return 'series'
+  if (state === 'repeat') return 'repeat'
+  return 'timer'
 }
 
 const PLACEHOLDER_EPISODE_TITLE = /^\s*episode\s+(\d+)(?:\s+of\s+season\s+(\d+))?\s*$/i

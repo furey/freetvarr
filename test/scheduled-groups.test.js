@@ -194,3 +194,33 @@ test('scheduledCountOfState: counts what the Scheduled page lists, not every TVH
   assert.equal(scheduledCountOfState({ state, activeProgramIds: ['a'], nowMs: NOW, timeZone: 'UTC' }), 1)
   assert.equal(scheduledCountOfState({ state: null, nowMs: NOW, timeZone: 'UTC' }), 0)
 })
+
+test('groupScheduled: a repeat is a skipped row naming its original airing', () => {
+  const original = entry('prime', 1)
+  const repeat = entry('encore', 24, { repeatOf: { status: 'recorded', startDate: NOW - 17 * HOUR } })
+  const groups = groupScheduled({ upcoming: [original], repeats: [repeat], nowMs: NOW, timeZone: 'UTC' })
+  const [row] = groups.tomorrow
+  assert.equal(row.state, 'repeat')
+  assert.equal(row.key, 'encore-repeat')
+  assert.match(row.meta, /^Repeat, skipped · recorded Sun 9:00am · /)
+  assert.equal(scheduledCount(groups), 1)
+})
+
+test('scheduledCountOfState and weekStrip: repeats never count', () => {
+  const state = {
+    upcomingRecordings: [entry('prime', 1)],
+    repeatRecordings: [entry('encore', 2, { repeatOf: { status: 'scheduled', startDate: NOW + HOUR } })],
+  }
+  assert.equal(scheduledCountOfState({ state, nowMs: NOW, timeZone: 'UTC' }), 1)
+  const groups = groupScheduled({ upcoming: state.upcomingRecordings, repeats: state.repeatRecordings, nowMs: NOW })
+  assert.equal(weekStrip({ groups, nowMs: NOW })[0].count, 1)
+})
+
+test('repeatOriginalText: names a scheduled, recorded, or recording original', async () => {
+  const { repeatOriginalText } = await import('../src/web/scheduled-groups.js')
+  const startDate = Date.UTC(2026, 9, 25, 8, 0, 0)
+  assert.equal(repeatOriginalText({ repeatOf: { status: 'scheduled', startDate }, timeZone: 'Australia/Sydney' }), 'scheduled Sun 7:00pm')
+  assert.equal(repeatOriginalText({ repeatOf: { status: 'recorded', startDate }, timeZone: 'Australia/Sydney' }), 'recorded Sun 7:00pm')
+  assert.equal(repeatOriginalText({ repeatOf: { status: 'recording', startDate } }), 'recording now')
+  assert.equal(repeatOriginalText({ repeatOf: null }), '')
+})

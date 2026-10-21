@@ -21,6 +21,7 @@ import { findSeriesLink } from '/series-link.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import { canRecordSeriesOf } from '/record-wording.js'
+import { repeatOriginalText } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { api, fetchSettings } from '/shared/api.js'
@@ -38,6 +39,7 @@ import {
   loadEpgState,
   loadWatchlist,
   programmeSheetRequest,
+  repeatByProgramId,
   scheduledByProgramId,
   seriesLinkSet,
   seriesTags,
@@ -49,7 +51,7 @@ import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.j
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { route } from '/shared/router.js'
 import { showInGuide } from '/shared/store.js'
-import { dateFormat, fmtClockTz, now } from '/shared/time.js'
+import { dateFormat, fmtClockTz, now, tz } from '/shared/time.js'
 
 export const ProgrammeSheetHost = {
   template: `
@@ -73,7 +75,7 @@ export const ProgrammeSheetHost = {
         <p v-if="selected.program.synopsis" class="programme-sheet-synopsis">{{ selected.program.synopsis }}</p>
         <programme-review-card v-if="ratingReview" :key="selected.program.title" :review="ratingReview" />
         <div :class="['programme-sheet-actions', { 'is-ready': sheetReady }]" :aria-busy="String(!sheetReady)">
-        <p v-if="selectedStatusText" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ selectedStatusText }}</p>
+        <p v-if="selectedStatusText" :class="['programme-sheet-status', { 'is-muted': selectedState === 'repeat' }]"><span :class="['ui-dot', { 'is-live': selectedState !== 'repeat' }]" aria-hidden="true"></span>{{ selectedStatusText }}</p>
         <p v-else-if="selectedState === 'series'" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>A series recording in TVHeadend records this show.</p>
         <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
           :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
@@ -295,8 +297,16 @@ export const ProgrammeSheetHost = {
       if (selectedState.value === 'scheduled') {
         return `Scheduled to record in TVHeadend${series ? ' (part of a series recording).' : ' (one-off recording).'}`
       }
+      if (selectedState.value === 'repeat') return repeatStatusTextOf(selectedRepeat.value?.repeatOf)
       return ''
     })
+
+    const selectedRepeat = computed(() => (selected.value
+      ? repeatByProgramId.value.get(String(selected.value.program.program_id ?? selected.value.program.programId)) || null
+      : null))
+
+    const repeatStatusTextOf = (repeatOf) =>
+      `Repeat of an episode ${repeatOriginalText({ repeatOf, timeZone: tz.value }) || 'already recorded'}, so it won't record.`
 
     const selectedChannelLabel = () => {
       if (anyChannel.value) return 'on any channel'
@@ -396,6 +406,7 @@ export const ProgrammeSheetHost = {
         ].filter(Boolean)
       }
       if (state === 'series') return [cancelSeriesAction]
+      if (state === 'repeat') return hasSeries ? [cancelSeriesAction] : []
       if (selectedWatchItem.value) {
         return [{
           key: 'remove-watch', busyKey: 'remove-watch', label: 'Remove from watchlist',
