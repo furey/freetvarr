@@ -1,6 +1,6 @@
 export const PICTURE_KINDS = [
-  { key: 'background', label: 'Background' },
-  { key: 'poster', label: 'Poster' },
+  { value: 'background', label: 'Background' },
+  { value: 'poster', label: 'Poster' },
 ]
 
 export const UPLOAD_ACCEPT = 'image/jpeg,image/png,image/webp'

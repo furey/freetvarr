@@ -34,10 +34,7 @@ export const ArtworkPicker = {
       <template #header-actions>
         <button type="button" class="ui-icon-button" aria-label="Close" @click="$emit('close')"><close-glyph /></button>
       </template>
-      <div class="ui-segmented picture-kinds" role="group" aria-label="Picture">
-        <button v-for="option in kinds" :key="option.key" type="button" class="ui-segment"
-          :aria-pressed="String(kind === option.key)" @click="kind = option.key">{{ option.label }}</button>
-      </div>
+      <ui-segmented tabs class="picture-kinds" v-model="kind" :options="kinds" aria-label="Picture" />
       <div class="picture-body" :aria-busy="String(searching)"
         @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
         <section class="picture-group" aria-label="Your pictures">

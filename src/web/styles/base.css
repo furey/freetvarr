@@ -387,6 +387,13 @@ body.sheet-open .app-tabbar {
 }
 
 @media (max-width: 767px), (max-height: 500px) {
+  .ui-page-header:has(> .ui-page-banner) {
+    row-gap: 16px;
+    margin-bottom: -16px;
+  }
+}
+
+@media (max-width: 767px), (max-height: 500px) {
   .ui-page-header {
     align-items: flex-start;
   }
