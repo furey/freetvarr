@@ -109,6 +109,7 @@ const poolWith = (over = {}) => createArtPool({
   poolStore: memoryCache(),
   loadSavedArtwork: async () => ({ body: Buffer.from('jpeg') }),
   thumbnailFor: async ({ source, width }) => ({ body: Buffer.from(`${source}|${width}`), contentType: 'image/webp' }),
+  chosenBackground: async () => null,
   ...over,
 })
 

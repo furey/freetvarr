@@ -90,6 +90,7 @@ import { WatchForSheet } from '/components/watch-for-sheet.js'
 import { noteBuild, checkForNewBuild } from '/shared/api.js'
 import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.js'
 import { pollHealth } from '/shared/health.js'
+import { loadArtworkStamps } from '/shared/artwork-stamps.js'
 import { pollRecordingNow } from '/shared/recording-now.js'
 import { route, routeParams } from '/shared/router.js'
 import { refreshTick } from '/shared/store.js'
@@ -243,6 +244,10 @@ fetch('/api/settings')
 loadSyncStatus().then(ensureSyncPolling)
 pollRecordingNow()
 pollHealth()
+loadArtworkStamps().catch(() => {})
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadArtworkStamps().catch(() => {})
+})
 
 installPullToRefresh({ onRefresh: refreshFromPull })
 

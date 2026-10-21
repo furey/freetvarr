@@ -36,6 +36,9 @@ import {
   savedProgramFor,
 } from './guide-history.js'
 import { findArtwork, saveArtwork } from './artwork.js'
+import { PLEX_ORIGIN_PREFIX, RECORDING_ORIGIN_PREFIX, artworkChoices, plexSourceOf } from './artwork-choices.js'
+import { getPlexConnection } from './plex.js'
+import { showKeyOf } from './web/show-key.js'
 import { createGuideCache } from './guide-cache.js'
 import { invalidateRecordingNow } from './recording-now.js'
 import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
@@ -606,6 +609,8 @@ export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, w
 
 export const findShowThumbnail = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
+  const chosen = await chosenShowImage({ title, kind: 'background', width })
+  if (chosen) return chosen
   const artwork = await showArtworkFor({ title, kind })
   const found = await firstImageWithin({
     sources: artwork.sources,
@@ -617,6 +622,8 @@ export const findShowThumbnail = async ({ title, width, kind = null } = {}) => {
 
 export const findShowPoster = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
+  const chosen = await chosenShowImage({ title, kind: 'poster', width })
+  if (chosen) return chosen
   const artwork = await showArtworkFor({ title, kind })
   const found = await firstImageWithin({
     sources: artwork.sources,
@@ -627,6 +634,48 @@ export const findShowPoster = async ({ title, width, kind = null } = {}) => {
 }
 
 export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
+
+export const artworkOriginImage = ({ origin, kind, width }) => thumbnailStore.thumbnailFor({
+  key: `chosen:${kind}:${origin}`,
+  width,
+  loadOriginal: () => originalOfOrigin({ origin, kind }),
+})
+
+export const automaticShowSources = async ({ title, kind = null }) => {
+  if (!title) return { library: [], fallback: [] }
+  const artworkKind = kind ?? await guideKindFor(title)
+  const [library, fallback] = await Promise.all([
+    isFilmKind(artworkKind) ? [] : showArtwork.sourcesFor(title).catch(() => []),
+    fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => []),
+  ])
+  return { library, fallback }
+}
+
+const chosenShowImage = async ({ title, kind, width }) => {
+  const chosen = await artworkChoices.chosenFor({ key: showKeyOf(title), kind }).catch(() => null)
+  if (!chosen) return null
+  const image = await resolveWithin(
+    Promise.resolve(artworkOriginImage({ origin: chosen.origin, kind, width })).catch(() => null),
+    SHOW_IMAGE_BUDGET_MS,
+  )
+  if (image === TIMED_OUT) return PENDING_IMAGE
+  return image ? { image, pending: false } : null
+}
+
+const originalOfOrigin = async ({ origin, kind }) => {
+  const image = await rawImageOfOrigin(origin)
+  if (!image || kind !== 'background') return image
+  return landscapeOf(image).catch(() => image)
+}
+
+const rawImageOfOrigin = async (origin) => {
+  if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
+    return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
+  }
+  if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageFor(origin)
+  const connection = await getPlexConnection().catch(() => null)
+  return connection ? programmeImages.imageFor(plexSourceOf({ origin, ...connection })) : null
+}
 
 const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
   key: `show-poster:${source}`,

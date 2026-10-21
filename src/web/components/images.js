@@ -8,6 +8,7 @@ import {
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
 import { createRequestGate } from '/shared/request-gate.js'
+import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { GUIDE_SCROLL_SELECTOR, NEAR_VIEW_MARGIN, observeInScroller, unobserveInScroller } from '/shared/scroll-proximity.js'
 
 export const GUIDE_IMAGES_ON = Symbol('guide-images-on')
@@ -95,7 +96,7 @@ export const ProgrammeImage = {
     }
     const guideImageUrl = computed(() => {
       if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}`
-      if (props.title) return `/api/epg/show-image?title=${encodeURIComponent(props.title)}`
+      if (props.title) return stampedShowImage(`/api/epg/show-image?title=${encodeURIComponent(props.title)}`)
       return null
     })
     const guideImageWidths = computed(() => PROGRAMME_IMAGE_WIDTHS[props.variant] || PROGRAMME_IMAGE_WIDTHS.thumb)
@@ -103,7 +104,7 @@ export const ProgrammeImage = {
     watch(() => props.source, () => { savedSourceFailed.value = false })
     const usesSavedSource = computed(() => props.source != null && !savedSourceFailed.value)
     const src = computed(() => {
-      if (usesSavedSource.value) return props.source
+      if (usesSavedSource.value) return stampedShowImage(props.source)
       return guideImageUrl.value ? withWidth(guideImageUrl.value, guideImageWidths.value[0]) : null
     })
     const srcset = computed(() => (!usesSavedSource.value && guideImageUrl.value

@@ -23,10 +23,13 @@ import {
 import { useLibraryActions } from '/components/library-actions.js'
 import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuIcon, useLibraryToast } from '/components/library-menus.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
+import { ArtworkPicker } from '/components/artwork-picker.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { ShowAbout, ShowCast, useProgrammeCredits } from '/components/show-credits.js'
 import { crewLinesOf, newestSynopsisOf, overviewOf, shownCastOf } from '/credits-display.js'
 import { api } from '/shared/api.js'
+import { rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
+import { showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
 import { playback } from '/shared/player-shared.js'
@@ -37,7 +40,7 @@ import { syncStatus } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 
 export const ShowView = {
-  components: { RecordingOptionsSheet, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast },
+  components: { RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast },
   template: `
     <div :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
@@ -167,14 +170,16 @@ export const ShowView = {
         </div>
       </template>
 
-      <library-menu-sheet :open="showMenuOpen" :title="title" :subtitle="showMenuSubtitle" :art-src="posterSrc" art-shape="poster"
+      <library-menu-sheet :open="showMenuOpen" :title="title" :subtitle="showMenuSubtitle" :art-src="posterSrc" :art-title="title" art-shape="poster"
         :groups="showGroups" :busy="busy" :pending-key="pendingKey" @close="closeMenus" @choose="chooseShowAction" />
 
       <library-menu-sheet :open="Boolean(menuEpisode)" :title="menuEpisode ? episodeHeading(menuEpisode) : ''" :subtitle="menuEpisode ? episodeMeta(menuEpisode) : ''"
-        :art-src="menuEpisode ? episodeImage(menuEpisode) || '' : ''" :groups="episodeGroups" :tip="episodeTip" :busy="busy" :pending-key="pendingKey"
+        :art-src="menuEpisode?.image || ''" :fallback-src="episodeFallbackSrc" :art-title="title" :groups="episodeGroups" :tip="episodeTip" :busy="busy" :pending-key="pendingKey"
         @close="closeMenus" @choose="chooseEpisodeAction" />
 
       <library-info-sheet :open="Boolean(info)" :info="info" @close="info = null" />
+
+      <artwork-picker :open="pictureOpen" :show="show" @close="closePicture" @changed="onPictureChanged" />
 
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeletedHere" />
 
@@ -215,6 +220,7 @@ export const ShowView = {
       try {
         const detail = await api('GET', `/api/library/shows/${encodeURIComponent(key.value)}`)
         show.value = detail
+        rememberShowStamps(detail)
         missing.value = false
         error.value = ''
         const seasons = detail.seasons.map((s) => s.season)
@@ -240,8 +246,9 @@ export const ShowView = {
     const heroStyle = computed(() => artFallbackStyle(title.value))
     const artStyle = heroStyle
     const versionSuffix = computed(() => (artworkVersion.value ? `&v=${artworkVersion.value}` : ''))
-    const heroSrc = computed(() => (show.value ? `/api/epg/show-image?title=${encodeURIComponent(show.value.title)}&w=768${versionSuffix.value}` : ''))
-    const posterSrc = computed(() => (show.value ? `${show.value.poster}&w=192${versionSuffix.value}` : ''))
+    const heroSrc = computed(() => (show.value ? `${stampedShowImage(showImageUrlOf({ title: show.value.title, width: 768 }))}${versionSuffix.value}` : ''))
+    const episodeFallbackSrc = computed(() => (show.value ? stampedShowImage(showImageUrlOf({ title: show.value.title, width: 384 })) : ''))
+    const posterSrc = computed(() => (show.value ? `${stampedShowImage(`${show.value.poster}&w=192`)}${versionSuffix.value}` : ''))
     const heroMeta = computed(() => (show.value ? heroMetaOf({ show: show.value }) : ''))
     const playLabel = computed(() => (show.value ? playButtonLabel({ show: show.value }) : ''))
     const activeRecording = computed(() => activeRecordingFor({ active: recordingNow.value.active, key: key.value }))
@@ -337,6 +344,7 @@ export const ShowView = {
     })
     watch([credits, creditsAnswered, show], settleAboutSynopsis)
     watch(selecting, (on) => document.body.classList.toggle('library-selecting', on))
+    watch(heroSrc, () => { heroFailed.value = false })
     watch(key, () => {
       loaded.value = false
       show.value = null
@@ -366,9 +374,13 @@ export const ShowView = {
       episodePress, isLocked, checkLabel, isRecordingNow, selectionTitle,
       episodeHeading, seasonLabel, ratingScore, ratingReview, ratingCardOpen, ratingLoading, aboutSynopsis, castList, crewLines,
       episodeMeta: (episode) => episodeMetaOf({ episode, timeZone: tz.value }),
-      episodeImage: (episode) => episode.image,
+      episodeFallbackSrc,
+      episodeImage: (episode) => episode.image || episodeFallbackSrc.value,
     }
   },
 }
+
+const rememberShowStamps = (detail) => ['background', 'poster'].forEach((kind) =>
+  rememberArtworkStamp({ key: detail.key, kind, stamp: detail.artworkStamps?.[kind] ?? null }))
 
 const titleFromKey = (key) => key.replace(/-/g, ' ').replace(/^\w/, (letter) => letter.toUpperCase())

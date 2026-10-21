@@ -2,6 +2,7 @@ import { localDayNumber } from './guide-time.js'
 import { formatClock } from './time-format.js'
 import { canRecordSeriesOf, recordWordingOf } from './record-wording.js'
 import { showKeyOf } from './show-key.js'
+import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { artIdentityFrom, pickDistinctArt } from './hero-art.js'
 import { episodeCodeOf, minutesLeftOf, watchedFractionOf, showHrefOf } from './home-feed.js'
 import { hourlyOrderOf } from './hero-remix.js'
@@ -278,7 +279,9 @@ const recordingSlideBase = ({ type, episode }) => ({
   badge: null,
   title: episode.title,
   showKey: episode.showKey ?? showKeyOf(episode.title),
-  art: { image: episode.image || showImageOf(episode.title), title: episode.title },
+  art: episode.artChosen
+    ? { image: artworkStamps.stampUrl(heroSizedOf(episode.image)), title: episode.title, chosen: true }
+    : { image: episode.image || showImageOf(episode.title), title: episode.title },
   recordingId: episode.recordingId,
   target: { episode },
 })
@@ -317,7 +320,9 @@ const liveChannelFrom = (channel) => ({
   hasLogo: Boolean(channel.hasLogo),
 })
 
-const showImageOf = (title) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=768`
+const heroSizedOf = (url) => String(url).replace(/([?&])w=\d+/, `$1w=${HERO_IMAGE_WIDTH}`)
+
+const showImageOf = (title) => artworkStamps.stampUrl(showImageUrlOf({ title, width: HERO_IMAGE_WIDTH }))
 
 const programmeImageOf = (program) => (program.has_image && program.program_id != null
   ? `/api/epg/image/${encodeURIComponent(program.program_id)}`
@@ -337,6 +342,7 @@ const weekdayOf = ({ ms, timeZone }) => dateFormat({ weekday: 'short', timeZone 
 
 const dateFormat = (options) => new Intl.DateTimeFormat('en-AU', options)
 
+const HERO_IMAGE_WIDTH = 768
 const TONIGHT_FROM_HOUR = 17
 const LIVE_GENRES = { 2: 'news', 4: 'sport' }
 const GENRE_WORDS = { news: 'News', sport: 'Sport' }

@@ -69,7 +69,8 @@ export const candidatesOf = ({ slide, pools }) => {
       recordingImages,
       byKind(showImages, 'poster'),
     ]
-  return uniqueByIdentity({ urls: ladder.flat().map((image) => image.url), identityOf: artIdentityFrom(pools) })
+  const ordered = slide.art?.chosen ? [own, ...ladder] : ladder
+  return uniqueByIdentity({ urls: ordered.flat().map((image) => image.url), identityOf: artIdentityFrom(pools) })
 }
 
 export const artIdentityFrom = (pools = {}) => {

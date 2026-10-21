@@ -1,5 +1,6 @@
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { artFallbackStyle } from '/art-fallback.js'
+import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { live, playback } from '/shared/player-shared.js'
 import {
   rotationStart,
@@ -40,7 +41,7 @@ export const HomeHeroCarousel = {
             :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index }]"
             :style="slideStyle(i)">
             <div class="hero-slide-backdrop ui-art-fallback" :style="fallbackStyleOf(slide)">
-              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="slide.art.image" alt="" decoding="async"
+              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="stampedShowImage(slide.art.image)" alt="" decoding="async"
                 :fetchpriority="i === 0 ? 'high' : null" :loading="i === rotation.index ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
@@ -343,6 +344,7 @@ export const HomeHeroCarousel = {
     const markArtFailed = (slide) => { failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true } }
 
     return {
+      stampedShowImage,
       rotation, stage, failedArt, orderedSlides, hoverEdge, clearHoverEdge, onStageClick, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerEnter, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,

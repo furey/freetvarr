@@ -226,7 +226,7 @@ export const HomeView = {
       <library-menu-sheet :open="Boolean(homeMenu)" :title="homeMenu?.title || ''" :subtitle="homeMenu?.subtitle || ''"
         :art-src="homeMenu?.art || ''" :groups="homeMenu?.groups || []" @close="homeMenu = null" @choose="chooseHomeAction" />
       <library-menu-sheet :open="Boolean(menuEpisode)" :title="menuEpisode ? episodeHeading(menuEpisode) : ''"
-        :subtitle="episodeMenuSubtitle" :art-src="menuEpisode?.image || ''" :groups="episodeGroups" :busy="libraryBusy"
+        :subtitle="episodeMenuSubtitle" :art-src="menuEpisode?.image || ''" :fallback-src="menuEpisode ? showArtOf(menuEpisode.title) : ''" :art-title="menuEpisode?.title || ''" :groups="episodeGroups" :busy="libraryBusy"
         :pending-key="libraryPendingKey" @close="closeEpisodeMenu" @choose="chooseEpisodeAction" />
       <library-info-sheet :open="Boolean(episodeInfo)" :info="episodeInfo" @close="closeEpisodeInfo" />
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeleted" />
@@ -517,6 +517,7 @@ export const HomeView = {
     const fallbackStyleOf = (title) => artFallbackStyle(title)
 
     return {
+      showArtOf,
       loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
       optionsShow, optionsOpen, load, onOptionsStopped, watchChannel, showHref, newCardMeta, newCardLabel,
       clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,

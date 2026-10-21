@@ -1,6 +1,7 @@
 import { airingWhenOf, durationText } from './home-hero.js'
 import { localDayNumber } from './guide-time.js'
 import { showKeyOf } from './show-key.js'
+import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { recordWordingOf } from './record-wording.js'
 
 export const FOR_YOU_URL = '/api/for-you'
@@ -217,7 +218,7 @@ export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys =
     meta: joinMeta([KIND_BADGES[kindOf(item)], item.episodeTitle, when, item.channelName]),
     metaShort: joinMeta([when, item.channelName]),
     progress: null,
-    art: { image: item.image || showImageOf(item.title), title: item.title },
+    art: { image: item.image ? artworkStamps.stampUrl(item.image) : showImageOf(item.title), title: item.title },
     primary: item.canRecordSeries
       ? { action: 'record-series', label: 'Record series', icon: 'record' }
       : { action: 'record', label: 'Record', icon: 'record' },
@@ -313,7 +314,7 @@ const rowsOf = (items) => [
   { shape: 'poster', items: items.filter(isMovie) },
 ].filter((row) => row.items.length)
 
-const showImageOf = (title) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=768`
+const showImageOf = (title) => artworkStamps.stampUrl(showImageUrlOf({ title, width: 768 }))
 
 const joinMeta = (parts) => parts.filter(Boolean).join(' · ')
 

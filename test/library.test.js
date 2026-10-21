@@ -217,6 +217,7 @@ test('getLibraryShows: marks the list stale when the series rules are missing', 
     loadSeries: async () => ({ series: [], stale: false, error: 'TVHeadend URL is not configured.' }),
     loadRecordingNow: async () => [],
     loadMoviesRoot: async () => '',
+    loadChoiceStamps: async () => new Map(),
   })
   assert.equal(result.stale, true)
   assert.equal(result.shows[0].kind, 'oneoff')
@@ -230,6 +231,7 @@ test('getLibraryShow: returns 404 data as null and fills autorec padding from th
     loadMoviesRoot: async () => '',
     loadSeriesTags: async () => [{ id: 'auto-1', leadTime: 2, lagTime: 5 }],
     refreshStates: async (rows) => rows,
+    loadChoiceStamps: async () => new Map(),
     resolvePlayable: async (r) => (r.recording_id === 'a' ? '/media/a.ts' : null),
   }
   assert.equal(await getLibraryShow({ ...deps, key: 'nothing-here' }), null)
@@ -298,4 +300,28 @@ test('show poster helpers: only portrait images count, and only shape=poster ask
   assert.equal(isPortraitSize({}), false)
   assert.equal(showImageShapeFrom('poster'), 'poster')
   assert.equal(showImageShapeFrom('wide'), 'landscape')
+})
+
+test('showSummariesOf: a chosen background replaces the newest episode picture and stamps both URLs', () => {
+  const rows = [row({ recording_id: 'a', image_path: 'x' })]
+  const stamps = new Map([['the-block', { background: 'k1', poster: 'k2' }]])
+  const [chosen] = showSummariesOf({ rows, stamps })
+  assert.equal(chosen.image, '/api/epg/show-image?title=The%20Block&w=384&c=k1')
+  assert.equal(chosen.poster, '/api/epg/show-image?title=The%20Block&shape=poster&c=k2')
+  assert.deepEqual(chosen.artworkStamps, { background: 'k1', poster: 'k2' })
+  const [automatic] = showSummariesOf({ rows })
+  assert.equal(automatic.image, '/api/recordings/a/image?w=384')
+  assert.equal(automatic.poster, '/api/epg/show-image?title=The%20Block&shape=poster')
+  assert.deepEqual(automatic.artworkStamps, { background: null, poster: null })
+})
+
+test('libraryEpisodesOf: a chosen background replaces episode pictures and is marked as chosen', () => {
+  const rows = [row({ recording_id: 'a', image_path: 'x', aired_at: NOW })]
+  const stamps = new Map([['the-block', { background: 'k1' }]])
+  const [episode] = libraryEpisodesOf({ rows, stamps })
+  assert.equal(episode.image, '/api/epg/show-image?title=The%20Block&w=384&c=k1')
+  assert.equal(episode.artChosen, true)
+  const [plain] = libraryEpisodesOf({ rows })
+  assert.equal(plain.image, '/api/recordings/a/image?w=384')
+  assert.equal(plain.artChosen, false)
 })

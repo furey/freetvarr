@@ -31,6 +31,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   const pendingKey = ref('')
   const adRemovalEnabled = ref(false)
   const artworkVersion = ref(0)
+  const pictureOpen = ref(false)
 
   const activeIds = computed(() => new Set((recordingNow.value.active || []).map((r) => String(r.dvrUuid))))
   const episodes = computed(() => allEpisodesOf(show.value))
@@ -119,6 +120,10 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     await reload()
   })
 
+  const closePicture = () => { pictureOpen.value = false }
+
+  const onPictureChanged = () => reload()
+
   const openShowInfo = async (current) => {
     info.value = showInfoOf({ show: current, timeZone: tz.value })
     const nicknames = await loadNicknames(current.key).catch(() => [])
@@ -186,6 +191,10 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     if (key === 'resume-series') return setSeriesPaused(false)
     if (key === 'show-info') return openShowInfo(current)
     if (key === 'plex') return openInPlex(`${keyPath()}/plex-link`)
+    if (key === 'change-picture') {
+      pictureOpen.value = true
+      return
+    }
     if (key === 'refresh-artwork') return refreshArtwork()
     if (key === 'delete-watched') return askDelete({ variant: 'watched', list: episodes.value.filter((e) => e.watched) })
     if (key === 'delete-all') return askDelete({ variant: 'all', list: episodes.value })
@@ -218,6 +227,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   return {
     menuEpisode, showMenuOpen, info, deleteRequest, busy, pendingKey, adRemovalEnabled, artworkVersion, activeIds,
+    pictureOpen, closePicture, onPictureChanged,
     showGroups, episodeGroups, showMenuSubtitle, episodeTip,
     openShowMenu, openEpisodeMenu, closeMenus, chooseShowAction, chooseEpisodeAction,
     askDelete, cancelDelete, onDeleted, setEpisodesWatched, runPending, play,

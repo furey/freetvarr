@@ -9,6 +9,7 @@ import { RESUME_END_MARGIN_S } from './playback.js'
 import { getSeries } from './series.js'
 import { getMoviesRoot } from './sync.js'
 import { showKeyOf } from './web/show-key.js'
+import { artworkChoices } from './artwork-choices.js'
 
 export const MOVIE_MIN_DURATION_S = 4500
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
@@ -19,15 +20,17 @@ export const getLibraryShows = async ({
   loadSeries = getSeries,
   loadRecordingNow = loadActiveRecordings,
   loadMoviesRoot = getMoviesRoot,
+  loadChoiceStamps = choiceStampsByKey,
 } = {}) => {
-  const [rows, seriesData, active, moviesRoot] = await Promise.all([
+  const [rows, seriesData, active, moviesRoot, stamps] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
     loadMoviesRoot().catch(() => ''),
+    loadChoiceStamps().catch(() => new Map()),
   ])
   return {
-    shows: showSummariesOf({ rows, series: seriesData.series, active, moviesRoot }),
+    shows: showSummariesOf({ rows, series: seriesData.series, active, moviesRoot, stamps }),
     stale: Boolean(seriesData.stale || seriesData.error),
   }
 }
@@ -41,13 +44,15 @@ export const getLibraryShow = async ({
   loadMoviesRoot = getMoviesRoot,
   loadSeriesTags = loadTimedSeriesTags,
   refreshStates = refreshLibraryStates,
+  loadChoiceStamps = choiceStampsByKey,
 } = {}) => {
-  const [rows, seriesData, active, moviesRoot, seriesTags] = await Promise.all([
+  const [rows, seriesData, active, moviesRoot, seriesTags, stamps] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
     loadMoviesRoot().catch(() => ''),
     loadSeriesTags().catch(() => []),
+    loadChoiceStamps().catch(() => new Map()),
   ])
   const groupRows = rows.filter((row) => showKeyOf(row.title) === key)
   const series = seriesByKey(seriesData.series).get(key) || null
@@ -62,6 +67,7 @@ export const getLibraryShow = async ({
     active,
     moviesRoot,
     seriesTags,
+    stamps,
   })
 }
 
@@ -71,9 +77,14 @@ export const getLibraryEpisodes = async ({
   kind = null,
   loadRows = loadLibraryRows,
   loadMoviesRoot = getMoviesRoot,
+  loadChoiceStamps = choiceStampsByKey,
 } = {}) => {
-  const [rows, moviesRoot] = await Promise.all([loadRows(), loadMoviesRoot().catch(() => '')])
-  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot }) }
+  const [rows, moviesRoot, stamps] = await Promise.all([
+    loadRows(),
+    loadMoviesRoot().catch(() => ''),
+    loadChoiceStamps().catch(() => new Map()),
+  ])
+  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps }) }
 }
 
 export const setRecordingWatched = async ({ recordingId, watched, nowIso = new Date().toISOString() }) => {
@@ -152,7 +163,7 @@ export const seriesByKey = (series = []) => {
   return groups
 }
 
-export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '' }) => {
+export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '', stamps = new Map() }) => {
   const rowsByKey = groupBy(rows.filter(isLibraryMember), (row) => showKeyOf(row.title))
   const rules = seriesByKey(series)
   const activeKeys = activeKeysOf(active)
@@ -164,11 +175,14 @@ export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '
       series: rules.get(key) || null,
       recordingNow: activeKeys.has(key),
       moviesRoot,
+      stamps: stamps.get(key),
     }))
     .sort((a, b) => (b.latestAt ?? -Infinity) - (a.latestAt ?? -Infinity) || a.title.localeCompare(b.title))
 }
 
-export const showDetailOf = ({ key, rows, playable = [], series, active = [], moviesRoot = '', seriesTags = [] }) => {
+export const showDetailOf = ({
+  key, rows, playable = [], series, active = [], moviesRoot = '', seriesTags = [], stamps = new Map(),
+}) => {
   const members = rows.map((row, i) => ({ row, playable: Boolean(playable[i]) })).filter(({ row }) => isLibraryMember(row))
   const summary = showSummaryOf({
     key,
@@ -176,6 +190,7 @@ export const showDetailOf = ({ key, rows, playable = [], series, active = [], mo
     series,
     recordingNow: activeKeysOf(active).has(key),
     moviesRoot,
+    stamps: stamps.get(key),
   })
   const episodes = members.map(({ row, playable: canPlay }) => episodeOf({ row, playable: canPlay }))
   const { counts, latest, latestAt, ...shown } = summary
@@ -239,7 +254,7 @@ export const resumeNextOf = (episodes) => {
 }
 
 export const libraryEpisodesOf = ({
-  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '',
+  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '', stamps = new Map(),
 }) => {
   const libraryRows = rows.filter(isLibraryMember)
   const kinds = kindsByKey({ rows: libraryRows, moviesRoot })
@@ -252,7 +267,11 @@ export const libraryEpisodesOf = ({
     new: () => members.filter((row) => row.played_at == null).sort(newestAiredFirst),
     unwatched: () => [...members].sort(newestAiredFirst),
   }[state]?.() ?? []
-  return chosen.slice(0, limit).map((row) => libraryEpisodeOf({ row, kind: kinds.get(showKeyOf(row.title)) }))
+  return chosen.slice(0, limit).map((row) => libraryEpisodeOf({
+    row,
+    kind: kinds.get(showKeyOf(row.title)),
+    stamps: stamps.get(showKeyOf(row.title)),
+  }))
 }
 
 export const episodeLimitFrom = (value) => {
@@ -260,7 +279,7 @@ export const episodeLimitFrom = (value) => {
   return Number.isInteger(limit) && limit >= 1 && limit <= MAX_EPISODE_LIMIT ? limit : null
 }
 
-const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot }) => {
+const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = NO_STAMPS }) => {
   const newestFirst = [...rows].sort(newestAiredFirst)
   const latestRow = newestFirst[0] || null
   const title = latestRow?.title || series?.title || key
@@ -273,8 +292,9 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot }) => {
     kind,
     classification: newestFirst.find((row) => row.classification)?.classification ?? null,
     year: kind === 'movie' ? newestFirst.find((row) => row.year)?.year ?? null : null,
-    poster: `/api/epg/show-image?title=${encodeURIComponent(title)}&shape=poster`,
-    image: newestFirst.map(recordingImageOf).find(Boolean) || null,
+    poster: `/api/epg/show-image?title=${encodeURIComponent(title)}&shape=poster${stampParamOf(stamps.poster)}`,
+    image: chosenBackgroundOf({ title, stamp: stamps.background }) || newestFirst.map(recordingImageOf).find(Boolean) || null,
+    artworkStamps: { background: stamps.background ?? null, poster: stamps.poster ?? null },
     counts: {
       total: rows.length,
       new: watchable.filter((row) => row.played_at == null && !isWatched(row)).length,
@@ -332,8 +352,9 @@ const latestOf = (row) => ({
   positionS: row.playback_position_s ?? null,
 })
 
-const libraryEpisodeOf = ({ row, kind }) => {
+const libraryEpisodeOf = ({ row, kind, stamps = NO_STAMPS }) => {
   const episode = episodeOf({ row })
+  const chosenImage = chosenBackgroundOf({ title: row.title, stamp: stamps.background })
   return {
     recordingId: episode.recordingId,
     showKey: showKeyOf(row.title),
@@ -347,7 +368,8 @@ const libraryEpisodeOf = ({ row, kind }) => {
     channelId: episode.channelId,
     channelName: episode.channelName,
     classification: episode.classification,
-    image: episode.image,
+    image: chosenImage || episode.image,
+    artChosen: Boolean(chosenImage),
     positionS: episode.positionS,
     playedAt: episode.playedAt,
     watchedPercent: episode.watchedPercent,
@@ -389,6 +411,14 @@ const activeKeysOf = (active = []) => new Set(active.filter((r) => !r.failed).ma
 
 const looksLikeUnimportedFilm = (row) => !['done', 'partial'].includes(row.status)
   && row.season == null && row.episode == null && Number(row.duration_s) >= MOVIE_MIN_DURATION_S
+
+const chosenBackgroundOf = ({ title, stamp }) => (stamp
+  ? `/api/epg/show-image?title=${encodeURIComponent(title)}&w=${CARD_IMAGE_WIDTH}${stampParamOf(stamp)}`
+  : null)
+
+const stampParamOf = (stamp) => (stamp ? `&c=${stamp}` : '')
+
+const choiceStampsByKey = () => artworkChoices.stampsByKey()
 
 const recordingImageOf = (row) => (row.image_path
   ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}`
@@ -453,3 +483,4 @@ const MAX_EPISODES_TO_KEEP = 999
 const DEFAULT_EPISODE_LIMIT = 20
 const MAX_EPISODE_LIMIT = 50
 const CARD_IMAGE_WIDTH = 384
+const NO_STAMPS = {}

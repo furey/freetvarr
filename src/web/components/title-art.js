@@ -1,5 +1,6 @@
 import { ref, computed, watch, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { artFallbackStyle } from '/art-fallback.js'
+import { stampedShowImage } from '/shared/artwork-stamps.js'
 
 const RETRY_DELAYS_MS = [4000, 12000, 30000]
 
@@ -11,12 +12,13 @@ export const TitleArt = {
   },
   template: `
     <div :class="[shape === 'poster' ? 'ui-poster-art' : 'ui-card-art', 'ui-art-fallback']" :style="fallbackStyle">
-      <img v-if="src && !failed" :key="attempt" :src="src" alt="" loading="lazy" decoding="async" @error="onError" />
+      <img v-if="src && !failed" :key="attempt" :src="shownSrc" alt="" loading="lazy" decoding="async" @error="onError" />
       <span v-else class="ui-art-title">{{ title }}</span>
       <slot />
     </div>
   `,
   setup(props) {
+    const shownSrc = computed(() => stampedShowImage(props.src))
     const failed = ref(false)
     const attempt = ref(0)
     let retryTimer = null
@@ -27,17 +29,17 @@ export const TitleArt = {
     const retryLater = () => {
       const delay = RETRY_DELAYS_MS[attempt.value]
       if (delay == null) return
-      const url = props.src
+      const url = shownSrc.value
       retryTimer = setTimeout(() => {
         retryTimer = null
         const probe = new Image()
         probe.onload = () => {
-          if (props.src !== url) return
+          if (shownSrc.value !== url) return
           attempt.value += 1
           failed.value = false
         }
         probe.onerror = () => {
-          if (props.src !== url) return
+          if (shownSrc.value !== url) return
           attempt.value += 1
           retryLater()
         }
@@ -48,12 +50,12 @@ export const TitleArt = {
       failed.value = true
       if (!retryTimer) retryLater()
     }
-    watch(() => props.src, () => {
+    watch(shownSrc, () => {
       cancelRetry()
       attempt.value = 0
       failed.value = false
     })
     onUnmounted(cancelRetry)
-    return { failed, attempt, onError, fallbackStyle: computed(() => artFallbackStyle(props.title)) }
+    return { shownSrc, failed, attempt, onError, fallbackStyle: computed(() => artFallbackStyle(props.title)) }
   },
 }

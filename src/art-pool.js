@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import path from 'path'
 
 import { findArtwork } from './artwork.js'
+import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
 import { findArtSourceThumbnail } from './epg.js'
 import { PROGRAMME_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, thumbnailWidthFrom } from './image-thumbnails.js'
@@ -13,6 +14,8 @@ import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLook
 import { currentTimeZone } from './time-zone.js'
 import { showKeyOf } from './web/show-key.js'
 import { countryForTimeZone } from './zone-countries.js'
+
+export { plexSourceOf }
 
 export const mountArtPoolRoutes = ({ app, artPool = createArtPool(), warmAfterMs = WARM_DELAY_MS }) => {
   app.get('/api/recordings/:recording_id/image', serveRecordingImage())
@@ -89,6 +92,7 @@ export const createArtPool = ({
   poolStore = databasePoolStore,
   thumbnailFor = findArtSourceThumbnail,
   loadSavedArtwork = findArtwork,
+  chosenBackground = (key) => artworkChoices.chosenFor({ key, kind: 'background' }),
   now = Date.now,
   plexTtlMs = PLEX_TTL_MS,
   poolTtlMs = POOL_TTL_MS,
@@ -142,7 +146,7 @@ export const createArtPool = ({
     return entries
   }
 
-  const showPool = async (key) => {
+  const showSources = async (key) => {
     const rows = await loadShowRows(key)
     if (!rows.length) return null
     const title = newestTitleOf(rows)
@@ -151,7 +155,15 @@ export const createArtPool = ({
       plexShowPart(key, filePaths).catch(() => ({ found: false, entries: [] })),
       tvmazeMemo.get(showTitleKey(title), () => tvmazePart(title).catch(() => [])),
     ])
-    return { title, entries: withIds(composeShowPool({ title, plex, tvmaze })) }
+    return { title, rows, plex, tvmaze }
+  }
+
+  const showPool = async (key) => {
+    const sources = await showSources(key)
+    if (!sources) return null
+    const { title, plex, tvmaze } = sources
+    const stamp = choiceStampOf(await chosenBackground(key).catch(() => null))
+    return { title, entries: withIds(composeShowPool({ title, plex, tvmaze, stamp })) }
   }
 
   const recordingArt = async (recordingId) => {
@@ -181,7 +193,7 @@ export const createArtPool = ({
     return source ? thumbnailFor({ source, width }) : null
   }
 
-  return { showPool, recordingArt, imageFor }
+  return { showPool, showSources, recordingArt, imageFor }
 }
 
 export const tvmazePoolOf = ({ show, images = [] }) => {
@@ -239,8 +251,8 @@ export const guideEpisodePoolOf = ({ row, saved = null }) => {
   return row.image_url && !row.image_path ? [{ origin: row.image_url, kind: 'episode', source: 'guide' }] : []
 }
 
-export const composeShowPool = ({ title, plex = { found: false, entries: [] }, tvmaze = [] }) => {
-  const library = { url: showImageUrlOf(title), kind: 'background', source: 'library' }
+export const composeShowPool = ({ title, plex = { found: false, entries: [] }, tvmaze = [], stamp = null }) => {
+  const library = { url: showImageUrlOf({ title, stamp }), kind: 'background', source: 'library' }
   const plexAlternates = plex.entries.filter((entry) => !entry.selected)
   const tvmazeBackgrounds = tvmaze.filter((entry) => entry.kind === 'background')
   const libraryUsesTvmaze = !plex.found
@@ -269,12 +281,6 @@ export const contentKeyOf = (data) => crypto.createHash('sha1').update(data).dig
 export const plexTranscodeOrigin = (path) =>
   `${PLEX_ORIGIN_PREFIX}/photo/:/transcode?width=${PLEX_ART_WIDTH}&height=${PLEX_ART_HEIGHT}&minSize=1&upscale=0`
   + `&url=${encodeURIComponent(path)}`
-
-export const plexSourceOf = ({ origin, url, token }) => {
-  const path = origin.slice(PLEX_ORIGIN_PREFIX.length)
-  const joiner = path.includes('?') ? '&' : '?'
-  return `${url}${path}${joiner}X-Plex-Token=${encodeURIComponent(token)}`
-}
 
 const serveEntry = (artPool, loadEntries) => async (req, res) => {
   const width = thumbnailWidthFrom({ requested: req.query.w, allowed: PROGRAMME_IMAGE_WIDTHS })
@@ -340,7 +346,7 @@ const uniqueByOrigin = (entries) => {
 const newestTitleOf = (rows) => [...rows]
   .sort((a, b) => Number(b.aired_at ?? 0) - Number(a.aired_at ?? 0))[0].title
 
-const showImageUrlOf = (title) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=${HERO_WIDTH}`
+const showImageUrlOf = ({ title, stamp }) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=${HERO_WIDTH}${stamp ? `&c=${stamp}` : ''}`
 
 const showPoolBase = (key) => `/api/library/shows/${encodeURIComponent(key)}/art-pool`
 
@@ -454,7 +460,6 @@ let recordingThumbnailStore = null
 const HERO_WIDTH = 768
 const PLEX_ART_WIDTH = 1280
 const PLEX_ART_HEIGHT = 720
-const PLEX_ORIGIN_PREFIX = 'plex:'
 const TVMAZE_CACHE_PREFIX = 'art-pool:tvmaze-series-v2:'
 const MAX_PER_SOURCE = 12
 const MAX_POSTERS = 3

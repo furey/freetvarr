@@ -11,6 +11,7 @@ import { stopPlayback } from '/shared/playback-session.js'
 import { playback } from '/shared/player-shared.js'
 import { refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { toast } from '/shared/toast.js'
+import { stampedShowImage } from '/shared/artwork-stamps.js'
 
 export const MenuIcon = {
   props: { name: { type: String, required: true } },
@@ -34,6 +35,8 @@ export const LibraryMenuSheet = {
     title: { type: String, default: '' },
     subtitle: { type: String, default: '' },
     artSrc: { type: String, default: '' },
+    fallbackSrc: { type: String, default: '' },
+    artTitle: { type: String, default: '' },
     artShape: { type: String, default: 'wide' },
     groups: { type: Array, default: () => [] },
     tip: { type: String, default: '' },
@@ -45,7 +48,8 @@ export const LibraryMenuSheet = {
     <ui-sheet :open="open" :title="title" :subtitle="subtitle" @close="$emit('close')">
       <template #header-lead>
         <span :class="['library-menu-art', 'ui-art-fallback', 'is-' + artShape]" :style="artStyle" aria-hidden="true">
-          <img v-if="artSrc && !artFailed" :src="artSrc" alt="" @error="artFailed = true" />
+          <img v-if="artUrl" :key="artUrl" :src="artUrl" alt="" @error="artTried += 1" />
+          <span v-else class="ui-art-title library-menu-art-title">{{ artTitle || title }}</span>
         </span>
       </template>
       <div class="library-menu">
@@ -63,10 +67,12 @@ export const LibraryMenuSheet = {
     </ui-sheet>
   `,
   setup(props) {
-    const artFailed = ref(false)
-    watch(() => props.artSrc, () => { artFailed.value = false })
-    const artStyle = computed(() => artFallbackStyle(props.title))
-    return { artFailed, artStyle, menuPendingLabelOf }
+    const artTried = ref(0)
+    watch(() => [props.artSrc, props.fallbackSrc], () => { artTried.value = 0 })
+    const artUrls = computed(() => [...new Set([props.artSrc, props.fallbackSrc].filter(Boolean).map(stampedShowImage))])
+    const artUrl = computed(() => artUrls.value[artTried.value] || '')
+    const artStyle = computed(() => artFallbackStyle(props.artTitle || props.title))
+    return { artTried, artUrl, artStyle, menuPendingLabelOf }
   },
 }
 
@@ -335,11 +341,12 @@ const MENU_ICONS = {
   pause: [rect(6, 5, 4, 14), rect(14, 5, 4, 14)],
   info: [circle(12, 12, 9), path('M12 11v6M12 7.5v.5')],
   external: [path('M14 4h6v6M20 4l-9 9M18 14v6H4V6h6')],
+  picture: [{ tag: 'rect', attrs: { x: 3, y: 3, width: 18, height: 18, rx: 2 } }, circle(9, 9, 2), path('m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21')],
   refresh: [path('M21 12a9 9 0 1 1-3-6.7L21 8'), path('M21 3v5h-5')],
   restart: [path('M3 12a9 9 0 1 0 3-6.7L3 8'), path('M3 3v5h5')],
   trash: [path('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13')],
   'check-list': [path('M4 12h10M4 6h16M4 18h7'), path('m16 15 2 2 4-4')],
-  ads: [path('M6 4v16M18 4v16M6 12h12')],
+  ads: [circle(6, 6, 3), circle(6, 18, 3), path('M8.6 7.6 20 18M8.6 16.4 20 6')],
   warning: [path('M12 3 2 20h20z'), path('M12 10v4M12 17v.5')],
   record: [dot(6)],
   series: [circle(12, 12, 9), dot(4.5)],

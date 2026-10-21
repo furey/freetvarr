@@ -59,7 +59,7 @@ Recordings has two views: **Library** and **Scheduled**.
 
 - **Library** shows your recordings as posters, grouped as Shows, Movies, and Specials and one-offs. A banner at the top lists recent failures, with a **Review** link to the Recording log.
 - **Show pages** list the episodes of one show, with a **Play** or **Resume** button, the next airing, and a status line for its series recording. Press an episode row to play it.
-- **⋯ menus** on each show and episode hold the actions in one place: play, mark as watched or unwatched, recording options, show and episode info, **Open in Plex**, **Refresh artwork**, and delete. See [Show menu](/guide/recordings#show-menu) and [Episode menu](/guide/recordings#episode-menu).
+- **⋯ menus** on each show and episode hold the actions in one place: play, mark as watched or unwatched, recording options, show and episode info, **Open in Plex**, **Change picture**, **Refresh artwork**, and delete. See [Show menu](/guide/recordings#show-menu) and [Episode menu](/guide/recordings#episode-menu).
 - **Delete** removes the episode from your library and its recording from TVHeadend, then refreshes Plex. A dialog lists what it deletes, with the size, before anything changes. See [Delete episodes](/guide/recordings#delete-episodes).
 - **Select** on a show page marks or deletes several episodes at once.
 - **Recording options** holds the channels, how many episodes to keep, the start and finish padding, ad removal, and pause. Under **Advanced**, **Also known as** adds your own names for a show to search. See [Recording options](/guide/recordings#recording-options).

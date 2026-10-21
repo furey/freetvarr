@@ -132,3 +132,11 @@ test('poolRequestsOf asks only for shows that repeat, and their episode recordin
   assert.deepEqual(poolRequestsOf(slides), { showKeys: ['the-block'], recordingIds: ['r1'] })
   assert.deepEqual(poolRequestsOf([]), { showKeys: [], recordingIds: [] })
 })
+
+test('a chosen background comes before the episode art on episode slides', () => {
+  const chosen = '/api/epg/show-image?title=The%20Block&w=768&c=abc'
+  const slide = episodeSlide({ recordingId: 'r1', art: { image: chosen, title: 'The Block', chosen: true } })
+  const pools = { recordings: { r1: [ep('r1')] }, shows: { 'the-block': [bg(1)] } }
+  assert.equal(candidatesOf({ slide, pools })[0], chosen)
+  assert.equal(candidatesOf({ slide: { ...slide, art: { ...slide.art, chosen: false } }, pools })[0], ep('r1').url)
+})

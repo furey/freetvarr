@@ -1,4 +1,5 @@
 import { recordWordingOf } from './record-wording.js'
+import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 
 export const PROGRAMME_INFO = { key: 'programme-info', label: 'Programme info', icon: 'info' }
 export const GO_TO_SHOW = { key: 'show', label: 'Go to show', icon: 'show' }
@@ -58,7 +59,7 @@ export const programmeOfRecording = (recording) => ({
   channelId: recording.channelId,
 })
 
-export const showArtOf = (title) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=384`
+export const showArtOf = (title) => artworkStamps.stampUrl(showImageUrlOf({ title, width: 384 }))
 
 export const programmeArtOf = (program) => (program.has_image && program.program_id != null
   ? `/api/epg/image/${encodeURIComponent(program.program_id)}?w=384`

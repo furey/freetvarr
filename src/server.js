@@ -176,7 +176,8 @@ import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { watchedAtAfterPosition } from './library.js'
 import { mountLibraryRoutes } from './library-routes.js'
-import { mountArtPoolRoutes } from './art-pool.js'
+import { createArtPool, mountArtPoolRoutes } from './art-pool.js'
+import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf } from './artwork-match.js'
@@ -1245,7 +1246,9 @@ app.get('/api/series', async (req, res) => {
 })
 
 mountLibraryRoutes({ app, csrf: doubleCsrfProtection, ruleLimiter: epgLimiter, watchedLimiter: playPingLimiter, playbackSourceResolver })
-mountArtPoolRoutes({ app })
+const artPool = createArtPool()
+mountArtPoolRoutes({ app, artPool })
+mountArtworkChoiceRoutes({ app, csrf: doubleCsrfProtection, readLimiter: ratingsLimiter, writeLimiter: epgLimiter, artPool })
 mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })

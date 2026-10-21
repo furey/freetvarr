@@ -47,6 +47,7 @@ export const showMenuOf = ({ show, activeIds = new Set() }) => {
         : { key: 'pause-series', label: 'Pause recording', icon: 'pause' }),
       { key: 'show-info', label: 'Show info', icon: 'info' },
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
+      episodes.length && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
       episodes.length && { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
     ],
     [
