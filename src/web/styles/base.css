@@ -2016,6 +2016,18 @@ a.ui-banner:hover {
   gap: 8px;
 }
 
+@media (max-width: 1023px), (max-height: 500px) {
+  .ui-header-chip.health-alert-chip {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) and (min-height: 501px) {
+  .ui-banner.health-alert-banner {
+    display: none;
+  }
+}
+
 .health-alert-chip .health-alert-link > span {
   overflow: hidden;
   text-overflow: ellipsis;

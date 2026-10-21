@@ -61,6 +61,22 @@ test('Live TV and the TV guide headers share the date subtitle and the 16 px gap
   assert.match(await read('styles/guide.css'), /@media \(max-width: 767px\), \(max-height: 500px\) \{\s*\.guide-scheduled-word \{\s*display: none;/)
 })
 
+test('page headers show a short subtitle on phones and only one subtitle to screen readers', async () => {
+  const header = await read('components/header-widgets.js')
+  assert.match(header, /subtitleShort: \{ type: String, default: null \}/)
+  assert.match(header, /:class="\{ 'ui-only-wide': subtitleShort === '' \}"/)
+  assert.match(header, /<span class="ui-only-wide ui-page-subtitle-full">\{\{ subtitle \}\}<\/span><span class="ui-only-phone ui-page-subtitle-short">\{\{ subtitleShort \}\}<\/span>/)
+  for (const view of ['views/recordings-library-view.js', 'views/scheduled-view.js']) {
+    assert.match(await read(view), /<page-header title="Recordings" subtitle="Everything you have, and everything on its way\." subtitle-short="Recorded and coming up\." \/>/, view)
+  }
+  const base = await read('styles/base.css')
+  assert.match(base, /@media \(max-width: 1023px\), \(max-height: 500px\) \{\s*\.ui-header-chip\.health-alert-chip \{\s*display: none;/)
+  assert.match(base, /@media \(min-width: 1024px\) and \(min-height: 501px\) \{\s*\.ui-banner\.health-alert-banner \{\s*display: none;/)
+  assert.match(await read('styles/home.css'), /@media \(min-width: 768px\) and \(max-width: 1099px\) and \(min-height: 501px\) \{\s*\.for-you-header \.ui-page-subtitle-full \{\s*display: none;/)
+  assert.match(await read('views/for-you-view.js'), /:subtitle="intro" subtitle-short="Picked from this week's guide\."/)
+  assert.match(await read('views/home-view.js'), /<page-header :title="greeting" subtitle="Here's what's happening\." subtitle-short="" brand health-alert \/>/)
+})
+
 test('every button uses the shared ui-button styles', async () => {
   for (const { file, source } of await scriptsAndStyles()) {
     assert.doesNotMatch(source, /(^|[\s"'.([{])btn(-sm|-primary|-danger|-icon|-watch)?(?![\w-])/m, file)

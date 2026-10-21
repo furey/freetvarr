@@ -28,7 +28,7 @@ export const ForYouView = {
   template: `
     <div class="ui-page for-you-page">
       <a href="#/home" class="for-you-back"><back-glyph /> Home</a>
-      <page-header title="For you" :subtitle="intro" :widgets="false" class="for-you-header">
+      <page-header title="For you" :subtitle="intro" subtitle-short="Picked from this week's guide." :widgets="false" class="for-you-header">
         <template #actions>
           <recording-chip />
           <clock-label />

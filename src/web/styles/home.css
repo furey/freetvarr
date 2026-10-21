@@ -1041,6 +1041,16 @@
   width: 112px;
 }
 
+@media (min-width: 768px) and (max-width: 1099px) and (min-height: 501px) {
+  .for-you-header .ui-page-subtitle-full {
+    display: none;
+  }
+
+  .for-you-header .ui-page-subtitle-short.ui-only-phone {
+    display: inline !important;
+  }
+}
+
 @media (max-width: 767px), (max-height: 500px) {
   .for-you-header .ui-page-title {
     font-size: 30px;
