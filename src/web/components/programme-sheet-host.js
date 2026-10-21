@@ -15,9 +15,8 @@ import {
   stepValue,
   strengthLineOf,
 } from '/programme-sheet.js'
-import { guideChannelOf, listedProgrammeOf } from '/programme-state.js'
+import { guideChannelOf, listedProgrammeOf, seriesLinkOfProgramme, twinCoverTextOf } from '/programme-state.js'
 import { holdAtLeast } from '/pending.js'
-import { findSeriesLink } from '/series-link.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import { canRecordSeriesOf } from '/record-wording.js'
@@ -31,6 +30,7 @@ import { makeStatus } from '/shared/path-check.js'
 import { live } from '/shared/player-shared.js'
 import {
   cellState,
+  twinCover,
   programmeSheetFor,
   refreshSheetData,
   sheetDataFor,
@@ -269,11 +269,17 @@ export const ProgrammeSheetHost = {
       ? scheduledByProgramId.value.get(String(selected.value.program.program_id ?? selected.value.program.programId)) || null
       : null))
 
+    const selectedTwinCover = computed(() => (selected.value ? twinCover(selected.value.program) : null))
+
     const selectedSeriesLink = computed(() => {
       const program = selected.value?.program
       if (!program) return null
       if (isSeriesScheduled(program)) return String(selectedScheduled.value.seriesLinkId)
-      return findSeriesLink({ links: seriesLinkSet.value, seriesLink: program.series_link })
+      const twin = selectedTwinCover.value?.twin
+      if (twin && isSeriesScheduled(twin)) return String(scheduledByProgramId.value.get(String(twin.program_id)).seriesLinkId)
+      return seriesLinkOfProgramme({ programme: program, seriesLinks: seriesLinkSet.value })
+        || (twin && seriesLinkOfProgramme({ programme: twin, seriesLinks: seriesLinkSet.value }))
+        || null
     })
 
     const selectedRecording = computed(() => {
@@ -292,6 +298,9 @@ export const ProgrammeSheetHost = {
     const selectedStatusText = computed(() => {
       const program = selected.value?.program
       const series = isSeriesScheduled(program || {})
+      if (selectedTwinCover.value) {
+        return twinCoverTextOf({ cover: selectedTwinCover.value, seriesScheduled: isSeriesScheduled(selectedTwinCover.value.twin) })
+      }
       if (selectedState.value === 'recording') {
         return series ? `Recording now as part of the "${program.title}" series recording.` : 'Recording now (one-off recording).'
       }
@@ -389,6 +398,7 @@ export const ProgrammeSheetHost = {
         key: 'cancel-series', busyKey: 'cancel-series', label: 'Cancel series',
         outcome: cancelSeriesOutcome(), run: openCancelSeriesStep,
       }
+      if (selectedTwinCover.value) return hasSeries ? [cancelSeriesAction] : []
       if (state === 'recording') {
         return [
           { key: 'stop', busyKey: 'cancel', label: 'Stop recording', outcome: stopOutcome(), run: cancelSelected },

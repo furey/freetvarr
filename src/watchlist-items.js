@@ -43,12 +43,13 @@ export const guideMatchesFor = ({
   programsByChannel = {},
   nowMs,
   cap = WATCHLIST_MATCH_CAP,
+  keepAiring = null,
 }) => {
   const wantedChannel = channelId == null || channelId === '' ? null : String(channelId)
   return channels
     .filter((channel) => wantedChannel == null || String(channel.id) === wantedChannel)
     .flatMap((channel) => (programsByChannel[String(channel.epgId ?? channel.id)] || [])
-      .filter((program) => program.end > nowMs && showKeyOf(program.title) === titleKey)
+      .filter((program) => program.end > nowMs && showKeyOf(program.title) === titleKey && (!keepAiring || keepAiring(program)))
       .map((program) => ({ ...browserProgramOf(program), channelId: channel.id, channelName: channel.name })))
     .sort((a, b) => a.start - b.start)
     .slice(0, cap)

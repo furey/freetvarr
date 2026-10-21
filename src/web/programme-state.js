@@ -26,9 +26,32 @@ export const programmeStateOf = ({ programme, scheduledByProgramId, activeRecord
   if (scheduled && activeRecordingSet.has(String(scheduled.programId))) return 'recording'
   if (scheduled) return 'scheduled'
   if (repeatByProgramId.has(programmeIdOf(programme))) return 'repeat'
-  if (findSeriesLink({ links: seriesLinks, seriesLink: programme.series_link })) return 'series'
+  if (seriesLinkOfProgramme({ programme, seriesLinks })) return 'series'
   return ''
 }
+
+export const seriesLinkOfProgramme = ({ programme, seriesLinks }) =>
+  findSeriesLink({ links: seriesLinks, seriesLink: programme.series_link })
+  || (programme.rule_link != null && seriesLinks.has(String(programme.rule_link)) ? String(programme.rule_link) : null)
+
+export const twinCoverOf = ({ programme, scheduledByProgramId, activeRecordingSet, seriesLinks }) => {
+  if (programme.past) return null
+  for (const twin of programme.twins || []) {
+    const state = programmeStateOf({ programme: twin, scheduledByProgramId, activeRecordingSet, seriesLinks })
+    if (TWIN_COVER_STATES.includes(state)) return { state, twin }
+  }
+  return null
+}
+
+export const twinCoverTextOf = ({ cover, seriesScheduled = false }) => {
+  if (!cover) return ''
+  const channel = cover.twin.channel_name || 'its twin channel'
+  if (cover.state === 'recording') return `Recording now on ${channel}.`
+  if (cover.state === 'scheduled') return `Scheduled to record on ${channel}${seriesScheduled ? ' (part of a series recording).' : '.'}`
+  return `A series recording on ${channel} records this programme.`
+}
+
+const TWIN_COVER_STATES = ['recording', 'scheduled', 'series']
 
 export const isSeriesScheduledOf = ({ programme, scheduledByProgramId, seriesLinks }) => {
   const scheduled = scheduledByProgramId.get(programmeIdOf(programme))

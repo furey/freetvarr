@@ -1,4 +1,6 @@
 import { showKeyOf as rawShowKeyOf } from './web/show-key.js'
+import { airingCoverCheckOf, airingIdentityOf, coveredProgrammeIdsOf, preferredAiringsOf } from './airing-identity.js'
+import { orderChannels } from './channel-order.js'
 import {
   CATEGORY_LABELS,
   categoriesOfEtsi,
@@ -67,8 +69,14 @@ export const buildForYou = ({
   tier = 'basic',
   filmFacts = new Map(),
   otherLanguageFilms = 'few',
+  channelPrefs = null,
+  autorecs = [],
 }) => {
-  const upcoming = programmes.filter((programme) => isCandidateAiring({ programme, nowMs, horizonMs }))
+  const listedChannels = channelPrefs ? orderChannels({ channels, ...channelPrefs }) : channels
+  const candidates = programmes.filter((programme) => isCandidateAiring({ programme, nowMs, horizonMs }))
+  const identity = airingIdentityOf({ programmes: candidates, channels: listedChannels })
+  const preferred = new Set(preferredAiringsOf({ identity, nowMs }).map((airing) => airing.programme))
+  const upcoming = candidates.filter((programme) => preferred.has(programme))
   const records = recordsOf(genresByKey)
   const airings = airingCountsOf(upcoming)
   const knownKeys = new Set([...upcoming, ...history].map((programme) => showKeyOf(programme.title)))
@@ -88,6 +96,7 @@ export const buildForYou = ({
     isPremiere: premiereCheckOf({ upcoming, history, records, nowMs, channelNames: new Map(channels.map((channel) => [String(channel.id), channel.name])) }),
     recorded: recordedEpisodesOf({ recordings, keyOf }),
     scheduledProgramIds: new Set([...scheduledProgramIds].map(String)),
+    coveredProgramIds: coveredProgrammeIdsOf({ identity, isCovered: airingCoverCheckOf({ scheduledProgramIds, autorecs }) }),
     ruleKeys,
     filmFactsOf: (programme) => filmFacts.get(programme.title) || null,
   }
@@ -215,6 +224,7 @@ const isCandidateAiring = ({ programme, nowMs, horizonMs }) => {
 const isExcluded = ({ programme, context }) => {
   if (programme.dvr_state || programme.dvr_uuid) return true
   if (context.scheduledProgramIds.has(String(programme.program_id))) return true
+  if (context.coveredProgramIds?.has(String(programme.program_id))) return true
   const key = showKeyOf(programme.title)
   if (context.ruleKeys.has(key)) return true
   const show = context.profile.shows.get(key)

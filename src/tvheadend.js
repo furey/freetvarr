@@ -7,6 +7,7 @@ import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 import { cleanGuideText } from './consumer-advice.js'
+import { autorecMatchFieldsOf } from './autorec-match.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -187,6 +188,7 @@ export const listAutorecs = async (conn) => {
     leadTime: a.start_extra ?? 0,
     lagTime: a.stop_extra ?? 0,
     episodesToKeep: a.maxcount ?? 0,
+    match: autorecMatchFieldsOf(a),
   }))
 }
 
@@ -623,6 +625,7 @@ export const normaliseEvent = (e) => {
     episode_no: e.episodeNumber ?? null,
     series_link: seriesKey({ channelId: e.channelUuid, title: e.title }),
     episode_uri: e.episodeUri || null,
+    serieslink_uri: e.serieslinkUri || null,
     genre: (e.genre || [])[0] ?? null,
     rating: e.ageRating ? String(e.ageRating) : null,
     dvr_state: e.dvrState || null,

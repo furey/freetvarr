@@ -43,6 +43,8 @@ import { artworkUploads } from './artwork-uploads.js'
 import { getPlexConnection } from './plex.js'
 import { showKeyOf } from './web/show-key.js'
 import { createGuideCache } from './guide-cache.js'
+import { orderChannels } from './channel-order.js'
+import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
 import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
 import {
@@ -70,9 +72,14 @@ export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
     classificationLookupFor(merged.flatMap(([, rows]) => rows)),
     getChannelPrefs(),
   ])
+  const twinContext = await twinContextFor({ guide, prefs })
   const programs = Object.fromEntries(merged.map(([channelId, rows]) => [
     channelId,
-    rows.map((program) => ({ ...toGuideCell({ program, nowMs }), classification: classificationOf(program) })),
+    rows.map((program) => ({
+      ...toGuideCell({ program, nowMs }),
+      classification: classificationOf(program),
+      ...twinFieldsOf({ programme: program, twinContext }),
+    })),
   ]))
   return {
     day,
@@ -92,28 +99,7 @@ export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
 
 export { sdSimulcastIds }
 
-// Pinned channels float to the top in pin order; the rest follow in the chosen
-// sort. Hidden and pinned are mutually exclusive (enforced on save).
-export const orderChannels = ({ channels, pinnedIds = [], hiddenIds = [], sort = 'default', hideSdSimulcasts = false, hideSdChannels = false }) => {
-  const hiddenSet = new Set(hiddenIds.map(String))
-  const simulcastSet = hideSdSimulcasts && !hideSdChannels ? sdSimulcastIds(channels) : new Set()
-  const pinOrder = new Map(pinnedIds.map((id, i) => [String(id), i]))
-  const annotated = channels.map((c) => {
-    const pinned = pinOrder.has(String(c.id))
-    const id = String(c.id)
-    return { ...c, pinned, hidden: !pinned && (hiddenSet.has(id) || simulcastSet.has(id) || (hideSdChannels && !c.hd)) }
-  })
-  const pinned = annotated
-    .filter((c) => c.pinned)
-    .sort((a, b) => pinOrder.get(String(a.id)) - pinOrder.get(String(b.id)))
-  const rest = annotated.filter((c) => !c.pinned)
-  if (sort === 'name') {
-    rest.sort((a, b) => a.name.localeCompare(b.name, 'en-AU', { numeric: true, sensitivity: 'base' }))
-  } else if (sort === 'number') {
-    rest.sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity))
-  }
-  return [...pinned, ...rest]
-}
+export { orderChannels }
 
 export const getChannelPrefs = async () => {
   const [pinnedRaw, hiddenRaw, sortRaw, hideSdRaw, hideSdChannelsRaw] = await Promise.all([
@@ -351,7 +337,7 @@ export const getChannelAiring = async ({ channelId, atMs = Date.now(), nowMs = D
   }
 }
 
-export const programmeSheetAt = ({ guide, channelId, startMs, nowMs = Date.now(), endedByChannel = null }) => {
+export const programmeSheetAt = ({ guide, channelId, startMs, nowMs = Date.now(), endedByChannel = null, twinContext = null }) => {
   const channel = guide.channels.find((c) => String(c.id) === String(channelId)) || null
   if (!channel) return { channel: null, programme: null, hdEpisode: null, hdSeries: null }
   const rowsOf = (c) => mergeGuidePrograms({
@@ -360,7 +346,7 @@ export const programmeSheetAt = ({ guide, channelId, startMs, nowMs = Date.now()
   })
   const rows = rowsOf(channel)
   const listed = rows.find((p) => p.start === startMs) || rows.find((p) => p.start <= startMs && p.end > startMs) || null
-  const programme = listed && toGuideCell({ program: listed, nowMs })
+  const programme = listed && { ...toGuideCell({ program: listed, nowMs }), ...twinFieldsOf({ programme: listed, twinContext }) }
   const programsByChannel = Object.fromEntries(guide.channels
     .filter((c) => c !== channel && isHdChannel(c))
     .map((c) => [c.id, rowsOf(c)
@@ -377,7 +363,8 @@ export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now()
   const endedByChannel = startMs < nowMs
     ? await loadEndedProgramsByChannel({ fromMs: startMs, toMs: nowMs, nowMs }).catch(logHistoryError('load'))
     : null
-  const sheet = programmeSheetAt({ guide, channelId, startMs, nowMs, endedByChannel })
+  const twinContext = await twinContextFor({ guide, prefs: await getChannelPrefs() })
+  const sheet = programmeSheetAt({ guide, channelId, startMs, nowMs, endedByChannel, twinContext })
   return withClassification({ sheet, store: classificationStore })
 }
 
@@ -443,8 +430,40 @@ export const searchGuide = async ({ q } = {}) => {
   const [guide, prefs, aliases] = await Promise.all([getCachedGuide(), getChannelPrefs(), loadSearchAliases()])
   const channels = orderChannels({ channels: guide.channels, ...prefs }).filter((c) => !c.hidden)
   const built = guideSearchFor({ guide, aliases })
-  return { results: searchGuideListings({ built, channels, query: q, toProgramme: toBrowserProgram }) }
+  const nowMs = Date.now()
+  const twinContext = await twinContextFor({ guide, prefs })
+  const results = searchGuideListings({ built, channels, query: q, nowMs, toProgramme: toBrowserProgram })
+    .filter((programme) => isPreferredAiring({ identity: twinContext.identity, programme, nowMs }))
+    .map((programme) => ({ ...programme, ...twinFieldsOf({ programme, twinContext }) }))
+  return { results }
 }
+
+export const guideIdentityFor = ({ guide, prefs }) => {
+  const key = JSON.stringify(prefs)
+  const cached = guideIdentities.get(guide)
+  if (cached?.key === key) return cached.identity
+  const channels = guide.channels || []
+  const channelIdByProgramme = new Map(channels.flatMap((channel) =>
+    (guide.programsByChannel?.[String(channel.epgId)] || []).map((programme) => [programme, channel.id])))
+  const identity = airingIdentityOf({
+    programmes: [...channelIdByProgramme.keys()],
+    channels: orderChannels({ channels, ...prefs }),
+    channelIdOf: (programme) => channelIdByProgramme.get(programme) ?? programme.channel_id,
+  })
+  guideIdentities.set(guide, { key, identity })
+  return identity
+}
+
+const twinContextFor = async ({ guide, prefs }) => {
+  const state = await getRecordingState().catch(() => null)
+  return { identity: guideIdentityFor({ guide, prefs }), autorecs: state?.seriesTags || [] }
+}
+
+const twinFieldsOf = ({ programme, twinContext }) => (twinContext
+  ? twinAnnotationOf({ identity: twinContext.identity, programme, autorecs: twinContext.autorecs })
+  : {})
+
+const guideIdentities = new WeakMap()
 
 // Concurrent requests share one TVHeadend round-trip, a failure opens a
 // cooldown during which no new attempt starts, and the last good state is

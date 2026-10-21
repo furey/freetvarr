@@ -8,6 +8,7 @@ process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-${process.pid}
 const { buildForYou, diversify, isInfomercial, premiereCheckOf, timeLabelOf } = await import('../src/for-you.js')
 const { LIKED_AFFINITY, decayOf, hiddenShowsOf, profileOf, watchFractionOf, watchWeightOf } = await import('../src/for-you-profile.js')
 const { embedTextOf, textHashOf } = await import('../src/for-you-texts.js')
+const { autorecMatchFieldsOf } = await import('../src/autorec-match.js')
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -488,4 +489,64 @@ test('cold start shows top rated movies before the other movies', () => {
   assert.equal(result.coldStart, true)
   assert.equal(sectionOf(result, 'top-rated').items[0].title, 'Old Classic')
   assert.ok(!(sectionOf(result, 'movies')?.items ?? []).some((item) => item.title === 'Old Classic'))
+})
+
+const twinLineup = [
+  { id: 'ten-hd', name: '10 HD', hd: true },
+  { id: 'ten-sd', name: '10', hd: false },
+  { id: 'ten-plus', name: '10 HD +1', hd: true },
+  { id: 'food', name: 'SBS Food', hd: false },
+]
+
+const twinEvents = () => [
+  ...baseEvents(),
+  ...watched('Big Brother Australia', { episodes: 8 }),
+  ...watched('Survivor Australia', { episodes: 8 }),
+  ...watched('My Market Kitchen', { episodes: 8 }),
+]
+
+const suggestedChannelsOf = (result, title) => result.sections
+  .flatMap((section) => section.items)
+  .filter((item) => item.title === title)
+  .map((item) => item.channelId)
+
+test('For you suggests one airing per twin group, on the visible HD channel', () => {
+  const programmes = ['ten-sd', 'ten-hd'].map((channel_id) => airing('Survivor Australia', { channel_id }))
+  const result = run({ programmes, events: twinEvents(), channels: twinLineup })
+  assert.deepEqual(suggestedChannelsOf(result, 'Survivor Australia'), ['ten-hd'])
+})
+
+test('For you skips a programme whose twin TVHeadend already records', () => {
+  const programmes = [
+    airing('Big Brother Australia', { channel_id: 'ten-hd', dvr_state: 'scheduled' }),
+    airing('Big Brother Australia', { channel_id: 'ten-sd' }),
+    airing('Big Brother Australia', { channel_id: 'ten-plus', start: NOW + 11 * HOUR }),
+  ]
+  const result = run({ programmes, events: twinEvents(), channels: twinLineup })
+  assert.deepEqual(suggestedChannelsOf(result, 'Big Brother Australia'), [])
+})
+
+test('For you skips a programme that a TVHeadend rule on its twin matches', () => {
+  const programmes = ['ten-sd', 'ten-hd'].map((channel_id) => airing('Big Brother Australia', { channel_id }))
+  const autorecs = [{ seriesLinkId: 'ten-hd|big brother', channelId: 'ten-hd', enabled: true, match: autorecMatchFieldsOf({ title: 'Big Brother', weekdays: [1, 2, 3, 4, 5, 6, 7] }) }]
+  const result = run({ programmes, events: twinEvents(), channels: twinLineup, autorecs })
+  assert.deepEqual(suggestedChannelsOf(result, 'Big Brother Australia'), [])
+})
+
+test('For you leaves out hidden channels under both hide SD settings', () => {
+  const programmes = [airing('My Market Kitchen', { channel_id: 'food' }), airing('Survivor Australia', { channel_id: 'ten-sd' })]
+  const simulcasts = run({ programmes, events: twinEvents(), channels: twinLineup, channelPrefs: { hideSdSimulcasts: true } })
+  assert.deepEqual(suggestedChannelsOf(simulcasts, 'My Market Kitchen'), ['food'])
+  assert.deepEqual(suggestedChannelsOf(simulcasts, 'Survivor Australia'), [])
+  const everySd = run({ programmes, events: twinEvents(), channels: twinLineup, channelPrefs: { hideSdChannels: true } })
+  assert.deepEqual(suggestedChannelsOf(everySd, 'My Market Kitchen'), [])
+})
+
+test('For you offers the +1 airing only after the original has finished', () => {
+  const original = airing('Survivor Australia', { channel_id: 'ten-hd', start: NOW - 30 * 60 * 1000 })
+  const later = airing('Survivor Australia', { channel_id: 'ten-plus', start: original.start + HOUR })
+  const before = run({ programmes: [original, later], events: twinEvents(), channels: twinLineup })
+  assert.deepEqual(suggestedChannelsOf(before, 'Survivor Australia'), ['ten-hd'])
+  const after = run({ programmes: [original, later], events: twinEvents(), channels: twinLineup, nowMs: original.end + 60 * 1000 })
+  assert.deepEqual(suggestedChannelsOf(after, 'Survivor Australia'), ['ten-plus'])
 })

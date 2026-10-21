@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { channelAiringAt, programmeSheetAt } from '../src/epg.js'
+import { channelAiringAt, guideIdentityFor, programmeSheetAt } from '../src/epg.js'
+import { autorecMatchFieldsOf } from '../src/autorec-match.js'
 
 const NOW = 1_000_000_000_000
 const HOUR = 3_600_000
@@ -135,4 +136,17 @@ test('programmeSheetAt: finds the airing at a time inside it, and nothing for an
   assert.equal(programmeSheetAt({ guide: sheetGuide, channelId: 'hd', startMs: NOW + HOUR + 60_000, nowMs: NOW }).programme.program_id, 'hd-later')
   assert.equal(programmeSheetAt({ guide: sheetGuide, channelId: 'hd', startMs: NOW + HOUR + 60_000, nowMs: NOW }).hdEpisode, null)
   assert.deepEqual(programmeSheetAt({ guide: sheetGuide, channelId: 'gone', startMs: NOW }), { channel: null, programme: null, hdEpisode: null, hdSeries: null })
+})
+
+test('programmeSheetAt: names the twin airing and a rule that matches it', () => {
+  const twinContext = {
+    identity: guideIdentityFor({ guide: sheetGuide, prefs: {} }),
+    autorecs: [{ seriesLinkId: 'hd|the chase', channelId: 'hd', enabled: true, match: autorecMatchFieldsOf({ title: 'chase' }) }],
+  }
+  const sheet = programmeSheetAt({ guide: sheetGuide, channelId: 'sd', startMs: NOW, nowMs: NOW - HOUR, twinContext })
+  assert.deepEqual(sheet.programme.twins.map((twin) => [twin.program_id, twin.channel_name]), [['hd-show', '7HD Sydney']])
+  assert.equal(sheet.programme.rule_link, 'hd|the chase')
+  const other = programmeSheetAt({ guide: sheetGuide, channelId: 'other', startMs: NOW, nowMs: NOW - HOUR, twinContext })
+  assert.equal(other.programme.twins, undefined)
+  assert.equal(other.programme.rule_link, undefined)
 })

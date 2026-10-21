@@ -45,6 +45,21 @@ export const findHdSimulcast = ({ program, channelId, channels = [], programsByC
     .map(({ channel, program: hdProgram }) => ({ channel, program: hdProgram }))[0]
 }
 
+export const timeshiftOf = (name) => {
+  const tokens = simulcastTokens(name)
+  const shifted = tokens.map((token) => TIMESHIFT_TOKEN.exec(token))
+  const index = shifted.findIndex(Boolean)
+  if (index < 0) return null
+  const [, stem, hours] = shifted[index]
+  const baseTokens = [...tokens.slice(0, index), ...(stem && !SIMULCAST_NOISE.has(stem) ? [stem] : []), ...tokens.slice(index + 1)]
+  const baseKey = baseTokens.map((token) => SIMULCAST_ALIASES[token] || token).join('')
+  return baseKey ? { baseKey, offsetMs: Number(hours) * HOUR_MS } : null
+}
+
+const TIMESHIFT_TOKEN = /^([a-z0-9]*)\+(\d)$/
+
+const HOUR_MS = 60 * 60 * 1000
+
 const SIMULCAST_ALIASES = { nine: '9', seven: '7', ten: '10' }
 
 const SIMULCAST_NOISE = new Set(['hd', 'channel'])
@@ -55,7 +70,7 @@ const simulcastTokens = (name) => (name || '')
   .split(/[^a-z0-9+]+/)
   .filter((token) => token && !SIMULCAST_NOISE.has(token))
 
-const simulcastPairsOf = (channels) => {
+export const simulcastPairsOf = (channels) => {
   const groups = new Map()
   for (const channel of channels) {
     const key = simulcastBaseKey(channel.name)

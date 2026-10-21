@@ -10,6 +10,7 @@ import {
   recordingStateTextOf,
   scheduledByProgramIdOf,
   seriesLinkSetOf,
+  twinCoverOf,
 } from '/programme-state.js'
 import { showKeyOf } from '/show-key.js'
 import { programmeOpenedOf } from '/for-you.js'
@@ -61,13 +62,22 @@ export const seriesTags = computed(() => epgState.value?.seriesTags || [])
 
 export const watchedKeys = computed(() => watchedKeysOf(watchItems.value))
 
-export const cellState = (programme) => programmeStateOf({
+export const ownCellState = (programme) => programmeStateOf({
   programme,
   scheduledByProgramId: scheduledByProgramId.value,
   activeRecordingSet: activeRecordingSet.value,
   seriesLinks: seriesLinkSet.value,
   repeatByProgramId: repeatByProgramId.value,
 })
+
+export const twinCover = (programme) => (ownCellState(programme) ? null : twinCoverOf({
+  programme,
+  scheduledByProgramId: scheduledByProgramId.value,
+  activeRecordingSet: activeRecordingSet.value,
+  seriesLinks: seriesLinkSet.value,
+}))
+
+export const cellState = (programme) => ownCellState(programme) || twinCover(programme)?.state || ''
 
 export const isSeriesScheduled = (programme) => isSeriesScheduledOf({
   programme,
@@ -77,12 +87,16 @@ export const isSeriesScheduled = (programme) => isSeriesScheduledOf({
 
 export const isWatched = (programme) => watchedKeys.value.has(showKeyOf(programme.title))
 
-export const recordingStateText = (programme) => recordingStateTextOf({
-  state: cellState(programme),
-  seriesScheduled: isSeriesScheduled(programme),
-  past: programme.past,
-  watched: isWatched(programme),
-})
+export const recordingStateText = (programme) => {
+  const cover = twinCover(programme)
+  const text = recordingStateTextOf({
+    state: cellState(programme),
+    seriesScheduled: isSeriesScheduled(cover?.twin || programme),
+    past: programme.past,
+    watched: isWatched(programme),
+  })
+  return cover?.twin.channel_name ? `${text} on ${cover.twin.channel_name}` : text
+}
 
 export const programmeSheetFor = async ({ channelId, startMs }) => {
   const key = `${channelId}|${startMs}`

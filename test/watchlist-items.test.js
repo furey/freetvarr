@@ -137,3 +137,13 @@ test('watchlistItemOf: carries the padding', () => {
   assert.equal(item.leadTime, 5)
   assert.equal(item.lagTime, 15)
 })
+
+test('guideMatchesFor: keepAiring drops airings the caller does not list, such as an SD twin', () => {
+  const all = guideMatchesFor({ titleKey: 'the-rookie', channels, programsByChannel, nowMs: NOW })
+  const [first] = all
+  const kept = guideMatchesFor({
+    titleKey: 'the-rookie', channels, programsByChannel, nowMs: NOW,
+    keepAiring: (programme) => programme.program_id === first.program_id,
+  })
+  assert.deepEqual(kept.map((match) => match.program_id), [first.program_id])
+})

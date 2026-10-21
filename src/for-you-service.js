@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { Worker } from 'node:worker_threads'
 
 import { db, getSetting, setSetting } from './db.js'
-import { getGuideSnapshot, getRecordingState, onGuideLoaded } from './epg.js'
+import { getChannelPrefs, getGuideSnapshot, getRecordingState, onGuideLoaded } from './epg.js'
 import { buildForYouFromRequest } from './for-you-worker.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { pickableShowsOf } from './for-you-pickable.js'
@@ -27,7 +27,7 @@ import { flushUserEvents } from './user-events-log.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 3
+export const SCORING_VERSION = 4
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -109,7 +109,8 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
 
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
-export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, otherLanguageFilms = 'few' }) => {
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, otherLanguageFilms = 'few', channelPrefs = null }) => {
+  const autorecs = (state?.seriesTags || []).map(({ seriesLinkId, channelId, enabled, match }) => ({ seriesLinkId, channelId, enabled, match }))
   const ruleKeys = new Set([
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
     ...watchlist.filter((row) => row.mode === 'record').map((row) => showKeyOf(row.title)),
@@ -122,10 +123,14 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
   return {
     ruleKeys,
     scheduledProgramIds,
+    autorecs,
+    channelPrefs,
     stamps: {
       guide: guideVersionOf(guide),
       scheduled: hashOf([...scheduledProgramIds].sort().join(',')),
       rules: hashOf([...ruleKeys].sort().join(',')),
+      autorecs: hashOf(JSON.stringify(autorecs)),
+      channels: hashOf(JSON.stringify(channelPrefs)),
       lastEventId: Number(events?.lastId) || 0,
       events: Number(events?.count) || 0,
       recordings: recordingStampOf(recordings),
@@ -253,7 +258,7 @@ const upkeepNow = async ({ nowMs }) => {
 }
 
 const loadSnapshot = async () => {
-  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, otherLanguageFilms] = await Promise.all([
+  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, otherLanguageFilms, channelPrefs] = await Promise.all([
     getGuideSnapshot(),
     getRecordingState().catch(() => null),
     db('watchlist').select('title', 'mode'),
@@ -265,6 +270,7 @@ const loadSnapshot = async () => {
     pinnedChannelIds(),
     filmRatingRows().first(db.raw('count(*) as count'), db.raw('max(expires_at) as latest')).catch(() => null),
     currentOtherLanguageFilms(),
+    getChannelPrefs().catch(() => null),
   ])
   const vectors = vectorsVersion()
   return {
@@ -274,7 +280,7 @@ const loadSnapshot = async () => {
     tier: tier.tier,
     vectors,
     otherLanguageFilms,
-    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, otherLanguageFilms }),
+    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, otherLanguageFilms, channelPrefs }),
   }
 }
 
@@ -302,6 +308,8 @@ const computeForYou = async ({ snapshot, nowMs }) => {
       recordings,
       scheduledProgramIds: snapshot.scheduledProgramIds,
       ruleKeys: snapshot.ruleKeys,
+      autorecs: snapshot.autorecs,
+      channelPrefs: snapshot.channelPrefs,
       genresByKey,
       pinnedChannelIds: snapshot.pinned,
       tier: snapshot.tier,

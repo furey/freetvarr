@@ -1,5 +1,6 @@
 import { db } from './db.js'
-import { getGuideSnapshot, getChannelPrefs, orderChannels, recordSeries } from './epg.js'
+import { getGuideSnapshot, getChannelPrefs, guideIdentityFor, orderChannels, recordSeries } from './epg.js'
+import { isPreferredAiring } from './airing-identity.js'
 import {
   guideMatchesFor,
   inGuideCountOf,
@@ -143,18 +144,21 @@ const visibleGuide = async () => {
   try {
     const [guide, prefs] = await Promise.all([getGuideSnapshot(), getChannelPrefs()])
     const channels = orderChannels({ channels: guide.channels, ...prefs }).filter((channel) => !channel.hidden)
-    return { channels, programsByChannel: guide.programsByChannel }
+    return { channels, programsByChannel: guide.programsByChannel, identity: guideIdentityFor({ guide, prefs }) }
   } catch {
     return null
   }
 }
 
-const matchesFor = ({ row, guide }) => (guide
-  ? guideMatchesFor({
+const matchesFor = ({ row, guide }) => {
+  if (!guide) return []
+  const nowMs = Date.now()
+  return guideMatchesFor({
     titleKey: row.title_key,
     channelId: row.channel_id,
     channels: guide.channels,
     programsByChannel: guide.programsByChannel,
-    nowMs: Date.now(),
+    nowMs,
+    keepAiring: row.channel_id ? null : (programme) => isPreferredAiring({ identity: guide.identity, programme, nowMs }),
   })
-  : [])
+}
