@@ -75,8 +75,7 @@ export const SyncsView = {
           <template v-if="starting || syncStatus.activeSyncId"><span class="spinner" aria-hidden="true"></span> Syncing…</template>
           <template v-else><refresh-icon /> Sync now</template>
         </button>
-        <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
-        <button type="button" class="btn btn-danger settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
+        <button type="button" class="ui-button ui-button-destructive settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
       </div>
       <p class="settings-meta-line">
         <template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template>
@@ -115,11 +114,11 @@ export const SyncsView = {
         <div v-else-if="syncs.length" class="ui-group settings-table-card">
           <table class="deck-table sync-table hidden md:table">
             <thead><tr>
-              <th class="sync-status-cell"><span class="sr-only">Status</span></th><th>Time</th><th>Result</th><th>Details</th><th>Took</th><th class="sync-chevron-cell"><span class="sr-only">Open</span></th>
+              <th class="sync-status-cell"><span class="sr-only">Status</span></th><th>Time</th><th>Result</th><th>Details</th><th>Took</th>
             </tr></thead>
             <tbody>
               <template v-for="group in dayGroups" :key="group.day">
-                <tr class="sync-day-row"><th colspan="6" scope="colgroup">{{ group.day }}</th></tr>
+                <tr class="sync-day-row"><th colspan="5" scope="colgroup">{{ group.day }}</th></tr>
                 <template v-for="s in group.syncs" :key="s.id">
                   <tr :class="['sync-row', { active: s.id === syncStatus.activeSyncId, open: isOpen(s), linked: highlightId === s.id }]" :data-sync-id="s.id"
                     tabindex="0" :aria-expanded="String(isOpen(s))" :aria-label="'Sync #' + s.id + ': show details'"
@@ -134,10 +133,9 @@ export const SyncsView = {
                       </span>
                     </td>
                     <td class="ui-tabular whitespace-nowrap text-ink-dim">{{ tookOf(s) }}</td>
-                    <td class="sync-chevron-cell"><disclosure-chevron class="sync-line-chevron" :open="isOpen(s)" /></td>
                   </tr>
                   <tr v-if="isOpen(s)" class="drawer-row">
-                    <td colspan="6"><sync-detail class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" /></td>
+                    <td colspan="5"><sync-detail class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" /></td>
                   </tr>
                 </template>
               </template>
@@ -155,7 +153,6 @@ export const SyncsView = {
                   <span class="sync-line-time truncate">{{ timeOf(s) }}</span>
                   <sync-result :sync="s" />
                   <span class="sync-line-took-text">{{ tookOf(s) }}</span>
-                  <disclosure-chevron class="sync-line-chevron" :open="isOpen(s)" />
                   <span v-if="firstSyncError(s)" class="sync-line-error truncate">{{ firstSyncError(s) }}</span>
                 </div>
                 <sync-detail v-if="isOpen(s)" class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" @click.stop />
@@ -172,8 +169,8 @@ export const SyncsView = {
       <div v-if="total > pageSize" class="settings-pager">
         <span class="settings-meta-line">Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
         <div class="settings-pager-buttons">
-          <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
-          <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
+          <button type="button" class="ui-button ui-button-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
+          <button type="button" class="ui-button ui-button-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
         </div>
       </div>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
@@ -287,15 +284,6 @@ export const SyncsView = {
       if (page.value > 1 && r.syncs.length === 0) page.value = 1
     }
 
-    const manualRefresh = async () => {
-      try {
-        await refresh()
-        flash({ msg: `Refreshed ${total.value} sync${total.value === 1 ? '' : 's'}.` })
-      } catch (err) {
-        flash({ msg: `Refresh failed: ${err.message}`, kind: 'error' })
-      }
-    }
-
     const syncNow = async () => {
       starting.value = true
       try {
@@ -345,13 +333,18 @@ export const SyncsView = {
     }
 
     let pollTimer = null
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
     onMounted(() => {
       refresh().then(focusLinkedSync)
       pollTimer = setInterval(refresh, SYNCS_POLL_MS)
+      document.addEventListener('visibilitychange', refreshWhenVisible)
     })
     watch(linkedSyncId, (id) => { if (id) focusLinkedSync() })
     onUnmounted(() => {
       if (pollTimer) clearInterval(pollTimer)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
     })
     watch([page, outcomes, trigger], refresh)
     const stopWatch = watch(() => syncStatus.value.activeSyncId, refresh)
@@ -363,7 +356,7 @@ export const SyncsView = {
       emptyText, hiddenEmptyCount, isOpen, toggleOpen, timeOf, tookOf, dayGroups, highlightId,
       firstSyncError, SYNC_DETAIL_ROLES,
       total, loaded, page, pageSize, totalPages, rangeLabel,
-      syncNow, refresh, manualRefresh, askRemoveSync, askClearAll,
+      syncNow, refresh, askRemoveSync, askClearAll,
       confirming, confirmBusy, closeConfirm, runConfirmed,
       fmtTime,
     }

@@ -112,7 +112,7 @@ export const DoctorView = {
                 aria-expanded="false" @click="workingExpanded = true">
                 <span class="health-check-mark"><span class="ui-dot is-ok" aria-hidden="true"></span></span>
                 <span class="ui-group-row-main"><span class="ui-group-row-title">{{ workingSummaryOf(group.checks) }}</span></span>
-                <chevron-glyph class="ui-group-row-chevron" />
+                <disclosure-chevron />
               </button>
               <div v-else v-for="c in group.checks" :key="c.id" :id="anchorFor(c)"
                 :class="['ui-group-row', 'health-check', 'is-' + rowState(c), rowState(c) === 'resolved' ? 'is-' + c.status : '']">

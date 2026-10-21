@@ -80,13 +80,13 @@ export const RecordingOptionsSheet = {
               <span class="ui-group-row-title" id="options-ads-label">Remove ads</span>
               <span v-if="adsNote" class="ui-group-row-meta">{{ adsNote }}</span>
             </span>
-            <button type="button" class="ui-switch" role="switch" :aria-checked="String(removeAds)" aria-labelledby="options-ads-label"
-              :disabled="busy || Boolean(adsNote)" @click="toggleAds"></button>
+            <toggle-switch :model-value="removeAds" aria-labelledby="options-ads-label"
+              :disabled="busy || Boolean(adsNote)" @update:model-value="toggleAds" />
           </div>
           <div class="ui-group-row">
             <span class="ui-group-row-main"><span class="ui-group-row-title" id="options-pause-label">Pause recording</span></span>
-            <button type="button" class="ui-switch" role="switch" :aria-checked="String(paused)" aria-labelledby="options-pause-label"
-              :disabled="busy" @click="togglePause"></button>
+            <toggle-switch :model-value="paused" aria-labelledby="options-pause-label"
+              :disabled="busy" @update:model-value="togglePause" />
           </div>
         </div>
 

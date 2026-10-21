@@ -27,14 +27,14 @@ export const ChannelsModal = {
         <header class="ui-sheet-header">
           <h2 id="channels-sheet-title" class="ui-sheet-title">Favourite order</h2>
         </header>
-        <p class="ui-meta channels-order-hint">Drag <sort-grip-icon class="icon-inline" /> to move a channel, or use <sort-dots-icon class="icon-inline" />.</p>
+        <p class="ui-meta channels-order-hint">Drag <sort-grip-icon class="icon-inline" /> to move a channel, or use <more-glyph class="icon-inline" />.</p>
         <transition-group ref="orderListRef" name="channels-order-rows" tag="div" class="ui-group channels-order-list">
           <div v-for="(id, i) in pinnedDraft" :key="id" :data-sort-id="id" class="ui-group-row channels-order-row">
             <span class="channels-order-number" aria-hidden="true">{{ positionOf(id) }}</span>
             <span class="channels-order-logo"><channel-logo :channel-id="id" :has-logo="hasLogoOf(id)" /></span>
             <span class="ui-group-row-main channels-row-name"><span class="channels-row-title">{{ draftName(id) }}</span></span>
             <button type="button" class="channels-order-more" data-sort-menu :aria-label="'Move ' + draftName(id)" aria-haspopup="menu"
-              :aria-expanded="String(menuFor === id)" @click="openMenu(id, $event)"><sort-dots-icon /></button>
+              :aria-expanded="String(menuFor === id)" @click="openMenu(id, $event)"><more-glyph /></button>
             <button type="button" class="sort-handle channels-order-handle" data-sort-handle aria-roledescription="sortable"
               :aria-label="'Reorder ' + draftName(id) + ', position ' + (i + 1) + ' of ' + pinnedDraft.length + '. Press Space to pick up.'"
               @pointerdown="sorter.onPointerDown(id, $event)" @keydown="sorter.onKeydown(id, $event)" @blur="sorter.onBlur(id)"><sort-grip-icon /></button>
@@ -91,10 +91,8 @@ export const ChannelsModal = {
             </section>
             <section class="channels-section" aria-labelledby="channels-sort-label">
               <h3 id="channels-sort-label" class="ui-label">Sort other channels by</h3>
-              <div class="ui-segmented is-fill" role="group" aria-labelledby="channels-sort-label">
-                <button v-for="s in CHANNEL_SORT_OPTIONS" :key="s.key" type="button" class="ui-segment"
-                  :aria-pressed="String(sortDraft === s.key)" @click="sortDraft = s.key">{{ s.label }}</button>
-              </div>
+              <ui-segmented fill v-model="sortDraft" aria-labelledby="channels-sort-label"
+                :options="CHANNEL_SORT_OPTIONS.map((s) => ({ value: s.key, label: s.label }))" />
             </section>
             <div class="ui-group">
               <div class="ui-group-row">
@@ -102,17 +100,16 @@ export const ChannelsModal = {
                   <span class="ui-group-row-title">Hide SD simulcasts</span>
                   <span class="ui-group-row-meta">Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. A favourite is never hidden.<template v-if="hideSdChannelsDraft"> Hide SD channels already hides these.</template></span>
                 </span>
-                <button type="button" class="ui-switch" aria-label="Hide SD simulcasts"
-                  :aria-pressed="String(hideSdChannelsDraft || hideSdDraft)" :disabled="hideSdChannelsDraft"
-                  @click="hideSdDraft = !hideSdDraft"></button>
+                <toggle-switch aria-label="Hide SD simulcasts"
+                  :model-value="hideSdChannelsDraft || hideSdDraft" :disabled="hideSdChannelsDraft"
+                  @update:model-value="hideSdDraft = !hideSdDraft" />
               </div>
               <div class="ui-group-row">
                 <span class="ui-group-row-main">
                   <span class="ui-group-row-title">Hide SD channels</span>
                   <span class="ui-group-row-meta">Shows only HD channels. SD-only channels (for example 7flix) are hidden too. Applies to the TV guide, search, and Live TV; a favourite is never hidden.</span>
                 </span>
-                <button type="button" class="ui-switch" aria-label="Hide SD channels"
-                  :aria-pressed="String(hideSdChannelsDraft)" @click="hideSdChannelsDraft = !hideSdChannelsDraft"></button>
+                <toggle-switch aria-label="Hide SD channels" v-model="hideSdChannelsDraft" />
               </div>
             </div>
             <p class="ui-meta">
@@ -148,11 +145,11 @@ export const ChannelsModal = {
                     <button type="button" class="ui-icon-button is-plain" @click="startGuideEdit(ch)"
                       :title="'Change guide source for ' + ch.name" :aria-label="'Change guide source for ' + ch.name"><pencil-icon /></button>
                   </template>
-                  <button type="button" class="ui-switch"
-                    :aria-pressed="String(!hiddenDraft.has(String(ch.id)))"
+                  <toggle-switch
+                    :model-value="!hiddenDraft.has(String(ch.id))"
                     :disabled="pinnedDraft.includes(String(ch.id))"
                     :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null"
-                    :aria-label="'Show ' + ch.name" @click="toggleHidden(ch)"></button>
+                    :aria-label="'Show ' + ch.name" @update:model-value="toggleHidden(ch)" />
                 </div>
                 <div v-if="editingId === String(ch.id)" class="channels-row-edit">
                   <guide-combobox class="channels-row-combobox" v-model="editValue" :options="guideLinks.options"

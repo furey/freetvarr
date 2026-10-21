@@ -108,12 +108,12 @@
   color: var(--color-text-2);
 }
 
-.settings-content a:not(.btn):not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link) {
+.settings-content a:not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link) {
   color: var(--color-primary);
   text-decoration: none;
 }
 
-.settings-content a:not(.btn):not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link):hover {
+.settings-content a:not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link):hover {
   color: var(--color-primary-hi);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -252,6 +252,10 @@
   font-size: 15px;
   line-height: 22px;
   color: var(--color-text-2);
+}
+
+.settings-section > .settings-intro:first-child {
+  margin-top: -22px;
 }
 
 .settings-group {
@@ -541,7 +545,7 @@ a.settings-row-link:hover {
   padding-bottom: 12px;
 }
 
-.settings-no-match-card .btn {
+.settings-no-match-card .ui-button {
   margin-left: 16px;
 }
 

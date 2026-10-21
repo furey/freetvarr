@@ -5,9 +5,15 @@ export const RecordingsTabs = {
     fill: Boolean,
   },
   template: `
-    <nav :class="['ui-segmented', { 'is-fill': fill }]" aria-label="Recordings">
-      <a href="#/recordings" class="ui-segment" :aria-current="current === 'library' ? 'page' : null">Library</a>
-      <a href="#/recordings/scheduled" class="ui-segment" :aria-current="current === 'scheduled' ? 'page' : null">Scheduled<template v-if="scheduledCount != null"> · {{ scheduledCount }}</template></a>
-    </nav>
+    <ui-segmented tabs :fill="fill" :model-value="current" :options="tabs" aria-label="Recordings" />
   `,
+  computed: {
+    tabs() {
+      const count = this.scheduledCount == null ? '' : ` · ${this.scheduledCount}`
+      return [
+        { value: 'library', label: 'Library', href: '#/recordings' },
+        { value: 'scheduled', label: `Scheduled${count}`, href: '#/recordings/scheduled' },
+      ]
+    },
+  },
 }

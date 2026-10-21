@@ -54,10 +54,10 @@ export const FolderEditor = {
         <span class="settings-row-title">Remove from TVHeadend after import</span>
       </toggle-switch>
       <div class="card-actions">
-        <button type="submit" :class="['btn', 'btn-primary', { 'is-pending': saving && !confirming }]" :disabled="saving" :aria-busy="saving && !confirming">
+        <button type="submit" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving && !confirming }]" :disabled="saving" :aria-busy="saving && !confirming">
           <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save</template>
         </button>
-        <button type="button" class="btn btn-danger" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
+        <button type="button" class="ui-button ui-button-destructive" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
       <ui-sheet :open="confirming" :title="removeTitle" @close="confirming = false">
@@ -153,7 +153,7 @@ export const FolderSyncButton = {
   },
   emits: ['sync'],
   template: `
-    <button type="button" class="btn btn-sm" @click.stop="$emit('sync')" @keydown.stop
+    <button type="button" class="ui-button ui-button-sm" @click.stop="$emit('sync')" @keydown.stop
       :disabled="!folder.enabled || syncing" :title="syncTitle">
       <template v-if="syncing">Starting…</template><template v-else><play-icon /> Sync</template>
     </button>

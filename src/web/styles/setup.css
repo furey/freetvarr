@@ -564,9 +564,7 @@
 .setup-drawer {
   display: grid;
   gap: 16px;
-  padding: 16px;
-  border-top: 1px solid var(--color-hairline-soft);
-  background: var(--color-surface-2);
+  margin: 0 16px 16px;
   --field-fill: var(--color-well);
 }
 

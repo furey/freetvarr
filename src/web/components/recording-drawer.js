@@ -41,24 +41,24 @@ export const RecordingDrawer = {
       </dl>
       <error-diagnosis v-if="recording.error" :error="recording.error" />
       <div v-if="hasActions" class="card-actions">
-        <button v-if="recording.playable" type="button" class="btn btn-sm btn-watch" @click="ctx.playRecording(recording)" :title="ctx.playTitle(recording)">
+        <button v-if="recording.playable" type="button" class="ui-button ui-button-sm ui-button-watch" @click="ctx.playRecording(recording)" :title="ctx.playTitle(recording)">
           <play-icon /> Play
         </button>
-        <button v-if="ctx.canImport(recording)" type="button" class="btn btn-sm"
+        <button v-if="ctx.canImport(recording)" type="button" class="ui-button ui-button-sm"
           @click="ctx.importRecording(recording)" :disabled="ctx.importingId === recording.recording_id"
           title="Add this recording to the library at the next sync.">
           {{ ctx.importingId === recording.recording_id ? 'Importing…' : ctx.importLabel(recording) }}
         </button>
-        <button v-if="ctx.canAdScan(recording)" type="button" class="btn btn-sm"
+        <button v-if="ctx.canAdScan(recording)" type="button" class="ui-button ui-button-sm"
           @click="ctx.askAdScan(recording)" :disabled="ctx.adScanningId === recording.recording_id || ctx.isAdScanBlocked(recording)"
           :title="ctx.adScanTitle(recording)">
           <ad-scan-icon /> Scan for ads
         </button>
-        <button v-if="ctx.canDelete(recording)" type="button" class="btn btn-sm btn-danger"
+        <button v-if="ctx.canDelete(recording)" type="button" class="ui-button ui-button-sm ui-button-destructive"
           @click="ctx.askRemoveFromTvh(recording)" :disabled="ctx.deletingId === recording.recording_id">
           <trash-icon /> Remove from TVHeadend
         </button>
-        <button v-else-if="ctx.canRemove(recording)" type="button" class="btn btn-sm btn-danger"
+        <button v-else-if="ctx.canRemove(recording)" type="button" class="ui-button ui-button-sm ui-button-destructive"
           @click="ctx.askClearRow(recording)" :disabled="ctx.removingId === recording.recording_id" :title="ctx.removeTitle(recording)">
           <cross-icon /> Clear from list
         </button>

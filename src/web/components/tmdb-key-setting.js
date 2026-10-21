@@ -12,7 +12,7 @@ export const TmdbKeySetting = {
             <div class="field-action-controls">
               <input v-no-autofill id="settings-tmdb-key" type="password" :class="['field-input', { 'is-invalid': statusText && statusKind === 'err' }]" v-model="typedKey"
                 :placeholder="keySet ? '••••• (stored)' : 'Paste an API key or read access token'" autocomplete="off" spellcheck="false" />
-              <button type="button" :class="['btn', { 'is-pending': busy === 'test' }]" :disabled="busy || (!typedKey && !keySet)" @click="testKey">
+              <button type="button" :class="['ui-button', { 'is-pending': busy === 'test' }]" :disabled="busy || (!typedKey && !keySet)" @click="testKey">
                 <template v-if="busy === 'test'"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test key</template>
               </button>
             </div>
@@ -24,10 +24,10 @@ export const TmdbKeySetting = {
             Paste either the API key or the API read access token; both work. The key stays on this server.
           </p>
           <div class="field-action-more">
-            <button type="button" :class="['btn', { 'is-pending': busy === 'save' }]" :disabled="busy || !typedKey" @click="saveKey">
+            <button type="button" :class="['ui-button', { 'is-pending': busy === 'save' }]" :disabled="busy || !typedKey" @click="saveKey">
               <template v-if="busy === 'save'"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else>Save key</template>
             </button>
-            <button v-if="keySet" type="button" :class="['btn', { 'is-pending': busy === 'remove' }]" :disabled="busy" @click="removeKey">
+            <button v-if="keySet" type="button" :class="['ui-button', { 'is-pending': busy === 'remove' }]" :disabled="busy" @click="removeKey">
               <template v-if="busy === 'remove'"><span class="spinner" aria-hidden="true"></span> Removing…</template><template v-else>Remove key</template>
             </button>
           </div>

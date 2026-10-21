@@ -136,14 +136,9 @@ export const EpgView = {
         </div>
         <div class="guide-toolbar">
           <span class="guide-toolbar-spacer"></span>
-          <button type="button" role="switch" class="guide-images-toggle" :aria-checked="String(showImages)" @click="toggleImages">
-            Images<span class="guide-switch" aria-hidden="true"></span>
-          </button>
-          <div class="ui-segmented is-compact guide-zoom" role="group" aria-label="Zoom">
-            <span class="ui-segmented-label" aria-hidden="true">Zoom</span>
-            <button v-for="level in zoomLevels" :key="level.key" type="button" class="ui-segment"
-              :aria-pressed="String(zoom === level.key)" :aria-label="level.label + ' zoom'" @click="setZoom(level.key)">{{ level.key.toUpperCase() }}</button>
-          </div>
+          <toggle-switch compact :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>
+          <ui-segmented compact class="guide-zoom" label="Zoom" aria-label="Zoom" :model-value="zoom" @update:model-value="setZoom"
+            :options="zoomLevels.map((level) => ({ value: level.key, label: level.key.toUpperCase(), ariaLabel: level.label + ' zoom' }))" />
           <div v-if="!narrow" class="ui-segmented is-compact guide-zoom-steps" role="group" aria-label="Zoom">
             <span class="ui-segmented-label" aria-hidden="true">Zoom</span>
             <button type="button" class="ui-segment" aria-label="Zoom out" :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>

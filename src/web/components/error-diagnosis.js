@@ -14,8 +14,8 @@ export const ErrorDiagnosis = {
         <li v-for="(step, i) in diagnosis.steps" :key="i">{{ step }}</li>
       </ul>
       <div class="card-actions">
-        <a href="#/settings/system/health" class="btn btn-sm">Open Health</a>
-        <a :href="docUrl" target="_blank" rel="noopener noreferrer" class="btn btn-sm">Read the docs <external-link-icon /></a>
+        <a href="#/settings/system/health" class="ui-button ui-button-sm">Open Health</a>
+        <a :href="docUrl" target="_blank" rel="noopener noreferrer" class="ui-button ui-button-sm">Read the docs <external-link-icon /></a>
       </div>
     </div>
   `,

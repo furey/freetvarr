@@ -34,7 +34,7 @@ export const WatchForSheet = {
               <span class="ui-group-row-title">Record when it appears</span>
               <span class="ui-group-row-meta">Sets an any-channel series recording the first time it is in the guide</span>
             </span>
-            <button type="button" class="ui-switch" :aria-pressed="String(recordWhenSeen)" aria-label="Record when it appears" @click="recordWhenSeen = !recordWhenSeen"></button>
+            <toggle-switch v-model="recordWhenSeen" aria-label="Record when it appears" />
           </div>
           <padding-rows v-if="recordWhenSeen" v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="watch-for" />
         </div>

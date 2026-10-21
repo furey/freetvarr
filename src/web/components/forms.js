@@ -16,14 +16,14 @@ export const noAutofill = {
 }
 
 export const ToggleSwitch = {
-  props: { modelValue: Boolean, label: { type: String, default: '' }, pending: Boolean },
+  props: { modelValue: Boolean, label: { type: String, default: '' }, pending: Boolean, compact: Boolean },
   emits: ['update:modelValue'],
   template: `
-    <button type="button" role="switch" :class="['toggle', { on: modelValue && !pending, 'is-pending': pending, 'is-instant': settling }]"
+    <button type="button" role="switch" :class="['toggle', { on: modelValue && !pending, 'is-pending': pending, 'is-instant': settling, 'is-compact': compact }]"
       :aria-checked="String(modelValue)" :aria-busy="pending ? 'true' : null" :disabled="pending || null"
       @click="$emit('update:modelValue', !modelValue)">
       <span class="toggle-track" aria-hidden="true"><span class="toggle-knob"></span></span>
-      <span class="toggle-label"><slot>{{ label }}</slot></span>
+      <span v-if="label || $slots.default" class="toggle-label"><slot>{{ label }}</slot></span>
     </button>
   `,
   setup(props) {

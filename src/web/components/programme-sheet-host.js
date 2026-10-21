@@ -89,10 +89,8 @@ export const ProgrammeSheetHost = {
             </div>
           </div>
           <template v-if="sheetStrengths.length">
-            <div v-if="sheetStrengths.length > 1" class="ui-segmented is-fill programme-sheet-strengths" role="tablist" aria-label="What to record">
-              <button v-for="s in sheetStrengths" :key="s.key" type="button" role="tab" class="ui-segment"
-                :aria-selected="String(sheetStrength === s.key)" @click="sheetStrength = s.key">{{ s.label }}</button>
-            </div>
+            <ui-segmented v-if="sheetStrengths.length > 1" fill class="programme-sheet-strengths" aria-label="What to record"
+              v-model="sheetStrength" :options="sheetStrengths.map((s) => ({ value: s.key, label: s.label }))" />
             <p v-if="showStrengthLine" class="programme-sheet-line">{{ strengthLine }}</p>
             <div v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="ui-group programme-sheet-options">
               <padding-rows v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme" />
@@ -109,7 +107,7 @@ export const ProgrammeSheetHost = {
                   <span class="ui-group-row-title">Any channel</span>
                   <span class="ui-group-row-meta">Follow the show if it moves to another channel</span>
                 </span>
-                <button type="button" class="ui-switch" :aria-pressed="String(anyChannel)" aria-label="Record on any channel" :title="ANY_CHANNEL_HINT" @click="anyChannel = !anyChannel"></button>
+                <toggle-switch v-model="anyChannel" aria-label="Record on any channel" :title="ANY_CHANNEL_HINT" />
               </div>
             </div>
             <details v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="programme-sheet-advanced">
@@ -120,7 +118,7 @@ export const ProgrammeSheetHost = {
                     <span class="ui-group-row-title">Add to library</span>
                     <span class="ui-group-row-meta">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/settings/system/series">Series rules</a>.</template></span>
                   </span>
-                  <button type="button" class="ui-switch" :aria-pressed="String(addToLibrary)" aria-label="Add to library" @click="addToLibrary = !addToLibrary"></button>
+                  <toggle-switch v-model="addToLibrary" aria-label="Add to library" />
                 </div>
               </div>
             </details>

@@ -44,15 +44,18 @@ test('the shared chevron points right when closed and turns down when open', asy
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.ui-disclosure-chevron[\s\S]*?transition: none/)
 })
 
-test('button expanders show the shared chevron', async () => {
-  const setup = await read('views/setup-settings-view.js')
-  const scheduled = await read('views/scheduled-view.js')
-  const syncs = await read('views/syncs-view.js')
+test('in-place expanders show the shared chevron', async () => {
+  const doctor = await read('views/doctor-view.js')
   const welcome = await read('views/welcome-view.js')
-  assert.match(setup, /<disclosure-chevron :open="open === row\.key"/)
-  assert.match(scheduled, /<disclosure-chevron :open="openKey === row\.key"/)
-  assert.equal(syncs.match(/<disclosure-chevron/g).length, 2)
+  assert.match(doctor, /health-working-toggle[\s\S]*?<disclosure-chevron \/>/)
   assert.equal(welcome.match(/setup-quiet-link ui-disclosure-trigger/g).length, 2)
+})
+
+test('list rows that open a drawer show no chevron', async () => {
+  for (const view of ['setup-settings-view', 'scheduled-view', 'syncs-view']) {
+    const source = await read(`views/${view}.js`)
+    assert.doesNotMatch(source, /<disclosure-chevron|<chevron-glyph/, view)
+  }
 })
 
 test('the Settings nav keeps room above the save bar', async () => {

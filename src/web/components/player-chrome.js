@@ -145,7 +145,7 @@ export const PlayerTopBar = {
           :title="sound.title" aria-keyshortcuts="m" @click="$emit('toggle-mute')">
           <speaker-muted-icon v-if="sound.muted" /><speaker-icon v-else />
         </button>
-        <button type="button" class="pl-round pl-more" aria-label="More" title="More" aria-haspopup="dialog" @click="menuOpen = true"><more-dots-icon /></button>
+        <button type="button" class="pl-round pl-more" aria-label="More" title="More" aria-haspopup="dialog" @click="menuOpen = true"><more-glyph /></button>
       </div>
       <ui-sheet :open="menuOpen" title="More" @close="menuOpen = false">
         <div class="ui-group">

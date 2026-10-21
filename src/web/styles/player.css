@@ -1610,7 +1610,7 @@ body.player-mini-open .app-content {
   min-width: 56px;
 }
 
-.live-streams-choices .ui-segment.is-over-estimate:not([aria-pressed="true"]) {
+.live-streams-choices .ui-segment.is-over-estimate:not([aria-checked="true"]) {
   opacity: 0.45;
 }
 
@@ -1707,12 +1707,12 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
     background: var(--color-surface-2);
   }
 
-  .mv-layouts .ui-segment:not([aria-pressed="true"]):hover {
+  .mv-layouts .ui-segment:not([aria-checked="true"]):hover {
     background: rgba(255, 255, 255, 0.06);
     color: var(--color-text-1);
   }
 
-  .mv-layouts .ui-segment[aria-pressed="true"]:hover {
+  .mv-layouts .ui-segment[aria-checked="true"]:hover {
     background: var(--color-primary-hi);
   }
 }

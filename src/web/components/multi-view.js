@@ -98,14 +98,15 @@ export const MultiViewLayer = {
       <header class="mv-top">
         <button type="button" class="pl-round" :aria-label="closeLabel" @click="$emit('close')"><arrow-left-icon /></button>
         <h2 class="mv-title">{{ title }}</h2>
-        <div v-if="!portraitPhone || count > 2" class="ui-segmented mv-layouts" role="group" aria-label="Layout">
-          <button type="button" class="ui-segment" :aria-label="splitLabel" :aria-pressed="String(multi.view.layout === 'split')" @click="setMultiLayout('split')">
-            <grid-layout-icon v-if="count > 2" /><split-layout-icon v-else /><span class="mv-segment-label">{{ splitLabel }}</span>
-          </button>
-          <button type="button" class="ui-segment" aria-label="Big and small" :aria-pressed="String(multi.view.layout === 'inset')" @click="setMultiLayout('inset')">
-            <strip-layout-icon v-if="count > 2" /><inset-layout-icon v-else /><span class="mv-segment-label">Big and small</span>
-          </button>
-        </div>
+        <ui-segmented v-if="!portraitPhone || count > 2" class="mv-layouts" aria-label="Layout"
+          :model-value="multi.view.layout" @update:model-value="setMultiLayout"
+          :options="[{ value: 'split', label: splitLabel, ariaLabel: splitLabel }, { value: 'inset', label: 'Big and small', ariaLabel: 'Big and small' }]">
+          <template #default="{ option }">
+            <template v-if="option.value === 'split'"><grid-layout-icon v-if="count > 2" /><split-layout-icon v-else /></template>
+            <template v-else><strip-layout-icon v-if="count > 2" /><inset-layout-icon v-else /></template>
+            <span class="mv-segment-label">{{ option.label }}</span>
+          </template>
+        </ui-segmented>
         <button v-if="isResized" type="button" class="mv-reset" aria-label="Reset size" @click="resetSize">
           <refresh-icon /><span class="mv-segment-label">Reset size</span>
         </button>
@@ -142,14 +143,14 @@ export const MultiViewLayer = {
               :aria-label="picture.sound.ariaLabel" @click="tapPictureSound(picture.id)">
               <speaker-icon v-if="picture.sound.audible" /><speaker-muted-icon v-else /><span class="mv-sound-label">{{ picture.sound.label }}</span>
             </button>
-            <button type="button" class="mv-more" :aria-label="'More for ' + picture.name" @click="menuFor = picture.id"><more-dots-icon /></button>
+            <button type="button" class="mv-more" :aria-label="'More for ' + picture.name" @click="menuFor = picture.id"><more-glyph /></button>
           </span>
         </div>
         <div v-if="picture.status" class="mv-picture-status" role="status">
           <p class="mv-picture-status-text">{{ picture.status }}</p>
           <div v-if="picture.endedActions.length" class="mv-ended-actions">
             <button v-for="action in picture.endedActions" :key="action.key" type="button"
-              :class="['btn', 'btn-sm', { 'btn-primary': action.key === 'change' }]" @click="chooseFor(picture.id, action.key)">{{ action.label }}</button>
+              :class="['ui-button', 'ui-button-sm', { 'ui-button-primary': action.key === 'change' }]" @click="chooseFor(picture.id, action.key)">{{ action.label }}</button>
           </div>
         </div>
         <template v-if="picture.playing">

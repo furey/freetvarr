@@ -5,10 +5,8 @@ export const ControlsHideSetting = {
   template: `
     <div class="settings-row">
       <span id="controls-hide-label" class="field-label">Hide player controls after</span>
-      <div class="ui-segmented controls-hide-choices" role="group" aria-labelledby="controls-hide-label">
-        <button v-for="seconds in choices" :key="seconds" type="button" class="ui-segment"
-          :aria-pressed="String(current === seconds)" @click="choose(seconds)">{{ seconds }} s</button>
-      </div>
+      <ui-segmented class="controls-hide-choices" aria-labelledby="controls-hide-label" :model-value="current"
+        :options="choices.map((seconds) => ({ value: seconds, label: seconds + ' s' }))" @update:model-value="choose" />
       <p class="settings-hint">Saved on this device.</p>
     </div>
   `,

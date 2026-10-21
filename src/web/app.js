@@ -81,6 +81,7 @@ import { ProgrammeSheetHost } from '/components/programme-sheet-host.js'
 import { ProgressBlock } from '/components/progress-block.js'
 import { RecordingPlayer } from '/components/recording-player.js'
 import { RecordingsTabs } from '/components/recordings-tabs.js'
+import { UiSegmented } from '/components/ui-segmented.js'
 import { SearchOverlay } from '/components/search-overlay.js'
 import { StaleBuildBanner } from '/components/stale-build-banner.js'
 import { TitleArt } from '/components/title-art.js'
@@ -263,6 +264,7 @@ app.component('recording-chip', RecordingChip)
 app.component('clock-label', ClockLabel)
 app.component('search-overlay', SearchOverlay)
 app.component('recordings-tabs', RecordingsTabs)
+app.component('ui-segmented', UiSegmented)
 app.component('title-art', TitleArt)
 app.component('classification-chip', ClassificationChip)
 app.component('ui-sheet', UiSheet)

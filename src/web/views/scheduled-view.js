@@ -66,9 +66,8 @@ const ScheduledWatching = {
             <span class="ui-meta scheduled-meta">{{ row.meta }}</span>
           </span>
           <span v-if="row.unseen" class="ui-count-badge" :aria-label="row.unseen + ' new airings'">{{ row.unseen }}</span>
-          <disclosure-chevron :open="openKey === row.key" />
         </button>
-        <div v-if="openKey === row.key" class="scheduled-watch-drawer">
+        <div v-if="openKey === row.key" class="drawer-card scheduled-watch-drawer">
           <p class="scheduled-watch-note">Freetvarr lists {{ row.title }} here whenever it is in the TV guide.</p>
           <button type="button" :class="['ui-button', 'ui-button-destructive', { 'is-pending': busyKey === row.key }]"
             :disabled="Boolean(busyKey)" @click="$emit('remove', row)">
@@ -175,12 +174,11 @@ export const ScheduledView = {
                     <span v-if="clashTextFor(row)" class="scheduled-clash">${WARNING_ICON}No free tuner {{ clashTextFor(row) }}</span>
                   </span>
                 </a>
-                <button type="button" class="ui-switch" role="switch"
-                  :aria-checked="row.state !== 'off' ? 'true' : 'false'"
+                <toggle-switch :model-value="row.state !== 'off'"
                   :aria-label="switchLabel(row)"
                   :title="row.state === 'expected' ? expectedHint : ''"
                   :disabled="row.state === 'expected' || busyIds.has(String(row.programId))"
-                  @click="toggle(row)"></button>
+                  @update:model-value="toggle(row)" />
               </div>
             </div>
           </section>
