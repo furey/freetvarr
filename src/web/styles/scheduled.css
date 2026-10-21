@@ -476,10 +476,7 @@ a.scheduled-row:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 16px 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius-card);
-  background: var(--color-surface-2);
+  margin: 0 16px 16px;
 }
 
 .scheduled-watch-note {

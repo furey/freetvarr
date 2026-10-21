@@ -2968,6 +2968,11 @@ table.recordings-table tbody td {
 .deck-table .drawer-row td { padding: 0 0 1rem; }
 .deck-table .drawer-row:last-child td { padding-bottom: 0; }
 .deck-table .drawer-row:hover { background: transparent; }
+.drawer-card {
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-2);
+}
 .deck-table .drawer-card {
   contain: inline-size;
   border: 1px solid rgba(38, 50, 62, 0.85);
@@ -3048,10 +3053,6 @@ table.recordings-table tbody td {
   .recording-drawer { animation: none; }
 }
 
-@media (hover: hover) {
-  a.sync-line:hover .sync-line-chevron { color: var(--color-primary); }
-}
-a.sync-line:focus-visible .sync-line-chevron { color: var(--color-primary); }
 
 .sync-status-icon { width: 1rem; height: 1rem; display: block; flex: none; }
 .sync-status-icon.ok { color: var(--color-success); }
@@ -3073,7 +3074,7 @@ a.sync-line:focus-visible .sync-line-chevron { color: var(--color-primary); }
 
 .sync-line {
   display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr) auto 1rem;
+  grid-template-columns: 1rem minmax(0, 1fr) auto;
   column-gap: 0.625rem;
   align-items: center;
   min-height: 2.75rem;
@@ -3084,10 +3085,10 @@ a.sync-line:focus-visible .sync-line-chevron { color: var(--color-primary); }
   line-height: 1rem;
   color: var(--color-text-1);
 }
-.sync-line-took { grid-template-columns: 1rem minmax(0, 1fr) auto 3.6rem 1rem; }
+.sync-line-took { grid-template-columns: 1rem minmax(0, 1fr) auto 3.6rem; }
 .sync-line > .sync-result { justify-self: end; }
 .sync-line-took-text { text-align: right; font-size: 0.68rem; color: var(--color-text-2); white-space: nowrap; }
-.sync-line-error { grid-column: 2 / -2; margin-top: 0.2rem; font-size: 0.68rem; color: var(--color-live-text); }
+.sync-line-error { grid-column: 2 / -1; margin-top: 0.2rem; font-size: 0.68rem; color: var(--color-live-text); }
 
 .list-row.sync-card { padding: 0; }
 .list-row.sync-card .drawer-card { margin: 0 0.75rem 0.85rem; }
@@ -3114,7 +3115,6 @@ a.sync-line:focus-visible .sync-line-chevron { color: var(--color-primary); }
   .sync-table tbody tr.sync-day-row:hover { background: transparent; }
 }
 .sync-table .sync-status-cell { width: 1rem; padding-right: 0; }
-.sync-table .sync-chevron-cell { width: 1rem; padding-left: 0; }
 .sync-table .sync-result { font-size: 0.8125rem; }
 .sync-details-line { display: flex; align-items: center; gap: 0.375rem; min-width: 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-2); }
 .sync-details-line code { padding: 0; border: 0; background: none; color: var(--color-text-2); }

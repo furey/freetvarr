@@ -115,11 +115,11 @@ export const SyncsView = {
         <div v-else-if="syncs.length" class="ui-group settings-table-card">
           <table class="deck-table sync-table hidden md:table">
             <thead><tr>
-              <th class="sync-status-cell"><span class="sr-only">Status</span></th><th>Time</th><th>Result</th><th>Details</th><th>Took</th><th class="sync-chevron-cell"><span class="sr-only">Open</span></th>
+              <th class="sync-status-cell"><span class="sr-only">Status</span></th><th>Time</th><th>Result</th><th>Details</th><th>Took</th>
             </tr></thead>
             <tbody>
               <template v-for="group in dayGroups" :key="group.day">
-                <tr class="sync-day-row"><th colspan="6" scope="colgroup">{{ group.day }}</th></tr>
+                <tr class="sync-day-row"><th colspan="5" scope="colgroup">{{ group.day }}</th></tr>
                 <template v-for="s in group.syncs" :key="s.id">
                   <tr :class="['sync-row', { active: s.id === syncStatus.activeSyncId, open: isOpen(s), linked: highlightId === s.id }]" :data-sync-id="s.id"
                     tabindex="0" :aria-expanded="String(isOpen(s))" :aria-label="'Sync #' + s.id + ': show details'"
@@ -134,10 +134,9 @@ export const SyncsView = {
                       </span>
                     </td>
                     <td class="ui-tabular whitespace-nowrap text-ink-dim">{{ tookOf(s) }}</td>
-                    <td class="sync-chevron-cell"><disclosure-chevron class="sync-line-chevron" :open="isOpen(s)" /></td>
                   </tr>
                   <tr v-if="isOpen(s)" class="drawer-row">
-                    <td colspan="6"><sync-detail class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" /></td>
+                    <td colspan="5"><sync-detail class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" /></td>
                   </tr>
                 </template>
               </template>
@@ -155,7 +154,6 @@ export const SyncsView = {
                   <span class="sync-line-time truncate">{{ timeOf(s) }}</span>
                   <sync-result :sync="s" />
                   <span class="sync-line-took-text">{{ tookOf(s) }}</span>
-                  <disclosure-chevron class="sync-line-chevron" :open="isOpen(s)" />
                   <span v-if="firstSyncError(s)" class="sync-line-error truncate">{{ firstSyncError(s) }}</span>
                 </div>
                 <sync-detail v-if="isOpen(s)" class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" @click.stop />
