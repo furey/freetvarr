@@ -12,10 +12,14 @@ import {
   sectionsOf,
 } from '/for-you.js'
 import { artFallbackStyle } from '/art-fallback.js'
-import { api } from '/shared/api.js'
+import { api, loadedBuild } from '/shared/api.js'
 import { forYouHidden, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { recordingChangeTick } from '/shared/recording-now.js'
 import { now } from '/shared/time.js'
+import { browserStorage } from '/shared/storage.js'
+import { viewStoreOf } from '/shared/view-store.js'
+import { readHomeCache } from '/home-cache.js'
+import { FOR_YOU_CACHE, withoutEndedForYouOf } from '/view-cache.js'
 
 const SKIP_KEY = 'freetvarr.forYouChooserSkippedAt'
 
@@ -106,10 +110,11 @@ export const ForYouView = {
     </div>
   `,
   setup() {
-    const payload = ref(null)
-    const upcoming = ref([])
-    const pickable = ref([])
-    const loaded = ref(false)
+    const cached = cachedForYou(Date.now())
+    const payload = ref(cached?.payload ?? null)
+    const upcoming = ref(cached?.upcoming ?? [])
+    const pickable = ref(cached?.pickable ?? [])
+    const loaded = ref(Boolean(cached))
     const missing = ref(false)
     const picked = ref(new Set())
     const picksSaved = ref(false)
@@ -142,10 +147,16 @@ export const ForYouView = {
           api('GET', '/api/epg/state').catch(() => ({ upcomingRecordings: [] })),
           api('GET', '/api/for-you/settings').catch(() => ({})),
         ])
-        payload.value = settings.enabled === false ? { ...data, enabled: false } : data
-        upcoming.value = state.upcomingRecordings ?? []
+        const fresh = {
+          payload: settings.enabled === false ? { ...data, enabled: false } : data,
+          upcoming: state.upcomingRecordings ?? [],
+          pickable: data?.coldStart ? pickableOf(await api('GET', '/api/for-you/pickable').catch(() => [])) : pickable.value,
+        }
+        payload.value = fresh.payload
+        upcoming.value = fresh.upcoming
+        pickable.value = fresh.pickable
         missing.value = false
-        if (data?.coldStart) pickable.value = pickableOf(await api('GET', '/api/for-you/pickable').catch(() => []))
+        forYouStore.keep(fresh)
       } catch {
         missing.value = true
       } finally {
@@ -202,6 +213,17 @@ export const ForYouView = {
       ctl, togglePick, skipChooser, savePicks, fallbackStyleOf, markFailed, suggestionsHref: SUGGESTIONS_HREF,
     }
   },
+}
+
+const forYouStore = viewStoreOf(FOR_YOU_CACHE)
+
+const cachedForYou = (nowMs) => forYouStore.cached(nowMs) ?? fromHomeCache(nowMs)
+
+const fromHomeCache = (nowMs) => {
+  const home = readHomeCache({ storage: browserStorage(), build: loadedBuild || 'dev', nowMs })
+  const payload = home?.forYouPayload
+  if (!payload || payload.coldStart || payload.enabled === false) return null
+  return { payload: withoutEndedForYouOf({ payload, nowMs }), upcoming: home.upcoming, pickable: [] }
 }
 
 const readSkippedAt = () => {

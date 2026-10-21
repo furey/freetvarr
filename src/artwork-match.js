@@ -1,6 +1,6 @@
 import { showTitleKey } from './show-artwork.js'
 
-export const programmeHintsOf = (programs = []) => {
+export const programmeHintsOf = (programs = [], { channelNameOf = () => null } = {}) => {
   const matching = programs.filter((program) => program?.title)
   if (!matching.length) return null
   const title = matching[0].title
@@ -17,6 +17,7 @@ export const programmeHintsOf = (programs = []) => {
     releaseYears: releaseYearsOf({ title, synopsis }),
     castNames: castNamesOf(synopsis),
     episodeTitles: [...new Set(matching.map((program) => episodeTitleKeyOf(program.episode_title)).filter(Boolean))],
+    channelNames: [...new Set(matching.map((program) => channelNameOf(program.channel_id)).filter(Boolean))],
     ...evidenceWordsOf({ synopsis, title }),
   }
 }
@@ -26,7 +27,8 @@ export const episodeTitleKeyOf = (value) => {
   return key.length >= MIN_EPISODE_TITLE_LENGTH && !GENERIC_EPISODE_TITLE.test(key) ? key : null
 }
 
-export const programmeHintsByTitle = (programs = []) => {
+export const programmeHintsByTitle = (programs = [], { channels = [] } = {}) => {
+  const channelNameOf = channelNamesById(channels)
   const grouped = new Map()
   for (const program of programs) {
     const key = showTitleKey(program?.title)
@@ -34,7 +36,36 @@ export const programmeHintsByTitle = (programs = []) => {
     if (!grouped.has(key)) grouped.set(key, [])
     if (grouped.get(key).length < MAX_PROGRAMMES_PER_TITLE) grouped.get(key).push(program)
   }
-  return new Map([...grouped].map(([key, group]) => [key, programmeHintsOf(group)]))
+  return new Map([...grouped].map(([key, group]) => [key, programmeHintsOf(group, { channelNameOf })]))
+}
+
+export const networkKeysOf = (name) => {
+  const words = String(name || '')
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/\+\s*\d+/g, ' ')
+    .replace(/(\d)\s*hd\b/g, '$1')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((word) => NUMBER_WORDS[word] ?? word)
+    .filter((word) => !NETWORK_FILLER_WORDS.has(word))
+  const full = words.join('')
+  const family = full.match(/^\d+/)?.[0] || full.match(/^[a-z]{2,}/)?.[0]
+  return new Set([full, family].filter(Boolean))
+}
+
+export const sharesNetwork = ({ networkNames = [], channelNames = [] }) => {
+  const channelKeys = new Set(channelNames.flatMap((name) => [...networkKeysOf(name)]))
+  return networkNames.some((name) => [...networkKeysOf(name)].some((key) => channelKeys.has(key)))
+}
+
+const channelNamesById = (channels) => {
+  const names = new Map()
+  for (const channel of channels) {
+    if (!channel?.name) continue
+    for (const id of [channel.epgId, channel.id]) if (id != null) names.set(String(id), channel.name)
+  }
+  return (id) => names.get(String(id)) || null
 }
 
 export const guideKindsByTitle = (programs = []) => {
@@ -311,6 +342,15 @@ const COMMON_PROPER_NOUNS = new Set([
   'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'january', 'february', 'march',
   'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'god', 'mr', 'mrs',
   'ms', 'dr', 'part', 'live', 'new', 'tv', 'abc', 'sbs', 'nine', 'seven', 'ten', 'bbc', 'europe', 'european',
+])
+
+const NUMBER_WORDS = {
+  one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10',
+}
+
+const NETWORK_FILLER_WORDS = new Set([
+  'hd', 'sd', 'the', 'network', 'channel', 'tv', 'television', 'australia', 'sydney', 'melbourne', 'brisbane',
+  'adelaide', 'perth', 'hobart', 'darwin', 'canberra', 'regional',
 ])
 
 const REGION_SUFFIX = /\s*(?:\((?:UK|US|USA|NZ|AU|Aus)\)|\b(?:UK|US|USA|NZ|Australia|New Zealand))$/

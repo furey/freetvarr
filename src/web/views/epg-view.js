@@ -58,6 +58,8 @@ import { recordingChangeTick } from '/shared/recording-now.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
 import { guideJump } from '/shared/store.js'
 import { tz, dateFormat, now, fmtClockTz } from '/shared/time.js'
+import { viewStoreOf } from '/shared/view-store.js'
+import { GUIDE_CACHE } from '/view-cache.js'
 
 const dayKey = (ms) => dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
 
@@ -82,6 +84,9 @@ const EPG_NO_CELLS = Object.freeze([])
 const EPG_STATE_POLL_MS = 60_000
 const LISTINGS_REFRESH_MS = 10_000
 const GUIDE_AUTO_REFRESH_MS = 5 * 60_000
+const GUIDE_REVISIT_REFRESH_MS = 60_000
+const guideStore = viewStoreOf(GUIDE_CACHE)
+let todayFetchedAt = 0
 const GUIDE_STALE_CHECK_MS = 30_000
 const LISTINGS_LOADING_TEXT = 'Loading the new listings. This can take a couple of minutes.'
 
@@ -306,8 +311,9 @@ export const EpgView = {
     const { flash } = useFlash()
     const { openProgramme } = useProgrammeSheet()
     const day = ref(0)
-    const guide = ref(null)
-    const guideByDay = new Map()
+    const cachedToday = guideStore.cached()
+    const guide = ref(cachedToday)
+    const guideByDay = new Map(cachedToday ? [[0, cachedToday]] : [])
     const loading = ref(false)
     const error = ref('')
     const errorCode = ref('')
@@ -703,7 +709,14 @@ export const EpgView = {
       document.documentElement.style.removeProperty('--guide-legend-h')
     })
 
-    let dayFreshAt = 0
+    let dayFreshAt = cachedToday ? todayFetchedAt : 0
+    const rememberDay = (d, g) => {
+      guideByDay.set(d, g)
+      if (d !== 0) return
+      guideStore.keep(g)
+      todayFetchedAt = Date.now()
+    }
+
     const loadDay = async (d, { force = false } = {}) => {
       error.value = ''
       errorCode.value = ''
@@ -718,7 +731,7 @@ export const EpgView = {
           errorCode.value = 'no-url'
           return
         }
-        guideByDay.set(d, g)
+        rememberDay(d, g)
         dayFreshAt = Date.now()
         if (day.value === d) guide.value = g
       } catch (err) {
@@ -843,18 +856,19 @@ export const EpgView = {
 
     const setZoom = (key) => changeZoom(EPG_ZOOM_LEVELS.findIndex((l) => l.key === key) - zoomIndex.value)
 
-    const refreshDayQuietly = async () => {
+    const refreshDayQuietly = async ({ withState = true } = {}) => {
       const d = day.value
       try {
         const g = await api('GET', `/api/epg/guide?day=${d}`)
         if (g.configured === false) return
         guideByDay.clear()
-        guideByDay.set(d, g)
+        rememberDay(d, g)
         dayFreshAt = Date.now()
         if (day.value === d) guide.value = g
       } catch {
         return
       }
+      if (!withState) return
       loadState({ fresh: true })
       loadWatchlist()
     }
@@ -1090,7 +1104,7 @@ export const EpgView = {
         try {
           const g = await api('GET', `/api/epg/guide?day=${d}`)
           if (!g.loadingListings?.length) guideByDay.clear()
-          guideByDay.set(d, g)
+          rememberDay(d, g)
           if (day.value === d) guide.value = g
         } catch {
           refreshWhileListingsLoad()
@@ -1274,6 +1288,9 @@ export const EpgView = {
       await loadDay(0)
       const jumped = await followGuideJump()
       if (!jumped && day.value === 0) await scrollToNow()
+      if (cachedToday && day.value === 0 && Date.now() - todayFetchedAt >= GUIDE_REVISIT_REFRESH_MS) {
+        refreshDayQuietly({ withState: false })
+      }
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)
       staleCheckTimer = setInterval(refreshDayIfStale, GUIDE_STALE_CHECK_MS)
       document.addEventListener('visibilitychange', refreshDayIfStale)

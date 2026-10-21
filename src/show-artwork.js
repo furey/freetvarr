@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import { db, getSetting } from './db.js'
+import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 
@@ -17,7 +18,9 @@ export const showTitleKey = (title) => String(title || '')
 
 export const createShowArtwork = ({
   loadPlexShows = plexShowSources,
-  searchTvmaze = tvmazeSearch,
+  searchTvmaze = null,
+  findSeriesShow = null,
+  hintsFor = guideHintsFor,
   loadTvmazeImages = tvmazeImages,
   cache = databaseCache,
   isTvmazeEnabled = tvmazeLookupEnabled,
@@ -26,6 +29,7 @@ export const createShowArtwork = ({
   plexTtlMs = PLEX_TTL_MS,
   hitTtlMs = TVMAZE_HIT_TTL_MS,
   missTtlMs = TVMAZE_MISS_TTL_MS,
+  unhintedMissTtlMs = TVMAZE_UNHINTED_MISS_TTL_MS,
   lookupGapMs = TVMAZE_LOOKUP_GAP_MS,
   failureBackoffMs = TVMAZE_FAILURE_BACKOFF_MS,
   plexWaitMs = PLEX_WAIT_MS,
@@ -35,13 +39,14 @@ export const createShowArtwork = ({
   const runSpaced = createSpacedQueue({ gapMs: lookupGapMs })
   const inflight = new Map()
   const failedUntil = new Map()
+  const findShow = findSeriesShow || seriesShowFinder({ searchTvmaze, countryCode })
 
   const plexSourcesFor = async (key) => (await plexShows.get()).get(key) || []
 
   const recentlyFailed = (key) => (failedUntil.get(key) || 0) > now()
 
   const cachedTvmazeSources = async (key) => {
-    const cached = await cache.read(key).catch(() => null)
+    const cached = await cache.read(seriesCacheKeyOf(key)).catch(() => null)
     return cached && cached.expiresAt > now() ? cached.sources : null
   }
 
@@ -50,10 +55,11 @@ export const createShowArtwork = ({
     const cached = await cachedTvmazeSources(key)
     if (cached) return cached
     if (inflight.has(key)) return inflight.get(key)
-    const pending = runSpaced(() => lookUpTvmaze({ key, title }))
-      .then(async (sources) => {
-        const expiresAt = now() + (sources.length ? hitTtlMs : missTtlMs)
-        await cache.write({ key, sources, expiresAt }).catch(() => {})
+    const pending = runSpaced(() => lookUpTvmaze({ title }))
+      .then(async ({ sources, hinted }) => {
+        const missMs = hinted ? missTtlMs : unhintedMissTtlMs
+        const expiresAt = now() + (sources.length ? hitTtlMs : missMs)
+        await cache.write({ key: seriesCacheKeyOf(key), sources, expiresAt }).catch(() => {})
         return sources
       })
       .catch(() => {
@@ -65,12 +71,13 @@ export const createShowArtwork = ({
     return pending
   }
 
-  const lookUpTvmaze = async ({ key, title }) => {
-    const show = pickShow({ results: await searchTvmaze(title), key, country: countryCode() })
-    if (!show) return []
+  const lookUpTvmaze = async ({ title }) => {
+    const hints = await Promise.resolve().then(() => hintsFor(title)).catch(() => null)
+    const show = await findShow({ title, hints })
+    if (!show) return { sources: [], hinted: Boolean(hints) }
     Promise.resolve().then(() => onTvmazeShow({ title, show })).catch(() => {})
     const images = await loadTvmazeImages(show.id).catch(() => [])
-    return tvmazeSourcesOf({ show, images })
+    return { sources: tvmazeSourcesOf({ show, images }), hinted: Boolean(hints) }
   }
 
   const sourcesFor = async (title) => {
@@ -98,7 +105,7 @@ export const createShowArtwork = ({
     const key = showTitleKey(title)
     if (!key) return
     failedUntil.delete(key)
-    await cache.remove?.(key).catch(() => {})
+    await cache.remove?.(seriesCacheKeyOf(key)).catch(() => {})
     plexShows.reset()
   }
 
@@ -110,12 +117,20 @@ const withinMs = (promise, ms) => Promise.race([
   new Promise((resolve) => setTimeout(resolve, ms, TIMED_OUT).unref?.()),
 ])
 
-export const pickShow = ({ results = [], key, country }) => {
-  const matches = results
-    .map((result) => result.show)
-    .filter((show) => show?.image && showTitleKey(show.name) === key)
-  return matches.find((show) => countryOf(show) === country) || matches[0] || null
+export const seriesShowFinder = ({ searchTvmaze = null, countryCode } = {}) => {
+  let matcher = null
+  return ({ title, hints }) => {
+    matcher ??= createTitleMatcher({ ...(countryCode ? { countryCode } : {}), ...(searchTvmaze ? { searchTvmaze } : {}) })
+    return matcher.tvmazeShow({ title, hints })
+  }
 }
+
+export const guideHintsFor = (title) => {
+  sharedGuideHints ??= createGuideHints({ loadGuide: async () => (await import('./epg.js')).getGuideSnapshot() })
+  return sharedGuideHints(title)
+}
+
+export const seriesCacheKeyOf = (key) => `${SERIES_MATCH_VERSION}:${key}`
 
 export const tvmazeSourcesOf = ({ show, images = [] }) => {
   const backgrounds = images.filter((image) => image.type === 'background')
@@ -136,8 +151,6 @@ export const plexSourcesOf = ({ items = [], url, token }) => {
   }
   return byTitle
 }
-
-const countryOf = (show) => show.network?.country?.code || show.webChannel?.country?.code || null
 
 const plexShowSources = async () => {
   const url = ((await getSetting('plex_url')) || '').replace(/\/$/, '')
@@ -224,6 +237,8 @@ const createSpacedQueue = ({ gapMs }) => {
   }
 }
 
+let sharedGuideHints = null
+
 const TIMED_OUT = Symbol('timed out')
 const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_ARTWORK = { sources: [], pending: true }
@@ -235,6 +250,8 @@ const REQUEST_TIMEOUT_MS = 5000
 const PLEX_TTL_MS = 10 * 60 * 1000
 const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
+const SERIES_MATCH_VERSION = 'series-v2'
 const TVMAZE_LOOKUP_GAP_MS = 1000
 const TVMAZE_FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const PLEX_WAIT_MS = 1500

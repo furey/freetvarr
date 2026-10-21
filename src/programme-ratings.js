@@ -14,6 +14,7 @@ import {
   matchEvidenceOf,
   programmeHintsByTitle,
   sharesAnyTerm,
+  sharesNetwork,
   tmdbAuthOf,
   tmdbCandidatesOf,
   tmdbSearchOf,
@@ -186,6 +187,7 @@ export const createTitleMatcher = ({
   client = artworkClient,
   countryCode = () => countryForTimeZone(currentTimeZone()),
   knownReference = storedTmdbReference,
+  searchTvmaze = (query) => client.getJson({ url: `${TVMAZE_API}/search/shows`, params: { q: query } }),
 } = {}) => {
   const tmdbGet = ({ apiKey, path, params = {} }) => {
     const auth = tmdbAuthOf(apiKey)
@@ -237,7 +239,7 @@ export const createTitleMatcher = ({
 
   const tvmazeShow = async ({ title, hints }) => {
     for (const variant of titleVariantsOf(title)) {
-      const results = await client.getJson({ url: `${TVMAZE_API}/search/shows`, params: { q: variant } })
+      const results = await searchTvmaze(variant)
       const key = showTitleKey(variant)
       const show = pickRatedShow({ results: results || [], key, hints, country: countryCode() })
         || await episodeMatchedShow({ candidates: exactShowsOf({ results: results || [], key }), hints })
@@ -299,10 +301,13 @@ export const pickRatedShow = ({ results = [], key, hints, country }) => {
   const proven = verdicts.find(({ evidence }) => evidence?.accepted)
   if (proven) return proven.show
   const plausible = verdicts.filter(({ evidence }) => !CONTRADICTIONS.has(evidence?.reason))
-  const local = plausible.filter(({ show }) => country && showCountryOf(show) === country)
+  const onGuideNetwork = plausible.filter(({ show }) => airsOnGuideChannel({ show, hints, country }))
+  if (onGuideNetwork.length === 1) return onGuideNetwork[0].show
+  const shortlist = onGuideNetwork.length ? onGuideNetwork : plausible
+  const local = shortlist.filter(({ show }) => isLocalShow({ show, country }))
   if (local.length === 1) return local[0].show
   if (candidates.length === 1 && plausible.length === 1) return plausible[0].show
-  const english = plausible.filter(({ show }) => show.language === 'English')
+  const english = shortlist.filter(({ show }) => show.language === 'English')
   if (english.length === 1) return english[0].show
   return dominantShowOf(english)
 }
@@ -355,7 +360,9 @@ export const createGuideHints = ({ loadGuide }) => {
   return async (title) => {
     const guide = await Promise.resolve().then(loadGuide).catch(() => null)
     if (!guide?.programByEventId) return null
-    if (!hintsByGuide.has(guide)) hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()]))
+    if (!hintsByGuide.has(guide)) {
+      hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()], { channels: guide.channels || [] }))
+    }
     return hintsByGuide.get(guide).get(showTitleKey(title)) || null
   }
 }
@@ -375,6 +382,16 @@ const premiereYearOf = (show) => {
 }
 
 const showCountryOf = (show) => show.network?.country?.code || show.webChannel?.country?.code || null
+
+const isLocalShow = ({ show, country }) => Boolean(country)
+  && String(showCountryOf(show) || '').toUpperCase() === String(country).toUpperCase()
+
+const airsOnGuideChannel = ({ show, hints, country }) => {
+  if (!hints?.channelNames?.length) return false
+  if (country && showCountryOf(show) && !isLocalShow({ show, country })) return false
+  const networkNames = [show.network?.name, show.webChannel?.name].filter(Boolean)
+  return sharesNetwork({ networkNames, channelNames: hints.channelNames })
+}
 
 const roundedScore = (value) => Math.round(value * 10) / 10
 

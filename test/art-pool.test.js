@@ -102,6 +102,7 @@ const poolWith = (over = {}) => createArtPool({
   plexArts: async ({ ratingKey }) => (ratingKey === '5' ? [{ key: '/sel', selected: true }, { key: 'https://tmdb/a.jpg' }] : []),
   isTvmazeEnabled: async () => true,
   searchTvmaze: async () => [{ show: { id: 1, name: 'The Block', image: { original: 'https://tvmaze/show.jpg' } } }],
+  hintsFor: async () => null,
   loadTvmazeImages: async () => [tvImage({ id: 'b1' })],
   countryCode: () => 'AU',
   cache: memoryCache(),
@@ -136,7 +137,7 @@ test('showPool caches the TVmaze lookup', async () => {
   await poolWith({ cache, searchTvmaze }).showPool('the-block')
   await poolWith({ cache, searchTvmaze }).showPool('the-block')
   assert.equal(searches, 1)
-  assert.ok(cache.rows.has('art-pool:tvmaze:block'))
+  assert.ok(cache.rows.has('art-pool:tvmaze-series-v2:block'))
 })
 
 test('recordingArt lists the guide image and the Plex episode thumb', async () => {

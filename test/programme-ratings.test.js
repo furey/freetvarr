@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import {
   createGuideHints,
@@ -458,4 +459,44 @@ test('same-name shows are told apart by the guide episode titles', async () => {
   const unknown = programmeHintsOf([{ title: 'Friends', synopsis: 'Ross is surprised.', episode_title: 'Episode 4' }])
   const vague = ratingsWith({ routes, hints: unknown, apiKey: null })
   assert.equal((await settled(vague.ratings, 'Friends')).status, 'none')
+})
+
+const BIG_BROTHER_SEARCH = JSON.parse(readFileSync(new URL('./fixtures/tvmaze-search-big-brother.json', import.meta.url)))
+const BIG_BROTHER_AIRING = {
+  program_id: 387216,
+  channel_id: 'ten-hd',
+  title: 'Big Brother',
+  episode_title: 'Episode 1',
+  synopsis: "Housemates compete to win $250,000, under Big Brother's constant watchful eye.",
+  series_no: 17,
+  episode_no: 1,
+  kind: 'series',
+}
+
+test('pickRatedShow takes the same-name show whose network airs it on a guide channel', async () => {
+  const guide = {
+    channels: [{ id: 'ten-hd', epgId: 'ten-hd', name: '10 HD' }, { id: 'nine', epgId: 'nine', name: '9HD Sydney' }],
+    programByEventId: new Map([['387216', BIG_BROTHER_AIRING]]),
+  }
+  const hints = await createGuideHints({ loadGuide: async () => guide })('Big Brother')
+  assert.deepEqual(hints.channelNames, ['10 HD'])
+  assert.equal(pickRatedShow({ results: BIG_BROTHER_SEARCH, key: 'big brother', hints, country: 'au' }).id, 87106)
+  const onNine = { ...hints, channelNames: ['9HD Sydney'] }
+  assert.equal(pickRatedShow({ results: BIG_BROTHER_SEARCH, key: 'big brother', hints: onNine, country: 'au' }).id, 8471)
+})
+
+test('pickRatedShow leaves several local same-name shows unpicked without a guide channel', () => {
+  assert.equal(pickRatedShow({ results: BIG_BROTHER_SEARCH, key: 'big brother', hints: null, country: 'au' }), null)
+  const elsewhere = programmeHintsOf([BIG_BROTHER_AIRING])
+  assert.equal(pickRatedShow({ results: BIG_BROTHER_SEARCH, key: 'big brother', hints: elsewhere, country: 'au' }), null)
+})
+
+test('pickRatedShow ignores a matching network name from another country', () => {
+  const hints = { ...programmeHintsOf([BIG_BROTHER_AIRING]), channelNames: ['CBS'] }
+  assert.equal(pickRatedShow({ results: BIG_BROTHER_SEARCH, key: 'big brother', hints, country: 'au' }), null)
+})
+
+test('pickRatedShow matches the local country whatever its letter case', () => {
+  const results = [{ show: UTOPIA_UK }, { show: UTOPIA_AU }]
+  assert.equal(pickRatedShow({ results, key: 'utopia', hints: null, country: 'au' }), UTOPIA_AU)
 })

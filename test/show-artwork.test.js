@@ -3,8 +3,32 @@ import assert from 'node:assert/strict'
 
 import sharp from 'sharp'
 
-import { createShowArtwork, pickShow, plexSourcesOf, showTitleKey, tvmazeSourcesOf } from '../src/show-artwork.js'
+import { readFileSync } from 'node:fs'
+
+import { createShowArtwork, plexSourcesOf, seriesCacheKeyOf, showTitleKey, tvmazeSourcesOf } from '../src/show-artwork.js'
 import { landscapeOf } from '../src/image-thumbnails.js'
+import { programmeHintsByTitle } from '../src/artwork-match.js'
+
+const BIG_BROTHER_SEARCH = JSON.parse(readFileSync(new URL('./fixtures/tvmaze-search-big-brother.json', import.meta.url)))
+const BIG_BROTHER_US_POSTER = 'https://static.tvmaze.com/uploads/images/original_untouched/631/1578029.jpg'
+const BIG_BROTHER_AU_POSTER = 'https://static.tvmaze.com/uploads/images/original_untouched/597/1493265.jpg'
+const TEN_CHANNELS = [
+  { id: 'ten-hd', epgId: 'ten-hd', name: '10 HD' },
+  { id: 'ten', epgId: 'ten', name: '10' },
+  { id: 'nine', epgId: 'nine', name: '9HD Sydney' },
+]
+const BIG_BROTHER_AIRING = {
+  title: 'Big Brother',
+  episode_title: 'Episode 1',
+  synopsis: "Housemates compete to win $250,000, under Big Brother's constant watchful eye.",
+  series_no: 17,
+  episode_no: 1,
+  kind: 'series',
+}
+const bigBrotherHints = () => programmeHintsByTitle(
+  [{ ...BIG_BROTHER_AIRING, channel_id: 'ten-hd' }, { ...BIG_BROTHER_AIRING, channel_id: 'ten' }],
+  { channels: TEN_CHANNELS },
+).get('big brother')
 
 const tvmazeShow = ({ id, name, country = 'AU', image = true }) => ({
   show: {
@@ -27,6 +51,7 @@ const memoryCache = () => {
 const artworkWith = (overrides = {}) => createShowArtwork({
   loadPlexShows: async () => new Map(),
   searchTvmaze: async () => [],
+  hintsFor: async () => null,
   loadTvmazeImages: async () => [],
   cache: memoryCache(),
   isTvmazeEnabled: async () => true,
@@ -46,20 +71,44 @@ test('showTitleKey: ignores case, punctuation, a leading "the", and a trailing y
   assert.equal(showTitleKey(''), '')
 })
 
-test('pickShow: takes only an exact title match, preferring the local country', () => {
-  const results = [
-    tvmazeShow({ id: 1, name: 'Ukrainian Song Project' }),
-    tvmazeShow({ id: 2, name: 'The Traitors', country: 'US' }),
-    tvmazeShow({ id: 3, name: 'The Traitors', country: 'AU' }),
-  ]
-  assert.equal(pickShow({ results, key: showTitleKey('Ukrainian'), country: 'AU' }), null)
-  assert.equal(pickShow({ results, key: showTitleKey('The Traitors'), country: 'AU' }).id, 3)
-  assert.equal(pickShow({ results, key: showTitleKey('The Traitors'), country: 'NZ' }).id, 2)
+test('sourcesFor: picks the Big Brother airing on the guide channel network, not the US show', async () => {
+  const artwork = artworkWith({
+    searchTvmaze: async () => BIG_BROTHER_SEARCH,
+    hintsFor: async () => bigBrotherHints(),
+    countryCode: () => 'au',
+  })
+  assert.deepEqual(await artwork.sourcesFor('Big Brother'), [BIG_BROTHER_AU_POSTER])
 })
 
-test('pickShow: skips a match with no picture', () => {
-  const results = [tvmazeShow({ id: 1, name: 'Chefs Ahoy', image: false })]
-  assert.equal(pickShow({ results, key: 'chefs ahoy', country: 'AU' }), null)
+test('sourcesFor: leaves several local Big Brothers unpicked without a channel, and retries the miss sooner', async () => {
+  let clock = 1_000
+  let searches = 0
+  const artwork = artworkWith({
+    now: () => clock,
+    unhintedMissTtlMs: 100,
+    hintsFor: async () => null,
+    searchTvmaze: async () => { searches += 1; return BIG_BROTHER_SEARCH },
+    countryCode: () => 'au',
+  })
+  const sources = await artwork.sourcesFor('Big Brother')
+  assert.equal(sources.includes(BIG_BROTHER_US_POSTER), false)
+  assert.deepEqual(sources, [])
+  clock += 100
+  await artwork.sourcesFor('Big Brother')
+  assert.ok(searches > 1)
+})
+
+test('sourcesFor: ignores a picture cached by the old series match and looks the show up again', async () => {
+  const cache = memoryCache()
+  await cache.write({ key: 'big brother', sources: [BIG_BROTHER_US_POSTER], expiresAt: Infinity })
+  const artwork = artworkWith({
+    cache,
+    searchTvmaze: async () => BIG_BROTHER_SEARCH,
+    hintsFor: async () => bigBrotherHints(),
+    countryCode: () => 'au',
+  })
+  assert.deepEqual(await artwork.sourcesFor('Big Brother'), [BIG_BROTHER_AU_POSTER])
+  assert.deepEqual(cache.rows.get(seriesCacheKeyOf('big brother')).sources, [BIG_BROTHER_AU_POSTER])
 })
 
 test('tvmazeSourcesOf: puts the main landscape background before the poster', () => {
@@ -110,7 +159,7 @@ test('sourcesFor: asks TVmaze once per title and remembers the answer', async ()
   assert.deepEqual(second, first)
   assert.deepEqual(await artwork.sourcesFor('Chefs Ahoy'), first)
   assert.equal(searches, 1)
-  assert.deepEqual(cache.rows.get('chefs ahoy').sources, first)
+  assert.deepEqual(cache.rows.get(seriesCacheKeyOf('chefs ahoy')).sources, first)
 })
 
 test('sourcesFor: remembers a title TVmaze does not know until the miss expires', async () => {
@@ -119,6 +168,7 @@ test('sourcesFor: remembers a title TVmaze does not know until the miss expires'
   const artwork = artworkWith({
     now: () => clock,
     missTtlMs: 500,
+    unhintedMissTtlMs: 500,
     searchTvmaze: async () => { searches += 1; return [] },
   })
   assert.deepEqual(await artwork.sourcesFor('1 Euro House'), [])
@@ -165,7 +215,7 @@ test('artworkFor: answers at once and looks TVmaze up in the background', async 
 
 test('artworkFor: a Plex match and a remembered miss are final answers', async () => {
   const cache = memoryCache()
-  await cache.write({ key: '1 euro house', sources: [], expiresAt: Infinity })
+  await cache.write({ key: seriesCacheKeyOf('1 euro house'), sources: [], expiresAt: Infinity })
   const artwork = artworkWith({
     cache,
     loadPlexShows: async () => new Map([['chefs ahoy', ['http://plex/thumb']]]),
@@ -227,8 +277,8 @@ test('forget: drops the cached sources and the failure backoff', async () => {
   assert.deepEqual(await artwork.sourcesFor('Bluey'), [])
   await artwork.forget('Bluey')
   assert.equal((await artwork.sourcesFor('Bluey')).length > 0, true)
-  cache.rows.set('bluey', { sources: ['old'], expiresAt: Date.now() + 100000 })
+  cache.rows.set(seriesCacheKeyOf('bluey'), { sources: ['old'], expiresAt: Date.now() + 100000 })
   cache.remove = async (key) => cache.rows.delete(key)
   await artwork.forget('Bluey')
-  assert.equal(cache.rows.has('bluey'), false)
+  assert.equal(cache.rows.has(seriesCacheKeyOf('bluey')), false)
 })

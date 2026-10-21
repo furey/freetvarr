@@ -18,6 +18,8 @@ import { isRecordingChannel } from '/shared/recording-now.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, fmtClockTz } from '/shared/time.js'
+import { viewStoreOf } from '/shared/view-store.js'
+import { LIVE_CACHE } from '/view-cache.js'
 
 export const LiveView = {
   components: SORT_PART_COMPONENTS,
@@ -123,7 +125,7 @@ export const LiveView = {
   `,
   setup() {
     const { flash } = useFlash()
-    const data = ref(null)
+    const data = ref(liveStore.cached())
     const error = ref('')
     const tvhConfigured = ref(null)
     const filterQ = ref('')
@@ -190,8 +192,10 @@ export const LiveView = {
       }
       if (!tvhConfigured.value) return
       try {
-        data.value = await api('GET', '/api/epg/now?all=1')
-        rememberLineup(lineupOf(data.value))
+        const live = await api('GET', '/api/epg/now?all=1')
+        data.value = live
+        liveStore.keep(live)
+        rememberLineup(lineupOf(live))
         error.value = ''
         scheduleBoundaryReload()
       } catch (err) {
@@ -285,6 +289,7 @@ export const LiveView = {
   },
 }
 
+const liveStore = viewStoreOf(LIVE_CACHE)
 const LIVE_LIST_POLL_MS = 30_000
 const LIVE_BOUNDARY_MIN_MS = 5_000
 const LIVE_BOUNDARY_GRACE_MS = 2_000

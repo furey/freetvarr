@@ -9,7 +9,7 @@ import { PROGRAMME_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, thumbna
 import { isLibraryMember } from './library.js'
 import { matchPlexItem } from './library-actions.js'
 import { getPlexConnection, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
-import { pickShow, showTitleKey, tvmazeImages, tvmazeLookupEnabled, tvmazeSearch } from './show-artwork.js'
+import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLookupEnabled } from './show-artwork.js'
 import { currentTimeZone } from './time-zone.js'
 import { showKeyOf } from './web/show-key.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -80,9 +80,11 @@ export const createArtPool = ({
   plexItems = listPlexSectionItems,
   plexArts = plexArtsFor,
   isTvmazeEnabled = tvmazeLookupEnabled,
-  searchTvmaze = tvmazeSearch,
+  searchTvmaze = null,
+  hintsFor = guideHintsFor,
   loadTvmazeImages = tvmazeImages,
   countryCode = () => countryForTimeZone(currentTimeZone()),
+  findSeriesShow = seriesShowFinder({ searchTvmaze, countryCode }),
   cache = databaseCache,
   poolStore = databasePoolStore,
   thumbnailFor = findArtSourceThumbnail,
@@ -131,9 +133,11 @@ export const createArtPool = ({
     const cacheKey = `${TVMAZE_CACHE_PREFIX}${titleKey}`
     const cached = await cache.read(cacheKey).catch(() => null)
     if (cached && cached.expiresAt > now()) return cached.sources
-    const show = pickShow({ results: await searchTvmaze(title), key: titleKey, country: countryCode() })
+    const hints = await Promise.resolve().then(() => hintsFor(title)).catch(() => null)
+    const show = await findSeriesShow({ title, hints })
     const entries = show ? tvmazePoolOf({ show, images: await loadTvmazeImages(show.id).catch(() => []) }) : []
-    const expiresAt = now() + (entries.length ? tvmazeHitTtlMs : tvmazeMissTtlMs)
+    const missTtlMs = hints ? tvmazeMissTtlMs : TVMAZE_UNHINTED_MISS_TTL_MS
+    const expiresAt = now() + (entries.length ? tvmazeHitTtlMs : missTtlMs)
     await cache.write({ key: cacheKey, sources: entries, expiresAt }).catch(() => {})
     return entries
   }
@@ -451,7 +455,7 @@ const HERO_WIDTH = 768
 const PLEX_ART_WIDTH = 1280
 const PLEX_ART_HEIGHT = 720
 const PLEX_ORIGIN_PREFIX = 'plex:'
-const TVMAZE_CACHE_PREFIX = 'art-pool:tvmaze:'
+const TVMAZE_CACHE_PREFIX = 'art-pool:tvmaze-series-v2:'
 const MAX_PER_SOURCE = 12
 const MAX_POSTERS = 3
 const MAX_MEMO_ENTRIES = 500
@@ -470,4 +474,5 @@ const RECORDING_THUMBNAIL_DIR = 'recordings'
 const RECORDING_THUMBNAIL_MAX_BYTES = 20 * 1024 * 1024
 const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
 const HERO_IMAGE_WIDTH = 768

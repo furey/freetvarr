@@ -93,7 +93,7 @@ export const ProgrammeSheetHost = {
               <button v-for="s in sheetStrengths" :key="s.key" type="button" role="tab" class="ui-segment"
                 :aria-selected="String(sheetStrength === s.key)" @click="sheetStrength = s.key">{{ s.label }}</button>
             </div>
-            <p class="programme-sheet-line">{{ strengthLine }}</p>
+            <p v-if="showStrengthLine" class="programme-sheet-line">{{ strengthLine }}</p>
             <div v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="ui-group programme-sheet-options">
               <padding-rows v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme" />
               <div v-if="sheetStrength === 'series'" class="ui-group-row">
@@ -348,6 +348,9 @@ export const ProgrammeSheetHost = {
         kind: program.kind,
       })
     })
+
+    const showStrengthLine = computed(() => Boolean(strengthLine.value)
+      && (sheetStrengths.value.length > 1 || isSelectedOnAir.value))
 
     const primaryAction = computed(() => (cancelSeriesStep.value
       ? null
@@ -736,7 +739,7 @@ export const ProgrammeSheetHost = {
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,
       stepValue, canStep, keepLabel,
-      sheetStrengths, sheetStrength, strengthLine, primaryAction, primaryClass, runPrimaryAction,
+      sheetStrengths, sheetStrength, strengthLine, showStrengthLine, primaryAction, primaryClass, runPrimaryAction,
       sheetMeta, cancelActions, selectedState, selectedStatusText,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,

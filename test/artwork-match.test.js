@@ -13,9 +13,11 @@ import {
   hintsForKind,
   lookupExpiryOf,
   matchEvidenceOf,
+  networkKeysOf,
   programmeHintsByTitle,
   programmeHintsOf,
   rankEntities,
+  sharesNetwork,
   tmdbAuthOf,
   tmdbCandidatesOf,
   tmdbSearchOf,
@@ -255,4 +257,31 @@ test('a far more popular same-title film is accepted on one shared name from the
   assert.equal(sharesAnyTerm({ hints, text: remake.overview }), false)
   assert.equal(dominantFilmOf([classic, { ...remake, vote_count: 900 }]), null)
   assert.equal(dominantFilmOf([{ ...classic, vote_count: 300 }]), null)
+})
+
+test('networkKeysOf reduces guide channel and TVmaze network names to shared keys', () => {
+  assert.deepEqual([...networkKeysOf('10 HD +1')], ['10'])
+  assert.deepEqual([...networkKeysOf('Network 10')], ['10'])
+  assert.deepEqual([...networkKeysOf('Nine Network')], ['9'])
+  assert.deepEqual([...networkKeysOf('9HD Sydney')], ['9'])
+  assert.deepEqual([...networkKeysOf('7mate Sydney')], ['7mate', '7'])
+  assert.deepEqual([...networkKeysOf('ABC TV')], ['abc'])
+})
+
+test('sharesNetwork matches a channel to its network family only', () => {
+  assert.equal(sharesNetwork({ networkNames: ['Network 10'], channelNames: ['10 HD', '10'] }), true)
+  assert.equal(sharesNetwork({ networkNames: ['Seven Network'], channelNames: ['7two Sydney'] }), true)
+  assert.equal(sharesNetwork({ networkNames: ['CBS'], channelNames: ['10 HD'] }), false)
+  assert.equal(sharesNetwork({ networkNames: ['Nine Network'], channelNames: [] }), false)
+})
+
+test('programmeHintsByTitle names the guide channels each title airs on', () => {
+  const channels = [{ id: 'a', epgId: 'a', name: '10 HD' }, { id: 'b', epgId: 'b', name: '10' }]
+  const hints = programmeHintsByTitle([
+    { title: 'Big Brother', channel_id: 'a' },
+    { title: 'Big Brother', channel_id: 'b' },
+    { title: 'Big Brother', channel_id: 'unknown' },
+  ], { channels })
+  assert.deepEqual(hints.get('big brother').channelNames, ['10 HD', '10'])
+  assert.deepEqual(programmeHintsByTitle([{ title: 'Big Brother', channel_id: 'a' }]).get('big brother').channelNames, [])
 })
