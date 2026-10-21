@@ -36,11 +36,8 @@ export const LiveView = {
             v-bind="kindFilter.fieldAttrs.value" @keydown="kindFilter.onKeydown" @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
         </label>
         <toggle-switch compact class="live-images-toggle" :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>
-        <div class="ui-segmented is-compact live-zoom" role="group" aria-label="Zoom">
-          <span class="ui-segmented-label">Zoom</span>
-          <button v-for="level in zoomLevels" :key="level" type="button" class="ui-segment"
-            :aria-pressed="String(zoom === level)" :aria-label="zoomLabels[level]" @click="zoom = level">{{ level.toUpperCase() }}</button>
-        </div>
+        <ui-segmented compact class="live-zoom" label="Zoom" aria-label="Zoom" v-model="zoom"
+          :options="zoomLevels.map((level) => ({ value: level, label: level.toUpperCase(), ariaLabel: zoomLabels[level] }))" />
         <button type="button" class="ui-icon-button live-settings" aria-label="Channel settings" title="Channel settings"
           :disabled="!data" @click="openChannelsModal"><sliders-icon /></button>
       </div>

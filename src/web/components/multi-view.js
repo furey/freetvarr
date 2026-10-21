@@ -98,14 +98,15 @@ export const MultiViewLayer = {
       <header class="mv-top">
         <button type="button" class="pl-round" :aria-label="closeLabel" @click="$emit('close')"><arrow-left-icon /></button>
         <h2 class="mv-title">{{ title }}</h2>
-        <div v-if="!portraitPhone || count > 2" class="ui-segmented mv-layouts" role="group" aria-label="Layout">
-          <button type="button" class="ui-segment" :aria-label="splitLabel" :aria-pressed="String(multi.view.layout === 'split')" @click="setMultiLayout('split')">
-            <grid-layout-icon v-if="count > 2" /><split-layout-icon v-else /><span class="mv-segment-label">{{ splitLabel }}</span>
-          </button>
-          <button type="button" class="ui-segment" aria-label="Big and small" :aria-pressed="String(multi.view.layout === 'inset')" @click="setMultiLayout('inset')">
-            <strip-layout-icon v-if="count > 2" /><inset-layout-icon v-else /><span class="mv-segment-label">Big and small</span>
-          </button>
-        </div>
+        <ui-segmented v-if="!portraitPhone || count > 2" class="mv-layouts" aria-label="Layout"
+          :model-value="multi.view.layout" @update:model-value="setMultiLayout"
+          :options="[{ value: 'split', label: splitLabel, ariaLabel: splitLabel }, { value: 'inset', label: 'Big and small', ariaLabel: 'Big and small' }]">
+          <template #default="{ option }">
+            <template v-if="option.value === 'split'"><grid-layout-icon v-if="count > 2" /><split-layout-icon v-else /></template>
+            <template v-else><strip-layout-icon v-if="count > 2" /><inset-layout-icon v-else /></template>
+            <span class="mv-segment-label">{{ option.label }}</span>
+          </template>
+        </ui-segmented>
         <button v-if="isResized" type="button" class="mv-reset" aria-label="Reset size" @click="resetSize">
           <refresh-icon /><span class="mv-segment-label">Reset size</span>
         </button>

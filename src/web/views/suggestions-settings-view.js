@@ -49,11 +49,9 @@ export const SuggestionsSettingsView = {
               <span class="settings-row-title" id="suggestions-languages-title">Films in other languages</span>
               <span class="settings-row-meta">Films first made in a language other than English, usually with subtitles.</span>
             </span>
-            <div class="ui-segmented is-fill suggestions-languages" role="radiogroup" aria-labelledby="suggestions-languages-title">
-              <button v-for="option in languageOptions" :key="option.key" type="button" role="radio" class="ui-segment"
-                :aria-checked="String(loaded && otherLanguageFilms === option.key)" :class="{ 'is-selected': loaded && otherLanguageFilms === option.key }"
-                :disabled="!loaded" @click="save({ otherLanguageFilms: option.key })">{{ option.label }}</button>
-            </div>
+            <ui-segmented fill class="suggestions-languages" aria-labelledby="suggestions-languages-title"
+              :model-value="loaded ? otherLanguageFilms : null" :disabled="!loaded" @update:model-value="save({ otherLanguageFilms: $event })"
+              :options="languageOptions.map((option) => ({ value: option.key, label: option.label }))" />
           </div>
           <button type="button" class="ui-group-row suggestions-row-button" @click="hiddenOpen = true">
             <span class="settings-toggle-text">
@@ -79,11 +77,9 @@ export const SuggestionsSettingsView = {
             </button>
           </div>
           <div class="settings-row">
-            <div class="ui-segmented is-fill suggestions-tiers" role="radiogroup" aria-label="Suggestion level">
-              <button v-for="option in tierOptions" :key="option.key" type="button" role="radio" class="ui-segment"
-                :aria-checked="String(loaded && tierOverride === option.key)" :class="{ 'is-selected': loaded && tierOverride === option.key }"
-                :disabled="!loaded" @click="save({ tierOverride: option.key })">{{ option.label }}</button>
-            </div>
+            <ui-segmented fill class="suggestions-tiers" aria-label="Suggestion level"
+              :model-value="loaded ? tierOverride : null" :disabled="!loaded" @update:model-value="save({ tierOverride: $event })"
+              :options="tierOptions.map((option) => ({ value: option.key, label: option.label }))" />
             <p class="settings-row-meta suggestions-tier-note">Auto uses the level this box can run. Higher levels compare more about each show and use more of the processor.</p>
           </div>
         </div>

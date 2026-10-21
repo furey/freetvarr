@@ -91,10 +91,8 @@ export const ChannelsModal = {
             </section>
             <section class="channels-section" aria-labelledby="channels-sort-label">
               <h3 id="channels-sort-label" class="ui-label">Sort other channels by</h3>
-              <div class="ui-segmented is-fill" role="group" aria-labelledby="channels-sort-label">
-                <button v-for="s in CHANNEL_SORT_OPTIONS" :key="s.key" type="button" class="ui-segment"
-                  :aria-pressed="String(sortDraft === s.key)" @click="sortDraft = s.key">{{ s.label }}</button>
-              </div>
+              <ui-segmented fill v-model="sortDraft" aria-labelledby="channels-sort-label"
+                :options="CHANNEL_SORT_OPTIONS.map((s) => ({ value: s.key, label: s.label }))" />
             </section>
             <div class="ui-group">
               <div class="ui-group-row">

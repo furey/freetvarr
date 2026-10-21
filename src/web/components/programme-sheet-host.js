@@ -89,10 +89,8 @@ export const ProgrammeSheetHost = {
             </div>
           </div>
           <template v-if="sheetStrengths.length">
-            <div v-if="sheetStrengths.length > 1" class="ui-segmented is-fill programme-sheet-strengths" role="radiogroup" aria-label="What to record">
-              <button v-for="s in sheetStrengths" :key="s.key" type="button" role="radio" class="ui-segment"
-                :aria-checked="String(sheetStrength === s.key)" @click="sheetStrength = s.key">{{ s.label }}</button>
-            </div>
+            <ui-segmented v-if="sheetStrengths.length > 1" fill class="programme-sheet-strengths" aria-label="What to record"
+              v-model="sheetStrength" :options="sheetStrengths.map((s) => ({ value: s.key, label: s.label }))" />
             <p v-if="showStrengthLine" class="programme-sheet-line">{{ strengthLine }}</p>
             <div v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="ui-group programme-sheet-options">
               <padding-rows v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme" />

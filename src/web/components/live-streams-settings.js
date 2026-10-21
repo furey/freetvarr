@@ -13,11 +13,9 @@ export const LiveStreamsSetting = {
       <div class="ui-group">
         <div class="settings-row">
           <span id="live-streams-label" class="field-label">Live streams at once</span>
-          <div class="ui-segmented live-streams-choices" role="group" aria-labelledby="live-streams-label">
-            <button v-for="choice in choices" :key="choice.value" type="button" class="ui-segment"
-              :class="{ 'is-over-estimate': choice.tooMany }" :aria-pressed="String(current === choice.value)"
-              :disabled="saving || !loaded" @click="choose(choice.value)">{{ choice.label }}</button>
-          </div>
+          <ui-segmented class="live-streams-choices" aria-labelledby="live-streams-label" :model-value="current"
+            :options="choices.map((choice) => ({ value: choice.value, label: choice.label, class: { 'is-over-estimate': choice.tooMany } }))"
+            :disabled="saving || !loaded" @update:model-value="choose" />
           <p class="settings-hint">{{ hint }}</p>
           <p class="settings-hint" :class="{ 'live-streams-warn': overMeasured }">{{ measured }}</p>
           <div class="settings-row-actions">
