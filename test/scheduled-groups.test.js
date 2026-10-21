@@ -89,7 +89,12 @@ test('groupScheduled: later rows carry the weekday for the time column', () => {
   const [row] = groupScheduled({ upcoming: [entry('a', 72, { hasImage: true })], nowMs: NOW, timeZone: 'UTC' }).later
   assert.equal(row.day, 'Thu')
   assert.equal(row.meta, '9HD · 1h')
-  assert.equal(row.imageProgramId, 'a')
+  assert.equal(row.thumbSrc, '/api/epg/image/a?w=384')
+})
+
+test('groupScheduled: rows without a guide image fall back to the show artwork', () => {
+  const [row] = groupScheduled({ upcoming: [entry('a', 72)], nowMs: NOW, timeZone: 'UTC' }).later
+  assert.equal(row.thumbSrc, `/api/epg/show-image?title=${encodeURIComponent(row.title)}&w=384`)
 })
 
 test('durationText: formats minutes and hours compactly', () => {

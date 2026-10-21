@@ -153,7 +153,7 @@ export const ScheduledView = {
               <a v-for="row in recordingRows" :key="row.key" :href="'#/recordings/show/' + row.showKey"
                 class="ui-group-row is-tall scheduled-row">
                 <span class="scheduled-thumb">
-                  <title-art :title="row.title" :src="row.imageProgramId ? '/api/epg/image/' + row.imageProgramId : ''" />
+                  <title-art :title="row.title" :src="row.thumbSrc" />
                   <span class="ui-live-badge ui-art-badge">REC</span>
                 </span>
                 <span class="ui-group-row-main">
@@ -175,7 +175,7 @@ export const ScheduledView = {
                 <a :href="'#/recordings/show/' + row.showKey" class="scheduled-row-link">
                   <span class="scheduled-time ui-tabular">{{ row.time }}<small>{{ row.day ? row.day + ' ' : '' }}{{ row.period }}</small></span>
                   <span class="scheduled-thumb">
-                    <title-art :title="row.title" :src="row.imageProgramId ? '/api/epg/image/' + row.imageProgramId : ''" />
+                    <title-art :title="row.title" :src="row.thumbSrc" />
                   </span>
                   <span class="ui-group-row-main">
                     <span class="ui-group-row-title">{{ row.title }}<span v-if="row.state === 'repeat'" class="ui-chip is-warn is-small scheduled-repeat-chip">Repeat</span><span v-if="row.repeatText" class="scheduled-repeat-reason">{{ row.repeatText }}</span></span>

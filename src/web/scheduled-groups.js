@@ -1,10 +1,12 @@
 import { localDayNumber, weekdayOfDayNumber } from './guide-time.js'
 import { formatClock, formatDate } from './time-format.js'
 import { showKeyOf } from './show-key.js'
+import { showImageUrlOf } from './artwork-stamps.js'
 
 const LATER_DAYS = 6
 const MINUTE_MS = 60_000
 const DAY_MS = 86_400_000
+const THUMB_IMAGE_WIDTH = 384
 
 export const SCHEDULED_SECTIONS = [
   { key: 'today', label: 'Today' },
@@ -61,7 +63,7 @@ export const recordingNowRows = ({ active = [], nowMs = Date.now() } = {}) =>
     meta: [...episodeMetaParts(r), r.channelName, minutesLeftText({ stop: r.stop, nowMs })]
       .filter(Boolean).join(' · '),
     percent: progressPercent({ start: r.start, stop: r.stop, nowMs }),
-    imageProgramId: r.hasImage ? r.programId : null,
+    thumbSrc: thumbSrcOf(r),
   }))
 
 export const watchingRows = ({ items = [], timeZone = 'UTC' } = {}) =>
@@ -188,7 +190,7 @@ const rowOf = ({ entry, state, timeZone, showDay }) => {
   return {
     dayNumber: localDayNumber({ ms: startMs, timeZone }),
     day,
-    imageProgramId: entry.hasImage ? entry.programId : null,
+    thumbSrc: thumbSrcOf({ ...entry, title: entry.name }),
     key: `${entry.programId}-${rowKeySuffixOf(state)}`,
     programId: entry.programId,
     channelId: entry.channelId,
@@ -242,3 +244,7 @@ const watchPaddingText = ({ leadTime, lagTime }) => [
   leadTime != null && `starts ${leadTime}m early`,
   lagTime != null && `finishes ${lagTime}m late`,
 ].filter(Boolean).join(', ')
+
+export const thumbSrcOf = ({ hasImage, programId, title }) => (hasImage && programId != null
+  ? `/api/epg/image/${encodeURIComponent(programId)}?w=${THUMB_IMAGE_WIDTH}`
+  : showImageUrlOf({ title, width: THUMB_IMAGE_WIDTH }))
