@@ -131,48 +131,6 @@
   touch-action: pan-y;
 }
 
-.hero-carousel-stage::before,
-.hero-carousel-stage::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 2;
-  width: 22%;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease;
-}
-
-.hero-carousel-stage::before {
-  left: 0;
-  border-radius: var(--radius-hero) 0 0 var(--radius-hero);
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
-}
-
-.hero-carousel-stage::after {
-  right: 0;
-  border-radius: 0 var(--radius-hero) var(--radius-hero) 0;
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .hero-carousel.is-edge-back .hero-carousel-stage,
-  .hero-carousel.is-edge-forward .hero-carousel-stage {
-    cursor: pointer;
-  }
-
-  .hero-carousel.is-edge-back .hero-carousel-stage::before,
-  .hero-carousel.is-edge-forward .hero-carousel-stage::after {
-    opacity: 1;
-  }
-}
-
-.hero-carousel.is-reduced .hero-carousel-stage::before,
-.hero-carousel.is-reduced .hero-carousel-stage::after {
-  transition: none;
-}
-
 .hero-slide {
   position: absolute;
   inset: 0;
@@ -658,7 +616,15 @@
 }
 
 .hero-slide-actions {
+  position: relative;
   flex-wrap: nowrap;
+}
+
+.hero-slide-actions::before,
+.hero-carousel-controls::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
 }
 
 .hero-slide-actions > .ui-button-primary {

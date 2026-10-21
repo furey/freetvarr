@@ -18,10 +18,7 @@ const SWIPE_COMMIT_FRACTION = 0.2
 const SWIPE_INTENT_PX = 8
 const SETTLE_MS = 280
 const DOT_KEY_STEPS = { ArrowRight: 1, ArrowLeft: -1 }
-const EDGE_FRACTION = 0.22
-const TAP_MAX_MS = 500
-const TAP_VERDICT_MS = 800
-const ACTION_SELECTOR = 'button, a, input, select, textarea, [role="button"], [tabindex]'
+const PAUSE_ZONE_SELECTOR = '.hero-slide-actions, .hero-carousel-controls'
 
 export const HomeHeroCarousel = {
   props: {
@@ -30,12 +27,11 @@ export const HomeHeroCarousel = {
   emits: ['action', 'menu'],
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
-      :class="{ 'is-reduced': rotation.reducedMotion, 'is-instant': instant, 'is-edge-back': hoverEdge === -1, 'is-edge-forward': hoverEdge === 1 }"
+      :class="{ 'is-reduced': rotation.reducedMotion, 'is-instant': instant}"
       @pointerover="onPointerOver" @pointerleave="onPointerLeave" @focusin="onFocusIn">
       <div class="hero-carousel-viewport">
         <div ref="stage" class="hero-carousel-stage" :aria-live="advancing ? 'off' : 'polite'"
-          @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp"
-          @pointerleave="clearHoverEdge" @click="onStageClick">
+          @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp">
           <article v-for="(slide, i) in orderedSlides" :key="slide.key" :id="slideId(i)" role="group" aria-roledescription="slide"
             :aria-label="(i + 1) + ' of ' + orderedSlides.length" :aria-hidden="i === rotation.index ? null : 'true'"
             :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index }]"
@@ -100,7 +96,6 @@ export const HomeHeroCarousel = {
     const displayKeys = ref(props.slides.map((slide) => slide.key))
     const slidesByKey = computed(() => new Map(props.slides.map((slide) => [slide.key, slide])))
     const orderedSlides = computed(() => displayKeys.value.map((key) => slidesByKey.value.get(key)).filter(Boolean))
-    const hoverEdge = ref(0)
     const rotation = shallowRef(state)
     const clockMs = ref(Date.now())
     const stage = ref(null)
@@ -114,7 +109,6 @@ export const HomeHeroCarousel = {
     let lastFrameAt = 0
     let pointerStart = null
     let pendingKeys = null
-    let tapVerdict = null
 
     const dispatch = (event) => {
       const next = withPendingOrder(nextRotation(state, event))
@@ -231,7 +225,7 @@ export const HomeHeroCarousel = {
 
     const onPointerOver = (e) => {
       if (e.pointerType !== 'mouse') return
-      dispatch({ type: e.target.closest?.(ACTION_SELECTOR) ? 'pointerEnter' : 'pointerLeave' })
+      dispatch({ type: e.target.closest?.(PAUSE_ZONE_SELECTOR) ? 'pointerEnter' : 'pointerLeave' })
     }
     const onPointerLeave = (e) => { if (e.pointerType === 'mouse') dispatch({ type: 'pointerLeave' }) }
 
@@ -241,47 +235,14 @@ export const HomeHeroCarousel = {
 
     const stageWidth = () => stage.value?.offsetWidth || 1
 
-    const edgeOf = (e) => {
-      if (orderedSlides.value.length < 2 || e.target.closest?.(ACTION_SELECTOR)) return 0
-      const rect = stage.value?.getBoundingClientRect()
-      if (!rect?.width) return 0
-      const fraction = (e.clientX - rect.left) / rect.width
-      if (fraction < EDGE_FRACTION) return -1
-      if (fraction > 1 - EDGE_FRACTION) return 1
-      return 0
-    }
-
-    const trackHoverEdge = (e) => {
-      const edge = edgeOf(e)
-      if (edge !== hoverEdge.value) hoverEdge.value = edge
-    }
-
-    const clearHoverEdge = () => { hoverEdge.value = 0 }
-
-    const isTapAllowed = () => {
-      const verdict = tapVerdict
-      tapVerdict = null
-      return !verdict || Date.now() - verdict.at > TAP_VERDICT_MS || verdict.allowed
-    }
-
-    const hasTextSelection = () => Boolean(window.getSelection?.()?.toString())
-
-    const onStageClick = (e) => {
-      if (!isTapAllowed() || drag.value || hasTextSelection()) return
-      const delta = edgeOf(e)
-      if (delta) dispatch({ type: 'step', delta })
-    }
-
     const onPointerDown = (e) => {
       if (e.pointerType !== 'touch') return
       dispatch({ type: 'touchStart' })
-      tapVerdict = null
       if (orderedSlides.value.length < 2 || drag.value?.settling) return
       pointerStart = { x: e.clientX, y: e.clientY, id: e.pointerId, at: Date.now(), swiping: false, moved: false }
     }
 
     const onPointerMove = (e) => {
-      if (e.pointerType === 'mouse') trackHoverEdge(e)
       if (!pointerStart || e.pointerId !== pointerStart.id) return
       const dx = e.clientX - pointerStart.x
       const dy = e.clientY - pointerStart.y
@@ -298,17 +259,10 @@ export const HomeHeroCarousel = {
       if (e.pointerType !== 'touch') return
       dispatch({ type: 'touchEnd', nowMs: Date.now() })
       const swiped = pointerStart?.swiping && drag.value
-      tapVerdict = { at: Date.now(), allowed: isCleanTap(e) }
       pointerStart = null
       if (!swiped) return
       settleSwipe(drag.value.dx)
     }
-
-    const isCleanTap = (e) => Boolean(pointerStart)
-      && e.type === 'pointerup'
-      && !pointerStart.moved
-      && !pointerStart.swiping
-      && Date.now() - pointerStart.at <= TAP_MAX_MS
 
     const settleSwipe = (dx) => {
       const width = stageWidth()
@@ -348,7 +302,7 @@ export const HomeHeroCarousel = {
 
     return {
       stampedShowImage,
-      rotation, stage, failedArt, orderedSlides, hoverEdge, clearHoverEdge, onStageClick, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
+      rotation, stage, failedArt, orderedSlides, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerOver, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
     }

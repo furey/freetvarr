@@ -32,12 +32,10 @@ While anything records, the browser tab title also starts with `● REC`.
 
 The top of Home is a set of up to five slides that take turns. To move between slides:
 
-- Tap or click near the right edge of a slide to go to the next slide.
-- Tap or click near the left edge to go back.
 - Swipe on a touch screen.
 - Press a dot to pick a slide.
 
-The buttons on a slide do their own job only; a tap on a button never changes the slide. The pause button keeps the current slide in place.
+The buttons on a slide do their own job only; a tap on a button never changes the slide. The pause button keeps the current slide in place. On a computer, the slides also wait while the pointer is over a slide's buttons or the dots.
 
 Freetvarr picks the slides from the list below and leaves out any that has nothing to show. Some kinds can give two slides, for example two recordings in progress or two films you have not watched.
 
