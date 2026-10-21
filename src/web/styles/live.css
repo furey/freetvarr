@@ -507,12 +507,11 @@
 
   .live-scope {
     order: 3;
+    margin-right: 0;
   }
 
   .live-images-toggle {
     order: 4;
-    flex: 1;
-    justify-content: space-between;
   }
 
   .live-zoom {
