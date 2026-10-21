@@ -474,6 +474,23 @@
   white-space: nowrap;
 }
 
+.for-you-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+
+.for-you-rating-star {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: #f5c542;
+}
+
 .ui-poster .for-you-reason {
   display: -webkit-box;
   white-space: normal;

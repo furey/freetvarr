@@ -11,12 +11,19 @@ export const HOME_ROW_LIMIT = 12
 export const CHOOSER_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000
 export const MAX_SHOWN_EVENTS = 50
 
-export const SECTION_ORDER = ['coming-up', 'new-seasons', 'might-like', 'movies', 'premieres']
+export const SECTION_ORDER = ['coming-up', 'new-seasons', 'might-like', 'top-rated', 'movies', 'premieres']
+export const TOP_RATED_SECTION = 'top-rated'
+export const OTHER_LANGUAGE_OPTIONS = [
+  { key: 'all', label: 'All' },
+  { key: 'few', label: 'A few' },
+  { key: 'none', label: 'None' },
+]
 
 export const SECTION_TITLES = {
   'coming-up': 'Coming up this week for you',
   'new-seasons': 'New seasons and returning',
   'might-like': 'You might like',
+  'top-rated': 'Top rated movies this week',
   movies: 'Movies for you',
   premieres: 'Premieres and movies this week',
 }
@@ -102,8 +109,15 @@ export const cardMetaOf = ({ item, nowMs, timeZone, withLead = false }) => {
   return joinMeta([lead, start && airingWhenOf({ ms: start, nowMs, timeZone }), item.channelName])
 }
 
+export const cardRatingOf = (item) => {
+  const score = Number(item?.rating?.score)
+  if (!(score > 0)) return null
+  return { label: score.toFixed(1), spoken: `rated ${score.toFixed(1)} out of 10` }
+}
+
 export const reasonOf = (item) => {
   if (item.reason) return item.reason
+  if (cardRatingOf(item)) return ''
   const start = msOf(item.start)
   const stop = msOf(item.stop)
   if (isMovie(item)) return joinMeta(['Movie', start && stop && durationText((stop - start) / 1000)])
@@ -117,8 +131,8 @@ export const liveProgressOf = ({ item, nowMs }) => {
   return Math.min(100, Math.max(0, Math.round(((nowMs - start) / (stop - start)) * 100)))
 }
 
-export const cardLabelOf = ({ item, meta, reason, badge }) =>
-  [item.title, badge?.tone === 'live' ? 'on now' : badge?.label, meta, reason].filter(Boolean).join(', ')
+export const cardLabelOf = ({ item, meta, reason, badge, rating = null }) =>
+  [item.title, badge?.tone === 'live' ? 'on now' : badge?.label, rating?.spoken, meta, reason].filter(Boolean).join(', ')
 
 export const tapActionOf = ({ item, scheduled = false }) => {
   if (scheduled) return 'show'
@@ -204,6 +218,7 @@ export const shownBatchesOf = ({ items, source, size = MAX_SHOWN_EVENTS }) => {
 export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set(), nowMs, timeZone }) => {
   if (!payload || payload.enabled === false || payload.coldStart) return null
   const item = sectionsOf({ payload, scheduledKeys, hiddenKeys })
+    .filter((section) => section.key !== TOP_RATED_SECTION)
     .flatMap((section) => section.rows.flatMap((row) => row.items))
     .find((candidate) => !isScheduled({ item: candidate, scheduledKeys }) && msOf(candidate.stop) > nowMs)
   if (!item) return null
@@ -232,6 +247,45 @@ export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys =
     },
   }
 }
+
+export const topRatedSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set(), nowMs, timeZone, besides = null }) => {
+  if (!payload || payload.enabled === false) return null
+  const otherLanguageTaken = payload.otherLanguageFilms !== 'all' && Boolean(besides?.target?.item?.otherLanguage)
+  const item = (sectionsOf({ payload, scheduledKeys, hiddenKeys })
+    .find((section) => section.key === TOP_RATED_SECTION)?.rows ?? [])
+    .flatMap((row) => row.items)
+    .find((candidate) => hasWidePicture(candidate)
+      && !isScheduled({ item: candidate, scheduledKeys })
+      && msOf(candidate.start) > nowMs
+      && candidate.id !== besides?.target?.item?.id
+      && !(otherLanguageTaken && candidate.otherLanguage))
+  if (!item) return null
+  const when = airingWhenOf({ ms: msOf(item.start), nowMs, timeZone })
+  return {
+    key: `top-rated:${item.id}`,
+    type: 'top-rated',
+    eyebrow: 'Top rated this week',
+    badge: null,
+    title: item.title,
+    meta: joinMeta([when, item.channelName]),
+    metaShort: joinMeta([when, item.channelName]),
+    progress: null,
+    art: { image: item.image, title: item.title },
+    primary: item.canRecordSeries
+      ? { action: 'record-series', label: 'Record series', icon: 'record' }
+      : { action: 'record', label: 'Record', icon: 'record' },
+    secondary: { action: 'guide', label: 'Details' },
+    programId: item.id,
+    target: {
+      item,
+      channel: { id: item.channelId },
+      program: programOf(item),
+      dayOffset: dayOffsetOf({ ms: msOf(item.start) ?? nowMs, nowMs, timeZone }),
+    },
+  }
+}
+
+export const hasWidePicture = (item) => String(item?.image || '').startsWith('/api/epg/image/')
 
 export const carouselReasonOf = (item) => item.reason || CAROUSEL_REASONS[kindOf(item)] || 'Picked for you'
 

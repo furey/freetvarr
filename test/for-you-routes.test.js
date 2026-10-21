@@ -60,6 +60,8 @@ test('settings changes are validated', () => {
   assert.match(settingsChangesFrom({ genreLookup: 'yes' }).error, /genreLookup/)
   assert.match(settingsChangesFrom({ ollamaUrl: 'ftp://x' }).error, /ollamaUrl/)
   assert.deepEqual(settingsChangesFrom({ ollamaUrl: 'http://nas:11434/' }), { changes: { ollamaUrl: 'http://nas:11434' } })
+  assert.deepEqual(settingsChangesFrom({ otherLanguageFilms: 'none' }), { changes: { otherLanguageFilms: 'none' } })
+  assert.match(settingsChangesFrom({ otherLanguageFilms: 'some' }).error, /otherLanguageFilms/)
 })
 
 test('public results trim sections and internal fields', () => {
@@ -79,6 +81,8 @@ test('settings round-trip through the API', async () => {
   assert.equal(initial.body.tier, 'basic')
   assert.equal(initial.body.tierOverride, 'auto')
   assert.equal(initial.body.historyEnabled, true)
+  assert.equal(initial.body.otherLanguageFilms, 'few')
+  assert.equal((await call('PUT', '/api/for-you/settings', { otherLanguageFilms: 'all' })).body.otherLanguageFilms, 'all')
   const updated = await call('PUT', '/api/for-you/settings', { genreLookup: false, tierOverride: 'basic', enabled: false })
   assert.equal(updated.body.genreLookup, false)
   assert.equal(updated.body.tierOverride, 'basic')

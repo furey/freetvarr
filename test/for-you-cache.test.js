@@ -69,6 +69,8 @@ test('the For you signature changes with guide content, schedules, rules, events
   assert.notEqual(signatureOf({ events: { count: 5, lastId: 41 } }), base)
   assert.notEqual(signatureOf({ recordings: { count: 2, watched: 2, position: 300 } }), base)
   assert.notEqual(signatureOf({ tier: 'basic' }), base)
+  assert.notEqual(signatureOf({ filmRatings: { count: 1, latest: NOW } }), base)
+  assert.notEqual(signatureOf({ otherLanguageFilms: 'none' }), base)
   assert.equal(signatureOf({}, NOW + 60_000), base)
   assert.notEqual(signatureOf({}, NOW + 5 * 60_000), base)
 })

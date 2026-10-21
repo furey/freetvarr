@@ -28,6 +28,7 @@ export const heroCandidatesOf = ({
   watchlist = [],
   movies = [],
   forYou = null,
+  topRated = null,
   nowMs,
   timeZone,
 }) => {
@@ -37,6 +38,7 @@ export const heroCandidatesOf = ({
     ...newEpisodeSlidesOf({ newEpisodes, shows, inProgress, nowMs, timeZone }),
     recording && recordingNowSlideOf({ recording, nowEntries, nowMs, timeZone }),
     forYou,
+    topRated,
     onNowSlideOf({ entries: nowEntries, recording, nowMs, timeZone }),
     ...upcomingSlidesOf({ upcoming, activeProgramIds, shows, nowMs, timeZone }),
     ...watchlistSlidesOf({ items: watchlist, nowMs, timeZone }),

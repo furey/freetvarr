@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url'
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
-import { forgetForYouCache, getForYou, getHiddenShows, getPickable, isForYouEnabled, startForYou, titlesForKeys, unhideShow } from './for-you-service.js'
+import { currentOtherLanguageFilms, forgetForYouCache, getForYou, getHiddenShows, getPickable, isForYouEnabled, startForYou, titlesForKeys, unhideShow } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
+import { OTHER_LANGUAGE_CHOICES } from './top-rated.js'
 import { isViewingHistoryEnabled, logUserEvent, setViewingHistoryEnabled } from './user-events-log.js'
 
 export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, onResult = () => {} }) => {
@@ -80,6 +81,7 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     if (changes.ollamaUrl !== undefined) await setSetting(SETTINGS.ollamaUrl, changes.ollamaUrl)
     if (changes.ollamaModel !== undefined) await setSetting(SETTINGS.ollamaModel, changes.ollamaModel)
     if (changes.historyEnabled !== undefined) await setViewingHistoryEnabled(changes.historyEnabled)
+    if (changes.otherLanguageFilms !== undefined) await setSetting(SETTINGS.otherLanguageFilms, changes.otherLanguageFilms)
     if (changes.tierOverride !== undefined) runEmbeddings().catch((err) => console.warn(`[for-you] embedding failed: ${err.message}`))
     res.json(await settingsPayload())
   })
@@ -107,6 +109,7 @@ export const publicResultOf = ({ result, limit }) => ({
   enabled: true,
   tier: result.tier,
   coldStart: result.coldStart,
+  otherLanguageFilms: result.otherLanguageFilms ?? null,
   generatedAt: result.generatedAt,
   similarity: result.similarity,
   computeMs: result.computeMs,
@@ -132,6 +135,10 @@ export const settingsChangesFrom = (body = {}) => {
     if (!TIER_OVERRIDES.includes(body.tierOverride)) return { error: `tierOverride must be one of ${TIER_OVERRIDES.join(', ')}` }
     changes.tierOverride = body.tierOverride
   }
+  if (body.otherLanguageFilms !== undefined) {
+    if (!OTHER_LANGUAGE_CHOICES.includes(body.otherLanguageFilms)) return { error: `otherLanguageFilms must be one of ${OTHER_LANGUAGE_CHOICES.join(', ')}` }
+    changes.otherLanguageFilms = body.otherLanguageFilms
+  }
   if (body.ollamaUrl !== undefined) {
     const url = String(body.ollamaUrl ?? '').trim()
     if (url && !/^https?:\/\/[^\s]+$/i.test(url)) return { error: 'ollamaUrl must be an http or https address' }
@@ -148,7 +155,7 @@ export const settingsChangesFrom = (body = {}) => {
 const publicItemOf = ({ categories, seasonNumber, episodeNumber, ...item }) => item
 
 const settingsPayload = async () => {
-  const [enabled, genreLookup, tier, probe, embeddings, historyEnabled, ollamaUrl, ollamaModel] = await Promise.all([
+  const [enabled, genreLookup, tier, probe, embeddings, historyEnabled, ollamaUrl, ollamaModel, otherLanguageFilms] = await Promise.all([
     isForYouEnabled(),
     getSetting(GENRE_LOOKUP_KEY).then(genreLookupEnabledFrom),
     currentTier(),
@@ -157,6 +164,7 @@ const settingsPayload = async () => {
     isViewingHistoryEnabled(),
     getSetting(SETTINGS.ollamaUrl),
     getSetting(SETTINGS.ollamaModel),
+    currentOtherLanguageFilms(),
   ])
   return {
     enabled,
@@ -167,6 +175,7 @@ const settingsPayload = async () => {
     probe: probe ? probeSummaryOf(probe) : null,
     embeddings: embeddings ? { ...embeddings, running: isEmbedding() } : { running: isEmbedding() },
     historyEnabled,
+    otherLanguageFilms,
     ollamaUrl: ollamaUrl || '',
     ollamaModel: ollamaModel || '',
     attribution: ATTRIBUTION,

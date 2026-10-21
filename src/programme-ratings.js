@@ -44,7 +44,7 @@ export const createProgrammeRatings = ({
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
   waitMs = 0,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
@@ -87,7 +87,7 @@ export const createProgrammeRatings = ({
   return { ratingsFor, forget, warm }
 }
 
-export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0 }) => {
+export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0, isOutdated = () => false }) => {
   const inflight = new Map()
   const failedUntil = new Map()
 
@@ -120,6 +120,7 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
   const foundFor = async ({ cacheKey, wait = true, ...request }) => {
     if (recentlyFailed(cacheKey)) return { status: 'none', found: null }
     const cached = await cachedFound(cacheKey)
+    if (cached && isOutdated(cached.found)) startLookup({ cacheKey, ...request })
     if (cached) return { status: 'ready', found: cached.found }
     const lookup = startLookup({ cacheKey, ...request })
     if (!wait || waitMs <= 0) return PENDING_LOOKUP
@@ -142,6 +143,9 @@ export const forYouProgrammesOf = (result) => [result?.topPick, ...(result?.sect
 
 export const upcomingProgrammesOf = ({ guide, nowMs, windowMs }) => [...(guide?.programByEventId?.values() || [])]
   .filter((programme) => programme.end > nowMs && programme.start < nowMs + windowMs)
+
+export const upcomingFilmsOf = ({ guide, nowMs, windowMs = WEEK_MS }) => upcomingProgrammesOf({ guide, nowMs, windowMs })
+  .filter((programme) => programme.kind === 'movie')
 
 export const ratingsResponseOf = ({ found, ratingsOn = true, reviewsOn = true }) => {
   const scored = ratingsOn && found?.score != null
@@ -322,11 +326,15 @@ export const isCinematicSeries = ({ tvmazeType = null, tmdbType = null }) => (tv
   ? TVMAZE_CINEMATIC_TYPES.has(tvmazeType)
   : TMDB_CINEMATIC_TYPES.has(tmdbType))
 
+export const lacksFilmLanguage = (found) => Boolean(found)
+  && String(found.url || '').startsWith(`${TMDB_WEB}/movie/`)
+  && found.originalLanguage === undefined
+
 export const filmRatingsOf = (details) => {
   const { score, votes } = tmdbScoreOf(details)
   const reviews = tmdbReviewsOf({ type: 'movie', details })
   if (score == null && !reviews) return null
-  return { score, votes, source: 'tmdb', url: `${TMDB_WEB}/movie/${details.id}`, reviews }
+  return { score, votes, source: 'tmdb', url: `${TMDB_WEB}/movie/${details.id}`, reviews, originalLanguage: details.original_language || null }
 }
 
 export const seriesRatingsOf = ({ show, details = null }) => {
@@ -440,6 +448,7 @@ export const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 export const FAILURE_BACKOFF_MS = 10 * 60 * 1000
 export const LOOKUP_CONCURRENCY = 2
 export const LOOKUP_MAX_QUEUE = 300
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 const MIN_REQUESTED_YEAR = 1900
 const MAX_REQUESTED_YEAR = 2100
 

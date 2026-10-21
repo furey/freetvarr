@@ -186,7 +186,7 @@ import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
 import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
-import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingProgrammesOf } from './programme-ratings.js'
+import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_IMAGE_SOURCES, CREDITS_SETTING } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
@@ -748,6 +748,10 @@ const warmUpcomingRatings = async () => {
   const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start }))
   programmeRatings.warm(upcoming.filter((programme) => isRatingsLikely({ kind: programme.kind, category: categoryOf(programme) })))
 }
+const warmWeekFilmRatings = async () => {
+  const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
+  return programmeRatings.warm(upcomingFilmsOf({ guide, nowMs: Date.now() }))
+}
 setTimeout(warmUpcomingRatings, RATINGS_WARM_DELAY_MS).unref?.()
 setInterval(warmUpcomingRatings, RATINGS_WARM_WINDOW_MS / 24).unref?.()
 
@@ -1260,7 +1264,7 @@ const warmedForYou = new WeakSet()
 const warmForYou = (result) => {
   if (warmedForYou.has(result)) return
   warmedForYou.add(result)
-  return programmeRatings.warm(forYouProgrammesOf(result))
+  return programmeRatings.warm(forYouProgrammesOf(result)).then(warmWeekFilmRatings)
 }
 mountForYou({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onResult: warmForYou })
 mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })

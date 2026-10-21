@@ -228,6 +228,13 @@ test('heroCandidatesOf: every ranked slide, uncapped, with a show key on recordi
   assert.equal(candidates[0].showKey, 'the-block')
 })
 
+test('heroCandidatesOf: the top rated slide follows the For you slide', () => {
+  const forYou = { key: 'for-you:1', type: 'for-you', title: 'Grand Designs', art: { image: '/a.jpg', title: 'Grand Designs' } }
+  const topRated = { key: 'top-rated:2', type: 'top-rated', title: 'The Pianist', art: { image: '/b.jpg', title: 'The Pianist' } }
+  const types = heroCandidatesOf({ ...fullFeed(), forYou, topRated }).map((s) => s.type)
+  assert.equal(types.indexOf('top-rated'), types.indexOf('for-you') + 1)
+})
+
 test('heroSlidesOf: same show stays when its pool gives each slide different art', () => {
   const pools = {
     shows: { 'the-block': [{ url: '/bg1', kind: 'background' }, { url: '/bg2', kind: 'background' }] },

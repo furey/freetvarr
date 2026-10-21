@@ -20,7 +20,7 @@ import {
   showHrefOf,
   splitClock,
 } from '/home-feed.js'
-import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, forYouSlideOf, homeRowOf, isScheduled, scheduledKeysOf } from '/for-you.js'
+import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, forYouSlideOf, homeRowOf, isScheduled, scheduledKeysOf, topRatedSlideOf } from '/for-you.js'
 import {
   guideMatchMenuOf,
   onNowMenuOf,
@@ -97,7 +97,19 @@ const fetchHome = async (previous) => {
   return Object.assign({ ...(previous ?? EMPTY_HOME) }, ...parts)
 }
 
-const heroFeedOf = ({ home, nowMs }) => ({
+const heroFeedOf = ({ home, nowMs }) => {
+  const suggestionFeed = {
+    payload: home.forYouPayload,
+    scheduledKeys: scheduledKeysOf(home.upcoming),
+    hiddenKeys: forYouHidden.value,
+    nowMs,
+    timeZone: tz.value,
+  }
+  const forYou = forYouSlideOf(suggestionFeed)
+  return heroFeedWith({ home, nowMs, forYou, topRated: topRatedSlideOf({ ...suggestionFeed, besides: forYou }) })
+}
+
+const heroFeedWith = ({ home, nowMs, forYou, topRated }) => ({
   inProgress: home.inProgress,
   newEpisodes: home.newRecordings,
   shows: home.shows,
@@ -107,13 +119,8 @@ const heroFeedOf = ({ home, nowMs }) => ({
   activeProgramIds: home.activeProgramIds,
   watchlist: home.watchlist,
   movies: home.movies,
-  forYou: forYouSlideOf({
-    payload: home.forYouPayload,
-    scheduledKeys: scheduledKeysOf(home.upcoming),
-    hiddenKeys: forYouHidden.value,
-    nowMs,
-    timeZone: tz.value,
-  }),
+  forYou,
+  topRated,
   nowMs,
   timeZone: tz.value,
 })
@@ -399,7 +406,7 @@ export const HomeView = {
     }
 
     const openSlideMenu = (slide) => {
-      if (slide.type === 'for-you') return forYou.openMenu(slide.target.item)
+      if (slide.type === 'for-you' || slide.type === 'top-rated') return forYou.openMenu(slide.target.item)
       if (slide.recordingId) return openEpisodeMenu({ showKey: slide.showKey, recordingId: slide.recordingId })
       const menu = SLIDE_MENUS[slide.type]?.(slide)
       if (!menu) return

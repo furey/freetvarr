@@ -23,6 +23,7 @@ The page groups its suggestions under these headings, and leaves out any heading
 - **Coming up this week for you**, sorted by air time.
 - **New seasons and returning**.
 - **You might like**.
+- **Top rated movies this week**: up to 10 films from the next 7 days with the best TMDB user scores, weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**.
 - **Movies for you**.
 - **Premieres and movies this week**.
 
@@ -72,6 +73,7 @@ Open Settings → **For you**, or press the settings button at the top of the Fo
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | **Show For you**                           | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                           |
 | **Use TVmaze and Wikidata to find genres** | Sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. On by default.                |
+| **Films in other languages**               | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English. |
 | **Hidden shows**                           | Lists the shows you marked **Not interested**. Press **Show again** to get suggestions for a show again.              |
 | **Suggestion level**                       | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                            |
 | **Pause history**                          | Stops Freetvarr noting what you watch, until you turn it off.                                                         |

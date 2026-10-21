@@ -26,6 +26,7 @@ export const SETTINGS = {
   probe: 'for_you_probe',
   embedRun: 'for_you_embed_last',
   upkeep: 'for_you_upkeep_last',
+  otherLanguageFilms: 'for_you_other_language_films',
 }
 
 export const fetchOllamaTags = (url) => axios.get(`${url}/api/tags`, {

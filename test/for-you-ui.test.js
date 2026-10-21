@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   badgeOf,
   cardMetaOf,
+  cardRatingOf,
   chooserShownOf,
   CHOOSER_SNOOZE_MS,
   doneLabelOf,
@@ -25,6 +26,7 @@ import {
   tapActionOf,
   tierReasonOf,
   tierSummaryOf,
+  topRatedSlideOf,
   whyRowsOf,
 } from '../src/web/for-you.js'
 
@@ -174,6 +176,52 @@ test('forYouSlideOf: the top unscheduled pick, eyebrow For you · reason, Record
   const scheduledKeys = scheduledKeysOf([{ channelId: 'c2', startDate: item().start }])
   assert.equal(forYouSlideOf({ payload: payload(), scheduledKeys, nowMs, timeZone }).title, 'Big Wave Season')
   assert.equal(forYouSlideOf({ payload: payload({ coldStart: true }), nowMs, timeZone }), null)
+})
+
+const ratedFilm = (over) => item({
+  id: 'r1', seriesKey: 'the-pianist', title: 'The Pianist', kind: 'movie', reason: '', canRecordSeries: false,
+  image: '/api/epg/image/r1', rating: { score: 8.4, votes: 20000 }, ...over,
+})
+
+const ratedPayload = (films, over) => payload({
+  sections: [
+    ...payload().sections,
+    { key: 'top-rated', title: 'Top rated movies this week', items: films },
+  ],
+  ...over,
+})
+
+test('top rated cards: star score line, no reason, the Movies this week when line', () => {
+  const film = ratedFilm()
+  assert.deepEqual(cardRatingOf(film), { label: '8.4', spoken: 'rated 8.4 out of 10' })
+  assert.equal(cardRatingOf(item()), null)
+  assert.equal(reasonOf(film), '')
+  assert.equal(cardMetaOf({ item: film, nowMs, timeZone }), 'Wed 7:30pm · ABC TV')
+  const sections = sectionsOf({ payload: ratedPayload([film]) })
+  assert.deepEqual(sections.map((section) => section.key), ['coming-up', 'might-like', 'top-rated', 'movies'])
+  assert.equal(sections.find((section) => section.key === 'top-rated').rows[0].shape, 'poster')
+})
+
+test('topRatedSlideOf: the best film with a wide picture, eyebrow, Record and Details, never the For you slide', () => {
+  const films = [ratedFilm({ id: 'r0', title: 'No Picture', seriesKey: 'no-picture', image: '/api/epg/show-image?title=No%20Picture&kind=movie' }), ratedFilm()]
+  const slide = topRatedSlideOf({ payload: ratedPayload(films), nowMs, timeZone })
+  assert.equal(slide.type, 'top-rated')
+  assert.equal(slide.eyebrow, 'Top rated this week')
+  assert.equal(slide.eyebrowAccent, undefined)
+  assert.equal(slide.title, 'The Pianist')
+  assert.equal(slide.meta, 'Wed 7:30pm · ABC TV')
+  assert.deepEqual([slide.primary.action, slide.primary.label], ['record', 'Record'])
+  assert.equal(topRatedSlideOf({ payload: ratedPayload([films[0]]), nowMs, timeZone }), null)
+  assert.notEqual(forYouSlideOf({ payload: ratedPayload(films), nowMs, timeZone }).type, 'top-rated')
+  assert.equal(topRatedSlideOf({ payload: ratedPayload(films), nowMs, timeZone, besides: { target: { item: films[1] } } }), null)
+})
+
+test('topRatedSlideOf: with A few, only one hero slide is a film in another language', () => {
+  const films = [ratedFilm({ id: 'f1', title: 'Amelie', seriesKey: 'amelie', otherLanguage: true }), ratedFilm()]
+  const besides = { target: { item: ratedFilm({ id: 'p1', title: 'Parasite', seriesKey: 'parasite', otherLanguage: true }) } }
+  assert.equal(topRatedSlideOf({ payload: ratedPayload(films, { otherLanguageFilms: 'few' }), nowMs, timeZone, besides }).title, 'The Pianist')
+  assert.equal(topRatedSlideOf({ payload: ratedPayload(films, { otherLanguageFilms: 'all' }), nowMs, timeZone, besides }).title, 'Amelie')
+  assert.equal(topRatedSlideOf({ payload: ratedPayload(films, { otherLanguageFilms: 'few' }), nowMs, timeZone }).title, 'Amelie')
 })
 
 test('cold start: page intro, chooser visibility with a 7-day skip, and the Done label', () => {

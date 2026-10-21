@@ -6,12 +6,15 @@ import {
   createGuideHints,
   createProgrammeRatings,
   createRatingsLookup,
+  filmRatingsOf,
   forYouProgrammesOf,
+  lacksFilmLanguage,
   isCinematicSeries,
   pickRatedShow,
   ratingsResponseOf,
   requestedYearOf,
   tmdbScoreOf,
+  upcomingFilmsOf,
   upcomingProgrammesOf,
 } from '../src/programme-ratings.js'
 import { programmeHintsOf } from '../src/artwork-match.js'
@@ -321,6 +324,38 @@ test('callers share one lookup, hits last the hit TTL, and failures back off', a
   clock.ms += 2
   await settled(ratings, 'Film', { kind: 'movie' })
   assert.equal(calls, 3)
+})
+
+test('film ratings keep the original language, and older film hits refresh in the background', async () => {
+  assert.equal(filmRatingsOf({ id: 7, vote_average: 7.9, vote_count: 12000, original_language: 'fr' }).originalLanguage, 'fr')
+  assert.equal(lacksFilmLanguage({ url: 'https://www.themoviedb.org/movie/1', score: 8 }), true)
+  assert.equal(lacksFilmLanguage({ url: 'https://www.themoviedb.org/movie/1', score: 8, originalLanguage: null }), false)
+  assert.equal(lacksFilmLanguage({ url: 'https://www.tvmaze.com/shows/1', score: 8 }), false)
+  let calls = 0
+  const { ratings } = ratingsWith({
+    lookUp: async () => {
+      calls += 1
+      return { score: 8, votes: 100, source: 'tmdb', url: 'https://www.themoviedb.org/movie/1', reviews: null, ...(calls > 1 && { originalLanguage: 'en' }) }
+    },
+  })
+  assert.equal((await settled(ratings, 'Film', { kind: 'movie' })).score, 8)
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 8)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.equal(calls, 2)
+  await ratings.ratingsFor('Film', { kind: 'movie' })
+  assert.equal(calls, 2)
+})
+
+test('upcomingFilmsOf keeps films airing in the next week', () => {
+  const now = Date.UTC(2026, 9, 21)
+  const day = 24 * 60 * 60 * 1000
+  const programmes = [
+    { title: 'Soon', kind: 'movie', start: now + day, end: now + day + 7200000 },
+    { title: 'Series', kind: 'series', start: now + day, end: now + day + 3600000 },
+    { title: 'Later', kind: 'movie', start: now + 8 * day, end: now + 8 * day + 7200000 },
+  ]
+  const guide = { programByEventId: new Map(programmes.map((programme, index) => [String(index), programme])) }
+  assert.deepEqual(upcomingFilmsOf({ guide, nowMs: now }).map((programme) => programme.title), ['Soon'])
 })
 
 test('pickRatedShow prefers synopsis evidence over search order', () => {

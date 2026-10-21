@@ -19,6 +19,8 @@ import {
 import { createGenreEnrichment, isMovieLike, loadTitleGenres, yearOf } from './genre-enrichment.js'
 import { rememberKnownAsFromTvmaze, rememberKnownAsFromWikidata } from './search-aliases.js'
 import { showKeyOf } from './web/show-key.js'
+import { showTitleKey } from './show-artwork.js'
+import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLanguageChoiceFrom } from './top-rated.js'
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
@@ -106,7 +108,7 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
 
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
-export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier }) => {
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, otherLanguageFilms = 'few' }) => {
   const ruleKeys = new Set([
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
     ...watchlist.filter((row) => row.mode === 'record').map((row) => showKeyOf(row.title)),
@@ -129,6 +131,8 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       vectors: `${embedderId}|${vectors}`,
       pinned: pinned.join(','),
       tier,
+      filmRatings: `${Number(filmRatings?.count) || 0}:${Number(filmRatings?.latest) || 0}`,
+      otherLanguageFilms,
     },
   }
 }
@@ -246,7 +250,7 @@ const upkeepNow = async ({ nowMs }) => {
 }
 
 const loadSnapshot = async () => {
-  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned] = await Promise.all([
+  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, otherLanguageFilms] = await Promise.all([
     getGuideSnapshot(),
     getRecordingState().catch(() => null),
     db('watchlist').select('title', 'mode'),
@@ -256,6 +260,8 @@ const loadSnapshot = async () => {
     currentTier(),
     currentEmbedder(),
     pinnedChannelIds(),
+    filmRatingRows().first(db.raw('count(*) as count'), db.raw('max(expires_at) as latest')).catch(() => null),
+    currentOtherLanguageFilms(),
   ])
   const vectors = vectorsVersion()
   return {
@@ -264,17 +270,19 @@ const loadSnapshot = async () => {
     pinned,
     tier: tier.tier,
     vectors,
-    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier }),
+    otherLanguageFilms,
+    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, otherLanguageFilms }),
   }
 }
 
 const computeForYou = async ({ snapshot, nowMs }) => {
-  const [events, recordings, genresByKey, history, vectorsByHash] = await Promise.all([
+  const [events, recordings, genresByKey, history, vectorsByHash, filmRatings] = await Promise.all([
     db('user_events').orderBy('id'),
     db('recordings').select('recording_id', 'title', 'season', 'episode', 'aired_at', 'imported_at', 'played_at', 'watched_at', 'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status'),
     loadTitleGenres(),
     db('guide_programs').where('end', '<=', nowMs).select('program_json').catch(() => []),
     snapshot.embedder ? loadVectors(snapshot.embedder.id) : null,
+    filmRatingRows().select('lookup_key', 'found_json').catch(() => []),
   ])
   const guide = {
     programmes: Object.values(snapshot.guide.programsByChannel || {}).flat(),
@@ -294,6 +302,12 @@ const computeForYou = async ({ snapshot, nowMs }) => {
       genresByKey,
       pinnedChannelIds: snapshot.pinned,
       tier: snapshot.tier,
+      filmFacts: filmFactsForTitlesOf({
+        titles: new Set(guide.programmes.map((programme) => programme.title)),
+        factsByKey: filmFactsByKeyOf(filmRatings),
+        keyOf: showTitleKey,
+      }),
+      otherLanguageFilms: snapshot.otherLanguageFilms,
     },
   }
   const started = Date.now()
@@ -406,6 +420,10 @@ export const withClassifications = async ({ result, programmes, store = classifi
     sections: result.sections.map((section) => ({ ...section, items: section.items.map(classified) })),
   }
 }
+
+export const currentOtherLanguageFilms = async () => otherLanguageChoiceFrom(await getSetting(SETTINGS.otherLanguageFilms).catch(() => null))
+
+const filmRatingRows = () => db('programme_ratings').where('lookup_key', 'like', `${FILM_RATINGS_PREFIX}%`).whereNot('found_json', 'null')
 
 const recordingStampOf = (recordings) => RECORDING_STAMP_FIELDS.map((field) => recordings?.[field] ?? '').join(':')
 
