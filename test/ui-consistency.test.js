@@ -58,6 +58,7 @@ test('Live TV and the TV guide headers share the date subtitle and the 16 px gap
   assert.match(await read('styles/live.css'), /\.live-page \{[^}]*gap: 16px;/)
   assert.match(await read('styles/guide.css'), /\.guide-page \{\s*gap: 16px;/)
   assert.match(await read('styles/guide.css'), /\.guide-controls \.ui-chip \{\s*height: var\(--control-compact-h\);/)
+  assert.match(await read('styles/guide.css'), /@media \(max-width: 767px\), \(max-height: 500px\) \{\s*\.guide-scheduled-word \{\s*display: none;/)
 })
 
 test('every button uses the shared ui-button styles', async () => {

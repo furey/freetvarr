@@ -25,7 +25,7 @@ Channels run down the page and time runs across. The TV guide opens at the curre
 - **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. In a narrower window, **Zoom** shows **−** and **+** instead. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
 - The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. When nothing matches, **Add to watchlist** lists the show for later. See [Watchlist](#watchlist).
 - The **Channels** button opens the channel settings.
-- The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). On a narrow phone it shows only the number. It replaces the old `UPCOMING` view.
+- The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). On a phone it shows only the number. It replaces the old `UPCOMING` view.
 - A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme on your watchlist has its own dot; the legend names it **On watchlist**. On a tablet or computer the legend sits above the grid, on the right; on a phone it sits under the grid. Past programmes are dimmed, and programmes on air have a lighter cell.
 - A line marks the current time.
 - At zoom **L**, a movie has a `Movie` tag beside its start time when the cell is wide enough.
