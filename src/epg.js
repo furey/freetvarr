@@ -37,7 +37,8 @@ import {
   savedProgramFor,
 } from './guide-history.js'
 import { findArtwork, saveArtwork } from './artwork.js'
-import { PLEX_ORIGIN_PREFIX, RECORDING_ORIGIN_PREFIX, artworkChoices, plexSourceOf } from './artwork-choices.js'
+import { PLEX_ORIGIN_PREFIX, RECORDING_ORIGIN_PREFIX, UPLOAD_ORIGIN_PREFIX, artworkChoices, plexSourceOf } from './artwork-choices.js'
+import { artworkUploads } from './artwork-uploads.js'
 import { getPlexConnection } from './plex.js'
 import { showKeyOf } from './web/show-key.js'
 import { createGuideCache } from './guide-cache.js'
@@ -678,6 +679,7 @@ const originalOfOrigin = async ({ origin, kind }) => {
 }
 
 const rawImageOfOrigin = async (origin) => {
+  if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
   if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
     return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
   }

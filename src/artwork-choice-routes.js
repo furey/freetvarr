@@ -1,3 +1,5 @@
+import express from 'express'
+
 import { contentKeyOf } from './art-pool.js'
 import {
   PLEX_ORIGIN_PREFIX,
@@ -8,6 +10,13 @@ import {
   isCandidateId,
   isShowKey,
 } from './artwork-choices.js'
+import {
+  MAX_UPLOADS_PER_KIND,
+  MAX_UPLOAD_BYTES,
+  UploadRejected,
+  artworkUploads,
+  prepareUpload,
+} from './artwork-uploads.js'
 import { artworkOriginImage, automaticShowSources } from './epg.js'
 import { storedTmdbKey } from './fallback-artwork.js'
 import { PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
@@ -23,6 +32,8 @@ export const mountArtworkChoiceRoutes = ({
   candidates = createArtworkCandidates({ showSources: (key) => artPool.showSources(key) }),
   choices = artworkChoices,
   loadImage = artworkOriginImage,
+  uploads = artworkUploads,
+  prepare = prepareUpload,
 }) => {
   const showKeyFrom = (req, res) => {
     if (isShowKey(req.params.key)) return req.params.key
@@ -39,8 +50,22 @@ export const mountArtworkChoiceRoutes = ({
   const offeredFor = async (key) => {
     const found = await candidates.candidatesFor(key)
     if (!found) return null
-    return { ...found, offered: withChosenOf({ candidates: found.candidates, chosen: await choices.choicesFor(key) }) }
+    const uploaded = (await uploads.list({ key }).catch(() => [])).map(withIdOf)
+    const offered = withChosenOf({ candidates: [...uploaded, ...found.candidates], chosen: await choices.choicesFor(key) })
+    return { ...found, offered }
   }
+
+  const uploadTargetFrom = (req, res, next) => {
+    if (!showKeyFrom(req, res)) return
+    if (!kindFrom(req, res)) return
+    next()
+  }
+
+  const stampedResponseOf = ({ kind, chosen }) => ({
+    kind,
+    chosen: chosen ? candidateIdOf({ kind, origin: chosen.origin }) : null,
+    stamp: choiceStampOf(chosen),
+  })
 
   app.get('/api/library/artwork-stamps', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
@@ -97,7 +122,50 @@ export const mountArtworkChoiceRoutes = ({
     const removed = await choices.clear({ key, kind })
     res.json({ ok: true, kind, chosen: null, stamp: null, removed: removed ? candidateIdOf({ kind, origin: removed.origin }) : null })
   })
+
+  app.post('/api/library/shows/:key/artwork/:kind/uploads', writeLimiter, csrf, uploadTargetFrom, uploadBody, async (req, res) => {
+    const { key, kind } = req.params
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'send the picture as the request body' })
+    const found = await offeredFor(key)
+    if (!found) return res.status(404).json({ error: 'show not found' })
+    if ((await uploads.list({ key, kind })).length >= MAX_UPLOADS_PER_KIND) {
+      return res.status(409).json({ error: `remove a picture first: each show keeps up to ${MAX_UPLOADS_PER_KIND}` })
+    }
+    try {
+      const saved = await uploads.save({ key, kind, body: await prepare({ body: req.body, kind }) })
+      const choice = await choices.choose({ key, kind, origin: saved.origin, source: saved.source })
+      const candidate = withIdOf(saved)
+      res.status(201).json({
+        ok: true,
+        ...stampedResponseOf({ kind, chosen: choice }),
+        candidate: candidateEntryOf({ key, entry: candidate }),
+      })
+    } catch (err) {
+      if (err instanceof UploadRejected) return res.status(415).json({ error: err.message })
+      res.status(500).json({ error: 'cannot save the picture' })
+    }
+  })
+
+  app.delete('/api/library/shows/:key/artwork/:kind/uploads/:id', writeLimiter, csrf, uploadTargetFrom, async (req, res) => {
+    const { key, kind, id } = req.params
+    if (!isCandidateId(id)) return res.status(400).json({ error: 'id must be a candidate id' })
+    const upload = (await uploads.list({ key, kind })).find((entry) => candidateIdOf(entry) === id)
+    if (!upload) return res.status(404).json({ error: 'that picture is not one of your uploads' })
+    const chosen = await choices.chosenFor({ key, kind })
+    const wasChosen = chosen?.origin === upload.origin
+    if (wasChosen) await choices.clear({ key, kind })
+    await uploads.remove(upload.origin)
+    res.json({ ok: true, removed: id, ...stampedResponseOf({ kind, chosen: wasChosen ? null : chosen }) })
+  })
 }
+
+const uploadParser = express.raw({ type: () => true, limit: MAX_UPLOAD_BYTES })
+
+const uploadBody = (req, res, next) => uploadParser(req, res, (err) => {
+  if (!err) return next()
+  if (err.status === 413) return res.status(413).json({ error: 'the picture must be 20 MB or smaller' })
+  res.status(400).json({ error: 'cannot read the upload' })
+})
 
 export const createArtworkCandidates = ({
   showSources,
@@ -191,13 +259,15 @@ export const candidatesResponseOf = ({ key, found, chosen = {} }) => ({
     background: chosen.background ? candidateIdOf({ kind: 'background', origin: chosen.background.origin }) : null,
     poster: chosen.poster ? candidateIdOf({ kind: 'poster', origin: chosen.poster.origin }) : null,
   },
-  candidates: found.offered.map((entry) => ({
-    id: entry.id,
-    kind: entry.kind,
-    source: entry.source,
-    caption: entry.caption ?? null,
-    url: `/api/library/shows/${encodeURIComponent(key)}/artwork-candidates/${entry.id}?w=${TILE_WIDTH}`,
-  })),
+  candidates: found.offered.map((entry) => candidateEntryOf({ key, entry })),
+})
+
+const candidateEntryOf = ({ key, entry }) => ({
+  id: entry.id,
+  kind: entry.kind,
+  source: entry.source,
+  caption: entry.caption ?? null,
+  url: `/api/library/shows/${encodeURIComponent(key)}/artwork-candidates/${entry.id}?w=${TILE_WIDTH}`,
 })
 
 export const candidateIdOf = ({ kind, origin }) => contentKeyOf(`${kind}|${origin}`)

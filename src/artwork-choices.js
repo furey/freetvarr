@@ -3,6 +3,7 @@ import { db } from './db.js'
 export const ARTWORK_KINDS = ['background', 'poster']
 export const PLEX_ORIGIN_PREFIX = 'plex:'
 export const RECORDING_ORIGIN_PREFIX = 'recording:'
+export const UPLOAD_ORIGIN_PREFIX = 'upload:'
 
 export const artworkChoiceKindFrom = (value) => (ARTWORK_KINDS.includes(value) ? value : null)
 

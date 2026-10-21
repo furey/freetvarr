@@ -1739,6 +1739,7 @@ a.show-cast-hit:active .show-cast-face {
 }
 
 .picture-kinds {
+  align-self: flex-start;
   margin-top: -4px;
 }
 
@@ -1859,10 +1860,6 @@ a.show-cast-hit:active .show-cast-face {
   background: linear-gradient(to bottom, rgba(11, 17, 23, 0), rgba(11, 17, 23, 0.85));
 }
 
-.picture-grid .ui-skeleton.picture-tile {
-  cursor: default;
-}
-
 .picture-note {
   margin: 0;
   font-size: 13px;
@@ -1874,6 +1871,128 @@ a.show-cast-hit:active .show-cast-face {
   color: var(--color-live-text);
 }
 
+.picture-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.picture-status:empty {
+  display: none;
+}
+
+.picture-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px;
+  border: 1.5px dashed var(--color-text-3);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-2);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+}
+
+.picture-grid.is-background .picture-upload {
+  aspect-ratio: 16 / 9;
+}
+
+.picture-grid.is-poster .picture-upload {
+  aspect-ratio: 2 / 3;
+}
+
+.picture-upload svg {
+  margin-bottom: 2px;
+}
+
+.picture-upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+.picture-upload-hint {
+  display: none;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  color: var(--color-text-3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .picture-upload-hint {
+    display: block;
+  }
+
+  .picture-upload:hover:not(:disabled) {
+    border-color: var(--color-text-2);
+    color: var(--color-text-1);
+  }
+}
+
+.picture-upload.is-dropping {
+  border-color: var(--color-primary);
+  color: var(--color-text-1);
+}
+
+.picture-upload:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.picture-upload:disabled {
+  cursor: default;
+}
+
+.picture-mine {
+  position: relative;
+}
+
+.picture-remove {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(11, 17, 23, 0.72);
+  color: #fff;
+  cursor: pointer;
+}
+
+.picture-remove::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.picture-remove:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.picture-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .library-menu-art {
   display: grid;
   place-items: center;
@@ -1882,4 +2001,8 @@ a.show-cast-hit:active .show-cast-face {
 .library-menu-art-title {
   font-size: 10px;
   max-width: 90%;
+}
+
+body:has(.picture-body) .ui-toast-region {
+  z-index: 1001;
 }

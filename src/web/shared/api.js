@@ -44,11 +44,13 @@ const getCsrf = async ({ force = false } = {}) => {
 }
 
 const apiCall = async (method, url, body, headersExtra = {}) => {
-  const headers = { 'Content-Type': 'application/json', ...headersExtra }
+  const isFile = typeof Blob !== 'undefined' && body instanceof Blob
+  const contentType = isFile ? body.type || 'application/octet-stream' : 'application/json'
+  const headers = { 'Content-Type': contentType, ...headersExtra }
   const res = noteBuild(await fetch(url, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: isFile ? body : body ? JSON.stringify(body) : undefined,
   }))
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {

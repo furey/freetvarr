@@ -88,7 +88,7 @@ export const ProgrammeArtBadges = {
   emits: ['update:open'],
   template: `
     <transition name="programme-score-loading">
-      <span v-if="loading && !score" class="programme-art-badge programme-score-loading" role="status" aria-label="Loading rating">
+      <span v-if="loading && !score" class="programme-art-badge programme-score-loading ui-loading-dots" role="status" aria-label="Loading rating">
         <i></i><i></i><i></i>
       </span>
     </transition>

@@ -1221,29 +1221,8 @@
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  color: #fff;
   pointer-events: none;
-}
-
-.programme-score-loading i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #fff;
-  opacity: 0.3;
-  animation: programme-score-pulse 900ms ease-in-out infinite;
-}
-
-.programme-score-loading i:nth-child(2) {
-  animation-delay: 150ms;
-}
-
-.programme-score-loading i:nth-child(3) {
-  animation-delay: 300ms;
-}
-
-@keyframes programme-score-pulse {
-  0%, 100% { opacity: 0.3; transform: translateY(0); }
-  40% { opacity: 0.95; transform: translateY(-3px); }
 }
 
 .programme-score-loading-leave-active {
@@ -1400,11 +1379,6 @@
   .programme-score-card-leave-active,
   .programme-score-loading-leave-active {
     transition: none;
-  }
-
-  .programme-score-loading i {
-    animation: none;
-    opacity: 0.6;
   }
 }
 
