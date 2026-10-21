@@ -254,6 +254,10 @@
   color: var(--color-text-2);
 }
 
+.settings-section > .settings-intro:first-child {
+  margin-top: -22px;
+}
+
 .settings-group {
   min-width: 0;
 }

@@ -1731,6 +1731,8 @@
 @media (max-width: 767px), (max-height: 500px) {
   .guide-page .ui-page-heading {
     min-width: 0;
+    flex: 0 1 auto;
+    white-space: nowrap;
   }
 
   .guide-page .ui-page-actions {

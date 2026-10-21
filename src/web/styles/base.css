@@ -387,8 +387,22 @@ body.sheet-open .app-tabbar {
 }
 
 @media (max-width: 767px), (max-height: 500px) {
+  .ui-page-header {
+    align-items: flex-start;
+  }
+
   .ui-page-heading {
-    min-width: min(100%, 160px);
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .ui-page-actions {
+    margin-top: -6px;
+  }
+
+  .ui-page-heading:has(.app-brand-mark) + .ui-page-actions {
+    align-self: flex-end;
+    margin: 0 0 -6px;
   }
 }
 
