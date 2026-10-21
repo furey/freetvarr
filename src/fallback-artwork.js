@@ -1,6 +1,8 @@
 import { db, getSetting } from './db.js'
 import { showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { createOutboundClient, createHostLimiter } from './outbound-http.js'
+import { currentTimeZone } from './time-zone.js'
+import { countryForTimeZone } from './zone-countries.js'
 import {
   articleCandidateIdsOf,
   artworkKindOf,
@@ -14,6 +16,7 @@ import {
   pageArtOf,
   rankEntities,
   sharesAnyTerm,
+  tmdbAirsOnGuideChannel,
   tmdbAuthOf,
   tmdbCandidatesOf,
   tmdbSearchOf,
@@ -52,7 +55,8 @@ export const createFallbackArtwork = ({
 
   const cachedSources = async (cacheKey) => {
     const cached = await cache.read(cacheKey).catch(() => null)
-    return cached && cached.expiresAt > now() ? cached.sources : null
+    if (!cached || cached.expiresAt <= now()) return null
+    return cached.sources.length || cached.reference === MISS_REFERENCE ? cached.sources : null
   }
 
   const startLookup = ({ title, kind, apiKey, cacheKey }) => {
@@ -62,7 +66,8 @@ export const createFallbackArtwork = ({
       .then(async (found) => {
         const sources = found?.sources || []
         const expiresAt = lookupExpiryOf({ found: sources.length > 0, nowMs: now(), hitTtlMs, missTtlMs })
-        await cache.write({ key: cacheKey, sources, reference: found?.reference || null, expiresAt }).catch(() => {})
+        const reference = sources.length ? found?.reference || null : MISS_REFERENCE
+        await cache.write({ key: cacheKey, sources, reference, expiresAt }).catch(() => {})
         return sources
       })
       .catch(() => {
@@ -106,7 +111,10 @@ export const createFallbackArtwork = ({
   return { sourcesFor, artworkFor, forget }
 }
 
-export const createArtworkLookup = ({ client = artworkClient } = {}) => {
+export const createArtworkLookup = ({
+  client = artworkClient,
+  countryCode = () => countryForTimeZone(currentTimeZone()),
+} = {}) => {
   const candidatesFor = async (title) => {
     for (const variant of titleVariantsOf(title)) {
       const ids = await wikidataCandidates(variant)
@@ -222,11 +230,14 @@ export const createArtworkLookup = ({ client = artworkClient } = {}) => {
     const found = await tmdbGet({ apiKey, path: search.path, params: { ...search.params, include_adult: 'false', language: 'en-AU' } })
     const results = (found?.results || []).map((result) => ({ ...result, media_type: result.media_type || search.mediaType }))
     const unproven = []
-    for (const result of tmdbCandidatesOf({ results, title, hints })) {
+    const country = countryCode()
+    for (const result of tmdbCandidatesOf({ results, title, hints, country })) {
       const details = await tmdbDetails({ apiKey, type: result.media_type, id: result.id, withCredits: true })
       if (!details) continue
       const evidence = matchEvidenceOf({ hints, candidateYear: tmdbYearOf(details), text: tmdbTextOf(details) })
-      const sources = evidence.accepted ? tmdbSourcesOf(details) : []
+      const onGuideChannel = result.media_type === 'tv' && evidence.reason === 'no-evidence'
+        && tmdbAirsOnGuideChannel({ details, hints, country })
+      const sources = evidence.accepted || onGuideChannel ? tmdbSourcesOf(details) : []
       if (sources.length) return { sources, reference: `tmdb:${result.media_type}:${result.id}` }
       if (result.media_type === 'movie' && evidence.reason === 'no-evidence') unproven.push({ details, id: result.id })
     }
@@ -284,7 +295,7 @@ export const storedTmdbKey = async () => String((await getSetting(TMDB_KEY_SETTI
 const databaseCache = {
   read: async (key) => {
     const row = await db('artwork_lookups').where({ lookup_key: key }).first()
-    return row ? { sources: JSON.parse(row.sources_json), expiresAt: Number(row.expires_at) } : null
+    return row ? { sources: JSON.parse(row.sources_json), reference: row.reference, expiresAt: Number(row.expires_at) } : null
   },
   write: ({ key, sources, reference, expiresAt }) => db('artwork_lookups')
     .insert({ lookup_key: key, sources_json: JSON.stringify(sources), reference, expires_at: expiresAt })
@@ -317,6 +328,7 @@ const PENDING_ARTWORK = { sources: [], pending: true }
 const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const FAILURE_BACKOFF_MS = 10 * 60 * 1000
+const MISS_REFERENCE = 'miss:guide-network-v1'
 const LOOKUP_CONCURRENCY = 2
 const LOOKUP_MAX_QUEUE = 300
 const WIKIDATA_SEARCH_LIMIT = 10

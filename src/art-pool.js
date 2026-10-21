@@ -141,7 +141,7 @@ export const createArtPool = ({
     if (cached && cached.expiresAt > now()) return cached.sources
     const hints = await Promise.resolve().then(() => hintsFor(title)).catch(() => null)
     const show = await findSeriesShow({ title, hints })
-    const entries = show ? tvmazePoolOf({ show, images: await loadTvmazeImages(show.id).catch(() => []) }) : []
+    const entries = show ? tvmazePoolOf({ show, images: await loadTvmazeImages(show.id) }) : []
     const missTtlMs = hints ? tvmazeMissTtlMs : TVMAZE_UNHINTED_MISS_TTL_MS
     const expiresAt = now() + (entries.length ? tvmazeHitTtlMs : missTtlMs)
     await cache.write({ key: cacheKey, sources: entries, expiresAt }).catch(() => {})

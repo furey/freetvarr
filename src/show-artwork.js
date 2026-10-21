@@ -77,7 +77,7 @@ export const createShowArtwork = ({
     const show = await findShow({ title, hints })
     if (!show) return { sources: [], hinted: Boolean(hints) }
     Promise.resolve().then(() => onTvmazeShow({ title, show })).catch(() => {})
-    const images = await loadTvmazeImages(show.id).catch(() => [])
+    const images = await loadTvmazeImages(show.id)
     return { sources: tvmazeSourcesOf({ show, images }), hinted: Boolean(hints) }
   }
 
@@ -189,7 +189,9 @@ export const tvmazeImages = async (showId) => {
     timeout: REQUEST_TIMEOUT_MS,
     validateStatus: () => true,
   })
-  return res.status === 200 && Array.isArray(res.data) ? res.data : []
+  if (res.status === 404) return []
+  if (res.status !== 200) throw new Error(`TVmaze images HTTP ${res.status}`)
+  return Array.isArray(res.data) ? res.data : []
 }
 
 export const tvmazeLookupEnabled = async () => (await getSetting('show_artwork_lookup')) !== 'false'

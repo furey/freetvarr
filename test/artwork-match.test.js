@@ -19,6 +19,7 @@ import {
   rankEntities,
   sharesNetwork,
   tmdbAuthOf,
+  tmdbAirsOnGuideChannel,
   tmdbCandidatesOf,
   tmdbSearchOf,
   tmdbSourcesOf,
@@ -171,6 +172,21 @@ test('tmdbCandidatesOf keeps exact titles and only shows for episodes', () => {
   ]
   assert.deepEqual(tmdbCandidatesOf({ results, title: 'Cool Runnings', hints: { isEpisode: false } }).map((r) => r.id), [1, 2])
   assert.deepEqual(tmdbCandidatesOf({ results, title: 'Cool Runnings', hints: { isEpisode: true } }).map((r) => r.id), [2])
+})
+
+test('tmdbCandidatesOf puts a show from the local country first within the cap', () => {
+  const results = ['US', 'GB', 'DE', 'AU'].map((code, at) => ({ media_type: 'tv', id: at + 1, name: 'Big Brother', origin_country: [code] }))
+  assert.deepEqual(tmdbCandidatesOf({ results, title: 'Big Brother', hints: { isEpisode: true }, country: 'au' }).map((r) => r.id), [4, 1, 2])
+  assert.deepEqual(tmdbCandidatesOf({ results, title: 'Big Brother', hints: { isEpisode: true } }).map((r) => r.id), [1, 2, 3])
+})
+
+test('tmdbAirsOnGuideChannel needs the local country and a network on a guide channel', () => {
+  const hints = { channelNames: ['10 HD'] }
+  const details = { origin_country: ['AU'], networks: [{ name: '10' }, { name: 'Nine Network' }] }
+  assert.equal(tmdbAirsOnGuideChannel({ details, hints, country: 'AU' }), true)
+  assert.equal(tmdbAirsOnGuideChannel({ details, hints, country: 'NZ' }), false)
+  assert.equal(tmdbAirsOnGuideChannel({ details: { ...details, networks: [{ name: 'Seven Network' }] }, hints, country: 'AU' }), false)
+  assert.equal(tmdbAirsOnGuideChannel({ details, hints: { channelNames: [] }, country: 'AU' }), false)
 })
 
 test('lookupExpiryOf keeps hits longer than misses', () => {

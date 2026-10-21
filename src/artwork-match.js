@@ -264,15 +264,20 @@ export const tmdbYearOf = (details) => {
   return year > 0 ? year : null
 }
 
-export const tmdbCandidatesOf = ({ results = [], title, hints }) => {
+export const tmdbCandidatesOf = ({ results = [], title, hints, country = null }) => {
   const key = showTitleKey(title)
-  return results
+  const exact = results
     .filter((result) => ['movie', 'tv'].includes(result.media_type))
     .filter((result) => tmdbKindFits({ result, hints }))
     .filter((result) => [result.title, result.name, result.original_title, result.original_name]
       .some((name) => name && showTitleKey(name) === key))
-    .slice(0, MAX_ENTITY_CANDIDATES)
+  const isLocal = (result) => isFromCountry({ countries: result.origin_country, country })
+  return [...exact.filter(isLocal), ...exact.filter((result) => !isLocal(result))].slice(0, MAX_ENTITY_CANDIDATES)
 }
+
+export const tmdbAirsOnGuideChannel = ({ details, hints, country }) =>
+  isFromCountry({ countries: details?.origin_country, country })
+  && sharesNetwork({ networkNames: (details?.networks || []).map((network) => network.name), channelNames: hints?.channelNames || [] })
 
 export const lookupExpiryOf = ({ found, nowMs, hitTtlMs, missTtlMs }) => nowMs + (found ? hitTtlMs : missTtlMs)
 
@@ -280,6 +285,9 @@ const entityKindFits = ({ row, hints }) => {
   if (hints?.kind === FILM_KIND) return row.kind === 'film'
   return !hints?.isEpisode || row.kind === 'series'
 }
+
+const isFromCountry = ({ countries, country }) => Boolean(country)
+  && (countries || []).some((code) => String(code).toUpperCase() === String(country).toUpperCase())
 
 const tmdbKindFits = ({ result, hints }) => {
   if (hints?.kind === FILM_KIND) return result.media_type === 'movie'

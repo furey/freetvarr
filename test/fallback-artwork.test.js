@@ -9,7 +9,7 @@ const memoryCache = () => {
   return {
     rows,
     read: async (key) => rows.get(key) || null,
-    write: async ({ key, sources, expiresAt }) => { rows.set(key, { sources, expiresAt }) },
+    write: async ({ key, sources, reference, expiresAt }) => { rows.set(key, { sources, reference, expiresAt }) },
     remove: async (key) => { rows.delete(key) },
   }
 }
@@ -102,7 +102,7 @@ test('a TMDB key gets its own cache entries and is passed to the lookup', async 
 test('a film gets its own cache entry and film hints, so an old show miss does not hide it', async () => {
   const seen = []
   const cache = memoryCache()
-  cache.rows.set('tmdb:training day', { sources: [], expiresAt: 10_000 })
+  cache.rows.set('tmdb:training day', { sources: [], reference: 'miss:guide-network-v1', expiresAt: 10_000 })
   const { artwork } = fallbackWith({
     apiKey: 'k',
     cache,
@@ -155,4 +155,69 @@ test('an episode searches TMDB shows only', async () => {
   const lookUp = createArtworkLookup({ client })
   await lookUp({ title: 'Bluey', hints: programmeHintsOf([{ title: 'Bluey', episode_title: 'Keepy Uppy', synopsis: 'Balloon game.' }]), apiKey: 'k' })
   assert.deepEqual([...new Set(client.calls.filter((call) => call.path.startsWith('/3/search')).map((call) => call.path))], ['/3/search/tv'])
+})
+
+test('a miss cached before the guide network match is looked up again', async () => {
+  let calls = 0
+  const cache = memoryCache()
+  cache.rows.set('tmdb:big brother', { sources: [], reference: null, expiresAt: 10_000 })
+  const { artwork } = fallbackWith({
+    apiKey: 'k',
+    cache,
+    lookUp: async () => { calls += 1; return { sources: ['https://image.tmdb.org/t/p/w1280/bb.jpg'], reference: 'tmdb:tv:990' } },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Big Brother'), ['https://image.tmdb.org/t/p/w1280/bb.jpg'])
+  assert.equal(cache.rows.get('tmdb:big brother').reference, 'tmdb:tv:990')
+  assert.equal(calls, 1)
+})
+
+const BIG_BROTHER = {
+  title: 'Big Brother',
+  episode_title: 'Episode 1',
+  series_no: 17,
+  episode_no: 1,
+  channel_id: 'ten',
+  synopsis: "Housemates compete to win $250,000, under Big Brother's constant watchful eye.",
+}
+
+const bigBrotherClient = ({ localNetworks }) => fakeClient((path) => {
+  if (path === '/3/search/tv') {
+    return {
+      results: [
+        { id: 10160, name: 'Big Brother', origin_country: ['US'] },
+        { id: 11366, name: 'Big Brother', origin_country: ['GB'] },
+        { id: 21926, name: 'Big Brother', origin_country: ['DE'] },
+        { id: 990, name: 'Big Brother', origin_country: ['AU'] },
+      ],
+    }
+  }
+  if (path === '/3/tv/990') {
+    return { id: 990, name: 'Big Brother', first_air_date: '2001-04-24', origin_country: ['AU'], networks: localNetworks, overview: 'A reality show.', backdrop_path: '/au.jpg', poster_path: '/aup.jpg' }
+  }
+  const id = path.match(/^\/3\/tv\/(\d+)$/)?.[1]
+  return id ? { id: Number(id), name: 'Big Brother', first_air_date: '2000-07-05', origin_country: ['US'], networks: [{ name: '10' }], overview: 'A reality show.', backdrop_path: `/${id}.jpg` } : null
+})
+
+const bigBrotherHints = () => programmeHintsOf([BIG_BROTHER], { channelNameOf: () => '10 HD' })
+
+test('a local TMDB show on a guide channel network is matched ahead of foreign versions', async () => {
+  const client = bigBrotherClient({ localNetworks: [{ name: '10' }, { name: 'Nine Network' }] })
+  const lookUp = createArtworkLookup({ client, countryCode: () => 'AU' })
+  const found = await lookUp({ title: 'Big Brother', hints: bigBrotherHints(), apiKey: 'k' })
+  assert.deepEqual(found, {
+    sources: ['https://image.tmdb.org/t/p/w1280/au.jpg', 'https://image.tmdb.org/t/p/w780/aup.jpg'],
+    reference: 'tmdb:tv:990',
+  })
+})
+
+test('a local TMDB show whose networks match no guide channel is not matched', async () => {
+  const client = bigBrotherClient({ localNetworks: [{ name: 'Seven Network' }] })
+  const lookUp = createArtworkLookup({ client, countryCode: () => 'AU' })
+  assert.equal(await lookUp({ title: 'Big Brother', hints: bigBrotherHints(), apiKey: 'k' }), null)
+})
+
+test('a foreign TMDB show on a same-named network is not matched', async () => {
+  const client = bigBrotherClient({ localNetworks: [{ name: '10' }] })
+  const lookUp = createArtworkLookup({ client, countryCode: () => 'NZ' })
+  assert.equal(await lookUp({ title: 'Big Brother', hints: bigBrotherHints(), apiKey: 'k' }), null)
 })

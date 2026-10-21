@@ -201,6 +201,27 @@ test('sourcesFor: a failed TVmaze request is not saved, and pauses lookups for t
   assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
 })
 
+test('sourcesFor: a failed TVmaze images request is not saved as a poster-only answer', async () => {
+  let clock = 1_000
+  let imageCalls = 0
+  const cache = memoryCache()
+  const artwork = artworkWith({
+    cache,
+    now: () => clock,
+    failureBackoffMs: 500,
+    searchTvmaze: async () => [tvmazeShow({ id: 4, name: 'Pooch Perfect' })],
+    loadTvmazeImages: async () => {
+      imageCalls += 1
+      if (imageCalls === 1) throw new Error('TVmaze images HTTP 502')
+      return [{ type: 'background', main: true, resolutions: { original: { url: 'https://tvmaze.test/4-bg.jpg' } } }]
+    },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), [])
+  assert.equal(cache.rows.size, 0)
+  clock += 500
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4-bg.jpg', 'https://tvmaze.test/4.jpg'])
+})
+
 test('artworkFor: answers at once and looks TVmaze up in the background', async () => {
   let finishSearch
   const artwork = artworkWith({

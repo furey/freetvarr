@@ -644,13 +644,19 @@ export const artworkOriginImage = ({ origin, kind, width }) => thumbnailStore.th
 })
 
 export const automaticShowSources = async ({ title, kind = null }) => {
-  if (!title) return { library: [], fallback: [] }
+  if (!title) return { library: [], fallback: [], guide: [] }
   const artworkKind = kind ?? await guideKindFor(title)
-  const [library, fallback] = await Promise.all([
+  const [library, fallback, guide] = await Promise.all([
     isFilmKind(artworkKind) ? [] : showArtwork.sourcesFor(title).catch(() => []),
     fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => []),
+    guideImagesFor(title),
   ])
-  return { library, fallback }
+  return { library, fallback, guide }
+}
+
+const guideImagesFor = async (title) => {
+  const guide = await getCachedGuide().catch(() => null)
+  return guide?.imagesByTitle?.get(titleKeyOf(title)) || []
 }
 
 const chosenShowImage = async ({ title, kind, width }) => {
@@ -731,7 +737,9 @@ const guideKindFor = async (title) => {
 const programmeHintsFor = async (title) => {
   const guide = await getCachedGuide().catch(() => null)
   if (!guide) return null
-  if (!hintsByGuide.has(guide)) hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()]))
+  if (!hintsByGuide.has(guide)) {
+    hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()], { channels: guide.channels || [] }))
+  }
   return hintsByGuide.get(guide).get(showTitleKey(title)) || null
 }
 

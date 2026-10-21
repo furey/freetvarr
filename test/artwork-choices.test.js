@@ -118,6 +118,12 @@ test('artworkCandidatesOf offers Plex, TVmaze, TMDB, and guide pictures and noth
   assert.ok(candidates.every((c) => !c.origin.includes('secret')))
 })
 
+test('artworkCandidatesOf offers upcoming guide pictures for a show with no recordings', () => {
+  const guide = Array.from({ length: 8 }, (_, at) => `http://tvh:9981/imagecache/${at}`)
+  const candidates = artworkCandidatesOf({ automatic: { library: [], fallback: [], guide } })
+  assert.deepEqual(candidates.map((c) => [c.source, c.kind, c.origin]), guide.slice(0, 6).map((origin) => ['guide', 'background', origin]))
+})
+
 test('artworkCandidatesOf uses the listed Plex background only when Plex has no art list', () => {
   const candidates = artworkCandidatesOf({ automatic: { library: automatic.library, fallback: [] }, plexUrl: PLEX })
   assert.deepEqual(candidates.map((c) => c.kind), ['background', 'poster'])

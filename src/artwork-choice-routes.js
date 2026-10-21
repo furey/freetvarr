@@ -171,7 +171,7 @@ export const artworkCandidatesOf = ({ rows = [], plex = [], tvmaze = [], automat
     .filter((entry) => ['background', 'poster'].includes(entry.kind) && entry.origin)
     .map((entry) => ({ origin: entry.origin, kind: entry.kind, source: 'tvmaze' }))
   const fromFallback = automatic.fallback.flatMap(fallbackEntriesOf)
-  const fromGuide = guideEntriesOf(rows)
+  const fromGuide = [...guideEntriesOf(rows), ...upcomingGuideEntriesOf(automatic.guide)]
   return uniqueById([...fromPlex, ...fromTvmaze, ...fromFallback, ...fromGuide].map(withIdOf))
     .filter(perSourceLimit())
 }
@@ -242,6 +242,10 @@ const guideEntriesOf = (rows) => [...rows]
     caption: [row.episode != null ? `E${row.episode}` : null, row.episode_title].filter(Boolean).join(' · ') || null,
   }))
 
+const upcomingGuideEntriesOf = (sources = []) => sources
+  .slice(0, MAX_GUIDE_PICTURES)
+  .map((source) => ({ origin: source, kind: 'background', source: 'guide' }))
+
 const withIdOf = (entry) => ({ ...entry, id: candidateIdOf(entry) })
 
 const uniqueById = (entries) => {
@@ -281,7 +285,7 @@ const sendMissingImage = (res) => {
 }
 
 const TIMED_OUT = Symbol('timed out')
-const EMPTY_AUTOMATIC = { library: [], fallback: [] }
+const EMPTY_AUTOMATIC = { library: [], fallback: [], guide: [] }
 const TILE_WIDTH = 384
 const MAX_PER_SOURCE = 12
 const MAX_GUIDE_PICTURES = 6

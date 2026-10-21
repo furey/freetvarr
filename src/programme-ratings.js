@@ -258,7 +258,7 @@ export const createTitleMatcher = ({
     if (!wanted.size || candidates.length > MAX_EPISODE_CHECKS) return null
     const matched = []
     for (const show of candidates) {
-      const episodes = await client.getJson({ url: `${TVMAZE_API}/shows/${encodeURIComponent(show.id)}/episodes` }).catch(() => null)
+      const episodes = await client.getJson({ url: `${TVMAZE_API}/shows/${encodeURIComponent(show.id)}/episodes` })
       if ((episodes || []).some((episode) => wanted.has(episodeTitleKeyOf(episode?.name)))) matched.push(show)
     }
     return matched.length === 1 ? matched[0] : null
