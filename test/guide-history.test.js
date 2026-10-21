@@ -141,6 +141,10 @@ test('toGuideCell: flags past programmes and keeps their recording state', () =>
   assert.equal(toGuideCell({ program: programme(), nowMs: recorded.end }).recorded, false)
 })
 
+test('toGuideCell: sends the server-side programme kind to the browser', () => {
+  assert.equal(toGuideCell({ program: programme({ kind: 'movie' }), nowMs: T0 }).kind, 'movie')
+})
+
 test('syncSavedDvrState: marks scheduled programmes and clears cancelled ones before they end', async () => {
   await saveGuidePrograms({
     programs: [

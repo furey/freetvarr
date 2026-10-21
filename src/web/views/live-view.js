@@ -6,6 +6,8 @@ import { api, fetchSettings } from '/shared/api.js'
 import { onNowPercent } from '/shared/format.js'
 import { animateImagesToggle, viewportWithin } from '/shared/guide-images-motion.js'
 import { groupsOf, matchesFilter, timeLeftLabel, nextLabel } from '/live-list.js'
+import { KindFilterMenu, useKindFilter } from '/components/kind-filter-menu.js'
+import { MOVIE_CHIP_TEXT, showsMovieChip } from '/kind-filter.js'
 import { watchLive } from '/shared/live-session.js'
 import { canEditOrderOf } from '/guide-rail.js'
 import { useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin-drag.js'
@@ -22,7 +24,7 @@ import { viewStoreOf } from '/shared/view-store.js'
 import { LIVE_CACHE } from '/view-cache.js'
 
 export const LiveView = {
-  components: SORT_PART_COMPONENTS,
+  components: { ...SORT_PART_COMPONENTS, KindFilterMenu },
   template: `
     <div ref="pageEl" class="ui-page live-page">
       <page-header title="Live TV" />
@@ -31,9 +33,10 @@ export const LiveView = {
           <button type="button" class="ui-segment" :aria-pressed="String(!pinnedOnly)" @click="pinnedOnly = false">All channels</button>
           <button type="button" class="ui-segment" :aria-pressed="String(pinnedOnly)" @click="pinnedOnly = true">Favourites</button>
         </div>
-        <label class="live-filter">
+        <label class="live-filter" data-kind-filter-anchor>
           <search-icon />
-          <input v-no-autofill v-model="filterQ" type="search" placeholder="Filter channels or shows" aria-label="Filter channels or shows" />
+          <input v-no-autofill v-model="filterQ" type="search" placeholder="Filter channels or shows" aria-label="Filter channels or shows"
+            v-bind="kindFilter.fieldAttrs.value" @keydown="kindFilter.onKeydown" @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
         </label>
         <button type="button" class="live-images-toggle" role="switch" :aria-checked="String(showImages)" @click="toggleImages">
           Images<span class="live-images-track" aria-hidden="true"></span>
@@ -91,6 +94,7 @@ export const LiveView = {
                 <span v-if="e.now" class="live-row-text">
                   <span class="live-title-line">
                     <span class="live-title">{{ e.now.title }}</span>
+                    <span v-if="showsMovieChip(e.now)" class="channels-format programme-kind-chip">{{ MOVIE_CHIP_TEXT }}</span>
                     <span v-if="isRecordingChannel(e.channel.id)" class="ui-live-badge"><span class="ui-live-dot"></span>REC</span>
                   </span>
                   <span class="live-meta"><span class="live-meta-channel">{{ e.channel.name }} · </span>{{ timeLeftOf(e) }}<span v-if="e.next" class="live-meta-next"> · Next {{ e.next.title }}</span></span>
@@ -104,7 +108,8 @@ export const LiveView = {
               <button v-if="e.next" type="button" class="live-next" :aria-label="'Show details for ' + e.next.title"
                 @click="openDetails(e, e.next)">
                 <span class="live-next-label">Next</span>
-                <span class="live-next-title">{{ nextLabel({ next: e.next, clockText: fmtClockTz }) }}</span>
+                <span class="live-next-line"><span class="live-next-title">{{ nextLabel({ next: e.next, clockText: fmtClockTz }) }}</span><span
+                  v-if="showsMovieChip(e.next)" class="channels-format programme-kind-chip">{{ MOVIE_CHIP_TEXT }}</span></span>
               </button>
               <button v-if="e.now" type="button" class="ui-icon-button is-plain live-row-info" :aria-label="'Programme info for ' + e.now.title"
                 @click="openDetails(e, e.now)"><info-icon /></button>
@@ -114,6 +119,7 @@ export const LiveView = {
         </section>
       </div>
       <sort-announcer :message="sort.announcement.value" :keyboard-active="sort.keyboardActive.value" />
+      <kind-filter-menu :filter="kindFilter" />
       <teleport to="body">
       <transition name="epg-sheet">
       <channels-modal v-if="channelsModal" :channels="data?.channels || []" :hidden-ids="data?.hiddenIds || []"
@@ -155,8 +161,10 @@ export const LiveView = {
     let pollTimer = null
     let boundaryTimer = null
 
+    const kindFilter = useKindFilter({ query: filterQ, nameLabel: (q) => `Channels or shows named “${q}”` })
+
     const groups = computed(() => groupsOf({
-      entries: (data.value?.entries || []).filter((entry) => matchesFilter({ entry, query: filterQ.value })),
+      entries: (data.value?.entries || []).filter((entry) => matchesFilter({ entry, query: filterQ.value, kind: kindFilter.activeKind.value })),
       favouritesOnly: pinnedOnly.value,
       groupLabelOf: channelGroupLabel,
     }))
@@ -284,7 +292,7 @@ export const LiveView = {
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
       OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
       zoom, pageEl, narrow, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,
-      isRecordingChannel, onNowPercent, fmtClockTz,
+      isRecordingChannel, onNowPercent, fmtClockTz, kindFilter, showsMovieChip, MOVIE_CHIP_TEXT,
     }
   },
 }

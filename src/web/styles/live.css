@@ -373,7 +373,23 @@
   font-weight: 600;
 }
 
-.live-title-line .ui-live-badge {
+.live-title-line :is(.ui-live-badge, .programme-kind-chip) {
+  flex: none;
+}
+
+.live-next-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.live-next-line .live-next-title {
+  min-width: 0;
+}
+
+.live-next-line .programme-kind-chip {
   flex: none;
 }
 

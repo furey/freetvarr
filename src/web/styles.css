@@ -469,6 +469,10 @@ table.deck-table tbody tr.active {
   transition: border-color 160ms var(--ease-standard), box-shadow 160ms var(--ease-standard);
 }
 
+:root {
+  --search-clear-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2l12 12M14 2L2 14' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
 input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
@@ -477,8 +481,8 @@ input[type="search"]::-webkit-search-cancel-button {
   margin-left: 0.4em;
   cursor: pointer;
   background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2l12 12M14 2L2 14' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2l12 12M14 2L2 14' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: var(--search-clear-glyph) center / contain no-repeat;
+  mask: var(--search-clear-glyph) center / contain no-repeat;
 }
 
 .field-input::placeholder {
@@ -2017,6 +2021,7 @@ body.epg-drag-lock * {
 
 .epg-cell-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
   font-family: var(--font-sans);

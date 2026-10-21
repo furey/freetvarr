@@ -1,5 +1,6 @@
 import { inject } from '/vendor/vue.esm-browser.prod.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
+import { MOVIE_CHIP_TEXT } from '/kind-filter.js'
 
 export const GUIDE_ROW_CONTEXT = Symbol('guide-row-context')
 
@@ -13,7 +14,7 @@ export const GuideRow = {
     pinIndex: { type: Number, default: -1 },
   },
   setup() {
-    return { ...inject(GUIDE_ROW_CONTEXT) }
+    return { ...inject(GUIDE_ROW_CONTEXT), MOVIE_CHIP_TEXT }
   },
   template: `
     <div :data-channel-id="ch?.id"
@@ -50,7 +51,8 @@ export const GuideRow = {
             :channel-id="ch.id" :has-logo="Boolean(ch.logos?.length)" :title="p.title" />
           <span v-if="cellViewOf(p).showsText" class="epg-cell-text">
             <span class="epg-cell-title"><span v-if="cellViewOf(p).marks.scheduledDot" class="epg-cell-dot is-inline" aria-hidden="true"></span><span v-else-if="cellViewOf(p).marks.watchDot" class="epg-cell-dot is-inline is-watch" aria-hidden="true"></span>{{ p.title }}</span>
-            <span class="epg-cell-meta">{{ cellViewOf(p).clock }}</span>
+            <span class="epg-cell-meta"><span class="epg-cell-clock">{{ cellViewOf(p).clock }}</span><span v-if="cellViewOf(p).movieChip"
+              class="channels-format programme-kind-chip">{{ MOVIE_CHIP_TEXT }}</span></span>
           </span>
           <template v-else>
             <span v-if="cellViewOf(p).marks.scheduledDot" class="epg-cell-dot" aria-hidden="true"></span>

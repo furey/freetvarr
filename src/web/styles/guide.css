@@ -365,6 +365,96 @@
   }
 }
 
+.epg-filter-count-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.epg-filter-clear {
+  display: inline-flex;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0 -8px 0 -2px;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.epg-filter-clear::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  margin: auto;
+  background: currentColor;
+  -webkit-mask: var(--search-clear-glyph) center / contain no-repeat;
+  mask: var(--search-clear-glyph) center / contain no-repeat;
+}
+
+@media (hover: hover) {
+  .epg-filter-clear:hover {
+    background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+}
+
+.epg-filter-clear:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+.kind-filter-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-2);
+}
+
+.kind-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--color-text-1);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kind-filter-option svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-2);
+}
+
+.kind-filter-option.is-active {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.kind-filter-option.is-active svg {
+  color: var(--color-primary);
+}
+
+.kind-filter-option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .epg-filter-count-num {
   display: inline-flex;
   align-items: center;
@@ -757,6 +847,9 @@
   font-family: inherit;
   font-size: 12px;
   line-height: 16px;
+  height: 16px;
+  overflow: hidden;
+  column-gap: 6px;
   letter-spacing: 0;
   color: var(--color-text-2);
   font-variant-numeric: tabular-nums;
@@ -765,6 +858,12 @@
 .guide-page .epg-cell.past {
   opacity: 1;
   background: var(--color-surface-1);
+}
+
+.guide-page .epg-cell-clock {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .guide-page .epg-cell.past .epg-cell-title,
@@ -1590,6 +1689,14 @@
 
 .channels-format.is-hd {
   color: var(--color-text-1);
+}
+
+.programme-kind-chip {
+  line-height: 14px;
+}
+
+.guide-page .epg-cell:is(.on-now, .recording) .programme-kind-chip {
+  background: var(--color-surface-4);
 }
 
 .channel-twin-tag {
