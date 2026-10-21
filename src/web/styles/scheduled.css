@@ -214,6 +214,23 @@ a.scheduled-row:focus-visible {
   opacity: 0.55;
 }
 
+.scheduled-row.is-repeat .scheduled-time,
+.scheduled-row.is-repeat .ui-group-row-title {
+  color: var(--color-text-2);
+}
+
+.scheduled-row.is-repeat .scheduled-meta {
+  color: var(--color-text-3);
+}
+
+.scheduled-row.is-repeat .scheduled-thumb {
+  opacity: 0.7;
+}
+
+.scheduled-clash.is-repeat {
+  font-weight: 400;
+}
+
 .ui-chip.scheduled-repeat-chip {
   height: 20px;
   margin-left: 8px;
