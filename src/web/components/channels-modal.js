@@ -1,7 +1,9 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { optionLabel } from '/typeahead.js'
 import { holdAtLeast } from '/pending.js'
+import { HIDE_SD_COPY, hideSdPrefsOf, hideSdSwitchesOf } from '/hide-sd.js'
 import { api } from '/shared/api.js'
+import { loadChannelPrefs, saveChannelPrefs } from '/shared/channel-prefs.js'
 import { makeStatus } from '/shared/path-check.js'
 import { overlayStack } from '/overlay-stack.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
@@ -96,19 +98,20 @@ export const ChannelsModal = {
             <div class="ui-group">
               <div class="ui-group-row">
                 <span class="ui-group-row-main">
-                  <span class="ui-group-row-title">Hide SD simulcasts</span>
-                  <span class="ui-group-row-meta">Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. A favourite is never hidden.<template v-if="hideSdChannelsDraft"> Hide SD channels already hides these.</template></span>
+                  <span class="ui-group-row-title">{{ copy.simulcasts.title }}</span>
+                  <span class="ui-group-row-meta">{{ copy.simulcasts.meta }}</span>
                 </span>
-                <toggle-switch aria-label="Hide SD simulcasts"
-                  :model-value="hideSdChannelsDraft || hideSdDraft" :disabled="hideSdChannelsDraft"
-                  @update:model-value="hideSdDraft = !hideSdDraft" />
+                <toggle-switch :aria-label="copy.simulcasts.title"
+                  :model-value="switches.simulcastsOn" :disabled="switches.simulcastsLocked"
+                  @update:model-value="setHideSd({ hideSdSimulcasts: $event })" />
               </div>
               <div class="ui-group-row">
                 <span class="ui-group-row-main">
-                  <span class="ui-group-row-title">Hide SD channels</span>
-                  <span class="ui-group-row-meta">Shows only HD channels. SD-only channels (for example 7flix) are hidden too. Applies to the TV guide, search, and Live TV; a favourite is never hidden.</span>
+                  <span class="ui-group-row-title">{{ copy.channels.title }}</span>
+                  <span class="ui-group-row-meta">{{ copy.channels.meta }}</span>
                 </span>
-                <toggle-switch aria-label="Hide SD channels" v-model="hideSdChannelsDraft" />
+                <toggle-switch :aria-label="copy.channels.title" :model-value="switches.channelsOn"
+                  @update:model-value="setHideSd({ hideSdChannels: $event })" />
               </div>
             </div>
             <p class="ui-meta">
@@ -183,6 +186,23 @@ export const ChannelsModal = {
     const sortDraft = ref(props.sort === 'name' ? 'name' : 'default')
     const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
     const hideSdChannelsDraft = ref(Boolean(props.hideSdChannels))
+    const switches = computed(() => hideSdSwitchesOf({
+      hideSdSimulcasts: hideSdDraft.value,
+      hideSdChannels: hideSdChannelsDraft.value,
+    }))
+    let hideSdTouched = false
+    const setHideSd = ({ hideSdSimulcasts, hideSdChannels }) => {
+      hideSdTouched = true
+      if (hideSdSimulcasts != null) hideSdDraft.value = hideSdSimulcasts
+      if (hideSdChannels != null) hideSdChannelsDraft.value = hideSdChannels
+    }
+    const refreshHideSd = async () => {
+      const saved = await loadChannelPrefs().catch(() => null)
+      if (!saved || hideSdTouched) return
+      const fresh = hideSdPrefsOf(saved)
+      hideSdDraft.value = fresh.hideSdSimulcasts
+      hideSdChannelsDraft.value = fresh.hideSdChannels
+    }
     const listedChannels = computed(() => (hideSdChannelsDraft.value
       ? props.channels.filter((c) => c.hd || pinnedDraft.value.includes(String(c.id)))
       : props.channels))
@@ -253,6 +273,7 @@ export const ChannelsModal = {
       returnFocus = document.activeElement
       window.addEventListener('keydown', onKeydown, true)
       loadGuideLinks()
+      refreshHideSd()
       await nextTick()
       sheet.value?.focus()
     })
@@ -383,7 +404,7 @@ export const ChannelsModal = {
 
     const savePrefs = async () => {
       try {
-        await api('PUT', '/api/epg/channel-prefs', {
+        await saveChannelPrefs({
           pinned_ids: pinnedDraft.value,
           hidden_ids: [...hiddenDraft.value],
           sort: sortDraft.value,
@@ -424,7 +445,7 @@ export const ChannelsModal = {
     }
 
     return {
-      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, hideSdDraft, hideSdChannelsDraft, listedChannels, savingPrefs,
+      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, copy: HIDE_SD_COPY, switches, setHideSd, listedChannels, savingPrefs,
       statusText, statusKind, draftName, toggleDraftPin, toggleHidden, save,
       hasLogoOf, showAllFavourites, shownFavourites, hiddenFavouriteCount,
       orderMode, orderListRef, sorter, positionOf, enterOrderMode, cancelOrder, finishOrder,
@@ -441,5 +462,5 @@ const IDLE_FAVOURITES_SHOWN = 5
 export const togglePinnedChannel = async ({ pinnedIds, channelId }) => {
   const key = String(channelId)
   const next = pinnedIds.includes(key) ? pinnedIds.filter((id) => id !== key) : [...pinnedIds, key]
-  await api('PUT', '/api/epg/channel-prefs', { pinned_ids: next })
+  await saveChannelPrefs({ pinned_ids: next })
 }

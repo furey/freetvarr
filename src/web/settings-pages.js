@@ -15,6 +15,7 @@ export const SETTINGS_GROUPS = [
       { id: 'film-tv-info', label: 'Film and TV info', view: 'settings', section: 'film-tv-info' },
       { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
       { id: 'tv-apps', label: 'Watch on TV', view: 'settings', section: 'tv-apps' },
+      { id: 'channels', label: 'Channels', view: 'channels' },
       { id: 'player', label: 'Player', view: 'player' },
       { id: 'for-you', label: 'For you', view: 'for-you' },
       { id: 'schedule', label: 'Schedule', view: 'settings', section: 'schedule' },

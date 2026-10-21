@@ -36,6 +36,7 @@ import { GUIDE_ROW_CONTEXT, GuideRow } from '/components/guide-row.js'
 import { KindFilterMenu, useKindFilter } from '/components/kind-filter-menu.js'
 import { airingPairOf, airsKindNowOrNext, showsMovieChip } from '/kind-filter.js'
 import { GUIDE_IMAGES_ON } from '/components/images.js'
+import { channelPrefsChangedSince } from '/shared/channel-prefs.js'
 import { rememberLineup } from '/shared/channel-twins.js'
 import { RAIL_EDGE_ATTRIBUTE } from '/shared/scroll-proximity.js'
 import { arrangeByOrder } from '/sortable-math.js'
@@ -1351,7 +1352,8 @@ export const EpgView = {
       await loadDay(0)
       const jumped = await followGuideJump()
       if (!jumped && day.value === 0) await scrollToNow()
-      if (cachedToday && day.value === 0 && Date.now() - todayFetchedAt >= GUIDE_REVISIT_REFRESH_MS) {
+      const cacheOutdated = Date.now() - todayFetchedAt >= GUIDE_REVISIT_REFRESH_MS || channelPrefsChangedSince(todayFetchedAt)
+      if (cachedToday && day.value === 0 && cacheOutdated) {
         refreshDayQuietly({ withState: false })
       }
       statePollTimer = setInterval(loadState, EPG_STATE_POLL_MS)

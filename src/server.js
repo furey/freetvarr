@@ -924,6 +924,14 @@ app.post('/api/epg/pause-series', epgLimiter, doubleCsrfProtection, async (req, 
   }
 })
 
+app.get('/api/epg/channel-prefs', async (req, res) => {
+  try {
+    res.json(await getChannelPrefs())
+  } catch (err) {
+    epgError(res, err, 'channel-prefs')
+  }
+})
+
 app.put('/api/epg/channel-prefs', doubleCsrfProtection, async (req, res) => {
   const { pinned_ids, hidden_ids, sort, hide_sd_simulcasts, hide_sd_channels } = req.body || {}
   if (pinned_ids != null && !Array.isArray(pinned_ids)) {

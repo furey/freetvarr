@@ -8,6 +8,7 @@ import { health } from '/shared/health.js'
 import { cameFromHash, routeParams } from '/shared/router.js'
 import { hashesMatch } from '/scroll-memory.js'
 import { prefersReducedMotion } from '/shared/utils.js'
+import { ChannelsSettingsView } from '/views/channels-settings-view.js'
 import { DoctorView } from '/views/doctor-view.js'
 import { PlayerSettingsView } from '/views/player-settings-view.js'
 import { RecordingsView } from '/views/recordings-view.js'
@@ -36,6 +37,7 @@ const PAGE_INTROS = {
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
   player: 'How the player starts and behaves on this device.',
+  channels: 'The channels that Live TV, the TV guide, and search show.',
   'for-you': 'For you picks shows from the guide based on what this household watches and records.',
   about: 'Records free-to-air TV from your TVHeadend-compatible tuner and saves it where your media player finds it.',
 }
@@ -83,6 +85,7 @@ export const SettingsShell = {
       if (page.value?.view === 'system') return SYSTEM_VIEWS[page.value.id]
       if (page.value?.view === 'for-you') return { view: SuggestionsSettingsView, props: {} }
       if (page.value?.view === 'player') return { view: PlayerSettingsView, props: {} }
+      if (page.value?.view === 'channels') return { view: ChannelsSettingsView, props: {} }
       return { view: SettingsView, props: {} }
     })
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))
