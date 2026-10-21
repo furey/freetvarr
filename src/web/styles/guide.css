@@ -1361,10 +1361,6 @@
   color: var(--color-live-text);
 }
 
-.programme-sheet-status.is-muted {
-  color: var(--color-text-2);
-}
-
 .programme-sheet-strengths .ui-segment {
   min-height: 44px;
   padding: 0 8px;

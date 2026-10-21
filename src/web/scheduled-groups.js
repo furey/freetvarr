@@ -114,9 +114,26 @@ export const isSkippedRow = (row) => row.state === 'off' || row.state === 'repea
 export const repeatOriginalText = ({ repeatOf, timeZone = 'UTC' }) => {
   if (!repeatOf) return ''
   if (repeatOf.status === 'recording') return 'recording now'
+  return `${repeatOf.status === 'recorded' ? 'recorded' : 'scheduled'} ${airingWhenOf({ repeatOf, timeZone })}`
+}
+
+export const repeatSkippedText = ({ repeatOf, timeZone = 'UTC' }) =>
+  `Skipped: ${repeatOriginalText({ repeatOf, timeZone }) || 'already recorded'}`
+
+export const repeatNoticeOf = ({ repeatOf, timeZone = 'UTC' }) =>
+  `Repeat of the episode ${repeatOriginalPhraseOf({ repeatOf, timeZone })}, so it won't record. If that one fails, this one records.`
+
+const repeatOriginalPhraseOf = ({ repeatOf, timeZone }) => {
+  if (!repeatOf) return 'already recorded'
+  if (repeatOf.status === 'recording') return 'recording now'
+  const when = airingWhenOf({ repeatOf, timeZone })
+  return repeatOf.status === 'recorded' ? `recorded ${when}` : `scheduled for ${when}`
+}
+
+const airingWhenOf = ({ repeatOf, timeZone }) => {
   const startMs = Number(repeatOf.startDate)
   const day = formatDate(startMs, timeZone, { weekday: 'short' }).split(',')[0]
-  return `${repeatOf.status === 'recorded' ? 'recorded' : 'scheduled'} ${day} ${formatClock(startMs, timeZone)}`
+  return `${day} ${formatClock(startMs, timeZone)}`
 }
 
 export const progressPercent = ({ start, stop, nowMs }) => {
@@ -158,9 +175,8 @@ const rowOf = ({ entry, state, timeZone, showDay }) => {
     time,
     period,
     state,
+    repeatText: state === 'repeat' ? repeatSkippedText({ repeatOf: entry.repeatOf, timeZone }) : '',
     meta: [
-      state === 'repeat' && 'Repeat, skipped',
-      state === 'repeat' && repeatOriginalText({ repeatOf: entry.repeatOf, timeZone }),
       ...episodeMetaParts(entry),
       entry.channelName,
       durationText({ start: entry.startDate, end: entry.endDate }),

@@ -214,6 +214,17 @@ a.scheduled-row:focus-visible {
   opacity: 0.55;
 }
 
+.ui-chip.scheduled-repeat-chip {
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  vertical-align: 1px;
+  cursor: default;
+}
+
 .scheduled-thumb {
   position: relative;
   flex: none;

@@ -21,7 +21,7 @@ import { findSeriesLink } from '/series-link.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
 import { canRecordSeriesOf } from '/record-wording.js'
-import { repeatOriginalText } from '/scheduled-groups.js'
+import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { api, fetchSettings } from '/shared/api.js'
@@ -75,7 +75,8 @@ export const ProgrammeSheetHost = {
         <p v-if="selected.program.synopsis" class="programme-sheet-synopsis">{{ selected.program.synopsis }}</p>
         <programme-review-card v-if="ratingReview" :key="selected.program.title" :review="ratingReview" />
         <div :class="['programme-sheet-actions', { 'is-ready': sheetReady }]" :aria-busy="String(!sheetReady)">
-        <p v-if="selectedStatusText" :class="['programme-sheet-status', { 'is-muted': selectedState === 'repeat' }]"><span :class="['ui-dot', { 'is-live': selectedState !== 'repeat' }]" aria-hidden="true"></span>{{ selectedStatusText }}</p>
+        <p v-if="selectedRepeatNotice" class="ui-banner is-warning" role="status">{{ selectedRepeatNotice }}</p>
+        <p v-else-if="selectedStatusText" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ selectedStatusText }}</p>
         <p v-else-if="selectedState === 'series'" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>A series recording in TVHeadend records this show.</p>
         <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
           :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
@@ -297,7 +298,6 @@ export const ProgrammeSheetHost = {
       if (selectedState.value === 'scheduled') {
         return `Scheduled to record in TVHeadend${series ? ' (part of a series recording).' : ' (one-off recording).'}`
       }
-      if (selectedState.value === 'repeat') return repeatStatusTextOf(selectedRepeat.value?.repeatOf)
       return ''
     })
 
@@ -305,8 +305,9 @@ export const ProgrammeSheetHost = {
       ? repeatByProgramId.value.get(String(selected.value.program.program_id ?? selected.value.program.programId)) || null
       : null))
 
-    const repeatStatusTextOf = (repeatOf) =>
-      `Repeat of an episode ${repeatOriginalText({ repeatOf, timeZone: tz.value }) || 'already recorded'}, so it won't record.`
+    const selectedRepeatNotice = computed(() => (selectedState.value === 'repeat'
+      ? repeatNoticeOf({ repeatOf: selectedRepeat.value?.repeatOf, timeZone: tz.value })
+      : ''))
 
     const selectedChannelLabel = () => {
       if (anyChannel.value) return 'on any channel'
@@ -749,7 +750,7 @@ export const ProgrammeSheetHost = {
       keepSteps: SHEET_KEEP_STEPS,
       stepValue, canStep, keepLabel,
       sheetStrengths, sheetStrength, strengthLine, showStrengthLine, primaryAction, primaryClass, runPrimaryAction,
-      sheetMeta, cancelActions, selectedState, selectedStatusText,
+      sheetMeta, cancelActions, selectedState, selectedStatusText, selectedRepeatNotice,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,
       ratingScore, ratingReview, ratingCardOpen, ratingLoading,

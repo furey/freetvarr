@@ -1653,6 +1653,7 @@ a.ui-banner:hover {
 
 .ui-banner.is-warning {
   background: var(--color-warning-tint);
+  color: var(--color-warning);
 }
 
 .ui-banner.is-live {
