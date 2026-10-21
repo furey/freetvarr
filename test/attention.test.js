@@ -5,37 +5,33 @@ import { attentionChangesOf, attentionPathOf, isAttending } from '../src/web/att
 
 const video = (overrides = {}) => ({ paused: false, ended: false, muted: false, volume: 1, ...overrides })
 
-test('only a visible, playing, audible picture counts as attended without captions', () => {
+test('a single picture counts while visible and playing, muted or not', () => {
   assert.equal(isAttending({ visible: true, video: video() }), true)
+  assert.equal(isAttending({ visible: true, video: video({ muted: true }) }), true)
+  assert.equal(isAttending({ visible: true, video: video({ volume: 0 }) }), true)
   assert.equal(isAttending({ visible: false, video: video() }), false)
   assert.equal(isAttending({ visible: true, video: video({ paused: true }) }), false)
   assert.equal(isAttending({ visible: true, video: video({ ended: true }) }), false)
-  assert.equal(isAttending({ visible: true, video: video({ muted: true }) }), false)
-  assert.equal(isAttending({ visible: true, video: video({ volume: 0 }) }), false)
   assert.equal(isAttending({ visible: true, video: null }), false)
 })
 
-test('a muted picture counts while captions show, and not without them', () => {
-  assert.equal(isAttending({ visible: true, video: video({ muted: true }), captions: true }), true)
-  assert.equal(isAttending({ visible: true, video: video({ volume: 0 }), captions: true }), true)
-  assert.equal(isAttending({ visible: true, video: video({ muted: true }), captions: false }), false)
-  assert.equal(isAttending({ visible: true, video: video({ muted: true, paused: true }), captions: true }), false)
-  assert.equal(isAttending({ visible: false, video: video({ muted: true }), captions: true }), false)
+test('the Miniplayer counts while visible and playing, muted or not', () => {
+  assert.equal(isAttending({ visible: true, video: video({ muted: true }) }), true)
+  assert.equal(isAttending({ visible: false, video: video() }), false)
+  assert.equal(isAttending({ visible: true, video: video({ paused: true }) }), false)
 })
 
-test('a Multiview tile counts when it has the sound or shows captions', () => {
-  const heard = isAttending({ visible: true, video: video(), captions: false })
-  const captioned = isAttending({ visible: true, video: video({ muted: true }), captions: true })
-  const silent = isAttending({ visible: true, video: video({ muted: true }), captions: false })
-  assert.deepEqual([heard, captioned, silent], [true, true, false])
+test('with several Multiview tiles, a tile counts only with the sound or captions', () => {
+  assert.equal(isAttending({ visible: true, video: video(), shared: true }), true)
+  assert.equal(isAttending({ visible: true, video: video({ muted: true }), captions: true, shared: true }), true)
+  assert.equal(isAttending({ visible: true, video: video({ muted: true }), shared: true }), false)
+  assert.equal(isAttending({ visible: true, video: video({ volume: 0 }), shared: true }), false)
+  assert.equal(isAttending({ visible: false, video: video(), shared: true }), false)
+  assert.equal(isAttending({ visible: true, video: video({ paused: true }), captions: true, shared: true }), false)
 })
 
-test('the Miniplayer counts only while visible, playing, and unmuted', () => {
-  const mini = video()
-  assert.equal(isAttending({ visible: true, video: mini }), true)
-  assert.equal(isAttending({ visible: true, video: { ...mini, muted: true } }), false)
-  assert.equal(isAttending({ visible: true, video: { ...mini, muted: true }, captions: true }), true)
-  assert.equal(isAttending({ visible: false, video: mini }), false)
+test('the only Multiview tile left counts even when muted', () => {
+  assert.equal(isAttending({ visible: true, video: video({ muted: true }), shared: false }), true)
 })
 
 test('a new session reports only once it is attended, then each change once', () => {

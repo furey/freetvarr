@@ -3,14 +3,20 @@ import { ATTENTION_MEDIA_EVENTS, ATTENTION_SAMPLE_MS, attentionChangesOf, attent
 
 const sources = new Set()
 let sent = new Map()
+let isSharedScreen = () => false
 
 export const addAttentionSource = (source) => {
   sources.add(source)
 }
 
+export const setSharedScreen = (check) => {
+  isSharedScreen = check
+}
+
 export const reportAttention = () => {
-  const current = [...sources].flatMap((source) => source()).map(({ kind, sessionId, video, captions }) => ({
-    kind, sessionId, attending: isAttending({ visible: isVisible(video), video, captions }),
+  const shared = isSharedScreen()
+  const current = [...sources].flatMap((source) => source()).map(({ kind, sessionId, video, captions, picture }) => ({
+    kind, sessionId, attending: isAttending({ visible: isVisible(video), video, captions, shared: Boolean(picture) && shared }),
   }))
   const outcome = attentionChangesOf({ sent, current })
   sent = outcome.sent

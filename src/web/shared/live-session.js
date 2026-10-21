@@ -459,8 +459,8 @@ const sendLiveBeacon = ({ method, suffix = '' }) => {
 const liveCaptionsShown = () => Boolean(live.captions && liveCaptionsOn.value && !liveInfoOpen.value)
 
 addAttentionSource(() => [
-  { kind: 'live', sessionId: live.sessionId, video: liveVideo, captions: liveCaptionsShown() },
-  { kind: 'play', sessionId: live.fromStart?.sessionId, video: liveVideo, captions: liveCaptionsShown() },
+  { kind: 'live', sessionId: live.sessionId, video: liveVideo, captions: liveCaptionsShown(), picture: true },
+  { kind: 'play', sessionId: live.fromStart?.sessionId, video: liveVideo, captions: liveCaptionsShown(), picture: true },
 ])
 
 watch(liveCaptionsShown, reportAttention)

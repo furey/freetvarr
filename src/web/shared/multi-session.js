@@ -22,7 +22,7 @@ import { SIZES_KEY, parseSizes, sizesAfterSet } from '/multi-resize.js'
 import { keyPictureOf } from '/multi-picture.js'
 import { steadyLiveWindowOf, videoLiveInputOf } from '/live-edge.js'
 import { api, csrfToken } from '/shared/api.js'
-import { addAttentionSource } from '/shared/attention-session.js'
+import { addAttentionSource, setSharedScreen } from '/shared/attention-session.js'
 import {
   liveVideo,
   liveStopHooks,
@@ -478,7 +478,13 @@ addAttentionSource(() => COMPANIONS.map((id) => ({
   sessionId: multi.companions[id].sessionId,
   video: rigs[id].video,
   captions: captionsShowing(captionTracksOf(rigs[id].video)),
+  picture: true,
 })))
+
+const hasPictureSession = (picture) =>
+  Boolean(picture === 'primary' ? live.sessionId || live.fromStart?.sessionId : multi.companions[picture].sessionId)
+
+setSharedScreen(() => multi.active && PICTURES.filter(hasPictureSession).length > 1)
 
 watch(playerMuted, () => {
   if (!multi.active) applySingleMuting()

@@ -2,8 +2,8 @@ export const ATTENTION_SAMPLE_MS = 2_000
 
 export const ATTENTION_MEDIA_EVENTS = ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange']
 
-export const isAttending = ({ visible, video, captions = false }) =>
-  Boolean(visible && video && !video.paused && !video.ended && (isAudible(video) || captions))
+export const isAttending = ({ visible, video, captions = false, shared = false }) =>
+  Boolean(visible && video && !video.paused && !video.ended && (!shared || isAudible(video) || captions))
 
 export const attentionPathOf = ({ kind, sessionId }) =>
   `/api/${kind === 'live' ? 'live' : 'play'}/${encodeURIComponent(sessionId)}/attention`
