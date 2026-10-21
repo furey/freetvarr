@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import { db, getSetting } from './db.js'
+import { cachedStateOf } from './artwork-match.js'
 import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -48,13 +49,20 @@ export const createShowArtwork = ({
 
   const cachedTvmazeSources = async (key) => {
     const cached = await cache.read(seriesCacheKeyOf(key)).catch(() => null)
-    return cached && cached.expiresAt > now() ? cached.sources : null
+    const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue: Boolean(cached?.sources?.length) })
+    return state === 'missing' ? { stale: false, sources: null } : { stale: state === 'stale', sources: cached.sources }
   }
 
   const tvmazeSourcesFor = async ({ key, title }) => {
-    if (!(await isTvmazeEnabled()) || recentlyFailed(key)) return []
+    if (!(await isTvmazeEnabled())) return []
     const cached = await cachedTvmazeSources(key)
-    if (cached) return cached
+    if (cached.stale && !recentlyFailed(key)) startTvmazeLookup({ key, title })
+    if (cached.sources) return cached.sources
+    if (recentlyFailed(key)) return []
+    return startTvmazeLookup({ key, title })
+  }
+
+  const startTvmazeLookup = ({ key, title }) => {
     if (inflight.has(key)) return inflight.get(key)
     const pending = runSpaced(() => lookUpTvmaze({ title }))
       .then(async ({ sources, hinted }) => {
@@ -95,10 +103,12 @@ export const createShowArtwork = ({
     const fromPlex = await withinMs(plexSourcesFor(key).catch(() => []), plexWaitMs)
     if (fromPlex === TIMED_OUT) return PENDING_ARTWORK
     if (fromPlex.length) return { sources: fromPlex, pending: false }
-    if (!(await isTvmazeEnabled()) || recentlyFailed(key)) return NO_ARTWORK
+    if (!(await isTvmazeEnabled())) return NO_ARTWORK
     const cached = await cachedTvmazeSources(key)
-    if (cached) return { sources: cached, pending: false }
-    tvmazeSourcesFor({ key, title })
+    if (cached.stale && !recentlyFailed(key)) startTvmazeLookup({ key, title })
+    if (cached.sources) return { sources: cached.sources, pending: false }
+    if (recentlyFailed(key)) return NO_ARTWORK
+    startTvmazeLookup({ key, title })
     return PENDING_ARTWORK
   }
 

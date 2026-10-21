@@ -2,7 +2,8 @@ import { getSetting } from './db.js'
 import { showTitleKey } from './show-artwork.js'
 import { createHostLimiter } from './outbound-http.js'
 import { storedTmdbKey } from './fallback-artwork.js'
-import { artworkKindOf } from './artwork-match.js'
+import { artworkKindOf, TMDB_FIRST_SAVED_AFTER_MS } from './artwork-match.js'
+import { linkHealth } from './link-health.js'
 import {
   lookupCacheKeyOf,
   createBackgroundLookups,
@@ -13,12 +14,13 @@ import {
   LOOKUP_CONCURRENCY,
   LOOKUP_MAX_QUEUE,
   MISS_TTL_MS,
+  settledOf,
   TMDB_WEB,
 } from './programme-ratings.js'
 
 export const CREDITS_SETTING = 'credits_lookup_enabled'
 
-export const CREDITS_IMAGE_SOURCES = ['https://image.tmdb.org', 'https://static.tvmaze.com']
+export const PERSON_IMAGE_WIDTHS = [192]
 
 export const creditsLookupEnabled = async () => (await getSetting(CREDITS_SETTING)) !== 'false'
 
@@ -34,8 +36,10 @@ export const createProgrammeCredits = ({
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
   waitMs = 0,
+  linkOf = linkHealth.linkOf,
+  staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, staleBeforeMs })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
@@ -53,7 +57,7 @@ export const createProgrammeCredits = ({
     if (!settings) return NO_CREDITS
     const { status, found } = await lookups.foundFor({ title, ...settings })
     if (status === 'pending') return PENDING_CREDITS
-    return status === 'ready' && found ? { status: 'ready', ...found } : NO_CREDITS
+    return status === 'ready' && found ? { status: 'ready', ...shownCreditsOf({ found, linkOf }) } : NO_CREDITS
   }
 
   const forget = async (title) => {
@@ -74,11 +78,16 @@ export const createCreditsLookup = ({ matcher = createTitleMatcher() } = {}) => 
   }
 
   const seriesCredits = async ({ title, hints, apiKey }) => {
+    const tmdb = await settledOf(matcher.matchedSeries({ title, hints, apiKey }))
+    const fromTmdb = tmdb.value
+    const tmdbCredits = fromTmdb ? tmdbSeriesCreditsOf(fromTmdb) : null
+    if (tmdbCredits?.cast.length) return tmdbCredits
     const show = await matcher.tvmazeShow({ title, hints })
-    if (!show) return null
+    if (!show && tmdb.error) throw tmdb.error
+    if (!show) return tmdbCredits
     const cast = await matcher.tvmazeGet(`/shows/${encodeURIComponent(show.id)}/cast`)
     const crew = await matcher.tvmazeGet(`/shows/${encodeURIComponent(show.id)}/crew`)
-    const details = apiKey ? await matcher.tmdbShow({ title, show, apiKey }) : null
+    const details = fromTmdb || (apiKey ? await matcher.tmdbShow({ title, show, apiKey }) : null)
     const overview = plainTextOf(show.summary) || plainTextOf(details?.overview)
     return seriesCreditsOf({ show, cast, crew, overview, currentCast: details?.credits?.cast })
   }
@@ -97,6 +106,42 @@ export const filmCreditsOf = (details) => creditsOrNull({
   source: 'tmdb',
   url: `${TMDB_WEB}/movie/${details.id}`,
 })
+
+export const tmdbSeriesCreditsOf = (details) => creditsOrNull({
+  overview: plainTextOf(details.overview),
+  cast: [...(details.credits?.cast || [])]
+    .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+    .map(tmdbCastMemberOf),
+  crew: crewOf({
+    people: [
+      ...(details.created_by || []).map((person) => ({ name: person.name || null, job: 'Creator' })),
+      ...(details.credits?.crew || []).map(tmdbCrewMemberOf),
+    ],
+    roles: SERIES_CREW_ROLES,
+  }),
+  source: 'tmdb',
+  url: `${TMDB_WEB}/tv/${details.id}`,
+})
+
+export const shownCreditsOf = ({ found, linkOf }) => ({
+  ...found,
+  url: linkOf(found.url),
+  cast: (found.cast || []).map((person) => ({ ...person, image: personImagePathOf(person.image), url: linkOf(person.url) })),
+})
+
+export const personImagePathOf = (source) => (isPersonImageSource(source)
+  ? `/api/epg/person-image?src=${encodeURIComponent(source)}&w=${PERSON_IMAGE_WIDTHS[0]}`
+  : null)
+
+export const isPersonImageSource = (source) => {
+  try {
+    const url = new URL(source)
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || url.search || url.hash) return false
+    return PERSON_IMAGE_PATHS.some(({ host, prefix }) => url.hostname === host && url.pathname.startsWith(prefix))
+  } catch {
+    return false
+  }
+}
 
 export const seriesCreditsOf = ({ show, cast, crew, overview = null, currentCast = null }) => creditsOrNull({
   overview: overview || null,
@@ -165,6 +210,10 @@ const uniqueBy = (items, keyOf) => {
 const NO_CREDITS = { status: 'none', overview: null, cast: [], crew: [], source: null, url: null }
 const PENDING_CREDITS = { ...NO_CREDITS, status: 'pending' }
 const MAX_CAST = 12
+const PERSON_IMAGE_PATHS = [
+  { host: 'image.tmdb.org', prefix: '/t/p/w185/' },
+  { host: 'static.tvmaze.com', prefix: '/uploads/images/' },
+]
 const TMDB_PROFILE_BASE = 'https://image.tmdb.org/t/p/w185'
 const HTML_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'", nbsp: ' ' }
 const FILM_CREW_ROLES = [

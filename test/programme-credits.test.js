@@ -2,10 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  CREDITS_IMAGE_SOURCES,
   createCreditsLookup,
   createProgrammeCredits,
   httpsImageOf,
+  isPersonImageSource,
+  personImagePathOf,
   plainTextOf,
 } from '../src/programme-credits.js'
 import { createTitleMatcher } from '../src/programme-ratings.js'
@@ -35,6 +36,8 @@ const fakeClient = (routes) => {
   }
 }
 
+const shown = (source) => `/api/epg/person-image?src=${encodeURIComponent(source)}&w=192`
+
 const settled = async (credits, title, options) => {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const answer = await credits.creditsFor(title, options)
@@ -54,6 +57,7 @@ const creditsWith = ({
   cache = memoryCache(),
   clock = { ms: 1000 },
   lookUp = null,
+  linkOf = (url) => url,
 }) => {
   const client = fakeClient(routes || {})
   const matcher = createTitleMatcher({ client, countryCode: () => country, knownReference })
@@ -67,6 +71,8 @@ const creditsWith = ({
     hitTtlMs: 100,
     missTtlMs: 10,
     failureBackoffMs: 50,
+    linkOf,
+    staleBeforeMs: 0,
   })
   return { credits, client, cache, clock }
 }
@@ -160,10 +166,10 @@ test('a film answers pending first, then TMDB cast in billing order, crew, and t
     status: 'ready',
     overview: HEAT_DETAILS.overview,
     cast: [
-      { name: 'Al Pacino', character: 'Lt. Vincent Hanna', image: 'https://image.tmdb.org/t/p/w185/fMDFeVf0pjopTJbyRSLFwNDm8Wr.jpg', url: 'https://www.themoviedb.org/person/1158' },
-      { name: 'Robert De Niro', character: 'Neil McCauley', image: 'https://image.tmdb.org/t/p/w185/cT8htcckIuyI1Lqwt1CvD02ynTh.jpg', url: 'https://www.themoviedb.org/person/380' },
+      { name: 'Al Pacino', character: 'Lt. Vincent Hanna', image: shown('https://image.tmdb.org/t/p/w185/fMDFeVf0pjopTJbyRSLFwNDm8Wr.jpg'), url: 'https://www.themoviedb.org/person/1158' },
+      { name: 'Robert De Niro', character: 'Neil McCauley', image: shown('https://image.tmdb.org/t/p/w185/cT8htcckIuyI1Lqwt1CvD02ynTh.jpg'), url: 'https://www.themoviedb.org/person/380' },
       { name: 'Val Kilmer', character: 'Chris Shiherlis', image: null, url: 'https://www.themoviedb.org/person/5576' },
-      { name: 'Jon Voight', character: 'Nate', image: 'https://image.tmdb.org/t/p/w185/eZjgq2EZ5vPwHPHtMhIgMjCC6Hn.jpg', url: 'https://www.themoviedb.org/person/10127' },
+      { name: 'Jon Voight', character: 'Nate', image: shown('https://image.tmdb.org/t/p/w185/eZjgq2EZ5vPwHPHtMhIgMjCC6Hn.jpg'), url: 'https://www.themoviedb.org/person/10127' },
     ],
     crew: [
       { name: 'Michael Mann', job: 'Director' },
@@ -184,8 +190,8 @@ test('a reality series shows its hosts from TVmaze with https pictures and the p
     status: 'ready',
     overview: "MasterChef Australia searches for the country's best home cook & puts them through cook-offs judged by professional chefs.",
     cast: [
-      { name: 'Andy Allen', character: 'Judge', image: 'https://static.tvmaze.com/uploads/images/medium_portrait/297/744014.jpg', url: 'https://www.tvmaze.com/people/113584/andy-allen' },
-      { name: 'Poh Ling Yeow', character: 'Judge', image: 'https://static.tvmaze.com/uploads/images/medium_portrait/412/1031400.jpg', url: 'https://www.tvmaze.com/people/54321/poh-ling-yeow' },
+      { name: 'Andy Allen', character: 'Judge', image: shown('https://static.tvmaze.com/uploads/images/medium_portrait/297/744014.jpg'), url: 'https://www.tvmaze.com/people/113584/andy-allen' },
+      { name: 'Poh Ling Yeow', character: 'Judge', image: shown('https://static.tvmaze.com/uploads/images/medium_portrait/412/1031400.jpg'), url: 'https://www.tvmaze.com/people/54321/poh-ling-yeow' },
       { name: 'Jean-Christophe Novelli', character: 'Judge', image: null, url: 'https://www.tvmaze.com/people/98765/jean-christophe-novelli' },
     ],
     crew: [
@@ -222,7 +228,7 @@ test('a series with a TMDB key shows the current season cast, not past hosts', a
   const { credits } = creditsWith({ routes })
   const answer = await settled(credits, 'MasterChef Australia')
   assert.deepEqual(answer.cast.map(({ name }) => name), ['Andy Allen', 'Poh Ling Yeow'])
-  assert.equal(answer.cast[1].image, 'https://image.tmdb.org/t/p/w185/poh.jpg')
+  assert.equal(answer.cast[1].image, shown('https://image.tmdb.org/t/p/w185/poh.jpg'))
   assert.equal(answer.crew[0].name, 'Franc Roddam')
 })
 
@@ -274,7 +280,7 @@ test('forget drops a cached series miss so the next lookup runs again', async ()
   assert.deepEqual([...cache.rows.keys()], ['open:nothing like it'])
 })
 
-test('a cached hit answers without a lookup until it expires', async () => {
+test('a cached hit answers without a lookup until it expires, then answers while it refreshes', async () => {
   const { credits, client, clock } = creditsWith({ routes: MASTERCHEF_ROUTES, apiKey: null })
   await settled(credits, 'MasterChef Australia')
   assert.equal(client.calls.length, 3)
@@ -282,7 +288,9 @@ test('a cached hit answers without a lookup until it expires', async () => {
   assert.equal((await credits.creditsFor('MasterChef Australia')).status, 'ready')
   assert.equal(client.calls.length, 3)
   clock.ms = 1101
-  assert.equal((await credits.creditsFor('MasterChef Australia')).status, 'pending')
+  assert.equal((await credits.creditsFor('MasterChef Australia')).status, 'ready')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(client.calls.length, 6)
 })
 
 test('callers share one lookup and failures back off', async () => {
@@ -300,14 +308,15 @@ test('callers share one lookup and failures back off', async () => {
   assert.equal(calls, 1)
   clock.ms = 1101
   fail = true
-  assert.equal((await credits.creditsFor('Film', { kind: 'movie' })).status, 'pending')
-  assert.equal((await settled(credits, 'Film', { kind: 'movie' })).status, 'none')
+  assert.equal((await credits.creditsFor('Film', { kind: 'movie' })).overview, 'A film.')
+  await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 2)
   clock.ms += 49
-  assert.equal((await credits.creditsFor('Film', { kind: 'movie' })).status, 'none')
+  assert.equal((await credits.creditsFor('Film', { kind: 'movie' })).overview, 'A film.')
   assert.equal(calls, 2)
   clock.ms += 2
-  await settled(credits, 'Film', { kind: 'movie' })
+  await credits.creditsFor('Film', { kind: 'movie' })
+  await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 3)
 })
 
@@ -329,6 +338,105 @@ test('helpers strip HTML and keep only https pictures', () => {
   assert.equal(httpsImageOf(null), null)
 })
 
-test('the image sources cover the hosts the cast photos come from', () => {
-  assert.deepEqual(CREDITS_IMAGE_SOURCES, ['https://image.tmdb.org', 'https://static.tvmaze.com'])
+test('cast photos go through the local person image route, only from the two photo hosts', () => {
+  assert.equal(isPersonImageSource('https://image.tmdb.org/t/p/w185/a.jpg'), true)
+  assert.equal(isPersonImageSource('https://static.tvmaze.com/uploads/images/medium_portrait/1/2.jpg'), true)
+  assert.equal(isPersonImageSource('https://image.tmdb.org/t/p/original/a.jpg'), false)
+  assert.equal(isPersonImageSource('https://static.tvmaze.com/uploads/images/a.jpg?x=1'), false)
+  assert.equal(isPersonImageSource('http://image.tmdb.org/t/p/w185/a.jpg'), false)
+  assert.equal(isPersonImageSource('https://example.com/t/p/w185/a.jpg'), false)
+  assert.equal(personImagePathOf('https://image.tmdb.org/t/p/w185/a.jpg'), '/api/epg/person-image?src=https%3A%2F%2Fimage.tmdb.org%2Ft%2Fp%2Fw185%2Fa.jpg&w=192')
+  assert.equal(personImagePathOf(null), null)
+})
+
+const FISK_HINTS = programmeHintsOf([{
+  title: 'Fisk',
+  episode_title: 'Of Sound Mind',
+  channel_id: 'abc',
+  synopsis: 'Helen takes on a messy estate after an old client dies.',
+}], { channelNameOf: () => 'ABC TV HD' })
+
+const FISK_TMDB = {
+  id: 500,
+  name: 'Fisk',
+  type: 'Scripted',
+  first_air_date: '2021-05-07',
+  origin_country: ['AU'],
+  networks: [{ name: 'ABC' }],
+  overview: 'A probate lawyer starts again at a small suburban firm.',
+  vote_average: 7.64,
+  vote_count: 80,
+  created_by: [{ id: 1, name: 'Kitty Flanagan' }],
+  credits: {
+    cast: [{ id: 11, name: 'Kitty Flanagan', character: 'Helen Tudor-Fisk', order: 0, profile_path: '/kitty.jpg' }],
+    crew: [{ id: 12, name: 'Kevin Whyte', job: 'Executive Producer' }],
+  },
+  reviews: { total_results: 0, results: [] },
+}
+
+const tvmazeDown = () => { throw Object.assign(new Error('api.tvmaze.com HTTP 502'), { code: 'unavailable' }) }
+
+test('a series with a TMDB key matched on a local guide network takes TMDB credits without TVmaze', async () => {
+  const routes = {
+    '/search/tv': { results: [{ id: 77, name: 'Fisk', origin_country: ['US'] }, { id: 500, name: 'Fisk', origin_country: ['AU'] }] },
+    '/tv/500': FISK_TMDB,
+    '/tv/77': { ...FISK_TMDB, id: 77, origin_country: ['US'], networks: [{ name: 'HBO' }] },
+    '/search/shows': tvmazeDown,
+  }
+  const { credits, client } = creditsWith({ routes, hints: FISK_HINTS })
+  assert.deepEqual(await settled(credits, 'Fisk'), {
+    status: 'ready',
+    overview: FISK_TMDB.overview,
+    cast: [{ name: 'Kitty Flanagan', character: 'Helen Tudor-Fisk', image: shown('https://image.tmdb.org/t/p/w185/kitty.jpg'), url: 'https://www.themoviedb.org/person/11' }],
+    crew: [{ name: 'Kitty Flanagan', job: 'Creator' }, { name: 'Kevin Whyte', job: 'Executive Producer' }],
+    source: 'tmdb',
+    url: 'https://www.themoviedb.org/tv/500',
+  })
+  assert.deepEqual(client.calls.map(({ path }) => path), ['/search/tv', '/tv/500'])
+})
+
+test('a TMDB series on no guide network falls back to TVmaze', async () => {
+  const routes = {
+    ...MASTERCHEF_ROUTES,
+    '/search/tv': { results: [{ id: 500, name: 'MasterChef Australia', origin_country: ['AU'] }] },
+    '/tv/500': { ...FISK_TMDB, name: 'MasterChef Australia', networks: [{ name: 'Seven Network' }] },
+  }
+  const hints = programmeHintsOf([{ title: 'MasterChef Australia', channel_id: 'ten', synopsis: 'Cooks cook.' }], { channelNameOf: () => '10 HD' })
+  const { credits } = creditsWith({ routes, hints })
+  assert.equal((await settled(credits, 'MasterChef Australia')).source, 'tvmaze')
+})
+
+test('links to a site that is down are dropped and the rest stay', async () => {
+  const linkOf = (url) => (String(url).startsWith('https://www.tvmaze.com/') ? null : url)
+  const { credits } = creditsWith({ routes: MASTERCHEF_ROUTES, apiKey: null, linkOf })
+  const answer = await settled(credits, 'MasterChef Australia')
+  assert.equal(answer.url, null)
+  assert.deepEqual(answer.cast.map(({ url }) => url), [null, null, null])
+  assert.equal(answer.cast[0].image, shown('https://static.tvmaze.com/uploads/images/medium_portrait/297/744014.jpg'))
+})
+
+test('an expired series hit keeps answering while TVmaze is down', async () => {
+  const routes = { ...MASTERCHEF_ROUTES }
+  const { credits, client, clock } = creditsWith({ routes, apiKey: null })
+  await settled(credits, 'MasterChef Australia')
+  routes['/search/shows'] = tvmazeDown
+  clock.ms = 1101
+  const fresh = creditsWith({ routes, apiKey: null })
+  assert.equal((await credits.creditsFor('MasterChef Australia')).cast[0].name, 'Andy Allen')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal((await credits.creditsFor('MasterChef Australia')).cast[0].name, 'Andy Allen')
+  assert.equal(client.calls.filter(({ path }) => path === '/search/shows').length, 2)
+  assert.equal((await fresh.credits.creditsFor('Never Seen')).status, 'pending')
+})
+
+test('a TMDB outage with no TVmaze match backs off instead of caching a miss', async () => {
+  const routes = {
+    '/search/tv': () => { throw Object.assign(new Error('api.themoviedb.org HTTP 503'), { code: 'unavailable' }) },
+    '/search/shows': [],
+  }
+  const { credits, cache } = creditsWith({ routes, hints: FISK_HINTS })
+  await credits.creditsFor('Fisk')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal((await credits.creditsFor('Fisk')).status, 'pending')
+  assert.equal(cache.rows.size, 0)
 })

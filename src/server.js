@@ -104,6 +104,7 @@ import {
   getProgrammeImage,
   findProgrammeThumbnail,
   findShowThumbnail,
+  findPersonThumbnail,
   findShowPoster,
   prepareThumbnailCache,
   recordProgram,
@@ -187,7 +188,7 @@ import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defa
 import { mountTmdbKey } from './tmdb-key.js'
 import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
-import { createProgrammeCredits, CREDITS_IMAGE_SOURCES, CREDITS_SETTING } from './programme-credits.js'
+import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
@@ -252,6 +253,7 @@ const IMAGE_MAX_AGE_S = 24 * 60 * 60
 const MISSING_IMAGE_MAX_AGE_S = 5 * 60
 const CONNECT_ATTEMPT_TIMEOUT_MS = 2500
 const MAX_SHOW_TITLE_LENGTH = 200
+const MAX_PERSON_IMAGE_SOURCE_LENGTH = 300
 const RATINGS_MAX_AGE_S = 5 * 60
 
 dns.setDefaultResultOrder('ipv4first')
@@ -271,7 +273,7 @@ app.use(
         // To drop it, move to a build step (Vite) that pre-compiles templates.
         'script-src': ["'self'", "'unsafe-eval'"],
         'style-src': ["'self'", "'unsafe-inline'"],
-        'img-src': ["'self'", 'data:', ...CREDITS_IMAGE_SOURCES],
+        'img-src': ["'self'", 'data:'],
         'media-src': ["'self'", 'blob:'],
         'worker-src': ["'self'", 'blob:'],
         'connect-src': ["'self'", 'https://api.github.com'],
@@ -719,6 +721,12 @@ app.get('/api/epg/image/:eventId', serveImage({
   widths: PROGRAMME_IMAGE_WIDTHS,
   loadImage: ({ eventId, width }) =>
     findProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+}))
+
+app.get('/api/epg/person-image', serveImage({
+  widths: PERSON_IMAGE_WIDTHS,
+  loadImage: ({ width, source }) => findPersonThumbnail({ source, width }),
+  paramsOf: (req) => ({ source: String(req.query.src || '').slice(0, MAX_PERSON_IMAGE_SOURCE_LENGTH) }),
 }))
 
 app.get('/api/epg/show-image', serveImage({

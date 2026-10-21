@@ -6,6 +6,7 @@ import { countryForTimeZone } from './zone-countries.js'
 import {
   articleCandidateIdsOf,
   artworkKindOf,
+  cachedStateOf,
   candidateIdsOf,
   dominantFilmOf,
   entityQueryOf,
@@ -24,6 +25,8 @@ import {
   tmdbTextOf,
   tmdbYearOf,
   titleVariantsOf,
+  TMDB_FIRST_SAVED_AFTER_MS,
+  TMDB_IMAGE_LANGUAGES,
 } from './artwork-match.js'
 
 export const TMDB_KEY_SETTING = 'tmdb_api_key'
@@ -39,6 +42,7 @@ export const createFallbackArtwork = ({
   missTtlMs = MISS_TTL_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
+  staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
 } = {}) => {
   const inflight = new Map()
   const failedUntil = new Map()
@@ -55,8 +59,14 @@ export const createFallbackArtwork = ({
 
   const cachedSources = async (cacheKey) => {
     const cached = await cache.read(cacheKey).catch(() => null)
-    if (!cached || cached.expiresAt <= now()) return null
-    return cached.sources.length || cached.reference === MISS_REFERENCE ? cached.sources : null
+    const hasValue = Boolean(cached?.sources?.length)
+    const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue, staleBeforeMs })
+    if (state === 'missing' || (!hasValue && cached.reference !== MISS_REFERENCE)) return { stale: false, sources: null }
+    return { stale: state === 'stale', sources: cached.sources }
+  }
+
+  const refreshStale = ({ cached, title, settings }) => {
+    if (cached.stale && !recentlyFailed(settings.cacheKey)) startLookup({ title, ...settings })
   }
 
   const startLookup = ({ title, kind, apiKey, cacheKey }) => {
@@ -81,17 +91,21 @@ export const createFallbackArtwork = ({
 
   const sourcesFor = async (title, { kind = null } = {}) => {
     const settings = await settingsFor({ title, kind })
-    if (!settings || recentlyFailed(settings.cacheKey)) return []
+    if (!settings) return []
     const cached = await cachedSources(settings.cacheKey)
-    if (cached) return cached
+    refreshStale({ cached, title, settings })
+    if (cached.sources) return cached.sources
+    if (recentlyFailed(settings.cacheKey)) return []
     return startLookup({ title, ...settings })
   }
 
   const artworkFor = async (title, { kind = null } = {}) => {
     const settings = await settingsFor({ title, kind })
-    if (!settings || recentlyFailed(settings.cacheKey)) return NO_ARTWORK
+    if (!settings) return NO_ARTWORK
     const cached = await cachedSources(settings.cacheKey)
-    if (cached) return { sources: cached, pending: false }
+    refreshStale({ cached, title, settings })
+    if (cached.sources) return { sources: cached.sources, pending: false }
+    if (recentlyFailed(settings.cacheKey)) return NO_ARTWORK
     startLookup({ title, ...settings })
     return PENDING_ARTWORK
   }
@@ -195,7 +209,11 @@ export const createArtworkLookup = ({
   const tmdbDetails = async ({ apiKey, type, id, withCredits = false }) => tmdbGet({
     apiKey,
     path: `/${type}/${encodeURIComponent(id)}`,
-    params: { language: 'en-AU', ...(withCredits ? { append_to_response: 'credits' } : {}) },
+    params: {
+      language: 'en-AU',
+      append_to_response: withCredits ? 'credits,images' : 'images',
+      include_image_language: TMDB_IMAGE_LANGUAGES,
+    },
   })
 
   const tmdbIdsOf = async ({ apiKey, entity }) => {
@@ -320,6 +338,9 @@ export const artworkClient = createOutboundClient({
     [TMDB_API_HOST]: { concurrency: 4, gapMs: 50 },
     'image.tmdb.org': { concurrency: 4, gapMs: 50 },
     'api.tvmaze.com': { concurrency: 1, gapMs: 500 },
+    'static.tvmaze.com': { concurrency: 2, gapMs: 100 },
+    'www.tvmaze.com': { concurrency: 1, gapMs: 1000 },
+    'www.themoviedb.org': { concurrency: 1, gapMs: 1000 },
   },
 })
 

@@ -36,7 +36,7 @@ export const createOutboundClient = ({
     return breakers.get(host)
   }
 
-  const send = async ({ url, params, headers = {}, timeoutMs, maxBytes, retries }) => {
+  const send = async ({ url, params, headers = {}, timeoutMs, maxBytes, retries, method = 'get' }) => {
     const target = allowedUrlOf({ url, isAllowedHost })
     const host = target.hostname
     const breaker = breakerFor(host)
@@ -44,6 +44,7 @@ export const createOutboundClient = ({
       if (!breaker.allows()) throw new OutboundError(`${host} is backing off`, { code: 'circuit-open', host })
       const outcome = await limiterFor(host)
         .run(() => request({
+          method,
           url: target.href,
           params,
           headers: { ...headers, 'User-Agent': userAgent },
@@ -103,6 +104,15 @@ export const createOutboundClient = ({
     return { body: response.body, contentType }
   }
 
+  const isReachable = async ({ url, timeoutMs = PROBE_TIMEOUT_MS }) => {
+    try {
+      await send({ url, method: 'head', timeoutMs, maxBytes: PROBE_MAX_BYTES, retries: 0 })
+      return true
+    } catch (error) {
+      return !UNREACHABLE_CODES.has(error.code)
+    }
+  }
+
   const isAllowedUrl = (url) => {
     try {
       allowedUrlOf({ url, isAllowedHost })
@@ -114,7 +124,7 @@ export const createOutboundClient = ({
 
   const resetHost = (host) => breakers.get(host)?.recordSuccess()
 
-  return { getJson, getImage, isAllowedUrl, resetHost }
+  return { getJson, getImage, isReachable, isAllowedUrl, resetHost }
 }
 
 export const allowedUrlOf = ({ url, isAllowedHost }) => {
@@ -241,8 +251,10 @@ const parsedUrlOf = (url) => {
 
 const hostOf = (url) => parsedUrlOf(url)?.hostname || 'unknown host'
 
-const axiosRequest = async ({ url, params, headers, timeoutMs, maxBytes, isAllowedHost }) => {
-  const res = await axios.get(url, {
+const axiosRequest = async ({ method = 'get', url, params, headers, timeoutMs, maxBytes, isAllowedHost }) => {
+  const res = await axios.request({
+    method,
+    url,
     params,
     headers,
     timeout: timeoutMs,
@@ -275,6 +287,9 @@ const IMAGE_RETRIES = 1
 const RETRY_BASE_MS = 500
 const RETRY_MAX_MS = 8000
 const MAX_REDIRECTS = 3
+const PROBE_TIMEOUT_MS = 5000
+const PROBE_MAX_BYTES = 64 * 1024
+const UNREACHABLE_CODES = new Set(['unavailable', 'circuit-open'])
 const DEFAULT_MAX_QUEUE = 200
 const BREAKER_FAILURE_THRESHOLD = 5
 const BREAKER_BASE_COOLDOWN_MS = 60 * 1000

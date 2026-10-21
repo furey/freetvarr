@@ -24,6 +24,7 @@ import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
 import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource } from './fallback-artwork.js'
+import { isPersonImageSource } from './programme-credits.js'
 import { artworkKindOf, guideKindsByTitle, programmeHintsByTitle } from './artwork-match.js'
 import { loadTitleGenres, rememberTvmazeShow } from './genre-enrichment.js'
 import { createGuideSearchCache, searchGuideListings } from './guide-search.js'
@@ -693,6 +694,11 @@ const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor
 
 export const prepareThumbnailCache = () => thumbnailStore.prepare()
 
+export const findPersonThumbnail = async ({ source, width }) => {
+  if (!isPersonImageSource(source)) return null
+  return thumbnailStore.thumbnailFor({ key: `person:${source}`, width, loadOriginal: () => personImages.imageFor(source) })
+}
+
 const programmeImageSources = async ({ eventId, fallbackSource }) => {
   const guide = await getCachedGuide().catch(() => null)
   const inGuide = guide?.programByEventId.get(String(eventId))
@@ -904,6 +910,13 @@ let stateLastError = null
 const imageCache = new Map()
 const programmeImages = createProgrammeImages({
   fetchImage: (source) => (isFallbackImageSource(source) ? fetchFallbackImage(source) : fetchProgrammeImage({ source })),
+})
+const PERSON_IMAGE_MEMORY_ENTRIES = 48
+const PERSON_IMAGE_MEMORY_BYTES = 4 * 1024 * 1024
+const personImages = createProgrammeImages({
+  fetchImage: fetchFallbackImage,
+  maxEntries: PERSON_IMAGE_MEMORY_ENTRIES,
+  maxBytes: PERSON_IMAGE_MEMORY_BYTES,
 })
 const showArtwork = createShowArtwork({
   onTvmazeShow: (found) => Promise.all([rememberTvmazeShow(found), rememberKnownAsFromTvmaze(found)]),

@@ -246,10 +246,26 @@ export const tmdbAuthOf = (key) => {
     : { headers: {}, params: { api_key: trimmed } }
 }
 
-export const tmdbSourcesOf = (details) => [
-  details?.backdrop_path ? `${TMDB_IMAGE_BASE}/w1280${details.backdrop_path}` : null,
-  details?.poster_path ? `${TMDB_IMAGE_BASE}/w780${details.poster_path}` : null,
-].filter(Boolean)
+export const tmdbSourcesOf = (details) => {
+  const backdrops = tmdbPicturesOf({ main: details?.backdrop_path, images: details?.images?.backdrops, size: 'w1280' })
+  const posters = tmdbPicturesOf({ main: details?.poster_path, images: details?.images?.posters, size: 'w780' })
+  return [...backdrops.slice(0, 1), ...posters.slice(0, 1), ...backdrops.slice(1), ...posters.slice(1)]
+}
+
+const tmdbPicturesOf = ({ main, images = [], size }) => {
+  const gallery = [...(Array.isArray(images) ? images : [])]
+    .filter((image) => image?.file_path)
+    .sort((a, b) => imageLanguageRankOf(a) - imageLanguageRankOf(b))
+    .map((image) => image.file_path)
+  return [...new Set([main, ...gallery].filter(Boolean))]
+    .slice(0, MAX_TMDB_PICTURES)
+    .map((path) => `${TMDB_IMAGE_BASE}/${size}${path}`)
+}
+
+const imageLanguageRankOf = (image) => {
+  if (image.iso_639_1 === 'en') return 0
+  return image.iso_639_1 == null ? 1 : 2
+}
 
 export const tmdbTextOf = (details) => [
   details?.title || details?.name,
@@ -280,6 +296,17 @@ export const tmdbAirsOnGuideChannel = ({ details, hints, country }) =>
   && sharesNetwork({ networkNames: (details?.networks || []).map((network) => network.name), channelNames: hints?.channelNames || [] })
 
 export const lookupExpiryOf = ({ found, nowMs, hitTtlMs, missTtlMs }) => nowMs + (found ? hitTtlMs : missTtlMs)
+
+export const cachedStateOf = ({ cached, nowMs, hitTtlMs, hasValue, maxAgeMs = DATA_MAX_AGE_MS, staleBeforeMs = 0 }) => {
+  if (!cached) return 'missing'
+  const savedAtMs = cached.expiresAt - hitTtlMs
+  if (cached.expiresAt > nowMs && !(hasValue && savedAtMs < staleBeforeMs)) return 'fresh'
+  return hasValue && nowMs < savedAtMs + maxAgeMs ? 'stale' : 'missing'
+}
+
+export const TMDB_FIRST_SAVED_AFTER_MS = Date.parse('2026-10-21T21:00:00+11:00')
+
+export const DATA_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 
 const entityKindFits = ({ row, hints }) => {
   if (hints?.kind === FILM_KIND) return row.kind === 'film'
@@ -367,6 +394,8 @@ const FILM_KIND = 'movie'
 const FILM_CLASS = 'Q11424'
 const TELEVISION_PROGRAM_CLASS = 'Q15416'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
+export const TMDB_IMAGE_LANGUAGES = 'en,null'
+const MAX_TMDB_PICTURES = 8
 const TMDB_V3_KEY_MAX_LENGTH = 40
 const DISTINCTIVE_WORD_LENGTH = 6
 const MIN_MATCHED_WORDS = 4

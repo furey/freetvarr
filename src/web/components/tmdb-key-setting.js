@@ -33,7 +33,7 @@ export const TmdbKeySetting = {
           </div>
         </div>
       </div>
-      <p class="settings-note">This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">TMDB</a>. Show ratings are from <a href="https://www.tvmaze.com" target="_blank" rel="noopener noreferrer">TVmaze</a>.</p>
+      <p class="settings-note">This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">TMDB</a>. Some show ratings and cast lists are from <a href="https://www.tvmaze.com" target="_blank" rel="noopener noreferrer">TVmaze</a>.</p>
     </div>
   `,
   emits: ['key-change'],

@@ -216,3 +216,14 @@ test('GET artwork-stamps lists the stamps of every show with a pick', async () =
   assert.deepEqual(body.stamps['the-block'], { background: null, poster: choiceStampOf({ chosenAt: 1000 }) })
   await call('DELETE', '/api/library/shows/the-block/artwork/poster')
 })
+
+test('artworkCandidatesOf offers every TMDB background and poster the lookup found', () => {
+  const base = 'https://image.tmdb.org/t/p'
+  const backgrounds = Array.from({ length: 8 }, (_, at) => `${base}/w1280/b${at}.jpg`)
+  const posters = Array.from({ length: 8 }, (_, at) => `${base}/w780/p${at}.jpg`)
+  const fallback = [backgrounds[0], posters[0], ...backgrounds.slice(1), ...posters.slice(1)]
+  const candidates = artworkCandidatesOf({ automatic: { library: [], fallback, guide: [] } })
+  assert.deepEqual(candidates.filter((c) => c.kind === 'background').map((c) => c.origin), backgrounds)
+  assert.deepEqual(candidates.filter((c) => c.kind === 'poster').map((c) => c.origin), posters)
+  assert.ok(candidates.every((c) => c.source === 'tmdb'))
+})

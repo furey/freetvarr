@@ -27,6 +27,7 @@ const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 100
     hitTtlMs: 100,
     missTtlMs: 10,
     failureBackoffMs: 50,
+    staleBeforeMs: 0,
   }),
 })
 
@@ -220,4 +221,51 @@ test('a foreign TMDB show on a same-named network is not matched', async () => {
   const client = bigBrotherClient({ localNetworks: [{ name: '10' }] })
   const lookUp = createArtworkLookup({ client, countryCode: () => 'NZ' })
   assert.equal(await lookUp({ title: 'Big Brother', hints: bigBrotherHints(), apiKey: 'k' }), null)
+})
+
+test('an expired hit keeps answering while the refresh fails, until the data is six months old', async () => {
+  let calls = 0
+  let down = false
+  const day = 24 * 60 * 60 * 1000
+  const { artwork, clock } = fallbackWith({
+    lookUp: async () => {
+      calls += 1
+      if (down) throw new Error('down')
+      return { sources: ['https://image.tmdb.org/t/p/w1280/a.jpg'], reference: 'tmdb:tv:1' }
+    },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Fisk'), ['https://image.tmdb.org/t/p/w1280/a.jpg'])
+  down = true
+  clock.ms = 1101
+  assert.deepEqual(await artwork.artworkFor('Fisk'), { sources: ['https://image.tmdb.org/t/p/w1280/a.jpg'], pending: false })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 2)
+  assert.deepEqual(await artwork.sourcesFor('Fisk'), ['https://image.tmdb.org/t/p/w1280/a.jpg'])
+  assert.equal(calls, 2)
+  clock.ms = 1000 + 181 * day
+  assert.deepEqual(await artwork.artworkFor('Fisk'), { sources: [], pending: true })
+})
+
+test('a matched TMDB show offers up to eight backgrounds and eight posters, English and textless first', async () => {
+  const backdrops = Array.from({ length: 12 }, (_, index) => ({ file_path: `/b${index}.jpg`, iso_639_1: index === 5 ? 'en' : index === 6 ? 'de' : null }))
+  const posters = [{ file_path: '/p-de.jpg', iso_639_1: 'de' }, { file_path: '/p-en.jpg', iso_639_1: 'en' }, { file_path: '/aup.jpg', iso_639_1: 'en' }]
+  const client = bigBrotherClient({ localNetworks: [{ name: '10' }] })
+  const details = client.getJson
+  client.getJson = async (request) => {
+    const found = await details(request)
+    return request.url.endsWith('/tv/990') ? { ...found, images: { backdrops, posters } } : found
+  }
+  const lookUp = createArtworkLookup({ client, countryCode: () => 'AU' })
+  const { sources } = await lookUp({ title: 'Big Brother', hints: bigBrotherHints(), apiKey: 'k' })
+  const base = 'https://image.tmdb.org/t/p'
+  assert.deepEqual(sources, [
+    `${base}/w1280/au.jpg`,
+    `${base}/w780/aup.jpg`,
+    ...['b5', 'b0', 'b1', 'b2', 'b3', 'b4', 'b7'].map((name) => `${base}/w1280/${name}.jpg`),
+    `${base}/w780/p-en.jpg`,
+    `${base}/w780/p-de.jpg`,
+  ])
+  const detailsCall = client.calls.find((call) => call.path === '/3/tv/990')
+  assert.equal(detailsCall.params.include_image_language, 'en,null')
+  assert.match(detailsCall.params.append_to_response, /images/)
 })

@@ -63,6 +63,7 @@ const ratingsWith = ({
   cache = memoryCache(),
   clock = { ms: 1000 },
   lookUp = null,
+  linkOf = (url) => url,
 }) => {
   const client = fakeClient(routes || {})
   const ratings = createProgrammeRatings({
@@ -76,6 +77,8 @@ const ratingsWith = ({
     hitTtlMs: 100,
     missTtlMs: 10,
     failureBackoffMs: 50,
+    linkOf,
+    staleBeforeMs: 0,
   })
   return { ratings, client, cache, clock }
 }
@@ -205,7 +208,7 @@ test('a series takes the TVmaze score of the Australian Utopia and TMDB reviews 
       url: 'https://www.themoviedb.org/tv/61083/reviews',
     },
   })
-  assert.deepEqual(client.calls.map(({ path }) => path), ['/search/shows', '/find/tt3496334', '/tv/61083'])
+  assert.deepEqual(client.calls.map(({ path }) => path), ['/search/tv', '/search/shows', '/find/tt3496334', '/tv/61083'])
 })
 
 test('a series without a TMDB key still gets the TVmaze score and no reviews', async () => {
@@ -300,7 +303,7 @@ test('both switches off means no lookup at all', async () => {
   assert.equal(client.calls.length, 0)
 })
 
-test('callers share one lookup, hits last the hit TTL, and failures back off', async () => {
+test('callers share one lookup, an expired hit still answers while it refreshes, and failures back off', async () => {
   let calls = 0
   let fail = false
   const { ratings, clock } = ratingsWith({
@@ -315,15 +318,45 @@ test('callers share one lookup, hits last the hit TTL, and failures back off', a
   assert.equal(calls, 1)
   clock.ms = 1101
   fail = true
-  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).status, 'pending')
-  assert.equal((await settled(ratings, 'Film', { kind: 'movie' })).status, 'none')
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 8)
+  await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 2)
   clock.ms += 49
-  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).status, 'none')
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 8)
   assert.equal(calls, 2)
   clock.ms += 2
-  await settled(ratings, 'Film', { kind: 'movie' })
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 8)
+  await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 3)
+})
+
+test('a failed first lookup answers pending through the backoff, never none', async () => {
+  let calls = 0
+  const { ratings, clock } = ratingsWith({
+    lookUp: async () => {
+      calls += 1
+      throw new Error('down')
+    },
+  })
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).status, 'pending')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).status, 'pending')
+  assert.equal(calls, 1)
+  clock.ms += 51
+  await ratings.ratingsFor('Film', { kind: 'movie' })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 2)
+})
+
+test('an expired hit stops answering once its data is six months old', async () => {
+  const cache = memoryCache()
+  const day = 24 * 60 * 60 * 1000
+  cache.rows.set('tmdb:movie:film', { found: { score: 8, votes: 100, source: 'tmdb', url: null, reviews: null, originalLanguage: 'en' }, expiresAt: 1100 })
+  const { ratings, clock } = ratingsWith({ cache, lookUp: async () => { throw new Error('down') } })
+  clock.ms = 1000 - 100 + 179 * day
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 8)
+  clock.ms = 1000 - 100 + 181 * day + 60 * 1000
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).status, 'pending')
 })
 
 test('film ratings keep the original language, and older film hits refresh in the background', async () => {
@@ -534,4 +567,110 @@ test('pickRatedShow ignores a matching network name from another country', () =>
 test('pickRatedShow matches the local country whatever its letter case', () => {
   const results = [{ show: UTOPIA_UK }, { show: UTOPIA_AU }]
   assert.equal(pickRatedShow({ results, key: 'utopia', hints: null, country: 'au' }), UTOPIA_AU)
+})
+
+const FISK_HINTS = programmeHintsOf([{
+  title: 'Fisk',
+  episode_title: 'Of Sound Mind',
+  channel_id: 'abc',
+  synopsis: 'Helen takes on a messy estate after an old client dies.',
+}], { channelNameOf: () => 'ABC TV HD' })
+
+const FISK_TMDB = {
+  id: 500,
+  name: 'Fisk',
+  type: 'Scripted',
+  first_air_date: '2021-05-07',
+  origin_country: ['AU'],
+  networks: [{ name: 'ABC' }],
+  overview: 'A probate lawyer starts again at a small suburban firm.',
+  vote_average: 7.64,
+  vote_count: 80,
+  reviews: { total_results: 0, results: [] },
+}
+
+const tvmazeDown = () => { throw Object.assign(new Error('api.tvmaze.com HTTP 502'), { code: 'unavailable' }) }
+
+test('a series with a TMDB key matched on a local guide network takes the TMDB score without TVmaze', async () => {
+  const routes = {
+    '/search/tv': { results: [{ id: 500, name: 'Fisk', origin_country: ['AU'] }] },
+    '/tv/500': FISK_TMDB,
+    '/search/shows': tvmazeDown,
+  }
+  const { ratings, client } = ratingsWith({ routes, hints: FISK_HINTS })
+  assert.deepEqual(await settled(ratings, 'Fisk'), {
+    status: 'ready', score: 7.6, votes: 80, source: 'tmdb', url: 'https://www.themoviedb.org/tv/500', reviews: null,
+  })
+  assert.deepEqual(client.calls.map(({ path }) => path), ['/search/tv', '/tv/500'])
+})
+
+test('a TMDB reality series gets no score and asks TVmaze nothing', async () => {
+  const routes = {
+    '/search/tv': { results: [{ id: 500, name: 'Fisk', origin_country: ['AU'] }] },
+    '/tv/500': { ...FISK_TMDB, type: 'Reality' },
+    '/search/shows': tvmazeDown,
+  }
+  const { ratings, cache } = ratingsWith({ routes, hints: FISK_HINTS })
+  assert.equal((await settled(ratings, 'Fisk')).status, 'none')
+  assert.equal(cache.rows.get('tmdb:series-v2:fisk').missReason, 'not-story:Reality')
+})
+
+test('a TMDB series with too few votes takes the TVmaze score', async () => {
+  const fisk = { id: 3, name: 'Fisk', type: 'Scripted', language: 'English', rating: { average: 7.1 }, url: 'https://www.tvmaze.com/shows/3/fisk', network: { name: 'ABC', country: { code: 'AU' } } }
+  const routes = {
+    '/search/tv': { results: [{ id: 500, name: 'Fisk', origin_country: ['AU'] }] },
+    '/tv/500': { ...FISK_TMDB, vote_count: 3 },
+    '/search/shows': [{ show: fisk }],
+  }
+  const { ratings } = ratingsWith({ routes, hints: FISK_HINTS })
+  const answer = await settled(ratings, 'Fisk')
+  assert.equal(answer.source, 'tvmaze')
+  assert.equal(answer.score, 7.1)
+})
+
+test('a TVmaze outage on a TMDB series with too few votes backs off instead of caching a miss', async () => {
+  const routes = {
+    '/search/tv': { results: [{ id: 500, name: 'Fisk', origin_country: ['AU'] }] },
+    '/tv/500': { ...FISK_TMDB, vote_count: 3 },
+    '/search/shows': tvmazeDown,
+  }
+  const { ratings, cache } = ratingsWith({ routes, hints: FISK_HINTS })
+  assert.equal((await ratings.ratingsFor('Fisk')).status, 'pending')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal((await ratings.ratingsFor('Fisk')).status, 'pending')
+  assert.equal(cache.rows.size, 0)
+})
+
+test('a TMDB outage with no TVmaze match backs off instead of caching a miss', async () => {
+  const routes = {
+    '/search/tv': () => { throw Object.assign(new Error('api.themoviedb.org HTTP 503'), { code: 'unavailable' }) },
+    '/search/shows': [],
+  }
+  const { ratings, cache } = ratingsWith({ routes, hints: FISK_HINTS })
+  await ratings.ratingsFor('Fisk')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal((await ratings.ratingsFor('Fisk')).status, 'pending')
+  assert.equal(cache.rows.size, 0)
+})
+
+test('a hit saved before the TMDB-first change answers at once and refreshes in the background', async () => {
+  const cache = memoryCache()
+  cache.rows.set('tmdb:movie:film', { found: { score: 6, votes: 100, source: 'tmdb', url: null, reviews: null, originalLanguage: 'en' }, expiresAt: 1050 })
+  let calls = 0
+  const ratings = createProgrammeRatings({
+    lookUp: async () => { calls += 1; return { score: 8, votes: 100, source: 'tmdb', url: null, reviews: null, originalLanguage: 'en' } },
+    cache,
+    ratingsEnabled: async () => true,
+    reviewsEnabled: async () => true,
+    tmdbKey: async () => 'k',
+    now: () => 1000,
+    hitTtlMs: 100,
+    linkOf: (url) => url,
+    staleBeforeMs: 990,
+  })
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 6)
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 1)
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 8)
+  assert.equal(calls, 1)
 })

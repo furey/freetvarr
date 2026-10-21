@@ -303,3 +303,29 @@ test('forget: drops the cached sources and the failure backoff', async () => {
   await artwork.forget('Bluey')
   assert.equal(cache.rows.has(seriesCacheKeyOf('bluey')), false)
 })
+
+test('sourcesFor: an expired picture keeps answering while TVmaze is down', async () => {
+  let clock = 1_000
+  let searches = 0
+  let down = false
+  const cache = memoryCache()
+  const artwork = artworkWith({
+    cache,
+    now: () => clock,
+    hitTtlMs: 100,
+    failureBackoffMs: 500,
+    searchTvmaze: async () => {
+      searches += 1
+      if (down) throw new Error('TVmaze HTTP 502')
+      return [tvmazeShow({ id: 4, name: 'Pooch Perfect' })]
+    },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
+  clock += 101
+  down = true
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
+  assert.deepEqual(await artwork.artworkFor('Pooch Perfect'), { sources: ['https://tvmaze.test/4.jpg'], pending: false })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(searches, 2)
+  assert.deepEqual(cache.rows.get(seriesCacheKeyOf('pooch perfect')).sources, ['https://tvmaze.test/4.jpg'])
+})

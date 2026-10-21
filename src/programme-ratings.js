@@ -5,9 +5,11 @@ import { artworkClient, storedTmdbKey, TMDB_API } from './fallback-artwork.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { pickReviewSnippet } from './review-snippet.js'
+import { linkHealth } from './link-health.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import {
   artworkKindOf,
+  cachedStateOf,
   dominantFilmOf,
   episodeTitleKeyOf,
   hintsForKind,
@@ -16,12 +18,14 @@ import {
   programmeHintsByTitle,
   sharesAnyTerm,
   sharesNetwork,
+  tmdbAirsOnGuideChannel,
   tmdbAuthOf,
   tmdbCandidatesOf,
   tmdbSearchOf,
   tmdbTextOf,
   tmdbYearOf,
   titleVariantsOf,
+  TMDB_FIRST_SAVED_AFTER_MS,
 } from './artwork-match.js'
 
 export const RATINGS_SETTING = 'ratings_lookup_enabled'
@@ -44,8 +48,10 @@ export const createProgrammeRatings = ({
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
   waitMs = 0,
+  linkOf = linkHealth.linkOf,
+  staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage, staleBeforeMs })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
@@ -65,7 +71,7 @@ export const createProgrammeRatings = ({
     if (!settings) return NO_RATINGS
     const { status, found } = await lookups.foundFor({ title, ...settings, wait })
     if (status === 'pending') return PENDING_RATINGS
-    return status === 'ready' ? ratingsResponseOf({ found, ...settings }) : NO_RATINGS
+    return status === 'ready' ? ratingsResponseOf({ found: withLiveLinksOf({ found, linkOf }), ...settings }) : NO_RATINGS
   }
 
   const forget = async (title) => {
@@ -88,7 +94,7 @@ export const createProgrammeRatings = ({
   return { ratingsFor, forget, warm }
 }
 
-export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0, isOutdated = () => false }) => {
+export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0, isOutdated = () => false, staleBeforeMs = 0 }) => {
   const inflight = new Map()
   const failedUntil = new Map()
 
@@ -96,7 +102,8 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
 
   const cachedFound = async (cacheKey) => {
     const cached = await cache.read(cacheKey).catch(() => null)
-    return cached && cached.expiresAt > now() ? cached : null
+    const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue: Boolean(cached?.found), staleBeforeMs })
+    return state === 'missing' ? null : { ...cached, stale: state === 'stale' }
   }
 
   const startLookup = ({ title, kind, year, apiKey, cacheKey }) => {
@@ -119,14 +126,15 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
   }
 
   const foundFor = async ({ cacheKey, wait = true, ...request }) => {
-    if (recentlyFailed(cacheKey)) return { status: 'none', found: null }
     const cached = await cachedFound(cacheKey)
-    if (cached && isOutdated(cached.found)) startLookup({ cacheKey, ...request })
+    const refresh = cached && (cached.stale || isOutdated(cached.found)) && !recentlyFailed(cacheKey)
+    if (refresh) startLookup({ cacheKey, ...request })
     if (cached) return { status: 'ready', found: cached.found }
+    if (recentlyFailed(cacheKey)) return PENDING_LOOKUP
     const lookup = startLookup({ cacheKey, ...request })
     if (!wait || waitMs <= 0) return PENDING_LOOKUP
     const settled = await settledWithin({ promise: lookup, ms: waitMs })
-    if (!settled.done || recentlyFailed(cacheKey)) return settled.done ? { status: 'none', found: null } : PENDING_LOOKUP
+    if (!settled.done || recentlyFailed(cacheKey)) return PENDING_LOOKUP
     return { status: 'ready', found: settled.value }
   }
 
@@ -147,6 +155,10 @@ export const upcomingProgrammesOf = ({ guide, nowMs, windowMs }) => [...(guide?.
 
 export const upcomingFilmsOf = ({ guide, nowMs, windowMs = WEEK_MS }) => upcomingProgrammesOf({ guide, nowMs, windowMs })
   .filter((programme) => programme.kind === 'movie')
+
+export const withLiveLinksOf = ({ found, linkOf }) => (found
+  ? { ...found, url: linkOf(found.url), reviews: found.reviews ? { ...found.reviews, url: linkOf(found.reviews.url) } : null }
+  : found)
 
 export const ratingsResponseOf = ({ found, ratingsOn = true, reviewsOn = true }) => {
   const scored = ratingsOn && found?.score != null
@@ -175,10 +187,21 @@ export const createRatingsLookup = ({
   }
 
   const seriesRatings = async ({ title, hints, apiKey }) => {
+    const tmdb = await settledOf(matcher.matchedSeries({ title, hints, apiKey }))
+    const fromTmdb = tmdb.value
+    if (fromTmdb?.type && !isCinematicSeries({ tmdbType: fromTmdb.type })) return missOf('not-story', fromTmdb.type)
+    const rated = fromTmdb?.type ? tmdbSeriesRatingsOf(fromTmdb) : null
+    if (rated?.score != null) return rated
+    const found = await tvmazeSeriesRatings({ title, hints, apiKey, fromTmdb })
+    if (tmdb.error && found?.missReason && !found.missReason.startsWith('not-story')) throw tmdb.error
+    return found?.missReason && rated ? rated : found
+  }
+
+  const tvmazeSeriesRatings = async ({ title, hints, apiKey, fromTmdb }) => {
     const show = await matcher.tvmazeShow({ title, hints })
     if (!show) return missOf('no-match')
     if (show.type && !isCinematicSeries({ tvmazeType: show.type })) return missOf('not-story', show.type)
-    const details = await matcher.tmdbShow({ title, show, apiKey })
+    const details = fromTmdb || await matcher.tmdbShow({ title, show, apiKey })
     if (!show.type && !isCinematicSeries({ tmdbType: details?.type })) return missOf('not-story', details?.type || 'unknown')
     return seriesRatingsOf({ show, details }) || missOf('no-score')
   }
@@ -279,9 +302,32 @@ export const createTitleMatcher = ({
     return id == null ? null : tmdbDetails({ apiKey, type: 'tv', id })
   }
 
+  const matchedSeries = async ({ title, hints, apiKey }) => {
+    if (!apiKey) return null
+    const known = await knownReference({ title, kind: null })
+    if (known?.type === 'tv') return tmdbDetails({ apiKey, type: 'tv', id: known.id })
+    if (!hints) return null
+    for (const variant of titleVariantsOf(title)) {
+      const found = await searchedSeries({ title: variant, hints, apiKey })
+      if (found) return found
+    }
+    return null
+  }
+
+  const searchedSeries = async ({ title, hints, apiKey }) => {
+    const found = await tmdbGet({ apiKey, path: '/search/tv', params: { query: title, include_adult: 'false', language: TMDB_LANGUAGE } })
+    const results = (found?.results || []).map((result) => ({ ...result, media_type: 'tv' }))
+    const country = countryCode()
+    for (const result of tmdbCandidatesOf({ results, title, hints, country })) {
+      const details = await tmdbDetails({ apiKey, type: 'tv', id: result.id })
+      if (details && tmdbSeriesProven({ details, hints, country })) return details
+    }
+    return null
+  }
+
   const tvmazeGet = (path) => client.getJson({ url: `${TVMAZE_API}${path}` })
 
-  return { matchedFilm, tvmazeShow, tmdbShow, tvmazeGet }
+  return { matchedFilm, matchedSeries, tvmazeShow, tmdbShow, tvmazeGet }
 }
 
 export const releaseYearFits = ({ details, year }) => {
@@ -336,6 +382,18 @@ export const filmRatingsOf = (details) => {
   const reviews = tmdbReviewsOf({ type: 'movie', details })
   if (score == null && !reviews) return null
   return { score, votes, source: 'tmdb', url: `${TMDB_WEB}/movie/${details.id}`, reviews, originalLanguage: details.original_language || null }
+}
+
+export const tmdbSeriesProven = ({ details, hints, country }) => {
+  const evidence = matchEvidenceOf({ hints, candidateYear: tmdbYearOf(details), text: tmdbTextOf(details) })
+  return evidence.accepted || (evidence.reason === 'no-evidence' && tmdbAirsOnGuideChannel({ details, hints, country }))
+}
+
+export const tmdbSeriesRatingsOf = (details) => {
+  const { score, votes } = tmdbScoreOf(details)
+  const reviews = tmdbReviewsOf({ type: 'tv', details })
+  if (score == null && !reviews) return null
+  return { score, votes, source: 'tmdb', url: `${TMDB_WEB}/tv/${details.id}`, reviews }
 }
 
 export const seriesRatingsOf = ({ show, details = null }) => {
@@ -460,6 +518,8 @@ const MIN_REQUESTED_YEAR = 1900
 const MAX_REQUESTED_YEAR = 2100
 
 const PENDING_LOOKUP = { status: 'pending', found: null }
+
+export const settledOf = (promise) => Promise.resolve(promise).then((value) => ({ value }), (error) => ({ error, value: null }))
 
 const settledWithin = ({ promise, ms }) => new Promise((resolve) => {
   const timer = setTimeout(() => resolve({ done: false }), ms)

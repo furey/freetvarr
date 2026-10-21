@@ -171,7 +171,7 @@ For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wi
 
 While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 
-A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. When a service does not answer, Freetvarr waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Film and TV info and turn off **Missing pictures**.
+A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. After 30 days, Freetvarr keeps showing the old answer while it asks again, for up to 6 months. When a service does not answer, Freetvarr keeps the answer it has, waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Film and TV info and turn off **Missing pictures**.
 
 ### TMDB key
 
@@ -192,7 +192,7 @@ A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and b
 4. In Freetvarr, go to Settings → Film and TV info and paste it into **TMDB API key (optional)** under **TMDB key**.
 5. Press **Test key**, then **Save key**.
 
-The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Show ratings come from [TVmaze](https://www.tvmaze.com).
+The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Some show ratings and cast lists come from [TVmaze](https://www.tvmaze.com).
 
 ## Ratings and reviews
 
@@ -206,9 +206,9 @@ Scores and reviews appear only after you open a programme or a show. They never 
 
 Only films and scripted, animated, documentary, and miniseries shows get a score or a review line. Reality, game shows, talk, news, sport, variety, panel shows, and lifestyle programmes never do. When no source gives a show's type, Freetvarr uses the guide genre: film and drama count; game show, news, and sport do not.
 
-Films come from [TMDB](https://www.themoviedb.org), which needs a [TMDB key](#tmdb-key). Series come from [TVmaze](https://www.tvmaze.com), which needs no key; with a TMDB key, Freetvarr also reads TMDB reviews for series. Freetvarr matches a title with the same checks as [Missing pictures](#missing-pictures), and shows nothing when it is not sure of the match. A score from TMDB with fewer than `50` votes is hidden.
+Films come from [TMDB](https://www.themoviedb.org), which needs a [TMDB key](#tmdb-key). With a TMDB key, series come from TMDB first. Freetvarr uses a TMDB series only when the synopsis matches it, or when it comes from your country and its network matches a channel in your guide. When TMDB has no such match, or fewer than `50` votes for it, the score comes from [TVmaze](https://www.tvmaze.com), which needs no key. Without a TMDB key, series scores come from TVmaze. Freetvarr matches a title with the same checks as [Missing pictures](#missing-pictures), and shows nothing when it is not sure of the match. A score from TMDB with fewer than `50` votes is hidden.
 
-Freetvarr keeps each answer for 30 days, or 7 days when there is no match. To turn these off, go to Settings → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
+Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down. When the site of a link does not answer, the score card shows no link. To turn these off, go to Settings → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
 
 ### Classification
 
@@ -228,10 +228,12 @@ A recording keeps the label it had when it was recorded or imported. A recording
 The page of a recorded show lists its cast and crew; see [Recordings](/guide/recordings#about-and-cast-and-crew). Freetvarr looks them up by the show title, so reality and game show hosts appear too.
 
 - **Films**: from TMDB, which needs a [TMDB key](#tmdb-key). Without a key, a film page shows no cast.
-- **Series with a TMDB key**: the cast of the current season, from TMDB. The crew comes from TVmaze.
+- **Series with a TMDB key**: the cast of the current season, the creators, and the executive producers, from TMDB, when TMDB has a confident match with a cast list (the same checks as [Ratings and reviews](#ratings-and-reviews)). Otherwise the cast and crew come from TVmaze.
 - **Series without a key**: the cast and crew come from TVmaze.
 
-Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match.
+Freetvarr keeps a copy of each photo on the server, so photos still show when TVmaze or TMDB is down. A name links to the person's TMDB or TVmaze page; when that site does not answer, the name has no link.
+
+Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down.
 
 ## Caching
 

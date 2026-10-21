@@ -172,3 +172,14 @@ test('requests to a host off the allow-list never leave the process', async () =
   await assert.rejects(client.getJson({ url: 'https://elsewhere.example.org/q' }), { code: 'host-not-allowed' })
   assert.equal(calls.length, 0)
 })
+
+test('isReachable sends one HEAD and counts only server errors and no answer as down', async () => {
+  const up = clientWith({ responses: [{ status: 403, headers: {}, body: Buffer.alloc(0) }] })
+  assert.equal(await up.client.isReachable({ url: 'https://api.example.org/' }), true)
+  assert.equal(up.calls[0].method, 'head')
+  const down = clientWith({ responses: [{ status: 502, headers: {}, body: Buffer.alloc(0) }] })
+  assert.equal(await down.client.isReachable({ url: 'https://api.example.org/' }), false)
+  assert.equal(down.calls.length, 1)
+  const silent = clientWith({ responses: [new Error('timeout')] })
+  assert.equal(await silent.client.isReachable({ url: 'https://api.example.org/' }), false)
+})

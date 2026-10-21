@@ -459,7 +459,7 @@ export const SettingsView = {
             Pictures, ratings, reviews, and cast from online film and TV databases.
             <info-button title="Film and TV info" doc="guide/tv-guide#missing-pictures">
               <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database. For films and other shows TVmaze does not list, it finds the matching Wikipedia article through Wikidata and uses its picture, or the TMDB poster when you add a TMDB key.</p>
-              <p>Films and drama series also get a score on the programme sheet, from TMDB users for films and TVmaze users for shows. With a TMDB key, the sheet also shows a line from a TMDB review.</p>
+              <p>Films and drama series also get a score on the programme sheet. Film scores come from TMDB users. Show scores come from TMDB users when you add a TMDB key and TMDB has enough votes, and from TVmaze users otherwise. With a TMDB key, the sheet also shows a line from a TMDB review.</p>
               <p>A recorded show's page lists its cast and crew from TMDB and TVmaze, reality hosts included.</p>
               <p>A lookup sends the programme title to those services. Turn the switches off to keep every title on your network.</p>
             </info-button>

@@ -2,6 +2,7 @@ import axios from 'axios'
 import crypto from 'crypto'
 import path from 'path'
 
+import { cachedStateOf } from './artwork-match.js'
 import { findArtwork } from './artwork.js'
 import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
@@ -138,7 +139,13 @@ export const createArtPool = ({
     if (!titleKey || !(await isTvmazeEnabled())) return []
     const cacheKey = `${TVMAZE_CACHE_PREFIX}${titleKey}`
     const cached = await cache.read(cacheKey).catch(() => null)
-    if (cached && cached.expiresAt > now()) return cached.sources
+    const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs: tvmazeHitTtlMs, hasValue: Boolean(cached?.sources?.length) })
+    if (state === 'fresh') return cached.sources
+    const lookup = lookUpTvmazePool({ title, cacheKey })
+    return state === 'stale' ? lookup.catch(() => cached.sources) : lookup
+  }
+
+  const lookUpTvmazePool = async ({ title, cacheKey }) => {
     const hints = await Promise.resolve().then(() => hintsFor(title)).catch(() => null)
     const show = await findSeriesShow({ title, hints })
     const entries = show ? tvmazePoolOf({ show, images: await loadTvmazeImages(show.id) }) : []
