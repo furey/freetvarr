@@ -392,6 +392,10 @@ body.sheet-open .app-tabbar {
     row-gap: 16px;
     margin-bottom: -16px;
   }
+
+  .ui-page-header:has(> .ui-page-banner) + * {
+    margin-top: 0;
+  }
 }
 
 @media (max-width: 767px), (max-height: 500px) {
