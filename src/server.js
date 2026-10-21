@@ -187,7 +187,7 @@ import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defa
 import { mountTmdbKey } from './tmdb-key.js'
 import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingProgrammesOf } from './programme-ratings.js'
-import { createProgrammeCredits, CREDITS_SETTING } from './programme-credits.js'
+import { createProgrammeCredits, CREDITS_IMAGE_SOURCES, CREDITS_SETTING } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
@@ -271,7 +271,7 @@ app.use(
         // To drop it, move to a build step (Vite) that pre-compiles templates.
         'script-src': ["'self'", "'unsafe-eval'"],
         'style-src': ["'self'", "'unsafe-inline'"],
-        'img-src': ["'self'", 'data:'],
+        'img-src': ["'self'", 'data:', ...CREDITS_IMAGE_SOURCES],
         'media-src': ["'self'", 'blob:'],
         'worker-src': ["'self'", 'blob:'],
         'connect-src': ["'self'", 'https://api.github.com'],
