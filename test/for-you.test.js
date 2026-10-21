@@ -6,7 +6,7 @@ import path from 'node:path'
 process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-${process.pid}.db`)
 
 const { buildForYou, diversify, isInfomercial, premiereCheckOf, timeLabelOf } = await import('../src/for-you.js')
-const { decayOf, hiddenShowsOf, profileOf, watchFractionOf } = await import('../src/for-you-profile.js')
+const { LIKED_AFFINITY, decayOf, hiddenShowsOf, profileOf, watchFractionOf, watchWeightOf } = await import('../src/for-you-profile.js')
 const { embedTextOf, textHashOf } = await import('../src/for-you-texts.js')
 
 const HOUR = 60 * 60 * 1000
@@ -51,8 +51,8 @@ const watched = (title, { episodes = 1, completed = episodes, daysAgo = 3, chann
       programme_start: start,
       channel_id: channel,
       recording_id: null,
-      duration_s: full ? 3600 : 200,
-      position_s: full ? 3600 : 200,
+      duration_s: full ? 3600 : 900,
+      position_s: full ? 3600 : 900,
       programme_len_s: 3600,
       source: 'live',
       meta_json: null,
@@ -90,12 +90,44 @@ test('a show you finish most episodes of comes up with a reason and signals', ()
   assert.equal(result.coldStart, false)
   const item = sectionOf(result, 'coming-up').items.find((entry) => entry.title === 'The Block')
   assert.equal(item.kind, 'liked')
-  assert.equal(item.reason, 'Because you watch The Block')
+  assert.equal(item.reason, 'Because you watched The Block')
   assert.equal(item.channelName, '9HD Sydney')
   assert.equal(item.canRecordSeries, true)
   const why = result.explanations.get(item.id)
   assert.ok(why.signals.includes('You watched 9 of 10 episodes of The Block'))
-  assert.equal(why.reasons[0].text, 'Because you watch The Block')
+  assert.equal(why.reasons[0].text, 'Because you watched The Block')
+})
+
+test('watch weight grows with how much was watched and peaks past 80%', () => {
+  const weights = [60, 300, 600, 1200, 2400, 2880, 3600].map((seconds) => watchWeightOf({ seconds, length: 3600 }))
+  assert.deepEqual(weights.slice(0, 2), [0, 0])
+  assert.ok(weights[2] > 0)
+  for (let i = 3; i < weights.length; i += 1) assert.ok(weights[i] >= weights[i - 1])
+  assert.ok(weights[5] > 1.2 && weights[5] < 2)
+  assert.ok(watchWeightOf({ fraction: 0.25, seconds: 0, length: 7200 }) > 0)
+})
+
+test('opening a programme again and again stays a small signal with no reason line', () => {
+  const opens = Array.from({ length: 12 }, (_, index) => feedback(index % 2 ? 'programme_opened' : 'suggestion_accepted', 'Harry Brown', 1 + (index % 4)))
+  const shortTune = { ...watched('Harry Brown')[0], duration_s: 90, position_s: 90 }
+  const events = [...baseEvents(), ...watched('Rake', { episodes: 2 }), ...opens, shortTune]
+  const show = profileOf({ events, nowMs: NOW, hourOf }).shows.get('harry-brown')
+  assert.ok(show.affinity > 0 && show.affinity < LIKED_AFFINITY)
+  assert.equal(show.episodesStarted, 0)
+  const genresByKey = new Map(['gardening-australia', 'hard-quiz', 'landline', 'muster-dogs', 'rake', 'harry-brown'].map((key) => [key, ['drama']]))
+  const result = run({ programmes: [airing('Harry Brown')], events, genresByKey })
+  const item = itemFor(result, 'Harry Brown')
+  assert.equal(item.reason, 'Because you like drama')
+  assert.ok(result.explanations.get(item.id).signals.includes('You looked at Harry Brown recently'))
+})
+
+test('the reason names how you engaged: watched, recorded, or More like this', () => {
+  const recordedEvents = [...baseEvents(), { id: nextId++, ts: NOW - DAY, kind: 'record_request', title: 'Rake', meta_json: '{"type":"series"}' }]
+  assert.equal(itemFor(run({ programmes: [airing('Rake')], events: recordedEvents }), 'Rake').reason, 'Because you recorded Rake')
+  const likedEvents = [...recordedEvents, feedback('thumb_up', 'Rake')]
+  assert.equal(itemFor(run({ programmes: [airing('Rake')], events: likedEvents }), 'Rake').reason, 'More like Rake')
+  const watchedEvents = [...baseEvents(), ...watched('Rake', { episodes: 2 })]
+  assert.equal(itemFor(run({ programmes: [airing('Rake')], events: watchedEvents }), 'Rake').reason, 'Because you watched Rake')
 })
 
 test('one item per show, the best airing wins', () => {

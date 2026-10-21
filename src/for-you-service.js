@@ -27,6 +27,7 @@ import { flushUserEvents } from './user-events-log.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+export const SCORING_VERSION = 2
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -133,6 +134,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       tier,
       filmRatings: `${Number(filmRatings?.count) || 0}:${Number(filmRatings?.latest) || 0}`,
       otherLanguageFilms,
+      scoring: SCORING_VERSION,
     },
   }
 }
@@ -378,14 +380,15 @@ export const createForYouWorker = ({ url, timeoutMs } = {}) => {
   return { build, close }
 }
 
-export const createSavedResultStore = ({ read = getSetting, write = setSetting, now = Date.now, maxAgeMs = SAVED_RESULT_MAX_AGE_MS } = {}) => ({
+export const createSavedResultStore = ({ read = getSetting, write = setSetting, now = Date.now, maxAgeMs = SAVED_RESULT_MAX_AGE_MS, scoring = SCORING_VERSION } = {}) => ({
   load: async () => {
     const saved = JSON.parse((await read(SAVED_RESULT_SETTING)) || 'null')
-    if (!saved?.result || !(now() - saved.savedAt < maxAgeMs)) return null
+    if (!saved?.result || !(now() - saved.savedAt < maxAgeMs) || saved.scoring !== scoring) return null
     return withLazyExplanations({ result: saved.result, explanationsJson: saved.explanationsJson || '[]' })
   },
   save: (result) => write(SAVED_RESULT_SETTING, JSON.stringify({
     savedAt: now(),
+    scoring,
     result,
     explanationsJson: JSON.stringify([...(result.explanations || new Map())]),
   })),

@@ -12,6 +12,7 @@ import {
   seriesLinkSetOf,
 } from '/programme-state.js'
 import { showKeyOf } from '/show-key.js'
+import { programmeOpenedOf } from '/for-you.js'
 import { api } from '/shared/api.js'
 import { recordingNow } from '/shared/recording-now.js'
 import { now, tsOfMs, tz } from '/shared/time.js'
@@ -121,6 +122,12 @@ const openProgramme = ({ channelId, programme, channel = null, channelHint = nul
     dayOffset: dayOffset ?? guideDayOffsetFor(programme),
     freshState,
   }
+  noteProgrammeOpened({ programme, channelId: channelId ?? programme.channelId })
+}
+
+const noteProgrammeOpened = ({ programme, channelId }) => {
+  if (!programme?.title) return
+  api('POST', '/api/events/feedback', programmeOpenedOf({ programme, channelId })).catch(() => {})
 }
 
 const openUpcoming = (upcoming) => openProgramme({

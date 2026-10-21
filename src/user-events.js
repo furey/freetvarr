@@ -7,6 +7,7 @@ export const FEEDBACK_KINDS = new Set([
   'not_interested',
   'thumb_up',
   'thumb_down',
+  'programme_opened',
 ])
 
 export const EVENT_KINDS = new Set([

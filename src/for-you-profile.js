@@ -4,6 +4,8 @@ import { msOf } from './user-events.js'
 export const HALF_LIFE_DAYS = 60
 export const LIKED_AFFINITY = 0.25
 export const COMPLETE_FRACTION = 0.8
+export const WATCHED_FRACTION = 0.25
+export const WATCHED_SECONDS = 10 * 60
 export const ABANDON_MIN_STARTS = 3
 export const ABANDON_MAX_RATIO = 0.15
 export const NOT_INTERESTED_DAYS = 90
@@ -44,7 +46,7 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     const position = Number(row.playback_position_s) || 0
     const fraction = row.watched_at ? 1 : (length ? position / length : 0)
     if (row.watched_at || position > 0) {
-      noteEpisode({ show, episodeKey: `rec:${row.recording_id}`, fraction, ts: msOf(row.watched_at) ?? msOf(row.played_at) ?? airedAt })
+      noteEpisode({ show, episodeKey: `rec:${row.recording_id}`, fraction, length, ts: msOf(row.watched_at) ?? msOf(row.played_at) ?? airedAt })
     }
   }
 
@@ -64,7 +66,7 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     if (event.kind === 'watch_end') {
       const fraction = watchFractionOf({ event, meta })
       const episodeKey = event.recording_id ? `rec:${event.recording_id}` : `live:${event.channel_id}|${event.programme_start ?? ts}`
-      noteEpisode({ show, episodeKey, fraction, ts, seconds: Number(event.duration_s) || 0 })
+      noteEpisode({ show, episodeKey, fraction, ts, seconds: Number(event.duration_s) || 0, length: Number(event.programme_len_s) || null })
       noteHabit({ habits, event, ts, nowMs, hourOf })
       continue
     }
@@ -82,6 +84,7 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     if (event.kind === 'not_interested_undo') show.notInterested = []
     if (event.kind === 'suggestion_dismissed') show.dismissed.push(ts)
     if (event.kind === 'suggestion_accepted') show.accepted.push(ts)
+    if (INTEREST_KINDS.has(event.kind)) show.interest.push(ts)
     if (event.kind === 'suggestion_shown') show.shown.push(ts)
   }
 
@@ -101,6 +104,22 @@ export const watchFractionOf = ({ event, meta = null }) => {
 export const likedShowsOf = (profile) => [...profile.shows.values()]
   .filter((show) => show.affinity >= LIKED_AFFINITY && !show.abandoned && !show.hidden)
   .sort((a, b) => b.affinity - a.affinity)
+
+export const watchWeightOf = ({ fraction = 0, seconds = 0, length = null }) => {
+  const watchedFraction = Math.min(1, Math.max(fraction, length > 0 ? seconds / length : 0))
+  const watchedSeconds = Math.max(seconds, length > 0 ? watchedFraction * length : 0)
+  if (watchedFraction >= COMPLETE_FRACTION) return COMPLETE_WEIGHT
+  if (watchedFraction < WATCHED_FRACTION && watchedSeconds < WATCHED_SECONDS) return 0
+  return PARTIAL_BASE + PARTIAL_SPAN * watchedFraction
+}
+
+export const affinitySourceOf = (show) => {
+  if (!show || !(show.affinity > 0)) return null
+  if (show.thumbsUp.length) return 'liked'
+  if (show.episodesStarted) return 'watched'
+  if (show.recordings || show.requests.length) return 'recorded'
+  return 'interest'
+}
 
 export const engagedShowCountOf = (profile) => [...profile.shows.values()]
   .filter((show) => show.recordings > 0 || show.episodesStarted > 0 || show.requests.length > 0 || show.thumbsUp.length > 0)
@@ -159,6 +178,7 @@ const emptyShow = ({ key, title }) => ({
   notInterested: [],
   dismissed: [],
   accepted: [],
+  interest: [],
   shown: [],
   lastEventTs: null,
   lastActivityTs: null,
@@ -168,12 +188,13 @@ const emptyShow = ({ key, title }) => ({
   hidden: false,
 })
 
-const noteEpisode = ({ show, episodeKey, fraction, ts, seconds = 0 }) => {
+const noteEpisode = ({ show, episodeKey, fraction, ts, seconds = 0, length = null }) => {
   const known = show.episodes.get(episodeKey)
   const next = {
     fraction: Math.max(known?.fraction ?? 0, fraction),
     ts: Math.max(known?.ts ?? 0, Number(ts) || 0) || null,
     seconds: (known?.seconds ?? 0) + seconds,
+    length: known?.length ?? length,
   }
   show.episodes.set(episodeKey, next)
 }
@@ -192,18 +213,18 @@ const noteHabit = ({ habits, event, ts, nowMs, hourOf }) => {
 }
 
 const scoreShow = ({ show, nowMs }) => {
-  const episodes = [...show.episodes.values()].filter((episode) => episode.fraction > 0.02 || episode.seconds >= 60)
+  const weighed = [...show.episodes.values()].map((episode) => ({ ...episode, weight: watchWeightOf(episode) }))
+  const episodes = weighed.filter((episode) => episode.weight > 0)
+  for (const sampled of weighed.filter((episode) => episode.weight === 0 && episode.ts)) show.interest.push(sampled.ts)
   show.episodesStarted = episodes.length
-  show.episodesCompleted = episodes.filter((episode) => episode.fraction >= COMPLETE_FRACTION).length
+  show.episodesCompleted = episodes.filter((episode) => episode.weight === COMPLETE_WEIGHT).length
   const decay = (ts) => decayOf({ ts, nowMs })
   let raw = 0
-  for (const episode of episodes) {
-    raw += (episode.fraction >= COMPLETE_FRACTION ? 1 : 0.1 + 0.4 * episode.fraction) * decay(episode.ts)
-  }
-  for (const ts of show.recordingTimes) raw += 0.35 * decay(ts)
-  for (const request of show.requests) raw += (REQUEST_WEIGHTS[request.type] ?? 0.6) * decay(request.ts)
-  for (const ts of show.thumbsUp) raw += 2 * decay(ts)
-  for (const ts of show.accepted) raw += 0.8 * decay(ts)
+  for (const episode of episodes) raw += episode.weight * decay(episode.ts)
+  for (const ts of show.recordingTimes) raw += RECORDING_WEIGHT * decay(ts)
+  for (const request of show.requests) raw += (REQUEST_WEIGHTS[request.type] ?? REQUEST_WEIGHTS.episode) * decay(request.ts)
+  for (const ts of show.thumbsUp) raw += THUMB_UP_WEIGHT * decay(ts)
+  raw += interestOf({ times: show.interest, decay })
   for (const ts of show.unwatchedDeletes) raw -= 0.2 * decay(ts)
   show.raw = Math.max(0, raw)
   const ratio = show.episodesStarted ? show.episodesCompleted / show.episodesStarted : 0
@@ -223,6 +244,16 @@ const scoreShow = ({ show, nowMs }) => {
   ) || null
 }
 
+const interestOf = ({ times, decay }) => {
+  const latestByDay = new Map()
+  for (const ts of times) {
+    const day = Math.floor(ts / DAY_MS)
+    latestByDay.set(day, Math.max(latestByDay.get(day) ?? 0, ts))
+  }
+  const total = [...latestByDay.values()].reduce((sum, ts) => sum + INTEREST_WEIGHT * decay(ts), 0)
+  return Math.min(INTEREST_MAX, total)
+}
+
 const parseMeta = (value) => {
   if (!value) return null
   if (typeof value === 'object') return value
@@ -234,6 +265,14 @@ const parseMeta = (value) => {
 }
 
 const REQUEST_WEIGHTS = { episode: 0.6, series: 1.2, record: 0.8, notify: 0.5 }
+const INTEREST_KINDS = new Set(['suggestion_accepted', 'programme_opened'])
+const INTEREST_WEIGHT = 0.1
+const INTEREST_MAX = 0.3
+const RECORDING_WEIGHT = 0.35
+const PARTIAL_BASE = 0.4
+const PARTIAL_SPAN = 0.6
+const COMPLETE_WEIGHT = 1.5
+const THUMB_UP_WEIGHT = 2
 const ABANDON_PENALTY = 0.3
 const MIN_HABIT_SECONDS = 5 * 60
 const DAY_MS = 24 * 60 * 60 * 1000

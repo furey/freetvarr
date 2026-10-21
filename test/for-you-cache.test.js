@@ -5,7 +5,7 @@ import path from 'node:path'
 
 process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-cache-${process.pid}.db`)
 
-const { createForYouCache, createForYouWorker, createSavedResultStore, forYouSignatureOf, guideVersionOf, snapshotStampsOf } = await import('../src/for-you-service.js')
+const { SCORING_VERSION, createForYouCache, createForYouWorker, createSavedResultStore, forYouSignatureOf, guideVersionOf, snapshotStampsOf } = await import('../src/for-you-service.js')
 const { buildForYouFromRequest } = await import('../src/for-you-worker.js')
 const { buildForYou } = await import('../src/for-you.js')
 
@@ -246,6 +246,23 @@ test('the saved result store keeps explanations and drops a result older than a 
   assert.deepEqual((await store.load()).explanations.get('1'), { why: 'Drama' })
   clock = 2000
   assert.equal(await store.load(), null)
+})
+
+test('the saved result store drops a result built by an older scoring version', async () => {
+  const rows = new Map()
+  const storeAt = (scoring) => createSavedResultStore({
+    read: async (key) => rows.get(key),
+    write: async (key, value) => { rows.set(key, value) },
+    now: () => 1000,
+    scoring,
+  })
+  await storeAt(1).save({ sections: ['old'] })
+  assert.equal(await storeAt(2).load(), null)
+  assert.deepEqual((await storeAt(1).load()).sections, ['old'])
+})
+
+test('the scoring version is part of the build signature', () => {
+  assert.equal(snapshotStampsOf(partsWith()).stamps.scoring, SCORING_VERSION)
 })
 
 test('warm builds once in the background when nothing is cached yet', async () => {

@@ -1091,6 +1091,12 @@ app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, held })
 })
 
+app.post('/api/live/:session/sound', doubleCsrfProtection, (req, res) => {
+  const audible = req.body?.audible
+  if (typeof audible !== 'boolean') return res.status(400).json({ error: 'audible must be true or false' })
+  res.json({ ok: true, changed: liveSessions.setAudible(String(req.params.session), audible) })
+})
+
 app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
   const left = await liveSessions.leave(String(req.params.session))
   res.json({ ok: true, left })

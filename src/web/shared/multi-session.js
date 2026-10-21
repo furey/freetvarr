@@ -8,6 +8,7 @@ import {
   setLayout,
   slotOf,
   isMutedIn,
+  audibleSessionsOf,
   addPicture,
   removePicture,
   promoteIntoPrimary,
@@ -470,6 +471,25 @@ const applyMuting = () => {
 }
 
 watch(() => [multi.active, multi.view.audible], applyMuting)
+
+const soundSent = new Map()
+
+const reportSound = (sessions) => {
+  for (const [sessionId, audible] of sessions) {
+    if ((soundSent.get(sessionId) ?? true) === audible) continue
+    soundSent.set(sessionId, audible)
+    api('POST', `/api/live/${sessionId}/sound`, { audible }).catch(() => {})
+  }
+}
+
+watch(
+  () => audibleSessionsOf({
+    active: multi.active,
+    audible: multi.view.audible,
+    sessionOf: (picture) => pictureStateOf(picture)?.sessionId,
+  }),
+  reportSound,
+)
 
 watch(playerMuted, () => {
   if (!multi.active) applySingleMuting()

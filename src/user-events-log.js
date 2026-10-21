@@ -75,7 +75,7 @@ export const observeUserEvents = (req, res, next) => {
     })
 }
 
-export const liveSessionHooks = () => ({ onStart: tracker.liveStarted, onEnd: tracker.liveEnded })
+export const liveSessionHooks = () => ({ onStart: tracker.liveStarted, onSound: tracker.liveSoundChanged, onEnd: tracker.liveEnded })
 
 export const playbackSessionHooks = () => ({ onStart: tracker.playStarted, onEnd: tracker.playEnded })
 

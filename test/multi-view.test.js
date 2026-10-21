@@ -6,6 +6,7 @@ import {
   tapSound,
   soundButtonOf,
   isMutedIn,
+  audibleSessionsOf,
   swapPictures,
   makeMain,
   mainPictureOf,
@@ -205,4 +206,12 @@ test('the strip sits to the right when landscape and below when portrait', () =>
   assert.ok(below.every((box) => inside(box, portraitArea)))
   const short = { left: 0, top: 0, width: 1000, height: 300 }
   assert.ok(tileBoxesOf({ layout: 'strip', slots: 4, area: short }).every((box) => inside(box, short)))
+})
+
+test('only the picture with the sound counts as heard in Multiview', () => {
+  const ids = { primary: 'a', secondary: 'b', third: null, fourth: 'c' }
+  const sessionOf = (picture) => ids[picture]
+  assert.deepEqual([...audibleSessionsOf({ active: true, audible: 'secondary', sessionOf })], [['a', false], ['b', true], ['c', false]])
+  assert.deepEqual([...audibleSessionsOf({ active: true, audible: null, sessionOf })], [['a', false], ['b', false], ['c', false]])
+  assert.deepEqual([...audibleSessionsOf({ active: false, audible: null, sessionOf: (picture) => (picture === 'primary' ? 'a' : null) })], [['a', true]])
 })

@@ -8,6 +8,7 @@ import {
 } from './genre-enrichment.js'
 import {
   DISMISS_WINDOW_DAYS,
+  affinitySourceOf,
   channelHabitOf,
   createKeyResolver,
   engagedShowCountOf,
@@ -338,7 +339,8 @@ const scoreAiring = ({ programme, context }) => {
     if (weight > 0.001) contributions.push({ feature, weight, text })
   }
 
-  if (show?.affinity > 0) add('affinity', W.affinity * show.affinity, `Because you watch ${show.title || title}`)
+  const source = affinitySourceOf(show)
+  if (source) add(source === 'interest' ? 'interest' : 'affinity', W.affinity * show.affinity, affinityReasonOf({ source, title: show.title || title }))
   const newSeason = liked && show.maxSeason != null && Number(programme.series_no) > show.maxSeason
   const finished = Boolean(show && show.episodesCompleted >= 2 && show.completionRatio >= FINISHED_RATIO)
   if (newSeason) add('new-season', W.newSeason, finished ? 'New season of a show you finished' : `New season of ${show.title || title}`)
@@ -451,10 +453,19 @@ export const topRatedOf = ({ upcoming, context }) => {
 const showImageUrlOf = ({ title, isFilm }) =>
   `/api/epg/show-image?title=${encodeURIComponent(title)}${isFilm ? '&kind=movie' : ''}`
 
+const affinityReasonOf = ({ source, title }) => {
+  if (source === 'liked') return `More like ${title}`
+  if (source === 'watched') return `Because you watched ${title}`
+  if (source === 'recorded') return `Because you recorded ${title}`
+  return ''
+}
+
 const reasonOf = (contributions) => {
   const leading = contributions.find((contribution) => LEADING_FEATURES.has(contribution.feature))
   if (leading) return leading
-  const top = contributions.find((contribution) => REASON_FEATURES.has(contribution.feature)) || contributions[0]
+  const top = contributions.find((contribution) => REASON_FEATURES.has(contribution.feature))
+    || contributions.find((contribution) => contribution.text)
+    || contributions[0]
   const similar = contributions.find((contribution) => contribution.feature === 'similar')
   return top.feature === 'genre' && similar && similar.weight >= top.weight * SIMILAR_REASON_RATIO ? similar : top
 }
@@ -593,11 +604,12 @@ const explanationOf = ({ entry, context }) => {
   if (show?.episodesStarted) {
     signals.push(show.episodesCompleted
       ? `You watched ${show.episodesCompleted} of ${show.episodesStarted} episodes of ${show.title || item.title}`
-      : `You started ${plural(show.episodesStarted, 'episode')} of ${show.title || item.title}`)
+      : `You watched part of ${plural(show.episodesStarted, 'episode')} of ${show.title || item.title}`)
   }
   if (show?.recordings) signals.push(`You recorded ${plural(show.recordings, 'episode')} of ${show.title || item.title}`)
   if (show?.requests.some((request) => request.type === 'series')) signals.push(`You set up a series recording for ${show.title || item.title}`)
-  if (show?.thumbsUp.length) signals.push(`You said you like ${show.title || item.title}`)
+  if (show?.thumbsUp.length) signals.push(`You pressed More like this for ${show.title || item.title}`)
+  if (affinitySourceOf(show) === 'interest') signals.push(`You looked at ${show.title || item.title} recently`)
   if (entry.newSeason) signals.push(`Season ${item.seasonNumber} is airing; you last recorded season ${show.maxSeason}`)
   if (entry.back) signals.push(`You last watched or recorded it ${Math.round((context.nowMs - show.lastActivityTs) / DAY_MS)} days ago`)
   if (entry.premiere) signals.push(item.episodeNumber === 1 ? 'Episode 1 airs this week' : 'Billed as a premiere')
@@ -605,16 +617,16 @@ const explanationOf = ({ entry, context }) => {
     signals.push(`You watched ${item.channelName} around ${timeLabelOf({ ms: hourStartOf(item.start), hourOf: context.hourOf, minuteOf: () => 0 })} about ${Math.round(entry.habit.sessions)} times recently`)
   }
   if (entry.genre) {
-    signals.push(`${CATEGORY_LABELS[entry.genre.category] || entry.genre.category} is ${Math.round(entry.genre.share * 100)}% of what you watch and record`)
+    signals.push(`${CATEGORY_LABELS[entry.genre.category] || entry.genre.category} is ${Math.round(entry.genre.share * 100)}% of what you watched and recorded`)
   }
-  if (entry.nearest) signals.push(`Its description is close to ${entry.nearest.title}, which you watch`)
+  if (entry.nearest) signals.push(`Its description is close to ${entry.nearest.title}, which you watched or recorded`)
   const dismissals = show?.dismissed.filter((ts) => context.nowMs - ts < DISMISS_WINDOW_DAYS * DAY_MS).length || 0
   if (dismissals) signals.push(`You dismissed it ${plural(dismissals, 'time')} recently`)
   if (context.pinned.has(item.channelId)) signals.push(`${item.channelName || 'The channel'} is one of your favourite channels`)
   const total = entry.contributions.reduce((sum, contribution) => sum + contribution.weight, 0) || 1
   return {
     title: item.title,
-    reasons: entry.contributions.map((contribution) => ({
+    reasons: entry.contributions.filter((contribution) => contribution.text).map((contribution) => ({
       text: contribution.text,
       weight: Math.round((contribution.weight / total) * 100) / 100,
     })),

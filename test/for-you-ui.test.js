@@ -8,6 +8,7 @@ import {
   CHOOSER_SNOOZE_MS,
   doneLabelOf,
   feedbackOf,
+  programmeOpenedOf,
   forYouSlideOf,
   sheetRequestOf,
   hiddenToastOf,
@@ -39,7 +40,7 @@ const item = (over) => ({
   id: 'e1', programmeKey: 'abc|grand-designs-australia|1', seriesKey: 'grand-designs-australia',
   title: 'Grand Designs Australia', episodeTitle: 'Brunswick', synopsis: '', image: null, channelId: 'c2',
   channelName: 'ABC TV', start: nowMs + 2 * DAY + 16 * MIN, stop: nowMs + 2 * DAY + 76 * MIN, onNow: false,
-  kind: 'new-season', reason: 'Because you watch The Block', score: 0.9, canRecordSeries: true, ...over,
+  kind: 'new-season', reason: 'Because you watched The Block', score: 0.9, canRecordSeries: true, ...over,
 })
 
 const payload = (over) => ({
@@ -112,7 +113,7 @@ test('cardMetaOf: when and where, with the kind as a lead on Home, and minutes l
 })
 
 test('reasonOf: the server reason wins, with plain fallbacks for movies and premieres', () => {
-  assert.equal(reasonOf(item()), 'Because you watch The Block')
+  assert.equal(reasonOf(item()), 'Because you watched The Block')
   assert.equal(reasonOf(item({ reason: '', kind: 'movie', stop: nowMs + 2 * DAY + 126 * MIN })), 'Movie · 1 h 50 min')
   assert.equal(reasonOf(item({ reason: '', kind: 'premiere' })), 'New show this week')
   assert.equal(reasonOf(item({ reason: '', kind: 'similar' })), '')
@@ -152,6 +153,18 @@ test('sheetRequestOf: opens the programme sheet on its guide day with the right 
   assert.equal(request.channelHint.name, item().channelName || '')
 })
 
+test('programmeOpenedOf: a sheet open becomes a programme_opened event', () => {
+  const programme = { title: 'Harry Brown', start: Date.UTC(2026, 9, 21, 10) }
+  assert.deepEqual(programmeOpenedOf({ programme, channelId: 7 }), {
+    kind: 'programme_opened',
+    series_key: 'harry-brown',
+    title: 'Harry Brown',
+    programme_start: Date.UTC(2026, 9, 21, 10),
+    channel_id: '7',
+    source: 'sheet',
+  })
+})
+
 test('feedbackOf and shownBatchesOf: events the feedback endpoint accepts, in batches of up to 50', () => {
   assert.deepEqual(feedbackOf({ kind: 'thumb_up', item: item(), source: 'home' }), {
     kind: 'thumb_up', series_key: 'grand-designs-australia', title: 'Grand Designs Australia',
@@ -168,7 +181,7 @@ test('forYouSlideOf: the top unscheduled pick, eyebrow For you · reason, Record
   const slide = forYouSlideOf({ payload: payload(), nowMs, timeZone })
   assert.equal(slide.type, 'for-you')
   assert.equal(slide.eyebrowAccent, 'For you')
-  assert.equal(slide.eyebrow, 'Because you watch The Block')
+  assert.equal(slide.eyebrow, 'Because you watched The Block')
   assert.equal(slide.meta, 'New season · Brunswick · Wed 7:30pm · ABC TV')
   assert.deepEqual([slide.primary.action, slide.primary.label], ['record-series', 'Record series'])
   assert.deepEqual([slide.secondary.action, slide.secondary.label], ['guide', 'Details'])

@@ -17,6 +17,7 @@ export const createWatchTracker = ({
   warn = (message) => console.warn(`[events] ${message}`),
 }) => {
   const viewings = new Map()
+  const listening = new Map()
   const tasks = new Set()
 
   const track = (work) => {
@@ -27,6 +28,19 @@ export const createWatchTracker = ({
     tasks.add(task)
     return task
   }
+
+  const logListening = ({ session, from, to, reason = null }) => track(async () => {
+    const programmes = await programmesFor({ channelId: session.channelId, fromMs: from, toMs: to })
+    liveWatchEndsOf({
+      channelId: session.channelId,
+      startedAt: from,
+      endedAt: to,
+      programmes,
+      meta: { session_id: session.id, reason },
+    }).forEach(log)
+  })
+
+  const heardFrom = (session) => (listening.has(session.id) ? listening.get(session.id) : session.startedAt)
 
   const liveStarted = (session) => track(async () => {
     const programmes = await programmesFor({ channelId: session.channelId, fromMs: session.startedAt, toMs: session.startedAt + 1 })
@@ -42,18 +56,23 @@ export const createWatchTracker = ({
     })
   })
 
+  const liveSoundChanged = (session, audible) => {
+    const from = heardFrom(session)
+    if (audible) {
+      if (from == null) listening.set(session.id, now())
+      return Promise.resolve()
+    }
+    listening.set(session.id, null)
+    if (from == null) return Promise.resolve()
+    return logListening({ session, from, to: now(), reason: 'muted' })
+  }
+
   const liveEnded = (session, reason) => {
     const endedAt = endTimeOf({ session, reason, nowMs: now() })
-    return track(async () => {
-      const programmes = await programmesFor({ channelId: session.channelId, fromMs: session.startedAt, toMs: endedAt })
-      liveWatchEndsOf({
-        channelId: session.channelId,
-        startedAt: session.startedAt,
-        endedAt,
-        programmes,
-        meta: { session_id: session.id, reason: reason?.code ?? null },
-      }).forEach(log)
-    })
+    const from = heardFrom(session)
+    listening.delete(session.id)
+    if (from == null) return Promise.resolve()
+    return logListening({ session, from, to: endedAt, reason: reason?.code ?? null })
   }
 
   const playStarted = (session) => {
@@ -128,7 +147,7 @@ export const createWatchTracker = ({
     await Promise.all([...tasks])
   }
 
-  return { liveStarted, liveEnded, playStarted, playEnded, positionSaved, settle, openViewings: () => viewings.size }
+  return { liveStarted, liveSoundChanged, liveEnded, playStarted, playEnded, positionSaved, settle, openViewings: () => viewings.size }
 }
 
 const pauseViewing = ({ viewing, endedAt }) => {

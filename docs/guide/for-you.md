@@ -42,11 +42,22 @@ Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 - **Watch live**, **Record this episode**, **Record series**, and **Go to show**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
 - **More like this** and **Fewer like this**: tell Freetvarr what you think of the show.
 - **Not interested in** the show: hides it from For you for 90 days.
-- **Why this?**: lists the reasons for the suggestion, such as a genre you watch or a channel you often watch at that time.
+- **Why this?**: lists the reasons for the suggestion, such as a genre you watched or a channel you often watch at that time.
+
+The reason under a card names how you came to the show:
+
+| Reason                          | What it means                                                                                            |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Because you watched** a show  | You watched at least `10` minutes, or a quarter, of an episode. Watching most of an episode counts most. |
+| **Because you recorded** a show | You recorded it, or asked Freetvarr to record it.                                                        |
+| **More like** a show            | You pressed **More like this** on it.                                                                    |
+| **Because you like** a genre    | Most of what you watched and recorded is in that genre.                                                  |
+
+Opening a programme's details counts a little towards a show, but never gives a reason on its own. In Multiview, only the picture with the sound counts as watching.
 
 ## Getting started
 
-Freetvarr needs to know about at least five shows before it makes personal suggestions. A show counts once you have recorded it, started an episode, asked to record it, or pressed **More like this** on it. Until then:
+Freetvarr needs to know about at least five shows before it makes personal suggestions. A show counts once you have recorded it, watched at least `10` minutes of an episode, asked to record it, or pressed **More like this** on it. Until then:
 
 - The Home row is called **New this week**, and lists premieres and films from the TV guide.
 - The For you page asks you to **Pick a few shows you like** from this week's TV guide. This is optional. Press the posters you like, then **Done**. Press **Skip** to hide the question for a week.
@@ -59,7 +70,7 @@ Freetvarr scores each programme in the next 7 days of the TV guide against what 
 
 - The genres of the shows you like. Freetvarr looks up the genres of each show on [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org), two free online databases.
 - The channels and times of day you usually watch.
-- Shows you started and gave up on, which drop down the list.
+- Shows you watched part of and gave up on, which drop down the list.
 - New seasons, returning shows, and premieres.
 - At the Standard and Plus levels, what the programme descriptions say, compared with the descriptions of shows you like. See [Suggestion level](#suggestion-level).
 
@@ -95,4 +106,4 @@ The first time it uses Standard or Plus, Freetvarr downloads the language model 
 
 ## Viewing history
 
-Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → **Suggestions** control it.
+Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → **Suggestions** control it.

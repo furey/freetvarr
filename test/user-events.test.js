@@ -166,6 +166,10 @@ test('positionPingOf recognises position saves', () => {
   assert.equal(positionPingOf({ method: 'POST', path: '/api/recordings/a/position', body: {} }), null)
 })
 
+test('feedbackEventsFrom accepts a programme sheet open', () => {
+  assert.equal(feedbackEventsFrom({ kind: 'programme_opened', title: 'Harry Brown', source: 'sheet' }).events[0].kind, 'programme_opened')
+})
+
 test('feedbackEventsFrom validates kinds, keys, and sizes', () => {
   assert.deepEqual(feedbackEventsFrom({ kind: 'thumb_up', title: 'Bluey' }).events[0], {
     kind: 'thumb_up', title: 'Bluey', series_key: null, programme_start: null, channel_id: null, recording_id: null, source: 'ui', meta: null,

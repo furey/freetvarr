@@ -208,6 +208,12 @@ export const feedbackOf = ({ kind, item, source }) => ({
   source,
 })
 
+export const programmeOpenedOf = ({ programme, channelId }) => feedbackOf({
+  kind: 'programme_opened',
+  item: { title: programme.title, start: programme.start, channelId },
+  source: 'sheet',
+})
+
 export const shownBatchesOf = ({ items, source, size = MAX_SHOWN_EVENTS }) => {
   const events = items.map((item) => feedbackOf({ kind: 'suggestion_shown', item, source }))
   const batches = []
@@ -291,7 +297,7 @@ export const carouselReasonOf = (item) => item.reason || CAROUSEL_REASONS[kindOf
 
 export const pageIntroOf = ({ coldStart }) => (coldStart
   ? 'Suggestions start after you watch a few shows. Until then, here is what\'s new this week.'
-  : 'Picked from the next 7 days of the guide, based on what you watch and record.')
+  : 'Picked from the next 7 days of the guide, based on what you watched and recorded.')
 
 export const chooserShownOf = ({ coldStart, pickable = [], skippedAt = null, picked = false, nowMs }) => {
   if (!coldStart || picked || !pickable.length) return false

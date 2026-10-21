@@ -46,6 +46,32 @@ test('an idle live session ends at the last time a viewer fetched the stream', a
   assert.equal(logged[0].duration_s, 600)
 })
 
+test('a muted live picture counts only the minutes it had the sound', async () => {
+  const { logged, clock, tracker } = harness({ programmes: [{ title: 'Film', start: 0, end: 120 * MIN, program_id: 1 }] })
+  const session = { id: 's1', channelId: 'ch1', startedAt: 0, lastSeenAt: 0 }
+  await tracker.liveStarted(session)
+  clock.t = 5 * MIN
+  await tracker.liveSoundChanged(session, false)
+  clock.t = 40 * MIN
+  await tracker.liveSoundChanged(session, true)
+  clock.t = 52 * MIN
+  await tracker.liveEnded(session, { code: 'stopped' })
+  assert.deepEqual(logged.filter((e) => e.kind === 'watch_end').map((e) => [e.duration_s, e.meta.reason]), [
+    [300, 'muted'],
+    [720, 'stopped'],
+  ])
+})
+
+test('a live picture muted for its whole life logs no watching', async () => {
+  const { logged, clock, tracker } = harness({ programmes: [{ title: 'Film', start: 0, end: 120 * MIN, program_id: 1 }] })
+  const session = { id: 's1', channelId: 'ch1', startedAt: 0, lastSeenAt: 0 }
+  await tracker.liveStarted(session)
+  await tracker.liveSoundChanged(session, false)
+  clock.t = 60 * MIN
+  await tracker.liveEnded(session, { code: 'stopped' })
+  assert.deepEqual(logged.map((e) => e.kind), ['watch_start'])
+})
+
 test('recording playback joins seek restarts into one viewing and counts played seconds', async () => {
   const row = { recording_id: 'r1', title: 'Bluey', duration_s: 420, aired_at: 5, channel_id: 'ch1', watched_at: null }
   const { logged, clock, tracker } = harness({ row })
