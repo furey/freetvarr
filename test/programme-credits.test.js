@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  CREDITS_IMAGE_SOURCES,
   createCreditsLookup,
   createProgrammeCredits,
   httpsImageOf,
@@ -318,4 +319,8 @@ test('helpers strip HTML and keep only https pictures', () => {
   assert.equal(httpsImageOf('http://static.tvmaze.com/a.jpg'), 'https://static.tvmaze.com/a.jpg')
   assert.equal(httpsImageOf('ftp://example.com/a.jpg'), null)
   assert.equal(httpsImageOf(null), null)
+})
+
+test('the image sources cover the hosts the cast photos come from', () => {
+  assert.deepEqual(CREDITS_IMAGE_SOURCES, ['https://image.tmdb.org', 'https://static.tvmaze.com'])
 })

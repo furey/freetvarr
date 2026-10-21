@@ -18,6 +18,8 @@ import {
 
 export const CREDITS_SETTING = 'credits_lookup_enabled'
 
+export const CREDITS_IMAGE_SOURCES = ['https://image.tmdb.org', 'https://static.tvmaze.com']
+
 export const creditsLookupEnabled = async () => (await getSetting(CREDITS_SETTING)) !== 'false'
 
 export const createProgrammeCredits = ({
