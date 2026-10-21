@@ -2,10 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   classificationOf,
+  hoverClosesCard,
+  hoverOpensCard,
   classificationToneOf,
   isSettledRatings,
-  lastLineRightOf,
-  linkFitsLastLine,
+  pressKeepsCardOpen,
   ratingsKeyOf,
   ratingsUrlOf,
   retryDelayOf,
@@ -110,15 +111,23 @@ test('review hides without a snippet, a count, or a safe link', () => {
   assert.equal(shownReviewOf({ ...tmdbReady, status: 'none' }), null)
 })
 
-test('the review link fits the last line only with room for the link and a gap', () => {
-  const box = { boxLeft: 20, boxWidth: 300, linkWidth: 100 }
-  assert.equal(linkFitsLastLine({ ...box, lastLineRight: 20 + 188 }), true)
-  assert.equal(linkFitsLastLine({ ...box, lastLineRight: 20 + 189 }), false)
-  assert.equal(linkFitsLastLine({ ...box, lastLineRight: null }), false)
-  assert.equal(linkFitsLastLine({ ...box, linkWidth: 0, lastLineRight: 40 }), false)
+test('hoverOpensCard opens a closed card only for a mouse on a hover-capable fine pointer', () => {
+  assert.equal(hoverOpensCard({ pointerType: 'mouse', hoverPointer: true, open: false }), true)
+  assert.equal(hoverOpensCard({ pointerType: 'mouse', hoverPointer: true, open: true }), false)
+  assert.equal(hoverOpensCard({ pointerType: 'mouse', hoverPointer: false, open: false }), false)
+  assert.equal(hoverOpensCard({ pointerType: 'touch', hoverPointer: true, open: false }), false)
+  assert.equal(hoverOpensCard({ pointerType: 'pen', hoverPointer: true, open: false }), false)
 })
 
-test('the last line edge skips empty rects', () => {
-  assert.equal(lastLineRightOf([{ width: 280, right: 300 }, { width: 90, right: 110 }, { width: 0, right: 110 }]), 110)
-  assert.equal(lastLineRightOf([]), null)
+test('hoverClosesCard closes only a card the mouse opened by hover', () => {
+  assert.equal(hoverClosesCard({ pointerType: 'mouse', openedByHover: true, open: true }), true)
+  assert.equal(hoverClosesCard({ pointerType: 'mouse', openedByHover: false, open: true }), false)
+  assert.equal(hoverClosesCard({ pointerType: 'mouse', openedByHover: true, open: false }), false)
+  assert.equal(hoverClosesCard({ pointerType: 'touch', openedByHover: true, open: true }), false)
+})
+
+test('pressKeepsCardOpen pins a hover-opened card and toggles a pressed one', () => {
+  assert.equal(pressKeepsCardOpen({ openedByHover: true, open: true }), true)
+  assert.equal(pressKeepsCardOpen({ openedByHover: false, open: false }), true)
+  assert.equal(pressKeepsCardOpen({ openedByHover: false, open: true }), false)
 })

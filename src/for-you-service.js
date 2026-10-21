@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { Worker } from 'node:worker_threads'
 
 import { db, getSetting, setSetting } from './db.js'
-import { getGuideSnapshot, getRecordingState } from './epg.js'
+import { getGuideSnapshot, getRecordingState, onGuideLoaded } from './epg.js'
 import { buildForYouFromRequest } from './for-you-worker.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { pickableShowsOf } from './for-you-pickable.js'
@@ -31,6 +31,11 @@ export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SE
 export const getForYou = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
   return forYouCache.get({ nowMs })
+}
+
+export const warmForYou = async ({ nowMs = Date.now() } = {}) => {
+  if (!(await isForYouEnabled())) return null
+  return forYouCache.warm({ nowMs })
 }
 
 export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null }) => {
@@ -85,12 +90,18 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
     return cached.result
   }
 
+  const warm = async ({ nowMs }) => {
+    await restore()
+    if (cached || computing) return null
+    return refreshInBackground({ nowMs })
+  }
+
   const forget = () => {
     cached = null
     generation += 1
   }
 
-  return { get, forget }
+  return { get, warm, forget }
 }
 
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
@@ -170,6 +181,7 @@ export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
 }
 
 export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs = WARM_DELAY_MS }) => {
+  onGuideLoaded(() => warmForYou().catch((err) => console.warn(`[for-you] guide warm-up failed: ${err.message}`)))
   const warm = setTimeout(() => {
     isForYouEnabled()
       .then((enabled) => enabled && getForYou())

@@ -245,3 +245,43 @@ test('the saved result store keeps explanations and drops a result older than a 
   clock = 2000
   assert.equal(await store.load(), null)
 })
+
+test('warm builds once in the background when nothing is cached yet', async () => {
+  let builds = 0
+  let release
+  const building = new Promise((resolve) => { release = resolve })
+  const cache = createForYouCache({
+    loadSnapshot: async () => ({ stamps: { guide: 'v1' } }),
+    compute: () => { builds += 1; return building },
+  })
+  const first = cache.warm({ nowMs: 0 })
+  const second = cache.warm({ nowMs: 0 })
+  release({ sections: ['warm'] })
+  await Promise.all([first, second])
+  assert.equal(builds, 1)
+  assert.deepEqual(await cache.get({ nowMs: 0 }), { sections: ['warm'] })
+  assert.equal(builds, 1)
+})
+
+test('warm does nothing when a result is cached or saved', async () => {
+  let builds = 0
+  const compute = async () => { builds += 1; return { sections: [] } }
+  const loadSnapshot = async () => ({ stamps: { guide: 'v1' } })
+  const built = createForYouCache({ loadSnapshot, compute })
+  await built.get({ nowMs: 0 })
+  assert.equal(await built.warm({ nowMs: 0 }), null)
+  const restored = createForYouCache({ loadSnapshot, compute, store: { load: async () => ({ sections: [] }), save: async () => {} } })
+  assert.equal(await restored.warm({ nowMs: 0 }), null)
+  assert.equal(builds, 1)
+})
+
+test('warm reports a failed build without throwing', async () => {
+  const errors = []
+  const cache = createForYouCache({
+    loadSnapshot: async () => { throw new Error('no guide') },
+    compute: async () => ({ sections: [] }),
+    onRefreshError: (err) => errors.push(err.message),
+  })
+  await cache.warm({ nowMs: 0 })
+  assert.deepEqual(errors, ['no guide'])
+})

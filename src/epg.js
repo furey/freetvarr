@@ -744,6 +744,11 @@ export const listGuideChannels = async () => (await getCachedGuide()).channels
 
 export const getGuideSnapshot = () => getCachedGuide()
 
+export const onGuideLoaded = (listener) => {
+  guideListeners.add(listener)
+  return () => guideListeners.delete(listener)
+}
+
 export const keepGuideWarm = () => {
   const warm = () => getCachedGuide()
     .then(() => getRecordingState())
@@ -776,6 +781,11 @@ export const programsInWindow = ({ rows, fromMs, toMs }) =>
   rows.filter((p) => p.start < toMs && p.end > fromMs)
 
 const getCachedGuide = () => guideCache.get(localMidnightMs())
+
+const announceGuideLoaded = (guide) => {
+  setImmediate(() => guideListeners.forEach((listener) => listener(guide)))
+  return guide
+}
 
 const loadGuide = async (startMs) => {
   const conn = await resolveConnection()
@@ -868,7 +878,11 @@ const STATE_TTL_MS = 45 * 1000
 const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
-const guideCache = createGuideCache({ load: loadGuide, staleRetryMs: GUIDE_STALE_RETRY_MS })
+const guideListeners = new Set()
+const guideCache = createGuideCache({
+  load: (startMs) => loadGuide(startMs).then(announceGuideLoaded),
+  staleRetryMs: GUIDE_STALE_RETRY_MS,
+})
 
 const episodeKey = (p) => `${anyChannelLinkFor(p.series_link) ?? p.series_link}|${p.series_no}x${p.episode_no}`
 

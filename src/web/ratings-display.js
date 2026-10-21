@@ -1,6 +1,5 @@
 export const RATINGS_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000]
 export const MIN_TMDB_VOTES = 50
-export const REVIEW_LINK_GAP_PX = 12
 
 export const ratingsKeyOf = ({ title, kind, year }) => {
   const name = String(title || '').trim()
@@ -101,16 +100,11 @@ export const votesLineOf = ({ source, votes }) => {
 
 export const sourceNameOf = (source) => SOURCE_NAMES[source] || ''
 
-export const linkFitsLastLine = ({ lastLineRight, boxLeft, boxWidth, linkWidth, gap = REVIEW_LINK_GAP_PX }) => {
-  if (![lastLineRight, boxLeft, boxWidth, linkWidth].every(Number.isFinite)) return false
-  if (boxWidth <= 0 || linkWidth <= 0) return false
-  return lastLineRight - boxLeft + gap + linkWidth <= boxWidth
-}
+export const hoverOpensCard = ({ pointerType, hoverPointer, open }) => pointerType === 'mouse' && hoverPointer && !open
 
-export const lastLineRightOf = (rects) => {
-  const drawn = Array.from(rects || []).filter((rect) => rect.width > 0)
-  return drawn.length ? drawn[drawn.length - 1].right : null
-}
+export const hoverClosesCard = ({ pointerType, openedByHover, open }) => pointerType === 'mouse' && openedByHover && open
+
+export const pressKeepsCardOpen = ({ openedByHover, open }) => openedByHover || !open
 
 const safeLinkOf = (url) => (/^https:\/\//i.test(String(url || '')) ? String(url) : null)
 

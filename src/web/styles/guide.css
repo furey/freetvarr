@@ -1254,19 +1254,18 @@
 }
 
 .programme-review {
-  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
-  padding: 12px 14px;
-  border-radius: var(--radius-card);
-  background: var(--color-surface-1);
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid rgba(92, 225, 198, 0.55);
   animation: programme-badge-in 220ms var(--ease-standard) both;
 }
 
 .programme-review-quote {
   margin: 0;
+  font-style: italic;
   font-size: 15px;
   line-height: 22px;
   color: var(--color-text-soft);
@@ -1274,7 +1273,7 @@
 }
 
 .programme-review-link {
-  align-self: flex-end;
+  align-self: flex-start;
   font-size: 14px;
   line-height: 22px;
   font-weight: 600;
@@ -1284,12 +1283,6 @@
 
 .programme-review-link:hover {
   color: var(--color-primary-hi);
-}
-
-.programme-review.is-inline .programme-review-link {
-  position: absolute;
-  right: 14px;
-  bottom: 12px;
 }
 
 @keyframes programme-badge-in {

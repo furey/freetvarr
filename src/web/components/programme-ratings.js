@@ -1,9 +1,10 @@
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from '/vendor/vue.esm-browser.prod.js'
+import { computed, onUnmounted, ref, shallowRef, watch } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import {
+  hoverClosesCard,
+  hoverOpensCard,
   isSettledRatings,
-  lastLineRightOf,
-  linkFitsLastLine,
+  pressKeepsCardOpen,
   ratingsKeyOf,
   ratingsUrlOf,
   retryDelayOf,
@@ -91,7 +92,8 @@ export const ProgrammeArtBadges = {
         <i></i><i></i><i></i>
       </span>
     </transition>
-    <div v-if="score" ref="scoreWrap" class="programme-score">
+    <div v-if="score" ref="scoreWrap" class="programme-score"
+      @pointerenter="openOnHover('score', $event)" @pointerleave="closeAfterHover('score', $event)">
       <transition name="programme-score-card">
         <div v-if="scoreOpen" :id="cardId" class="programme-score-card" role="group" :aria-label="score.ariaLabel">
           <p class="programme-score-card-title">{{ score.outOf }}</p>
@@ -108,7 +110,7 @@ export const ProgrammeArtBadges = {
       </button>
     </div>
     <div v-if="rated?.adviceLine" ref="classificationWrap" class="programme-classification-wrap"
-      @pointerenter="openOnHover" @pointerleave="closeAfterHover">
+      @pointerenter="openOnHover('classification', $event)" @pointerleave="closeAfterHover('classification', $event)">
       <transition name="programme-score-card">
         <div v-if="classificationOpen" :id="classificationCardId" class="programme-score-card programme-classification-card" role="group"
           :aria-label="rated.ariaLabel">
@@ -146,21 +148,25 @@ export const ProgrammeArtBadges = {
       emit('update:open', false)
     }
 
-    const toggleScore = () => (scoreOpen.value ? closeCards() : showCard('score'))
+    const isCardOpen = (card) => (card === 'score' ? scoreOpen.value : classificationOpen.value)
 
-    const toggleClassification = () => {
-      if (openedByHover || !classificationOpen.value) return showCard('classification')
+    const toggleCard = (card) => {
+      if (pressKeepsCardOpen({ openedByHover, open: isCardOpen(card) })) return showCard(card)
       closeCards()
     }
 
-    const openOnHover = (event) => {
-      if (event.pointerType !== 'mouse' || !hoverPointer() || classificationOpen.value) return
-      showCard('classification')
+    const toggleScore = () => toggleCard('score')
+
+    const toggleClassification = () => toggleCard('classification')
+
+    const openOnHover = (card, event) => {
+      if (!hoverOpensCard({ pointerType: event.pointerType, hoverPointer: hoverPointer(), open: isCardOpen(card) })) return
+      showCard(card)
       openedByHover = true
     }
 
-    const closeAfterHover = (event) => {
-      if (event.pointerType === 'mouse' && openedByHover && classificationOpen.value) closeCards()
+    const closeAfterHover = (card, event) => {
+      if (hoverClosesCard({ pointerType: event.pointerType, openedByHover, open: isCardOpen(card) })) closeCards()
     }
 
     const openWrap = () => (openCard.value === 'score' ? scoreWrap.value : classificationWrap.value)
@@ -208,46 +214,11 @@ export const ProgrammeReviewCard = {
     review: { type: Object, required: true },
   },
   template: `
-    <figure :class="['programme-review', { 'is-inline': inline }]">
-      <blockquote ref="quoteEl" class="programme-review-quote"><span ref="textEl">“{{ review.snippet }}”</span></blockquote>
-      <a ref="linkEl" class="programme-review-link" :href="review.url" target="_blank" rel="noopener noreferrer">{{ review.linkLabel }}</a>
+    <figure class="programme-review">
+      <blockquote class="programme-review-quote">“{{ review.snippet }}”</blockquote>
+      <a class="programme-review-link" :href="review.url" target="_blank" rel="noopener noreferrer">{{ review.linkLabel }}</a>
     </figure>
   `,
-  setup(props) {
-    const quoteEl = ref(null)
-    const textEl = ref(null)
-    const linkEl = ref(null)
-    const inline = ref(false)
-    let observer = null
-
-    const lastLineRight = () => {
-      const range = document.createRange()
-      range.selectNodeContents(textEl.value)
-      return lastLineRightOf(range.getClientRects())
-    }
-
-    const measure = () => {
-      if (!quoteEl.value || !textEl.value || !linkEl.value) return
-      const box = quoteEl.value.getBoundingClientRect()
-      inline.value = linkFitsLastLine({
-        lastLineRight: lastLineRight(),
-        boxLeft: box.left,
-        boxWidth: box.width,
-        linkWidth: linkEl.value.getBoundingClientRect().width,
-      })
-    }
-
-    onMounted(() => {
-      measure()
-      observer = new ResizeObserver(measure)
-      observer.observe(quoteEl.value)
-      document.fonts?.ready.then(measure)
-    })
-    onUnmounted(() => observer?.disconnect())
-    watch(() => [props.review.snippet, props.review.linkLabel], () => nextTick(measure))
-
-    return { quoteEl, textEl, linkEl, inline }
-  },
 }
 
 const hoverPointer = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches === true
