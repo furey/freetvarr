@@ -517,6 +517,11 @@
   .live-zoom {
     order: 5;
   }
+
+  .live-toolbar .live-zoom.is-compact .ui-segment {
+    min-width: 30px;
+    padding: 0 6px;
+  }
 }
 
 body.player-open {

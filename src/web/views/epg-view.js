@@ -137,10 +137,9 @@ export const EpgView = {
         <div class="guide-toolbar">
           <span class="guide-toolbar-spacer"></span>
           <toggle-switch compact :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>
-          <ui-segmented compact class="guide-zoom" label="Zoom" aria-label="Zoom" :model-value="zoom" @update:model-value="setZoom"
+          <ui-segmented compact class="guide-zoom" aria-label="Zoom" :model-value="zoom" @update:model-value="setZoom"
             :options="zoomLevels.map((level) => ({ value: level.key, label: level.key.toUpperCase(), ariaLabel: level.label + ' zoom' }))" />
           <div v-if="!narrow" class="ui-segmented is-compact guide-zoom-steps" role="group" aria-label="Zoom">
-            <span class="ui-segmented-label" aria-hidden="true">Zoom</span>
             <button type="button" class="ui-segment" aria-label="Zoom out" :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
             <button type="button" class="ui-segment" aria-label="Zoom in" :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
           </div>
