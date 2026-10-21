@@ -117,6 +117,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
   const scheduledProgramIds = new Set([
     ...(state?.futureRecordings || []).map((recording) => String(recording.programId)),
     ...(state?.skippedProgramIds || []).map(String),
+    ...(state?.repeatRecordings || []).map((recording) => String(recording.programId)),
   ])
   return {
     ruleKeys,

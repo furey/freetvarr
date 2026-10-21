@@ -164,6 +164,18 @@ export const listFinished = async (conn) => {
   return (body?.entries || []).map(normaliseEntry)
 }
 
+const listPastAirings = async (conn) => {
+  const [finished, removed, failed] = await Promise.all(
+    ['grid_finished', 'grid_removed', 'grid_failed'].map((grid) => apiGet(`dvr/entry/${grid}`, { limit: 5000 }, conn)),
+  )
+  const entriesOf = (body) => (body?.entries || []).map(normaliseEntry)
+  return [
+    ...entriesOf(finished),
+    ...entriesOf(removed),
+    ...entriesOf(failed).map((entry) => ({ ...entry, failed: true })),
+  ]
+}
+
 export const listAutorecs = async (conn) => {
   const body = await apiGet('dvr/autorec/grid', { limit: 1000 }, conn)
   return (body?.entries || []).map((a) => ({
@@ -380,9 +392,13 @@ export const getState = async () => {
     ...e,
     seriesLinkId: e.autorecId ? keyByAutorecId.get(e.autorecId) || null : null,
   })
-  const futureRecordings = upcoming.filter((e) => e.enabled).map(withSeriesLink)
+  const pastAirings = needsPastAirings(upcoming) ? await listPastAirings(conn).catch(() => []) : []
+  const { recordings, repeats } = splitRepeats({ upcoming, pastAirings })
+  const futureRecordings = recordings.map(withSeriesLink)
   return {
     futureRecordings,
+    repeatRecordings: repeats.map(withSeriesLink),
+    repeatProgramIds: repeats.map((e) => String(e.programId)),
     skippedRecordings: upcoming.filter((e) => !e.enabled).map((e) => ({ ...withSeriesLink(e), skipped: true })),
     skippedProgramIds: upcoming.filter((e) => !e.enabled).map((e) => String(e.programId)),
     seriesTags: autorecs,
@@ -393,6 +409,38 @@ export const getState = async () => {
     tunerCount: tuners,
   }
 }
+
+export const splitRepeats = ({ upcoming = [], pastAirings = [] }) => {
+  const recordings = []
+  const repeats = []
+  for (const entry of upcoming.filter((e) => e.enabled)) {
+    const repeatOf = entry.schedStatus === 'scheduled' ? originalAiringOf({ entry, upcoming, pastAirings }) : null
+    if (repeatOf) repeats.push({ ...entry, repeatOf })
+    else recordings.push(entry)
+  }
+  return { recordings, repeats }
+}
+
+const originalAiringOf = ({ entry, upcoming, pastAirings }) => {
+  if (!entry.duplicateOfStart) return null
+  const isOriginal = (e) => e.uuid !== entry.uuid && e.name === entry.name && e.startDate === entry.duplicateOfStart
+  const pending = upcoming.find(isOriginal)
+  if (pending) return pending.enabled ? airingSummaryOf({ entry: pending, status: pendingStatusOf(pending) }) : null
+  const done = pastAirings.filter(isOriginal).find((e) => !e.failed)
+  return done ? airingSummaryOf({ entry: done, status: 'recorded' }) : null
+}
+
+const pendingStatusOf = (entry) => (entry.schedStatus === 'recording' ? 'recording' : 'scheduled')
+
+const airingSummaryOf = ({ entry, status }) => ({
+  status,
+  startDate: entry.startDate,
+  channelName: entry.channelName,
+  uuid: entry.uuid,
+})
+
+const needsPastAirings = (upcoming) => upcoming.some((e) => e.duplicateOfStart
+  && !upcoming.some((other) => other.uuid !== e.uuid && other.startDate === e.duplicateOfStart))
 
 export const getTunerStatus = async (conn) => {
   const c = conn || (await resolveConnection())
@@ -589,6 +637,7 @@ const normaliseEntry = (e) => {
     schedStatus: e.sched_status || '',
     statusText: e.status || '',
     autorecId: e.autorec || null,
+    duplicateOfStart: e.duplicate > 0 ? e.duplicate * 1000 : null,
     recordingSince: recordingSinceOf(e),
     enabled: e.enabled !== false,
     parentId: e.parent || null,

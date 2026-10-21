@@ -229,10 +229,13 @@ export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
 // episodes from each series rule against the loaded guide and merge them with
 // the real timers, so the Upcoming view reflects what will actually record.
 // A projected entry is source:'series' (expected); a real timer is source:'timer'.
-export const projectUpcomingRecordings = ({
+export const projectUpcomingRecordings = (args) => planUpcomingRecordings(args).upcoming
+
+export const planUpcomingRecordings = ({
   seriesTags = [],
   futureRecordings = [],
   skippedProgramIds = [],
+  repeatProgramIds = [],
   guide,
   nowMs = Date.now(),
 } = {}) => {
@@ -253,52 +256,63 @@ export const projectUpcomingRecordings = ({
       synopsis: guide?.programByEventId?.get(String(r.programId))?.synopsis || null,
       source: 'timer',
     }))
-  const timerProgramIds = new Set([...timers.map((t) => String(t.programId)), ...skippedProgramIds.map(String)])
+  const timerProgramIds = new Set([
+    ...timers.map((t) => String(t.programId)),
+    ...skippedProgramIds.map(String),
+    ...repeatProgramIds.map(String),
+  ])
 
   const projected = []
+  const repeats = []
   if (guide?.channels?.length) {
     const tagByLink = new Map()
     for (const t of seriesTags) {
       const link = t?.seriesLinkId ?? t?.id
       if (link != null) tagByLink.set(String(link), t)
     }
-    const seenEpisode = scheduledEpisodeKeys({ guide, programIds: timerProgramIds })
+    const firstAiringByEpisode = timerEpisodeAirings({ guide, timers })
+    const candidates = []
     for (const channel of guide.channels) {
-      const rows = [...(guide.programsByChannel?.[String(channel.epgId)] || [])]
-        .sort((a, b) => a.start - b.start)
-      for (const p of rows) {
+      for (const p of guide.programsByChannel?.[String(channel.epgId)] || []) {
         if (p.start <= nowMs || p.series_link == null) continue
         const tag = tagByLink.get(String(p.series_link)) || tagByLink.get(anyChannelLinkFor(p.series_link))
         if (!tag) continue
         if (tag.channelId && String(tag.channelId) !== String(channel.id)) continue
         if (timerProgramIds.has(String(p.program_id))) continue
-        if (p.series_no != null && p.episode_no != null) {
-          const key = episodeKey(p)
-          if (seenEpisode.has(key)) continue
-          seenEpisode.add(key)
-        }
-        projected.push({
-          programId: p.program_id,
-          name: p.title,
-          channelId: channel.id,
-          channelName: channel.name || null,
-          startDate: p.start,
-          endDate: p.end,
-          episodeTitle: p.episode_title || null,
-          seriesLinkId: p.series_link,
-          seriesNo: p.series_no ?? null,
-          episodeNo: p.episode_no ?? null,
-          season: p.series_no ?? null,
-          hasImage: Boolean(p.image),
-          kind: p.kind ?? null,
-          synopsis: p.synopsis || null,
-          source: 'series',
-        })
+        candidates.push({ channel, p })
       }
+    }
+    for (const { channel, p } of candidates.sort((a, b) => a.p.start - b.p.start)) {
+      const firstAiring = earlierAiringOf({ firstAiringByEpisode, programme: p })
+      if (hasEpisodeNumber(p) && !firstAiring) {
+        firstAiringByEpisode.set(episodeKey(p), { startDate: p.start, channelName: channel.name || null })
+      }
+      const entry = {
+        programId: p.program_id,
+        name: p.title,
+        channelId: channel.id,
+        channelName: channel.name || null,
+        startDate: p.start,
+        endDate: p.end,
+        episodeTitle: p.episode_title || null,
+        seriesLinkId: p.series_link,
+        seriesNo: p.series_no ?? null,
+        episodeNo: p.episode_no ?? null,
+        season: p.series_no ?? null,
+        hasImage: Boolean(p.image),
+        kind: p.kind ?? null,
+        synopsis: p.synopsis || null,
+        source: 'series',
+      }
+      if (firstAiring) repeats.push({ ...entry, repeatOf: { status: 'scheduled', ...firstAiring } })
+      else projected.push(entry)
     }
   }
 
-  return [...timers, ...projected].sort((a, b) => a.startDate - b.startDate)
+  return {
+    upcoming: [...timers, ...projected].sort((a, b) => a.startDate - b.startDate),
+    repeats,
+  }
 }
 
 export const channelAiringAt = ({ guide, channelId, atMs, endedByChannel = null }) => {
@@ -456,17 +470,20 @@ const loadRecordingState = async (now) => {
     getCachedGuide().catch(() => null),
     recordingsStorageInfo(),
   ])
+  const plan = planUpcomingRecordings({
+    seriesTags: state.seriesTags,
+    futureRecordings: state.futureRecordings,
+    skippedProgramIds: state.skippedProgramIds,
+    repeatProgramIds: state.repeatProgramIds,
+    guide,
+    nowMs: now,
+  })
   const upcomingRecordings = await withUpcomingClassifications({
-    upcoming: projectUpcomingRecordings({
-      seriesTags: state.seriesTags,
-      futureRecordings: state.futureRecordings,
-      skippedProgramIds: state.skippedProgramIds,
-      guide,
-      nowMs: now,
-    }),
+    upcoming: plan.upcoming,
     futureRecordings: state.futureRecordings,
     guide,
   })
+  const repeatRecordings = [...state.repeatRecordings, ...plan.repeats].sort((a, b) => a.startDate - b.startDate)
   await syncSavedDvrState({ futureRecordings: state.futureRecordings, nowMs: now })
     .catch(logHistoryError('dvr sync'))
   const value = {
@@ -477,6 +494,7 @@ const loadRecordingState = async (now) => {
     activeInputs: state.activeInputs,
     futureRecordings: state.futureRecordings,
     skippedRecordings: state.skippedRecordings,
+    repeatRecordings,
     upcomingRecordings,
     seriesTags: withSeriesImages({ seriesTags: state.seriesTags, guide, nowMs: now }),
     activeRecordingIds: state.activeRecordingIds,
@@ -960,9 +978,21 @@ const guideCache = createGuideCache({
 
 const episodeKey = (p) => `${anyChannelLinkFor(p.series_link) ?? p.series_link}|${p.series_no}x${p.episode_no}`
 
-const scheduledEpisodeKeys = ({ guide, programIds }) => new Set(
-  Object.values(guide.programsByChannel || {})
-    .flat()
-    .filter((p) => programIds.has(String(p.program_id)) && p.series_no != null && p.episode_no != null)
-    .map(episodeKey),
-)
+const hasEpisodeNumber = (p) => p.series_no != null && p.episode_no != null
+
+const timerEpisodeAirings = ({ guide, timers }) => {
+  const timerById = new Map(timers.map((timer) => [String(timer.programId), timer]))
+  return new Map(
+    Object.values(guide.programsByChannel || {})
+      .flat()
+      .filter((p) => timerById.has(String(p.program_id)) && hasEpisodeNumber(p))
+      .sort((a, b) => b.start - a.start)
+      .map((p) => [episodeKey(p), { startDate: p.start, channelName: timerById.get(String(p.program_id)).channelName }]),
+  )
+}
+
+const earlierAiringOf = ({ firstAiringByEpisode, programme }) => {
+  if (!hasEpisodeNumber(programme)) return null
+  const first = firstAiringByEpisode.get(episodeKey(programme))
+  return first && first.startDate < programme.start ? first : null
+}

@@ -20,6 +20,7 @@ export const unconfiguredRecordingState = ({ nowMs }) => ({
   activeInputs: [],
   futureRecordings: [],
   skippedRecordings: [],
+  repeatRecordings: [],
   upcomingRecordings: [],
   seriesTags: [],
   activeRecordingIds: [],
