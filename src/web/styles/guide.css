@@ -113,7 +113,6 @@
 }
 
 .guide-zoom .ui-segment {
-  min-height: 38px;
   min-width: 44px;
 }
 
@@ -123,7 +122,6 @@
 }
 
 .guide-zoom-steps .ui-segment {
-  min-height: 38px;
   min-width: 44px;
 }
 

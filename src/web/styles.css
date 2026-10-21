@@ -649,8 +649,8 @@ input[type="search"]::-webkit-search-cancel-button {
 .toggle.is-compact {
   flex-direction: row-reverse;
   gap: 10px;
-  height: 44px;
-  min-height: 44px;
+  height: var(--control-compact-h);
+  min-height: var(--control-compact-h);
   padding: 0 12px 0 14px;
   border-radius: var(--radius-button);
   background: var(--color-surface-1);

@@ -3,6 +3,7 @@
   --tracking-caps: 0.04em;
   --app-rail-w: 0px;
   --z-toast: 900;
+  --control-compact-h: 40px;
   --app-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-tabbar-h: calc(64px + var(--app-tabbar-safe-bottom));
   --app-header-h: env(safe-area-inset-top, 0px);
@@ -1258,11 +1259,14 @@ body.sheet-open .app-tabbar {
 
 .ui-segmented.is-compact {
   gap: 3px;
+  height: var(--control-compact-h);
   padding: 3px;
+  align-items: center;
 }
 
 .ui-segmented.is-compact .ui-segment {
-  min-height: 34px;
+  height: 100%;
+  min-height: 0;
   min-width: 38px;
   padding: 0 10px;
   font-size: 14px;

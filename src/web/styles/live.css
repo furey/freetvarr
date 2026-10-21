@@ -10,6 +10,10 @@
   gap: 12px;
 }
 
+.live-scope.ui-chip {
+  height: var(--control-compact-h);
+}
+
 .live-filter {
   display: flex;
   flex: 1 1 220px;
