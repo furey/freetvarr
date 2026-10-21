@@ -238,7 +238,7 @@ body.player-mini-open .app-content {
 
 @media (min-width: 768px) and (min-height: 501px) {
   .pl-backdrop.is-mini {
-    --mini-w: 360px;
+    --mini-w: var(--mini-size, 360px);
     --mini-video-h: calc(var(--mini-w) * 9 / 16);
     inset: auto 24px calc(env(safe-area-inset-bottom, 0px) + 24px) auto;
     width: var(--mini-w);
@@ -847,7 +847,34 @@ body.player-mini-open .app-content {
   box-shadow: 0 0 0 2px var(--color-primary);
 }
 
+.pl-mini-grip {
+  z-index: 6;
+}
+
+.pl-mini.is-controls-shown .pl-mini-grip .mv-resize-pill {
+  opacity: 1;
+}
+
+.pl-mini-size-chip {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  z-index: 6;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(20, 28, 36, 0.94);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 @media (hover: none) {
+  .pl-mini:not(.is-controls-shown) .pl-mini-grip {
+    pointer-events: none;
+  }
+
   .mv-layer.is-handles-shown .mv-resize-pill {
     opacity: 1;
   }

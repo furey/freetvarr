@@ -68,6 +68,7 @@ Press **Miniplayer** in the top bar (or in the **⋯** menu, when the bar has no
 
 - On a phone, the Miniplayer is a bar above the tab bar.
 - On a tablet or computer, it is a small card in a corner of the screen.
+- On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width (the same limits as the small picture in Multiview **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
 
 Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
 

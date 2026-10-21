@@ -12,6 +12,19 @@ import {
   togglePictureInPicture,
 } from '/mini-player.js'
 import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
+import {
+  MINI_SIZE_KEY,
+  MINI_CARD_QUERY,
+  MINI_GRIP_CORNER,
+  MINI_RULE,
+  miniWidthOf,
+  miniWidthAfterDrag,
+  miniShareOfWidth,
+  miniShareAfterKey,
+  miniLabelOf,
+  parseMiniShare,
+  miniShareToStore,
+} from '/mini-resize.js'
 
 const MiniMenuIcon = {
   components: PLAYER_ICON_COMPONENTS,
@@ -24,6 +37,20 @@ const MiniMenuIcon = {
     <pop-out-icon v-else class="pl-mini-menu-icon" />
   `,
 }
+
+const readMiniShare = () => {
+  try { return parseMiniShare(localStorage.getItem(MINI_SIZE_KEY)) } catch { return null }
+}
+
+const writeMiniShare = (share) => {
+  try {
+    const stored = miniShareToStore({ share })
+    if (stored == null) localStorage.removeItem(MINI_SIZE_KEY)
+    else localStorage.setItem(MINI_SIZE_KEY, stored)
+  } catch {}
+}
+
+const miniShare = ref(readMiniShare())
 
 export const PlayerMini = {
   components: { ...PLAYER_ICON_COMPONENTS, 'mini-menu-icon': MiniMenuIcon },
@@ -46,6 +73,9 @@ export const PlayerMini = {
     const moreEl = ref(null)
     const thumbEl = ref(null)
     const phone = usePhoneLayout()
+    const card = useMatchQuery(MINI_CARD_QUERY)
+    const viewportWidth = ref(window.innerWidth)
+    const dragWidth = ref(null)
     const hovering = ref(false)
     const tapShown = ref(false)
     const focusInside = ref(false)
@@ -123,6 +153,75 @@ export const PlayerMini = {
       try { canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height) } catch {}
     }
 
+    const shownWidth = computed(() => dragWidth.value ?? miniWidthOf({ share: miniShare.value, viewportWidth: viewportWidth.value }))
+    const gripRange = computed(() => ({
+      min: Math.round(MINI_RULE.min * 100),
+      max: Math.round(MINI_RULE.max * 100),
+      now: Math.round(miniShareOfWidth({ width: shownWidth.value, viewportWidth: viewportWidth.value }) * 100),
+    }))
+    const sizeChip = computed(() => (dragWidth.value == null ? '' : miniLabelOf({ width: dragWidth.value, viewportWidth: viewportWidth.value })))
+    const applyWidth = () => {
+      const root = document.documentElement.style
+      if (!card.value || (miniShare.value == null && dragWidth.value == null)) root.removeProperty('--mini-size')
+      else root.setProperty('--mini-size', `${shownWidth.value}px`)
+    }
+    const onViewportResize = () => { viewportWidth.value = window.innerWidth }
+
+    let drag = null
+    let dragFrame = 0
+    let pendingWidth = null
+    const flushDrag = () => {
+      dragFrame = 0
+      if (pendingWidth != null) dragWidth.value = pendingWidth
+    }
+    const onGripDown = (e) => {
+      if (!e.isPrimary || e.button > 0) return
+      e.preventDefault()
+      drag = { x: e.clientX, y: e.clientY, startWidth: shownWidth.value }
+      pendingWidth = null
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+      showForTouch()
+    }
+    const onGripMove = (e) => {
+      if (!drag || !e.isPrimary) return
+      pendingWidth = miniWidthAfterDrag({
+        startWidth: drag.startWidth,
+        dx: e.clientX - drag.x,
+        dy: e.clientY - drag.y,
+        viewportWidth: viewportWidth.value,
+      })
+      if (!dragFrame) dragFrame = requestAnimationFrame(flushDrag)
+    }
+    const endDrag = () => {
+      cancelAnimationFrame(dragFrame)
+      dragFrame = 0
+      drag = null
+      dragWidth.value = null
+    }
+    const setShare = (share) => {
+      miniShare.value = share
+      writeMiniShare(share)
+    }
+    const finishGrip = () => {
+      if (!drag) return
+      if (pendingWidth != null) setShare(miniShareOfWidth({ width: pendingWidth, viewportWidth: viewportWidth.value }))
+      pendingWidth = null
+      endDrag()
+    }
+    const cancelGrip = () => {
+      pendingWidth = null
+      endDrag()
+    }
+    const resetSize = () => setShare(null)
+    const onGripKeydown = (e) => {
+      const action = miniShareAfterKey({ width: shownWidth.value, viewportWidth: viewportWidth.value, key: e.key })
+      if (!action) return
+      e.preventDefault()
+      if (action.reset) return resetSize()
+      setShare(action.share)
+    }
+
+    watch([shownWidth, card, miniShare], applyWidth, { immediate: true })
     watch(phone, () => {
       menuOpen.value = false
       sheetOpen.value = false
@@ -130,14 +229,19 @@ export const PlayerMini = {
     onMounted(() => {
       document.addEventListener('pointerdown', onDocumentPointerDown, true)
       window.addEventListener('keydown', onDocumentKeydown, true)
+      window.addEventListener('resize', onViewportResize)
     })
     onUnmounted(() => {
       clearTimeout(tapTimer)
+      cancelAnimationFrame(dragFrame)
+      window.removeEventListener('resize', onViewportResize)
       document.removeEventListener('pointerdown', onDocumentPointerDown, true)
       window.removeEventListener('keydown', onDocumentKeydown, true)
     })
 
     return {
+      card, gripRange, sizeChip, dragWidth, gripCorner: MINI_GRIP_CORNER, resetSize,
+      onGripDown, onGripMove, finishGrip, cancelGrip, onGripKeydown,
       rootEl, moreEl, thumbEl, phone, sound, controlsShown, menuItems, menuOpen, sheetOpen,
       onPointerEnter, onPointerLeave, onPointerDown, onPictureClick, syncFocus, onFocusOut, openMore, chooseItem,
     }
@@ -165,6 +269,14 @@ export const PlayerMini = {
           @click="openMore"><more-dots-icon /></button>
         <button type="button" class="pl-mini-button pl-mini-close" aria-label="Stop and close" @click="$emit('close')"><cross-icon /></button>
       </div>
+      <div v-if="card" :class="['mv-corner-grip', 'pl-mini-grip', 'is-' + gripCorner, { 'is-active': dragWidth != null }]"
+        role="separator" tabindex="0" aria-label="Resize the Miniplayer" aria-orientation="vertical"
+        :aria-valuemin="gripRange.min" :aria-valuemax="gripRange.max" :aria-valuenow="gripRange.now" :aria-valuetext="gripRange.now + '% wide'"
+        @pointerdown="onGripDown" @pointermove="onGripMove" @pointerup="finishGrip" @lostpointercapture="finishGrip"
+        @pointercancel="cancelGrip" @dblclick="resetSize" @keydown="onGripKeydown">
+        <span class="mv-resize-pill"><corner-grip-icon :corner="gripCorner" /></span>
+      </div>
+      <span v-if="sizeChip" class="pl-mini-size-chip" aria-hidden="true">{{ sizeChip }}</span>
       <div v-if="menuOpen" class="pl-mini-menu" role="menu" aria-label="Miniplayer options">
         <button v-for="item in menuItems" :key="item.key" type="button" class="pl-mini-menu-item"
           :role="item.key === 'captions' ? 'menuitemcheckbox' : 'menuitem'" :aria-checked="item.key === 'captions' ? String(item.on) : null"
@@ -192,14 +304,16 @@ export const PlayerMini = {
   `,
 }
 
-const usePhoneLayout = () => {
-  const query = window.matchMedia(PHONE_LAYOUT_QUERY)
-  const phone = ref(query.matches)
-  const sync = () => { phone.value = query.matches }
+const useMatchQuery = (queryText) => {
+  const query = window.matchMedia(queryText)
+  const matches = ref(query.matches)
+  const sync = () => { matches.value = query.matches }
   onMounted(() => query.addEventListener('change', sync))
   onUnmounted(() => query.removeEventListener('change', sync))
-  return phone
+  return matches
 }
+
+const usePhoneLayout = () => useMatchQuery(PHONE_LAYOUT_QUERY)
 
 export const StartOverSheet = {
   components: PLAYER_ICON_COMPONENTS,
