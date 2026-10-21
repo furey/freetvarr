@@ -248,3 +248,23 @@ test('the tap notes pictures only for successful image responses', () => {
   assert.equal(sent.length, 3)
   assert.equal(focus.stats().pending, 1)
 })
+
+test('the stylesheet hides every focus picture path until it is placed', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const css = await readFile(new URL('../src/web/styles.css', import.meta.url), 'utf8')
+  const rule = css.split('\n').find((line) => line.includes(':not(.is-focus-ready)'))
+  const prefixes = [...rule.matchAll(/\[src\^="([^"]+)"\]/g)].map((match) => match[1])
+  const samples = [
+    '/api/epg/image/1',
+    '/api/epg/show-image?title=Merlin',
+    '/api/epg/person-image?src=x',
+    '/api/recordings/abc/image',
+    '/api/library/shows/merlin/art-pool/1f2e',
+    '/api/library/recordings/abc/art/1f2e',
+    '/api/library/shows/merlin/artwork-candidates/9',
+  ]
+  for (const sample of samples) {
+    assert.ok(isFocusImagePath(new URL(sample, 'http://localhost').pathname), sample)
+    assert.ok(prefixes.some((prefix) => sample.startsWith(prefix)), sample)
+  }
+})

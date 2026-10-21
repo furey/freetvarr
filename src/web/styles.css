@@ -101,6 +101,7 @@ li {
 }
 
 :root {
+  --picture-fade: opacity 300ms ease;
   --spinner-size: 0.9em;
   --spinner-gap: 0.5em;
   --spinner-colour: currentColor;
@@ -1174,7 +1175,7 @@ a {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 300ms ease;
+  transition: var(--picture-fade);
 }
 
 .programme-image.is-loaded img {
@@ -1187,6 +1188,14 @@ a {
 
 .programme-image.no-fade img {
   transition: none;
+}
+
+img:is([src^="/api/epg/image/"], [src^="/api/epg/show-image"], [src^="/api/epg/person-image"], [src^="/api/recordings/"], [src^="/api/library/"]):not(.is-focus-ready) {
+  opacity: 0 !important;
+}
+
+:root img.is-focus-fading {
+  transition: var(--picture-fade);
 }
 
 .programme-image.is-failed {
