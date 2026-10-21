@@ -102,10 +102,10 @@ export const EpgView = {
       <page-header title="TV guide" :subtitle="dateSubtitle" :widgets="false">
         <template #actions>
           <a href="#/recordings/scheduled" class="guide-scheduled-chip" :aria-label="scheduledLabel + '. Open Scheduled'">
-            <span class="guide-scheduled-dot" aria-hidden="true"></span>{{ scheduledLabel }}
+            <span class="guide-scheduled-dot" aria-hidden="true"></span><span>{{ scheduledCount }}<span class="guide-scheduled-word"> scheduled</span></span>
           </a>
           <recording-chip />
-          <button type="button" class="ui-icon-button" aria-label="Channels" title="Channels" :disabled="!guide" @click="openChannelsModal"><sliders-icon /></button>
+          <channels-button :disabled="!guide" @open="openChannelsModal" />
           <button type="button" class="ui-icon-button" :aria-label="searchOpen ? 'Close search' : 'Search the next 7 days'"
             :title="searchOpen ? 'Close search' : 'Search the next 7 days'" :aria-expanded="String(searchOpen)" @click="toggleSearch">
             <close-glyph v-if="searchOpen" /><search-glyph v-else />
@@ -135,7 +135,6 @@ export const EpgView = {
           </div>
         </div>
         <div class="guide-toolbar">
-          <span class="guide-toolbar-spacer"></span>
           <toggle-switch compact :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>
           <ui-segmented compact class="guide-zoom" aria-label="Zoom" :model-value="zoom" @update:model-value="setZoom"
             :options="zoomLevels.map((level) => ({ value: level.key, label: level.key.toUpperCase(), ariaLabel: level.label + ' zoom' }))" />
@@ -1332,7 +1331,7 @@ export const EpgView = {
     return {
       day, dayChips, dateSubtitle, setDay, pickDay, LISTINGS_LOADING_TEXT,
       loadingIds, loadingNoteMaxPx,
-      guide, loading, error, errorCode, loadDay, state, stateMeta, scheduledLabel, scheduledHref: SCHEDULED_HREF,
+      guide, loading, error, errorCode, loadDay, state, stateMeta, scheduledCount, scheduledLabel, scheduledHref: SCHEDULED_HREF,
       scrollEl, legendEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs, nowPill,
       zoom, zoomIndex, zoomLevels: EPG_ZOOM_LEVELS, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, guideRowRem, changeZoom, setZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,

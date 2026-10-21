@@ -36,7 +36,7 @@ The page has these controls:
 - **All channels** and **Favourites** switch the list. The channels under **FAVOURITES** come first.
 - The **Filter channels or shows** field narrows the list by channel name or programme title. Type `film`, `movie`, `series`, or `one-off` to see only channels with that kind of programme on now or next; the list under the field also offers to match the word in names and titles instead. A movie has a `Movie` tag beside its title.
 - **Images** shows a picture of what is on. **Zoom** has three levels, **S**, **M**, and **L**. Each browser remembers both.
-- The **Channel settings** button opens the same settings as the TV guide: favourites, sort order, hidden channels, and listings. See [Favourites](/guide/tv-guide#favourites).
+- The **Channels** button (sliders) at the top right, next to search, opens the same settings as the TV guide: favourites, sort order, hidden channels, and listings. See [Favourites](/guide/tv-guide#favourites).
 - The star adds a channel to the favourites, or removes it.
 
 To reorder the favourites:

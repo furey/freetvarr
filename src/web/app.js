@@ -7,7 +7,7 @@ import { ConfirmDialog } from '/components/dialogs.js'
 import { ErrorDiagnosis } from '/components/error-diagnosis.js'
 import { noAutofill, ToggleSwitch, TimeZoneField } from '/components/forms.js'
 import { GuideCombobox } from '/components/guide-combobox.js'
-import { ClockLabel, HealthAlert, PageHeader, RecordingChip, SearchButton } from '/components/header-widgets.js'
+import { ChannelsButton, ClockLabel, HealthAlert, PageHeader, RecordingChip, SearchButton } from '/components/header-widgets.js'
 import {
   TvIcon,
   SeriesRecordIcon,
@@ -259,6 +259,7 @@ app.component('brand-mark', BrandMark)
 app.component('brand-wordmark', BrandWordmark)
 app.component('page-header', PageHeader)
 app.component('search-button', SearchButton)
+app.component('channels-button', ChannelsButton)
 app.component('health-alert', HealthAlert)
 app.component('recording-chip', RecordingChip)
 app.component('clock-label', ClockLabel)

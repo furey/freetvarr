@@ -1,6 +1,11 @@
 .live-page {
   --live-thumb-w: 112px;
   --live-row-min: 76px;
+  gap: 16px;
+}
+
+.live-page > .ui-page-header:has(> .ui-page-banner) {
+  margin-bottom: 0;
 }
 
 .live-toolbar {
@@ -495,31 +500,13 @@
 
   .live-filter {
     flex-basis: 100%;
-    order: 6;
+    order: -1;
   }
 }
 
 @media (max-width: 767px), (max-height: 500px) {
-  .live-filter {
-    flex: 1 1 calc(100% - 56px);
-    order: 1;
-  }
-
-  .live-settings {
-    order: 2;
-  }
-
   .live-scope {
-    order: 3;
     margin-right: 0;
-  }
-
-  .live-images-toggle {
-    order: 4;
-  }
-
-  .live-zoom {
-    order: 5;
   }
 
   .live-toolbar .live-zoom.is-compact .ui-segment {

@@ -32,6 +32,12 @@
   transform: scale(0.97);
 }
 
+@media (max-width: 389px) {
+  .guide-scheduled-word {
+    display: none;
+  }
+}
+
 .guide-scheduled-dot {
   flex: none;
   width: 8px;
@@ -84,6 +90,10 @@
   color: var(--color-text-3);
 }
 
+.guide-controls .ui-chip {
+  height: var(--control-compact-h);
+}
+
 .guide-days {
   display: flex;
   align-items: center;
@@ -106,10 +116,6 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-}
-
-.guide-toolbar-spacer {
-  flex: 1;
 }
 
 .guide-zoom.ui-segmented {
@@ -158,10 +164,6 @@
 
   .guide-controls .guide-toolbar {
     flex: none;
-  }
-
-  .guide-controls .guide-toolbar-spacer {
-    display: none;
   }
 
   @container (max-width: 920px) {

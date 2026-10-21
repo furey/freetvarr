@@ -19,15 +19,26 @@ import { lineupOf, rememberLineup } from '/shared/channel-twins.js'
 import { isRecordingChannel } from '/shared/recording-now.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
-import { now, fmtClockTz } from '/shared/time.js'
+import { now, tz, fmtClockTz } from '/shared/time.js'
 import { viewStoreOf } from '/shared/view-store.js'
+import { formatDate } from '/time-format.js'
 import { LIVE_CACHE } from '/view-cache.js'
 
 export const LiveView = {
   components: { ...SORT_PART_COMPONENTS, KindFilterMenu },
   template: `
     <div ref="pageEl" class="ui-page live-page">
-      <page-header title="Live TV" />
+      <page-header title="Live TV" :subtitle="dateSubtitle" :widgets="false">
+        <template #actions>
+          <recording-chip />
+          <clock-label />
+          <channels-button :disabled="!data" @open="openChannelsModal" />
+          <search-button />
+        </template>
+        <template #below>
+          <recording-chip variant="banner" />
+        </template>
+      </page-header>
       <div class="live-toolbar">
         <button type="button" class="ui-chip live-scope" :aria-pressed="String(pinnedOnly)" @click="pinnedOnly = !pinnedOnly">Favourites</button>
         <label class="live-filter" data-kind-filter-anchor>
@@ -38,8 +49,6 @@ export const LiveView = {
         <toggle-switch compact class="live-images-toggle" :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>
         <ui-segmented compact class="live-zoom" aria-label="Zoom" v-model="zoom"
           :options="zoomLevels.map((level) => ({ value: level, label: level.toUpperCase(), ariaLabel: zoomLabels[level] }))" />
-        <button type="button" class="ui-icon-button live-settings" aria-label="Channel settings" title="Channel settings"
-          :disabled="!data" @click="openChannelsModal"><sliders-icon /></button>
       </div>
       <p v-if="tvhConfigured === false" class="live-note">
         Connect TVHeadend in <a href="#/settings/system/tvheadend">Settings</a> to watch live TV.
@@ -149,6 +158,7 @@ export const LiveView = {
     const channelsModal = ref(false)
     const channelsModalMode = ref('channels')
     const narrow = useMediaQuery(PHONE_LAYOUT_QUERY)
+    const dateSubtitle = computed(() => formatDate(now.value.getTime(), tz.value, { long: !narrow.value }).replace(',', ''))
     const pageEl = ref(null)
     let pollTimer = null
     let boundaryTimer = null
@@ -283,7 +293,7 @@ export const LiveView = {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, toggleImages, imagesLeaving, groupsEl, channelsModal, groups, favouritesHint, emptyText,
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
       OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
-      zoom, pageEl, narrow, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,
+      zoom, pageEl, narrow, dateSubtitle, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,
       isRecordingChannel, onNowPercent, fmtClockTz, kindFilter, showsMovieChip, MOVIE_CHIP_TEXT,
     }
   },

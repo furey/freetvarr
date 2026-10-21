@@ -41,6 +41,25 @@ test('Live TV shows favourites with one chip, like the library Unwatched chip', 
   assert.doesNotMatch(live, />All channels</)
 })
 
+test('Live TV and the TV guide put the shared channels button just before search in the page header', async () => {
+  const live = await read('views/live-view.js')
+  const guide = await read('views/epg-view.js')
+  assert.match(live, /<channels-button :disabled="!data" @open="openChannelsModal" \/>\s*<search-button \/>\s*<\/template>/)
+  assert.match(guide, /<channels-button :disabled="!guide" @open="openChannelsModal" \/>\s*<button type="button" class="ui-icon-button" :aria-label="searchOpen/)
+  assert.doesNotMatch(live, /<sliders-icon \/>|live-settings/)
+  assert.doesNotMatch(guide, /<sliders-icon \/>/)
+  assert.match(await read('components/header-widgets.js'), /aria-label="Channels" title="Channels" :disabled="disabled" @click="\$emit\('open'\)"><sliders-icon \/>/)
+})
+
+test('Live TV and the TV guide headers share the date subtitle and the 16 px gap above the controls', async () => {
+  const live = await read('views/live-view.js')
+  assert.match(live, /<page-header title="Live TV" :subtitle="dateSubtitle" :widgets="false">/)
+  assert.match(await read('views/epg-view.js'), /<page-header title="TV guide" :subtitle="dateSubtitle" :widgets="false">/)
+  assert.match(await read('styles/live.css'), /\.live-page \{[^}]*gap: 16px;/)
+  assert.match(await read('styles/guide.css'), /\.guide-page \{\s*gap: 16px;/)
+  assert.match(await read('styles/guide.css'), /\.guide-controls \.ui-chip \{\s*height: var\(--control-compact-h\);/)
+})
+
 test('every button uses the shared ui-button styles', async () => {
   for (const { file, source } of await scriptsAndStyles()) {
     assert.doesNotMatch(source, /(^|[\s"'.([{])btn(-sm|-primary|-danger|-icon|-watch)?(?![\w-])/m, file)

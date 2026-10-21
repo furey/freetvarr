@@ -17,6 +17,14 @@ export const SearchButton = {
   setup: () => ({ openSearch }),
 }
 
+export const ChannelsButton = {
+  props: { disabled: { type: Boolean, default: false } },
+  emits: ['open'],
+  template: `
+    <button type="button" class="ui-icon-button" aria-label="Channels" title="Channels" :disabled="disabled" @click="$emit('open')"><sliders-icon /></button>
+  `,
+}
+
 export const ClockLabel = {
   template: `<span class="ui-clock ui-only-wide">{{ clock }}</span>`,
   setup: () => ({ clock: computed(() => fmtClockTz(now.value.getTime())) }),
