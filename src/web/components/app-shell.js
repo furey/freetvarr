@@ -20,7 +20,7 @@ const NAV_ICONS = {
 const FOR_YOU_DESTINATION = { key: 'for-you', label: 'For you', href: '#/for-you' }
 
 const railDestinationsOf = () => NAV_DESTINATIONS.flatMap((item) => (
-  item.key === 'recordings' ? [item, FOR_YOU_DESTINATION] : [item]
+  item.key === 'recordings' ? [FOR_YOU_DESTINATION, item] : [item]
 ))
 
 const railActiveOf = (view) => (view === 'for-you' ? 'for-you' : activeDestinationOf(view))
