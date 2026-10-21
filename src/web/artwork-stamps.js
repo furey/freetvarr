@@ -2,6 +2,7 @@ import { showKeyOf } from './show-key.js'
 
 export const ARTWORK_STAMPS_KEY = 'freetvarr.artworkStamps'
 export const SHOW_IMAGE_PATH = '/api/epg/show-image'
+export const SERIES_MATCH_VERSION = 'series-v2'
 
 export const createArtworkStamps = ({ storage = null } = {}) => {
   const stamps = new Map(Object.entries(readSaved(storage)))
@@ -31,7 +32,7 @@ export const createArtworkStamps = ({ storage = null } = {}) => {
     if (!isShowImageUrl(url)) return url
     const params = new URLSearchParams(String(url).split('?')[1] || '')
     const kind = params.get('shape') === 'poster' ? 'poster' : 'background'
-    return withChoiceStamp({ url, stamp: stampOf({ title: params.get('title') || '', kind }) })
+    return withChoiceStamp({ url, stamp: stampOf({ title: params.get('title') || '', kind }) || SERIES_MATCH_VERSION })
   }
 
   const subscribe = (listener) => {

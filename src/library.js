@@ -127,6 +127,9 @@ export const rulePatchFrom = (body = {}) => {
   return { patch }
 }
 
+export const ruleTitleOf = async (key, { loadSeries = getSeries } = {}) =>
+  seriesByKey((await loadSeries()).series).get(key)?.title ?? null
+
 export const isLibraryMember = (row) => row.purged_at == null
   && (['done', 'partial'].includes(row.status) || row.deleted_from_tvh_at == null)
 
@@ -290,7 +293,7 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = N
     key,
     title,
     kind,
-    classification: newestFirst.find((row) => row.classification)?.classification ?? null,
+    classification: newestFirst.find((row) => row.classification)?.classification ?? series?.nextAiring?.classification ?? null,
     year: kind === 'movie' ? newestFirst.find((row) => row.year)?.year ?? null : null,
     poster: `/api/epg/show-image?title=${encodeURIComponent(title)}&shape=poster${stampParamOf(stamps.poster)}`,
     image: chosenBackgroundOf({ title, stamp: stamps.background }) || newestFirst.map(recordingImageOf).find(Boolean) || null,

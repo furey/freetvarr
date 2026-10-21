@@ -106,6 +106,8 @@ const nextAiringOf = ({ next, channelNames }) => ({
   channelId: next.channelId,
   channelName: next.channelName || channelNames.get(String(next.channelId)) || null,
   season: next.season ?? null,
+  synopsis: next.synopsis || null,
+  classification: next.classification ?? null,
   expected: next.source === 'series',
 })
 

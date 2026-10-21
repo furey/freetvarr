@@ -119,10 +119,20 @@ test('joinSeries: picks the soonest airing across the pair and skips ended ones'
   const upcomingRecordings = [
     upcoming({ programId: 1, startDate: NOW - 2 * HOUR_MS, endDate: NOW - HOUR_MS }),
     upcoming({ programId: 2, startDate: NOW + 5 * HOUR_MS, endDate: NOW + 6 * HOUR_MS, source: 'series' }),
-    upcoming({ programId: 3, channelId: ABC_TV, seriesLinkId: `${ABC_TV}|hard quiz`, startDate: NOW + 3 * HOUR_MS, endDate: NOW + 4 * HOUR_MS }),
+    upcoming({
+      programId: 3,
+      channelId: ABC_TV,
+      seriesLinkId: `${ABC_TV}|hard quiz`,
+      startDate: NOW + 3 * HOUR_MS,
+      endDate: NOW + 4 * HOUR_MS,
+      synopsis: 'Contestants face the expert.',
+      classification: 'PG',
+    }),
   ]
   const [hardQuiz] = joinSeries({ seriesTags, upcomingRecordings, channels, nowMs: NOW }).series
   assert.equal(hardQuiz.nextAiring.programId, 3)
+  assert.equal(hardQuiz.nextAiring.synopsis, 'Contestants face the expert.')
+  assert.equal(hardQuiz.nextAiring.classification, 'PG')
   assert.equal(hardQuiz.nextAiring.channelName, 'ABC TV')
   assert.equal(hardQuiz.nextAiring.expected, false)
 })

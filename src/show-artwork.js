@@ -4,6 +4,7 @@ import { db, getSetting } from './db.js'
 import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
+import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 
 export const showTitleKey = (title) => String(title || '')
   .normalize('NFKD')
@@ -251,7 +252,6 @@ const PLEX_TTL_MS = 10 * 60 * 1000
 const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
-const SERIES_MATCH_VERSION = 'series-v2'
 const TVMAZE_LOOKUP_GAP_MS = 1000
 const TVMAZE_FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const PLEX_WAIT_MS = 1500

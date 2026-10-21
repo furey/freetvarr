@@ -85,6 +85,7 @@ test('newestSynopsisOf picks the newest episode that has a synopsis', () => {
   assert.equal(newestSynopsisOf(show), 'Second.')
   assert.equal(newestSynopsisOf({ seasons: [] }), '')
   assert.equal(newestSynopsisOf(null), '')
+  assert.equal(newestSynopsisOf({ seasons: [], nextAiring: { synopsis: ' Housemates  compete. ' } }), 'Housemates compete.')
 })
 
 test('initialsOf takes the first and last word, skipping punctuation', () => {

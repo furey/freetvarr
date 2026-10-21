@@ -95,6 +95,7 @@ const memoryCache = () => {
 
 const poolWith = (over = {}) => createArtPool({
   loadShowRows: async (key) => (key === 'the-block' ? [{ recording_id: 'r1', title: 'The Block', file_path: '/tv/The Block/s01e01.ts' }] : []),
+  loadRuleTitle: async (key) => (key === 'big-brother' ? 'Big Brother' : null),
   loadRecordingRow: async (id) => (id === 'r1' ? { recording_id: 'r1', file_path: '/tv/The Block/s01e01.ts', image_path: 'x' } : null),
   plexConnection: async () => ({ url: 'http://plex', token: 't' }),
   plexSections: async () => [{ id: '2', type: 'show' }],
@@ -118,6 +119,16 @@ test('showPool merges Plex alternates and TVmaze art for a library show', async 
   assert.deepEqual(pool.entries.map((entry) => entry.source), ['library', 'plex', 'tvmaze', 'tvmaze'])
   assert.ok(pool.entries.slice(1).every((entry) => entry.id === imageIdOf(entry.origin)))
   assert.equal(await poolWith().showPool('missing'), null)
+})
+
+test('showSources falls back to the series rule title for a show with no recordings', async () => {
+  const sources = await poolWith({
+    searchTvmaze: async () => [{ show: { id: 2, name: 'Big Brother', image: { original: 'https://tvmaze/bb.jpg' } } }],
+  }).showSources('big-brother')
+  assert.equal(sources.title, 'Big Brother')
+  assert.deepEqual(sources.rows, [])
+  assert.ok(sources.tvmaze.length > 0)
+  assert.equal(await poolWith({ loadRuleTitle: async () => { throw new Error('tvheadend down') } }).showSources('big-brother'), null)
 })
 
 test('showPool skips TVmaze when the artwork lookup setting is off and Plex when unset', async () => {

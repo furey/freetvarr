@@ -5,6 +5,7 @@ import { artworkClient, storedTmdbKey, TMDB_API } from './fallback-artwork.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { pickReviewSnippet } from './review-snippet.js'
+import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import {
   artworkKindOf,
   dominantFilmOf,
@@ -55,7 +56,7 @@ export const createProgrammeRatings = ({
     const ratingKind = artworkKindOf(kind)
     if (ratingKind && !apiKey) return null
     const filmYear = ratingKind ? year : null
-    const cacheKey = cacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: ratingKind, key, year: filmYear })
+    const cacheKey = lookupCacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: ratingKind, key, year: filmYear })
     return { apiKey, kind: ratingKind, year: filmYear, cacheKey, ratingsOn, reviewsOn }
   }
 
@@ -71,7 +72,7 @@ export const createProgrammeRatings = ({
     const key = showTitleKey(title)
     if (!key) return
     for (const mode of ['open', 'tmdb']) {
-      for (const kind of [null, artworkKindOf('movie')]) await lookups.forget(cacheKeyOf({ mode, kind, key }))
+      for (const kind of [null, artworkKindOf('movie')]) await lookups.forget(lookupCacheKeyOf({ mode, kind, key }))
     }
   }
 
@@ -407,6 +408,12 @@ export const cacheKeyOf = ({ mode, kind, key, year = null }) => {
   const base = kind ? `${mode}:${kind}:${key}` : `${mode}:${key}`
   return kind && year ? `${base}@${year}` : base
 }
+
+export const lookupCacheKeyOf = ({ kind, key, ...rest }) => cacheKeyOf({
+  ...rest,
+  kind,
+  key: kind ? key : `${SERIES_MATCH_VERSION}:${key}`,
+})
 
 export const storedTmdbReference = async ({ title, kind }) => {
   const key = showTitleKey(title)

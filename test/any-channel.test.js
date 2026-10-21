@@ -36,7 +36,7 @@ test('projectUpcomingRecordings: an any-channel series projects airings from eve
       { id: 'ch7mate', epgId: 2, name: '7mate' },
     ],
     programsByChannel: {
-      1: [{ program_id: 'a', series_link: 'ch7|home', title: 'Home', start: NOW + HOUR, end: NOW + 2 * HOUR, series_no: 1, episode_no: 1 }],
+      1: [{ program_id: 'a', series_link: 'ch7|home', title: 'Home', synopsis: 'Alf returns.', start: NOW + HOUR, end: NOW + 2 * HOUR, series_no: 1, episode_no: 1 }],
       2: [
         { program_id: 'b', series_link: 'ch7mate|home', title: 'Home', start: NOW + 3 * HOUR, end: NOW + 4 * HOUR, series_no: 1, episode_no: 2 },
         { program_id: 'c', series_link: 'ch7mate|home', title: 'Home', start: NOW + 5 * HOUR, end: NOW + 6 * HOUR, series_no: 1, episode_no: 1 },
@@ -46,6 +46,7 @@ test('projectUpcomingRecordings: an any-channel series projects airings from eve
   const seriesTags = [{ seriesLinkId: '|home', name: 'Home', channelId: '' }]
   const out = projectUpcomingRecordings({ seriesTags, futureRecordings: [], guide, nowMs: NOW })
   assert.deepEqual(out.map((r) => r.programId), ['a', 'b'])
+  assert.deepEqual(out.map((r) => r.synopsis), ['Alf returns.', null])
 })
 
 test('joinSeries: flags an autorec with no channel as any channel', () => {

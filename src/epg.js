@@ -248,6 +248,7 @@ export const projectUpcomingRecordings = ({
       season: r.season ?? null,
       hasImage: Boolean(guide?.programByEventId?.get(String(r.programId))?.image),
       kind: guide?.programByEventId?.get(String(r.programId))?.kind ?? null,
+      synopsis: guide?.programByEventId?.get(String(r.programId))?.synopsis || null,
       source: 'timer',
     }))
   const timerProgramIds = new Set([...timers.map((t) => String(t.programId)), ...skippedProgramIds.map(String)])
@@ -288,6 +289,7 @@ export const projectUpcomingRecordings = ({
           season: p.series_no ?? null,
           hasImage: Boolean(p.image),
           kind: p.kind ?? null,
+          synopsis: p.synopsis || null,
           source: 'series',
         })
       }

@@ -17,7 +17,7 @@ import {
   updateShowRule,
 } from './library.js'
 
-export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, playbackSourceResolver }) => {
+export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, playbackSourceResolver, forgetLookups = async () => {} }) => {
   app.get('/api/library/shows', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     res.json(await getLibraryShows())
@@ -55,7 +55,7 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
   })
 
   app.post('/api/library/shows/:key/refresh-artwork', ruleLimiter, csrf, async (req, res) => {
-    const result = await refreshShowArtwork({ key: req.params.key })
+    const result = await refreshShowArtwork({ key: req.params.key, forgetLookups })
     if (!result) return res.status(404).json({ error: 'show not found' })
     res.json({ ok: true, ...result })
   })

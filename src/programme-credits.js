@@ -4,7 +4,7 @@ import { createHostLimiter } from './outbound-http.js'
 import { storedTmdbKey } from './fallback-artwork.js'
 import { artworkKindOf } from './artwork-match.js'
 import {
-  cacheKeyOf,
+  lookupCacheKeyOf,
   createBackgroundLookups,
   createTitleMatcher,
   databaseCacheOf,
@@ -44,7 +44,7 @@ export const createProgrammeCredits = ({
     const creditsKind = artworkKindOf(kind)
     if (creditsKind && !apiKey) return null
     const filmYear = creditsKind ? year : null
-    const cacheKey = cacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: creditsKind, key, year: filmYear })
+    const cacheKey = lookupCacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: creditsKind, key, year: filmYear })
     return { apiKey, kind: creditsKind, year: filmYear, cacheKey }
   }
 
@@ -56,7 +56,15 @@ export const createProgrammeCredits = ({
     return status === 'ready' && found ? { status: 'ready', ...found } : NO_CREDITS
   }
 
-  return { creditsFor }
+  const forget = async (title) => {
+    const key = showTitleKey(title)
+    if (!key) return
+    for (const mode of ['open', 'tmdb']) {
+      for (const kind of [null, artworkKindOf('movie')]) await lookups.forget(lookupCacheKeyOf({ mode, kind, key }))
+    }
+  }
+
+  return { creditsFor, forget }
 }
 
 export const createCreditsLookup = ({ matcher = createTitleMatcher() } = {}) => {

@@ -91,7 +91,24 @@ test('refreshShowArtwork clears recording artwork and show cache', async () => {
   assert.deepEqual(removed, ['a', 'b'])
   assert.deepEqual(reset, ['a', 'b'])
   assert.deepEqual(forgotten, ['Show'])
-  assert.equal(await refreshShowArtwork({ key: 'x', loadRows: async () => [] }), null)
+  assert.equal(await refreshShowArtwork({ key: 'x', loadRows: async () => [], loadRuleTitle: async () => null }), null)
+})
+
+test('refreshShowArtwork works from the series rule title when nothing is recorded yet', async () => {
+  const forgotten = []
+  const lookups = []
+  const result = await refreshShowArtwork({
+    key: 'big-brother',
+    loadRows: async () => [],
+    loadRuleTitle: async () => 'Big Brother',
+    removeImage: async () => assert.fail('no recordings to clear'),
+    resetRows: async () => assert.fail('no recordings to reset'),
+    forgetShow: (title) => forgotten.push(title),
+    forgetLookups: async (title) => lookups.push(title),
+  })
+  assert.deepEqual(result, { cleared: 1 })
+  assert.deepEqual(forgotten, ['Big Brother'])
+  assert.deepEqual(lookups, ['Big Brother'])
 })
 
 test('plexDetailsUrl encodes the metadata key', () => {

@@ -1249,7 +1249,14 @@ app.get('/api/series', async (req, res) => {
   res.json(await getSeries())
 })
 
-mountLibraryRoutes({ app, csrf: doubleCsrfProtection, ruleLimiter: epgLimiter, watchedLimiter: playPingLimiter, playbackSourceResolver })
+mountLibraryRoutes({
+  app,
+  csrf: doubleCsrfProtection,
+  ruleLimiter: epgLimiter,
+  watchedLimiter: playPingLimiter,
+  playbackSourceResolver,
+  forgetLookups: (title) => Promise.all([programmeRatings.forget(title), programmeCredits.forget(title)]),
+})
 const artPool = createArtPool()
 mountArtPoolRoutes({ app, artPool })
 mountArtworkChoiceRoutes({ app, csrf: doubleCsrfProtection, readLimiter: ratingsLimiter, writeLimiter: epgLimiter, artPool })

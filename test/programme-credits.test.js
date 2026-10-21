@@ -245,7 +245,7 @@ test('a year keeps its own cache entry and series ignore it', async () => {
   const { credits, cache } = creditsWith({ routes: { ...HEAT_ROUTES, ...MASTERCHEF_ROUTES }, hints: HEAT_HINTS })
   await settled(credits, 'Heat', { kind: 'movie', year: 1995 })
   await settled(credits, 'MasterChef Australia', { year: 2009 })
-  assert.deepEqual([...cache.rows.keys()], ['tmdb:movie:heat@1995', 'tmdb:masterchef australia'])
+  assert.deepEqual([...cache.rows.keys()], ['tmdb:movie:heat@1995', 'tmdb:series-v2:masterchef australia'])
 })
 
 test('a film without a TMDB key is not looked up', async () => {
@@ -263,7 +263,15 @@ test('the credits switch off means no lookup at all', async () => {
 test('an unmatched show is cached as a miss', async () => {
   const { credits, cache } = creditsWith({ routes: { '/search/shows': [] }, apiKey: null })
   assert.equal((await settled(credits, 'Nothing Like It')).status, 'none')
-  assert.deepEqual(cache.rows.get('open:nothing like it'), { found: null, expiresAt: 1010 })
+  assert.deepEqual(cache.rows.get('open:series-v2:nothing like it'), { found: null, expiresAt: 1010 })
+})
+
+test('forget drops a cached series miss so the next lookup runs again', async () => {
+  const { credits, cache } = creditsWith({ routes: { '/search/shows': [] }, apiKey: null })
+  await settled(credits, 'Nothing Like It')
+  cache.rows.set('open:nothing like it', { found: null, expiresAt: Infinity })
+  await credits.forget('Nothing Like It')
+  assert.deepEqual([...cache.rows.keys()], ['open:nothing like it'])
 })
 
 test('a cached hit answers without a lookup until it expires', async () => {

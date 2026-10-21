@@ -1,22 +1,23 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ARTWORK_STAMPS_KEY, createArtworkStamps, isShowImageUrl, showImageUrlOf, withChoiceStamp } from '../src/web/artwork-stamps.js'
+import { ARTWORK_STAMPS_KEY, SERIES_MATCH_VERSION, createArtworkStamps, isShowImageUrl, showImageUrlOf, withChoiceStamp } from '../src/web/artwork-stamps.js'
 
 const memoryStorage = (initial = {}) => {
   const values = new Map(Object.entries(initial))
   return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), values }
 }
 
-test('stampUrl adds, replaces, and removes the choice stamp on show-image URLs only', () => {
+test('stampUrl adds, replaces, and falls back to the match version on show-image URLs only', () => {
   const stamps = createArtworkStamps({ storage: memoryStorage() })
   const url = showImageUrlOf({ title: 'The Block', width: 384 })
-  assert.equal(stamps.stampUrl(url), url)
+  const automatic = `${url}&c=${SERIES_MATCH_VERSION}`
+  assert.equal(stamps.stampUrl(url), automatic)
   stamps.setStamp({ key: 'the-block', kind: 'background', stamp: 'k1' })
   assert.equal(stamps.stampUrl(url), '/api/epg/show-image?title=The%20Block&w=384&c=k1')
   assert.equal(stamps.stampUrl(`${url}&c=old`), '/api/epg/show-image?title=The%20Block&w=384&c=k1')
-  assert.equal(stamps.stampUrl(showImageUrlOf({ title: 'The Block', shape: 'poster' })), '/api/epg/show-image?title=The%20Block&shape=poster')
+  assert.equal(stamps.stampUrl(showImageUrlOf({ title: 'The Block', shape: 'poster' })), '/api/epg/show-image?title=The%20Block&shape=poster&c=series-v2')
   stamps.setStamp({ key: 'the-block', kind: 'background', stamp: null })
-  assert.equal(stamps.stampUrl(`${url}&c=old`), url)
+  assert.equal(stamps.stampUrl(`${url}&c=old`), automatic)
   assert.equal(stamps.stampUrl('/api/recordings/a/image?w=384'), '/api/recordings/a/image?w=384')
   assert.equal(stamps.stampUrl(null), null)
 })

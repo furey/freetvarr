@@ -34,6 +34,7 @@ export const showMenuOf = ({ show, activeIds = new Set() }) => {
   const next = show.resumeNext ? episodes.find((e) => e.recordingId === show.resumeNext.recordingId) : null
   const deletable = deletableEpisodesOf({ episodes, activeIds })
   const watchedCount = deletable.filter((episode) => episode.watched).length
+  const hasArtwork = episodes.length > 0 || Boolean(show.rule)
   return [
     [
       next && { key: 'play-next', label: 'Play next unwatched', icon: 'play', detail: next.episode != null ? `E${next.episode}` : '' },
@@ -47,8 +48,8 @@ export const showMenuOf = ({ show, activeIds = new Set() }) => {
         : { key: 'pause-series', label: 'Pause recording', icon: 'pause' }),
       { key: 'show-info', label: 'Show info', icon: 'info' },
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
-      episodes.length && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
-      episodes.length && { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
+      hasArtwork && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
+      hasArtwork && { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
     ],
     [
       watchedCount && { key: 'delete-watched', label: 'Delete watched episodes', icon: 'trash', danger: true, detail: String(watchedCount) },

@@ -2,7 +2,7 @@ import path from 'path'
 
 import { db } from './db.js'
 import { removeArtwork } from './artwork.js'
-import { isLibraryMember, setRecordingWatched } from './library.js'
+import { isLibraryMember, ruleTitleOf, setRecordingWatched } from './library.js'
 import { forgetShowArtwork } from './epg.js'
 import { getPlexConnection, getPlexMachineIdentifier, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
 import { showKeyOf } from './web/show-key.js'
@@ -29,13 +29,18 @@ export const refreshShowArtwork = async ({
   removeImage = removeArtwork,
   resetRows = resetRecordingImages,
   forgetShow = forgetShowArtwork,
+  forgetLookups = async () => {},
+  loadRuleTitle = ruleTitleOf,
 }) => {
   const rows = await loadRows(key)
-  if (!rows.length) return null
+  const titles = rows.length
+    ? [...new Set(rows.map((row) => row.title).filter(Boolean))]
+    : [await Promise.resolve().then(() => loadRuleTitle(key)).catch(() => null)].filter(Boolean)
+  if (!titles.length) return null
   await Promise.all(rows.map((row) => removeImage({ kind: 'recording', id: row.recording_id }).catch(() => {})))
-  await resetRows(rows.map((row) => row.recording_id))
-  const titles = [...new Set(rows.map((row) => row.title).filter(Boolean))]
+  if (rows.length) await resetRows(rows.map((row) => row.recording_id))
   titles.forEach(forgetShow)
+  await Promise.all(titles.map((title) => Promise.resolve().then(() => forgetLookups(title)).catch(() => {})))
   return { cleared: rows.length + titles.length }
 }
 

@@ -71,6 +71,12 @@ test('showMenuOf: hides what does not apply and leaves recording episodes out of
   assert.ok(paused[1].some((item) => item.key === 'resume-series'))
 })
 
+test('showMenuOf: a series rule with nothing recorded yet offers the picture and rule actions only', () => {
+  const show = showWith([], { seasons: [], resumeNext: null })
+  assert.deepEqual(keysOf(showMenuOf({ show })), [['options', 'pause-series', 'show-info', 'change-picture', 'refresh-artwork']])
+  assert.deepEqual(keysOf(showMenuOf({ show: { ...show, rule: null } })), [['show-info']])
+})
+
 test('episodeMenuOf: an in-progress episode offers resume, start over and earlier episodes', () => {
   const current = episode({ recordingId: 'b', episode: 44, positionS: 1390 })
   const episodes = [episode({ recordingId: 'a', episode: 43 }), current]

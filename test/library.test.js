@@ -125,6 +125,11 @@ test('showSummariesOf: groups by show key, counts new and unwatched, and keeps r
   assert.equal(designs.latest, null)
   assert.equal(designs.rule.paused, true)
   assert.equal(designs.latestAt, NOW + DAY_MS)
+  const upcoming = showSummariesOf({
+    rows: [],
+    series: [blockSeries({ nextAiring: { ...blockSeries().nextAiring, classification: 'M' } })],
+  })
+  assert.equal(upcoming[0].classification, 'M')
   assert.equal(shows.find((s) => s.key === 'melbourne-cup').kind, 'oneoff')
 })
 

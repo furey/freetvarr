@@ -45,7 +45,7 @@ export const newestSynopsisOf = (show) => {
   const newest = episodes
     .filter((episode) => cleanText(episode.synopsis))
     .sort((a, b) => (b.airedAt ?? -Infinity) - (a.airedAt ?? -Infinity))[0]
-  return newest ? cleanText(newest.synopsis) : ''
+  return newest ? cleanText(newest.synopsis) : cleanText(show?.nextAiring?.synopsis)
 }
 
 export const initialsOf = (name) => {

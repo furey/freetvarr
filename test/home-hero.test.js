@@ -88,7 +88,7 @@ test('continue watching slide: resume with watched progress', () => {
   assert.deepEqual(slide.progress, { percent: 53, live: false, label: 'Watched' })
   assert.equal(slide.primary.label, 'Resume')
   assert.equal(slide.secondary.href, '#/recordings/show/the-block')
-  assert.equal(slide.art.image, '/api/epg/show-image?title=The%20Block&w=768')
+  assert.equal(slide.art.image, '/api/epg/show-image?title=The%20Block&w=768&c=series-v2')
 })
 
 test('new episode slide: only for a series you have watched', () => {
@@ -220,7 +220,7 @@ test('nextUpcomingOf: the soonest future recording that is not already recording
 })
 
 const keys = (slides) => slides.map((s) => s.key)
-const showArt = (title) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=768`
+const showArt = (title) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=768&c=series-v2`
 
 test('heroCandidatesOf: every ranked slide, uncapped, with a show key on recording slides', () => {
   const candidates = heroCandidatesOf(fullFeed())

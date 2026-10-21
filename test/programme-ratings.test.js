@@ -226,7 +226,7 @@ test('a reality series gets no score and the miss is cached', async () => {
   const reality = { ...UTOPIA_AU, name: 'MasterChef Australia', type: 'Reality', externals: {} }
   const { ratings, cache } = ratingsWith({ routes: { '/search/shows': [{ show: reality }] } })
   assert.equal((await settled(ratings, 'MasterChef Australia')).status, 'none')
-  assert.deepEqual(cache.rows.get('tmdb:masterchef australia'), { found: null, expiresAt: 1010, missReason: 'not-story:Reality' })
+  assert.deepEqual(cache.rows.get('tmdb:series-v2:masterchef australia'), { found: null, expiresAt: 1010, missReason: 'not-story:Reality' })
 })
 
 test('the TMDB type gates a series when TVmaze gives none', async () => {

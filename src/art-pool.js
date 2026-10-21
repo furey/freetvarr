@@ -7,11 +7,12 @@ import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from 
 import { db } from './db.js'
 import { findArtSourceThumbnail } from './epg.js'
 import { PROGRAMME_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, thumbnailWidthFrom } from './image-thumbnails.js'
-import { isLibraryMember } from './library.js'
+import { isLibraryMember, ruleTitleOf } from './library.js'
 import { matchPlexItem } from './library-actions.js'
 import { getPlexConnection, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
 import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLookupEnabled } from './show-artwork.js'
 import { currentTimeZone } from './time-zone.js'
+import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import { showKeyOf } from './web/show-key.js'
 import { countryForTimeZone } from './zone-countries.js'
 
@@ -77,6 +78,7 @@ export const serveRecordingImage = ({
 
 export const createArtPool = ({
   loadShowRows = libraryShowRows,
+  loadRuleTitle = ruleTitleOf,
   loadRecordingRow = recordingRow,
   plexConnection = () => getPlexConnection(),
   plexSections = plexSectionsToSearch,
@@ -148,8 +150,8 @@ export const createArtPool = ({
 
   const showSources = async (key) => {
     const rows = await loadShowRows(key)
-    if (!rows.length) return null
-    const title = newestTitleOf(rows)
+    const title = rows.length ? newestTitleOf(rows) : await Promise.resolve().then(() => loadRuleTitle(key)).catch(() => null)
+    if (!title) return null
     const filePaths = rows.map((row) => row.file_path).filter(Boolean)
     const [plex, tvmaze] = await Promise.all([
       plexShowPart(key, filePaths).catch(() => ({ found: false, entries: [] })),
@@ -460,7 +462,7 @@ let recordingThumbnailStore = null
 const HERO_WIDTH = 768
 const PLEX_ART_WIDTH = 1280
 const PLEX_ART_HEIGHT = 720
-const TVMAZE_CACHE_PREFIX = 'art-pool:tvmaze-series-v2:'
+const TVMAZE_CACHE_PREFIX = `art-pool:tvmaze-${SERIES_MATCH_VERSION}:`
 const MAX_PER_SOURCE = 12
 const MAX_POSTERS = 3
 const MAX_MEMO_ENTRIES = 500
