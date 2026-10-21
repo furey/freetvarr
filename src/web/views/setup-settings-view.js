@@ -20,6 +20,7 @@ export const SetupSettingsView = {
               <span class="ui-group-row-meta">{{ row.meta }}</span>
             </span>
             <span v-if="row.value" :class="['ui-group-row-value', { 'setup-mono': row.mono }]">{{ row.value }}</span>
+            <disclosure-chevron :open="open === row.key" />
           </button>
           <div v-if="open === row.key" :id="'setup-drawer-' + row.key" class="setup-drawer" @keydown.esc="open = ''">
             <template v-if="row.key === 'tvheadend'">

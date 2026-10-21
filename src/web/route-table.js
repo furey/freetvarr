@@ -78,6 +78,8 @@ const SETTINGS_ALIASES = {
   activity: ['system', 'activity'],
   log: ['system', 'log'],
   setup: ['system', 'setup'],
+  'danger-zone': ['system', 'reset'],
+  reset: ['system', 'reset'],
 }
 
 const canonicalSettingsPath = (rest) => {

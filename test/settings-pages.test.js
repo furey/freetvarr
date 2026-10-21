@@ -2,11 +2,20 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { SETTINGS_GROUPS, settingsPageOf } from '../src/web/settings-pages.js'
 
-test('SETTINGS_GROUPS: preferences, system, and about in order, with hrefs', () => {
-  assert.deepEqual(SETTINGS_GROUPS.map((group) => group.key), ['preferences', 'system', 'about'])
-  const health = SETTINGS_GROUPS[1].pages.find((page) => page.id === 'health')
+test('SETTINGS_GROUPS: about, preferences, and system in order, with hrefs', () => {
+  assert.deepEqual(SETTINGS_GROUPS.map((group) => group.key), ['about', 'preferences', 'system'])
+  const health = SETTINGS_GROUPS[2].pages.find((page) => page.id === 'health')
   assert.equal(health.href, '#/settings/system/health')
-  assert.equal(SETTINGS_GROUPS[0].pages[0].href, '#/settings/storage')
+  assert.equal(SETTINGS_GROUPS[0].pages[0].href, '#/settings/about')
+  assert.equal(SETTINGS_GROUPS[1].pages[0].href, '#/settings/storage')
+})
+
+test('SETTINGS_GROUPS: Danger zone is the last System page', () => {
+  const system = SETTINGS_GROUPS.find((group) => group.key === 'system')
+  const last = system.pages.at(-1)
+  assert.equal(last.label, 'Danger zone')
+  assert.equal(last.href, '#/settings/system/reset')
+  assert.equal(SETTINGS_GROUPS[0].pages.length, 1)
 })
 
 test('settingsPageOf: preference sections and system pages resolve', () => {
@@ -18,12 +27,14 @@ test('settingsPageOf: preference sections and system pages resolve', () => {
 test('settingsPageOf: old section names still open their page', () => {
   assert.equal(settingsPageOf({ params: ['help'] }).id, 'about')
   assert.equal(settingsPageOf({ params: ['danger-zone'] }).section, 'danger-zone')
+  assert.equal(settingsPageOf({ params: ['reset'] }).group, 'system')
+  assert.equal(settingsPageOf({ params: ['system', 'reset'] }).section, 'danger-zone')
   assert.equal(settingsPageOf({ params: ['pictures'] }).label, 'Film and TV info')
 })
 
-test('settingsPageOf: no page on a phone shows the index, wide screens open the first page', () => {
+test('settingsPageOf: no page on a phone shows the index, wide screens open About', () => {
   assert.equal(settingsPageOf({ params: [], narrow: true }), null)
-  assert.equal(settingsPageOf({ params: [] }).id, 'storage')
+  assert.equal(settingsPageOf({ params: [] }).id, 'about')
   assert.equal(settingsPageOf({ params: ['nope'], narrow: true }), null)
 })
 
@@ -35,7 +46,7 @@ test('settingsPageOf: the Player page sits in Preferences with its own view', ()
 })
 
 test('settingsPageOf: the setup page and its drawer links resolve', () => {
-  assert.equal(SETTINGS_GROUPS[1].pages[0].href, '#/settings/system/setup')
+  assert.equal(SETTINGS_GROUPS[2].pages[0].href, '#/settings/system/setup')
   assert.equal(settingsPageOf({ params: ['system', 'setup'] }).id, 'setup')
   assert.equal(settingsPageOf({ params: ['system', 'setup', 'channels'] }).id, 'setup')
 })

@@ -342,7 +342,7 @@ export const SettingsView = {
                 <p v-if="plexTokenStatus" :class="['status-readout', 'field-status', plexTokenStatusKind]" role="status">{{ plexTokenStatus }}</p>
                 <p class="settings-hint">Auto-detect token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file.</p>
                 <details class="settings-disclosure" :open="plexPrefsOpen">
-                  <summary>Token not found?</summary>
+                  <summary class="ui-disclosure-summary">Token not found?</summary>
                   <div class="settings-disclosure-body">
                     <p class="settings-hint">
                       If you installed Plex yourself, share the folder that holds its <code>Preferences.xml</code> with Freetvarr in <code>docker-compose.yml</code>, then enter the path Freetvarr sees below. Or paste the token from Plex; <a href="https://furey.github.io/freetvarr/guide/plex#the-token" target="_blank" rel="noopener noreferrer">the Plex guide</a> says where to find it.

@@ -2,6 +2,11 @@ const hrefOf = ({ group, id }) => (group === 'system' ? `#/settings/system/${id}
 
 export const SETTINGS_GROUPS = [
   {
+    key: 'about',
+    label: 'About',
+    pages: [{ id: 'about', label: 'About Freetvarr', view: 'settings', section: 'help' }],
+  },
+  {
     key: 'preferences',
     label: 'Preferences',
     pages: [
@@ -26,13 +31,6 @@ export const SETTINGS_GROUPS = [
       { id: 'folders', label: 'Folders', view: 'system' },
       { id: 'log', label: 'Recording log', view: 'system' },
       { id: 'tvheadend', label: 'TVHeadend', view: 'settings', section: 'tvheadend' },
-    ],
-  },
-  {
-    key: 'about',
-    label: 'About',
-    pages: [
-      { id: 'about', label: 'About Freetvarr', view: 'settings', section: 'help' },
       { id: 'reset', label: 'Danger zone', view: 'settings', section: 'danger-zone' },
     ],
   },

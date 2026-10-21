@@ -91,7 +91,7 @@ export const RecordingOptionsSheet = {
         </div>
 
         <details class="options-advanced">
-          <summary>Advanced</summary>
+          <summary class="ui-disclosure-summary">Advanced</summary>
           <div class="options-advanced-body">
             <template v-if="rule.folder && !editingFolder">
               <div>

@@ -66,6 +66,7 @@ const ScheduledWatching = {
             <span class="ui-meta scheduled-meta">{{ row.meta }}</span>
           </span>
           <span v-if="row.unseen" class="ui-count-badge" :aria-label="row.unseen + ' new airings'">{{ row.unseen }}</span>
+          <disclosure-chevron :open="openKey === row.key" />
         </button>
         <div v-if="openKey === row.key" class="scheduled-watch-drawer">
           <p class="scheduled-watch-note">Freetvarr lists {{ row.title }} here whenever it is in the TV guide.</p>

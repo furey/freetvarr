@@ -85,9 +85,9 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 
 The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's **Settings** (or in its [setup](/guide/getting-started#_2-run-setup)) and stored in Freetvarr's database. Settings groups its pages as follows:
 
-- **Preferences**: Recording, Library and Plex, Pictures, Ad removal, Watch on TV, Player, For you, and Schedule.
-- **System**: Setup, Health, Activity, Series rules, Folders, Recording log, and TVHeadend.
-- **About**: About Freetvarr (versions and licences) and Danger zone.
+- **About**: About Freetvarr (versions and licences). Settings opens on it.
+- **Preferences**: Recording, Library and Plex, Film and TV info, Ad removal, Watch on TV, Player, For you, and Schedule.
+- **System**: Setup, Health, Activity, Series rules, Folders, Recording log, TVHeadend, and Danger zone.
 
 [Settings](/guide/settings) describes each page. Press **Save settings** to keep your changes. An optional TMDB API key for film posters, film ratings, reviews, and film cast goes in Settings → Film and TV info ([TMDB key](/guide/tv-guide#tmdb-key)); Freetvarr stores it in its database and never sends it to the browser. **Test path** checks the media root and Freetvarr's recordings folder, and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
 

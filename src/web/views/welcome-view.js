@@ -236,7 +236,7 @@ export const WelcomeView = {
               <p v-for="note in storageNotes" :key="note" class="setup-hint">{{ note }}</p>
               <div class="setup-link-row">
                 <button v-if="storageChecked" type="button" class="setup-quiet-link" @click="checkStorage">Check again</button>
-                <button type="button" class="setup-quiet-link" :aria-expanded="String(storageAdvancedOpen)" @click="storageAdvancedOpen = !storageAdvancedOpen">Change folders</button>
+                <button type="button" class="setup-quiet-link ui-disclosure-trigger" :aria-expanded="String(storageAdvancedOpen)" @click="storageAdvancedOpen = !storageAdvancedOpen">Change folders</button>
               </div>
             </div>
             <div v-if="storageAdvancedOpen" class="setup-block">
@@ -300,7 +300,7 @@ export const WelcomeView = {
               <p v-else class="setup-hint">Freetvarr did not find Plex. Recordings still go into your TV library folder for any media player. To add Plex, see <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a>.</p>
               <plex-library-setup v-if="!plexChecking" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
                 @created="usePlexLibraries" />
-              <button type="button" class="setup-quiet-link" :aria-expanded="String(plexAdvancedOpen)" @click="plexAdvancedOpen = !plexAdvancedOpen">Connect Plex by hand</button>
+              <button type="button" class="setup-quiet-link ui-disclosure-trigger" :aria-expanded="String(plexAdvancedOpen)" @click="plexAdvancedOpen = !plexAdvancedOpen">Connect Plex by hand</button>
             </div>
             <div v-if="plexAdvancedOpen" class="setup-block">
               <div class="setup-fields">

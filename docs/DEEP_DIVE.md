@@ -642,7 +642,7 @@ The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand aga
 - **Series rules**: the list joins the series recordings in TVHeadend to their folders; per-series **Sync** on each row; pressing a row opens it, and there **Assign folder**, the folder form, **Unassign folder**, **Pause**, **Resume**, and **Cancel series** each take effect; **Add title** on Folders suggests a folder from the effective `media_root`.
 - **Activity**: run a sync, watch the row appear and finish; page through the history `50` rows at a time; clear history; filter by activity type.
 - **Recording log**: pressing a row opens its details and buttons; a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; **Clear from list** hides those rows and leaves the files; **Undo** restores them for `10 s` after.
-- **Reset**: **Reset Freetvarr** (Settings → About → Danger zone, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.
+- **Reset**: **Reset Freetvarr** (Settings → System → Danger zone, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.
 
 ## Screenshots
 

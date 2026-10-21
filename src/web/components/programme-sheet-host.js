@@ -113,7 +113,7 @@ export const ProgrammeSheetHost = {
               </div>
             </div>
             <details v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="programme-sheet-advanced">
-              <summary>Advanced</summary>
+              <summary class="ui-disclosure-summary">Advanced</summary>
               <div class="ui-group">
                 <div class="ui-group-row">
                   <span class="ui-group-row-main">
