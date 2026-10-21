@@ -131,7 +131,7 @@
 .settings-content[data-settings-section="storage"] #section-storage,
 .settings-content[data-settings-section="plex"] #section-plex,
 .settings-content[data-settings-section="schedule"] #section-schedule,
-.settings-content[data-settings-section="pictures"] #section-pictures,
+.settings-content[data-settings-section="film-tv-info"] #section-film-tv-info,
 .settings-content[data-settings-section="ad-removal"] #section-ad-removal,
 .settings-content[data-settings-section="tv-apps"] #section-tv-apps,
 .settings-content[data-settings-section="help"] #section-help,
@@ -1220,11 +1220,6 @@ a.settings-row-link:hover {
     flex-direction: column;
     align-items: stretch;
   }
-}
-
-.settings-nav-group-dot {
-  margin-left: 8px;
-  vertical-align: 1px;
 }
 
 .settings-nav-reason {

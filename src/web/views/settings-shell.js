@@ -1,5 +1,5 @@
 import { computed } from '/vendor/vue.esm-browser.prod.js'
-import { attentionPhraseOf, healthBadgeOf, healthReasonOf, healthRowNameOf } from '/health-level.js'
+import { healthBadgeOf, healthReasonOf, healthRowNameOf } from '/health-level.js'
 import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
 import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
@@ -46,8 +46,7 @@ export const SettingsShell = {
       <nav v-if="showNav" v-page-reveal class="settings-nav" aria-label="Settings sections">
         <h1 class="ui-page-title settings-nav-title">Settings</h1>
         <template v-for="group in groups" :key="group.key">
-          <h2 class="settings-nav-group">{{ group.label }}<template v-if="group.key === 'system' && healthBadge">
-            <span :class="['ui-dot', 'settings-nav-group-dot', 'is-' + healthBadge]" aria-hidden="true"></span><span class="ui-visually-hidden">, {{ attentionPhrase }}</span></template></h2>
+          <h2 class="settings-nav-group">{{ group.label }}</h2>
           <div class="settings-nav-list">
             <a v-for="item in group.pages" :key="item.id" :href="item.href" class="settings-nav-link"
               :aria-current="page && item.id === page.id ? 'page' : null" :aria-label="item.id === 'health' && healthBadge ? healthRowName : null">
@@ -89,7 +88,6 @@ export const SettingsShell = {
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))
     const intro = computed(() => PAGE_INTROS[page.value?.id] || '')
     const healthBadge = computed(() => healthBadgeOf(health.value))
-    const attentionPhrase = computed(() => attentionPhraseOf(healthBadge.value))
     const healthReason = computed(() => healthReasonOf(health.value.sentence))
     const healthRowName = computed(() => healthRowNameOf({ label: 'Health', badge: healthBadge.value, sentence: health.value.sentence }))
     const canReplayIntro = !prefersReducedMotion()
@@ -107,7 +105,6 @@ export const SettingsShell = {
       ownHeader,
       intro,
       healthBadge,
-      attentionPhrase,
       healthReason,
       healthRowName,
       canReplayIntro,

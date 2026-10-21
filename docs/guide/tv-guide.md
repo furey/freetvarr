@@ -110,7 +110,7 @@ In Australia, the channel scan in setup starts you with five favourites: the HD 
 The **Channels** button (sliders) at the top right, next to search, opens the channel settings. Live TV has the same button in the same place. On a phone, the settings come first and the list follows. The settings are:
 
 - **Favourites, shown first in this order**: remove a favourite, or press **Edit order** to reorder them.
-- **Sort other channels by**: TVHeadend order, channel number, or name.
+- **Sort other channels by**: channel number or name.
 - **Hide SD simulcasts**: hides an SD channel when its HD twin is in the lineup. SD-only channels stay.
 - **Hide SD channels**: shows only HD channels. SD-only channels (for example 7flix) are hidden too. It applies to the grid, search, Live TV, and the channel list. Favourites are never hidden. While it is on, **Hide SD simulcasts** is on and locked, because it hides the same channels.
 - **All channels**: turn a channel off to hide it. Favourites are always shown.

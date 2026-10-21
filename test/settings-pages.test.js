@@ -1,6 +1,9 @@
 import { test } from 'node:test'
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { SETTINGS_GROUPS, settingsPageOf } from '../src/web/settings-pages.js'
+
+const readSource = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
 test('SETTINGS_GROUPS: about, preferences, and system in order, with hrefs', () => {
   assert.deepEqual(SETTINGS_GROUPS.map((group) => group.key), ['about', 'preferences', 'system'])
@@ -49,4 +52,14 @@ test('settingsPageOf: the setup page and its drawer links resolve', () => {
   assert.equal(SETTINGS_GROUPS[2].pages[0].href, '#/settings/system/setup')
   assert.equal(settingsPageOf({ params: ['system', 'setup'] }).id, 'setup')
   assert.equal(settingsPageOf({ params: ['system', 'setup', 'channels'] }).id, 'setup')
+})
+
+test('SETTINGS_GROUPS: every settings-view page has its section and a rule that shows it', () => {
+  const view = ['../src/web/views/settings-view.js', '../src/web/components/tv-apps-panel.js'].map(readSource).join('\n')
+  const css = readSource('../src/web/styles/settings.css')
+  const sections = SETTINGS_GROUPS.flatMap((group) => group.pages).filter((page) => page.view === 'settings').map((page) => page.section)
+  for (const section of sections) {
+    assert.match(view, new RegExp(`id="section-${section}"`), section)
+    assert.ok(css.includes(`.settings-content[data-settings-section="${section}"] #section-${section}`), section)
+  }
 })

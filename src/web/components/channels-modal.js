@@ -10,8 +10,7 @@ import { useSortable } from '/shared/pin-drag.js'
 import { menuMovesFor, moveItem, movedText } from '/sortable-math.js'
 
 const CHANNEL_SORT_OPTIONS = [
-  { key: 'default', label: 'TVHeadend' },
-  { key: 'number', label: 'Number' },
+  { key: 'default', label: 'Channel number' },
   { key: 'name', label: 'Name' },
 ]
 
@@ -181,7 +180,7 @@ export const ChannelsModal = {
   setup(props, { emit }) {
     const pinnedDraft = ref(props.channels.filter((c) => c.pinned).map((c) => String(c.id)))
     const hiddenDraft = ref(new Set((props.hiddenIds || []).map(String)))
-    const sortDraft = ref(props.sort || 'default')
+    const sortDraft = ref(props.sort === 'name' ? 'name' : 'default')
     const hideSdDraft = ref(Boolean(props.hideSdSimulcasts))
     const hideSdChannelsDraft = ref(Boolean(props.hideSdChannels))
     const listedChannels = computed(() => (hideSdChannelsDraft.value

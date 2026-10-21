@@ -107,6 +107,7 @@
   min-height: var(--live-row-min);
   padding: 10px 12px 10px 6px;
   border-top: 1px solid var(--color-hairline-soft);
+  transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
 .live-row:first-child {
@@ -161,6 +162,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .live-row,
   .live-row > * {
     transition: none;
   }
@@ -285,7 +287,7 @@
   overflow: hidden;
   border-radius: 8px;
   background: var(--color-surface-2);
-  transition: transform var(--motion-fast) var(--ease-standard);
+  transition: transform var(--motion-fast) var(--ease-standard), filter var(--motion-fast) var(--ease-standard);
 }
 
 .live-images-off .live-thumb {
@@ -306,6 +308,24 @@
 
 .live-watch:active .live-thumb {
   transform: scale(0.97);
+}
+
+.live-row:has(> .live-watch:focus-visible) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.live-row:has(> .live-watch:focus-visible) .live-thumb {
+  filter: brightness(1.08);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .live-row:not(.is-sort-lifted):has(> .live-watch:hover) {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .live-row:has(> .live-watch:hover) .live-thumb {
+    filter: brightness(1.08);
+  }
 }
 
 .live-row-text {

@@ -145,3 +145,18 @@ test('a restored focus after a tap or click never keeps a card ⋯ showing', asy
   const home = await read('styles/home.css')
   assert.match(home, /\.for-you-card:has\(:focus-visible\) \.for-you-more,\s*\.menu-card:has\(:focus-visible\) \.menu-card-more \{\s*opacity: 1;/)
 })
+
+test('a Live TV row shows the list-row hover on pointers and on keyboard focus, with no picture zoom', async () => {
+  const live = await read('styles/live.css')
+  assert.match(live, /@media \(hover: hover\) and \(pointer: fine\) \{\s*\.live-row:not\(\.is-sort-lifted\):has\(> \.live-watch:hover\) \{\s*background: rgba\(255, 255, 255, 0\.03\);/)
+  assert.match(live, /\.live-row:has\(> \.live-watch:focus-visible\) \{\s*background: rgba\(255, 255, 255, 0\.03\);/)
+  assert.doesNotMatch(await read('styles.css'), /\.live-thumb|\.epg-cell:hover\) > \.programme-image/)
+})
+
+test('the channel sort offers channel number or name, and the Settings nav marks only the Health row', async () => {
+  const modal = await read('components/channels-modal.js')
+  assert.match(modal, /\{ key: 'default', label: 'Channel number' \},\s*\{ key: 'name', label: 'Name' \},\s*\]/)
+  const shell = await read('views/settings-shell.js')
+  assert.match(shell, /<h2 class="settings-nav-group">\{\{ group\.label \}\}<\/h2>/)
+  assert.doesNotMatch(shell, /settings-nav-group-dot/)
+})

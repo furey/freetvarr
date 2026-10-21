@@ -15,7 +15,7 @@ Settings groups its pages under three headings: **ABOUT**, **PREFERENCES**, and 
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-When [Health](/guide/doctor) finds a problem, a dot shows on the Settings icon, on the **SYSTEM** heading, and on the **Health** row.
+When [Health](/guide/doctor) finds a problem, a dot shows on the Settings icon and on the **Health** row.
 
 ## About
 
