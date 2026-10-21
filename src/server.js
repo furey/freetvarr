@@ -31,7 +31,7 @@ import {
   createValidFilename,
 } from './sync.js'
 import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
-import { findArtwork, saveArtwork, shrinkStoredArtwork } from './artwork.js'
+import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopScheduler } from './scheduler.js'
 import {
   detectPlexTokenFromPreferences,
@@ -161,7 +161,8 @@ import {
   positionFrom,
   view as playbackView,
 } from './playback.js'
-import { BUILD_HEADER, cacheControlFor, readBuildId, stampAssetUrls, stampIndexHtml } from './build-id.js'
+import { BUILD_HEADER, readBuildId } from './build-id.js'
+import { webAssets } from './web-assets.js'
 import { getDoctorReport, scheduleDoctorChecks } from './doctor.js'
 import { healthSummaryRoute } from './health-summary.js'
 import {
@@ -531,14 +532,6 @@ app.post('/api/recordings/:recording_id/library', syncLimiter, doubleCsrfProtect
   })
   const sync = choice === 'include' ? await startSync({ trigger: 'manual:import' }) : null
   res.json({ ok: true, choice, syncId: sync?.syncId ?? null })
-})
-
-app.get('/api/recordings/:recording_id/image', async (req, res) => {
-  const image = await findArtwork({ kind: 'recording', id: req.params.recording_id }).catch(() => null)
-  if (!image) return res.status(404).end()
-  res.setHeader('Content-Type', image.contentType)
-  res.setHeader('Cache-Control', 'public, max-age=86400')
-  res.send(image.body)
 })
 
 const titleSortExpression = (column) =>
@@ -2190,34 +2183,10 @@ app.post('/api/plex-refresh', doubleCsrfProtection, async (req, res) => {
   res.json(result)
 })
 
-const cacheControlForRequest = (req) => cacheControlFor({ requestedBuild: req.query.v, build: BUILD_ID })
-
-const sendVendorFile = (...segments) => (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'node_modules', ...segments), {
-    headers: { 'Cache-Control': cacheControlForRequest(req) },
-  })
-}
-
-app.get('/vendor/vue.esm-browser.prod.js', sendVendorFile('vue', 'dist', 'vue.esm-browser.prod.js'))
-app.get('/vendor/hls.mjs', sendVendorFile('hls.js', 'dist', 'hls.min.mjs'))
-app.get('/vendor/hls.worker.js', sendVendorFile('hls.js', 'dist', 'hls.worker.js'))
-
-app.get(['/', '/index.html'], async (req, res) => {
-  const html = await fs.readFile(path.join(WEB_ROOT, 'index.html'), 'utf8')
-  res.setHeader('Cache-Control', 'no-cache')
-  res.type('html').send(stampIndexHtml({ html, build: BUILD_ID }))
-})
-
-app.get(/^\/(?:(?:views|components|shared)\/)?[\w.-]+\.js$/, async (req, res, next) => {
-  const source = await fs.readFile(path.join(WEB_ROOT, req.path), 'utf8').catch(() => null)
-  if (source === null) return next()
-  res.setHeader('Cache-Control', cacheControlForRequest(req))
-  res.type('js').send(stampAssetUrls({ text: source, build: BUILD_ID }))
-})
-
-app.use(express.static(WEB_ROOT, {
-  index: false,
-  setHeaders: (res) => res.setHeader('Cache-Control', cacheControlForRequest(res.req)),
+app.use(await webAssets({
+  webRoot: WEB_ROOT,
+  build: BUILD_ID,
+  nodeModules: path.join(__dirname, '..', 'node_modules'),
 }))
 
 // Terminal error handler: return the message only, never a stack trace, and never

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   composeShowPool, contentKeyOf, createArtPool, guideEpisodePoolOf, imageIdOf, plexArtsPoolOf, plexEpisodePoolOf, plexSourceOf,
-  plexTranscodeOrigin, poolImagesOf, tvmazePoolOf,
+  plexTranscodeOrigin, poolImagesOf, serveRecordingImage, tvmazePoolOf, warmHomeArtPools,
 } from '../src/art-pool.js'
 
 const tvImage = (over) => ({
@@ -58,7 +58,7 @@ test('plexEpisodePoolOf uses the episode thumb, or film art and poster', () => {
 test('guideEpisodePoolOf prefers the saved recording image and keys it by content', () => {
   const saved = { body: Buffer.from('jpeg') }
   const [entry] = guideEpisodePoolOf({ row: { recording_id: 'r 1', image_path: 'x', image_url: 'http://g' }, saved })
-  assert.equal(entry.url, '/api/recordings/r%201/image')
+  assert.equal(entry.url, '/api/recordings/r%201/image?w=768')
   assert.equal(entry.contentKey, contentKeyOf(Buffer.from('jpeg')))
   assert.deepEqual(guideEpisodePoolOf({ row: { recording_id: 'r1', image_path: 'x', image_url: 'http://g' } }), [])
   assert.deepEqual(guideEpisodePoolOf({ row: { recording_id: 'r1', image_url: 'http://g' } }), [
@@ -105,6 +105,7 @@ const poolWith = (over = {}) => createArtPool({
   loadTvmazeImages: async () => [tvImage({ id: 'b1' })],
   countryCode: () => 'AU',
   cache: memoryCache(),
+  poolStore: memoryCache(),
   loadSavedArtwork: async () => ({ body: Buffer.from('jpeg') }),
   thumbnailFor: async ({ source, width }) => ({ body: Buffer.from(`${source}|${width}`), contentType: 'image/webp' }),
   ...over,
@@ -155,4 +156,125 @@ test('recordingArt leaves out a guide image that no longer loads', async () => {
     thumbnailFor: async () => null,
   })
   assert.deepEqual((await pool.recordingArt('r2')).entries, [])
+})
+
+const countingPlexItems = () => {
+  const calls = { count: 0 }
+  const plexItems = async () => {
+    calls.count += 1
+    return [{ ratingKey: '9', grandparentRatingKey: '5', thumb: '/ep', Media: [{ Part: [{ file: '/data/The Block/s01e01.ts' }] }] }]
+  }
+  return { calls, plexItems }
+}
+
+test('a restarted art pool serves the saved Plex art without listing Plex again', async () => {
+  const poolStore = memoryCache()
+  const first = countingPlexItems()
+  const before = await poolWith({ poolStore, plexItems: first.plexItems }).showPool('the-block')
+  const second = countingPlexItems()
+  const after = await poolWith({ poolStore, plexItems: second.plexItems }).showPool('the-block')
+  assert.equal(first.calls.count, 1)
+  assert.equal(second.calls.count, 0)
+  assert.deepEqual(after, before)
+  assert.ok(poolStore.rows.get('show:the-block').expiresAt > Date.now() + 24 * 60 * 60 * 1000)
+})
+
+test('an expired saved pool is served at once and refreshed in the background', async () => {
+  const poolStore = memoryCache()
+  poolStore.rows.set('show:the-block', { value: { found: true, entries: [] }, expiresAt: 0 })
+  const { calls, plexItems } = countingPlexItems()
+  const pool = await poolWith({ poolStore, plexItems }).showPool('the-block')
+  assert.deepEqual(pool.entries.map((entry) => entry.source), ['library', 'tvmaze', 'tvmaze'])
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(calls.count, 1)
+  assert.equal(poolStore.rows.get('show:the-block').value.entries.length, 2)
+})
+
+test('a Plex failure keeps the saved pool and saves nothing new', async () => {
+  const poolStore = memoryCache()
+  const saved = { found: true, entries: [{ origin: 'plex:/old', kind: 'background', source: 'plex', selected: false }] }
+  poolStore.rows.set('show:the-block', { value: saved, expiresAt: 0 })
+  const failing = async () => { throw new Error('Plex HTTP 500') }
+  await poolWith({ poolStore, plexItems: failing }).showPool('the-block')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(poolStore.rows.get('show:the-block').value, saved)
+  const fresh = memoryCache()
+  const pool = await poolWith({ poolStore: fresh, plexItems: failing }).showPool('the-block')
+  assert.deepEqual(pool.entries.map((entry) => entry.source), ['library', 'tvmaze'])
+  assert.equal(fresh.rows.size, 0)
+})
+
+test('recording art is saved under a key that changes with the recording files', async () => {
+  const poolStore = memoryCache()
+  await poolWith({ poolStore }).recordingArt('r1')
+  const [key] = poolStore.rows.keys()
+  assert.match(key, /^recording:r1:[0-9a-f]{16}$/)
+})
+
+test('warmHomeArtPools loads each candidate show and recording in turn', async () => {
+  const seen = []
+  const artPool = {
+    showPool: async (key) => seen.push(`show:${key}`),
+    recordingArt: async (id) => {
+      seen.push(`recording:${id}`)
+      throw new Error('gone')
+    },
+  }
+  const warmed = await warmHomeArtPools({ artPool, loadCandidates: async () => ({ showKeys: ['a', 'b'], recordingIds: ['r1'] }) })
+  assert.deepEqual(seen, ['show:a', 'show:b', 'recording:r1'])
+  assert.deepEqual(warmed, { shows: 2, recordings: 1 })
+})
+
+const responseRecorder = () => {
+  const res = { statusCode: 200, headers: {}, body: null }
+  res.setHeader = (name, value) => { res.headers[name.toLowerCase()] = value }
+  res.status = (code) => {
+    res.statusCode = code
+    return res
+  }
+  res.json = (body) => { res.body = body }
+  res.send = (body) => { res.body = body }
+  res.end = () => {}
+  return res
+}
+
+const recordingImageRoute = () => {
+  const widths = []
+  const route = serveRecordingImage({
+    loadOriginal: async (id) => (id === 'r1' ? { body: Buffer.from('jpeg'), contentType: 'image/jpeg' } : null),
+    thumbnails: () => ({
+      thumbnailFor: async ({ key, width, loadOriginal }) => {
+        widths.push({ key, width })
+        const original = await loadOriginal()
+        return { body: Buffer.from(`${original.body}|${width}`), contentType: 'image/webp' }
+      },
+    }),
+  })
+  const call = async ({ id = 'r1', query = {} } = {}) => {
+    const res = responseRecorder()
+    await route({ params: { recording_id: id }, query }, res)
+    return res
+  }
+  return { call, widths }
+}
+
+test('the recording image route resizes to an allowed width as webp', async () => {
+  const { call, widths } = recordingImageRoute()
+  const res = await call({ query: { w: '384' } })
+  assert.equal(res.headers['content-type'], 'image/webp')
+  assert.equal(res.headers['cache-control'], 'public, max-age=86400')
+  assert.equal(res.body.toString(), 'jpeg|384')
+  assert.equal(widths[0].key, `recording:r1:${contentKeyOf(Buffer.from('jpeg'))}`)
+})
+
+test('the recording image route keeps the original without w and rejects other widths', async () => {
+  const { call, widths } = recordingImageRoute()
+  const original = await call()
+  assert.equal(original.headers['content-type'], 'image/jpeg')
+  assert.equal(original.body.toString(), 'jpeg')
+  assert.equal((await call({ query: { w: '500' } })).statusCode, 400)
+  const missing = await call({ id: 'gone', query: { w: '192' } })
+  assert.equal(missing.statusCode, 404)
+  assert.equal(missing.headers['cache-control'], 'public, max-age=300')
+  assert.equal(widths.length, 0)
 })

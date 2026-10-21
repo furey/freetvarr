@@ -1,6 +1,9 @@
+import crypto from 'node:crypto'
+import { Worker } from 'node:worker_threads'
+
 import { db, getSetting, setSetting } from './db.js'
 import { getGuideSnapshot, getRecordingState } from './epg.js'
-import { buildForYou } from './for-you.js'
+import { buildForYouFromRequest } from './for-you-worker.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { pickableShowsOf } from './for-you-pickable.js'
 import {
@@ -24,17 +27,81 @@ export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SE
 
 export const getForYou = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
-  const inputs = await loadInputs({ nowMs })
-  const signature = signatureOf({ inputs, nowMs })
-  if (cached?.signature === signature) return cached.result
-  const started = Date.now()
-  const result = await withClassifications({
-    result: buildForYou({ ...inputs, nowMs, limit: CACHED_LIMIT }),
-    programmes: inputs.programmes,
-  })
-  result.computeMs = Date.now() - started
-  cached = { signature, result }
-  return result
+  return forYouCache.get({ nowMs })
+}
+
+export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError }) => {
+  let cached = null
+  let computing = null
+  let generation = 0
+
+  const computeFor = ({ snapshot, signature, nowMs }) => {
+    if (computing?.signature === signature && computing.generation === generation) return computing.promise
+    const startedIn = generation
+    const promise = compute({ snapshot, nowMs })
+      .then((result) => {
+        if (startedIn === generation) cached = { signature, result }
+        return result
+      })
+      .finally(() => {
+        if (computing?.promise === promise) computing = null
+      })
+    computing = { signature, generation, promise }
+    return promise
+  }
+
+  const get = async ({ nowMs }) => {
+    const snapshot = await loadSnapshot({ nowMs })
+    const signature = forYouSignatureOf({ stamps: snapshot.stamps, nowMs })
+    if (cached?.signature === signature) return cached.result
+    if (!cached) return computeFor({ snapshot, signature, nowMs })
+    if (!computing) computeFor({ snapshot, signature, nowMs }).catch(onRefreshError)
+    return cached.result
+  }
+
+  const forget = () => {
+    cached = null
+    generation += 1
+  }
+
+  return { get, forget }
+}
+
+export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
+
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier }) => {
+  const ruleKeys = new Set([
+    ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
+    ...watchlist.filter((row) => row.mode === 'record').map((row) => showKeyOf(row.title)),
+  ])
+  const scheduledProgramIds = new Set([
+    ...(state?.futureRecordings || []).map((recording) => String(recording.programId)),
+    ...(state?.skippedProgramIds || []).map(String),
+  ])
+  return {
+    ruleKeys,
+    scheduledProgramIds,
+    stamps: {
+      guide: guideVersionOf(guide),
+      scheduled: hashOf([...scheduledProgramIds].sort().join(',')),
+      rules: hashOf([...ruleKeys].sort().join(',')),
+      lastEventId: Number(events?.lastId) || 0,
+      events: Number(events?.count) || 0,
+      recordings: recordingStampOf(recordings),
+      categories: Number(categories?.count) || 0,
+      vectors: `${embedderId}|${vectors}`,
+      pinned: pinned.join(','),
+      tier,
+    },
+  }
+}
+
+export const guideVersionOf = (guide) => {
+  if (!guide) return null
+  if (!guideVersions.has(guide)) {
+    guideVersions.set(guide, hashOf(JSON.stringify([guide.channels || [], guide.programsByChannel || {}])))
+  }
+  return guideVersions.get(guide)
 }
 
 export const getPickable = async ({ nowMs = Date.now() } = {}) => {
@@ -57,7 +124,7 @@ export const titlesForKeys = async (keys) => {
   return titles
 }
 
-export const forgetForYouCache = () => { cached = null }
+export const forgetForYouCache = () => forYouCache.forget()
 
 export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
@@ -137,54 +204,138 @@ const upkeepNow = async ({ nowMs }) => {
   return { embeddings, genres }
 }
 
-const loadInputs = async ({ nowMs }) => {
-  const [guide, state, events, recordings, watchlist, genresByKey, tier, embedder, pinned, history] = await Promise.all([
+const loadSnapshot = async () => {
+  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned] = await Promise.all([
     getGuideSnapshot(),
     getRecordingState().catch(() => null),
-    db('user_events').orderBy('id'),
-    db('recordings').select('recording_id', 'title', 'season', 'episode', 'aired_at', 'imported_at', 'played_at', 'watched_at', 'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status'),
     db('watchlist').select('title', 'mode'),
-    loadTitleGenres(),
+    db('user_events').first(db.raw('count(*) as count'), db.raw('max(id) as lastId')),
+    db('recordings').first(...RECORDING_STAMP_COLUMNS.map((column) => db.raw(column))),
+    db('title_genres').first(db.raw('count(*) as count')).catch(() => null),
     currentTier(),
     currentEmbedder(),
     pinnedChannelIds(),
-    db('guide_programs').where('end', '<=', nowMs).select('program_json').catch(() => []),
   ])
-  const vectorsByHash = embedder ? await loadVectors(embedder.id) : null
-  const ruleKeys = new Set([
-    ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
-    ...watchlist.filter((row) => row.mode === 'record').map((row) => showKeyOf(row.title)),
-  ])
-  const scheduledProgramIds = new Set([
-    ...(state?.futureRecordings || []).map((recording) => String(recording.programId)),
-    ...(state?.skippedProgramIds || []).map(String),
-  ])
+  const vectors = vectorsVersion()
   return {
-    programmes: Object.values(guide.programsByChannel || {}).flat(),
-    history: history.map((row) => JSON.parse(row.program_json)),
-    channels: guide.channels || [],
-    events,
-    recordings,
-    scheduledProgramIds,
-    ruleKeys,
-    genresByKey,
-    vectorsByHash,
-    pinnedChannelIds: pinned,
+    guide,
+    embedder,
+    pinned,
     tier: tier.tier,
-    stamps: {
-      guide: guide.fetchedAt,
-      state: state?.fetchedAt ?? null,
-      lastEventId: events.at(-1)?.id ?? 0,
-      events: events.length,
-      recordings: recordingStampOf(recordings),
-      watchlist: watchlist.length,
-      categories: genresByKey.size,
-      vectors: `${embedder?.id}|${vectorsVersion()}|${vectorsByHash?.size ?? 0}`,
-      pinned: pinned.join(','),
-      tier: tier.tier,
-    },
+    vectors,
+    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier }),
   }
 }
+
+const computeForYou = async ({ snapshot, nowMs }) => {
+  const [events, recordings, genresByKey, history, vectorsByHash] = await Promise.all([
+    db('user_events').orderBy('id'),
+    db('recordings').select('recording_id', 'title', 'season', 'episode', 'aired_at', 'imported_at', 'played_at', 'watched_at', 'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status'),
+    loadTitleGenres(),
+    db('guide_programs').where('end', '<=', nowMs).select('program_json').catch(() => []),
+    snapshot.embedder ? loadVectors(snapshot.embedder.id) : null,
+  ])
+  const guide = {
+    programmes: Object.values(snapshot.guide.programsByChannel || {}).flat(),
+    channels: snapshot.guide.channels || [],
+  }
+  const request = {
+    guideVersion: snapshot.stamps.guide,
+    vectorsKey: `${snapshot.embedder?.id}|${snapshot.vectors}`,
+    inputs: {
+      nowMs,
+      limit: CACHED_LIMIT,
+      history: history.map((row) => row.program_json),
+      events,
+      recordings,
+      scheduledProgramIds: snapshot.scheduledProgramIds,
+      ruleKeys: snapshot.ruleKeys,
+      genresByKey,
+      pinnedChannelIds: snapshot.pinned,
+      tier: snapshot.tier,
+    },
+  }
+  const started = Date.now()
+  const built = await forYouWorker.build({ guide, vectorsByHash, request })
+    .catch(() => buildForYouFromRequest({ guide, vectorsByHash, request }))
+  const result = await withClassifications({ result: built.result, programmes: guide.programmes })
+  result.computeMs = Date.now() - started
+  return withLazyExplanations({ result, explanationsJson: built.explanationsJson })
+}
+
+export const createForYouWorker = ({ url, timeoutMs } = {}) => {
+  const pending = new Map()
+  let worker = null
+  let sent = {}
+  let nextId = 0
+
+  const settle = ({ id, error, ...reply }) => {
+    const waiter = pending.get(id)
+    pending.delete(id)
+    clearTimeout(waiter?.timer)
+    if (!pending.size) worker?.unref()
+    if (error) sent = {}
+    if (error) waiter?.reject(new Error(error))
+    else waiter?.resolve(reply)
+  }
+
+  const stop = (err) => {
+    worker = null
+    sent = {}
+    for (const waiter of pending.values()) {
+      clearTimeout(waiter.timer)
+      waiter.reject(err)
+    }
+    pending.clear()
+  }
+
+  const start = () => {
+    const started = new Worker(url ?? WORKER_URL)
+    started.on('message', settle)
+    started.on('error', stop)
+    started.on('exit', () => {
+      if (worker === started) stop(new Error('For you worker stopped'))
+    })
+    worker = started
+    sent = {}
+    return started
+  }
+
+  const build = async ({ guide, vectorsByHash, request }) => {
+    const target = worker ?? start()
+    const message = {
+      ...request,
+      ...(sent.guideVersion !== request.guideVersion && { guide }),
+      ...(sent.vectorsKey !== request.vectorsKey && { vectorsByHash }),
+    }
+    sent = { guideVersion: request.guideVersion, vectorsKey: request.vectorsKey }
+    const id = ++nextId
+    target.ref()
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => settle({ id, error: 'For you worker timed out' }), timeoutMs ?? WORKER_TIMEOUT_MS)
+      pending.set(id, { resolve, reject, timer })
+      target.postMessage({ id, request: message })
+    })
+  }
+
+  const close = () => worker?.terminate()
+
+  return { build, close }
+}
+
+const withLazyExplanations = ({ result, explanationsJson }) => {
+  let explanations = null
+  return Object.defineProperty(result, 'explanations', {
+    get: () => {
+      explanations ??= new Map(JSON.parse(explanationsJson))
+      return explanations
+    },
+  })
+}
+
+const hashOf = (text) => crypto.createHash('sha1').update(text).digest('hex')
+
+const logRefreshError = (err) => console.warn(`[for-you] refresh failed: ${err.message}`)
 
 export const withClassifications = async ({ result, programmes, store = classificationStore }) => {
   const items = [result.topPick, ...result.sections.flatMap((section) => section.items)].filter(Boolean)
@@ -202,13 +353,7 @@ export const withClassifications = async ({ result, programmes, store = classifi
   }
 }
 
-const signatureOf = ({ inputs, nowMs }) => JSON.stringify({ ...inputs.stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
-
-const recordingStampOf = (recordings) => [
-  recordings.length,
-  recordings.filter((row) => row.watched_at).length,
-  recordings.reduce((sum, row) => sum + (Number(row.playback_position_s) || 0), 0),
-].join(':')
+const recordingStampOf = (recordings) => RECORDING_STAMP_FIELDS.map((field) => recordings?.[field] ?? '').join(':')
 
 const pinnedChannelIds = async () => {
   try {
@@ -224,12 +369,26 @@ const isPrimeTime = (ms) => {
   return hour >= 18 && hour < 22
 }
 
-let cached = null
 let upkeeping = null
+const guideVersions = new WeakMap()
+const forYouWorker = createForYouWorker()
+const forYouCache = createForYouCache({ loadSnapshot, compute: computeForYou })
 const classificationStore = createClassificationStore()
 const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFromTvmaze, onFilm: rememberKnownAsFromWikidata })
 
 const CACHED_LIMIT = 20
+const WORKER_URL = new URL('./for-you-worker.js', import.meta.url)
+const WORKER_TIMEOUT_MS = 60 * 1000
+const RECORDING_STAMP_FIELDS = ['count', 'watched', 'position', 'imported', 'played', 'watchedAt', 'aired']
+const RECORDING_STAMP_COLUMNS = [
+  'count(*) as count',
+  'count(watched_at) as watched',
+  'total(playback_position_s) as position',
+  'max(imported_at) as imported',
+  'max(played_at) as played',
+  'max(watched_at) as watchedAt',
+  'max(aired_at) as aired',
+]
 const HIDING_KINDS = ['not_interested', 'not_interested_undo']
 const BUCKET_MS = 5 * 60 * 1000
 const STARTUP_DELAY_MS = 20 * 1000

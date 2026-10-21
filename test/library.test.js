@@ -116,7 +116,7 @@ test('showSummariesOf: groups by show key, counts new and unwatched, and keeps r
   assert.deepEqual(block.counts, { total: 4, new: 1, unwatched: 2, failed: 1 })
   assert.equal(block.recordingNow, true)
   assert.equal(block.kind, 'show')
-  assert.equal(block.image, '/api/recordings/a/image')
+  assert.equal(block.image, '/api/recordings/a/image?w=384')
   assert.equal(block.poster, '/api/epg/show-image?title=The%20Block&shape=poster')
   assert.equal(block.rule.summary, 'Records every new episode on 9HD · keeps the latest 10 · ads removed')
   assert.equal(block.latest.recordingId, 'a')

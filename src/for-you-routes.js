@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
-import { getForYou, getHiddenShows, getPickable, isForYouEnabled, startForYou, titlesForKeys, unhideShow } from './for-you-service.js'
+import { forgetForYouCache, getForYou, getHiddenShows, getPickable, isForYouEnabled, startForYou, titlesForKeys, unhideShow } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
 import { isViewingHistoryEnabled, logUserEvent, setViewingHistoryEnabled } from './user-events-log.js'
@@ -51,6 +51,7 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     const logged = seriesKeys
       .filter((seriesKey) => logUserEvent({ kind: 'thumb_up', series_key: seriesKey, title: titles.get(seriesKey) || null, source: 'for-you-picks' }))
       .length
+    if (logged) forgetForYouCache()
     res.status(202).json({ ok: true, logged })
   })
 

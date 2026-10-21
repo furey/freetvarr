@@ -18,13 +18,20 @@ export const lineupOf = (result) => ({
 export const twinFormatOf = (channelId) =>
   (channelId == null ? null : twinFormats.value.get(String(channelId)) || null)
 
+export const loadNowAll = () => {
+  nowAllLoad ??= api('GET', '/api/epg/now?all=1')
+    .then((result) => {
+      if (result?.entries) rememberLineup(lineupOf(result))
+      return result
+    })
+    .finally(() => { nowAllLoad = null })
+  return nowAllLoad
+}
+
 export const loadLineupOnce = () => {
   if (lineupKnown) return Promise.resolve()
-  lineupLoad ||= api('GET', '/api/epg/now?all=1')
-    .then((result) => { if (!lineupKnown && result?.entries) rememberLineup(lineupOf(result)) })
-    .catch(() => { lineupLoad = null })
-  return lineupLoad
+  return loadNowAll().then(() => {}, () => {})
 }
 
 let lineupKnown = false
-let lineupLoad = null
+let nowAllLoad = null

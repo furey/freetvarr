@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
-import { api } from '/shared/api.js'
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
+import { api, loadedBuild } from '/shared/api.js'
 import { artFallbackStyle } from '/art-fallback.js'
 import { ForYouOverlays, ForYouRows } from '/components/for-you-parts.js'
 import { HomeHeroCarousel } from '/components/home-hero-carousel.js'
@@ -38,6 +38,9 @@ import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/sho
 import { showKeyOf } from '/show-key.js'
 import { forYouHidden, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { heroArtPoolsFor } from '/shared/hero-art-pools.js'
+import { loadNowAll } from '/shared/channel-twins.js'
+import { browserStorage } from '/shared/storage.js'
+import { freshHomeOf, readHomeCache, writeHomeCache } from '/home-cache.js'
 import { playRecording } from '/shared/playback-session.js'
 import { watchLive, watchRecordingFromStart, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
@@ -47,6 +50,76 @@ import { now, tz, fmtClockTz } from '/shared/time.js'
 import { toast } from '/shared/toast.js'
 
 const HERO_POOL_WAIT_MS = 2000
+const HOME_BUILD = loadedBuild || 'dev'
+
+const EMPTY_HOME = {
+  inProgress: [],
+  newRecordings: [],
+  nowEntries: [],
+  upcoming: [],
+  activeProgramIds: [],
+  shows: [],
+  watchlist: [],
+  movies: [],
+  forYouPayload: null,
+  heroPools: {},
+}
+
+const HOME_REQUESTS = [
+  { load: () => api('GET', continueWatchingUrl), pick: (r) => ({ inProgress: r.episodes ?? [] }) },
+  { load: () => api('GET', newRecordingsUrl), pick: (r) => ({ newRecordings: r.episodes ?? [] }) },
+  { load: loadNowAll, pick: (r) => ({ nowEntries: r.entries ?? [] }) },
+  {
+    load: () => api('GET', '/api/epg/state'),
+    pick: (r) => ({ upcoming: r.upcomingRecordings ?? [], activeProgramIds: r.activeRecordingIds ?? [] }),
+  },
+  { load: () => api('GET', '/api/library/shows'), pick: (r) => ({ shows: r.shows ?? [] }) },
+  { load: () => api('GET', '/api/watchlist'), pick: (r) => ({ watchlist: r.items ?? [] }) },
+  { load: () => api('GET', MOVIES_URL), pick: (r) => ({ movies: r.episodes ?? [] }) },
+  { load: () => api('GET', FOR_YOU_URL), pick: (r) => ({ forYouPayload: r ?? null }) },
+]
+
+const homeStore = shallowRef(null)
+let latestLoadId = 0
+
+const cachedHome = (nowMs) => {
+  const home = homeStore.value ?? readHomeCache({ storage: browserStorage(), build: HOME_BUILD, nowMs })
+  return home && freshHomeOf({ home, nowMs })
+}
+
+const keepHome = (home) => {
+  homeStore.value = home
+  writeHomeCache({ storage: browserStorage(), build: HOME_BUILD, home })
+}
+
+const fetchHome = async (previous) => {
+  const parts = await Promise.all(HOME_REQUESTS.map(({ load, pick }) => load().then(pick).catch(() => ({}))))
+  return Object.assign({ ...(previous ?? EMPTY_HOME) }, ...parts)
+}
+
+const heroFeedOf = ({ home, nowMs }) => ({
+  inProgress: home.inProgress,
+  newEpisodes: home.newRecordings,
+  shows: home.shows,
+  recordingNow: recordingNow.value.active ?? [],
+  nowEntries: home.nowEntries,
+  upcoming: home.upcoming,
+  activeProgramIds: home.activeProgramIds,
+  watchlist: home.watchlist,
+  movies: home.movies,
+  forYou: forYouSlideOf({
+    payload: home.forYouPayload,
+    scheduledKeys: scheduledKeysOf(home.upcoming),
+    hiddenKeys: forYouHidden.value,
+    nowMs,
+    timeZone: tz.value,
+  }),
+  nowMs,
+  timeZone: tz.value,
+})
+
+const heroPoolsWithin = (pools) =>
+  Promise.race([pools, new Promise((resolve) => setTimeout(() => resolve(null), HERO_POOL_WAIT_MS))])
 
 export const HomeView = {
   components: { DeleteConfirm, ForYouOverlays, ForYouRows, HomeHeroCarousel, LibraryInfoSheet, LibraryMenuSheet, MenuCard, RecordingOptionsSheet },
@@ -160,16 +233,16 @@ export const HomeView = {
     </div>
   `,
   setup() {
-    const inProgress = ref([])
-    const newRecordings = ref([])
-    const shows = ref([])
-    const watchlist = ref([])
-    const movies = ref([])
-    const forYouPayload = ref(null)
-    const nowEntries = ref([])
-    const upcoming = ref([])
-    const activeProgramIds = ref([])
-    const loaded = ref(false)
+    homeStore.value = cachedHome(Date.now())
+    const home = computed(() => homeStore.value ?? EMPTY_HOME)
+    const inProgress = computed(() => home.value.inProgress)
+    const newRecordings = computed(() => home.value.newRecordings)
+    const shows = computed(() => home.value.shows)
+    const forYouPayload = computed(() => home.value.forYouPayload)
+    const nowEntries = computed(() => home.value.nowEntries)
+    const upcoming = computed(() => home.value.upcoming)
+    const activeProgramIds = computed(() => home.value.activeProgramIds)
+    const loaded = computed(() => Boolean(homeStore.value))
     const optionsShow = ref(null)
     const optionsOpen = ref(false)
 
@@ -183,30 +256,9 @@ export const HomeView = {
       scheduledKeys: scheduledKeys.value,
       hiddenKeys: forYouHidden.value,
     }))
-    const forYouSlide = computed(() => forYouSlideOf({
-      payload: forYouPayload.value,
-      scheduledKeys: scheduledKeys.value,
-      hiddenKeys: forYouHidden.value,
-      nowMs: nowMs.value,
-      timeZone: tz.value,
-    }))
-
-    const heroFeed = computed(() => ({
-      inProgress: inProgress.value,
-      newEpisodes: newRecordings.value,
-      shows: shows.value,
-      recordingNow: recordingNow.value.active ?? [],
-      nowEntries: nowEntries.value,
-      upcoming: upcoming.value,
-      activeProgramIds: activeProgramIds.value,
-      watchlist: watchlist.value,
-      movies: movies.value,
-      forYou: forYouSlide.value,
-      nowMs: nowMs.value,
-      timeZone: tz.value,
-    }))
-    const heroPools = ref({})
-    const heroSlides = computed(() => heroSlidesOf({ ...heroFeed.value, pools: heroPools.value }))
+    const heroFeed = computed(() => heroFeedOf({ home: home.value, nowMs: nowMs.value }))
+    const forYouSlide = computed(() => heroFeed.value.forYou)
+    const heroSlides = computed(() => heroSlidesOf({ ...heroFeed.value, pools: home.value.heroPools }))
     const heroRecordingIds = computed(() => heroRecordingIdsOf(heroSlides.value))
     const heroProgramIds = computed(() => heroProgramIdsOf(heroSlides.value))
     const newRecordingsRow = computed(() => newRecordings.value.filter((r) => !heroRecordingIds.value.has(r.recordingId)))
@@ -217,35 +269,18 @@ export const HomeView = {
       timeZone: tz.value,
     }))
 
-    const settled = (promise, fallback) => promise.catch(() => fallback)
-
     const load = async () => {
-      const [resumable, unplayed, nowData, state, library, watching, unwatchedMovies, suggestions] = await Promise.all([
-        settled(api('GET', continueWatchingUrl), { episodes: [] }),
-        settled(api('GET', newRecordingsUrl), { episodes: [] }),
-        settled(api('GET', '/api/epg/now?all=1'), { entries: [] }),
-        settled(api('GET', '/api/epg/state'), { upcomingRecordings: [], activeRecordingIds: [] }),
-        settled(api('GET', '/api/library/shows'), { shows: [] }),
-        settled(api('GET', '/api/watchlist'), { items: [] }),
-        settled(api('GET', MOVIES_URL), { episodes: [] }),
-        settled(api('GET', FOR_YOU_URL), null),
-      ])
-      inProgress.value = resumable.episodes ?? []
-      newRecordings.value = unplayed.episodes ?? []
-      nowEntries.value = nowData.entries ?? []
-      upcoming.value = state.upcomingRecordings ?? []
-      activeProgramIds.value = state.activeRecordingIds ?? []
-      shows.value = library.shows ?? []
-      watchlist.value = watching.items ?? []
-      movies.value = unwatchedMovies.episodes ?? []
-      forYouPayload.value = suggestions
-      await loadHeroPools()
-      loaded.value = true
-    }
-
-    const loadHeroPools = () => {
-      const pools = heroArtPoolsFor(heroCandidatesOf(heroFeed.value)).then((found) => { heroPools.value = found })
-      return Promise.race([pools, new Promise((resolve) => setTimeout(resolve, HERO_POOL_WAIT_MS))])
+      const loadId = ++latestLoadId
+      const isLatest = () => loadId === latestLoadId
+      const fresh = await fetchHome(homeStore.value)
+      if (!isLatest()) return
+      const pools = heroArtPoolsFor(heroCandidatesOf(heroFeedOf({ home: fresh, nowMs: Date.now() })))
+      const poolsInTime = await heroPoolsWithin(pools)
+      if (!isLatest()) return
+      keepHome({ ...fresh, heroPools: poolsInTime ?? fresh.heroPools })
+      if (poolsInTime) return
+      const found = await pools
+      if (isLatest()) keepHome({ ...homeStore.value, heroPools: found })
     }
 
     onMounted(load)

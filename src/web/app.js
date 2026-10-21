@@ -1,8 +1,7 @@
-import { createApp, computed } from '/vendor/vue.esm-browser.prod.js'
+import { createApp, computed, defineAsyncComponent } from '/vendor/vue.esm-browser.prod.js'
 import { CancelSeriesStep } from '/components/cancel-series-step.js'
 import { ChannelIdentity } from '/components/channel-identity.js'
 import { ChannelTwinTag } from '/components/channel-twin-tag.js'
-import { ChannelsModal } from '/components/channels-modal.js'
 import { CopyRow } from '/components/copy-row.js'
 import { ConfirmDialog } from '/components/dialogs.js'
 import { ErrorDiagnosis } from '/components/error-diagnosis.js'
@@ -60,8 +59,6 @@ import { ChannelLogo, GuideCellImage, ProgrammeImage } from '/components/images.
 import { InfoButton } from '/components/info-button.js'
 import { ListSkeleton } from '/components/list-skeleton.js'
 import { LivePlayer } from '/components/live-player.js'
-import { LiveStreamsSetting, TunerStatusPanel } from '/components/live-streams-settings.js'
-import { TmdbKeySetting } from '/components/tmdb-key-setting.js'
 import { ManualOption } from '/components/manual-option.js'
 import {
   HomeNavIcon,
@@ -81,20 +78,14 @@ import { PlayerInfoPanel } from '/components/player-parts.js'
 import { ProgrammeArtBadges, ProgrammeReviewCard } from '/components/programme-ratings.js'
 import { ProgrammeSheetHost } from '/components/programme-sheet-host.js'
 import { ProgressBlock } from '/components/progress-block.js'
-import { RecordingStatus, RecordingDrawer } from '/components/recording-drawer.js'
 import { RecordingPlayer } from '/components/recording-player.js'
 import { RecordingsTabs } from '/components/recordings-tabs.js'
 import { SearchOverlay } from '/components/search-overlay.js'
 import { StaleBuildBanner } from '/components/stale-build-banner.js'
-import { SummaryLine } from '/components/summary-line.js'
-import { SyncDetail } from '/components/sync-detail.js'
-import { SyncStatusIcon, SyncResult } from '/components/sync-status.js'
 import { TitleArt } from '/components/title-art.js'
 import { ClassificationChip } from '/components/classification-chip.js'
 import { ToastRegion } from '/components/toast-region.js'
-import { TvAppsPanel } from '/components/tv-apps-panel.js'
 import { UiSheet } from '/components/ui-sheet.js'
-import { VersionsRow } from '/components/versions-row.js'
 import { WatchForSheet } from '/components/watch-for-sheet.js'
 import { noteBuild, checkForNewBuild } from '/shared/api.js'
 import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.js'
@@ -105,35 +96,94 @@ import { refreshTick } from '/shared/store.js'
 import { loadSyncStatus, ensureSyncPolling } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 import { recordingsPageOf } from '/route-table.js'
-import { ChannelSetupStep } from '/views/channel-setup-step.js'
-import { DoctorSpinner } from '/views/doctor-view.js'
-import { EpgView } from '/views/epg-view.js'
 import { FolderEditor, FolderSyncButton } from '/views/folder-editor.js'
-import { GuideSetupStep } from '/views/guide-setup-step.js'
-import { ForYouView } from '/views/for-you-view.js'
 import { HomeView } from '/views/home-view.js'
-import { LiveView } from '/views/live-view.js'
-import { PlexLibrarySetup } from '/views/plex-library-setup.js'
-import { RecordingsLibraryView } from '/views/recordings-library-view.js'
-import { ScheduledView } from '/views/scheduled-view.js'
-import { SeriesDrawer } from '/views/series-drawer.js'
-import { SettingsShell } from '/views/settings-shell.js'
-import { ShowView } from '/views/show-view.js'
-import { WelcomeView } from '/views/welcome-view.js'
+
+const SETTINGS_COMPONENTS = {
+  '/views/channel-setup-step.js': ['ChannelSetupStep'],
+  '/views/doctor-view.js': ['DoctorSpinner'],
+  '/views/guide-setup-step.js': ['GuideSetupStep'],
+  '/views/plex-library-setup.js': ['PlexLibrarySetup'],
+  '/views/series-drawer.js': ['SeriesDrawer'],
+  '/components/live-streams-settings.js': ['LiveStreamsSetting', 'TunerStatusPanel'],
+  '/components/tmdb-key-setting.js': ['TmdbKeySetting'],
+  '/components/recording-drawer.js': ['RecordingStatus', 'RecordingDrawer'],
+  '/components/summary-line.js': ['SummaryLine'],
+  '/components/sync-detail.js': ['SyncDetail'],
+  '/components/sync-status.js': ['SyncStatusIcon', 'SyncResult'],
+  '/components/tv-apps-panel.js': ['TvAppsPanel'],
+  '/components/versions-row.js': ['VersionsRow'],
+}
+
+const CHANNEL_COMPONENTS = {
+  '/components/channels-modal.js': ['ChannelsModal'],
+}
+
+const VIEW_LOADERS = {
+  forYou: () => loadView({ url: '/views/for-you-view.js', name: 'ForYouView' }),
+  live: () => loadView({ url: '/views/live-view.js', name: 'LiveView', components: CHANNEL_COMPONENTS }),
+  guide: () => loadView({ url: '/views/epg-view.js', name: 'EpgView', components: CHANNEL_COMPONENTS }),
+  library: () => loadView({ url: '/views/recordings-library-view.js', name: 'RecordingsLibraryView' }),
+  scheduled: () => loadView({ url: '/views/scheduled-view.js', name: 'ScheduledView' }),
+  show: () => loadView({ url: '/views/show-view.js', name: 'ShowView' }),
+  settings: () => loadView({
+    url: '/views/settings-shell.js',
+    name: 'SettingsShell',
+    components: SETTINGS_COMPONENTS,
+  }),
+  welcome: () => loadView({
+    url: '/views/welcome-view.js',
+    name: 'WelcomeView',
+    components: SETTINGS_COMPONENTS,
+  }),
+}
+
+const loadView = async ({ url, name, components = {} }) => {
+  const [module] = await Promise.all([import(url), registerComponents(components)])
+  return module[name]
+}
+
+const registerComponents = async (components) => {
+  const modules = await Promise.all(Object.keys(components).map((url) => import(url)))
+  Object.values(components).forEach((names, index) => names
+    .filter((name) => !app.component(name))
+    .forEach((name) => app.component(name, modules[index][name])))
+}
 
 const RECORDINGS_VIEWS = {
-  library: RecordingsLibraryView,
-  scheduled: ScheduledView,
-  show: ShowView,
+  library: defineAsyncComponent(VIEW_LOADERS.library),
+  scheduled: defineAsyncComponent(VIEW_LOADERS.scheduled),
+  show: defineAsyncComponent(VIEW_LOADERS.show),
 }
 
 const VIEW_MAP = {
   home: HomeView,
-  'for-you': ForYouView,
-  live: LiveView,
-  guide: EpgView,
-  settings: SettingsShell,
-  welcome: WelcomeView,
+  'for-you': defineAsyncComponent(VIEW_LOADERS.forYou),
+  live: defineAsyncComponent(VIEW_LOADERS.live),
+  guide: defineAsyncComponent(VIEW_LOADERS.guide),
+  settings: defineAsyncComponent(VIEW_LOADERS.settings),
+  welcome: defineAsyncComponent(VIEW_LOADERS.welcome),
+}
+
+const PREFETCHED_VIEWS = ['live', 'guide', 'library', 'forYou', 'scheduled', 'show', 'settings']
+
+const whenIdle = (callback) => (window.requestIdleCallback
+  ? window.requestIdleCallback(callback, { timeout: IDLE_TIMEOUT_MS })
+  : setTimeout(callback, IDLE_TIMEOUT_MS))
+
+const IDLE_TIMEOUT_MS = 2000
+
+const prefetchViews = ([next, ...rest]) => {
+  if (!next) return
+  whenIdle(() => VIEW_LOADERS[next]()
+    .catch(() => {})
+    .finally(() => prefetchViews(rest)))
+}
+
+const prefetchViewsAfterLoad = () => {
+  const start = () => prefetchViews(PREFETCHED_VIEWS)
+  if (document.readyState === 'complete') return whenIdle(start)
+  window.addEventListener('load', () => whenIdle(start), { once: true })
 }
 
 const FULL_SCREEN_VIEWS = ['welcome']
@@ -222,13 +272,7 @@ app.component('close-glyph', CloseGlyph)
 app.component('play-glyph', PlayGlyph)
 app.component('more-glyph', MoreGlyph)
 app.directive('no-autofill', noAutofill)
-app.component('summary-line', SummaryLine)
-app.component('sync-status-icon', SyncStatusIcon)
-app.component('sync-result', SyncResult)
-app.component('sync-detail', SyncDetail)
 app.component('error-diagnosis', ErrorDiagnosis)
-app.component('recording-status', RecordingStatus)
-app.component('recording-drawer', RecordingDrawer)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('guide-cell-image', GuideCellImage)
@@ -239,9 +283,6 @@ app.component('cancel-series-step', CancelSeriesStep)
 app.component('time-zone-field', TimeZoneField)
 app.component('guide-combobox', GuideCombobox)
 app.component('manual-option', ManualOption)
-app.component('plex-library-setup', PlexLibrarySetup)
-app.component('channel-setup-step', ChannelSetupStep)
-app.component('guide-setup-step', GuideSetupStep)
 app.component('channel-identity', ChannelIdentity)
 app.component('star-icon', StarIcon)
 app.component('step-mark-icon', StepMarkIcon)
@@ -253,9 +294,6 @@ app.component('programme-art-badges', ProgrammeArtBadges)
 app.component('programme-review-card', ProgrammeReviewCard)
 app.component('watch-for-sheet', WatchForSheet)
 app.component('padding-rows', PaddingRows)
-app.component('live-streams-setting', LiveStreamsSetting)
-app.component('tuner-status-panel', TunerStatusPanel)
-app.component('tmdb-key-setting', TmdbKeySetting)
 app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)
 app.component('fullscreen-icon', FullscreenIcon)
@@ -265,20 +303,15 @@ app.component('start-over-icon', StartOverIcon)
 app.component('player-info-panel', PlayerInfoPanel)
 app.component('stale-build-banner', StaleBuildBanner)
 app.component('toast-region', ToastRegion)
-app.component('channels-modal', ChannelsModal)
 app.component('info-button', InfoButton)
 app.component('series-folder-editor', FolderEditor)
 app.component('folder-sync-button', FolderSyncButton)
-app.component('series-drawer', SeriesDrawer)
-app.component('versions-row', VersionsRow)
 app.component('copy-row', CopyRow)
-app.component('tv-apps-panel', TvAppsPanel)
 app.component('copy-icon', CopyIcon)
 app.component('info-icon', InfoIcon)
 app.component('captions-icon', CaptionsIcon)
 app.component('eye-icon', EyeIcon)
 app.component('eye-off-icon', EyeOffIcon)
-app.component('doctor-spinner', DoctorSpinner)
 app.directive('autofocus', {
   mounted: (el, binding) => {
     if (binding.value !== false) el.focus()
@@ -319,3 +352,4 @@ const PAGE_ZOOM_GESTURES = ['gesturestart', 'gesturechange']
 const stopPageZoom = (event) => event.preventDefault()
 PAGE_ZOOM_GESTURES.forEach((type) => document.addEventListener(type, stopPageZoom, { passive: false }))
 app.mount('#app')
+prefetchViewsAfterLoad()

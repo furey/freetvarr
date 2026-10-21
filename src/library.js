@@ -391,7 +391,7 @@ const looksLikeUnimportedFilm = (row) => !['done', 'partial'].includes(row.statu
   && row.season == null && row.episode == null && Number(row.duration_s) >= MOVIE_MIN_DURATION_S
 
 const recordingImageOf = (row) => (row.image_path
-  ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image`
+  ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}`
   : null)
 
 const percentOf = ({ position, duration }) => {
@@ -452,3 +452,4 @@ const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }
 const MAX_EPISODES_TO_KEEP = 999
 const DEFAULT_EPISODE_LIMIT = 20
 const MAX_EPISODE_LIMIT = 50
+const CARD_IMAGE_WIDTH = 384

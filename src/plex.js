@@ -98,6 +98,14 @@ export const listPlexSectionItems = async ({ url, token, section }) => {
   const cacheKey = `${url}|${section.id}`
   const cached = sectionItemCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.items
+  if (sectionItemsInflight.has(cacheKey)) return sectionItemsInflight.get(cacheKey)
+  const pending = fetchPlexSectionItems({ url, token, section, cacheKey })
+    .finally(() => sectionItemsInflight.delete(cacheKey))
+  sectionItemsInflight.set(cacheKey, pending)
+  return pending
+}
+
+const fetchPlexSectionItems = async ({ url, token, section, cacheKey }) => {
   const res = await axios.get(`${url}/library/sections/${encodeURIComponent(section.id)}/all`, {
     params: { type: section.type === 'show' ? 4 : 1, 'X-Plex-Token': token },
     headers: { Accept: 'application/json' },
@@ -302,6 +310,7 @@ const prefsXml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '
 
 const machineIdentifiers = new Map()
 const sectionItemCache = new Map()
+const sectionItemsInflight = new Map()
 const SECTION_ITEM_TTL_MS = 60 * 1000
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
 const PLEX_LIBRARY_KINDS = {

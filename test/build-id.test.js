@@ -68,7 +68,7 @@ test('stampIndexHtml: adds the build meta tag and versions the script and styles
   assert.match(stamped, /href="\/tailwind\.css\?v=abc123"/)
   assert.match(stamped, /href="\/styles\.css\?v=abc123"/)
   assert.match(stamped, /href="\/styles\/base\.css\?v=abc123"/)
-  assert.match(stamped, /href="\/fonts\/inter-variable\.woff2"/)
+  assert.match(stamped, /href="\/fonts\/inter-variable\.woff2\?v=abc123"/)
   assert.match(stamped, /href="\/favicon\.svg"/)
 })
 
@@ -102,6 +102,43 @@ test('stampAssetUrls: versions imports from the views, components, and shared fo
     "import { api } from '/shared/api.js?v=abc123'",
     "import { TvIcon } from '/components/icons.js?v=abc123'",
   ].join('\n'))
+})
+
+test('stampIndexHtml: expands the app.js modulepreload into the given preloads', () => {
+  const html = '<head>\n    <link rel="modulepreload" href="/app.js" />\n</head>'
+  const stamped = stampIndexHtml({ html, build: 'abc123', preloads: ['/app.js', '/views/home-view.js'] })
+  assert.equal(stamped, [
+    '<head>',
+    '    <link rel="modulepreload" href="/app.js?v=abc123" />',
+    '    <link rel="modulepreload" href="/views/home-view.js?v=abc123" />',
+    '</head>',
+  ].join('\n'))
+})
+
+test('stampAssetUrls: versions relative imports so they resolve to the same url as absolute ones', () => {
+  const source = [
+    "import { showKey } from './show-key.js'",
+    "import { api } from '../shared/api.js'",
+    "import { HomeView } from './views/home-view.js'",
+  ].join('\n')
+  assert.equal(stampAssetUrls({ text: source, build: 'abc123' }), [
+    "import { showKey } from './show-key.js?v=abc123'",
+    "import { api } from '../shared/api.js?v=abc123'",
+    "import { HomeView } from './views/home-view.js?v=abc123'",
+  ].join('\n'))
+})
+
+test('stampAssetUrls: versions font urls in stylesheets', () => {
+  const css = "src: url('/fonts/figtree-latin-variable.woff2') format('woff2');"
+  assert.equal(stampAssetUrls({ text: css, build: 'abc123' }),
+    "src: url('/fonts/figtree-latin-variable.woff2?v=abc123') format('woff2');")
+})
+
+test('readBuildId: hashes fonts', async () => {
+  const root = await tempWebRoot({ 'app.js': 'a', 'font.woff2': 'one' })
+  const before = await readBuildId({ webRoot: root, version: '1.0.2' })
+  await fs.writeFile(path.join(root, 'font.woff2'), 'two')
+  assert.notEqual(await readBuildId({ webRoot: root, version: '1.0.2' }), before)
 })
 
 test('readBuildId: hashes scripts in subfolders', async () => {

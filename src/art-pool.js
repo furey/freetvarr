@@ -1,10 +1,11 @@
 import axios from 'axios'
 import crypto from 'crypto'
+import path from 'path'
 
 import { findArtwork } from './artwork.js'
 import { db } from './db.js'
 import { findArtSourceThumbnail } from './epg.js'
-import { PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
+import { PROGRAMME_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, thumbnailWidthFrom } from './image-thumbnails.js'
 import { isLibraryMember } from './library.js'
 import { matchPlexItem } from './library-actions.js'
 import { getPlexConnection, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
@@ -13,7 +14,9 @@ import { currentTimeZone } from './time-zone.js'
 import { showKeyOf } from './web/show-key.js'
 import { countryForTimeZone } from './zone-countries.js'
 
-export const mountArtPoolRoutes = ({ app, artPool = createArtPool() }) => {
+export const mountArtPoolRoutes = ({ app, artPool = createArtPool(), warmAfterMs = WARM_DELAY_MS }) => {
+  app.get('/api/recordings/:recording_id/image', serveRecordingImage())
+
   app.get('/api/library/shows/:key/art-pool', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     const pool = await artPool.showPool(req.params.key)
@@ -33,6 +36,40 @@ export const mountArtPoolRoutes = ({ app, artPool = createArtPool() }) => {
 
   app.get('/api/library/recordings/:recording_id/art/:image_id', serveEntry(artPool, async (req) =>
     (await artPool.recordingArt(req.params.recording_id))?.entries))
+
+  if (warmAfterMs !== null) scheduleWarmUp({ artPool, delayMs: warmAfterMs })
+}
+
+export const warmHomeArtPools = async ({ artPool, loadCandidates = homeCandidates }) => {
+  const { showKeys, recordingIds } = await loadCandidates()
+  for (const key of showKeys) await artPool.showPool(key).catch(() => null)
+  for (const id of recordingIds) await artPool.recordingArt(id).catch(() => null)
+  return { shows: showKeys.length, recordings: recordingIds.length }
+}
+
+export const serveRecordingImage = ({
+  loadOriginal = (recordingId) => findArtwork({ kind: 'recording', id: recordingId }),
+  thumbnails = recordingThumbnails,
+} = {}) => async (req, res) => {
+  const wantsThumbnail = req.query.w !== undefined
+  const width = wantsThumbnail ? thumbnailWidthFrom({ requested: req.query.w, allowed: PROGRAMME_IMAGE_WIDTHS }) : null
+  if (wantsThumbnail && width === null) return res.status(400).json({ error: `w must be one of ${PROGRAMME_IMAGE_WIDTHS.join(', ')}` })
+  try {
+    const original = await loadOriginal(req.params.recording_id).catch(() => null)
+    const image = original && wantsThumbnail
+      ? await thumbnails().thumbnailFor({
+        key: `recording:${req.params.recording_id}:${contentKeyOf(original.body)}`,
+        width,
+        loadOriginal: async () => original,
+      })
+      : original
+    if (!image) return sendMissing(res)
+    res.setHeader('Content-Type', image.contentType)
+    res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
+    res.send(image.body)
+  } catch {
+    sendMissing(res)
+  }
 }
 
 export const createArtPool = ({
@@ -47,34 +84,46 @@ export const createArtPool = ({
   loadTvmazeImages = tvmazeImages,
   countryCode = () => countryForTimeZone(currentTimeZone()),
   cache = databaseCache,
+  poolStore = databasePoolStore,
   thumbnailFor = findArtSourceThumbnail,
   loadSavedArtwork = findArtwork,
   now = Date.now,
   plexTtlMs = PLEX_TTL_MS,
+  poolTtlMs = POOL_TTL_MS,
+  poolMissTtlMs = POOL_MISS_TTL_MS,
   tvmazeHitTtlMs = TVMAZE_HIT_TTL_MS,
   tvmazeMissTtlMs = TVMAZE_MISS_TTL_MS,
 } = {}) => {
-  const plexMemo = createMemo({ ttlMs: plexTtlMs, now })
+  const plexMemo = createPersistedMemo({
+    store: poolStore,
+    now,
+    memoryTtlMs: plexTtlMs,
+    hitTtlMs: poolTtlMs,
+    missTtlMs: poolMissTtlMs,
+  })
   const tvmazeMemo = createMemo({ ttlMs: plexTtlMs, now })
 
   const plexMatchFor = async (filePaths) => {
     const connection = await plexConnection().catch(() => null)
-    if (!connection || !filePaths.length) return null
-    for (const section of await plexSections().catch(() => [])) {
-      const items = await plexItems({ ...connection, section }).catch(() => [])
-      const item = filePaths.map((filePath) => matchPlexItem({ items, filePath })).find(Boolean)
-      if (item) return { item, section, connection }
+    if (!connection || !filePaths.length) return { match: null, partial: false }
+    const sections = await plexSections().catch(() => [])
+    const listings = await Promise.all(sections.map((section) =>
+      plexItems({ ...connection, section }).catch(() => null)))
+    const matchIn = (section, at) => {
+      const item = filePaths.map((filePath) => matchPlexItem({ items: listings[at] || [], filePath })).find(Boolean)
+      return item && { item, section, connection }
     }
-    return null
+    const match = sections.map(matchIn).find(Boolean) || null
+    return { match, partial: !match && listings.includes(null) }
   }
 
   const plexShowPart = (key, filePaths) => plexMemo.get(`show:${key}`, async () => {
-    const match = await plexMatchFor(filePaths)
+    const { match, partial } = await plexMatchFor(filePaths)
     const ratingKey = match?.section.type === 'show' ? match.item.grandparentRatingKey : match?.item.ratingKey
-    if (!ratingKey) return { found: false, entries: [] }
-    const arts = await plexArts({ ...match.connection, ratingKey }).catch(() => [])
-    return { found: true, entries: plexArtsPoolOf(arts) }
-  })
+    if (!ratingKey) return { found: false, entries: [], partial }
+    const arts = await plexArts({ ...match.connection, ratingKey }).catch(() => null)
+    return { found: true, entries: plexArtsPoolOf(arts || []), partial: !arts }
+  }, { found: false, entries: [] })
 
   const tvmazePart = async (title) => {
     const titleKey = showTitleKey(title)
@@ -104,8 +153,8 @@ export const createArtPool = ({
   const recordingArt = async (recordingId) => {
     const row = await loadRecordingRow(recordingId)
     if (!row) return null
-    const entries = await plexMemo.get(`recording:${recordingId}`, () => recordingEntriesOf(row)).catch(() => [])
-    return { entries }
+    const art = await plexMemo.get(recordingPoolKeyOf(row), () => recordingEntriesOf(row), { entries: [] })
+    return { entries: art.entries }
   }
 
   const recordingEntriesOf = async (row) => {
@@ -113,8 +162,8 @@ export const createArtPool = ({
       ? await loadSavedArtwork({ kind: 'recording', id: row.recording_id }).catch(() => null)
       : null
     const guide = await keepLoadable(guideEpisodePoolOf({ row, saved }))
-    const plex = row.file_path ? plexEpisodePoolOf(await plexMatchFor([row.file_path])) : []
-    return withIds([...guide, ...plex])
+    const { match, partial } = row.file_path ? await plexMatchFor([row.file_path]) : { match: null, partial: false }
+    return { entries: withIds([...guide, ...plexEpisodePoolOf(match)]), partial }
   }
 
   const keepLoadable = async (entries) => {
@@ -177,7 +226,7 @@ export const plexEpisodePoolOf = (match) => {
 export const guideEpisodePoolOf = ({ row, saved = null }) => {
   if (saved?.body) {
     return [{
-      url: `/api/recordings/${encodeURIComponent(row.recording_id)}/image`,
+      url: `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${HERO_IMAGE_WIDTH}`,
       kind: 'episode',
       source: 'guide',
       contentKey: contentKeyOf(saved.body),
@@ -244,6 +293,35 @@ const sourceOfOrigin = async ({ origin, plexConnection }) => {
   return connection ? plexSourceOf({ origin, ...connection }) : null
 }
 
+const scheduleWarmUp = ({ artPool, delayMs }) => {
+  const timer = setTimeout(() => {
+    warmHomeArtPools({ artPool }).catch((err) => console.warn(`[art-pool] warm-up failed: ${err.message}`))
+  }, delayMs)
+  timer.unref?.()
+}
+
+const homeCandidates = async () => {
+  const recent = (column) => db('recordings').whereNull('purged_at').whereNotNull(column).orderBy(column, 'desc').limit(WARM_ROW_LIMIT)
+  const [played, aired] = await Promise.all([recent('played_at'), recent('aired_at')])
+  const rows = [...played.slice(0, WARM_PLAYED), ...aired]
+    .filter((row) => isLibraryMember(row) && row.status !== 'failed')
+  return {
+    showKeys: [...new Set(rows.map((row) => showKeyOf(row.title)).filter(Boolean))].slice(0, WARM_SHOWS),
+    recordingIds: [...new Set(rows.map((row) => row.recording_id))].slice(0, WARM_RECORDINGS),
+  }
+}
+
+const recordingPoolKeyOf = (row) =>
+  `recording:${row.recording_id}:${contentKeyOf(`${row.file_path ?? ''}|${row.image_path ?? ''}|${row.image_url ?? ''}`)}`
+
+const recordingThumbnails = () => {
+  recordingThumbnailStore ??= createThumbnailStore({
+    dir: path.join(getThumbnailRoot(), RECORDING_THUMBNAIL_DIR),
+    maxBytes: RECORDING_THUMBNAIL_MAX_BYTES,
+  })
+  return recordingThumbnailStore
+}
+
 const withIds = (entries) => entries.map((entry) => (entry.origin ? { ...entry, id: imageIdOf(entry.origin) } : entry))
 
 const uniqueByOrigin = (entries) => {
@@ -283,6 +361,52 @@ const createMemo = ({ ttlMs, now }) => {
   return { get }
 }
 
+const createPersistedMemo = ({ store, now, memoryTtlMs, hitTtlMs, missTtlMs }) => {
+  const held = new Map()
+  const refreshing = new Map()
+
+  const hold = (key, value) => {
+    held.set(key, { value, expiresAt: now() + memoryTtlMs })
+    if (held.size > MAX_MEMO_ENTRIES) held.delete(held.keys().next().value)
+    return value
+  }
+
+  const save = async (key, value) => {
+    const ttlMs = value.entries.length ? hitTtlMs : missTtlMs
+    await store.write({ key, value: { ...value, partial: undefined }, expiresAt: now() + ttlMs }).catch(() => {})
+    return value
+  }
+
+  const refresh = (key, load, stale) => {
+    if (refreshing.has(key)) return refreshing.get(key)
+    const pending = Promise.resolve()
+      .then(load)
+      .then((value) => (value.partial ? stale ?? value : save(key, value)))
+      .then((value) => {
+        hold(key, Promise.resolve(value))
+        return value
+      })
+      .finally(() => refreshing.delete(key))
+    refreshing.set(key, pending)
+    return pending
+  }
+
+  const resolve = async (key, load) => {
+    const saved = await store.read(key).catch(() => null)
+    if (!saved) return refresh(key, load)
+    if (saved.expiresAt <= now()) refresh(key, load, saved.value).catch(() => {})
+    return saved.value
+  }
+
+  const get = (key, load, fallback) => {
+    const cached = held.get(key)
+    if (cached && cached.expiresAt > now()) return cached.value
+    return hold(key, resolve(key, load).catch(() => fallback))
+  }
+
+  return { get }
+}
+
 const plexArtsFor = async ({ url, token, ratingKey }) => {
   const res = await axios.get(`${url}/library/metadata/${encodeURIComponent(ratingKey)}/arts`, {
     params: { 'X-Plex-Token': token },
@@ -310,6 +434,19 @@ const databaseCache = {
     .merge(),
 }
 
+const databasePoolStore = {
+  read: async (key) => {
+    const row = await db('art_pools').where({ pool_key: key }).first()
+    return row ? { value: JSON.parse(row.value_json), expiresAt: Number(row.expires_at) } : null
+  },
+  write: ({ key, value, expiresAt }) => db('art_pools')
+    .insert({ pool_key: key, value_json: JSON.stringify(value), expires_at: expiresAt })
+    .onConflict('pool_key')
+    .merge(),
+}
+
+let recordingThumbnailStore = null
+
 const HERO_WIDTH = 768
 const PLEX_ART_WIDTH = 1280
 const PLEX_ART_HEIGHT = 720
@@ -322,5 +459,15 @@ const REQUEST_TIMEOUT_MS = 5000
 const IMAGE_MAX_AGE_S = 24 * 60 * 60
 const MISSING_IMAGE_MAX_AGE_S = 5 * 60
 const PLEX_TTL_MS = 10 * 60 * 1000
+const POOL_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const POOL_MISS_TTL_MS = 60 * 60 * 1000
+const WARM_DELAY_MS = 15 * 1000
+const WARM_ROW_LIMIT = 40
+const WARM_SHOWS = 12
+const WARM_PLAYED = 4
+const WARM_RECORDINGS = 12
+const RECORDING_THUMBNAIL_DIR = 'recordings'
+const RECORDING_THUMBNAIL_MAX_BYTES = 20 * 1024 * 1024
 const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const HERO_IMAGE_WIDTH = 768

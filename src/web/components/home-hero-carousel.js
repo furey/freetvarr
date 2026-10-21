@@ -41,7 +41,7 @@ export const HomeHeroCarousel = {
             :style="slideStyle(i)">
             <div class="hero-slide-backdrop ui-art-fallback" :style="fallbackStyleOf(slide)">
               <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="slide.art.image" alt="" decoding="async"
-                :loading="i === rotation.index ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
+                :fetchpriority="i === 0 ? 'high' : null" :loading="i === rotation.index ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
             <div class="ui-hero-body hero-slide-body">

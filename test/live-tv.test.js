@@ -892,8 +892,8 @@ test('sessions: a probe failure and then a missing teletext stream each restart 
 })
 
 test('vendor: the server sends the full hls.js build, which has caption support', async () => {
-  const server = await readFile(new URL('../src/server.js', import.meta.url), 'utf8')
-  assert.match(server, /'\/vendor\/hls\.mjs', sendVendorFile\('hls\.js', 'dist', 'hls\.min\.mjs'\)/)
+  const assets = await readFile(new URL('../src/web-assets.js', import.meta.url), 'utf8')
+  assert.match(assets, /'\/vendor\/hls\.mjs': 'hls\.js\/dist\/hls\.min\.mjs'/)
   const build = await readFile(new URL('../node_modules/hls.js/dist/hls.min.mjs', import.meta.url), 'utf8')
   assert.match(build, /subtitleStreamController:(?!void)/)
 })
