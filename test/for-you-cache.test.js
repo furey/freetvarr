@@ -5,7 +5,7 @@ import path from 'node:path'
 
 process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-cache-${process.pid}.db`)
 
-const { createForYouCache, createForYouWorker, forYouSignatureOf, guideVersionOf, snapshotStampsOf } = await import('../src/for-you-service.js')
+const { createForYouCache, createForYouWorker, createSavedResultStore, forYouSignatureOf, guideVersionOf, snapshotStampsOf } = await import('../src/for-you-service.js')
 const { buildForYouFromRequest } = await import('../src/for-you-worker.js')
 const { buildForYou } = await import('../src/for-you.js')
 
@@ -210,4 +210,38 @@ test('the For you worker builds the same result as an inline build', async () =>
   } finally {
     await worker.close()
   }
+})
+
+test('after a restart the saved result answers at once while a fresh build runs', async () => {
+  const saved = { sections: [{ key: 'movies', items: [{ title: 'Heat' }] }] }
+  let release
+  const building = new Promise((resolve) => { release = resolve })
+  const writes = []
+  const cache = createForYouCache({
+    loadSnapshot: async () => ({ stamps: { guide: 'v2' } }),
+    compute: () => building,
+    store: { load: async () => saved, save: async (result) => writes.push(result) },
+  })
+  assert.equal(await cache.get({ nowMs: 0 }), saved)
+  release({ sections: [] })
+  await building
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(await cache.get({ nowMs: 0 }), { sections: [] })
+  assert.equal(writes.length, 1)
+})
+
+test('the saved result store keeps explanations and drops a result older than a day', async () => {
+  const rows = new Map()
+  let clock = 1000
+  const store = createSavedResultStore({
+    read: async (key) => rows.get(key),
+    write: async (key, value) => { rows.set(key, value) },
+    now: () => clock,
+    maxAgeMs: 500,
+  })
+  const result = Object.defineProperty({ sections: [] }, 'explanations', { get: () => new Map([['1', { why: 'Drama' }]]) })
+  await store.save(result)
+  assert.deepEqual((await store.load()).explanations.get('1'), { why: 'Drama' })
+  clock = 2000
+  assert.equal(await store.load(), null)
 })

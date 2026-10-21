@@ -23,6 +23,9 @@ import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
 
+const SAVED_RESULT_SETTING = 'for_you_saved_result'
+const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
 export const getForYou = async ({ nowMs = Date.now() } = {}) => {
@@ -30,10 +33,18 @@ export const getForYou = async ({ nowMs = Date.now() } = {}) => {
   return forYouCache.get({ nowMs })
 }
 
-export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError }) => {
+export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null }) => {
   let cached = null
   let computing = null
   let generation = 0
+  let restored = false
+
+  const restore = async () => {
+    if (restored || !store) return
+    restored = true
+    const saved = await store.load().catch(() => null)
+    if (saved && !cached) cached = { signature: null, result: saved }
+  }
 
   const computeFor = ({ snapshot, signature, nowMs }) => {
     if (computing?.signature === signature && computing.generation === generation) return computing.promise
@@ -41,6 +52,7 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
     const promise = compute({ snapshot, nowMs })
       .then((result) => {
         if (startedIn === generation) cached = { signature, result }
+        store?.save(result).catch(() => {})
         return result
       })
       .finally(() => {
@@ -50,7 +62,21 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
     return promise
   }
 
+  let refreshing = null
+  const refreshInBackground = ({ nowMs }) => {
+    refreshing ??= loadSnapshot({ nowMs })
+      .then((snapshot) => computeFor({ snapshot, signature: forYouSignatureOf({ stamps: snapshot.stamps, nowMs }), nowMs }))
+      .catch(onRefreshError)
+      .finally(() => { refreshing = null })
+    return refreshing
+  }
+
   const get = async ({ nowMs }) => {
+    await restore()
+    if (cached && cached.signature === null) {
+      refreshInBackground({ nowMs })
+      return cached.result
+    }
     const snapshot = await loadSnapshot({ nowMs })
     const signature = forYouSignatureOf({ stamps: snapshot.stamps, nowMs })
     if (cached?.signature === signature) return cached.result
@@ -143,7 +169,13 @@ export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   return { ok: true, wasHidden: Boolean(latest) }
 }
 
-export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS }) => {
+export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs = WARM_DELAY_MS }) => {
+  const warm = setTimeout(() => {
+    isForYouEnabled()
+      .then((enabled) => enabled && getForYou())
+      .catch((err) => console.warn(`[for-you] warm-up failed: ${err.message}`))
+  }, warmDelayMs)
+  warm.unref?.()
   const timer = setTimeout(() => {
     afterStartup({ version }).catch((err) => console.warn(`[for-you] startup check failed: ${err.message}`))
   }, delayMs)
@@ -185,9 +217,7 @@ export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
       priority: (pinnedSet.has(String(programme.channel_id)) ? 1 : 0) + (isPrimeTime(programme.start) ? 1 : 0),
     })),
   ]
-  const result = await genreEnrichment.run({ titles })
-  forgetForYouCache()
-  return result
+  return genreEnrichment.run({ titles })
 }
 
 const afterStartup = async ({ version }) => {
@@ -199,7 +229,6 @@ const afterStartup = async ({ version }) => {
 const upkeepNow = async ({ nowMs }) => {
   await setSetting(SETTINGS.upkeep, String(nowMs))
   const embeddings = await runEmbeddings({ nowMs }).catch((err) => ({ ok: false, error: err.message }))
-  forgetForYouCache()
   const genres = await enrichGenres({ nowMs }).catch((err) => ({ error: err.message }))
   return { embeddings, genres }
 }
@@ -323,6 +352,19 @@ export const createForYouWorker = ({ url, timeoutMs } = {}) => {
   return { build, close }
 }
 
+export const createSavedResultStore = ({ read = getSetting, write = setSetting, now = Date.now, maxAgeMs = SAVED_RESULT_MAX_AGE_MS } = {}) => ({
+  load: async () => {
+    const saved = JSON.parse((await read(SAVED_RESULT_SETTING)) || 'null')
+    if (!saved?.result || !(now() - saved.savedAt < maxAgeMs)) return null
+    return withLazyExplanations({ result: saved.result, explanationsJson: saved.explanationsJson || '[]' })
+  },
+  save: (result) => write(SAVED_RESULT_SETTING, JSON.stringify({
+    savedAt: now(),
+    result,
+    explanationsJson: JSON.stringify([...(result.explanations || new Map())]),
+  })),
+})
+
 const withLazyExplanations = ({ result, explanationsJson }) => {
   let explanations = null
   return Object.defineProperty(result, 'explanations', {
@@ -372,7 +414,7 @@ const isPrimeTime = (ms) => {
 let upkeeping = null
 const guideVersions = new WeakMap()
 const forYouWorker = createForYouWorker()
-const forYouCache = createForYouCache({ loadSnapshot, compute: computeForYou })
+const forYouCache = createForYouCache({ loadSnapshot, compute: computeForYou, store: createSavedResultStore() })
 const classificationStore = createClassificationStore()
 const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFromTvmaze, onFilm: rememberKnownAsFromWikidata })
 
@@ -392,6 +434,7 @@ const RECORDING_STAMP_COLUMNS = [
 const HIDING_KINDS = ['not_interested', 'not_interested_undo']
 const BUCKET_MS = 5 * 60 * 1000
 const STARTUP_DELAY_MS = 20 * 1000
+const WARM_DELAY_MS = 3 * 1000
 const NIGHT_START = 2
 const NIGHT_END = 6
 const OVERDUE_MS = 36 * 60 * 60 * 1000
