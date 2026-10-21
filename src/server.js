@@ -197,6 +197,8 @@ import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, deleteTvLoginRoute, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
 import { mountForYou } from './for-you-routes.js'
+import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
+import { imageFocus } from './image-focus-service.js'
 import {
   liveSessionHooks,
   mountUserEvents,
@@ -253,6 +255,7 @@ const IMAGE_MAX_AGE_S = 24 * 60 * 60
 const MISSING_IMAGE_MAX_AGE_S = 5 * 60
 const CONNECT_ATTEMPT_TIMEOUT_MS = 2500
 const MAX_SHOW_TITLE_LENGTH = 200
+const MAX_FOCUS_KEYS = 40
 const MAX_PERSON_IMAGE_SOURCE_LENGTH = 300
 const RATINGS_MAX_AGE_S = 5 * 60
 
@@ -299,6 +302,8 @@ app.use('/api', (req, res, next) => {
   res.setHeader(BUILD_HEADER, BUILD_ID)
   next()
 })
+
+app.use(imageFocus.tap)
 
 app.use(compression())
 app.use(express.json())
@@ -740,6 +745,12 @@ app.get('/api/epg/show-image', serveImage({
     kind: artworkKindOf(req.query.kind),
   }),
 }))
+
+app.get('/api/image-focus', async (req, res) => {
+  const keys = [req.query.k ?? []].flat().map(String).slice(0, MAX_FOCUS_KEYS)
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(await imageFocus.lookup(keys).catch(() => ({ enabled: false, items: {} })))
+})
 
 const guideHints = createGuideHints({ loadGuide: getGuideSnapshot })
 const LOOKUP_WAIT_MS = 1500
@@ -1452,6 +1463,7 @@ app.get('/api/settings', async (req, res) => {
     ratingsLookup,
     reviewsLookup,
     creditsLookup,
+    faceFocus,
   ] = await Promise.all([
     getSetting('tvh_url'),
     getSetting('tvh_username'),
@@ -1480,6 +1492,7 @@ app.get('/api/settings', async (req, res) => {
     getSetting(RATINGS_SETTING),
     getSetting(REVIEWS_SETTING),
     getSetting(CREDITS_SETTING),
+    getSetting(FOCUS_SETTING),
   ])
   res.json({
     tvh_url: tvhUrl,
@@ -1521,6 +1534,7 @@ app.get('/api/settings', async (req, res) => {
     ratings_lookup_enabled: ratingsLookup !== 'false',
     reviews_lookup_enabled: reviewsLookup !== 'false',
     credits_lookup_enabled: creditsLookup !== 'false',
+    face_focus_enabled: faceFocusEnabledFrom(faceFocus),
   })
 })
 
@@ -1560,6 +1574,9 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   }
   if (body.credits_lookup_enabled !== undefined) {
     await setSetting(CREDITS_SETTING, body.credits_lookup_enabled ? 'true' : 'false')
+  }
+  if (body.face_focus_enabled !== undefined) {
+    await setSetting(FOCUS_SETTING, body.face_focus_enabled ? 'true' : 'false')
   }
   if (body.import_unmatched !== undefined) {
     await setSetting('import_unmatched', body.import_unmatched ? 'true' : 'false')
@@ -2255,6 +2272,7 @@ const server = app.listen(PORT, async () => {
     sweepLibraryStates().catch((err) => console.warn(`[sync] library check: ${err.message}`))
     shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
     prepareThumbnailCache()
+    imageFocus.prepare()
   } catch (err) {
     console.error('[sync] failed to reconcile recording paths:', err.message)
   }

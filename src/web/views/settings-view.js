@@ -40,6 +40,7 @@ const LICENCES = [
   { name: 'Figtree', note: 'Interface typeface, by Erik Kennedy.', licence: 'SIL OFL 1.1', href: '/fonts/figtree-OFL.txt' },
   { name: 'Geist Mono', note: 'Typeface for paths and code.', licence: 'SIL OFL 1.1', href: '/fonts/geist-mono-OFL.txt' },
   { name: 'Vue', note: 'Interface framework.', licence: 'MIT', href: 'https://github.com/vuejs/core/blob/main/LICENSE' },
+  { name: 'UltraFace', note: 'Face detector for cropping pictures, by Linzaer.', licence: 'MIT', href: 'https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/blob/master/LICENSE' },
   { name: 'Hold music', note: '"Local Forecast – Elevator" by Kevin MacLeod (incompetech.com).', licence: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' },
 ]
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
@@ -502,6 +503,19 @@ export const SettingsView = {
             </div>
             <p class="settings-note">Off keeps every title on your network.</p>
           </div>
+          <div class="settings-group">
+            <h3 class="ui-group-label">Picture cropping</h3>
+            <div class="ui-group">
+              <div class="settings-row">
+                <toggle-switch v-model="faceFocusEnabled" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Keep faces in view</span>
+                    <span class="settings-row-meta">Finds the people in each picture so cropped pictures show their faces. Runs on this server in the background.</span>
+                  </span>
+                </toggle-switch>
+              </div>
+            </div>
+          </div>
           <tmdb-key-setting @key-change="tmdbKeySet = $event" />
         </section>
 
@@ -708,6 +722,7 @@ export const SettingsView = {
     const addToLibraryDefault = ref(true)
     const showArtworkLookup = ref(true)
     const ratingsLookupEnabled = ref(true)
+    const faceFocusEnabled = ref(true)
     const reviewsLookupEnabled = ref(true)
     const creditsLookupEnabled = ref(true)
     const tmdbKeySet = ref(false)
@@ -770,6 +785,7 @@ export const SettingsView = {
       loadRecordingDefaults()
       showArtworkLookup.value = s.show_artwork_lookup !== false
       ratingsLookupEnabled.value = s.ratings_lookup_enabled !== false
+      faceFocusEnabled.value = s.face_focus_enabled !== false
       reviewsLookupEnabled.value = s.reviews_lookup_enabled !== false
       creditsLookupEnabled.value = s.credits_lookup_enabled !== false
       plexOneOffSectionId.value = s.plex_oneoff_section_id || ''
@@ -801,6 +817,7 @@ export const SettingsView = {
           import_unmatched: importUnmatched.value,
           show_artwork_lookup: showArtworkLookup.value,
           ratings_lookup_enabled: ratingsLookupEnabled.value,
+          face_focus_enabled: faceFocusEnabled.value,
           reviews_lookup_enabled: reviewsLookupEnabled.value,
           credits_lookup_enabled: creditsLookupEnabled.value,
           plex_oneoff_section_id: plexOneOffSectionId.value,
@@ -1080,7 +1097,7 @@ export const SettingsView = {
       resetting, resetError, askResetFreetvarr,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, reviewsLookupEnabled, creditsLookupEnabled, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
+      importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, faceFocusEnabled, reviewsLookupEnabled, creditsLookupEnabled, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,

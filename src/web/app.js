@@ -92,6 +92,7 @@ import { WatchForSheet } from '/components/watch-for-sheet.js'
 import { noteBuild, checkForNewBuild } from '/shared/api.js'
 import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.js'
 import { pollHealth } from '/shared/health.js'
+import { installImageFocus } from '/shared/image-focus.js'
 import { loadArtworkStamps } from '/shared/artwork-stamps.js'
 import { pollRecordingNow } from '/shared/recording-now.js'
 import { pageReveal } from '/shared/page-reveal.js'
@@ -363,5 +364,6 @@ document.addEventListener('touchstart', () => {}, { passive: true })
 const PAGE_ZOOM_GESTURES = ['gesturestart', 'gesturechange']
 const stopPageZoom = (event) => event.preventDefault()
 PAGE_ZOOM_GESTURES.forEach((type) => document.addEventListener(type, stopPageZoom, { passive: false }))
+installImageFocus()
 app.mount('#app')
 prefetchViewsAfterLoad()

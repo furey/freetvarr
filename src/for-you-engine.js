@@ -74,6 +74,8 @@ export const runEmbeddings = async ({ nowMs = Date.now() } = {}) => {
 
 export const isEmbedding = () => Boolean(embedding)
 
+export const readHeadroomMb = async () => (await readStaticCapability()).headroomMb
+
 export const loadVectors = async (modelId) => {
   if (!modelId) return null
   const version = vectorVersion

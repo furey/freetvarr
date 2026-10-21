@@ -1039,6 +1039,10 @@ body.sheet-open .app-tabbar {
 }
 
 @media (min-width: 768px) and (min-height: 501px) {
+  .ui-hero-art {
+    --focus-avoid-bottom: 0.35;
+  }
+
   .ui-hero-body {
     gap: 10px;
     padding: 32px;
