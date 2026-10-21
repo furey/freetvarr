@@ -27,6 +27,15 @@ import {
   unitVectorOf,
 } from './for-you-similarity.js'
 import { embedTextOf, textHashOf } from './for-you-texts.js'
+import {
+  TOP_RATED_LIMIT,
+  hasRealScore,
+  isOtherLanguage,
+  otherLanguageChoiceFrom,
+  otherLanguageLimitOf,
+  weightedScoreOf,
+  withinLanguageLimit,
+} from './top-rated.js'
 
 export const COLD_START_SHOWS = 5
 export const DEFAULT_LIMIT = 10
@@ -34,6 +43,7 @@ export const SECTION_TITLES = {
   'coming-up': 'Coming up from your shows',
   'new-seasons': 'New seasons and returns',
   'might-like': 'You might like',
+  'top-rated': 'Top rated movies this week',
   movies: 'Movies this week',
   premieres: 'Premieres this week',
 }
@@ -54,6 +64,8 @@ export const buildForYou = ({
   horizonMs = WEEK_MS,
   hourOf = localHourOf,
   tier = 'basic',
+  filmFacts = new Map(),
+  otherLanguageFilms = 'few',
 }) => {
   const upcoming = programmes.filter((programme) => isCandidateAiring({ programme, nowMs, horizonMs }))
   const records = recordsOf(genresByKey)
@@ -76,6 +88,7 @@ export const buildForYou = ({
     recorded: recordedEpisodesOf({ recordings, keyOf }),
     scheduledProgramIds: new Set([...scheduledProgramIds].map(String)),
     ruleKeys,
+    filmFactsOf: (programme) => filmFacts.get(programme.title) || null,
   }
   context.genreShares = genreSharesOf({ profile, categoriesOf: context.categoriesOf, programmes: [...upcoming, ...history] })
   context.similarity = similarityContextOf({ profile, upcoming, history, recordings, keyOf, vectorsByHash, tier })
@@ -85,13 +98,19 @@ export const buildForYou = ({
     .map((programme) => scoreAiring({ programme, context }))
     .filter(Boolean)
   const best = bestAiringPerShow(scored)
+  const otherLimit = otherLanguageLimitOf(otherLanguageFilms)
+  const topRated = topRatedOf({ upcoming, context })
   const sections = coldStart
-    ? coldStartSections({ items: best, limit, nowMs })
-    : sectionsOf({ items: best, limit, nowMs, genreShares: context.genreShares })
+    ? coldStartSections({ items: best, topRated, limit, otherLimit })
+    : sectionsOf({ items: best, topRated, limit, nowMs, genreShares: context.genreShares, otherLimit })
   const explanations = new Map(scored.map((entry) => [entry.item.id, explanationOf({ entry, context })]))
+  for (const entry of sections.find((section) => section.key === 'top-rated')?.entries || []) {
+    explanations.set(entry.item.id, topRatedExplanationOf(entry))
+  }
   return {
     tier,
     coldStart,
+    otherLanguageFilms: otherLanguageChoiceFrom(otherLanguageFilms),
     similarity: context.similarity.method,
     generatedAt: nowMs,
     topPick: topPickOf(sections),
@@ -367,31 +386,66 @@ const scoreAiring = ({ programme, context }) => {
     show,
     contributions,
     primaryGenre: categories.find((category) => category !== 'movie') || (movie ? 'movie' : 'other'),
-    item: {
-      id: String(programme.program_id),
-      programmeKey: `${channelId}:${programme.start}`,
-      seriesKey: key,
-      title,
-      episodeTitle: programme.episode_title || null,
-      synopsis: programme.synopsis || '',
-      image: programme.image
-        ? `/api/epg/image/${encodeURIComponent(programme.program_id)}`
-        : showImageUrlOf({ title, isFilm: movie || programme.kind === 'movie' }),
-      channelId,
-      channelName,
-      start: Number(programme.start),
-      stop: Number(programme.end ?? programme.stop),
-      onNow: Number(programme.start) <= nowMs && Number(programme.end ?? programme.stop) > nowMs,
-      kind,
-      programmeKind: programme.kind ?? null,
-      reason: top.text,
-      score: Math.round(total * 1000) / 1000,
-      canRecordSeries: Boolean(programme.series_link) && !movie,
-      seasonNumber: programme.series_no ?? null,
-      episodeNumber: programme.episode_no ?? null,
-      categories,
-    },
+    otherLanguage: movie && isOtherLanguage(context.filmFactsOf(programme)),
+    item: airingItemOf({ programme, context, movie, categories, kind, reason: top.text, score: total }),
   }
+}
+
+export const airingItemOf = ({ programme, context, movie, categories, kind, reason, score }) => {
+  const channelId = String(programme.channel_id)
+  const title = programme.title
+  return {
+    id: String(programme.program_id),
+    programmeKey: `${channelId}:${programme.start}`,
+    seriesKey: showKeyOf(title),
+    title,
+    episodeTitle: programme.episode_title || null,
+    synopsis: programme.synopsis || '',
+    image: programme.image
+      ? `/api/epg/image/${encodeURIComponent(programme.program_id)}`
+      : showImageUrlOf({ title, isFilm: movie || programme.kind === 'movie' }),
+    channelId,
+    channelName: context.channelNames.get(channelId) || null,
+    start: Number(programme.start),
+    stop: Number(programme.end ?? programme.stop),
+    onNow: Number(programme.start) <= context.nowMs && Number(programme.end ?? programme.stop) > context.nowMs,
+    kind,
+    programmeKind: programme.kind ?? null,
+    reason,
+    score: Math.round(score * 1000) / 1000,
+    canRecordSeries: Boolean(programme.series_link) && !movie,
+    seasonNumber: programme.series_no ?? null,
+    episodeNumber: programme.episode_no ?? null,
+    categories,
+    ...(movie && isOtherLanguage(context.filmFactsOf(programme)) && { otherLanguage: true }),
+  }
+}
+
+export const topRatedOf = ({ upcoming, context }) => {
+  const byKey = new Map()
+  for (const programme of upcoming) {
+    if (!(Number(programme.start) >= context.nowMs) || isExcluded({ programme, context })) continue
+    const facts = context.filmFactsOf(programme)
+    if (!hasRealScore(facts)) continue
+    const categories = context.categoriesOf(programme)
+    if (!categories.includes('movie') && programme.kind !== 'movie') continue
+    const key = showKeyOf(programme.title)
+    if (context.profile.shows.get(key)?.episodesCompleted > 0) continue
+    const known = byKey.get(key)
+    if (known && known.item.start <= Number(programme.start)) continue
+    const rank = weightedScoreOf(facts)
+    byKey.set(key, {
+      key,
+      rank,
+      facts,
+      otherLanguage: isOtherLanguage(facts),
+      item: {
+        ...airingItemOf({ programme, context, movie: true, categories, kind: 'movie', reason: '', score: rank / 10 }),
+        rating: { score: Number(facts.score), votes: facts.votes ?? null },
+      },
+    })
+  }
+  return [...byKey.values()].sort((a, b) => b.rank - a.rank || a.item.start - b.item.start)
 }
 
 const showImageUrlOf = ({ title, isFilm }) =>
@@ -471,7 +525,7 @@ const bestAiringPerShow = (scored) => {
   return [...byKey.values()].sort((a, b) => b.score - a.score || a.item.start - b.item.start)
 }
 
-const sectionsOf = ({ items, limit, nowMs, genreShares }) => {
+const sectionsOf = ({ items, topRated, limit, nowMs, genreShares, otherLimit }) => {
   const used = new Set()
   const take = (entries) => {
     for (const entry of entries) used.add(entry.key)
@@ -479,8 +533,8 @@ const sectionsOf = ({ items, limit, nowMs, genreShares }) => {
   }
   const fresh = (entry) => !used.has(entry.key)
   const newSeasons = take(items.filter((entry) => entry.liked && (entry.newSeason || entry.back)).slice(0, limit))
-  const comingUp = take(items
-    .filter((entry) => fresh(entry) && entry.liked)
+  const capped = (entries) => withinLanguageLimit({ entries, isOther: (entry) => entry.otherLanguage, limit: otherLimit })
+  const comingUp = take(capped(items.filter((entry) => fresh(entry) && entry.liked))
     .slice(0, limit)
     .sort((a, b) => a.item.start - b.item.start))
   const mightLike = take(diversify({
@@ -489,7 +543,8 @@ const sectionsOf = ({ items, limit, nowMs, genreShares }) => {
     genreShares,
     seed: Math.floor(nowMs / DAY_MS),
   }))
-  const movies = take(items.filter((entry) => fresh(entry) && entry.movie).slice(0, limit))
+  const best = take(capped(topRated.filter(fresh)).slice(0, TOP_RATED_LIMIT))
+  const movies = take(capped(items.filter((entry) => fresh(entry) && entry.movie)).slice(0, limit))
   const premieres = take(items
     .filter((entry) => fresh(entry) && isPremiereSuggestion(entry))
     .slice(0, limit)
@@ -498,19 +553,24 @@ const sectionsOf = ({ items, limit, nowMs, genreShares }) => {
     { key: 'coming-up', entries: comingUp },
     { key: 'new-seasons', entries: newSeasons },
     { key: 'might-like', entries: mightLike },
+    { key: 'top-rated', entries: best },
     { key: 'movies', entries: movies },
     { key: 'premieres', entries: premieres },
   ].filter((section) => section.entries.length)
 }
 
-const coldStartSections = ({ items, limit }) => {
+const coldStartSections = ({ items, topRated, limit, otherLimit }) => {
   const premieres = items
     .filter(isPremiereSuggestion)
     .slice(0, limit)
     .sort((a, b) => a.item.start - b.item.start)
-  const movies = items.filter((entry) => entry.movie).slice(0, limit)
+  const capped = (entries) => withinLanguageLimit({ entries, isOther: (entry) => entry.otherLanguage, limit: otherLimit })
+  const best = capped(topRated).slice(0, TOP_RATED_LIMIT)
+  const bestKeys = new Set(best.map((entry) => entry.key))
+  const movies = capped(items.filter((entry) => entry.movie && !bestKeys.has(entry.key))).slice(0, limit)
   return [
     { key: 'premieres', entries: premieres },
+    { key: 'top-rated', entries: best },
     { key: 'movies', entries: movies },
   ].filter((section) => section.entries.length)
 }
@@ -561,6 +621,14 @@ const explanationOf = ({ entry, context }) => {
     signals,
   }
 }
+
+const topRatedExplanationOf = ({ item, facts }) => ({
+  title: item.title,
+  reasons: [{ text: 'Top rated by TMDB users', weight: 1 }],
+  signals: [facts.votes
+    ? `TMDB users rate it ${Number(facts.score).toFixed(1)} out of 10 from ${Number(facts.votes).toLocaleString('en-AU')} votes`
+    : `TMDB users rate it ${Number(facts.score).toFixed(1)} out of 10`],
+})
 
 const plural = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`
 

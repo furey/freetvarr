@@ -3,6 +3,7 @@ import {
   badgeOf,
   cardLabelOf,
   cardMetaOf,
+  cardRatingOf,
   liveProgressOf,
   menuMetaOf,
   menuOf,
@@ -51,6 +52,11 @@ export const ForYouCard = {
           <span v-if="showsLogo" class="home-on-now-logo"><channel-logo :channel-id="item.channelId" has-logo /><channel-twin-tag :channel-id="item.channelId" /></span>
           <span class="home-on-now-lines">
             <span class="ui-card-title">{{ item.title }}</span>
+            <span v-if="rating" class="for-you-rating">
+              <svg class="for-you-rating-star" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M8 1.25l2.03 4.3 4.72.58-3.47 3.25.9 4.67L8 11.75l-4.18 2.3.9-4.67L1.25 6.13l4.72-.58z"/>
+              </svg>{{ rating.label }}
+            </span>
             <span class="ui-card-meta">{{ meta }}</span>
             <span v-if="reason" class="for-you-reason">{{ reason }}</span>
           </span>
@@ -66,13 +72,14 @@ export const ForYouCard = {
     const badge = computed(() => badgeOf({ item: props.item, scheduled: props.scheduled }))
     const meta = computed(() => cardMetaOf({ item: props.item, nowMs: nowMs.value, timeZone: tz.value, withLead: props.withLead }))
     const reason = computed(() => reasonOf(props.item))
+    const rating = computed(() => cardRatingOf(props.item))
     const progress = computed(() => liveProgressOf({ item: props.item, nowMs: nowMs.value }))
-    const label = computed(() => cardLabelOf({ item: props.item, meta: meta.value, reason: reason.value, badge: badge.value }))
+    const label = computed(() => cardLabelOf({ item: props.item, meta: meta.value, reason: reason.value, badge: badge.value, rating: rating.value }))
     const showsLogo = computed(() => props.shape !== 'poster' && props.item.channelId != null)
     const { onPointerDown, onPointerMove, onPointerEnd, onContextMenu } = useLongPress(() => emit('menu', props.item))
     const onClick = () => emit('open', props.item)
 
-    return { badge, meta, reason, progress, label, showsLogo, onClick, onPointerDown, onPointerMove, onPointerEnd, onContextMenu }
+    return { badge, meta, reason, rating, progress, label, showsLogo, onClick, onPointerDown, onPointerMove, onPointerEnd, onContextMenu }
   },
 }
 

@@ -1,6 +1,7 @@
 import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
 import { ConfirmDialog, useConfirm } from '/components/dialogs.js'
 import {
+  OTHER_LANGUAGE_OPTIONS,
   TIER_OVERRIDES,
   hiddenShowsOf,
   historyClearCopyOf,
@@ -42,6 +43,17 @@ export const SuggestionsSettingsView = {
                 <a :href="credit.siteHref" target="_blank" rel="noopener noreferrer">{{ credit.name }}</a>, licensed
                 <a :href="credit.licenceHref" target="_blank" rel="noopener noreferrer">{{ credit.licence }}</a>.</template>
             </p>
+          </div>
+          <div class="settings-row">
+            <span class="settings-toggle-text">
+              <span class="settings-row-title" id="suggestions-languages-title">Films in other languages</span>
+              <span class="settings-row-meta">Films first made in a language other than English, usually with subtitles.</span>
+            </span>
+            <div class="ui-segmented is-fill suggestions-languages" role="radiogroup" aria-labelledby="suggestions-languages-title">
+              <button v-for="option in languageOptions" :key="option.key" type="button" role="radio" class="ui-segment"
+                :aria-checked="String(loaded && otherLanguageFilms === option.key)" :class="{ 'is-selected': loaded && otherLanguageFilms === option.key }"
+                :disabled="!loaded" @click="save({ otherLanguageFilms: option.key })">{{ option.label }}</button>
+            </div>
           </div>
           <button type="button" class="ui-group-row suggestions-row-button" @click="hiddenOpen = true">
             <span class="settings-toggle-text">
@@ -131,6 +143,7 @@ export const SuggestionsSettingsView = {
     const tierSummary = computed(() => tierSummaryOf(settings.value))
     const tierReason = computed(() => tierReasonOf(settings.value))
     const tierOverride = computed(() => settings.value.tierOverride || 'auto')
+    const otherLanguageFilms = computed(() => settings.value.otherLanguageFilms || 'few')
     const clearCopy = computed(() => historyClearCopyOf(eventCount.value))
     const dataCredits = computed(() => dataCreditsOf(settings.value.attribution))
 
@@ -220,7 +233,7 @@ export const SuggestionsSettingsView = {
 
     return {
       settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits,
-      tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
+      otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
     }
   },
 }

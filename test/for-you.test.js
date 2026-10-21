@@ -364,3 +364,84 @@ test('a close description match names the liked show even when the genre also fi
   const result = run({ programmes: [block, house], events, vectorsByHash, genresByKey, tier: 'standard' })
   assert.equal(itemFor(result, 'House Rules').reason, 'Similar to The Block')
 })
+
+const film = (title, { day = 1, ...extra } = {}) => {
+  const start = NOW + (day * 24 + 8) * HOUR
+  return airing(title, { start, end: start + 2 * HOUR, genre: 0x10, kind: 'movie', series_link: null, ...extra })
+}
+
+const factsOf = (entries) => new Map(entries.map(([title, score, votes, originalLanguage = 'en']) => [title, { score, votes, originalLanguage }]))
+
+test('top rated movies rank by vote-weighted score and leave Movies this week', () => {
+  const events = baseEvents().concat(watched('Fifth', { episodes: 2 }))
+  const programmes = [film('Tiny Gem'), film('The Pianist', { day: 2 }), film('West Side Story', { day: 3 }), film('No Score Film'), film('Plain Film', { day: 4 })]
+  const filmFacts = factsOf([['Tiny Gem', 9.0, 3], ['The Pianist', 8.4, 20000], ['West Side Story', 7.8, 4000], ['Plain Film', 5.1, 900]])
+  const result = run({ programmes, events, filmFacts })
+  const topRated = sectionOf(result, 'top-rated')
+  assert.equal(topRated.title, 'Top rated movies this week')
+  assert.deepEqual(topRated.items.map((item) => item.title), ['The Pianist', 'West Side Story', 'Tiny Gem', 'Plain Film'])
+  assert.deepEqual(topRated.items[0].rating, { score: 8.4, votes: 20000 })
+  assert.equal(topRated.items[0].kind, 'movie')
+  const movies = sectionOf(result, 'movies')?.items.map((item) => item.title) ?? []
+  assert.ok(!movies.some((title) => topRated.items.some((item) => item.title === title)))
+  assert.match(result.explanations.get(topRated.items[0].id).signals[0], /8\.4 out of 10 from 20,000 votes/)
+})
+
+test('top rated movies sit directly above Movies this week', () => {
+  const events = baseEvents().concat(watched('Fifth', { episodes: 2 }))
+  const evening = Math.floor(NOW / DAY) * DAY + 19 * HOUR
+  const programmes = [film('Rated Film'), airing('Prime Film', { start: evening, end: evening + 2 * HOUR, genre: 0x10, kind: 'movie' })]
+  const result = run({ programmes, events, filmFacts: factsOf([['Rated Film', 8, 3000]]) })
+  const keys = result.sections.map((section) => section.key)
+  assert.equal(keys.indexOf('movies'), keys.indexOf('top-rated') + 1)
+})
+
+test('top rated movies keep ten, skip watched films and Fewer like this, and take the next airing', () => {
+  const programmes = Array.from({ length: 12 }, (_, index) => film(`Film ${index}`, { day: (index % 6) + 1 }))
+    .concat([film('Seen It'), film('Not For Me'), film('Twice Shown', { day: 5 }), film('Twice Shown', { day: 2 })])
+  const filmFacts = factsOf([
+    ...Array.from({ length: 12 }, (_, index) => [`Film ${index}`, 7 + index / 10, 3000]),
+    ['Seen It', 9.5, 50000], ['Not For Me', 9.4, 50000], ['Twice Shown', 9.3, 50000],
+  ])
+  const events = baseEvents().concat(watched('Fifth', { episodes: 2 }), watched('Seen It'), [feedback('thumb_down', 'Not For Me')])
+  const result = run({ programmes, events, filmFacts })
+  const items = sectionOf(result, 'top-rated').items
+  assert.equal(items.length, 10)
+  assert.equal(items[0].title, 'Twice Shown')
+  assert.equal(items[0].start, NOW + (2 * 24 + 8) * HOUR)
+  assert.ok(!items.some((item) => item.title === 'Seen It' || item.title === 'Not For Me'))
+})
+
+test('films in other languages: a few allows two per row, none allows none, all allows every one', () => {
+  const programmes = ['Amelie', 'Parasite', 'Roma', 'Local Hero'].map((title, index) => film(title, { day: index + 1 }))
+  const filmFacts = factsOf([['Amelie', 7.9, 12000, 'fr'], ['Parasite', 8.5, 18000, 'ko'], ['Roma', 7.7, 4000, 'es'], ['Local Hero', 7.0, 900, 'en']])
+  const events = baseEvents().concat(watched('Fifth', { episodes: 2 }))
+  const titlesFor = (otherLanguageFilms) => sectionOf(run({ programmes, events, filmFacts, otherLanguageFilms }), 'top-rated').items.map((item) => item.title)
+  assert.deepEqual(titlesFor('few'), ['Parasite', 'Amelie', 'Local Hero'])
+  assert.deepEqual(titlesFor('none'), ['Local Hero'])
+  assert.equal(titlesFor('all').length, 4)
+  const few = run({ programmes, events, filmFacts })
+  assert.equal(few.otherLanguageFilms, 'few')
+  assert.equal(sectionOf(few, 'top-rated').items[0].otherLanguage, true)
+})
+
+test('films in other languages are capped in Movies this week too', () => {
+  const evening = Math.floor(NOW / DAY) * DAY + 19 * HOUR
+  const programmes = ['Amelie', 'Parasite', 'Roma', 'Local Hero'].map((title, index) => airing(title, {
+    start: evening + index * DAY, end: evening + index * DAY + 2 * HOUR, genre: 0x10, kind: 'movie',
+  }))
+  const filmFacts = factsOf([['Amelie', null, null, 'fr'], ['Parasite', null, null, 'ko'], ['Roma', null, null, 'es'], ['Local Hero', null, null, 'en']])
+  const events = baseEvents().concat(watched('Fifth', { episodes: 2 }))
+  const moviesFor = (otherLanguageFilms) => sectionOf(run({ programmes, events, filmFacts, otherLanguageFilms }), 'movies').items.map((item) => item.title)
+  assert.equal(moviesFor('all').length, 4)
+  assert.equal(moviesFor('few').length, 3)
+  assert.deepEqual(moviesFor('none'), ['Local Hero'])
+})
+
+test('cold start shows top rated movies before the other movies', () => {
+  const programmes = [film('Old Classic'), film('Another Film', { day: 2 })]
+  const result = run({ programmes, events: watched('Only Show', { episodes: 2 }), filmFacts: factsOf([['Old Classic', 8.1, 6000]]) })
+  assert.equal(result.coldStart, true)
+  assert.equal(sectionOf(result, 'top-rated').items[0].title, 'Old Classic')
+  assert.ok(!(sectionOf(result, 'movies')?.items ?? []).some((item) => item.title === 'Old Classic'))
+})
