@@ -27,7 +27,7 @@ import { LIVE_CACHE } from '/view-cache.js'
 export const LiveView = {
   components: { ...SORT_PART_COMPONENTS, KindFilterMenu },
   template: `
-    <div ref="pageEl" class="ui-page live-page">
+    <div ref="pageEl" v-page-reveal class="ui-page live-page">
       <page-header title="Live TV" :subtitle="dateSubtitle" :widgets="false">
         <template #actions>
           <recording-chip />

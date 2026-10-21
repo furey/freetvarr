@@ -29,7 +29,7 @@ export const SeriesView = {
     part: { type: String, default: 'series' },
   },
   template: `
-    <div class="view-reveal settings-page series-page">
+    <div v-page-reveal class="settings-page series-page">
       <template v-if="part === 'series'">
         <div class="settings-toolbar">
           <p class="settings-meta-line settings-toolbar-text">

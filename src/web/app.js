@@ -94,6 +94,7 @@ import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.j
 import { pollHealth } from '/shared/health.js'
 import { loadArtworkStamps } from '/shared/artwork-stamps.js'
 import { pollRecordingNow } from '/shared/recording-now.js'
+import { pageReveal } from '/shared/page-reveal.js'
 import { route, routeParams } from '/shared/router.js'
 import { refreshTick } from '/shared/store.js'
 import { loadSyncStatus, ensureSyncPolling } from '/shared/sync-status.js'
@@ -282,6 +283,7 @@ app.component('close-glyph', CloseGlyph)
 app.component('play-glyph', PlayGlyph)
 app.component('more-glyph', MoreGlyph)
 app.directive('no-autofill', noAutofill)
+app.directive('page-reveal', pageReveal)
 app.component('error-diagnosis', ErrorDiagnosis)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)

@@ -268,36 +268,9 @@ li {
   to   { opacity: 1; letter-spacing: 0.15em; }
 }
 
-.view-reveal {
-  animation: view-reveal 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-.view-reveal > * {
-  opacity: 0;
-  animation: panel-slide 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
-}
-
-.view-reveal > *:nth-child(1) { animation-delay: 0.02s; }
-.view-reveal > *:nth-child(2) { animation-delay: 0.08s; }
-.view-reveal > *:nth-child(3) { animation-delay: 0.14s; }
-.view-reveal > *:nth-child(4) { animation-delay: 0.20s; }
-.view-reveal > *:nth-child(5) { animation-delay: 0.26s; }
-.view-reveal > *:nth-child(6) { animation-delay: 0.32s; }
-
-.view-reveal > .settings-save-bar {
-  margin: 0;
-  opacity: 1;
-  animation: none;
-}
-
 @keyframes view-reveal {
   from { opacity: 0; }
   to   { opacity: 1; }
-}
-
-@keyframes panel-slide {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 .brand-mark rect {
@@ -2403,12 +2376,6 @@ body {
   scale: 0.6;
 }
 
-body.pull-refreshing .view-reveal,
-body.pull-refreshing .view-reveal > * {
-  animation: none;
-  opacity: 1;
-}
-
 @keyframes pull-spin {
   to { rotate: 1turn; }
 }
@@ -2940,9 +2907,7 @@ table.recordings-table tbody td {
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
-  .skeleton-reveal,
-  .view-reveal,
-  .view-reveal > * { animation: none; opacity: 1; }
+  .skeleton-reveal { animation: none; opacity: 1; }
 }
 .skeleton-row { display: flex; align-items: center; gap: 0.75rem; height: 2.9375rem; border-top: 1px solid rgba(255, 255, 255, 0.04); }
 .skeleton-thumb { flex: none; width: 4.5rem; aspect-ratio: 16 / 9; border-radius: 0.25rem; }

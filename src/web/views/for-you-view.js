@@ -26,7 +26,7 @@ const SKIP_KEY = 'freetvarr.forYouChooserSkippedAt'
 export const ForYouView = {
   components: { ForYouIcon, ForYouOverlays, ForYouRows },
   template: `
-    <div class="ui-page for-you-page">
+    <div v-page-reveal class="ui-page for-you-page">
       <a href="#/home" class="for-you-back"><back-glyph /> Home</a>
       <page-header title="For you" :subtitle="intro" subtitle-short="Picked from this week's guide." :widgets="false" class="for-you-header">
         <template #actions>

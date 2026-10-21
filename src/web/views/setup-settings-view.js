@@ -9,7 +9,7 @@ import { SetupStatusIcon } from '/views/welcome-shared.js'
 export const SetupSettingsView = {
   components: { SetupStatusIcon },
   template: `
-    <div class="setup-settings">
+    <div v-page-reveal class="setup-settings">
       <div class="ui-group">
         <template v-for="row in rows" :key="row.key">
           <button type="button" :class="['ui-group-row', 'setup-settings-row', { 'is-open': open === row.key }]"

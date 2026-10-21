@@ -30,6 +30,8 @@ const stampEntryKey = (key) => {
 }
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+let arrival = { fresh: !history.state?.entryKey, sameView: false, at: performance.now() }
+export const latestArrival = () => arrival
 let currentEntryKey = stampEntryKey(history.state?.entryKey || scrollMemory.arrive(null).key)
 
 const RESTORE_LIMIT_MS = 1500
@@ -57,8 +59,9 @@ const restoreScroll = (top) => {
   requestAnimationFrame(attempt)
 }
 
-const scrollForArrival = async () => {
+const scrollForArrival = async (view) => {
   scrollMemory.leave({ key: currentEntryKey, scrollY: window.scrollY })
+  arrival = { fresh: !history.state?.entryKey, sameView: view === route.value, at: performance.now() }
   const { key, top } = scrollMemory.arrive(history.state)
   currentEntryKey = stampEntryKey(key)
   await nextTick()
@@ -69,7 +72,7 @@ window.addEventListener('hashchange', () => {
   const resolved = resolveCurrentHash()
   stampOrigin(currentHash)
   currentHash = window.location.hash
-  scrollForArrival()
+  scrollForArrival(resolved.view)
   route.value = resolved.view
   routeParams.value = resolved.params
   routeSection.value = resolved.section

@@ -98,7 +98,7 @@ const SCHEDULED_HREF = '#/recordings/scheduled'
 export const EpgView = {
   components: { ...SORT_PART_COMPONENTS, GuideRow, KindFilterMenu },
   template: `
-    <div class="ui-page guide-page view-reveal">
+    <div v-page-reveal class="ui-page guide-page">
       <page-header title="TV guide" :subtitle="dateSubtitle" :widgets="false">
         <template #actions>
           <a href="#/recordings/scheduled" class="guide-scheduled-chip" :aria-label="scheduledLabel + '. Open Scheduled'">

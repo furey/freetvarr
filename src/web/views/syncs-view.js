@@ -68,7 +68,7 @@ const LINKED_SYNC_HIGHLIGHT_MS = 1600
 
 export const SyncsView = {
   template: `
-    <div class="view-reveal settings-page activity-page">
+    <div v-page-reveal class="settings-page activity-page">
       <div class="settings-toolbar">
         <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting || !!syncStatus.activeSyncId }]" @click="syncNow"
           :disabled="starting || !!syncStatus.activeSyncId" :aria-busy="starting || !!syncStatus.activeSyncId">

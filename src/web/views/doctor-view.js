@@ -52,7 +52,7 @@ export const DoctorSpinner = {
 
 export const DoctorView = {
   template: `
-    <div class="settings-page health-page">
+    <div v-page-reveal class="settings-page health-page">
       <header class="health-header">
         <div class="health-heading">
           <h2 class="settings-page-title">Health</h2>

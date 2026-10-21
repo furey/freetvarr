@@ -40,7 +40,7 @@ const RECORDINGS_SORT_KEY = 'freetvarr.recordingsSort'
 
 export const RecordingsView = {
   template: `
-    <div class="view-reveal settings-page log-page">
+    <div v-page-reveal class="settings-page log-page">
       <div class="settings-toolbar">
         <button type="button" class="ui-button" @click="askClearList" :disabled="clearing || clearable === 0"
           title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library.">

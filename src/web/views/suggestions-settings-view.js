@@ -15,7 +15,7 @@ import { forYouHidden, forYouShown, unhideShow } from '/shared/for-you-session.j
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
   template: `
-    <div class="settings-page suggestions-settings">
+    <div v-page-reveal class="settings-page suggestions-settings">
       <p v-if="error" class="ui-banner is-error" role="alert">{{ error }}</p>
 
       <div class="settings-group">

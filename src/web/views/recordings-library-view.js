@@ -33,7 +33,7 @@ const SKELETON_POSTERS = 6
 export const RecordingsLibraryView = {
   components: { RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MoveToShowSheet },
   template: `
-    <div class="ui-page recordings-page">
+    <div v-page-reveal="{ hold: 2 }" class="ui-page recordings-page">
       <page-header title="Recordings" subtitle="Everything you have, and everything on its way." subtitle-short="Recorded and coming up." />
       <div class="library-toolbar">
         <recordings-tabs current="library" :scheduled-count="scheduledCount" />

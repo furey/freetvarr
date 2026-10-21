@@ -131,7 +131,7 @@ const heroPoolsWithin = (pools) =>
 export const HomeView = {
   components: { DeleteConfirm, ForYouOverlays, ForYouRows, HomeHeroCarousel, LibraryInfoSheet, LibraryMenuSheet, MenuCard, RecordingOptionsSheet },
   template: `
-    <div class="ui-page home-page">
+    <div v-page-reveal class="ui-page home-page">
       <page-header :title="greeting" subtitle="Here's what's happening." subtitle-short="" brand health-alert />
       <template v-if="!loaded">
         <div class="ui-skeleton is-hero home-hero-skeleton"></div>

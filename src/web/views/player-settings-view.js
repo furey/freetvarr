@@ -4,7 +4,7 @@ import { playerMuted } from '/shared/player-shared.js'
 export const PlayerSettingsView = {
   components: { ControlsHideSetting },
   template: `
-    <div class="settings-page player-settings">
+    <div v-page-reveal class="settings-page player-settings">
       <div class="settings-group">
         <div class="ui-group">
           <div class="settings-row">

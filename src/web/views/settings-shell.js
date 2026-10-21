@@ -43,7 +43,7 @@ const PAGE_INTROS = {
 export const SettingsShell = {
   template: `
     <div class="settings-shell">
-      <nav v-if="showNav" class="settings-nav" aria-label="Settings sections">
+      <nav v-if="showNav" v-page-reveal class="settings-nav" aria-label="Settings sections">
         <h1 class="ui-page-title settings-nav-title">Settings</h1>
         <template v-for="group in groups" :key="group.key">
           <h2 class="settings-nav-group">{{ group.label }}<template v-if="group.key === 'system' && healthBadge">
@@ -59,7 +59,7 @@ export const SettingsShell = {
           </div>
         </template>
       </nav>
-      <main v-if="page" class="settings-content" :data-settings-page="page.id" :data-settings-section="page.section || null">
+      <main v-if="page" v-page-reveal="{ key: page.id }" class="settings-content" :data-settings-page="page.id" :data-settings-section="page.section || null">
         <a href="#/settings" class="settings-back ui-only-phone" @click="backToSettings"><back-glyph /> Settings</a>
         <header v-if="!ownHeader" class="settings-page-header">
           <h2 v-if="page.id === 'about'" class="settings-page-title settings-about-title">

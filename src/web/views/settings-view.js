@@ -120,7 +120,7 @@ const useSettingsSections = () => {
 
 export const SettingsView = {
   template: `
-    <div class="view-reveal settings-page pb-24">
+    <div v-page-reveal="{ key: routeSection }" class="settings-page pb-24">
       <nav ref="sectionNav" class="settings-sections" aria-label="Settings sections">
         <a v-for="s in sections" :key="s.id" :href="'#/settings/' + s.id"
           :data-active="activeSection === s.id" :aria-current="activeSection === s.id ? 'location' : null"
@@ -1062,7 +1062,7 @@ export const SettingsView = {
     }
 
     return {
-      tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
+      routeSection, tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting, tvhStatus, tvhStatusKind,
       tvhOpenEntryBackupSet, tvhUndoing, tvhUndoText, tvhUndoKind, askUndoTvhSecure,
       confirming, confirmBusy, closeConfirm, runConfirmed,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
