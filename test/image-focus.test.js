@@ -268,3 +268,16 @@ test('the stylesheet hides every focus picture path until it is placed', async (
     assert.ok(prefixes.some((prefix) => sample.startsWith(prefix)), sample)
   }
 })
+
+test('the picture fade keeps the hover zoom transition of a fading picture', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const read = (path) => readFile(new URL(`../src/web/${path}`, import.meta.url), 'utf8')
+  const fadingRule = (await read('styles.css')).match(/img\.is-focus-fading \{([^}]*)\}/)[1]
+  assert.match(fadingRule, /transition: var\(--picture-fade\), var\(--picture-motion, transform 0s\);/)
+  for (const path of ['styles/base.css', 'styles/recordings.css']) {
+    const css = await read(path)
+    const zoomTransitions = [...css.matchAll(/transition: transform 320ms[^;]*;/g)]
+    assert.equal(zoomTransitions.length, 0, path)
+    assert.match(css, /--picture-motion: transform 320ms var\(--ease-standard\);\s*transition: var\(--picture-motion\);/, path)
+  }
+})

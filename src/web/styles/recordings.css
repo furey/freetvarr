@@ -356,7 +356,8 @@
   }
 
   .show-episode-thumb > img {
-    transition: transform 320ms var(--ease-standard);
+    --picture-motion: transform 320ms var(--ease-standard);
+    transition: var(--picture-motion);
   }
 
   .show-episode.is-playable:hover .show-episode-thumb > img {

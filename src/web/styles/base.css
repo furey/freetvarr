@@ -644,7 +644,8 @@ body.sheet-open .app-tabbar {
 @media (prefers-reduced-motion: no-preference) {
   :is(.ui-card-art, .ui-poster-art) > :is(img, .programme-image),
   .ui-art-fallback:is(.ui-card-art, .ui-poster-art)::before {
-    transition: transform 320ms var(--ease-standard);
+    --picture-motion: transform 320ms var(--ease-standard);
+    transition: var(--picture-motion);
   }
 
   :is(.ui-card, .ui-poster):focus-visible :is(.ui-card-art, .ui-poster-art) > :is(img, .programme-image),

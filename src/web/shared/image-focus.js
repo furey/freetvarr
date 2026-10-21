@@ -90,11 +90,17 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
     }))
     : null
 
+  const onFadeEnd = (event) => {
+    if (event.propertyName === 'opacity') event.target.classList?.remove(FADING_CLASS)
+  }
+
   root.addEventListener('load', onLoad, true)
+  FADE_END_EVENTS.forEach((type) => root.addEventListener(type, onFadeEnd, true))
   sourceWatcher?.observe(root, { subtree: true, attributes: true, attributeFilter: ['src', 'srcset'] })
   return () => {
     sourceWatcher?.disconnect()
     root.removeEventListener('load', onLoad, true)
+    FADE_END_EVENTS.forEach((type) => root.removeEventListener(type, onFadeEnd, true))
     resizer?.disconnect()
     clearTimeout(flushTimer)
   }
@@ -121,6 +127,7 @@ const avoidOf = (img) => {
 const AVOID_SIDES = ['left', 'right', 'top', 'bottom']
 const READY_CLASS = 'is-focus-ready'
 const FADING_CLASS = 'is-focus-fading'
+const FADE_END_EVENTS = ['transitionend', 'transitioncancel']
 const WAIT_CAP_MS = 150
 const FLUSH_DELAY_MS = 16
 const MAX_KEYS_PER_REQUEST = 40

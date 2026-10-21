@@ -1195,7 +1195,7 @@ img:is([src^="/api/epg/image/"], [src^="/api/epg/show-image"], [src^="/api/epg/p
 }
 
 :root img.is-focus-fading {
-  transition: var(--picture-fade);
+  transition: var(--picture-fade), var(--picture-motion, transform 0s);
 }
 
 .programme-image.is-failed {
