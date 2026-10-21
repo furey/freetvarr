@@ -43,10 +43,29 @@ export const ForYouView = {
       </page-header>
 
       <template v-if="!loaded">
-        <div v-for="n in 2" :key="n" class="ui-section">
-          <div class="ui-skeleton is-row for-you-skeleton-title"></div>
-          <div class="ui-scroller"><div v-for="m in 4" :key="m" class="ui-skeleton is-card"></div></div>
-        </div>
+        <section v-for="n in 2" :key="n" class="ui-section for-you-skeleton" aria-hidden="true">
+          <div class="ui-row-header">
+            <h2 class="ui-section-title"><span class="ui-skeleton is-text" style="--skeleton-w: 11em"></span></h2>
+            <span v-if="n === 1" class="ui-row-meta ui-only-wide"><span class="ui-skeleton is-text" style="--skeleton-w: 8em"></span></span>
+          </div>
+          <div class="for-you-rows">
+            <div class="ui-scroller for-you-scroller is-card">
+              <div v-for="m in 5" :key="m" class="for-you-card ui-card">
+                <span class="for-you-card-hit">
+                  <span class="ui-card-art ui-skeleton"></span>
+                  <span class="home-on-now-text">
+                    <span class="home-on-now-logo"></span>
+                    <span class="home-on-now-lines">
+                      <span class="ui-card-title"><span class="ui-skeleton is-text" style="--skeleton-w: 8em"></span></span>
+                      <span class="ui-card-meta"><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></span>
+                      <span class="for-you-reason"><span class="ui-skeleton is-text" style="--skeleton-w: 12em"></span></span>
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
       </template>
 
       <section v-else-if="unavailable" class="ui-empty" aria-label="For you">

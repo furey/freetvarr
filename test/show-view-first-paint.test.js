@@ -24,7 +24,7 @@ test('show page paints a known title or a skeleton, never the route key, before 
 
 test('show hero reserves the meta line and the wide actions row from the first frame', () => {
   assert.match(view, /<p class="show-hero-meta">/)
-  assert.match(view, /<div v-if="!show" class="show-actions ui-only-wide" aria-hidden="true"><span class="ui-skeleton show-skeleton-button">/)
+  assert.match(view, /<div v-if="!show" class="show-actions ui-only-wide" aria-hidden="true">\s*<span class="ui-button ui-button-secondary show-options-button ui-skeleton show-skeleton-button">/)
   assert.match(css, /\.show-hero-meta \{\n  min-height: 20px;/)
   assert.match(css, /\.show-hero-body \.show-actions \{\n  align-items: center;\n  min-height: 48px;/)
 })

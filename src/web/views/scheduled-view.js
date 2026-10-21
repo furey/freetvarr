@@ -140,7 +140,43 @@ export const ScheduledView = {
       <p v-if="actionError" class="ui-banner is-error" role="alert">{{ actionError }}</p>
       <p v-else-if="loadError" class="ui-banner is-error" role="alert">{{ loadError }}</p>
       <p v-else-if="state?.stale" class="ui-banner">TVHeadend is not answering. This is its last known state.</p>
-      <list-skeleton v-if="!loaded && !loadError" :rows="6" />
+      <div v-if="!loaded && !loadError" class="scheduled-layout" aria-hidden="true">
+        <div class="scheduled-main">
+          <section v-if="!isWide" class="scheduled-card scheduled-week is-top">
+            <ol class="scheduled-week-days"><li v-for="n in 7" :key="n"><span class="scheduled-week-day is-empty"><span class="scheduled-week-weekday"><span class="ui-skeleton is-text" style="--skeleton-w: 1.8em"></span></span><span class="scheduled-week-date ui-tabular"><span class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span></span><span class="scheduled-week-count"><span class="ui-skeleton is-text" style="--skeleton-w: 2.2em"></span></span></span></li></ol>
+          </section>
+          <section class="ui-section">
+            <h2 class="ui-group-label"><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></h2>
+            <div class="ui-group ui-skeleton-surface">
+              <div v-for="n in 6" :key="n" class="ui-group-row is-tall scheduled-row">
+                <span class="scheduled-row-link">
+                  <span class="scheduled-time ui-tabular"><span class="ui-skeleton is-text" style="--skeleton-w: 2.4em"></span><small><span class="ui-skeleton is-text" style="--skeleton-w: 3.5em"></span></small></span>
+                  <span class="scheduled-thumb"><span class="ui-card-art ui-skeleton"></span></span>
+                  <span class="ui-group-row-main">
+                    <span class="ui-group-row-title"><span class="ui-skeleton is-text" style="--skeleton-w: 8em"></span></span>
+                    <span class="ui-meta scheduled-meta"><span class="ui-skeleton is-text" style="--skeleton-w: 14em"></span></span>
+                  </span>
+                </span>
+                <span class="toggle"><span class="toggle-track"><span class="ui-skeleton is-fill"></span></span></span>
+              </div>
+            </div>
+          </section>
+        </div>
+        <aside v-if="isWide" class="scheduled-side">
+          <section class="scheduled-card scheduled-week">
+            <header class="scheduled-card-head">
+              <h2 class="scheduled-card-title"><span class="ui-skeleton is-text" style="--skeleton-w: 5em"></span></h2>
+            </header>
+            <ol class="scheduled-week-days"><li v-for="n in 7" :key="n"><span class="scheduled-week-day is-empty"><span class="scheduled-week-weekday"><span class="ui-skeleton is-text" style="--skeleton-w: 1.8em"></span></span><span class="scheduled-week-date ui-tabular"><span class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span></span><span class="scheduled-week-count"><span class="ui-skeleton is-text" style="--skeleton-w: 2.2em"></span></span></span></li></ol>
+          </section>
+          <section class="scheduled-card">
+            <header class="scheduled-card-head">
+              <h2 class="scheduled-card-title"><span class="ui-skeleton is-text" style="--skeleton-w: 7em"></span></h2>
+            </header>
+            <p class="ui-meta scheduled-tuners-empty"><span class="ui-skeleton is-text" style="--skeleton-w: 16em"></span></p>
+          </section>
+        </aside>
+      </div>
       <div v-else-if="loaded" class="scheduled-layout">
         <div class="scheduled-main">
           <section v-if="!isWide && !isEmpty" class="scheduled-card scheduled-week is-top" aria-label="This week">

@@ -1,8 +1,16 @@
-.home-hero-skeleton {
-  min-height: 360px;
+.home-skeleton-hero .hero-slide-body::before {
+  content: none;
 }
 
-.home-skeleton-row {
+.home-skeleton-hero .hero-carousel-dot i {
+  background: var(--color-surface-3);
+}
+
+.home-skeleton-play {
+  width: 132px;
+}
+
+.home-skeleton-row .ui-scroller {
   overflow: hidden;
 }
 
@@ -91,11 +99,6 @@
 }
 
 @media (max-width: 767px), (max-height: 500px) {
-  .home-hero-skeleton {
-    min-height: 0;
-    aspect-ratio: 4 / 5;
-  }
-
   .home-tonight {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -341,11 +344,6 @@
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
-  .home-hero-skeleton {
-    aspect-ratio: auto;
-    min-height: 200px;
-  }
-
   .hero-carousel-stage {
     aspect-ratio: auto;
     height: 200px;
@@ -702,10 +700,8 @@
   height: 20px;
 }
 
-.for-you-skeleton-title {
-  width: 260px;
-  height: 26px;
-  margin-bottom: 12px;
+.for-you-skeleton .ui-scroller {
+  overflow: hidden;
 }
 
 .for-you-chooser {

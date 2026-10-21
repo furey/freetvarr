@@ -69,14 +69,6 @@
   font-weight: 700;
 }
 
-.library-skeleton-title {
-  width: 140px;
-}
-
-.ui-poster-grid .library-skeleton-poster {
-  width: auto;
-}
-
 .show-page {
   gap: 18px;
 }
@@ -169,16 +161,15 @@
   --skeleton-w: 16em;
 }
 
+.show-skeleton-button {
+  width: 200px;
+}
+
 .show-hero-body .show-actions {
   align-items: center;
   min-height: 48px;
 }
 
-.show-skeleton-button {
-  width: 200px;
-  height: 48px;
-  border-radius: var(--radius-button);
-}
 
 .show-actions {
   display: flex;
@@ -200,16 +191,6 @@
   flex-direction: column;
   gap: 18px;
   min-width: 0;
-}
-
-.show-skeleton-status {
-  height: 64px;
-  border-radius: var(--radius-card);
-}
-
-.show-skeleton-row {
-  height: 96px;
-  border-radius: var(--radius-card);
 }
 
 .show-rule {

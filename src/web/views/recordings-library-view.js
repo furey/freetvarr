@@ -56,9 +56,18 @@ export const RecordingsLibraryView = {
       <p v-if="stale" class="ui-banner is-warning" role="status">TVHeadend is not answering, so shows waiting for a first episode may be missing.</p>
 
       <section v-if="!loaded" class="ui-section" aria-label="Loading shows" aria-busy="true">
-        <div class="ui-row-header"><span class="ui-skeleton is-line library-skeleton-title"></span></div>
-        <div class="ui-poster-grid">
-          <span v-for="n in SKELETON_POSTERS" :key="n" class="ui-skeleton is-poster library-skeleton-poster"></span>
+        <div class="ui-row-header" aria-hidden="true">
+          <h2 class="ui-section-title"><span class="ui-skeleton is-text" style="--skeleton-w: 4em"></span></h2>
+          <span class="ui-row-meta"><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></span>
+        </div>
+        <div class="ui-poster-grid" aria-hidden="true">
+          <div v-for="n in SKELETON_POSTERS" :key="n" class="library-poster">
+            <span class="ui-poster">
+              <span class="ui-poster-art ui-skeleton"></span>
+              <div class="ui-card-title"><span class="ui-skeleton is-text" style="--skeleton-w: 6em"></span></div>
+              <div class="ui-card-meta"><span class="ui-skeleton is-text" style="--skeleton-w: 8em"></span></div>
+            </span>
+          </div>
         </div>
       </section>
 

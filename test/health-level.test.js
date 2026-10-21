@@ -11,6 +11,7 @@ import {
   healthReasonOf,
   healthRowNameOf,
   parseDismissal,
+  rememberedHealthOf,
 } from '../src/web/health-level.js'
 
 test('healthLevelOf: all good when nothing is wrong', () => {
@@ -106,4 +107,13 @@ test('parseDismissal: reads a stored dismissal and rejects junk', () => {
   assert.equal(parseDismissal('not json'), null)
   assert.equal(parseDismissal(null), null)
   assert.equal(parseDismissal(JSON.stringify({ sentence: 'X' })), null)
+})
+
+test('rememberedHealthOf: restores the last health so the alert shows on first paint', () => {
+  const stored = JSON.stringify({ level: 'fail', sentence: 'The last sync failed.' })
+  assert.deepEqual(rememberedHealthOf(stored), { level: 'fail', sentence: 'The last sync failed.', known: true })
+  assert.deepEqual(rememberedHealthOf(JSON.stringify({ level: 'ok' })), { level: 'ok', sentence: null, known: true })
+  assert.equal(rememberedHealthOf(JSON.stringify({ level: 'bad', sentence: 'X' })), null)
+  assert.equal(rememberedHealthOf('not json'), null)
+  assert.equal(rememberedHealthOf(null), null)
 })

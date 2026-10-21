@@ -198,6 +198,15 @@
   background: var(--color-rail);
 }
 
+.guide-skeleton .epg-track {
+  flex: 1;
+}
+
+.guide-skeleton .epg-cell {
+  padding: 0;
+  cursor: default;
+}
+
 .guide-empty-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1529,6 +1538,7 @@
   flex: none;
 }
 
+.channels-settings > *,
 .channels-list > * {
   flex: none;
 }

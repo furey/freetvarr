@@ -45,30 +45,37 @@ export const SeriesView = {
             <p>Type in the filter box to find a series by title, channel, or folder. <strong>Sort</strong> orders the rows, and <strong>Status</strong> shows only paused series, series not in the TV guide, or series recording now.</p>
           </info-button>
         </div>
-        <list-skeleton v-if="!loaded" :rows="6" />
-        <template v-else>
+        <template v-if="loaded">
           <p v-if="error" class="ui-banner is-error">Cannot read the series recordings from TVHeadend: {{ error }}</p>
           <p v-else-if="stale" class="ui-banner is-warning">TVHeadend is not answering. This is its last known state.</p>
+        </template>
+        <div v-if="!loaded || (!error && series.length)" class="settings-filters">
+          <div class="settings-filter-bar">
+            <input v-no-autofill v-model="filterQ" type="search" class="field-input settings-search"
+              placeholder="Filter series or channels" aria-label="Filter series or channels" />
+            <select v-model="sortKey" class="field-input settings-select" aria-label="Sort series">
+              <option v-for="o in SERIES_SORTS" :key="o.key" :value="o.key">{{ sentenceCase(o.label) }}</option>
+            </select>
+          </div>
+          <div class="settings-filter" role="group" aria-labelledby="series-status-label">
+            <span id="series-status-label" class="settings-filter-label">Status</span>
+            <div class="ui-chip-row is-scroll">
+              <button v-for="o in SERIES_STATUSES" :key="o.key" type="button" class="ui-chip is-small"
+                :aria-pressed="String(statusFilter === o.key)" @click="statusFilter = o.key">{{ sentenceCase(o.label) }}</button>
+            </div>
+          </div>
+        </div>
+        <div v-if="!loaded" class="settings-group" aria-hidden="true">
+          <div class="settings-group-head">
+            <h3 class="ui-group-label">Series</h3>
+          </div>
+          <div class="ui-group settings-table-card"><list-skeleton :rows="5" /></div>
+        </div>
+        <template v-else>
           <div v-if="!error && series.length === 0" class="ui-group">
             <p class="settings-empty">No series recordings yet. Open the <a href="#/guide">TV guide</a>, pick a programme, and press <strong>Record series</strong>.</p>
           </div>
           <template v-else>
-            <div class="settings-filters">
-              <div class="settings-filter-bar">
-                <input v-no-autofill v-model="filterQ" type="search" class="field-input settings-search"
-                  placeholder="Filter series or channels" aria-label="Filter series or channels" />
-                <select v-model="sortKey" class="field-input settings-select" aria-label="Sort series">
-                  <option v-for="o in SERIES_SORTS" :key="o.key" :value="o.key">{{ sentenceCase(o.label) }}</option>
-                </select>
-              </div>
-              <div class="settings-filter" role="group" aria-labelledby="series-status-label">
-                <span id="series-status-label" class="settings-filter-label">Status</span>
-                <div class="ui-chip-row is-scroll">
-                  <button v-for="o in SERIES_STATUSES" :key="o.key" type="button" class="ui-chip is-small"
-                    :aria-pressed="String(statusFilter === o.key)" @click="statusFilter = o.key">{{ sentenceCase(o.label) }}</button>
-                </div>
-              </div>
-            </div>
             <div v-if="!visibleSeries.length" class="settings-meta-line settings-no-match">
               <span>{{ noMatchText }}</span>
               <button type="button" class="ui-button ui-button-sm" @click="clearFilters"><cross-icon /> Clear filters</button>

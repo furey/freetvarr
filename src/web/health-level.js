@@ -55,6 +55,17 @@ export const parseDismissal = (stored) => {
   }
 }
 
+export const rememberedHealthOf = (stored) => {
+  try {
+    const parsed = JSON.parse(stored || 'null')
+    if (!HEALTH_LEVELS.includes(parsed?.level)) return null
+    const sentence = typeof parsed.sentence === 'string' ? parsed.sentence : null
+    return { level: parsed.level, sentence, known: true }
+  } catch {
+    return null
+  }
+}
+
 const isDismissed = ({ dismissal, sentence, nowMs }) => dismissal?.sentence === sentence
   && nowMs >= dismissal.atMs
   && nowMs - dismissal.atMs < HEALTH_ALERT_HIDE_MS

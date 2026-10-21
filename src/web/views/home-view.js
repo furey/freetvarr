@@ -134,10 +134,43 @@ export const HomeView = {
     <div v-page-reveal class="ui-page home-page">
       <page-header :title="greeting" subtitle="Here's what's happening." subtitle-short="" brand health-alert />
       <template v-if="!loaded">
-        <div class="ui-skeleton is-hero home-hero-skeleton"></div>
-        <div class="ui-scroller home-skeleton-row">
-          <div v-for="n in 4" :key="n" class="ui-skeleton is-card"></div>
-        </div>
+        <section class="hero-carousel home-skeleton-hero" aria-hidden="true">
+          <div class="hero-carousel-viewport">
+            <div class="hero-carousel-stage">
+              <div class="ui-hero hero-slide is-active">
+                <div class="ui-hero-body hero-slide-body">
+                  <div class="ui-hero-kicker"><span class="ui-skeleton is-text is-raised" style="--skeleton-w: 8em"></span></div>
+                  <div class="ui-hero-title hero-slide-title"><span class="ui-skeleton is-text is-raised" style="--skeleton-w: 5.5em"></span></div>
+                  <div class="ui-hero-meta"><span class="ui-skeleton is-text is-raised" style="--skeleton-w: 16em"></span></div>
+                  <div class="ui-progress hero-slide-progress"></div>
+                  <div class="ui-hero-actions hero-slide-actions">
+                    <span class="ui-button ui-button-primary ui-skeleton is-raised home-skeleton-play"></span>
+                    <span class="ui-button ui-button-secondary hero-slide-more ui-skeleton is-raised"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="hero-carousel-controls">
+            <div class="hero-carousel-dots">
+              <span v-for="n in 5" :key="n" :class="['hero-carousel-dot', { 'is-on': n === 1 }]"><i></i></span>
+            </div>
+          </div>
+        </section>
+        <section class="ui-section home-skeleton-row" aria-hidden="true">
+          <div class="ui-row-header">
+            <h2 class="ui-section-title"><span class="ui-skeleton is-text" style="--skeleton-w: 8em"></span></h2>
+          </div>
+          <div class="ui-scroller">
+            <div v-for="n in 5" :key="n" class="ui-card menu-card">
+              <span class="menu-card-hit">
+                <span class="ui-card-art ui-skeleton"></span>
+                <span class="ui-card-title"><span class="ui-skeleton is-text" style="--skeleton-w: 7em"></span></span>
+                <span class="ui-card-meta"><span class="ui-skeleton is-text" style="--skeleton-w: 12em"></span></span>
+              </span>
+            </div>
+          </div>
+        </section>
       </template>
       <template v-else>
         <home-hero-carousel v-if="heroSlides.length" :slides="heroSlides" @action="runSlideAction" @menu="openSlideMenu" />

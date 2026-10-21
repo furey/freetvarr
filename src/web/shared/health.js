@@ -1,10 +1,11 @@
 import { ref } from '/vendor/vue.esm-browser.prod.js'
 import { worstHealthOf } from '/health-page.js'
-import { dismissalOf, healthLevelOf, parseDismissal } from '/health-level.js'
+import { dismissalOf, healthLevelOf, parseDismissal, rememberedHealthOf } from '/health-level.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { recordingNow } from '/shared/recording-now.js'
 
 const DISMISSAL_KEY = 'freetvarr.healthAlertDismissal'
+const LAST_HEALTH_KEY = 'freetvarr.lastHealth'
 
 const readStoredDismissal = () => {
   try {
@@ -14,7 +15,19 @@ const readStoredDismissal = () => {
   }
 }
 
-export const health = ref({ level: 'ok', sentence: null, known: false })
+const readRememberedHealth = () => {
+  try {
+    return rememberedHealthOf(localStorage.getItem(LAST_HEALTH_KEY))
+  } catch {
+    return null
+  }
+}
+
+const rememberHealth = ({ level, sentence }) => {
+  try { localStorage.setItem(LAST_HEALTH_KEY, JSON.stringify({ level, sentence })) } catch {}
+}
+
+export const health = ref(readRememberedHealth() ?? { level: 'ok', sentence: null, known: false })
 
 export const healthSummary = ref(null)
 
@@ -28,6 +41,7 @@ export const dismissHealthAlert = ({ sentence, nowMs = Date.now() }) => {
 export const pollHealth = async ({ fresh = false } = {}) => {
   clearTimeout(healthTimer)
   health.value = { ...(await currentHealth({ fresh })), known: true }
+  rememberHealth(health.value)
   healthTimer = setTimeout(() => pollHealth(), HEALTH_POLL_MS)
 }
 

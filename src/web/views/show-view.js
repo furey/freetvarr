@@ -59,7 +59,10 @@ export const ShowView = {
         <div class="show-hero-body">
           <h1 class="show-title"><template v-if="title">{{ title }}</template><span v-else class="ui-skeleton is-text show-title-skeleton" aria-hidden="true"></span></h1>
           <p class="show-hero-meta"><template v-if="show">{{ heroMeta }}</template><span v-else class="ui-skeleton is-text show-meta-skeleton" aria-hidden="true"></span></p>
-          <div v-if="!show" class="show-actions ui-only-wide" aria-hidden="true"><span class="ui-skeleton show-skeleton-button"></span></div>
+          <div v-if="!show" class="show-actions ui-only-wide" aria-hidden="true">
+            <span class="ui-button ui-button-secondary show-options-button ui-skeleton show-skeleton-button"></span>
+            <span class="ui-icon-button show-more-button ui-skeleton"></span>
+          </div>
           <div v-else class="show-actions ui-only-wide">
             <button v-if="playLabel" type="button" class="ui-button ui-button-primary" @click="playNext"><play-glyph /> {{ playLabel }}</button>
             <button v-if="show.rule" type="button" class="ui-button ui-button-secondary show-options-button" @click="optionsOpen = true"><sliders-icon /> Recording options</button>
@@ -69,8 +72,34 @@ export const ShowView = {
       </section>
 
       <div v-if="!loaded" class="show-body" aria-busy="true">
-        <span class="ui-skeleton is-row show-skeleton-status"></span>
-        <span v-for="n in 3" :key="n" class="ui-skeleton is-row show-skeleton-row"></span>
+        <div class="show-actions ui-only-phone" aria-hidden="true">
+          <span class="ui-button ui-button-secondary show-options-button ui-skeleton"></span>
+          <span class="ui-icon-button show-more-button ui-skeleton"></span>
+        </div>
+        <div class="show-rule is-static ui-skeleton-surface" aria-hidden="true">
+          <span class="show-rule-mark is-idle"><span></span></span>
+          <span class="show-rule-text">
+            <span class="show-rule-headline"><span class="ui-skeleton is-text" style="--skeleton-w: 12em"></span></span>
+            <span class="show-rule-detail"><span class="ui-skeleton is-text ui-only-wide" style="--skeleton-w: 18em"></span><span class="ui-skeleton is-text ui-only-phone" style="--skeleton-w: 100%"></span><span class="ui-skeleton is-text ui-only-phone" style="--skeleton-w: 100%"></span><span class="ui-skeleton is-text ui-only-phone" style="--skeleton-w: 40%"></span></span>
+          </span>
+        </div>
+        <section class="show-episodes" aria-hidden="true">
+          <div class="show-episodes-header">
+            <h2 class="ui-section-title"><span class="ui-skeleton is-text" style="--skeleton-w: 4.5em"></span></h2>
+            <div class="show-seasons"><span class="ui-chip show-season-only"><span class="ui-skeleton is-text" style="--skeleton-w: 4em"></span></span></div>
+            <span class="show-select-button"><span class="ui-skeleton is-text" style="--skeleton-w: 3em"></span></span>
+          </div>
+          <ul class="show-episode-list">
+            <li v-for="n in 3" :key="n" class="show-episode">
+              <div class="show-episode-thumb"><span class="ui-skeleton is-fill"></span></div>
+              <div class="show-episode-text">
+                <h3 class="show-episode-title"><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></h3>
+                <p class="show-episode-meta"><span class="ui-skeleton is-text ui-only-wide" style="--skeleton-w: 13em"></span><span class="ui-skeleton is-text ui-only-phone" style="--skeleton-w: 100%"></span><span class="ui-skeleton is-text ui-only-phone" style="--skeleton-w: 40%"></span></p>
+                <p class="show-episode-synopsis"><span class="ui-skeleton is-text ui-only-wide" style="--skeleton-w: 24em"></span><span class="ui-skeleton is-text ui-only-phone" style="--skeleton-w: 100%"></span><span class="ui-skeleton is-text ui-only-phone" style="--skeleton-w: 70%"></span></p>
+              </div>
+            </li>
+          </ul>
+        </section>
       </div>
 
       <section v-else-if="missing" class="ui-empty show-missing" aria-label="Show not found">

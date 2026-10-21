@@ -137,7 +137,7 @@ export const DoctorView = {
             </div>
           </div>
         </div>
-        <div v-else-if="checking" class="ui-group" aria-hidden="true">
+        <div v-else-if="checking" class="ui-group ui-skeleton-surface" aria-hidden="true">
           <div v-for="i in 6" :key="i" class="ui-group-row"><span class="ui-skeleton is-line health-skeleton"></span></div>
         </div>
         <p v-if="report && !checking" class="health-footnote">Ran at {{ ranLabel }} in {{ durationLabel }}.</p>

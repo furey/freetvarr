@@ -57,7 +57,36 @@ export const LiveView = {
         <span class="status-readout err">Guide unavailable: {{ error }}</span>
         <button type="button" class="ui-button ui-button-secondary ui-button-sm" @click="load"><refresh-icon /> Retry</button>
       </div>
-      <list-skeleton v-else-if="!data" class="live-skeleton" :rows="8" logo :thumb="showImages" />
+      <div v-else-if="!data" :class="['live-groups', 'live-skeleton', 'live-zoom-' + zoom, { 'live-images-off': !showImages }]" aria-hidden="true">
+        <section class="live-group">
+          <div class="live-group-head">
+            <h2 class="ui-group-label"><span class="ui-skeleton is-text" style="--skeleton-w: 6em"></span></h2>
+            <span :class="narrow ? 'sort-edit-order' : 'sort-edit-toggle'"><span class="ui-skeleton is-text" style="--skeleton-w: 5em"></span></span>
+          </div>
+          <ul class="live-list ui-skeleton-surface">
+            <li v-for="n in 8" :key="n" class="live-row">
+              <div class="live-row-lead">
+                <span class="live-star"></span>
+                <span class="live-logo"></span>
+                <span class="live-number"><span class="ui-skeleton is-text" style="--skeleton-w: 1.4em"></span></span>
+              </div>
+              <div class="live-watch">
+                <span class="live-thumb"><span class="ui-skeleton is-fill"></span></span>
+                <span class="live-row-text">
+                  <span class="live-title-line"><span class="live-title"><span class="ui-skeleton is-text" style="--skeleton-w: 8em"></span></span></span>
+                  <span class="live-meta"><span class="ui-skeleton is-text" style="--skeleton-w: 11em"></span></span>
+                  <span class="ui-progress live-progress"></span>
+                </span>
+              </div>
+              <span class="live-next">
+                <span class="live-next-label"><span class="ui-skeleton is-text" style="--skeleton-w: 2.5em"></span></span>
+                <span class="live-next-title"><span class="ui-skeleton is-text" style="--skeleton-w: 10em"></span></span>
+              </span>
+              <span class="live-row-info-gap"></span>
+            </li>
+          </ul>
+        </section>
+      </div>
       <p v-else-if="!groups.length && favouritesHint" class="live-note">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
       <p v-else-if="!groups.length" class="live-note">{{ emptyText }}</p>
       <div :class="['live-groups', 'live-zoom-' + zoom, { 'live-images-off': !showImages, 'live-images-leaving': imagesLeaving }]" ref="groupsEl">

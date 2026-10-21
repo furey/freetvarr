@@ -63,6 +63,7 @@ import { guideJump } from '/shared/store.js'
 import { tz, dateFormat, now, fmtClockTz } from '/shared/time.js'
 import { viewStoreOf } from '/shared/view-store.js'
 import { GUIDE_CACHE } from '/view-cache.js'
+import { guideSkeletonRows } from '/guide-skeleton.js'
 
 const dayKey = (ms) => dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
 
@@ -212,7 +213,52 @@ export const EpgView = {
           <p class="ui-empty-text">{{ error }} Check the TVHeadend connection in <a href="#/settings/system/tvheadend">Settings</a>.</p>
           <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
         </div>
-        <list-skeleton v-else-if="loading && !guide" class="guide-card" :rows="10" :row-height="guideRowRem + 'rem'" guide :guide-zoom="zoom" />
+        <template v-else-if="loading && !guide">
+          <div v-if="!narrow" class="guide-label-row" aria-hidden="true">
+            <h2 class="ui-group-label">Channels</h2>
+            <span class="guide-filter"><search-glyph /></span>
+            <div class="guide-legend guide-key">
+              <span class="guide-legend-item"><span class="guide-legend-ring"></span>Recording now</span>
+              <span class="guide-legend-item"><span class="guide-legend-dot"></span>Scheduled</span>
+              <span class="guide-legend-item"><span class="guide-legend-dot is-watch"></span>On watchlist</span>
+            </div>
+          </div>
+          <div ref="skeletonCardEl" class="guide-card guide-skeleton ui-skeleton-surface" aria-hidden="true" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
+            <div :class="['epg-scroll', 'epg-zoom-' + zoom]">
+              <div class="epg-canvas">
+                <div class="epg-ruler">
+                  <div class="epg-ruler-corner"><span v-if="narrow" class="epg-corner-filter"></span></div>
+                </div>
+                <div class="epg-rows">
+                  <div class="epg-heading-row">
+                    <div class="epg-heading-rail">
+                      <span class="channel-group-heading"><span class="ui-skeleton is-text" style="--skeleton-w: 6em"></span></span>
+                    </div>
+                  </div>
+                  <div v-for="(cells, i) in skeletonRows" :key="i" class="epg-row">
+                    <div class="epg-rail-cell">
+                      <span class="epg-pin"></span>
+                      <span class="channel-logo"></span>
+                      <span class="channel-name">
+                        <span class="ui-skeleton is-text" style="--skeleton-w: 5em"></span>
+                        <span class="ui-skeleton is-text" style="--skeleton-w: 1.4em"></span>
+                      </span>
+                    </div>
+                    <div class="epg-track">
+                      <span v-for="(cell, j) in cells" :key="j" class="epg-cell" :style="{ left: cell.left, width: cell.width }"><span class="ui-skeleton is-fill"></span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="narrow" ref="legendEl" class="guide-legend guide-legend-strip" aria-hidden="true">
+            <span class="guide-legend-item"><span class="guide-legend-ring"></span>Recording now</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot"></span>Scheduled</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot is-watch"></span>On watchlist</span>
+            <span class="guide-legend-meta"><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></span>
+          </div>
+        </template>
         <div v-else-if="guide" :class="['guide-card', { 'is-rail-compact': railLayout.compact, 'is-order-editing': canSort }]" :style="{ '--epg-rail-px': 'min(' + railPx + 'px, 38vw)' }">
           <div class="epg-grid-edge" aria-hidden="true" :style="{ height: railStripH + 'px', right: scrollbarW + 'px' }"></div>
           <button v-if="pinsOffscreen" type="button" class="epg-pinned-chip" @click="scrollRailTop"><arrow-up-icon /> {{ pinnedCount }} favourite{{ pinnedCount === 1 ? '' : 's' }}</button>
@@ -698,11 +744,13 @@ export const EpgView = {
     watch([railItems, zoom, narrow, scrollEl, railPx], measureRowBands, { flush: 'post' })
     watch(guide, () => requestAnimationFrame(syncCellWindow))
 
+    const skeletonCardEl = ref(null)
+    const skeletonRows = computed(() => guideSkeletonRows({ zoom: zoom.value }))
     const measureGridTop = () => {
-      const card = scrollEl.value?.closest('.guide-card')
+      const card = scrollEl.value?.closest('.guide-card') ?? skeletonCardEl.value
       if (card) card.style.setProperty('--guide-grid-top', `${card.getBoundingClientRect().top + window.scrollY}px`)
     }
-    watch([scrollEl, guide, () => guide.value?.stale, narrow], measureGridTop, { flush: 'post' })
+    watch([scrollEl, skeletonCardEl, guide, () => guide.value?.stale, narrow], measureGridTop, { flush: 'post' })
 
     const legendEl = ref(null)
     const setLegendHeight = () => {
@@ -1330,6 +1378,7 @@ export const EpgView = {
     })
 
     return {
+      skeletonCardEl, skeletonRows,
       day, dayChips, dateSubtitle, setDay, pickDay, LISTINGS_LOADING_TEXT,
       loadingIds, loadingNoteMaxPx,
       guide, loading, error, errorCode, loadDay, state, stateMeta, scheduledCount, scheduledLabel, scheduledHref: SCHEDULED_HREF,
