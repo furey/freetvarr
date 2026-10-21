@@ -204,20 +204,15 @@ a.scheduled-row:focus-visible {
   white-space: nowrap;
 }
 
-.scheduled-row.is-off .ui-group-row-title {
-  color: var(--color-text-2);
-  text-decoration: line-through;
-  text-decoration-color: var(--color-text-3);
-}
-
-.scheduled-row.is-off .scheduled-thumb {
-  opacity: 0.55;
-}
-
+.scheduled-row.is-off,
 .scheduled-row.is-repeat {
   background: color-mix(in srgb, var(--color-surface-1) 45%, var(--color-bg));
 }
 
+.scheduled-row.is-off .scheduled-time,
+.scheduled-row.is-off .scheduled-time small,
+.scheduled-row.is-off .ui-group-row-title,
+.scheduled-row.is-off .scheduled-meta,
 .scheduled-row.is-repeat .scheduled-time,
 .scheduled-row.is-repeat .scheduled-time small,
 .scheduled-row.is-repeat .ui-group-row-title,
@@ -225,25 +220,29 @@ a.scheduled-row:focus-visible {
   color: color-mix(in srgb, var(--color-text-3) 65%, var(--color-bg));
 }
 
+.scheduled-row.is-off .ui-group-row-title,
+.scheduled-row.is-repeat .ui-group-row-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-3);
+}
+
+.scheduled-row.is-off .scheduled-thumb,
 .scheduled-row.is-repeat .scheduled-thumb {
   opacity: 0.45;
 }
 
 .scheduled-row.is-repeat .scheduled-repeat-chip,
-.scheduled-clash.is-repeat {
+.scheduled-repeat-reason {
   opacity: 0.75;
 }
 
-.scheduled-row .scheduled-clash.is-repeat {
-  margin-top: 0;
-  font-size: 13px;
-  line-height: 18px;
+.scheduled-repeat-reason {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
   font-weight: var(--weight-small);
-}
-
-.scheduled-row.is-repeat .ui-group-row-title {
-  text-decoration: line-through;
-  text-decoration-color: var(--color-text-3);
+  color: var(--color-warning);
+  vertical-align: 1px;
 }
 
 .ui-chip.scheduled-repeat-chip {

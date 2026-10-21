@@ -204,7 +204,7 @@ test('groupScheduled: a repeat is a skipped row naming its original airing', () 
   const [row] = groups.tomorrow
   assert.equal(row.state, 'repeat')
   assert.equal(row.key, 'encore-repeat')
-  assert.equal(row.repeatText, 'Skipped: recorded Sun 9:00am')
+  assert.equal(row.repeatText, 'recorded Sun 9:00am')
   assert.doesNotMatch(row.meta, /Repeat|Skipped/)
   assert.equal(scheduledCount(groups), 1)
 })
@@ -222,9 +222,9 @@ test('scheduledCountOfState and weekStrip: repeats never count', () => {
 test('repeatSkippedText: says when the original recorded or will record', async () => {
   const { repeatSkippedText } = await import('../src/web/scheduled-groups.js')
   const startDate = Date.UTC(2026, 9, 25, 8, 0, 0)
-  assert.equal(repeatSkippedText({ repeatOf: { status: 'recorded', startDate }, timeZone: 'Australia/Sydney' }), 'Skipped: recorded Sun 7:00pm')
-  assert.equal(repeatSkippedText({ repeatOf: { status: 'scheduled', startDate }, timeZone: 'Australia/Sydney' }), 'Skipped: records Sun 7:00pm instead')
-  assert.equal(repeatSkippedText({ repeatOf: null }), 'Skipped: already recorded')
+  assert.equal(repeatSkippedText({ repeatOf: { status: 'recorded', startDate }, timeZone: 'Australia/Sydney' }), 'recorded Sun 7:00pm')
+  assert.equal(repeatSkippedText({ repeatOf: { status: 'scheduled', startDate }, timeZone: 'Australia/Sydney' }), 'records Sun 7:00pm instead')
+  assert.equal(repeatSkippedText({ repeatOf: null }), 'already recorded')
 })
 
 test('repeatOriginalText: names a scheduled, recorded, or recording original', async () => {

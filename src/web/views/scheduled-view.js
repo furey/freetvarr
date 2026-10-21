@@ -178,9 +178,8 @@ export const ScheduledView = {
                     <title-art :title="row.title" :src="row.imageProgramId ? '/api/epg/image/' + row.imageProgramId : ''" />
                   </span>
                   <span class="ui-group-row-main">
-                    <span class="ui-group-row-title">{{ row.title }}<span v-if="row.state === 'repeat'" class="ui-chip is-warn is-small scheduled-repeat-chip">Repeat</span></span>
-                    <span class="ui-meta scheduled-meta">{{ row.meta }}{{ row.state === 'off' ? ' · Skipped' : '' }}</span>
-                    <span v-if="row.repeatText" class="scheduled-clash is-repeat">{{ row.repeatText }}</span>
+                    <span class="ui-group-row-title">{{ row.title }}<span v-if="row.state === 'repeat'" class="ui-chip is-warn is-small scheduled-repeat-chip">Repeat</span><span v-if="row.repeatText" class="scheduled-repeat-reason">{{ row.repeatText }}</span></span>
+                    <span class="ui-meta scheduled-meta">{{ row.meta }}{{ row.state === 'off' || row.state === 'repeat' ? ' · Skipped' : '' }}</span>
                     <span v-if="clashTextFor(row)" class="scheduled-clash">${WARNING_ICON}No free tuner {{ clashTextFor(row) }}</span>
                   </span>
                 </a>

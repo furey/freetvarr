@@ -124,10 +124,10 @@ export const repeatOriginalText = ({ repeatOf, timeZone = 'UTC' }) => {
 }
 
 export const repeatSkippedText = ({ repeatOf, timeZone = 'UTC' }) => {
-  if (!repeatOf) return 'Skipped: already recorded'
-  if (repeatOf.status === 'recording') return 'Skipped: recording now'
+  if (!repeatOf) return 'already recorded'
+  if (repeatOf.status === 'recording') return 'recording now'
   const when = airingWhenOf({ repeatOf, timeZone })
-  return repeatOf.status === 'recorded' ? `Skipped: recorded ${when}` : `Skipped: records ${when} instead`
+  return repeatOf.status === 'recorded' ? `recorded ${when}` : `records ${when} instead`
 }
 
 export const repeatNoticeOf = ({ repeatOf, timeZone = 'UTC' }) =>
