@@ -68,6 +68,7 @@ import {
   SettingsNavIcon,
   SearchGlyph,
   ChevronGlyph,
+  DisclosureChevron,
   BackGlyph,
   CloseGlyph,
   PlayGlyph,
@@ -267,6 +268,7 @@ app.component('recordings-nav-icon', RecordingsNavIcon)
 app.component('settings-nav-icon', SettingsNavIcon)
 app.component('search-glyph', SearchGlyph)
 app.component('chevron-glyph', ChevronGlyph)
+app.component('disclosure-chevron', DisclosureChevron)
 app.component('back-glyph', BackGlyph)
 app.component('close-glyph', CloseGlyph)
 app.component('play-glyph', PlayGlyph)

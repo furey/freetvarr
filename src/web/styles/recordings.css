@@ -546,12 +546,9 @@
 }
 
 .options-advanced > summary {
-  display: flex;
-  align-items: center;
   min-height: 48px;
   font-size: 15px;
   font-weight: 600;
-  cursor: pointer;
 }
 
 .options-advanced > summary:focus-visible {

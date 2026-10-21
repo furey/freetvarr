@@ -1337,33 +1337,10 @@
 }
 
 .programme-sheet-advanced > summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   min-height: 44px;
   font-size: 14px;
   font-weight: 700;
   color: var(--color-text-2);
-  cursor: pointer;
-  list-style: none;
-}
-
-.programme-sheet-advanced > summary::-webkit-details-marker {
-  display: none;
-}
-
-.programme-sheet-advanced > summary::after {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg) translateY(-2px);
-  transition: transform var(--motion-fast) var(--ease-standard);
-}
-
-.programme-sheet-advanced[open] > summary::after {
-  transform: rotate(-135deg) translateY(-2px);
 }
 
 .programme-sheet-advanced .ui-group-row-meta a {
@@ -1897,7 +1874,6 @@
   .guide-switch,
   .guide-switch::after,
   .guide-page .epg-cell,
-  .programme-sheet-advanced > summary::after,
   .epg-sheet-enter-active .ui-sheet,
   .epg-sheet-leave-active .ui-sheet {
     transition: none;

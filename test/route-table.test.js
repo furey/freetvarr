@@ -99,3 +99,9 @@ test('resolveRoute: setup links open the Settings setup page and its drawers', (
   assert.deepEqual(resolveRoute('#/welcome/guide').params, ['system', 'setup', 'guide'])
   assert.equal(resolveRoute('#/welcome').view, 'welcome')
 })
+
+test('resolveRoute: old Danger zone addresses open the System page', () => {
+  assert.equal(resolveRoute('#/settings/danger-zone').canonicalHash, '#/settings/system/reset')
+  assert.equal(resolveRoute('#/settings/reset').canonicalHash, '#/settings/system/reset')
+  assert.equal(resolveRoute('#/settings/system/reset').canonicalHash, null)
+})

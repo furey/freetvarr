@@ -134,7 +134,7 @@ export const SyncsView = {
                       </span>
                     </td>
                     <td class="ui-tabular whitespace-nowrap text-ink-dim">{{ tookOf(s) }}</td>
-                    <td class="sync-chevron-cell"><chevron-right-icon :class="['sync-line-chevron', { open: isOpen(s) }]" /></td>
+                    <td class="sync-chevron-cell"><disclosure-chevron class="sync-line-chevron" :open="isOpen(s)" /></td>
                   </tr>
                   <tr v-if="isOpen(s)" class="drawer-row">
                     <td colspan="6"><sync-detail class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" /></td>
@@ -155,7 +155,7 @@ export const SyncsView = {
                   <span class="sync-line-time truncate">{{ timeOf(s) }}</span>
                   <sync-result :sync="s" />
                   <span class="sync-line-took-text">{{ tookOf(s) }}</span>
-                  <chevron-right-icon :class="['sync-line-chevron', { open: isOpen(s) }]" />
+                  <disclosure-chevron class="sync-line-chevron" :open="isOpen(s)" />
                   <span v-if="firstSyncError(s)" class="sync-line-error truncate">{{ firstSyncError(s) }}</span>
                 </div>
                 <sync-detail v-if="isOpen(s)" class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" @click.stop />
