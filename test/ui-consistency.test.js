@@ -137,3 +137,11 @@ test('toasts sit above every sheet', async () => {
   assert.ok(toastZ > overlayBase + 50)
   assert.ok(toastZ < 1000)
 })
+
+test('a restored focus after a tap or click never keeps a card ⋯ showing', async () => {
+  for (const { file, source } of await scriptsAndStyles()) {
+    assert.doesNotMatch(source, /:focus-within[^{,]*-more\b/, file)
+  }
+  const home = await read('styles/home.css')
+  assert.match(home, /\.for-you-card:has\(:focus-visible\) \.for-you-more,\s*\.menu-card:has\(:focus-visible\) \.menu-card-more \{\s*opacity: 1;/)
+})

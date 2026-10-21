@@ -567,8 +567,8 @@
   outline-offset: 2px;
 }
 
-.for-you-card:focus-within .for-you-more,
-.menu-card:focus-within .menu-card-more {
+.for-you-card:has(:focus-visible) .for-you-more,
+.menu-card:has(:focus-visible) .menu-card-more {
   opacity: 1;
 }
 
