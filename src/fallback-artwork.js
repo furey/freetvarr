@@ -5,6 +5,7 @@ import {
   articleCandidateIdsOf,
   artworkKindOf,
   candidateIdsOf,
+  dominantFilmOf,
   entityQueryOf,
   entityRowsOf,
   hintsForKind,
@@ -12,6 +13,7 @@ import {
   matchEvidenceOf,
   pageArtOf,
   rankEntities,
+  sharesAnyTerm,
   tmdbAuthOf,
   tmdbCandidatesOf,
   tmdbSearchOf,
@@ -219,14 +221,20 @@ export const createArtworkLookup = ({ client = artworkClient } = {}) => {
     const search = tmdbSearchOf({ title, hints })
     const found = await tmdbGet({ apiKey, path: search.path, params: { ...search.params, include_adult: 'false', language: 'en-AU' } })
     const results = (found?.results || []).map((result) => ({ ...result, media_type: result.media_type || search.mediaType }))
+    const unproven = []
     for (const result of tmdbCandidatesOf({ results, title, hints })) {
       const details = await tmdbDetails({ apiKey, type: result.media_type, id: result.id, withCredits: true })
       if (!details) continue
       const evidence = matchEvidenceOf({ hints, candidateYear: tmdbYearOf(details), text: tmdbTextOf(details) })
       const sources = evidence.accepted ? tmdbSourcesOf(details) : []
       if (sources.length) return { sources, reference: `tmdb:${result.media_type}:${result.id}` }
+      if (result.media_type === 'movie' && evidence.reason === 'no-evidence') unproven.push({ details, id: result.id })
     }
-    return null
+    if (hints.kind !== 'movie') return null
+    const dominant = dominantFilmOf(unproven.map(({ details }) => details))
+    if (!dominant || !sharesAnyTerm({ hints, text: tmdbTextOf(dominant) })) return null
+    const sources = tmdbSourcesOf(dominant)
+    return sources.length ? { sources, reference: `tmdb:movie:${dominant.id}` } : null
   }
 
   return async ({ title, hints, apiKey }) => {

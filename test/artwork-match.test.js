@@ -2,6 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  dominantFilmOf,
+  sharesAnyTerm,
   articleCandidateIdsOf,
   candidateIdsOf,
   castNamesOf,
@@ -241,4 +243,16 @@ test('guideKindsByTitle marks a title as a film only when every airing is a film
     { title: 'Bluey', kind: 'series' },
   ])
   assert.deepEqual([...kinds], [['training day', 'movie']])
+})
+
+test('a far more popular same-title film is accepted on one shared name from the synopsis', () => {
+  const hints = programmeHintsOf([{ title: "The Devil's Advocate", synopsis: 'Kevin gets an irresistible offer from a law firm in New York and he moves to the city with his wife.' }])
+  assert.deepEqual(hints.leadingNames, ['kevin'])
+  const classic = { id: 1813, vote_count: 6200, title: "The Devil's Advocate", overview: 'Aspiring Florida defense lawyer Kevin Lomax accepts a high-powered position at a New York law firm.' }
+  const remake = { id: 2, vote_count: 12, title: "The Devil's Advocate", overview: 'A priest investigates.' }
+  assert.equal(dominantFilmOf([remake, classic]), classic)
+  assert.equal(sharesAnyTerm({ hints, text: classic.overview }), true)
+  assert.equal(sharesAnyTerm({ hints, text: remake.overview }), false)
+  assert.equal(dominantFilmOf([classic, { ...remake, vote_count: 900 }]), null)
+  assert.equal(dominantFilmOf([{ ...classic, vote_count: 300 }]), null)
 })

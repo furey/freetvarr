@@ -112,7 +112,7 @@ export const ProgrammeArtBadges = {
       <transition name="programme-score-card">
         <div v-if="classificationOpen" :id="classificationCardId" class="programme-score-card programme-classification-card" role="group"
           :aria-label="rated.ariaLabel">
-          <p class="programme-score-card-title">{{ rated.adviceLine }}</p>
+          <p class="programme-score-card-meta">{{ rated.adviceLine }}</p>
         </div>
       </transition>
       <button ref="classificationButton" type="button" :class="['programme-art-badge', 'programme-classification', 'programme-classification-badge', 'is-' + rated.tone]"

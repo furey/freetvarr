@@ -93,17 +93,38 @@ export const evidenceWordsOf = ({ synopsis, title }) => {
   const titleWords = new Set(wordsOf(title).map(normalisedWord))
   const sentences = String(synopsis || '').replace(/\([^()]*\)/g, ' ').split(/(?<=[.!?:;])\s+/)
   const properNouns = new Set()
+  const leadingNames = new Set()
   const words = new Set()
   for (const sentence of sentences) {
     wordsOf(sentence).forEach((word, index) => {
       const key = normalisedWord(word)
       if (titleWords.has(key) || COMMON_WORDS.has(key) || key.length < 3) return
-      if (index > 0 && /^\p{Lu}/u.test(word) && !COMMON_PROPER_NOUNS.has(key)) properNouns.add(key)
+      const capitalised = /^\p{Lu}/u.test(word) && !COMMON_PROPER_NOUNS.has(key)
+      if (index > 0 && capitalised) properNouns.add(key)
+      else if (index === 0 && capitalised) leadingNames.add(key)
       else if (key.length >= DISTINCTIVE_WORD_LENGTH) words.add(key)
     })
   }
-  return { properNouns: [...properNouns], words: [...words].filter((word) => !properNouns.has(word)) }
+  return {
+    properNouns: [...properNouns],
+    leadingNames: [...leadingNames].filter((name) => !properNouns.has(name)),
+    words: [...words].filter((word) => !properNouns.has(word)),
+  }
 }
+
+export const dominantFilmOf = (candidates = []) => {
+  const [top, next] = [...candidates].sort((a, b) => votesOf(b) - votesOf(a))
+  if (!top || votesOf(top) < DOMINANT_FILM_VOTES) return null
+  return !next || votesOf(top) >= votesOf(next) * DOMINANT_FILM_RATIO ? top : null
+}
+
+export const sharesAnyTerm = ({ hints, text = '' }) => {
+  const haystack = ` ${normalisedText(text)} `
+  return [...(hints?.properNouns || []), ...(hints?.leadingNames || []), ...(hints?.words || [])]
+    .some((term) => haystack.includes(` ${normalisedText(term)} `))
+}
+
+const votesOf = (details) => Number(details?.vote_count) || 0
 
 export const matchEvidenceOf = ({ hints, candidateYear = null, text = '' }) => {
   if (!hints) return { accepted: false, reason: 'no-hints' }
@@ -307,3 +328,5 @@ const MAX_TMDB_CAST = 15
 const MAX_PROGRAMMES_PER_TITLE = 8
 const MIN_EPISODE_TITLE_LENGTH = 6
 const GENERIC_EPISODE_TITLE = /^(episode|part|series|season|chapter)\b|^\d+$/
+const DOMINANT_FILM_VOTES = 500
+const DOMINANT_FILM_RATIO = 10

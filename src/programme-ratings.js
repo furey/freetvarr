@@ -7,11 +7,13 @@ import { countryForTimeZone } from './zone-countries.js'
 import { pickReviewSnippet } from './review-snippet.js'
 import {
   artworkKindOf,
+  dominantFilmOf,
   episodeTitleKeyOf,
   hintsForKind,
   lookupExpiryOf,
   matchEvidenceOf,
   programmeHintsByTitle,
+  sharesAnyTerm,
   tmdbAuthOf,
   tmdbCandidatesOf,
   tmdbSearchOf,
@@ -222,11 +224,15 @@ export const createTitleMatcher = ({
     const search = tmdbSearchOf({ title, hints })
     const found = await tmdbGet({ apiKey, path: search.path, params: { ...search.params, include_adult: 'false', language: TMDB_LANGUAGE } })
     const results = (found?.results || []).map((result) => ({ ...result, media_type: result.media_type || search.mediaType }))
+    const fitting = []
     for (const result of tmdbCandidatesOf({ results, title, hints })) {
       const details = await tmdbDetails({ apiKey, type: 'movie', id: result.id })
-      if (details && releaseYearFits({ details, year }) && filmEvidenceAccepted({ details, hints })) return details
+      if (!details || !releaseYearFits({ details, year })) continue
+      if (filmEvidenceAccepted({ details, hints })) return details
+      fitting.push(details)
     }
-    return null
+    const dominant = dominantFilmOf(fitting)
+    return dominant && sharesAnyTerm({ hints, text: tmdbTextOf(dominant) }) ? dominant : null
   }
 
   const tvmazeShow = async ({ title, hints }) => {
