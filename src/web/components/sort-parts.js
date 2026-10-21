@@ -31,14 +31,6 @@ export const SortEditToggle = {
   `,
 }
 
-export const SortDotsIcon = {
-  template: `
-    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <circle cx="4.5" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="15.5" cy="10" r="1.5"/>
-    </svg>
-  `,
-}
-
 export const SortAnnouncer = {
   props: { message: { type: String, default: '' }, keyboardActive: Boolean },
   template: `
@@ -57,6 +49,5 @@ export const SORT_PART_COMPONENTS = {
   'sort-grip-icon': SortGripIcon,
   'sort-order-icon': SortOrderIcon,
   'sort-edit-toggle': SortEditToggle,
-  'sort-dots-icon': SortDotsIcon,
   'sort-announcer': SortAnnouncer,
 }

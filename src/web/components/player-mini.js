@@ -266,7 +266,7 @@ export const PlayerMini = {
           @click="$emit('toggle-pause')"><play-icon v-if="paused" /><pause-icon v-else /></button>
         <button ref="moreEl" type="button" :class="['pl-mini-button', 'pl-mini-more', { 'is-open': menuOpen || sheetOpen }]"
           aria-label="More" title="More" :aria-haspopup="phone ? 'dialog' : 'menu'" :aria-expanded="String(menuOpen || sheetOpen)"
-          @click="openMore"><more-dots-icon /></button>
+          @click="openMore"><more-glyph /></button>
         <button type="button" class="pl-mini-button pl-mini-close" aria-label="Stop and close" @click="$emit('close')"><cross-icon /></button>
       </div>
       <div v-if="card" :class="['mv-corner-grip', 'pl-mini-grip', 'is-' + gripCorner, { 'is-active': dragWidth != null }]"

@@ -50,14 +50,6 @@ export const CornerGripIcon = {
   `,
 }
 
-export const MoreDotsIcon = {
-  template: `
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/>
-    </svg>
-  `,
-}
-
 export const PhoneRotateIcon = icon('<rect x="4.5" y="1.75" width="7" height="12.5" rx="1.5"/><path d="M2 9.5a3 3 0 0 0 2.5 3"/>')
 
 export const PLAYER_ICON_COMPONENTS = {
@@ -77,7 +69,6 @@ export const PLAYER_ICON_COMPONENTS = {
   'expand-arrows-icon': ExpandArrowsIcon,
   'speaker-icon': SpeakerIcon,
   'speaker-muted-icon': SpeakerMutedIcon,
-  'more-dots-icon': MoreDotsIcon,
   'phone-rotate-icon': PhoneRotateIcon,
   'resize-arrows-icon': ResizeArrowsIcon,
   'corner-grip-icon': CornerGripIcon,

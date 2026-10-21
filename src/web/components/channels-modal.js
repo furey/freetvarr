@@ -27,14 +27,14 @@ export const ChannelsModal = {
         <header class="ui-sheet-header">
           <h2 id="channels-sheet-title" class="ui-sheet-title">Favourite order</h2>
         </header>
-        <p class="ui-meta channels-order-hint">Drag <sort-grip-icon class="icon-inline" /> to move a channel, or use <sort-dots-icon class="icon-inline" />.</p>
+        <p class="ui-meta channels-order-hint">Drag <sort-grip-icon class="icon-inline" /> to move a channel, or use <more-glyph class="icon-inline" />.</p>
         <transition-group ref="orderListRef" name="channels-order-rows" tag="div" class="ui-group channels-order-list">
           <div v-for="(id, i) in pinnedDraft" :key="id" :data-sort-id="id" class="ui-group-row channels-order-row">
             <span class="channels-order-number" aria-hidden="true">{{ positionOf(id) }}</span>
             <span class="channels-order-logo"><channel-logo :channel-id="id" :has-logo="hasLogoOf(id)" /></span>
             <span class="ui-group-row-main channels-row-name"><span class="channels-row-title">{{ draftName(id) }}</span></span>
             <button type="button" class="channels-order-more" data-sort-menu :aria-label="'Move ' + draftName(id)" aria-haspopup="menu"
-              :aria-expanded="String(menuFor === id)" @click="openMenu(id, $event)"><sort-dots-icon /></button>
+              :aria-expanded="String(menuFor === id)" @click="openMenu(id, $event)"><more-glyph /></button>
             <button type="button" class="sort-handle channels-order-handle" data-sort-handle aria-roledescription="sortable"
               :aria-label="'Reorder ' + draftName(id) + ', position ' + (i + 1) + ' of ' + pinnedDraft.length + '. Press Space to pick up.'"
               @pointerdown="sorter.onPointerDown(id, $event)" @keydown="sorter.onKeydown(id, $event)" @blur="sorter.onBlur(id)"><sort-grip-icon /></button>

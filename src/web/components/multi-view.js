@@ -143,7 +143,7 @@ export const MultiViewLayer = {
               :aria-label="picture.sound.ariaLabel" @click="tapPictureSound(picture.id)">
               <speaker-icon v-if="picture.sound.audible" /><speaker-muted-icon v-else /><span class="mv-sound-label">{{ picture.sound.label }}</span>
             </button>
-            <button type="button" class="mv-more" :aria-label="'More for ' + picture.name" @click="menuFor = picture.id"><more-dots-icon /></button>
+            <button type="button" class="mv-more" :aria-label="'More for ' + picture.name" @click="menuFor = picture.id"><more-glyph /></button>
           </span>
         </div>
         <div v-if="picture.status" class="mv-picture-status" role="status">
