@@ -1190,6 +1190,27 @@ a {
   transition: none;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  :is(.live-thumb, .epg-cell) > .programme-image img {
+    --picture-motion: transform 320ms var(--ease-standard);
+    transition: var(--picture-fade), var(--picture-motion);
+  }
+
+  :is(.live-thumb, .epg-cell) > .programme-image.is-upgrade img {
+    transition-duration: 700ms, 320ms;
+  }
+
+  :is(.live-thumb, .epg-cell) > .programme-image.no-fade img {
+    transition: var(--picture-motion);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  :is(.live-watch:hover > .live-thumb, .guide-page .epg-cell:hover) > .programme-image img {
+    transform: scale(1.05);
+  }
+}
+
 img:is([src^="/api/epg/image/"], [src^="/api/epg/show-image"], [src^="/api/epg/person-image"], [src^="/api/recordings/"], [src^="/api/library/"]):not(.is-focus-ready) {
   opacity: 0 !important;
 }

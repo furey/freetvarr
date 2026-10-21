@@ -274,6 +274,7 @@ test('the picture fade keeps the hover zoom transition of a fading picture', asy
   const read = (path) => readFile(new URL(`../src/web/${path}`, import.meta.url), 'utf8')
   const fadingRule = (await read('styles.css')).match(/img\.is-focus-fading \{([^}]*)\}/)[1]
   assert.match(fadingRule, /transition: var\(--picture-fade\), var\(--picture-motion, transform 0s\);/)
+  assert.match(await read('styles.css'), /:is\(\.live-thumb, \.epg-cell\) > \.programme-image img \{\s*--picture-motion: transform 320ms var\(--ease-standard\);\s*transition: var\(--picture-fade\), var\(--picture-motion\);/)
   for (const path of ['styles/base.css', 'styles/recordings.css']) {
     const css = await read(path)
     const zoomTransitions = [...css.matchAll(/transition: transform 320ms[^;]*;/g)]
