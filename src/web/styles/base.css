@@ -411,11 +411,6 @@ body.sheet-open .app-tabbar {
   .ui-page-actions {
     margin-top: -6px;
   }
-
-  .ui-page-heading:has(.app-brand-mark) + .ui-page-actions {
-    align-self: flex-end;
-    margin: 0 0 -6px;
-  }
 }
 
 @media (min-width: 768px) and (min-height: 501px) {

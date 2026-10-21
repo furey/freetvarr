@@ -124,7 +124,7 @@ export const ScheduledView = {
   components: { ScheduledWeekDays, ScheduledWatching, TunerTimeline },
   template: `
     <div class="ui-page scheduled-page">
-      <page-header title="Recordings" subtitle="Everything you have, and everything on its way." />
+      <page-header title="Recordings" subtitle="Recorded and coming up." />
       <div class="library-toolbar">
         <recordings-tabs current="scheduled" :scheduled-count="loaded ? count : null" />
       </div>
