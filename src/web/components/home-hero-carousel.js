@@ -31,7 +31,7 @@ export const HomeHeroCarousel = {
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
       :class="{ 'is-reduced': rotation.reducedMotion, 'is-instant': instant, 'is-edge-back': hoverEdge === -1, 'is-edge-forward': hoverEdge === 1 }"
-      @pointerenter="onPointerEnter" @pointerleave="onPointerLeave" @focusin="onFocusIn">
+      @pointerover="onPointerOver" @pointerleave="onPointerLeave" @focusin="onFocusIn">
       <div class="hero-carousel-viewport">
         <div ref="stage" class="hero-carousel-stage" :aria-live="advancing ? 'off' : 'polite'"
           @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp"
@@ -229,7 +229,10 @@ export const HomeHeroCarousel = {
       nextTick(() => dotEls[rotation.value.index]?.focus())
     }
 
-    const onPointerEnter = (e) => { if (e.pointerType === 'mouse') dispatch({ type: 'pointerEnter' }) }
+    const onPointerOver = (e) => {
+      if (e.pointerType !== 'mouse') return
+      dispatch({ type: e.target.closest?.(ACTION_SELECTOR) ? 'pointerEnter' : 'pointerLeave' })
+    }
     const onPointerLeave = (e) => { if (e.pointerType === 'mouse') dispatch({ type: 'pointerLeave' }) }
 
     const onFocusIn = (e) => {
@@ -346,7 +349,7 @@ export const HomeHeroCarousel = {
     return {
       stampedShowImage,
       rotation, stage, failedArt, orderedSlides, hoverEdge, clearHoverEdge, onStageClick, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
-      onPointerEnter, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
+      onPointerOver, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
     }
   },
