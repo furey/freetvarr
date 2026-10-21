@@ -93,7 +93,7 @@ The setup wizard, from the time zone to the ready step.
 
 <p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-series.png" alt="Series rules" width="100%"/>
-  <br/><em>Series rules (Settings → System)</em>
+  <br/><em>Series rules (Settings → Recording)</em>
 </p>
 
 <p align="center">
@@ -162,7 +162,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 
 ## Features
 
-- **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late. Each show's page has **Recording options** to pause, stop, or change its rule, and Settings → System → Series rules lists every rule with where its episodes save. Recording on an SD channel offers the HD simulcast instead. Turn on **Any channel** to record a show on whichever channel airs it.
+- **Series recording as autorec rules**: a series becomes one TVHeadend autorec rule matching title plus channel, with TVHeadend's own duplicate detection by episode number and `2`/`10` minute padding by default, because free-to-air broadcasts run late. Each show's page has **Recording options** to pause, stop, or change its rule, and Settings → Recording → Series rules lists every rule with where its episodes save. Recording on an SD channel offers the HD simulcast instead. Turn on **Any channel** to record a show on whichever channel airs it.
 - **TV guide**: a 7-day programme guide. Schedule, cancel, and series-record in TVHeadend, search the week, and put your favourite channels first. **Add to watchlist** lists a show under **Watchlist** when it is in the guide, and can start an any-channel series recording when it appears. Freetvarr keeps the programmes that already aired today (TVHeadend drops them), and each day runs on to 3am so late-night viewing isn't cut off at midnight. A +1 channel gets the listings of its main channel one hour later.
 - **Library and show pages**: Recordings has a **Library** of shows, movies, and one-offs with posters, and a **Scheduled** list of what records now and next. Each show has a page with episodes, watched marks, a status line for its rule, and **Recording options**.
 - **Series folders**: each series you record gets a folder under your media root, matched by name to an existing folder (even when the names are not identical), with a season template.
@@ -261,7 +261,7 @@ The TVHeadend URL and login, the Plex token, and the storage paths are runtime s
 
 Freetvarr keeps two settings for one folder: `recordings_root` is where it sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports in the filenames it hands out. In the example Docker compose file, TVHeadend sees the folder at `/recordings` and Freetvarr at `/data/recordings`. Freetvarr rewrites the one prefix to the other. The full environment reference, including the settings fallback chain, is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
-**Ad removal** is configured in Freetvarr's Settings, not in the `.env`. Turn it on in Settings → Ad removal (off by default), then open the series in Settings → System → Series rules and pick its mode. `DETECT` leaves the video as it is and writes the ad breaks to a `.edl` file beside it, which Kodi skips (Jellyfin with an EDL plugin; Plex ignores it). `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
+**Ad removal** is configured in Freetvarr's Settings, not in the `.env`. Turn it on in Settings → Ad removal (off by default), then open the series in Settings → Recording → Series rules and pick its mode. `DETECT` leaves the video as it is and writes the ad breaks to a `.edl` file beside it, which Kodi skips (Jellyfin with an EDL plugin; Plex ignores it). `CUT` removes them and keeps the original as `<file>.ts.orig` for a number of days you choose (default 7). Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
 
 <p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-settings.png" alt="Settings" width="100%"/>

@@ -191,7 +191,7 @@ The player converts the file as it plays, the same way it converts [live TV](/gu
 
 ## Recording log
 
-The recording log lists every recording TVHeadend has finished, with its programme image, show, air time, and what Freetvarr did with it. Open it from Settings → System → **Recording log**. The library and the show pages show the same recordings for watching; the log keeps the full import detail.
+The recording log lists every recording TVHeadend has finished, with its programme image, show, air time, and what Freetvarr did with it. Open it from Settings → Recording → **Recording log**. The library and the show pages show the same recordings for watching; the log keeps the full import detail.
 
 ### Sort
 

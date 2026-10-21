@@ -25,7 +25,7 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 | `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Both Docker containers use the same pair                                                                        |
 | `FREETVARR_PORT`         | Host port to serve on (default `3733`)                                                                                                                                                                                                              |
 | `TVH_URL`                | Optional. Fixes the address **Auto-discover TVHeadend** offers; omit to let Freetvarr probe port `9981` on the host                                                                                                                                 |
-| `LIVE_TV_MAX_SESSIONS`   | Optional. The most live streams the [player](/guide/player#live-streams-at-once) plays at once. Unset, Freetvarr measures the computer and lets you choose `1` or `2` in Settings → Recording                                                       |
+| `LIVE_TV_MAX_SESSIONS`   | Optional. The most live streams the [player](/guide/player#live-streams-at-once) plays at once. Unset, Freetvarr measures the computer and lets you choose `1` or `2` in Settings → Recording folders                                               |
 | `LIVE_TV_BUFFER_MINUTES` | Optional. How many minutes of [live TV](/guide/live-tv#pause-and-rewind) the player can pause and rewind (default `30`, `0` turns it off, maximum `120`)                                                                                            |
 | `LIVE_TV_TRANSCODE`      | Optional. How [live TV](/guide/live-tv#video-handling) handles H.264: `auto` (default), `hardware`, `software`, or `copy`                                                                                                                           |
 | `LIVE_TV_VAAPI_DEVICE`   | Optional. The render device for hardware encoding (default `/dev/dri/renderD128`)                                                                                                                                                                   |
@@ -86,14 +86,15 @@ When you change `media_root` or `oneoff_root`, Freetvarr moves the stored file p
 The TVHeadend URL, username, and password, the Plex URL, token, and section, the storage paths, the ad-removal switches, and the sync schedule are all set in Freetvarr's **Settings** (or in its [setup](/guide/getting-started#_2-run-setup)) and stored in Freetvarr's database. Settings groups its pages as follows:
 
 - **About**: About Freetvarr (versions and licences). Settings opens on it.
-- **Preferences**: Recording, Library and Plex, Film and TV info, Ad removal, Watch on TV, Player, For you, and Schedule.
-- **System**: Setup, Health, Activity, Series rules, Folders, Recording log, TVHeadend, and Danger zone.
+- **Watching**: Channels, Player, For you, Film and TV info, and Watch on TV.
+- **Recording**: Series rules, Title matches, Recording log, Ad removal, Library and Plex, and Recording folders.
+- **System**: Health, Activity, Setup, TVHeadend, Schedule, and Danger zone.
 
 [Settings](/guide/settings) describes each page. Press **Save settings** to keep your changes. An optional TMDB API key for film posters, film ratings, reviews, and film cast goes in Settings → Film and TV info ([TMDB key](/guide/tv-guide#tmdb-key)); Freetvarr stores it in its database and never sends it to the browser. **Test path** checks the media root and Freetvarr's recordings folder, and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings">
-  <img src="../img/screenshot-settings.png" alt="Settings → Preferences" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-settings.png" alt="Settings" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

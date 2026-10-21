@@ -149,7 +149,7 @@ export const SeriesView = {
             </div>
           </template>
         </template>
-        <p class="settings-note settings-cross-link">Title matches and their folders are under <a href="#/settings/system/folders">Folders</a>.</p>
+        <p class="settings-note settings-cross-link">For title matches and their folders, open <a href="#/settings/system/folders">Title matches</a>.</p>
       </template>
 
       <ui-sheet :open="Boolean(cancelling)" title="Cancel series" @close="closeCancelSeries">

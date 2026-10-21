@@ -129,7 +129,7 @@ Each channel needs a tuner, unless a tuner already carries its multiplex, in whi
 
 Stream limits:
 
-- **One to four channels at once**, set by [Live streams at once](/guide/player#live-streams-at-once) in Settings → Recording. Freetvarr measures your computer when it starts and picks the default. `LIVE_TV_MAX_SESSIONS` in the `.env` caps it. Recordings that play in Freetvarr count against the same limit, and viewers of the same channel share one stream.
+- **One to four channels at once**, set by [Live streams at once](/guide/player#live-streams-at-once) in Settings → Recording folders. Freetvarr measures your computer when it starts and picks the default. `LIVE_TV_MAX_SESSIONS` in the `.env` caps it. Recordings that play in Freetvarr count against the same limit, and viewers of the same channel share one stream.
 - **The stream stops 20 seconds** after the last viewer closes the player or the tab. A locked phone or a hidden tab keeps it for the buffer length instead ([Pause and rewind](#pause-and-rewind)).
 - **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 

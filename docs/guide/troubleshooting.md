@@ -137,7 +137,7 @@ TVHeadend's first-run wizard opens on every page load. The `wizard` value in **C
 
 TVHeadend finished a recording, but nothing appears in Recordings or in your media library.
 
-- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)). Pick **Every episode** and press **Record series** in the TV guide, or use **Add title** in Settings → System → [Folders](/guide/series#title-matches).
+- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)). Pick **Every episode** and press **Record series** in the TV guide, or use **Add title** in Settings → Recording → [Title matches](/guide/series#title-matches).
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.
 - **The sync hasn't run yet.** The default **Sync schedule** is `Every 30 minutes`. Press **Sync now** in Settings → System → [Activity](/guide/syncs) to run one at once.
 - **It came in as SKIPPED or PARTIAL.** See the next two sections.
@@ -147,7 +147,7 @@ TVHeadend finished a recording, but nothing appears in Recordings or in your med
 The row's error in the [recording log](/guide/recordings#recording-log) says which of the two causes it was. Press the row for the full error and steps to fix it.
 
 - **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress shows this, and post-recording padding can keep it here for up to ten minutes after the programme ends. The next sync picks it up.
-- **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press **Check TVHeadend** in Settings → Recording, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+- **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press **Check TVHeadend** in Settings → Recording folders, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 
 ## Partial recordings
 

@@ -43,10 +43,10 @@ test('hideSdPrefsOf: reads the two settings from a channel-prefs reply', () => {
   assert.deepEqual(hideSdPrefsOf(), { hideSdSimulcasts: false, hideSdChannels: false })
 })
 
-test('the Channels settings page sits in Preferences with its own view', () => {
+test('the Channels settings page sits in Watching with its own view', () => {
   const page = settingsPageOf({ params: ['channels'] })
   assert.equal(page.view, 'channels')
-  assert.equal(page.group, 'preferences')
+  assert.equal(page.group, 'watching')
   assert.equal(page.href, '#/settings/channels')
 })
 

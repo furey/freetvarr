@@ -118,7 +118,7 @@ The **Channels** button (sliders) at the top right, next to search, opens the ch
 
 Press **Save** to apply the changes. Press **Cancel** to close without saving.
 
-**Hide SD simulcasts** and **Hide SD channels** are also on the **Channels** page in [Settings](/guide/settings#preferences). That page saves each change at once, and both places show the same setting.
+**Hide SD simulcasts** and **Hide SD channels** are also on the **Channels** page in [Settings](/guide/settings#watching). That page saves each change at once, and both places show the same setting.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">

@@ -7,13 +7,13 @@ description: >-
 
 # Series rules and folders
 
-A series has two parts: a series recording in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync. Settings → System → **Series rules** lists both parts together. Settings → System → **Folders** lists the [title matches](#title-matches).
+A series has two parts: a series recording in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync. Settings → Recording → **Series rules** lists both parts together. Settings → Recording → **Title matches** lists the [title matches](#title-matches).
 
-Series rules and Folders replace the SERIES tab of earlier versions; the old addresses `#/series` and `#/shows` open Series rules. To change one show, you can also use [Recording options](/guide/recordings#recording-options) on its show page.
+Series rules and Title matches replace the SERIES tab of earlier versions; the old addresses `#/series` and `#/shows` open Series rules. To change one show, you can also use [Recording options](/guide/recordings#recording-options) on its show page.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/series">
-  <img src="../img/screenshot-series.png" alt="Settings → System → Series rules" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-series.png" alt="Settings → Recording → Series rules" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -130,7 +130,7 @@ The episode title is dropped when the TV guide did not supply one. TVHeadend's o
 
 ## Title matches
 
-A recording whose title contains this text saves to its folder, even without a series recording. Settings → System → **Folders** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
+A recording whose title contains this text saves to its folder, even without a series recording. Settings → Recording → **Title matches** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
 
 To add a title:
 
@@ -151,7 +151,7 @@ The one-off folder stays out of the TV folder on purpose. Plex, Jellyfin, and In
 
 ## Films
 
-Set a **movies folder** in Settings → Recording, and a film with no series folder goes there instead, named the way movie libraries expect:
+Set a **movies folder** in Settings → Recording folders, and a film with no series folder goes there instead, named the way movie libraries expect:
 
 ```text
 Isle Of Dogs (2018)/Isle Of Dogs (2018).ts

@@ -22,35 +22,35 @@ When a check fails, a dot shows on the Settings icon, and a red problem also sho
 
 ### Where each screen went
 
-| Before                                  | Now                                                                                                                         |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Dashboard                               | [Home](/guide/home)                                                                                                         |
-| LIVE TV tab                             | [Live TV](/guide/live-tv)                                                                                                   |
-| TV GUIDE tab                            | [TV guide](/guide/tv-guide)                                                                                                 |
-| `UPCOMING` view in the TV Guide         | Recordings → [Scheduled](/guide/recordings#scheduled)                                                                       |
-| RECORDINGS tab                          | Recordings → [Library](/guide/recordings#library), and Settings → System → [Recording log](/guide/recordings#recording-log) |
-| SERIES tab                              | Settings → System → [Series rules](/guide/series) and [Folders](/guide/series#title-matches)                                |
-| SYNCS tab                               | Settings → System → [Activity](/guide/syncs)                                                                                |
-| Doctor, and `SYNC NOW` on the dashboard | Settings → System → [Health](/guide/doctor)                                                                                 |
-| SETTINGS tab                            | [Settings](/guide/settings), grouped as Preferences, System, and About                                                      |
+| Before                                  | Now                                                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Dashboard                               | [Home](/guide/home)                                                                                                            |
+| LIVE TV tab                             | [Live TV](/guide/live-tv)                                                                                                      |
+| TV GUIDE tab                            | [TV guide](/guide/tv-guide)                                                                                                    |
+| `UPCOMING` view in the TV Guide         | Recordings → [Scheduled](/guide/recordings#scheduled)                                                                          |
+| RECORDINGS tab                          | Recordings → [Library](/guide/recordings#library), and Settings → Recording → [Recording log](/guide/recordings#recording-log) |
+| SERIES tab                              | Settings → Recording → [Series rules](/guide/series) and [Title matches](/guide/series#title-matches)                          |
+| SYNCS tab                               | Settings → System → [Activity](/guide/syncs)                                                                                   |
+| Doctor, and `SYNC NOW` on the dashboard | Settings → System → [Health](/guide/doctor)                                                                                    |
+| SETTINGS tab                            | [Settings](/guide/settings), grouped as About, Watching, Recording, and System                                                 |
 
 ### Old links still work
 
 A bookmark to an old address opens the new page:
 
-| Old address                                                          | Opens                                                    |
-| -------------------------------------------------------------------- | -------------------------------------------------------- |
-| `#/dashboard`                                                        | Home                                                     |
-| `#/series` and `#/shows`                                             | Settings → System → Series rules                         |
-| `#/series/<title>`                                                   | The show page for that title                             |
-| `#/syncs` and `#/syncs/<number>`                                     | Settings → System → Activity                             |
-| `#/doctor`                                                           | Settings → System → Health                               |
-| `#/recordings?status=failed` and other filtered `#/recordings` links | Settings → System → Recording log, with the same filters |
+| Old address                                                          | Opens                                                       |
+| -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `#/dashboard`                                                        | Home                                                        |
+| `#/series` and `#/shows`                                             | Settings → Recording → Series rules                         |
+| `#/series/<title>`                                                   | The show page for that title                                |
+| `#/syncs` and `#/syncs/<number>`                                     | Settings → System → Activity                                |
+| `#/doctor`                                                           | Settings → System → Health                                  |
+| `#/recordings?status=failed` and other filtered `#/recordings` links | Settings → Recording → Recording log, with the same filters |
 
 ### Home
 
 - **Highlights**: up to five slides at the top of Home, such as the episode to carry on with, a new episode, what records now, and a suggestion. Each slide has its own buttons, such as **Resume**, **Watch live**, or **Record series**.
-- **For you**: suggestions from the next week of the TV guide, made on your own computer from what you record and watch. Home has a **For you** row, and **See all** opens the For you page. Suggestions start once Freetvarr knows about five of your shows; until then the row lists what is new this week. Settings → **Suggestions** turns them off, picks how much processor time they use, and pauses or clears your viewing history. See [For you](/guide/for-you).
+- **For you**: suggestions from the next week of the TV guide, made on your own computer from what you record and watch. Home has a **For you** row, and **See all** opens the For you page. Suggestions start once Freetvarr knows about five of your shows; until then the row lists what is new this week. Settings → **For you** turns them off, picks how much processor time they use, and pauses or clears your viewing history. See [For you](/guide/for-you).
 - **New recordings**, **On now**, and **Recording tonight** rows. See [Home and search](/guide/home#rows).
 
 ### Recordings
@@ -81,11 +81,11 @@ Live TV and recordings play in one full-screen player with its own controls. See
 - **Pop out (picture in picture)** and **Captions** are in the **⋯** menu.
 - On a phone, turning the phone sideways goes full screen.
 - **Multiview** plays two live channels at once, **Side by side** or **Big and small**, with one sound button for each picture. The channel list says which channels need a free tuner.
-- **Live streams at once**, in Settings → Recording, sets whether Freetvarr plays one or two live streams. Freetvarr measures what your computer can manage and sets the default for you.
+- **Live streams at once**, in Settings → Recording folders, sets whether Freetvarr plays one or two live streams. Freetvarr measures what your computer can manage and sets the default for you.
 
 ### Settings
 
-Settings groups its pages as Preferences, System, and About. System holds the admin screens that used to be tabs: Health, Activity, Series rules, Folders, Recording log, and TVHeadend. Preferences adds **Player** and **Suggestions**. See [Settings](/guide/settings).
+Settings groups its pages as About, Watching, Recording, and System. The screens that used to be tabs moved there: Series rules, Title matches, and Recording log under Recording, and Health and Activity under System. Watching adds **Channels**, **Player**, and **For you**. See [Settings](/guide/settings).
 
 ### Upgrading
 
