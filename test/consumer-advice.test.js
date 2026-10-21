@@ -106,12 +106,11 @@ test('the classification card names the rating and lists the advice', () => {
   assert.deepEqual(shownClassificationOf({ classification: 'ma15+', advice: ['L', 'V'] }), {
     code: 'MA15+',
     tone: 'ma',
-    name: 'Not suitable for people under 15',
     adviceLine: 'Language, violence',
-    ariaLabel: 'Classified MA15+: language, violence. Not suitable for people under 15',
+    ariaLabel: 'Classified MA15+: language, violence',
   })
-  assert.equal(shownClassificationOf({ classification: 'PG' }).ariaLabel, 'Classified PG. Parental guidance recommended')
-  assert.equal(shownClassificationOf({ classification: 'AV15+' }).name, 'Adult violence, not suitable under 15')
+  assert.equal(shownClassificationOf({ classification: 'PG' }).ariaLabel, 'Classified PG')
+  assert.equal(shownClassificationOf({ classification: 'PG' }).adviceLine, '')
   assert.equal(shownClassificationOf({ classification: 'X' }), null)
 })
 

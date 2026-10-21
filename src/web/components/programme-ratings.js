@@ -107,19 +107,20 @@ export const ProgrammeArtBadges = {
         <span aria-hidden="true">{{ score.label }}</span>
       </button>
     </div>
-    <div v-if="rated" ref="classificationWrap" class="programme-classification-wrap"
+    <div v-if="rated?.adviceLine" ref="classificationWrap" class="programme-classification-wrap"
       @pointerenter="openOnHover" @pointerleave="closeAfterHover">
       <transition name="programme-score-card">
         <div v-if="classificationOpen" :id="classificationCardId" class="programme-score-card programme-classification-card" role="group"
           :aria-label="rated.ariaLabel">
-          <p class="programme-score-card-title">{{ rated.name }}</p>
-          <p v-if="rated.adviceLine" class="programme-score-card-meta">{{ rated.adviceLine }}</p>
+          <p class="programme-score-card-title">{{ rated.adviceLine }}</p>
         </div>
       </transition>
       <button ref="classificationButton" type="button" :class="['programme-art-badge', 'programme-classification', 'programme-classification-badge', 'is-' + rated.tone]"
         :aria-label="rated.ariaLabel" :aria-expanded="String(classificationOpen)" :aria-controls="classificationCardId"
         @click="toggleClassification">{{ rated.code }}</button>
     </div>
+    <span v-else-if="rated" :class="['programme-art-badge', 'programme-classification', 'is-' + rated.tone]" role="img"
+      :aria-label="rated.ariaLabel">{{ rated.code }}</span>
   `,
   setup(props, { emit }) {
     const scoreWrap = ref(null)

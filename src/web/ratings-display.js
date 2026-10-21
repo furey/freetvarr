@@ -51,9 +51,8 @@ export const shownClassificationOf = ({ classification, advice }) => {
   return {
     code,
     tone: CLASSIFICATION_TONES[code],
-    name: CLASSIFICATION_NAMES[code],
     adviceLine: adviceLineOf(advice),
-    ariaLabel: `${classificationLabelOf({ classification: code, advice })}. ${CLASSIFICATION_NAMES[code]}`,
+    ariaLabel: classificationLabelOf({ classification: code, advice }),
   }
 }
 
@@ -130,16 +129,6 @@ const CLASSIFICATION_TONES = {
   'R18+': 'r',
 }
 
-const CLASSIFICATION_NAMES = {
-  P: 'Preschool children',
-  C: 'Children',
-  G: 'General',
-  PG: 'Parental guidance recommended',
-  M: 'Recommended for mature audiences',
-  'MA15+': 'Not suitable for people under 15',
-  'AV15+': 'Adult violence, not suitable under 15',
-  'R18+': 'Restricted to 18 and over',
-}
 
 const ADVICE_WORDS = {
   A: 'Adult themes',

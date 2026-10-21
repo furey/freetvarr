@@ -213,7 +213,7 @@ Freetvarr keeps each answer for 30 days, or 7 days when there is no match. To tu
 
 A classification is the age label of a programme: `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`. It shows in these places:
 
-- **Programme sheet**: on the picture, for any programme that has a label. Tap the badge (or point at it on a computer) to see what the label means and, when the broadcaster sends it, the consumer advice, such as `Language, violence`.
+- **Programme sheet**: on the picture, for any programme that has a label. When the broadcaster sends consumer advice, tap the badge (or point at it on a computer) to see it, such as `Language, violence`.
 - **Show page**: in the header of a recorded show, with the label of the latest episode ([Recordings](/guide/recordings#show-pages)).
 - **Live player**: when you tune in to a channel, and when a new programme starts on it, the label shows over the picture for 5 seconds. The label also shows in the programme info panel ([Live TV](/guide/live-tv#programme-info)). It does not show in the miniplayer or in Multiview.
 - **Lists**: no list shows a label. TV guide cells, Live TV rows, and cards on Home, For you, and Recordings stay plain; open a programme or show to see its label.
