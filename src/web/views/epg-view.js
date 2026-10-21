@@ -33,6 +33,8 @@ import { animateImagesToggle } from '/shared/guide-images-motion.js'
 import { setDragLock, useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { GUIDE_ROW_CONTEXT, GuideRow } from '/components/guide-row.js'
+import { KindFilterMenu, useKindFilter } from '/components/kind-filter-menu.js'
+import { airingPairOf, airsKindNowOrNext, showsMovieChip } from '/kind-filter.js'
 import { GUIDE_IMAGES_ON } from '/components/images.js'
 import { rememberLineup } from '/shared/channel-twins.js'
 import { RAIL_EDGE_ATTRIBUTE } from '/shared/scroll-proximity.js'
@@ -94,7 +96,7 @@ const EPG_SEARCH_DEBOUNCE_MS = 300
 const SCHEDULED_HREF = '#/recordings/scheduled'
 
 export const EpgView = {
-  components: { ...SORT_PART_COMPONENTS, GuideRow },
+  components: { ...SORT_PART_COMPONENTS, GuideRow, KindFilterMenu },
   template: `
     <div class="ui-page guide-page view-reveal">
       <page-header title="TV guide" :subtitle="dateSubtitle" :widgets="false">
@@ -182,10 +184,11 @@ export const EpgView = {
       <template v-else>
         <div v-if="guide && !narrow" class="guide-label-row">
           <h2 class="ui-group-label">Channels</h2>
-          <label class="guide-filter">
+          <label class="guide-filter" data-kind-filter-anchor>
             <search-glyph />
-            <input v-no-autofill v-model="railFilter" type="search" placeholder="Filter"
-              aria-label="Filter channels by number or name" @keydown.esc.stop.prevent="railFilter = ''" />
+            <input v-no-autofill v-model="railFilter" type="search" placeholder="Filter" v-bind="kindFilter.fieldAttrs.value"
+              aria-label="Filter channels by number or name" @keydown="onFilterKeydown"
+              @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
           </label>
           <div class="guide-legend guide-key">
             <span class="guide-legend-item"><span class="guide-legend-ring" aria-hidden="true"></span>Recording now</span>
@@ -229,9 +232,11 @@ export const EpgView = {
             <div class="epg-ruler">
               <div class="epg-ruler-corner">
                 <input v-if="narrow" v-no-autofill v-model="railFilter" type="search" class="epg-corner-filter"
-                  :placeholder="railLayout.filterPlaceholder" aria-label="Filter channels by number or name" />
-                <span v-else-if="railMatchIds" class="epg-filter-count" role="status" :aria-label="filterCountLabel"><span
-                  class="epg-filter-count-num">{{ railMatchIds.size }}</span>{{ railMatchIds.size === 1 ? 'channel' : 'channels' }}</span>
+                  :placeholder="railLayout.filterPlaceholder" aria-label="Filter channels by number or name" v-bind="kindFilter.fieldAttrs.value"
+                  @keydown="onFilterKeydown" @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
+                <span v-else-if="railMatchIds" class="epg-filter-count"><span role="status" class="epg-filter-count-text" :aria-label="filterCountLabel"><span
+                  class="epg-filter-count-num">{{ railMatchIds.size }}</span>{{ railMatchIds.size === 1 ? 'channel' : 'channels' }}</span><button
+                  type="button" class="epg-filter-clear" aria-label="Clear filter" @click="railFilter = ''"></button></span>
                 <div class="epg-rail-edge" aria-hidden="true" :style="{ height: railStripH + 'px' }"></div>
                 <div class="epg-rail-resizer" title="Drag to resize the channel rail"
                   :style="{ height: railStripH + 'px' }"
@@ -279,6 +284,7 @@ export const EpgView = {
       </template>
 
       <sort-announcer :message="sort.announcement.value" :keyboard-active="sort.keyboardActive.value" />
+      <kind-filter-menu :filter="kindFilter" />
 
       <teleport to="body">
       <transition name="epg-tip">
@@ -382,16 +388,30 @@ export const EpgView = {
     // The filter hides rows with v-show instead of removing them from the
     // v-for: toggling display is a style flip, while remove-and-remount pays
     // for every programme cell again.
+    const kindFilter = useKindFilter({ query: railFilter, nameLabel: (q) => `Channels named “${q}”` })
+
+    const onFilterKeydown = (event) => {
+      if (kindFilter.onKeydown(event) || event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      railFilter.value = ''
+    }
+
+    const channelAirsKind = ({ channel, kind }) => airsKindNowOrNext({
+      ...airingPairOf({ programmes: guide.value?.programs?.[channel.id], nowMs: nowMs.value }),
+      kind,
+    })
+
+    const channelNamed = ({ channel, q }) => (channel.name || '').toLowerCase().includes(q) || String(channel.number ?? '').startsWith(q)
+
     const railMatchIds = computed(() => {
       const q = railFilter.value.trim().toLowerCase()
       if (!q) return null
-      const set = new Set()
-      for (const c of visibleChannels.value) {
-        if ((c.name || '').toLowerCase().includes(q) || String(c.number ?? '').startsWith(q)) {
-          set.add(String(c.id))
-        }
-      }
-      return set
+      const kind = kindFilter.activeKind.value
+      const matches = kind
+        ? (channel) => channelAirsKind({ channel, kind })
+        : (channel) => channelNamed({ channel, q })
+      return new Set(visibleChannels.value.filter(matches).map((c) => String(c.id)))
     })
 
     const filtering = ref(false)
@@ -580,6 +600,7 @@ export const EpgView = {
         title: cellTitle(p),
         art,
         showsText: cellShowsText(p),
+        movieChip: zoom.value === 'l' && showsMovieChip(p),
         marks: cellMarks(p),
         clock: fmtClock(p.start),
       }
@@ -1322,7 +1343,7 @@ export const EpgView = {
       zoom, zoomIndex, zoomLevels: EPG_ZOOM_LEVELS, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, guideRowRem, changeZoom, setZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
       recordingStateText, fmtProgrammeRange, cellKey, cellShowsText, cellMarks, watchedKeys,
-      visibleChannels, railNum, railFilter, railMatchIds, filterCountLabel, filtering, pinnedCount, pinsOffscreen, scrollRailTop,
+      visibleChannels, railNum, railFilter, railMatchIds, kindFilter, onFilterKeydown, filterCountLabel, filtering, pinnedCount, pinsOffscreen, scrollRailTop,
       midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled,
       jumpNow, jumpTonight,

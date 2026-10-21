@@ -51,3 +51,11 @@ test('matchesFilter checks channel name, number, now and next titles', () => {
   assert.equal(matchesFilter({ entry: e, query: 'ch 7' }), true)
   assert.equal(matchesFilter({ entry: e, query: 'zzz' }), false)
 })
+
+test('matchesFilter with a kind keeps channels whose current or next programme is that kind', () => {
+  const movieNext = entry(7, false, { now: { title: 'Home and Away', kind: 'series' }, next: { title: 'Top Gun', kind: 'movie' } })
+  const noMovie = entry(8, false, { now: { title: 'Film Club', kind: 'series' }, next: null })
+  assert.equal(matchesFilter({ entry: movieNext, query: 'film', kind: 'movie' }), true)
+  assert.equal(matchesFilter({ entry: noMovie, query: 'film', kind: 'movie' }), false)
+  assert.equal(matchesFilter({ entry: noMovie, query: 'film' }), true)
+})
