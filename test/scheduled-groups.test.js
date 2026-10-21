@@ -268,3 +268,16 @@ test('weekStrip: counts match whether repeats are shown or hidden', () => {
   const counts = (g) => weekStrip({ groups: g, nowMs: NOW, timeZone: 'UTC' }).map((d) => d.count)
   assert.deepEqual(counts(withoutRepeats(groups)), counts(groups))
 })
+
+test('groupScheduled: rows at the same start keep one order whatever their state', () => {
+  const bigBrother = entry('bb', 24 * 3, { name: 'Big Brother Australia', channelName: '10 HD' })
+  const euroHouse = entry('eh', 24 * 3, { name: '1 Euro House', channelName: '9HD Sydney' })
+  const orderOf = (lists) => groupScheduled({ ...lists, nowMs: NOW, timeZone: 'UTC' }).later.map((r) => r.programId)
+  const expected = ['eh', 'bb']
+  assert.deepEqual(orderOf({ upcoming: [bigBrother, euroHouse] }), expected)
+  assert.deepEqual(orderOf({ upcoming: [euroHouse, bigBrother] }), expected)
+  assert.deepEqual(orderOf({ upcoming: [euroHouse], skipped: [bigBrother] }), expected)
+  assert.deepEqual(orderOf({ upcoming: [bigBrother], skipped: [euroHouse] }), expected)
+  assert.deepEqual(orderOf({ upcoming: [euroHouse], repeats: [bigBrother] }), expected)
+  assert.deepEqual(orderOf({ upcoming: [{ ...bigBrother, source: 'series' }, euroHouse] }), expected)
+})

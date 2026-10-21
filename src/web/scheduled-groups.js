@@ -39,9 +39,18 @@ export const groupScheduled = ({
     seen.add(id)
     groups[group].push(rowOf({ entry, state, timeZone, showDay: group === 'later' }))
   }
-  for (const rows of Object.values(groups)) rows.sort((a, b) => a.startMs - b.startMs)
+  for (const rows of Object.values(groups)) rows.sort(byScheduledOrder)
   return groups
 }
+
+export const byScheduledOrder = (a, b) =>
+  a.startMs - b.startMs
+  || naturalCompare(a.channelName, b.channelName)
+  || naturalCompare(a.title, b.title)
+  || naturalCompare(a.programId, b.programId)
+
+const naturalCompare = (a, b) =>
+  String(a ?? '').localeCompare(String(b ?? ''), 'en', { numeric: true, sensitivity: 'base' })
 
 export const recordingNowRows = ({ active = [], nowMs = Date.now() } = {}) =>
   active.filter((r) => !r.failed).map((r) => ({
@@ -179,6 +188,7 @@ const rowOf = ({ entry, state, timeZone, showDay }) => {
     key: `${entry.programId}-${rowKeySuffixOf(state)}`,
     programId: entry.programId,
     channelId: entry.channelId,
+    channelName: entry.channelName || '',
     title: entry.name,
     showKey: showKeyOf(entry.name),
     startMs,
