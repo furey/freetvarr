@@ -1723,6 +1723,10 @@
     white-space: nowrap;
   }
 
+  .guide-page .ui-page-actions {
+    margin-left: auto;
+  }
+
   .guide-scheduled-chip {
     gap: 6px;
     padding: 0 10px;
