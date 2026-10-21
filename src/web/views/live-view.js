@@ -29,18 +29,13 @@ export const LiveView = {
     <div ref="pageEl" class="ui-page live-page">
       <page-header title="Live TV" />
       <div class="live-toolbar">
-        <div class="ui-segmented live-scope" role="group" aria-label="Channels shown">
-          <button type="button" class="ui-segment" :aria-pressed="String(!pinnedOnly)" @click="pinnedOnly = false">All channels</button>
-          <button type="button" class="ui-segment" :aria-pressed="String(pinnedOnly)" @click="pinnedOnly = true">Favourites</button>
-        </div>
+        <button type="button" class="ui-chip live-scope" :aria-pressed="String(pinnedOnly)" @click="pinnedOnly = !pinnedOnly">Favourites</button>
         <label class="live-filter" data-kind-filter-anchor>
           <search-icon />
           <input v-no-autofill v-model="filterQ" type="search" placeholder="Filter channels or shows" aria-label="Filter channels or shows"
             v-bind="kindFilter.fieldAttrs.value" @keydown="kindFilter.onKeydown" @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
         </label>
-        <button type="button" class="live-images-toggle" role="switch" :aria-checked="String(showImages)" @click="toggleImages">
-          Images<span class="live-images-track" aria-hidden="true"></span>
-        </button>
+        <toggle-switch compact class="live-images-toggle" :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>
         <div class="ui-segmented is-compact live-zoom" role="group" aria-label="Zoom">
           <span class="ui-segmented-label">Zoom</span>
           <button v-for="level in zoomLevels" :key="level" type="button" class="ui-segment"

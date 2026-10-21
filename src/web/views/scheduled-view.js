@@ -175,12 +175,11 @@ export const ScheduledView = {
                     <span v-if="clashTextFor(row)" class="scheduled-clash">${WARNING_ICON}No free tuner {{ clashTextFor(row) }}</span>
                   </span>
                 </a>
-                <button type="button" class="ui-switch" role="switch"
-                  :aria-checked="row.state !== 'off' ? 'true' : 'false'"
+                <toggle-switch :model-value="row.state !== 'off'"
                   :aria-label="switchLabel(row)"
                   :title="row.state === 'expected' ? expectedHint : ''"
                   :disabled="row.state === 'expected' || busyIds.has(String(row.programId))"
-                  @click="toggle(row)"></button>
+                  @update:model-value="toggle(row)" />
               </div>
             </div>
           </section>

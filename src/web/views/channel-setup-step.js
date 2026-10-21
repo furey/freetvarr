@@ -114,8 +114,8 @@ export const ChannelSetupStep = {
             <div class="ui-group">
               <div v-for="t in tuners" :key="t.id" class="ui-group-row">
                 <span class="ui-group-row-main"><span class="ui-group-row-title">{{ t.name }}</span></span>
-                <button type="button" class="ui-switch" role="switch" :aria-checked="String(tunerIds.includes(t.id))"
-                  :aria-label="'Use ' + t.name" @click="toggleTuner(t.id)"></button>
+                <toggle-switch :model-value="tunerIds.includes(t.id)"
+                  :aria-label="'Use ' + t.name" @update:model-value="toggleTuner(t.id)" />
               </div>
             </div>
           </div>

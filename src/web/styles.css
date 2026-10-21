@@ -747,6 +747,34 @@ input[type="search"]::-webkit-search-cancel-button {
   }
 }
 
+.toggle:disabled:not(.is-pending) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toggle.is-compact {
+  flex-direction: row-reverse;
+  gap: 10px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px 0 14px;
+  border-radius: var(--radius-button);
+  background: var(--color-surface-1);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.toggle.is-compact .toggle-track {
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+}
+
+.toggle.is-compact .toggle-knob {
+  width: 18px;
+  height: 18px;
+}
+
 .toggle.is-pending .toggle-track {
   background: linear-gradient(90deg, var(--color-surface-1) 0%, var(--color-surface-2) 50%, var(--color-surface-1) 100%);
   background-size: 200% 100%;

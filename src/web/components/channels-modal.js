@@ -102,17 +102,16 @@ export const ChannelsModal = {
                   <span class="ui-group-row-title">Hide SD simulcasts</span>
                   <span class="ui-group-row-meta">Hides an SD channel only when its HD twin is in the lineup (10 next to 10 HD, Nine next to 9HD). SD-only channels stay. A favourite is never hidden.<template v-if="hideSdChannelsDraft"> Hide SD channels already hides these.</template></span>
                 </span>
-                <button type="button" class="ui-switch" aria-label="Hide SD simulcasts"
-                  :aria-pressed="String(hideSdChannelsDraft || hideSdDraft)" :disabled="hideSdChannelsDraft"
-                  @click="hideSdDraft = !hideSdDraft"></button>
+                <toggle-switch aria-label="Hide SD simulcasts"
+                  :model-value="hideSdChannelsDraft || hideSdDraft" :disabled="hideSdChannelsDraft"
+                  @update:model-value="hideSdDraft = !hideSdDraft" />
               </div>
               <div class="ui-group-row">
                 <span class="ui-group-row-main">
                   <span class="ui-group-row-title">Hide SD channels</span>
                   <span class="ui-group-row-meta">Shows only HD channels. SD-only channels (for example 7flix) are hidden too. Applies to the TV guide, search, and Live TV; a favourite is never hidden.</span>
                 </span>
-                <button type="button" class="ui-switch" aria-label="Hide SD channels"
-                  :aria-pressed="String(hideSdChannelsDraft)" @click="hideSdChannelsDraft = !hideSdChannelsDraft"></button>
+                <toggle-switch aria-label="Hide SD channels" v-model="hideSdChannelsDraft" />
               </div>
             </div>
             <p class="ui-meta">
@@ -148,11 +147,11 @@ export const ChannelsModal = {
                     <button type="button" class="ui-icon-button is-plain" @click="startGuideEdit(ch)"
                       :title="'Change guide source for ' + ch.name" :aria-label="'Change guide source for ' + ch.name"><pencil-icon /></button>
                   </template>
-                  <button type="button" class="ui-switch"
-                    :aria-pressed="String(!hiddenDraft.has(String(ch.id)))"
+                  <toggle-switch
+                    :model-value="!hiddenDraft.has(String(ch.id))"
                     :disabled="pinnedDraft.includes(String(ch.id))"
                     :title="pinnedDraft.includes(String(ch.id)) ? 'Favourites are always shown' : null"
-                    :aria-label="'Show ' + ch.name" @click="toggleHidden(ch)"></button>
+                    :aria-label="'Show ' + ch.name" @update:model-value="toggleHidden(ch)" />
                 </div>
                 <div v-if="editingId === String(ch.id)" class="channels-row-edit">
                   <guide-combobox class="channels-row-combobox" v-model="editValue" :options="guideLinks.options"

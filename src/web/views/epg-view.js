@@ -136,9 +136,7 @@ export const EpgView = {
         </div>
         <div class="guide-toolbar">
           <span class="guide-toolbar-spacer"></span>
-          <button type="button" role="switch" class="guide-images-toggle" :aria-checked="String(showImages)" @click="toggleImages">
-            Images<span class="guide-switch" aria-hidden="true"></span>
-          </button>
+          <toggle-switch compact :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>
           <div class="ui-segmented is-compact guide-zoom" role="group" aria-label="Zoom">
             <span class="ui-segmented-label" aria-hidden="true">Zoom</span>
             <button v-for="level in zoomLevels" :key="level.key" type="button" class="ui-segment"
