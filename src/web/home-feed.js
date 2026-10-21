@@ -1,5 +1,6 @@
 import { localDayNumber } from './guide-time.js'
 import { programmeProgress } from './live-info.js'
+import { rememberShowTitle, showKeyOf } from './show-key.js'
 
 export const TONIGHT_LIMIT = 3
 export const NEW_RECORDINGS_LIMIT = 12
@@ -48,7 +49,10 @@ export const newCardMetaOf = ({ episode, nowMs, timeZone }) => [
   airedWhenOf({ episode, nowMs, timeZone }),
 ].filter(Boolean).join(' · ')
 
-export const showHrefOf = (episode) => `#/recordings/show/${episode.showKey}`
+export const showHrefOf = (episode) => {
+  if (episode.title && showKeyOf(episode.title) === episode.showKey) rememberShowTitle(episode.title)
+  return `#/recordings/show/${episode.showKey}`
+}
 
 export const greetingFor = ({ nowMs, timeZone }) => {
   const hour = Number(new Intl.DateTimeFormat('en-AU', {

@@ -5,6 +5,7 @@ import {
   watchedFractionOf, greetingFor, favouriteOnNowOf, tonightOf, tonightMetaOf, splitClock,
   newCardMetaOf,
 } from '../src/web/home-feed.js'
+import { knownShowTitleOf } from '../src/web/show-key.js'
 
 const episode = (over) => ({
   recordingId: 'a', showKey: 'the-block', title: 'The Block', durationS: 3600,
@@ -18,6 +19,13 @@ test('episode feed urls ask the library for one in-progress and the newest unpla
 
 test('showHrefOf: links to the show page by key', () => {
   assert.equal(showHrefOf(episode()), '#/recordings/show/the-block')
+})
+
+test('showHrefOf: remembers the show title only when the episode title matches the key', () => {
+  showHrefOf(episode({ showKey: 'gardening-australia', title: 'Gardening Australia' }))
+  showHrefOf(episode({ showKey: 'moved-show', title: 'Original Title' }))
+  assert.equal(knownShowTitleOf('gardening-australia'), 'Gardening Australia')
+  assert.equal(knownShowTitleOf('moved-show'), '')
 })
 
 test('episodeCodeOf, minutesLeftOf, watchedFractionOf', () => {

@@ -10,6 +10,8 @@ import {
   playButtonLabel,
   ruleStatusOf,
   seasonLabel,
+  showTitleIn,
+  titleFromKey,
 } from '/show-page.js'
 import { firstEpisodeText } from '/library-shelves.js'
 import {
@@ -28,7 +30,10 @@ import { ArtworkPicker } from '/components/artwork-picker.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { ShowAbout, ShowCast, useProgrammeCredits } from '/components/show-credits.js'
 import { crewLinesOf, newestSynopsisOf, overviewOf, shownCastOf } from '/credits-display.js'
-import { api } from '/shared/api.js'
+import { api, loadedBuild } from '/shared/api.js'
+import { browserStorage } from '/shared/storage.js'
+import { readHomeCache } from '/home-cache.js'
+import { knownShowTitleOf } from '/show-key.js'
 import { rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
 import { showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
@@ -43,7 +48,7 @@ import { tz } from '/shared/time.js'
 export const ShowView = {
   components: { RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast, MoveToShowSheet },
   template: `
-    <div :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
+    <div v-page-reveal :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
         <img v-if="heroSrc && !heroFailed" class="show-hero-art" :src="heroSrc" alt="" @error="heroFailed = true" />
         <span class="show-hero-scrim"></span>
@@ -52,9 +57,10 @@ export const ShowView = {
           <programme-art-badges :classification="show.classification || null" :score="ratingScore" :loading="ratingLoading" v-model:open="ratingCardOpen" />
         </div>
         <div class="show-hero-body">
-          <h1 class="show-title">{{ title }}</h1>
-          <p v-if="heroMeta" class="show-hero-meta">{{ heroMeta }}</p>
-          <div v-if="show" class="show-actions ui-only-wide">
+          <h1 class="show-title"><template v-if="title">{{ title }}</template><span v-else class="ui-skeleton is-text show-title-skeleton" aria-hidden="true"></span></h1>
+          <p class="show-hero-meta"><template v-if="show">{{ heroMeta }}</template><span v-else class="ui-skeleton is-text show-meta-skeleton" aria-hidden="true"></span></p>
+          <div v-if="!show" class="show-actions ui-only-wide" aria-hidden="true"><span class="ui-skeleton show-skeleton-button"></span></div>
+          <div v-else class="show-actions ui-only-wide">
             <button v-if="playLabel" type="button" class="ui-button ui-button-primary" @click="playNext"><play-glyph /> {{ playLabel }}</button>
             <button v-if="show.rule" type="button" class="ui-button ui-button-secondary show-options-button" @click="optionsOpen = true"><sliders-icon /> Recording options</button>
             <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
@@ -194,13 +200,13 @@ export const ShowView = {
   setup() {
     const { showToast } = useLibraryToast()
     const key = computed(() => recordingsPageOf(routeParams.value).showKey || '')
-    const show = ref(null)
-    const loaded = ref(false)
+    const show = ref(cachedDetails.get(key.value) || null)
+    const loaded = ref(Boolean(show.value))
     const missing = ref(false)
     const error = ref('')
     const heroFailed = ref(false)
     const failedImages = ref({})
-    const selectedSeason = ref(undefined)
+    const selectedSeason = ref(firstSeasonOf(show.value))
     const optionsOpen = ref(false)
     const selecting = ref(false)
     const selected = ref(new Set())
@@ -220,8 +226,11 @@ export const ShowView = {
     }
 
     const load = async () => {
+      const requestedKey = key.value
       try {
-        const detail = await api('GET', `/api/library/shows/${encodeURIComponent(key.value)}`)
+        const detail = await api('GET', `/api/library/shows/${encodeURIComponent(requestedKey)}`)
+        cachedDetails.set(requestedKey, detail)
+        if (requestedKey !== key.value) return
         show.value = detail
         rememberShowStamps(detail)
         missing.value = false
@@ -229,14 +238,16 @@ export const ShowView = {
         const seasons = detail.seasons.map((s) => s.season)
         if (!seasons.includes(selectedSeason.value)) selectedSeason.value = seasons[0]
       } catch (err) {
+        if (requestedKey !== key.value) return
         if (err.status === 404) {
+          cachedDetails.delete(requestedKey)
           missing.value = true
           show.value = null
         } else {
           error.value = err.message
         }
       } finally {
-        loaded.value = true
+        if (requestedKey === key.value) loaded.value = true
       }
     }
 
@@ -245,8 +256,9 @@ export const ShowView = {
     const actions = useLibraryActions({ show, reload: load, showToast, openOptions: () => { optionsOpen.value = true }, canMove: true })
     const { activeIds, artworkVersion } = actions
 
-    const title = computed(() => show.value?.title || titleFromKey(key.value))
-    const heroStyle = computed(() => artFallbackStyle(title.value))
+    const titleHint = computed(() => show.value?.title || titleHintFor(key.value))
+    const title = computed(() => titleHint.value || (loaded.value ? titleFromKey(key.value) : ''))
+    const heroStyle = computed(() => artFallbackStyle(titleHint.value))
     const artStyle = heroStyle
     const versionSuffix = computed(() => (artworkVersion.value ? `&v=${artworkVersion.value}` : ''))
     const heroSrc = computed(() => (show.value ? `${stampedShowImage(showImageUrlOf({ title: show.value.title, width: 768 }))}${versionSuffix.value}` : ''))
@@ -349,8 +361,11 @@ export const ShowView = {
     watch(selecting, (on) => document.body.classList.toggle('library-selecting', on))
     watch(heroSrc, () => { heroFailed.value = false })
     watch(key, () => {
-      loaded.value = false
-      show.value = null
+      show.value = cachedDetails.get(key.value) || null
+      loaded.value = Boolean(show.value)
+      selectedSeason.value = firstSeasonOf(show.value)
+      missing.value = false
+      error.value = ''
       heroFailed.value = false
       aboutSynopsis.value = ''
       stopSelecting()
@@ -386,4 +401,10 @@ export const ShowView = {
 const rememberShowStamps = (detail) => ['background', 'poster'].forEach((kind) =>
   rememberArtworkStamp({ key: detail.key, kind, stamp: detail.artworkStamps?.[kind] ?? null }))
 
-const titleFromKey = (key) => key.replace(/-/g, ' ').replace(/^\w/, (letter) => letter.toUpperCase())
+const cachedDetails = new Map()
+
+const firstSeasonOf = (detail) => detail?.seasons[0]?.season
+
+const titleHintFor = (key) => knownShowTitleOf(key) || showTitleIn({ key, shows: homeCachedShows() })
+
+const homeCachedShows = () => readHomeCache({ storage: browserStorage(), build: loadedBuild || 'dev' })?.shows ?? []

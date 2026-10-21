@@ -154,10 +154,30 @@
 }
 
 .show-hero-meta {
+  min-height: 20px;
   margin: 0;
   font-size: 14px;
   line-height: 20px;
   color: var(--color-text-soft);
+}
+
+.show-title-skeleton {
+  --skeleton-w: 7em;
+}
+
+.show-meta-skeleton {
+  --skeleton-w: 16em;
+}
+
+.show-hero-body .show-actions {
+  align-items: center;
+  min-height: 48px;
+}
+
+.show-skeleton-button {
+  width: 200px;
+  height: 48px;
+  border-radius: var(--radius-button);
 }
 
 .show-actions {
@@ -740,6 +760,7 @@
   }
 
   .show-hero-meta {
+    min-height: 22px;
     font-size: 15px;
     line-height: 22px;
   }
