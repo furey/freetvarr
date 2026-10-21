@@ -2003,10 +2003,6 @@ a.show-cast-hit:active .show-cast-face {
   max-width: 90%;
 }
 
-body:has(.picture-body) .ui-toast-region {
-  z-index: 1001;
-}
-
 .move-show-field {
   flex: none;
 }
