@@ -85,14 +85,71 @@ test('sectionsOf: a cold-start section splits into a wide row and a poster row',
   assert.deepEqual(section.rows.map((row) => row.shape), ['card', 'poster'])
 })
 
-test('homeRowOf: For you row without movies, titled New this week until suggestions start, hidden when off or empty', () => {
+test('homeRowOf: For you row spread across the page sections, titled New this week until suggestions start, hidden when off or empty', () => {
   const row = homeRowOf({ payload: payload() })
   assert.equal(row.title, 'For you')
-  assert.deepEqual(row.items.map((i) => i.id), ['e1', 'e2', 'e3'])
+  assert.deepEqual(row.items.map((i) => i.id), ['e1', 'e3', 'm1', 'e2'])
   assert.equal(homeRowOf({ payload: payload({ coldStart: true }) }).title, 'New this week')
   assert.equal(homeRowOf({ payload: null }), null)
   assert.equal(homeRowOf({ payload: payload({ enabled: false }) }), null)
   assert.equal(homeRowOf({ payload: payload({ sections: [] }) }), null)
+})
+
+const lane = ({ prefix, count, over = {} }) => Array.from({ length: count }, (_, i) => item({
+  id: `${prefix}${i + 1}`, seriesKey: `${prefix}-${i + 1}`, title: `${prefix} ${i + 1}`, ...over,
+}))
+
+const film = (over) => ({ kind: 'movie', reason: '', rating: { score: 8.1, votes: 9000 }, ...over })
+
+const spreadPayload = (over) => payload({
+  sections: [
+    { key: 'might-like', title: '', items: lane({ prefix: 'like', count: 10, over: { kind: 'similar' } }) },
+    { key: 'top-rated', title: '', items: lane({ prefix: 'top', count: 10, over: film() }) },
+    { key: 'movies', title: '', items: lane({ prefix: 'film', count: 10, over: { kind: 'movie', reason: '' } }) },
+  ],
+  ...over,
+})
+
+test('homeRowOf: takes turns between page sections with two top rated films at slots 3 and 7, and no scores', () => {
+  const row = homeRowOf({ payload: spreadPayload() })
+  assert.deepEqual(row.items.map((i) => i.id), [
+    'like1', 'film1', 'top1', 'like2', 'film2', 'like3', 'top2', 'film3', 'like4', 'film4', 'like5', 'film5',
+  ])
+  assert.equal(row.items.every((i) => !cardRatingOf(i)), true)
+  assert.equal(new Set(row.items.map((i) => i.seriesKey)).size, row.items.length)
+})
+
+test('homeRowOf: hidden and repeated shows drop out without leaving gaps', () => {
+  const base = spreadPayload()
+  const sections = base.sections.map((section) => (section.key === 'movies'
+    ? { ...section, items: [base.sections[0].items[0], ...section.items] }
+    : section))
+  const row = homeRowOf({ payload: { ...base, sections }, hiddenKeys: new Set(['top-1', 'like-2']) })
+  assert.deepEqual(row.items.slice(0, 8).map((i) => i.id), ['like1', 'film1', 'top2', 'like3', 'film2', 'like4', 'top3', 'film3'])
+  assert.equal(new Set(row.items.map((i) => i.id)).size, row.items.length)
+})
+
+test('homeRowOf: Films in other languages caps foreign films across the whole Home row', () => {
+  const foreign = (section, ids) => ({ ...section, items: section.items.map((i) => (ids.includes(i.id) ? { ...i, otherLanguage: true } : i)) })
+  const base = spreadPayload()
+  const sections = [base.sections[0], foreign(base.sections[1], ['top1', 'top2']), foreign(base.sections[2], ['film1'])]
+  const idsFor = (otherLanguageFilms) => homeRowOf({ payload: { ...base, otherLanguageFilms, sections } }).items.map((i) => i.id)
+  assert.deepEqual(idsFor('few').filter((id) => ['top1', 'top2', 'film1'].includes(id)), ['top1', 'top2'])
+  assert.deepEqual(idsFor('none').filter((id) => ['top1', 'top2', 'film1'].includes(id)), [])
+  assert.deepEqual(idsFor('none').slice(0, 3), ['like1', 'like2', 'top3'])
+  assert.deepEqual(idsFor('all').filter((id) => ['top1', 'top2', 'film1'].includes(id)), ['film1', 'top1', 'top2'])
+})
+
+test('homeRowOf: few sections or items still fill the row without gaps or repeats', () => {
+  const short = payload({ sections: [
+    { key: 'might-like', title: '', items: lane({ prefix: 'like', count: 3, over: { kind: 'similar' } }) },
+    { key: 'top-rated', title: '', items: lane({ prefix: 'top', count: 5, over: film() }) },
+  ] })
+  assert.deepEqual(homeRowOf({ payload: short }).items.map((i) => i.id), ['like1', 'like2', 'top1', 'like3', 'top2'])
+  const onlyFilms = payload({ sections: [{ key: 'top-rated', title: '', items: lane({ prefix: 'top', count: 5, over: film() }) }] })
+  assert.deepEqual(homeRowOf({ payload: onlyFilms }).items.map((i) => i.id), ['top1', 'top2'])
+  const noFilms = payload({ sections: [{ key: 'might-like', title: '', items: lane({ prefix: 'like', count: 4, over: { kind: 'similar' } }) }] })
+  assert.deepEqual(homeRowOf({ payload: noFilms }).items.map((i) => i.id), ['like1', 'like2', 'like3', 'like4'])
 })
 
 test('badgeOf: Recording beats LIVE beats the kind badge, and plain picks have none', () => {

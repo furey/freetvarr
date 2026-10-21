@@ -8,6 +8,8 @@ export const FOR_YOU_URL = '/api/for-you'
 export const FOR_YOU_HREF = '#/for-you'
 export const SUGGESTIONS_HREF = '#/settings/for-you'
 export const HOME_ROW_LIMIT = 12
+export const HOME_TOP_RATED_SLOTS = [2, 6]
+export const HOME_OTHER_LANGUAGE_LIMITS = { all: Infinity, few: 2, none: 0 }
 export const CHOOSER_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000
 export const MAX_SHOWN_EVENTS = 50
 
@@ -82,14 +84,19 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
 
 export const homeRowOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set(), limit = HOME_ROW_LIMIT }) => {
   if (!payload || payload.enabled === false) return null
-  const items = sectionsOf({ payload, scheduledKeys, hiddenKeys })
-    .flatMap((section) => section.rows.flatMap((row) => row.items))
-    .filter((item) => !isMovie(item))
+  const sections = sectionsOf({ payload, scheduledKeys, hiddenKeys })
+  const otherLimit = HOME_OTHER_LANGUAGE_LIMITS[payload.otherLanguageFilms] ?? HOME_OTHER_LANGUAGE_LIMITS.few
+  const films = withinOtherLanguageLimit({
+    items: scheduledLast({ items: topRatedItemsOf(sections), scheduledKeys }),
+    limit: otherLimit,
+  }).slice(0, HOME_TOP_RATED_SLOTS.length)
+  const spread = withinOtherLanguageLimit({
+    items: scheduledLast({ items: interleaved(spreadLanesOf(sections)), scheduledKeys }),
+    limit: otherLimit - films.filter(isOtherLanguageItem).length,
+  }).slice(0, Math.max(0, limit - films.length))
+  const items = withFilmsAt({ items: spread, films, slots: HOME_TOP_RATED_SLOTS }).slice(0, limit).map(withoutScore)
   if (!items.length) return null
-  return {
-    title: payload.coldStart ? 'New this week' : 'For you',
-    items: scheduledLast({ items, scheduledKeys }).slice(0, limit),
-  }
+  return { title: payload.coldStart ? 'New this week' : 'For you', items }
 }
 
 export const badgeOf = ({ item, scheduled = false }) => {
@@ -368,6 +375,42 @@ const scheduledLast = ({ items, scheduledKeys }) => [
   ...items.filter((item) => !isScheduled({ item, scheduledKeys })),
   ...items.filter((item) => isScheduled({ item, scheduledKeys })),
 ]
+
+const sectionItemsOf = (section) => section.rows.flatMap((row) => row.items)
+
+const topRatedItemsOf = (sections) => {
+  const section = sections.find((candidate) => candidate.key === TOP_RATED_SECTION)
+  return section ? sectionItemsOf(section) : []
+}
+
+const spreadLanesOf = (sections) => sections
+  .filter((section) => section.key !== TOP_RATED_SECTION)
+  .map(sectionItemsOf)
+
+const interleaved = (lanes) => {
+  const longest = Math.max(0, ...lanes.map((lane) => lane.length))
+  return Array.from({ length: longest }, (_, i) => lanes.map((lane) => lane[i]))
+    .flat()
+    .filter(Boolean)
+}
+
+const isOtherLanguageItem = (item) => Boolean(item.otherLanguage)
+
+const withinOtherLanguageLimit = ({ items, limit }) => {
+  let others = 0
+  return items.filter((item) => {
+    if (!isOtherLanguageItem(item)) return true
+    others += 1
+    return others <= limit
+  })
+}
+
+const withFilmsAt = ({ items, films, slots }) => films.reduce((row, film, i) => {
+  const at = Math.min(slots[i], row.length)
+  return [...row.slice(0, at), film, ...row.slice(at)]
+}, items)
+
+const withoutScore = (item) => (item.rating ? { ...item, rating: null } : item)
 
 const rowsOf = (items) => [
   { shape: 'card', items: items.filter((item) => !isMovie(item)) },
