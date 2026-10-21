@@ -2,6 +2,10 @@
   gap: 16px;
 }
 
+.guide-page > .ui-page-header:has(> .ui-page-banner) {
+  margin-bottom: 0;
+}
+
 .guide-scheduled-chip {
   display: inline-flex;
   align-items: center;
