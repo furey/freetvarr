@@ -42,7 +42,6 @@ export const RecordingsView = {
   template: `
     <div class="view-reveal settings-page log-page">
       <div class="settings-toolbar">
-        <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
         <button type="button" class="ui-button" @click="askClearList" :disabled="clearing || clearable === 0"
           title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library.">
           <cross-icon /> {{ clearing ? 'Clearing…' : 'Clear from list' }}
@@ -236,15 +235,6 @@ export const RecordingsView = {
       || sinceFilter.value !== 'all'
       || deletedFilter.value !== 'all',
     )
-
-    const manualRefresh = async () => {
-      try {
-        await refresh()
-        flash({ msg: `Refreshed ${total.value} recording${total.value === 1 ? '' : 's'}.` })
-      } catch (err) {
-        flash({ msg: `Refresh failed: ${err.message}`, kind: 'error' })
-      }
-    }
 
     const refresh = async () => {
       const params = new URLSearchParams({
@@ -524,15 +514,20 @@ export const RecordingsView = {
       await refresh().catch(() => {})
       scheduleNextPoll()
     }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh().catch(() => {})
+    }
     onMounted(() => {
       loadShows()
       loadAdRemovalSetting()
       refresh().catch(() => {}).finally(scheduleNextPoll)
+      document.addEventListener('visibilitychange', refreshWhenVisible)
     })
     window.addEventListener('hashchange', applyLinkedFilters)
     onUnmounted(() => {
       if (pollTimer) clearTimeout(pollTimer)
       window.removeEventListener('hashchange', applyLinkedFilters)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
     })
 
     watch(
@@ -567,7 +562,7 @@ export const RecordingsView = {
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
       deletingId, removingId, importingId, clearing, adRemovalEnabled, adScanningId,
       canImport, importLabel, importRecording, statusLabel, libraryStatusOf, libraryStateTitle, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
-      refresh, manualRefresh, canDelete,
+      refresh, canDelete,
       canAdScan, isAdScanBlocked, adScanTitle, adLabel, adTooltip, adScan,
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, notInTvhTitle, clearNotInTvh,
