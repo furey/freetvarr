@@ -249,7 +249,7 @@ export const DoctorView = {
         await loadSyncStatus()
         ensureSyncPolling()
       } catch (err) {
-        flash({ msg: `Sync failed to start: ${err.message}`, kind: 'err' })
+        flash({ msg: `Sync failed to start: ${err.message}`, kind: 'error' })
       } finally {
         starting.value = false
       }

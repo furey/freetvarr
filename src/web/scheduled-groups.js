@@ -166,7 +166,7 @@ const seasonEpisodeText = ({ season, episode }) =>
   [season != null ? `S${season}` : '', episode != null ? `E${episode}` : ''].filter(Boolean).join(' ')
 
 const watchingMeta = ({ item, timeZone }) => {
-  const mode = item.mode === 'record' ? 'record automatically' : 'notify me'
+  const mode = item.mode === 'record' ? 'record automatically' : 'list only'
   const padding = item.mode === 'record' ? watchPaddingText(item) : ''
   const start = item.nextMatch?.start
   if (start == null) return ['Not in the guide yet', mode, padding].filter(Boolean).join(' · ')

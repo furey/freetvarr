@@ -453,3 +453,39 @@ a.scheduled-row:focus-visible {
     transition: none;
   }
 }
+
+.scheduled-watch-row {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+}
+
+.scheduled-watch-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+.scheduled-watch-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-2);
+}
+
+.scheduled-watch-note {
+  flex: 1 1 200px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-2);
+}

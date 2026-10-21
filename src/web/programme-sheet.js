@@ -37,7 +37,7 @@ export const strengthLineOf = ({ strength, title, channelLabel = '', onAirUntil 
   if (strength !== 'notify') return ''
   return recordWhenSeen
     ? `Records every episode of ${title} on any channel as soon as it is in the guide.`
-    : `Lists ${title} in Scheduled under Watching for whenever it is in the guide. Nothing records.`
+    : `Lists ${title} in Scheduled under Watchlist whenever it is in the guide. Nothing records.`
 }
 
 export const primaryActionOf = ({ strength }) => {
@@ -53,6 +53,9 @@ export const sheetMetaLineOf = ({ seasonEpisode, episodeTitle, channelName, time
 
 export const seasonEpisodeShort = ({ series_no: season, episode_no: episode }) =>
   [season != null && `S${season}`, episode != null && `E${episode}`].filter(Boolean).join(' ')
+
+export const activeWatchItemFor = ({ items = [], key }) =>
+  items.find((item) => item.key === key && !item.fulfilledAt) ?? null
 
 export const watchedKeysOf = (items = []) =>
   new Set(items.filter((item) => !item.fulfilledAt).map((item) => item.key))
@@ -70,4 +73,5 @@ const PENDING_ACTION_LABELS = {
   'record-series': 'Setting up…',
   cancel: 'Cancelling…',
   stop: 'Stopping…',
+  'remove-watch': 'Removing…',
 }

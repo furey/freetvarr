@@ -142,7 +142,7 @@ The list has these sections:
 
 - **RECORDING NOW**: each recording with a progress bar.
 - **TODAY**, **TOMORROW**, and **LATER THIS WEEK**: the recordings that TVHeadend has scheduled, plus the episodes that your series recordings will catch.
-- **WATCHING FOR**: the shows you watch for, from Search. Each row says when the show next airs, or `Not in the guide yet`, and whether it will record automatically, with any start and finish padding. A number badge counts new airings. See [Watch for](/guide/tv-guide#watch-for).
+- **WATCHLIST**: the shows you add to your watchlist from Search. Each row says when the show next airs, or `Not in the guide yet`, and whether it will record automatically, with any start and finish padding. A number badge counts new airings. See [Watchlist](/guide/tv-guide#watchlist).
 
 Each row has a switch. Turn it off to skip that episode; the row then says `Skipped`. Turn it on to record it again. The series recording keeps recording the other episodes. A row the series recording will catch has no working switch yet, because TVHeadend adds the episode to its schedule nearer the time. Press a row to open the show.
 

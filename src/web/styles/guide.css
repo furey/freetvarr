@@ -889,7 +889,7 @@
 
 .epg-float-cluster {
   right: calc(env(safe-area-inset-right, 0px) + 16px);
-  bottom: calc(var(--app-tabbar-h, 0px) + 16px);
+  bottom: calc(var(--app-tabbar-h, 0px) + var(--guide-legend-h, 0px) + 16px);
   gap: 2px;
   padding: 4px;
   border: 0;
@@ -1716,9 +1716,13 @@
     border-radius: 0;
   }
 
+  .app-content:has(.guide-page .guide-legend-strip) {
+    padding-bottom: 0;
+  }
+
   .guide-page .guide-card .epg-scroll {
-    max-height: 65vh;
-    max-height: 65dvh;
+    height: max(160px, calc(100vh - var(--guide-grid-top, 240px) - var(--app-tabbar-h) - var(--guide-legend-h, 0px)));
+    height: max(160px, calc(100dvh - var(--guide-grid-top, 240px) - var(--app-tabbar-h) - var(--guide-legend-h, 0px)));
   }
 
   .guide-page .epg-rail-cell {
@@ -1761,8 +1765,16 @@
     white-space: nowrap;
   }
 
-  .guide-legend {
-    padding-bottom: 72px;
+  .guide-legend-strip {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--app-tabbar-h);
+    z-index: 24;
+    gap: 4px 18px;
+    padding: 10px calc(env(safe-area-inset-right, 0px) + var(--gutter)) 10px calc(env(safe-area-inset-left, 0px) + var(--gutter));
+    border-top: 1px solid var(--color-hairline);
+    background: var(--color-bg);
   }
 
   .guide-legend-meta {
@@ -1823,8 +1835,15 @@
     width: 280px;
   }
 
-  .guide-page .guide-card .epg-scroll {
-    max-height: calc(100dvh - var(--app-tabbar-h) - 8px);
+  .guide-legend-strip {
+    flex-wrap: nowrap;
+    padding-block: 6px;
+    white-space: nowrap;
+  }
+
+  .guide-legend-strip .guide-legend-meta {
+    margin-left: auto;
+    flex-basis: auto;
   }
 
   .programme-sheet-art {

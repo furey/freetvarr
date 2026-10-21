@@ -62,7 +62,7 @@ export const SearchOverlay = {
                   <div class="ui-group">
                     <button type="button" class="ui-group-row" @click="watchFor">
                       <span class="ui-group-row-main">
-                        <span class="ui-group-row-title search-row-line">Watch for “{{ watchForOffer }}”</span>
+                        <span class="ui-group-row-title search-row-line">Add “{{ watchForOffer }}” to watchlist</span>
                         <span class="ui-group-row-meta">List it in Scheduled, or record it, when it is in the TV guide</span>
                       </span>
                       <chevron-glyph class="ui-group-row-chevron" />

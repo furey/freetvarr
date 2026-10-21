@@ -167,7 +167,7 @@ export const EpgView = {
         <div v-if="watchForOffer" class="ui-group">
           <button type="button" class="ui-group-row" @click="openWatchFor(watchForOffer)">
             <span class="ui-group-row-main">
-              <span class="ui-group-row-title">Watch for “{{ watchForOffer }}”</span>
+              <span class="ui-group-row-title">Add “{{ watchForOffer }}” to watchlist</span>
               <span class="ui-group-row-meta">List it in Scheduled, or record it, when it is in the TV guide</span>
             </span>
           </button>
@@ -185,7 +185,7 @@ export const EpgView = {
           <div class="guide-legend guide-key">
             <span class="guide-legend-item"><span class="guide-legend-ring" aria-hidden="true"></span>Recording now</span>
             <span class="guide-legend-item"><span class="guide-legend-dot" aria-hidden="true"></span>Scheduled</span>
-            <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>Watching for</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>On watchlist</span>
           </div>
         </div>
         <p v-if="guide?.stale" class="ui-banner is-warning">
@@ -263,11 +263,11 @@ export const EpgView = {
           </div>
           </teleport>
         </div>
-        <div v-if="guide" class="guide-legend">
+        <div v-if="guide" ref="legendEl" class="guide-legend guide-legend-strip">
           <template v-if="narrow">
             <span class="guide-legend-item"><span class="guide-legend-ring" aria-hidden="true"></span>Recording now</span>
             <span class="guide-legend-item"><span class="guide-legend-dot" aria-hidden="true"></span>Scheduled</span>
-            <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>Watching for</span>
+            <span class="guide-legend-item"><span class="guide-legend-dot is-watch" aria-hidden="true"></span>On watchlist</span>
           </template>
           <span v-if="stateMeta" class="guide-legend-meta">{{ stateMeta }}</span>
         </div>
@@ -681,7 +681,27 @@ export const EpgView = {
       const card = scrollEl.value?.closest('.guide-card')
       if (card) card.style.setProperty('--guide-grid-top', `${card.getBoundingClientRect().top + window.scrollY}px`)
     }
-    watch([scrollEl, guide, () => guide.value?.stale], measureGridTop, { flush: 'post' })
+    watch([scrollEl, guide, () => guide.value?.stale, narrow], measureGridTop, { flush: 'post' })
+
+    const legendEl = ref(null)
+    const setLegendHeight = () => {
+      const height = narrow.value && legendEl.value ? legendEl.value.offsetHeight : 0
+      document.documentElement.style.setProperty('--guide-legend-h', `${height}px`)
+    }
+    let legendRo = null
+    watch(legendEl, (el) => {
+      if (legendRo) { legendRo.disconnect(); legendRo = null }
+      if (el) {
+        legendRo = new ResizeObserver(setLegendHeight)
+        legendRo.observe(el)
+      }
+      setLegendHeight()
+    }, { flush: 'post' })
+    watch(narrow, setLegendHeight, { flush: 'post' })
+    onUnmounted(() => {
+      if (legendRo) legendRo.disconnect()
+      document.documentElement.style.removeProperty('--guide-legend-h')
+    })
 
     let dayFreshAt = 0
     const loadDay = async (d, { force = false } = {}) => {
@@ -1041,7 +1061,7 @@ export const EpgView = {
         await togglePinnedChannel({ pinnedIds, channelId: ch.id })
         await reloadGuide()
       } catch (err) {
-        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Favourite failed: ${err.message}`, kind: 'error' })
       }
     }
 
@@ -1281,7 +1301,7 @@ export const EpgView = {
       day, dayChips, dateSubtitle, setDay, pickDay, LISTINGS_LOADING_TEXT,
       loadingIds, loadingNoteMaxPx,
       guide, loading, error, errorCode, loadDay, state, stateMeta, scheduledLabel, scheduledHref: SCHEDULED_HREF,
-      scrollEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs, nowPill,
+      scrollEl, legendEl, railPx, trackWidth, trackTailPx, railStripH, scrollbarW, railNumWidth, ticks, nowX, nowMs, nowPill,
       zoom, zoomIndex, zoomLevels: EPG_ZOOM_LEVELS, zoomLevelCount: EPG_ZOOM_LEVELS.length, zooming, thumbMinCellPx, guideRowRem, changeZoom, setZoom,
       tooltip, tooltipEl, hideTooltip, onGridPointer, onGridPointerOut, onGridFocusIn, onGridFocusOut,
       recordingStateText, fmtProgrammeRange, cellKey, cellShowsText, cellMarks, watchedKeys,

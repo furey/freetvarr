@@ -20,7 +20,7 @@ export const openWatchFor = (title) => { watchForTitle.value = watchForTitleOf(t
 
 export const WatchForSheet = {
   template: `
-    <ui-sheet :open="watchForTitle != null" title="Watch for a show" @close="close">
+    <ui-sheet :open="watchForTitle != null" title="Add to watchlist" @close="close">
       <form class="watch-for-form" @submit.prevent="save">
         <div class="options-field">
           <label class="options-label" for="watch-for-title">Title</label>
@@ -97,7 +97,7 @@ export const WatchForSheet = {
         close()
         await afterSave(item)
       } catch (err) {
-        error.value = `Watch for failed: ${err.message}`
+        error.value = `Could not add to watchlist: ${err.message}`
       } finally {
         busy.value = false
       }

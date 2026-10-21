@@ -242,7 +242,7 @@ export const RecordingsView = {
         await refresh()
         flash({ msg: `Refreshed ${total.value} recording${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
-        flash({ msg: `Refresh failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Refresh failed: ${err.message}`, kind: 'error' })
       }
     }
 
@@ -363,7 +363,7 @@ export const RecordingsView = {
         flash({ msg: `Importing "${r.title}".` })
         await refresh()
       } catch (err) {
-        flash({ msg: `Import failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Import failed: ${err.message}`, kind: 'error' })
       } finally {
         importingId.value = null
       }
@@ -417,7 +417,7 @@ export const RecordingsView = {
         flash({ msg: `Ad scan started for "${r.title}". This can take minutes.` })
         await refresh()
       } catch (err) {
-        flash({ msg: `Ad scan failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Ad scan failed: ${err.message}`, kind: 'error' })
       } finally {
         adScanningId.value = null
       }
@@ -432,10 +432,10 @@ export const RecordingsView = {
           flash({ msg: `Removed "${r.title}" from TVHeadend.` })
           await refresh()
         } else {
-          flash({ msg: `TVHeadend remove failed: ${result.error} (stage: ${result.stage || '?'})`, kind: 'err' })
+          flash({ msg: `TVHeadend remove failed: ${result.error} (stage: ${result.stage || '?'})`, kind: 'error' })
         }
       } catch (err) {
-        flash({ msg: `TVHeadend remove failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `TVHeadend remove failed: ${err.message}`, kind: 'error' })
       } finally {
         deletingId.value = null
       }
@@ -450,7 +450,7 @@ export const RecordingsView = {
         if (undoable) offerUndo([r.recording_id])
         await refresh()
       } catch (err) {
-        flash({ msg: `Clear failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Clear failed: ${err.message}`, kind: 'error' })
       } finally {
         removingId.value = null
       }
@@ -464,7 +464,7 @@ export const RecordingsView = {
         offerUndo(r.ids)
         await refresh()
       } catch (err) {
-        flash({ msg: `Clear failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Clear failed: ${err.message}`, kind: 'error' })
       } finally {
         clearing.value = false
       }
@@ -508,7 +508,7 @@ export const RecordingsView = {
         flash({ msg: restoredListMessage(r.restored) })
         await refresh()
       } catch (err) {
-        flash({ msg: `Undo failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Undo failed: ${err.message}`, kind: 'error' })
       } finally {
         restoring.value = false
       }

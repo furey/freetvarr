@@ -292,7 +292,7 @@ export const SyncsView = {
         await refresh()
         flash({ msg: `Refreshed ${total.value} sync${total.value === 1 ? '' : 's'}.` })
       } catch (err) {
-        flash({ msg: `Refresh failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Refresh failed: ${err.message}`, kind: 'error' })
       }
     }
 
@@ -306,7 +306,7 @@ export const SyncsView = {
         ensureSyncPolling()
         await refresh()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err' })
+        flash({ msg: `Error: ${err.message}`, kind: 'error' })
       } finally {
         starting.value = false
       }
@@ -330,7 +330,7 @@ export const SyncsView = {
         await api('DELETE', `/api/syncs/${s.id}`)
         await refresh()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err' })
+        flash({ msg: `Error: ${err.message}`, kind: 'error' })
       }
     }
 
@@ -340,7 +340,7 @@ export const SyncsView = {
         flash({ msg: `Deleted ${r.deleted} sync${r.deleted === 1 ? '' : 's'}.` })
         await refresh()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err' })
+        flash({ msg: `Error: ${err.message}`, kind: 'error' })
       }
     }
 

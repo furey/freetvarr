@@ -1,6 +1,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
-import { useMediaQuery } from '/shared/composables.js'
+import { useFlash, useMediaQuery } from '/shared/composables.js'
+import { holdAtLeast } from '/pending.js'
 import { tz, now } from '/shared/time.js'
 import { recordingNow, recordingChangeTick, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { localDayNumber } from '/guide-time.js'
@@ -48,16 +49,32 @@ const ScheduledWeekDays = {
 }
 
 const ScheduledWatching = {
-  props: { rows: { type: Array, default: () => [] } },
+  props: {
+    rows: { type: Array, default: () => [] },
+    busyKey: { type: String, default: '' },
+  },
+  emits: ['remove'],
+  data: () => ({ openKey: '' }),
   template: `
     <div class="ui-group scheduled-watching">
-      <div v-for="row in rows" :key="row.key" class="ui-group-row is-tall scheduled-row">
-        ${BELL_ICON}
-        <span class="ui-group-row-main">
-          <span class="ui-group-row-title">{{ row.title }}</span>
-          <span class="ui-meta scheduled-meta">{{ row.meta }}</span>
-        </span>
-        <span v-if="row.unseen" class="ui-count-badge" :aria-label="row.unseen + ' new airings'">{{ row.unseen }}</span>
+      <div v-for="row in rows" :key="row.key" :class="['scheduled-watch-item', { 'is-open': openKey === row.key }]">
+        <button type="button" class="ui-group-row is-tall scheduled-row scheduled-watch-row" :aria-expanded="String(openKey === row.key)"
+          @click="openKey = openKey === row.key ? '' : row.key">
+          ${BELL_ICON}
+          <span class="ui-group-row-main">
+            <span class="ui-group-row-title">{{ row.title }}</span>
+            <span class="ui-meta scheduled-meta">{{ row.meta }}</span>
+          </span>
+          <span v-if="row.unseen" class="ui-count-badge" :aria-label="row.unseen + ' new airings'">{{ row.unseen }}</span>
+        </button>
+        <div v-if="openKey === row.key" class="scheduled-watch-drawer">
+          <p class="scheduled-watch-note">Freetvarr lists {{ row.title }} here whenever it is in the TV guide.</p>
+          <button type="button" :class="['ui-button', 'ui-button-destructive', { 'is-pending': busyKey === row.key }]"
+            :disabled="Boolean(busyKey)" @click="$emit('remove', row)">
+            <span v-if="busyKey === row.key" class="spinner" aria-hidden="true"></span>
+            {{ busyKey === row.key ? 'Removing…' : 'Remove from watchlist' }}
+          </button>
+        </div>
       </div>
     </div>
   `,
@@ -167,9 +184,9 @@ export const ScheduledView = {
             </div>
           </section>
 
-          <section v-if="!isWide && watching.length" class="ui-section" aria-label="Watching for">
-            <h2 class="ui-group-label">Watching for</h2>
-            <scheduled-watching :rows="watching" />
+          <section v-if="!isWide && watching.length" class="ui-section" aria-label="Watchlist">
+            <h2 class="ui-group-label">Watchlist</h2>
+            <scheduled-watching :rows="watching" :busy-key="removingWatchKey" @remove="removeWatch" />
           </section>
 
           <section v-if="isEmpty" class="ui-empty" aria-label="Nothing scheduled">
@@ -189,15 +206,16 @@ export const ScheduledView = {
           <tuner-timeline v-if="timeline" :timeline="timeline" :tuner-count="plan.tunerCount" :sentences="clashSentences" />
           <section v-if="watching.length" class="scheduled-card" aria-labelledby="scheduled-watching-heading">
             <header class="scheduled-card-head">
-              <h2 id="scheduled-watching-heading" class="scheduled-card-title">Watching for</h2>
+              <h2 id="scheduled-watching-heading" class="scheduled-card-title">Watchlist</h2>
             </header>
-            <scheduled-watching :rows="watching" />
+            <scheduled-watching :rows="watching" :busy-key="removingWatchKey" @remove="removeWatch" />
           </section>
         </aside>
       </div>
     </div>
   `,
   setup() {
+    const { flash } = useFlash()
     const state = ref(null)
     const watchlist = ref([])
     const loaded = ref(false)
@@ -307,6 +325,20 @@ export const ScheduledView = {
 
     const refresh = ({ fresh = false } = {}) => Promise.all([loadState({ fresh }), loadWatchlist()])
 
+    const removingWatchKey = ref('')
+    const removeWatch = async (row) => {
+      removingWatchKey.value = row.key
+      try {
+        await holdAtLeast({ task: () => api('DELETE', `/api/watchlist/${row.id}`) })
+        flash({ msg: `Removed "${row.title}" from your watchlist.` })
+        await loadWatchlist()
+      } catch (err) {
+        flash({ msg: `Could not remove from watchlist: ${err.message}`, kind: 'error' })
+      } finally {
+        removingWatchKey.value = ''
+      }
+    }
+
     const setBusy = (programId, busy) => {
       const next = new Set(busyIds.value)
       if (busy) next.add(String(programId))
@@ -361,7 +393,7 @@ export const ScheduledView = {
     onBeforeUnmount(() => clearInterval(refreshTimer))
 
     return {
-      state, loaded, loadError, actionError, busyIds, recordingRows, visibleSections, watching,
+      state, loaded, loadError, actionError, busyIds, recordingRows, visibleSections, watching, removingWatchKey, removeWatch,
       count, isEmpty, toggle, switchLabel, expectedHint: EXPECTED_HINT, isWide, todayNumber, plan,
       clashTextFor, timeline, clashSentences, weekDays, scrollToDay,
     }

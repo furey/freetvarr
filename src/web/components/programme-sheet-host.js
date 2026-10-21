@@ -3,6 +3,7 @@ import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
 import {
   SHEET_KEEP_STEPS,
+  activeWatchItemFor,
   canStep,
   initialStrengthOf,
   keepLabel,
@@ -35,12 +36,15 @@ import {
   isSeriesScheduled,
   libraryDefault,
   loadEpgState,
+  loadWatchlist,
   programmeSheetRequest,
   scheduledByProgramId,
   seriesLinkSet,
   seriesTags,
   useProgrammeSheet,
+  watchItems,
 } from '/shared/programme-sheet-store.js'
+import { showKeyOf } from '/show-key.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { route } from '/shared/router.js'
@@ -60,7 +64,7 @@ export const ProgrammeSheetHost = {
             :channel-id="selectedChannelId" :has-logo="hasChannelLogo(selectedChannelId)"
             :title="selected.program.title" />
           <button type="button" class="ui-icon-button programme-sheet-close" aria-label="Close" @click="closeModal"><close-glyph /></button>
-          <programme-art-badges :classification="selected.program.classification" :score="ratingScore" :loading="ratingLoading" v-model:open="ratingCardOpen" />
+          <programme-art-badges :classification="selected.program.classification" :advice="selected.program.advice || []" :score="ratingScore" :loading="ratingLoading" v-model:open="ratingCardOpen" />
         </div>
         <div class="programme-sheet-heading">
           <h2 id="programme-sheet-title" class="programme-sheet-title">{{ selected.program.title }}</h2>
@@ -280,6 +284,10 @@ export const ProgrammeSheetHost = {
 
     const selectedState = computed(() => (selected.value ? cellState(selected.value.program) : ''))
 
+    const selectedWatchItem = computed(() => (selected.value
+      ? activeWatchItemFor({ items: watchItems.value, key: showKeyOf(selected.value.program.title) })
+      : null))
+
     const selectedStatusText = computed(() => {
       const program = selected.value?.program
       const series = isSeriesScheduled(program || {})
@@ -387,8 +395,28 @@ export const ProgrammeSheetHost = {
         ].filter(Boolean)
       }
       if (state === 'series') return [cancelSeriesAction]
+      if (selectedWatchItem.value) {
+        return [{
+          key: 'remove-watch', busyKey: 'remove-watch', label: 'Remove from watchlist',
+          outcome: 'Takes it off your watchlist in Scheduled.', run: removeSelectedWatch,
+        }]
+      }
       return []
     })
+
+    const removeSelectedWatch = () => {
+      const item = selectedWatchItem.value
+      if (!item) return
+      return runSheetAction({
+        key: 'remove-watch',
+        failure: 'Could not remove from watchlist',
+        task: async () => {
+          await holdAtLeast({ task: () => api('DELETE', `/api/watchlist/${item.id}`) })
+          flash({ msg: `Removed "${item.title}" from your watchlist.` })
+          await loadWatchlist()
+        },
+      })
+    }
 
     const runPrimaryAction = () => {
       const key = primaryAction.value?.key

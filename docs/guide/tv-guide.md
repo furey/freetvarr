@@ -23,10 +23,10 @@ Channels run down the page and time runs across. The TV guide opens at the curre
 
 - The **day chips** switch between today and the next six days. **Now** and **Tonight** jump within the day.
 - **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. In a narrower window, **Zoom** shows **−** and **+** instead. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
-- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. When nothing matches, **Watch for** lists the show for later. See [Watch for](#watch-for).
+- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. When nothing matches, **Add to watchlist** lists the show for later. See [Watchlist](#watchlist).
 - The **Channels** button opens the channel settings.
 - The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). It replaces the old `UPCOMING` view.
-- A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme you watch for has its own dot; the legend names it **Watching for**. On a tablet or computer the legend sits above the grid, on the right; on a phone it sits under the grid. Past programmes are dimmed, and programmes on air have a lighter cell.
+- A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme on your watchlist has its own dot; the legend names it **On watchlist**. On a tablet or computer the legend sits above the grid, on the right; on a phone it sits under the grid. Past programmes are dimmed, and programmes on air have a lighter cell.
 - A line marks the current time.
 - Programmes that ended earlier today stay in the grid. TVHeadend drops a programme once it ends, but Freetvarr keeps its own copy.
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
@@ -73,22 +73,22 @@ Freetvarr decides from the guide whether a programme is a movie, part of a serie
 
 [Scheduled](/guide/recordings#scheduled) lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. [Series rules](/guide/series) lists the series recordings themselves.
 
-## Watch for
+## Watchlist
 
-**Watch for** lists a show under **Watching for** in [Scheduled](/guide/recordings#scheduled) when nothing in the next 7 days matches its title. Each time a programme with the same title is in the TV guide, the list shows when it next airs, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
+**Add to watchlist** lists a show under **Watchlist** in [Scheduled](/guide/recordings#scheduled) when nothing in the next 7 days matches its title. Each time a programme with the same title is in the TV guide, the list shows when it next airs, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
 
-To watch for a show:
+To add a show to your watchlist:
 
 1. Search for the title in [Search](/guide/home#search) or in the search of the TV guide.
-2. When nothing in the TV guide matches, press **Watch for “title”** at the end of the results.
+2. When nothing in the TV guide matches, press **Add “title” to watchlist** at the end of the results.
 3. Check the title, and change it if you need to.
 4. To record the show as soon as it is in the TV guide, turn on **Record when it appears**.
 5. With the switch on, set **Start early** and **Finish late**. They start at `2m` and `10m`, the same as for **This episode** and **Every episode**.
-6. Press the button. It reads **Watch for** with the switch off, and **Record when it appears** with the switch on.
+6. Press the button. It reads **Add to watchlist** with the switch off, and **Record when it appears** with the switch on.
 
-Freetvarr matches by title. Case, accents, and punctuation do not matter, so `Gogglebox` also matches `GOGGLEBOX`. A different title does not match: a watch for `Utopia` does not catch `Utopia: The Series`.
+Freetvarr matches by title. Case, accents, and punctuation do not matter, so `Gogglebox` also matches `GOGGLEBOX`. A different title does not match: a watchlist entry for `Utopia` does not catch `Utopia: The Series`.
 
-**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide, with the padding you set. Freetvarr checks the TV guide every 15 minutes. To stop watching for a show, open **Scheduled**, then **Watching for**, and press **Stop watching**.
+**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide, with the padding you set. Freetvarr checks the TV guide every 15 minutes. To take a show off your watchlist, open **Scheduled**, then **Watchlist**, and press **Remove from watchlist**.
 
 Freetvarr sends no push message or email. The list in Scheduled is the notice.
 
@@ -213,7 +213,7 @@ Freetvarr keeps each answer for 30 days, or 7 days when there is no match. To tu
 
 A classification is the age label of a programme: `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`. It shows in these places:
 
-- **Programme sheet**: on the picture, for any programme that has a label.
+- **Programme sheet**: on the picture, for any programme that has a label. Tap the badge (or point at it on a computer) to see what the label means and, when the broadcaster sends it, the consumer advice, such as `Language, violence`.
 - **Show page**: in the header of a recorded show, with the label of the latest episode ([Recordings](/guide/recordings#show-pages)).
 - **Live player**: when you tune in to a channel, and when a new programme starts on it, the label shows over the picture for 5 seconds. The label also shows in the programme info panel ([Live TV](/guide/live-tv#programme-info)). It does not show in the miniplayer or in Multiview.
 - **Lists**: no list shows a label. TV guide cells, Live TV rows, and cards on Home, For you, and Recordings stay plain; open a programme or show to see its label.

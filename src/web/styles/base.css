@@ -736,6 +736,65 @@ body.sheet-open .app-tabbar {
   background: #d7263d;
 }
 
+.programme-classification-wrap {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1;
+}
+
+.programme-classification-wrap > .programme-classification {
+  position: relative;
+  inset: auto;
+  border: 0;
+  box-shadow: none;
+  font-family: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.programme-classification-wrap > .programme-classification::before {
+  content: "";
+  position: absolute;
+  inset: -8px -6px;
+}
+
+.programme-classification-wrap > .programme-classification:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.programme-score-card.programme-classification-card {
+  right: 0;
+  left: auto;
+  transform-origin: bottom right;
+}
+
+.programme-classification-card::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 10px;
+}
+
+.show-hero-badges .programme-classification-card::after {
+  top: auto;
+  bottom: 100%;
+}
+
+.show-hero-badges .programme-classification-wrap {
+  position: relative;
+  inset: auto;
+}
+
+.show-hero-badges .programme-score-card.programme-classification-card {
+  transform-origin: top right;
+}
+
 .ui-channel-tag {
   padding: 3px 7px;
   border-radius: 6px;

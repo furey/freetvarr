@@ -6,6 +6,7 @@ import { authorizationFor, createChallengeCache } from './http-auth.js'
 import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
+import { cleanGuideText } from './consumer-advice.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -548,32 +549,37 @@ const removeKeepingHistory = async ({ uuid, rerecords, conn }) => {
   await apiPost('dvr/entry/remove', { uuid }, conn)
 }
 
-export const normaliseEvent = (e) => ({
-  program_id: e.eventId,
-  epg_program_id: e.eventId,
-  channel_id: e.channelUuid,
-  title: e.title || '',
-  episode_title: e.subtitle || null,
-  synopsis: e.description || e.summary || '',
-  start: e.start * 1000,
-  end: e.stop * 1000,
-  series_no: e.seasonNumber ?? null,
-  episode_no: e.episodeNumber ?? null,
-  series_link: seriesKey({ channelId: e.channelUuid, title: e.title }),
-  genre: (e.genre || [])[0] ?? null,
-  rating: e.ageRating ? String(e.ageRating) : null,
-  dvr_state: e.dvrState || null,
-  dvr_uuid: e.dvrUuid || null,
-  image: e.image || null,
-})
+export const normaliseEvent = (e) => {
+  const guideText = cleanGuideText({ episodeTitle: e.subtitle, synopsis: e.description || e.summary })
+  return {
+    program_id: e.eventId,
+    epg_program_id: e.eventId,
+    channel_id: e.channelUuid,
+    title: e.title || '',
+    episode_title: guideText.episodeTitle,
+    synopsis: guideText.synopsis,
+    advice: guideText.advice,
+    start: e.start * 1000,
+    end: e.stop * 1000,
+    series_no: e.seasonNumber ?? null,
+    episode_no: e.episodeNumber ?? null,
+    series_link: seriesKey({ channelId: e.channelUuid, title: e.title }),
+    genre: (e.genre || [])[0] ?? null,
+    rating: e.ageRating ? String(e.ageRating) : null,
+    dvr_state: e.dvrState || null,
+    dvr_uuid: e.dvrUuid || null,
+    image: e.image || null,
+  }
+}
 
 const normaliseEntry = (e) => {
   const { season, episode } = parseEpisodeDisp(e.episode_disp)
+  const guideText = cleanGuideText({ episodeTitle: e.disp_subtitle, synopsis: e.disp_description || e.disp_summary })
   return {
     uuid: e.uuid,
     programId: e.broadcast || null,
     name: e.disp_title || '',
-    episodeTitle: e.disp_subtitle || null,
+    episodeTitle: guideText.episodeTitle,
     channelId: e.channel || '',
     channelName: e.channelname || null,
     startDate: e.start * 1000,
@@ -589,7 +595,8 @@ const normaliseEntry = (e) => {
     filename: e.filename || null,
     filesize: e.filesize ?? null,
     image: e.image || null,
-    description: e.disp_description || e.disp_summary || null,
+    description: guideText.synopsis || null,
+    advice: guideText.advice,
     genres: Array.isArray(e.genre) ? e.genre : [],
     year: e.copyright_year > 0 ? e.copyright_year : null,
     rating: e.age_rating ? String(e.age_rating) : null,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   SHEET_KEEP_STEPS,
   SHEET_LEAD_STEPS,
+  activeWatchItemFor,
   canStep,
   cellMarksOf,
   clockWithoutPeriod,
@@ -112,4 +113,10 @@ test('pendingActionLabelOf: each sheet action has its own -ing label', () => {
   assert.equal(pendingActionLabelOf('stop'), 'Stopping…')
   assert.equal(pendingActionLabelOf('cancel'), 'Cancelling…')
   assert.equal(pendingActionLabelOf('unknown'), 'Saving…')
+})
+
+test('activeWatchItemFor finds the watchlist entry that is still waiting', () => {
+  const items = [{ id: 1, key: 'vera', fulfilledAt: 5 }, { id: 2, key: 'vera', fulfilledAt: null }, { id: 3, key: 'bluey' }]
+  assert.equal(activeWatchItemFor({ items, key: 'vera' }).id, 2)
+  assert.equal(activeWatchItemFor({ items, key: 'frasier' }), null)
 })

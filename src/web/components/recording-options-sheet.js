@@ -197,7 +197,7 @@ export const RecordingOptionsSheet = {
       statusText.value = text
     }
 
-    const fail = (what, err) => emit('flash', { msg: `${what} failed: ${err.message}`, kind: 'err', ms: 8000 })
+    const fail = (what, err) => emit('flash', { msg: `${what} failed: ${err.message}`, kind: 'error', ms: 8000 })
 
     let saveTimer = null
     const flushRulePatch = async () => {

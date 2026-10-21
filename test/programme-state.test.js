@@ -45,13 +45,13 @@ test('isSeriesScheduledOf: only when the scheduled recording belongs to a known 
   assert.equal(isSeriesScheduledOf({ programme: { program_id: 9 }, ...known }), false)
 })
 
-test('recordingStateTextOf: words for each state, and Watching for only before it airs', () => {
+test('recordingStateTextOf: words for each state, and On watchlist only before it airs', () => {
   assert.equal(recordingStateTextOf({ state: 'recording' }), 'Recording now')
   assert.equal(recordingStateTextOf({ state: 'scheduled', seriesScheduled: true }), 'Series recording scheduled')
   assert.equal(recordingStateTextOf({ state: 'scheduled' }), 'One-off recording scheduled')
   assert.equal(recordingStateTextOf({ state: 'series' }), 'Series recording set')
   assert.equal(recordingStateTextOf({ state: 'recorded' }), 'Recorded')
-  assert.equal(recordingStateTextOf({ state: '', watched: true }), 'Watching for')
+  assert.equal(recordingStateTextOf({ state: '', watched: true }), 'On watchlist')
   assert.equal(recordingStateTextOf({ state: '', watched: true, past: true }), '')
 })
 

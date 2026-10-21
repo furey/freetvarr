@@ -147,7 +147,7 @@ export const LivePlayer = {
               </div>
               <p v-if="infoMetaLine || infoClassification" class="live-info-meta">
                 <span v-if="infoMetaLine">{{ infoMetaLine }}</span>
-                <classification-chip v-if="infoClassification" variant="inline" :classification="infoClassification" />
+                <classification-chip v-if="infoClassification" variant="inline" :classification="infoClassification" :advice="info.now?.advice || []" />
               </p>
               <p v-if="info.now.synopsis" class="live-info-synopsis">{{ info.now.synopsis }}</p>
             </template>

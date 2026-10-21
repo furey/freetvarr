@@ -1,14 +1,13 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import {
-  classificationOf,
-  classificationToneOf,
   isSettledRatings,
   lastLineRightOf,
   linkFitsLastLine,
   ratingsKeyOf,
   ratingsUrlOf,
   retryDelayOf,
+  shownClassificationOf,
   shownReviewOf,
   shownScoreOf,
 } from '/ratings-display.js'
@@ -80,6 +79,7 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
 export const ProgrammeArtBadges = {
   props: {
     classification: { type: String, default: null },
+    advice: { type: Array, default: () => [] },
     score: { type: Object, default: null },
     open: Boolean,
     loading: Boolean,
@@ -93,34 +93,79 @@ export const ProgrammeArtBadges = {
     </transition>
     <div v-if="score" ref="scoreWrap" class="programme-score">
       <transition name="programme-score-card">
-        <div v-if="open" :id="cardId" class="programme-score-card" role="group" :aria-label="score.ariaLabel">
+        <div v-if="scoreOpen" :id="cardId" class="programme-score-card" role="group" :aria-label="score.ariaLabel">
           <p class="programme-score-card-title">{{ score.outOf }}</p>
           <p class="programme-score-card-meta">{{ score.votesLine }}</p>
           <a v-if="score.url" class="programme-score-card-link" :href="score.url" target="_blank" rel="noopener noreferrer">{{ score.linkLabel }}</a>
         </div>
       </transition>
       <button ref="scoreButton" type="button" class="programme-art-badge programme-score-badge" :aria-label="score.ariaLabel"
-        :aria-expanded="String(open)" :aria-controls="cardId" @click="toggle">
+        :aria-expanded="String(scoreOpen)" :aria-controls="cardId" @click="toggleScore">
         <svg class="programme-score-star" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M8 1.25l2.03 4.3 4.72.58-3.47 3.25.9 4.67L8 11.75l-4.18 2.3.9-4.67L1.25 6.13l4.72-.58z"/>
         </svg>
         <span aria-hidden="true">{{ score.label }}</span>
       </button>
     </div>
-    <span v-if="tone" :class="['programme-art-badge', 'programme-classification', 'is-' + tone]" role="img" :aria-label="'Classified ' + code">{{ code }}</span>
+    <div v-if="rated" ref="classificationWrap" class="programme-classification-wrap"
+      @pointerenter="openOnHover" @pointerleave="closeAfterHover">
+      <transition name="programme-score-card">
+        <div v-if="classificationOpen" :id="classificationCardId" class="programme-score-card programme-classification-card" role="group"
+          :aria-label="rated.ariaLabel">
+          <p class="programme-score-card-title">{{ rated.name }}</p>
+          <p v-if="rated.adviceLine" class="programme-score-card-meta">{{ rated.adviceLine }}</p>
+        </div>
+      </transition>
+      <button ref="classificationButton" type="button" :class="['programme-art-badge', 'programme-classification', 'programme-classification-badge', 'is-' + rated.tone]"
+        :aria-label="rated.ariaLabel" :aria-expanded="String(classificationOpen)" :aria-controls="classificationCardId"
+        @click="toggleClassification">{{ rated.code }}</button>
+    </div>
   `,
   setup(props, { emit }) {
     const scoreWrap = ref(null)
     const scoreButton = ref(null)
+    const classificationWrap = ref(null)
+    const classificationButton = ref(null)
+    const openCard = ref('score')
     const cardId = `programme-score-card-${nextCardId++}`
-    const code = computed(() => classificationOf(props.classification))
-    const tone = computed(() => classificationToneOf(props.classification))
+    const classificationCardId = `programme-classification-card-${nextCardId++}`
+    const rated = computed(() => shownClassificationOf({ classification: props.classification, advice: props.advice }))
+    const scoreOpen = computed(() => props.open && openCard.value === 'score')
+    const classificationOpen = computed(() => props.open && openCard.value === 'classification')
+    let openedByHover = false
 
-    const toggle = () => emit('update:open', !props.open)
+    const showCard = (card) => {
+      openedByHover = false
+      openCard.value = card
+      emit('update:open', true)
+    }
+
+    const closeCards = () => {
+      openedByHover = false
+      emit('update:open', false)
+    }
+
+    const toggleScore = () => (scoreOpen.value ? closeCards() : showCard('score'))
+
+    const toggleClassification = () => {
+      if (openedByHover || !classificationOpen.value) return showCard('classification')
+      closeCards()
+    }
+
+    const openOnHover = (event) => {
+      if (event.pointerType !== 'mouse' || !hoverPointer() || classificationOpen.value) return
+      showCard('classification')
+      openedByHover = true
+    }
+
+    const closeAfterHover = (event) => {
+      if (event.pointerType === 'mouse' && openedByHover && classificationOpen.value) closeCards()
+    }
+
+    const openWrap = () => (openCard.value === 'score' ? scoreWrap.value : classificationWrap.value)
 
     const closeOnOutsidePress = (event) => {
-      if (scoreWrap.value?.contains(event.target)) return
-      emit('update:open', false)
+      if (!openWrap()?.contains(event.target)) closeCards()
     }
 
     const listenOutside = (open) => {
@@ -129,7 +174,8 @@ export const ProgrammeArtBadges = {
     }
 
     const refocusButtonIfInside = () => {
-      if (scoreWrap.value?.contains(document.activeElement)) scoreButton.value?.focus()
+      const button = openCard.value === 'score' ? scoreButton.value : classificationButton.value
+      if (openWrap()?.contains(document.activeElement)) button?.focus()
     }
 
     watch(() => props.open, (open) => {
@@ -138,7 +184,21 @@ export const ProgrammeArtBadges = {
     }, { immediate: true })
     onUnmounted(() => listenOutside(false))
 
-    return { scoreWrap, scoreButton, cardId, code, tone, toggle }
+    return {
+      scoreWrap,
+      scoreButton,
+      classificationWrap,
+      classificationButton,
+      cardId,
+      classificationCardId,
+      rated,
+      scoreOpen,
+      classificationOpen,
+      toggleScore,
+      toggleClassification,
+      openOnHover,
+      closeAfterHover,
+    }
   },
 }
 
@@ -188,6 +248,8 @@ export const ProgrammeReviewCard = {
     return { quoteEl, textEl, linkEl, inline }
   },
 }
+
+const hoverPointer = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches === true
 
 const ratingsCache = new Map()
 let nextCardId = 1

@@ -146,7 +146,7 @@ test('watchingRows: describes matches and missing matches', () => {
       { id: 2, title: 'Gogglebox', mode: 'record', nextMatch: { start: NOW + 18.5 * HOUR, channelName: '10 HD' }, unseen: 2 },
     ],
   })
-  assert.equal(rows[0].meta, 'Not in the guide yet · notify me')
+  assert.equal(rows[0].meta, 'Not in the guide yet · list only')
   assert.equal(rows[1].meta, 'Next Mon 8:30pm · 10 HD · record automatically')
   assert.equal(rows[1].unseen, 2)
 })
@@ -162,7 +162,7 @@ test('watchingRows: shows the padding for Record when it appears', () => {
   })
   assert.equal(rows[0].meta, 'Not in the guide yet · record automatically · starts 2m early, finishes 5m late')
   assert.equal(rows[1].meta, 'Not in the guide yet · record automatically')
-  assert.equal(rows[2].meta, 'Not in the guide yet · notify me')
+  assert.equal(rows[2].meta, 'Not in the guide yet · list only')
 })
 
 test('episodeMetaParts: turns placeholder episode titles into a season and episode number', () => {

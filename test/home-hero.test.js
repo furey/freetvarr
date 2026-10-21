@@ -146,7 +146,7 @@ test('tonight slide: recording options for a series rule, details for a one-off'
 test('watchlist slide: notify items with a guide match', () => {
   const [slide] = heroSlidesOf({ watchlist: [watchItem()], nowMs, timeZone })
   assert.equal(slide.eyebrow, 'Now in the guide')
-  assert.equal(slide.meta, 'Wed 7:14pm · SBS · You are watching for this')
+  assert.equal(slide.meta, 'Wed 7:14pm · SBS · On your watchlist')
   assert.equal(slide.primary.action, 'record-series')
   assert.deepEqual(heroSlidesOf({ watchlist: [watchItem({ mode: 'record' })], nowMs, timeZone }), [])
   assert.deepEqual(heroSlidesOf({ watchlist: [watchItem({ nextMatch: null })], nowMs, timeZone }), [])

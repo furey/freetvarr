@@ -39,7 +39,7 @@ export const recordingStateTextOf = ({ state, seriesScheduled = false, past = fa
   if (state === 'scheduled') return seriesScheduled ? 'Series recording scheduled' : 'One-off recording scheduled'
   if (state === 'series') return 'Series recording set'
   if (state === 'recorded') return 'Recorded'
-  if (!past && watched) return 'Watching for'
+  if (!past && watched) return 'On watchlist'
   return ''
 }
 

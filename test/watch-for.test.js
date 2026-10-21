@@ -28,12 +28,12 @@ test('watchRequestOf: sends padding only for Record when it appears', () => {
 })
 
 test('watchForActionLabelOf: follows the switch', () => {
-  assert.equal(watchForActionLabelOf({ recordWhenSeen: false }), 'Watch for')
+  assert.equal(watchForActionLabelOf({ recordWhenSeen: false }), 'Add to watchlist')
   assert.equal(watchForActionLabelOf({ recordWhenSeen: true }), 'Record when it appears')
 })
 
 test('watchedMessageOf: says what happens next', () => {
-  assert.match(watchedMessageOf({ title: 'Utopia', item: { mode: 'notify' } }), /^Watching for "Utopia"/)
+  assert.match(watchedMessageOf({ title: 'Utopia', item: { mode: 'notify' } }), /^"Utopia" is on your watchlist/)
   assert.match(watchedMessageOf({ title: 'Utopia', item: { mode: 'record' } }), /once it is in the guide/)
   assert.match(watchedMessageOf({ title: 'Utopia', item: { mode: 'record', fulfilledAt: 'x' } }), /now records/)
 })

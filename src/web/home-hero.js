@@ -246,7 +246,7 @@ const watchlistSlideOf = ({ item, nowMs, timeZone }) => {
     eyebrow: 'Now in the guide',
     badge: null,
     title: item.title,
-    meta: joinMeta([airingWhenOf({ ms: match.start, nowMs, timeZone }), match.channelName, 'You are watching for this']),
+    meta: joinMeta([airingWhenOf({ ms: match.start, nowMs, timeZone }), match.channelName, 'On your watchlist']),
     metaShort: joinMeta([airingWhenOf({ ms: match.start, nowMs, timeZone }), match.channelName]),
     progress: null,
     art: { image: programmeImageOf(match), title: item.title },

@@ -828,7 +828,7 @@ export const SettingsView = {
         flash({ msg: 'Saved.' })
         await refreshSyncSchedule()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
+        flash({ msg: `Error: ${err.message}`, kind: 'error', ms: 5000 })
       } finally {
         saving.value = false
       }

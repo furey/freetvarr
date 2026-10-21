@@ -245,7 +245,7 @@ export const LiveView = {
         await togglePinnedChannel({ pinnedIds, channelId: channel.id })
         await load()
       } catch (err) {
-        flash({ msg: `Favourite failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Favourite failed: ${err.message}`, kind: 'error' })
       }
     }
 

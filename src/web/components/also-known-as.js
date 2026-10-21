@@ -46,7 +46,7 @@ export const AlsoKnownAs = {
         nicknames.value = (await task()).nicknames || []
         return true
       } catch (err) {
-        emit('flash', { msg: `${what} failed: ${err.message}`, kind: 'err', ms: 8000 })
+        emit('flash', { msg: `${what} failed: ${err.message}`, kind: 'error', ms: 8000 })
         return false
       } finally {
         busy.value = false

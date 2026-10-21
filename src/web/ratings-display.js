@@ -31,6 +31,38 @@ export const classificationOf = (value) => {
 
 export const classificationToneOf = (value) => CLASSIFICATION_TONES[classificationOf(value)] || null
 
+export const adviceLineOf = (advice) => {
+  const words = adviceWordsOf(advice)
+  if (!words.length) return ''
+  const line = words.join(', ').toLowerCase()
+  return `${line.charAt(0).toUpperCase()}${line.slice(1)}`
+}
+
+export const classificationLabelOf = ({ classification, advice }) => {
+  const code = classificationOf(classification)
+  if (!code) return ''
+  const adviceLine = adviceLineOf(advice)
+  return adviceLine ? `Classified ${code}: ${adviceLine.toLowerCase()}` : `Classified ${code}`
+}
+
+export const shownClassificationOf = ({ classification, advice }) => {
+  const code = classificationOf(classification)
+  if (!code) return null
+  return {
+    code,
+    tone: CLASSIFICATION_TONES[code],
+    name: CLASSIFICATION_NAMES[code],
+    adviceLine: adviceLineOf(advice),
+    ariaLabel: `${classificationLabelOf({ classification: code, advice })}. ${CLASSIFICATION_NAMES[code]}`,
+  }
+}
+
+const adviceWordsOf = (advice) => (Array.isArray(advice) ? advice : [])
+  .map((item) => String(item || '').trim())
+  .filter(Boolean)
+  .map((item) => ADVICE_WORDS[item.toUpperCase()] || item.replace(/\s+/g, ' '))
+  .filter((word, index, words) => words.findIndex((other) => other.toLowerCase() === word.toLowerCase()) === index)
+
 export const shownScoreOf = (ratings) => {
   if (ratings?.status !== 'ready') return null
   const score = Number(ratings.score)
@@ -96,4 +128,25 @@ const CLASSIFICATION_TONES = {
   'MA15+': 'ma',
   'AV15+': 'ma',
   'R18+': 'r',
+}
+
+const CLASSIFICATION_NAMES = {
+  P: 'Preschool children',
+  C: 'Children',
+  G: 'General',
+  PG: 'Parental guidance recommended',
+  M: 'Recommended for mature audiences',
+  'MA15+': 'Not suitable for people under 15',
+  'AV15+': 'Adult violence, not suitable under 15',
+  'R18+': 'Restricted to 18 and over',
+}
+
+const ADVICE_WORDS = {
+  A: 'Adult themes',
+  D: 'Drug references',
+  H: 'Horror',
+  L: 'Language',
+  N: 'Nudity',
+  S: 'Sex references',
+  V: 'Violence',
 }

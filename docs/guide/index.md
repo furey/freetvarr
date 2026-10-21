@@ -47,7 +47,7 @@ Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PC
 - **Not a tuner.** TVHeadend drives the tuner, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never controls the hardware. See [TVHeadend](/guide/tvheadend).
 - **Not authenticated.** There's no login, so it's built for a home network you trust. The usual web hardening is in place (CSRF protection, rate limiting, a strict content-security policy), but anyone who can reach the page can change its settings, so don't expose it to the internet. See the [security model](/deep-dive#security-model).
 - **Not a converter.** Files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad removal drops the ad sections without re-encoding, so there's no quality loss. If you want `.mkv`, run the files through Tdarr or similar afterwards.
-- **Not a notifier.** No Discord / ntfy / push integration. **Watch for** in [Search](/guide/tv-guide#watch-for) adds a show to a list in the app; it sends no message.
+- **Not a notifier.** No Discord / ntfy / push integration. **Add to watchlist** in [Search](/guide/tv-guide#watchlist) adds a show to a list in the app; it sends no message.
 
 > [!IMPORTANT]<br>
 > Tested against TVHeadend `4.3` fed by an HDHomeRun Flex Quatro, with Plex Media Server. Other tuners and TVHeadend versions are unverified.

@@ -528,7 +528,7 @@ export const SeriesView = {
       } catch (err) {
         busyKey.value = ''
         cancelling.value = null
-        flash({ msg: `Cancel failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `Cancel failed: ${err.message}`, kind: 'error' })
         await refresh()
       } finally {
         busyKey.value = ''
@@ -545,7 +545,7 @@ export const SeriesView = {
         await refresh()
         flash({ msg: paused ? `Paused the series recording of "${s.title}".` : `Resumed the series recording of "${s.title}".` })
       } catch (err) {
-        flash({ msg: `${paused ? 'Pause' : 'Resume'} failed: ${err.message}`, kind: 'err' })
+        flash({ msg: `${paused ? 'Pause' : 'Resume'} failed: ${err.message}`, kind: 'error' })
         await refresh()
       } finally {
         busyKey.value = ''
@@ -604,7 +604,7 @@ export const SeriesView = {
         await loadSyncStatus()
         ensureSyncPolling()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'err' })
+        flash({ msg: `Error: ${err.message}`, kind: 'error' })
       } finally {
         syncingId.value = null
       }
