@@ -1,6 +1,7 @@
 import { ref, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { resolveRoute } from '/route-table.js'
 import { entryStateWithOrigin } from '/back-target.js'
+import { createScrollMemory, entryStateWithKey, canReachTop } from '/scroll-memory.js'
 
 const resolveCurrentHash = () => {
   const resolved = resolveRoute(window.location.hash || '')
@@ -21,10 +22,54 @@ const stampOrigin = (originHash) => {
   cameFromHash.value = history.state.cameFrom
 }
 
+const scrollMemory = createScrollMemory()
+
+const stampEntryKey = (key) => {
+  history.replaceState(entryStateWithKey({ state: history.state, key }), '')
+  return key
+}
+
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+let currentEntryKey = stampEntryKey(history.state?.entryKey || scrollMemory.arrive(null).key)
+
+const RESTORE_LIMIT_MS = 1500
+const USER_SCROLL_EVENTS = ['wheel', 'touchstart', 'keydown', 'pointerdown']
+
+const maxScrollY = () => document.documentElement.scrollHeight - window.innerHeight
+
+const restoreScroll = (top) => {
+  if (top <= 0) return window.scrollTo({ top: 0 })
+  const startedAt = performance.now()
+  let cancelled = false
+  const cancel = () => { cancelled = true }
+  USER_SCROLL_EVENTS.forEach((type) => window.addEventListener(type, cancel, { once: true, passive: true }))
+  const stop = () => USER_SCROLL_EVENTS.forEach((type) => window.removeEventListener(type, cancel))
+  const attempt = () => {
+    if (cancelled) return stop()
+    const reachable = canReachTop({ top, maxScrollY: maxScrollY() })
+    const expired = performance.now() - startedAt > RESTORE_LIMIT_MS
+    if (reachable || expired) {
+      window.scrollTo({ top })
+      return stop()
+    }
+    requestAnimationFrame(attempt)
+  }
+  requestAnimationFrame(attempt)
+}
+
+const scrollForArrival = async () => {
+  scrollMemory.leave({ key: currentEntryKey, scrollY: window.scrollY })
+  const { key, top } = scrollMemory.arrive(history.state)
+  currentEntryKey = stampEntryKey(key)
+  await nextTick()
+  restoreScroll(top)
+}
+
 window.addEventListener('hashchange', () => {
   const resolved = resolveCurrentHash()
   stampOrigin(currentHash)
   currentHash = window.location.hash
+  scrollForArrival()
   route.value = resolved.view
   routeParams.value = resolved.params
   routeSection.value = resolved.section

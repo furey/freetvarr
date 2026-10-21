@@ -7,6 +7,7 @@ import { route } from '/shared/router.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { ForYouNavIcon } from '/components/nav-icons.js'
 import { forYouShown } from '/shared/for-you-session.js'
+import { hashesMatch } from '/scroll-memory.js'
 
 const NAV_ICONS = {
   home: 'home-nav-icon',
@@ -40,15 +41,22 @@ export const BrandMark = {
   setup: () => ({ syncing: computed(() => Boolean(syncStatus.value.activeSyncId)) }),
 }
 
+const scrollTopOnRepeatTap = (event) => {
+  const href = event.currentTarget.getAttribute('href')
+  if (!hashesMatch(href, window.location.hash)) return
+  event.preventDefault()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 export const AppNav = {
   template: `
     <nav class="app-rail" aria-label="Main">
-      <a href="#/home" class="app-brand-link" aria-label="Freetvarr home"><brand-mark /></a>
+      <a href="#/home" class="app-brand-link" aria-label="Freetvarr home" @click="scrollTopOnRepeatTap"><brand-mark /></a>
       <template v-for="item in railItems" :key="item.key">
         <span v-if="item.key === 'settings'" class="app-rail-spacer"></span>
         <div :class="['app-rail-slot', { 'is-collapsed': item.collapsed, 'is-animated': animated }]" :inert="item.collapsed">
           <div class="app-rail-slot-inner">
-            <a :href="item.href" class="app-nav-item" :aria-current="item.key === railActive ? 'page' : null" :aria-label="nameOf(item)">
+            <a :href="item.href" class="app-nav-item" :aria-current="item.key === railActive ? 'page' : null" :aria-label="nameOf(item)" @click="scrollTopOnRepeatTap">
               <span class="app-nav-pill"><span class="app-nav-icon"><component :is="item.icon" /><span v-if="badgeOf(item)" :class="['app-nav-badge', 'is-' + badgeOf(item)]" aria-hidden="true"></span></span></span>{{ item.label }}
             </a>
           </div>
@@ -57,7 +65,7 @@ export const AppNav = {
     </nav>
     <nav class="app-tabbar" aria-label="Main">
       <a v-for="item in tabItems" :key="item.key" :href="item.href" class="app-nav-item"
-        :aria-current="item.key === active ? 'page' : null" :aria-label="nameOf(item)">
+        :aria-current="item.key === active ? 'page' : null" :aria-label="nameOf(item)" @click="scrollTopOnRepeatTap">
         <span class="app-nav-pill"><span class="app-nav-icon"><component :is="item.icon" /><span v-if="badgeOf(item)" :class="['app-nav-badge', 'is-' + badgeOf(item)]" aria-hidden="true"></span></span></span>{{ item.label }}
       </a>
     </nav>
@@ -75,6 +83,6 @@ export const AppNav = {
     const settingsBadge = computed(() => healthBadgeOf(health.value))
     const badgeOf = (item) => (item.key === 'settings' ? settingsBadge.value : null)
     const nameOf = (item) => (badgeOf(item) ? badgedNameOf({ label: item.label, badge: badgeOf(item) }) : null)
-    return { tabItems, railItems, animated, active, railActive, badgeOf, nameOf }
+    return { tabItems, railItems, animated, active, railActive, badgeOf, nameOf, scrollTopOnRepeatTap }
   },
 }

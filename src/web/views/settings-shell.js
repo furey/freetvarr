@@ -1,11 +1,12 @@
-import { computed, watch } from '/vendor/vue.esm-browser.prod.js'
+import { computed } from '/vendor/vue.esm-browser.prod.js'
 import { attentionPhraseOf, healthBadgeOf, healthReasonOf, healthRowNameOf } from '/health-level.js'
 import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
 import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import { playBrandIntro } from '/components/brand-intro-overlay.js'
 import { health } from '/shared/health.js'
-import { routeParams } from '/shared/router.js'
+import { cameFromHash, routeParams } from '/shared/router.js'
+import { hashesMatch } from '/scroll-memory.js'
 import { prefersReducedMotion } from '/shared/utils.js'
 import { DoctorView } from '/views/doctor-view.js'
 import { PlayerSettingsView } from '/views/player-settings-view.js'
@@ -24,6 +25,8 @@ const SYSTEM_VIEWS = {
   folders: { view: SeriesView, props: { part: 'folders' } },
   log: { view: RecordingsView, props: {} },
 }
+
+const SETTINGS_INDEX_HASH = '#/settings'
 
 const PAGES_WITH_OWN_HEADER = ['health']
 
@@ -57,7 +60,7 @@ export const SettingsShell = {
         </template>
       </nav>
       <main v-if="page" class="settings-content" :data-settings-page="page.id" :data-settings-section="page.section || null">
-        <a href="#/settings" class="settings-back ui-only-phone"><back-glyph /> Settings</a>
+        <a href="#/settings" class="settings-back ui-only-phone" @click="backToSettings"><back-glyph /> Settings</a>
         <header v-if="!ownHeader" class="settings-page-header">
           <h2 v-if="page.id === 'about'" class="settings-page-title settings-about-title">
             <span class="ui-visually-hidden">About </span>
@@ -91,7 +94,11 @@ export const SettingsShell = {
     const healthRowName = computed(() => healthRowNameOf({ label: 'Health', badge: healthBadge.value, sentence: health.value.sentence }))
     const canReplayIntro = !prefersReducedMotion()
     const replayIntro = () => playBrandIntro()
-    watch(page, () => window.scrollTo({ top: 0 }))
+    const backToSettings = (event) => {
+      if (!hashesMatch(cameFromHash.value, SETTINGS_INDEX_HASH)) return
+      event.preventDefault()
+      history.back()
+    }
     return {
       groups: SETTINGS_GROUPS,
       page,
@@ -105,6 +112,7 @@ export const SettingsShell = {
       healthRowName,
       canReplayIntro,
       replayIntro,
+      backToSettings,
     }
   },
 }
