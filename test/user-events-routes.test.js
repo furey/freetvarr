@@ -125,13 +125,16 @@ test('library deletes and watchlist removals are logged from the route responses
   ])
 })
 
-test('position saves feed the playback tracker', async () => {
+test('attended position saves feed the playback tracker', async () => {
   await db('recordings').insert({ recording_id: 'p1', title: 'Bluey', duration_s: 420 })
   const hooks = playbackSessionHooks()
-  hooks.onStart({ recordingId: 'p1', startedAt: Date.now(), offset: 0, duration: 420 })
+  const session = { id: 'play1', recordingId: 'p1', startedAt: Date.now(), offset: 0, duration: 420 }
+  hooks.onStart(session)
+  await call('POST', '/api/recordings/p1/position', { seconds: 5 })
+  hooks.onAttention(session, true)
   await call('POST', '/api/recordings/p1/position', { seconds: 10 })
   await call('POST', '/api/recordings/p1/position', { seconds: 11 })
-  hooks.onEnd({ recordingId: 'p1', lastSeenAt: Date.now() }, { code: 'stopped' })
+  hooks.onEnd({ ...session, lastSeenAt: Date.now() }, { code: 'stopped' })
   await stopUserEvents()
   const rows = await events()
   assert.deepEqual(rows.map((r) => [r.kind, r.title, r.position_s, r.duration_s]), [

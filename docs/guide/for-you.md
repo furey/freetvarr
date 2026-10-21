@@ -53,7 +53,7 @@ The reason under a card names how you came to the show:
 | **More like** a show            | You pressed **More like this** on it.                                                                    |
 | **Because you like** a genre    | Most of what you watched and recorded is in that genre.                                                  |
 
-Opening a programme's details counts a little towards a show, but never gives a reason on its own. In Multiview, only the picture with the sound counts as watching.
+Only time you spend watching counts: the Freetvarr page is on screen, the picture plays, and you hear the sound or see captions. A hidden tab, a paused picture, or a muted picture without captions does not count. This applies to the player, the Miniplayer, and each Multiview picture. Time on a live channel counts towards each programme by the minutes you watched of it. Opening a programme's details counts a little towards a show, but never gives a reason on its own.
 
 ## Getting started
 

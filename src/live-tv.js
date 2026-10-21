@@ -310,7 +310,7 @@ export const createLiveSessions = ({
   endedMemoryMs = 60_000,
   onStart = () => {},
   onEnd = () => {},
-  onSound = () => {},
+  onAttention = () => {},
 } = {}) => {
   const sessions = new Map()
   const ended = new Map()
@@ -340,7 +340,7 @@ export const createLiveSessions = ({
       lastSeenAt: now(),
       lastByteAt: now(),
       viewers: 1,
-      audible: true,
+      attending: false,
       weight,
       heldUntil: 0,
       bufferSeconds: bufferMinutes * 60,
@@ -520,12 +520,12 @@ export const createLiveSessions = ({
     return true
   }
 
-  const setAudible = (id, audible) => {
+  const setAttending = (id, attending) => {
     const session = sessions.get(id)
     if (!session || session.ending) return false
-    if (session.audible === audible) return true
-    session.audible = audible
-    onSound(session, audible)
+    if (session.attending === attending) return true
+    session.attending = attending
+    onAttention(session, attending)
     return true
   }
 
@@ -596,7 +596,7 @@ export const createLiveSessions = ({
   const labels = () => [...sessions.values()].map((s) => `live TV on ${s.label}`)
 
   return {
-    start, touch, hold, leave, setAudible, tick, stopAll, forChannel, statusForChannel,
+    start, touch, hold, leave, setAttending, tick, stopAll, forChannel, statusForChannel,
     waitForPlaylist, playlistFor, fileFor, get, view, labels, activeCount: () => sessions.size,
   }
 }

@@ -3,6 +3,7 @@ import { seekPlan, adBreakAt, SEEK_EDGE_MARGIN_S } from '/playback.js'
 import { DOUBLE_TAP_MS, emptyTapState, isTap, registerTap, clampSkip } from '/double-tap.js'
 import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
 import { csrfToken, api } from '/shared/api.js'
+import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
 import { stopLive } from '/shared/live-session.js'
 import {
   live,
@@ -346,6 +347,12 @@ const sendPlaybackBeacon = () => {
     headers: { 'x-csrf-token': csrfToken || '' },
   }).catch(() => {})
 }
+
+const playCaptionsShown = () => Boolean(playback.captions && liveCaptionsOn.value && !playInfoOpen.value)
+
+addAttentionSource(() => [{ kind: 'play', sessionId: playback.sessionId, video: playVideo, captions: playCaptionsShown() }])
+
+watch(playCaptionsShown, reportAttention)
 
 window.addEventListener('pagehide', (event) => {
   if (!playback.open) return

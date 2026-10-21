@@ -17,6 +17,7 @@ import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/l
 import { captionLineOf } from '/mini-player.js'
 import { initialPausedState, pausedStateAfter } from '/player-paused.js'
 import { csrfToken, api } from '/shared/api.js'
+import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
 import {
   live,
   liveCaptionsOn,
@@ -454,6 +455,15 @@ const sendLiveBeacon = ({ method, suffix = '' }) => {
     headers: { 'x-csrf-token': csrfToken || '' },
   }).catch(() => {})
 }
+
+const liveCaptionsShown = () => Boolean(live.captions && liveCaptionsOn.value && !liveInfoOpen.value)
+
+addAttentionSource(() => [
+  { kind: 'live', sessionId: live.sessionId, video: liveVideo, captions: liveCaptionsShown() },
+  { kind: 'play', sessionId: live.fromStart?.sessionId, video: liveVideo, captions: liveCaptionsShown() },
+])
+
+watch(liveCaptionsShown, reportAttention)
 
 window.addEventListener('pagehide', (event) => {
   if (event.persisted) return sendLiveBeacon({ method: 'POST', suffix: '/hold' })

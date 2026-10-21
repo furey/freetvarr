@@ -64,6 +64,7 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
       continue
     }
     if (event.kind === 'watch_end') {
+      if (!meta?.attended && !meta?.backfill) continue
       const fraction = watchFractionOf({ event, meta })
       const episodeKey = event.recording_id ? `rec:${event.recording_id}` : `live:${event.channel_id}|${event.programme_start ?? ts}`
       noteEpisode({ show, episodeKey, fraction, ts, seconds: Number(event.duration_s) || 0, length: Number(event.programme_len_s) || null })

@@ -55,7 +55,7 @@ const watched = (title, { episodes = 1, completed = episodes, daysAgo = 3, chann
       position_s: full ? 3600 : 900,
       programme_len_s: 3600,
       source: 'live',
-      meta_json: null,
+      meta_json: '{"attended":true}',
     }
   })
 
@@ -128,6 +128,18 @@ test('the reason names how you engaged: watched, recorded, or More like this', (
   assert.equal(itemFor(run({ programmes: [airing('Rake')], events: likedEvents }), 'Rake').reason, 'More like Rake')
   const watchedEvents = [...baseEvents(), ...watched('Rake', { episodes: 2 })]
   assert.equal(itemFor(run({ programmes: [airing('Rake')], events: watchedEvents }), 'Rake').reason, 'Because you watched Rake')
+})
+
+test('live watching without attended time gives no watch credit or reason', () => {
+  const unattended = watched('Beyond Paradise', { episodes: 1, completed: 1 }).map((event) => ({ ...event, meta_json: '{"session_id":"s1","reason":"stopped"}' }))
+  const opened = { id: nextId++, ts: NOW - DAY, kind: 'programme_opened', title: 'Beyond Paradise', series_key: null, meta_json: null }
+  const profile = profileOf({ events: [...unattended, opened], nowMs: NOW, hourOf })
+  const show = profile.shows.get('beyond-paradise')
+  assert.equal(show.episodesStarted, 0)
+  assert.ok(show.affinity < LIKED_AFFINITY)
+  assert.equal(profile.habits.total, 0)
+  const item = itemFor(run({ programmes: [airing('Beyond Paradise')], events: [...baseEvents(), ...unattended, opened] }), 'Beyond Paradise')
+  assert.notEqual(item?.reason, 'Because you watched Beyond Paradise')
 })
 
 test('one item per show, the best airing wins', () => {

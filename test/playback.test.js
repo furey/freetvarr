@@ -217,7 +217,7 @@ const fakeChild = (events) => {
 
 const PLAN = planForFile({ probe: HD_PROBE, encoder: { kind: 'copy' } })
 
-const playbackHarness = ({ streamsElsewhere, readText = async () => null } = {}) => {
+const playbackHarness = ({ streamsElsewhere, readText = async () => null, onAttention } = {}) => {
   const events = []
   const children = []
   let clock = 1_000_000
@@ -235,12 +235,26 @@ const playbackHarness = ({ streamsElsewhere, readText = async () => null } = {})
       children.push(child)
       return child
     },
+    onAttention,
   })
   return { sessions, events, children, advance: (ms) => { clock += ms } }
 }
 
 const start = (sessions, extra = {}) => sessions.start({
   recordingId: 'r1', label: '"Show"', file: '/media/a.ts', offset: 0, duration: 3600, plan: PLAN, ...extra,
+})
+
+test('playback sessions: start unattended and report each attention change once', async () => {
+  const seen = []
+  const h = playbackHarness({ onAttention: (session, attending) => seen.push(attending) })
+  const session = await start(h.sessions)
+  assert.equal(session.attending, false)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, false), true)
+  assert.equal(h.sessions.setAttending('missing', true), false)
+  assert.deepEqual(seen, [true, false])
+  await h.sessions.stop(session.id)
 })
 
 test('playback sessions: stop kills ffmpeg and removes the folder', async () => {

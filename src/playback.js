@@ -176,6 +176,7 @@ export const createPlaybackSessions = ({
   killGraceMs = 3_000,
   onStart = () => {},
   onEnd = () => {},
+  onAttention = () => {},
 } = {}) => {
   const sessions = new Map()
 
@@ -212,6 +213,7 @@ export const createPlaybackSessions = ({
       inProgress,
       growing: Boolean(feed),
       producedSeconds: 0,
+      attending: false,
     }
     sessions.set(id, session)
     onStart(session)
@@ -325,6 +327,15 @@ export const createPlaybackSessions = ({
     await Promise.all(idle.map((s) => end(s, { code: 'idle' })))
   }
 
+  const setAttending = (id, attending) => {
+    const session = sessions.get(id)
+    if (!session || session.ending) return false
+    if (session.attending === attending) return true
+    session.attending = attending
+    onAttention(session, attending)
+    return true
+  }
+
   const touch = (id) => {
     const session = sessions.get(id)
     if (session && !session.ending) session.lastSeenAt = now()
@@ -382,7 +393,7 @@ export const createPlaybackSessions = ({
   const labels = () => [...sessions.values()].map((s) => s.label)
 
   return {
-    start, touch, stop, tick, stopAll, status, playlistFor, waitForPlaylist, fileFor, labels,
+    start, touch, stop, setAttending, tick, stopAll, status, playlistFor, waitForPlaylist, fileFor, labels,
     get: (id) => sessions.get(id) || null,
     activeCount: () => sessions.size,
   }

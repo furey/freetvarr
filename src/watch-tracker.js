@@ -17,7 +17,7 @@ export const createWatchTracker = ({
   warn = (message) => console.warn(`[events] ${message}`),
 }) => {
   const viewings = new Map()
-  const listening = new Map()
+  const attendedSince = new Map()
   const tasks = new Set()
 
   const track = (work) => {
@@ -29,18 +29,16 @@ export const createWatchTracker = ({
     return task
   }
 
-  const logListening = ({ session, from, to, reason = null }) => track(async () => {
+  const logAttended = ({ session, from, to, reason = null }) => track(async () => {
     const programmes = await programmesFor({ channelId: session.channelId, fromMs: from, toMs: to })
     liveWatchEndsOf({
       channelId: session.channelId,
       startedAt: from,
       endedAt: to,
       programmes,
-      meta: { session_id: session.id, reason },
+      meta: { session_id: session.id, reason, attended: true },
     }).forEach(log)
   })
-
-  const heardFrom = (session) => (listening.has(session.id) ? listening.get(session.id) : session.startedAt)
 
   const liveStarted = (session) => track(async () => {
     const programmes = await programmesFor({ channelId: session.channelId, fromMs: session.startedAt, toMs: session.startedAt + 1 })
@@ -56,36 +54,38 @@ export const createWatchTracker = ({
     })
   })
 
-  const liveSoundChanged = (session, audible) => {
-    const from = heardFrom(session)
-    if (audible) {
-      if (from == null) listening.set(session.id, now())
+  const liveAttentionChanged = (session, attending) => {
+    const from = attendedSince.get(session.id)
+    if (attending) {
+      if (from == null) attendedSince.set(session.id, now())
       return Promise.resolve()
     }
-    listening.set(session.id, null)
+    attendedSince.delete(session.id)
     if (from == null) return Promise.resolve()
-    return logListening({ session, from, to: now(), reason: 'muted' })
+    return logAttended({ session, from, to: now(), reason: 'unattended' })
   }
 
   const liveEnded = (session, reason) => {
     const endedAt = endTimeOf({ session, reason, nowMs: now() })
-    const from = heardFrom(session)
-    listening.delete(session.id)
+    const from = attendedSince.get(session.id)
+    attendedSince.delete(session.id)
     if (from == null) return Promise.resolve()
-    return logListening({ session, from, to: endedAt, reason: reason?.code ?? null })
+    return logAttended({ session, from, to: endedAt, reason: reason?.code ?? null })
   }
 
   const playStarted = (session) => {
     const existing = viewings.get(session.recordingId)
     if (existing) {
       clearTimeout(existing.closeTimer)
-      existing.activeSince = session.startedAt
+      existing.sessionId = session.id
+      existing.activeSince = null
       existing.progress = resetPositionAnchor(existing.progress)
       return Promise.resolve()
     }
     const viewing = {
       recordingId: session.recordingId,
-      activeSince: session.startedAt,
+      sessionId: session.id,
+      activeSince: null,
       endedAt: session.startedAt,
       wallMs: 0,
       progress: EMPTY_PROGRESS,
@@ -109,16 +109,31 @@ export const createWatchTracker = ({
 
   const positionSaved = ({ recordingId, seconds }) => {
     const viewing = viewings.get(recordingId)
-    if (!viewing) return
+    if (!viewing || viewing.activeSince == null) return
     viewing.progress = positionProgressOf({ progress: viewing.progress, seconds, atMs: now() })
   }
 
+  const playAttentionChanged = (session, attending) => {
+    const viewing = viewingOf(session)
+    if (!viewing) return Promise.resolve()
+    if (attending && viewing.activeSince == null) viewing.activeSince = now()
+    if (!attending && viewing.activeSince != null) pauseViewing({ viewing, endedAt: now() })
+    viewing.progress = resetPositionAnchor(viewing.progress)
+    return Promise.resolve()
+  }
+
   const playEnded = (session, reason) => {
-    const viewing = viewings.get(session.recordingId)
-    if (!viewing || viewing.activeSince == null) return
-    pauseViewing({ viewing, endedAt: endTimeOf({ session, reason, nowMs: now() }) })
+    const viewing = viewingOf(session)
+    if (!viewing) return
+    if (viewing.activeSince != null) pauseViewing({ viewing, endedAt: endTimeOf({ session, reason, nowMs: now() }) })
+    clearTimeout(viewing.closeTimer)
     viewing.closeTimer = setTimeout(() => close(session.recordingId), graceMs)
     viewing.closeTimer.unref?.()
+  }
+
+  const viewingOf = (session) => {
+    const viewing = viewings.get(session.recordingId)
+    return viewing && viewing.sessionId === session.id ? viewing : null
   }
 
   const close = (recordingId) => {
@@ -127,6 +142,7 @@ export const createWatchTracker = ({
     clearTimeout(viewing.closeTimer)
     viewings.delete(recordingId)
     if (viewing.activeSince != null) pauseViewing({ viewing, endedAt: now() })
+    if (!(viewing.wallMs > 0)) return Promise.resolve()
     return track(async () => {
       const row = await recordingFor(recordingId)
       const fields = recordingFieldsOf({ row, viewing })
@@ -137,7 +153,7 @@ export const createWatchTracker = ({
         duration_s: watchedSecondsOf({ progress: viewing.progress, wallMs: viewing.wallMs, lengthSeconds: fields.programme_len_s }),
         position_s: viewing.progress.lastSeconds ?? row?.playback_position_s ?? null,
         source: viewing.source,
-        meta: { watched: Boolean(row?.watched_at), resumed_from: viewing.startOffset },
+        meta: { watched: Boolean(row?.watched_at), resumed_from: viewing.startOffset, attended: true },
       })
     })
   }
@@ -147,7 +163,10 @@ export const createWatchTracker = ({
     await Promise.all([...tasks])
   }
 
-  return { liveStarted, liveSoundChanged, liveEnded, playStarted, playEnded, positionSaved, settle, openViewings: () => viewings.size }
+  return {
+    liveStarted, liveAttentionChanged, liveEnded, playStarted, playAttentionChanged, playEnded, positionSaved, settle,
+    openViewings: () => viewings.size,
+  }
 }
 
 const pauseViewing = ({ viewing, endedAt }) => {

@@ -272,7 +272,7 @@ const OPENING_KEYFRAMES = 'expr:lt(t,4)*gte(t,n_forced)'
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
-const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError, files = {}, onSound } = {}) => {
+const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError, files = {}, onAttention } = {}) => {
   const events = []
   const spawnArgs = []
   let clock = NOW
@@ -308,7 +308,7 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, up
       return upstream
     },
     describeStall: async () => ({ code: 'gone' }),
-    onSound,
+    onAttention,
   })
   return { sessions, events, spawnArgs, children, upstreams, advance: (ms) => { clock += ms } }
 }
@@ -339,15 +339,17 @@ test('sessions: viewers share one session per channel', async () => {
   assert.equal(h.sessions.activeCount(), 0)
 })
 
-test('sessions: a sound change reaches the hook once per change', async () => {
-  const heard = []
-  const h = fakeHarness({ onSound: (session, audible) => heard.push(audible) })
+test('sessions: start unattended and report each attention change once', async () => {
+  const seen = []
+  const h = fakeHarness({ onAttention: (session, attending) => seen.push(attending) })
   const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
-  assert.equal(h.sessions.setAudible(session.id, true), true)
-  assert.equal(h.sessions.setAudible(session.id, false), true)
-  assert.equal(h.sessions.setAudible(session.id, false), true)
-  assert.equal(h.sessions.setAudible('missing', true), false)
-  assert.deepEqual(heard, [false])
+  assert.equal(session.attending, false)
+  assert.equal(h.sessions.setAttending(session.id, false), true)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, false), true)
+  assert.equal(h.sessions.setAttending('missing', true), false)
+  assert.deepEqual(seen, [true, false])
   await h.sessions.stopAll()
 })
 

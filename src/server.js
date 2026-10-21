@@ -1091,10 +1091,10 @@ app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, held })
 })
 
-app.post('/api/live/:session/sound', doubleCsrfProtection, (req, res) => {
-  const audible = req.body?.audible
-  if (typeof audible !== 'boolean') return res.status(400).json({ error: 'audible must be true or false' })
-  res.json({ ok: true, changed: liveSessions.setAudible(String(req.params.session), audible) })
+app.post('/api/live/:session/attention', doubleCsrfProtection, (req, res) => {
+  const attending = req.body?.attending
+  if (typeof attending !== 'boolean') return res.status(400).json({ error: 'attending must be true or false' })
+  res.json({ ok: true, changed: liveSessions.setAttending(String(req.params.session), attending) })
 })
 
 app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
@@ -1233,6 +1233,12 @@ app.post('/api/play/:session/heartbeat', playPingLimiter, doubleCsrfProtection, 
   const status = await playbackSessions.status(String(req.params.session))
   if (!status) return res.status(404).json({ error: 'session ended', code: 'gone' })
   res.json({ ok: true, session: status })
+})
+
+app.post('/api/play/:session/attention', playPingLimiter, doubleCsrfProtection, (req, res) => {
+  const attending = req.body?.attending
+  if (typeof attending !== 'boolean') return res.status(400).json({ error: 'attending must be true or false' })
+  res.json({ ok: true, changed: playbackSessions.setAttending(String(req.params.session), attending) })
 })
 
 app.delete('/api/play/:session', doubleCsrfProtection, async (req, res) => {

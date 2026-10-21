@@ -75,9 +75,9 @@ export const observeUserEvents = (req, res, next) => {
     })
 }
 
-export const liveSessionHooks = () => ({ onStart: tracker.liveStarted, onSound: tracker.liveSoundChanged, onEnd: tracker.liveEnded })
+export const liveSessionHooks = () => ({ onStart: tracker.liveStarted, onAttention: tracker.liveAttentionChanged, onEnd: tracker.liveEnded })
 
-export const playbackSessionHooks = () => ({ onStart: tracker.playStarted, onEnd: tracker.playEnded })
+export const playbackSessionHooks = () => ({ onStart: tracker.playStarted, onAttention: tracker.playAttentionChanged, onEnd: tracker.playEnded })
 
 export const startUserEvents = async () => {
   writer.setEnabled(await isViewingHistoryEnabled())

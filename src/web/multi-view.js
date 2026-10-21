@@ -34,17 +34,6 @@ export const soundButtonOf = ({ audible, picture, channelName = '', count = 2 })
 
 export const isMutedIn = ({ audible, picture }) => audible !== picture
 
-export const audibleSessionsOf = ({ active, audible, sessionOf }) => {
-  const sessions = new Map()
-  for (const picture of PICTURES) {
-    const sessionId = sessionOf(picture)
-    if (!sessionId) continue
-    const heard = active ? !isMutedIn({ audible, picture }) : picture === 'primary'
-    sessions.set(sessionId, Boolean(sessions.get(sessionId)) || heard)
-  }
-  return sessions
-}
-
 export const mainPictureOf = (state) => state.order[0]
 
 export const otherPictureOf = (picture) => (picture === 'primary' ? 'secondary' : 'primary')

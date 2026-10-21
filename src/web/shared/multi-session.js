@@ -8,7 +8,6 @@ import {
   setLayout,
   slotOf,
   isMutedIn,
-  audibleSessionsOf,
   addPicture,
   removePicture,
   promoteIntoPrimary,
@@ -23,6 +22,7 @@ import { SIZES_KEY, parseSizes, sizesAfterSet } from '/multi-resize.js'
 import { keyPictureOf } from '/multi-picture.js'
 import { steadyLiveWindowOf, videoLiveInputOf } from '/live-edge.js'
 import { api, csrfToken } from '/shared/api.js'
+import { addAttentionSource } from '/shared/attention-session.js'
 import {
   liveVideo,
   liveStopHooks,
@@ -31,7 +31,8 @@ import {
   liveReasonText,
   toggleLivePause,
 } from '/shared/live-session.js'
-import { live, playerMuted } from '/shared/player-shared.js'
+import { live, playerMuted, captionTracksOf } from '/shared/player-shared.js'
+import { captionsShowing } from '/live-captions.js'
 
 const emptyCompanion = () => ({
   channel: null, sessionId: null, playlist: '', bufferSeconds: 0, captions: false, phase: 'idle', message: '',
@@ -472,24 +473,12 @@ const applyMuting = () => {
 
 watch(() => [multi.active, multi.view.audible], applyMuting)
 
-const soundSent = new Map()
-
-const reportSound = (sessions) => {
-  for (const [sessionId, audible] of sessions) {
-    if ((soundSent.get(sessionId) ?? true) === audible) continue
-    soundSent.set(sessionId, audible)
-    api('POST', `/api/live/${sessionId}/sound`, { audible }).catch(() => {})
-  }
-}
-
-watch(
-  () => audibleSessionsOf({
-    active: multi.active,
-    audible: multi.view.audible,
-    sessionOf: (picture) => pictureStateOf(picture)?.sessionId,
-  }),
-  reportSound,
-)
+addAttentionSource(() => COMPANIONS.map((id) => ({
+  kind: 'live',
+  sessionId: multi.companions[id].sessionId,
+  video: rigs[id].video,
+  captions: captionsShowing(captionTracksOf(rigs[id].video)),
+})))
 
 watch(playerMuted, () => {
   if (!multi.active) applySingleMuting()

@@ -173,7 +173,7 @@ const watchEvent = ({ id, title, daysAgo }) => ({
   position_s: 3600,
   programme_len_s: 3600,
   source: 'live',
-  meta_json: null,
+  meta_json: '{"attended":true}',
 })
 
 const requestWith = ({ guideVersion = 'g1', history = [] } = {}) => ({
