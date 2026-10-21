@@ -75,7 +75,6 @@ export const SyncsView = {
           <template v-if="starting || syncStatus.activeSyncId"><span class="spinner" aria-hidden="true"></span> Syncing…</template>
           <template v-else><refresh-icon /> Sync now</template>
         </button>
-        <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
         <button type="button" class="ui-button ui-button-destructive settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
       </div>
       <p class="settings-meta-line">
@@ -285,15 +284,6 @@ export const SyncsView = {
       if (page.value > 1 && r.syncs.length === 0) page.value = 1
     }
 
-    const manualRefresh = async () => {
-      try {
-        await refresh()
-        flash({ msg: `Refreshed ${total.value} sync${total.value === 1 ? '' : 's'}.` })
-      } catch (err) {
-        flash({ msg: `Refresh failed: ${err.message}`, kind: 'error' })
-      }
-    }
-
     const syncNow = async () => {
       starting.value = true
       try {
@@ -343,13 +333,18 @@ export const SyncsView = {
     }
 
     let pollTimer = null
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
     onMounted(() => {
       refresh().then(focusLinkedSync)
       pollTimer = setInterval(refresh, SYNCS_POLL_MS)
+      document.addEventListener('visibilitychange', refreshWhenVisible)
     })
     watch(linkedSyncId, (id) => { if (id) focusLinkedSync() })
     onUnmounted(() => {
       if (pollTimer) clearInterval(pollTimer)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
     })
     watch([page, outcomes, trigger], refresh)
     const stopWatch = watch(() => syncStatus.value.activeSyncId, refresh)
@@ -361,7 +356,7 @@ export const SyncsView = {
       emptyText, hiddenEmptyCount, isOpen, toggleOpen, timeOf, tookOf, dayGroups, highlightId,
       firstSyncError, SYNC_DETAIL_ROLES,
       total, loaded, page, pageSize, totalPages, rangeLabel,
-      syncNow, refresh, manualRefresh, askRemoveSync, askClearAll,
+      syncNow, refresh, askRemoveSync, askClearAll,
       confirming, confirmBusy, closeConfirm, runConfirmed,
       fmtTime,
     }
