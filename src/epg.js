@@ -9,6 +9,7 @@ import {
   getState,
   scheduleRecording,
   cancelRecording,
+  skipScheduledEntry,
   enableSeriesTag,
   disableSeriesTag,
   setSeriesTagsEnabled,
@@ -44,6 +45,15 @@ import { showKeyOf } from './web/show-key.js'
 import { createGuideCache } from './guide-cache.js'
 import { invalidateRecordingNow } from './recording-now.js'
 import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
+import {
+  addPendingSkip,
+  entriesToSkip,
+  hasPendingSkips,
+  listPendingSkips,
+  removePendingSkip,
+  splitPendingSkips,
+} from './pending-skips.js'
+import { dvrAiringMatchOf, dvrAiringsOf } from './repeat-match.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -224,8 +234,8 @@ export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
   }
 }
 
-// TVHeadend materialises autorec timers only within its EPG update window, so a
-// series set for later in the week may have no timer yet. Project the next
+// TVHeadend holds back autorec timers for episodes it already scheduled, recorded,
+// or skipped, and creates them only after an EPG update. Project the next
 // episodes from each series rule against the loaded guide and merge them with
 // the real timers, so the Upcoming view reflects what will actually record.
 // A projected entry is source:'series' (expected); a real timer is source:'timer'.
@@ -236,6 +246,7 @@ export const planUpcomingRecordings = ({
   futureRecordings = [],
   skippedProgramIds = [],
   repeatProgramIds = [],
+  dvrAirings = [],
   guide,
   nowMs = Date.now(),
 } = {}) => {
@@ -279,12 +290,13 @@ export const planUpcomingRecordings = ({
         if (!tag) continue
         if (tag.channelId && String(tag.channelId) !== String(channel.id)) continue
         if (timerProgramIds.has(String(p.program_id))) continue
-        candidates.push({ channel, p })
+        candidates.push({ channel, p, tag })
       }
     }
-    for (const { channel, p } of candidates.sort((a, b) => a.p.start - b.p.start)) {
+    for (const { channel, p, tag } of candidates.sort((a, b) => a.p.start - b.p.start)) {
       const firstAiring = earlierAiringOf({ firstAiringByEpisode, programme: p })
-      if (hasEpisodeNumber(p) && !firstAiring) {
+      const dvrAiring = firstAiring ? null : dvrAiringMatchOf({ programme: p, tag, airings: dvrAirings })
+      if (hasEpisodeNumber(p) && !firstAiring && !dvrAiring) {
         firstAiringByEpisode.set(episodeKey(p), { startDate: p.start, channelName: channel.name || null })
       }
       const entry = {
@@ -305,6 +317,7 @@ export const planUpcomingRecordings = ({
         source: 'series',
       }
       if (firstAiring) repeats.push({ ...entry, repeatOf: { status: 'scheduled', ...firstAiring } })
+      else if (dvrAiring) repeats.push({ ...entry, repeatOf: dvrAiring })
       else projected.push(entry)
     }
   }
@@ -465,21 +478,25 @@ const reloadRecordingState = (now) => {
 }
 
 const loadRecordingState = async (now) => {
-  const [state, guide, storageInfo] = await Promise.all([
+  const [loadedState, guide, storageInfo, loadedSkips] = await Promise.all([
     getState(),
     getCachedGuide().catch(() => null),
     recordingsStorageInfo(),
+    listPendingSkips({ nowMs: now }).catch(() => []),
   ])
+  const { state, pendingSkips } = await withPendingSkipsApplied({ state: loadedState, pendingSkips: loadedSkips })
   const plan = planUpcomingRecordings({
     seriesTags: state.seriesTags,
     futureRecordings: state.futureRecordings,
     skippedProgramIds: state.skippedProgramIds,
     repeatProgramIds: state.repeatProgramIds,
+    dvrAirings: dvrAiringsOf({ upcoming: state.upcomingEntries, pastAirings: state.pastAirings }),
     guide,
     nowMs: now,
   })
+  const held = splitPendingSkips({ upcoming: plan.upcoming, pendingSkips })
   const upcomingRecordings = await withUpcomingClassifications({
-    upcoming: plan.upcoming,
+    upcoming: held.upcoming,
     futureRecordings: state.futureRecordings,
     guide,
   })
@@ -493,7 +510,7 @@ const loadRecordingState = async (now) => {
     maxConcurrentRecordings: state.tunerCount,
     activeInputs: state.activeInputs,
     futureRecordings: state.futureRecordings,
-    skippedRecordings: state.skippedRecordings,
+    skippedRecordings: [...state.skippedRecordings, ...held.skipped],
     repeatRecordings,
     upcomingRecordings,
     seriesTags: withSeriesImages({ seriesTags: state.seriesTags, guide, nowMs: now }),
@@ -543,15 +560,51 @@ export const invalidateRecordingState = () => {
 }
 
 export const recordProgram = async (args) => {
-  const result = await scheduleRecording(args)
+  const result = (await removePendingSkip(args.programId))
+    ? { ok: true, programId: args.programId, pendingSkipRemoved: true }
+    : await scheduleRecording(args)
   invalidateRecordingState()
   return result
 }
 
 export const cancelProgram = async (args) => {
-  const result = await cancelRecording(args)
+  const result = await cancelRecording(args).catch((err) => skipExpectedEpisode({ err, programId: args.programId }))
   invalidateRecordingState()
   return result
+}
+
+export const enforcePendingSkips = async () => {
+  if (await hasPendingSkips()) await getRecordingState({ fresh: true })
+}
+
+export const watchPendingSkips = () => {
+  const enforce = () => enforcePendingSkips().catch((err) => console.warn(`[epg] saved skips: ${err.message}`))
+  onGuideLoaded(enforce)
+  setInterval(enforce, PENDING_SKIP_CHECK_MS).unref()
+}
+
+const skipExpectedEpisode = async ({ err, programId }) => {
+  if (!(err instanceof TvheadendError) || err.code !== 'not-found') throw err
+  const { upcomingRecordings = [] } = await getRecordingState()
+  const expected = upcomingRecordings.find((e) => e.source === 'series' && String(e.programId) === String(programId))
+  if (!expected) throw err
+  await addPendingSkip(expected)
+  return { ok: true, programId, pendingSkip: true }
+}
+
+const withPendingSkipsApplied = async ({ state, pendingSkips }) => {
+  const due = entriesToSkip({ entries: [...state.futureRecordings, ...state.repeatRecordings], pendingSkips })
+  if (due.length === 0) return { state, pendingSkips }
+  for (const { entry, skip } of due) {
+    await skipScheduledEntry({ uuid: entry.uuid })
+    await removePendingSkip(skip.programId)
+    console.log(`[epg] applied a saved skip to "${entry.name}" at ${new Date(entry.startDate).toISOString()}`)
+  }
+  const appliedIds = new Set(due.map(({ skip }) => String(skip.programId)))
+  return {
+    state: await getState(),
+    pendingSkips: pendingSkips.filter((skip) => !appliedIds.has(String(skip.programId))),
+  }
 }
 
 export const recordSeries = async ({ programId, channelId, ...args }) => {
@@ -967,6 +1020,7 @@ const MIDNIGHT_WARM_DELAY_MS = 5 * 1000
 const GUIDE_STALE_RETRY_MS = 60 * 1000
 const GUIDE_EMPTY_TTL_MS = 60 * 1000
 const STATE_TTL_MS = 45 * 1000
+const PENDING_SKIP_CHECK_MS = 5 * 60 * 1000
 const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000

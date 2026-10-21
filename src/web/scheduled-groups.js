@@ -129,18 +129,22 @@ export const isSkippedRow = (row) => row.state === 'off' || row.state === 'repea
 export const repeatOriginalText = ({ repeatOf, timeZone = 'UTC' }) => {
   if (!repeatOf) return ''
   if (repeatOf.status === 'recording') return 'recording now'
-  return `${repeatOf.status === 'recorded' ? 'recorded' : 'scheduled'} ${airingWhenOf({ repeatOf, timeZone })}`
+  return `${ORIGINAL_STATUS_WORDS[repeatOf.status] || 'scheduled'} ${airingWhenOf({ repeatOf, timeZone })}`
 }
 
 export const repeatSkippedText = ({ repeatOf, timeZone = 'UTC' }) => {
   if (!repeatOf) return 'already recorded'
   if (repeatOf.status === 'recording') return 'recording now'
   const when = airingWhenOf({ repeatOf, timeZone })
+  if (repeatOf.status === 'skipped') return `already skipped ${when}`
   return repeatOf.status === 'recorded' ? `recorded ${when}` : `records ${when} instead`
 }
 
-export const repeatNoticeOf = ({ repeatOf, timeZone = 'UTC' }) =>
-  `Repeat of the episode ${repeatOriginalPhraseOf({ repeatOf, timeZone })}, so it won't record. If that one fails, this one records.`
+const ORIGINAL_STATUS_WORDS = { recorded: 'recorded', skipped: 'skipped', scheduled: 'scheduled' }
+
+export const repeatNoticeOf = ({ repeatOf, timeZone = 'UTC' }) => repeatOf?.status === 'skipped'
+  ? `Repeat of the episode you skipped ${airingWhenOf({ repeatOf, timeZone })}, so it won't record.`
+  : `Repeat of the episode ${repeatOriginalPhraseOf({ repeatOf, timeZone })}, so it won't record. If that one fails, this one records.`
 
 const repeatOriginalPhraseOf = ({ repeatOf, timeZone }) => {
   if (!repeatOf) return 'already recorded'
@@ -211,6 +215,8 @@ const rowKeySuffixOf = (state) => {
 }
 
 const PLACEHOLDER_EPISODE_TITLE = /^\s*episode\s+(\d+)(?:\s+of\s+season\s+(\d+))?\s*$/i
+
+export const isPlaceholderEpisodeTitle = (title) => PLACEHOLDER_EPISODE_TITLE.test(String(title ?? ''))
 
 export const episodeMetaParts = ({ season, episode, seriesNo, episodeNo, episodeTitle } = {}) => {
   const placeholder = String(episodeTitle ?? '').match(PLACEHOLDER_EPISODE_TITLE)

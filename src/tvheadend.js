@@ -171,7 +171,7 @@ const listPastAirings = async (conn) => {
   const entriesOf = (body) => (body?.entries || []).map(normaliseEntry)
   return [
     ...entriesOf(finished),
-    ...entriesOf(removed),
+    ...entriesOf(removed).map((entry) => ({ ...entry, removed: true })),
     ...entriesOf(failed).map((entry) => ({ ...entry, failed: true })),
   ]
 }
@@ -237,6 +237,12 @@ export const cancelRecording = async ({ programId, nowMs = Date.now() } = {}) =>
   await apiPost('dvr/entry/cancel', { uuid: entry.uuid }, conn)
   await apiPost('dvr/entry/remove', { uuid: entry.uuid }, conn).catch(() => null)
   return { ok: true, uuid: entry.uuid, programId }
+}
+
+export const skipScheduledEntry = async ({ uuid, conn } = {}) => {
+  const c = conn || (await resolveConnection())
+  await apiPost('idnode/save', { node: JSON.stringify({ uuid, enabled: false }) }, c)
+  return { ok: true, uuid }
 }
 
 export const stopRecordingEntry = async ({ entry, nowMs = Date.now(), conn }) => {
@@ -392,7 +398,9 @@ export const getState = async () => {
     ...e,
     seriesLinkId: e.autorecId ? keyByAutorecId.get(e.autorecId) || null : null,
   })
-  const pastAirings = needsPastAirings(upcoming) ? await listPastAirings(conn).catch(() => []) : []
+  const pastAirings = needsPastAirings(upcoming) || autorecs.length > 0
+    ? await listPastAirings(conn).catch(() => [])
+    : []
   const { recordings, repeats } = splitRepeats({ upcoming, pastAirings })
   const futureRecordings = recordings.map(withSeriesLink)
   return {
@@ -401,6 +409,8 @@ export const getState = async () => {
     repeatProgramIds: repeats.map((e) => String(e.programId)),
     skippedRecordings: upcoming.filter((e) => !e.enabled).map((e) => ({ ...withSeriesLink(e), skipped: true })),
     skippedProgramIds: upcoming.filter((e) => !e.enabled).map((e) => String(e.programId)),
+    upcomingEntries: upcoming,
+    pastAirings,
     seriesTags: autorecs,
     activeRecordingIds: futureRecordings
       .filter((e) => e.schedStatus === 'recording' && e.programId != null)
@@ -612,6 +622,7 @@ export const normaliseEvent = (e) => {
     series_no: e.seasonNumber ?? null,
     episode_no: e.episodeNumber ?? null,
     series_link: seriesKey({ channelId: e.channelUuid, title: e.title }),
+    episode_uri: e.episodeUri || null,
     genre: (e.genre || [])[0] ?? null,
     rating: e.ageRating ? String(e.ageRating) : null,
     dvr_state: e.dvrState || null,
@@ -626,6 +637,7 @@ const normaliseEntry = (e) => {
   return {
     uuid: e.uuid,
     programId: e.broadcast || null,
+    episodeUri: e.uri || null,
     name: e.disp_title || '',
     episodeTitle: guideText.episodeTitle,
     channelId: e.channel || '',

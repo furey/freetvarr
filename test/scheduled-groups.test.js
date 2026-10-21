@@ -281,3 +281,10 @@ test('groupScheduled: rows at the same start keep one order whatever their state
   assert.deepEqual(orderOf({ upcoming: [euroHouse], repeats: [bigBrother] }), expected)
   assert.deepEqual(orderOf({ upcoming: [{ ...bigBrother, source: 'series' }, euroHouse] }), expected)
 })
+
+test('repeat wording: an episode skipped earlier reads as already skipped', async () => {
+  const { repeatSkippedText, repeatNoticeOf } = await import('../src/web/scheduled-groups.js')
+  const repeatOf = { status: 'skipped', startDate: Date.UTC(2026, 9, 20, 21, 46) }
+  assert.equal(repeatSkippedText({ repeatOf, timeZone: 'UTC' }), 'already skipped Tue 9:46pm')
+  assert.equal(repeatNoticeOf({ repeatOf, timeZone: 'UTC' }), "Repeat of the episode you skipped Tue 9:46pm, so it won't record.")
+})

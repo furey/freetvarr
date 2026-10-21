@@ -122,6 +122,7 @@ import {
   guideDayWindow,
   localMidnightMs,
   keepGuideWarm,
+  watchPendingSkips,
   getGuideSnapshot,
 } from './epg.js'
 import {
@@ -817,7 +818,7 @@ app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) =
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
       addToLibrary: add_to_library !== false,
     })
-    saveArtworkFromGuide({ recordingId: result.uuid, eventId: program_id })
+    if (result.uuid) saveArtworkFromGuide({ recordingId: result.uuid, eventId: program_id })
     res.json({ ok: true, ...result })
   } catch (err) {
     epgError(res, err, 'record')
@@ -2283,6 +2284,7 @@ const server = app.listen(PORT, async () => {
     console.error('[ads] failed to reconcile interrupted ad processing:', err.message)
   }
   keepGuideWarm()
+  watchPendingSkips()
   startUserEvents().catch((err) => console.warn(`[events] failed to start: ${err.message}`))
   try {
     await startScheduler()

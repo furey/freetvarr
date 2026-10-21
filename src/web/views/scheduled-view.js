@@ -27,7 +27,7 @@ import {
 
 const SHOW_REPEATS_KEY = 'freetvarr.scheduledShowRepeats'
 const REFRESH_MS = 60_000
-const EXPECTED_HINT = 'TVHeadend schedules this nearer the time'
+const EXPECTED_HINT = 'Not in TVHeadend\'s schedule yet. Skip it here and it will not record.'
 const REPEAT_HINT = 'TVHeadend skips repeats of an episode it has already recorded or scheduled'
 const WIDE_QUERY = '(min-width: 1024px)'
 const WARNING_ICON = '<svg class="scheduled-warning-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>'
@@ -186,7 +186,7 @@ export const ScheduledView = {
                 <toggle-switch :model-value="row.state !== 'off' && row.state !== 'repeat'"
                   :aria-label="switchLabel(row)"
                   :title="switchHintOf(row)"
-                  :disabled="row.state === 'expected' || row.state === 'repeat' || busyIds.has(String(row.programId))"
+                  :disabled="row.state === 'repeat' || busyIds.has(String(row.programId))"
                   @update:model-value="toggle(row)" />
               </div>
             </div>
@@ -382,12 +382,12 @@ export const ScheduledView = {
     }
 
     const toggle = async (row) => {
-      if (row.state === 'expected' || row.state === 'repeat') return
+      if (row.state === 'repeat') return
       actionError.value = ''
       setBusy(row.programId, true)
       try {
-        if (row.state === 'on') await skipEpisode(row)
-        else await recordEpisode(row)
+        if (row.state === 'off') await recordEpisode(row)
+        else await skipEpisode(row)
         await loadState({ fresh: true })
         refreshAfterRecordingChange()
       } catch (err) {
