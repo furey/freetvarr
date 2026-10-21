@@ -244,6 +244,28 @@ a.scheduled-row:focus-visible {
   vertical-align: 1px;
 }
 
+@media (max-width: 767px), (max-height: 500px) {
+  .scheduled-page .library-filters {
+    margin-left: auto;
+  }
+
+  .scheduled-repeats-count {
+    display: none;
+  }
+}
+
+.ui-chip.scheduled-repeats-chip {
+  gap: 0.3em;
+}
+
+.ui-chip.scheduled-repeats-chip:is(span, :disabled) {
+  cursor: default;
+}
+
+.ui-chip.scheduled-repeats-chip:disabled {
+  color: var(--color-text-3);
+}
+
 .ui-chip.scheduled-repeat-chip {
   height: 20px;
   margin: 0 6px 0 8px;

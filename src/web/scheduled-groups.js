@@ -123,6 +123,22 @@ export const scheduledCount = (groups) =>
 export const repeatCount = (groups) =>
   Object.values(groups).flat().filter((row) => row.state === 'repeat').length
 
+export const repeatsChipOf = ({ loaded, total, showRepeats }) => {
+  if (!loaded) return { kind: 'loading' }
+  if (!total) {
+    return { kind: 'chip', text: 'No repeats', countText: '', label: 'No repeats coming up', pressed: null, disabled: true }
+  }
+  const repeats = total === 1 ? '1 repeat' : `${total} repeats`
+  return {
+    kind: 'chip',
+    text: 'Show repeats',
+    countText: `(${total})`,
+    label: `Show repeats, ${repeats}`,
+    pressed: String(Boolean(showRepeats)),
+    disabled: false,
+  }
+}
+
 export const withoutRepeats = (groups) =>
   Object.fromEntries(Object.entries(groups).map(([key, rows]) => [key, rows.filter((row) => row.state !== 'repeat')]))
 

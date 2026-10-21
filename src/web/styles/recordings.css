@@ -18,6 +18,12 @@
   }
 }
 
+@media (max-width: 767px), (max-height: 500px) {
+  .library-toolbar .ui-segment {
+    padding: 0 12px;
+  }
+}
+
 .library-filters .ui-chip {
   min-height: 44px;
   height: 44px;

@@ -14,6 +14,7 @@ import {
   scheduledCountOfState,
   repeatCount,
   withoutRepeats,
+  repeatsChipOf,
   weekStrip,
 } from '/scheduled-groups.js'
 import {
@@ -132,9 +133,10 @@ export const ScheduledView = {
       <page-header title="Recordings" subtitle="Everything you have, and everything on its way." subtitle-short="Recorded and coming up." />
       <div class="library-toolbar">
         <recordings-tabs current="scheduled" :scheduled-count="loaded ? count : null" />
-        <div v-if="repeatTotal" class="library-filters">
-          <button type="button" class="ui-chip" :aria-pressed="String(showRepeats)" :aria-label="repeatsLabel"
-            @click="showRepeats = !showRepeats">Show repeats ({{ repeatTotal }})</button>
+        <div class="library-filters">
+          <span v-if="repeatsChip.kind === 'loading'" class="ui-chip scheduled-repeats-chip" aria-hidden="true"><span class="ui-skeleton is-text" style="--skeleton-w: 6.4em"></span></span>
+          <button v-else type="button" class="ui-chip scheduled-repeats-chip" :aria-pressed="repeatsChip.pressed" :aria-label="repeatsChip.label"
+            :disabled="repeatsChip.disabled" @click="showRepeats = !showRepeats">{{ repeatsChip.text }}<span v-if="repeatsChip.countText" class="scheduled-repeats-count">{{ repeatsChip.countText }}</span></button>
         </div>
       </div>
       <p v-if="actionError" class="ui-banner is-error" role="alert">{{ actionError }}</p>
@@ -295,8 +297,11 @@ export const ScheduledView = {
 
     const repeatTotal = computed(() => repeatCount(groups.value))
 
-    const repeatsLabel = computed(() =>
-      `Show repeats, ${repeatTotal.value === 1 ? '1 repeat' : repeatTotal.value + ' repeats'}`)
+    const repeatsChip = computed(() => repeatsChipOf({
+      loaded: loaded.value,
+      total: repeatTotal.value,
+      showRepeats: showRepeats.value,
+    }))
 
     const shownGroups = computed(() => showRepeats.value ? groups.value : withoutRepeats(groups.value))
 
@@ -456,7 +461,7 @@ export const ScheduledView = {
 
     return {
       state, loaded, loadError, actionError, busyIds, recordingRows, visibleSections, watching, removingWatchKey, removeWatch,
-      showRepeats, repeatTotal, repeatsLabel, count, isEmpty, toggle, switchLabel, switchHintOf, isWide, todayNumber, plan,
+      showRepeats, repeatsChip, count, isEmpty, toggle, switchLabel, switchHintOf, isWide, todayNumber, plan,
       clashTextFor, timeline, clashSentences, weekDays, scrollToDay,
     }
   },

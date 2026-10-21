@@ -13,6 +13,7 @@ import {
   scheduledCountOfState,
   repeatCount,
   withoutRepeats,
+  repeatsChipOf,
 } from '../src/web/scheduled-groups.js'
 
 const HOUR = 3_600_000
@@ -292,4 +293,16 @@ test('repeat wording: an episode skipped earlier reads as already skipped', asyn
   const repeatOf = { status: 'skipped', startDate: Date.UTC(2026, 9, 20, 21, 46) }
   assert.equal(repeatSkippedText({ repeatOf, timeZone: 'UTC' }), 'already skipped Tue 9:46pm')
   assert.equal(repeatNoticeOf({ repeatOf, timeZone: 'UTC' }), "Repeat of the episode you skipped Tue 9:46pm, so it won't record.")
+})
+
+test('repeatsChipOf: the repeats chip keeps its slot while loading, with repeats, and with none', () => {
+  assert.deepEqual(repeatsChipOf({ loaded: false, total: 3 }), { kind: 'loading' })
+  assert.deepEqual(repeatsChipOf({ loaded: true, total: 1, showRepeats: true }), {
+    kind: 'chip', text: 'Show repeats', countText: '(1)', label: 'Show repeats, 1 repeat', pressed: 'true', disabled: false,
+  })
+  assert.equal(repeatsChipOf({ loaded: true, total: 12 }).label, 'Show repeats, 12 repeats')
+  assert.equal(repeatsChipOf({ loaded: true, total: 12 }).pressed, 'false')
+  assert.deepEqual(repeatsChipOf({ loaded: true, total: 0, showRepeats: true }), {
+    kind: 'chip', text: 'No repeats', countText: '', label: 'No repeats coming up', pressed: null, disabled: true,
+  })
 })
