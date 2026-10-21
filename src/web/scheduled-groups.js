@@ -109,6 +109,12 @@ export const scheduledCountOfState = ({ state, skipped = [], activeProgramIds = 
 export const scheduledCount = (groups) =>
   Object.values(groups).flat().filter((row) => !isSkippedRow(row)).length
 
+export const repeatCount = (groups) =>
+  Object.values(groups).flat().filter((row) => row.state === 'repeat').length
+
+export const withoutRepeats = (groups) =>
+  Object.fromEntries(Object.entries(groups).map(([key, rows]) => [key, rows.filter((row) => row.state !== 'repeat')]))
+
 export const isSkippedRow = (row) => row.state === 'off' || row.state === 'repeat'
 
 export const repeatOriginalText = ({ repeatOf, timeZone = 'UTC' }) => {

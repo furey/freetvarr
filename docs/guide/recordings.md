@@ -149,6 +149,8 @@ The list has these sections:
 
 Each row has a switch. Turn it off to skip that episode; the row then says `Skipped`. Turn it on to record it again. The series recording keeps recording the other episodes. A row the series recording will catch has no working switch yet, because TVHeadend adds the episode to its schedule nearer the time. Press a row to open the show.
 
+TVHeadend skips a repeat of an episode it has already recorded or scheduled, and Scheduled hides these repeats. When the list has any, press **Show repeats** above the list to see them; Freetvarr remembers your choice on this device.
+
 ### The week
 
 A strip of the next 7 days sits at the top of Scheduled on a phone, and beside the list on a wide screen. Each day shows how many recordings it has. Press a day to jump to it in the list. A day marked with a warning has a tuner clash.

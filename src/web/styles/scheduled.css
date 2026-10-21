@@ -219,6 +219,7 @@ a.scheduled-row:focus-visible {
 }
 
 .scheduled-row.is-repeat .scheduled-time,
+.scheduled-row.is-repeat .scheduled-time small,
 .scheduled-row.is-repeat .ui-group-row-title,
 .scheduled-row.is-repeat .scheduled-meta {
   color: color-mix(in srgb, var(--color-text-3) 65%, var(--color-bg));

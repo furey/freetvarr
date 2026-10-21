@@ -11,6 +11,8 @@ import {
   weekStrip,
   episodeMetaParts,
   scheduledCountOfState,
+  repeatCount,
+  withoutRepeats,
 } from '../src/web/scheduled-groups.js'
 
 const HOUR = 3_600_000
@@ -235,4 +237,26 @@ test('repeatNoticeOf: explains the skip and the fallback for each original state
   assert.equal(repeatNoticeOf({ repeatOf: { status: 'scheduled', startDate }, timeZone }),
     "Repeat of the episode scheduled for Sun 7:00pm, so it won't record. If that one fails, this one records.")
   assert.match(repeatNoticeOf({ repeatOf: null }), /^Repeat of the episode already recorded, so/)
+})
+
+test('repeatCount and withoutRepeats: count repeats and drop them, emptying days that held only repeats', () => {
+  const groups = groupScheduled({
+    upcoming: [entry('a', 1)],
+    skipped: [entry('s', 2)],
+    repeats: [entry('r1', 3), entry('r2', 26), entry('r3', 72)],
+    nowMs: NOW,
+    timeZone: 'UTC',
+  })
+  assert.equal(repeatCount(groups), 3)
+  const shown = withoutRepeats(groups)
+  assert.deepEqual(shown.today.map((r) => r.programId), ['a', 's'])
+  assert.deepEqual([shown.tomorrow.length, shown.later.length], [0, 0])
+  assert.equal(repeatCount(shown), 0)
+  assert.equal(scheduledCount(shown), scheduledCount(groups))
+})
+
+test('weekStrip: counts match whether repeats are shown or hidden', () => {
+  const groups = groupScheduled({ upcoming: [entry('a', 1)], repeats: [entry('r', 26)], nowMs: NOW, timeZone: 'UTC' })
+  const counts = (g) => weekStrip({ groups: g, nowMs: NOW, timeZone: 'UTC' }).map((d) => d.count)
+  assert.deepEqual(counts(withoutRepeats(groups)), counts(groups))
 })

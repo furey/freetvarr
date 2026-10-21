@@ -2,6 +2,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from '/vendor/vue.es
 import { api } from '/shared/api.js'
 import { useFlash, useMediaQuery } from '/shared/composables.js'
 import { holdAtLeast } from '/pending.js'
+import { storedFlag } from '/shared/storage.js'
 import { tz, now } from '/shared/time.js'
 import { recordingNow, recordingChangeTick, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { localDayNumber } from '/guide-time.js'
@@ -11,6 +12,8 @@ import {
   recordingNowRows,
   watchingRows,
   scheduledCountOfState,
+  repeatCount,
+  withoutRepeats,
   weekStrip,
 } from '/scheduled-groups.js'
 import {
@@ -22,6 +25,7 @@ import {
   tonightTimeline,
 } from '/tuner-plan.js'
 
+const SHOW_REPEATS_KEY = 'freetvarr.scheduledShowRepeats'
 const REFRESH_MS = 60_000
 const EXPECTED_HINT = 'TVHeadend schedules this nearer the time'
 const REPEAT_HINT = 'TVHeadend skips repeats of an episode it has already recorded or scheduled'
@@ -128,6 +132,10 @@ export const ScheduledView = {
       <page-header title="Recordings" subtitle="Everything you have, and everything on its way." subtitle-short="Recorded and coming up." />
       <div class="library-toolbar">
         <recordings-tabs current="scheduled" :scheduled-count="loaded ? count : null" />
+        <div v-if="repeatTotal" class="library-filters">
+          <button type="button" class="ui-chip" :aria-pressed="String(showRepeats)" :aria-label="repeatsLabel"
+            @click="showRepeats = !showRepeats">Show repeats ({{ repeatTotal }})</button>
+        </div>
       </div>
       <p v-if="actionError" class="ui-banner is-error" role="alert">{{ actionError }}</p>
       <p v-else-if="loadError" class="ui-banner is-error" role="alert">{{ loadError }}</p>
@@ -248,8 +256,17 @@ export const ScheduledView = {
 
     const watching = computed(() => watchingRows({ items: watchlist.value, timeZone: tz.value }))
 
+    const showRepeats = storedFlag({ key: SHOW_REPEATS_KEY, fallback: false })
+
+    const repeatTotal = computed(() => repeatCount(groups.value))
+
+    const repeatsLabel = computed(() =>
+      `Show repeats, ${repeatTotal.value === 1 ? '1 repeat' : repeatTotal.value + ' repeats'}`)
+
+    const shownGroups = computed(() => showRepeats.value ? groups.value : withoutRepeats(groups.value))
+
     const visibleSections = computed(() => SCHEDULED_SECTIONS
-      .map((section) => ({ ...section, rows: groups.value[section.key] }))
+      .map((section) => ({ ...section, rows: shownGroups.value[section.key] }))
       .filter((section) => section.rows.length))
 
     const count = computed(() => scheduledCountOfState({
@@ -288,7 +305,7 @@ export const ScheduledView = {
       .map((clash) => clashSentence({ clash, timeZone: tz.value })))
 
     const weekDays = computed(() => weekStrip({
-      groups: groups.value,
+      groups: shownGroups.value,
       recordingNowCount: recordingRows.value.length,
       clashDays: (plan.value?.clashes || []).map((clash) => localDayNumber({ ms: clash.from, timeZone: tz.value })),
       nowMs: now.value.getTime(),
@@ -404,7 +421,7 @@ export const ScheduledView = {
 
     return {
       state, loaded, loadError, actionError, busyIds, recordingRows, visibleSections, watching, removingWatchKey, removeWatch,
-      count, isEmpty, toggle, switchLabel, switchHintOf, isWide, todayNumber, plan,
+      showRepeats, repeatTotal, repeatsLabel, count, isEmpty, toggle, switchLabel, switchHintOf, isWide, todayNumber, plan,
       clashTextFor, timeline, clashSentences, weekDays, scrollToDay,
     }
   },
