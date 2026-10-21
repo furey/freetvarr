@@ -1123,6 +1123,20 @@ body.sheet-open .app-tabbar {
   width: 100%;
 }
 
+.ui-button-icon {
+  min-width: 44px;
+  padding: 0;
+}
+
+.ui-button-sm.ui-button-icon {
+  min-width: 36px;
+}
+
+.ui-button-watch {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 @media (hover: hover) {
   .ui-button:hover:not(:disabled) { background: var(--color-surface-4); }
   :is(.ui-hero-actions, .show-hero-body) .ui-button-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
@@ -2223,18 +2237,18 @@ html :is(button, a[href], [role="button"], [role="tab"], [role="option"], summar
   -webkit-touch-callout: none;
 }
 
-html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .ui-row-title-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
+html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .ui-row-title-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
   -webkit-tap-highlight-color: transparent;
   transition-property: background-color, color, border-color, opacity, transform, filter;
   transition-duration: var(--motion-fast);
   transition-timing-function: var(--ease-standard);
 }
 
-html :is(.ui-button, .ui-icon-button:not(.is-plain), .ui-chip, .ui-stepper-button, .btn:not(.btn-link, .btn-danger), .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .for-you-thumb, .library-dialog-go, .ui-segment.is-selected, .ui-segment[aria-selected="true"], .ui-segment[aria-checked="true"], .ui-segment[aria-pressed="true"], .ui-segment[aria-current="page"]):active:not(:disabled, .is-pending) {
+html :is(.ui-button, .ui-icon-button:not(.is-plain), .ui-chip, .ui-stepper-button, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .for-you-thumb, .library-dialog-go, .ui-segment.is-selected, .ui-segment[aria-selected="true"], .ui-segment[aria-checked="true"], .ui-segment[aria-pressed="true"], .ui-segment[aria-current="page"]):active:not(:disabled, .is-pending) {
   filter: brightness(0.92);
 }
 
-html :is(.ui-button.ui-button-destructive, .btn.btn-danger):active:not(:disabled, .is-pending) {
+html .ui-button.ui-button-destructive:active:not(:disabled, .is-pending) {
   filter: none;
   background-color: rgba(255, 77, 79, 0.14);
 }
@@ -2243,7 +2257,7 @@ html :is(.ui-icon-button.is-plain, .btn-link, .ui-row-link, .ui-row-title-link, 
   background-color: rgba(255, 255, 255, 0.08);
 }
 
-html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending) {
+html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending) {
   transform: scale(0.97);
   transition-duration: 70ms;
 }
@@ -2271,12 +2285,12 @@ html .app-nav-item[aria-current="page"]:active .app-nav-pill {
   cursor: progress;
 }
 
-html :is(.ui-button, .btn, .ui-icon-button, .pl-round, .pl-pill, .pl-control, .ui-chip, .show-select-action, .for-you-thumb, .library-menu-item, .library-dialog-go).is-pending:disabled {
+html :is(.ui-button, .ui-icon-button, .pl-round, .pl-pill, .pl-control, .ui-chip, .show-select-action, .for-you-thumb, .library-menu-item, .library-dialog-go).is-pending:disabled {
   opacity: 0.8;
   cursor: progress;
 }
 
-:is(.ui-button, .btn, .ui-chip, .show-select-action, .for-you-thumb) {
+:is(.ui-button, .ui-chip, .show-select-action, .for-you-thumb) {
   --spinner-size: 16px;
   --spinner-gap: 0px;
 }
@@ -2296,11 +2310,11 @@ html :is(.ui-button, .btn, .ui-icon-button, .pl-round, .pl-pill, .pl-control, .u
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
+  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
     transition-duration: 0.01ms;
   }
 
-  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .btn, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending),
+  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending),
   html .app-nav-item:active .app-nav-pill {
     transform: none;
   }

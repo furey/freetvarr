@@ -43,11 +43,11 @@ export const RecordingsView = {
     <div class="view-reveal settings-page log-page">
       <div class="settings-toolbar">
         <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
-        <button type="button" class="btn" @click="askClearList" :disabled="clearing || clearable === 0"
+        <button type="button" class="ui-button" @click="askClearList" :disabled="clearing || clearable === 0"
           title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library.">
           <cross-icon /> {{ clearing ? 'Clearing…' : 'Clear from list' }}
         </button>
-        <button v-if="undoIds.length" type="button" class="btn" @click="undoClear" :disabled="restoring"
+        <button v-if="undoIds.length" type="button" class="ui-button" @click="undoClear" :disabled="restoring"
           title="Puts the cleared rows back in this list."><arrow-left-icon /> Undo</button>
         <span class="settings-toolbar-end"></span>
         <info-button title="Recording log" doc="guide/recordings">
@@ -121,7 +121,7 @@ export const RecordingsView = {
                   <td class="ui-tabular whitespace-nowrap text-ink-dim">{{ r.aired_at ? fmtTime(r.aired_at) : '' }}</td>
                   <td>
                     <div class="rec-actions flex items-center justify-end">
-                      <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch recording-play"
+                      <button v-if="r.playable" type="button" class="ui-button ui-button-sm ui-button-icon ui-button-watch recording-play"
                         @click.stop="playRecording(r)" @keydown.stop :title="playTitle(r)" :aria-label="playTitle(r)">
                         <play-icon />
                       </button>
@@ -149,7 +149,7 @@ export const RecordingsView = {
                     <recording-status :recording="r" :ctx="drawerContext" inline />
                   </div>
                 </div>
-                <button v-if="r.playable" type="button" class="btn btn-sm btn-icon btn-watch recording-play"
+                <button v-if="r.playable" type="button" class="ui-button ui-button-sm ui-button-icon ui-button-watch recording-play"
                   @click.stop="playRecording(r)" @keydown.stop :title="playTitle(r)" :aria-label="playTitle(r)">
                   <play-icon />
                 </button>
@@ -160,7 +160,7 @@ export const RecordingsView = {
         </div>
         <div v-else-if="total === 0 && hasFiltersApplied" class="ui-group settings-no-match-card">
           <p class="settings-empty">No recordings match the current filters.</p>
-          <button type="button" class="btn btn-sm" @click="clearAllFilters"><cross-icon /> Clear filters</button>
+          <button type="button" class="ui-button ui-button-sm" @click="clearAllFilters"><cross-icon /> Clear filters</button>
         </div>
         <div v-else-if="total === 0" class="ui-group">
           <p class="settings-empty">
@@ -171,8 +171,8 @@ export const RecordingsView = {
       <div v-if="total > pageSize" class="settings-pager">
         <span class="settings-meta-line">Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
         <div class="settings-pager-buttons">
-          <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
-          <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
+          <button type="button" class="ui-button ui-button-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
+          <button type="button" class="ui-button ui-button-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
         </div>
       </div>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"

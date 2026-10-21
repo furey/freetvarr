@@ -21,7 +21,7 @@ export const LiveStreamsSetting = {
           <p class="settings-hint">{{ hint }}</p>
           <p class="settings-hint" :class="{ 'live-streams-warn': overMeasured }">{{ measured }}</p>
           <div class="settings-row-actions">
-            <button type="button" class="btn btn-sm" :disabled="measuring || !loaded" @click="measure">
+            <button type="button" class="ui-button ui-button-sm" :disabled="measuring || !loaded" @click="measure">
               <template v-if="measuring">Measuring…</template><template v-else><pulse-icon /> Measure again</template>
             </button>
             <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>

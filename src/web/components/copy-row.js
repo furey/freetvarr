@@ -25,7 +25,7 @@ export const CopyRow = {
     <div class="copy-row">
       <span class="field-label">{{ label }}</span>
       <code class="copy-row-value">{{ value }}</code>
-      <button type="button" class="btn btn-sm" @click="copy" :disabled="!value">
+      <button type="button" class="ui-button ui-button-sm" @click="copy" :disabled="!value">
         <template v-if="state === 'copied'"><check-icon /> Copied</template>
         <template v-else-if="state === 'failed'"><cross-icon /> Copy failed</template>
         <template v-else><copy-icon /> Copy</template>

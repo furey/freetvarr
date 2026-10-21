@@ -71,7 +71,7 @@ export const SeriesView = {
             </div>
             <div v-if="!visibleSeries.length" class="settings-meta-line settings-no-match">
               <span>{{ noMatchText }}</span>
-              <button type="button" class="btn btn-sm" @click="clearFilters"><cross-icon /> Clear filters</button>
+              <button type="button" class="ui-button ui-button-sm" @click="clearFilters"><cross-icon /> Clear filters</button>
             </div>
             <div v-else class="settings-group">
               <div class="settings-group-head">
@@ -224,7 +224,7 @@ export const SeriesView = {
               <div class="field-action">
                 <div class="field-action-controls">
                   <input v-no-autofill id="new-title-pattern" type="text" v-model="newPattern" list="tvh-shows" placeholder="e.g. NRL" class="field-input" />
-                  <button type="button" :class="['btn', { 'is-pending': loadingShows }]" @click="loadTvhShows" :disabled="loadingShows"
+                  <button type="button" :class="['ui-button', { 'is-pending': loadingShows }]" @click="loadTvhShows" :disabled="loadingShows"
                     title="List the titles TVHeadend has finished recordings for.">
                     <template v-if="loadingShows"><span class="spinner" aria-hidden="true"></span> Listing…</template><template v-else><refresh-icon /> Refresh titles</template>
                   </button>

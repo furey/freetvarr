@@ -149,7 +149,7 @@ export const MultiViewLayer = {
           <p class="mv-picture-status-text">{{ picture.status }}</p>
           <div v-if="picture.endedActions.length" class="mv-ended-actions">
             <button v-for="action in picture.endedActions" :key="action.key" type="button"
-              :class="['btn', 'btn-sm', { 'btn-primary': action.key === 'change' }]" @click="chooseFor(picture.id, action.key)">{{ action.label }}</button>
+              :class="['ui-button', 'ui-button-sm', { 'ui-button-primary': action.key === 'change' }]" @click="chooseFor(picture.id, action.key)">{{ action.label }}</button>
           </div>
         </div>
         <template v-if="picture.playing">

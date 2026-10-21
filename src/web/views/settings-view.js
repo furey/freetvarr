@@ -139,7 +139,7 @@ export const SettingsView = {
             <h3 class="ui-group-label">Server</h3>
             <div class="ui-group">
               <div class="settings-row settings-row-actions">
-                <button type="button" class="btn" @click="detectTvh" :disabled="tvhDetecting">
+                <button type="button" class="ui-button" @click="detectTvh" :disabled="tvhDetecting">
                   <template v-if="tvhDetecting">Scanning…</template><template v-else><search-icon /> Auto-discover TVHeadend</template>
                 </button>
                 <span v-if="tvhDiscoverText" :class="['status-readout', tvhDiscoverKind]">{{ tvhDiscoverText }}</span>
@@ -148,7 +148,7 @@ export const SettingsView = {
               <div v-if="tvhCandidates.length > 1" class="settings-row">
                 <p class="settings-row-meta">Several TVHeadend servers answered. Pick one:</p>
                 <div class="settings-row-actions">
-                  <button v-for="c in tvhCandidates" :key="c.url" type="button" class="btn btn-sm" @click="useTvhCandidate(c)">
+                  <button v-for="c in tvhCandidates" :key="c.url" type="button" class="ui-button ui-button-sm" @click="useTvhCandidate(c)">
                     Use {{ c.url }}
                   </button>
                 </div>
@@ -170,7 +170,7 @@ export const SettingsView = {
                 </div>
               </div>
               <div class="settings-row settings-row-actions">
-                <button type="button" class="btn" @click="testTvh" :disabled="tvhTesting">
+                <button type="button" class="ui-button" @click="testTvh" :disabled="tvhTesting">
                   <template v-if="tvhTesting">Testing…</template><template v-else><pulse-icon /> Test connection</template>
                 </button>
                 <span v-if="tvhStatus" :class="['status-readout', tvhStatusKind]">{{ tvhStatus }}</span>
@@ -181,7 +181,7 @@ export const SettingsView = {
             <h3 class="ui-group-label">Open access</h3>
             <div class="ui-group">
               <div class="settings-row settings-row-actions">
-                <button type="button" class="btn btn-sm" @click="askUndoTvhSecure" :disabled="tvhUndoing">
+                <button type="button" class="ui-button ui-button-sm" @click="askUndoTvhSecure" :disabled="tvhUndoing">
                   <template v-if="tvhUndoing">Restoring…</template><template v-else>Restore open access</template>
                 </button>
                 <span v-if="tvhUndoText" :class="['status-readout', tvhUndoKind]">{{ tvhUndoText }}</span>
@@ -208,7 +208,7 @@ export const SettingsView = {
                 <div class="field-action">
                   <div class="field-action-controls">
                     <input v-no-autofill id="settings-media-root" type="text" :class="['field-input', { 'is-invalid': mediaRootStatus && mediaRootStatusKind === 'err' }]" v-model="mediaRoot" placeholder="/data/media/tv" />
-                    <button type="button" :class="['btn', { 'is-pending': mediaRootTesting }]" @click="testMediaRoot" :disabled="mediaRootTesting">
+                    <button type="button" :class="['ui-button', { 'is-pending': mediaRootTesting }]" @click="testMediaRoot" :disabled="mediaRootTesting">
                       <template v-if="mediaRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
                     </button>
                   </div>
@@ -221,7 +221,7 @@ export const SettingsView = {
                 <div class="field-action">
                   <div class="field-action-controls">
                     <input v-no-autofill id="settings-oneoff-root" type="text" :class="['field-input', { 'is-invalid': oneOffRootStatus && oneOffRootStatusKind === 'err' }]" v-model="oneOffRoot" placeholder="/data/media/one-offs" />
-                    <button type="button" :class="['btn', { 'is-pending': oneOffRootTesting }]" @click="testOneOffRoot" :disabled="oneOffRootTesting">
+                    <button type="button" :class="['ui-button', { 'is-pending': oneOffRootTesting }]" @click="testOneOffRoot" :disabled="oneOffRootTesting">
                       <template v-if="oneOffRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
                     </button>
                   </div>
@@ -234,7 +234,7 @@ export const SettingsView = {
                 <div class="field-action">
                   <div class="field-action-controls">
                     <input v-no-autofill id="settings-movies-root" type="text" :class="['field-input', { 'is-invalid': moviesRootStatus && moviesRootStatusKind === 'err' }]" v-model="moviesRoot" placeholder="empty: films go to the one-off folder" />
-                    <button type="button" :class="['btn', { 'is-pending': moviesRootTesting }]" @click="testMoviesRoot" :disabled="moviesRootTesting || !moviesRoot.trim()">
+                    <button type="button" :class="['ui-button', { 'is-pending': moviesRootTesting }]" @click="testMoviesRoot" :disabled="moviesRootTesting || !moviesRoot.trim()">
                       <template v-if="moviesRootTesting"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test path</template>
                     </button>
                   </div>
@@ -252,7 +252,7 @@ export const SettingsView = {
                 <div class="field-action">
                   <div class="field-action-controls">
                     <input v-no-autofill id="settings-recordings-root" type="text" :class="['field-input', { 'is-invalid': recordingsCheck.text && recordingsCheck.kind === 'err' }]" v-model="recordingsRoot" placeholder="/data/recordings" />
-                    <button type="button" :class="['btn', { 'is-pending': recordingsCheck.checking }]" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
+                    <button type="button" :class="['ui-button', { 'is-pending': recordingsCheck.checking }]" @click="recordingsCheck.run" :disabled="recordingsCheck.checking">
                       <template v-if="recordingsCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Test path</template>
                     </button>
                   </div>
@@ -264,7 +264,7 @@ export const SettingsView = {
                 <div class="field-action">
                   <div class="field-action-controls">
                     <input v-no-autofill id="settings-tvh-recordings-path" type="text" :class="['field-input', { 'is-invalid': tvhPathCheck.text && tvhPathCheck.kind === 'err' }]" v-model="tvhRecordingsPath" placeholder="/recordings" />
-                    <button type="button" :class="['btn', { 'is-pending': tvhPathCheck.checking }]" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
+                    <button type="button" :class="['ui-button', { 'is-pending': tvhPathCheck.checking }]" @click="tvhPathCheck.run" :disabled="tvhPathCheck.checking">
                       <template v-if="tvhPathCheck.checking"><span class="spinner" aria-hidden="true"></span> Checking…</template><template v-else><pulse-icon /> Check TVHeadend</template>
                     </button>
                   </div>
@@ -310,7 +310,7 @@ export const SettingsView = {
             <h3 class="ui-group-label">Plex server</h3>
             <div class="ui-group">
               <div class="settings-row settings-row-actions">
-                <button type="button" class="btn" @click="discoverPlex" :disabled="plexDiscovering">
+                <button type="button" class="ui-button" @click="discoverPlex" :disabled="plexDiscovering">
                   <template v-if="plexDiscovering">Scanning…</template><template v-else><search-icon /> Auto-discover Plex</template>
                 </button>
                 <span v-if="plexDiscoverText" :class="['status-readout', plexDiscoverKind]">{{ plexDiscoverText }}</span>
@@ -319,7 +319,7 @@ export const SettingsView = {
               <div v-if="plexCandidates.length > 1" class="settings-row">
                 <p class="settings-row-meta">Freetvarr found more than one Plex server. Pick yours:</p>
                 <div class="settings-row-actions">
-                  <button v-for="c in plexCandidates" :key="c.ip + ':' + c.port" type="button" class="btn btn-sm" @click="usePlexCandidate(c)">
+                  <button v-for="c in plexCandidates" :key="c.ip + ':' + c.port" type="button" class="ui-button ui-button-sm" @click="usePlexCandidate(c)">
                     Use {{ c.name || 'Plex' }} ({{ c.ip }}:{{ c.port }})
                   </button>
                 </div>
@@ -334,7 +334,7 @@ export const SettingsView = {
                   <div class="field-action-controls">
                     <input v-no-autofill id="settings-plex-token" type="password" :class="['field-input', { 'is-invalid': plexTokenStatus && plexTokenStatusKind === 'err' }]" v-model="plexToken"
                       :placeholder="plexTokenSet ? '••••• (stored)' : 'paste your Plex token'" autocomplete="off" />
-                    <button type="button" :class="['btn', { 'is-pending': plexDetecting }]" @click="detectPlexToken" :disabled="plexDetecting">
+                    <button type="button" :class="['ui-button', { 'is-pending': plexDetecting }]" @click="detectPlexToken" :disabled="plexDetecting">
                       <template v-if="plexDetecting"><span class="spinner" aria-hidden="true"></span> Detecting…</template><template v-else><bolt-icon /> Auto-detect token</template>
                     </button>
                   </div>
@@ -391,10 +391,10 @@ export const SettingsView = {
                   placeholder="section number of the movies library" />
               </div>
               <div class="settings-row settings-row-actions">
-                <button type="button" class="btn btn-sm" @click="loadPlexSections" :disabled="plexProbing">
+                <button type="button" class="ui-button ui-button-sm" @click="loadPlexSections" :disabled="plexProbing">
                   <template v-if="plexProbing">Loading…</template><template v-else><download-icon /> Load sections</template>
                 </button>
-                <button type="button" class="btn btn-sm" @click="refreshPlexNow" :disabled="plexRefreshing">
+                <button type="button" class="ui-button ui-button-sm" @click="refreshPlexNow" :disabled="plexRefreshing">
                   <template v-if="plexRefreshing">Refreshing…</template><template v-else><refresh-icon /> Refresh Plex now</template>
                 </button>
                 <span v-if="plexStatus" :class="['status-readout', plexStatusKind]">{{ plexStatus }}</span>
@@ -617,7 +617,7 @@ export const SettingsView = {
                 Your video files in <code>{{ mediaRoot || '/media/tv' }}</code> and the other library folders will stay where they are, and so will the recordings and settings in TVHeadend. You cannot reset while a sync is running.
               </p>
               <div class="settings-row-actions">
-                <button type="button" class="btn btn-danger" @click="askResetFreetvarr" :disabled="resetting">
+                <button type="button" class="ui-button ui-button-destructive" @click="askResetFreetvarr" :disabled="resetting">
                   <template v-if="resetting">Resetting…</template><template v-else><trash-icon /> Reset Freetvarr</template>
                 </button>
                 <span v-if="resetError" class="status-readout err">{{ resetError }}</span>

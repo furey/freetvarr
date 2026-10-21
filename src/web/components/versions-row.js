@@ -61,7 +61,7 @@ export const VersionsRow = {
           <dd>{{ about.node || '…' }}</dd>
         </dl>
       </div>
-      <button type="button" class="btn" @click="copyAbout" :disabled="!about.version">
+      <button type="button" class="ui-button" @click="copyAbout" :disabled="!about.version">
         <template v-if="copyState === 'copied'"><check-icon /> Copied</template>
         <template v-else-if="copyState === 'failed'"><cross-icon /> Copy failed</template>
         <template v-else><copy-icon /> Copy</template>

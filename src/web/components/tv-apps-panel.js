@@ -37,7 +37,7 @@ export const TvAppsPanel = {
               <div class="field-action-controls">
                 <input v-no-autofill id="tv-login-name" type="text" :class="['field-input', { 'is-invalid': statusKind === 'err' && statusText }]"
                   v-model="name" :disabled="making" :aria-invalid="statusKind === 'err' && Boolean(statusText)" />
-                <button type="button" :class="['btn', 'btn-primary', { 'is-pending': making }]" @click="makeLogin" :disabled="making" :aria-busy="making">
+                <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': making }]" @click="makeLogin" :disabled="making" :aria-busy="making">
                   <template v-if="making"><span class="spinner" aria-hidden="true"></span> Making…</template><template v-else><tv-icon /> Make a TV login</template>
                 </button>
               </div>
@@ -83,7 +83,7 @@ export const TvAppsPanel = {
             <div class="settings-row">
               <p class="settings-row-meta">Your TV login is “{{ login.username }}”. Delete it when no TV app uses it any more; TV apps that use it stop getting channels.</p>
               <div class="settings-row-actions">
-                <button type="button" class="btn btn-danger" @click="askDeleteLogin" :disabled="Boolean(confirming)">
+                <button type="button" class="ui-button ui-button-destructive" @click="askDeleteLogin" :disabled="Boolean(confirming)">
                   <trash-icon /> Delete TV login
                 </button>
               </div>

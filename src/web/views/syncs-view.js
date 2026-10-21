@@ -76,7 +76,7 @@ export const SyncsView = {
           <template v-else><refresh-icon /> Sync now</template>
         </button>
         <button type="button" class="ui-icon-button" @click="manualRefresh" aria-label="Refresh" title="Refresh"><refresh-icon /></button>
-        <button type="button" class="btn btn-danger settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
+        <button type="button" class="ui-button ui-button-destructive settings-toolbar-end" @click="askClearAll" :disabled="!total"><trash-icon /> Clear history</button>
       </div>
       <p class="settings-meta-line">
         <template v-if="scheduleFrequency">Syncs run {{ scheduleFrequency }}.</template><template v-else-if="syncStatus.cron">Syncs run on the schedule <code>{{ syncStatus.cron }}</code>.</template>
@@ -172,8 +172,8 @@ export const SyncsView = {
       <div v-if="total > pageSize" class="settings-pager">
         <span class="settings-meta-line">Page {{ page }} of {{ totalPages }} · {{ total }} total</span>
         <div class="settings-pager-buttons">
-          <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
-          <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
+          <button type="button" class="ui-button ui-button-sm" :disabled="page <= 1" @click="page = page - 1"><arrow-left-icon /> Previous</button>
+          <button type="button" class="ui-button ui-button-sm" :disabled="page >= totalPages" @click="page = page + 1">Next <arrow-right-icon /></button>
         </div>
       </div>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"

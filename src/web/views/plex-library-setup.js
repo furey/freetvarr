@@ -30,7 +30,7 @@ export const PlexLibrarySetup = {
         </p>
       </template>
       <div class="plex-library-actions">
-        <button v-if="missing.length" type="button" class="btn" @click="create" :disabled="creating">
+        <button v-if="missing.length" type="button" class="ui-button" @click="create" :disabled="creating">
           <template v-if="creating">Creating…</template><template v-else><plus-icon /> Create libraries</template>
         </button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>

@@ -27,7 +27,7 @@ export const CancelSeriesStep = {
       </div>
       <div class="cancel-series-actions">
         <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-busy': busy }]" @click="confirm" :disabled="busy">
-          <span class="btn-label">Cancel series</span>
+          <span>Cancel series</span>
           <span v-if="busy" class="spinner spinner-overlay"></span>
         </button>
         <button v-if="showBack" type="button" class="ui-button ui-button-block" @click="$emit('back')" :disabled="busy">Keep series</button>

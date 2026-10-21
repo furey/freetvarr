@@ -16,10 +16,10 @@ export const SeriesDrawer = {
           <span class="settings-row-meta">{{ series.recording ? 'TVHeadend records new episodes.' : 'Paused: TVHeadend records no new episodes.' }}</span>
         </p>
         <div class="card-actions">
-          <button type="button" class="btn btn-sm" @click="$emit('pause')" :disabled="busy">
+          <button type="button" class="ui-button ui-button-sm" @click="$emit('pause')" :disabled="busy">
             <template v-if="series.recording"><pause-icon /> Pause</template><template v-else><play-icon /> Resume</template>
           </button>
-          <button type="button" class="btn btn-sm btn-danger" @click="$emit('cancel-series')" :disabled="busy">Cancel series</button>
+          <button type="button" class="ui-button ui-button-sm ui-button-destructive" @click="$emit('cancel-series')" :disabled="busy">Cancel series</button>
         </div>
       </div>
       <series-folder-editor v-if="series.folder" :folder="series.folder" :folders="folders"
@@ -30,7 +30,7 @@ export const SeriesDrawer = {
         <p v-else class="settings-row-body">This series has no folder in your TV library, so its episodes wait in the <a href="#/settings/system/log">Recording log</a>.</p>
         <p class="settings-hint">To save its episodes in their own folder in your TV library, press <strong>Assign folder</strong>. You can then set the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
         <div class="card-actions">
-          <button type="button" class="btn btn-primary" @click="$emit('assign')" :disabled="busy"><plus-icon /> Assign folder</button>
+          <button type="button" class="ui-button ui-button-primary" @click="$emit('assign')" :disabled="busy"><plus-icon /> Assign folder</button>
         </div>
       </div>
     </div>
