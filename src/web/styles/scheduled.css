@@ -214,17 +214,23 @@ a.scheduled-row:focus-visible {
   opacity: 0.55;
 }
 
-.scheduled-row.is-repeat .scheduled-time,
-.scheduled-row.is-repeat .ui-group-row-title {
-  color: var(--color-text-2);
+.scheduled-row.is-repeat {
+  background: color-mix(in srgb, var(--color-surface-1) 45%, var(--color-bg));
 }
 
+.scheduled-row.is-repeat .scheduled-time,
+.scheduled-row.is-repeat .ui-group-row-title,
 .scheduled-row.is-repeat .scheduled-meta {
-  color: var(--color-text-3);
+  color: color-mix(in srgb, var(--color-text-3) 65%, var(--color-bg));
 }
 
 .scheduled-row.is-repeat .scheduled-thumb {
-  opacity: 0.7;
+  opacity: 0.45;
+}
+
+.scheduled-row.is-repeat .scheduled-repeat-chip,
+.scheduled-clash.is-repeat {
+  opacity: 0.75;
 }
 
 .scheduled-clash.is-repeat {
