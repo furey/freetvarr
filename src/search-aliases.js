@@ -53,7 +53,7 @@ export const mountSearchRoutes = ({ app, csrf, limiter = passThrough }) => {
   app.get('/api/search/catalogue', async (req, res) => {
     try {
       const [rows, { curated, aliases }] = await Promise.all([
-        db('recordings').whereNull('purged_at').whereNotNull('title').select('title').count({ count: 'recording_id' }).groupBy('title'),
+        db('recordings').whereNull('purged_at').whereNotNull('title').select(db.raw(`${GROUP_TITLE} as title`)).count({ count: 'recording_id' }).groupByRaw(GROUP_TITLE),
         loadSearchAliases(),
       ])
       res.json({ shows: showCatalogueOf(rows), curated, aliases })
@@ -130,3 +130,4 @@ const MAX_TOTAL_NICKNAMES = 2000
 const MAX_SHOW_KEY_LENGTH = 200
 const SHOW_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const SHOW_KEY_ERROR = 'key must be a show key'
+const GROUP_TITLE = 'coalesce(show_title_override, title)'

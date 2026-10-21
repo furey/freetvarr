@@ -8,6 +8,10 @@ import {
   episodeMenuOf,
   latestEarlierEpisodeOf,
   markedText,
+  movedText,
+  moveSubtitleOf,
+  moveTargetsOf,
+  newShowTitleOf,
   prunedSelection,
   selectAllIn,
   selectionTitle,
@@ -15,6 +19,7 @@ import {
   menuPendingLabelOf,
   showMenuOf,
   toggledSelection,
+  undoMovesOf,
   watchedChangeTargets,
 } from '../src/web/library-menus.js'
 
@@ -158,4 +163,38 @@ test('menuPendingLabelOf: actions that wait keep the menu open with an -ing labe
   assert.equal(menuPendingLabelOf('watched'), 'Marking as watched…')
   assert.equal(menuPendingLabelOf('play-next'), '')
   assert.equal(menuPendingLabelOf('delete-all'), '')
+})
+
+test('Move to show… follows Show info and Episode info only where moving is offered', () => {
+  const show = showWith([episode()], { rule: null })
+  assert.deepEqual(keysOf(showMenuOf({ show, canMove: true }))[1].slice(0, 2), ['show-info', 'move'])
+  assert.ok(!showMenuOf({ show }).flat().some((item) => item.key === 'move'))
+  assert.ok(!showMenuOf({ show: showWith([], { seasons: [] }), canMove: true }).flat().some((item) => item.key === 'move'))
+  const groups = episodeMenuOf({ episode: episode(), canMove: true })
+  assert.deepEqual(keysOf(groups)[1].slice(0, 2), ['episode-info', 'move'])
+  assert.equal(groups[1][1].label, 'Move to show…')
+})
+
+test('moveTargetsOf and newShowTitleOf: filter other shows and offer a new one unless the text names a show', () => {
+  const shows = [
+    { key: 'the-block', title: 'The Block', poster: '/p?title=The%20Block', counts: { total: 10 } },
+    { key: 'the-block-kids-room', title: 'The Block - Kids Room', poster: '/p', counts: { total: 2 } },
+    { key: 'blockbusters', title: 'Blockbusters', poster: '/p', counts: { total: 0 } },
+  ]
+  const targets = moveTargetsOf({ shows, query: ' BLOCK', currentKey: 'the-block-kids-room' })
+  assert.deepEqual(targets.map((show) => [show.title, show.meta]), [['The Block', '10 episodes'], ['Blockbusters', 'No episodes yet']])
+  assert.equal(newShowTitleOf({ shows, query: ' block ' }), 'block')
+  assert.equal(newShowTitleOf({ shows, query: 'the block' }), '')
+  assert.equal(newShowTitleOf({ shows, query: 'The Block - Kids Room' }), '')
+  assert.equal(newShowTitleOf({ shows, query: '   ' }), '')
+})
+
+test('move copy and undo: a short subtitle, the toast text, and one undo request per old value', () => {
+  assert.equal(moveSubtitleOf({ title: 'The Block - Kids Room and Re-Do Room Week', count: 2 }), 'The Block - Kids Room… · 2 episodes')
+  assert.equal(moveSubtitleOf({ title: 'The Block', count: 1 }), 'The Block · 1 episode')
+  assert.equal(movedText('The Block'), 'Moved to The Block')
+  assert.deepEqual(undoMovesOf([{ id: 'a', title: null }, { id: 'b', title: 'Specials' }, { id: 'c', title: null }]), [
+    { ids: ['a', 'c'], title: null },
+    { ids: ['b'], title: 'Specials' },
+  ])
 })

@@ -6,6 +6,7 @@ import {
   episodeLimitFrom,
   getLibraryShow,
   getLibraryShows,
+  groupTitleOf,
   isInsideFolder,
   isLibraryMember,
   kindOf,
@@ -15,6 +16,7 @@ import {
   rulePatchFrom,
   seasonsOf,
   showDetailOf,
+  showMoveFrom,
   showSummariesOf,
   updateShowRule,
 } from '../src/library.js'
@@ -329,4 +331,50 @@ test('libraryEpisodesOf: a chosen background replaces episode pictures and is ma
   const [plain] = libraryEpisodesOf({ rows })
   assert.equal(plain.image, '/api/recordings/a/image?w=384')
   assert.equal(plain.artChosen, false)
+})
+
+test('a show title override moves a recording into the named show everywhere the library groups', async () => {
+  const kidsRoom = 'The Block - Kids Room and Re-Do Room Week'
+  const rows = [
+    row({ recording_id: 'a', season: 22, episode: 37, aired_at: NOW - 3 * DAY_MS }),
+    row({ recording_id: 'b', title: kidsRoom, show_title_override: 'The Block', season: 22, episode: 36, aired_at: NOW - DAY_MS }),
+    row({ recording_id: 'c', title: kidsRoom, season: 22, episode: 35, aired_at: NOW - 2 * DAY_MS }),
+  ]
+  const shows = showSummariesOf({ rows })
+  const block = shows.find((s) => s.key === 'the-block')
+  assert.equal(block.title, 'The Block')
+  assert.equal(block.counts.total, 2)
+  assert.equal(block.poster, '/api/epg/show-image?title=The%20Block&shape=poster')
+  assert.equal(shows.find((s) => s.key === 'the-block-kids-room-and-re-do-room-week').counts.total, 1)
+  const episodes = libraryEpisodesOf({ rows, state: 'unwatched' })
+  assert.deepEqual(episodes.map((e) => [e.recordingId, e.showKey, e.title]), [
+    ['b', 'the-block', 'The Block'],
+    ['c', 'the-block-kids-room-and-re-do-room-week', kidsRoom],
+    ['a', 'the-block', 'The Block'],
+  ])
+  const detail = await getLibraryShow({
+    key: 'the-block',
+    loadRows: async () => rows,
+    loadSeries: async () => ({ series: [] }),
+    loadRecordingNow: async () => [],
+    loadMoviesRoot: async () => '',
+    loadSeriesTags: async () => [],
+    refreshStates: async (list) => list,
+    loadChoiceStamps: async () => new Map(),
+  })
+  assert.deepEqual(detail.seasons[0].episodes.map((e) => [e.recordingId, e.title]), [['a', 'The Block'], ['b', 'The Block']])
+  assert.equal(groupTitleOf(rows[1]), 'The Block')
+  assert.equal(groupTitleOf(rows[2]), kidsRoom)
+})
+
+test('showMoveFrom: needs recording ids and a trimmed title of up to 200 characters, or null', () => {
+  assert.deepEqual(showMoveFrom({ ids: ['a', 'a', 'b'], title: '  The Block ' }), { ids: ['a', 'b'], title: 'The Block' })
+  assert.deepEqual(showMoveFrom({ ids: ['a'], title: null }), { ids: ['a'], title: null })
+  assert.ok(showMoveFrom({ ids: [], title: 'The Block' }).error)
+  assert.ok(showMoveFrom({ ids: 'a', title: 'The Block' }).error)
+  assert.ok(showMoveFrom({ ids: [7], title: 'The Block' }).error)
+  assert.ok(showMoveFrom({ ids: ['a'], title: '   ' }).error)
+  assert.ok(showMoveFrom({ ids: ['a'] }).error)
+  assert.ok(showMoveFrom({ ids: ['a'], title: 'x'.repeat(201) }).error)
+  assert.equal(showMoveFrom({ ids: ['a'], title: 'x'.repeat(200) }).title.length, 200)
 })

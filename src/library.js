@@ -54,7 +54,7 @@ export const getLibraryShow = async ({
     loadSeriesTags().catch(() => []),
     loadChoiceStamps().catch(() => new Map()),
   ])
-  const groupRows = rows.filter((row) => showKeyOf(row.title) === key)
+  const groupRows = rows.filter((row) => groupKeyOf(row) === key)
   const series = seriesByKey(seriesData.series).get(key) || null
   if (!groupRows.length && !series) return null
   const checkedRows = await refreshStates(groupRows)
@@ -97,7 +97,29 @@ export const setRecordingWatched = async ({ recordingId, watched, nowIso = new D
   return { watched, watched_at: row.watched_at ?? null, playback_position_s: row.playback_position_s ?? null }
 }
 
-export const watchedAtAfterPosition = ({ seconds, nowIso = new Date().toISOString() }) => db.raw(
+export const showMoveFrom = (body = {}) => {
+  const { ids, title } = body
+  if (!Array.isArray(ids) || !ids.length || ids.length > MAX_MOVE_IDS || !ids.every(isRecordingId)) {
+    return { error: `ids must be a list of 1 to ${MAX_MOVE_IDS} recording ids` }
+  }
+  if (title === null) return { ids: unique(ids), title: null }
+  const trimmed = typeof title === 'string' ? title.trim() : ''
+  if (!trimmed || trimmed.length > MAX_SHOW_TITLE_LENGTH) {
+    return { error: `title must be 1 to ${MAX_SHOW_TITLE_LENGTH} characters, or null` }
+  }
+  return { ids: unique(ids), title: trimmed }
+}
+
+export const moveRecordingsToShow = async ({ ids, title }) => db.transaction(async (trx) => {
+  const rows = await trx('recordings').whereIn('recording_id', ids).select('recording_id', 'title', 'show_title_override')
+  if (rows.length !== ids.length) return null
+  for (const row of rows) {
+    await trx('recordings').where({ recording_id: row.recording_id }).update({ show_title_override: overrideFor({ row, title }) })
+  }
+  return { previous: rows.map((row) => ({ id: row.recording_id, title: row.show_title_override ?? null })) }
+})
+
+export const watchedAtAfterPosition =({ seconds, nowIso = new Date().toISOString() }) => db.raw(
   `CASE WHEN duration_s > 0 AND ? >= duration_s - ${RESUME_END_MARGIN_S} THEN ? ELSE watched_at END`,
   [seconds, nowIso],
 )
@@ -129,6 +151,10 @@ export const rulePatchFrom = (body = {}) => {
 
 export const ruleTitleOf = async (key, { loadSeries = getSeries } = {}) =>
   seriesByKey((await loadSeries()).series).get(key)?.title ?? null
+
+export const groupTitleOf = (row) => row.show_title_override ?? row.title
+
+export const groupKeyOf = (row) => showKeyOf(groupTitleOf(row))
 
 export const isLibraryMember = (row) => row.purged_at == null
   && (['done', 'partial'].includes(row.status) || row.deleted_from_tvh_at == null)
@@ -167,7 +193,7 @@ export const seriesByKey = (series = []) => {
 }
 
 export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '', stamps = new Map() }) => {
-  const rowsByKey = groupBy(rows.filter(isLibraryMember), (row) => showKeyOf(row.title))
+  const rowsByKey = groupBy(rows.filter(isLibraryMember), groupKeyOf)
   const rules = seriesByKey(series)
   const activeKeys = activeKeysOf(active)
   const keys = new Set([...rowsByKey.keys(), ...rules.keys()])
@@ -211,7 +237,7 @@ export const episodeOf = ({ row, playable = false }) => {
   const positionS = row.playback_position_s ?? null
   return {
     recordingId: row.recording_id,
-    title: row.title,
+    title: groupTitleOf(row),
     episodeTitle: row.episode_title ?? null,
     season: row.season ?? null,
     episode: row.episode ?? null,
@@ -261,7 +287,7 @@ export const libraryEpisodesOf = ({
 }) => {
   const libraryRows = rows.filter(isLibraryMember)
   const kinds = kindsByKey({ rows: libraryRows, moviesRoot })
-  const isWantedKind = (row) => !kind || (kinds.get(showKeyOf(row.title)) || 'oneoff') === kind
+  const isWantedKind = (row) => !kind || (kinds.get(groupKeyOf(row)) || 'oneoff') === kind
   const members = libraryRows.filter((row) => !isFailed(row) && !isWatched(row) && isWantedKind(row))
   const chosen = {
     'in-progress': () => members
@@ -272,8 +298,8 @@ export const libraryEpisodesOf = ({
   }[state]?.() ?? []
   return chosen.slice(0, limit).map((row) => libraryEpisodeOf({
     row,
-    kind: kinds.get(showKeyOf(row.title)),
-    stamps: stamps.get(showKeyOf(row.title)),
+    kind: kinds.get(groupKeyOf(row)),
+    stamps: stamps.get(groupKeyOf(row)),
   }))
 }
 
@@ -285,7 +311,7 @@ export const episodeLimitFrom = (value) => {
 const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = NO_STAMPS }) => {
   const newestFirst = [...rows].sort(newestAiredFirst)
   const latestRow = newestFirst[0] || null
-  const title = latestRow?.title || series?.title || key
+  const title = (latestRow && groupTitleOf(latestRow)) || series?.title || key
   const watchable = rows.filter((row) => !isFailed(row))
   const latestAiredAt = latestRow ? airedMsOf(latestRow) : null
   const kind = kindOf({ rows, hasRule: Boolean(series), moviesRoot })
@@ -357,10 +383,10 @@ const latestOf = (row) => ({
 
 const libraryEpisodeOf = ({ row, kind, stamps = NO_STAMPS }) => {
   const episode = episodeOf({ row })
-  const chosenImage = chosenBackgroundOf({ title: row.title, stamp: stamps.background })
+  const chosenImage = chosenBackgroundOf({ title: groupTitleOf(row), stamp: stamps.background })
   return {
     recordingId: episode.recordingId,
-    showKey: showKeyOf(row.title),
+    showKey: groupKeyOf(row),
     title: episode.title,
     episodeTitle: episode.episodeTitle,
     season: episode.season,
@@ -381,7 +407,7 @@ const libraryEpisodeOf = ({ row, kind, stamps = NO_STAMPS }) => {
 }
 
 const kindsByKey = ({ rows, moviesRoot }) => new Map(
-  [...groupBy(rows, (row) => showKeyOf(row.title)).entries()]
+  [...groupBy(rows, groupKeyOf).entries()]
     .map(([key, group]) => [key, kindOf({ rows: group, moviesRoot })]),
 )
 
@@ -473,6 +499,10 @@ const groupBy = (items, keyOf) => {
 
 const unique = (items) => [...new Set(items)]
 
+const isRecordingId = (id) => typeof id === 'string' && id.length > 0 && id.length <= MAX_RECORDING_ID_LENGTH
+
+const overrideFor = ({ row, title }) => (title == null || showKeyOf(title) === showKeyOf(row.title) ? null : title)
+
 const loadLibraryRows = () => db('recordings')
   .whereNull('purged_at')
   .where((q) => q.whereIn('status', ['done', 'partial']).orWhereNull('deleted_from_tvh_at'))
@@ -487,3 +517,6 @@ const DEFAULT_EPISODE_LIMIT = 20
 const MAX_EPISODE_LIMIT = 50
 const CARD_IMAGE_WIDTH = 384
 const NO_STAMPS = {}
+const MAX_MOVE_IDS = 500
+const MAX_RECORDING_ID_LENGTH = 200
+const MAX_SHOW_TITLE_LENGTH = 200

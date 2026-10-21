@@ -12,8 +12,10 @@ import {
   getLibraryEpisodes,
   getLibraryShow,
   getLibraryShows,
+  moveRecordingsToShow,
   rulePatchFrom,
   setRecordingWatched,
+  showMoveFrom,
   updateShowRule,
 } from './library.js'
 
@@ -58,6 +60,14 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
     const result = await refreshShowArtwork({ key: req.params.key, forgetLookups })
     if (!result) return res.status(404).json({ error: 'show not found' })
     res.json({ ok: true, ...result })
+  })
+
+  app.post('/api/library/recordings/show', ruleLimiter, csrf, async (req, res) => {
+    const { ids, title, error } = showMoveFrom(req.body || {})
+    if (error) return res.status(400).json({ error })
+    const result = await moveRecordingsToShow({ ids, title })
+    if (!result) return res.status(404).json({ error: 'recording not found' })
+    res.json({ ok: true, title, ...result })
   })
 
   app.get('/api/library/recordings/:recording_id/plex-link', async (req, res) => {

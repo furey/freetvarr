@@ -7,8 +7,10 @@ import {
   latestEarlierEpisodeOf,
   markedText,
   menuPendingLabelOf,
+  movedText,
   showInfoOf,
   showMenuOf,
+  undoMovesOf,
   watchedChangeTargets,
 } from '/library-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
@@ -18,11 +20,14 @@ import { holdAtLeast } from '/pending.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { playRecording } from '/shared/playback-session.js'
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
+import { navigate } from '/shared/router.js'
+import { toast } from '/shared/toast.js'
+import { showHrefOf } from '/show-key.js'
 import { tz } from '/shared/time.js'
 
 export const SELECT_TIP = 'Tip: tap Select on the show page to mark or delete several episodes at once.'
 
-export const useLibraryActions = ({ show, reload, showToast, openOptions, selectTip = SELECT_TIP }) => {
+export const useLibraryActions = ({ show, reload, showToast, openOptions, selectTip = SELECT_TIP, canMove = false }) => {
   const menuEpisode = ref(null)
   const showMenuOpen = ref(false)
   const info = ref(null)
@@ -32,12 +37,13 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   const adRemovalEnabled = ref(false)
   const artworkVersion = ref(0)
   const pictureOpen = ref(false)
+  const moveRequest = ref(null)
 
   const activeIds = computed(() => new Set((recordingNow.value.active || []).map((r) => String(r.dvrUuid))))
   const episodes = computed(() => allEpisodesOf(show.value))
-  const showGroups = computed(() => (show.value ? showMenuOf({ show: show.value, activeIds: activeIds.value }) : []))
+  const showGroups = computed(() => (show.value ? showMenuOf({ show: show.value, activeIds: activeIds.value, canMove }) : []))
   const episodeGroups = computed(() => (menuEpisode.value
-    ? episodeMenuOf({ episode: menuEpisode.value, episodes: episodes.value, activeIds: activeIds.value, adRemovalEnabled: adRemovalEnabled.value })
+    ? episodeMenuOf({ episode: menuEpisode.value, episodes: episodes.value, activeIds: activeIds.value, adRemovalEnabled: adRemovalEnabled.value, canMove })
     : []))
   const showMenuSubtitle = computed(() => {
     const list = episodes.value
@@ -176,6 +182,34 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     await reload()
   }
 
+  const openMove = (list) => {
+    moveRequest.value = {
+      ids: list.map((episode) => episode.recordingId),
+      fromKey: show.value.key,
+      fromTitle: show.value.title,
+      leavesShow: list.length >= episodes.value.length,
+    }
+  }
+
+  const closeMove = () => { moveRequest.value = null }
+
+  const moveToShow = (title) => run('Moving', async () => {
+    const request = moveRequest.value
+    if (!request) return
+    const result = await api('POST', '/api/library/recordings/show', { ids: request.ids, title })
+    moveRequest.value = null
+    toast({ text: movedText(title), action: { label: 'Undo', run: () => undoMove({ request, previous: result.previous }) } })
+    if (request.leavesShow) return navigate(showHrefOf(title))
+    await reload()
+  })
+
+  const undoMove = ({ request, previous }) => run('Undo', async () => {
+    for (const move of undoMovesOf(previous)) await api('POST', '/api/library/recordings/show', move)
+    showToast({ title: `Moved back to ${request.fromTitle}` })
+    if (request.leavesShow) return navigate(showHrefOf(request.fromTitle))
+    await reload()
+  })
+
   const chooseShowAction = (key) => runFromMenu(key, () => startShowAction(key))
 
   const startShowAction = (key) => {
@@ -190,6 +224,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     if (key === 'pause-series') return setSeriesPaused(true)
     if (key === 'resume-series') return setSeriesPaused(false)
     if (key === 'show-info') return openShowInfo(current)
+    if (key === 'move') return openMove(episodes.value)
     if (key === 'plex') return openInPlex(`${keyPath()}/plex-link`)
     if (key === 'change-picture') {
       pictureOpen.value = true
@@ -219,6 +254,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
       info.value = episodeInfoOf({ episode, showTitle: show.value.title, timeZone: tz.value })
       return
     }
+    if (key === 'move') return openMove([episode])
     if (key === 'import') return importEpisode(episode)
     if (key === 'remove-ads') return removeAdsAgain(episode)
     if (key === 'plex') return openInPlex(`/api/library/recordings/${encodeURIComponent(episode.recordingId)}/plex-link`)
@@ -227,7 +263,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   return {
     menuEpisode, showMenuOpen, info, deleteRequest, busy, pendingKey, adRemovalEnabled, artworkVersion, activeIds,
-    pictureOpen, closePicture, onPictureChanged,
+    pictureOpen, closePicture, onPictureChanged, moveRequest, closeMove, moveToShow,
     showGroups, episodeGroups, showMenuSubtitle, episodeTip,
     openShowMenu, openEpisodeMenu, closeMenus, chooseShowAction, chooseEpisodeAction,
     askDelete, cancelDelete, onDeleted, setEpisodesWatched, runPending, play,

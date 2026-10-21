@@ -2006,3 +2006,18 @@ a.show-cast-hit:active .show-cast-face {
 body:has(.picture-body) .ui-toast-region {
   z-index: 1001;
 }
+
+.move-show-field {
+  flex: none;
+}
+
+.move-show-new-mark {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-2);
+}
+
+.move-show-new-mark svg {
+  width: 20px;
+  height: 20px;
+}

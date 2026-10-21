@@ -352,4 +352,6 @@ const MENU_ICONS = {
   series: [circle(12, 12, 9), dot(4.5)],
   show: [{ tag: 'rect', attrs: { x: 3, y: 4, width: 18, height: 13, rx: 2 } }, path('M8 21h8M12 17v4')],
   skip: [circle(12, 12, 9), path('m5.6 5.6 12.8 12.8')],
+  plus: [path('M12 5v14M5 12h14')],
+  move: [path('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'), path('M8.5 13h7M13 10.5l2.5 2.5-2.5 2.5')],
 }

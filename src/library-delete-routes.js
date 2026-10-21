@@ -10,7 +10,7 @@ import {
 } from './sync.js'
 import { listActiveRecordings, removeRecordings, resolveConnection, TvheadendError } from './tvheadend.js'
 import { notifyPlexSectionRefresh } from './plex.js'
-import { showKeyOf } from './web/show-key.js'
+import { groupKeyOf } from './library.js'
 import {
   blockedReasonOf,
   deletionRequestFrom,
@@ -55,7 +55,7 @@ const loadDeletionRows = async ({ recordingIds, showKey, scope }) => {
     .where((q) => q.whereIn('status', ['done', 'partial']).orWhereNull('deleted_from_tvh_at'))
     .modify((q) => { if (scope === 'watched') q.whereNotNull('watched_at') })
     .orderBy([{ column: 'season' }, { column: 'episode' }, { column: 'aired_at' }])
-  return rows.filter((row) => showKeyOf(row.title) === showKey)
+  return rows.filter((row) => groupKeyOf(row) === showKey)
 }
 
 const deletionContext = async () => {

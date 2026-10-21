@@ -23,6 +23,7 @@ import {
 import { useLibraryActions } from '/components/library-actions.js'
 import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuIcon, useLibraryToast } from '/components/library-menus.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
+import { MoveToShowSheet } from '/components/move-to-show-sheet.js'
 import { ArtworkPicker } from '/components/artwork-picker.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { ShowAbout, ShowCast, useProgrammeCredits } from '/components/show-credits.js'
@@ -40,7 +41,7 @@ import { syncStatus } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 
 export const ShowView = {
-  components: { RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast },
+  components: { RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast, MoveToShowSheet },
   template: `
     <div :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
@@ -179,6 +180,8 @@ export const ShowView = {
 
       <library-info-sheet :open="Boolean(info)" :info="info" @close="info = null" />
 
+      <move-to-show-sheet :request="moveRequest" :busy="busy" @close="closeMove" @move="moveToShow" />
+
       <artwork-picker :open="pictureOpen" :show="show" @close="closePicture" @changed="onPictureChanged" />
 
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeletedHere" />
@@ -239,7 +242,7 @@ export const ShowView = {
 
     const flash = ({ msg, kind = 'ok' }) => showToast({ kind: kind === 'err' ? 'error' : 'ok', title: msg })
 
-    const actions = useLibraryActions({ show, reload: load, showToast, openOptions: () => { optionsOpen.value = true } })
+    const actions = useLibraryActions({ show, reload: load, showToast, openOptions: () => { optionsOpen.value = true }, canMove: true })
     const { activeIds, artworkVersion } = actions
 
     const title = computed(() => show.value?.title || titleFromKey(key.value))

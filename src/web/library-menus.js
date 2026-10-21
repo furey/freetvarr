@@ -1,6 +1,7 @@
 import { weekdayClockOf } from './library-shelves.js'
 import { airedRangeText, durationText } from './recording-info.js'
 import { episodeHeading } from './show-page.js'
+import { showKeyOf } from './show-key.js'
 
 export const allEpisodesOf = (show) => (show?.seasons || []).flatMap((season) => season.episodes)
 
@@ -29,7 +30,7 @@ export const clockOf = (seconds) => {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${secs}` : `${minutes}:${secs}`
 }
 
-export const showMenuOf = ({ show, activeIds = new Set() }) => {
+export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => {
   const episodes = allEpisodesOf(show)
   const next = show.resumeNext ? episodes.find((e) => e.recordingId === show.resumeNext.recordingId) : null
   const deletable = deletableEpisodesOf({ episodes, activeIds })
@@ -47,6 +48,7 @@ export const showMenuOf = ({ show, activeIds = new Set() }) => {
         ? { key: 'resume-series', label: 'Resume recording', icon: 'play' }
         : { key: 'pause-series', label: 'Pause recording', icon: 'pause' }),
       { key: 'show-info', label: 'Show info', icon: 'info' },
+      canMove && episodes.length > 0 && { key: 'move', label: 'Move to show…', icon: 'move' },
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
       hasArtwork && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
       hasArtwork && { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
@@ -58,7 +60,7 @@ export const showMenuOf = ({ show, activeIds = new Set() }) => {
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
 }
 
-export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false }) => {
+export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false, canMove = false }) => {
   const recording = isRecordingNow({ episode, activeIds })
   const resumable = episode.playable && !episode.watched && episode.positionS > 0
   const hasUnwatchedEarlier = earlierEpisodesOf({ episodes, episode }).some((other) => !other.watched && !other.failed)
@@ -75,6 +77,7 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
     ],
     [
       { key: 'episode-info', label: 'Episode info', icon: 'info' },
+      canMove && { key: 'move', label: 'Move to show…', icon: 'move' },
       canImport(episode) && { key: 'import', label: importLabelOf(episode), icon: 'refresh' },
       adRemovalEnabled && canRescan(episode) && { key: 'remove-ads', label: 'Remove ads again', icon: 'ads' },
       episode.filePath && { key: 'plex', label: 'Open in Plex', icon: 'external' },
@@ -154,6 +157,47 @@ export const showInfoOf = ({ show, timeZone, nicknames = [] }) => {
   }
 }
 
+export const moveSubtitleOf = ({ title, count }) =>
+  `${shortTitleOf(title)} · ${count === 1 ? '1 episode' : `${count} episodes`}`
+
+export const moveTargetsOf = ({ shows = [], query = '', currentKey = '' }) => {
+  const needle = query.trim().toLowerCase()
+  return shows
+    .filter((show) => show.key !== currentKey && show.title.toLowerCase().includes(needle))
+    .map((show) => ({ key: show.key, title: show.title, poster: show.poster, meta: moveMetaOf(show) }))
+}
+
+export const newShowTitleOf = ({ shows = [], query = '' }) => {
+  const title = query.trim()
+  if (!title || title.length > MAX_SHOW_TITLE_LENGTH) return ''
+  const key = showKeyOf(title)
+  return shows.some((show) => show.key === key) ? '' : title
+}
+
+export const movedText = (title) => `Moved to ${title}`
+
+export const undoMovesOf = (previous = []) => {
+  const byTitle = new Map()
+  for (const { id, title } of previous) {
+    if (!byTitle.has(title)) byTitle.set(title, [])
+    byTitle.get(title).push(id)
+  }
+  return [...byTitle.entries()].map(([title, ids]) => ({ ids, title }))
+}
+
+const moveMetaOf = (show) => {
+  const total = show.counts?.total ?? 0
+  if (!total) return 'No episodes yet'
+  return total === 1 ? '1 episode' : `${total} episodes`
+}
+
+const shortTitleOf = (title) => {
+  if (title.length <= SHORT_TITLE_LENGTH) return title
+  const cut = title.slice(0, SHORT_TITLE_LENGTH)
+  const wordEnd = cut.lastIndexOf(' ')
+  return `${(wordEnd > 0 ? cut.slice(0, wordEnd) : cut).trimEnd()}…`
+}
+
 const watchedTextOf = (episode) => {
   if (episode.watched) return 'Yes'
   if (episode.positionS > 0) return `Up to ${clockOf(episode.positionS)}`
@@ -169,7 +213,10 @@ const importLabelOf = (episode) => {
 
 const canRescan = (episode) => episode.status === 'done' && Boolean(episode.filePath) && !episode.libraryState
 
-const IMPORTABLE_STATES = ['not_imported', 'not_in_library', 'failed', 'skipped']
+const SHORT_TITLE_LENGTH = 24
+const MAX_SHOW_TITLE_LENGTH = 200
+
+const IMPORTABLE_STATES =['not_imported', 'not_in_library', 'failed', 'skipped']
 
 const MENU_PENDING_LABELS = {
   'mark-all-watched': 'Marking as watched…',

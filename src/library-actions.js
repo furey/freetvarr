@@ -2,10 +2,9 @@ import path from 'path'
 
 import { db } from './db.js'
 import { removeArtwork } from './artwork.js'
-import { isLibraryMember, ruleTitleOf, setRecordingWatched } from './library.js'
+import { groupKeyOf, groupTitleOf, isLibraryMember, ruleTitleOf, setRecordingWatched } from './library.js'
 import { forgetShowArtwork } from './epg.js'
 import { getPlexConnection, getPlexMachineIdentifier, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
-import { showKeyOf } from './web/show-key.js'
 
 export const setShowWatched = async ({
   key,
@@ -34,7 +33,7 @@ export const refreshShowArtwork = async ({
 }) => {
   const rows = await loadRows(key)
   const titles = rows.length
-    ? [...new Set(rows.map((row) => row.title).filter(Boolean))]
+    ? [...new Set(rows.map(groupTitleOf).filter(Boolean))]
     : [await Promise.resolve().then(() => loadRuleTitle(key)).catch(() => null)].filter(Boolean)
   if (!titles.length) return null
   await Promise.all(rows.map((row) => removeImage({ kind: 'recording', id: row.recording_id }).catch(() => {})))
@@ -158,7 +157,7 @@ const airedMsOf = (row) => {
 }
 
 const loadShowRows = async (key) => (await db('recordings').whereNull('purged_at'))
-  .filter((row) => isLibraryMember(row) && row.status !== 'failed' && showKeyOf(row.title) === key)
+  .filter((row) => isLibraryMember(row) && row.status !== 'failed' && groupKeyOf(row) === key)
 
 const resetRecordingImages = (recordingIds) => db('recordings')
   .whereIn('recording_id', recordingIds)

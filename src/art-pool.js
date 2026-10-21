@@ -8,13 +8,12 @@ import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from 
 import { db } from './db.js'
 import { findArtSourceThumbnail } from './epg.js'
 import { PROGRAMME_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, thumbnailWidthFrom } from './image-thumbnails.js'
-import { isLibraryMember, ruleTitleOf } from './library.js'
+import { groupKeyOf, isLibraryMember, ruleTitleOf } from './library.js'
 import { matchPlexItem } from './library-actions.js'
 import { getPlexConnection, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
 import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLookupEnabled } from './show-artwork.js'
 import { currentTimeZone } from './time-zone.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
-import { showKeyOf } from './web/show-key.js'
 import { countryForTimeZone } from './zone-countries.js'
 
 export { plexSourceOf }
@@ -325,7 +324,7 @@ const homeCandidates = async () => {
   const rows = [...played.slice(0, WARM_PLAYED), ...aired]
     .filter((row) => isLibraryMember(row) && row.status !== 'failed')
   return {
-    showKeys: [...new Set(rows.map((row) => showKeyOf(row.title)).filter(Boolean))].slice(0, WARM_SHOWS),
+    showKeys: [...new Set(rows.map(groupKeyOf).filter(Boolean))].slice(0, WARM_SHOWS),
     recordingIds: [...new Set(rows.map((row) => row.recording_id))].slice(0, WARM_RECORDINGS),
   }
 }
@@ -438,7 +437,7 @@ const plexArtsFor = async ({ url, token, ratingKey }) => {
 }
 
 const libraryShowRows = async (key) => (await db('recordings').whereNull('purged_at'))
-  .filter((row) => isLibraryMember(row) && row.status !== 'failed' && showKeyOf(row.title) === key)
+  .filter((row) => isLibraryMember(row) && row.status !== 'failed' && groupKeyOf(row) === key)
 
 const recordingRow = (recordingId) => db('recordings').where({ recording_id: recordingId }).first()
 
