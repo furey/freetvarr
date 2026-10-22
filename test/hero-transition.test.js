@@ -38,7 +38,7 @@ test('the incoming slide fades in as one piece, with no separate text or button 
 })
 
 test('the drift zoom stays subtle', () => {
-  assert.ok(DRIFT.scale > 1 && DRIFT.scale <= 1.04)
+  assert.ok(DRIFT.scale > 1.04 && DRIFT.scale <= 1.08)
 })
 
 test('imageNudgeOf: the nudge comes from the travel side and never passes its overscan', () => {

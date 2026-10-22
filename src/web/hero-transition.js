@@ -12,7 +12,7 @@ export const REDUCED_MOTION = {
   drift: false,
 }
 
-export const DRIFT = { scale: 1.03 }
+export const DRIFT = { scale: 1.06 }
 export const DECODE_WAIT_MS = 400
 
 export const heroMotionOf = ({ reducedMotion }) => (reducedMotion ? REDUCED_MOTION : HERO_MOTION)
