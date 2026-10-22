@@ -140,19 +140,16 @@
   min-height: 0;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 280ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 280ms;
+}
+
+.hero-slide.is-active,
+.hero-slide.is-leaving {
+  opacity: 1;
+  visibility: visible;
 }
 
 .hero-slide.is-active {
   z-index: 1;
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 280ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
-}
-
-.hero-carousel.is-instant .hero-slide,
-.hero-carousel.is-reduced .hero-slide {
-  transition: none;
 }
 
 .hero-slide-backdrop {
@@ -363,8 +360,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-slide,
-  .hero-slide.is-active,
   .hero-carousel-dot,
   .hero-carousel-dot i {
     transition: none;

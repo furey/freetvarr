@@ -3,6 +3,7 @@ import { artFallbackStyle } from '/art-fallback.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { live, playback } from '/shared/player-shared.js'
 import {
+  SLIDE_MS,
   rotationStart,
   nextRotation,
   isAdvancing,
@@ -12,6 +13,15 @@ import {
   wrapIndex,
 } from '/hero-rotation.js'
 import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
+import { focusKeyOf } from '/image-focus.js'
+import {
+  heroMotionOf,
+  directionOf,
+  changeKindOf,
+  playSlideChange,
+  startDrift,
+  predecode,
+} from '/hero-transition.js'
 
 const SWIPE_GAP_PX = 12
 const SWIPE_COMMIT_FRACTION = 0.2
@@ -19,6 +29,25 @@ const SWIPE_INTENT_PX = 8
 const SETTLE_MS = 280
 const DOT_KEY_STEPS = { ArrowRight: 1, ArrowLeft: -1 }
 const PAUSE_ZONE_SELECTOR = '.hero-slide-actions, .hero-carousel-controls'
+const knownFocus = new Map()
+
+const fetchFocus = async (key) => {
+  const res = await fetch(`/api/image-focus?k=${encodeURIComponent(key)}`).catch(() => null)
+  const body = res?.ok ? await res.json().catch(() => null) : null
+  return body?.items?.[key] ?? null
+}
+
+const focusOfImage = (image, { fresh = false } = {}) => {
+  const key = focusKeyOf(image.currentSrc || image.src, location.origin)
+  if (!key) return Promise.resolve(null)
+  if (fresh || !knownFocus.has(key)) knownFocus.set(key, fetchFocus(key).then((focus) => forgetMissing({ key, focus })))
+  return knownFocus.get(key)
+}
+
+const forgetMissing = ({ key, focus }) => {
+  if (!focus) knownFocus.delete(key)
+  return focus
+}
 
 export const HomeHeroCarousel = {
   props: {
@@ -27,18 +56,18 @@ export const HomeHeroCarousel = {
   emits: ['action', 'menu'],
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
-      :class="{ 'is-reduced': rotation.reducedMotion, 'is-instant': instant}"
+      :class="{ 'is-reduced': rotation.reducedMotion }"
       @pointerover="onPointerOver" @pointerleave="onPointerLeave" @focusin="onFocusIn">
       <div class="hero-carousel-viewport">
         <div ref="stage" class="hero-carousel-stage" :aria-live="advancing ? 'off' : 'polite'"
           @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp">
           <article v-for="(slide, i) in orderedSlides" :key="slide.key" :id="slideId(i)" role="group" aria-roledescription="slide"
             :aria-label="(i + 1) + ' of ' + orderedSlides.length" :aria-hidden="i === rotation.index ? null : 'true'"
-            :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index }]"
-            :style="slideStyle(i)">
+            :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index, 'is-leaving': slide.key === leavingKey }]"
+            :style="slideStyle(i)" :ref="(el) => setSlideRef(el, slide.key)">
             <div class="hero-slide-backdrop ui-art-fallback" :style="fallbackStyleOf(slide)">
               <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="stampedShowImage(slide.art.image)" alt="" decoding="async"
-                :fetchpriority="i === 0 ? 'high' : null" :loading="i === rotation.index ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
+                :fetchpriority="i === 0 ? 'high' : null" :loading="isNearActive(i) ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
             <div class="ui-hero-body hero-slide-body">
@@ -101,7 +130,6 @@ export const HomeHeroCarousel = {
     const stage = ref(null)
     const failedArt = ref({})
     const drag = ref(null)
-    const instant = ref(false)
     const carouselId = `hero-${Math.random().toString(36).slice(2, 8)}`
     const dotEls = []
     let fillEl = null
@@ -109,10 +137,20 @@ export const HomeHeroCarousel = {
     let lastFrameAt = 0
     let pointerStart = null
     let pendingKeys = null
+    let pendingChange = null
+    let swipeCommitted = false
+    let running = null
+    const slideEls = new Map()
+    const drifts = new Map()
+    const leavingKey = ref(null)
+    const motionNow = () => heroMotionOf({ reducedMotion: state.reducedMotion })
 
     const dispatch = (event) => {
       const next = withPendingOrder(nextRotation(state, event))
       if (next === state) return
+      if (next.index !== state.index) {
+        pendingChange = { direction: directionOfEvent(event, state), kind: changeKindOf(event.type), animated: !swipeCommitted }
+      }
       const onlyFillMoved = Object.keys(next).every((key) => key === 'elapsedMs' || next[key] === state[key])
       state = next
       if (!onlyFillMoved) rotation.value = next
@@ -126,7 +164,102 @@ export const HomeHeroCarousel = {
       return { ...next, index: adopted.index }
     }
 
+    const directionOfEvent = (event, before) => {
+      if (event.type === 'step') return Math.sign(event.delta) || 1
+      if (event.type === 'goTo') return directionOf({ from: before.index, to: event.index })
+      return 1
+    }
+
     const advancing = computed(() => isAdvancing(rotation.value, clockMs.value))
+    const activeKey = computed(() => orderedSlides.value[rotation.value.index]?.key)
+
+    const isNearActive = (i) => {
+      const count = orderedSlides.value.length
+      return i === rotation.value.index || i === wrapIndex({ index: rotation.value.index + 1, count })
+    }
+
+    const setSlideRef = (el, key) => {
+      if (el) slideEls.set(key, el)
+      else slideEls.delete(key)
+    }
+
+    const predecodeNext = () => {
+      const count = orderedSlides.value.length
+      const nextKey = orderedSlides.value[wrapIndex({ index: rotation.value.index + 1, count })]?.key
+      predecode(slideEls.get(nextKey))
+    }
+
+    const cancelDriftsExcept = (keep) => {
+      for (const [key, animation] of drifts) {
+        if (keep.includes(key)) continue
+        animation.cancel()
+        drifts.delete(key)
+      }
+    }
+
+    const syncDrifts = () => {
+      for (const [key, animation] of drifts) {
+        if (advancing.value && key === activeKey.value) animation.play()
+        else animation.pause()
+      }
+    }
+
+    const freezeDrift = (key) => drifts.get(key)?.pause()
+
+    const beginDrift = async (key) => {
+      const motion = motionNow()
+      if (!motion.drift || !slideEls.get(key)) return
+      const direction = rotation.value.index % 2 ? 1 : -1
+      const animation = await startDrift({ slide: slideEls.get(key), durationMs: SLIDE_MS + motion.imageMs + 1_000, direction, focusOf: focusOfImage })
+      if (!animation) return
+      if (activeKey.value !== key) {
+        animation.cancel()
+        return
+      }
+      drifts.get(key)?.cancel()
+      drifts.set(key, animation)
+      syncDrifts()
+    }
+
+    const settleRunningChange = () => {
+      if (!running) return
+      running.cancel()
+      running = null
+      leavingKey.value = null
+      cancelDriftsExcept([activeKey.value])
+      if (!drifts.has(activeKey.value)) beginDrift(activeKey.value)
+    }
+
+    const driftAfterFade = async ({ key, handle }) => {
+      if (await handle.faded && activeKey.value === key) beginDrift(key)
+    }
+
+    const changeSlide = ({ key, previousKey, change }) => {
+      running?.cancel()
+      running = null
+      const incoming = slideEls.get(key)
+      const outgoing = slideEls.get(previousKey)
+      cancelDriftsExcept([previousKey])
+      freezeDrift(previousKey)
+      predecodeNext()
+      if (!change?.animated || !incoming || !outgoing || key === previousKey) {
+        leavingKey.value = null
+        cancelDriftsExcept([key])
+        beginDrift(key)
+        return
+      }
+      leavingKey.value = previousKey
+      const handle = playSlideChange({ incoming, outgoing, direction: change.direction, kind: change.kind, motion: motionNow() })
+      running = handle
+      if (change.kind === 'automatic') driftAfterFade({ key, handle })
+      else beginDrift(key)
+      handle.finished.then(() => {
+        if (running !== handle) return
+        running = null
+        leavingKey.value = null
+        cancelDriftsExcept([activeKey.value])
+      })
+    }
     const pauseShown = computed(() => showsPauseButton(rotation.value))
     const pauseButton = computed(() => pauseButtonOf(rotation.value, clockMs.value))
 
@@ -174,13 +307,25 @@ export const HomeHeroCarousel = {
       reducedQuery.addEventListener('change', onReducedChange)
       dispatch({ type: 'hidden', hidden: document.hidden })
       syncClock()
+      beginDrift(activeKey.value)
+      predecodeNext()
     })
 
     onUnmounted(() => {
       document.removeEventListener('visibilitychange', onVisibility)
       reducedQuery.removeEventListener('change', onReducedChange)
       stopClock()
+      running?.cancel()
+      cancelDriftsExcept([])
     })
+
+    watch(activeKey, (key, previousKey) => {
+      const change = pendingChange
+      pendingChange = null
+      changeSlide({ key, previousKey, change })
+    }, { flush: 'post' })
+
+    watch(advancing, syncDrifts)
 
     watch(playerOpen, (open) => {
       dispatch({ type: 'playerOpen', open })
@@ -239,6 +384,7 @@ export const HomeHeroCarousel = {
       if (e.pointerType !== 'touch') return
       dispatch({ type: 'touchStart' })
       if (orderedSlides.value.length < 2 || drag.value?.settling) return
+      settleRunningChange()
       pointerStart = { x: e.clientX, y: e.clientY, id: e.pointerId, at: Date.now(), swiping: false, moved: false }
     }
 
@@ -272,10 +418,10 @@ export const HomeHeroCarousel = {
       drag.value = { dx: restingDx, settling: true, direction: dx < 0 ? -1 : 1 }
       const settleMs = rotation.value.reducedMotion ? 0 : SETTLE_MS
       setTimeout(() => {
-        instant.value = true
+        swipeCommitted = true
         if (commits) dispatch({ type: 'step', delta: direction })
+        swipeCommitted = false
         drag.value = null
-        requestAnimationFrame(() => requestAnimationFrame(() => { instant.value = false }))
       }, settleMs)
     }
 
@@ -302,7 +448,7 @@ export const HomeHeroCarousel = {
 
     return {
       stampedShowImage,
-      rotation, stage, failedArt, orderedSlides, instant, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
+      rotation, stage, failedArt, leavingKey, isNearActive, setSlideRef, orderedSlides, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerOver, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
     }
