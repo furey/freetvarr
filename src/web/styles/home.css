@@ -170,6 +170,35 @@
   pointer-events: none;
 }
 
+@media (min-width: 768px) and (min-height: 501px) {
+  .hero-carousel .ui-hero-scrim {
+    background:
+      linear-gradient(90deg, rgba(11, 17, 23, 0.5) 0%, rgba(11, 17, 23, 0.49) 4.7%, rgba(11, 17, 23, 0.463) 9.3%, rgba(11, 17, 23, 0.422) 14%, rgba(11, 17, 23, 0.37) 18.7%, rgba(11, 17, 23, 0.312) 23.3%, rgba(11, 17, 23, 0.25) 28%, rgba(11, 17, 23, 0.188) 32.7%, rgba(11, 17, 23, 0.13) 37.3%, rgba(11, 17, 23, 0.078) 42%, rgba(11, 17, 23, 0.037) 46.7%, rgba(11, 17, 23, 0.01) 51.3%, rgba(11, 17, 23, 0) 56%),
+      radial-gradient(130% 170% at 100% 0%, rgba(11, 17, 23, 0) 32%, rgba(11, 17, 23, 0.014) 37.7%, rgba(11, 17, 23, 0.052) 43.3%, rgba(11, 17, 23, 0.109) 49%, rgba(11, 17, 23, 0.181) 54.7%, rgba(11, 17, 23, 0.263) 60.3%, rgba(11, 17, 23, 0.35) 66%, rgba(11, 17, 23, 0.437) 71.7%, rgba(11, 17, 23, 0.519) 77.3%, rgba(11, 17, 23, 0.591) 83%, rgba(11, 17, 23, 0.648) 88.7%, rgba(11, 17, 23, 0.686) 94.3%, rgba(11, 17, 23, 0.7) 100%),
+      linear-gradient(0deg, rgba(11, 17, 23, 0.35) 0%, rgba(11, 17, 23, 0.343) 3.3%, rgba(11, 17, 23, 0.324) 6.7%, rgba(11, 17, 23, 0.295) 10%, rgba(11, 17, 23, 0.259) 13.3%, rgba(11, 17, 23, 0.218) 16.7%, rgba(11, 17, 23, 0.175) 20%, rgba(11, 17, 23, 0.132) 23.3%, rgba(11, 17, 23, 0.091) 26.7%, rgba(11, 17, 23, 0.055) 30%, rgba(11, 17, 23, 0.026) 33.3%, rgba(11, 17, 23, 0.007) 36.7%, rgba(11, 17, 23, 0) 40%);
+  }
+
+  .hero-slide-body::before {
+    content: none;
+  }
+}
+
+@media (max-width: 767px) and (min-height: 501px) {
+  .hero-carousel .ui-hero-scrim {
+    background: linear-gradient(0deg, rgba(11, 17, 23, 0.68) 0%, rgba(11, 17, 23, 0.68) 41%, rgba(11, 17, 23, 0.67) 42.5%, rgba(11, 17, 23, 0.642) 44%, rgba(11, 17, 23, 0.6) 45.5%, rgba(11, 17, 23, 0.545) 47%, rgba(11, 17, 23, 0.482) 48.5%, rgba(11, 17, 23, 0.412) 50%, rgba(11, 17, 23, 0.34) 51.5%, rgba(11, 17, 23, 0.268) 53%, rgba(11, 17, 23, 0.198) 54.5%, rgba(11, 17, 23, 0.135) 56%, rgba(11, 17, 23, 0.08) 57.5%, rgba(11, 17, 23, 0.038) 59%, rgba(11, 17, 23, 0.01) 60.5%, rgba(11, 17, 23, 0) 62%);
+  }
+
+  .hero-slide-body::before {
+    content: none;
+  }
+
+  .hero-carousel .hero-slide-eyebrow,
+  .hero-carousel .hero-slide-title,
+  .hero-carousel .hero-slide-body .ui-hero-meta {
+    text-shadow: 0 1px 3px rgba(11, 17, 23, 0.5), 0 0 10px rgba(11, 17, 23, 0.45);
+  }
+}
+
 .hero-slide-eyebrow,
 .hero-slide-body .ui-hero-meta {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
