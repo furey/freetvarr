@@ -106,4 +106,6 @@ The first time it uses Standard or Plus, Freetvarr downloads the language model 
 
 ## Viewing history
 
-Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → **Suggestions** control it.
+Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → **For you** control it.
+
+Your viewing history never leaves that computer: the genre lookups send TVmaze and Wikidata show titles only, and Freetvarr has no tracking or analytics.

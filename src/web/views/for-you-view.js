@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { ForYouIcon, ForYouOverlays, ForYouRows } from '/components/for-you-parts.js'
+import { ForYouPrivacyInfo } from '/components/for-you-privacy.js'
 import {
   FOR_YOU_URL,
   SUGGESTIONS_HREF,
@@ -24,11 +25,14 @@ import { FOR_YOU_CACHE, withoutEndedForYouOf } from '/view-cache.js'
 const SKIP_KEY = 'freetvarr.forYouChooserSkippedAt'
 
 export const ForYouView = {
-  components: { ForYouIcon, ForYouOverlays, ForYouRows },
+  components: { ForYouIcon, ForYouOverlays, ForYouPrivacyInfo, ForYouRows },
   template: `
     <div v-page-reveal class="ui-page for-you-page">
       <a href="#/home" class="for-you-back"><back-glyph /> Home</a>
       <page-header title="For you" :subtitle="intro" subtitle-short="Picked from this week's guide." :widgets="false" class="for-you-header">
+        <template #title-info>
+          <for-you-privacy-info :genre-lookup="genreLookup" />
+        </template>
         <template #actions>
           <recording-chip />
           <clock-label />
@@ -140,6 +144,7 @@ export const ForYouView = {
     const savingPicks = ref(false)
     const skippedAt = ref(readSkippedAt())
     const failedArt = ref({})
+    const genreLookup = ref(true)
     let shownSent = false
 
     const scheduledKeys = computed(() => scheduledKeysOf(upcoming.value))
@@ -172,6 +177,7 @@ export const ForYouView = {
           pickable: data?.coldStart ? pickableOf(await api('GET', '/api/for-you/pickable').catch(() => [])) : pickable.value,
         }
         payload.value = fresh.payload
+        genreLookup.value = settings.genreLookup !== false
         upcoming.value = fresh.upcoming
         pickable.value = fresh.pickable
         missing.value = false
@@ -230,6 +236,7 @@ export const ForYouView = {
     return {
       payload, loaded, unavailable, sections, intro, chooserShown, pickable, picked, doneLabel, savingPicks, failedArt,
       ctl, togglePick, skipChooser, savePicks, fallbackStyleOf, markFailed, suggestionsHref: SUGGESTIONS_HREF,
+      genreLookup,
     }
   },
 }

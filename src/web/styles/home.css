@@ -700,6 +700,19 @@
   height: 20px;
 }
 
+.for-you-header .ui-page-title {
+  display: inline;
+}
+
+.for-you-header .ui-page-title::after {
+  content: '\2060';
+}
+
+.for-you-header .info-btn {
+  position: relative;
+  top: -3px;
+}
+
 .for-you-skeleton .ui-scroller {
   overflow: hidden;
 }

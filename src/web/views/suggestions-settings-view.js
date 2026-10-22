@@ -9,6 +9,7 @@ import {
   tierSummaryOf,
 } from '/for-you.js'
 import { api } from '/shared/api.js'
+import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { forYouHidden, forYouShown, unhideShow } from '/shared/for-you-session.js'
 
@@ -105,7 +106,7 @@ export const SuggestionsSettingsView = {
             <button type="button" class="ui-button ui-button-destructive suggestions-clear" :disabled="!loaded" @click="askClear">Clear</button>
           </div>
         </div>
-        <p class="suggestions-footnote">Your viewing history stays on this box. It is never sent anywhere.</p>
+        <p class="suggestions-footnote">Your viewing history stays on this box. It is never sent anywhere. {{ lookupText }} No tracking, no analytics, and Freetvarr is <a :href="repoHref" target="_blank" rel="noopener noreferrer">open source</a>.</p>
       </div>
 
       <ui-sheet :open="hiddenOpen" title="Hidden shows" subtitle="For you leaves these out. Show one again to get suggestions for it." @close="hiddenOpen = false">
@@ -142,6 +143,7 @@ export const SuggestionsSettingsView = {
     const otherLanguageFilms = computed(() => settings.value.otherLanguageFilms || 'few')
     const clearCopy = computed(() => historyClearCopyOf(eventCount.value))
     const dataCredits = computed(() => dataCreditsOf(settings.value.attribution))
+    const lookupText = computed(() => privacyLookupTextOf({ genreLookup: settings.value.genreLookup !== false }))
 
     const loadHidden = async () => {
       hidden.value = hiddenShowsOf(await api('GET', '/api/for-you/hidden').catch(() => []))
@@ -228,7 +230,7 @@ export const SuggestionsSettingsView = {
     onMounted(load)
 
     return {
-      settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits,
+      settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits, lookupText, repoHref: REPO_HREF,
       otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
     }
   },

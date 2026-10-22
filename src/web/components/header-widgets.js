@@ -94,7 +94,7 @@ export const PageHeader = {
     <header class="ui-page-header">
       <div class="ui-page-heading">
         <span v-if="brand" class="app-brand-mark is-small ui-only-phone" role="img" aria-label="Freetvarr"><span></span><span></span><span></span></span>
-        <h1 class="ui-page-title">{{ title }}</h1>
+        <h1 class="ui-page-title">{{ title }}</h1><slot name="title-info" />
         <p v-if="subtitle" class="ui-page-subtitle" :class="{ 'ui-only-wide': subtitleShort === '' }">
           <template v-if="subtitleShort"><span class="ui-only-wide ui-page-subtitle-full">{{ subtitle }}</span><span class="ui-only-phone ui-page-subtitle-short">{{ subtitleShort }}</span></template>
           <template v-else>{{ subtitle }}</template>

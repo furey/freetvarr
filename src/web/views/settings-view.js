@@ -36,7 +36,7 @@ const SETTINGS_SECTIONS = [
 ]
 const SETTINGS_SECTION_GAP_PX = 24
 const LICENCES = [
-  { name: 'Freetvarr', note: 'By James Furey.', licence: 'GPL-3.0-or-later', href: 'https://github.com/furey/freetvarr/blob/main/LICENSE' },
+  { name: 'Freetvarr', byline: [{ label: '@furey', href: 'https://github.com/furey' }, { label: 'about.me/jamesfurey', href: 'https://about.me/jamesfurey' }], licence: 'GPL-3.0-or-later', href: 'https://github.com/furey/freetvarr/blob/main/LICENSE' },
   { name: 'Figtree', note: 'Interface typeface, by Erik Kennedy.', licence: 'SIL OFL 1.1', href: '/fonts/figtree-OFL.txt' },
   { name: 'Geist Mono', note: 'Typeface for paths and code.', licence: 'SIL OFL 1.1', href: '/fonts/geist-mono-OFL.txt' },
   { name: 'Vue', note: 'Interface framework.', licence: 'MIT', href: 'https://github.com/vuejs/core/blob/main/LICENSE' },
@@ -607,7 +607,8 @@ export const SettingsView = {
             <div v-for="item in licences" :key="item.name" class="settings-row settings-row-inline">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">{{ item.name }}</span>
-                <span class="settings-row-meta">{{ item.note }}</span>
+                <span v-if="item.byline" class="settings-row-meta">By <template v-for="(link, i) in item.byline" :key="link.href">{{ i ? ' • ' : '' }}<a :href="link.href" target="_blank" rel="noopener noreferrer">{{ link.label }}</a></template></span>
+                <span v-else class="settings-row-meta">{{ item.note }}</span>
               </span>
               <a :href="item.href" target="_blank" rel="noopener noreferrer" class="settings-licence-link">{{ item.licence }}</a>
             </div>
