@@ -449,6 +449,7 @@ const MENU_ICONS = {
   options: [circle(12, 12, 3), path('M12 2v3M12 19v3M2 12h3M19 12h3')],
   pause: [rect(6, 5, 4, 14), rect(14, 5, 4, 14)],
   info: [circle(12, 12, 9), path('M12 11v6M12 7.5v.5')],
+  tag: [path('M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z'), { tag: 'circle', attrs: { cx: 7.5, cy: 7.5, r: 0.5, fill: 'currentColor' } }],
   external: [path('M14 4h6v6M20 4l-9 9M18 14v6H4V6h6')],
   picture: [{ tag: 'rect', attrs: { x: 3, y: 3, width: 18, height: 18, rx: 2 } }, circle(9, 9, 2), path('m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21')],
   refresh: [path('M21 12a9 9 0 1 1-3-6.7L21 8'), path('M21 3v5h-5')],

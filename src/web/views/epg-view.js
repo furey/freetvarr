@@ -59,6 +59,7 @@ import {
   watchedKeys,
 } from '/shared/programme-sheet-store.js'
 import { recordingChangeTick } from '/shared/recording-now.js'
+import { reloadOnProgrammeKindChange } from '/shared/programme-kind-session.js'
 import { storedFlag, storedChoice } from '/shared/storage.js'
 import { guideJump } from '/shared/store.js'
 import { tz, dateFormat, now, fmtClockTz } from '/shared/time.js'
@@ -964,6 +965,8 @@ export const EpgView = {
       guideByDay.clear()
       await loadDay(day.value, { force: true })
     }
+
+    reloadOnProgrammeKindChange(reloadGuide)
 
     const currentPins = () => (guide.value?.channels || [])
       .filter((c) => c.pinned)

@@ -18,6 +18,7 @@ import {
   isScheduled,
   liveProgressOf,
   menuOf,
+  programOf,
   movieKindToastOf,
   msOf,
   pageIntroOf,
@@ -358,4 +359,9 @@ test('movieKindToastOf: says whether the show is now listed as a movie', () => {
 test('undoneMovieKindToastOf: says where the show stands after Undo', () => {
   assert.equal(undoneMovieKindToastOf({ title: 'Heron', kind: 'not-movie' }), 'Heron is listed as a movie again')
   assert.equal(undoneMovieKindToastOf({ title: 'Heron', kind: 'movie' }), 'Heron is no longer listed as a movie')
+})
+
+test('programOf: carries the movie choice so the programme sheet can offer it', () => {
+  assert.equal(programOf({ title: 'King Kong', movieChoice: 'not-movie' }).movieChoice, 'not-movie')
+  assert.equal(programOf({ title: 'Heron' }).movieChoice, null)
 })

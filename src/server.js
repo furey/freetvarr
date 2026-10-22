@@ -182,7 +182,7 @@ import { getLibraryEpisodes, getLibraryShows, watchedAtAfterPosition } from './l
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
-import { forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, warmForYou as rebuildForYou } from './for-you-service.js'
+import { forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou } from './for-you-service.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
@@ -1290,7 +1290,7 @@ const refreshAfterKindChange = () => {
   forgetForYouCache()
   rebuildForYou().catch(() => {})
 }
-mountProgrammeKindRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange: refreshAfterKindChange })
+mountProgrammeKindRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange: refreshAfterKindChange, titlesFor: titlesForKeys })
 mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
 const warmedForYou = new WeakSet()
 const warmForYou = (result) => {

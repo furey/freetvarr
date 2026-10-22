@@ -18,7 +18,9 @@ import { guideChannelOf, listedProgrammeOf, seriesLinkOfProgramme, twinCoverText
 import { holdAtLeast } from '/pending.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopConfirmOf, stopRecordingOutcome } from '/stop-recording.js'
-import { ActionConfirm } from '/components/library-menus.js'
+import { ActionConfirm, MenuIcon } from '/components/library-menus.js'
+import { movieChoiceLabelOf } from '/movie-choice.js'
+import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
@@ -55,7 +57,7 @@ import { showInGuide } from '/shared/store.js'
 import { dateFormat, fmtClockTz, now, tz } from '/shared/time.js'
 
 export const ProgrammeSheetHost = {
-  components: { ActionConfirm },
+  components: { ActionConfirm, MenuIcon },
   template: `
     <teleport to="body">
     <transition name="ui-sheet">
@@ -142,6 +144,7 @@ export const ProgrammeSheetHost = {
               </button>
             </div>
             <button v-if="canShowInGuide" type="button" class="programme-sheet-guide-link" @click="showSelectedInGuide">Show in TV guide <chevron-right-icon /></button>
+            <button v-if="movieChoiceLabel" type="button" class="programme-sheet-guide-link" @click="changeSelectedKind"><menu-icon name="tag" /> {{ movieChoiceLabel }}</button>
           </div>
         </template>
         </div>
@@ -474,6 +477,14 @@ export const ProgrammeSheetHost = {
       watchLive({ channel: liveChannel, nowTitle: program.title })
     }
 
+    const movieChoiceLabel = computed(() => movieChoiceLabelOf(selected.value?.program?.movieChoice))
+
+    const changeSelectedKind = () => {
+      const { program } = selected.value
+      closeModal()
+      changeProgrammeKind({ showKey: showKeyOf(program.title), title: program.title, kind: program.movieChoice })
+    }
+
     const showSelectedInGuide = () => {
       const { program } = selected.value
       const channelId = selectedChannelId.value
@@ -779,7 +790,7 @@ export const ProgrammeSheetHost = {
     return {
       pendingActionLabelOf, ANY_CHANNEL_HINT,
       selected, selectedChannelId, sheetEl, closeModal, modalBusy, modalAction,
-      canWatchLive, watchSelected, canShowInGuide, showSelectedInGuide,
+      canWatchLive, watchSelected, canShowInGuide, showSelectedInGuide, movieChoiceLabel, changeSelectedKind,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,

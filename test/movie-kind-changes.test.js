@@ -85,3 +85,9 @@ test('change: other shows stay pending while one is undone or confirmed', async 
   await timers.fireAll()
   assert.deepEqual(changes.pendingKeys(), new Set())
 })
+
+test('change: passes the title to the save when there is one', async () => {
+  const { changes, calls, reload } = changesWith()
+  await changes.change({ showKey: 'king-kong', kind: 'not-movie', title: 'King Kong', reload })
+  assert.deepEqual(calls[0], ['save', { showKey: 'king-kong', kind: 'not-movie', title: 'King Kong' }])
+})

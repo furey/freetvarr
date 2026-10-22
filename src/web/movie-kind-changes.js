@@ -27,13 +27,13 @@ export const createMovieKindChanges = ({
     drop(showKey, entry)
   }
 
-  const change = async ({ showKey, kind, reload = () => {} }) => {
+  const change = async ({ showKey, kind, title = null, reload = () => {} }) => {
     drop(showKey)
     const entry = { kind, timer: null }
     pending.set(showKey, entry)
     publish()
     try {
-      await save({ showKey, kind })
+      await save({ showKey, kind, ...(title && { title }) })
     } catch (err) {
       drop(showKey, entry)
       throw err

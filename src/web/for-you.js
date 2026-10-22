@@ -3,6 +3,7 @@ import { localDayNumber } from './guide-time.js'
 import { showKeyOf } from './show-key.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { recordWordingOf } from './record-wording.js'
+import { movieKindRowOf } from './movie-choice.js'
 
 export const FOR_YOU_URL = '/api/for-you'
 
@@ -172,7 +173,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   ].filter(Boolean)
   const more = [
     { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
-    MOVIE_CHOICE_LABELS[item.movieChoice] && { key: 'movie-kind', label: MOVIE_CHOICE_LABELS[item.movieChoice], icon: 'tag' },
+    movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
   ].filter(Boolean)
   return { actions, more }
@@ -190,6 +191,7 @@ export const programOf = (item) => ({
   end: msOf(item.stop),
   channelId: item.channelId,
   series_link: item.seriesLink ?? null,
+  movieChoice: item.movieChoice ?? null,
   has_image: String(item.image || '').startsWith('/api/epg/image/'),
 })
 
@@ -443,11 +445,6 @@ const rowsOf = (items) => [
 const joinMeta = (parts) => parts.filter(Boolean).join(' · ')
 
 const joinParts = (parts) => parts.filter(Boolean).join(', ')
-
-const MOVIE_CHOICE_LABELS = {
-  'not-movie': 'Not a movie',
-  movie: 'This is a movie',
-}
 
 const KIND_BADGES = {
   'new-season': 'New season',

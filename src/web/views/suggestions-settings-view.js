@@ -12,6 +12,8 @@ import { api } from '/shared/api.js'
 import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { forYouHidden, forYouShown, keepForYouAnimate, unhideShow } from '/shared/for-you-session.js'
+import { clearProgrammeKind, listProgrammeKinds } from '/shared/programme-kind-session.js'
+import { correctionRowsOf } from '/movie-choice.js'
 
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
@@ -69,6 +71,14 @@ export const SuggestionsSettingsView = {
               <span class="settings-row-meta">Shows you marked Not interested</span>
             </span>
             <span class="suggestions-count ui-tabular"><span v-if="!hiddenLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ hidden.length }}</template></span>
+            <chevron-glyph class="suggestions-chevron" />
+          </button>
+          <button type="button" class="ui-group-row suggestions-row-button" @click="correctionsOpen = true">
+            <span class="settings-toggle-text">
+              <span class="settings-row-title">Movie corrections</span>
+              <span class="settings-row-meta">Shows you marked Not a movie or This is a movie</span>
+            </span>
+            <span class="suggestions-count ui-tabular"><span v-if="!correctionsLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ corrections.length }}</template></span>
             <chevron-glyph class="suggestions-chevron" />
           </button>
         </div>
@@ -129,6 +139,20 @@ export const SuggestionsSettingsView = {
         <p v-else class="settings-row-meta">No hidden shows. Choose Not interested on a For you card to hide a show.</p>
       </ui-sheet>
 
+      <ui-sheet :open="correctionsOpen" title="Movie corrections" subtitle="Freetvarr lists these shows your way. Undo a correction to go back to how the TV guide lists it." @close="correctionsOpen = false">
+        <div v-if="corrections.length" class="ui-group">
+          <div v-for="correction in corrections" :key="correction.showKey" class="ui-group-row suggestions-hidden-row">
+            <span class="settings-toggle-text">
+              <span class="settings-row-title suggestions-hidden-title">{{ correction.title }}</span>
+              <span class="settings-row-meta">{{ correction.choice }}</span>
+            </span>
+            <button type="button" class="ui-button ui-button-secondary is-small" :disabled="undoing === correction.showKey"
+              @click="undoCorrection(correction)">Undo</button>
+          </div>
+        </div>
+        <p v-else class="settings-row-meta">No movie corrections. Choose Not a movie or This is a movie in a show’s menu to correct how it is listed.</p>
+      </ui-sheet>
+
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :busy="confirmBusy"
         @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
@@ -143,6 +167,10 @@ export const SuggestionsSettingsView = {
     const probing = ref(false)
     const hiddenOpen = ref(false)
     const unhiding = ref('')
+    const corrections = ref([])
+    const correctionsLoaded = ref(false)
+    const correctionsOpen = ref(false)
+    const undoing = ref('')
     const error = ref('')
     const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
 
@@ -157,6 +185,11 @@ export const SuggestionsSettingsView = {
     const loadHidden = async () => {
       hidden.value = hiddenShowsOf(await api('GET', '/api/for-you/hidden').catch(() => []))
       hiddenLoaded.value = true
+    }
+
+    const loadCorrections = async () => {
+      corrections.value = correctionRowsOf(await listProgrammeKinds().catch(() => []))
+      correctionsLoaded.value = true
     }
 
     const loadCount = async () => {
@@ -177,7 +210,7 @@ export const SuggestionsSettingsView = {
       }
     }
 
-    const load = () => Promise.all([loadSettings(), loadHidden(), loadCount()])
+    const load = () => Promise.all([loadSettings(), loadHidden(), loadCorrections(), loadCount()])
 
     const save = async (patch) => {
       const previous = settings.value
@@ -221,6 +254,18 @@ export const SuggestionsSettingsView = {
       }
     }
 
+    const undoCorrection = async (correction) => {
+      undoing.value = correction.showKey
+      try {
+        await clearProgrammeKind(correction.showKey)
+        corrections.value = corrections.value.filter((entry) => entry.showKey !== correction.showKey)
+      } catch (err) {
+        error.value = `Could not undo the correction to ${correction.title}: ${err.message}`
+      } finally {
+        undoing.value = ''
+      }
+    }
+
     const askClear = () => askConfirm({
       dialog: {
         title: 'Clear viewing history?',
@@ -243,7 +288,7 @@ export const SuggestionsSettingsView = {
 
     return {
       settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits, lookupText, repoHref: REPO_HREF,
-      otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
+      otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, corrections, correctionsLoaded, correctionsOpen, undoing, undoCorrection, confirming, confirmBusy, closeConfirm, runConfirmed,
     }
   },
 }

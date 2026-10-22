@@ -36,6 +36,7 @@ import {
 } from '/home-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
 import { showKeyOf } from '/show-key.js'
+import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { forYouHiddenKeys, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { warmImageFocus } from '/shared/image-focus.js'
 import { loadNowAll } from '/shared/channel-twins.js'
@@ -417,6 +418,8 @@ export const HomeView = {
 
     const hasRuleFor = (showKey) => shows.value.some((show) => show.key === showKey && show.rule)
 
+    const changeKindOf = (program) => changeProgrammeKind({ showKey: showKeyOf(program.title), title: program.title, kind: program.movieChoice })
+
     const scheduledMenu = ({ upcoming, subtitle }) => {
       const showKey = showKeyOf(upcoming.name)
       return {
@@ -435,12 +438,13 @@ export const HomeView = {
 
     const SLIDE_MENUS = {
       'on-now': (slide) => ({
-        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind }),
+        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, movieChoice: slide.target.program.movieChoice }),
         actions: {
           'watch-live': () => SLIDE_ACTIONS['watch-live'](slide),
           'record-episode': () => openSlideProgramme(slide, 'episode'),
           'record-series': () => openSlideProgramme(slide, 'series'),
           'programme-info': () => openSlideProgramme(slide),
+          'movie-kind': () => changeKindOf(slide.target.program),
         },
       }),
       recording: (slide) => {
@@ -457,11 +461,12 @@ export const HomeView = {
       },
       upcoming: (slide) => scheduledMenu({ upcoming: slide.target.upcoming, subtitle: slide.metaShort }),
       watchlist: (slide) => ({
-        groups: guideMatchMenuOf({ seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind }),
+        groups: guideMatchMenuOf({ seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, movieChoice: slide.target.program.movieChoice }),
         actions: {
           'record-episode': () => openSlideProgramme(slide, 'episode'),
           'record-series': () => openSlideProgramme(slide, 'series'),
           'programme-info': () => openSlideProgramme(slide),
+          'movie-kind': () => changeKindOf(slide.target.program),
         },
       }),
     }
@@ -492,12 +497,13 @@ export const HomeView = {
         title: item.program.title,
         subtitle: onNowMetaOf({ item }),
         art: programmeArtOf(item.program),
-        groups: onNowMenuOf({ channelName: item.channel.name, seriesLink: Boolean(item.program.series_link), kind: item.program.kind }),
+        groups: onNowMenuOf({ channelName: item.channel.name, seriesLink: Boolean(item.program.series_link), kind: item.program.kind, movieChoice: item.program.movieChoice }),
         actions: {
           'watch-live': () => watchChannel(item),
           'record-episode': () => openOnNow(item, 'episode'),
           'record-series': () => openOnNow(item, 'series'),
           'programme-info': () => openOnNow(item),
+          'movie-kind': () => changeKindOf(item.program),
         },
       }
     }

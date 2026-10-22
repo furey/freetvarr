@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createDisplayKinds, displayKindOf, withDisplayKinds } from '../src/display-kind.js'
+import { createDisplayKinds, displayKindOf, guideMovieChoiceOf, withDisplayKinds } from '../src/display-kind.js'
 import { FILM_MIN_MS, looksLikeFilm } from '../src/film-rule.js'
 import { savedWithKinds } from '../src/epg.js'
 
@@ -90,4 +90,21 @@ test('createDisplayKinds: reads kind overrides from the records by show key', ()
     recordsByKey: new Map([['goodfellas', { categories: [], kindOverride: 'not-movie' }]]),
   })
   assert.equal(kindOf(goodfellas), 'one-off')
+})
+
+test('guideMovieChoiceOf: films offer Not a movie, long one-offs offer This is a movie, series never', () => {
+  assert.equal(guideMovieChoiceOf({ programme: downsizing, kind: 'movie' }), 'not-movie')
+  assert.equal(guideMovieChoiceOf({ programme: downsizing, kind: 'one-off' }), 'movie')
+  assert.equal(guideMovieChoiceOf({ programme: downsizing, kind: 'series' }), null)
+  assert.equal(guideMovieChoiceOf({ programme: airing({ title: 'Heron', minutes: 30 }), kind: 'one-off' }), null)
+  assert.equal(guideMovieChoiceOf({ programme: airing({ title: 'Heron', minutes: 100, episode_no: 2 }), kind: 'movie' }), null)
+})
+
+test('withDisplayKinds: adds movieChoice only when there is one', () => {
+  const [film, short] = withDisplayKinds({
+    programmes: [downsizing, airing({ title: 'Heron', minutes: 30 })],
+    kindOf: (programme) => (programme === downsizing ? 'movie' : 'one-off'),
+  })
+  assert.equal(film.movieChoice, 'not-movie')
+  assert.equal('movieChoice' in short, false)
 })

@@ -75,3 +75,10 @@ test('a slide without a secondary action keeps its menu', () => {
   const groups = recordingNowMenuOf({ channelName: 'ABC', canStartOver: false })
   assert.deepEqual(withLeadItem({ groups, item: slideLeadItemOf(null) }), groups)
 })
+
+test('onNowMenuOf and guideMatchMenuOf: the movie row follows Programme info when the programme has a choice', () => {
+  assert.deepEqual(keysOf(onNowMenuOf({ channelName: 'ABC TV', movieChoice: 'not-movie' }))[1], ['programme-info', 'movie-kind'])
+  assert.equal(onNowMenuOf({ channelName: 'ABC TV', movieChoice: 'movie' })[1][1].label, 'This is a movie')
+  assert.deepEqual(keysOf(guideMatchMenuOf({ movieChoice: 'not-movie' }))[1], ['programme-info', 'movie-kind'])
+  assert.deepEqual(keysOf(guideMatchMenuOf({}))[1], ['programme-info'])
+})

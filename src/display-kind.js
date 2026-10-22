@@ -1,4 +1,4 @@
-import { isFilmAiring } from './genre-enrichment.js'
+import { isFilmAiring, movieChoiceOf } from './genre-enrichment.js'
 import { showKeyOf } from './web/show-key.js'
 
 export const displayKindOf = ({ programme, record = null, airingsInWeek = 1 }) => {
@@ -15,8 +15,15 @@ export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map() }
   }
 }
 
-export const withDisplayKinds = ({ programmes, kindOf }) =>
-  programmes.map((programme) => ({ ...programme, kind: kindOf(programme) }))
+export const withDisplayKinds = ({ programmes, kindOf }) => programmes.map((programme) => {
+  const kind = kindOf(programme)
+  const movieChoice = guideMovieChoiceOf({ programme, kind })
+  return movieChoice ? { ...programme, kind, movieChoice } : { ...programme, kind }
+})
+
+export const guideMovieChoiceOf = ({ programme, kind }) => (kind === 'series'
+  ? null
+  : movieChoiceOf({ programme, film: kind === 'movie' }))
 
 const isKnownTvShow = (record) => String(record?.source || '').startsWith('tvmaze:')
 

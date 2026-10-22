@@ -14,7 +14,9 @@ const {
   libraryKindWith,
   loadKindOverrides,
   mountProgrammeKindRoutes,
+  overrideListOf,
   showKeyFrom,
+  titleFrom,
   withKindOverrides,
 } = await import('../src/programme-kind.js')
 const { isFilmAiring, loadTitleGenres, movieChoiceOf } = await import('../src/genre-enrichment.js')
@@ -43,7 +45,12 @@ before(async () => {
   await db.migrate.latest()
   const app = express()
   app.use(express.json())
-  mountProgrammeKindRoutes({ app, csrf: passThrough, onChange: () => changes.push(Date.now()) })
+  mountProgrammeKindRoutes({
+    app,
+    csrf: passThrough,
+    onChange: () => changes.push(Date.now()),
+    titlesFor: async (keys) => new Map(keys.filter((key) => key === 'heron').map((key) => [key, 'Heron'])),
+  })
   appServer = app.listen(0, '127.0.0.1')
   await new Promise((resolve) => appServer.once('listening', resolve))
   baseUrl = `http://127.0.0.1:${appServer.address().port}`
@@ -129,4 +136,40 @@ test('PUT and DELETE /api/programme-kind reject bad keys and kinds', async () =>
   assert.equal((await call('PUT', '/api/programme-kind/alick-albert', {})).status, 400)
   assert.equal((await call('DELETE', '/api/programme-kind/..%2Fsettings')).status, 400)
   assert.equal((await loadKindOverrides()).size, 0)
+})
+
+test('titleFrom: keeps a trimmed title up to 200 characters', () => {
+  assert.equal(titleFrom({ title: '  King Kong ' }), 'King Kong')
+  assert.equal(titleFrom({ title: '' }), null)
+  assert.equal(titleFrom({ title: 'a'.repeat(201) }), null)
+  assert.equal(titleFrom({ title: 7 }), null)
+  assert.equal(titleFrom(undefined), null)
+})
+
+test('overrideListOf: newest first, titled from the row, then the guide, then the key', () => {
+  const rows = [
+    { show_key: 'heron', kind: 'movie', title: null, updated_at: 1 },
+    { show_key: 'king-kong', kind: 'not-movie', title: 'King Kong', updated_at: 3 },
+    { show_key: 'egret', kind: 'not-movie', title: null, updated_at: 2 },
+  ]
+  assert.deepEqual(overrideListOf({ rows, titles: new Map([['heron', 'Heron']]) }), [
+    { showKey: 'king-kong', kind: 'not-movie', title: 'King Kong' },
+    { showKey: 'egret', kind: 'not-movie', title: 'egret' },
+    { showKey: 'heron', kind: 'movie', title: 'Heron' },
+  ])
+})
+
+test('GET /api/programme-kind lists the overrides with titles, and a PUT without a title keeps the stored one', async () => {
+  await call('PUT', '/api/programme-kind/king-kong', { kind: 'not-movie', title: 'King Kong' })
+  await call('PUT', '/api/programme-kind/heron', { kind: 'movie' })
+  await call('PUT', '/api/programme-kind/king-kong', { kind: 'movie' })
+  const { status, body } = await call('GET', '/api/programme-kind')
+  assert.equal(status, 200)
+  assert.deepEqual(body.overrides.map(({ showKey, kind, title }) => [showKey, kind, title]).sort(), [
+    ['heron', 'movie', 'Heron'],
+    ['king-kong', 'movie', 'King Kong'],
+  ])
+  await call('DELETE', '/api/programme-kind/king-kong')
+  await call('DELETE', '/api/programme-kind/heron')
+  assert.deepEqual((await call('GET', '/api/programme-kind')).body, { overrides: [] })
 })
