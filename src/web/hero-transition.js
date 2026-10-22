@@ -2,8 +2,6 @@ export const HERO_MOTION = {
   imageMs: 420,
   imageNudgeScale: 1.02,
   textOutMs: 140,
-  textInMs: 380,
-  textDelayMs: 120,
   drift: true,
 }
 
@@ -11,8 +9,6 @@ export const REDUCED_MOTION = {
   imageMs: 160,
   imageNudgeScale: null,
   textOutMs: 0,
-  textInMs: 0,
-  textDelayMs: 0,
   drift: false,
 }
 
@@ -22,8 +18,6 @@ export const DECODE_WAIT_MS = 400
 export const heroMotionOf = ({ reducedMotion }) => (reducedMotion ? REDUCED_MOTION : HERO_MOTION)
 
 export const directionOf = ({ from, to }) => (to < from ? -1 : 1)
-
-export const entranceSettleMsOf = ({ motion }) => Math.max(motion.imageMs, motion.textDelayMs + motion.textInMs)
 
 export const changeKindOf = (eventType) => (MANUAL_EVENTS.has(eventType) ? 'manual' : 'automatic')
 
@@ -53,7 +47,6 @@ export const playSlideChange = ({ incoming, outgoing, direction, motion, kind })
   if (nudge && backdrop) {
     add(backdrop.animate([{ transform: nudge }, { transform: 'none' }], { duration: motion.imageMs + 120, easing: EASE_OUT, fill: 'backwards' }))
   }
-  if (motion.textInMs) entranceOf({ slide: incoming, motion }).forEach(add)
   if (motion.textOutMs && outgoing) {
     visiblePartsOf(outgoing).forEach((part) => add(part.animate(
       [{ opacity: 1 }, { opacity: 0 }],
@@ -141,10 +134,6 @@ export const predecode = (slide) => {
   if (image) image.decode().catch(() => null)
 }
 
-const entranceOf = ({ slide, motion }) => visiblePartsOf(slide).map((part) => part.animate(
-  [{ opacity: 0 }, { opacity: 1 }],
-  { duration: motion.textInMs, delay: motion.textDelayMs, easing: ENTRANCE_EASE, fill: 'backwards' },
-))
 
 const bodyPartsOf = (slide) => [...slide.querySelectorAll(BODY_PARTS_SELECTOR)]
 
@@ -215,6 +204,5 @@ const POSITION_KEYWORDS = { left: 0, top: 0, center: 50, right: 100, bottom: 100
 const MANUAL_EVENTS = new Set(['goTo', 'step'])
 const BODY_PARTS_SELECTOR = '.hero-slide-body > *'
 const EASE_OUT = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
-const ENTRANCE_EASE = 'cubic-bezier(0.25, 0.6, 0.35, 1)'
 const FADE_IN = 'cubic-bezier(0, 0, 0.58, 1)'
 const FADE_OUT = 'cubic-bezier(0.42, 0, 1, 1)'

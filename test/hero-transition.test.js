@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
-  HERO_MOTION, REDUCED_MOTION, DRIFT, heroMotionOf, directionOf, entranceSettleMsOf,
+  HERO_MOTION, REDUCED_MOTION, DRIFT, heroMotionOf, directionOf,
   imageNudgeOf, changeKindOf, zoomOriginOf, positionPercentOf, playSlideChange, settleSlide,
 } from '../src/web/hero-transition.js'
 
@@ -12,14 +12,13 @@ test('heroMotionOf: reduced motion gets the short fade, everything else the full
   assert.equal(heroMotionOf({ reducedMotion: false }), HERO_MOTION)
 })
 
-test('the full change settles inside 650 ms and its picture inside 500 ms', () => {
-  assert.ok(entranceSettleMsOf({ motion: HERO_MOTION }) <= 650)
+test('the full change settles inside 500 ms', () => {
   assert.ok(HERO_MOTION.imageMs <= 500)
 })
 
 test('reduced motion is a short picture fade with no text motion, nudge, or drift', () => {
   assert.ok(REDUCED_MOTION.imageMs <= 200)
-  assert.equal(REDUCED_MOTION.textInMs, 0)
+  assert.equal(REDUCED_MOTION.textOutMs, 0)
   assert.equal(REDUCED_MOTION.drift, false)
   assert.equal(imageNudgeOf({ motion: REDUCED_MOTION, direction: 1, boxWidth: 1000 }), null)
 })
@@ -29,9 +28,13 @@ test('directionOf: a lower target goes back, anything else goes forward', () => 
   assert.equal(directionOf({ from: 1, to: 3 }), 1)
 })
 
-test('the text and buttons start together during the picture fade', () => {
-  assert.ok(HERO_MOTION.textDelayMs > 0 && HERO_MOTION.textDelayMs < HERO_MOTION.imageMs)
-  assert.equal(entranceSettleMsOf({ motion: REDUCED_MOTION }), REDUCED_MOTION.imageMs)
+test('the incoming slide fades in as one piece, with no separate text or button animation', () => {
+  const part = () => ({ animate: (keyframes, options) => ({ keyframes, options, pause() {}, play() {}, cancel() {}, finished: Promise.resolve() }), getAnimations: () => [], getClientRects: () => [1], matches: () => false })
+  const parts = [part(), part()]
+  const slide = { ...part(), offsetWidth: 1000, querySelector: () => null, querySelectorAll: () => parts }
+  const { animations } = playSlideChange({ incoming: slide, outgoing: null, direction: 1, motion: HERO_MOTION, kind: 'automatic' })
+  assert.equal(animations.length, 1)
+  assert.deepEqual(animations[0].keyframes, [{ opacity: 0 }, { opacity: 1 }])
 })
 
 test('the drift zoom stays subtle', () => {
