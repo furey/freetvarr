@@ -141,3 +141,17 @@ test('films are never TVmaze series, short ETSI drama, or weekly strips', async 
   assert.equal(isFilmAiring({ programme: long, record: { categories: ['comedy'], source: 'tvmaze:1' } }), false)
   assert.equal(isFilmAiring({ programme: { start: 0, end: hour }, record: { categories: ['movie'], source: 'wikidata:Q1' } }), true)
 })
+
+test('long news and sport one-offs are never films unless a film record says so', async () => {
+  const { isFilmAiring } = await import('../src/genre-enrichment.js')
+  const hour = 60 * 60 * 1000
+  const soccer = { title: 'Australian Championship 2026', genre: 0x40, start: 0, end: 2 * hour }
+  const keywordOnly = { title: 'NRL Grand Final', start: 0, end: 3 * hour }
+  const electionNight = { title: 'Australia Votes', genre: 0x20, start: 0, end: 5 * hour }
+  assert.equal(isFilmAiring({ programme: soccer }), false)
+  assert.equal(isMovieLike(soccer), false)
+  assert.equal(isFilmAiring({ programme: keywordOnly }), false)
+  assert.equal(isMovieLike(keywordOnly), false)
+  assert.equal(isFilmAiring({ programme: electionNight }), false)
+  assert.equal(isFilmAiring({ programme: soccer, record: { categories: ['movie', 'movie-drama'], source: 'wikidata:Q1' } }), true)
+})

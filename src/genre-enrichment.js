@@ -76,7 +76,7 @@ export const keywordCategoriesOf = (title) => {
 
 export const isMovieLike = (programme) => {
   const lengthMs = Number(programme?.end) - Number(programme?.start)
-  if (!(lengthMs >= FILM_MIN_MS)) return false
+  if (!(lengthMs >= FILM_MIN_MS) || isNewsOrSport(programme)) return false
   if (categoriesOfEtsi(programme?.genre).includes('movie')) return true
   return programme?.series_no == null && programme?.episode_no == null && !programme?.episode_title
 }
@@ -87,6 +87,9 @@ export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) =>
   if (!isMovieLike(programme)) return false
   return categoriesOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
 }
+
+const isNewsOrSport = (programme) => [...categoriesOfEtsi(programme?.genre), ...keywordCategoriesOf(programme?.title)]
+  .some((category) => NEWS_OR_SPORT.has(category))
 
 export const tvmazeFactsOf = (record) => {
   const facts = { premiered: null, ended: false }
@@ -394,6 +397,7 @@ const ETSI_GROUPS = {
 const NEWS_TITLE = /\bnews\b|^today\b|^weekend today|sunrise$|^sunrise\b|a current affair|^7\.30\b|^insiders$|^landline$|^the drum$|^the project$|^afternoon briefing|^business\b|^weather\b|^world this week/i
 const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|rugby|netball|racing|races|supercars|motogp|formula 1|f1|olympics?|basketball|nba|nfl|boxing|ufc|wwe|sports?|grand prix|world cup|a-league|surfing|cycling|tour de france|bathurst|grand final|wimbledon|test match|big bash|state of origin)\b/i
 
+const NEWS_OR_SPORT = new Set(['news', 'sport'])
 const FAILED = Symbol('failed')
 const MAX_FILM_AIRINGS = 2
 const DEFAULT_BUDGET = 1500

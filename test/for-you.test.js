@@ -307,6 +307,16 @@ test('movies are films only, never series', () => {
   assert.deepEqual(sectionOf(result, 'movies').items.map((item) => item.title), ['A Big Movie'])
 })
 
+test('a long sport one-off stays out of Movies this week', () => {
+  const events = baseEvents().concat(watched('Fifth', { episodes: 2 }))
+  const evening = Math.floor(NOW / DAY) * DAY + 19 * HOUR
+  const film = airing('A Big Movie', { start: evening, end: evening + 2 * HOUR })
+  const soccer = airing('Australian Championship 2026', { start: evening + HOUR, end: evening + 3 * HOUR, genre: 0x40 })
+  const result = run({ programmes: [film, soccer], events })
+  assert.notEqual(itemFor(result, 'Australian Championship 2026')?.kind, 'movie')
+  assert.deepEqual(sectionOf(result, 'movies').items.map((item) => item.title), ['A Big Movie'])
+})
+
 test('a film without a guide picture asks for film artwork', () => {
   const events = baseEvents().concat(watched('Fifth', { episodes: 2 }))
   const evening = Math.floor(NOW / DAY) * DAY + 19 * HOUR

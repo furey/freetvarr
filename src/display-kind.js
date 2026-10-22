@@ -1,8 +1,8 @@
-import { categoriesOfEtsi, isFilmAiring, keywordCategoriesOf } from './genre-enrichment.js'
+import { isFilmAiring } from './genre-enrichment.js'
 import { showKeyOf } from './web/show-key.js'
 
 export const displayKindOf = ({ programme, record = null, airingsInWeek = 1 }) => {
-  if (isFilmAiring({ programme, record, airingsInWeek }) && (isKnownFilm(record) || !isNewsOrSport(programme))) return 'movie'
+  if (isFilmAiring({ programme, record, airingsInWeek })) return 'movie'
   if (isKnownTvShow(record) || hasEpisodeDetails(programme)) return 'series'
   return airingsInWeek >= SERIES_MIN_AIRINGS ? 'series' : 'one-off'
 }
@@ -17,11 +17,6 @@ export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map() }
 
 export const withDisplayKinds = ({ programmes, kindOf }) =>
   programmes.map((programme) => ({ ...programme, kind: kindOf(programme) }))
-
-const isKnownFilm = (record) => Boolean(record?.categories?.includes('movie'))
-
-const isNewsOrSport = (programme) => [...categoriesOfEtsi(programme?.genre), ...keywordCategoriesOf(programme?.title)]
-  .some((category) => NEWS_OR_SPORT.has(category))
 
 const isKnownTvShow = (record) => String(record?.source || '').startsWith('tvmaze:')
 
@@ -38,4 +33,3 @@ const airingsByTitleOf = (programmes) => {
 }
 
 const SERIES_MIN_AIRINGS = 3
-const NEWS_OR_SPORT = new Set(['news', 'sport'])
