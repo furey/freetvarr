@@ -2,9 +2,10 @@ export const HERO_MOTION = {
   imageMs: 420,
   imageNudgeScale: 1.02,
   textOutMs: 140,
-  textInMs: 320,
-  textDelayMs: 180,
-  actionsDelayMs: 300,
+  textInMs: 380,
+  textDelayMs: 120,
+  textLineStaggerMs: 30,
+  actionsDelayMs: 220,
   drift: true,
 }
 
@@ -14,6 +15,7 @@ export const REDUCED_MOTION = {
   textOutMs: 0,
   textInMs: 0,
   textDelayMs: 0,
+  textLineStaggerMs: 0,
   actionsDelayMs: 0,
   drift: false,
 }
@@ -25,7 +27,15 @@ export const heroMotionOf = ({ reducedMotion }) => (reducedMotion ? REDUCED_MOTI
 
 export const directionOf = ({ from, to }) => (to < from ? -1 : 1)
 
-export const entranceDelaysOf = ({ motion }) => ({ text: motion.textDelayMs, actions: motion.actionsDelayMs })
+export const entranceDelaysOf = ({ motion, lineCount = 1 }) => ({
+  text: Array.from({ length: lineCount }, (_, line) => motion.textDelayMs + line * motion.textLineStaggerMs),
+  actions: motion.actionsDelayMs,
+})
+
+export const entranceSettleMsOf = ({ motion, lineCount = 1 }) => {
+  const delays = entranceDelaysOf({ motion, lineCount })
+  return Math.max(motion.imageMs, ...delays.text.map((delay) => delay + motion.textInMs), delays.actions + motion.textInMs)
+}
 
 export const coverScaleOf = ({ naturalWidth, naturalHeight, boxWidth, boxHeight }) => {
   if (!naturalWidth || !naturalHeight) return Infinity
@@ -43,11 +53,18 @@ export const imageNudgeOf = ({ motion, direction, boxWidth, kind = 'manual' }) =
 }
 
 export const playSlideChange = ({ incoming, outgoing, direction, motion, kind }) => {
+  let live = true
   const animations = []
   const add = (animation) => {
     animation.pause()
     animations.push(animation)
   }
+  const cancel = () => {
+    live = false
+    animations.forEach((animation) => animation.cancel())
+  }
+  settleSlide(incoming)
+  settleSlide(outgoing)
   const fade = incoming.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.imageMs, easing: FADE_IN, fill: 'backwards' })
   add(fade)
   const nudge = imageNudgeOf({ motion, direction, boxWidth: incoming.offsetWidth, kind })
@@ -63,12 +80,20 @@ export const playSlideChange = ({ incoming, outgoing, direction, motion, kind })
     )))
   }
   const started = decodedWithin([incoming, outgoing].filter(Boolean).map(slideImageOf).filter(Boolean))
-    .then(() => animations.forEach((animation) => animation.play()))
+    .then(() => {
+      if (live) animations.forEach((animation) => animation.play())
+      return live
+    })
   const finished = started
-    .then(() => Promise.allSettled(animations.map((animation) => animation.finished)))
-    .then(() => animations.filter((animation) => animation.playState !== 'idle').forEach((animation) => animation.cancel()))
-  const faded = started.then(() => fade.finished).then(() => true, () => false)
-  return { animations, started, faded, finished, cancel: () => animations.forEach((animation) => animation.cancel()) }
+    .then((playing) => playing && Promise.allSettled(animations.map((animation) => animation.finished)))
+    .then(() => { if (live) cancel() })
+  const faded = started.then((playing) => playing && fade.finished.then(() => live, () => false))
+  return { animations, started, faded, finished, cancel, isLive: () => live }
+}
+
+export const settleSlide = (slide) => {
+  if (!slide) return
+  ownedPartsOf(slide).forEach((part) => part.getAnimations().forEach((animation) => animation.cancel()))
 }
 
 export const zoomOriginOf = ({ natural, view, focus, position, zoom = DRIFT.scale }) => {
@@ -145,17 +170,20 @@ const entranceOf = ({ slide, motion }) => {
   const parts = visiblePartsOf(slide)
   const textParts = parts.filter((part) => !part.matches(ACTIONS_SELECTOR))
   const actions = parts.find((part) => part.matches(ACTIONS_SELECTOR))
-  const delays = entranceDelaysOf({ motion })
+  const delays = entranceDelaysOf({ motion, lineCount: textParts.length })
   const enter = (part, delay) => part.animate(
     [{ opacity: 0 }, { opacity: 1 }],
-    { duration: motion.textInMs, delay, easing: EASE_OUT, fill: 'backwards' },
+    { duration: motion.textInMs, delay, easing: ENTRANCE_EASE, fill: 'backwards' },
   )
-  const entrances = textParts.map((part) => enter(part, delays.text))
+  const entrances = textParts.map((part, line) => enter(part, delays.text[line]))
   return actions ? [...entrances, enter(actions, delays.actions)] : entrances
 }
 
-const visiblePartsOf = (slide) => [...slide.querySelectorAll('.hero-slide-body > *')]
-  .filter((part) => part.getClientRects().length > 0)
+const bodyPartsOf = (slide) => [...slide.querySelectorAll(BODY_PARTS_SELECTOR)]
+
+const visiblePartsOf = (slide) => bodyPartsOf(slide).filter((part) => part.getClientRects().length > 0)
+
+const ownedPartsOf = (slide) => [slide, slide.querySelector('.hero-slide-backdrop'), ...bodyPartsOf(slide)].filter(Boolean)
 
 const slideImageOf = (slide) => slide.querySelector('.ui-hero-art')
 
@@ -219,6 +247,8 @@ const ORIGIN_EASE_MS = 600
 const POSITION_KEYWORDS = { left: 0, top: 0, center: 50, right: 100, bottom: 100 }
 const MANUAL_EVENTS = new Set(['goTo', 'step'])
 const ACTIONS_SELECTOR = '.hero-slide-actions'
+const BODY_PARTS_SELECTOR = '.hero-slide-body > *'
 const EASE_OUT = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+const ENTRANCE_EASE = 'cubic-bezier(0.25, 0.6, 0.35, 1)'
 const FADE_IN = 'cubic-bezier(0, 0, 0.58, 1)'
 const FADE_OUT = 'cubic-bezier(0.42, 0, 1, 1)'

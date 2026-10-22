@@ -14,11 +14,13 @@ import {
 } from '/hero-rotation.js'
 import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
 import { focusKeyOf } from '/image-focus.js'
+import { HERO_SIZES, heroSrcsetOf } from '/home-hero.js'
 import {
   heroMotionOf,
   directionOf,
   changeKindOf,
   playSlideChange,
+  settleSlide,
   startDrift,
   predecode,
 } from '/hero-transition.js'
@@ -66,7 +68,8 @@ export const HomeHeroCarousel = {
             :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index, 'is-leaving': slide.key === leavingKey }]"
             :style="slideStyle(i)" :ref="(el) => setSlideRef(el, slide.key)">
             <div class="hero-slide-backdrop ui-art-fallback" :style="fallbackStyleOf(slide)">
-              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="stampedShowImage(slide.art.image)" alt="" decoding="async"
+              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="stampedShowImage(slide.art.image)"
+                :srcset="heroSrcsetOf(stampedShowImage(slide.art.image))" :sizes="heroSizes" alt="" decoding="async"
                 :fetchpriority="i === 0 ? 'high' : null" :loading="isNearActive(i) ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
@@ -221,10 +224,15 @@ export const HomeHeroCarousel = {
       syncDrifts()
     }
 
+    const stopChange = () => {
+      running?.cancel()
+      running = null
+      slideEls.forEach(settleSlide)
+    }
+
     const settleRunningChange = () => {
       if (!running) return
-      running.cancel()
-      running = null
+      stopChange()
       leavingKey.value = null
       cancelDriftsExcept([activeKey.value])
       if (!drifts.has(activeKey.value)) beginDrift(activeKey.value)
@@ -235,8 +243,7 @@ export const HomeHeroCarousel = {
     }
 
     const changeSlide = ({ key, previousKey, change }) => {
-      running?.cancel()
-      running = null
+      stopChange()
       const incoming = slideEls.get(key)
       const outgoing = slideEls.get(previousKey)
       cancelDriftsExcept([previousKey])
@@ -315,7 +322,7 @@ export const HomeHeroCarousel = {
       document.removeEventListener('visibilitychange', onVisibility)
       reducedQuery.removeEventListener('change', onReducedChange)
       stopClock()
-      running?.cancel()
+      stopChange()
       cancelDriftsExcept([])
     })
 
@@ -447,7 +454,7 @@ export const HomeHeroCarousel = {
     const markArtFailed = (slide) => { failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true } }
 
     return {
-      stampedShowImage,
+      stampedShowImage, heroSrcsetOf, heroSizes: HERO_SIZES,
       rotation, stage, failedArt, leavingKey, isNearActive, setSlideRef, orderedSlides, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerOver, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
