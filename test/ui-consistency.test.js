@@ -177,3 +177,13 @@ test('a page or section info button teleports into the Settings title slot', asy
     assert.match(await read(view), /<teleport [^>]*defer to="#settings-page-info">\s*<info-button/, view)
   }
 })
+
+test('the Home hero pause zones sit behind the buttons and dots they surround', async () => {
+  const home = await read('styles/home.css')
+  const rule = home.match(/\.hero-slide-actions::before,\s*\.hero-carousel-controls::before \{([^}]*)\}/)
+  assert.ok(rule, 'pause zone rule')
+  assert.match(rule[1], /position: absolute;/)
+  assert.match(rule[1], /z-index: -1;/)
+  assert.match(home, /\.hero-carousel-controls \{[^}]*z-index: 2;/)
+  assert.match(home, /\.hero-slide-body \{[^}]*isolation: isolate;/)
+})

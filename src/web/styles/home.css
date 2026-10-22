@@ -623,6 +623,7 @@
   content: '';
   position: absolute;
   inset: -16px;
+  z-index: -1;
 }
 
 .hero-slide-actions > .ui-button-primary {
