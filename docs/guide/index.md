@@ -22,7 +22,7 @@ With it, you can:
 - **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install. Pause or rewind up to `30` minutes, start a programme over while it records, or watch two channels at once with [Multiview](/guide/player#multiview). To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
 - **[Clear out TVHeadend](/guide/remove-from-tvheadend).** If you use Plex, Freetvarr can delete each recording once Plex has the episode.
 
-Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner, and [Getting started](/guide/getting-started) covers the install.
+Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
 
 ## Plex DVR
 
@@ -58,7 +58,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 
 ## Where next
 
-- **[Hardware](/guide/hardware)**: what to buy, and how it wires into the aerial you already have.
+- **[Hardware](/guide/hardware)**: what tuner and computer to buy, and how the tuner wires into the aerial you already have.
 - **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the [setup](/guide/getting-started#_2-run-setup) in a browser.
 - **[TVHeadend](/guide/tvheadend)**: what setup changes in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
 - **[What's new in 2.0](/guide/whats-new)**: the five destinations, and where each old screen went.

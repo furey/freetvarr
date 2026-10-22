@@ -1,15 +1,15 @@
 ---
 title: Hardware
 description: >-
-  What tuner to buy for free-to-air, how to match it to your broadcast
-  standard, and how it wires into the aerial you already have.
+  What tuner and computer to buy for free-to-air, how to match the tuner to
+  your broadcast standard, and how it wires into the aerial you already have.
 ---
 
 # Hardware
 
 You need one TVHeadend-compatible tuner, and any type works: a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, or IPTV. Freetvarr talks only to TVHeadend and the recordings folder, so the tuner type makes no difference to it. The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange (most NAS kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in).
 
-The broadcast standard where you live decides the model: DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
+The broadcast standard where you live decides the model: DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way. For the computer that runs Freetvarr, see [The computer](#the-computer).
 
 | Region                             | Standard       | HDHomeRun model                                                    |
 | ---------------------------------- | -------------- | ------------------------------------------------------------------ |
@@ -138,6 +138,43 @@ The common faults:
 - **Strong signal, poor quality.** Only with a masthead amplifier: the amplifier plus a short cable run can overload the front end. A `12 dB` inline attenuator between the adapter and the tuner is the first thing to try.
 
 Only with a power injector: if its `TELEVISION` port is not fully isolated it can pass a few volts AC through to the tuner. Tuners tolerate this, but if the readings look strange, a `$5` inline DC block (Jaycar `LT3068`, or any F-type DC block) between the adapter and the tuner removes it.
+
+## The computer
+
+Freetvarr and TVHeadend run in Docker on one computer that stays on: a NAS (e.g. Synology, QNAP, etc.), a mini PC, or an old laptop or desktop. Recording takes almost no processor time, because TVHeadend saves the broadcast to disk as it arrives, with no conversion. The processor and graphics chip matter for live TV in a browser, ad removal, and the For you suggestions.
+
+| Part             | Minimum                                                       | Recommended                                                                                                  | What it changes                                                                                                               |
+| ---------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Processor        | Any 64-bit `x86-64` or `ARM64` processor with `2` cores       | An Intel processor with Quick Sync, or an AMD processor with graphics (e.g. Intel Celeron J4025, Intel N100) | Quick Sync or AMD graphics converts live TV with almost no processor time (see [Hardware transcoding](#hardware-transcoding)) |
+| Memory (RAM)     | `2GB`                                                         | `4GB` or more                                                                                                | For you (Standard and Plus) and face-aware picture crops need `400MB` free; with less, they wait or stay at Basic             |
+| Storage          | Room for the recordings you keep: `3–6GB` for each hour of HD | `4TB` or more (about `650–1,300` hours of HD)                                                                | Health warns under `20GB` free, and recordings fail when the disk fills                                                       |
+| Operating system | Linux with Docker and Compose v2                              | The same, on a NAS or a mini PC that stays on                                                                | A Mac runs Freetvarr, but Docker on a Mac cannot find a network tuner by itself or use the graphics chip                      |
+| Network          | Wired network on the same part of the network as the tuner    | The same                                                                                                     | TVHeadend finds a network tuner by broadcast, which does not cross between subnets                                            |
+
+With the minimum, Freetvarr records, imports, and serves every page, but it is limited in these ways:
+
+- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores.
+- **Multiview:** each picture needs a live stream, so Multiview shows only as many pictures as **Live streams at once** allows.
+- **Ad removal:** a scan takes about `30` minutes per `75`-minute recording on a `2`-core Celeron, and longer on a slower processor.
+- **For you:** Freetvarr picks **Basic** when the nightly work with the language model would take more than `5` minutes, or when less than `400MB` of memory is free.
+
+With the recommended computer, you get these:
+
+- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer.
+- **Ad removal:** scans that finish sooner on a faster processor, at low priority so imports still run at full speed.
+- **For you:** **Standard**, or **Plus** on a fast processor.
+
+At startup, Freetvarr measures how many live streams this computer converts smoothly, and sets the default for **Live streams at once** from the result (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
+
+### The computer: Examples
+
+- **A Synology Plus-series NAS with an Intel Celeron**, such as the DS225+. Its Quick Sync chip converts live TV, and the drives hold the recordings.
+- **A mini PC with an Intel N100 or N150.** It is cheaper than a NAS and has Quick Sync. It also takes a USB tuner, which a NAS cannot use (see [Why not a USB tuner](#why-not-a-usb-tuner)).
+- **An old laptop or desktop that runs Linux.** Many Intel processors with built-in graphics have Quick Sync; the log check in [Hardware transcoding](#hardware-transcoding) shows whether Freetvarr can use it. Without it, live TV converts in software, with the limits above.
+- **A Raspberry Pi 5 or another ARM board.** The Freetvarr Docker image is built for `ARM64`, but the author has not tested it on an ARM board. Freetvarr's hardware path uses VAAPI, which Raspberry Pi boards do not offer, so live TV converts in software.
+
+> [!NOTE]<br>
+> The author's computer is a Synology DS220+: an Intel Celeron J4025 with `2` cores, Intel UHD 600 graphics with Quick Sync, and `6GB` of memory. It also runs Plex and other Docker containers. The startup check measured `4` smooth live streams in hardware. For you picked Standard (about `64` seconds a day for `510` new descriptions). Face detection takes about `74ms` per picture. Freetvarr 2.0 and TVHeadend together use about `450MB` of memory when idle.
 
 ## Hardware transcoding
 

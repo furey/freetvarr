@@ -10,7 +10,7 @@ description: >-
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. [Hardware](/guide/hardware) covers the choice.
-- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of setup instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows, and the install script does not run there.
+- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of setup instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows, and the install script does not run there. [The computer](/guide/hardware#the-computer) gives minimum and recommended specs.
 
 The Docker compose file runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the Docker compose file can run Plex too: get a Plex claim code before you install ([No Plex yet?](/guide/plex#no-plex-yet)). If Plex already runs, setup connects to it.
 
