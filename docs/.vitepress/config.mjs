@@ -99,6 +99,7 @@ export default withMermaid(defineConfig({
           { text: 'What\'s new in 2.0', link: '/guide/whats-new' },
           { text: 'Plex DVR instead', link: '/guide/plex-dvr' },
           { text: 'Hardware', link: '/guide/hardware' },
+          { text: 'Windows (untested)', link: '/guide/windows' },
           { text: 'TVHeadend', link: '/guide/tvheadend' },
           { text: 'Getting started', link: '/guide/getting-started' }
         ]
