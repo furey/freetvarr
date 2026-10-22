@@ -418,7 +418,7 @@ const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|ru
 
 const NEWS_OR_SPORT = new Set(['news', 'sport'])
 const FAILED = Symbol('failed')
-const MAX_FILM_AIRINGS = 2
+const MAX_FILM_AIRINGS = 4
 const DEFAULT_BUDGET = 1500
 const LOOKUP_GAP_MS = 700
 const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000

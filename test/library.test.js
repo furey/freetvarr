@@ -226,6 +226,7 @@ test('getLibraryShows: marks the list stale when the series rules are missing', 
     loadRecordingNow: async () => [],
     loadMoviesRoot: async () => '',
     loadChoiceStamps: async () => new Map(),
+    loadOverrides: async () => new Map(),
   })
   assert.equal(result.stale, true)
   assert.equal(result.shows[0].kind, 'oneoff')
@@ -240,6 +241,7 @@ test('getLibraryShow: returns 404 data as null and fills autorec padding from th
     loadSeriesTags: async () => [{ id: 'auto-1', leadTime: 2, lagTime: 5 }],
     refreshStates: async (rows) => rows,
     loadChoiceStamps: async () => new Map(),
+    loadOverrides: async () => new Map(),
     resolvePlayable: async (r) => (r.recording_id === 'a' ? '/media/a.ts' : null),
   }
   assert.equal(await getLibraryShow({ ...deps, key: 'nothing-here' }), null)
@@ -362,6 +364,7 @@ test('a show title override moves a recording into the named show everywhere the
     loadSeriesTags: async () => [],
     refreshStates: async (list) => list,
     loadChoiceStamps: async () => new Map(),
+    loadOverrides: async () => new Map(),
   })
   assert.deepEqual(detail.seasons[0].episodes.map((e) => [e.recordingId, e.title]), [['a', 'The Block'], ['b', 'The Block']])
   assert.equal(groupTitleOf(rows[1]), 'The Block')

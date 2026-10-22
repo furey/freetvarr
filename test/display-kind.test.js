@@ -40,9 +40,9 @@ test('displayKindOf: long news and sport stay one-off unless the enrichment call
   assert.equal(displayKindOf({ programme: grandFinal, record: { categories: ['movie'] } }), 'movie')
 })
 
-test('displayKindOf: 3 airings in the week make a series unless the guide lists a movie', () => {
-  assert.equal(displayKindOf({ programme: downsizing, airingsInWeek: 2 }), 'movie')
-  assert.equal(displayKindOf({ programme: downsizing, airingsInWeek: 3 }), 'series')
+test('displayKindOf: 5 airings in the week make a series unless the guide lists a movie', () => {
+  assert.equal(displayKindOf({ programme: downsizing, airingsInWeek: 4 }), 'movie')
+  assert.equal(displayKindOf({ programme: downsizing, airingsInWeek: 5 }), 'series')
   assert.equal(displayKindOf({ programme: masterCheng, airingsInWeek: 5 }), 'movie')
   assert.equal(displayKindOf({ programme: happysPlace, airingsInWeek: 3 }), 'series')
 })
