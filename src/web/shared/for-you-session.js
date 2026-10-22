@@ -4,6 +4,7 @@ import { watchLive } from '/shared/live-session.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, tz } from '/shared/time.js'
 import { toast } from '/shared/toast.js'
+import { twinkleGateOf } from '/for-you-twinkle.js'
 import { showHrefOf } from '/show-key.js'
 import {
   feedbackOf,
@@ -17,7 +18,66 @@ import {
 
 export const forYouHidden = ref(new Set())
 
-export const forYouShown = ref(null)
+const READY_KEY = 'freetvarr.forYouRail'
+
+const readCachedReady = () => {
+  try {
+    return localStorage.getItem(READY_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export const forYouReady = ref(readCachedReady())
+
+export const forYouShown = ref(readCachedReady() ? true : null)
+
+const TWINKLE_MS = 3200
+
+const INTRO_ACTIVE_CLASS = 'is-brand-intro-active'
+
+export const forYouTwinkling = ref(false)
+
+let twinkled = false
+
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+
+const introActive = () => document.documentElement.classList.contains(INTRO_ACTIVE_CLASS)
+
+const waitForIntroEnd = () => {
+  const observer = new MutationObserver(() => {
+    if (introActive()) return
+    observer.disconnect()
+    twinkleForYouOnce()
+  })
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+}
+
+const GATE_ACTIONS = {
+  skip: () => {},
+  'wait-visible': () => document.addEventListener('visibilitychange', twinkleForYouOnce, { once: true }),
+  'wait-intro': waitForIntroEnd,
+  play: () => {
+    twinkled = true
+    forYouTwinkling.value = true
+    setTimeout(() => { forYouTwinkling.value = false }, TWINKLE_MS)
+  },
+}
+
+const gateNow = () => twinkleGateOf({
+  played: twinkled,
+  reducedMotion: reducedMotion(),
+  visible: document.visibilityState === 'visible',
+  introActive: introActive(),
+})
+
+export const twinkleForYouOnce = () => setTimeout(() => GATE_ACTIONS[gateNow()](), 0)
+
+export const keepForYouRail = ({ shown, ready }) => {
+  forYouShown.value = shown
+  forYouReady.value = ready
+  try { localStorage.setItem(READY_KEY, shown && ready ? '1' : '0') } catch {}
+}
 
 export const sendFeedback = (body) => api('POST', '/api/events/feedback', body).catch(() => {})
 

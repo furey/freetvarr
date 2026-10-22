@@ -10,6 +10,12 @@ export const NAV_DESTINATIONS = [
   { key: 'settings', label: 'Settings', href: '#/settings' },
 ]
 
+const FOR_YOU_DESTINATION = { key: 'for-you', label: 'For you', href: '#/for-you' }
+
+export const RAIL_DESTINATIONS = NAV_DESTINATIONS.flatMap((item) => (
+  item.key === 'home' ? [item, FOR_YOU_DESTINATION] : [item]
+))
+
 export const hashSegments = (hash = '') => String(hash)
   .replace(/^#\/?/, '')
   .split('?')[0]

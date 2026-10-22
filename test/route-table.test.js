@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveRoute, activeDestinationOf, recordingsPageOf } from '../src/web/route-table.js'
+import { resolveRoute, activeDestinationOf, recordingsPageOf, RAIL_DESTINATIONS, NAV_DESTINATIONS } from '../src/web/route-table.js'
 
 test('resolveRoute: an empty or unknown hash opens home', () => {
   assert.deepEqual(resolveRoute(''), { view: 'home', params: [], section: '', canonicalHash: null })
@@ -104,4 +104,9 @@ test('resolveRoute: old Danger zone addresses open the System page', () => {
   assert.equal(resolveRoute('#/settings/danger-zone').canonicalHash, '#/settings/system/reset')
   assert.equal(resolveRoute('#/settings/reset').canonicalHash, '#/settings/system/reset')
   assert.equal(resolveRoute('#/settings/system/reset').canonicalHash, null)
+})
+
+test('RAIL_DESTINATIONS: For you sits second, and the phone tab bar keeps five destinations', () => {
+  assert.deepEqual(RAIL_DESTINATIONS.map(({ key }) => key), ['home', 'for-you', 'live', 'guide', 'recordings', 'settings'])
+  assert.deepEqual(NAV_DESTINATIONS.map(({ key }) => key), ['home', 'live', 'guide', 'recordings', 'settings'])
 })

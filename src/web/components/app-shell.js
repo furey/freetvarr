@@ -1,12 +1,13 @@
-import { computed, ref } from '/vendor/vue.esm-browser.prod.js'
+import { computed, ref, watch } from '/vendor/vue.esm-browser.prod.js'
 import { badgedNameOf, healthBadgeOf } from '/health-level.js'
-import { NAV_DESTINATIONS, activeDestinationOf } from '/route-table.js'
+import { NAV_DESTINATIONS, RAIL_DESTINATIONS, activeDestinationOf } from '/route-table.js'
 import { api } from '/shared/api.js'
 import { health } from '/shared/health.js'
 import { route } from '/shared/router.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { ForYouNavIcon } from '/components/nav-icons.js'
-import { forYouShown } from '/shared/for-you-session.js'
+import { forYouReady, forYouShown, keepForYouRail, twinkleForYouOnce } from '/shared/for-you-session.js'
+import { FOR_YOU_URL, forYouReadyOf } from '/for-you.js'
 import { hashesMatch } from '/scroll-memory.js'
 
 const NAV_ICONS = {
@@ -18,17 +19,14 @@ const NAV_ICONS = {
   settings: 'settings-nav-icon',
 }
 
-const FOR_YOU_DESTINATION = { key: 'for-you', label: 'For you', href: '#/for-you' }
-
-const railDestinationsOf = () => NAV_DESTINATIONS.flatMap((item) => (
-  item.key === 'recordings' ? [FOR_YOU_DESTINATION, item] : [item]
-))
-
-const railActiveOf = (view) => (view === 'for-you' ? 'for-you' : activeDestinationOf(view))
+const railActiveOf = ({ view, forYouInRail }) => (view === 'for-you' && forYouInRail ? 'for-you' : activeDestinationOf(view))
 
 const refreshForYouShown = async () => {
-  const settings = await api('GET', '/api/for-you/settings').catch(() => null)
-  forYouShown.value = settings ? settings.enabled !== false : true
+  const [settings, payload] = await Promise.all([
+    api('GET', '/api/for-you/settings').catch(() => null),
+    api('GET', `${FOR_YOU_URL}?limit=1`).catch(() => null),
+  ])
+  keepForYouRail({ shown: settings ? settings.enabled !== false : true, ready: forYouReadyOf({ settings, payload }) })
 }
 
 export const BrandMark = {
@@ -74,11 +72,14 @@ export const AppNav = {
   setup() {
     const withIcon = (item) => ({ ...item, icon: NAV_ICONS[item.key] })
     const tabItems = NAV_DESTINATIONS.map(withIcon)
-    const collapsedOf = (item) => item.key === 'for-you' && forYouShown.value !== true
-    const railItems = computed(() => railDestinationsOf().map((item) => ({ ...withIcon(item), collapsed: collapsedOf(item) })))
+    const forYouInRail = computed(() => forYouShown.value === true && forYouReady.value)
+    watch(forYouInRail, (inRail) => { if (inRail) twinkleForYouOnce() }, { immediate: true })
+    const collapsedOf = (item) => item.key === 'for-you' && !forYouInRail.value
+    const railItems = computed(() => RAIL_DESTINATIONS.map((item) => ({ ...withIcon(item), collapsed: collapsedOf(item) })))
     const animated = ref(false)
     const active = computed(() => activeDestinationOf(route.value))
-    const railActive = computed(() => railActiveOf(route.value))
+    const railActive = computed(() => railActiveOf({ view: route.value, forYouInRail: forYouInRail.value }))
+    watch(() => route.value, (view) => { if (view === 'home' || view === 'for-you') refreshForYouShown() })
     refreshForYouShown().then(() => setTimeout(() => { animated.value = true }, 100))
     const settingsBadge = computed(() => healthBadgeOf(health.value))
     const badgeOf = (item) => (item.key === 'settings' ? settingsBadge.value : null)

@@ -1951,6 +1951,61 @@ a.ui-banner:hover {
   height: 22px;
 }
 
+@property --orbit-turn { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+@property --orbit-in { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --orbit-flat { syntax: "<number>"; inherits: true; initial-value: 1; }
+@property --orbit-depth { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+.for-you-extra {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  opacity: 0;
+}
+
+.for-you-extra.is-extra-0 { --brand: #3ba4ff; }
+.for-you-extra.is-extra-1 { --brand: #f28c28; }
+.for-you-extra.is-extra-2 { --brand: #f5c542; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .for-you-nav-icon.is-twinkling {
+    animation-duration: 3s;
+    animation-fill-mode: both;
+    animation-timing-function: ease-in-out;
+  }
+
+  .for-you-nav-icon.is-twinkling { animation-name: for-you-orbit; }
+
+  .for-you-nav-icon.is-twinkling .for-you-original,
+  .for-you-nav-icon.is-twinkling .for-you-extra {
+    --orbit-x: calc(var(--vx) * cos(var(--orbit-turn)) - var(--vy) * sin(var(--orbit-turn)));
+    --orbit-y: calc(var(--vx) * sin(var(--orbit-turn)) + var(--vy) * cos(var(--orbit-turn)));
+    --orbit-front: calc(var(--orbit-y) / 9.6);
+    transform:
+      translate(
+        calc((var(--orbit-in) * var(--orbit-x) - var(--vx)) * 1px),
+        calc((var(--orbit-in) * var(--orbit-flat) * var(--orbit-y) - var(--vy)) * 1px)
+      )
+      scale(calc(var(--orbit-in) * (1 + 0.2 * var(--orbit-depth) * var(--orbit-front))));
+    opacity: calc(1 - 0.175 * var(--orbit-depth) * (1 - var(--orbit-front)) / 2);
+  }
+
+  .for-you-nav-icon.is-twinkling .for-you-original {
+    --orbit-in: 1;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .for-you-nav-icon.is-twinkling .for-you-extra { stroke: var(--brand); }
+}
+
+@keyframes for-you-orbit {
+  0% { --orbit-turn: 0deg; --orbit-in: 0; --orbit-flat: 1; --orbit-depth: 0; }
+  14% { --orbit-in: 1; }
+  24% { --orbit-flat: 0.71; --orbit-depth: 1; }
+  74% { --orbit-in: 1; --orbit-flat: 0.71; --orbit-depth: 1; }
+  100% { --orbit-turn: 720deg; --orbit-in: 0; --orbit-flat: 1; --orbit-depth: 0; }
+}
+
 .app-nav-badge {
   position: absolute;
   top: -3px;

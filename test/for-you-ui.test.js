@@ -10,6 +10,7 @@ import {
   feedbackOf,
   programmeOpenedOf,
   forYouSlideOf,
+  forYouReadyOf,
   sheetRequestOf,
   hiddenToastOf,
   historyClearCopyOf,
@@ -330,4 +331,11 @@ test('whyRowsOf: strongest reason first, bars relative to it, and an icon by mea
   })
   assert.deepEqual(rows.map((r) => [r.icon, r.percent]), [['history', 100], ['tag', 50], ['clock', 25]])
   assert.deepEqual(whyRowsOf(null), [])
+})
+
+test('forYouReadyOf: ready once the suggestions leave cold start and For you is on', () => {
+  assert.equal(forYouReadyOf({ settings: { enabled: true }, payload: payload({ coldStart: false }) }), true)
+  assert.equal(forYouReadyOf({ settings: { enabled: true }, payload: payload({ coldStart: true }) }), false)
+  assert.equal(forYouReadyOf({ settings: { enabled: false }, payload: payload({ coldStart: false }) }), false)
+  assert.equal(forYouReadyOf({ settings: null, payload: null }), false)
 })

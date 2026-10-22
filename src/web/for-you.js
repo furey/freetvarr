@@ -5,6 +5,10 @@ import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { recordWordingOf } from './record-wording.js'
 
 export const FOR_YOU_URL = '/api/for-you'
+
+export const forYouReadyOf = ({ settings, payload }) => settings?.enabled !== false
+  && payload?.enabled !== false
+  && payload?.coldStart === false
 export const FOR_YOU_HREF = '#/for-you'
 export const SUGGESTIONS_HREF = '#/settings/for-you'
 export const HOME_ROW_LIMIT = 12

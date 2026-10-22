@@ -18,7 +18,7 @@ Home is the first page Freetvarr opens. It answers one question: what can I watc
 
 ## Navigation
 
-Freetvarr has five destinations: **Home**, **Live TV**, **TV guide**, **Recordings**, and **Settings**. On a phone, a tab bar at the bottom holds them. On a tablet or computer, a rail down the left side holds them, with Settings at the bottom. The rail also has **For you** between TV guide and Recordings, unless you turn For you off in Settings.
+Freetvarr has five destinations: **Home**, **Live TV**, **TV guide**, **Recordings**, and **Settings**. On a phone, a tab bar at the bottom holds them. On a tablet or computer, a rail down the left side holds them, with Settings at the bottom. The rail also has **For you**, second after Home. It appears once Freetvarr has seen enough of what you watch to suggest shows, and stays hidden if you turn For you off in Settings.
 
 Each page has these controls in its header:
 
