@@ -730,7 +730,7 @@ export const findShowPoster = async ({ title, width, kind = null } = {}) => {
 export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
 
 export const artworkOriginImage = ({ origin, kind, width }) => thumbnailStore.thumbnailFor({
-  key: `chosen:${kind}:${origin}`,
+  key: `chosen-1080:${kind}:${origin}`,
   width,
   loadOriginal: () => originalOfOrigin({ origin, kind }),
 })
@@ -848,7 +848,7 @@ const guideThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor(
 })
 
 const showThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
-  key: `show:${source}`,
+  key: `show-1080:${source}`,
   width,
   loadOriginal: () => showArtOriginal(source),
 })

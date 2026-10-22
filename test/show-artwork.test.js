@@ -277,8 +277,10 @@ test('landscapeOf: fits a portrait poster into a 16:9 picture and leaves landsca
   const poster = { body: await solid(680, 1000), contentType: 'image/jpeg' }
   const fitted = await landscapeOf(poster)
   const { width, height } = await sharp(fitted.body).metadata()
-  assert.equal(height, 720)
-  assert.equal(width, 1280)
+  assert.equal(height, 1000)
+  assert.equal(width, 1778)
+  const tall = await landscapeOf({ body: await solid(1000, 1500), contentType: 'image/jpeg' })
+  assert.deepEqual(await sharp(tall.body).metadata().then((m) => [m.width, m.height]), [1920, 1080])
   const wide = { body: await solid(1280, 720), contentType: 'image/jpeg' }
   assert.equal(await landscapeOf(wide), wide)
 })

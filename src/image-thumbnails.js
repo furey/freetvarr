@@ -175,7 +175,7 @@ const isPartialWrite = (name) => name.endsWith(PARTIAL_SUFFIX)
 
 const WEBP = 'image/webp'
 const MIN_LANDSCAPE_RATIO = 1.3
-const LANDSCAPE_MAX_HEIGHT = 720
+const LANDSCAPE_MAX_HEIGHT = 1080
 const LANDSCAPE_BLUR_SIGMA = 24
 const LANDSCAPE_BACKDROP_BRIGHTNESS = 0.55
 const LANDSCAPE_JPEG_QUALITY = 85
