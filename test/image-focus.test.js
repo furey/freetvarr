@@ -5,7 +5,7 @@ import {
   suppressOverlaps, warmPlanOf,
 } from '../src/image-focus.js'
 import {
-  FOCUS_RECHECK_DELAYS_MS, dueRechecksOf, focusKeyOf, focusPointInViewOf, isFocusImagePath, objectPositionOf, recheckDelayOf, requestedWidthOf,
+  FOCUS_RECHECK_DELAYS_MS, dueRechecksOf, focusEntriesOf, focusKeyOf, focusPointInViewOf, isFocusImagePath, objectPositionOf, recheckDelayOf, requestedWidthOf,
 } from '../src/web/image-focus.js'
 
 const WIDE = { width: 768, height: 432 }
@@ -77,6 +77,20 @@ test('isFocusImagePath covers every picture route', () => {
 test('requestedWidthOf reads w and returns null without it', () => {
   assert.equal(requestedWidthOf('/api/epg/image/1?w=384'), 384)
   assert.equal(requestedWidthOf('/api/recordings/1/image'), null)
+})
+
+test('focusEntriesOf keys supplied focus by picture, ignoring width and pictures without focus', () => {
+  const focus = { x: 0.2, y: 0.425, box: [0.096, 0.184, 0.304, 0.752] }
+  const pictures = [
+    { url: '/api/recordings/a07b/image?w=768', focus },
+    { url: '/api/epg/image/1', focus: null },
+    { url: 'https://elsewhere.example/a.jpg', focus },
+    { url: '/api/epg/show-image?w=1280&title=The%20Block', focus: { x: 0.5, y: 0.5 } },
+  ]
+  assert.deepEqual(focusEntriesOf(pictures, 'http://nas:3744'), [
+    ['/api/recordings/a07b/image', focus],
+    ['/api/epg/show-image?title=The+Block', { x: 0.5, y: 0.5 }],
+  ])
 })
 
 test('objectPositionOf keeps a face at the right edge in a phone hero', () => {

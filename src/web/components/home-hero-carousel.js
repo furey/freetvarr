@@ -12,7 +12,8 @@ import {
   wrapIndex,
 } from '/hero-rotation.js'
 import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
-import { focusKeyOf } from '/image-focus.js'
+import { focusEntriesOf, focusKeyOf } from '/image-focus.js'
+import { rememberImageFocus } from '/shared/image-focus.js'
 import { HERO_SIZES } from '/home-hero.js'
 import { overlayStack } from '/overlay-stack.js'
 import {
@@ -53,10 +54,11 @@ const forgetMissing = ({ key, focus }) => {
 }
 
 const rememberSuppliedFocus = (slides) => {
-  for (const slide of slides) {
-    const key = slide.art.focus && focusKeyOf(slide.art.image, location.origin)
-    if (key && !knownFocus.has(key)) knownFocus.set(key, Promise.resolve(slide.art.focus))
-  }
+  const pictures = slides.map((slide) => ({ url: slide.art.image, focus: slide.art.focus }))
+  rememberImageFocus(pictures)
+  focusEntriesOf(pictures, location.origin)
+    .filter(([key]) => !knownFocus.has(key))
+    .forEach(([key, focus]) => knownFocus.set(key, Promise.resolve(focus)))
 }
 
 export const HomeHeroCarousel = {

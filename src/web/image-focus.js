@@ -19,6 +19,11 @@ export const focusKeyOf = (url, base = LOCAL_BASE) => {
   return query ? `${parsed.pathname}?${query}` : parsed.pathname
 }
 
+export const focusEntriesOf = (pictures, base = LOCAL_BASE) => pictures
+  .filter((picture) => isFocus(picture?.focus))
+  .map((picture) => [focusKeyOf(picture.url, base), picture.focus])
+  .filter(([key]) => key)
+
 export const requestedWidthOf = (url) => {
   const width = Number(parsedUrlOf(url, LOCAL_BASE)?.searchParams.get('w'))
   return Number.isFinite(width) && width > 0 ? width : null
@@ -114,6 +119,8 @@ const clampFraction = (value) => clamp(Number(value) || 0, 0, MAX_AVOID)
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
 const toThousandths = (value) => Math.round(value * 1000) / 1000
+
+const isFocus = (focus) => Number.isFinite(focus?.x) && Number.isFinite(focus?.y)
 
 const LOCAL_BASE = 'http://localhost'
 const IGNORED_PARAMS = ['w', 'c']
