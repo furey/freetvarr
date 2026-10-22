@@ -2,14 +2,18 @@ import { showKeyOf } from './show-key.js'
 
 export const EPISODE_SLIDE_TYPES = new Set(['continue', 'new', 'up-next', 'recording', 'movie'])
 
-export const pickDistinctArt = ({ slides = [], pools = {} }) => {
-  const identityOf = artIdentityFrom(pools)
+export const pickDistinctArt = ({
+  slides = [],
+  pools = {},
+  candidatesFor = (slide) => candidatesOf({ slide, pools }),
+  identityOf = artIdentityFrom(pools),
+}) => {
   const used = new Set()
   const placed = []
   const unplaceable = []
   for (const slide of slides) {
     const blocked = new Set([identityOf(placed.at(-1)?.image)])
-    const image = choose({ candidates: candidatesOf({ slide, pools }), blocked, used, identityOf })
+    const image = choose({ candidates: candidatesFor(slide), blocked, used, identityOf })
     if (!image) {
       unplaceable.push(slide)
       continue
@@ -17,7 +21,7 @@ export const pickDistinctArt = ({ slides = [], pools = {} }) => {
     used.add(identityOf(image))
     placed.push({ slide, image })
   }
-  const closed = closeWrap({ placed, pools, used, identityOf })
+  const closed = closeWrap({ placed, candidatesFor, used, identityOf })
   return {
     slides: closed.placed.map(({ slide, image }) => ({ ...slide, art: { ...slide.art, image } })),
     unplaceable: [...unplaceable, ...closed.dropped],
@@ -25,16 +29,6 @@ export const pickDistinctArt = ({ slides = [], pools = {} }) => {
 }
 
 export const slideShowKeyOf = (slide) => slide.showKey ?? showKeyOf(slide.art?.title)
-
-export const poolRequestsOf = (slides = []) => {
-  const counts = new Map()
-  for (const slide of slides) counts.set(slideShowKeyOf(slide), (counts.get(slideShowKeyOf(slide)) ?? 0) + 1)
-  const repeated = slides.filter((slide) => counts.get(slideShowKeyOf(slide)) > 1)
-  return {
-    showKeys: [...new Set(repeated.map(slideShowKeyOf))],
-    recordingIds: [...new Set(repeated.filter(isEpisodeSlide).map((slide) => slide.recordingId).filter(Boolean))],
-  }
-}
 
 export const isEpisodeSlide = (slide) => Boolean(slide.recordingId) || EPISODE_SLIDE_TYPES.has(slide.type)
 
@@ -82,12 +76,12 @@ export const artIdentityFrom = (pools = {}) => {
   return (url) => contentKeys.get(artUrlKeyOf(url)) ?? artUrlKeyOf(url)
 }
 
-const closeWrap = ({ placed, pools, used, identityOf }) => {
+const closeWrap = ({ placed, candidatesFor, used, identityOf }) => {
   const result = [...placed]
   const dropped = []
   while (result.length > 1 && identityOf(result.at(-1).image) === identityOf(result[0].image)) {
-    const fixed = repick({ result, index: result.length - 1, pools, used, identityOf })
-      || repick({ result, index: 0, pools, used, identityOf })
+    const fixed = repick({ result, index: result.length - 1, candidatesFor, used, identityOf })
+      || repick({ result, index: 0, candidatesFor, used, identityOf })
     if (fixed) return { placed: fixed, dropped }
     const removed = result.pop()
     used.delete(identityOf(removed.image))
@@ -96,11 +90,11 @@ const closeWrap = ({ placed, pools, used, identityOf }) => {
   return { placed: result, dropped }
 }
 
-const repick = ({ result, index, pools, used, identityOf }) => {
+const repick = ({ result, index, candidatesFor, used, identityOf }) => {
   const neighbours = [result.at(index - 1), result[(index + 1) % result.length], result[index]]
   const blocked = new Set(neighbours.map((entry) => identityOf(entry.image)))
   const { slide } = result[index]
-  const image = choose({ candidates: candidatesOf({ slide, pools }), blocked, used, identityOf })
+  const image = choose({ candidates: candidatesFor(slide), blocked, used, identityOf })
   if (!image) return null
   return result.map((entry, at) => (at === index ? { slide, image } : entry))
 }

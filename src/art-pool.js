@@ -8,6 +8,7 @@ import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from 
 import { db } from './db.js'
 import { findArtSourceThumbnail } from './epg.js'
 import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
+import { imageRouteOf, serveImageRoute } from './image-routes.js'
 import { groupKeyOf, isLibraryMember, ruleTitleOf } from './library.js'
 import { matchPlexItem } from './library-actions.js'
 import { getPlexConnection, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
@@ -18,30 +19,57 @@ import { countryForTimeZone } from './zone-countries.js'
 
 export { plexSourceOf }
 
+export const artPoolImageRoutes = ({ artPool }) => [
+  recordingImageRoute(),
+  imageRouteOf({
+    path: '/api/library/shows/:key/art-pool/:image_id',
+    widthOf: heroWidthFrom,
+    widthError: HERO_WIDTH_ERROR,
+    loadImage: async ({ key, image_id: imageId, width }) =>
+      poolEntryImage({ artPool, entries: (await artPool.showPool(key))?.entries, imageId, width }),
+  }),
+  imageRouteOf({
+    path: '/api/library/recordings/:recording_id/art/:image_id',
+    widthOf: heroWidthFrom,
+    widthError: HERO_WIDTH_ERROR,
+    loadImage: async ({ recording_id: recordingId, image_id: imageId, width }) =>
+      poolEntryImage({ artPool, entries: (await artPool.recordingArt(recordingId))?.entries, imageId, width }),
+  }),
+]
+
 export const mountArtPoolRoutes = ({ app, artPool = createArtPool(), warmAfterMs = WARM_DELAY_MS }) => {
-  app.get('/api/recordings/:recording_id/image', serveRecordingImage())
+  const [recordingImage, showPoolImage, recordingArtImage] = artPoolImageRoutes({ artPool })
+  app.get(recordingImage.path, serveArtImage(recordingImage))
 
   app.get('/api/library/shows/:key/art-pool', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    const pool = await artPool.showPool(req.params.key)
-    if (!pool) return res.status(404).json({ error: 'show not found' })
-    res.json({ images: poolImagesOf({ entries: pool.entries, base: showPoolBase(req.params.key) }) })
+    const images = await showPoolImages({ artPool, key: req.params.key })
+    if (!images) return res.status(404).json({ error: 'show not found' })
+    res.json({ images })
   })
 
   app.get('/api/library/recordings/:recording_id/art', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    const art = await artPool.recordingArt(req.params.recording_id)
-    if (!art) return res.status(404).json({ error: 'recording not found' })
-    res.json({ images: poolImagesOf({ entries: art.entries, base: recordingArtBase(req.params.recording_id) }) })
+    const images = await recordingArtImages({ artPool, recordingId: req.params.recording_id })
+    if (!images) return res.status(404).json({ error: 'recording not found' })
+    res.json({ images })
   })
 
-  app.get('/api/library/shows/:key/art-pool/:image_id', serveEntry(artPool, async (req) =>
-    (await artPool.showPool(req.params.key))?.entries))
+  app.get(showPoolImage.path, serveArtImage(showPoolImage))
 
-  app.get('/api/library/recordings/:recording_id/art/:image_id', serveEntry(artPool, async (req) =>
-    (await artPool.recordingArt(req.params.recording_id))?.entries))
+  app.get(recordingArtImage.path, serveArtImage(recordingArtImage))
 
   if (warmAfterMs !== null) scheduleWarmUp({ artPool, delayMs: warmAfterMs })
+}
+
+export const showPoolImages = async ({ artPool, key }) => {
+  const pool = await artPool.showPool(key)
+  return pool ? poolImagesOf({ entries: pool.entries, base: showPoolBase(key) }) : null
+}
+
+export const recordingArtImages = async ({ artPool, recordingId }) => {
+  const art = await artPool.recordingArt(recordingId)
+  return art ? poolImagesOf({ entries: art.entries, base: recordingArtBase(recordingId) }) : null
 }
 
 export const warmHomeArtPools = async ({ artPool, loadCandidates = homeCandidates }) => {
@@ -51,30 +79,25 @@ export const warmHomeArtPools = async ({ artPool, loadCandidates = homeCandidate
   return { shows: showKeys.length, recordings: recordingIds.length }
 }
 
-export const serveRecordingImage = ({
+export const recordingImageRoute = ({
   loadOriginal = (recordingId) => findArtwork({ kind: 'recording', id: recordingId }),
   thumbnails = recordingThumbnails,
-} = {}) => async (req, res) => {
-  const wantsThumbnail = req.query.w !== undefined
-  const width = wantsThumbnail ? heroWidthFrom(req.query.w) : null
-  if (wantsThumbnail && width === null) return res.status(400).json({ error: `w must be one of ${HERO_IMAGE_WIDTHS.join(', ')}` })
-  try {
-    const original = await loadOriginal(req.params.recording_id).catch(() => null)
-    const image = original && wantsThumbnail
-      ? await thumbnails().thumbnailFor({
-        key: `recording:${req.params.recording_id}:${contentKeyOf(original.body)}`,
-        width,
-        loadOriginal: async () => original,
-      })
-      : original
-    if (!image) return sendMissing(res)
-    res.setHeader('Content-Type', image.contentType)
-    res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
-    res.send(image.body)
-  } catch {
-    sendMissing(res)
-  }
-}
+} = {}) => imageRouteOf({
+  path: '/api/recordings/:recording_id/image',
+  widthOf: (requested) => (requested === undefined ? ORIGINAL_WIDTH : heroWidthFrom(requested)),
+  widthError: HERO_WIDTH_ERROR,
+  loadImage: async ({ recording_id: recordingId, width }) => {
+    const original = await loadOriginal(recordingId).catch(() => null)
+    if (!original || width === ORIGINAL_WIDTH) return original
+    return thumbnails().thumbnailFor({
+      key: `recording:${recordingId}:${contentKeyOf(original.body)}`,
+      width,
+      loadOriginal: async () => original,
+    })
+  },
+})
+
+export const serveRecordingImage = (options) => serveArtImage(recordingImageRoute(options))
 
 export const createArtPool = ({
   loadShowRows = libraryShowRows,
@@ -291,20 +314,12 @@ export const plexTranscodeOrigin = (path) =>
   `${PLEX_ORIGIN_PREFIX}/photo/:/transcode?width=${PLEX_ART_WIDTH}&height=${PLEX_ART_HEIGHT}&minSize=1&upscale=0`
   + `&url=${encodeURIComponent(path)}`
 
-const serveEntry = (artPool, loadEntries) => async (req, res) => {
-  const width = heroWidthFrom(req.query.w)
-  if (width === null) return res.status(400).json({ error: `w must be one of ${HERO_IMAGE_WIDTHS.join(', ')}` })
-  try {
-    const entry = ((await loadEntries(req)) || []).find((candidate) => candidate.id === req.params.image_id)
-    const image = entry?.origin && await artPool.imageFor({ origin: entry.origin, width })
-    if (!image) return sendMissing(res)
-    res.setHeader('Content-Type', image.contentType)
-    res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
-    res.send(image.body)
-  } catch {
-    sendMissing(res)
-  }
+const poolEntryImage = async ({ artPool, entries, imageId, width }) => {
+  const entry = (entries || []).find((candidate) => candidate.id === imageId)
+  return entry?.origin ? artPool.imageFor({ origin: entry.origin, width }) : null
 }
+
+const serveArtImage = (route) => serveImageRoute({ route, missingMaxAgeS: MISSING_IMAGE_MAX_AGE_S, imageMaxAgeS: IMAGE_MAX_AGE_S })
 
 const sourceOfOrigin = async ({ origin, plexConnection }) => {
   if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return origin
@@ -360,11 +375,6 @@ const showImageUrlOf = ({ title, stamp }) => `/api/epg/show-image?title=${encode
 const showPoolBase = (key) => `/api/library/shows/${encodeURIComponent(key)}/art-pool`
 
 const recordingArtBase = (recordingId) => `/api/library/recordings/${encodeURIComponent(recordingId)}/art`
-
-const sendMissing = (res) => {
-  res.setHeader('Cache-Control', `public, max-age=${MISSING_IMAGE_MAX_AGE_S}`)
-  res.status(404).end()
-}
 
 const createMemo = ({ ttlMs, now }) => {
   const values = new Map()
@@ -490,3 +500,5 @@ const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
 const HERO_IMAGE_WIDTH = 768
+const ORIGINAL_WIDTH = 'original'
+const HERO_WIDTH_ERROR = `w must be one of ${HERO_IMAGE_WIDTHS.join(', ')}`

@@ -31,7 +31,7 @@ const homeOf = (overrides = {}) => ({
   watchlist: [],
   movies: [],
   forYouPayload: null,
-  heroPools: {},
+  hero: { candidates: [] },
   ...overrides,
 })
 
@@ -82,10 +82,11 @@ test('writeHomeCache ignores storage that throws', () => {
   assert.doesNotThrow(() => writeHomeCache({ storage: null, build: 'b1', home: homeOf(), nowMs: NOW }))
 })
 
-test('isHomeShape needs every list, hero pools, and a for-you payload object or null', () => {
+test('isHomeShape needs every list, a hero snapshot, and a for-you payload object or null', () => {
   assert.equal(isHomeShape(homeOf()), true)
   assert.equal(isHomeShape(homeOf({ forYouPayload: { sections: [] } })), true)
-  assert.equal(isHomeShape(homeOf({ heroPools: [] })), false)
+  assert.equal(isHomeShape(homeOf({ hero: { candidates: null } })), false)
+  assert.equal(isHomeShape(homeOf({ hero: undefined })), false)
   assert.equal(isHomeShape(homeOf({ movies: null })), false)
   assert.equal(isHomeShape(null), false)
 })

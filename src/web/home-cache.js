@@ -1,17 +1,19 @@
 import { currentNowEntryOf, isPlainObject, readViewCache, withoutEndedForYouOf, writeViewCache } from './view-cache.js'
 
 export const HOME_CACHE_KEY = 'freetvarr.home'
-export const HOME_CACHE_VERSION = 2
+export const HOME_CACHE_VERSION = 3
 export const HOME_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 export const HOME_CACHE_MAX_CHARS = 1_000_000
 export const HOME_LIST_FIELDS = [
   'inProgress', 'newRecordings', 'nowEntries', 'upcoming', 'activeProgramIds', 'shows', 'watchlist', 'movies',
 ]
 
+export const isHeroShape = (hero) => isPlainObject(hero) && Array.isArray(hero.candidates)
+
 export const isHomeShape = (home) => Boolean(home)
   && typeof home === 'object'
   && HOME_LIST_FIELDS.every((field) => Array.isArray(home[field]))
-  && isPlainObject(home.heroPools)
+  && isHeroShape(home.hero)
   && (home.forYouPayload === null || isPlainObject(home.forYouPayload))
 
 export const freshHomeOf = ({ home, nowMs }) => ({

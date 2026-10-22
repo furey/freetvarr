@@ -232,13 +232,16 @@ export const shownBatchesOf = ({ items, source, size = MAX_SHOWN_EVENTS }) => {
   return batches
 }
 
-export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set(), nowMs, timeZone }) => {
+export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set(), nowMs, timeZone, stampUrl = artworkStamps.stampUrl }) => {
   if (!payload || payload.enabled === false || payload.coldStart) return null
   const item = sectionsOf({ payload, scheduledKeys, hiddenKeys })
     .filter((section) => section.key !== TOP_RATED_SECTION)
     .flatMap((section) => section.rows.flatMap((row) => row.items))
     .find((candidate) => !isScheduled({ item: candidate, scheduledKeys }) && msOf(candidate.stop) > nowMs)
-  if (!item) return null
+  return item ? forYouItemSlideOf({ item, nowMs, timeZone, stampUrl }) : null
+}
+
+export const forYouItemSlideOf = ({ item, nowMs, timeZone, stampUrl = artworkStamps.stampUrl }) => {
   const when = msOf(item.start) && airingWhenOf({ ms: msOf(item.start), nowMs, timeZone })
   return {
     key: `for-you:${item.id}`,
@@ -250,7 +253,7 @@ export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys =
     meta: joinMeta([KIND_BADGES[kindOf(item)], item.episodeTitle, when, item.channelName]),
     metaShort: joinMeta([when, item.channelName]),
     progress: null,
-    art: { image: item.image ? artworkStamps.stampUrl(item.image) : showImageOf(item.title), title: item.title },
+    art: { image: item.image ? stampUrl(item.image) : stampUrl(showImageUrlOf({ title: item.title, width: 768 })), title: item.title },
     primary: item.canRecordSeries
       ? { action: 'record-series', label: 'Record series', icon: 'record' }
       : { action: 'record', label: 'Record', icon: 'record' },
@@ -262,6 +265,8 @@ export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys =
       program: programOf(item),
       dayOffset: dayOffsetOf({ ms: msOf(item.start) ?? nowMs, nowMs, timeZone }),
     },
+    source: { item },
+    endsAt: msOf(item.stop),
   }
 }
 
@@ -276,7 +281,10 @@ export const topRatedSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys
       && msOf(candidate.start) > nowMs
       && candidate.id !== besides?.target?.item?.id
       && !(otherLanguageTaken && candidate.otherLanguage))
-  if (!item) return null
+  return item ? topRatedItemSlideOf({ item, nowMs, timeZone }) : null
+}
+
+export const topRatedItemSlideOf = ({ item, nowMs, timeZone }) => {
   const when = airingWhenOf({ ms: msOf(item.start), nowMs, timeZone })
   return {
     key: `top-rated:${item.id}`,
@@ -299,6 +307,8 @@ export const topRatedSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys
       program: programOf(item),
       dayOffset: dayOffsetOf({ ms: msOf(item.start) ?? nowMs, nowMs, timeZone }),
     },
+    source: { item },
+    endsAt: msOf(item.start),
   }
 }
 
@@ -420,8 +430,6 @@ const rowsOf = (items) => [
   { shape: 'card', items: items.filter((item) => !isMovie(item)) },
   { shape: 'poster', items: items.filter(isMovie) },
 ].filter((row) => row.items.length)
-
-const showImageOf = (title) => artworkStamps.stampUrl(showImageUrlOf({ title, width: 768 }))
 
 const joinMeta = (parts) => parts.filter(Boolean).join(' · ')
 

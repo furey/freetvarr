@@ -41,7 +41,12 @@ export const warmForYou = async ({ nowMs = Date.now() } = {}) => {
   return forYouCache.warm({ nowMs })
 }
 
-export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null }) => {
+export const onForYouResult = (listener) => {
+  forYouResultListeners.add(listener)
+  return () => forYouResultListeners.delete(listener)
+}
+
+export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null, onResult = () => {} }) => {
   let cached = null
   let computing = null
   let generation = 0
@@ -61,6 +66,7 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
       .then((result) => {
         if (startedIn === generation) cached = { signature, result }
         store?.save(result).catch(() => {})
+        Promise.resolve().then(() => onResult(result)).catch(() => {})
         return result
       })
       .finally(() => {
@@ -456,7 +462,13 @@ const isPrimeTime = (ms) => {
 let upkeeping = null
 const guideVersions = new WeakMap()
 const forYouWorker = createForYouWorker()
-const forYouCache = createForYouCache({ loadSnapshot, compute: computeForYou, store: createSavedResultStore() })
+const forYouResultListeners = new Set()
+const forYouCache = createForYouCache({
+  loadSnapshot,
+  compute: computeForYou,
+  store: createSavedResultStore(),
+  onResult: (result) => forYouResultListeners.forEach((listener) => listener(result)),
+})
 const classificationStore = createClassificationStore()
 const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFromTvmaze, onFilm: rememberKnownAsFromWikidata })
 

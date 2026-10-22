@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { artIdentityFrom, artUrlKeyOf, candidatesOf, isEpisodeSlide, pickDistinctArt, poolRequestsOf } from '../src/web/hero-art.js'
+import { artIdentityFrom, artUrlKeyOf, candidatesOf, isEpisodeSlide, pickDistinctArt } from '../src/web/hero-art.js'
 
 const LIBRARY = '/api/epg/show-image?title=The%20Block&w=768'
 const bg = (n) => ({ url: `/api/library/shows/block/art-pool/bg${n}?w=768`, kind: 'background', source: 'plex' })
@@ -122,15 +122,12 @@ test('images with the same content key count as the same art', () => {
   assert.equal(identityOf(ep('r1').url), identityOf(ep('r2').url))
 })
 
-test('poolRequestsOf asks only for shows that repeat, and their episode recordings', () => {
-  const slides = [
-    episodeSlide({ recordingId: 'r1' }),
-    showSlide({ key: 2 }),
-    { type: 'on-now', key: 'x', art: { image: '/x', title: 'Big Wave Season' } },
-    { type: 'movie', key: 'm', recordingId: 'm1', showKey: 'paddock', art: { image: '/m', title: 'Paddock' } },
-  ]
-  assert.deepEqual(poolRequestsOf(slides), { showKeys: ['the-block'], recordingIds: ['r1'] })
-  assert.deepEqual(poolRequestsOf([]), { showKeys: [], recordingIds: [] })
+test('pickDistinctArt takes its candidate urls and identity from the caller when given', () => {
+  const slides = [episodeSlide({ recordingId: 'r1' }), showSlide({ key: 2 })]
+  const proven = { 'new:r1': ['/a'], 'upcoming:2': ['/a', '/b'] }
+  const picked = pickDistinctArt({ slides, candidatesFor: (slide) => proven[slide.key] ?? [], identityOf: (url) => url })
+  assert.deepEqual(picked.slides.map((slide) => slide.art.image), ['/a', '/b'])
+  assert.deepEqual(picked.unplaceable, [])
 })
 
 test('a chosen background comes before the episode art on episode slides', () => {

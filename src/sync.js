@@ -35,10 +35,18 @@ export const startSync = async ({ trigger = 'manual', showId = null } = {}) => {
     })
     .finally(() => {
       inFlight = null
+      syncFinishedListeners.forEach((listener) => listener({ syncId, trigger }))
     })
   inFlight = { syncId, promise }
   return { syncId, alreadyRunning: false }
 }
+
+export const onSyncFinished = (listener) => {
+  syncFinishedListeners.add(listener)
+  return () => syncFinishedListeners.delete(listener)
+}
+
+const syncFinishedListeners = new Set()
 
 export const matchShow = (shows, showTitle) => {
   const t = showTitle.toLowerCase()

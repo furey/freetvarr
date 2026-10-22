@@ -17,6 +17,7 @@ import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone,
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import {
   startSync,
+  onSyncFinished,
   getActiveSyncId,
   getMediaRoot,
   getOneOffRoot,
@@ -177,15 +178,23 @@ import {
 } from './tvheadend-unconfigured.js'
 import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
-import { watchedAtAfterPosition } from './library.js'
+import { getLibraryEpisodes, getLibraryShows, watchedAtAfterPosition } from './library.js'
+import { artworkChoices } from './artwork-choices.js'
+import { createHeroPictureProof } from './hero-picture-proof.js'
+import { HERO_SNAPSHOT_SETTING, createHomeHero, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
+import { getForYou, isForYouEnabled, onForYouResult } from './for-you-service.js'
+import { focusKeyOf } from './web/image-focus.js'
+import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
+import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
-import { createArtPool, mountArtPoolRoutes } from './art-pool.js'
+import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
+import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf } from './artwork-match.js'
-import { mountWatchlist } from './watchlist.js'
+import { listWatchlist, mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
@@ -199,7 +208,7 @@ import { mountInProgressPlayback, inProgressFolders } from './in-progress-playba
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { createTvLogin, deleteTvLoginRoute, TvLoginError } from './tv-login.js'
 import { transmitterLabel } from './web/transmitter-label.js'
-import { mountForYou } from './for-you-routes.js'
+import { limitFrom, mountForYou, publicResultOf } from './for-you-routes.js'
 import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
 import { imageFocus } from './image-focus-service.js'
 import {
@@ -258,6 +267,7 @@ const IMAGE_MAX_AGE_S = 24 * 60 * 60
 const MISSING_IMAGE_MAX_AGE_S = 5 * 60
 const CONNECT_ATTEMPT_TIMEOUT_MS = 2500
 const MAX_SHOW_TITLE_LENGTH = 200
+const HERO_FOR_YOU_WAIT_MS = 5000
 const MAX_FOCUS_KEYS = 40
 const MAX_PERSON_IMAGE_SOURCE_LENGTH = 300
 const RATINGS_MAX_AGE_S = 5 * 60
@@ -307,6 +317,13 @@ app.use('/api', (req, res, next) => {
 })
 
 app.use(imageFocus.tap)
+
+app.use('/api', (req, res, next) => {
+  if (isHomeHeroWrite({ method: req.method, path: req.originalUrl.split('?')[0] })) {
+    res.on('finish', () => { if (res.statusCode < 400) homeHero.invalidate() })
+  }
+  next()
+})
 
 app.use(compression())
 app.use(express.json())
@@ -666,63 +683,47 @@ app.get('/api/epg/state', (req, res) => sendTvheadendRead({
   whenUnconfigured: unconfiguredRecordingState,
 }))
 
-const sendMissingImage = (res) => {
-  res.setHeader('Cache-Control', `public, max-age=${MISSING_IMAGE_MAX_AGE_S}`)
-  res.status(404).end()
-}
+const imageRouteFor = ({ path, widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf }) =>
+  imageRouteOf({ path, widthOf, loadImage, paramsOf, widthError: `w must be one of ${widths.join(', ')}` })
 
-const sendPendingImage = (res) => {
-  res.setHeader('Cache-Control', 'no-store')
-  res.status(404).end()
-}
+const serveImage = (route) => serveImageRoute({ route, missingMaxAgeS: MISSING_IMAGE_MAX_AGE_S, imageMaxAgeS: IMAGE_MAX_AGE_S })
 
-const imageResultOf = (result) => (result?.body
-  ? { image: result, pending: false }
-  : { image: result?.image ?? null, pending: Boolean(result?.pending) })
-
-const serveImage = ({ widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf = (req) => req.params }) => async (req, res) => {
-  const width = widthOf(req.query.w)
-  if (width === null) return res.status(400).json({ error: `w must be one of ${widths.join(', ')}` })
-  try {
-    const { image, pending } = imageResultOf(await loadImage({ ...paramsOf(req), width }))
-    if (!image) return pending ? sendPendingImage(res) : sendMissingImage(res)
-    res.setHeader('Content-Type', image.contentType)
-    res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
-    res.send(image.body)
-  } catch {
-    sendMissingImage(res)
-  }
-}
-
-app.get('/api/epg/logo/:channelId', serveImage({
+const channelLogoRoute = imageRouteFor({
+  path: '/api/epg/logo/:channelId',
   widths: CHANNEL_LOGO_WIDTHS,
   loadImage: ({ channelId, width }) => getChannelThumbnail({ channelId, width }),
-}))
-app.get('/api/epg/image/:eventId', serveImage({
+})
+
+const programmeImageRoute = imageRouteFor({
+  path: '/api/epg/image/:eventId',
   widths: HERO_IMAGE_WIDTHS,
   widthOf: heroWidthFrom,
   loadImage: ({ eventId, width }) =>
     findProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
-}))
+})
 
-app.get('/api/epg/person-image', serveImage({
+const personImageRoute = imageRouteFor({
+  path: '/api/epg/person-image',
   widths: PERSON_IMAGE_WIDTHS,
   loadImage: ({ width, source }) => findPersonThumbnail({ source, width }),
-  paramsOf: (req) => ({ source: String(req.query.src || '').slice(0, MAX_PERSON_IMAGE_SOURCE_LENGTH) }),
-}))
+  paramsOf: ({ query }) => ({ source: String(query.src || '').slice(0, MAX_PERSON_IMAGE_SOURCE_LENGTH) }),
+})
 
-app.get('/api/epg/show-image', serveImage({
+const showImageRoute = imageRouteFor({
+  path: '/api/epg/show-image',
   widths: HERO_IMAGE_WIDTHS,
   widthOf: heroWidthFrom,
   loadImage: ({ width, title, shape, kind }) => (shape === POSTER_SHAPE
     ? findShowPoster({ title, width, kind })
     : findShowThumbnail({ title, width, kind })),
-  paramsOf: (req) => ({
-    title: String(req.query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
-    shape: showImageShapeFrom(req.query.shape),
-    kind: artworkKindOf(req.query.kind),
+  paramsOf: ({ query }) => ({
+    title: String(query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
+    shape: showImageShapeFrom(query.shape),
+    kind: artworkKindOf(query.kind),
   }),
-}))
+})
+
+for (const route of [channelLogoRoute, programmeImageRoute, personImageRoute, showImageRoute]) app.get(route.path, serveImage(route))
 
 app.get('/api/image-focus', async (req, res) => {
   const keys = [req.query.k ?? []].flat().map(String).slice(0, MAX_FOCUS_KEYS)
@@ -1292,6 +1293,72 @@ const warmForYou = (result) => {
   return programmeRatings.warm(forYouProgrammesOf(result)).then(warmWeekFilmRatings)
 }
 mountForYou({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onResult: warmForYou })
+
+const tvheadendValueOf = async ({ load, whenUnconfigured }) => {
+  try {
+    return await load()
+  } catch (err) {
+    if (!isTvheadendUnconfigured(err)) throw err
+    return whenUnconfigured({ nowMs: Date.now() })
+  }
+}
+
+const heroForYouPayload = async () => {
+  if (!(await isForYouEnabled())) return null
+  const result = await resultWithin({ promise: getForYou(), ms: HERO_FOR_YOU_WAIT_MS })
+  return result ? publicResultOf({ result, limit: limitFrom(undefined) }) : null
+}
+
+const resultWithin = ({ promise, ms }) => Promise.race([
+  promise,
+  new Promise((resolve) => setTimeout(() => resolve(null), ms).unref()),
+])
+
+const heroPictureProof = createHeroPictureProof({
+  resolve: createImageResolver([programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })]),
+  noteServed: imageFocus.noteServed,
+})
+
+const heroFocusOf = async (urls) => {
+  const keys = [...new Set(urls.map((url) => focusKeyOf(url)).filter(Boolean))]
+  const { items = {} } = await imageFocus.lookup(keys).catch(() => ({}))
+  return new Map(urls.map((url) => [url, items[focusKeyOf(url)] ?? null]))
+}
+
+const homeHero = createHomeHero({
+  readFeed: readFeedWith({
+    inProgress: async () => (await getLibraryEpisodes({ state: 'in-progress', limit: 1 })).episodes,
+    newEpisodes: async () => (await getLibraryEpisodes({ state: 'new', limit: NEW_RECORDINGS_LIMIT })).episodes,
+    movies: async () => (await getLibraryEpisodes({ state: 'unwatched', kind: 'movie', limit: HERO_SLIDES_PER_KIND })).episodes,
+    shows: async () => (await getLibraryShows()).shows,
+    nowEntries: async () => (await tvheadendValueOf({
+      load: getOnNowAll,
+      whenUnconfigured: async ({ nowMs }) => unconfiguredOnNow({ all: true, prefs: await getChannelPrefs(), nowMs }),
+    })).entries,
+    recordingState: async () => {
+      const state = await tvheadendValueOf({ load: () => getRecordingState(), whenUnconfigured: unconfiguredRecordingState })
+      return { upcoming: state.upcomingRecordings, activeProgramIds: state.activeRecordingIds }
+    },
+    recordingNow: async () => (await tvheadendValueOf({ load: () => getRecordingNow(), whenUnconfigured: unconfiguredRecordingNow })).active,
+    watchlist: async () => (await listWatchlist()).items,
+    forYouPayload: heroForYouPayload,
+    stamps: () => artworkChoices.stampsByKey(),
+  }),
+  readPools: readPoolsWith({
+    showImages: (key) => showPoolImages({ artPool, key }),
+    recordingImages: (recordingId) => recordingArtImages({ artPool, recordingId }),
+  }),
+  proofHeroPicture: heroPictureProof.proofHeroPicture,
+  lookupFocus: heroFocusOf,
+  loadSaved: async () => JSON.parse((await getSetting(HERO_SNAPSHOT_SETTING)) || 'null'),
+  save: (snapshot) => setSetting(HERO_SNAPSHOT_SETTING, JSON.stringify(snapshot)),
+  timeZone: currentTimeZone,
+})
+
+app.get('/api/home/hero', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(await homeHero.read())
+})
 mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
 mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })
@@ -2271,6 +2338,9 @@ const server = app.listen(PORT, async () => {
   }
   keepGuideWarm()
   watchPendingSkips()
+  homeHero.start()
+  onSyncFinished(() => homeHero.invalidate())
+  onForYouResult(() => homeHero.invalidate())
   startUserEvents().catch((err) => console.warn(`[events] failed to start: ${err.message}`))
   try {
     await startScheduler()

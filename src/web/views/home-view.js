@@ -7,8 +7,7 @@ import { useLibraryActions } from '/components/library-actions.js'
 import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
 import { MenuCard } from '/components/menu-card.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
-import { MOVIES_URL, heroCandidatesOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
-import { missingArtKeysOf, rememberMissingArt } from '/hero-missing-art.js'
+import { HOME_HERO_URL, MOVIES_URL, currentCandidateTestOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
 import {
   continueWatchingUrl,
   newRecordingsUrl,
@@ -21,7 +20,7 @@ import {
   showHrefOf,
   splitClock,
 } from '/home-feed.js'
-import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, forYouSlideOf, homeRowOf, isScheduled, scheduledKeysOf, topRatedSlideOf } from '/for-you.js'
+import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, homeRowOf, isScheduled, scheduledKeysOf } from '/for-you.js'
 import {
   guideMatchMenuOf,
   onNowMenuOf,
@@ -38,7 +37,6 @@ import {
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
 import { showKeyOf } from '/show-key.js'
 import { forYouHidden, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
-import { heroArtPoolsFor } from '/shared/hero-art-pools.js'
 import { warmImageFocus } from '/shared/image-focus.js'
 import { loadNowAll } from '/shared/channel-twins.js'
 import { browserStorage } from '/shared/storage.js'
@@ -46,13 +44,16 @@ import { freshHomeOf, readHomeCache, writeHomeCache } from '/home-cache.js'
 import { playRecording } from '/shared/playback-session.js'
 import { watchLive, watchRecordingFromStart, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
-import { recordingNow, recordingChangeTick, refreshAfterRecordingChange } from '/shared/recording-now.js'
+import { recordingChangeTick, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, tz, fmtClockTz } from '/shared/time.js'
 import { toast } from '/shared/toast.js'
 
-const HERO_POOL_WAIT_MS = 2000
 const FOCUS_WARM_ROW_ITEMS = 4
+const HERO_REFRESH_MS = 60_000
+const HERO_REBUILD_WAIT_MS = 5_000
+const HERO_BUILDING_RETRY_MS = 3_000
+const MINUTE_MS = 60_000
 const HOME_BUILD = loadedBuild || 'dev'
 
 const EMPTY_HOME = {
@@ -65,7 +66,7 @@ const EMPTY_HOME = {
   watchlist: [],
   movies: [],
   forYouPayload: null,
-  heroPools: {},
+  hero: { candidates: [] },
 }
 
 const HOME_REQUESTS = [
@@ -96,45 +97,42 @@ const keepHome = (home) => {
 }
 
 const fetchHome = async (previous) => {
-  const parts = await Promise.all(HOME_REQUESTS.map(({ load, pick }) => load().then(pick).catch(() => ({}))))
-  return Object.assign({ ...(previous ?? EMPTY_HOME) }, ...parts)
-}
-
-const heroFeedOf = ({ home, nowMs }) => {
-  const suggestionFeed = {
-    payload: home.forYouPayload,
-    scheduledKeys: scheduledKeysOf(home.upcoming),
-    hiddenKeys: forYouHidden.value,
-    nowMs,
-    timeZone: tz.value,
+  const [parts, hero] = await Promise.all([
+    Promise.all(HOME_REQUESTS.map(({ load, pick }) => load().then(pick).catch(() => ({})))),
+    fetchHero(),
+  ])
+  return {
+    home: Object.assign({ ...(previous ?? EMPTY_HOME) }, ...parts, hero.part),
+    heroBuilding: heroIsBuilding(hero.snapshot),
   }
-  const forYou = forYouSlideOf(suggestionFeed)
-  return heroFeedWith({ home, nowMs, forYou, topRated: topRatedSlideOf({ ...suggestionFeed, besides: forYou }) })
 }
 
-const heroFeedWith = ({ home, nowMs, forYou, topRated }) => ({
-  inProgress: home.inProgress,
-  newEpisodes: home.newRecordings,
-  shows: home.shows,
-  recordingNow: recordingNow.value.active ?? [],
-  nowEntries: home.nowEntries,
-  upcoming: home.upcoming,
-  activeProgramIds: home.activeProgramIds,
-  watchlist: home.watchlist,
-  movies: home.movies,
-  forYou,
-  topRated,
+const heroPartOf = (snapshot) => (snapshot && Array.isArray(snapshot.candidates) && !snapshot.building
+  ? { hero: snapshot }
+  : {})
+
+const heroIsBuilding = (snapshot) => Boolean(snapshot?.building)
+
+const fetchHero = async () => {
+  const snapshot = await api('GET', HOME_HERO_URL).catch(() => null)
+  return { snapshot, part: heroPartOf(snapshot) }
+}
+
+const heroSlidesFor = ({ home, nowMs }) => heroSlidesOf({
+  candidates: home.hero?.candidates ?? [],
+  isCurrent: currentCandidateTestOf({
+    inProgress: home.inProgress,
+    newEpisodes: home.newRecordings,
+    movies: home.movies,
+    upcoming: home.upcoming,
+    activeProgramIds: home.activeProgramIds,
+    hiddenKeys: forYouHidden.value,
+  }),
   nowMs,
   timeZone: tz.value,
 })
 
-const focusWarmUrlsOf = ({ slides, row }) => [
-  ...slides.map((slide) => slide.art.image),
-  ...row.slice(0, FOCUS_WARM_ROW_ITEMS).map((recording) => recording.image),
-].filter(Boolean)
-
-const heroPoolsWithin = (pools) =>
-  Promise.race([pools, new Promise((resolve) => setTimeout(() => resolve(null), HERO_POOL_WAIT_MS))])
+const rowFocusWarmUrlsOf = (row) => row.slice(0, FOCUS_WARM_ROW_ITEMS).map((recording) => recording.image).filter(Boolean)
 
 export const HomeView = {
   components: { ActionConfirm, DeleteConfirm, ForYouOverlays, ForYouRows, HomeHeroCarousel, LibraryInfoSheet, LibraryMenuSheet, MenuCard, RecordingOptionsSheet },
@@ -181,7 +179,7 @@ export const HomeView = {
         </section>
       </template>
       <template v-else>
-        <home-hero-carousel v-if="heroSlides.length" :slides="heroSlides" @action="runSlideAction" @menu="openSlideMenu" @art-missing="dropSlideWithoutArt" />
+        <home-hero-carousel v-if="heroSlides.length" :slides="heroSlides" @action="runSlideAction" @menu="openSlideMenu" />
 
         <section v-if="newRecordingsRow.length" class="ui-section" aria-labelledby="home-new-title">
           <div class="ui-row-header">
@@ -305,18 +303,13 @@ export const HomeView = {
       scheduledKeys: scheduledKeys.value,
       hiddenKeys: forYouHidden.value,
     }))
-    const heroFeed = computed(() => heroFeedOf({ home: home.value, nowMs: nowMs.value }))
-    const forYouSlide = computed(() => heroFeed.value.forYou)
-    const missingArtKeys = shallowRef(missingArtKeysOf({ storage: browserStorage(), nowMs: Date.now() }))
-    const dropSlideWithoutArt = (slide) => {
-      const remembered = rememberMissingArt({ storage: browserStorage(), key: slide.key, nowMs: Date.now() })
-      missingArtKeys.value = new Set([...missingArtKeys.value, ...remembered])
-    }
-    const heroSlides = computed(() => heroSlidesOf({ ...heroFeed.value, pools: home.value.heroPools, missingArtKeys: missingArtKeys.value }))
+    const heroMinuteMs = computed(() => Math.floor(nowMs.value / MINUTE_MS) * MINUTE_MS)
+    const heroSlides = computed(() => heroSlidesFor({ home: home.value, nowMs: heroMinuteMs.value }))
+    const forYouSlide = computed(() => heroSlides.value.find((slide) => slide.type === 'for-you') ?? null)
     const heroRecordingIds = computed(() => heroRecordingIdsOf(heroSlides.value))
     const heroProgramIds = computed(() => heroProgramIdsOf(heroSlides.value))
     const newRecordingsRow = computed(() => newRecordings.value.filter((r) => !heroRecordingIds.value.has(r.recordingId)))
-    const focusWarmUrls = computed(() => focusWarmUrlsOf({ slides: heroSlides.value, row: newRecordingsRow.value }).join('\n'))
+    const focusWarmUrls = computed(() => rowFocusWarmUrlsOf(newRecordingsRow.value).join('\n'))
     watch(focusWarmUrls, (joined) => { if (joined) warmImageFocus(joined.split('\n')) }, { immediate: true })
     const tonight = computed(() => tonightOf({
       upcoming: upcoming.value.filter((u) => !heroProgramIds.value.has(String(u.programId))),
@@ -325,21 +318,40 @@ export const HomeView = {
       timeZone: tz.value,
     }))
 
-    const load = async () => {
-      const loadId = ++latestLoadId
-      const isLatest = () => loadId === latestLoadId
-      const fresh = await fetchHome(homeStore.value)
-      if (!isLatest()) return
-      const pools = heroArtPoolsFor(heroCandidatesOf(heroFeedOf({ home: fresh, nowMs: Date.now() })))
-      const poolsInTime = await heroPoolsWithin(pools)
-      if (!isLatest()) return
-      keepHome({ ...fresh, heroPools: poolsInTime ?? fresh.heroPools })
-      if (poolsInTime) return
-      const found = await pools
-      if (isLatest()) keepHome({ ...homeStore.value, heroPools: found })
+    let heroTimer = null
+    let heroRefreshTimer = null
+
+    const scheduleHeroRefresh = (ms) => {
+      clearTimeout(heroTimer)
+      heroTimer = setTimeout(refreshHero, ms)
     }
 
-    onMounted(load)
+    const refreshHero = async () => {
+      const loadId = latestLoadId
+      const { snapshot, part } = await fetchHero()
+      if (loadId !== latestLoadId || !homeStore.value) return
+      if (part.hero) keepHome({ ...homeStore.value, ...part })
+      if (heroIsBuilding(snapshot)) scheduleHeroRefresh(HERO_BUILDING_RETRY_MS)
+    }
+
+    const load = async () => {
+      const loadId = ++latestLoadId
+      const { home: fresh, heroBuilding } = await fetchHome(homeStore.value)
+      if (loadId !== latestLoadId) return
+      keepHome(fresh)
+      scheduleHeroRefresh(heroBuilding ? HERO_BUILDING_RETRY_MS : HERO_REBUILD_WAIT_MS)
+    }
+
+    const refreshHeroWhenVisible = () => { if (!document.hidden) refreshHero() }
+
+    onMounted(() => {
+      load()
+      heroRefreshTimer = setInterval(refreshHeroWhenVisible, HERO_REFRESH_MS)
+    })
+    onUnmounted(() => {
+      clearTimeout(heroTimer)
+      clearInterval(heroRefreshTimer)
+    })
     watch(recordingChangeTick, load)
     const stopWatchingPlayer = watch(() => playback.open, (open, wasOpen) => { if (wasOpen && !open) load() })
     onUnmounted(stopWatchingPlayer)
@@ -574,7 +586,7 @@ export const HomeView = {
 
     return {
       showArtOf,
-      loaded, greeting, heroSlides, dropSlideWithoutArt, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
+      loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
       optionsShow, optionsOpen, load, onOptionsStopped, watchChannel, showHref, newCardMeta, newCardLabel,
       clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
       forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF,

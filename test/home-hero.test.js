@@ -3,9 +3,32 @@ import assert from 'node:assert/strict'
 import {
   HERO_SLIDE_LIMIT, MOVIES_URL, heroSrcsetOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf, liveGenreOf, durationText,
   recordedWhenOf, airingWhenOf, watchedShowKeysOf, activeRecordingOf, recordingWhenEyebrowOf, nextUpcomingOf, heroCandidatesOf, reusedArtSlidesOf,
+  slideOf, currentCandidateTestOf, slideArtIdentityOf,
 } from '../src/web/home-hero.js'
+import { artIdentityFrom, candidatesOf } from '../src/web/hero-art.js'
 
 const timeZone = 'UTC'
+
+const provenCandidateOf = ({ slide, pools }) => {
+  const identityOf = artIdentityFrom(pools)
+  const urls = candidatesOf({ slide, pools })
+  return {
+    key: slide.key,
+    type: slide.type,
+    source: slide.source,
+    endsAt: slide.endsAt ?? null,
+    art: { title: slide.art.title, image: urls[0], images: urls.map((url) => ({ url, identity: identityOf(url) })) },
+  }
+}
+
+const slidesFrom = ({ pools = {}, remix = true, limit, isCurrent, ...feed }) => heroSlidesOf({
+  candidates: heroCandidatesOf(feed).map((slide) => provenCandidateOf({ slide, pools })),
+  remix,
+  limit,
+  isCurrent,
+  nowMs: feed.nowMs,
+  timeZone: feed.timeZone,
+})
 const nowMs = Date.parse('2026-10-19T19:14:00Z')
 const MIN = 60_000
 
@@ -57,14 +80,14 @@ const fullFeed = () => ({
 })
 
 test('heroSlidesOf: ranks slides, caps them at five, and skips repeated art without a pool', () => {
-  const slides = heroSlidesOf(fullFeed())
+  const slides = slidesFrom(fullFeed())
   assert.deepEqual(slides.map((s) => s.type), ['continue', 'on-now', 'watchlist', 'movie'])
-  const many = heroSlidesOf({ ...fullFeed(), pools: { recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] } } })
+  const many = slidesFrom({ ...fullFeed(), pools: { recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] } } })
   assert.equal(many.length, HERO_SLIDE_LIMIT)
 })
 
 test('heroSlidesOf: keeps rank order when every slide has its own artwork', () => {
-  const slides = heroSlidesOf({
+  const slides = slidesFrom({
     ...fullFeed(),
     newEpisodes: [episode({ recordingId: 'n1', showKey: 'mkr', title: 'MKR' })],
     shows: [show({ key: 'mkr' })],
@@ -75,13 +98,13 @@ test('heroSlidesOf: keeps rank order when every slide has its own artwork', () =
 })
 
 test('heroSlidesOf: drops slides with nothing to show', () => {
-  const slides = heroSlidesOf({ ...fullFeed(), inProgress: [], recordingNow: [], nowEntries: [], upcoming: [] })
+  const slides = slidesFrom({ ...fullFeed(), inProgress: [], recordingNow: [], nowEntries: [], upcoming: [] })
   assert.deepEqual(slides.map((s) => s.type), ['new', 'watchlist', 'movie'])
-  assert.deepEqual(heroSlidesOf({ nowMs, timeZone }), [])
+  assert.deepEqual(slidesFrom({ nowMs, timeZone }), [])
 })
 
 test('continue watching slide: resume with watched progress', () => {
-  const [slide] = heroSlidesOf({ inProgress: [episode()], nowMs, timeZone })
+  const [slide] = slidesFrom({ inProgress: [episode()], nowMs, timeZone })
   assert.equal(slide.eyebrow, 'Continue watching')
   assert.equal(slide.meta, 'S22 E45 · Reveal · 9HD · 28 min left')
   assert.equal(slide.metaShort, 'S22 E45 · 28 min left')
@@ -93,67 +116,67 @@ test('continue watching slide: resume with watched progress', () => {
 
 test('new episode slide: only for a series you have watched', () => {
   const newEpisodes = [episode({ recordingId: 'n1', showKey: 'mkr', title: 'MKR', season: 16, episode: 8, positionS: null })]
-  const unseen = heroSlidesOf({ newEpisodes, shows: [show({ key: 'mkr', counts: { total: 4, unwatched: 4 } })], nowMs, timeZone })
+  const unseen = slidesFrom({ newEpisodes, shows: [show({ key: 'mkr', counts: { total: 4, unwatched: 4 } })], nowMs, timeZone })
   assert.deepEqual(unseen, [])
-  const [slide] = heroSlidesOf({ newEpisodes, shows: [show({ key: 'mkr', counts: { total: 4, unwatched: 3 } })], nowMs, timeZone })
+  const [slide] = slidesFrom({ newEpisodes, shows: [show({ key: 'mkr', counts: { total: 4, unwatched: 3 } })], nowMs, timeZone })
   assert.equal(slide.eyebrow, 'New episode')
   assert.equal(slide.meta, 'S16 E8 · Recorded last night · 9HD · 1 h')
   assert.equal(slide.primary.label, 'Play')
 })
 
 test('recording now slide: start over when it can, red progress, watch live second', () => {
-  const [slide] = heroSlidesOf({ recordingNow: [recording()], nowEntries: [entry({ channel: { id: 'c9', name: '9HD' } })], nowMs, timeZone })
+  const [slide] = slidesFrom({ recordingNow: [recording()], nowEntries: [entry({ channel: { id: 'c9', name: '9HD' } })], nowMs, timeZone })
   assert.equal(slide.badge, 'REC')
   assert.equal(slide.meta, 'Episode 46 · 9HD · until 7:48pm · 34 min left')
   assert.equal(slide.progress.live, true)
   assert.equal(slide.primary.action, 'from-start')
   assert.equal(slide.secondary.action, 'watch-live')
   assert.equal(slide.target.channel.name, '9HD')
-  const [plain] = heroSlidesOf({ recordingNow: [recording({ canPlayFromStart: false })], nowMs, timeZone })
+  const [plain] = slidesFrom({ recordingNow: [recording({ canPlayFromStart: false })], nowMs, timeZone })
   assert.equal(plain.primary.action, 'watch-live')
   assert.equal(plain.secondary, null)
 })
 
 test('on now slide: live sport or news on a favourite channel only', () => {
-  const [slide] = heroSlidesOf({ nowEntries: [entry()], nowMs, timeZone })
+  const [slide] = slidesFrom({ nowEntries: [entry()], nowMs, timeZone })
   assert.equal(slide.eyebrow, 'Live sport on 7mate')
   assert.equal(slide.meta, 'Sport · 7mate · until 8:06pm · 52 min left')
   assert.equal(slide.badge, 'LIVE')
   assert.equal(slide.secondary.action, 'record')
   assert.equal(slide.art.image, '/api/epg/image/900')
-  const news = heroSlidesOf({ nowEntries: [entry({ now: { genre: 0x23 } })], nowMs, timeZone })[0]
+  const news = slidesFrom({ nowEntries: [entry({ now: { genre: 0x23 } })], nowMs, timeZone })[0]
   assert.equal(news.eyebrow, 'Live news on 7mate')
-  assert.deepEqual(heroSlidesOf({ nowEntries: [entry({ now: { genre: 0x14 } })], nowMs, timeZone }), [])
-  assert.deepEqual(heroSlidesOf({ nowEntries: [entry({ channel: { pinned: false } })], nowMs, timeZone }), [])
+  assert.deepEqual(slidesFrom({ nowEntries: [entry({ now: { genre: 0x14 } })], nowMs, timeZone }), [])
+  assert.deepEqual(slidesFrom({ nowEntries: [entry({ channel: { pinned: false } })], nowMs, timeZone }), [])
 })
 
 test('on now slide: skips the channel the recording slide already shows', () => {
-  const slides = heroSlidesOf({ recordingNow: [recording({ channelId: 'c7' })], nowEntries: [entry()], nowMs, timeZone })
+  const slides = slidesFrom({ recordingNow: [recording({ channelId: 'c7' })], nowEntries: [entry()], nowMs, timeZone })
   assert.deepEqual(slides.map((s) => s.type), ['recording'])
 })
 
 test('tonight slide: recording options for a series rule, details for a one-off', () => {
-  const [ruled] = heroSlidesOf({ upcoming: [upcomingItem()], shows: [show({ key: 'gogglebox', rule: {} })], nowMs, timeZone })
+  const [ruled] = slidesFrom({ upcoming: [upcomingItem()], shows: [show({ key: 'gogglebox', rule: {} })], nowMs, timeZone })
   assert.equal(ruled.eyebrow, 'Recording tonight')
   assert.equal(ruled.meta, '8:30pm · 10 · S1 E4 · Records every new episode')
   assert.equal(ruled.primary.action, 'options')
   assert.equal(ruled.target.showKey, 'gogglebox')
-  const [single] = heroSlidesOf({ upcoming: [upcomingItem()], nowMs, timeZone })
+  const [single] = slidesFrom({ upcoming: [upcomingItem()], nowMs, timeZone })
   assert.equal(single.primary.action, 'upcoming')
   assert.match(single.meta, /Records this episode$/)
 })
 
 test('watchlist slide: notify items with a guide match', () => {
-  const [slide] = heroSlidesOf({ watchlist: [watchItem()], nowMs, timeZone })
+  const [slide] = slidesFrom({ watchlist: [watchItem()], nowMs, timeZone })
   assert.equal(slide.eyebrow, 'Now in the guide')
   assert.equal(slide.meta, 'Wed 7:14pm · SBS · On your watchlist')
   assert.equal(slide.primary.action, 'record-series')
-  assert.deepEqual(heroSlidesOf({ watchlist: [watchItem({ mode: 'record' })], nowMs, timeZone }), [])
-  assert.deepEqual(heroSlidesOf({ watchlist: [watchItem({ nextMatch: null })], nowMs, timeZone }), [])
+  assert.deepEqual(slidesFrom({ watchlist: [watchItem({ mode: 'record' })], nowMs, timeZone }), [])
+  assert.deepEqual(slidesFrom({ watchlist: [watchItem({ nextMatch: null })], nowMs, timeZone }), [])
 })
 
 test('movie slide: unwatched movie with length and when recorded', () => {
-  const [slide] = heroSlidesOf({ movies: [movie()], nowMs, timeZone })
+  const [slide] = slidesFrom({ movies: [movie()], nowMs, timeZone })
   assert.equal(slide.eyebrow, 'Unwatched movie')
   assert.equal(slide.meta, 'Movie · 1 h 41 min · Recorded last night · 9HD')
   assert.equal(slide.secondary.label, 'Details')
@@ -161,15 +184,15 @@ test('movie slide: unwatched movie with length and when recorded', () => {
 })
 
 test('heroSlidesOf: one recording never appears twice', () => {
-  const slides = heroSlidesOf({ inProgress: [movie()], movies: [movie()], nowMs, timeZone })
+  const slides = slidesFrom({ inProgress: [movie()], movies: [movie()], nowMs, timeZone })
   assert.deepEqual(slides.map((s) => s.type), ['continue'])
 })
 
 test('heroRecordingIdsOf and heroProgramIdsOf: what the rows hide', () => {
-  const slides = heroSlidesOf(fullFeed())
+  const slides = slidesFrom(fullFeed())
   assert.deepEqual([...heroRecordingIdsOf(slides)], ['r1', 'm1'])
   assert.deepEqual([...heroProgramIdsOf(slides)], [])
-  const varied = heroSlidesOf({ ...fullFeed(), upcoming: [upcomingItem({ programId: 78 })], inProgress: [] })
+  const varied = slidesFrom({ ...fullFeed(), upcoming: [upcomingItem({ programId: 78 })], inProgress: [] })
   assert.deepEqual([...heroProgramIdsOf(varied)], ['78'])
 })
 
@@ -215,7 +238,7 @@ test('nextUpcomingOf: the soonest future recording that is not already recording
   ]
   assert.equal(nextUpcomingOf({ upcoming, activeProgramIds: [4], nowMs }).programId, 3)
   assert.equal(nextUpcomingOf({ upcoming: [], nowMs }), null)
-  const [slide] = heroSlidesOf({ upcoming: [upcomingItem({ startDate: nowMs + 86_400_000 })], nowMs, timeZone })
+  const [slide] = slidesFrom({ upcoming: [upcomingItem({ startDate: nowMs + 86_400_000 })], nowMs, timeZone })
   assert.equal(slide.eyebrow, 'Recording tomorrow')
 })
 
@@ -240,14 +263,14 @@ test('heroSlidesOf: same show stays when its pool gives each slide different art
     shows: { 'the-block': [{ url: '/bg1', kind: 'background' }, { url: '/bg2', kind: 'background' }] },
     recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] },
   }
-  const slides = heroSlidesOf({ ...fullFeed(), pools })
+  const slides = slidesFrom({ ...fullFeed(), pools })
   assert.deepEqual(slides.map((s) => s.type), ['continue', 'new', 'recording', 'on-now', 'upcoming'])
   assert.deepEqual(slides.map((s) => s.art.image), ['/r1', '/r2', showArt('The Block'), '/api/epg/image/900', '/bg1'])
 })
 
 test('heroSlidesOf: drops a same-show slide only when its pool is used up, then refills', () => {
   const pools = { recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] } }
-  const slides = heroSlidesOf({ ...fullFeed(), pools })
+  const slides = slidesFrom({ ...fullFeed(), pools })
   assert.deepEqual(slides.map((s) => s.type), ['continue', 'new', 'recording', 'on-now', 'watchlist'])
   assert.equal(new Set(slides.map((s) => s.art.image)).size, slides.length)
 })
@@ -256,12 +279,80 @@ test('reusedArtSlidesOf: later slides whose art already appeared', () => {
   const slide = (key, image) => ({ key, art: { image, title: key } })
   const slides = [slide('a', '/x?w=768'), slide('b', '/y'), slide('c', '/X?w=384')]
   assert.deepEqual(keys(reusedArtSlidesOf({ slides })), ['c'])
-  const pools = { shows: { s: [{ url: '/y', contentKey: 'k' }, { url: '/z', contentKey: 'k' }] } }
-  assert.deepEqual(keys(reusedArtSlidesOf({ slides: [slide('a', '/y'), slide('b', '/z')], pools })), ['b'])
+  const sameContent = (key, image) => ({ key, art: { image, title: key, images: [{ url: image, identity: 'content:k' }] } })
+  assert.deepEqual(keys(reusedArtSlidesOf({ slides: [sameContent('a', '/y'), sameContent('b', '/z')] })), ['b'])
+})
+
+test('slideArtIdentityOf: proven images carry their identity, other urls fall back to the url key', () => {
+  const identityOf = slideArtIdentityOf([{ art: { images: [{ url: '/a?w=768', identity: 'content:1' }] } }])
+  assert.equal(identityOf('/a?w=1920'), 'content:1')
+  assert.equal(identityOf('/b?w=768'), '/b')
+})
+
+const candidateOf = (slide, images = [{ url: slide.art.image }]) => ({
+  key: slide.key, type: slide.type, source: slide.source, endsAt: slide.endsAt ?? null,
+  art: { title: slide.art.title, image: images[0].url, images },
+})
+
+test('slideOf: rebuilds the time text with the viewer clock and keeps the proven art', () => {
+  const [ranked] = heroCandidatesOf({ upcoming: [upcomingItem()], nowMs: Date.parse('2026-10-19T09:00:00Z'), timeZone })
+  const candidate = candidateOf(ranked, [{ url: '/proven?w=768', srcset: '/proven?w=768 768w', focus: { x: 0.4, y: 0.3 } }])
+  const later = slideOf(candidate, { nowMs, timeZone })
+  assert.equal(ranked.eyebrow, 'Recording tonight')
+  assert.equal(later.eyebrow, 'Recording tonight')
+  assert.equal(later.art.image, '/proven?w=768')
+  assert.equal(later.title, 'Gogglebox')
+  const tomorrow = slideOf(candidate, { nowMs: Date.parse('2026-10-18T20:00:00Z'), timeZone })
+  assert.equal(tomorrow.eyebrow, 'Recording tomorrow')
+  assert.equal(slideOf({ ...candidate, type: 'nope' }, { nowMs, timeZone }), null)
+  assert.equal(slideOf({ ...candidate, source: null }, { nowMs, timeZone }), null)
+})
+
+test('slideOf: minutes left and progress follow the clock it is given', () => {
+  const [ranked] = heroCandidatesOf({ nowEntries: [entry()], nowMs, timeZone })
+  const candidate = candidateOf(ranked)
+  assert.equal(slideOf(candidate, { nowMs, timeZone }).metaShort, '7mate · 52 min left')
+  assert.equal(slideOf(candidate, { nowMs: nowMs + 30 * MIN, timeZone }).metaShort, '7mate · 22 min left')
+  assert.equal(candidate.endsAt, nowMs + 52 * MIN)
+})
+
+test('heroSlidesOf: drops candidates that ended, have no proven picture, or are no longer current', () => {
+  const ranked = heroCandidatesOf({ ...fullFeed(), remix: false })
+  const candidates = ranked.map((slide) => candidateOf(slide, [{ url: `/proven/${slide.key}`, srcset: 'set', focus: { x: 1, y: 1 } }]))
+  const typesAt = (options) => heroSlidesOf({ candidates, remix: false, limit: 10, nowMs, timeZone, ...options }).map((s) => s.type)
+  assert.deepEqual(typesAt({}), ['continue', 'new', 'recording', 'on-now', 'upcoming', 'watchlist', 'movie'])
+  assert.deepEqual(typesAt({ nowMs: nowMs + 40 * MIN }), ['continue', 'new', 'on-now', 'upcoming', 'watchlist', 'movie'])
+  assert.deepEqual(typesAt({ nowMs: nowMs + 80 * MIN }), ['continue', 'new', 'watchlist', 'movie'])
+  const withoutPictures = candidates.map((candidate) => (candidate.type === 'movie' ? { ...candidate, art: { ...candidate.art, images: [] } } : candidate))
+  assert.ok(!heroSlidesOf({ candidates: withoutPictures, remix: false, nowMs, timeZone, limit: 10 }).some((s) => s.type === 'movie'))
+  const isCurrent = currentCandidateTestOf({ inProgress: [], newEpisodes: [episode({ recordingId: 'r2' })], movies: [], upcoming: [], activeProgramIds: [] })
+  assert.deepEqual(typesAt({ isCurrent }), ['new', 'recording', 'on-now', 'watchlist'])
+  const [first] = heroSlidesOf({ candidates, remix: false, nowMs, timeZone })
+  assert.deepEqual(first.art, { title: 'The Block', image: '/proven/continue:r1', images: candidates[0].art.images, srcset: 'set', focus: { x: 1, y: 1 } })
+})
+
+test('currentCandidateTestOf: skipped, watched, and hidden picks leave before the next snapshot', () => {
+  const test = currentCandidateTestOf({
+    inProgress: [episode()],
+    newEpisodes: [],
+    movies: [movie()],
+    upcoming: [upcomingItem({ programId: 77 }), upcomingItem({ programId: 78 })],
+    activeProgramIds: [78],
+    hiddenKeys: new Set(['grand-designs']),
+  })
+  assert.equal(test({ type: 'continue', source: { episode: episode() } }), true)
+  assert.equal(test({ type: 'new', source: { episode: episode() } }), false)
+  assert.equal(test({ type: 'movie', source: { movie: movie() } }), true)
+  assert.equal(test({ type: 'upcoming', source: { item: { programId: 77 } } }), true)
+  assert.equal(test({ type: 'upcoming', source: { item: { programId: 78 } } }), false)
+  assert.equal(test({ type: 'upcoming', source: { item: { programId: 99 } } }), false)
+  assert.equal(test({ type: 'for-you', source: { item: { title: 'Grand Designs' } } }), false)
+  assert.equal(test({ type: 'top-rated', source: { item: { title: 'The Pianist' } } }), true)
+  assert.equal(test({ type: 'on-now', source: {} }), true)
 })
 
 test('heroSlidesOf: the last slide never shares art with the first', () => {
-  const slides = heroSlidesOf({ inProgress: [episode()], upcoming: [upcomingItem({ name: 'The Block' })], nowMs, timeZone, remix: false })
+  const slides = slidesFrom({ inProgress: [episode()], upcoming: [upcomingItem({ name: 'The Block' })], nowMs, timeZone, remix: false })
   assert.deepEqual(slides.map((s) => s.type), ['continue'])
   assert.equal(showArt('The Block'), slides[0].art.image)
 })
@@ -288,10 +379,10 @@ test('heroSlidesOf: remixes by the hour with recording now first', () => {
     nowEntries: [entry({ now: { end: nowMs + 30 * 60 * MIN } })],
     upcoming: [upcomingItem({ name: 'Hard Quiz', programId: 79, startDate: nowMs + 30 * 60 * MIN })],
   }
-  const hourly = Array.from({ length: 24 }, (_, h) => heroSlidesOf({ ...feed, nowMs: nowMs + h * 3_600_000 }))
+  const hourly = Array.from({ length: 24 }, (_, h) => slidesFrom({ ...feed, nowMs: nowMs + h * 3_600_000 }))
   assert.ok(hourly.every((slides) => slides[0].type === 'recording' && slides[1].type === 'on-now'))
   assert.ok(new Set(hourly.map((slides) => keys(slides).join())).size > 1)
-  assert.deepEqual(keys(heroSlidesOf(feed)), keys(heroSlidesOf({ ...feed, nowMs: nowMs + 30 * MIN })))
+  assert.deepEqual(keys(slidesFrom(feed)), keys(slidesFrom({ ...feed, nowMs: nowMs + 30 * MIN })))
 })
 
 test('heroSrcsetOf offers 768, 1280, and 1920 wide copies of the slide picture', () => {
@@ -303,4 +394,13 @@ test('heroSrcsetOf offers 768, 1280, and 1920 wide copies of the slide picture',
   )
   assert.equal(heroSrcsetOf('/api/epg/image/42').split(', ')[2], '/api/epg/image/42?w=1920 1920w')
   assert.equal(heroSrcsetOf(null), null)
+})
+
+test('heroCandidatesOf stamps show pictures with the stampUrl it is given', () => {
+  const stampUrl = (url) => `${url}&c=server`
+  const [slide] = heroCandidatesOf({ upcoming: [upcomingItem()], nowMs, timeZone, stampUrl })
+  assert.equal(slide.art.image, '/api/epg/show-image?title=Gogglebox&w=768&c=server')
+  const chosenImage = '/api/epg/show-image?title=The%20Block&w=384'
+  const [chosen] = heroCandidatesOf({ inProgress: [episode({ artChosen: true, image: chosenImage })], nowMs, timeZone, stampUrl })
+  assert.equal(chosen.art.image, '/api/epg/show-image?title=The%20Block&w=768&c=server')
 })

@@ -1,6 +1,5 @@
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { artFallbackStyle } from '/art-fallback.js'
-import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { live, playback } from '/shared/player-shared.js'
 import {
   SLIDE_MS,
@@ -14,7 +13,7 @@ import {
 } from '/hero-rotation.js'
 import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
 import { focusKeyOf } from '/image-focus.js'
-import { HERO_SIZES, heroSrcsetOf } from '/home-hero.js'
+import { HERO_SIZES } from '/home-hero.js'
 import { overlayStack } from '/overlay-stack.js'
 import {
   heroMotionOf,
@@ -53,11 +52,18 @@ const forgetMissing = ({ key, focus }) => {
   return focus
 }
 
+const rememberSuppliedFocus = (slides) => {
+  for (const slide of slides) {
+    const key = slide.art.focus && focusKeyOf(slide.art.image, location.origin)
+    if (key && !knownFocus.has(key)) knownFocus.set(key, Promise.resolve(slide.art.focus))
+  }
+}
+
 export const HomeHeroCarousel = {
   props: {
     slides: { type: Array, required: true },
   },
-  emits: ['action', 'menu', 'art-missing'],
+  emits: ['action', 'menu'],
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
       :class="{ 'is-reduced': rotation.reducedMotion }"
@@ -69,9 +75,10 @@ export const HomeHeroCarousel = {
             :aria-label="(i + 1) + ' of ' + orderedSlides.length" :aria-hidden="i === rotation.index ? null : 'true'"
             :inert="i !== rotation.index" :class="['ui-hero', 'hero-slide', { 'is-active': i === rotation.index, 'is-leaving': slide.key === leavingKey }]"
             :style="slideStyle(i)" :ref="(el) => setSlideRef(el, slide.key)">
-            <div class="hero-slide-backdrop ui-art-fallback" :style="fallbackStyleOf(slide)">
-              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="stampedShowImage(slide.art.image)"
-                :srcset="heroSrcsetOf(stampedShowImage(slide.art.image))" :sizes="heroSizes" alt="" decoding="async"
+            <div :class="['hero-slide-backdrop', { 'ui-art-fallback': failedArt[artKeyOf(slide)] }]"
+              :style="failedArt[artKeyOf(slide)] ? fallbackStyleOf(slide) : null">
+              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="slide.art.image"
+                :srcset="slide.art.srcset" :sizes="heroSizes" alt="" decoding="async"
                 :fetchpriority="i === 0 ? 'high' : null" :loading="isNearActive(i) ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
@@ -127,6 +134,7 @@ export const HomeHeroCarousel = {
   setup(props, { emit }) {
     const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     let state = rotationStart({ count: props.slides.length, reducedMotion: reducedQuery.matches })
+    watch(() => props.slides, rememberSuppliedFocus, { immediate: true })
     const displayKeys = ref(props.slides.map((slide) => slide.key))
     const keptSlides = shallowRef(null)
     const slidesByKey = computed(() => new Map([...(keptSlides.value ?? []), ...props.slides.map((slide) => [slide.key, slide])]))
@@ -493,11 +501,10 @@ export const HomeHeroCarousel = {
     const artKeyOf = (slide) => `${slide.key}|${slide.art.image}`
     const markArtFailed = (slide) => {
       failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true }
-      emit('art-missing', slide)
     }
 
     return {
-      stampedShowImage, heroSrcsetOf, heroSizes: HERO_SIZES,
+      heroSizes: HERO_SIZES,
       rotation, stage, failedArt, leavingKey, isNearActive, setSlideRef, orderedSlides, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerOver, onPointerLeave, onFocusIn, onFocusOut, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
