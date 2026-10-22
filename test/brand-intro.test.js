@@ -8,6 +8,7 @@ import {
   readIntroMemory,
   rememberIntroPlayed,
   introGeometry,
+  introGeometryInEm,
   flightTransform,
 } from '../src/web/brand-intro.js'
 
@@ -92,6 +93,20 @@ test('introGeometry: scales chips with the font size', () => {
   const { chips } = introGeometry({ fontSize: 42, ink, wordWidth: 190, segments: [{ left: 0, width: 90 }] })
   assert.equal(chips[0].width, 24)
   assert.equal(chips[0].bob, 7)
+})
+
+test('introGeometryInEm: sizes the clip from the font, not from a measurement', () => {
+  const { clipHeight } = introGeometryInEm({ fontSize: 58.5, wordWidth: 0, segments: [] })
+  assert.equal(clipHeight, 0.85 + 3 / 84)
+})
+
+test('introGeometryInEm: gives the same em geometry at any font size', () => {
+  const at = (fontSize) => introGeometryInEm({
+    fontSize,
+    wordWidth: 4 * fontSize,
+    segments: [{ left: 0, width: 2 * fontSize }, { left: 2 * fontSize, width: fontSize }],
+  })
+  assert.deepEqual(at(44), at(84))
 })
 
 test('flightTransform: moves the top-left corner and scales by width', () => {

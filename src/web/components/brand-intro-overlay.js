@@ -3,7 +3,7 @@ import {
   shouldPlayIntro,
   readIntroMemory,
   rememberIntroPlayed,
-  introGeometry,
+  introGeometryInEm,
   flightTransform,
 } from '/brand-intro.js'
 import { prefersReducedMotion } from '/shared/utils.js'
@@ -45,11 +45,13 @@ const runIntro = async () => {
   const stopSkipping = listenForSkip(overlay)
   await fontReady()
   layoutOverlay(overlay)
+  const stopRelayout = relayoutOnFontSwap(overlay)
   overlay.classList.add('is-ready', 'is-playing')
   if (overlay.classList.contains('is-skipped')) finishAll(overlay)
   await animationsDone(overlay)
   await holdUnlessSkipped(overlay)
   stopSkipping()
+  stopRelayout()
   overlay.classList.add('is-leaving')
   await leave(overlay)
   overlay.remove()
@@ -72,31 +74,34 @@ const segmentMarkup = ({ text, tone }) => `<span class="brand-intro-segment is-$
 const layoutOverlay = (overlay) => {
   const word = overlay.querySelector('.brand-intro-word')
   const segments = [...word.querySelectorAll('.brand-intro-segment')]
-  const style = getComputedStyle(word)
-  const fontSize = parseFloat(style.fontSize)
-  const { clipHeight, chips } = introGeometry({
-    fontSize,
-    ink: measureInk(style),
+  const { clipHeight, chips } = introGeometryInEm({
+    fontSize: parseFloat(getComputedStyle(word).fontSize),
     wordWidth: word.offsetWidth,
     segments: segments.map((segment) => ({ left: segment.offsetLeft, width: segment.offsetWidth })),
   })
   segments.forEach((segment, index) => {
     const chip = chips[index]
-    segment.querySelector('.brand-intro-clip').style.height = `${clipHeight}px`
+    segment.querySelector('.brand-intro-clip').style.height = em(clipHeight)
     setVars(segment, {
-      '--chip-left': `${chip.left}px`,
-      '--chip-top': `${chip.top}px`,
-      '--chip-w': `${chip.width}px`,
-      '--chip-h': `${chip.height}px`,
-      '--chip-radius': `${chip.radius}px`,
-      '--dx': `${chip.dx}px`,
-      '--dy': `${chip.dy}px`,
-      '--bob': `${chip.bob}px`,
+      '--chip-left': em(chip.left),
+      '--chip-top': em(chip.top),
+      '--chip-w': em(chip.width),
+      '--chip-h': em(chip.height),
+      '--chip-radius': em(chip.radius),
+      '--dx': em(chip.dx),
+      '--dy': em(chip.dy),
+      '--bob': em(chip.bob),
       '--sx': chip.sx,
       '--sy': chip.sy,
       '--delay': `${chip.delayMs}ms`,
     })
   })
+}
+
+const relayoutOnFontSwap = (overlay) => {
+  const relayout = () => layoutOverlay(overlay)
+  document.fonts?.addEventListener('loadingdone', relayout)
+  return () => document.fonts?.removeEventListener('loadingdone', relayout)
 }
 
 const listenForSkip = (overlay) => {
@@ -163,18 +168,9 @@ const fontReady = () => Promise.race([
   new Promise((resolve) => setTimeout(resolve, FONT_WAIT_MS)),
 ])
 
-const measureInk = (style) => {
-  const context = document.createElement('canvas').getContext('2d')
-  context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
-  const capMetrics = context.measureText('F')
-  return {
-    cap: capMetrics.actualBoundingBoxAscent,
-    fontAscent: capMetrics.fontBoundingBoxAscent,
-    fontHeight: capMetrics.fontBoundingBoxAscent + capMetrics.fontBoundingBoxDescent,
-  }
-}
-
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()))
+
+const em = (value) => `${value}em`
 
 const setVars = (element, vars) => Object.entries(vars)
   .forEach(([name, value]) => element.style.setProperty(name, value))

@@ -2,6 +2,7 @@ export const INTRO_DAY_KEY = 'freetvarr.introPlayedOn'
 export const INTRO_SESSION_KEY = 'freetvarr.introPlayed'
 export const INTRO_DESIGN_FONT_PX = 84
 export const INTRO_STAGGER_MS = 40
+export const FIGTREE_INK_EM = { cap: 0.7, fontAscent: 0.95, fontHeight: 1.2 }
 
 export const localDay = (date) => [
   date.getFullYear(),
@@ -53,6 +54,13 @@ export const introGeometry = ({ fontSize, ink, wordWidth, segments }) => {
     }),
   }
 }
+
+export const introGeometryInEm = ({ fontSize, wordWidth, segments }) => introGeometry({
+  fontSize: 1,
+  ink: FIGTREE_INK_EM,
+  wordWidth: wordWidth / fontSize,
+  segments: segments.map(({ left, width }) => ({ left: left / fontSize, width: width / fontSize })),
+})
 
 export const flightTransform = ({ from, to }) => {
   const scale = to.width / from.width
