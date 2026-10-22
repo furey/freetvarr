@@ -7,17 +7,20 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WEB = path.join(ROOT, 'src', 'web')
 const DOCS_PUBLIC = path.join(ROOT, 'docs', 'public')
 
-const BACKGROUND = '#28231b'
+const APP_BACKGROUND = '#0b1117'
+const FAVICON_BACKGROUND = '#141c24'
 const INK = '#fffcfb'
-const CHIP_COLOURS = ['#1eb6ff', '#ff8a00', '#e2b03c']
-const SAFE_ZONE_RADIUS = 204.8
+const CHIP_COLOURS = ['#3ba4ff', '#f28c28', '#f5c542']
 const CHIP_ROW = { chipWidth: 4, chipHeight: 3, gap: 1.75 }
+const CHIP_ROW_WIDTH = 3 * CHIP_ROW.chipWidth + 2 * CHIP_ROW.gap
+const ICON_ROW_FRACTION = 0.7
+const MASKABLE_ROW_RADIUS = 190
 
 const main = async () => {
   await writeSvg('favicon.svg', faviconSvg(), [WEB, DOCS_PUBLIC])
   await writePng({ name: 'icon-192.png', svg: iconSvg(), size: 192 })
   await writePng({ name: 'icon-512.png', svg: iconSvg(), size: 512 })
-  await writePng({ name: 'icon-maskable-512.png', svg: iconSvg(), size: 512 })
+  await writePng({ name: 'icon-maskable-512.png', svg: maskableSvg(), size: 512 })
   await writePng({ name: 'icon-monochrome-512.png', svg: monochromeSvg(), size: 512, transparent: true })
   await writePng({ name: 'apple-touch-icon.png', svg: iconSvg(), size: 180 })
   await writeFile(path.join(WEB, 'favicon.ico'), await icoFrom([16, 32]))
@@ -25,28 +28,35 @@ const main = async () => {
 
 const iconSvg = () => svgDocument({
   size: 512,
-  background: BACKGROUND,
-  body: chipRowInSafeZone(CHIP_COLOURS)
+  background: APP_BACKGROUND,
+  body: chipRow({ fills: CHIP_COLOURS, unit: (ICON_ROW_FRACTION * 512) / CHIP_ROW_WIDTH })
+})
+
+const maskableSvg = () => svgDocument({
+  size: 512,
+  background: APP_BACKGROUND,
+  body: chipRow({ fills: CHIP_COLOURS, unit: maskableUnit() })
 })
 
 const monochromeSvg = () => svgDocument({
   size: 512,
-  body: chipRowInSafeZone(CHIP_COLOURS.map(() => INK))
+  body: chipRow({ fills: CHIP_COLOURS.map(() => INK), unit: maskableUnit() })
 })
 
 const faviconSvg = () => svgDocument({
   size: 32,
-  background: BACKGROUND,
+  background: FAVICON_BACKGROUND,
   body: CHIP_COLOURS
     .map((fill, index) => rect({ x: 2 + index * 10, y: 14, width: 8, height: 4, fill }))
     .join('')
 })
 
-const chipRowInSafeZone = (fills) => {
+const maskableUnit = () =>
+  MASKABLE_ROW_RADIUS / Math.hypot(CHIP_ROW_WIDTH / 2, CHIP_ROW.chipHeight / 2)
+
+const chipRow = ({ fills, unit }) => {
   const { chipWidth, chipHeight, gap } = CHIP_ROW
-  const rowWidth = 3 * chipWidth + 2 * gap
-  const unit = SAFE_ZONE_RADIUS / Math.hypot(rowWidth / 2, chipHeight / 2)
-  const left = 256 - (rowWidth * unit) / 2
+  const left = 256 - (CHIP_ROW_WIDTH * unit) / 2
   const top = 256 - (chipHeight * unit) / 2
   return fills.map((fill, index) => rect({
     x: round(left + index * (chipWidth + gap) * unit),
@@ -63,7 +73,7 @@ const writeSvg = async (name, svg, directories) => {
 
 const writePng = async ({ name, svg, size, transparent = false }) => {
   const image = sharp(Buffer.from(svg)).resize(size, size)
-  const pixels = transparent ? image : image.flatten({ background: BACKGROUND }).removeAlpha()
+  const pixels = transparent ? image : image.flatten({ background: APP_BACKGROUND }).removeAlpha()
   await pixels.png().toFile(path.join(WEB, name))
 }
 
