@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
-  HERO_MOTION, REDUCED_MOTION, DRIFT, heroMotionOf, directionOf, entranceDelaysOf, entranceSettleMsOf, coverScaleOf,
-  canDrift, imageNudgeOf, changeKindOf, zoomOriginOf, positionPercentOf, playSlideChange, settleSlide,
+  HERO_MOTION, REDUCED_MOTION, DRIFT, heroMotionOf, directionOf, entranceSettleMsOf,
+  imageNudgeOf, changeKindOf, zoomOriginOf, positionPercentOf, playSlideChange, settleSlide,
 } from '../src/web/hero-transition.js'
 
 test('heroMotionOf: reduced motion gets the short fade, everything else the full change', () => {
@@ -13,7 +13,7 @@ test('heroMotionOf: reduced motion gets the short fade, everything else the full
 })
 
 test('the full change settles inside 650 ms and its picture inside 500 ms', () => {
-  assert.ok(entranceSettleMsOf({ motion: HERO_MOTION, lineCount: 4 }) <= 650)
+  assert.ok(entranceSettleMsOf({ motion: HERO_MOTION }) <= 650)
   assert.ok(HERO_MOTION.imageMs <= 500)
 })
 
@@ -29,21 +29,13 @@ test('directionOf: a lower target goes back, anything else goes forward', () => 
   assert.equal(directionOf({ from: 1, to: 3 }), 1)
 })
 
-test('entranceDelaysOf: the text starts during the picture fade, the buttons start during the text fade', () => {
-  const { text, actions } = entranceDelaysOf({ motion: HERO_MOTION, lineCount: 3 })
-  assert.ok(text[0] > 0 && text[0] < HERO_MOTION.imageMs)
-  assert.deepEqual(text, [text[0], text[0] + HERO_MOTION.textLineStaggerMs, text[0] + 2 * HERO_MOTION.textLineStaggerMs])
-  assert.ok(actions > text[0] && actions < text[0] + HERO_MOTION.textInMs)
-  assert.ok(HERO_MOTION.textLineStaggerMs <= 40)
-  assert.deepEqual(entranceDelaysOf({ motion: REDUCED_MOTION, lineCount: 2 }), { text: [0, 0], actions: 0 })
+test('the text and buttons start together during the picture fade', () => {
+  assert.ok(HERO_MOTION.textDelayMs > 0 && HERO_MOTION.textDelayMs < HERO_MOTION.imageMs)
+  assert.equal(entranceSettleMsOf({ motion: REDUCED_MOTION }), REDUCED_MOTION.imageMs)
 })
 
-test('canDrift: a 768 px picture drifts on a 1440 px desktop hero, a 219 px guide picture does not', () => {
-  const desktop = { boxWidth: 1272, boxHeight: 360 }
-  assert.ok(canDrift({ naturalWidth: 768, naturalHeight: 432, ...desktop }))
-  assert.equal(canDrift({ naturalWidth: 219, naturalHeight: 123, ...desktop }), false)
-  assert.equal(coverScaleOf({ naturalWidth: 0, naturalHeight: 0, ...desktop }), Infinity)
-  assert.ok(DRIFT.scale <= 1.04)
+test('the drift zoom stays subtle', () => {
+  assert.ok(DRIFT.scale > 1 && DRIFT.scale <= 1.04)
 })
 
 test('imageNudgeOf: the nudge comes from the travel side and never passes its overscan', () => {

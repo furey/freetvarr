@@ -32,6 +32,7 @@ const SWIPE_INTENT_PX = 8
 const SETTLE_MS = 280
 const DOT_KEY_STEPS = { ArrowRight: 1, ArrowLeft: -1 }
 const PAUSE_ZONE_SELECTOR = '.hero-slide-actions, .hero-carousel-controls'
+const TAP_IGNORE_SELECTOR = 'a, button, input, [role="button"], .hero-carousel-controls'
 const knownFocus = new Map()
 
 const fetchFocus = async (key) => {
@@ -445,12 +446,16 @@ export const HomeHeroCarousel = {
 
     const onPointerUp = (e) => {
       if (e.pointerType !== 'touch') return
-      dispatch({ type: 'touchEnd', nowMs: Date.now() })
+      dispatch({ type: 'touchEnd' })
+      const tapped = pointerStart && !pointerStart.moved && !e.target.closest?.(TAP_IGNORE_SELECTOR)
       const swiped = pointerStart?.swiping && drag.value
       pointerStart = null
+      if (tapped && e.type === 'pointerup') togglePlaying()
       if (!swiped) return
       settleSwipe(drag.value.dx)
     }
+
+    const togglePlaying = () => dispatch({ type: state.userPaused ? 'play' : 'pause' })
 
     const settleSwipe = (dx) => {
       const width = stageWidth()

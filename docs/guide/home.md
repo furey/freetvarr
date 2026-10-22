@@ -35,7 +35,7 @@ The top of Home is a set of up to five slides that take turns. To move between s
 - Swipe on a touch screen.
 - Press a dot to pick a slide.
 
-The buttons on a slide do their own job only; a tap on a button never changes the slide. The pause button keeps the current slide in place. On a computer, the slides also wait while the pointer is over a slide's buttons or the dots.
+The buttons on a slide do their own job only; a tap on a button never changes the slide. The pause button keeps the current slide in place. On a touch screen, a tap on the slide away from its buttons also pauses or plays the slides. On a computer, the slides also wait while the pointer is over a slide's buttons or the dots. The slides also wait while a menu or sheet is open.
 
 Freetvarr picks the slides from the list below and leaves out any that has nothing to show. Some kinds can give two slides, for example two recordings in progress or two films you have not watched.
 

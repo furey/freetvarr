@@ -1,5 +1,4 @@
 export const SLIDE_MS = 7_000
-export const TOUCH_RESUME_MS = 7_000
 export const MAX_TICK_MS = 250
 export const RESUME_MIN_MS = 3_000
 
@@ -11,7 +10,6 @@ export const rotationStart = ({ count = 0, reducedMotion = false } = {}) => ({
   hovering: false,
   keyboardFocused: false,
   touching: false,
-  touchResumeAt: 0,
   hidden: false,
   playerOpen: false,
   overlayOpen: false,
@@ -27,7 +25,6 @@ export const isAdvancing = (state, nowMs) => !state.reducedMotion
   && !state.hidden
   && !state.playerOpen
   && !state.overlayOpen
-  && nowMs >= state.touchResumeAt
 
 export const showsPauseButton = (state) => !state.reducedMotion && state.count > 1
 
@@ -82,9 +79,9 @@ const HANDLERS = {
   keyboardFocus: (state) => ({ ...state, keyboardFocused: true }),
   keyboardLeave,
   pause: (state) => ({ ...state, userPaused: true }),
-  play: (state) => ({ ...state, userPaused: false, hovering: false, keyboardFocused: false, touching: false, touchResumeAt: 0 }),
+  play: (state) => ({ ...state, userPaused: false, hovering: false, keyboardFocused: false, touching: false }),
   touchStart: (state) => ({ ...state, touching: true }),
-  touchEnd: (state, { nowMs }) => ({ ...state, touching: false, touchResumeAt: nowMs + TOUCH_RESUME_MS }),
+  touchEnd: (state) => (state.touching ? withResumeRoom({ ...state, touching: false }) : state),
   hidden: (state, { hidden }) => ({ ...state, hidden }),
   playerOpen: (state, { open }) => ({ ...state, playerOpen: open }),
   overlayOpen,

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  SLIDE_MS, TOUCH_RESUME_MS, MAX_TICK_MS, RESUME_MIN_MS, rotationStart, isAdvancing, showsPauseButton, pauseButtonOf,
+  SLIDE_MS, MAX_TICK_MS, RESUME_MIN_MS, rotationStart, isAdvancing, showsPauseButton, pauseButtonOf,
   fillFractionOf, wrapIndex, nextRotation,
 } from '../src/web/hero-rotation.js'
 
@@ -69,12 +69,20 @@ test('Pause holds until Play, and Play clears hover and touch pauses', () => {
   assert.deepEqual(pauseButtonOf(played, 0), { action: 'pause', label: 'Pause slides' })
 })
 
-test('touch pauses and resumes seven seconds after the last touch', () => {
-  const touched = run(rotationStart({ count: 3 }), [{ type: 'touchStart' }])
-  assert.equal(isAdvancing(touched, 1_000), false)
-  const lifted = nextRotation(touched, { type: 'touchEnd', nowMs: 1_000 })
-  assert.equal(isAdvancing(lifted, 1_000 + TOUCH_RESUME_MS - 1), false)
-  assert.equal(isAdvancing(lifted, 1_000 + TOUCH_RESUME_MS), true)
+test('a touch holds the slide and lifting resumes at once with at least three seconds left', () => {
+  const late = run(rotationStart({ count: 3 }), ticks(slideTicks - 2))
+  const touched = nextRotation(late, { type: 'touchStart' })
+  assert.equal(isAdvancing(touched, 0), false)
+  const lifted = nextRotation(touched, { type: 'touchEnd' })
+  assert.equal(isAdvancing(lifted, 0), true)
+  assert.equal(lifted.elapsedMs, SLIDE_MS - RESUME_MIN_MS)
+  assert.equal(nextRotation(late, { type: 'touchEnd' }), late)
+})
+
+test('a swipe while playing keeps playing on the new slide', () => {
+  const swiped = run(rotationStart({ count: 3 }), [{ type: 'touchStart' }, { type: 'touchEnd' }, { type: 'step', delta: 1 }])
+  assert.deepEqual([swiped.index, swiped.elapsedMs], [1, 0])
+  assert.equal(isAdvancing(swiped, 0), true)
 })
 
 test('goTo and step jump, wrap, and restart the fill', () => {

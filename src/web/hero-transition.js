@@ -4,8 +4,6 @@ export const HERO_MOTION = {
   textOutMs: 140,
   textInMs: 380,
   textDelayMs: 120,
-  textLineStaggerMs: 30,
-  actionsDelayMs: 220,
   drift: true,
 }
 
@@ -15,34 +13,17 @@ export const REDUCED_MOTION = {
   textOutMs: 0,
   textInMs: 0,
   textDelayMs: 0,
-  textLineStaggerMs: 0,
-  actionsDelayMs: 0,
   drift: false,
 }
 
-export const DRIFT = { scale: 1.03, maxCoverScale: 2.5 }
+export const DRIFT = { scale: 1.03 }
 export const DECODE_WAIT_MS = 400
 
 export const heroMotionOf = ({ reducedMotion }) => (reducedMotion ? REDUCED_MOTION : HERO_MOTION)
 
 export const directionOf = ({ from, to }) => (to < from ? -1 : 1)
 
-export const entranceDelaysOf = ({ motion, lineCount = 1 }) => ({
-  text: Array.from({ length: lineCount }, (_, line) => motion.textDelayMs + line * motion.textLineStaggerMs),
-  actions: motion.actionsDelayMs,
-})
-
-export const entranceSettleMsOf = ({ motion, lineCount = 1 }) => {
-  const delays = entranceDelaysOf({ motion, lineCount })
-  return Math.max(motion.imageMs, ...delays.text.map((delay) => delay + motion.textInMs), delays.actions + motion.textInMs)
-}
-
-export const coverScaleOf = ({ naturalWidth, naturalHeight, boxWidth, boxHeight }) => {
-  if (!naturalWidth || !naturalHeight) return Infinity
-  return Math.max(boxWidth / naturalWidth, boxHeight / naturalHeight)
-}
-
-export const canDrift = (sizes, maxCoverScale = DRIFT.maxCoverScale) => coverScaleOf(sizes) <= maxCoverScale
+export const entranceSettleMsOf = ({ motion }) => Math.max(motion.imageMs, motion.textDelayMs + motion.textInMs)
 
 export const changeKindOf = (eventType) => (MANUAL_EVENTS.has(eventType) ? 'manual' : 'automatic')
 
@@ -114,19 +95,13 @@ export const startDrift = async ({ slide, durationMs, direction = 1, focusOf = n
   const image = slide && slideImageOf(slide)
   if (!image) return null
   await image.decode().catch(() => null)
-  const sizes = {
-    naturalWidth: image.naturalWidth,
-    naturalHeight: image.naturalHeight,
-    boxWidth: slide.offsetWidth,
-    boxHeight: slide.offsetHeight,
-  }
-  if (!image.isConnected || !canDrift(sizes)) return null
+  if (!image.isConnected) return null
   const pendingFocus = Promise.resolve(focusOf(image)).catch(() => null)
   const origin = originOfImage({ image, focus: await withinMs(pendingFocus, FOCUS_WAIT_MS) })
   image.style.transformOrigin = origin ?? ''
   const timing = { duration: durationMs, easing: 'linear', fill: 'forwards' }
   const zoom = image.animate([{ scale: '1' }, { scale: String(DRIFT.scale) }], timing)
-  const overscanPx = (sizes.boxWidth * (DRIFT.scale - 1)) / 2
+  const overscanPx = (slide.offsetWidth * (DRIFT.scale - 1)) / 2
   const endX = (-direction * overscanPx * 0.6).toFixed(1)
   const sideways = origin ? null : image.animate([{ translate: '0px' }, { translate: `${endX}px` }], timing)
   const animations = [zoom, sideways].filter(Boolean)
@@ -166,18 +141,10 @@ export const predecode = (slide) => {
   if (image) image.decode().catch(() => null)
 }
 
-const entranceOf = ({ slide, motion }) => {
-  const parts = visiblePartsOf(slide)
-  const textParts = parts.filter((part) => !part.matches(ACTIONS_SELECTOR))
-  const actions = parts.find((part) => part.matches(ACTIONS_SELECTOR))
-  const delays = entranceDelaysOf({ motion, lineCount: textParts.length })
-  const enter = (part, delay) => part.animate(
-    [{ opacity: 0 }, { opacity: 1 }],
-    { duration: motion.textInMs, delay, easing: ENTRANCE_EASE, fill: 'backwards' },
-  )
-  const entrances = textParts.map((part, line) => enter(part, delays.text[line]))
-  return actions ? [...entrances, enter(actions, delays.actions)] : entrances
-}
+const entranceOf = ({ slide, motion }) => visiblePartsOf(slide).map((part) => part.animate(
+  [{ opacity: 0 }, { opacity: 1 }],
+  { duration: motion.textInMs, delay: motion.textDelayMs, easing: ENTRANCE_EASE, fill: 'backwards' },
+))
 
 const bodyPartsOf = (slide) => [...slide.querySelectorAll(BODY_PARTS_SELECTOR)]
 
@@ -246,7 +213,6 @@ const FOCUS_WAIT_MS = 400
 const ORIGIN_EASE_MS = 600
 const POSITION_KEYWORDS = { left: 0, top: 0, center: 50, right: 100, bottom: 100 }
 const MANUAL_EVENTS = new Set(['goTo', 'step'])
-const ACTIONS_SELECTOR = '.hero-slide-actions'
 const BODY_PARTS_SELECTOR = '.hero-slide-body > *'
 const EASE_OUT = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
 const ENTRANCE_EASE = 'cubic-bezier(0.25, 0.6, 0.35, 1)'
