@@ -172,8 +172,9 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   ].filter(Boolean)
   const more = [
     { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
+    MOVIE_CHOICE_LABELS[item.movieChoice] && { key: 'movie-kind', label: MOVIE_CHOICE_LABELS[item.movieChoice], icon: 'tag' },
     { key: 'why', label: 'Why this?', icon: 'why' },
-  ]
+  ].filter(Boolean)
   return { actions, more }
 }
 
@@ -329,6 +330,10 @@ export const doneLabelOf = (count) => (count ? `Done · ${count} picked` : 'Done
 
 export const hiddenToastOf = (title) => `${title} is hidden from For you`
 
+export const movieKindToastOf = ({ title, kind }) => (kind === 'movie'
+  ? `${title} is now listed as a movie`
+  : `${title} is no longer listed as a movie`)
+
 export const tierLabelOf = (tier) => TIER_LABELS[tier] ?? 'Basic'
 
 export const tierSummaryOf = (settings) => {
@@ -434,6 +439,11 @@ const rowsOf = (items) => [
 const joinMeta = (parts) => parts.filter(Boolean).join(' · ')
 
 const joinParts = (parts) => parts.filter(Boolean).join(', ')
+
+const MOVIE_CHOICE_LABELS = {
+  'not-movie': 'Not a movie',
+  movie: 'This is a movie',
+}
 
 const KIND_BADGES = {
   'new-season': 'New season',

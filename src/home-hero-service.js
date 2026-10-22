@@ -23,6 +23,7 @@ export const HOME_HERO_WRITE_PATHS = [
   /^\/api\/recordings(\/[^/]+(\/(watched|library|restore-original))?)?$/,
   /^\/api\/watchlist(\/[^/]+)?$/,
   /^\/api\/for-you\/(hidden|picks|settings)(\/|$)/,
+  /^\/api\/programme-kind\/[^/]+$/,
   /^\/api\/play\/[^/]+$/,
   /^\/api\/(settings|shows|recording-defaults)(\/|$)/,
 ]

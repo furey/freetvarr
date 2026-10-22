@@ -3,6 +3,7 @@ import axios from 'axios'
 import { db, getSetting } from './db.js'
 import { showTitleKey } from './show-artwork.js'
 import { FILM_MIN_MS } from './film-rule.js'
+import { MOVIE, NOT_MOVIE, loadKindOverrides, withKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
@@ -82,11 +83,25 @@ export const isMovieLike = (programme) => {
 }
 
 export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) => {
+  if (record?.kindOverride === MOVIE) return true
+  if (record?.kindOverride === NOT_MOVIE) return false
   if (String(record?.source || '').startsWith('tvmaze:')) return false
   if (record?.categories?.includes('movie')) return true
   if (!isMovieLike(programme)) return false
   return categoriesOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
 }
+
+export const movieChoiceOf = ({ programme, film }) => {
+  if (hasEpisodeDetails(programme)) return null
+  if (film) return NOT_MOVIE
+  return isLong(programme) && !isNewsOrSport(programme) ? MOVIE : null
+}
+
+const hasEpisodeDetails = (programme) => programme?.series_no != null
+  || programme?.episode_no != null
+  || Boolean(programme?.episode_title)
+
+const isLong = (programme) => Number(programme?.end) - Number(programme?.start) >= FILM_MIN_MS
 
 const isNewsOrSport = (programme) => [...categoriesOfEtsi(programme?.genre), ...keywordCategoriesOf(programme?.title)]
   .some((category) => NEWS_OR_SPORT.has(category))
@@ -221,12 +236,16 @@ export const rememberTvmazeShow = async ({ title, show, nowMs = Date.now() }) =>
 }
 
 export const loadTitleGenres = async () => {
-  const rows = await db('title_genres').select('title_key', 'categories_json', 'genres_json', 'source').catch(() => [])
-  return new Map(rows.map((row) => [row.title_key, {
+  const [rows, overrides] = await Promise.all([
+    db('title_genres').select('title_key', 'categories_json', 'genres_json', 'source').catch(() => []),
+    loadKindOverrides().catch(() => new Map()),
+  ])
+  const records = new Map(rows.map((row) => [row.title_key, {
     categories: parseList(row.categories_json),
     genres: parseList(row.genres_json),
     source: row.source || null,
   }]))
+  return withKindOverrides({ records, overrides })
 }
 
 const tvmazeRecordOf = (show) => ({

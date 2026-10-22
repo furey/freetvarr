@@ -18,6 +18,7 @@ import {
   isScheduled,
   liveProgressOf,
   menuOf,
+  movieKindToastOf,
   msOf,
   pageIntroOf,
   reasonOf,
@@ -338,4 +339,17 @@ test('forYouReadyOf: ready once the suggestions leave cold start and For you is 
   assert.equal(forYouReadyOf({ settings: { enabled: true }, payload: payload({ coldStart: true }) }), false)
   assert.equal(forYouReadyOf({ settings: { enabled: false }, payload: payload({ coldStart: false }) }), false)
   assert.equal(forYouReadyOf({ settings: null, payload: null }), false)
+})
+
+test('menuOf: the movie row sits between Not interested and Why this, labelled by the choice', () => {
+  const labelsOf = (movieChoice) => menuOf({ item: item({ movieChoice }), nowMs, timeZone }).more.map((a) => a.label)
+  assert.deepEqual(labelsOf('not-movie'), ['Not interested in Grand Designs Australia', 'Not a movie', 'Why this?'])
+  assert.deepEqual(labelsOf('movie'), ['Not interested in Grand Designs Australia', 'This is a movie', 'Why this?'])
+  assert.deepEqual(labelsOf(null), ['Not interested in Grand Designs Australia', 'Why this?'])
+  assert.equal(menuOf({ item: item({ movieChoice: 'movie' }), nowMs, timeZone }).more[1].icon, 'tag')
+})
+
+test('movieKindToastOf: says whether the show is now listed as a movie', () => {
+  assert.equal(movieKindToastOf({ title: 'Heron', kind: 'movie' }), 'Heron is now listed as a movie')
+  assert.equal(movieKindToastOf({ title: 'Heron', kind: 'not-movie' }), 'Heron is no longer listed as a movie')
 })

@@ -7,6 +7,7 @@ import { refreshLibraryStates } from './library-files.js'
 import { MAX_PADDING_MINUTES } from './recording-padding.js'
 import { RESUME_END_MARGIN_S } from './playback.js'
 import { getSeries } from './series.js'
+import { libraryKindWith, loadKindOverrides } from './programme-kind.js'
 import { getMoviesRoot } from './sync.js'
 import { showKeyOf } from './web/show-key.js'
 import { artworkChoices } from './artwork-choices.js'
@@ -23,16 +24,18 @@ export const getLibraryShows = async ({
   loadRecordingNow = loadActiveRecordings,
   loadMoviesRoot = getMoviesRoot,
   loadChoiceStamps = choiceStampsByKey,
+  loadOverrides = loadKindOverrides,
 } = {}) => {
-  const [rows, seriesData, active, moviesRoot, stamps] = await Promise.all([
+  const [rows, seriesData, active, moviesRoot, stamps, kindOverrides] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
     loadMoviesRoot().catch(() => ''),
     loadChoiceStamps().catch(() => new Map()),
+    loadOverrides().catch(() => new Map()),
   ])
   return {
-    shows: showSummariesOf({ rows, series: seriesData.series, active, moviesRoot, stamps }),
+    shows: showSummariesOf({ rows, series: seriesData.series, active, moviesRoot, stamps, kindOverrides }),
     stale: Boolean(seriesData.stale || seriesData.error),
   }
 }
@@ -47,14 +50,16 @@ export const getLibraryShow = async ({
   loadSeriesTags = loadTimedSeriesTags,
   refreshStates = refreshLibraryStates,
   loadChoiceStamps = choiceStampsByKey,
+  loadOverrides = loadKindOverrides,
 } = {}) => {
-  const [rows, seriesData, active, moviesRoot, seriesTags, stamps] = await Promise.all([
+  const [rows, seriesData, active, moviesRoot, seriesTags, stamps, kindOverrides] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
     loadMoviesRoot().catch(() => ''),
     loadSeriesTags().catch(() => []),
     loadChoiceStamps().catch(() => new Map()),
+    loadOverrides().catch(() => new Map()),
   ])
   const groupRows = rows.filter((row) => groupKeyOf(row) === key)
   const series = seriesByKey(seriesData.series).get(key) || null
@@ -70,6 +75,7 @@ export const getLibraryShow = async ({
     moviesRoot,
     seriesTags,
     stamps,
+    kindOverride: kindOverrides.get(key) ?? null,
   })
 }
 
@@ -80,13 +86,15 @@ export const getLibraryEpisodes = async ({
   loadRows = loadLibraryRows,
   loadMoviesRoot = getMoviesRoot,
   loadChoiceStamps = choiceStampsByKey,
+  loadOverrides = loadKindOverrides,
 } = {}) => {
-  const [rows, moviesRoot, stamps] = await Promise.all([
+  const [rows, moviesRoot, stamps, kindOverrides] = await Promise.all([
     loadRows(),
     loadMoviesRoot().catch(() => ''),
     loadChoiceStamps().catch(() => new Map()),
+    loadOverrides().catch(() => new Map()),
   ])
-  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps }) }
+  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps, kindOverrides }) }
 }
 
 export const setRecordingWatched = async ({ recordingId, watched, nowIso = new Date().toISOString() }) => {
@@ -165,7 +173,10 @@ export const isWatched = (row) => row.watched_at != null
 
 export const isFailed = (row) => row.status === 'failed'
 
-export const kindOf = ({ rows, hasRule = false, moviesRoot = '' }) => {
+export const kindOf = ({ rows, hasRule = false, moviesRoot = '', override = null }) =>
+  libraryKindWith({ kind: automaticKindOf({ rows, hasRule, moviesRoot }), override })
+
+const automaticKindOf = ({ rows, hasRule, moviesRoot }) => {
   const hasEpisodeMarks = rows.some((r) => r.show_id != null || r.season != null || r.episode != null)
   if (hasRule || hasEpisodeMarks || rows.length >= 2) return 'show'
   if (moviesRoot && rows.some((r) => isInsideFolder({ filePath: r.file_path, folder: moviesRoot }))) return 'movie'
@@ -194,7 +205,7 @@ export const seriesByKey = (series = []) => {
   return groups
 }
 
-export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '', stamps = new Map() }) => {
+export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '', stamps = new Map(), kindOverrides = new Map() }) => {
   const rowsByKey = groupBy(rows.filter(isLibraryMember), groupKeyOf)
   const rules = seriesByKey(series)
   const activeKeys = activeKeysOf(active)
@@ -207,12 +218,13 @@ export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '
       recordingNow: activeKeys.has(key),
       moviesRoot,
       stamps: stamps.get(key),
+      kindOverride: kindOverrides.get(key) ?? null,
     }))
     .sort((a, b) => (b.latestAt ?? -Infinity) - (a.latestAt ?? -Infinity) || a.title.localeCompare(b.title))
 }
 
 export const showDetailOf = ({
-  key, rows, playable = [], series, active = [], moviesRoot = '', seriesTags = [], stamps = new Map(),
+  key, rows, playable = [], series, active = [], moviesRoot = '', seriesTags = [], stamps = new Map(), kindOverride = null,
 }) => {
   const members = rows.map((row, i) => ({ row, playable: Boolean(playable[i]) })).filter(({ row }) => isLibraryMember(row))
   const summary = showSummaryOf({
@@ -222,6 +234,7 @@ export const showDetailOf = ({
     recordingNow: activeKeysOf(active).has(key),
     moviesRoot,
     stamps: stamps.get(key),
+    kindOverride,
   })
   const episodes = members.map(({ row, playable: canPlay }) => episodeOf({ row, playable: canPlay }))
   const { counts, latest, latestAt, ...shown } = summary
@@ -306,10 +319,10 @@ export const resumeNextOf = (episodes) => {
 }
 
 export const libraryEpisodesOf = ({
-  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '', stamps = new Map(),
+  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '', stamps = new Map(), kindOverrides = new Map(),
 }) => {
   const libraryRows = rows.filter(isLibraryMember)
-  const kinds = kindsByKey({ rows: libraryRows, moviesRoot })
+  const kinds = kindsByKey({ rows: libraryRows, moviesRoot, kindOverrides })
   const isWantedKind = (row) => !kind || (kinds.get(groupKeyOf(row)) || 'oneoff') === kind
   const members = libraryRows.filter((row) => !isFailed(row) && !isWatched(row) && isWantedKind(row))
   const chosen = {
@@ -331,13 +344,13 @@ export const episodeLimitFrom = (value) => {
   return Number.isInteger(limit) && limit >= 1 && limit <= MAX_EPISODE_LIMIT ? limit : null
 }
 
-const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = NO_STAMPS }) => {
+const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = NO_STAMPS, kindOverride = null }) => {
   const newestFirst = [...rows].sort(newestAiredFirst)
   const latestRow = newestFirst[0] || null
   const title = (latestRow && groupTitleOf(latestRow)) || series?.title || key
   const watchable = rows.filter((row) => !isFailed(row))
   const latestAiredAt = latestRow ? airedMsOf(latestRow) : null
-  const kind = kindOf({ rows, hasRule: Boolean(series), moviesRoot })
+  const kind = kindOf({ rows, hasRule: Boolean(series), moviesRoot, override: kindOverride })
   return {
     key,
     title,
@@ -429,9 +442,9 @@ const libraryEpisodeOf = ({ row, kind, stamps = NO_STAMPS }) => {
   }
 }
 
-const kindsByKey = ({ rows, moviesRoot }) => new Map(
+const kindsByKey = ({ rows, moviesRoot, kindOverrides = new Map() }) => new Map(
   [...groupBy(rows, groupKeyOf).entries()]
-    .map(([key, group]) => [key, kindOf({ rows: group, moviesRoot })]),
+    .map(([key, group]) => [key, kindOf({ rows: group, moviesRoot, override: kindOverrides.get(key) ?? null })]),
 )
 
 const mergeSeries = (a, b) => ({

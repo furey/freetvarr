@@ -12,6 +12,7 @@ import {
   hiddenToastOf,
   identityOf,
   liveChannelOfItem,
+  movieKindToastOf,
   shownBatchesOf,
   tapActionOf,
 } from '/for-you.js'
@@ -103,6 +104,10 @@ export const sendShown = ({ items, source }) => shownBatchesOf({ items, source }
 
 export const unhideShow = (seriesKey) => api('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
 
+export const setProgrammeKind = ({ showKey, kind }) => api('PUT', `/api/programme-kind/${encodeURIComponent(showKey)}`, { kind })
+
+export const clearProgrammeKind = (showKey) => api('DELETE', `/api/programme-kind/${encodeURIComponent(showKey)}`)
+
 export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)
   const why = reactive({ item: null, data: null, loading: false, failed: false })
@@ -134,6 +139,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     'thumb-up': (item) => toggleThumb(item, 'up'),
     'thumb-down': (item) => toggleThumb(item, 'down'),
     'not-interested': (item) => hide(item),
+    'movie-kind': (item) => changeMovieKind(item),
     why: (item) => openWhy(item),
   }
 
@@ -173,6 +179,24 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     const key = identityOf(item)
     forYouHidden.value = new Set([...forYouHidden.value].filter((hidden) => hidden !== key))
     await unhideShow(key).catch(() => {})
+    onChanged()
+  }
+
+  const changeMovieKind = async (item) => {
+    const showKey = identityOf(item)
+    const kind = item.movieChoice
+    try {
+      await setProgrammeKind({ showKey, kind })
+    } catch {
+      toast({ text: `Could not change ${item.title}`, kind: 'error' })
+      return
+    }
+    onChanged()
+    toast({ text: movieKindToastOf({ title: item.title, kind }), action: { label: 'Undo', run: () => undoMovieKind(showKey) } })
+  }
+
+  const undoMovieKind = async (showKey) => {
+    await clearProgrammeKind(showKey).catch(() => {})
     onChanged()
   }
 

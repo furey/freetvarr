@@ -182,7 +182,7 @@ import { getLibraryEpisodes, getLibraryShows, watchedAtAfterPosition } from './l
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
-import { getForYou, isForYouEnabled, onForYouResult } from './for-you-service.js'
+import { forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, warmForYou as rebuildForYou } from './for-you-service.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
@@ -195,6 +195,7 @@ import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf } from './artwork-match.js'
 import { listWatchlist, mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
+import { mountProgrammeKindRoutes } from './programme-kind.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
 import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
@@ -1284,6 +1285,12 @@ mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesC
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
 mountTmdbKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountSearchRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
+const refreshAfterKindChange = () => {
+  clearGuideCache()
+  forgetForYouCache()
+  rebuildForYou().catch(() => {})
+}
+mountProgrammeKindRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange: refreshAfterKindChange })
 mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
 const warmedForYou = new WeakSet()
 const warmForYou = (result) => {

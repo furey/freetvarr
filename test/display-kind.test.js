@@ -75,3 +75,19 @@ test('looksLikeFilm: the library filing rule still needs the ETSI movie genre', 
   assert.equal(looksLikeFilm(facts(goodfellas)), false)
   assert.equal(looksLikeFilm(facts(masterCheng)), true)
 })
+
+test('displayKindOf: a kind override wins over the automatic rule', () => {
+  assert.equal(displayKindOf({ programme: downsizing, record: { kindOverride: 'not-movie' } }), 'one-off')
+  assert.equal(displayKindOf({ programme: downsizing, record: { kindOverride: 'not-movie' }, airingsInWeek: 3 }), 'series')
+  assert.equal(displayKindOf({ programme: downsizing, record: { kindOverride: 'movie' }, airingsInWeek: 3 }), 'movie')
+  assert.equal(displayKindOf({ programme: masterCheng, record: { kindOverride: 'not-movie', categories: ['movie'] } }), 'one-off')
+  assert.equal(displayKindOf({ programme: carols, record: { kindOverride: 'movie', source: 'tvmaze:1' } }), 'movie')
+})
+
+test('createDisplayKinds: reads kind overrides from the records by show key', () => {
+  const kindOf = createDisplayKinds({
+    programmes: [goodfellas, happysPlace],
+    recordsByKey: new Map([['goodfellas', { categories: [], kindOverride: 'not-movie' }]]),
+  })
+  assert.equal(kindOf(goodfellas), 'one-off')
+})

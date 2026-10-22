@@ -5,6 +5,7 @@ import {
   CATEGORY_LABELS,
   categoriesOfEtsi,
   isFilmAiring,
+  movieChoiceOf,
   keywordCategoriesOf,
   tvmazeFactsOf,
 } from './genre-enrichment.js'
@@ -426,6 +427,7 @@ export const airingItemOf = ({ programme, context, movie, categories, kind, reas
     reason,
     score: Math.round(score * 1000) / 1000,
     canRecordSeries: Boolean(programme.series_link) && !movie,
+    movieChoice: movieChoiceOf({ programme, film: movie || programme.kind === 'movie' }),
     seasonNumber: programme.series_no ?? null,
     episodeNumber: programme.episode_no ?? null,
     categories,
