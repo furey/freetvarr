@@ -15,9 +15,9 @@ export const SETTINGS_GROUPS = [
     key: 'watching',
     label: 'Watching',
     pages: [
-      { id: 'channels', label: 'Channels', view: 'channels' },
-      { id: 'player', label: 'Player', view: 'player' },
       { id: 'for-you', label: 'For you', view: 'for-you' },
+      { id: 'player', label: 'Playback', view: 'player' },
+      { id: 'channels', label: 'Channels', view: 'channels' },
       { id: 'film-tv-info', label: 'Film and TV info', view: 'settings', section: 'film-tv-info' },
       { id: 'tv-apps', label: 'Watch on TV', view: 'settings', section: 'tv-apps' },
     ],
@@ -30,8 +30,8 @@ export const SETTINGS_GROUPS = [
       { id: 'folders', label: 'Title matches', view: 'system' },
       { id: 'log', label: 'Recording log', view: 'system' },
       { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
-      { id: 'plex', label: 'Library and Plex', view: 'settings', section: 'plex' },
-      { id: 'storage', label: 'Recording folders', view: 'settings', section: 'storage' },
+      { id: 'storage', label: 'Media library', view: 'settings', section: 'storage' },
+      { id: 'plex', label: 'Plex', view: 'settings', section: 'plex' },
     ],
   },
   {
@@ -58,6 +58,16 @@ export const settingsPageOf = ({ params = [], narrow = false }) => {
   return narrow ? null : ALL_PAGES[0]
 }
 
-const PAGE_ALIASES = { pictures: 'film-tv-info', suggestions: 'for-you', help: 'about', 'danger-zone': 'reset' }
+const PAGE_ALIASES = {
+  pictures: 'film-tv-info',
+  suggestions: 'for-you',
+  help: 'about',
+  'danger-zone': 'reset',
+  'media-library': 'storage',
+  library: 'storage',
+  folders: 'storage',
+  playback: 'player',
+  'live-streams': 'player',
+}
 
 const ALL_PAGES = SETTINGS_GROUPS.flatMap((group) => group.pages.map((page) => ({ ...page, group: group.key })))

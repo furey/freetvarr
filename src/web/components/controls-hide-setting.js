@@ -3,7 +3,7 @@ import { CONTROLS_HIDE_CHOICES_S, loadControlsHideS, saveControlsHideS } from '/
 
 export const ControlsHideSetting = {
   template: `
-    <div class="settings-row">
+    <div class="settings-row" data-setting="controls-hide">
       <span id="controls-hide-label" class="field-label">Hide player controls after</span>
       <ui-segmented class="controls-hide-choices" aria-labelledby="controls-hide-label" :model-value="current"
         :options="choices.map((seconds) => ({ value: seconds, label: seconds + ' s' }))" @update:model-value="choose" />

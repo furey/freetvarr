@@ -347,7 +347,7 @@ export const WelcomeView = {
                 <span v-if="row.value" :class="['ui-group-row-value', { 'setup-mono': row.mono }]">{{ row.value }}</span>
               </div>
             </div>
-            <p class="setup-quiet-text">Change any of this later in Settings → Setup. To check everything, <a href="#/settings/system/health">run the health checks</a>.</p>
+            <p class="setup-quiet-text">Change any of this later in Settings → System → Setup. To check everything, <a href="#/settings/system/health">run the health checks</a>.</p>
             <button type="button" class="ui-button ui-button-primary setup-ready-action" @click="primary.run">{{ primary.label }}</button>
           </div>
         </main>

@@ -69,23 +69,23 @@ Recordings has two views: **Library** and **Scheduled**.
 
 For a show that is not in the next 7 days, search for its title and press **Add to watchlist**. Freetvarr lists the show under **Watchlist** in Scheduled whenever it is in the TV guide. Turn on **Record when it appears** to start an any-channel series recording, with your start and finish padding, the first time the show is in the TV guide. See [Watchlist](/guide/tv-guide#watchlist).
 
-**Add to library** now has a default. Set it in Settings → Library and Plex. The programme sheet shows the choice under **Advanced**, so you can change it for one recording.
+**Add to library** now has a default. Set it in Settings → Recording → Media library. The programme sheet shows the choice under **Advanced**, so you can change it for one recording.
 
 ### Player
 
 Live TV and recordings play in one full-screen player with its own controls. See [Player](/guide/player).
 
 - **Start over** on live TV offers **From the start**, which plays a programme TVHeadend is recording from its first minute, and **Back to when you tuned in**. **Go live** returns to now.
-- **Sound** and **Muted** in the top bar, and the `m` key, switch the sound. Settings → **Player** has **Start muted** and how soon the controls hide.
+- **Sound** and **Muted** in the top bar, and the `m` key, switch the sound. Settings → Watching → **Playback** has **Start muted** and how soon the controls hide.
 - **Miniplayer** shrinks the player to a bar or a corner card, so you can browse Freetvarr while you watch.
 - **Pop out (picture in picture)** and **Captions** are in the **⋯** menu.
 - On a phone, turning the phone sideways goes full screen.
 - **Multiview** plays two live channels at once, **Side by side** or **Big and small**, with one sound button for each picture. The channel list says which channels need a free tuner.
-- **Live streams at once**, in Settings → Recording folders, sets whether Freetvarr plays one or two live streams. Freetvarr measures what your computer can manage and sets the default for you.
+- **Live streams at once**, in Settings → Watching → Playback, sets whether Freetvarr plays one or two live streams. Freetvarr measures what your computer can manage and sets the default for you.
 
 ### Settings
 
-Settings groups its pages as About, Watching, Recording, and System. The screens that used to be tabs moved there: Series rules, Title matches, and Recording log under Recording, and Health and Activity under System. Watching adds **Channels**, **Player**, and **For you**. See [Settings](/guide/settings).
+Settings groups its pages as About, Watching, Recording, and System. The screens that used to be tabs moved there: Series rules, Title matches, and Recording log under Recording, and Health and Activity under System. Watching adds **For you**, **Playback**, and **Channels**; Recording adds **Media library** and **Plex**. **Search settings** at the top of Settings finds any page or setting. See [Settings](/guide/settings).
 
 ### Upgrading
 

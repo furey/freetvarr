@@ -76,7 +76,7 @@ Checks that the recordings folder exists inside the Freetvarr Docker container a
 
 ## TVHeadend recording path {#paths-match}
 
-Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in Settings → Recording folders. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
+Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in Settings → Recording → Media library. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
 
 ## Media folder {#paths-media}
 

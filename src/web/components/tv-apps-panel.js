@@ -26,7 +26,7 @@ export const TvAppsPanel = {
       <div v-if="!tvhUrl" class="ui-group">
         <p class="settings-row settings-row-meta">Set the TVHeadend address in Settings → System → TVHeadend first.</p>
       </div>
-      <div v-else-if="!login.authCode" class="settings-group">
+      <div v-else-if="!login.authCode" class="settings-group" data-setting="tv-login">
         <h3 class="ui-group-label">TV login</h3>
         <div class="ui-group">
           <div class="settings-row">
@@ -48,7 +48,7 @@ export const TvAppsPanel = {
         </div>
       </div>
       <template v-else>
-        <div class="settings-group">
+        <div class="settings-group" data-setting="tv-apps-address">
           <h3 class="ui-group-label">TVHeadend address</h3>
           <div class="ui-group">
             <div class="settings-row field-row mb-0!">
@@ -58,14 +58,14 @@ export const TvAppsPanel = {
           </div>
         </div>
         <template v-if="addresses">
-          <div class="settings-group">
+          <div class="settings-group" data-setting="jellyfin">
             <h3 class="ui-group-label">Jellyfin</h3>
             <div class="ui-group">
               <copy-row label="Tuner (M3U) URL" :value="addresses.playlist" />
               <copy-row label="Guide (XMLTV) URL" :value="addresses.guide" />
             </div>
           </div>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="kodi">
             <h3 class="ui-group-label">Kodi (TVHeadend HTSP client)</h3>
             <div class="ui-group">
               <copy-row label="Hostname" :value="addresses.host" />
@@ -78,7 +78,7 @@ export const TvAppsPanel = {
         </template>
         <p v-else class="settings-note">Enter the network address of the computer that runs TVHeadend.</p>
         <p class="settings-note">Anyone on your home network with these details can watch your channels. They cannot change your settings or your recordings.</p>
-        <div class="settings-group">
+        <div class="settings-group" data-setting="tv-login">
           <h3 class="ui-group-label">TV login</h3>
           <div class="ui-group">
             <div class="settings-row">

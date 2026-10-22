@@ -1,6 +1,7 @@
 import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
 import { streamChoicesOf, isOverMeasured, measuredText, streamsHintOf } from '/tuner-status.js'
 import { TunerList, useTunerStatusWhile } from '/components/tuner-list.js'
+import { settingLabelOf } from '/settings-index.js'
 import { api } from '/shared/api.js'
 import { multi } from '/shared/multi-session.js'
 import { routeParams } from '/shared/router.js'
@@ -8,11 +9,11 @@ import { fmtTime } from '/shared/time.js'
 
 export const LiveStreamsSetting = {
   template: `
-    <div class="settings-group">
+    <div class="settings-group" data-setting="player-live-tv">
       <h3 class="ui-group-label">Live TV</h3>
       <div class="ui-group">
-        <div class="settings-row">
-          <span id="live-streams-label" class="field-label">Live streams at once</span>
+        <div class="settings-row" data-setting="live-streams">
+          <span id="live-streams-label" class="field-label">{{ label }}</span>
           <ui-segmented class="live-streams-choices" aria-labelledby="live-streams-label" :model-value="current"
             :options="choices.map((choice) => ({ value: choice.value, label: choice.label, class: { 'is-over-estimate': choice.tooMany } }))"
             :disabled="saving || !loaded" @update:model-value="choose" />
@@ -26,6 +27,7 @@ export const LiveStreamsSetting = {
           </div>
         </div>
       </div>
+      <p class="settings-note">For every device in the home.</p>
     </div>
   `,
   setup() {
@@ -87,14 +89,14 @@ export const LiveStreamsSetting = {
 
     onMounted(load)
 
-    return { loaded, saving, measuring, current, choices, overMeasured, measured, hint, statusText, statusKind, choose, measure }
+    return { label: settingLabelOf('live-streams'), loaded, saving, measuring, current, choices, overMeasured, measured, hint, statusText, statusKind, choose, measure }
   },
 }
 
 export const TunerStatusPanel = {
   components: { 'tuner-list': TunerList },
   template: `
-    <div class="settings-group">
+    <div class="settings-group" data-setting="tuners">
       <h3 class="ui-group-label">Tuners</h3>
       <tuner-list v-if="multi.tunerLoaded" :status="multi.tunerStatus" />
       <p v-else class="settings-note">Checking tuners…</p>

@@ -220,7 +220,7 @@ export const SeriesView = {
           </div>
         </section>
 
-        <form class="settings-group" @submit.prevent="add">
+        <form class="settings-group" data-setting="add-title" @submit.prevent="add">
           <h3 class="ui-group-label">Add title</h3>
           <div class="ui-group">
             <div class="settings-row">
@@ -270,7 +270,7 @@ export const SeriesView = {
                 <p v-if="!adRemovalEnabled" class="settings-hint">Turn on ad removal in <a href="#/settings/ad-removal">Settings</a> to use this.</p>
               </div>
             </div>
-            <div class="settings-row">
+            <div class="settings-row" data-setting="remove-after-import">
               <toggle-switch v-model="newDeleteAfter" class="settings-toggle">
                 <span class="settings-row-title">Remove from TVHeadend after import</span>
               </toggle-switch>

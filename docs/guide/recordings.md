@@ -60,7 +60,7 @@ The **About** and **Cast and crew** sections load after the page opens, so the e
 - **About**: the show synopsis from TMDB or TVmaze, or the synopsis of the newest episode when they have none. Below it, one line from a TMDB review shows with a link to the reviews. The score shows in the header; press it for the source. See [Ratings and reviews](/guide/tv-guide#ratings-and-reviews).
 - **Cast and crew**: up to 12 cast members, each with a photo (initials when there is no photo), a name, and the character. Crew shows as lines, such as `Director: Jane Smith`. For a film, the crew is the director, up to 2 writers, and up to 2 producers. For a series, it is the creators and up to 2 executive producers. Press a person to open their TMDB or TVmaze page in a new tab. When that site does not answer, the person has no link.
 
-A show with no match gets neither section. Reality and game show hosts appear in the cast. A film needs a [TMDB key](/guide/tv-guide#tmdb-key) for its cast and crew. To turn the lookup off, go to Settings → Film and TV info and turn off **Cast and crew**.
+A show with no match gets neither section. Reality and game show hosts appear in the cast. A film needs a [TMDB key](/guide/tv-guide#tmdb-key) for its cast and crew. To turn the lookup off, go to Settings → Watching → Film and TV info and turn off **Cast and crew**.
 
 ### Show menu
 
@@ -223,7 +223,7 @@ The buttons under the facts depend on the recording: **Play**, **Import** or **I
 - **PARTIAL**: the imported file came up more than `1MB` short. The next sync imports it again.
 - **SKIPPED**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The row's error says which.
 - **FAILED**: the import hit an error.
-- **NOT IMPORTED**: Freetvarr left the recording in TVHeadend. You recorded it with **Add to library** off, or it matches no series folder and **Import every recording** is off in Settings → Library and Plex. Press **Import** to add it to the library at once.
+- **NOT IMPORTED**: Freetvarr left the recording in TVHeadend. You recorded it with **Add to library** off, or it matches no series folder and **Import every recording** is off in Settings → Recording → Media library. Press **Import** to add it to the library at once.
 - **REPLACED**: Freetvarr imported the recording, but its library file is gone, and the folder has another file for the same episode. Another app, such as Sonarr, replaced it. See [Replaced recordings](/guide/troubleshooting#replaced-recordings).
 - **NOT IN LIBRARY**: Freetvarr imported the recording, but its library file is gone and no other copy of the episode is in the folder. Press **Import again** to import the TVHeadend copy again, while TVHeadend still has it.
 

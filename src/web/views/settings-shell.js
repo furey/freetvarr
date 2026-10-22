@@ -4,6 +4,7 @@ import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
 import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import { playBrandIntro } from '/components/brand-intro-overlay.js'
+import { SettingsSearch, isSearchingSettings } from '/components/settings-search.js'
 import { health } from '/shared/health.js'
 import { cameFromHash, routeParams } from '/shared/router.js'
 import { hashesMatch } from '/scroll-memory.js'
@@ -37,7 +38,7 @@ const PAGE_INTROS = {
   activity: 'Every sync Freetvarr has run, newest first.',
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
-  player: 'How the player starts and behaves on this device.',
+  player: 'How the player starts, and how many live streams play at once.',
   channels: 'The channels that Live TV, the TV guide, and search show.',
   'for-you': 'For you picks shows from the guide based on what this household watches and records.',
   diagram: 'Select a component to see its function, whether it is required, and its settings.',
@@ -45,11 +46,13 @@ const PAGE_INTROS = {
 }
 
 export const SettingsShell = {
+  components: { SettingsSearch },
   template: `
     <div class="settings-shell">
       <nav v-if="showNav" v-page-reveal class="settings-nav" aria-label="Settings sections">
         <h1 class="ui-page-title settings-nav-title">Settings</h1>
-        <template v-for="group in groups" :key="group.key">
+        <settings-search />
+        <template v-if="!searching"><template v-for="group in groups" :key="group.key">
           <h2 class="settings-nav-group">{{ group.label }}</h2>
           <div class="settings-nav-list">
             <a v-for="item in group.pages" :key="item.id" :href="item.href" class="settings-nav-link"
@@ -60,7 +63,7 @@ export const SettingsShell = {
               <chevron-glyph class="settings-nav-chevron ui-only-phone" />
             </a>
           </div>
-        </template>
+        </template></template>
       </nav>
       <main v-if="page" v-page-reveal="{ key: page.id }" class="settings-content" :data-settings-page="page.id" :data-settings-section="page.section || null">
         <a href="#/settings" class="settings-back ui-only-phone" @click="backToSettings"><back-glyph /> Settings</a>
@@ -107,6 +110,7 @@ export const SettingsShell = {
     }
     return {
       groups: SETTINGS_GROUPS,
+      searching: isSearchingSettings,
       page,
       showNav,
       pageView,

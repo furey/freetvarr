@@ -55,9 +55,9 @@ export const SetupSettingsView = {
               </div>
             </template>
             <template v-else-if="row.key === 'plex'">
-              <p class="setup-hint">The Plex address, token, and libraries are on the Library and Plex page.</p>
+              <p class="setup-hint">The Plex address, token, and libraries are on the Plex page.</p>
               <div class="setup-drawer-actions">
-                <a class="ui-button ui-button-secondary" href="#/settings/plex">Open Library and Plex settings</a>
+                <a class="ui-button ui-button-secondary" href="#/settings/plex">Open Plex settings</a>
               </div>
             </template>
             <template v-else-if="row.key === 'time-zone'">

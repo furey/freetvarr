@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, watch, nextTick } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
   CUSTOM_SYNC_SCHEDULE,
   DEFAULT_SYNC_CRON,
@@ -19,22 +19,11 @@ import {
   recordingsFolderStatus,
   tvhRecordingsPathStatus,
 } from '/shared/path-check.js'
-import { routeSection, routeSectionId, scrollToRouteSection } from '/shared/router.js'
+import { routeSection, scrollToRouteSection } from '/shared/router.js'
+import { isLandingPending } from '/shared/setting-landing.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
 import { tz, browserTimeZone } from '/shared/time.js'
 
-const SETTINGS_SECTIONS = [
-  { id: 'tvheadend', label: 'TVHeadend' },
-  { id: 'storage', label: 'Storage' },
-  { id: 'plex', label: 'Plex' },
-  { id: 'schedule', label: 'Schedule' },
-  { id: 'film-tv-info', label: 'Film and TV info' },
-  { id: 'ad-removal', label: 'Ad removal' },
-  { id: 'tv-apps', label: 'TV apps' },
-  { id: 'help', label: 'Help' },
-  { id: 'danger-zone', label: 'Reset' },
-]
-const SETTINGS_SECTION_GAP_PX = 24
 const LICENCES = [
   { name: 'Freetvarr', byline: [{ label: '@furey', href: 'https://github.com/furey' }, { label: 'about.me/jamesfurey', href: 'https://about.me/jamesfurey' }], licence: 'GPL-3.0-or-later', href: 'https://github.com/furey/freetvarr/blob/main/LICENSE' },
   { name: 'Figtree', note: 'Interface typeface, by Erik Kennedy.', licence: 'SIL OFL 1.1', href: '/fonts/figtree-OFL.txt' },
@@ -43,81 +32,10 @@ const LICENCES = [
   { name: 'UltraFace', note: 'Face detector for cropping pictures, by Linzaer.', licence: 'MIT', href: 'https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/blob/master/LICENSE' },
   { name: 'Hold music', note: '"Local Forecast – Elevator" by Kevin MacLeod (incompetech.com).', licence: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' },
 ]
+const GENRE_SOURCES = ['TVmaze', 'Wikidata']
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
 
 const isCustomPlexPrefsPath = (path) => Boolean(path) && path !== DEFAULT_PLEX_PREFS_PATH
-
-const isScrolledToBottom = () =>
-  window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4
-
-const sectionTop = (id) => document.getElementById(`section-${id}`)?.getBoundingClientRect().top
-
-const sectionInView = (id) => {
-  const top = sectionTop(id)
-  return top !== undefined && top < window.innerHeight
-}
-
-const sectionOnScreen = (navBottom) => {
-  const line = navBottom + SETTINGS_SECTION_GAP_PX
-  const lastId = SETTINGS_SECTIONS.at(-1).id
-  if (isScrolledToBottom()) {
-    const routed = SETTINGS_SECTIONS.find(({ id }) => id === routeSectionId())
-    return routed && sectionInView(routed.id) ? routed.id : lastId
-  }
-  return SETTINGS_SECTIONS.reduce((current, { id }) => {
-    const top = sectionTop(id)
-    return top !== undefined && top <= line ? id : current
-  }, SETTINGS_SECTIONS[0].id)
-}
-
-const revealActiveLink = (nav) => {
-  const link = nav?.querySelector('[data-active="true"]')
-  if (!link) return
-  const start = link.offsetLeft - SETTINGS_SECTION_GAP_PX
-  const end = link.offsetLeft + link.offsetWidth + SETTINGS_SECTION_GAP_PX
-  if (start < nav.scrollLeft) nav.scrollLeft = start
-  else if (end > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = end - nav.clientWidth
-}
-
-const useSettingsSections = () => {
-  const sectionNav = ref(null)
-  const activeSection = ref(SETTINGS_SECTIONS[0].id)
-  let frame = 0
-  const publishNavHeight = () => {
-    document.documentElement.style.setProperty('--settings-nav-h', `${sectionNav.value?.offsetHeight ?? 0}px`)
-  }
-  const navObserver = new ResizeObserver(publishNavHeight)
-  const trackSection = () => {
-    cancelAnimationFrame(frame)
-    frame = requestAnimationFrame(() => {
-      activeSection.value = sectionOnScreen(sectionNav.value?.getBoundingClientRect().bottom ?? 0)
-    })
-  }
-  const openSection = (event, id) => {
-    if (routeSectionId() !== id) return
-    event.preventDefault()
-    scrollToRouteSection()
-  }
-  onMounted(() => {
-    publishNavHeight()
-    navObserver.observe(sectionNav.value)
-    window.addEventListener('scroll', trackSection, { passive: true })
-    window.addEventListener('resize', trackSection, { passive: true })
-    trackSection()
-  })
-  onUnmounted(() => {
-    navObserver.disconnect()
-    cancelAnimationFrame(frame)
-    window.removeEventListener('scroll', trackSection)
-    window.removeEventListener('resize', trackSection)
-    document.documentElement.style.removeProperty('--settings-nav-h')
-  })
-  watch(activeSection, async () => {
-    await nextTick()
-    revealActiveLink(sectionNav.value)
-  })
-  return { sections: SETTINGS_SECTIONS, sectionNav, activeSection, openSection }
-}
 
 export const SettingsView = {
   props: {
@@ -125,11 +43,6 @@ export const SettingsView = {
   },
   template: `
     <div v-page-reveal="{ key: routeSection }" class="settings-page pb-24">
-      <nav ref="sectionNav" class="settings-sections" aria-label="Settings sections">
-        <a v-for="s in sections" :key="s.id" :href="'#/settings/' + s.id"
-          :data-active="activeSection === s.id" :aria-current="activeSection === s.id ? 'location' : null"
-          class="settings-section-link" @click="openSection($event, s.id)">{{ s.label }}</a>
-      </nav>
       <form id="settings-form" @submit.prevent="save" class="settings-form">
         <section id="section-tvheadend" class="settings-section">
           <p class="settings-intro">The address and login Freetvarr uses to read the guide, channels, and recordings, and to set recordings.</p>
@@ -139,7 +52,7 @@ export const SettingsView = {
               <p><strong>Auto-discover TVHeadend</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
             </info-button>
           </teleport>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="tvh-server">
             <h3 class="ui-group-label">Server</h3>
             <div class="ui-group">
               <div class="settings-row settings-row-actions">
@@ -157,11 +70,11 @@ export const SettingsView = {
                   </button>
                 </div>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="tvh-url">
                 <label class="field-label" for="settings-tvh-url">TVHeadend URL</label>
                 <input v-no-autofill id="settings-tvh-url" type="text" class="field-input" v-model="tvhUrl" placeholder="e.g. http://192.168.1.10:9981" />
               </div>
-              <div class="settings-row settings-row-split">
+              <div class="settings-row settings-row-split" data-setting="tvh-login">
                 <div>
                   <label class="field-label" for="settings-tvh-username">Username</label>
                   <input v-no-autofill id="settings-tvh-username" type="text" class="field-input" v-model="tvhUsername" placeholder="blank if TVHeadend is open" />
@@ -181,7 +94,7 @@ export const SettingsView = {
               </div>
             </div>
           </div>
-          <div v-if="tvhOpenEntryBackupSet" class="settings-group">
+          <div v-if="tvhOpenEntryBackupSet" class="settings-group" data-setting="open-access">
             <h3 class="ui-group-label">Open access</h3>
             <div class="ui-group">
               <div class="settings-row settings-row-actions">
@@ -197,17 +110,38 @@ export const SettingsView = {
         </section>
 
         <section id="section-storage" class="settings-section">
-          <p class="settings-intro">Where recordings come from and where Freetvarr files them.</p>
+          <p class="settings-intro">What goes into your library, where recordings come from, and where Freetvarr files them.</p>
           <teleport v-if="section === 'storage'" defer to="#settings-page-info">
-            <info-button title="Recording folders" doc="guide/configuration#the-two-recordings-paths" piece="recordings">
-              <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder (as Freetvarr sees it)</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>Recordings folder (as TVHeadend sees it)</strong>: the same folder, at the path TVHeadend reports.</li></ul>
+            <info-button title="Media library" doc="guide/configuration#the-two-recordings-paths" piece="recordings">
+              <ul><li><strong>Import every recording</strong>: on, a recording that matches no series still goes into your library. Off, only your series and the recordings you set with Add to library on.</li><li><strong>Add to library by default</strong>: the starting value of Add to library on each new recording.</li><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder (as Freetvarr sees it)</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>Recordings folder (as TVHeadend sees it)</strong>: the same folder, at the path TVHeadend reports.</li></ul>
               <p>When both apps see the folder at the same path, the two recordings paths are the same. Keep the recordings and the media root inside one shared folder: imports are then instant and use no extra disk space.</p>
             </info-button>
           </teleport>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="what-to-import">
+            <h3 class="ui-group-label">What to import</h3>
+            <div class="ui-group">
+              <div class="settings-row" data-setting="import-unmatched">
+                <toggle-switch v-model="importUnmatched" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Import every recording</span>
+                    <span class="settings-row-meta">On: a recording that matches no series goes to the one-off folder, or to the movies folder if it is a film. Off: Freetvarr imports only your series, and recordings you made with Add to library on. The others stay in TVHeadend; you can import them from the Recording log.</span>
+                  </span>
+                </toggle-switch>
+              </div>
+              <div class="settings-row" data-setting="add-to-library">
+                <toggle-switch v-model="addToLibraryDefault" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Add to library by default</span>
+                    <span class="settings-row-meta">New recordings you set in the TV guide start with Add to library on. You can still change it for each recording.</span>
+                  </span>
+                </toggle-switch>
+              </div>
+            </div>
+          </div>
+          <div class="settings-group" data-setting="library-folders">
             <h3 class="ui-group-label">Library folders</h3>
             <div class="ui-group">
-              <div class="settings-row">
+              <div class="settings-row" data-setting="media-root">
                 <label class="field-label" for="settings-media-root">Media root <span class="settings-label-note">(inside container)</span></label>
                 <div class="field-action">
                   <div class="field-action-controls">
@@ -220,7 +154,7 @@ export const SettingsView = {
                 <p v-if="mediaRootStatus" :class="['status-readout', 'field-status', mediaRootStatusKind]" role="status">{{ mediaRootStatus }}</p>
                 <p class="settings-hint">The folder Freetvarr saves TV episodes to. Plex reads it. Enter the path Freetvarr sees, from the <code>volumes</code> in <code>docker-compose.yml</code>. If you change the folder there, change it here too.</p>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="oneoff-root">
                 <label class="field-label" for="settings-oneoff-root">One-off folder <span class="settings-label-note">(inside container)</span></label>
                 <div class="field-action">
                   <div class="field-action-controls">
@@ -233,7 +167,7 @@ export const SettingsView = {
                 <p v-if="oneOffRootStatus" :class="['status-readout', 'field-status', oneOffRootStatusKind]" role="status">{{ oneOffRootStatus }}</p>
                 <p class="settings-hint">Recordings that match no series go here, one folder per title. In Plex, add an "Other Videos" library for this folder.</p>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="movies-root">
                 <label class="field-label" for="settings-movies-root">Movies folder <span class="settings-label-note">(inside container, optional)</span></label>
                 <div class="field-action">
                   <div class="field-action-controls">
@@ -248,10 +182,10 @@ export const SettingsView = {
               </div>
             </div>
           </div>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="recordings-folder">
             <h3 class="ui-group-label">Recordings folder</h3>
             <div class="ui-group">
-              <div class="settings-row">
+              <div class="settings-row" data-setting="recordings-root">
                 <label class="field-label" for="settings-recordings-root">As Freetvarr sees it</label>
                 <div class="field-action">
                   <div class="field-action-controls">
@@ -263,7 +197,7 @@ export const SettingsView = {
                 </div>
                 <p v-if="recordingsCheck.text" :class="['status-readout', 'field-status', recordingsCheck.kind]" role="status">{{ recordingsCheck.text }}</p>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="tvh-recordings-path">
                 <label class="field-label" for="settings-tvh-recordings-path">As TVHeadend sees it</label>
                 <div class="field-action">
                   <div class="field-action-controls">
@@ -278,39 +212,17 @@ export const SettingsView = {
             </div>
             <p class="settings-note">TVHeadend and Freetvarr must share this folder. Each can see it at a different path; enter the path each one sees.</p>
           </div>
-          <live-streams-setting />
         </section>
 
         <section id="section-plex" class="settings-section">
-          <p class="settings-intro">What goes into your library, and how Freetvarr tells Plex about it.</p>
+          <p class="settings-intro">Optional. How Freetvarr tells Plex about new recordings.</p>
           <teleport v-if="section === 'plex'" defer to="#settings-page-info">
             <info-button title="Plex" doc="guide/plex" piece="player">
               <p>Optional. After a sync imports an episode, Freetvarr asks Plex to refresh the library section, so new episodes show up without a manual scan.</p>
               <p>Freetvarr needs the Plex address, a token, and the section. Without Plex, Freetvarr still imports and files episodes.</p>
             </info-button>
           </teleport>
-          <div class="settings-group">
-            <h3 class="ui-group-label">Library</h3>
-            <div class="ui-group">
-              <div class="settings-row">
-                <toggle-switch v-model="addToLibraryDefault" class="settings-toggle">
-                  <span class="settings-toggle-text">
-                    <span class="settings-row-title">Add to library by default</span>
-                    <span class="settings-row-meta">New recordings you set in the TV guide start with Add to library on. You can still change it for each recording.</span>
-                  </span>
-                </toggle-switch>
-              </div>
-              <div class="settings-row">
-                <toggle-switch v-model="importUnmatched" class="settings-toggle">
-                  <span class="settings-toggle-text">
-                    <span class="settings-row-title">Import every recording</span>
-                    <span class="settings-row-meta">On: a recording that matches no series goes to the one-off folder, or to the movies folder if it is a film. Off: Freetvarr imports only your series, and recordings you made with Add to library on. The others stay in TVHeadend; you can import them from the Recording log.</span>
-                  </span>
-                </toggle-switch>
-              </div>
-            </div>
-          </div>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="plex-server">
             <h3 class="ui-group-label">Plex server</h3>
             <div class="ui-group">
               <div class="settings-row settings-row-actions">
@@ -328,11 +240,11 @@ export const SettingsView = {
                   </button>
                 </div>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="plex-url">
                 <label class="field-label" for="settings-plex-url">Plex URL</label>
                 <input v-no-autofill id="settings-plex-url" type="text" class="field-input" v-model="plexUrl" placeholder="http://127.0.0.1:32400" />
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="plex-token">
                 <label class="field-label" for="settings-plex-token">Plex token</label>
                 <div class="field-action">
                   <div class="field-action-controls">
@@ -351,17 +263,17 @@ export const SettingsView = {
                     <p class="settings-hint">
                       If you installed Plex yourself, share the folder that holds its <code>Preferences.xml</code> with Freetvarr in <code>docker-compose.yml</code>, then enter the path Freetvarr sees below. Or paste the token from Plex; <a href="https://furey.github.io/freetvarr/guide/plex#the-token" target="_blank" rel="noopener noreferrer">the Plex guide</a> says where to find it.
                     </p>
-                    <label class="field-label" for="settings-plex-prefs">Preferences.xml path <span class="settings-label-note">(inside container)</span></label>
+                    <label class="field-label" for="settings-plex-prefs" data-setting="plex-prefs">Preferences.xml path <span class="settings-label-note">(inside container)</span></label>
                     <input v-no-autofill id="settings-plex-prefs" type="text" class="field-input" v-model="plexPrefsPath" :placeholder="defaultPlexPrefsPath" />
                   </div>
                 </details>
               </div>
             </div>
           </div>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="plex-libraries">
             <h3 class="ui-group-label">Plex libraries</h3>
             <div class="ui-group">
-              <div class="settings-row">
+              <div class="settings-row" data-setting="plex-tv-section">
                 <label class="field-label" for="settings-plex-tv">TV section</label>
                 <select v-if="plexSections.length" id="settings-plex-tv" class="field-input" v-model="plexSectionId">
                   <option value="">Pick a section</option>
@@ -372,7 +284,7 @@ export const SettingsView = {
                 <input v-no-autofill v-else id="settings-plex-tv" type="text" class="field-input" v-model="plexSectionId"
                   placeholder="section number; Load sections lists them" />
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="plex-oneoff-section">
                 <label class="field-label" for="settings-plex-oneoff">One-off section</label>
                 <select v-if="plexSections.length" id="settings-plex-oneoff" class="field-input" v-model="plexOneOffSectionId">
                   <option value="">None</option>
@@ -383,7 +295,7 @@ export const SettingsView = {
                 <input v-no-autofill v-else id="settings-plex-oneoff" type="text" class="field-input" v-model="plexOneOffSectionId"
                   placeholder="section number of the one-off library" />
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="plex-movies-section">
                 <label class="field-label" for="settings-plex-movies">Movies section</label>
                 <select v-if="plexSections.length" id="settings-plex-movies" class="field-input" v-model="plexMoviesSectionId">
                   <option value="">None</option>
@@ -405,7 +317,7 @@ export const SettingsView = {
               </div>
               <plex-library-setup class="settings-row" :plex-url="plexUrl" :plex-token="plexToken" :loads="plexSectionLoads"
                 @created="usePlexLibraries" />
-              <div class="settings-row">
+              <div class="settings-row" data-setting="plex-wait">
                 <toggle-switch v-model="deleteAfterPlexRefreshOnly" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Wait for Plex before removing recordings from TVHeadend</span>
@@ -429,12 +341,12 @@ export const SettingsView = {
           <div class="settings-group">
             <h3 class="ui-group-label">Time zone</h3>
             <div class="ui-group">
-              <div class="settings-row">
+              <div class="settings-row" data-setting="time-zone">
                 <time-zone-field v-model="timeZone" :source="tzSource" />
               </div>
             </div>
           </div>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="syncs">
             <h3 class="ui-group-label">Syncs</h3>
             <div class="ui-group">
               <div class="settings-row">
@@ -459,19 +371,20 @@ export const SettingsView = {
         </section>
 
         <section id="section-film-tv-info" class="settings-section">
-          <p class="settings-intro">Pictures, ratings, reviews, and cast from online film and TV databases.</p>
+          <p class="settings-intro">Pictures, ratings, reviews, cast, and genres from online film and TV databases.</p>
           <teleport v-if="section === 'film-tv-info'" defer to="#settings-page-info">
             <info-button title="Film and TV info" doc="guide/tv-guide#missing-pictures" piece="metadata">
               <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database. For films and other shows TVmaze does not list, it finds the matching Wikipedia article through Wikidata and uses its picture, or the TMDB poster when you add a TMDB key.</p>
               <p>Films and drama series also get a score on the programme sheet. Film scores come from TMDB users. Show scores come from TMDB users when you add a TMDB key and TMDB has enough votes, and from TVmaze users otherwise. With a TMDB key, the sheet also shows a line from a TMDB review.</p>
               <p>A recorded show's page lists its cast and crew from TMDB and TVmaze, reality hosts included.</p>
+              <p>Genres from TVmaze and Wikidata help For you pick shows, and help search find other titles.</p>
               <p>A lookup sends the programme title to those services. Turn the switches off to keep every title on your network.</p>
             </info-button>
           </teleport>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="look-up-online">
             <h3 class="ui-group-label">Look up online</h3>
             <div class="ui-group">
-              <div class="settings-row">
+              <div class="settings-row" data-setting="missing-pictures">
                 <toggle-switch v-model="showArtworkLookup" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Missing pictures</span>
@@ -479,7 +392,7 @@ export const SettingsView = {
                   </span>
                 </toggle-switch>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="ratings">
                 <toggle-switch v-model="ratingsLookupEnabled" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Ratings</span>
@@ -487,7 +400,7 @@ export const SettingsView = {
                   </span>
                 </toggle-switch>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="reviews">
                 <toggle-switch :model-value="reviewsLookupEnabled && tmdbKeySet" @update:model-value="reviewsLookupEnabled = $event" :disabled="!tmdbKeySet" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Reviews</span>
@@ -495,7 +408,7 @@ export const SettingsView = {
                   </span>
                 </toggle-switch>
               </div>
-              <div class="settings-row">
+              <div class="settings-row" data-setting="cast-and-crew">
                 <toggle-switch v-model="creditsLookupEnabled" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Cast and crew</span>
@@ -503,13 +416,27 @@ export const SettingsView = {
                   </span>
                 </toggle-switch>
               </div>
+              <div class="settings-row" data-setting="genres">
+                <toggle-switch v-model="genreLookup" class="settings-toggle">
+                  <span class="settings-toggle-text">
+                    <span class="settings-row-title">Genres</span>
+                    <span class="settings-row-meta">TVmaze and Wikidata, for For you and search</span>
+                  </span>
+                </toggle-switch>
+                <p class="settings-row-meta suggestions-credit">
+                  <template v-for="(credit, i) in genreCredits" :key="credit.name">{{ i ? ' ' : '' }}{{ credit.lead }} from
+                    <a :href="credit.siteHref" target="_blank" rel="noopener noreferrer">{{ credit.name }}</a>, licensed
+                    <a :href="credit.licenceHref" target="_blank" rel="noopener noreferrer">{{ credit.licence }}</a>.</template>
+                </p>
+              </div>
             </div>
             <p class="settings-note">Off keeps every title on your network.</p>
           </div>
-          <div class="settings-group">
+          <tmdb-key-setting @key-change="tmdbKeySet = $event" />
+          <div class="settings-group" data-setting="picture-cropping">
             <h3 class="ui-group-label">Picture cropping</h3>
             <div class="ui-group">
-              <div class="settings-row">
+              <div class="settings-row" data-setting="faces">
                 <toggle-switch v-model="faceFocusEnabled" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Keep faces in view</span>
@@ -519,7 +446,7 @@ export const SettingsView = {
               </div>
             </div>
           </div>
-          <tmdb-key-setting @key-change="tmdbKeySet = $event" />
+          <movie-corrections />
         </section>
 
         <section id="section-ad-removal" class="settings-section">
@@ -531,10 +458,10 @@ export const SettingsView = {
               <p>Detection is not always right. Use <strong>Detect</strong> on a channel first, and check the breaks before you let it cut.</p>
             </info-button>
           </teleport>
-          <div class="settings-group">
+          <div class="settings-group" data-setting="ad-removal">
             <h3 class="ui-group-label">Ad removal</h3>
             <div class="ui-group">
-              <div class="settings-row">
+              <div class="settings-row" data-setting="enable-ad-removal">
                 <toggle-switch v-model="adRemovalEnabled" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Enable ad removal</span>
@@ -542,11 +469,11 @@ export const SettingsView = {
                   </span>
                 </toggle-switch>
               </div>
-              <div class="settings-row settings-row-inline">
+              <div class="settings-row settings-row-inline" data-setting="ad-retention">
                 <label class="settings-row-title" for="settings-ad-retention">Keep the original after a cut for (days)</label>
                 <input v-no-autofill id="settings-ad-retention" type="number" min="1" class="field-input settings-number" v-model="adOriginalRetentionDays" />
               </div>
-              <div class="settings-row settings-row-inline">
+              <div class="settings-row settings-row-inline" data-setting="ad-detection">
                 <span class="settings-row-title">Detection settings</span>
                 <span class="ui-group-row-value">{{ comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air' }}</span>
               </div>
@@ -590,7 +517,7 @@ export const SettingsView = {
             </a>
           </div>
         </div>
-        <div class="settings-group">
+        <div class="settings-group" data-setting="versions">
           <div class="settings-group-head">
             <h3 class="ui-group-label">Versions</h3>
             <info-button title="Versions" doc="guide/troubleshooting#reporting-a-bug">
@@ -601,7 +528,7 @@ export const SettingsView = {
             <versions-row />
           </div>
         </div>
-        <div id="section-licences" class="settings-group">
+        <div id="section-licences" class="settings-group" data-setting="licences">
           <h3 class="ui-group-label">Licences</h3>
           <div class="ui-group">
             <div v-for="item in licences" :key="item.name" class="settings-row settings-row-inline">
@@ -624,7 +551,7 @@ export const SettingsView = {
       </section>
 
       <section id="section-danger-zone" class="settings-section settings-reset">
-        <div class="settings-group">
+        <div class="settings-group" data-setting="reset">
           <h3 class="ui-group-label">Reset Freetvarr</h3>
           <div class="ui-group settings-danger">
             <div class="settings-row">
@@ -729,6 +656,7 @@ export const SettingsView = {
     const faceFocusEnabled = ref(true)
     const reviewsLookupEnabled = ref(true)
     const creditsLookupEnabled = ref(true)
+    const genreLookup = ref(true)
     const tmdbKeySet = ref(false)
     const plexOneOffSectionId = ref('')
     const moviesRoot = ref('')
@@ -760,8 +688,12 @@ export const SettingsView = {
     }
 
     const dataCredits = ref(dataCreditsOf())
+    const genreCredits = computed(() => dataCredits.value.filter((credit) => GENRE_SOURCES.includes(credit.name)))
     onMounted(() => api('GET', '/api/for-you/settings')
-      .then((body) => { dataCredits.value = dataCreditsOf(body.attribution) })
+      .then((body) => {
+        dataCredits.value = dataCreditsOf(body.attribution)
+        genreLookup.value = body.genreLookup !== false
+      })
       .catch(() => {}))
     onMounted(async () => {
       const s = await fetchSettings()
@@ -799,9 +731,9 @@ export const SettingsView = {
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
       adOriginalRetentionDays.value = s.ad_original_retention_days || '7'
       comskipIniOverride.value = Boolean(s.comskip_ini_override)
-      await scrollToRouteSection()
+      if (!isLandingPending()) await scrollToRouteSection()
     })
-    const stopSectionWatch = watch(routeSection, scrollToRouteSection)
+    const stopSectionWatch = watch(routeSection, () => isLandingPending() || scrollToRouteSection())
     onUnmounted(stopSectionWatch)
 
     const save = async () => {
@@ -836,6 +768,7 @@ export const SettingsView = {
         if (tvhPassword.value) body.tvh_password = tvhPassword.value
         await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
         await saveRecordingDefaults()
+        await saveGenreLookup()
         tz.value = timeZone.value
         tzSource.value = 'setting'
         if (plexToken.value) {
@@ -861,6 +794,8 @@ export const SettingsView = {
     }
 
     const saveRecordingDefaults = () => api('PUT', '/api/recording-defaults', { add_to_library: addToLibraryDefault.value })
+
+    const saveGenreLookup = () => api('PUT', '/api/for-you/settings', { genreLookup: genreLookup.value })
 
     const refreshSyncSchedule = async () => {
       const fresh = await fetchSettings().catch(() => null)
@@ -1089,7 +1024,6 @@ export const SettingsView = {
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
       syncCron, syncCronEffective, syncSchedule, timeZone, tzSource,
       syncSchedulePresets: SYNC_SCHEDULE_PRESETS, customSyncSchedule: CUSTOM_SYNC_SCHEDULE,
-      ...useSettingsSections(),
       plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexSectionLoads, usePlexLibraries,
       plexProbing, plexRefreshing, plexDetecting,
       plexTokenStatus, plexTokenStatusKind,
@@ -1101,7 +1035,7 @@ export const SettingsView = {
       resetting, resetError, askResetFreetvarr,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, faceFocusEnabled, reviewsLookupEnabled, creditsLookupEnabled, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
+      importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, faceFocusEnabled, reviewsLookupEnabled, creditsLookupEnabled, genreLookup, genreCredits, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,

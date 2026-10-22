@@ -55,7 +55,7 @@ A switch in the sheet picks what to do. One line under it says what the main but
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** follows the show to another channel. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the series folder, so the episodes go to the TV library. The note under the switch says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. The default is in Settings → Library and Plex. To change a folder later, open [Series rules](/guide/series).
+- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the series folder, so the episodes go to the TV library. The note under the switch says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. The default is in Settings → Recording → Media library. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
 - **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
 - A scheduled programme shows **Cancel recording** instead. For an episode of a series recording, the button reads **Skip this episode**: TVHeadend keeps the episode disabled, so the series recording does not schedule it again. To turn it back on, open the episode later and press **Record**.
@@ -173,7 +173,7 @@ For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wi
 
 While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 
-A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. After 30 days, Freetvarr keeps showing the old answer while it asks again, for up to 6 months. When a service does not answer, Freetvarr keeps the answer it has, waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Film and TV info and turn off **Missing pictures**.
+A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. After 30 days, Freetvarr keeps showing the old answer while it asks again, for up to 6 months. When a service does not answer, Freetvarr keeps the answer it has, waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Watching → Film and TV info and turn off **Missing pictures**.
 
 ### TMDB key
 
@@ -191,7 +191,7 @@ A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and b
 
    TMDB also asks for your name, email address, phone number, and street address before it shows the key.
 3. TMDB shows two values: an **API Key** (32 letters and numbers) and an **API Read Access Token** (a much longer one). Either works in Freetvarr. Copy the **API Key**; it is shorter to paste.
-4. In Freetvarr, go to Settings → Film and TV info and paste it into **TMDB API key (optional)** under **TMDB key**.
+4. In Freetvarr, go to Settings → Watching → Film and TV info and paste it into **TMDB API key (optional)** under **TMDB key**.
 5. Press **Test key**, then **Save key**.
 
 The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Some show ratings and cast lists come from [TVmaze](https://www.tvmaze.com).
@@ -210,7 +210,7 @@ Only films and scripted, animated, documentary, and miniseries shows get a score
 
 Films come from [TMDB](https://www.themoviedb.org), which needs a [TMDB key](#tmdb-key). With a TMDB key, series come from TMDB first. Freetvarr uses a TMDB series only when the synopsis matches it, or when it comes from your country and its network matches a channel in your guide. When TMDB has no such match, or fewer than `50` votes for it, the score comes from [TVmaze](https://www.tvmaze.com), which needs no key. Without a TMDB key, series scores come from TVmaze. Freetvarr matches a title with the same checks as [Missing pictures](#missing-pictures), and shows nothing when it is not sure of the match. A score from TMDB with fewer than `50` votes is hidden.
 
-Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down. When the site of a link does not answer, the score card shows no link. To turn these off, go to Settings → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
+Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down. When the site of a link does not answer, the score card shows no link. To turn these off, go to Settings → Watching → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
 
 ### Classification
 
@@ -235,7 +235,7 @@ The page of a recorded show lists its cast and crew; see [Recordings](/guide/rec
 
 Freetvarr keeps a copy of each photo on the server, so photos still show when TVmaze or TMDB is down. A name links to the person's TMDB or TVmaze page; when that site does not answer, the name has no link.
 
-Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down.
+Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → Watching → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down.
 
 ## Caching
 

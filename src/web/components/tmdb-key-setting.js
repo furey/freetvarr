@@ -3,7 +3,7 @@ import { api } from '/shared/api.js'
 
 export const TmdbKeySetting = {
   template: `
-    <div class="settings-group">
+    <div class="settings-group" data-setting="tmdb-key">
       <h3 class="ui-group-label">TMDB key</h3>
       <div class="ui-group">
         <div class="settings-row">

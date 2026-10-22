@@ -31,7 +31,7 @@ The top bar has these controls:
 
 The centre of the picture has **Start over**, the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
 
-On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `2` seconds; change the delay in [Player settings](#player-settings).
+On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `2` seconds; change the delay in [Playback settings](#playback-settings).
 
 Double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further.
 
@@ -54,7 +54,7 @@ For a recording, **Start over** shows when the player resumed where you stopped,
 
 The sound button at the right of the top bar shows a speaker. When the sound is off, the button turns amber and the speaker has a cross. Press the button, or press `m` on a keyboard, to switch. Point at the button with the mouse to see **Mute (M)** or **Unmute (M)**. Freetvarr remembers the choice on each device, and the next channel or recording starts the same way.
 
-To start every video muted on a device, turn on **Start muted** in [Player settings](#player-settings).
+To start every video muted on a device, turn on **Start muted** in [Playback settings](#playback-settings).
 
 ## Captions
 
@@ -132,18 +132,18 @@ Freetvarr remembers the size for each layout and number of pictures in this brow
 
 If a recording needs a tuner that Multiview uses, only the pictures on that tuner stop. The stopped picture says `Stopped for a recording:` and the programme name, with **Pick a channel** and **Remove**. If you were listening to it, the sound moves to the main picture. When Freetvarr starts a picture, it asks TVHeadend to take the tuner of the newest picture first.
 
-## Player settings
+## Playback settings
 
-Settings → **Player** holds two choices for the device you use:
+Under **THIS DEVICE**, Settings → Watching → **Playback** holds two choices for the device you use:
 
 - **Start muted**: every video starts with the sound off. This is the same choice as the sound button.
 - **Hide player controls after**: `1 s` to `5 s`. The default is `2 s`.
 
-Both are saved in the browser, so each device keeps its own.
+Both are saved in the browser, so each device keeps its own. Under **LIVE TV**, the same page holds [Live streams at once](#live-streams-at-once), one setting for every device in the home.
 
 ## Live streams at once
 
-**Live streams at once**, under **LIVE TV** in Settings → **Recording folders**, sets how many live streams Freetvarr plays at the same time: `1` to `4`. The choices stop at your tuner count. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
+**Live streams at once**, under **LIVE TV** in Settings → Watching → **Playback**, sets how many live streams Freetvarr plays at the same time: `1` to `4`. The choices stop at your tuner count. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
 
 Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or ad scan runs.
 

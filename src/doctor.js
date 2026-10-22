@@ -607,6 +607,7 @@ export const liveStreamsCheck = (streams) => {
       status: 'warn',
       detail: `${measured}. ${limit}`,
       fix: liveStreamsFix(streams.benchmark.estimated),
+      action: SETTINGS_PLAYER,
     }
   }
   return { status: 'pass', detail: `${measured}. ${limit}` }
@@ -934,5 +935,6 @@ const SETTINGS_TVHEADEND = { label: 'Open settings', href: '#/settings/system/tv
 const SETTINGS_STORAGE = { label: 'Open settings', href: '#/settings/storage' }
 const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
+const SETTINGS_PLAYER = { label: 'Open settings', href: '#/settings/player' }
 const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity' }
 const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }

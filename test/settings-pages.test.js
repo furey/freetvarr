@@ -36,8 +36,8 @@ test('SETTINGS_GROUPS: about, watching, recording, and system in order', () => {
 
 test('SETTINGS_GROUPS: each group lists its pages in order', () => {
   assert.deepEqual(labelsOf('about'), ['About Freetvarr', 'System diagram'])
-  assert.deepEqual(labelsOf('watching'), ['Channels', 'Player', 'For you', 'Film and TV info', 'Watch on TV'])
-  assert.deepEqual(labelsOf('recording'), ['Series rules', 'Title matches', 'Recording log', 'Ad removal', 'Library and Plex', 'Recording folders'])
+  assert.deepEqual(labelsOf('watching'), ['For you', 'Playback', 'Channels', 'Film and TV info', 'Watch on TV'])
+  assert.deepEqual(labelsOf('recording'), ['Series rules', 'Title matches', 'Recording log', 'Ad removal', 'Media library', 'Plex'])
   assert.deepEqual(labelsOf('system'), ['Health', 'Activity', 'Setup', 'TVHeadend', 'Schedule', 'Danger zone'])
 })
 
@@ -53,17 +53,17 @@ test('SETTINGS_GROUPS: every page keeps the address it had before the regrouping
   assert.deepEqual(hrefs, {
     about: '#/settings/about',
     diagram: '#/settings/diagram',
-    channels: '#/settings/channels',
-    player: '#/settings/player',
     'for-you': '#/settings/for-you',
+    player: '#/settings/player',
+    channels: '#/settings/channels',
     'film-tv-info': '#/settings/film-tv-info',
     'tv-apps': '#/settings/tv-apps',
     series: '#/settings/system/series',
     folders: '#/settings/system/folders',
     log: '#/settings/system/log',
     'ad-removal': '#/settings/ad-removal',
-    plex: '#/settings/plex',
     storage: '#/settings/storage',
+    plex: '#/settings/plex',
     health: '#/settings/system/health',
     activity: '#/settings/system/activity',
     setup: '#/settings/system/setup',
@@ -86,6 +86,12 @@ test('settingsPageOf: old addresses and route aliases open the right page', () =
     '#/settings/pictures': 'film-tv-info',
     '#/settings/suggestions': 'for-you',
     '#/settings/danger-zone': 'reset',
+    '#/settings/media-library': 'storage',
+    '#/settings/library': 'storage',
+    '#/settings/folders': 'storage',
+    '#/settings/system/folders': 'folders',
+    '#/settings/playback': 'player',
+    '#/settings/live-streams': 'player',
     '#/settings/reset': 'reset',
     '#/settings/tvheadend': 'tvheadend',
     '#/settings/health': 'health',

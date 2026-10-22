@@ -147,7 +147,7 @@ TVHeadend finished a recording, but nothing appears in Recordings or in your med
 The row's error in the [recording log](/guide/recordings#recording-log) says which of the two causes it was. Press the row for the full error and steps to fix it.
 
 - **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress shows this, and post-recording padding can keep it here for up to ten minutes after the programme ends. The next sync picks it up.
-- **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press **Check TVHeadend** in Settings → Recording folders, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+- **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press **Check TVHeadend** in Settings → Recording → Media library, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 
 ## Partial recordings
 
@@ -191,9 +191,9 @@ An import fails with a permission error, or the TVHeadend file won't delete.
 
 Episodes import, but Plex doesn't show them.
 
-- Press **Refresh Plex now** in Settings → Library and Plex. Freetvarr reports `Plex refresh sent (HTTP 200).` or the error.
-- **`Plex HTTP 401`**: the Plex token is wrong or expired. In Settings → Library and Plex, detect or paste the Plex token again ([Plex](/guide/plex#the-token)).
-- **`Plex HTTP 404`**: the section ID doesn't exist. In Settings → Library and Plex, pick the TV section again from the list.
+- Press **Refresh Plex now** in Settings → Recording → Plex. Freetvarr reports `Plex refresh sent (HTTP 200).` or the error.
+- **`Plex HTTP 401`**: the Plex token is wrong or expired. In Settings → Recording → Plex, detect or paste the Plex token again ([Plex](/guide/plex#the-token)).
+- **`Plex HTTP 404`**: the section ID doesn't exist. In Settings → Recording → Plex, pick the TV section again from the list.
 - **`ECONNREFUSED` or `ECONNABORTED`**: the Plex URL is wrong, or Plex isn't running. Use `http://<plex-host-ip>:32400`.
 - **The refresh succeeds but nothing appears**: the Plex library doesn't include the folder Freetvarr writes to. Add the host folder `${DATA_PATH}/media/tv` to the library ([Plex](/guide/plex#the-library-folder)).
 
@@ -202,7 +202,7 @@ Episodes import, but Plex doesn't show them.
 - Auto-detect needs Plex's `Preferences.xml` inside the Freetvarr Docker container. The `plex` profile mounts it for you. For another Plex on the same host, set `PLEX_PREFS_PATH` in the `.env`. [Plex](/guide/plex#the-token) lists where the file lives.
 - **"Preferences.xml not found at /plex/Library/…"**: the `plex` profile is not running, and `PLEX_PREFS_PATH` is unset. Start the profile, or set the path in `.env`, then run `docker compose up -d freetvarr`.
 - **"Preferences.xml not found at /plex-preferences.xml"**: `PLEX_PREFS_PATH` points at the wrong host file, so the mount is empty. Fix the path in `.env` and run `docker compose up -d freetvarr`.
-- Or paste the Plex token into Settings → Library and Plex yourself. Copy it from `app.plex.tv` (or follow Plex's own support article on finding your token).
+- Or paste the Plex token into Settings → Recording → Plex yourself. Copy it from `app.plex.tv` (or follow Plex's own support article on finding your token).
 
 ## Container name lookups
 

@@ -10,10 +10,7 @@ import {
 } from '/for-you.js'
 import { api } from '/shared/api.js'
 import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
-import { dataCreditsOf } from '/data-credits.js'
 import { forYouHidden, forYouShown, keepForYouAnimate, unhideShow } from '/shared/for-you-session.js'
-import { clearProgrammeKind, listProgrammeKinds } from '/shared/programme-kind-session.js'
-import { correctionRowsOf } from '/movie-choice.js'
 
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
@@ -24,7 +21,7 @@ export const SuggestionsSettingsView = {
       <div class="settings-group">
         <h3 class="ui-group-label">For you</h3>
         <div class="ui-group">
-          <div class="settings-row">
+          <div class="settings-row" data-setting="show-for-you">
             <toggle-switch :model-value="settings.enabled !== false" class="settings-toggle" :pending="!loaded"
               @update:model-value="save({ enabled: $event })">
               <span class="settings-toggle-text">
@@ -33,30 +30,7 @@ export const SuggestionsSettingsView = {
               </span>
             </toggle-switch>
           </div>
-          <div class="settings-row">
-            <toggle-switch :model-value="settings.animateIcon !== false" class="settings-toggle" :pending="!loaded"
-              @update:model-value="save({ animateIcon: $event })">
-              <span class="settings-toggle-text">
-                <span class="settings-row-title">Animate the For you icon</span>
-                <span class="settings-row-meta">Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens.</span>
-              </span>
-            </toggle-switch>
-          </div>
-          <div class="settings-row">
-            <toggle-switch :model-value="Boolean(settings.genreLookup)" class="settings-toggle" :pending="!loaded"
-              @update:model-value="save({ genreLookup: $event })">
-              <span class="settings-toggle-text">
-                <span class="settings-row-title">Use TVmaze and Wikidata to find genres</span>
-                <span class="settings-row-meta">Show titles are sent to TVmaze and Wikidata to look up genres. Nothing else is sent.</span>
-              </span>
-            </toggle-switch>
-            <p class="settings-row-meta suggestions-credit">
-              <template v-for="(credit, i) in dataCredits" :key="credit.name">{{ i ? ' ' : '' }}{{ credit.lead }} from
-                <a :href="credit.siteHref" target="_blank" rel="noopener noreferrer">{{ credit.name }}</a>, licensed
-                <a :href="credit.licenceHref" target="_blank" rel="noopener noreferrer">{{ credit.licence }}</a>.</template>
-            </p>
-          </div>
-          <div class="settings-row">
+          <div class="settings-row" data-setting="other-language-films">
             <span class="settings-toggle-text">
               <span class="settings-row-title" id="suggestions-languages-title">Films in other languages</span>
               <span class="settings-row-meta">Films first made in a language other than English, usually with subtitles.</span>
@@ -65,7 +39,7 @@ export const SuggestionsSettingsView = {
               :model-value="loaded ? otherLanguageFilms : null" :disabled="!loaded" @update:model-value="save({ otherLanguageFilms: $event })"
               :options="languageOptions.map((option) => ({ value: option.key, label: option.label }))" />
           </div>
-          <button type="button" class="ui-group-row suggestions-row-button" @click="hiddenOpen = true">
+          <button type="button" class="ui-group-row suggestions-row-button" data-setting="hidden-shows" @click="hiddenOpen = true">
             <span class="settings-toggle-text">
               <span class="settings-row-title">Hidden shows</span>
               <span class="settings-row-meta">Shows you marked Not interested</span>
@@ -73,18 +47,19 @@ export const SuggestionsSettingsView = {
             <span class="suggestions-count ui-tabular"><span v-if="!hiddenLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ hidden.length }}</template></span>
             <chevron-glyph class="suggestions-chevron" />
           </button>
-          <button type="button" class="ui-group-row suggestions-row-button" @click="correctionsOpen = true">
-            <span class="settings-toggle-text">
-              <span class="settings-row-title">Movie corrections</span>
-              <span class="settings-row-meta">Shows you marked Not a movie or This is a movie</span>
-            </span>
-            <span class="suggestions-count ui-tabular"><span v-if="!correctionsLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ corrections.length }}</template></span>
-            <chevron-glyph class="suggestions-chevron" />
-          </button>
+          <div class="settings-row" data-setting="animate-icon">
+            <toggle-switch :model-value="settings.animateIcon !== false" class="settings-toggle" :pending="!loaded"
+              @update:model-value="save({ animateIcon: $event })">
+              <span class="settings-toggle-text">
+                <span class="settings-row-title">Animate the For you icon</span>
+                <span class="settings-row-meta">Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens.</span>
+              </span>
+            </toggle-switch>
+          </div>
         </div>
       </div>
 
-      <div class="settings-group">
+      <div class="settings-group" data-setting="suggestion-level">
         <h3 class="ui-group-label">Suggestion level</h3>
         <div class="ui-group">
           <div class="settings-row suggestions-level">
@@ -105,10 +80,10 @@ export const SuggestionsSettingsView = {
         </div>
       </div>
 
-      <div class="settings-group">
+      <div class="settings-group" data-setting="viewing-history">
         <h3 class="ui-group-label">Viewing history</h3>
         <div class="ui-group">
-          <div class="settings-row">
+          <div class="settings-row" data-setting="pause-history">
             <toggle-switch :model-value="settings.historyEnabled === false" class="settings-toggle" :pending="!loaded"
               @update:model-value="save({ historyEnabled: !$event })">
               <span class="settings-toggle-text">
@@ -117,7 +92,7 @@ export const SuggestionsSettingsView = {
               </span>
             </toggle-switch>
           </div>
-          <div class="settings-row settings-row-inline">
+          <div class="settings-row settings-row-inline" data-setting="clear-history">
             <span class="settings-toggle-text">
               <span class="settings-row-title">Clear viewing history</span>
               <span class="settings-row-meta"><span v-if="!countLoaded" class="ui-skeleton is-text" style="--skeleton-w: 20em"></span><template v-else>{{ clearCopy }}</template></span>
@@ -125,7 +100,7 @@ export const SuggestionsSettingsView = {
             <button type="button" class="ui-button ui-button-destructive suggestions-clear" :disabled="!loaded" @click="askClear">Clear</button>
           </div>
         </div>
-        <p class="suggestions-footnote">Your viewing history stays on this box. It is never sent anywhere. {{ lookupText }} No tracking, no analytics, and Freetvarr is <a :href="repoHref" target="_blank" rel="noopener noreferrer">open source</a>.</p>
+        <p class="suggestions-footnote">Your viewing history stays on this box. It is never sent anywhere. {{ lookupText }} The Genres switch is in <a href="#/settings/film-tv-info">Film and TV info</a>. No tracking, no analytics, and Freetvarr is <a :href="repoHref" target="_blank" rel="noopener noreferrer">open source</a>.</p>
       </div>
 
       <ui-sheet :open="hiddenOpen" title="Hidden shows" subtitle="For you leaves these out. Show one again to get suggestions for it." @close="hiddenOpen = false">
@@ -137,20 +112,6 @@ export const SuggestionsSettingsView = {
           </div>
         </div>
         <p v-else class="settings-row-meta">No hidden shows. Choose Not interested on a For you card to hide a show.</p>
-      </ui-sheet>
-
-      <ui-sheet :open="correctionsOpen" title="Movie corrections" subtitle="Freetvarr lists these shows your way. Undo a correction to go back to how the TV guide lists it." @close="correctionsOpen = false">
-        <div v-if="corrections.length" class="ui-group">
-          <div v-for="correction in corrections" :key="correction.showKey" class="ui-group-row suggestions-hidden-row">
-            <span class="settings-toggle-text">
-              <span class="settings-row-title suggestions-hidden-title">{{ correction.title }}</span>
-              <span class="settings-row-meta">{{ correction.choice }}</span>
-            </span>
-            <button type="button" class="ui-button ui-button-secondary is-small" :disabled="undoing === correction.showKey"
-              @click="undoCorrection(correction)">Undo</button>
-          </div>
-        </div>
-        <p v-else class="settings-row-meta">No movie corrections. Choose Not a movie or This is a movie in a show’s menu to correct how it is listed.</p>
       </ui-sheet>
 
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :busy="confirmBusy"
@@ -167,10 +128,6 @@ export const SuggestionsSettingsView = {
     const probing = ref(false)
     const hiddenOpen = ref(false)
     const unhiding = ref('')
-    const corrections = ref([])
-    const correctionsLoaded = ref(false)
-    const correctionsOpen = ref(false)
-    const undoing = ref('')
     const error = ref('')
     const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
 
@@ -179,17 +136,11 @@ export const SuggestionsSettingsView = {
     const tierOverride = computed(() => settings.value.tierOverride || 'auto')
     const otherLanguageFilms = computed(() => settings.value.otherLanguageFilms || 'few')
     const clearCopy = computed(() => historyClearCopyOf(eventCount.value))
-    const dataCredits = computed(() => dataCreditsOf(settings.value.attribution))
     const lookupText = computed(() => privacyLookupTextOf({ genreLookup: settings.value.genreLookup !== false }))
 
     const loadHidden = async () => {
       hidden.value = hiddenShowsOf(await api('GET', '/api/for-you/hidden').catch(() => []))
       hiddenLoaded.value = true
-    }
-
-    const loadCorrections = async () => {
-      corrections.value = correctionRowsOf(await listProgrammeKinds().catch(() => []))
-      correctionsLoaded.value = true
     }
 
     const loadCount = async () => {
@@ -210,7 +161,7 @@ export const SuggestionsSettingsView = {
       }
     }
 
-    const load = () => Promise.all([loadSettings(), loadHidden(), loadCorrections(), loadCount()])
+    const load = () => Promise.all([loadSettings(), loadHidden(), loadCount()])
 
     const save = async (patch) => {
       const previous = settings.value
@@ -254,18 +205,6 @@ export const SuggestionsSettingsView = {
       }
     }
 
-    const undoCorrection = async (correction) => {
-      undoing.value = correction.showKey
-      try {
-        await clearProgrammeKind(correction.showKey)
-        corrections.value = corrections.value.filter((entry) => entry.showKey !== correction.showKey)
-      } catch (err) {
-        error.value = `Could not undo the correction to ${correction.title}: ${err.message}`
-      } finally {
-        undoing.value = ''
-      }
-    }
-
     const askClear = () => askConfirm({
       dialog: {
         title: 'Clear viewing history?',
@@ -287,8 +226,8 @@ export const SuggestionsSettingsView = {
     onMounted(load)
 
     return {
-      settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, dataCredits, lookupText, repoHref: REPO_HREF,
-      otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, corrections, correctionsLoaded, correctionsOpen, undoing, undoCorrection, confirming, confirmBusy, closeConfirm, runConfirmed,
+      settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, lookupText, repoHref: REPO_HREF,
+      otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
     }
   },
 }

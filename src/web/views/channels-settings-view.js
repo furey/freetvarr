@@ -15,7 +15,7 @@ export const ChannelsSettingsView = {
       <p v-if="error" class="ui-banner is-error" role="alert">{{ error }}</p>
       <div class="settings-group">
         <div class="ui-group">
-          <div class="settings-row">
+          <div class="settings-row" data-setting="hide-sd-simulcasts">
             <toggle-switch :model-value="switches.simulcastsOn" class="settings-toggle" :pending="!loaded"
               :disabled="!loaded || switches.simulcastsLocked" @update:model-value="save({ hideSdSimulcasts: $event })">
               <span class="settings-toggle-text">
@@ -24,7 +24,7 @@ export const ChannelsSettingsView = {
               </span>
             </toggle-switch>
           </div>
-          <div class="settings-row">
+          <div class="settings-row" data-setting="hide-sd-channels">
             <toggle-switch :model-value="switches.channelsOn" class="settings-toggle" :pending="!loaded"
               @update:model-value="save({ hideSdChannels: $event })">
               <span class="settings-toggle-text">

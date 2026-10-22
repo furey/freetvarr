@@ -36,7 +36,7 @@ export const PIECES = [
     need: 'Required', source: 'Created by the install script',
     job: 'TVHeadend writes each recording to this folder as a .ts file named by programme title, e.g. The Block.ts.',
     own: 'An existing NAS share that TVHeadend records to.',
-    links: [{ label: 'Recording folders', href: '#/settings/storage' }],
+    links: [{ label: 'Media library', href: '#/settings/storage' }],
   },
   {
     id: 'freetvarr', row: 4, kind: 'main', icon: 'chips', title: 'Freetvarr', meta: 'Web app, importer',
@@ -65,7 +65,7 @@ export const PIECES = [
     job: 'Episode files named Show/Season 01/Show - S01E02.ts, the format that media players match.',
     more: 'One-off programmes go to a separate one-offs folder.',
     own: 'The TV folder that an existing media player reads.',
-    links: [{ label: 'Recording folders', href: '#/settings/storage' }],
+    links: [{ label: 'Media library', href: '#/settings/storage' }],
   },
   {
     id: 'player', row: 6, kind: 'main', icon: 'player', title: 'Media player', meta: 'e.g. Plex, Jellyfin', tag: 'Optional',
@@ -73,7 +73,7 @@ export const PIECES = [
     job: 'Media server or app that plays the TV library on a TV, with pause and rewind.',
     more: 'With Plex, Freetvarr starts a library scan after each import. Jellyfin and Kodi can also play live TV from TVHeadend.',
     own: 'An existing Plex, Jellyfin, or Kodi. The install script can also run Plex.',
-    links: [{ label: 'Library and Plex', href: '#/settings/plex' }, { label: 'Watch on TV', href: '#/settings/tv-apps' }],
+    links: [{ label: 'Plex', href: '#/settings/plex' }, { label: 'Watch on TV', href: '#/settings/tv-apps' }],
   },
   {
     id: 'screens', row: 7, kind: 'main', icon: 'screens', title: 'Playback devices', meta: 'TV, tablet, phone',
@@ -113,7 +113,7 @@ export const TOUR_STEPS = [
   { piece: 'screens', from: 'player-screens' },
   {
     title: 'Required and optional',
-    text: 'Required: aerial, tuner, TVHeadend, XMLTV guide, Freetvarr, and the two folders. Optional: media player, metadata, and ad removal. Settings → System diagram shows this diagram again.',
+    text: 'Required: aerial, tuner, TVHeadend, XMLTV guide, Freetvarr, and the two folders. Optional: media player, metadata, and ad removal. Settings → About → System diagram shows this diagram again.',
     last: true,
   },
 ]

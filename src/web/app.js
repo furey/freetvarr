@@ -111,6 +111,7 @@ const SETTINGS_COMPONENTS = {
   '/views/plex-library-setup.js': ['PlexLibrarySetup'],
   '/views/series-drawer.js': ['SeriesDrawer'],
   '/components/live-streams-settings.js': ['LiveStreamsSetting', 'TunerStatusPanel'],
+  '/components/movie-corrections.js': ['MovieCorrections'],
   '/components/tmdb-key-setting.js': ['TmdbKeySetting'],
   '/components/recording-drawer.js': ['RecordingStatus', 'RecordingDrawer'],
   '/components/summary-line.js': ['SummaryLine'],

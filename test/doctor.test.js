@@ -533,6 +533,7 @@ test('live.streams: warns when the limit is above the estimate, skips before the
   const check = liveStreamsCheck({ max_live_streams: 2, benchmark: { encoder: 'software', speed: 2.1, estimated: 1 } })
   assert.equal(check.status, 'warn')
   assert.match(check.fix, /Set Live streams at once to 1\./)
+  assert.equal(check.action.href, '#/settings/player')
   const tooSlow = liveStreamsCheck({ max_live_streams: 1, benchmark: { encoder: 'software', speed: 0.9, estimated: 0 } })
   assert.equal(tooSlow.status, 'warn')
   assert.equal(tooSlow.fix, 'Pictures may stutter even with 1 live stream.')

@@ -80,18 +80,17 @@ Freetvarr updates the genres and the description data once a night, between 2am 
 
 Open Settings → **For you**, or press the settings button at the top of the For you page.
 
-| Setting                                    | What it does                                                                                                                                           |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Show For you**                           | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                            |
-| **Animate the For you icon**               | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                         |
-| **Use TVmaze and Wikidata to find genres** | Sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. On by default.                                                 |
-| **Films in other languages**               | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English. |
-| **Hidden shows**                           | Lists the shows you marked **Not interested**. Press **Show again** to get suggestions for a show again.                                               |
-| **Suggestion level**                       | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                             |
-| **Pause history**                          | Stops Freetvarr noting what you watch, until you turn it off.                                                                                          |
-| **Clear viewing history**                  | Deletes your viewing history, including **More like this** and **Fewer like this**. Suggestions start again from new.                                  |
+| Setting                      | What it does                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Show For you**             | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                            |
+| **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                         |
+| **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English. |
+| **Hidden shows**             | Lists the shows you marked **Not interested**. Press **Show again** to get suggestions for a show again.                                               |
+| **Suggestion level**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                             |
+| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off.                                                                                          |
+| **Clear viewing history**    | Deletes your viewing history, including **More like this** and **Fewer like this**. Suggestions start again from new.                                  |
 
-With **Use TVmaze and Wikidata to find genres** on, the same lookups also teach [search](/guide/home#search) other titles for your shows.
+**Genres**, in Settings → Watching → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
 
 ## Suggestion level
 

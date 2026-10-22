@@ -5,9 +5,10 @@ export const PlayerSettingsView = {
   components: { ControlsHideSetting },
   template: `
     <div v-page-reveal class="settings-page player-settings">
-      <div class="settings-group">
+      <div class="settings-group" data-setting="player-device">
+        <h3 class="ui-group-label">This device</h3>
         <div class="ui-group">
-          <div class="settings-row">
+          <div class="settings-row" data-setting="start-muted">
             <toggle-switch :model-value="playerMuted" class="settings-toggle"
               @update:model-value="playerMuted = $event">
               <span class="settings-toggle-text">
@@ -19,6 +20,7 @@ export const PlayerSettingsView = {
           <controls-hide-setting />
         </div>
       </div>
+      <live-streams-setting />
     </div>
   `,
   setup() {

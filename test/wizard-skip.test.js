@@ -7,7 +7,7 @@ test('wizardSkipConfirm: warns that recording needs TVHeadend when it is not con
   assert.deepEqual(wizardSkipConfirm({ tvhConnected: false }).body, [
     'Setup is not finished. Freetvarr keeps what you saved so far and opens Settings.',
     'Freetvarr cannot record until it connects to TVHeadend.',
-    'To finish later, open Settings → Setup.',
+    'To finish later, open Settings → System → Setup.',
   ])
 })
 
