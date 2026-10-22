@@ -20,7 +20,7 @@ const {
   pruneUserEvents,
   stopUserEvents,
 } = await import('../src/user-events-log.js')
-const { HISTORY_RETENTION_MS } = await import('../src/user-events.js')
+const { HISTORY_RETENTION_MS, SHOWN_RETENTION_MS } = await import('../src/user-events.js')
 
 const passThrough = (req, res, next) => next()
 let appServer
@@ -173,4 +173,19 @@ test('pruning removes events older than two years', async () => {
   ])
   assert.equal(await pruneUserEvents({ nowMs }), 1)
   assert.equal((await db('user_events')).length, 1)
+})
+
+test('pruning removes shown cards after 30 days and keeps other kinds', async () => {
+  const nowMs = Date.now()
+  const dayMs = 24 * 60 * 60 * 1000
+  await db('user_events').del()
+  await db('user_events').insert([
+    { ts: nowMs - 31 * dayMs, kind: 'suggestion_shown' },
+    { ts: nowMs - 31 * dayMs, kind: 'watch_end' },
+    { ts: nowMs - 29 * dayMs, kind: 'suggestion_shown' },
+  ])
+  assert.equal(await pruneUserEvents({ nowMs }), 1)
+  const kinds = (await db('user_events').orderBy('ts')).map((row) => row.kind)
+  assert.deepEqual(kinds, ['watch_end', 'suggestion_shown'])
+  assert.ok(SHOWN_RETENTION_MS > 29 * dayMs)
 })

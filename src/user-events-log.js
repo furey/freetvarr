@@ -14,6 +14,7 @@ import {
   routeEventsOf,
   routeOf,
   seriesBackfillEventsOf,
+  shownPruneCutoffOf,
   viewingHistoryEnabledFrom,
 } from './user-events.js'
 
@@ -91,9 +92,14 @@ export const stopUserEvents = async () => {
 }
 
 export const pruneUserEvents = async ({ nowMs = Date.now() } = {}) => {
-  const removed = await db('user_events').where('ts', '<', pruneCutoffOf(nowMs)).delete()
-  if (removed) console.log(`[events] pruned ${removed} event(s) older than two years`)
-  return removed
+  const expired = await db('user_events').where('ts', '<', pruneCutoffOf(nowMs)).delete()
+  const shown = await db('user_events')
+    .where('kind', 'suggestion_shown')
+    .where('ts', '<', shownPruneCutoffOf(nowMs))
+    .delete()
+  if (expired) console.log(`[events] pruned ${expired} event(s) older than two years`)
+  if (shown) console.log(`[events] pruned ${shown} shown-card event(s) older than 30 days`)
+  return expired + shown
 }
 
 export const backfillUserEvents = async ({ nowMs = Date.now(), loadAutorecs = autorecsFromTvheadend } = {}) => {

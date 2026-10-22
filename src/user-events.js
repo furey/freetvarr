@@ -25,12 +25,15 @@ export const EVENT_KINDS = new Set([
 
 export const VIEWING_HISTORY_KEY = 'viewing_history_enabled'
 export const HISTORY_RETENTION_MS = 730 * 24 * 60 * 60 * 1000
+export const SHOWN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 export const MIN_LIVE_WATCH_S = 60
 export const MAX_FEEDBACK_EVENTS = 50
 
 export const viewingHistoryEnabledFrom = (stored) => stored !== 'false'
 
 export const pruneCutoffOf = (nowMs) => nowMs - HISTORY_RETENTION_MS
+
+export const shownPruneCutoffOf = (nowMs) => nowMs - SHOWN_RETENTION_MS
 
 export const seriesKeyOf = (title) => {
   const text = textOrNull(title)

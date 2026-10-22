@@ -12,6 +12,8 @@ import {
   positionPingOf,
   positionProgressOf,
   pruneCutoffOf,
+  shownPruneCutoffOf,
+  SHOWN_RETENTION_MS,
   routeEventsOf,
   seriesBackfillEventsOf,
   seriesKeyOf,
@@ -227,4 +229,9 @@ test('viewing history defaults on and prunes after two years', () => {
   assert.equal(viewingHistoryEnabledFrom(null), true)
   assert.equal(viewingHistoryEnabledFrom('false'), false)
   assert.equal(pruneCutoffOf(HISTORY_RETENTION_MS + 1), 1)
+})
+
+test('shown cards prune after 30 days', () => {
+  assert.equal(shownPruneCutoffOf(SHOWN_RETENTION_MS + 1), 1)
+  assert.equal(SHOWN_RETENTION_MS, 30 * 24 * 60 * 60 * 1000)
 })
