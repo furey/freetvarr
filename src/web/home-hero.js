@@ -31,14 +31,16 @@ export const withHeroWidth = (url, width) => {
 }
 
 export const heroSlidesOf = ({ candidates = [], limit = HERO_SLIDE_LIMIT, remix = true, isCurrent = () => true, nowMs, timeZone }) => {
-  const ranked = candidates
+  const ranked = onePerShow(candidates
     .filter((candidate) => !hasEnded({ candidate, nowMs }) && isCurrent(candidate))
     .map((candidate) => slideOf(candidate, { nowMs, timeZone }))
-    .filter((slide) => slide?.art.images?.length)
+    .filter((slide) => slide?.art.images?.length), heroShowKeyOf)
   const ordered = remix ? hourlyOrderOf({ candidates: ranked, nowMs, timeZone }) : ranked
   return arrangeHero({ chosen: ordered.slice(0, limit), waiting: ordered.slice(limit), limit })
     .map(withChosenPicture)
 }
+
+export const heroShowKeyOf = (slide) => slide.showKey ?? showKeyOf(slide.art?.title || slide.title || '')
 
 export const slideOf = (candidate, { nowMs, timeZone }) => {
   const build = slideBuildersOf()[candidate?.type]

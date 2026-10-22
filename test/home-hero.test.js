@@ -79,11 +79,33 @@ const fullFeed = () => ({
   remix: false,
 })
 
-test('heroSlidesOf: ranks slides, caps them at five, and skips repeated art without a pool', () => {
+test('heroSlidesOf: ranks slides, one per show, and caps them at five', () => {
   const slides = slidesFrom(fullFeed())
   assert.deepEqual(slides.map((s) => s.type), ['continue', 'on-now', 'watchlist', 'movie'])
-  const many = slidesFrom({ ...fullFeed(), pools: { recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] } } })
+  const many = slidesFrom({
+    ...fullFeed(),
+    recordingNow: [recording({ title: 'Gogglebox', channelId: 'c10' })],
+    upcoming: [upcomingItem({ name: 'Hard Quiz', programId: 79 })],
+  })
   assert.equal(many.length, HERO_SLIDE_LIMIT)
+})
+
+test('heroSlidesOf: one slide per show across kinds, continue watching first (real :3744 snapshot shape)', () => {
+  const chefs = (over) => episode({ showKey: 'chefs-ahoy', title: 'Chefs Ahoy', ...over })
+  const block = (over) => episode({ recordingId: 'a07', showKey: 'the-block', title: 'The Block', ...over })
+  const feed = {
+    inProgress: [chefs({ recordingId: '4e2c', positionS: 66 })],
+    newEpisodes: [block(), chefs({ recordingId: 'bcbc', episode: 3 })],
+    shows: [show({ rule: { recording: true } }), show({ key: 'chefs-ahoy', title: 'Chefs Ahoy' })],
+    upcoming: [upcomingItem({ name: 'The Block', programId: 377981, startDate: nowMs + 2 * 86_400_000 }), upcomingItem({ name: 'Big Brother', programId: 387216, startDate: nowMs + 3 * 86_400_000 })],
+    nowMs,
+    timeZone,
+  }
+  const pools = { recordings: { '4e2c': [{ url: '/chefs-1', kind: 'episode' }], bcbc: [{ url: '/chefs-2', kind: 'episode' }], a07: [{ url: '/block', kind: 'episode' }] } }
+  const hourly = Array.from({ length: 24 }, (_, h) => slidesFrom({ ...feed, pools, nowMs: nowMs + h * 3_600_000 }))
+  for (const slides of hourly) {
+    assert.deepEqual(slides.map((s) => s.key).sort(), ['continue:4e2c', 'new:a07', 'upcoming:387216'])
+  }
 })
 
 test('heroSlidesOf: keeps rank order when every slide has its own artwork', () => {
@@ -258,21 +280,10 @@ test('heroCandidatesOf: the top rated slide follows the For you slide', () => {
   assert.equal(types.indexOf('top-rated'), types.indexOf('for-you') + 1)
 })
 
-test('heroSlidesOf: same show stays when its pool gives each slide different art', () => {
-  const pools = {
-    shows: { 'the-block': [{ url: '/bg1', kind: 'background' }, { url: '/bg2', kind: 'background' }] },
-    recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] },
-  }
-  const slides = slidesFrom({ ...fullFeed(), pools })
-  assert.deepEqual(slides.map((s) => s.type), ['continue', 'new', 'recording', 'on-now', 'upcoming'])
-  assert.deepEqual(slides.map((s) => s.art.image), ['/r1', '/r2', showArt('The Block'), '/api/epg/image/900', '/bg1'])
-})
-
-test('heroSlidesOf: drops a same-show slide only when its pool is used up, then refills', () => {
-  const pools = { recordings: { r1: [{ url: '/r1', kind: 'episode' }], r2: [{ url: '/r2', kind: 'episode' }] } }
-  const slides = slidesFrom({ ...fullFeed(), pools })
-  assert.deepEqual(slides.map((s) => s.type), ['continue', 'new', 'recording', 'on-now', 'watchlist'])
-  assert.equal(new Set(slides.map((s) => s.art.image)).size, slides.length)
+test('heroSlidesOf: when a show\'s first slide is no longer current, its next slide takes the place', () => {
+  const isCurrent = (candidate) => candidate.type !== 'continue'
+  const slides = slidesFrom({ ...fullFeed(), isCurrent, remix: false })
+  assert.deepEqual(slides.map((s) => s.key), ['new:r2', 'on-now:c7:900', 'watchlist:5', 'movie:m1'])
 })
 
 test('reusedArtSlidesOf: later slides whose art already appeared', () => {
@@ -317,7 +328,13 @@ test('slideOf: minutes left and progress follow the clock it is given', () => {
 })
 
 test('heroSlidesOf: drops candidates that ended, have no proven picture, or are no longer current', () => {
-  const ranked = heroCandidatesOf({ ...fullFeed(), remix: false })
+  const ranked = heroCandidatesOf({
+    ...fullFeed(),
+    newEpisodes: [episode({ recordingId: 'r2', showKey: 'mkr', title: 'MKR' })],
+    shows: [show({ key: 'mkr', title: 'MKR' })],
+    recordingNow: [recording({ title: 'Gogglebox', channelId: 'c10' })],
+    upcoming: [upcomingItem({ name: 'Hard Quiz', programId: 79 })],
+  })
   const candidates = ranked.map((slide) => candidateOf(slide, [{ url: `/proven/${slide.key}`, srcset: 'set', focus: { x: 1, y: 1 } }]))
   const typesAt = (options) => heroSlidesOf({ candidates, remix: false, limit: 10, nowMs, timeZone, ...options }).map((s) => s.type)
   assert.deepEqual(typesAt({}), ['continue', 'new', 'recording', 'on-now', 'upcoming', 'watchlist', 'movie'])

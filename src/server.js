@@ -183,7 +183,6 @@ import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
 import { getForYou, isForYouEnabled, onForYouResult } from './for-you-service.js'
-import { focusKeyOf } from './web/image-focus.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
@@ -1317,13 +1316,10 @@ const resultWithin = ({ promise, ms }) => Promise.race([
 const heroPictureProof = createHeroPictureProof({
   resolve: createImageResolver([programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })]),
   noteServed: imageFocus.noteServed,
+  focusStatusOf: imageFocus.focusStatusOf,
+  onFocusWaitOver: () => homeHero.invalidate(),
 })
-
-const heroFocusOf = async (urls) => {
-  const keys = [...new Set(urls.map((url) => focusKeyOf(url)).filter(Boolean))]
-  const { items = {} } = await imageFocus.lookup(keys).catch(() => ({}))
-  return new Map(urls.map((url) => [url, items[focusKeyOf(url)] ?? null]))
-}
+imageFocus.onSettled(heroPictureProof.focusSettled)
 
 const homeHero = createHomeHero({
   readFeed: readFeedWith({
@@ -1349,7 +1345,6 @@ const homeHero = createHomeHero({
     recordingImages: (recordingId) => recordingArtImages({ artPool, recordingId }),
   }),
   proofHeroPicture: heroPictureProof.proofHeroPicture,
-  lookupFocus: heroFocusOf,
   loadSaved: async () => JSON.parse((await getSetting(HERO_SNAPSHOT_SETTING)) || 'null'),
   save: (snapshot) => setSetting(HERO_SNAPSHOT_SETTING, JSON.stringify(snapshot)),
   timeZone: currentTimeZone,

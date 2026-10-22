@@ -81,6 +81,48 @@ test('a pass is kept for six hours and a fail for thirty minutes, keyed by url w
   assert.ok(asked.length > askedAfterNewStamp)
 })
 
+test('a picture stays pending until its face focus settles, then passes with that focus', async () => {
+  let status = { settled: false, focus: null }
+  const woken = []
+  const asked = []
+  const proof = createHeroPictureProof({
+    resolve: async (url) => {
+      asked.push(url)
+      return { image: picture(1920), pending: false }
+    },
+    measure: async (image) => image.width,
+    focusStatusOf: async () => status,
+    onFocusWaitOver: (key) => woken.push(key),
+    yieldTurn: async () => {},
+  })
+  assert.deepEqual(await proof.proofHeroPicture('/api/epg/image/7?w=768'), { status: 'pending', reason: 'focus', width: 1920 })
+  proof.focusSettled('/api/epg/image/99')
+  assert.deepEqual(woken, [])
+  status = { settled: true, focus: { x: 0.3, y: 0.4, box: null } }
+  proof.focusSettled('/api/epg/image/7')
+  assert.deepEqual(woken, ['/api/epg/image/7'])
+  proof.focusSettled('/api/epg/image/7')
+  assert.equal(woken.length, 1)
+  const passed = await proof.proofHeroPicture('/api/epg/image/7?w=768')
+  assert.equal(passed.status, 'pass')
+  assert.deepEqual(passed.focus, { x: 0.3, y: 0.4, box: null })
+  const askedAfterPass = asked.length
+  await proof.proofHeroPicture('/api/epg/image/7?w=384')
+  assert.equal(asked.length, askedAfterPass)
+})
+
+test('a picture whose focus is settled without a result passes with focus null', async () => {
+  const proof = createHeroPictureProof({
+    resolve: async () => ({ image: picture(1920), pending: false }),
+    measure: async (image) => image.width,
+    focusStatusOf: async () => { throw new Error('detector gone') },
+    yieldTurn: async () => {},
+  })
+  const verdict = await proof.proofHeroPicture('/api/epg/image/8?w=768')
+  assert.equal(verdict.status, 'pass')
+  assert.equal(verdict.focus, null)
+})
+
 test('pictureWidthOf reads the decoded width with sharp', async () => {
   const body = await sharp({ create: { width: 700, height: 394, channels: 3, background: '#123456' } }).webp().toBuffer()
   assert.equal(await pictureWidthOf({ body, contentType: 'image/webp' }), 700)

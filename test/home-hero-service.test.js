@@ -11,6 +11,7 @@ import {
   readFeedWith,
   readPoolsWith,
 } from '../src/home-hero-service.js'
+import { createHeroPictureProof } from '../src/hero-picture-proof.js'
 
 const MIN = 60_000
 const nowMs = Date.parse('2026-10-19T19:14:00Z')
@@ -48,15 +49,14 @@ const feedOf = (over = {}) => ({
   ...over,
 })
 
-const proofOf = (verdicts) => async (url) => ({ status: verdicts(url) ?? 'missing', width: 1280 })
+const proofOf = (verdicts, focus = null) => async (url) => ({ status: verdicts(url) ?? 'missing', width: 1280, focus })
 
 const noPictureFor = (title) => (url) => (url.includes(encodeURIComponent(title)) || url.includes('/api/epg/image/900') ? 'missing' : 'pass')
 
 test('buildHeroSnapshot drops a programme with no proven picture and keeps the rest with their proven pictures', async () => {
   const built = await buildHeroSnapshot({
     feed: feedOf(),
-    proofHeroPicture: proofOf(noPictureFor('No Picture Cup')),
-    lookupFocus: async (urls) => new Map(urls.map((url) => [url, { x: 0.5, y: 0.4 }])),
+    proofHeroPicture: proofOf(noPictureFor('No Picture Cup'), { x: 0.5, y: 0.4 }),
     nowMs,
     timeZone,
   })
@@ -125,6 +125,21 @@ test('buildHeroSnapshot keeps one copy of a picture that two urls serve byte for
   })
   const [candidate] = built.snapshot.candidates
   assert.deepEqual(candidate.art.images.map((image) => image.identity), ['content:same', 'content:/pool/2'])
+})
+
+test('buildHeroSnapshot keeps one candidate per show, the best ranked one that has a picture (:3744 Chefs Ahoy and The Block)', async () => {
+  const chefs = (over) => episode({ showKey: 'chefs-ahoy', title: 'Chefs Ahoy', ...over })
+  const feed = feedOf({
+    inProgress: [chefs({ recordingId: '4e2c', image: null })],
+    newEpisodes: [episode({ recordingId: 'a07' }), chefs({ recordingId: 'bcbc', image: '/api/recordings/bcbc/image?w=384' })],
+    shows: [{ key: 'the-block', title: 'The Block', counts: { total: 3, unwatched: 2 } }, { key: 'chefs-ahoy', title: 'Chefs Ahoy', counts: { total: 3, unwatched: 2 } }],
+    nowEntries: [],
+    upcoming: [upcoming({ name: 'The Block', programId: 377981 }), upcoming({ name: 'Big Brother', programId: 387216, startDate: nowMs + 200 * MIN })],
+  })
+  const keysWith = async (verdicts) => (await buildHeroSnapshot({ feed, proofHeroPicture: proofOf(verdicts), nowMs, timeZone })).snapshot.candidates.map((c) => c.key)
+  assert.deepEqual(await keysWith(() => 'pass'), ['continue:4e2c', 'new:a07', 'upcoming:387216'])
+  const noChefsContinuePicture = (url) => (url.includes('Chefs%20Ahoy') ? 'missing' : 'pass')
+  assert.deepEqual(await keysWith(noChefsContinuePicture), ['new:a07', 'new:bcbc', 'upcoming:387216'])
 })
 
 test('buildHeroSnapshot gives an empty list for an empty library and guide', async () => {
@@ -298,6 +313,29 @@ test('the next boundary schedules a build just after it, and start sets the star
   soon.hero.stop()
   assert.equal(soon.clock.repeats.size, 0)
   assert.deepEqual(soon.clock.dueTimes(), [])
+})
+
+test('a picture waiting for face focus stays off Home, and finished detection rebuilds within seconds', async () => {
+  const focusStatus = { settled: false, focus: null }
+  const clock = fakeClock()
+  let hero = null
+  const proof = createHeroPictureProof({
+    resolve: async () => ({ image: { body: Buffer.from('p'), contentType: 'image/webp', width: 1920 }, pending: false }),
+    measure: async (image) => image.width,
+    focusStatusOf: async () => focusStatus,
+    onFocusWaitOver: () => hero.invalidate(),
+    yieldTurn: async () => {},
+  })
+  const built = heroWith({ clock, readFeed: async () => feedOf({ inProgress: [], upcoming: [] }), proof: proof.proofHeroPicture })
+  hero = built.hero
+  assert.deepEqual((await hero.read()).candidates, [])
+  Object.assign(focusStatus, { settled: true, focus: { x: 0.2, y: 0.3, box: null } })
+  proof.focusSettled('/api/epg/show-image?title=No+Picture+Cup')
+  await clock.advance(3000)
+  await settle()
+  const [candidate] = (await hero.read()).candidates
+  assert.equal(candidate.type, 'on-now')
+  assert.deepEqual(candidate.art.images[0].focus, { x: 0.2, y: 0.3, box: null })
 })
 
 test('readFeedWith marks hard failures, lets For you fail quietly, and maps recording state', async () => {

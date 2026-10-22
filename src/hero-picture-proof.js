@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import sharp from 'sharp'
 
 import { withHeroWidth } from './web/home-hero.js'
+import { focusKeyOf } from './web/image-focus.js'
 
 export const HERO_PROOF_WIDTH = 1920
 export const HERO_WARM_WIDTHS = [768, 1280]
@@ -13,6 +14,8 @@ export const createHeroPictureProof = ({
   resolve,
   measure = pictureWidthOf,
   noteServed = () => {},
+  focusStatusOf = async () => SETTLED_WITHOUT_FOCUS,
+  onFocusWaitOver = () => {},
   now = Date.now,
   yieldTurn = nextTurn,
   passTtlMs = PROOF_PASS_TTL_MS,
@@ -21,6 +24,7 @@ export const createHeroPictureProof = ({
   maxRemembered = MAX_REMEMBERED,
 }) => {
   const verdicts = new Map()
+  const waitingFocus = new Set()
 
   const remembered = (key) => {
     const saved = verdicts.get(key)
@@ -53,9 +57,19 @@ export const createHeroPictureProof = ({
     if (!image) return pending ? PENDING : { status: 'missing', width: 0 }
     const width = isPicture(image) ? await Promise.resolve().then(() => measure(image)).catch(() => 0) : 0
     if (width < minWidth) return { status: width ? 'too-small' : 'unreadable', width }
-    noteServed({ url: withHeroWidth(url, HERO_PROOF_WIDTH), body: image.body })
+    const proofUrl = withHeroWidth(url, HERO_PROOF_WIDTH)
+    noteServed({ url: proofUrl, body: image.body })
     await warm(url)
-    return { status: 'pass', width, contentKey: contentKeyOf(image.body) }
+    const focus = await Promise.resolve().then(() => focusStatusOf(proofUrl)).catch(() => SETTLED_WITHOUT_FOCUS)
+    if (!focus?.settled) {
+      waitingFocus.add(focusKeyOf(proofUrl))
+      return { status: 'pending', reason: 'focus', width }
+    }
+    return { status: 'pass', width, contentKey: contentKeyOf(image.body), focus: focus.focus ?? null }
+  }
+
+  const focusSettled = (key) => {
+    if (waitingFocus.delete(key)) onFocusWaitOver(key)
   }
 
   const proofHeroPicture = async (url) => {
@@ -70,7 +84,7 @@ export const createHeroPictureProof = ({
 
   const forget = () => verdicts.clear()
 
-  return { proofHeroPicture, forget }
+  return { proofHeroPicture, focusSettled, forget }
 }
 
 export const isProven = (verdict) => verdict?.status === 'pass'
@@ -86,4 +100,5 @@ const isPicture = (image) => /^image\//.test(String(image.contentType || '')) &&
 const nextTurn = () => new Promise((resolve) => setImmediate(resolve))
 
 const PENDING = { status: 'pending', width: 0 }
+const SETTLED_WITHOUT_FOCUS = { settled: true, focus: null }
 const MAX_REMEMBERED = 2000

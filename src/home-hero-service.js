@@ -2,7 +2,7 @@ import { isProven } from './hero-picture-proof.js'
 import { createArtworkStamps } from './web/artwork-stamps.js'
 import { forYouSlideOf, msOf, scheduledKeysOf, topRatedSlideOf } from './web/for-you.js'
 import { artIdentityFrom, candidatesOf, isEpisodeSlide, slideShowKeyOf } from './web/hero-art.js'
-import { HERO_SLIDE_LIMIT, heroCandidatesOf, heroSrcsetOf, showImageOf } from './web/home-hero.js'
+import { HERO_SLIDE_LIMIT, heroCandidatesOf, heroShowKeyOf, heroSrcsetOf, showImageOf } from './web/home-hero.js'
 
 export const HERO_SNAPSHOT_VERSION = 1
 export const HERO_SNAPSHOT_SETTING = 'home_hero_snapshot'
@@ -83,7 +83,6 @@ export const createHomeHero = ({
   readFeed,
   readPools = async () => ({}),
   proofHeroPicture,
-  lookupFocus = async () => new Map(),
   loadSaved = async () => null,
   save = async () => {},
   timeZone = () => undefined,
@@ -147,7 +146,7 @@ export const createHomeHero = ({
         scheduleFollowUp({ atMs: nowMs + pendingRetryMs, nowMs })
         return snapshot
       }
-      const built = await buildHeroSnapshot({ feed, readPools, proofHeroPicture, lookupFocus, nowMs, timeZone: timeZone(), limit })
+      const built = await buildHeroSnapshot({ feed, readPools, proofHeroPicture, nowMs, timeZone: timeZone(), limit })
       snapshot = built.snapshot
       stale = false
       await Promise.resolve().then(() => save(snapshot)).catch(() => {})
@@ -216,7 +215,6 @@ export const buildHeroSnapshot = async ({
   feed,
   readPools = async () => ({}),
   proofHeroPicture,
-  lookupFocus = async () => new Map(),
   nowMs,
   timeZone,
   limit = HERO_CANDIDATE_LIMIT,
@@ -227,15 +225,17 @@ export const buildHeroSnapshot = async ({
   const identityOf = artIdentityFrom(pools)
   const proven = []
   let pending = false
+  const shownShows = new Set()
   for (const slide of ranked) {
     if (proven.length >= limit) break
+    if (shownShows.has(heroShowKeyOf(slide))) continue
     const found = await provenPicturesOf({ slide, pools, stampUrl, proofHeroPicture, identityOf })
     pending ||= found.pending
-    if (found.pictures.length) proven.push({ slide, pictures: found.pictures })
+    if (!found.pictures.length) continue
+    shownShows.add(heroShowKeyOf(slide))
+    proven.push({ slide, pictures: found.pictures })
   }
-  const urls = proven.flatMap((entry) => entry.pictures.map((picture) => picture.url))
-  const focusByUrl = await lookupFocus(urls).catch(() => new Map())
-  const candidates = proven.map(({ slide, pictures }) => candidateOf({ slide, pictures, focusByUrl }))
+  const candidates = proven.map(candidateOf)
   return {
     snapshot: { version: HERO_SNAPSHOT_VERSION, builtAt: nowMs, timeZone: timeZone ?? null, candidates },
     pending,
@@ -311,12 +311,12 @@ const provenPicturesOf = async ({ slide, pools, stampUrl, proofHeroPicture, iden
     if (verdict?.status === 'pending') pending = true
     if (!isProven(verdict)) continue
     const identity = verdict.contentKey ? `content:${verdict.contentKey}` : identityOf(url)
-    if (!pictures.some((picture) => picture.identity === identity)) pictures.push({ url, identity })
+    if (!pictures.some((picture) => picture.identity === identity)) pictures.push({ url, identity, focus: verdict.focus ?? null })
   }
   return { pictures, pending }
 }
 
-const candidateOf = ({ slide, pictures, focusByUrl }) => ({
+const candidateOf = ({ slide, pictures }) => ({
   key: slide.key,
   type: slide.type,
   source: slide.source,
@@ -325,10 +325,10 @@ const candidateOf = ({ slide, pictures, focusByUrl }) => ({
   art: {
     title: slide.art.title ?? slide.title,
     image: pictures[0].url,
-    images: pictures.map(({ url, identity }) => ({
+    images: pictures.map(({ url, identity, focus }) => ({
       url,
       srcset: heroSrcsetOf(url),
-      focus: focusByUrl.get(url) ?? null,
+      focus,
       identity,
     })),
   },

@@ -487,3 +487,47 @@ test('rows from an older focus version keep answering lookups and are recomputed
   assert.deepEqual(calls.flat().sort(), ['/api/epg/image/1', '/api/epg/image/2'])
   assert.ok(saved.every((row) => row.version === FOCUS_VERSION))
 })
+
+test('focusStatusOf: pending until detection finishes, then settled with the focus, and listeners hear it', async () => {
+  const { focus } = createQueue()
+  const heard = []
+  focus.onSettled((key) => heard.push(key))
+  const url = '/api/epg/image/41?w=1920'
+  focus.noteServed({ url, body: Buffer.from('picture 41') })
+  assert.deepEqual(await focus.focusStatusOf(url), { settled: false, focus: null })
+  await waitForDrain(focus)
+  const settled = await focus.focusStatusOf(url)
+  assert.equal(settled.settled, true)
+  assert.ok(settled.focus && Number.isFinite(settled.focus.x))
+  assert.deepEqual(heard, ['/api/epg/image/41'])
+})
+
+test('focusStatusOf: settled at once with no focus when Keep faces in view is off or the url has no focus key', async () => {
+  const { focus, calls } = createQueue({ isEnabled: async () => false })
+  const url = '/api/epg/image/42?w=1920'
+  focus.noteServed({ url, body: Buffer.from('picture 42') })
+  assert.deepEqual(await focus.focusStatusOf(url), { settled: true, focus: null })
+  assert.deepEqual(await createQueue().focus.focusStatusOf('/api/epg/logo/1?w=96'), { settled: true, focus: null })
+  await waitForDrain(focus)
+  assert.deepEqual(calls, [])
+})
+
+test('focusStatusOf: a failed or timed-out detector settles the picture with no focus and tells listeners', async () => {
+  const { focus } = createQueue({ detect: async () => { throw new Error('worker timed out') } })
+  const heard = []
+  focus.onSettled((key) => heard.push(key))
+  const url = '/api/epg/image/43?w=1920'
+  focus.noteServed({ url, body: Buffer.from('picture 43') })
+  await waitForDrain(focus)
+  assert.deepEqual(await focus.focusStatusOf(url), { settled: true, focus: null })
+  assert.deepEqual(heard, ['/api/epg/image/43'])
+})
+
+test('focusStatusOf: too little memory to detect settles waiting pictures with no focus', async () => {
+  const { focus, calls } = createQueue({ readHeadroomMb: async () => 10 })
+  const url = '/api/epg/image/44?w=1920'
+  focus.noteServed({ url, body: Buffer.from('picture 44') })
+  await waitForDrain(focus)
+  assert.deepEqual(await focus.focusStatusOf(url), { settled: true, focus: null })
+  assert.deepEqual(calls, [])
+})

@@ -133,6 +133,8 @@ export const createImageFocus = ({
   const rows = new Map()
   const pending = new Map()
   const tried = new Map()
+  const unavailable = new Map()
+  const settledListeners = new Set()
   const warmQueue = []
   let loading = null
   let timer = null
@@ -275,25 +277,60 @@ export const createImageFocus = ({
     }
   }
 
+  const announceSettled = (keys) => {
+    for (const key of keys) settledListeners.forEach((listener) => listener(key))
+  }
+
+  const markUnavailable = (keys) => {
+    for (const key of keys) {
+      unavailable.delete(key)
+      unavailable.set(key, now())
+    }
+    while (unavailable.size > MAX_TRIED) unavailable.delete(unavailable.keys().next().value)
+    announceSettled(keys)
+  }
+
   const drain = async () => {
     await prepare()
     if (now() < pausedUntil) return
-    if (!(await Promise.resolve().then(isEnabled).catch(() => false))) return pending.clear()
+    if (!(await Promise.resolve().then(isEnabled).catch(() => false))) {
+      const dropped = [...pending.keys()]
+      pending.clear()
+      return announceSettled(dropped)
+    }
     const headroomMb = await Promise.resolve().then(readHeadroomMb).catch(() => null)
     if (Number.isFinite(headroomMb) && headroomMb < MIN_HEADROOM_MB) {
       pausedUntil = now() + retryMs
-      return
+      return markUnavailable([...pending.keys()])
     }
     const jobs = takeBatch()
     if (!jobs.length) return
     const results = await Promise.resolve().then(() => detect(jobs)).catch(() => null)
     if (!results) {
       pausedUntil = now() + failureBackoffMs
-      return
+      return markUnavailable(jobs.map((job) => job.urlKey))
     }
     for (const job of jobs.filter((candidate) => results.has(candidate.urlKey))) {
       await remember({ job, result: results.get(job.urlKey) })
     }
+    markUnavailable(jobs.filter((job) => !results.has(job.urlKey)).map((job) => job.urlKey))
+    announceSettled(jobs.filter((job) => results.has(job.urlKey)).map((job) => job.urlKey))
+  }
+
+  const focusStatusOf = async (url) => {
+    const key = focusKeyOf(url)
+    if (!key) return SETTLED_WITHOUT_FOCUS
+    if (!(await Promise.resolve().then(isEnabled).catch(() => false))) return SETTLED_WITHOUT_FOCUS
+    await prepare()
+    const row = rows.get(key)
+    if (row) return { settled: true, focus: row.method === 'centre' ? null : { x: row.x, y: row.y, box: row.box } }
+    if (unavailable.has(key)) return SETTLED_WITHOUT_FOCUS
+    return { settled: false, focus: null }
+  }
+
+  const onSettled = (listener) => {
+    settledListeners.add(listener)
+    return () => settledListeners.delete(listener)
   }
 
   const takeBatch = () => {
@@ -354,7 +391,7 @@ export const createImageFocus = ({
 
   const pendingKeys = () => [...pending.keys()]
 
-  return { prepare, noteServed, lookup, warm, startRefresh, tap, settle, settleWarming, stats, pendingKeys }
+  return { prepare, noteServed, lookup, warm, startRefresh, tap, settle, settleWarming, stats, pendingKeys, focusStatusOf, onSettled }
 }
 
 export const runFocusWorker = ({ jobs, modelPath = MODEL_PATH, timeoutMs = WORKER_TIMEOUT_MS }) => new Promise((resolve, reject) => {
@@ -451,6 +488,7 @@ const SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
 const MODEL_PATH = path.join(SRC_DIR, '..', 'assets', 'models', 'ultraface-rfb-320.onnx')
 const WORKER_PATH = path.join(SRC_DIR, 'image-focus-worker.js')
 const PICTURE_TYPES = /^image\/(webp|jpeg|png)/
+const SETTLED_WITHOUT_FOCUS = { settled: true, focus: null }
 const FACE_THRESHOLD = 0.7
 const MAX_OVERLAP = 0.3
 const MIN_FACE_WIDTH = 0.02
