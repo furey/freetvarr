@@ -20,6 +20,8 @@ export const forYouHidden = ref(new Set())
 
 const READY_KEY = 'freetvarr.forYouRail'
 
+const ANIMATE_KEY = 'freetvarr.forYouAnimate'
+
 const readCachedReady = () => {
   try {
     return localStorage.getItem(READY_KEY) === '1'
@@ -28,11 +30,21 @@ const readCachedReady = () => {
   }
 }
 
+const readCachedAnimate = () => {
+  try {
+    return localStorage.getItem(ANIMATE_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+export const forYouAnimate = ref(readCachedAnimate())
+
 export const forYouReady = ref(readCachedReady())
 
 export const forYouShown = ref(readCachedReady() ? true : null)
 
-const TWINKLE_MS = 3200
+const TWINKLE_MS = 2100
 
 const INTRO_ACTIVE_CLASS = 'is-brand-intro-active'
 
@@ -67,11 +79,17 @@ const GATE_ACTIONS = {
 const gateNow = () => twinkleGateOf({
   played: twinkled,
   reducedMotion: reducedMotion(),
+  animate: forYouAnimate.value,
   visible: document.visibilityState === 'visible',
   introActive: introActive(),
 })
 
 export const twinkleForYouOnce = () => setTimeout(() => GATE_ACTIONS[gateNow()](), 0)
+
+export const keepForYouAnimate = (animate) => {
+  forYouAnimate.value = animate
+  try { localStorage.setItem(ANIMATE_KEY, animate ? '1' : '0') } catch {}
+}
 
 export const keepForYouRail = ({ shown, ready }) => {
   forYouShown.value = shown

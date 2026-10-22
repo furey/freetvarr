@@ -11,7 +11,7 @@ import {
 import { api } from '/shared/api.js'
 import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
 import { dataCreditsOf } from '/data-credits.js'
-import { forYouHidden, forYouShown, unhideShow } from '/shared/for-you-session.js'
+import { forYouHidden, forYouShown, keepForYouAnimate, unhideShow } from '/shared/for-you-session.js'
 
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
@@ -28,6 +28,15 @@ export const SuggestionsSettingsView = {
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Show For you</span>
                 <span class="settings-row-meta">Adds For you to Home and the highlights</span>
+              </span>
+            </toggle-switch>
+          </div>
+          <div class="settings-row">
+            <toggle-switch :model-value="settings.animateIcon !== false" class="settings-toggle" :pending="!loaded"
+              @update:model-value="save({ animateIcon: $event })">
+              <span class="settings-toggle-text">
+                <span class="settings-row-title">Animate the For you icon</span>
+                <span class="settings-row-meta">Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens.</span>
               </span>
             </toggle-switch>
           </div>
@@ -160,6 +169,7 @@ export const SuggestionsSettingsView = {
         settings.value = await api('GET', '/api/for-you/settings')
         loaded.value = true
         forYouShown.value = settings.value.enabled !== false
+        keepForYouAnimate(settings.value.animateIcon !== false)
       } catch (err) {
         error.value = err.status === 404
           ? 'For you is not ready on this box yet.'
@@ -173,6 +183,7 @@ export const SuggestionsSettingsView = {
       const previous = settings.value
       settings.value = { ...previous, ...patch }
       forYouShown.value = settings.value.enabled !== false
+      keepForYouAnimate(settings.value.animateIcon !== false)
       error.value = ''
       try {
         settings.value = { ...settings.value, ...(await api('PUT', '/api/for-you/settings', patch)) }
@@ -181,6 +192,7 @@ export const SuggestionsSettingsView = {
         error.value = `Could not save: ${err.message}`
       }
       forYouShown.value = settings.value.enabled !== false
+      keepForYouAnimate(settings.value.animateIcon !== false)
     }
 
     const checkAgain = async () => {

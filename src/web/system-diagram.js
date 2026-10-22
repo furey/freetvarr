@@ -443,3 +443,11 @@ const guideStatusOf = (suggestion) => {
   const count = `${suggestion.linked} of ${suggestion.channels || suggestion.linked} channels`
   return { text: region ? `${region} · ${count}` : count }
 }
+
+export const cardShiftOf = ({ nodeCentre, cardHeight, naturalTop, visibleTop, visibleBottom }) => {
+  const visibleHeight = visibleBottom - visibleTop
+  if (cardHeight >= visibleHeight) return visibleTop - naturalTop
+  const centred = nodeCentre - cardHeight / 2
+  const top = Math.min(Math.max(centred, visibleTop), visibleBottom - cardHeight)
+  return top - naturalTop
+}

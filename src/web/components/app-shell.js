@@ -6,7 +6,7 @@ import { health } from '/shared/health.js'
 import { route } from '/shared/router.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { ForYouNavIcon } from '/components/nav-icons.js'
-import { forYouReady, forYouShown, keepForYouRail, twinkleForYouOnce } from '/shared/for-you-session.js'
+import { forYouReady, forYouShown, keepForYouAnimate, keepForYouRail, twinkleForYouOnce } from '/shared/for-you-session.js'
 import { FOR_YOU_URL, forYouReadyOf } from '/for-you.js'
 import { hashesMatch } from '/scroll-memory.js'
 
@@ -26,6 +26,7 @@ const refreshForYouShown = async () => {
     api('GET', '/api/for-you/settings').catch(() => null),
     api('GET', `${FOR_YOU_URL}?limit=1`).catch(() => null),
   ])
+  if (settings) keepForYouAnimate(settings.animateIcon !== false)
   keepForYouRail({ shown: settings ? settings.enabled !== false : true, ready: forYouReadyOf({ settings, payload }) })
 }
 

@@ -1,10 +1,11 @@
-import { ref, computed, watch, onMounted } from '/vendor/vue.esm-browser.prod.js'
-import { focusedPieceOf, pieceById, pieceStatuses, pillsOf, selectionFocusOf, statusPartsOf } from '/system-diagram.js'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { cardShiftOf, focusedPieceOf, pieceById, pieceStatuses, pillsOf, selectionFocusOf, statusPartsOf } from '/system-diagram.js'
 import { SystemDiagram } from '/components/system-diagram.js'
 import { api, fetchServerAbout, fetchSettings, serverAbout } from '/shared/api.js'
 import { useMediaQuery } from '/shared/composables.js'
 import { healthSummary } from '/shared/health.js'
 import { routeParams } from '/shared/router.js'
+import { prefersReducedMotion } from '/shared/utils.js'
 
 const PieceDetail = {
   props: {
@@ -40,20 +41,21 @@ const PieceDetail = {
 export const SystemDiagramView = {
   components: { SystemDiagram, PieceDetail },
   template: `
-    <div v-page-reveal class="sd-map">
+    <div v-page-reveal ref="map" class="sd-map">
       <div class="sd-map-diagram">
-        <system-diagram interactive :focus="focus" @select="select" />
+        <system-diagram interactive :focus="focus" @select="toggle" />
       </div>
-      <aside v-if="sideCard" class="sd-map-card" aria-live="polite">
-        <template v-if="piece">
+      <aside v-if="sideCard && piece" ref="card" :class="['sd-map-card', { 'is-placed': placed }]" :style="{ transform: shift }" aria-live="polite">
+        <div class="sd-map-card-head">
           <h3 class="sd-map-card-title">{{ piece.title }}</h3>
-          <piece-detail :piece="piece" :status="status" />
-          <div v-if="piece.links.length" class="sd-map-card-actions">
-            <a v-for="link in piece.links" :key="link.href" class="ui-button ui-button-secondary ui-button-block" :href="link.href">Open {{ link.label }}</a>
-          </div>
-        </template>
-        <p v-else class="sd-map-card-empty">Select a component in the diagram.</p>
+          <button type="button" class="ui-icon-button" aria-label="Close" @click="closeCard"><close-glyph /></button>
+        </div>
+        <piece-detail :piece="piece" :status="status" />
+        <div v-if="piece.links.length" class="sd-map-card-actions">
+          <a v-for="link in piece.links" :key="link.href" class="ui-button ui-button-secondary ui-button-block" :href="link.href">Open {{ link.label }}</a>
+        </div>
       </aside>
+      <p v-else-if="sideCard" class="sd-map-card-empty">Select a component in the diagram.</p>
       <ui-sheet v-if="!sideCard" :open="sheetOpen" :title="piece ? piece.title : 'System diagram'" @close="closeSheet">
         <template #header-actions>
           <button type="button" class="ui-icon-button" aria-label="Close" @click="closeSheet"><close-glyph /></button>
@@ -69,6 +71,12 @@ export const SystemDiagramView = {
     const sideCard = useMediaQuery(SIDE_CARD_QUERY)
     const selected = ref('')
     const sheetOpen = ref(false)
+    const map = ref(null)
+    const card = ref(null)
+    const placed = ref(false)
+    const shift = ref('translateY(0)')
+    let frame = 0
+    const layoutWatcher = new ResizeObserver(() => schedulePlace())
     const settings = ref(null)
     const tuners = ref(null)
     const guide = ref(null)
@@ -88,10 +96,56 @@ export const SystemDiagramView = {
       sheetOpen.value = Boolean(id)
     }
 
+    const toggle = (id) => {
+      if (id === selected.value) return closeSheet()
+      select(id)
+    }
+
     const closeSheet = () => {
       sheetOpen.value = false
       selected.value = ''
     }
+
+    const closeCard = () => {
+      const id = selected.value
+      closeSheet()
+      nextTick(() => nodeOf({ map: map.value, id })?.focus())
+    }
+
+    const place = () => {
+      frame = 0
+      const node = nodeOf({ map: map.value, id: selected.value })
+      if (!sideCard.value || !node || !card.value) return
+      layoutWatcher.observe(card.value)
+      const nodeBox = node.getBoundingClientRect()
+      const mapTop = map.value.getBoundingClientRect().top
+      const shiftPx = cardShiftOf({
+        nodeCentre: nodeBox.top + nodeBox.height / 2,
+        cardHeight: card.value.offsetHeight,
+        naturalTop: mapTop + card.value.offsetTop,
+        visibleTop: CARD_MARGIN,
+        visibleBottom: window.innerHeight - CARD_MARGIN,
+      })
+      shift.value = `translateY(${shiftPx}px)`
+    }
+
+    const schedulePlace = () => {
+      if (!frame) frame = requestAnimationFrame(place)
+    }
+
+    const settleCard = async () => {
+      placed.value = false
+      await nextTick()
+      place()
+      if (prefersReducedMotion()) return
+      requestAnimationFrame(() => requestAnimationFrame(() => { placed.value = true }))
+    }
+
+    const onKeydown = (event) => {
+      if (event.key === 'Escape' && sideCard.value && selected.value) closeCard()
+    }
+
+    watch([selected, sideCard], settleCard, { flush: 'post' })
 
     watch(() => focusedPieceOf(routeParams.value), (id) => {
       if (id) select(id)
@@ -104,8 +158,28 @@ export const SystemDiagramView = {
       api('GET', '/api/tvh-guide/status').then((value) => { guide.value = value?.suggestion ?? null }, () => {})
     })
 
-    return { sideCard, sheetOpen, piece, focus, status, select, closeSheet }
+    onMounted(() => {
+      if (selected.value) settleCard()
+      window.addEventListener('scroll', schedulePlace, { passive: true })
+      window.addEventListener('resize', schedulePlace)
+      document.addEventListener('keydown', onKeydown)
+      layoutWatcher.observe(document.body)
+    })
+
+    onUnmounted(() => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', schedulePlace)
+      window.removeEventListener('resize', schedulePlace)
+      document.removeEventListener('keydown', onKeydown)
+      layoutWatcher.disconnect()
+    })
+
+    return { sideCard, sheetOpen, piece, focus, status, map, card, placed, shift, select, toggle, closeSheet, closeCard }
   },
 }
 
 const SIDE_CARD_QUERY = '(min-width: 1100px) and (min-height: 501px)'
+
+const CARD_MARGIN = 16
+
+const nodeOf = ({ map, id }) => map?.querySelector(`.sd-node[data-piece="${id}"]`) ?? null

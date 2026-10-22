@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
-import { SETTINGS, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
+import { SETTINGS, animateIconFrom, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
 import { currentOtherLanguageFilms, forgetForYouCache, getForYou, getHiddenShows, getPickable, isForYouEnabled, startForYou, titlesForKeys, unhideShow } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
@@ -81,6 +81,7 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     if (changes.ollamaUrl !== undefined) await setSetting(SETTINGS.ollamaUrl, changes.ollamaUrl)
     if (changes.ollamaModel !== undefined) await setSetting(SETTINGS.ollamaModel, changes.ollamaModel)
     if (changes.historyEnabled !== undefined) await setViewingHistoryEnabled(changes.historyEnabled)
+    if (changes.animateIcon !== undefined) await setSetting(SETTINGS.animateIcon, String(changes.animateIcon))
     if (changes.otherLanguageFilms !== undefined) await setSetting(SETTINGS.otherLanguageFilms, changes.otherLanguageFilms)
     if (changes.tierOverride !== undefined) runEmbeddings().catch((err) => console.warn(`[for-you] embedding failed: ${err.message}`))
     res.json(await settingsPayload())
@@ -126,7 +127,7 @@ export const picksFrom = (body) => {
 
 export const settingsChangesFrom = (body = {}) => {
   const changes = {}
-  for (const field of ['enabled', 'genreLookup', 'historyEnabled']) {
+  for (const field of ['enabled', 'genreLookup', 'historyEnabled', 'animateIcon']) {
     if (body[field] === undefined) continue
     if (typeof body[field] !== 'boolean') return { error: `${field} must be true or false` }
     changes[field] = body[field]
@@ -155,7 +156,7 @@ export const settingsChangesFrom = (body = {}) => {
 const publicItemOf = ({ categories, seasonNumber, episodeNumber, ...item }) => item
 
 const settingsPayload = async () => {
-  const [enabled, genreLookup, tier, probe, embeddings, historyEnabled, ollamaUrl, ollamaModel, otherLanguageFilms] = await Promise.all([
+  const [enabled, genreLookup, tier, probe, embeddings, historyEnabled, ollamaUrl, ollamaModel, otherLanguageFilms, animateIcon] = await Promise.all([
     isForYouEnabled(),
     getSetting(GENRE_LOOKUP_KEY).then(genreLookupEnabledFrom),
     currentTier(),
@@ -165,6 +166,7 @@ const settingsPayload = async () => {
     getSetting(SETTINGS.ollamaUrl),
     getSetting(SETTINGS.ollamaModel),
     currentOtherLanguageFilms(),
+    getSetting(SETTINGS.animateIcon).then(animateIconFrom),
   ])
   return {
     enabled,
@@ -176,6 +178,7 @@ const settingsPayload = async () => {
     embeddings: embeddings ? { ...embeddings, running: isEmbedding() } : { running: isEmbedding() },
     historyEnabled,
     otherLanguageFilms,
+    animateIcon,
     ollamaUrl: ollamaUrl || '',
     ollamaModel: ollamaModel || '',
     attribution: ATTRIBUTION,

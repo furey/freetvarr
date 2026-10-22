@@ -27,6 +27,7 @@ export const SETTINGS = {
   embedRun: 'for_you_embed_last',
   upkeep: 'for_you_upkeep_last',
   otherLanguageFilms: 'for_you_other_language_films',
+  animateIcon: 'for_you_animate_icon',
 }
 
 export const fetchOllamaTags = (url) => axios.get(`${url}/api/tags`, {
@@ -36,6 +37,8 @@ export const fetchOllamaTags = (url) => axios.get(`${url}/api/tags`, {
 })
 
 export const forYouEnabledFrom = (stored) => stored !== 'false'
+
+export const animateIconFrom = (stored) => stored !== 'false'
 
 export const modelCacheDir = () => path.join(path.dirname(process.env.DB_PATH || path.join(REPO_ROOT, 'config', 'state.db')), 'models')
 

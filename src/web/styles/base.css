@@ -1969,7 +1969,7 @@ a.ui-banner:hover {
 
 @media (prefers-reduced-motion: no-preference) {
   .for-you-nav-icon.is-twinkling {
-    animation-duration: 3s;
+    animation-duration: var(--orbit-ms, 2s);
     animation-fill-mode: both;
     animation-timing-function: ease-in-out;
   }
@@ -2003,7 +2003,7 @@ a.ui-banner:hover {
   14% { --orbit-in: 1; }
   24% { --orbit-flat: 0.71; --orbit-depth: 1; }
   74% { --orbit-in: 1; --orbit-flat: 0.71; --orbit-depth: 1; }
-  100% { --orbit-turn: 720deg; --orbit-in: 0; --orbit-flat: 1; --orbit-depth: 0; }
+  100% { --orbit-turn: var(--orbit-end, 720deg); --orbit-in: 0; --orbit-flat: 1; --orbit-depth: 0; }
 }
 
 .app-nav-badge {

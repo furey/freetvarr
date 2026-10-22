@@ -254,6 +254,7 @@
 }
 
 .sd-map {
+  position: relative;
   display: grid;
   gap: 24px;
 }
@@ -275,8 +276,6 @@
   }
 
   .sd-map-card {
-    position: sticky;
-    top: 28px;
     display: grid;
     gap: 14px;
     padding: 20px;
@@ -287,6 +286,21 @@
   .sd-map-card .sd-detail-rows {
     background: var(--color-surface-2);
   }
+
+  .sd-map-card.is-placed {
+    transition: transform var(--motion-fast) var(--ease-standard);
+  }
+}
+
+.sd-map-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sd-map-card-head .sd-map-card-title {
+  padding-top: 9px;
 }
 
 .sd-map-card-title {
@@ -509,6 +523,7 @@
   .sd-arrow,
   .sd-icon,
   .sd-icon-bg,
+  .sd-map-card.is-placed,
   .sd-tour-pan,
   .sd-tour-text,
   .sd-tour-progress span {

@@ -4,6 +4,7 @@ import {
   PIECES,
   EDGES,
   TOUR_STEPS,
+  cardShiftOf,
   diagramHrefOf,
   diagramMarkup,
   focusedPieceOf,
@@ -213,4 +214,20 @@ test('statusPartsOf: splits a status at its separators so each value stays whole
   assert.deepEqual(statusPartsOf({ text: 'Sydney · 33 of 35 channels' }), ['Sydney', '33 of 35 channels'])
   assert.deepEqual(statusPartsOf({ text: '/data/recordings · old', mono: true }), ['/data/recordings · old'])
   assert.deepEqual(statusPartsOf(null), [])
+})
+
+test('cardShiftOf: centres the card on the node when there is room', () => {
+  const view = { naturalTop: 100, visibleTop: 16, visibleBottom: 884, cardHeight: 300 }
+  assert.equal(cardShiftOf({ ...view, nodeCentre: 450 }), 200)
+})
+
+test('cardShiftOf: keeps the card inside the visible area', () => {
+  const view = { naturalTop: 100, visibleTop: 16, visibleBottom: 884, cardHeight: 300 }
+  assert.equal(cardShiftOf({ ...view, nodeCentre: 20 }), -84)
+  assert.equal(cardShiftOf({ ...view, nodeCentre: 880 }), 484)
+})
+
+test('cardShiftOf: top-aligns a card taller than the visible area', () => {
+  const view = { naturalTop: 100, visibleTop: 16, visibleBottom: 400, cardHeight: 500 }
+  assert.equal(cardShiftOf({ ...view, nodeCentre: 300 }), -84)
 })

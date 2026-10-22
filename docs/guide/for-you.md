@@ -83,6 +83,7 @@ Open Settings → **For you**, or press the settings button at the top of the Fo
 | Setting                                    | What it does                                                                                                                                           |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Show For you**                           | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                            |
+| **Animate the For you icon**               | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                         |
 | **Use TVmaze and Wikidata to find genres** | Sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. On by default.                                                 |
 | **Films in other languages**               | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English. |
 | **Hidden shows**                           | Lists the shows you marked **Not interested**. Press **Show again** to get suggestions for a show again.                                               |
