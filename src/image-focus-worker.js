@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 
-import { facesFromScores } from './image-focus.js'
+import { BAND_SAMPLE, columnDetailOf, facesFromScores, pillarBandOf } from './image-focus.js'
 
 const main = async () => {
   const job = JSON.parse(await readStdin())
@@ -28,12 +28,23 @@ const openSession = async (modelPath) => {
 
 const focusInputsOf = async ({ session, body }) => {
   try {
+    const band = await bandOf(body)
     const faces = session ? await detectFaces({ ...session, body }) : []
-    if (faces.length) return { faces, attention: null }
-    return { faces: [], attention: await attentionOf(body) }
+    if (faces.length) return { faces, attention: null, band }
+    return { faces: [], attention: await attentionOf(body), band }
   } catch {
-    return { faces: [], attention: null }
+    return { faces: [], attention: null, band: null }
   }
+}
+
+const bandOf = async (body) => {
+  const { data } = await sharp(body)
+    .resize({ ...BAND_SAMPLE, fit: 'fill' })
+    .removeAlpha()
+    .greyscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  return pillarBandOf(columnDetailOf({ pixels: data, ...BAND_SAMPLE }))
 }
 
 const detectFaces = async ({ ort, session, body }) => {

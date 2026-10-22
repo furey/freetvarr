@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createImageFocus, facesFromScores, focusOf, suppressOverlaps } from '../src/image-focus.js'
+import { columnDetailOf, createImageFocus, facesFromScores, focusOf, pillarBandOf, suppressOverlaps } from '../src/image-focus.js'
 import { focusKeyOf, isFocusImagePath, objectPositionOf, requestedWidthOf } from '../src/web/image-focus.js'
 
 const WIDE = { width: 768, height: 432 }
@@ -280,4 +280,58 @@ test('the picture fade keeps the hover zoom transition of a fading picture', asy
     assert.equal(zoomTransitions.length, 0, path)
     assert.match(css, /--picture-motion: transform 320ms var\(--ease-standard\);\s*transition: var\(--picture-motion\);/, path)
   }
+})
+
+const pillarboxPixels = ({ width, height, start, end }) => {
+  const pixels = new Uint8Array(width * height)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const inBand = x >= start && x < end
+      pixels[y * width + x] = inBand ? ((x * 37 + y * 91) % 200) : 60 + Math.round(x / 8)
+    }
+  }
+  return pixels
+}
+
+const BAND_SIZE = { width: 192, height: 108 }
+
+const detailOf = (start, end) => columnDetailOf({ pixels: pillarboxPixels({ ...BAND_SIZE, start, end }), ...BAND_SIZE })
+
+test('pillarBandOf finds the sharp portrait band between two blurred pillars', () => {
+  const band = pillarBandOf(detailOf(60, 132))
+  assert.ok(band, 'band')
+  assert.ok(Math.abs(band[0] - 60 / 192) < 0.02 && Math.abs(band[1] - 132 / 192) < 0.02, JSON.stringify(band))
+  assert.equal(band[0] + band[1], 1)
+})
+
+test('pillarBandOf ignores full-frame pictures, off-centre bands, and wide bands', () => {
+  assert.equal(pillarBandOf(detailOf(0, 192)), null)
+  assert.equal(pillarBandOf(detailOf(20, 92)), null)
+  assert.equal(pillarBandOf(detailOf(10, 182)), null)
+  assert.equal(pillarBandOf(new Array(192).fill(1)), null)
+})
+
+test('focusOf centres a portrait composite and keeps the vertical focus', () => {
+  const band = [0.307, 0.693]
+  assert.deepEqual(focusOf({ attention: { x: 0.531, y: 0.405 }, band }), { x: 0.5, y: 0.405, box: [0.307, 0.405, 0.693, 0.405], method: 'attention' })
+  const faces = [{ score: 0.9, box: [0.6, 0.2, 0.66, 0.32] }]
+  const withFaces = focusOf({ faces, band })
+  assert.equal(withFaces.x, 0.5)
+  assert.deepEqual([withFaces.box[0], withFaces.box[2]], band)
+  assert.equal(withFaces.box[1], focusOf({ faces }).box[1])
+  assert.deepEqual(focusOf({ band }), { x: 0.5, y: 0.5, box: null, method: 'centre' })
+})
+
+test('objectPositionOf centres a portrait composite in a phone hero and leaves wide views alone', () => {
+  const composite = focusOf({ attention: { x: 0.531, y: 0.405 }, band: [0.307, 0.693] })
+  const plain = focusOf({ attention: { x: 0.531, y: 0.405 } })
+  const showHero = { width: 390, height: 420 }
+  assert.equal(objectPositionOf({ natural: WIDE, view: showHero, focus: composite }), '50% 50%')
+  assert.equal(objectPositionOf({ natural: WIDE, view: PHONE_HERO, focus: composite }), '50% 50%')
+  assert.equal(objectPositionOf({ natural: WIDE, view: { width: 120, height: 180 }, focus: composite }), '50% 50%')
+  assert.notEqual(objectPositionOf({ natural: WIDE, view: showHero, focus: plain }).split(' ')[0], '50%')
+  assert.equal(
+    objectPositionOf({ natural: WIDE, view: DESKTOP_HERO, focus: composite }),
+    objectPositionOf({ natural: WIDE, view: DESKTOP_HERO, focus: plain }),
+  )
 })

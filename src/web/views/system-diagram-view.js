@@ -1,5 +1,5 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
-import { cardShiftOf, focusedPieceOf, pieceById, pieceStatuses, pillsOf, selectionFocusOf, statusPartsOf } from '/system-diagram.js'
+import { cardShiftOf, focusedPieceOf, pieceById, pieceStatuses, pillsOf, selectionFocusOf, sheetRevealOf, statusPartsOf } from '/system-diagram.js'
 import { SystemDiagram } from '/components/system-diagram.js'
 import { api, fetchServerAbout, fetchSettings, serverAbout } from '/shared/api.js'
 import { useMediaQuery } from '/shared/composables.js'
@@ -41,7 +41,7 @@ const PieceDetail = {
 export const SystemDiagramView = {
   components: { SystemDiagram, PieceDetail },
   template: `
-    <div v-page-reveal ref="map" class="sd-map">
+    <div v-page-reveal ref="map" class="sd-map" :style="revealPadding ? { paddingBottom: revealPadding + 'px' } : null">
       <div class="sd-map-diagram">
         <system-diagram interactive :focus="focus" @select="toggle" />
       </div>
@@ -56,7 +56,7 @@ export const SystemDiagramView = {
         </div>
       </aside>
       <p v-else-if="sideCard" class="sd-map-card-empty">Select a component in the diagram.</p>
-      <ui-sheet v-if="!sideCard" :open="sheetOpen" :title="piece ? piece.title : 'System diagram'" @close="closeSheet">
+      <ui-sheet v-if="!sideCard" :open="sheetOpen" :title="piece ? piece.title : 'System diagram'" @close="closeSheet" @height="sheetHeight = $event">
         <template #header-actions>
           <button type="button" class="ui-icon-button" aria-label="Close" @click="closeSheet"><close-glyph /></button>
         </template>
@@ -145,6 +145,61 @@ export const SystemDiagramView = {
       if (event.key === 'Escape' && sideCard.value && selected.value) closeCard()
     }
 
+    const sheetHeight = ref(0)
+    const revealPadding = ref(0)
+    let scrollBeforeSheet = null
+    let paddingTimer = 0
+
+    const scrollPage = (top) => window.scrollTo({ top, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+
+    const revealAboveSheet = async () => {
+      const node = nodeOf({ map: map.value, id: selected.value })
+      if (!node) return
+      clearTimeout(paddingTimer)
+      scrollBeforeSheet ??= window.scrollY
+      const box = node.getBoundingClientRect()
+      const reveal = sheetRevealOf({
+        nodeTop: box.top,
+        nodeBottom: box.bottom,
+        scrollY: window.scrollY,
+        maxScroll: document.scrollingElement.scrollHeight - revealPadding.value - window.innerHeight,
+        visibleTop: 0,
+        sheetTop: window.innerHeight - sheetHeight.value,
+        margin: REVEAL_MARGIN,
+      })
+      revealPadding.value = reveal.padding
+      await nextTick()
+      if (reveal.top !== window.scrollY) scrollPage(reveal.top)
+    }
+
+    const restoreScroll = () => {
+      if (scrollBeforeSheet === null) return
+      const top = scrollBeforeSheet
+      scrollBeforeSheet = null
+      scrollPage(top)
+      clearTimeout(paddingTimer)
+      dropPaddingAt(top)
+    }
+
+    const dropPaddingAt = (top) => {
+      const startedAt = performance.now()
+      const poll = () => {
+        const arrived = Math.abs(window.scrollY - top) < 1
+        if (arrived || performance.now() - startedAt > PADDING_HOLD_MAX_MS) {
+          revealPadding.value = 0
+          return
+        }
+        paddingTimer = setTimeout(poll, PADDING_POLL_MS)
+      }
+      poll()
+    }
+
+    watch([sheetHeight, selected], () => {
+      if (sideCard.value) return
+      if (sheetHeight.value > 0 && selected.value) revealAboveSheet()
+      else if (!selected.value) restoreScroll()
+    }, { flush: 'post' })
+
     watch([selected, sideCard], settleCard, { flush: 'post' })
 
     watch(() => focusedPieceOf(routeParams.value), (id) => {
@@ -168,18 +223,25 @@ export const SystemDiagramView = {
 
     onUnmounted(() => {
       cancelAnimationFrame(frame)
+      clearTimeout(paddingTimer)
       window.removeEventListener('scroll', schedulePlace)
       window.removeEventListener('resize', schedulePlace)
       document.removeEventListener('keydown', onKeydown)
       layoutWatcher.disconnect()
     })
 
-    return { sideCard, sheetOpen, piece, focus, status, map, card, placed, shift, select, toggle, closeSheet, closeCard }
+    return { sideCard, sheetOpen, sheetHeight, revealPadding, piece, focus, status, map, card, placed, shift, select, toggle, closeSheet, closeCard }
   },
 }
 
 const SIDE_CARD_QUERY = '(min-width: 1100px) and (min-height: 501px)'
 
 const CARD_MARGIN = 16
+
+const REVEAL_MARGIN = 16
+
+const PADDING_HOLD_MAX_MS = 2000
+
+const PADDING_POLL_MS = 50
 
 const nodeOf = ({ map, id }) => map?.querySelector(`.sd-node[data-piece="${id}"]`) ?? null

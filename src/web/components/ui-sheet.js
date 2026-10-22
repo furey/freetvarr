@@ -1,6 +1,6 @@
 import { ref, watch, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
-import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
+import { useSheetDrag } from '/shared/sheet-drag.js'
 
 let sheetCount = 0
 
@@ -10,14 +10,14 @@ export const UiSheet = {
     title: { type: String, required: true },
     subtitle: { type: String, default: '' },
   },
-  emits: ['close'],
+  emits: ['close', 'height'],
   template: `
     <teleport to="body">
       <transition name="ui-sheet">
         <div v-if="open" class="ui-sheet-backdrop" :style="{ zIndex }" @click.self="$emit('close')">
           <section ref="sheet" class="ui-sheet" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1"
-            @touchstart.passive="onSwipeStart" @touchend="onSwipeEnd">
-            <span class="ui-sheet-grab" aria-hidden="true"></span>
+            @touchstart.passive="drag.onTouchStart" @touchmove="drag.onTouchMove" @touchend="drag.onTouchEnd" @touchcancel="drag.onTouchCancel">
+            <button type="button" class="ui-sheet-grab" aria-label="Close" @click="drag.onHandleClick"></button>
             <header class="ui-sheet-header">
               <template v-if="$slots['header-lead']">
                 <slot name="header-lead" />
@@ -50,9 +50,12 @@ export const UiSheet = {
       event.stopImmediatePropagation()
       emit('close')
     }
+    const heightWatcher = new ResizeObserver(() => emit('height', sheet.value?.offsetHeight ?? 0))
     const setOpen = async (isOpen) => {
       window.removeEventListener('keydown', onKeydown, true)
+      heightWatcher.disconnect()
       if (!isOpen) {
+        emit('height', 0)
         overlayStack.remove(layerId)
         layerId = null
         try { document.body.classList.toggle('sheet-open', overlayStack.size() > 0) } catch {}
@@ -66,31 +69,19 @@ export const UiSheet = {
       returnFocus = document.activeElement
       window.addEventListener('keydown', onKeydown, true)
       await nextTick()
+      if (sheet.value) heightWatcher.observe(sheet.value)
       sheet.value?.focus()
     }
-    let swipeStart = null
-    const onSwipeStart = (event) => {
-      const touch = event.touches[0]
-      const onHandle = Boolean(event.target.closest?.(SWIPE_HANDLES))
-      swipeStart = onHandle && event.touches.length === 1 && (sheet.value?.scrollTop ?? 0) <= 0
-        ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
-        : null
-    }
-    const onSwipeEnd = (event) => {
-      const from = swipeStart
-      swipeStart = null
-      const touch = event.changedTouches[0]
-      if (!from || !touch) return
-      if (isSwipeDown({ startX: from.x, startY: from.y, endX: touch.clientX, endY: touch.clientY, ms: Date.now() - from.at })) emit('close')
-    }
+    const drag = useSheetDrag({ sheet, onClose: () => emit('close') })
     watch(() => props.open, setOpen)
     onMounted(() => {
       if (props.open) setOpen(true)
     })
     onUnmounted(() => {
       if (props.open) setOpen(false)
+      heightWatcher.disconnect()
     })
-    return { sheet, titleId, zIndex, onSwipeStart, onSwipeEnd }
+    return { sheet, titleId, zIndex, drag }
   },
 }
 
@@ -107,8 +98,6 @@ export const keepFocusInside = ({ event, root }) => {
   const target = event.shiftKey ? last : first
   target.focus()
 }
-
-const SWIPE_HANDLES = '.ui-sheet-grab, .ui-sheet-header, .ui-sheet-subtitle'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
 

@@ -5,6 +5,7 @@ import {
   EDGES,
   TOUR_STEPS,
   cardShiftOf,
+  sheetRevealOf,
   diagramHrefOf,
   diagramMarkup,
   focusedPieceOf,
@@ -230,4 +231,25 @@ test('cardShiftOf: keeps the card inside the visible area', () => {
 test('cardShiftOf: top-aligns a card taller than the visible area', () => {
   const view = { naturalTop: 100, visibleTop: 16, visibleBottom: 400, cardHeight: 500 }
   assert.equal(cardShiftOf({ ...view, nodeCentre: 300 }), -84)
+})
+
+test('sheetRevealOf leaves a node that is already above the sheet', () => {
+  const view = { scrollY: 100, maxScroll: 400, visibleTop: 0, sheetTop: 500, margin: 16 }
+  assert.deepEqual(sheetRevealOf({ ...view, nodeTop: 200, nodeBottom: 250 }), { top: 100, padding: 0 })
+})
+
+test('sheetRevealOf centres a hidden node in the space above the sheet', () => {
+  const view = { scrollY: 0, maxScroll: 1000, visibleTop: 0, sheetTop: 500, margin: 16 }
+  assert.deepEqual(sheetRevealOf({ ...view, nodeTop: 700, nodeBottom: 750 }), { top: 475, padding: 0 })
+  assert.deepEqual(sheetRevealOf({ ...view, scrollY: 600, nodeTop: -40, nodeBottom: 10 }), { top: 335, padding: 0 })
+})
+
+test('sheetRevealOf asks for bottom padding when the page cannot scroll far enough', () => {
+  const view = { scrollY: 200, maxScroll: 200, visibleTop: 0, sheetTop: 300, margin: 16 }
+  assert.deepEqual(sheetRevealOf({ ...view, nodeTop: 600, nodeBottom: 650 }), { top: 675, padding: 475 })
+})
+
+test('sheetRevealOf aligns a node taller than the space to its top', () => {
+  const view = { scrollY: 0, maxScroll: 1000, visibleTop: 0, sheetTop: 200, margin: 16 }
+  assert.deepEqual(sheetRevealOf({ ...view, nodeTop: 500, nodeBottom: 800 }), { top: 484, padding: 0 })
 })

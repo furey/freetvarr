@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { MIN_HEADROOM_MB } from './for-you-capability.js'
 import { focusKeyOf, isFocusImagePath, requestedWidthOf } from './web/image-focus.js'
 
-export const FOCUS_VERSION = 1
+export const FOCUS_VERSION = 2
 export const FOCUS_SETTING = 'face_focus_enabled'
 
 export const faceFocusEnabledFrom = (stored) => stored !== 'false'
@@ -31,7 +31,14 @@ export const suppressOverlaps = (faces, maxOverlap = MAX_OVERLAP) => {
   return kept
 }
 
-export const focusOf = ({ faces = [], attention = null } = {}) => {
+export const focusOf = ({ faces = [], attention = null, band = null } = {}) => {
+  const focus = pictureFocusOf({ faces, attention })
+  if (!band || focus.method === 'centre') return focus
+  const [top, bottom] = focus.box ? [focus.box[1], focus.box[3]] : [focus.y, focus.y]
+  return { ...focus, x: CENTRE, box: [band[0], top, band[1], bottom] }
+}
+
+const pictureFocusOf = ({ faces, attention }) => {
   const people = mainFacesOf(faces)
   if (people.length) {
     const [x0, y0, x1, y1] = people[0].box
@@ -44,6 +51,33 @@ export const focusOf = ({ faces = [], attention = null } = {}) => {
   }
   if (attention) return { x: rounded(clamp01(attention.x)), y: rounded(clamp01(attention.y)), box: null, method: 'attention' }
   return { x: 0.5, y: 0.5, box: null, method: 'centre' }
+}
+
+export const BAND_SAMPLE = { width: 192, height: 108 }
+
+export const columnDetailOf = ({ pixels, width, height }) => Array.from({ length: width }, (_, x) => {
+  let total = 0
+  for (let y = 0; y < height; y += 1) {
+    const at = y * width + x
+    if (x + 1 < width) total += Math.abs(pixels[at + 1] - pixels[at])
+    if (y + 1 < height) total += Math.abs(pixels[at + width] - pixels[at])
+  }
+  return total / height
+})
+
+export const pillarBandOf = (detail) => {
+  const isSharp = (value) => value > SHARP_COLUMN_DETAIL
+  const first = detail.findIndex(isSharp)
+  if (first < 0) return null
+  const last = detail.findLastIndex(isSharp)
+  const start = first / detail.length
+  const end = (last + 1) / detail.length
+  const isCentred = Math.abs(start - (1 - end)) <= MAX_PILLAR_SKEW
+  const hasPillars = Math.min(start, 1 - end) >= MIN_PILLAR_SHARE
+  const isPortraitBand = end - start <= MAX_BAND_SHARE
+  if (!isCentred || !hasPillars || !isPortraitBand) return null
+  const halfWidth = Math.max(CENTRE - start, end - CENTRE)
+  return [rounded(CENTRE - halfWidth), rounded(CENTRE + halfWidth)]
 }
 
 export const createImageFocus = ({
@@ -199,7 +233,7 @@ export const runFocusWorker = ({ jobs, modelPath = MODEL_PATH, timeoutMs = WORKE
     const lines = stdout.split('\n')
     stdout = lines.pop()
     lines.map(parseJson).filter((message) => message?.type === 'focus').forEach((message) => {
-      results.set(message.id, { faces: message.faces || [], attention: message.attention || null })
+      results.set(message.id, { faces: message.faces || [], attention: message.attention || null, band: message.band || null })
     })
   })
   child.stdin.on('error', () => {})
@@ -278,6 +312,7 @@ const MIN_FACE_WIDTH = 0.02
 const GROUP_MIN_AREA_SHARE = 0.25
 const MAX_GROUP_FACES = 8
 const EYE_LINE = 0.4
+const CENTRE = 0.5
 const PAD_SIDE = 0.15
 const PAD_TOP = 0.3
 const PAD_BOTTOM = 0.35
@@ -290,3 +325,7 @@ const BATCH_PAUSE_MS = 2 * 1000
 const LOW_MEMORY_RETRY_MS = 10 * 60 * 1000
 const FAILURE_BACKOFF_MS = 30 * 60 * 1000
 const WORKER_TIMEOUT_MS = 3 * 60 * 1000
+const SHARP_COLUMN_DETAIL = 6
+const MAX_PILLAR_SKEW = 0.04
+const MIN_PILLAR_SHARE = 0.12
+const MAX_BAND_SHARE = 0.76

@@ -1,5 +1,4 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from '/vendor/vue.esm-browser.prod.js'
-import { isSwipeDown } from '/mini-player.js'
 import { overlayStack } from '/overlay-stack.js'
 import {
   SHEET_KEEP_STEPS,
@@ -23,6 +22,7 @@ import { ActionConfirm } from '/components/library-menus.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
+import { useSheetDrag } from '/shared/sheet-drag.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
@@ -61,8 +61,8 @@ export const ProgrammeSheetHost = {
     <transition name="ui-sheet">
     <div v-if="selected" class="ui-sheet-backdrop programme-sheet-backdrop" @click.self="closeModal">
       <section ref="sheetEl" class="ui-sheet programme-sheet" role="dialog" aria-modal="true" aria-labelledby="programme-sheet-title" tabindex="-1"
-        @touchstart.passive="onSwipeStart" @touchend="onSwipeEnd">
-        <span class="ui-sheet-grab" aria-hidden="true"></span>
+        @touchstart.passive="drag.onTouchStart" @touchmove="drag.onTouchMove" @touchend="drag.onTouchEnd" @touchcancel="drag.onTouchCancel">
+        <button type="button" class="ui-sheet-grab" aria-label="Close" @click="drag.onHandleClick"></button>
         <div class="programme-sheet-art">
           <programme-image :key="selected.program.program_id" :event-id="selected.program.has_image ? selected.program.program_id : null" variant="hero"
             :channel-id="selectedChannelId" :has-logo="hasChannelLogo(selectedChannelId)"
@@ -153,8 +153,9 @@ export const ProgrammeSheetHost = {
     <teleport to="body">
     <transition name="ui-sheet">
     <div v-if="hdOffer" class="ui-sheet-backdrop programme-sheet-backdrop is-top" @click.self="hdOffer = null">
-      <section class="ui-sheet programme-sheet is-compact" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title">
-        <span class="ui-sheet-grab" aria-hidden="true"></span>
+      <section ref="hdSheetEl" class="ui-sheet programme-sheet is-compact" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title"
+        @touchstart.passive="hdDrag.onTouchStart" @touchmove="hdDrag.onTouchMove" @touchend="hdDrag.onTouchEnd" @touchcancel="hdDrag.onTouchCancel">
+        <button type="button" class="ui-sheet-grab" aria-label="Close" @click="hdDrag.onHandleClick"></button>
         <header class="ui-sheet-header">
           <h2 id="hd-offer-title" class="ui-sheet-title">This is the SD channel</h2>
           <button type="button" class="ui-icon-button is-plain" aria-label="Close" @click="hdOffer = null"><close-glyph /></button>
@@ -182,6 +183,7 @@ export const ProgrammeSheetHost = {
     const selected = ref(null)
     const guideDay = shallowRef(null)
     const sheetEl = ref(null)
+    const hdSheetEl = ref(null)
     const modalBusy = ref(false)
     const modalAction = ref('')
     const [modalStatusText, modalStatusKind, setModalStatus] = makeStatus()
@@ -744,22 +746,8 @@ export const ProgrammeSheetHost = {
       })
     }
 
-    const swipe = { start: null }
-
-    const onSwipeStart = (e) => {
-      const touch = e.touches[0]
-      swipe.start = e.touches.length === 1 && (sheetEl.value?.scrollTop ?? 0) <= 0
-        ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
-        : null
-    }
-
-    const onSwipeEnd = (e) => {
-      const from = swipe.start
-      swipe.start = null
-      const touch = e.changedTouches[0]
-      if (!from || !touch || modalBusy.value) return
-      if (isSwipeDown({ startX: from.x, startY: from.y, endX: touch.clientX, endY: touch.clientY, ms: Date.now() - from.at })) closeModal()
-    }
+    const drag = useSheetDrag({ sheet: sheetEl, onClose: () => closeModal(), canDrag: () => !modalBusy.value })
+    const hdDrag = useSheetDrag({ sheet: hdSheetEl, onClose: () => { hdOffer.value = null } })
 
     const onKeydown = (e) => {
       if (!selected.value || (layerId != null && !overlayStack.isTop(layerId))) return
@@ -799,7 +787,7 @@ export const ProgrammeSheetHost = {
       sheetStrengths, sheetStrength, strengthLine, showStrengthLine, primaryAction, primaryClass, runPrimaryAction,
       sheetMeta, cancelActions, stopRequest, onStopped, selectedState, selectedStatusText, selectedRepeatNotice,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
-      hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,
+      hasChannelLogo, drag, hdDrag, hdSheetEl, sheetReady,
       ratingScore, ratingReview, ratingCardOpen, ratingLoading,
     }
   },

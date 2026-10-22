@@ -1503,14 +1503,37 @@ button.ui-group-row {
   outline: none;
 }
 
+.ui-sheet.is-dragging {
+  transition: none !important;
+}
+
 .ui-sheet-grab {
   position: relative;
   flex: none;
   align-self: center;
   width: 36px;
   height: 4px;
+  padding: 0;
+  border: 0;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.25);
+  appearance: none;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-sheet-grab:focus {
+  outline: none;
+}
+
+.ui-sheet-grab:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.ui-sheet-header,
+.ui-sheet-subtitle {
+  touch-action: pan-x;
 }
 
 .ui-sheet-grab::before {

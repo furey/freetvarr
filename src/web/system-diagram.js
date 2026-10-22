@@ -451,3 +451,16 @@ export const cardShiftOf = ({ nodeCentre, cardHeight, naturalTop, visibleTop, vi
   const top = Math.min(Math.max(centred, visibleTop), visibleBottom - cardHeight)
   return top - naturalTop
 }
+
+export const sheetRevealOf = ({ nodeTop, nodeBottom, scrollY, maxScroll, visibleTop, sheetTop, margin }) => {
+  const areaTop = visibleTop + margin
+  const areaBottom = sheetTop - margin
+  if (nodeTop >= areaTop && nodeBottom <= areaBottom) return { top: scrollY, padding: 0 }
+  const nodeHeight = nodeBottom - nodeTop
+  const areaHeight = Math.max(0, areaBottom - areaTop)
+  const wantedTop = nodeHeight >= areaHeight
+    ? nodeTop - areaTop
+    : nodeTop + nodeHeight / 2 - (areaTop + areaHeight / 2)
+  const top = Math.max(0, Math.round(scrollY + wantedTop))
+  return { top, padding: Math.max(0, top - maxScroll) }
+}

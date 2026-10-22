@@ -9,6 +9,7 @@ import { overlayStack } from '/overlay-stack.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { useSortable } from '/shared/pin-drag.js'
+import { useSheetDrag } from '/shared/sheet-drag.js'
 import { menuMovesFor, moveItem, movedText } from '/sortable-math.js'
 
 const CHANNEL_SORT_OPTIONS = [
@@ -22,8 +23,9 @@ export const ChannelsModal = {
   emits: ['close', 'saved'],
   template: `
     <div class="ui-sheet-backdrop channels-sheet-backdrop" :style="{ zIndex }" @click.self="$emit('close')">
-      <section ref="sheet" :class="['ui-sheet', 'channels-sheet', { 'is-order-mode': orderMode }]" role="dialog" aria-modal="true" aria-labelledby="channels-sheet-title" tabindex="-1">
-        <span class="ui-sheet-grab" aria-hidden="true"></span>
+      <section ref="sheet" :class="['ui-sheet', 'channels-sheet', { 'is-order-mode': orderMode }]" role="dialog" aria-modal="true" aria-labelledby="channels-sheet-title" tabindex="-1"
+        @touchstart.passive="drag.onTouchStart" @touchmove="drag.onTouchMove" @touchend="drag.onTouchEnd" @touchcancel="drag.onTouchCancel">
+        <button type="button" class="ui-sheet-grab" aria-label="Close" @click="drag.onHandleClick"></button>
         <template v-if="orderMode">
         <header class="ui-sheet-header">
           <h2 id="channels-sheet-title" class="ui-sheet-title">Favourite order</h2>
@@ -255,6 +257,11 @@ export const ChannelsModal = {
     }
 
     const sheet = ref(null)
+    const drag = useSheetDrag({
+      sheet,
+      onClose: () => emit('close'),
+      canDrag: () => editingId.value === null && !sorter.isActive(),
+    })
     const layer = overlayStack.push({ onBack: () => emit('close') })
     const zIndex = ref(layer.zIndex)
     let returnFocus = null
@@ -445,7 +452,7 @@ export const ChannelsModal = {
     }
 
     return {
-      CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, copy: HIDE_SD_COPY, switches, setHideSd, listedChannels, savingPrefs,
+      drag, CHANNEL_SORT_OPTIONS, pinnedDraft, hiddenDraft, sortDraft, copy: HIDE_SD_COPY, switches, setHideSd, listedChannels, savingPrefs,
       statusText, statusKind, draftName, toggleDraftPin, toggleHidden, save,
       hasLogoOf, showAllFavourites, shownFavourites, hiddenFavouriteCount,
       orderMode, orderListRef, sorter, positionOf, enterOrderMode, cancelOrder, finishOrder,
