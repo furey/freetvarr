@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 import { db, getSetting } from './db.js'
-import { cachedStateOf } from './artwork-match.js'
+import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
 import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -48,7 +48,7 @@ export const createShowArtwork = ({
   const recentlyFailed = (key) => (failedUntil.get(key) || 0) > now()
 
   const cachedTvmazeSources = async (key) => {
-    const cached = await cache.read(seriesCacheKeyOf(key)).catch(() => null)
+    const cached = await readSizedCache({ read: cache.read, key: seriesCacheKeyOf(key) })
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue: Boolean(cached?.sources?.length) })
     return state === 'missing' ? { stale: false, sources: null } : { stale: state === 'stale', sources: cached.sources }
   }
@@ -68,7 +68,7 @@ export const createShowArtwork = ({
       .then(async ({ sources, hinted }) => {
         const missMs = hinted ? missTtlMs : unhintedMissTtlMs
         const expiresAt = now() + (sources.length ? hitTtlMs : missMs)
-        await cache.write({ key: seriesCacheKeyOf(key), sources, expiresAt }).catch(() => {})
+        await cache.write({ key: sizedKeyOf(seriesCacheKeyOf(key)), sources, expiresAt }).catch(() => {})
         return sources
       })
       .catch(() => {
@@ -116,7 +116,9 @@ export const createShowArtwork = ({
     const key = showTitleKey(title)
     if (!key) return
     failedUntil.delete(key)
-    await cache.remove?.(seriesCacheKeyOf(key)).catch(() => {})
+    for (const cacheKey of [sizedKeyOf(seriesCacheKeyOf(key)), seriesCacheKeyOf(key)]) {
+      await cache.remove?.(cacheKey).catch(() => {})
+    }
     plexShows.reset()
   }
 
@@ -143,9 +145,13 @@ export const guideHintsFor = (title) => {
 
 export const seriesCacheKeyOf = (key) => `${SERIES_MATCH_VERSION}:${key}`
 
+export const widestFirst = (images = []) => [...images].sort((a, b) =>
+  heroWidthOf(b) - heroWidthOf(a)
+  || Number(Boolean(b.main)) - Number(Boolean(a.main))
+  || originalWidthOf(b) - originalWidthOf(a))
+
 export const tvmazeSourcesOf = ({ show, images = [] }) => {
-  const backgrounds = images.filter((image) => image.type === 'background')
-  const background = backgrounds.find((image) => image.main) || backgrounds[0]
+  const [background] = widestFirst(images.filter((image) => image.type === 'background' && image.resolutions?.original?.url))
   return [
     background?.resolutions?.original?.url,
     show.image?.original || show.image?.medium,
@@ -252,6 +258,10 @@ const createSpacedQueue = ({ gapMs }) => {
 
 let sharedGuideHints = null
 
+const originalWidthOf = (image) => Number(image?.resolutions?.original?.width) || 0
+
+const heroWidthOf = (image) => Math.min(originalWidthOf(image), HERO_SOURCE_WIDTH)
+
 const TIMED_OUT = Symbol('timed out')
 const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_ARTWORK = { sources: [], pending: true }
@@ -267,3 +277,4 @@ const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
 const TVMAZE_LOOKUP_GAP_MS = 1000
 const TVMAZE_FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const PLEX_WAIT_MS = 1500
+const HERO_SOURCE_WIDTH = 1920

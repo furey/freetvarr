@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 
 import { createShowArtwork, plexSourcesOf, seriesCacheKeyOf, showTitleKey, tvmazeSourcesOf } from '../src/show-artwork.js'
 import { landscapeOf } from '../src/image-thumbnails.js'
-import { programmeHintsByTitle } from '../src/artwork-match.js'
+import { programmeHintsByTitle, sizedKeyOf } from '../src/artwork-match.js'
 
 const BIG_BROTHER_SEARCH = JSON.parse(readFileSync(new URL('./fixtures/tvmaze-search-big-brother.json', import.meta.url)))
 const BIG_BROTHER_US_POSTER = 'https://static.tvmaze.com/uploads/images/original_untouched/631/1578029.jpg'
@@ -108,7 +108,7 @@ test('sourcesFor: ignores a picture cached by the old series match and looks the
     countryCode: () => 'au',
   })
   assert.deepEqual(await artwork.sourcesFor('Big Brother'), [BIG_BROTHER_AU_POSTER])
-  assert.deepEqual(cache.rows.get(seriesCacheKeyOf('big brother')).sources, [BIG_BROTHER_AU_POSTER])
+  assert.deepEqual(cache.rows.get(sizedKeyOf(seriesCacheKeyOf('big brother'))).sources, [BIG_BROTHER_AU_POSTER])
 })
 
 test('tvmazeSourcesOf: puts the main landscape background before the poster', () => {
@@ -159,7 +159,7 @@ test('sourcesFor: asks TVmaze once per title and remembers the answer', async ()
   assert.deepEqual(second, first)
   assert.deepEqual(await artwork.sourcesFor('Chefs Ahoy'), first)
   assert.equal(searches, 1)
-  assert.deepEqual(cache.rows.get(seriesCacheKeyOf('chefs ahoy')).sources, first)
+  assert.deepEqual(cache.rows.get(sizedKeyOf(seriesCacheKeyOf('chefs ahoy'))).sources, first)
 })
 
 test('sourcesFor: remembers a title TVmaze does not know until the miss expires', async () => {
@@ -236,7 +236,7 @@ test('artworkFor: answers at once and looks TVmaze up in the background', async 
 
 test('artworkFor: a Plex match and a remembered miss are final answers', async () => {
   const cache = memoryCache()
-  await cache.write({ key: seriesCacheKeyOf('1 euro house'), sources: [], expiresAt: Infinity })
+  await cache.write({ key: sizedKeyOf(seriesCacheKeyOf('1 euro house')), sources: [], expiresAt: Infinity })
   const artwork = artworkWith({
     cache,
     loadPlexShows: async () => new Map([['chefs ahoy', ['http://plex/thumb']]]),
@@ -298,10 +298,10 @@ test('forget: drops the cached sources and the failure backoff', async () => {
   assert.deepEqual(await artwork.sourcesFor('Bluey'), [])
   await artwork.forget('Bluey')
   assert.equal((await artwork.sourcesFor('Bluey')).length > 0, true)
-  cache.rows.set(seriesCacheKeyOf('bluey'), { sources: ['old'], expiresAt: Date.now() + 100000 })
+  cache.rows.set(sizedKeyOf(seriesCacheKeyOf('bluey')), { sources: ['old'], expiresAt: Date.now() + 100000 })
   cache.remove = async (key) => cache.rows.delete(key)
   await artwork.forget('Bluey')
-  assert.equal(cache.rows.has(seriesCacheKeyOf('bluey')), false)
+  assert.equal(cache.rows.has(sizedKeyOf(seriesCacheKeyOf('bluey'))), false)
 })
 
 test('sourcesFor: an expired picture keeps answering while TVmaze is down', async () => {
@@ -327,5 +327,32 @@ test('sourcesFor: an expired picture keeps answering while TVmaze is down', asyn
   assert.deepEqual(await artwork.artworkFor('Pooch Perfect'), { sources: ['https://tvmaze.test/4.jpg'], pending: false })
   await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(searches, 2)
-  assert.deepEqual(cache.rows.get(seriesCacheKeyOf('pooch perfect')).sources, ['https://tvmaze.test/4.jpg'])
+  assert.deepEqual(cache.rows.get(sizedKeyOf(seriesCacheKeyOf('pooch perfect'))).sources, ['https://tvmaze.test/4.jpg'])
+})
+
+test('tvmazeSourcesOf: picks the widest background, and the main one among full-HD pictures', () => {
+  const { show } = tvmazeShow({ id: 7, name: 'Love Island' })
+  const background = (id, width, main = false) => ({ type: 'background', main, resolutions: { original: { url: `https://tvmaze.test/${id}.jpg`, width } } })
+  assert.equal(tvmazeSourcesOf({ show, images: [background('main', 219, true), background('wide', 1920)] })[0], 'https://tvmaze.test/wide.jpg')
+  assert.equal(tvmazeSourcesOf({ show, images: [background('huge', 3840), background('main', 1920, true)] })[0], 'https://tvmaze.test/main.jpg')
+  assert.equal(tvmazeSourcesOf({ show, images: [background('a', 1280), background('b', 1600)] })[0], 'https://tvmaze.test/b.jpg')
+})
+
+test('sourcesFor: a picture cached before the wide sizes keeps answering while TVmaze is asked again', async () => {
+  const cache = memoryCache()
+  cache.rows.set(seriesCacheKeyOf('bluey'), { sources: ['https://tvmaze.test/old.jpg'], expiresAt: Date.now() + 100000 })
+  let lookups = 0
+  const artwork = createShowArtwork({
+    loadPlexShows: async () => new Map(),
+    findSeriesShow: async () => { lookups += 1; return { id: 4, name: 'Bluey' } },
+    hintsFor: async () => null,
+    loadTvmazeImages: async () => [{ type: 'background', resolutions: { original: { url: 'https://tvmaze.test/wide.jpg', width: 1920 } } }],
+    cache,
+    isTvmazeEnabled: async () => true,
+    lookupGapMs: 0,
+  })
+  assert.deepEqual(await artwork.sourcesFor('Bluey'), ['https://tvmaze.test/old.jpg'])
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.equal(lookups, 1)
+  assert.equal(cache.rows.get(sizedKeyOf(seriesCacheKeyOf('bluey'))).sources[0], 'https://tvmaze.test/wide.jpg')
 })

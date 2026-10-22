@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  HERO_SLIDE_LIMIT, MOVIES_URL, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf, liveGenreOf, durationText,
+  HERO_SLIDE_LIMIT, MOVIES_URL, heroSrcsetOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf, liveGenreOf, durationText,
   recordedWhenOf, airingWhenOf, watchedShowKeysOf, activeRecordingOf, recordingWhenEyebrowOf, nextUpcomingOf, heroCandidatesOf, reusedArtSlidesOf,
 } from '../src/web/home-hero.js'
 
@@ -292,4 +292,15 @@ test('heroSlidesOf: remixes by the hour with recording now first', () => {
   assert.ok(hourly.every((slides) => slides[0].type === 'recording' && slides[1].type === 'on-now'))
   assert.ok(new Set(hourly.map((slides) => keys(slides).join())).size > 1)
   assert.deepEqual(keys(heroSlidesOf(feed)), keys(heroSlidesOf({ ...feed, nowMs: nowMs + 30 * MIN })))
+})
+
+test('heroSrcsetOf offers 768, 1280, and 1920 wide copies of the slide picture', () => {
+  assert.equal(
+    heroSrcsetOf('/api/epg/show-image?title=Love%20Island&w=768&c=series-v2'),
+    '/api/epg/show-image?title=Love%20Island&c=series-v2&w=768 768w, '
+      + '/api/epg/show-image?title=Love%20Island&c=series-v2&w=1280 1280w, '
+      + '/api/epg/show-image?title=Love%20Island&c=series-v2&w=1920 1920w',
+  )
+  assert.equal(heroSrcsetOf('/api/epg/image/42').split(', ')[2], '/api/epg/image/42?w=1920 1920w')
+  assert.equal(heroSrcsetOf(null), null)
 })

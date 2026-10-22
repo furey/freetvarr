@@ -16,6 +16,7 @@ import {
   lookupExpiryOf,
   matchEvidenceOf,
   programmeHintsByTitle,
+  readSizedCache,
   sharesAnyTerm,
   sharesNetwork,
   tmdbAirsOnGuideChannel,
@@ -476,7 +477,10 @@ export const lookupCacheKeyOf = ({ kind, key, ...rest }) => cacheKeyOf({
 export const storedTmdbReference = async ({ title, kind }) => {
   const key = showTitleKey(title)
   if (!key) return null
-  const row = await db('artwork_lookups').where({ lookup_key: cacheKeyOf({ mode: 'tmdb', kind, key }) }).first().catch(() => null)
+  const row = await readSizedCache({
+    read: (lookupKey) => db('artwork_lookups').where({ lookup_key: lookupKey }).first(),
+    key: cacheKeyOf({ mode: 'tmdb', kind, key }),
+  })
   const match = String(row?.reference || '').match(/^tmdb:(movie|tv):(\d+)$/)
   return match ? { type: match[1], id: match[2] } : null
 }

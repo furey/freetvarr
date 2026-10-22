@@ -6,15 +6,20 @@ import sharp from 'sharp'
 import knexConfig from '../knexfile.js'
 
 export const PROGRAMME_IMAGE_WIDTHS = [192, 384, 768]
+export const HERO_IMAGE_WIDTHS = [...PROGRAMME_IMAGE_WIDTHS, 1280, 1920]
+export const DEFAULT_PROGRAMME_WIDTH = 768
 export const CHANNEL_LOGO_WIDTHS = [96, 192]
 
 export const getThumbnailRoot = () =>
   path.join(path.dirname(knexConfig.connection.filename), 'image-cache')
 
-export const thumbnailWidthFrom = ({ requested, allowed }) => {
-  if (requested === undefined) return allowed.at(-1)
+export const thumbnailWidthFrom = ({ requested, allowed, fallback = allowed.at(-1) }) => {
+  if (requested === undefined) return fallback
   return allowed.find((width) => String(width) === requested) ?? null
 }
+
+export const heroWidthFrom = (requested) =>
+  thumbnailWidthFrom({ requested, allowed: HERO_IMAGE_WIDTHS, fallback: DEFAULT_PROGRAMME_WIDTH })
 
 export const imageCacheBytesFrom = (megabytes) => {
   const parsed = Number(megabytes)

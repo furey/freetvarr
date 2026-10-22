@@ -44,7 +44,7 @@ const PROGRAMME_IMAGE_WIDTHS = {
   thumb: [192],
   cell: [192],
   rec: [384, 768],
-  hero: [768],
+  hero: [768, 1280],
   info: [384, 768],
 }
 

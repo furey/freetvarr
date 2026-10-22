@@ -35,7 +35,7 @@ test('a hit is cached for the hit TTL and served without another lookup', async 
   let calls = 0
   const { artwork, cache, clock } = fallbackWith({ lookUp: async () => { calls += 1; return { sources: ['https://upload.wikimedia.org/a.jpg'] } } })
   assert.deepEqual(await artwork.sourcesFor('Cool Runnings'), ['https://upload.wikimedia.org/a.jpg'])
-  assert.equal(cache.rows.get('open:cool runnings').expiresAt, 1100)
+  assert.equal(cache.rows.get('wide-v1:open:cool runnings').expiresAt, 1100)
   clock.ms = 1099
   assert.deepEqual(await artwork.artworkFor('Cool Runnings'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false })
   assert.equal(calls, 1)
@@ -95,7 +95,7 @@ test('a TMDB key gets its own cache entries and is passed to the lookup', async 
   const { artwork, cache } = fallbackWith({ apiKey: 'k', lookUp: async ({ apiKey }) => { keys.push(apiKey); return null } })
   await artwork.sourcesFor('Film')
   assert.deepEqual(keys, ['k'])
-  assert.ok(cache.rows.has('tmdb:film'))
+  assert.ok(cache.rows.has('wide-v1:tmdb:film'))
   await artwork.forget('Film')
   assert.equal(cache.rows.size, 0)
 })
@@ -103,7 +103,7 @@ test('a TMDB key gets its own cache entries and is passed to the lookup', async 
 test('a film gets its own cache entry and film hints, so an old show miss does not hide it', async () => {
   const seen = []
   const cache = memoryCache()
-  cache.rows.set('tmdb:training day', { sources: [], reference: 'miss:guide-network-v1', expiresAt: 10_000 })
+  cache.rows.set('wide-v1:tmdb:training day', { sources: [], reference: 'miss:guide-network-v1', expiresAt: 10_000 })
   const { artwork } = fallbackWith({
     apiKey: 'k',
     cache,
@@ -112,7 +112,7 @@ test('a film gets its own cache entry and film hints, so an old show miss does n
   assert.deepEqual(await artwork.sourcesFor('Training Day'), [])
   assert.deepEqual(await artwork.sourcesFor('Training Day', { kind: 'movie' }), ['https://image.tmdb.org/t/p/w780/td.jpg'])
   assert.deepEqual(seen, [{ title: 'Training Day', kind: 'movie', isEpisode: false }])
-  assert.ok(cache.rows.has('tmdb:movie:training day'))
+  assert.ok(cache.rows.has('wide-v1:tmdb:movie:training day'))
   await artwork.forget('Training Day')
   assert.equal(cache.rows.size, 0)
 })
@@ -147,7 +147,7 @@ test('a film whose guide entry has an episode title is found through a TMDB movi
   const lookUp = createArtworkLookup({ client })
   const hints = { ...programmeHintsOf([TRAINING_DAY]), kind: 'movie', isEpisode: false }
   const found = await lookUp({ title: TRAINING_DAY.title, hints, apiKey: 'k' })
-  assert.deepEqual(found, { sources: ['https://image.tmdb.org/t/p/w1280/b.jpg'], reference: 'tmdb:movie:2034' })
+  assert.deepEqual(found, { sources: ['https://image.tmdb.org/t/p/original/b.jpg'], reference: 'tmdb:movie:2034' })
   assert.ok(!client.calls.some((call) => call.path === '/3/search/multi' || call.path === '/3/search/tv'))
 })
 
@@ -161,14 +161,14 @@ test('an episode searches TMDB shows only', async () => {
 test('a miss cached before the guide network match is looked up again', async () => {
   let calls = 0
   const cache = memoryCache()
-  cache.rows.set('tmdb:big brother', { sources: [], reference: null, expiresAt: 10_000 })
+  cache.rows.set('wide-v1:tmdb:big brother', { sources: [], reference: null, expiresAt: 10_000 })
   const { artwork } = fallbackWith({
     apiKey: 'k',
     cache,
     lookUp: async () => { calls += 1; return { sources: ['https://image.tmdb.org/t/p/w1280/bb.jpg'], reference: 'tmdb:tv:990' } },
   })
   assert.deepEqual(await artwork.sourcesFor('Big Brother'), ['https://image.tmdb.org/t/p/w1280/bb.jpg'])
-  assert.equal(cache.rows.get('tmdb:big brother').reference, 'tmdb:tv:990')
+  assert.equal(cache.rows.get('wide-v1:tmdb:big brother').reference, 'tmdb:tv:990')
   assert.equal(calls, 1)
 })
 
@@ -206,7 +206,7 @@ test('a local TMDB show on a guide channel network is matched ahead of foreign v
   const lookUp = createArtworkLookup({ client, countryCode: () => 'AU' })
   const found = await lookUp({ title: 'Big Brother', hints: bigBrotherHints(), apiKey: 'k' })
   assert.deepEqual(found, {
-    sources: ['https://image.tmdb.org/t/p/w1280/au.jpg', 'https://image.tmdb.org/t/p/w780/aup.jpg'],
+    sources: ['https://image.tmdb.org/t/p/original/au.jpg', 'https://image.tmdb.org/t/p/w780/aup.jpg'],
     reference: 'tmdb:tv:990',
   })
 })
@@ -259,9 +259,9 @@ test('a matched TMDB show offers up to eight backgrounds and eight posters, Engl
   const { sources } = await lookUp({ title: 'Big Brother', hints: bigBrotherHints(), apiKey: 'k' })
   const base = 'https://image.tmdb.org/t/p'
   assert.deepEqual(sources, [
-    `${base}/w1280/au.jpg`,
+    `${base}/original/au.jpg`,
     `${base}/w780/aup.jpg`,
-    ...['b5', 'b0', 'b1', 'b2', 'b3', 'b4', 'b7'].map((name) => `${base}/w1280/${name}.jpg`),
+    ...['b5', 'b0', 'b1', 'b2', 'b3', 'b4', 'b7'].map((name) => `${base}/original/${name}.jpg`),
     `${base}/w780/p-en.jpg`,
     `${base}/w780/p-de.jpg`,
   ])

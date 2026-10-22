@@ -247,7 +247,7 @@ export const tmdbAuthOf = (key) => {
 }
 
 export const tmdbSourcesOf = (details) => {
-  const backdrops = tmdbPicturesOf({ main: details?.backdrop_path, images: details?.images?.backdrops, size: 'w1280' })
+  const backdrops = tmdbPicturesOf({ main: details?.backdrop_path, images: details?.images?.backdrops, size: TMDB_BACKDROP_SIZE })
   const posters = tmdbPicturesOf({ main: details?.poster_path, images: details?.images?.posters, size: 'w780' })
   return [...backdrops.slice(0, 1), ...posters.slice(0, 1), ...backdrops.slice(1), ...posters.slice(1)]
 }
@@ -297,9 +297,21 @@ export const tmdbAirsOnGuideChannel = ({ details, hints, country }) =>
 
 export const lookupExpiryOf = ({ found, nowMs, hitTtlMs, missTtlMs }) => nowMs + (found ? hitTtlMs : missTtlMs)
 
+export const ART_SIZE_VERSION = 'wide-v1'
+
+export const sizedKeyOf = (key) => `${ART_SIZE_VERSION}:${key}`
+
+export const readSizedCache = async ({ read, key }) => {
+  const current = await Promise.resolve().then(() => read(sizedKeyOf(key))).catch(() => null)
+  if (current) return current
+  const previous = await Promise.resolve().then(() => read(key)).catch(() => null)
+  return previous ? { ...previous, superseded: true } : null
+}
+
 export const cachedStateOf = ({ cached, nowMs, hitTtlMs, hasValue, maxAgeMs = DATA_MAX_AGE_MS, staleBeforeMs = 0 }) => {
   if (!cached) return 'missing'
   const savedAtMs = cached.expiresAt - hitTtlMs
+  if (cached.superseded) return hasValue && nowMs < savedAtMs + maxAgeMs ? 'stale' : 'missing'
   if (cached.expiresAt > nowMs && !(hasValue && savedAtMs < staleBeforeMs)) return 'fresh'
   return hasValue && nowMs < savedAtMs + maxAgeMs ? 'stale' : 'missing'
 }
@@ -394,6 +406,7 @@ const FILM_KIND = 'movie'
 const FILM_CLASS = 'Q11424'
 const TELEVISION_PROGRAM_CLASS = 'Q15416'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
+const TMDB_BACKDROP_SIZE = 'original'
 export const TMDB_IMAGE_LANGUAGES = 'en,null'
 const MAX_TMDB_PICTURES = 8
 const TMDB_V3_KEY_MAX_LENGTH = 40

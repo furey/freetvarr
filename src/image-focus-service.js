@@ -10,7 +10,14 @@ export const imageFocus = createImageFocus({
   isEnabled: isFaceFocusEnabled,
   readHeadroomMb,
   detect: (jobs) => runFocusWorker({ jobs }),
+  render: (url) => renderLocally(url),
 })
+
+const renderLocally = async (url) => {
+  const res = await fetch(`${LOCAL_ORIGIN}${url}`, { signal: AbortSignal.timeout(RENDER_TIMEOUT_MS) })
+  if (!res.ok || !PICTURE_TYPE.test(res.headers.get('content-type') || '')) return null
+  return Buffer.from(await res.arrayBuffer())
+}
 
 const rowFromRecord = (record) => ({
   urlKey: record.url_key,
@@ -22,6 +29,7 @@ const rowFromRecord = (record) => ({
   method: record.method,
   version: record.version,
   updatedAt: Number(record.updated_at),
+  hashes: parseHashes(record.width_hashes),
 })
 
 const recordFromRow = (row) => ({
@@ -34,7 +42,17 @@ const recordFromRow = (row) => ({
   method: row.method,
   version: row.version,
   updated_at: row.updatedAt,
+  width_hashes: row.hashes ? JSON.stringify(row.hashes) : null,
 })
+
+const parseHashes = (text) => {
+  try {
+    const hashes = JSON.parse(text)
+    return hashes && typeof hashes === 'object' && !Array.isArray(hashes) ? hashes : null
+  } catch {
+    return null
+  }
+}
 
 const parseBox = (text) => {
   try {
@@ -44,3 +62,7 @@ const parseBox = (text) => {
     return null
   }
 }
+
+const LOCAL_ORIGIN = `http://127.0.0.1:${Number(process.env.PORT || 3733)}`
+const RENDER_TIMEOUT_MS = 30 * 1000
+const PICTURE_TYPE = /^image\/(webp|jpeg|png)/

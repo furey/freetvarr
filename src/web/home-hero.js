@@ -11,6 +11,23 @@ export const HERO_SLIDE_LIMIT = 5
 export const HERO_SLIDES_PER_KIND = 2
 export const MOVIES_URL = `/api/library/episodes?state=unwatched&kind=movie&limit=${HERO_SLIDES_PER_KIND}`
 
+export const HERO_SRCSET_WIDTHS = [768, 1280, 1920]
+export const HERO_SIZES = [
+  '(min-width: 1280px) and (min-height: 501px) calc(100vw - 168px)',
+  '(min-width: 768px) and (min-height: 501px) calc(100vw - 152px)',
+  'calc(100vw - 32px)',
+].join(', ')
+
+export const heroSrcsetOf = (url) => (url
+  ? HERO_SRCSET_WIDTHS.map((width) => `${withHeroWidth(url, width)} ${width}w`).join(', ')
+  : null)
+
+export const withHeroWidth = (url, width) => {
+  const [path, query = ''] = String(url).split('?')
+  const kept = query.split('&').filter((part) => part && !part.startsWith('w='))
+  return `${path}?${[...kept, `w=${width}`].join('&')}`
+}
+
 export const heroSlidesOf = ({ pools = {}, limit = HERO_SLIDE_LIMIT, remix = true, ...feed }) => {
   const ranked = heroCandidatesOf(feed)
   const candidates = remix ? hourlyOrderOf({ candidates: ranked, nowMs: feed.nowMs, timeZone: feed.timeZone }) : ranked

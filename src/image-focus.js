@@ -80,14 +80,50 @@ export const pillarBandOf = (detail) => {
   return [rounded(CENTRE - halfWidth), rounded(CENTRE + halfWidth)]
 }
 
+export const warmPlanOf = ({ keys, isKnown, isPending, wasTried, limit = MAX_WARM_KEYS }) => {
+  const promote = []
+  const render = []
+  for (const key of new Set(keys)) {
+    if (!key || isKnown(key)) continue
+    if (isPending(key)) promote.push(key)
+    else if (!wasTried(key) && render.length < limit) render.push(key)
+  }
+  return { promote, render }
+}
+
+export const warmUrlOf = (key, width = WARM_WIDTH) => `${key}${key.includes('?') ? '&' : '?'}w=${width}`
+
+export const widthHashesOf = (row) => row?.hashes ?? (row ? { [row.width]: row.sourceHash } : {})
+
+export const servedVerdictOf = ({ row, width, sourceHash, pendingWidth = 0, version = FOCUS_VERSION }) => {
+  if (pendingWidth >= width) return 'skip'
+  if (!row) return 'detect'
+  const known = widthHashesOf(row)[width]
+  if (known && known !== sourceHash) return 'detect'
+  if (row.version !== version) return row.width > width ? 'skip' : 'detect'
+  return known ? 'skip' : 'note-hash'
+}
+
+export const staleRowsOf = ({ rows, version = FOCUS_VERSION }) => [...rows]
+  .filter((row) => row.version !== version)
+  .sort((a, b) => (a.updatedAt ?? 0) - (b.updatedAt ?? 0))
+
+export const refreshUrlOf = (row) => (row.width >= ORIGINAL_WIDTH ? row.urlKey : warmUrlOf(row.urlKey, row.width))
+
 export const createImageFocus = ({
   loadRows,
   saveRow,
   isEnabled,
   readHeadroomMb,
   detect,
+  render = async () => null,
   now = Date.now,
   delayMs = DRAIN_DELAY_MS,
+  urgentDelayMs = URGENT_DELAY_MS,
+  warmStartMs = WARM_START_MS,
+  warmRetryMs = WARM_RETRY_MS,
+  refreshGapMs = REFRESH_GAP_MS,
+  refreshStartMs = REFRESH_START_MS,
   pauseMs = BATCH_PAUSE_MS,
   retryMs = LOW_MEMORY_RETRY_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
@@ -96,9 +132,15 @@ export const createImageFocus = ({
 }) => {
   const rows = new Map()
   const pending = new Map()
+  const tried = new Map()
+  const warmQueue = []
   let loading = null
   let timer = null
+  let timerDueAt = 0
   let draining = null
+  let warming = null
+  let warmed = null
+  let refreshing = null
   let pausedUntil = 0
 
   const prepare = () => {
@@ -111,8 +153,7 @@ export const createImageFocus = ({
 
   const isCurrent = ({ urlKey, width, sourceHash }) => {
     const row = rows.get(urlKey)
-    if (!row || row.version !== FOCUS_VERSION) return false
-    return row.width > width || (row.width === width && row.sourceHash === sourceHash)
+    return row?.version === FOCUS_VERSION && widthHashesOf(row)[width] === sourceHash
   }
 
   const noteServed = ({ url, body }) => {
@@ -120,10 +161,11 @@ export const createImageFocus = ({
     if (!urlKey || !body?.length) return false
     const width = requestedWidthOf(url) ?? ORIGINAL_WIDTH
     const row = rows.get(urlKey)
-    if (row?.version === FOCUS_VERSION && row.width > width) return false
-    if ((pending.get(urlKey)?.width ?? 0) >= width) return false
-    const job = { urlKey, width, body, sourceHash: hashOf(body) }
-    if (isCurrent(job)) return false
+    const sourceHash = hashOf(body)
+    const verdict = servedVerdictOf({ row, width, sourceHash, pendingWidth: pending.get(urlKey)?.width ?? 0 })
+    if (verdict === 'note-hash') rememberHash({ row, width, sourceHash })
+    if (verdict !== 'detect') return false
+    const job = { urlKey, width, body, sourceHash }
     pending.delete(urlKey)
     pending.set(urlKey, job)
     while (pending.size > maxPending) pending.delete(pending.keys().next().value)
@@ -133,6 +175,7 @@ export const createImageFocus = ({
 
   const schedule = (ms) => {
     if (timer || draining) return
+    timerDueAt = now() + ms
     timer = setTimeout(() => {
       timer = null
       draining = drain().finally(() => {
@@ -141,6 +184,95 @@ export const createImageFocus = ({
       })
     }, ms)
     timer.unref?.()
+  }
+
+  const scheduleWithin = (ms) => {
+    if (draining) return
+    if (timer && timerDueAt <= now() + ms) return
+    clearTimeout(timer)
+    timer = null
+    schedule(ms)
+  }
+
+  const promote = (keys) => {
+    const first = keys.filter((key) => pending.has(key))
+    if (!first.length) return false
+    const rest = [...pending.entries()].filter(([key]) => !first.includes(key))
+    const promoted = first.map((key) => [key, pending.get(key)])
+    pending.clear()
+    for (const [key, job] of [...promoted, ...rest]) pending.set(key, job)
+    scheduleWithin(urgentDelayMs)
+    return true
+  }
+
+  const hasCurrentRow = (key) => rows.get(key)?.version === FOCUS_VERSION
+
+  const hasRow = (key) => rows.has(key)
+
+  const rememberHash = ({ row, width, sourceHash }) => {
+    const updated = { ...row, hashes: { ...widthHashesOf(row), [width]: sourceHash } }
+    rows.set(row.urlKey, updated)
+    Promise.resolve().then(() => saveRow(updated)).catch(() => {})
+  }
+
+  const refreshStale = async () => {
+    await wait(refreshStartMs)
+    await prepare()
+    for (const row of staleRowsOf({ rows: rows.values() })) {
+      await wait(refreshGapMs)
+      while (pending.size >= batchSize || warmQueue.length || draining) await wait(refreshGapMs)
+      if (!(await Promise.resolve().then(isEnabled).catch(() => false))) return
+      if (rows.get(row.urlKey)?.version === FOCUS_VERSION) continue
+      const url = refreshUrlOf(row)
+      const body = await Promise.resolve().then(() => render(url)).catch(() => null)
+      if (body?.length) noteServed({ url, body })
+    }
+  }
+
+  const startRefresh = () => {
+    refreshing ??= refreshStale().catch(() => {})
+    return refreshing
+  }
+
+  const wasTried = (key) => {
+    const at = tried.get(key)
+    if (at === undefined) return false
+    if (now() - at < warmRetryMs) return true
+    tried.delete(key)
+    return false
+  }
+
+  const markTried = (key) => {
+    tried.delete(key)
+    tried.set(key, now())
+    while (tried.size > MAX_TRIED) tried.delete(tried.keys().next().value)
+  }
+
+  const warm = async (keys) => {
+    await prepare()
+    const plan = warmPlanOf({ keys, isKnown: hasRow, isPending: (key) => pending.has(key), wasTried })
+    promote(plan.promote)
+    plan.render.forEach(markTried)
+    warmQueue.push(...plan.render)
+    warmQueue.splice(0, Math.max(0, warmQueue.length - MAX_WARM_QUEUE))
+    warming ??= renderQueued().finally(() => { warming = null })
+    return plan
+  }
+
+  const renderQueued = async () => {
+    await wait(warmStartMs)
+    promote(warmQueue.filter((key) => pending.has(key)))
+    while (warmQueue.length) {
+      await new Promise((resolve) => setImmediate(resolve))
+      const key = warmQueue.shift()
+      if (hasCurrentRow(key)) continue
+      if (promote([key])) continue
+      const url = warmUrlOf(key)
+      const body = await Promise.resolve().then(() => render(url)).catch(() => null)
+      if (!body?.length) continue
+      noteServed({ url, body })
+      promote([focusKeyOf(url) ?? key])
+    }
   }
 
   const drain = async () => {
@@ -176,19 +308,23 @@ export const createImageFocus = ({
 
   const remember = async ({ job, result }) => {
     const focus = focusOf(result || {})
-    const row = { urlKey: job.urlKey, sourceHash: job.sourceHash, width: job.width, ...focus, version: FOCUS_VERSION, updatedAt: now() }
+    const previous = widthHashesOf(rows.get(job.urlKey))
+    const changed = previous[job.width] && previous[job.width] !== job.sourceHash
+    const hashes = { ...(changed ? {} : previous), [job.width]: job.sourceHash }
+    const row = { urlKey: job.urlKey, sourceHash: job.sourceHash, width: job.width, hashes, ...focus, version: FOCUS_VERSION, updatedAt: now() }
     rows.set(job.urlKey, row)
     await Promise.resolve().then(() => saveRow(row)).catch(() => {})
   }
 
-  const lookup = async (keys) => {
+  const lookup = async (keys, { warmMissing = false } = {}) => {
     const enabled = await Promise.resolve().then(isEnabled).catch(() => false)
     if (!enabled) return { enabled: false, items: {} }
     await prepare()
+    if (warmMissing) warmed = warm(keys).catch(() => {})
     const items = {}
     for (const key of keys) {
       const row = rows.get(key)
-      if (row?.version === FOCUS_VERSION && row.method !== 'centre') items[key] = { x: row.x, y: row.y, box: row.box }
+      if (row && row.method !== 'centre') items[key] = { x: row.x, y: row.y, box: row.box }
     }
     return { enabled: true, items }
   }
@@ -209,9 +345,16 @@ export const createImageFocus = ({
 
   const settle = () => draining ?? Promise.resolve()
 
-  const stats = () => ({ rows: rows.size, pending: pending.size })
+  const settleWarming = async () => {
+    await warmed
+    await warming
+  }
 
-  return { prepare, noteServed, lookup, tap, settle, stats }
+  const stats = () => ({ rows: rows.size, pending: pending.size, warming: warmQueue.length })
+
+  const pendingKeys = () => [...pending.keys()]
+
+  return { prepare, noteServed, lookup, warm, startRefresh, tap, settle, settleWarming, stats, pendingKeys }
 }
 
 export const runFocusWorker = ({ jobs, modelPath = MODEL_PATH, timeoutMs = WORKER_TIMEOUT_MS }) => new Promise((resolve, reject) => {
@@ -294,6 +437,8 @@ const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0))
 
 const rounded = (value) => Math.round(value * 1000) / 1000
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 const parseJson = (text) => {
   try {
     return JSON.parse(text)
@@ -321,6 +466,15 @@ const LOW_PRIORITY = 19
 const BATCH_SIZE = 16
 const MAX_PENDING = 2000
 const DRAIN_DELAY_MS = 5 * 1000
+const URGENT_DELAY_MS = 1000
+const WARM_WIDTH = 768
+const WARM_START_MS = 750
+const REFRESH_GAP_MS = 3 * 1000
+const REFRESH_START_MS = 60 * 1000
+const MAX_WARM_KEYS = 12
+const MAX_WARM_QUEUE = 24
+const MAX_TRIED = 500
+const WARM_RETRY_MS = 10 * 60 * 1000
 const BATCH_PAUSE_MS = 2 * 1000
 const LOW_MEMORY_RETRY_MS = 10 * 60 * 1000
 const FAILURE_BACKOFF_MS = 30 * 60 * 1000

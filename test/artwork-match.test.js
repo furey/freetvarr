@@ -2,6 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  cachedStateOf,
+  readSizedCache,
+  sizedKeyOf,
   dominantFilmOf,
   sharesAnyTerm,
   articleCandidateIdsOf,
@@ -157,7 +160,7 @@ test('tmdbAuthOf sends a read access token as a bearer header and a v3 key as a 
 
 test('tmdbSourcesOf prefers the backdrop, then the poster', () => {
   assert.deepEqual(tmdbSourcesOf({ backdrop_path: '/b.jpg', poster_path: '/p.jpg' }), [
-    'https://image.tmdb.org/t/p/w1280/b.jpg',
+    'https://image.tmdb.org/t/p/original/b.jpg',
     'https://image.tmdb.org/t/p/w780/p.jpg',
   ])
   assert.deepEqual(tmdbSourcesOf({}), [])
@@ -300,4 +303,16 @@ test('programmeHintsByTitle names the guide channels each title airs on', () => 
   ], { channels })
   assert.deepEqual(hints.get('big brother').channelNames, ['10 HD', '10'])
   assert.deepEqual(programmeHintsByTitle([{ title: 'Big Brother', channel_id: 'a' }]).get('big brother').channelNames, [])
+})
+
+test('readSizedCache reads the sized key first and marks an older unsized entry as superseded', async () => {
+  const rows = new Map([['tmdb:bluey', { sources: ['old'], expiresAt: 5000 }]])
+  const read = async (key) => rows.get(key) ?? null
+  const old = await readSizedCache({ read, key: 'tmdb:bluey' })
+  assert.deepEqual(old, { sources: ['old'], expiresAt: 5000, superseded: true })
+  assert.equal(cachedStateOf({ cached: old, nowMs: 1000, hitTtlMs: 4000, hasValue: true }), 'stale')
+  assert.equal(cachedStateOf({ cached: { ...old, sources: [] }, nowMs: 1000, hitTtlMs: 4000, hasValue: false }), 'missing')
+  rows.set(sizedKeyOf('tmdb:bluey'), { sources: ['new'], expiresAt: 9000 })
+  assert.deepEqual(await readSizedCache({ read, key: 'tmdb:bluey' }), { sources: ['new'], expiresAt: 9000 })
+  assert.equal(await readSizedCache({ read: async () => { throw new Error('locked') }, key: 'x' }), null)
 })

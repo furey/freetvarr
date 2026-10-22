@@ -38,13 +38,13 @@ test('plexArtsPoolOf puts the selected art first and routes art through the Plex
   ])
   assert.equal(pool.length, 2)
   assert.equal(pool[0].selected, true)
-  assert.match(pool[0].origin, /^plex:\/photo\/:\/transcode\?width=1280&height=720/)
+  assert.match(pool[0].origin, /^plex:\/photo\/:\/transcode\?width=1920&height=1080/)
   assert.ok(pool[1].origin.endsWith(`url=${encodeURIComponent('https://image.tmdb.org/a.jpg')}`))
 })
 
 test('plexSourceOf adds the server and token at fetch time', () => {
   const source = plexSourceOf({ origin: plexTranscodeOrigin('/x'), url: 'http://plex:32400', token: 'a b' })
-  assert.equal(source, 'http://plex:32400/photo/:/transcode?width=1280&height=720&minSize=1&upscale=0&url=%2Fx&X-Plex-Token=a%20b')
+  assert.equal(source, 'http://plex:32400/photo/:/transcode?width=1920&height=1080&minSize=1&upscale=0&url=%2Fx&X-Plex-Token=a%20b')
 })
 
 test('plexEpisodePoolOf uses the episode thumb, or film art and poster', () => {
@@ -149,7 +149,7 @@ test('showPool caches the TVmaze lookup', async () => {
   await poolWith({ cache, searchTvmaze }).showPool('the-block')
   await poolWith({ cache, searchTvmaze }).showPool('the-block')
   assert.equal(searches, 1)
-  assert.ok(cache.rows.has('art-pool:tvmaze-series-v2:block'))
+  assert.ok(cache.rows.has('wide-v1:art-pool:tvmaze-series-v2:block'))
 })
 
 test('recordingArt lists the guide image and the Plex episode thumb', async () => {
@@ -189,28 +189,28 @@ test('a restarted art pool serves the saved Plex art without listing Plex again'
   assert.equal(first.calls.count, 1)
   assert.equal(second.calls.count, 0)
   assert.deepEqual(after, before)
-  assert.ok(poolStore.rows.get('show:the-block').expiresAt > Date.now() + 24 * 60 * 60 * 1000)
+  assert.ok(poolStore.rows.get('wide-v1:show:the-block').expiresAt > Date.now() + 24 * 60 * 60 * 1000)
 })
 
 test('an expired saved pool is served at once and refreshed in the background', async () => {
   const poolStore = memoryCache()
-  poolStore.rows.set('show:the-block', { value: { found: true, entries: [] }, expiresAt: 0 })
+  poolStore.rows.set('wide-v1:show:the-block', { value: { found: true, entries: [] }, expiresAt: 0 })
   const { calls, plexItems } = countingPlexItems()
   const pool = await poolWith({ poolStore, plexItems }).showPool('the-block')
   assert.deepEqual(pool.entries.map((entry) => entry.source), ['library', 'tvmaze', 'tvmaze'])
   await new Promise((resolve) => setImmediate(resolve))
   assert.equal(calls.count, 1)
-  assert.equal(poolStore.rows.get('show:the-block').value.entries.length, 2)
+  assert.equal(poolStore.rows.get('wide-v1:show:the-block').value.entries.length, 2)
 })
 
 test('a Plex failure keeps the saved pool and saves nothing new', async () => {
   const poolStore = memoryCache()
   const saved = { found: true, entries: [{ origin: 'plex:/old', kind: 'background', source: 'plex', selected: false }] }
-  poolStore.rows.set('show:the-block', { value: saved, expiresAt: 0 })
+  poolStore.rows.set('wide-v1:show:the-block', { value: saved, expiresAt: 0 })
   const failing = async () => { throw new Error('Plex HTTP 500') }
   await poolWith({ poolStore, plexItems: failing }).showPool('the-block')
   await new Promise((resolve) => setImmediate(resolve))
-  assert.deepEqual(poolStore.rows.get('show:the-block').value, saved)
+  assert.deepEqual(poolStore.rows.get('wide-v1:show:the-block').value, saved)
   const fresh = memoryCache()
   const pool = await poolWith({ poolStore: fresh, plexItems: failing }).showPool('the-block')
   assert.deepEqual(pool.entries.map((entry) => entry.source), ['library', 'tvmaze'])
@@ -221,7 +221,7 @@ test('recording art is saved under a key that changes with the recording files',
   const poolStore = memoryCache()
   await poolWith({ poolStore }).recordingArt('r1')
   const [key] = poolStore.rows.keys()
-  assert.match(key, /^recording:r1:[0-9a-f]{16}$/)
+  assert.match(key, /^wide-v1:recording:r1:[0-9a-f]{16}$/)
 })
 
 test('warmHomeArtPools loads each candidate show and recording in turn', async () => {
@@ -290,4 +290,22 @@ test('the recording image route keeps the original without w and rejects other w
   assert.equal(missing.statusCode, 404)
   assert.equal(missing.headers['cache-control'], 'public, max-age=300')
   assert.equal(widths.length, 0)
+})
+
+test('tvmazePoolOf puts the widest background first so a tiny main picture never leads the hero', () => {
+  const sized = (id, width, main = false) => ({ ...tvImage({ id, main }), resolutions: { original: { url: `https://tvmaze/${id}.jpg`, width, height: Math.round(width * 9 / 16) } } })
+  const pool = tvmazePoolOf({ show: {}, images: [sized('tiny', 219, true), sized('full', 1920), sized('mid', 1280)] })
+  assert.deepEqual(pool.map((entry) => entry.origin), ['https://tvmaze/full.jpg', 'https://tvmaze/mid.jpg', 'https://tvmaze/tiny.jpg'])
+})
+
+test('a pool saved before the wide picture sizes is served at once and saved again under the sized key', async () => {
+  const poolStore = memoryCache()
+  const old = { found: true, entries: [{ origin: 'plex:/old', kind: 'background', source: 'plex', selected: false }] }
+  poolStore.rows.set('show:the-block', { value: old, expiresAt: Date.now() + 60_000 })
+  const { calls, plexItems } = countingPlexItems()
+  const pool = await poolWith({ poolStore, plexItems }).showPool('the-block')
+  assert.ok(pool.entries.some((entry) => entry.origin === 'plex:/old'))
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(calls.count, 1)
+  assert.match(poolStore.rows.get('wide-v1:show:the-block').value.entries[0].origin, /width=1920&height=1080/)
 })

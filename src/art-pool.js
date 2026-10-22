@@ -2,16 +2,16 @@ import axios from 'axios'
 import crypto from 'crypto'
 import path from 'path'
 
-import { cachedStateOf } from './artwork-match.js'
+import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
 import { findArtwork } from './artwork.js'
 import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
 import { findArtSourceThumbnail } from './epg.js'
-import { PROGRAMME_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, thumbnailWidthFrom } from './image-thumbnails.js'
+import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
 import { groupKeyOf, isLibraryMember, ruleTitleOf } from './library.js'
 import { matchPlexItem } from './library-actions.js'
 import { getPlexConnection, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
-import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLookupEnabled } from './show-artwork.js'
+import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLookupEnabled, widestFirst } from './show-artwork.js'
 import { currentTimeZone } from './time-zone.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -56,8 +56,8 @@ export const serveRecordingImage = ({
   thumbnails = recordingThumbnails,
 } = {}) => async (req, res) => {
   const wantsThumbnail = req.query.w !== undefined
-  const width = wantsThumbnail ? thumbnailWidthFrom({ requested: req.query.w, allowed: PROGRAMME_IMAGE_WIDTHS }) : null
-  if (wantsThumbnail && width === null) return res.status(400).json({ error: `w must be one of ${PROGRAMME_IMAGE_WIDTHS.join(', ')}` })
+  const width = wantsThumbnail ? heroWidthFrom(req.query.w) : null
+  if (wantsThumbnail && width === null) return res.status(400).json({ error: `w must be one of ${HERO_IMAGE_WIDTHS.join(', ')}` })
   try {
     const original = await loadOriginal(req.params.recording_id).catch(() => null)
     const image = original && wantsThumbnail
@@ -137,7 +137,7 @@ export const createArtPool = ({
     const titleKey = showTitleKey(title)
     if (!titleKey || !(await isTvmazeEnabled())) return []
     const cacheKey = `${TVMAZE_CACHE_PREFIX}${titleKey}`
-    const cached = await cache.read(cacheKey).catch(() => null)
+    const cached = await readSizedCache({ read: cache.read, key: cacheKey })
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs: tvmazeHitTtlMs, hasValue: Boolean(cached?.sources?.length) })
     if (state === 'fresh') return cached.sources
     const lookup = lookUpTvmazePool({ title, cacheKey })
@@ -150,7 +150,7 @@ export const createArtPool = ({
     const entries = show ? tvmazePoolOf({ show, images: await loadTvmazeImages(show.id) }) : []
     const missTtlMs = hints ? tvmazeMissTtlMs : TVMAZE_UNHINTED_MISS_TTL_MS
     const expiresAt = now() + (entries.length ? tvmazeHitTtlMs : missTtlMs)
-    await cache.write({ key: cacheKey, sources: entries, expiresAt }).catch(() => {})
+    await cache.write({ key: sizedKeyOf(cacheKey), sources: entries, expiresAt }).catch(() => {})
     return entries
   }
 
@@ -216,11 +216,12 @@ export const tvmazePoolOf = ({ show, images = [] }) => {
   const ofType = (type) => images
     .filter((image) => image.type === type && image.resolutions?.original?.url)
     .sort((a, b) => Number(Boolean(b.main)) - Number(Boolean(a.main)))
+  const backgrounds = widestFirst(ofType('background'))
   const showPoster = show?.image?.original
     ? [{ origin: show.image.original, kind: 'poster', source: 'tvmaze', width: null, height: null, main: true }]
     : []
   return uniqueByOrigin([
-    ...ofType('background').map((image) => entryOf(image, 'background')),
+    ...backgrounds.map((image) => entryOf(image, 'background')),
     ...showPoster,
     ...ofType('poster').map((image) => entryOf(image, 'poster')),
     ...ofType('banner').map((image) => entryOf(image, 'poster')),
@@ -291,8 +292,8 @@ export const plexTranscodeOrigin = (path) =>
   + `&url=${encodeURIComponent(path)}`
 
 const serveEntry = (artPool, loadEntries) => async (req, res) => {
-  const width = thumbnailWidthFrom({ requested: req.query.w, allowed: PROGRAMME_IMAGE_WIDTHS })
-  if (width === null) return res.status(400).json({ error: `w must be one of ${PROGRAMME_IMAGE_WIDTHS.join(', ')}` })
+  const width = heroWidthFrom(req.query.w)
+  if (width === null) return res.status(400).json({ error: `w must be one of ${HERO_IMAGE_WIDTHS.join(', ')}` })
   try {
     const entry = ((await loadEntries(req)) || []).find((candidate) => candidate.id === req.params.image_id)
     const image = entry?.origin && await artPool.imageFor({ origin: entry.origin, width })
@@ -391,7 +392,7 @@ const createPersistedMemo = ({ store, now, memoryTtlMs, hitTtlMs, missTtlMs }) =
 
   const save = async (key, value) => {
     const ttlMs = value.entries.length ? hitTtlMs : missTtlMs
-    await store.write({ key, value: { ...value, partial: undefined }, expiresAt: now() + ttlMs }).catch(() => {})
+    await store.write({ key: sizedKeyOf(key), value: { ...value, partial: undefined }, expiresAt: now() + ttlMs }).catch(() => {})
     return value
   }
 
@@ -410,9 +411,9 @@ const createPersistedMemo = ({ store, now, memoryTtlMs, hitTtlMs, missTtlMs }) =
   }
 
   const resolve = async (key, load) => {
-    const saved = await store.read(key).catch(() => null)
+    const saved = await readSizedCache({ read: store.read, key })
     if (!saved) return refresh(key, load)
-    if (saved.expiresAt <= now()) refresh(key, load, saved.value).catch(() => {})
+    if (saved.superseded || saved.expiresAt <= now()) refresh(key, load, saved.value).catch(() => {})
     return saved.value
   }
 
@@ -466,8 +467,8 @@ const databasePoolStore = {
 let recordingThumbnailStore = null
 
 const HERO_WIDTH = 768
-const PLEX_ART_WIDTH = 1280
-const PLEX_ART_HEIGHT = 720
+const PLEX_ART_WIDTH = 1920
+const PLEX_ART_HEIGHT = 1080
 const TVMAZE_CACHE_PREFIX = `art-pool:tvmaze-${SERIES_MATCH_VERSION}:`
 const MAX_PER_SOURCE = 12
 const MAX_POSTERS = 3

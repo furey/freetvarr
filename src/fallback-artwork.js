@@ -16,7 +16,9 @@ import {
   matchEvidenceOf,
   pageArtOf,
   rankEntities,
+  readSizedCache,
   sharesAnyTerm,
+  sizedKeyOf,
   tmdbAirsOnGuideChannel,
   tmdbAuthOf,
   tmdbCandidatesOf,
@@ -58,7 +60,7 @@ export const createFallbackArtwork = ({
   }
 
   const cachedSources = async (cacheKey) => {
-    const cached = await cache.read(cacheKey).catch(() => null)
+    const cached = await readSizedCache({ read: cache.read, key: cacheKey })
     const hasValue = Boolean(cached?.sources?.length)
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue, staleBeforeMs })
     if (state === 'missing' || (!hasValue && cached.reference !== MISS_REFERENCE)) return { stale: false, sources: null }
@@ -77,7 +79,7 @@ export const createFallbackArtwork = ({
         const sources = found?.sources || []
         const expiresAt = lookupExpiryOf({ found: sources.length > 0, nowMs: now(), hitTtlMs, missTtlMs })
         const reference = sources.length ? found?.reference || null : MISS_REFERENCE
-        await cache.write({ key: cacheKey, sources, reference, expiresAt }).catch(() => {})
+        await cache.write({ key: sizedKeyOf(cacheKey), sources, reference, expiresAt }).catch(() => {})
         return sources
       })
       .catch(() => {
@@ -117,6 +119,7 @@ export const createFallbackArtwork = ({
       for (const kind of [null, artworkKindOf('movie')]) {
         const cacheKey = cacheKeyOf({ mode, kind, key })
         failedUntil.delete(cacheKey)
+        await cache.remove?.(sizedKeyOf(cacheKey)).catch(() => {})
         await cache.remove?.(cacheKey).catch(() => {})
       }
     }
@@ -354,5 +357,5 @@ const LOOKUP_CONCURRENCY = 2
 const LOOKUP_MAX_QUEUE = 300
 const WIKIDATA_SEARCH_LIMIT = 10
 const WIKIPEDIA_SEARCH_LIMIT = 5
-const WIKIPEDIA_THUMB_WIDTH = 960
+const WIKIPEDIA_THUMB_WIDTH = 1920
 const SPARQL_TIMEOUT_MS = 20000

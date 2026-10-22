@@ -137,7 +137,7 @@ import {
 } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { getRecordingNow, recordingImageSource } from './recording-now.js'
-import { CHANNEL_LOGO_WIDTHS, PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
+import { CHANNEL_LOGO_WIDTHS, HERO_IMAGE_WIDTHS, heroWidthFrom, thumbnailWidthFrom } from './image-thumbnails.js'
 import {
   LIVE_ROOT,
   LiveTvError,
@@ -680,8 +680,8 @@ const imageResultOf = (result) => (result?.body
   ? { image: result, pending: false }
   : { image: result?.image ?? null, pending: Boolean(result?.pending) })
 
-const serveImage = ({ widths, loadImage, paramsOf = (req) => req.params }) => async (req, res) => {
-  const width = thumbnailWidthFrom({ requested: req.query.w, allowed: widths })
+const serveImage = ({ widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf = (req) => req.params }) => async (req, res) => {
+  const width = widthOf(req.query.w)
   if (width === null) return res.status(400).json({ error: `w must be one of ${widths.join(', ')}` })
   try {
     const { image, pending } = imageResultOf(await loadImage({ ...paramsOf(req), width }))
@@ -699,7 +699,8 @@ app.get('/api/epg/logo/:channelId', serveImage({
   loadImage: ({ channelId, width }) => getChannelThumbnail({ channelId, width }),
 }))
 app.get('/api/epg/image/:eventId', serveImage({
-  widths: PROGRAMME_IMAGE_WIDTHS,
+  widths: HERO_IMAGE_WIDTHS,
+  widthOf: heroWidthFrom,
   loadImage: ({ eventId, width }) =>
     findProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
 }))
@@ -711,7 +712,8 @@ app.get('/api/epg/person-image', serveImage({
 }))
 
 app.get('/api/epg/show-image', serveImage({
-  widths: PROGRAMME_IMAGE_WIDTHS,
+  widths: HERO_IMAGE_WIDTHS,
+  widthOf: heroWidthFrom,
   loadImage: ({ width, title, shape, kind }) => (shape === POSTER_SHAPE
     ? findShowPoster({ title, width, kind })
     : findShowThumbnail({ title, width, kind })),
@@ -725,7 +727,8 @@ app.get('/api/epg/show-image', serveImage({
 app.get('/api/image-focus', async (req, res) => {
   const keys = [req.query.k ?? []].flat().map(String).slice(0, MAX_FOCUS_KEYS)
   res.setHeader('Cache-Control', 'no-store')
-  res.json(await imageFocus.lookup(keys).catch(() => ({ enabled: false, items: {} })))
+  const warmMissing = req.query.warm === '1'
+  res.json(await imageFocus.lookup(keys, { warmMissing }).catch(() => ({ enabled: false, items: {} })))
 })
 
 const guideHints = createGuideHints({ loadGuide: getGuideSnapshot })
@@ -2256,7 +2259,7 @@ const server = app.listen(PORT, async () => {
     sweepLibraryStates().catch((err) => console.warn(`[sync] library check: ${err.message}`))
     shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
     prepareThumbnailCache()
-    imageFocus.prepare()
+    imageFocus.startRefresh()
   } catch (err) {
     console.error('[sync] failed to reconcile recording paths:', err.message)
   }

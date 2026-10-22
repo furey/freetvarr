@@ -1,7 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { columnDetailOf, createImageFocus, facesFromScores, focusOf, pillarBandOf, suppressOverlaps } from '../src/image-focus.js'
-import { focusKeyOf, isFocusImagePath, objectPositionOf, requestedWidthOf } from '../src/web/image-focus.js'
+import {
+  FOCUS_VERSION, columnDetailOf, createImageFocus, facesFromScores, focusOf, pillarBandOf, refreshUrlOf, servedVerdictOf, staleRowsOf,
+  suppressOverlaps, warmPlanOf,
+} from '../src/image-focus.js'
+import {
+  FOCUS_RECHECK_DELAYS_MS, dueRechecksOf, focusKeyOf, focusPointInViewOf, isFocusImagePath, objectPositionOf, recheckDelayOf, requestedWidthOf,
+} from '../src/web/image-focus.js'
 
 const WIDE = { width: 768, height: 432 }
 const PHONE_HERO = { width: 390, height: 488 }
@@ -334,4 +339,151 @@ test('objectPositionOf centres a portrait composite in a phone hero and leaves w
     objectPositionOf({ natural: WIDE, view: DESKTOP_HERO, focus: composite }),
     objectPositionOf({ natural: WIDE, view: DESKTOP_HERO, focus: plain }),
   )
+})
+
+test('warmPlanOf promotes pending pictures, renders unknown ones, and skips known or recently tried ones', () => {
+  const plan = warmPlanOf({
+    keys: ['/a', '/b', '/c', '/d', '/a', null],
+    isKnown: (key) => key === '/c',
+    isPending: (key) => key === '/b',
+    wasTried: (key) => key === '/d',
+  })
+  assert.deepEqual(plan, { promote: ['/b'], render: ['/a'] })
+  const many = warmPlanOf({ keys: ['/1', '/2', '/3'], isKnown: () => false, isPending: () => false, wasTried: () => false, limit: 2 })
+  assert.deepEqual(many.render, ['/1', '/2'])
+})
+
+test('a warm lookup renders a missing hero picture and detects it ahead of the normal delay', async () => {
+  const rendered = []
+  const { focus, calls } = createQueue({
+    delayMs: 60_000,
+    urgentDelayMs: 0,
+    warmStartMs: 0,
+    render: async (url) => { rendered.push(url); return Buffer.from(`body of ${url}`) },
+  })
+  const answer = await focus.lookup(['/api/epg/show-image?title=Chefs+Ahoy'], { warmMissing: true })
+  assert.deepEqual(answer.items, {})
+  await focus.settleWarming()
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  await focus.settle()
+  assert.deepEqual(rendered, ['/api/epg/show-image?title=Chefs+Ahoy&w=768'])
+  assert.deepEqual(calls, [['/api/epg/show-image?title=Chefs+Ahoy']])
+  const again = await focus.lookup(['/api/epg/show-image?title=Chefs+Ahoy'], { warmMissing: true })
+  assert.ok(again.items['/api/epg/show-image?title=Chefs+Ahoy'])
+  assert.equal(rendered.length, 1)
+})
+
+test('a warm lookup moves an already served picture to the front of the queue', async () => {
+  const { focus, calls } = createQueue({ delayMs: 60_000, urgentDelayMs: 0, warmStartMs: 0, batchSize: 1 })
+  focus.noteServed({ url: '/api/epg/image/1?w=192', body: Buffer.from('row') })
+  focus.noteServed({ url: '/api/epg/image/2?w=1920', body: Buffer.from('hero') })
+  await focus.warm(['/api/epg/image/2'])
+  assert.deepEqual(focus.pendingKeys(), ['/api/epg/image/2', '/api/epg/image/1'])
+  await waitForDrain(focus)
+  assert.deepEqual(calls[0], ['/api/epg/image/2'])
+})
+
+test('a picture that fails to render is not rendered again within ten minutes', async () => {
+  let nowMs = 0
+  let renders = 0
+  const { focus } = createQueue({ now: () => nowMs, warmStartMs: 0, render: async () => { renders += 1; return null } })
+  await focus.warm(['/api/epg/image/7'])
+  await focus.settleWarming()
+  await focus.warm(['/api/epg/image/7'])
+  await focus.settleWarming()
+  assert.equal(renders, 1)
+  nowMs = 11 * 60 * 1000
+  await focus.warm(['/api/epg/image/7'])
+  await focus.settleWarming()
+  assert.equal(renders, 2)
+})
+
+test('recheckDelayOf asks again about 2, 5, and 15 seconds after the first miss, then stops', () => {
+  const startedAtMs = 1000
+  assert.equal(recheckDelayOf({ attempt: 0, startedAtMs, nowMs: 1150 }), 1850)
+  assert.equal(recheckDelayOf({ attempt: 1, startedAtMs, nowMs: 3000 }), 3000)
+  assert.equal(recheckDelayOf({ attempt: 2, startedAtMs, nowMs: 6100 }), 9900)
+  assert.equal(recheckDelayOf({ attempt: 2, startedAtMs, nowMs: 20000 }), 0)
+  assert.equal(recheckDelayOf({ attempt: 3, startedAtMs, nowMs: 16000 }), null)
+  assert.deepEqual(FOCUS_RECHECK_DELAYS_MS, [2000, 5000, 15000])
+})
+
+test('dueRechecksOf batches keys due now or within half a second, soonest first', () => {
+  const rechecks = new Map([
+    ['/late', { dueAt: 9000 }],
+    ['/soon', { dueAt: 5400 }],
+    ['/due', { dueAt: 4000 }],
+  ])
+  assert.deepEqual(dueRechecksOf({ rechecks, nowMs: 5000 }), ['/due', '/soon'])
+  assert.deepEqual(dueRechecksOf({ rechecks, nowMs: 5000, limit: 1 }), ['/due'])
+  assert.deepEqual(dueRechecksOf({ rechecks, nowMs: 1000 }), [])
+})
+
+test('focusPointInViewOf gives the focus point as a share of the shown frame', () => {
+  const natural = { width: 1920, height: 1080 }
+  assert.deepEqual(focusPointInViewOf({ natural, view: natural, position: '50% 50%', focus: { x: 0.25, y: 0.4 } }), { x: 0.25, y: 0.4 })
+  const view = { width: 390, height: 488 }
+  const focus = { x: 0.8, y: 0.3, box: [0.7, 0.2, 0.9, 0.5] }
+  const position = objectPositionOf({ natural, view, focus })
+  const point = focusPointInViewOf({ natural, view, position, focus })
+  assert.ok(point.x > 0 && point.x < 1, JSON.stringify(point))
+  assert.equal(point.y, 0.3)
+  assert.equal(focusPointInViewOf({ natural, view, position, focus: null }), null)
+})
+
+const storedRow = (over) => ({
+  urlKey: '/api/epg/show-image?title=Bluey', sourceHash: 'h768', width: 768, x: 0.3, y: 0.4, box: null,
+  method: 'faces', version: FOCUS_VERSION, updatedAt: 1, ...over,
+})
+
+test('servedVerdictOf detects a changed picture at any width it has seen, and only notes new widths', () => {
+  const row = storedRow({ hashes: { 768: 'h768', 384: 'h384' } })
+  assert.equal(servedVerdictOf({ row, width: 768, sourceHash: 'h768' }), 'skip')
+  assert.equal(servedVerdictOf({ row, width: 384, sourceHash: 'new' }), 'detect')
+  assert.equal(servedVerdictOf({ row, width: 1920, sourceHash: 'h1920' }), 'note-hash')
+  assert.equal(servedVerdictOf({ row: null, width: 384, sourceHash: 'x' }), 'detect')
+  assert.equal(servedVerdictOf({ row, width: 384, sourceHash: 'new', pendingWidth: 768 }), 'skip')
+  const legacy = storedRow({ version: FOCUS_VERSION - 1 })
+  assert.equal(servedVerdictOf({ row: legacy, width: 768, sourceHash: 'h768' }), 'detect')
+  assert.equal(servedVerdictOf({ row: legacy, width: 192, sourceHash: 'h192' }), 'skip')
+  assert.equal(servedVerdictOf({ row: legacy, width: 768, sourceHash: 'changed' }), 'detect')
+})
+
+test('the queue re-detects a picture that changed behind the same address at a smaller width', async () => {
+  const { focus, calls } = createQueue()
+  focus.noteServed({ url: '/api/epg/show-image?title=Bluey&w=768', body: Buffer.from('old picture at 768') })
+  await waitForDrain(focus)
+  assert.equal(focus.noteServed({ url: '/api/epg/show-image?title=Bluey&w=384', body: Buffer.from('old picture at 384') }), false)
+  assert.equal(focus.noteServed({ url: '/api/epg/show-image?title=Bluey&w=384', body: Buffer.from('old picture at 384') }), false)
+  assert.ok(focus.noteServed({ url: '/api/epg/show-image?title=Bluey&w=384', body: Buffer.from('new picture at 384') }))
+  await waitForDrain(focus)
+  assert.equal(calls.length, 2)
+})
+
+test('rows from an older focus version keep answering lookups and are recomputed oldest first', async () => {
+  const older = FOCUS_VERSION - 1
+  const stored = [
+    storedRow({ urlKey: '/api/epg/image/2', updatedAt: 20, version: older, width: 384 }),
+    storedRow({ urlKey: '/api/epg/image/1', updatedAt: 10, version: older, width: 1000 }),
+    storedRow({ urlKey: '/api/epg/image/3', updatedAt: 5 }),
+  ]
+  assert.deepEqual(staleRowsOf({ rows: stored }).map((row) => row.urlKey), ['/api/epg/image/1', '/api/epg/image/2'])
+  assert.equal(refreshUrlOf(stored[0]), '/api/epg/image/2?w=384')
+  assert.equal(refreshUrlOf(stored[1]), '/api/epg/image/1')
+  const rendered = []
+  const saved = []
+  const { focus, calls } = createQueue({
+    loadRows: async () => stored,
+    saveRow: async (row) => { saved.push(row) },
+    render: async (url) => { rendered.push(url); return Buffer.from(`picture ${url}`) },
+    refreshStartMs: 0,
+    refreshGapMs: 0,
+  })
+  const before = await focus.lookup(['/api/epg/image/1', '/api/epg/image/2'])
+  assert.deepEqual(Object.keys(before.items), ['/api/epg/image/1', '/api/epg/image/2'])
+  await focus.startRefresh()
+  await waitForDrain(focus)
+  assert.deepEqual(rendered, ['/api/epg/image/1', '/api/epg/image/2?w=384'])
+  assert.deepEqual(calls.flat().sort(), ['/api/epg/image/1', '/api/epg/image/2'])
+  assert.ok(saved.every((row) => row.version === FOCUS_VERSION))
 })

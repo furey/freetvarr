@@ -38,6 +38,7 @@ import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/sho
 import { showKeyOf } from '/show-key.js'
 import { forYouHidden, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { heroArtPoolsFor } from '/shared/hero-art-pools.js'
+import { warmImageFocus } from '/shared/image-focus.js'
 import { loadNowAll } from '/shared/channel-twins.js'
 import { browserStorage } from '/shared/storage.js'
 import { freshHomeOf, readHomeCache, writeHomeCache } from '/home-cache.js'
@@ -50,6 +51,7 @@ import { now, tz, fmtClockTz } from '/shared/time.js'
 import { toast } from '/shared/toast.js'
 
 const HERO_POOL_WAIT_MS = 2000
+const FOCUS_WARM_ROW_ITEMS = 4
 const HOME_BUILD = loadedBuild || 'dev'
 
 const EMPTY_HOME = {
@@ -124,6 +126,11 @@ const heroFeedWith = ({ home, nowMs, forYou, topRated }) => ({
   nowMs,
   timeZone: tz.value,
 })
+
+const focusWarmUrlsOf = ({ slides, row }) => [
+  ...slides.map((slide) => slide.art.image),
+  ...row.slice(0, FOCUS_WARM_ROW_ITEMS).map((recording) => recording.image),
+].filter(Boolean)
 
 const heroPoolsWithin = (pools) =>
   Promise.race([pools, new Promise((resolve) => setTimeout(() => resolve(null), HERO_POOL_WAIT_MS))])
@@ -303,6 +310,8 @@ export const HomeView = {
     const heroRecordingIds = computed(() => heroRecordingIdsOf(heroSlides.value))
     const heroProgramIds = computed(() => heroProgramIdsOf(heroSlides.value))
     const newRecordingsRow = computed(() => newRecordings.value.filter((r) => !heroRecordingIds.value.has(r.recordingId)))
+    const focusWarmUrls = computed(() => focusWarmUrlsOf({ slides: heroSlides.value, row: newRecordingsRow.value }).join('\n'))
+    watch(focusWarmUrls, (joined) => { if (joined) warmImageFocus(joined.split('\n')) }, { immediate: true })
     const tonight = computed(() => tonightOf({
       upcoming: upcoming.value.filter((u) => !heroProgramIds.value.has(String(u.programId))),
       activeProgramIds: activeProgramIds.value,

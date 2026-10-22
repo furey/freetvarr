@@ -49,6 +49,33 @@ export const objectPositionOf = ({ natural, view, focus, avoid = {} }) => {
   return `${x}% ${y}%`
 }
 
+export const FOCUS_RECHECK_DELAYS_MS = [2000, 5000, 15000]
+
+export const recheckDelayOf = ({ attempt, startedAtMs, nowMs, delays = FOCUS_RECHECK_DELAYS_MS }) => {
+  if (attempt >= delays.length) return null
+  return Math.max(0, startedAtMs + delays[attempt] - nowMs)
+}
+
+export const dueRechecksOf = ({ rechecks, nowMs, slackMs = RECHECK_SLACK_MS, limit = Infinity }) => [...rechecks]
+  .filter(([, { dueAt }]) => dueAt <= nowMs + slackMs)
+  .sort(([, a], [, b]) => a.dueAt - b.dueAt)
+  .slice(0, limit)
+  .map(([key]) => key)
+
+export const focusPointInViewOf = ({ natural, view, position, focus }) => {
+  if (!focus || !isSized(natural) || !isSized(view)) return null
+  const scale = Math.max(view.width / natural.width, view.height / natural.height)
+  const [px, py] = String(position || '50% 50%').split(' ').map((part) => (parseFloat(part) || 0) / 100)
+  const axis = ({ size, length, percent, at }) => {
+    const shown = size * scale
+    return toThousandths(((length - shown) * percent + at * shown) / length)
+  }
+  return {
+    x: axis({ size: natural.width, length: view.width, percent: px, at: focus.x }),
+    y: axis({ size: natural.height, length: view.height, percent: py ?? 0.5, at: focus.y }),
+  }
+}
+
 const axisPercentOf = ({ size, view, keep, anchor, anchorAt, avoidStart, avoidEnd }) => {
   const overflow = size - view
   if (overflow < MIN_OVERFLOW_PX) return 50
@@ -86,6 +113,8 @@ const clampFraction = (value) => clamp(Number(value) || 0, 0, MAX_AVOID)
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
+const toThousandths = (value) => Math.round(value * 1000) / 1000
+
 const LOCAL_BASE = 'http://localhost'
 const IGNORED_PARAMS = ['w', 'c']
 const CENTRE = 0.5
@@ -93,3 +122,4 @@ const EYE_LINE_AT = 0.4
 const MIN_OVERFLOW_PX = 1
 const MAX_AVOID = 0.6
 const MIN_USABLE_SHARE = 0.4
+const RECHECK_SLACK_MS = 500
