@@ -1353,7 +1353,7 @@ svg.epg-rail-logo {
   border-top: 1px solid var(--color-hairline);
   border-bottom: 1px solid var(--color-hairline);
   background: rgba(11, 17, 23, 0.45);
-  overscroll-behavior-x: contain;
+  overscroll-behavior: contain;
 }
 
 .epg-canvas {
@@ -2332,11 +2332,6 @@ body.epg-drag-lock * {
 
 :root {
   --player-edge-right: calc(env(safe-area-inset-right, 0px) + 1rem);
-}
-
-html,
-body {
-  overscroll-behavior-y: none;
 }
 
 .pull-refresh {

@@ -4,10 +4,10 @@ import { pollRecordingNow } from '/shared/recording-now.js'
 import { refreshTick } from '/shared/store.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
+import { PULL_SLOP_PX, pullMoveOf } from '/pull-gesture.js'
 
 const PULL_TRIGGER_PX = 60
 const PULL_HOLD_PX = 52
-const PULL_SLOP_PX = 6
 const PULL_TICKS = 8
 const PULL_MIN_SPIN_MS = 600
 const PULL_FADE_MS = 200
@@ -128,15 +128,15 @@ export const installPullToRefresh = ({ onRefresh }) => {
     const touch = e.touches[0]
     const dx = touch.clientX - start.x
     const dy = touch.clientY - start.y
-    if (!claimed) {
-      if (Math.abs(dx) < PULL_SLOP_PX && Math.abs(dy) < PULL_SLOP_PX) return
-      if (Math.abs(dx) > dy) {
-        start = null
-        return
-      }
-      claimed = true
+    const move = pullMoveOf({ dx, dy, claimed })
+    if (move === 'wait') return
+    if (move === 'abandon') {
+      start = null
+      return
     }
-    e.preventDefault()
+    if (e.cancelable) e.preventDefault()
+    if (move === 'hold') return
+    claimed = true
     place(rubberBand(Math.max(0, dy - PULL_SLOP_PX)))
     if (!committed && offset >= PULL_TRIGGER_PX) commit()
   }, { passive: false })

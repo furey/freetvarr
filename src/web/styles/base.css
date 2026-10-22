@@ -1293,6 +1293,7 @@ body.sheet-open .app-tabbar {
 .ui-chip-row.is-scroll {
   flex-wrap: nowrap;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
 
