@@ -70,7 +70,9 @@ export const SettingsShell = {
             </button>
             <brand-wordmark v-else class="settings-about-wordmark" />
           </h2>
-          <h2 v-else class="settings-page-title">{{ page.label }}</h2>
+          <div v-else class="settings-page-heading">
+            <h2 class="settings-page-title">{{ page.label }}</h2><span id="settings-page-info"></span>
+          </div>
           <p v-if="intro" class="settings-page-intro">{{ intro }}</p>
         </header>
         <component :is="pageView.view" v-bind="pageView.props" :key="page.view === 'settings' ? 'settings' : page.id" />
@@ -86,7 +88,7 @@ export const SettingsShell = {
       if (page.value?.view === 'for-you') return { view: SuggestionsSettingsView, props: {} }
       if (page.value?.view === 'player') return { view: PlayerSettingsView, props: {} }
       if (page.value?.view === 'channels') return { view: ChannelsSettingsView, props: {} }
-      return { view: SettingsView, props: {} }
+      return { view: SettingsView, props: { section: page.value?.section } }
     })
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))
     const intro = computed(() => PAGE_INTROS[page.value?.id] || '')

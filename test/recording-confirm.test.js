@@ -132,7 +132,8 @@ test('clearRowConfirm: a row TVHeadend still has comes back at the next sync', (
 
 test('clearListConfirm: plural wording', () => {
   const dialog = clearListConfirm({ count: 12, undoSeconds: 10 })
-  assert.equal(dialog.title, 'Clear 12 recordings from the list')
+  assert.equal(dialog.title, 'Clear 12 rows from the log')
+  assert.equal(dialog.confirmLabel, 'Clear')
   assert.deepEqual(dialog.body, [
     'TVHeadend no longer has these recordings. Their rows leave this list, on every page and filter.',
     'The files stay in your library, and your media player still shows them.'
@@ -143,7 +144,7 @@ test('clearListConfirm: plural wording', () => {
 
 test('clearListConfirm: singular wording', () => {
   const dialog = clearListConfirm({ count: 1, undoSeconds: 10 })
-  assert.equal(dialog.title, 'Clear 1 recording from the list')
+  assert.equal(dialog.title, 'Clear 1 row from the log')
   assert.match(dialog.body[0], /^TVHeadend no longer has this recording\. Its row leaves this list/)
   assert.match(dialog.body[1], /^The file stays in your library, and your media player still shows it\. To delete it for good, delete it/)
   assert.match(dialog.body[2], /^For 10 seconds, Undo puts the row back\./)

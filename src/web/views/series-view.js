@@ -31,10 +31,7 @@ export const SeriesView = {
   template: `
     <div v-page-reveal class="settings-page series-page">
       <template v-if="part === 'series'">
-        <div class="settings-toolbar">
-          <p class="settings-meta-line settings-toolbar-text">
-            Series episodes go into their own folder in the TV library. Single recordings and films go to the one-off and movies folders; see the <a href="#/settings/system/log">Recording log</a>.
-          </p>
+        <teleport defer to="#settings-page-info">
           <info-button title="Series rules" doc="guide/series">
             <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
             <p>To record a new series, open the <strong>TV guide</strong>, pick a programme, and press <strong>Record series</strong>. An SD and an HD recording of the same title show as one series.</p>
@@ -44,7 +41,7 @@ export const SeriesView = {
             <p><strong>Cancel series</strong>, in the open series, cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files.</p>
             <p>Type in the filter box to find a series by title, channel, or folder. <strong>Sort</strong> orders the rows, and <strong>Status</strong> shows only paused series, series not in the TV guide, or series recording now.</p>
           </info-button>
-        </div>
+        </teleport>
         <template v-if="loaded">
           <p v-if="error" class="ui-banner is-error">Cannot read the series recordings from TVHeadend: {{ error }}</p>
           <p v-else-if="stale" class="ui-banner is-warning">TVHeadend is not answering. This is its last known state.</p>
@@ -159,13 +156,13 @@ export const SeriesView = {
       </ui-sheet>
 
       <template v-if="part === 'folders'">
-        <div class="settings-toolbar">
-          <p class="settings-meta-line settings-toolbar-text">A recording whose title contains this text saves to its folder, even without a series recording.</p>
+        <p class="settings-meta-line">A recording whose title contains this text saves to its folder, even without a series recording.</p>
+        <teleport defer to="#settings-page-info">
           <info-button title="Title matches" doc="guide/series#title-matches">
             <p>A recording whose title contains this text saves to its folder, even without a series recording. This covers a title you typed by hand, such as <code>NRL</code>, or a series you cancelled and kept the title match for.</p>
             <p><strong>Add title</strong> adds one. Freetvarr suggests a folder under your media root, and matches folders that are already there.</p>
           </info-button>
-        </div>
+        </teleport>
         <section id="section-folders" class="settings-group">
           <div class="settings-group-head">
             <h3 class="ui-group-label">Title matches</h3>

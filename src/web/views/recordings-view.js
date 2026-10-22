@@ -41,24 +41,26 @@ const RECORDINGS_SORT_KEY = 'freetvarr.recordingsSort'
 export const RecordingsView = {
   template: `
     <div v-page-reveal class="settings-page log-page">
-      <div class="settings-toolbar">
-        <button type="button" class="ui-button" @click="askClearList" :disabled="clearing || clearable === 0"
+      <div v-if="clearable > 0 || clearing || undoIds.length" class="settings-toolbar">
+        <button v-if="clearable > 0 || clearing" type="button" class="ui-button" @click="askClearList" :disabled="clearing"
           title="Removes rows for recordings no longer in TVHeadend from this list. Files stay in your library.">
-          <cross-icon /> {{ clearing ? 'Clearing…' : 'Clear from list' }}
+          <cross-icon /> {{ clearing ? 'Clearing…' : 'Clear ' + clearable + ' not in TVHeadend' }}
         </button>
         <button v-if="undoIds.length" type="button" class="ui-button" @click="undoClear" :disabled="restoring"
           title="Puts the cleared rows back in this list."><arrow-left-icon /> Undo</button>
-        <span class="settings-toolbar-end"></span>
+      </div>
+      <teleport defer to="#settings-page-info">
         <info-button title="Recording log" doc="guide/recordings">
           <p>Every recording TVHeadend has finished, and what Freetvarr did with it: <strong>Imported</strong>, <strong>Partial</strong>, <strong>Skipped</strong>, <strong>Failed</strong>, or <strong>Not imported</strong>. The next sync tries a <strong>Partial</strong> import again.</p>
           <p><strong>Replaced</strong> means another app, such as Sonarr, put a different file for the episode in place of Freetvarr's. <strong>Not in library</strong> means the file is gone; press <strong>Import again</strong> to import the TVHeadend copy again.</p>
           <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>Import</strong> on a <strong>Not imported</strong> recording to add it to the library.</p>
           <p><strong>Not in TVHeadend</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
+          <p><strong>Clear not in TVHeadend</strong> removes rows for recordings TVHeadend has deleted. The files stay. Rows also leave by themselves after 30 days.</p>
           <p>A copy, an ad scan, or a cut shows a progress bar while it runs.</p>
           <p><strong>Sort</strong> orders the list by air date, title, series, import time, or size. The browser remembers your choice.</p>
           <p>Press a row to see the recording's details: its channel, length, size, file, ads, and the full error if it has one. The buttons there play, import, scan for ads, or remove it.</p>
         </info-button>
-      </div>
+      </teleport>
 
       <div class="settings-filters">
         <div class="settings-filter-bar">

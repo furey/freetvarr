@@ -160,3 +160,20 @@ test('the channel sort offers channel number or name, and the Settings nav marks
   assert.match(shell, /<h2 class="settings-nav-group">\{\{ group\.label \}\}<\/h2>/)
   assert.doesNotMatch(shell, /settings-nav-group-dot/)
 })
+
+test('an info button never sits in a toolbar or after an intro sentence', async () => {
+  for (const { file, source } of await scriptsAndStyles()) {
+    if (!file.endsWith('.js')) continue
+    assert.doesNotMatch(source, /<div[^>]*class="settings-toolbar"[^>]*>(?:(?!<\/div>)[\s\S])*<info-button/, file)
+    assert.doesNotMatch(source, /<p class="settings-(?:intro|meta-line)[^"]*">(?:(?!<\/p>)[\s\S])*<info-button/, file)
+  }
+  assert.doesNotMatch(await read('styles/settings.css'), /\.settings-toolbar \.info-btn/)
+})
+
+test('a page or section info button teleports into the Settings title slot', async () => {
+  assert.match(await read('views/settings-shell.js'), /<span id="settings-page-info"><\/span>/)
+  const views = ['views/recordings-view.js', 'views/series-view.js', 'views/syncs-view.js', 'views/settings-view.js', 'components/tv-apps-panel.js']
+  for (const view of views) {
+    assert.match(await read(view), /<teleport [^>]*defer to="#settings-page-info">\s*<info-button/, view)
+  }
+})

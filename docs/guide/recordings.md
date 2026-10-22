@@ -256,7 +256,7 @@ Press an imported recording that TVHeadend still has, then **Remove from TVHeade
 
 A recording that TVHeadend has deleted shows a **NOT IN TVHEADEND** marker next to its status. Hover over the marker to see when TVHeadend deleted it. The episode is still in your library, so you can play it, scan it for ads, or cut it again.
 
-These rows leave the list 30 days after the removal. To remove them sooner, press **Clear from list** in the toolbar, then **Clear from list** in the dialog. The dialog states the number of rows it clears, across every page and filter. To clear one row, press it, then **Clear from list**, then **Clear from list** in the dialog. Both remove rows from the list only (the files stay in your library). For 10 seconds after a clear, **Undo** puts the rows back.
+These rows leave the list 30 days after the removal. To remove them sooner, press **Clear N not in TVHeadend** in the toolbar (N is the number of rows), then **Clear from list** in the dialog. The button shows only while some rows are not in TVHeadend. The dialog states the number of rows it clears, across every page and filter. To clear one row, press it, then **Clear from list**, then **Clear from list** in the dialog. Both remove rows from the list only (the files stay in your library). For 10 seconds after a clear, **Undo** puts the rows back.
 
 ### Failed rows
 

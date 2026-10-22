@@ -1534,6 +1534,14 @@ button.ui-group-row {
   font-weight: 800;
 }
 
+.ui-sheet-header:has(> .info-btn) .ui-sheet-title {
+  flex: 0 1 auto;
+}
+
+.ui-sheet-header > .info-btn {
+  margin: -7px auto -7px -19px;
+}
+
 .ui-sheet-subtitle {
   margin: -8px 0 0;
   font-size: 14px;

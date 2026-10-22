@@ -28,7 +28,7 @@ export const clearRowConfirm = ({ recording, undoSeconds }) => (recording.delete
 export const clearListConfirm = ({ count, undoSeconds }) => {
   const one = count === 1
   return {
-    title: `Clear ${count} ${one ? 'recording' : 'recordings'} from the list`,
+    title: `Clear ${count} ${one ? 'row' : 'rows'} from the log`,
     body: [
       `TVHeadend no longer has ${one ? 'this recording' : 'these recordings'}.`
         + ` ${one ? 'Its row leaves' : 'Their rows leave'} this list, on every page and filter.`,
@@ -38,9 +38,8 @@ export const clearListConfirm = ({ count, undoSeconds }) => {
       `For ${undoSeconds} seconds, Undo puts the ${one ? 'row' : 'rows'} back.`
         + ` Without a clear, rows like these leave the list ${TOMBSTONE_DAYS} days after TVHeadend removed them.`,
     ],
-    confirmLabel: 'Clear from list',
+    confirmLabel: 'Clear',
     busyLabel: 'Clearing…',
-    danger: true,
   }
 }
 

@@ -10,18 +10,19 @@ import { deleteTvLoginConfirm } from '/confirm-copy.js'
 export const TvAppsPanel = {
   props: {
     tvhUrl: { type: String, default: '' },
+    showInfo: { type: Boolean, default: false },
   },
   template: `
     <section id="section-tv-apps" class="settings-section">
-      <p class="settings-intro">
-        Watch live TV with the guide in Jellyfin or Kodi.
+      <p class="settings-intro">Watch live TV with the guide in Jellyfin or Kodi.</p>
+      <teleport v-if="showInfo" defer to="#settings-page-info">
         <info-button title="Watch on TV" doc="guide/tv-apps">
           <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
           <p v-if="!login.authCode"><strong>Make a TV login</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
           <p v-else>Your TV login can only watch TV. It cannot change your settings or your recordings.</p>
           <p>Copy each detail into the app. The setup guide has the steps for each app.</p>
         </info-button>
-      </p>
+      </teleport>
       <div v-if="!tvhUrl" class="ui-group">
         <p class="settings-row settings-row-meta">Set the TVHeadend address in Settings → System → TVHeadend first.</p>
       </div>
