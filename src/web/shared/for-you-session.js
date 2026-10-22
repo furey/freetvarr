@@ -1,10 +1,11 @@
-import { ref, reactive } from '/vendor/vue.esm-browser.prod.js'
+import { computed, ref, reactive } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import { watchLive } from '/shared/live-session.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, tz } from '/shared/time.js'
 import { toast } from '/shared/toast.js'
 import { twinkleGateOf } from '/for-you-twinkle.js'
+import { createMovieKindChanges } from '/movie-kind-changes.js'
 import { showHrefOf } from '/show-key.js'
 import {
   feedbackOf,
@@ -15,9 +16,14 @@ import {
   movieKindToastOf,
   shownBatchesOf,
   tapActionOf,
+  undoneMovieKindToastOf,
 } from '/for-you.js'
 
 export const forYouHidden = ref(new Set())
+
+export const forYouKindPending = ref(new Set())
+
+export const forYouHiddenKeys = computed(() => new Set([...forYouHidden.value, ...forYouKindPending.value]))
 
 const READY_KEY = 'freetvarr.forYouRail'
 
@@ -108,6 +114,12 @@ export const setProgrammeKind = ({ showKey, kind }) => api('PUT', `/api/programm
 
 export const clearProgrammeKind = (showKey) => api('DELETE', `/api/programme-kind/${encodeURIComponent(showKey)}`)
 
+const movieKindChanges = createMovieKindChanges({
+  save: setProgrammeKind,
+  clear: clearProgrammeKind,
+  onPendingChange: (keys) => { forYouKindPending.value = keys },
+})
+
 export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)
   const why = reactive({ item: null, data: null, loading: false, failed: false })
@@ -185,19 +197,19 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
   const changeMovieKind = async (item) => {
     const showKey = identityOf(item)
     const kind = item.movieChoice
+    closeWhy()
     try {
-      await setProgrammeKind({ showKey, kind })
+      await movieKindChanges.change({ showKey, kind, reload: onChanged })
     } catch {
       toast({ text: `Could not change ${item.title}`, kind: 'error' })
       return
     }
-    onChanged()
-    toast({ text: movieKindToastOf({ title: item.title, kind }), action: { label: 'Undo', run: () => undoMovieKind(showKey) } })
+    toast({ text: movieKindToastOf({ title: item.title, kind }), action: { label: 'Undo', run: () => undoMovieKind({ item, kind }) } })
   }
 
-  const undoMovieKind = async (showKey) => {
-    await clearProgrammeKind(showKey).catch(() => {})
-    onChanged()
+  const undoMovieKind = ({ item, kind }) => {
+    toast({ text: undoneMovieKindToastOf({ title: item.title, kind }) })
+    return movieKindChanges.undo({ showKey: identityOf(item), reload: onChanged })
   }
 
   const whyRequests = new Map()

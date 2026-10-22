@@ -14,7 +14,7 @@ import {
 } from '/for-you.js'
 import { artFallbackStyle } from '/art-fallback.js'
 import { api, loadedBuild } from '/shared/api.js'
-import { forYouHidden, sendShown, useForYouActions } from '/shared/for-you-session.js'
+import { forYouHiddenKeys, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { recordingChangeTick } from '/shared/recording-now.js'
 import { now } from '/shared/time.js'
 import { browserStorage } from '/shared/storage.js'
@@ -148,7 +148,7 @@ export const ForYouView = {
     let shownSent = false
 
     const scheduledKeys = computed(() => scheduledKeysOf(upcoming.value))
-    const sections = computed(() => sectionsOf({ payload: payload.value, scheduledKeys: scheduledKeys.value, hiddenKeys: forYouHidden.value }))
+    const sections = computed(() => sectionsOf({ payload: payload.value, scheduledKeys: scheduledKeys.value, hiddenKeys: forYouHiddenKeys.value }))
     const intro = computed(() => pageIntroOf({ coldStart: Boolean(payload.value?.coldStart) }))
     const chooserShown = computed(() => chooserShownOf({
       coldStart: Boolean(payload.value?.coldStart),

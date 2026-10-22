@@ -334,6 +334,10 @@ export const movieKindToastOf = ({ title, kind }) => (kind === 'movie'
   ? `${title} is now listed as a movie`
   : `${title} is no longer listed as a movie`)
 
+export const undoneMovieKindToastOf = ({ title, kind }) => (kind === 'not-movie'
+  ? `${title} is listed as a movie again`
+  : `${title} is no longer listed as a movie`)
+
 export const tierLabelOf = (tier) => TIER_LABELS[tier] ?? 'Basic'
 
 export const tierSummaryOf = (settings) => {

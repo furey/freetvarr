@@ -29,6 +29,7 @@ import {
   tapActionOf,
   tierReasonOf,
   tierSummaryOf,
+  undoneMovieKindToastOf,
   topRatedSlideOf,
   whyRowsOf,
 } from '../src/web/for-you.js'
@@ -352,4 +353,9 @@ test('menuOf: the movie row sits between Not interested and Why this, labelled b
 test('movieKindToastOf: says whether the show is now listed as a movie', () => {
   assert.equal(movieKindToastOf({ title: 'Heron', kind: 'movie' }), 'Heron is now listed as a movie')
   assert.equal(movieKindToastOf({ title: 'Heron', kind: 'not-movie' }), 'Heron is no longer listed as a movie')
+})
+
+test('undoneMovieKindToastOf: says where the show stands after Undo', () => {
+  assert.equal(undoneMovieKindToastOf({ title: 'Heron', kind: 'not-movie' }), 'Heron is listed as a movie again')
+  assert.equal(undoneMovieKindToastOf({ title: 'Heron', kind: 'movie' }), 'Heron is no longer listed as a movie')
 })

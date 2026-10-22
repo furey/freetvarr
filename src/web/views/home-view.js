@@ -36,7 +36,7 @@ import {
 } from '/home-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
 import { showKeyOf } from '/show-key.js'
-import { forYouHidden, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
+import { forYouHiddenKeys, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { warmImageFocus } from '/shared/image-focus.js'
 import { loadNowAll } from '/shared/channel-twins.js'
 import { browserStorage } from '/shared/storage.js'
@@ -126,7 +126,7 @@ const heroSlidesFor = ({ home, nowMs }) => heroSlidesOf({
     movies: home.movies,
     upcoming: home.upcoming,
     activeProgramIds: home.activeProgramIds,
-    hiddenKeys: forYouHidden.value,
+    hiddenKeys: forYouHiddenKeys.value,
   }),
   nowMs,
   timeZone: tz.value,
@@ -301,7 +301,7 @@ export const HomeView = {
     const forYouRow = computed(() => homeRowOf({
       payload: forYouPayload.value,
       scheduledKeys: scheduledKeys.value,
-      hiddenKeys: forYouHidden.value,
+      hiddenKeys: forYouHiddenKeys.value,
     }))
     const heroMinuteMs = computed(() => Math.floor(nowMs.value / MINUTE_MS) * MINUTE_MS)
     const heroSlides = computed(() => heroSlidesFor({ home: home.value, nowMs: heroMinuteMs.value }))
