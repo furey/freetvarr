@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import {
   HERO_MOTION, REDUCED_MOTION, DRIFT, heroMotionOf, directionOf, entranceDelaysOf, entranceSettleMsOf, coverScaleOf,
   canDrift, imageNudgeOf, changeKindOf, zoomOriginOf, positionPercentOf, playSlideChange, settleSlide,
@@ -222,4 +224,14 @@ test('settleSlide: cancels leftover part animations and ignores a missing slide'
   settleSlide(slide)
   settleSlide(null)
   assert.equal(part.playState, 'idle')
+})
+
+test('hero slides hide by opacity alone, so Chrome never leaves a stale inherited visibility on the title or buttons', async () => {
+  const css = await fs.readFile(path.join(import.meta.dirname, '..', 'src', 'web', 'styles', 'home.css'), 'utf8')
+  const slideRules = [...css.matchAll(/([^{}]*\.hero-slide(?:\.is-[a-z]+)?\s*(?:,[^{}]*)?)\{([^}]*)\}/g)]
+    .filter(([, selector]) => /\.hero-slide(\.is-(active|leaving))?\s*(,|$)/m.test(selector.trim()))
+  assert.ok(slideRules.length >= 2)
+  for (const [, selector, body] of slideRules) assert.doesNotMatch(body, /visibility/, selector.trim())
+  const carousel = await fs.readFile(path.join(import.meta.dirname, '..', 'src', 'web', 'components', 'home-hero-carousel.js'), 'utf8')
+  assert.doesNotMatch(carousel, /visibility:/)
 })

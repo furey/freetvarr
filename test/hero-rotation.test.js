@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  SLIDE_MS, TOUCH_RESUME_MS, MAX_TICK_MS, rotationStart, isAdvancing, showsPauseButton, pauseButtonOf,
+  SLIDE_MS, TOUCH_RESUME_MS, MAX_TICK_MS, RESUME_MIN_MS, rotationStart, isAdvancing, showsPauseButton, pauseButtonOf,
   fillFractionOf, wrapIndex, nextRotation,
 } from '../src/web/hero-rotation.js'
 
@@ -41,10 +41,24 @@ test('hover pauses and leaving resumes from where the fill stopped', () => {
   assert.equal(left.elapsedMs, mid.elapsedMs + MAX_TICK_MS)
 })
 
-test('keyboard focus pauses until Play, even after focus leaves', () => {
+test('keyboard focus pauses until focus leaves the hero or Play is pressed', () => {
   const focused = run(rotationStart({ count: 3 }), [{ type: 'keyboardFocus' }, { type: 'pointerLeave' }])
   assert.equal(isAdvancing(focused, 0), false)
+  assert.equal(pauseButtonOf(focused, 0).action, 'play')
+  assert.equal(isAdvancing(nextRotation(focused, { type: 'keyboardLeave' }), 0), true)
   assert.equal(isAdvancing(nextRotation(focused, { type: 'play' }), 0), true)
+})
+
+test('focus leaving late in a slide leaves at least three seconds before the next one', () => {
+  const late = run(rotationStart({ count: 3 }), ticks(slideTicks - 2))
+  const left = run(late, [{ type: 'keyboardFocus' }, { type: 'keyboardLeave' }])
+  assert.equal(left.elapsedMs, SLIDE_MS - RESUME_MIN_MS)
+  assert.equal(nextRotation(late, { type: 'keyboardLeave' }), late)
+})
+
+test('Pause pressed from the keyboard still holds after focus leaves', () => {
+  const paused = run(rotationStart({ count: 3 }), [{ type: 'keyboardFocus' }, { type: 'pause' }, { type: 'keyboardLeave' }])
+  assert.equal(isAdvancing(paused, 0), false)
 })
 
 test('Pause holds until Play, and Play clears hover and touch pauses', () => {
@@ -87,4 +101,29 @@ test('reduced motion hides Pause and shows a full bar', () => {
   assert.equal(showsPauseButton(rotationStart({ count: 3 })), true)
   assert.equal(showsPauseButton(rotationStart({ count: 1 })), false)
   assert.equal(nextRotation(reduced, { type: 'nothing' }), reduced)
+})
+
+test('an open sheet holds the slide, even with the page hidden, until it closes', () => {
+  const opened = run(rotationStart({ count: 3 }), [{ type: 'overlayOpen', open: true }, ...ticks(slideTicks * 2)])
+  assert.deepEqual([opened.index, opened.elapsedMs], [0, 0])
+  assert.equal(pauseButtonOf(opened, 0).action, 'play')
+  const back = run(opened, [{ type: 'hidden', hidden: true }, { type: 'hidden', hidden: false }, ...ticks(slideTicks)])
+  assert.equal(back.index, 0)
+  assert.equal(isAdvancing(nextRotation(back, { type: 'overlayOpen', open: false }), 0), true)
+})
+
+test('closing a sheet late in a slide leaves at least three seconds before the next one', () => {
+  const late = run(rotationStart({ count: 3 }), ticks(slideTicks - 2))
+  const closed = run(late, [{ type: 'overlayOpen', open: true }, { type: 'overlayOpen', open: false }])
+  assert.equal(closed.elapsedMs, SLIDE_MS - RESUME_MIN_MS)
+  const early = run(rotationStart({ count: 3 }), ticks(2))
+  assert.equal(run(early, [{ type: 'overlayOpen', open: true }, { type: 'overlayOpen', open: false }]).elapsedMs, early.elapsedMs)
+  assert.equal(nextRotation(late, { type: 'overlayOpen', open: false }), late)
+})
+
+test('after a sheet closes, hover over the buttons still holds the slide until the pointer leaves', () => {
+  const closed = [{ type: 'overlayOpen', open: true }, { type: 'overlayOpen', open: false }]
+  const hovered = run(rotationStart({ count: 3 }), [...closed, { type: 'pointerEnter' }])
+  assert.equal(isAdvancing(hovered, 0), false)
+  assert.equal(isAdvancing(nextRotation(hovered, { type: 'pointerLeave' }), 0), true)
 })

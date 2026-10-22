@@ -15,6 +15,7 @@ import {
 import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
 import { focusKeyOf } from '/image-focus.js'
 import { HERO_SIZES, heroSrcsetOf } from '/home-hero.js'
+import { overlayStack } from '/overlay-stack.js'
 import {
   heroMotionOf,
   directionOf,
@@ -59,7 +60,7 @@ export const HomeHeroCarousel = {
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
       :class="{ 'is-reduced': rotation.reducedMotion }"
-      @pointerover="onPointerOver" @pointerleave="onPointerLeave" @focusin="onFocusIn">
+      @pointerover="onPointerOver" @pointerleave="onPointerLeave" @focusin="onFocusIn" @focusout="onFocusOut">
       <div class="hero-carousel-viewport">
         <div ref="stage" class="hero-carousel-stage" :aria-live="advancing ? 'off' : 'polite'"
           @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerUp">
@@ -126,7 +127,8 @@ export const HomeHeroCarousel = {
     const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     let state = rotationStart({ count: props.slides.length, reducedMotion: reducedQuery.matches })
     const displayKeys = ref(props.slides.map((slide) => slide.key))
-    const slidesByKey = computed(() => new Map(props.slides.map((slide) => [slide.key, slide])))
+    const keptSlides = shallowRef(null)
+    const slidesByKey = computed(() => new Map([...(keptSlides.value ?? []), ...props.slides.map((slide) => [slide.key, slide])]))
     const orderedSlides = computed(() => displayKeys.value.map((key) => slidesByKey.value.get(key)).filter(Boolean))
     const rotation = shallowRef(state)
     const clockMs = ref(Date.now())
@@ -143,6 +145,8 @@ export const HomeHeroCarousel = {
     let pendingChange = null
     let swipeCommitted = false
     let running = null
+    let restoringFocus = false
+    let stopOverlayWatch = null
     const slideEls = new Map()
     const drifts = new Map()
     const leavingKey = ref(null)
@@ -309,10 +313,30 @@ export const HomeHeroCarousel = {
 
     const onReducedChange = () => dispatch({ type: 'reducedMotion', reduced: reducedQuery.matches })
 
+    const holdSlides = () => {
+      keptSlides.value = new Map(slidesByKey.value)
+      dispatch({ type: 'overlayOpen', open: true })
+    }
+
+    const releaseSlides = () => {
+      restoringFocus = true
+      setTimeout(() => { restoringFocus = false })
+      keptSlides.value = null
+      dispatch({ type: 'overlayOpen', open: false })
+      adoptKeys(slideKeysJoined())
+    }
+
+    const onOverlayChange = (size) => {
+      if (size > 0 && !state.overlayOpen) holdSlides()
+      else if (size === 0 && state.overlayOpen) releaseSlides()
+    }
+
     onMounted(() => {
       document.addEventListener('visibilitychange', onVisibility)
       reducedQuery.addEventListener('change', onReducedChange)
       dispatch({ type: 'hidden', hidden: document.hidden })
+      stopOverlayWatch = overlayStack.subscribe(onOverlayChange)
+      onOverlayChange(overlayStack.size())
       syncClock()
       beginDrift(activeKey.value)
       predecodeNext()
@@ -321,6 +345,7 @@ export const HomeHeroCarousel = {
     onUnmounted(() => {
       document.removeEventListener('visibilitychange', onVisibility)
       reducedQuery.removeEventListener('change', onReducedChange)
+      stopOverlayWatch?.()
       stopClock()
       stopChange()
       cancelDriftsExcept([])
@@ -339,7 +364,10 @@ export const HomeHeroCarousel = {
       syncClock()
     }, { immediate: true })
 
-    watch(() => props.slides.map((s) => s.key).join('|'), (joined) => {
+    const slideKeysJoined = () => props.slides.map((s) => s.key).join('|')
+
+    const adoptKeys = (joined) => {
+      if (state.overlayOpen) return
       const keys = joined ? joined.split('|') : []
       if (sameKeySet(keys, displayKeys.value)) {
         pendingKeys = joined === displayKeys.value.join('|') ? null : keys
@@ -349,7 +377,9 @@ export const HomeHeroCarousel = {
       pendingKeys = null
       displayKeys.value = keys
       dispatch({ type: 'sync', count: keys.length, index: keys.indexOf(currentKey) })
-    })
+    }
+
+    watch(slideKeysJoined, adoptKeys)
 
     const setFillRef = (el) => {
       fillEl = el
@@ -382,7 +412,12 @@ export const HomeHeroCarousel = {
     const onPointerLeave = (e) => { if (e.pointerType === 'mouse') dispatch({ type: 'pointerLeave' }) }
 
     const onFocusIn = (e) => {
+      if (restoringFocus || state.overlayOpen) return
       if (e.target.matches?.(':focus-visible')) dispatch({ type: 'keyboardFocus' })
+    }
+
+    const onFocusOut = (e) => {
+      if (!e.currentTarget.contains(e.relatedTarget)) dispatch({ type: 'keyboardLeave' })
     }
 
     const stageWidth = () => stage.value?.offsetWidth || 1
@@ -445,7 +480,7 @@ export const HomeHeroCarousel = {
       if (i === rotation.value.index) return { transform: `translateX(${dx}px)`, transition, opacity: 1 }
       if (i !== neighbourIndex()) return null
       const offset = (dx < 0 || drag.value.direction === -1 ? 1 : -1) * (stageWidth() + SWIPE_GAP_PX)
-      return { transform: `translateX(${dx + offset}px)`, transition, opacity: 1, visibility: 'visible' }
+      return { transform: `translateX(${dx + offset}px)`, transition, opacity: 1 }
     }
 
     const emitAction = (slide, button) => emit('action', { slide, action: button.action })
@@ -456,7 +491,7 @@ export const HomeHeroCarousel = {
     return {
       stampedShowImage, heroSrcsetOf, heroSizes: HERO_SIZES,
       rotation, stage, failedArt, leavingKey, isNearActive, setSlideRef, orderedSlides, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
-      onPointerOver, onPointerLeave, onFocusIn, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
+      onPointerOver, onPointerLeave, onFocusIn, onFocusOut, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
       setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
     }
   },

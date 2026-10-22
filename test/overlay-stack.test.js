@@ -130,3 +130,16 @@ test('the back gesture closes only the overlays above the current entry', () => 
   assert.equal(stack.has(first.id), true)
   assert.equal(stack.has(second.id), false)
 })
+
+test('subscribers hear the open count on every push and remove until they unsubscribe', () => {
+  const stack = createOverlayStack()
+  const heard = []
+  const unsubscribe = stack.subscribe((size) => heard.push(size))
+  const first = stack.push()
+  const second = stack.push()
+  stack.remove(second.id)
+  stack.remove(second.id)
+  unsubscribe()
+  stack.remove(first.id)
+  assert.deepEqual(heard, [1, 2, 1])
+})
