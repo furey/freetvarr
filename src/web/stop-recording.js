@@ -15,4 +15,36 @@ export const stopRecordingOutcome = ({ recordedMs, addsToLibrary = true }) => {
   return `Stops the recording and deletes the ${minutesText(minutes)} recorded so far.`
 }
 
+export const stopConfirmOf = ({ recordedMs, seriesChannelLabel = '', addsToLibrary = true }) => {
+  const minutes = Math.floor(recordedMs / 60_000)
+  const recorded = minutes < 1 ? 'What it recorded so far' : `The ${minutesText(minutes)} recorded so far`
+  const seriesLine = seriesChannelLabel
+    ? [{ icon: 'check', title: 'The series recording', detail: `The next episode still records ${seriesChannelLabel}` }]
+    : []
+  if (!keepsStoppedRecording(recordedMs)) {
+    return {
+      title: 'Stop recording?',
+      deleted: [{ icon: 'trash', title: recorded, detail: `Freetvarr keeps a stopped recording only after ${KEEP_MINUTES} minutes` }],
+      stays: seriesLine,
+      undo: "You can't undo this.",
+      goLabel: 'Stop and delete',
+      busyLabel: 'Stopping…',
+      danger: true,
+    }
+  }
+  return {
+    title: 'Stop recording?',
+    stays: [
+      { icon: 'check', title: recorded, detail: addsToLibrary ? 'They go into your library' : 'They stay in TVHeadend' },
+      ...seriesLine,
+    ],
+    undo: '',
+    goLabel: 'Stop recording',
+    busyLabel: 'Stopping…',
+    danger: false,
+  }
+}
+
 const minutesText = (minutes) => (minutes === 1 ? '1 minute' : `${minutes} minutes`)
+
+const KEEP_MINUTES = STOP_RECORDING_KEEP_MIN_MS / 60_000

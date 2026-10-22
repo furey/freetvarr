@@ -217,7 +217,7 @@ Ad detection is cutting the wrong things, or missing breaks.
 - Ad detection is never perfect. Comskip's accuracy varies a lot by channel.
 - Set the series to **Detect** mode first and check the break counts and minutes it reports in the recording log before switching to **Cut**. Allow about 30 minutes of scan per 75-minute recording on a home NAS.
 - Cuts snap to the nearest keyframe, so a second or two either side of a break is normal.
-- To tune detection, place your own `comskip.ini` in the `/config` bind mount. Your file overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. If a cut goes wrong, rename its `<file>.ts.orig` backup back to recover the original. See [Ad removal](/guide/ad-removal).
+- To tune detection, place your own `comskip.ini` in the `/config` bind mount. Your file overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. If a cut goes wrong, press **Put the original back** in the episode menu while the `<file>.ts.orig` backup exists. See [Ad removal](/guide/ad-removal).
 
 ## Playback failed on HD channels
 

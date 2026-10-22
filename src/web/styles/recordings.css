@@ -1087,6 +1087,10 @@
   color: var(--color-live-text);
 }
 
+.library-dialog-block.is-changed svg {
+  color: var(--color-primary);
+}
+
 .library-dialog-block.is-kept svg {
   color: var(--color-success);
   stroke-width: 2.5;
@@ -1173,6 +1177,13 @@
   font-weight: 700;
 }
 
+.library-dialog-undo.is-quiet {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--color-text-2);
+}
+
 .library-dialog-buttons {
   display: flex;
   gap: 10px;
@@ -1214,6 +1225,11 @@
   background: var(--color-live);
   color: #fff;
   font-weight: 800;
+}
+
+.library-dialog-buttons .library-dialog-go.is-safe {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .library-dialog-enter-active,

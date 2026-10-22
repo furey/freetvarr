@@ -2,6 +2,7 @@ import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-bro
 import { artFallbackStyle } from '/art-fallback.js'
 import { deleteConfirmOf, deleteOutcomeOf, deleteRefusalOf } from '/delete-copy.js'
 import { menuPendingLabelOf } from '/library-menus.js'
+import { dialogBlocksOf } from '/dialog-blocks.js'
 import { overlayStack } from '/overlay-stack.js'
 import { holdAtLeast } from '/pending.js'
 import { episodeHeading } from '/show-page.js'
@@ -56,7 +57,7 @@ export const LibraryMenuSheet = {
         <div v-for="(group, g) in groups" :key="g" class="ui-group library-menu-group">
           <button v-for="item in group" :key="item.key" type="button"
             :class="['ui-group-row', 'library-menu-item', { 'is-danger': item.danger, 'is-pending': pendingKey === item.key }]"
-            :disabled="busy" :aria-busy="pendingKey === item.key" @click="$emit('choose', item.key)">
+            :disabled="busy || item.disabled" :aria-busy="pendingKey === item.key" @click="$emit('choose', item.key)">
             <span v-if="pendingKey === item.key" class="spinner library-menu-spinner" aria-hidden="true"></span><menu-icon v-else :name="item.icon" :class="'is-' + item.icon" />
             <span class="library-menu-label">{{ pendingKey === item.key ? menuPendingLabelOf(item.key) : item.label }}</span>
             <small v-if="item.detail" class="library-menu-detail">{{ item.detail }}</small>
@@ -152,7 +153,7 @@ export const DeleteConfirm = {
               </template>
             </div>
             <div class="library-dialog-buttons">
-              <button type="button" class="library-dialog-cancel" :disabled="busy" @click="cancel">Cancel</button>
+              <button ref="cancelButton" type="button" class="library-dialog-cancel" :disabled="busy" @click="cancel">Cancel</button>
               <button type="button" :class="['library-dialog-go', { 'is-pending': busy }]" :disabled="busy || !copy || !preview?.count"
                 :aria-busy="busy" @click="confirm">
                 <span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? copy?.busyLabel : (copy?.confirmLabel || 'Delete') }}
@@ -165,6 +166,7 @@ export const DeleteConfirm = {
   `,
   setup(props, { emit }) {
     const dialog = ref(null)
+    const cancelButton = ref(null)
     const zIndex = ref(null)
     const preview = ref(null)
     const loadError = ref('')
@@ -174,8 +176,6 @@ export const DeleteConfirm = {
     const leadFailed = ref(false)
     const titleId = `library-dialog-title-${++dialogCount}`
     const bodyId = `${titleId}-body`
-    let layerId = null
-    let returnFocus = null
     let loadRun = 0
 
     const ids = computed(() => (props.request?.episodes || []).map((episode) => episode.recordingId))
@@ -205,36 +205,12 @@ export const DeleteConfirm = {
       }
     }
 
-    const onKeydown = (event) => {
-      if (!overlayStack.isTop(layerId)) return
-      if (event.key === 'Tab') return keepFocusInside({ event, root: dialog.value })
-      if (event.key !== 'Escape') return
-      event.stopImmediatePropagation()
-      cancel()
-    }
-
-    const setOpen = async (isOpen) => {
-      window.removeEventListener('keydown', onKeydown, true)
-      if (!isOpen) {
-        overlayStack.remove(layerId)
-        layerId = null
-        try { document.body.classList.toggle('sheet-open', overlayStack.size() > 0) } catch {}
-        returnFocus?.focus?.()
-        return
-      }
-      const layer = overlayStack.push({ onBack: cancel })
-      layerId = layer.id
-      zIndex.value = layer.zIndex
-      try { document.body.classList.add('sheet-open') } catch {}
-      returnFocus = document.activeElement
-      window.addEventListener('keydown', onKeydown, true)
+    const onOpen = () => {
       preview.value = null
       refusal.value = ''
       stopSeries.value = false
       leadFailed.value = false
       loadPreview()
-      await nextTick()
-      dialog.value?.focus()
     }
 
     const cancel = () => {
@@ -290,16 +266,149 @@ export const DeleteConfirm = {
       }
     }
 
-    watch(() => Boolean(props.request), setOpen)
-    onUnmounted(() => {
-      if (props.request) setOpen(false)
-    })
+    useAlertDialog({ dialog, isOpen: () => Boolean(props.request), onOpen, cancel: () => cancel(), zIndex, initialFocus: () => cancelButton.value })
 
     return {
-      dialog, zIndex, preview, loadError, refusal, busy, stopSeries, leadFailed, titleId, bodyId,
+      dialog, cancelButton, zIndex, preview, loadError, refusal, busy, stopSeries, leadFailed, titleId, bodyId,
       lead, leadTitle, leadStyle, loadingTitle, copy, cancel, confirm,
     }
   },
+}
+
+export const ActionConfirm = {
+  components: { MenuIcon },
+  props: {
+    request: { type: Object, default: null },
+  },
+  emits: ['cancel', 'done'],
+  template: `
+    <teleport to="body">
+      <transition name="library-dialog">
+        <div v-if="request && copy" class="library-dialog-backdrop" :style="{ zIndex }" @click.self="cancel">
+          <section ref="dialog" class="library-dialog" role="alertdialog" aria-modal="true" :aria-labelledby="titleId"
+            :aria-describedby="bodyId" tabindex="-1">
+            <div v-if="request.lead" class="library-dialog-episode">
+              <span class="library-dialog-thumb ui-art-fallback" :style="leadStyle">
+                <img v-if="request.lead.image && !leadFailed" :src="request.lead.image" alt="" @error="leadFailed = true" />
+              </span>
+              <span class="library-dialog-episode-text">
+                <span class="library-dialog-episode-title">{{ request.lead.title }}</span>
+                <span class="library-dialog-episode-meta">{{ request.lead.meta }}</span>
+              </span>
+            </div>
+            <h2 :id="titleId" class="library-dialog-title">{{ copy.title }}</h2>
+            <div :id="bodyId" class="library-dialog-body">
+              <div v-for="block in blocks" :key="block.key" :class="['library-dialog-block', block.className]">
+                <h3 class="library-dialog-block-title">{{ block.heading }}</h3>
+                <ul>
+                  <li v-for="line in block.lines" :key="line.title"><menu-icon :name="line.icon || block.icon" /><span><b>{{ line.title }}</b><small v-if="line.detail">{{ line.detail }}</small></span></li>
+                </ul>
+              </div>
+              <p v-if="copy.note" class="library-dialog-note"><menu-icon :name="copy.noteIcon || 'clock'" /><span>{{ copy.note }}</span></p>
+              <p v-if="refusal" class="library-dialog-note is-error" role="alert"><menu-icon name="warning" /><span>{{ refusal }}</span></p>
+              <p v-if="copy.undo" :class="['library-dialog-undo', { 'is-quiet': !copy.danger }]">{{ copy.undo }}</p>
+            </div>
+            <div class="library-dialog-buttons">
+              <button ref="cancelButton" type="button" class="library-dialog-cancel" :disabled="busy" @click="cancel">Cancel</button>
+              <button type="button" :class="['library-dialog-go', { 'is-safe': !copy.danger, 'is-pending': busy }]" :disabled="busy"
+                :aria-busy="busy" @click="confirm">
+                <span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? copy.busyLabel : copy.goLabel }}
+              </button>
+            </div>
+          </section>
+        </div>
+      </transition>
+    </teleport>
+  `,
+  setup(props, { emit }) {
+    const dialog = ref(null)
+    const cancelButton = ref(null)
+    const zIndex = ref(null)
+    const busy = ref(false)
+    const refusal = ref('')
+    const leadFailed = ref(false)
+    const titleId = `library-dialog-title-${++dialogCount}`
+    const bodyId = `${titleId}-body`
+
+    const copy = computed(() => {
+      const source = props.request?.copy
+      return typeof source === 'function' ? source() : source || null
+    })
+    const blocks = computed(() => dialogBlocksOf(copy.value))
+    const leadStyle = computed(() => artFallbackStyle(props.request?.lead?.fallbackTitle || props.request?.lead?.title || ''))
+
+    const onOpen = () => {
+      busy.value = false
+      refusal.value = ''
+      leadFailed.value = false
+    }
+
+    const cancel = () => {
+      if (!busy.value) emit('cancel')
+    }
+
+    const confirm = async () => {
+      busy.value = true
+      refusal.value = ''
+      try {
+        const result = await holdAtLeast({ task: () => props.request.run() })
+        busy.value = false
+        emit('done', result)
+      } catch (err) {
+        refusal.value = err.message
+        busy.value = false
+      }
+    }
+
+    useAlertDialog({
+      dialog,
+      isOpen: () => Boolean(props.request),
+      onOpen,
+      cancel,
+      zIndex,
+      initialFocus: () => (copy.value?.danger ? cancelButton.value : dialog.value),
+    })
+
+    return { dialog, cancelButton, zIndex, busy, refusal, leadFailed, titleId, bodyId, copy, blocks, leadStyle, cancel, confirm }
+  },
+}
+
+const useAlertDialog = ({ dialog, isOpen, onOpen, cancel, zIndex, initialFocus = () => dialog.value }) => {
+  let layerId = null
+  let returnFocus = null
+
+  const onKeydown = (event) => {
+    if (!overlayStack.isTop(layerId)) return
+    if (event.key === 'Tab') return keepFocusInside({ event, root: dialog.value })
+    if (event.key !== 'Escape') return
+    event.stopImmediatePropagation()
+    cancel()
+  }
+
+  const setOpen = async (open) => {
+    window.removeEventListener('keydown', onKeydown, true)
+    if (!open) {
+      overlayStack.remove(layerId)
+      layerId = null
+      try { document.body.classList.toggle('sheet-open', overlayStack.size() > 0) } catch {}
+      returnFocus?.focus?.()
+      return
+    }
+    const layer = overlayStack.push({ onBack: cancel })
+    layerId = layer.id
+    zIndex.value = layer.zIndex
+    try { document.body.classList.add('sheet-open') } catch {}
+    returnFocus = document.activeElement
+    window.addEventListener('keydown', onKeydown, true)
+    onOpen()
+    await nextTick()
+    initialFocus()?.focus()
+  }
+
+  watch(isOpen, setOpen)
+  onUnmounted(() => {
+    if (isOpen()) setOpen(false)
+  })
 }
 
 export const useLibraryToast = () => {
@@ -348,6 +457,8 @@ const MENU_ICONS = {
   'check-list': [path('M4 12h10M4 6h16M4 18h7'), path('m16 15 2 2 4-4')],
   ads: [circle(6, 6, 3), circle(6, 18, 3), path('M8.6 7.6 20 18M8.6 16.4 20 6')],
   warning: [path('M12 3 2 20h20z'), path('M12 10v4M12 17v.5')],
+  clock: [circle(12, 12, 9), path('M12 7v5l3 2')],
+  stop: [{ tag: 'rect', attrs: { x: 6, y: 6, width: 12, height: 12, rx: 1.5 } }],
   record: [dot(6)],
   series: [circle(12, 12, 9), dot(4.5)],
   show: [{ tag: 'rect', attrs: { x: 3, y: 4, width: 18, height: 13, rx: 2 } }, path('M8 21h8M12 17v4')],

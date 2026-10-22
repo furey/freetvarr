@@ -18,7 +18,8 @@ import {
 import { guideChannelOf, listedProgrammeOf, seriesLinkOfProgramme, twinCoverTextOf } from '/programme-state.js'
 import { holdAtLeast } from '/pending.js'
 import { findHdSimulcast } from '/simulcast.js'
-import { recordedMsOf, stopRecordingOutcome } from '/stop-recording.js'
+import { recordedMsOf, stopConfirmOf, stopRecordingOutcome } from '/stop-recording.js'
+import { ActionConfirm } from '/components/library-menus.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
@@ -54,6 +55,7 @@ import { showInGuide } from '/shared/store.js'
 import { dateFormat, fmtClockTz, now, tz } from '/shared/time.js'
 
 export const ProgrammeSheetHost = {
+  components: { ActionConfirm },
   template: `
     <teleport to="body">
     <transition name="ui-sheet">
@@ -172,6 +174,7 @@ export const ProgrammeSheetHost = {
     </div>
     </transition>
     </teleport>
+    <action-confirm :request="stopRequest" @cancel="stopRequest = null" @done="onStopped" />
   `,
   setup() {
     const { flash } = useFlash()
@@ -401,7 +404,7 @@ export const ProgrammeSheetHost = {
       if (selectedTwinCover.value) return hasSeries ? [cancelSeriesAction] : []
       if (state === 'recording') {
         return [
-          { key: 'stop', busyKey: 'cancel', label: 'Stop recording', outcome: stopOutcome(), run: cancelSelected },
+          { key: 'stop', busyKey: 'cancel', label: 'Stop recording', outcome: stopOutcome(), run: askStop },
           hasSeries && cancelSeriesAction,
         ].filter(Boolean)
       }
@@ -685,6 +688,40 @@ export const ProgrammeSheetHost = {
       })
     }
 
+    const stopRequest = ref(null)
+
+    const seriesChannelLabel = () => {
+      if (!selectedSeriesLink.value) return ''
+      const autorec = seriesTags.value.find((t) => String(t.seriesLinkId) === String(selectedSeriesLink.value))
+      if (autorec && !autorec.channelId) return 'on any channel'
+      return `on ${channelName(autorec?.channelId || selected.value.program.channelId)}`
+    }
+
+    const askStop = () => {
+      const { program } = selected.value
+      const channelLabel = selected.value.channel?.name || channelName(program.channelId)
+      const seriesLabel = seriesChannelLabel()
+      const addsToLibrary = selectedScheduled.value?.libraryChoice !== 'exclude'
+      stopRequest.value = {
+        lead: { image: `/api/epg/show-image?title=${encodeURIComponent(program.title)}&w=384`, title: program.title, meta:['Recording now', channelLabel].filter(Boolean).join(' · ') },
+        copy: () => stopConfirmOf({
+          recordedMs: recordedMsOf({ recordingSince: selectedRecording.value?.recordingSince, nowMs: now.value.getTime() }),
+          seriesChannelLabel: seriesLabel,
+          addsToLibrary,
+        }),
+        run: async () => ({
+          title: program.title,
+          result: await api('POST', '/api/epg/cancel', { program_id: program.program_id }),
+        }),
+      }
+    }
+
+    const onStopped = async ({ title, result }) => {
+      stopRequest.value = null
+      flash({ msg: cancelledMessage({ title, result }) })
+      await afterRecordingChange()
+    }
+
     const cancelSelectedSeries = ({ stopRecordingNow, removeTitleMatch }) => {
       const step = cancelSeriesStep.value
       return runSheetAction({
@@ -760,7 +797,7 @@ export const ProgrammeSheetHost = {
       keepSteps: SHEET_KEEP_STEPS,
       stepValue, canStep, keepLabel,
       sheetStrengths, sheetStrength, strengthLine, showStrengthLine, primaryAction, primaryClass, runPrimaryAction,
-      sheetMeta, cancelActions, selectedState, selectedStatusText, selectedRepeatNotice,
+      sheetMeta, cancelActions, stopRequest, onStopped, selectedState, selectedStatusText, selectedRepeatNotice,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, onSwipeStart, onSwipeEnd, sheetReady,
       ratingScore, ratingReview, ratingCardOpen, ratingLoading,

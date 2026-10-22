@@ -7,25 +7,35 @@ import { fileURLToPath } from 'url'
 import { db, getSetting } from './db.js'
 import { setProgress, clearProgress, formatEta } from './progress.js'
 
-export const processRecordingAds = async ({ filePath, mode, recordingId }) => {
+export const processRecordingAds = async ({ filePath, mode, recordingId, tools = defaultTools() }) => {
   if (scansInFlight.has(recordingId)) return { status: 'busy', breaks: [], adSeconds: 0 }
   scansInFlight.add(recordingId)
   const workdir = adWorkdir(filePath)
   let status = mode === 'cut' ? 'cut_failed' : 'detect_failed'
   let breaks = []
+  let restored = false
   try {
     try {
+      const before = await db('recordings').where({ recording_id: recordingId }).first()
       await db('recordings').where({ recording_id: recordingId }).update({ ad_status: 'scanning' })
       await fs.rm(workdir, { recursive: true, force: true })
       await fs.mkdir(workdir, { recursive: true })
-      breaks = await detectBreaks({ filePath, workdir, recordingId })
+      const sourcePath = await scanSourceOf({ filePath, mode, workdir })
+      breaks = await tools.detect({ filePath: sourcePath, workdir, recordingId })
       if (breaks.length === 0) {
+        if (sourcePath !== filePath) {
+          await putBackupBack({ filePath, recordingId, before })
+          restored = true
+        }
         status = 'no_breaks'
       } else if (mode !== 'cut') {
         status = 'detected'
       } else {
-        const newSize = await cutBreaks({ filePath, workdir, breaks, recordingId })
-        await db('recordings').where({ recording_id: recordingId }).update({ size: newSize })
+        const outPath = await tools.cut({ filePath: sourcePath, workdir, breaks, recordingId })
+        const { backupCreated } = await swapInCut({ filePath, outPath })
+        const { size } = await fs.stat(filePath)
+        await db('recordings').where({ recording_id: recordingId })
+          .update(cutPatchOf({ before, backupCreated, size, now: new Date().toISOString() }))
         status = 'cut'
       }
     } catch (err) {
@@ -45,45 +55,139 @@ export const processRecordingAds = async ({ filePath, mode, recordingId }) => {
     }).catch((err) => {
       console.error(`[ads] ${recordingId}: failed to record result: ${err.message}`)
     })
-    return { status, breaks, adSeconds: totalBreakSeconds(breaks) }
+    return { status, breaks, adSeconds: totalBreakSeconds(breaks), restored }
   } finally {
     scansInFlight.delete(recordingId)
   }
 }
 
+export const isAdJobRunning = (recordingId) => scansInFlight.has(recordingId)
+
+export const backupPathOf = (filePath) => `${filePath}${ORIG_SUFFIX}`
+
+export const cutPatchOf = ({ before, backupCreated, size, now }) => ({
+  size,
+  ad_cut_at: now,
+  ...(backupCreated ? { ad_backup_saved_at: now, ad_backup_uncut: !before?.ad_cut_at } : {}),
+})
+
+export const swapInCut = async ({ filePath, outPath }) => {
+  const backupPath = backupPathOf(filePath)
+  if (await pathExists(backupPath)) {
+    await fs.rename(outPath, filePath)
+    return { backupCreated: false }
+  }
+  await fs.rename(filePath, backupPath)
+  try {
+    await fs.rename(outPath, filePath)
+  } catch (err) {
+    await fs.rename(backupPath, filePath)
+    throw err
+  }
+  return { backupCreated: true }
+}
+
+export const restoreOriginal = async ({ recordingId, filePath }) => {
+  if (scansInFlight.has(recordingId)) return { error: 'busy' }
+  const backupPath = backupPathOf(filePath)
+  if (!(await pathExists(backupPath))) return { error: 'gone' }
+  scansInFlight.add(recordingId)
+  try {
+    const before = await db('recordings').where({ recording_id: recordingId }).first()
+    const size = await putBackupBack({ filePath, recordingId, before })
+    return { restored: true, uncut: Boolean(before?.ad_backup_uncut), size }
+  } finally {
+    scansInFlight.delete(recordingId)
+  }
+}
+
+const putBackupBack = async ({ filePath, recordingId, before }) => {
+  await fs.rename(backupPathOf(filePath), filePath)
+  await fs.rm(skipMarkerPath(filePath), { force: true })
+  const { size } = await fs.stat(filePath)
+  await db('recordings').where({ recording_id: recordingId }).update(restorePatchOf({ before, size }))
+  return size
+}
+
+export const restorePatchOf = ({ before, size }) => ({
+  size,
+  ad_status: null,
+  ad_breaks_json: null,
+  ad_backup_saved_at: null,
+  ad_backup_uncut: null,
+  ...(before?.ad_backup_uncut ? { ad_cut_at: null } : {}),
+})
+
+export const backupKeptUntil = ({ savedAt, retentionDays }) => {
+  const savedMs = Date.parse(sqliteUtc(savedAt))
+  if (!Number.isFinite(savedMs)) return null
+  return new Date(savedMs + retentionDays * DAY_MS).toISOString()
+}
+
+export const isBackupExpired = ({ savedAt, retentionDays, nowMs }) => {
+  const keptUntil = backupKeptUntil({ savedAt, retentionDays })
+  return keptUntil != null && Date.parse(keptUntil) <= nowMs
+}
+
+export const originalRetentionDays = async () => {
+  const raw = await getSetting('ad_original_retention_days')
+  const days = Number.parseInt(raw, 10)
+  return Number.isInteger(days) && days > 0 ? days : DEFAULT_ORIG_RETENTION_DAYS
+}
+
 export const adScansRunning = () => scansInFlight.size
 
-export const startManualAdScan = ({ filePath, mode, recordingId }) => {
+export const startManualAdScan = ({ filePath, mode, recordingId, onDone = () => {} }) => {
   if (scansInFlight.has(recordingId)) return false
   processRecordingAds({ filePath, mode, recordingId })
+    .then(onDone)
+    .catch((err) => console.error(`[ads] ${recordingId}: ${err.message}`))
   return true
 }
 
-export const pruneCutOriginals = async () => {
+export const pruneCutOriginals = async ({ nowMs = Date.now() } = {}) => {
   const retentionDays = await originalRetentionDays()
   const rows = await db('recordings')
-    .where({ ad_status: 'cut' })
+    .whereNotNull('ad_backup_saved_at')
     .whereNotNull('file_path')
-    .whereRaw(`datetime(ad_processed_at) < datetime('now', '-${retentionDays} days')`)
-    .select('file_path')
-  for (const row of rows) {
-    await fs.unlink(`${row.file_path}${ORIG_SUFFIX}`).catch(() => {})
+    .select('recording_id', 'file_path', 'ad_backup_saved_at')
+  const expired = rows.filter((row) => isBackupExpired({ savedAt: row.ad_backup_saved_at, retentionDays, nowMs }))
+  for (const row of expired) {
+    if (scansInFlight.has(row.recording_id)) continue
+    await fs.unlink(backupPathOf(row.file_path)).catch(() => {})
+    await db('recordings').where({ recording_id: row.recording_id })
+      .update({ ad_backup_saved_at: null, ad_backup_uncut: null })
   }
+  return expired.length
 }
 
 export const resetInterruptedScans = async () =>
   db('recordings').where({ ad_status: 'scanning' }).update({ ad_status: null })
 
 export const recoverInterruptedCuts = async () => {
-  const rows = await db('recordings').whereNotNull('file_path').select('file_path')
-  for (const { file_path } of rows) {
-    const origPath = `${file_path}${ORIG_SUFFIX}`
-    if (await pathExists(file_path)) continue
-    if (!(await pathExists(origPath))) continue
-    await fs.rename(origPath, file_path).catch((err) => {
-      console.error(`[ads] failed to restore ${origPath}: ${err.message}`)
-    })
+  const rows = await db('recordings').whereNotNull('file_path')
+    .select('recording_id', 'file_path', 'ad_processed_at', 'ad_cut_at', 'ad_backup_saved_at')
+  for (const row of rows) {
+    const backupPath = backupPathOf(row.file_path)
+    const hasBackup = await pathExists(backupPath)
+    if (hasBackup && !(await pathExists(row.file_path))) {
+      await fs.rename(backupPath, row.file_path).catch((err) => {
+        console.error(`[ads] failed to restore ${backupPath}: ${err.message}`)
+      })
+      continue
+    }
+    const patch = backupReconcilePatchOf({ row, hasBackup, now: new Date().toISOString() })
+    if (patch) await db('recordings').where({ recording_id: row.recording_id }).update(patch)
   }
+}
+
+export const backupReconcilePatchOf = ({ row, hasBackup, now }) => {
+  if (hasBackup && !row.ad_backup_saved_at) {
+    const savedAt = row.ad_processed_at || now
+    return { ad_backup_saved_at: savedAt, ad_backup_uncut: true, ad_cut_at: row.ad_cut_at || savedAt }
+  }
+  if (!hasBackup && row.ad_backup_saved_at) return { ad_backup_saved_at: null, ad_backup_uncut: null }
+  return null
 }
 
 export const comskipIniOverrideExists = async () => {
@@ -213,6 +317,13 @@ const prepareIni = async (workdir) => {
   return merged
 }
 
+const scanSourceOf = async ({ filePath, mode, workdir }) => {
+  const backupPath = backupPathOf(filePath)
+  if (mode !== 'cut' || !(await pathExists(backupPath))) return filePath
+  const linkPath = path.join(workdir, `original${path.extname(filePath)}`)
+  return fs.symlink(backupPath, linkPath).then(() => linkPath, () => backupPath)
+}
+
 const cutBreaks = async ({ filePath, workdir, breaks, recordingId }) => {
   const duration = await probeDuration(filePath)
   const segments = computeKeepSegments({ breaks, duration })
@@ -252,9 +363,7 @@ const cutBreaks = async ({ filePath, workdir, breaks, recordingId }) => {
     detail: null,
   })
   await verifyCut({ outPath, segments, boundaryCount: breaks.length * 2 })
-  await swapInCut({ filePath, outPath })
-  const stat = await fs.stat(filePath)
-  return stat.size
+  return outPath
 }
 
 const verifyCut = async ({ outPath, segments, boundaryCount }) => {
@@ -269,17 +378,6 @@ const verifyCut = async ({ outPath, segments, boundaryCount }) => {
   }
 }
 
-const swapInCut = async ({ filePath, outPath }) => {
-  const origPath = `${filePath}${ORIG_SUFFIX}`
-  await fs.rename(filePath, origPath)
-  try {
-    await fs.rename(outPath, filePath)
-  } catch (err) {
-    await fs.rename(origPath, filePath)
-    throw err
-  }
-}
-
 const probeDuration = async (filePath) => {
   const { stdout } = await execFileP('ffprobe', [
     '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', filePath,
@@ -289,12 +387,6 @@ const probeDuration = async (filePath) => {
     throw new Error(`ffprobe returned invalid duration for ${filePath}`)
   }
   return duration
-}
-
-const originalRetentionDays = async () => {
-  const raw = await getSetting('ad_original_retention_days')
-  const days = Number.parseInt(raw, 10)
-  return Number.isInteger(days) && days > 0 ? days : DEFAULT_ORIG_RETENTION_DAYS
 }
 
 const comskipFailureReason = ({ failure, timeout }) => {
@@ -308,6 +400,14 @@ const totalBreakSeconds = (breaks) =>
 
 const adWorkdir = (filePath) =>
   path.join(path.dirname(filePath), WORKDIR_NAME, path.basename(filePath))
+
+const defaultTools = () => ({ detect: detectBreaks, cut: cutBreaks })
+
+const sqliteUtc = (value) => {
+  if (value == null) return ''
+  const text = String(value)
+  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(text) ? `${text.replace(' ', 'T')}Z` : text
+}
 
 const pathExists = (target) => fs.access(target).then(() => true).catch(() => false)
 
@@ -333,5 +433,7 @@ const SCAN_TICK_MS = 1000
 const FFMPEG_TIMEOUT_MS = 30 * 60 * 1000
 const FFPROBE_TIMEOUT_MS = 60_000
 const SPAWN_MAX_BUFFER = 16 * 1024 * 1024
+
+const DAY_MS = 86_400_000
 
 const scansInFlight = new Set()

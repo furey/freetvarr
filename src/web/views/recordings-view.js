@@ -11,7 +11,6 @@ import { libraryStateTitle, libraryStatusOf } from '/recording-info.js'
 import { formatMinutes } from '/time-format.js'
 import { clearedListMessage, restoredListMessage } from '/clear-list.js'
 import {
-  adScanConfirm,
   clearListConfirm,
   clearRowConfirm,
   removeFromTvhConfirm,
@@ -20,6 +19,8 @@ import { RECORDING_SORTS, recordingSortFor, headerSortKey } from '/recording-sor
 import { LOG_STATUSES, logFiltersFromHash } from '/recording-log-filters.js'
 import { sentenceCase } from '/sentence-case.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
+import { SHOW_PAGE_MENU, adActionLabelOf, adConfirmOf, adStartedToastOf, adsOfRecording, episodeOfRecording } from '/ad-confirm.js'
+import { ActionConfirm } from '/components/library-menus.js'
 import { useConfirm } from '/components/dialogs.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
@@ -28,7 +29,7 @@ import { fmtBytes, seasonEpisodeLabel } from '/shared/format.js'
 import { playRecording } from '/shared/playback-session.js'
 import { storedChoice } from '/shared/storage.js'
 import { syncStatus } from '/shared/sync-status.js'
-import { fmtTime } from '/shared/time.js'
+import { fmtTime, tz } from '/shared/time.js'
 
 const UNDO_WINDOW_MS = 10_000
 
@@ -39,6 +40,7 @@ const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 const RECORDINGS_SORT_KEY = 'freetvarr.recordingsSort'
 
 export const RecordingsView = {
+  components: { ActionConfirm },
   template: `
     <div v-page-reveal class="settings-page log-page">
       <div v-if="clearable > 0 || clearing || undoIds.length" class="settings-toolbar">
@@ -178,6 +180,7 @@ export const RecordingsView = {
       </div>
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :icon="confirming?.icon"
         :busy="confirmBusy" @confirm="runConfirmed" @cancel="closeConfirm" />
+      <action-confirm :request="actionRequest" @cancel="actionRequest = null" @done="onAdScanStarted" />
     </div>
   `,
   setup() {
@@ -191,7 +194,6 @@ export const RecordingsView = {
     const adRemovalEnabled = ref(false)
     const adRetentionDays = ref('7')
     const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
-    const adScanningId = ref(null)
     const total = ref(0)
     const loaded = ref(false)
     const page = ref(1)
@@ -402,17 +404,27 @@ export const RecordingsView = {
       }
     }
 
-    const adScan = async (r) => {
-      adScanningId.value = r.recording_id
-      try {
-        await api('POST', `/api/recordings/${encodeURIComponent(r.recording_id)}/ad-scan`)
-        flash({ msg: `Ad scan started for "${r.title}". This can take minutes.` })
-        await refresh()
-      } catch (err) {
-        flash({ msg: `Ad scan failed: ${err.message}`, kind: 'error' })
-      } finally {
-        adScanningId.value = null
+    const actionRequest = ref(null)
+
+    const adScanLabel = (r) => adActionLabelOf(adsOfRecording(r))
+
+    const isAdScanning = (r) => r.ad_status === 'scanning' || isAdProgress(r)
+
+    const askAdScan = (r) => {
+      actionRequest.value = {
+        lead: { image: `/api/epg/show-image?title=${encodeURIComponent(r.title)}&w=384`, title: r.title, meta: [seasonEpisodeLabel(r), r.episode_title, r.channel_name].filter(Boolean).join(' · ') },
+        copy: adConfirmOf({ episode: episodeOfRecording(r), retentionDays: adRetentionDays.value, timeZone: tz.value, nowMs: Date.now(), menuPlace: SHOW_PAGE_MENU }),
+        run: async () => {
+          const result = await api('POST', `/api/recordings/${encodeURIComponent(r.recording_id)}/ad-scan`)
+          return adStartedToastOf({ mode: result.mode, heading: `"${r.title}"` })
+        },
       }
+    }
+
+    const onAdScanStarted = async (started) => {
+      actionRequest.value = null
+      flash({ msg: `${started.title}. This row shows the progress.` })
+      await refresh()
     }
 
     const deleteFromTvh = async (r) => {
@@ -461,12 +473,6 @@ export const RecordingsView = {
         clearing.value = false
       }
     }
-
-    const askAdScan = (r) => askConfirm({
-      dialog: adScanConfirm({ recording: r, retentionDays: adRetentionDays.value }),
-      icon: 'ad-scan-icon',
-      run: () => adScan(r),
-    })
 
     const askRemoveFromTvh = (r) => askConfirm({
       dialog: removeFromTvhConfirm({ recording: r }),
@@ -550,8 +556,8 @@ export const RecordingsView = {
     }
 
     const drawerContext = reactive({
-      deletingId, removingId, importingId, adScanningId,
-      canImport, importLabel, importRecording, canAdScan, isAdScanBlocked, adScanTitle, askAdScan,
+      deletingId, removingId, importingId,
+      canImport, importLabel, importRecording, canAdScan, isAdScanBlocked, adScanTitle, askAdScan, adScanLabel, isAdScanning,
       canDelete, askRemoveFromTvh, canRemove, removeTitle, askClearRow,
       statusLabel, libraryStatusOf, libraryStateTitle, notInTvhTitle, showLabel, resumeLabel, playTitle, playRecording,
       adLabel, adTooltip, progressPhase, isAdProgress, hasBar, progressCaption,
@@ -562,10 +568,10 @@ export const RecordingsView = {
       recordings, shows, total, loaded, page, pageSize, totalPages, rangeLabel,
       sortKey, RECORDING_SORTS, statusFilter, showFilter, sinceFilter, deletedFilter,
       statusOptions, sinceOptions, deletedOptions, hasFiltersApplied,
-      deletingId, removingId, importingId, clearing, adRemovalEnabled, adScanningId,
+      deletingId, removingId, importingId, clearing, adRemovalEnabled,
       canImport, importLabel, importRecording, statusLabel, libraryStatusOf, libraryStateTitle, showLabel, imageUrl, resumeLabel, playTitle, playRecording,
       refresh, canDelete,
-      canAdScan, isAdScanBlocked, adScanTitle, adLabel, adTooltip, adScan,
+      canAdScan, isAdScanBlocked, adScanTitle, adLabel, adTooltip, actionRequest, onAdScanStarted,
       progressPhase, isAdProgress, hasBar, progressCaption,
       deleteFromTvh, removeRecording, canRemove, removeTitle, notInTvhTitle, clearNotInTvh,
       clearable, undoIds, restoring, undoClear,

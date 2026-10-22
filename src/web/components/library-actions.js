@@ -14,6 +14,7 @@ import {
   watchedChangeTargets,
 } from '/library-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
+import { adConfirmOf, adStartedToastOf, restoreConfirmOf, restoredToastOf } from '/ad-confirm.js'
 import { openPlexLink } from '/components/library-menus.js'
 import { loadNicknames } from '/components/also-known-as.js'
 import { holdAtLeast } from '/pending.js'
@@ -38,6 +39,8 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   const artworkVersion = ref(0)
   const pictureOpen = ref(false)
   const moveRequest = ref(null)
+  const actionRequest = ref(null)
+  const retentionDays = ref(null)
 
   const activeIds = computed(() => new Set((recordingNow.value.active || []).map((r) => String(r.dvrUuid))))
   const episodes = computed(() => allEpisodesOf(show.value))
@@ -53,7 +56,10 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   })
   const episodeTip = computed(() => (selectTip ? selectTip : ''))
 
-  fetchSettings().then((settings) => { adRemovalEnabled.value = Boolean(settings.ad_removal_enabled) }).catch(() => {})
+  fetchSettings().then((settings) => {
+    adRemovalEnabled.value = Boolean(settings.ad_removal_enabled)
+    retentionDays.value = settings.ad_original_retention_days ?? null
+  }).catch(() => {})
 
   const keyPath = () => `/api/library/shows/${encodeURIComponent(show.value.key)}`
 
@@ -142,12 +148,44 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     onMissing: (reason) => showToast({ kind: 'error', title: 'Cannot open in Plex', detail: reason }),
   })
 
-  const removeAdsAgain = (episode) => run('Removing ads', async () => {
-    const result = await api('POST', `/api/recordings/${encodeURIComponent(episode.recordingId)}/ad-scan`)
-    showToast(result.mode === 'detect'
-      ? { title: `Scanning ${episodeHeading(episode)} for ad breaks`, detail: 'This takes a few minutes.' }
-      : { title: `Removing ads from ${episodeHeading(episode)}`, detail: 'This takes a few minutes.' })
+  const leadOf = (episode) => ({
+    image: episode.image || `/api/epg/show-image?title=${encodeURIComponent(show.value?.title || '')}&w=384`,
+    title: episodeHeading(episode),
+    meta: [show.value?.title, episodeMetaOf({ episode: { ...episode, watched: false, positionS: null, status: null, libraryState: null }, timeZone: tz.value })].filter(Boolean).join(' · '),
+    fallbackTitle: show.value?.title || '',
   })
+
+  const recordingPath = (episode, action) => `/api/recordings/${encodeURIComponent(episode.recordingId)}/${action}`
+
+  const askRemoveAds = (episode) => {
+    actionRequest.value = {
+      lead: leadOf(episode),
+      copy: adConfirmOf({ episode, retentionDays: retentionDays.value, timeZone: tz.value, nowMs: Date.now() }),
+      run: async () => {
+        const result = await api('POST', recordingPath(episode, 'ad-scan'))
+        return { toast: adStartedToastOf({ mode: result.mode, heading: episodeHeading(episode) }) }
+      },
+    }
+  }
+
+  const askRestore = (episode) => {
+    actionRequest.value = {
+      lead: leadOf(episode),
+      copy: restoreConfirmOf({ episode }),
+      run: async () => {
+        const result = await api('POST', recordingPath(episode, 'restore-original'))
+        return { toast: restoredToastOf({ uncut: result.uncut, heading: episodeHeading(episode) }) }
+      },
+    }
+  }
+
+  const cancelAction = () => { actionRequest.value = null }
+
+  const onActionDone = async (result) => {
+    actionRequest.value = null
+    if (result?.toast) showToast(result.toast)
+    await reload()
+  }
 
   const importEpisode = (episode) => run('Import', async () => {
     await api('POST', `/api/recordings/${encodeURIComponent(episode.recordingId)}/library`, { choice: 'include' })
@@ -256,7 +294,8 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     }
     if (key === 'move') return openMove([episode])
     if (key === 'import') return importEpisode(episode)
-    if (key === 'remove-ads') return removeAdsAgain(episode)
+    if (key === 'remove-ads') return askRemoveAds(episode)
+    if (key === 'restore-original') return askRestore(episode)
     if (key === 'plex') return openInPlex(`/api/library/recordings/${encodeURIComponent(episode.recordingId)}/plex-link`)
     if (key === 'delete-episode') return askDelete({ variant: 'episode', list: [episode] })
   }
@@ -264,6 +303,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   return {
     menuEpisode, showMenuOpen, info, deleteRequest, busy, pendingKey, adRemovalEnabled, artworkVersion, activeIds,
     pictureOpen, closePicture, onPictureChanged, moveRequest, closeMove, moveToShow,
+    actionRequest, cancelAction, onActionDone,
     showGroups, episodeGroups, showMenuSubtitle, episodeTip,
     openShowMenu, openEpisodeMenu, closeMenus, chooseShowAction, chooseEpisodeAction,
     askDelete, cancelDelete, onDeleted, setEpisodesWatched, runPending, play,

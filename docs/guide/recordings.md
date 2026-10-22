@@ -80,17 +80,18 @@ The show menu has these items. An item shows only when it applies.
 
 ### Episode menu
 
-| Item                                         | What it does                                                                                                                                                                                   |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Resume**                                   | Plays from where you stopped.                                                                                                                                                                  |
-| **Play from the start** or **Play**          | Plays from the beginning.                                                                                                                                                                      |
-| **Mark as watched** or **Mark as unwatched** | Sets the watched mark. Playing an episode to the end sets it too.                                                                                                                              |
-| **Mark earlier episodes as watched**         | Marks every earlier episode of the show as watched.                                                                                                                                            |
-| **Episode info**                             | Shows when it aired, the channel, the length, how much you watched, and the file it saves to.                                                                                                  |
-| **Import**, **Import again**, or **Retry**   | Imports the recording now. **Import** shows for a recording Freetvarr has not imported, **Import again** for one whose library file is gone, and **Retry** for one that failed or was skipped. |
-| **Remove ads again**                         | Scans the episode for ads again, with ad removal on. See [Re-scan and re-cut](#re-scan-and-re-cut).                                                                                            |
-| **Open in Plex**                             | Opens the episode in Plex.                                                                                                                                                                     |
-| **Delete episode**                           | Deletes the episode. See [Delete episodes](#delete-episodes). It does not show while the episode records.                                                                                      |
+| Item                                                  | What it does                                                                                                                                                                                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Resume**                                            | Plays from where you stopped.                                                                                                                                                                                                                                            |
+| **Play from the start** or **Play**                   | Plays from the beginning.                                                                                                                                                                                                                                                |
+| **Mark as watched** or **Mark as unwatched**          | Sets the watched mark. Playing an episode to the end sets it too.                                                                                                                                                                                                        |
+| **Mark earlier episodes as watched**                  | Marks every earlier episode of the show as watched.                                                                                                                                                                                                                      |
+| **Episode info**                                      | Shows when it aired, the channel, the length, how much you watched, and the file it saves to.                                                                                                                                                                            |
+| **Import**, **Import again**, or **Retry**            | Imports the recording now. **Import** shows for a recording Freetvarr has not imported, **Import again** for one whose library file is gone, and **Retry** for one that failed or was skipped.                                                                           |
+| **Find ads**, **Remove ads**, or **Remove ads again** | Finds or removes the ads in the episode, with ad removal on. The label follows the show's ad removal mode and whether the episode is already cut. While a scan runs, the item shows its progress and you cannot press it. See [Re-scan and re-cut](#re-scan-and-re-cut). |
+| **Put the original back**                             | Shows while a cut keeps its `.orig` backup. Puts the original recording, with the ads, back in place of the cut episode. See [Ad removal](/guide/ad-removal#backups-and-retention).                                                                                      |
+| **Open in Plex**                                      | Opens the episode in Plex.                                                                                                                                                                                                                                               |
+| **Delete episode**                                    | Deletes the episode. See [Delete episodes](#delete-episodes). It does not show while the episode records.                                                                                                                                                                |
 
 **Move to show…**, in the show menu and the episode menu, puts episodes that the TV guide gave a different title into another show or a new one, and **Undo** in the message puts them back.
 
@@ -214,7 +215,7 @@ Press a row to open the recording's details under it. Press the row again to clo
 - **Ads**: the ad status, with the number of breaks and minutes of ads.
 - **Playback**: where you stopped watching.
 
-The buttons under the facts depend on the recording: **Play**, **Import** or **Import again**, **Scan for ads**, and **Remove from TVHeadend** or **Clear from list**.
+The buttons under the facts depend on the recording: **Play**, **Import** or **Import again**, **Find ads** or **Remove ads**, and **Remove from TVHeadend** or **Clear from list**.
 
 ### Statuses
 
@@ -239,14 +240,15 @@ A hardlink import is instant. A copy between filesystems, an ad scan, or a cut t
 
 ### Re-scan and re-cut
 
-In the recording log, re-run an ad scan or cut on a file you have already imported. This does not change TVHeadend. Press the row, then **Scan for ads**. A dialog says what the scan does before it starts:
+Re-run an ad scan or cut on a file you have already imported, from the [episode menu](#episode-menu) or the recording log (press the row, then the ad button). This does not change TVHeadend. A dialog lists **What changes** and **What stays** before the scan starts:
 
-- When the series folder's ad removal is **Detect** or **Off**, the scan writes the ad break times to a `.edl` file beside the recording, and the recording file stays as it is.
-- When it is **Cut**, the scan saves the recording again without the breaks and keeps the original as `<file>.ts.orig` for the days set in Settings → Ad removal. If a second cut of a cut recording finds more ads, it replaces that backup with the first cut, so the full original is lost.
+- **Find ads** shows when the series folder's ad removal is **Detect** or **Off**. The scan writes the ad break times to a `.edl` file beside the recording, and the recording file stays as it is.
+- **Remove ads** shows when it is **Cut**. The scan saves the episode again without the breaks, at the same picture quality, and keeps the original as `<file>.ts.orig`. The dialog gives the date the backup is kept until.
+- **Remove ads again** shows for an episode that is already cut. It starts again from the original while the backup exists, and keeps the backup's first date.
 
-The dialog also gives the expected time: finding the ads takes about half the length of the recording. Press **Find ads** or **Cut ads** to start, or close the dialog to leave the recording as it is.
+The dialog also gives the expected time: finding the ads takes about half the length of the recording. Press the button in the dialog to start, or **Cancel** to leave the recording as it is. To undo a cut, press **Put the original back** in the episode menu on the show page or Home before the date in the dialog.
 
-**Scan for ads** is greyed out when the library file is gone, for example after another app replaced or removed it.
+The ad button is greyed out when the library file is gone, for example after another app replaced or removed it, and while a scan runs.
 
 ### Remove from TVHeadend
 

@@ -1,4 +1,4 @@
-import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
 
 export const CancelSeriesStep = {
   props: {
@@ -30,7 +30,7 @@ export const CancelSeriesStep = {
           <span>Cancel series</span>
           <span v-if="busy" class="spinner spinner-overlay"></span>
         </button>
-        <button v-if="showBack" type="button" class="ui-button ui-button-block" @click="$emit('back')" :disabled="busy">Keep series</button>
+        <button v-if="showBack" ref="keepButton" type="button" class="ui-button ui-button-block" @click="$emit('back')" :disabled="busy">Keep series</button>
       </div>
     </div>
   `,
@@ -45,7 +45,9 @@ export const CancelSeriesStep = {
       stopRecordingNow: Boolean(props.episodeOutcome) && stopNow.value,
       removeTitleMatch: Boolean(props.titleMatch) && !keepTitleMatch.value,
     })
-    return { stopNow, keepTitleMatch, titleMatchNote, confirm }
+    const keepButton = ref(null)
+    onMounted(() => keepButton.value?.focus({ preventScroll: true }))
+    return { stopNow, keepTitleMatch, titleMatchNote, confirm, keepButton }
   },
 }
 

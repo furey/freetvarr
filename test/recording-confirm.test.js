@@ -2,8 +2,6 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  adScanConfirm,
-  adScanModeOf,
   clearListConfirm,
   clearRowConfirm,
   fileNameOf,
@@ -28,21 +26,12 @@ const recording = (overrides = {}) => ({
 test('recording confirms have no dismiss button; the close button backs out', () => {
   const base = recording({ deleted_from_tvh_at: '2026-10-01' })
   const dialogs = [
-    adScanConfirm({ recording: base }),
-    adScanConfirm({ recording: { ...base, show_ad_removal: 'cut' } }),
     removeFromTvhConfirm({ recording: base }),
     clearRowConfirm({ recording: base, undoSeconds: 10 }),
     clearRowConfirm({ recording: recording(), undoSeconds: 10 }),
     clearListConfirm({ count: 2, undoSeconds: 10 }),
   ]
   for (const dialog of dialogs) assert.equal(dialog.keepLabel, undefined)
-})
-
-test('adScanModeOf: CUT only when the show cuts; OFF and one-offs detect', () => {
-  assert.equal(adScanModeOf({ show_ad_removal: 'cut' }), 'cut')
-  assert.equal(adScanModeOf({ show_ad_removal: 'detect' }), 'detect')
-  assert.equal(adScanModeOf({ show_ad_removal: 'off' }), 'detect')
-  assert.equal(adScanModeOf({ show_ad_removal: null }), 'detect')
 })
 
 test('scanMinutesOf: half the recording length, never under a minute', () => {
@@ -55,44 +44,6 @@ test('scanMinutesOf: half the recording length, never under a minute', () => {
 test('fileNameOf: the last path part', () => {
   assert.equal(fileNameOf(FILE), 'The Block - S21E01.ts')
   assert.equal(fileNameOf(null), '')
-})
-
-test('adScanConfirm: detect names the .edl file, the time, and keeps the file', () => {
-  const dialog = adScanConfirm({ recording: recording(), retentionDays: '7' })
-  assert.equal(dialog.title, 'Find ads')
-  assert.equal(dialog.confirmLabel, 'Find ads')
-  assert.equal(dialog.danger, false)
-  assert.match(dialog.body[0], /The Block - S21E01\.edl beside the recording/)
-  assert.match(dialog.body[0], /The recording file stays as it is\./)
-  assert.equal(dialog.body[1], 'Finding the ads takes about 45 minutes and uses a lot of processor time.')
-  assert.equal(dialog.body.length, 2)
-})
-
-test('adScanConfirm: detect says it replaces the last result', () => {
-  const found = adScanConfirm({ recording: recording({ ad_status: 'detected', ad_breaks_json: '[{"start":1,"end":2},{"start":3,"end":4}]' }) })
-  assert.equal(found.body.at(-1), 'This replaces the last result: 2 breaks found.')
-  const none = adScanConfirm({ recording: recording({ ad_status: 'no_breaks' }) })
-  assert.equal(none.body.at(-1), 'This replaces the last result: no ad breaks found.')
-})
-
-test('adScanConfirm: cut names the backup, its retention, and is styled as danger', () => {
-  const dialog = adScanConfirm({ recording: recording({ show_ad_removal: 'cut' }), retentionDays: '3' })
-  assert.equal(dialog.title, 'Cut ads')
-  assert.equal(dialog.confirmLabel, 'Cut ads')
-  assert.equal(dialog.danger, true)
-  assert.match(dialog.body[1], /The Block - S21E01\.ts\.orig for 3 days, then deletes it\./)
-  assert.match(dialog.body[2], /^Finding the ads takes about 45 minutes, and saving the cut/)
-})
-
-test('adScanConfirm: a second cut warns that the backup is replaced', () => {
-  const dialog = adScanConfirm({ recording: recording({ show_ad_removal: 'cut', ad_status: 'cut' }), retentionDays: '7' })
-  assert.match(dialog.body.at(-1), /already cut.*replaces the backup.*full original is lost\./)
-})
-
-test('adScanConfirm: unknown length says several minutes; bad retention falls back to 7 days', () => {
-  const dialog = adScanConfirm({ recording: recording({ show_ad_removal: 'cut', duration_s: null }), retentionDays: 'x' })
-  assert.match(dialog.body[1], /for 7 days/)
-  assert.match(dialog.body[2], /^Finding the ads takes several minutes,/)
 })
 
 test('removeFromTvhConfirm: library copy stays, history kept, cannot undo', () => {

@@ -9,6 +9,8 @@ import {
   saveHoldMusicMuted,
   HOLD_MUSIC_SRC,
 } from '/hold-music.js'
+import { needsScanConfirm, scanConfirmOf } from '/scan-confirm.js'
+import { ActionConfirm } from '/components/library-menus.js'
 import { api } from '/shared/api.js'
 import { fmtClockTz } from '/shared/time.js'
 import { usePacedJob, SETUP_POLL_MS, SetupRunList } from '/views/welcome-shared.js'
@@ -22,7 +24,7 @@ export const ChannelSetupStep = {
     startEditing: { type: Boolean, default: false },
   },
   emits: ['state'],
-  components: { SetupRunList },
+  components: { SetupRunList, ActionConfirm },
   template: `
     <div class="setup-body">
       <p v-if="!actionInBar" class="setup-hint">{{ intro }}</p>
@@ -158,6 +160,7 @@ export const ChannelSetupStep = {
           </div>
         </template>
       </template>
+      <action-confirm :request="scanRequest" @cancel="scanRequest = null" @done="scanRequest = null" />
     </div>
   `,
   setup(props, { emit }) {
@@ -275,7 +278,25 @@ export const ChannelSetupStep = {
         : [...tunerIds.value, id]
     }
 
-    const runAction = () => (state.value === 'no-tuner' ? saveAddress() : apply())
+    const scanRequest = ref(null)
+
+    const runAction = () => {
+      if (state.value === 'no-tuner') return saveAddress()
+      if (!needsScanConfirm({ channels: channelCount.value })) return apply()
+      const network = networks.value.find((n) => n.id === networkId.value)
+      scanRequest.value = {
+        copy: scanConfirmOf({
+          networkName: scanningWhat.value,
+          existingNetwork: Boolean(network),
+          channels: channelCount.value,
+          recordingWarning: recordingNow.value,
+        }),
+        run: async () => {
+          await apply()
+          if (applyError.value) throw new Error(applyError.value)
+        },
+      }
+    }
 
     watch(country, (curr, prev) => {
       if (prev !== undefined && prev !== '' && curr !== prev) {
@@ -439,7 +460,7 @@ export const ChannelSetupStep = {
       steps, result, showSteps, waitingForTuner, scanStarting, scanLine, doneText, favouritesText, recordingNow,
       dockerVm, savedAddress, tunerAddress, hostAddress, hostGuessed, addressOpen,
       savingAddress, addressError, addressSaved,
-      refresh, apply, restart, saveAddress, toggleTuner, runAction, actionLabel, actionDisabled,
+      refresh, apply, restart, saveAddress, toggleTuner, runAction, scanRequest, actionLabel, actionDisabled,
       running, musicAudible, musicToggleLabel, toggleMusic, LOOKING_STEPS, intro, transmitterHint,
     }
   },

@@ -86,10 +86,12 @@ Press **Record** in the top bar to record the programme on now, or **Series** to
 
 If the guide has no listing for what is on now, both buttons are dimmed. **Series** turns on while a series recording records the programme; press it to change or cancel the series.
 
-While the programme on now records, the record button reads **Recording**. Press it to open the sheet, then press **Stop recording**. The sheet says what happens to the part already recorded:
+While the programme on now records, the record button reads **Recording**. Press it to open the sheet, then press **Stop recording**. A dialog asks you to confirm, and says what happens to the part already recorded:
 
-- After `5` minutes or more, the recording stops and the part recorded so far stays, and imports to your library like any finished recording.
-- Before `5` minutes, the recording stops and Freetvarr deletes the part recorded so far.
+- After `5` minutes or more, the recording stops and the part recorded so far stays, and imports to your library like any finished recording. Press **Stop recording** in the dialog.
+- Before `5` minutes, the recording stops and Freetvarr deletes the part recorded so far. The dialog lists it under **What gets deleted**; press **Stop and delete**.
+
+For an episode of a series recording, the dialog also says that the next episode still records. Press **Cancel** to keep recording.
 
 Stopping an episode of a series recording stops that episode only. The series keeps recording future episodes, and it does not record the stopped episode again.
 

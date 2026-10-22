@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { useLibraryActions } from '/components/library-actions.js'
-import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
+import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
 import { MoveToShowSheet } from '/components/move-to-show-sheet.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { ArtworkPicker } from '/components/artwork-picker.js'
@@ -31,7 +31,7 @@ const LIBRARY_POLL_MS = 60_000
 const SKELETON_POSTERS = 6
 
 export const RecordingsLibraryView = {
-  components: { RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MoveToShowSheet },
+  components: { ActionConfirm, RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MoveToShowSheet },
   template: `
     <div v-page-reveal="{ hold: 2 }" class="ui-page recordings-page">
       <page-header title="Recordings" subtitle="Everything you have, and everything on its way." subtitle-short="Recorded and coming up." />
@@ -149,6 +149,7 @@ export const RecordingsLibraryView = {
       <move-to-show-sheet :request="moveRequest" :busy="busy" @close="closeMove" @move="moveToShow" />
       <artwork-picker :open="pictureOpen" :show="menuShow" @close="closePicture" @changed="onPictureChanged" />
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeleted" />
+      <action-confirm :request="actionRequest" @cancel="cancelAction" @done="onActionDone" />
       <recording-options-sheet v-if="menuShow?.rule" :open="optionsOpen" :show="menuShow" @close="optionsOpen = false"
         @changed="reloadMenuShow" @stopped="onStopped" @flash="onOptionsFlash" />
     </div>

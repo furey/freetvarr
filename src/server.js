@@ -127,12 +127,13 @@ import {
 } from './epg.js'
 import {
   adScansRunning,
-  startManualAdScan,
   parseEdl,
   skipMarkerPath,
   comskipIniOverrideExists,
   resetInterruptedScans,
   recoverInterruptedCuts,
+  backupKeptUntil,
+  originalRetentionDays,
 } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { getRecordingNow, recordingImageSource } from './recording-now.js'
@@ -181,6 +182,7 @@ import { mountLibraryRoutes } from './library-routes.js'
 import { createArtPool, mountArtPoolRoutes } from './art-pool.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
+import { mountAdOriginalRoutes } from './ad-original-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf } from './artwork-match.js'
 import { mountWatchlist } from './watchlist.js'
@@ -446,37 +448,7 @@ app.post(
   },
 )
 
-app.post(
-  '/api/recordings/:recording_id/ad-scan',
-  syncLimiter,
-  doubleCsrfProtection,
-  async (req, res) => {
-    const recordingId = req.params.recording_id
-    const row = await db('recordings').where({ recording_id: recordingId }).first()
-    if (!row) return res.status(404).json({ error: 'recording not found' })
-    if (row.status !== 'done') {
-      return res.status(409).json({ error: 'recording is not imported' })
-    }
-    if (!row.file_path) return res.status(409).json({ error: 'recording has no file path' })
-    if (!(await isLibraryFilePresent(row.file_path))) {
-      return res.status(409).json({
-        error: 'the library file is gone. Something outside Freetvarr replaced or removed it.',
-      })
-    }
-    const show = row.show_id
-      ? await db('shows').where({ id: row.show_id }).first()
-      : null
-    const showMode = show?.ad_removal || 'off'
-    const mode = showMode === 'off' ? 'detect' : showMode
-    const started = startManualAdScan({
-      filePath: row.file_path,
-      mode,
-      recordingId,
-    })
-    if (!started) return res.status(409).json({ error: 'an ad scan is already running' })
-    res.status(202).json({ started: true, mode })
-  },
-)
+mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: syncLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
 
 app.delete('/api/recordings', doubleCsrfProtection, async (req, res) => {
   if (req.query.deleted !== 'true') {
@@ -616,7 +588,9 @@ app.get('/api/recordings', async (req, res) => {
     .count({ count: 'recording_id' })
     .first()
 
-  const [totalRow, storedRows, clearableRow] = await Promise.all([totalQuery, rowsQuery, clearableQuery])
+  const [totalRow, storedRows, clearableRow, retentionDays] = await Promise.all([
+    totalQuery, rowsQuery, clearableQuery, originalRetentionDays(),
+  ])
   const rows = await refreshLibraryStates(storedRows)
   const progress = snapshotProgress(rows.map((r) => r.recording_id))
   const sources = await playbackSourceResolver()
@@ -625,6 +599,7 @@ app.get('/api/recordings', async (req, res) => {
     recordings: rows.map((r, i) => ({
       ...r,
       progress: progress[r.recording_id] ?? null,
+      ad_backup_kept_until: r.ad_backup_saved_at ? backupKeptUntil({ savedAt: r.ad_backup_saved_at, retentionDays }) : null,
       playable: playable[i],
       library_file_present: !r.library_state,
     })),

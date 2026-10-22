@@ -1,3 +1,4 @@
+import { adMenuItemOf, restoreMenuItemOf } from './ad-confirm.js'
 import { weekdayClockOf } from './library-shelves.js'
 import { airedRangeText, durationText } from './recording-info.js'
 import { episodeHeading } from './show-page.js'
@@ -79,7 +80,8 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
       { key: 'episode-info', label: 'Episode info', icon: 'info' },
       canMove && { key: 'move', label: 'Move to show…', icon: 'move' },
       canImport(episode) && { key: 'import', label: importLabelOf(episode), icon: 'refresh' },
-      adRemovalEnabled && canRescan(episode) && { key: 'remove-ads', label: 'Remove ads again', icon: 'ads' },
+      adRemovalEnabled && canRescan(episode) && adMenuItemOf(episode),
+      canRescan(episode) && restoreMenuItemOf(episode),
       episode.filePath && { key: 'plex', label: 'Open in Plex', icon: 'external' },
     ],
     [
@@ -228,5 +230,4 @@ const MENU_PENDING_LABELS = {
   unwatched: 'Marking as unwatched…',
   'watched-earlier': 'Marking as watched…',
   import: 'Importing…',
-  'remove-ads': 'Starting…',
 }

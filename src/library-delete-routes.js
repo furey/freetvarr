@@ -99,7 +99,7 @@ const removeFromTvheadend = async (recordingId) => {
   }
 }
 
-const refreshPlexSection = async (kind) => {
+export const refreshPlexSection = async (kind) => {
   if (kind === 'tv') return notifyPlexSectionRefresh()
   const sectionId = await getSetting(PLEX_SECTION_SETTINGS[kind])
   if (!sectionId) return { skipped: true, reason: 'no Plex library chosen for these recordings' }

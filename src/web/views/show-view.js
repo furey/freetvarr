@@ -23,7 +23,7 @@ import {
   toggledSelection,
 } from '/library-menus.js'
 import { useLibraryActions } from '/components/library-actions.js'
-import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuIcon, useLibraryToast } from '/components/library-menus.js'
+import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuIcon, useLibraryToast } from '/components/library-menus.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { MoveToShowSheet } from '/components/move-to-show-sheet.js'
 import { ArtworkPicker } from '/components/artwork-picker.js'
@@ -46,7 +46,7 @@ import { syncStatus } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 
 export const ShowView = {
-  components: { RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast, MoveToShowSheet },
+  components: { ActionConfirm, RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast, MoveToShowSheet },
   template: `
     <div v-page-reveal :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
@@ -220,6 +220,7 @@ export const ShowView = {
       <artwork-picker :open="pictureOpen" :show="show" @close="closePicture" @changed="onPictureChanged" />
 
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeletedHere" />
+      <action-confirm :request="actionRequest" @cancel="cancelAction" @done="onActionDone" />
 
       <recording-options-sheet v-if="show?.rule" :open="optionsOpen" :show="show" @close="optionsOpen = false"
         @changed="load" @stopped="onStopped" @flash="flash" />

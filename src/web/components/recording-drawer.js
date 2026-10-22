@@ -50,9 +50,9 @@ export const RecordingDrawer = {
           {{ ctx.importingId === recording.recording_id ? 'Importing…' : ctx.importLabel(recording) }}
         </button>
         <button v-if="ctx.canAdScan(recording)" type="button" class="ui-button ui-button-sm"
-          @click="ctx.askAdScan(recording)" :disabled="ctx.adScanningId === recording.recording_id || ctx.isAdScanBlocked(recording)"
+          @click="ctx.askAdScan(recording)" :disabled="ctx.isAdScanning(recording) || ctx.isAdScanBlocked(recording)"
           :title="ctx.adScanTitle(recording)">
-          <ad-scan-icon /> Scan for ads
+          <ad-scan-icon /> {{ ctx.adScanLabel(recording) }}
         </button>
         <button v-if="ctx.canDelete(recording)" type="button" class="ui-button ui-button-sm ui-button-destructive"
           @click="ctx.askRemoveFromTvh(recording)" :disabled="ctx.deletingId === recording.recording_id">

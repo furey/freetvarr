@@ -10,6 +10,8 @@ import { getSeries } from './series.js'
 import { getMoviesRoot } from './sync.js'
 import { showKeyOf } from './web/show-key.js'
 import { artworkChoices } from './artwork-choices.js'
+import { backupKeptUntil, originalRetentionDays } from './commercials.js'
+import { snapshotProgress } from './progress.js'
 
 export const MOVIE_MIN_DURATION_S = 4500
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
@@ -260,6 +262,27 @@ export const episodeOf = ({ row, playable = false }) => {
     watched,
     watchedPercent: watched ? 100 : percentOf({ position: positionS, duration: row.duration_s }),
     new: row.played_at == null && !watched,
+    ads: adsOf(row),
+  }
+}
+
+export const adsOf = (row) => ({
+  status: row.ad_status ?? null,
+  breakCount: breakCountOf(row.ad_breaks_json),
+  showMode: row.show_ad_removal || 'off',
+  cut: Boolean(row.ad_cut_at),
+  backup: row.ad_backup_saved_at
+    ? { keptUntil: row.ad_backup_kept_until ?? null, uncut: Boolean(row.ad_backup_uncut) }
+    : null,
+  progress: row.ad_progress ?? null,
+})
+
+const breakCountOf = (json) => {
+  try {
+    const breaks = JSON.parse(json || '[]')
+    return Array.isArray(breaks) ? breaks.length : 0
+  } catch {
+    return 0
   }
 }
 
@@ -503,14 +526,30 @@ const isRecordingId = (id) => typeof id === 'string' && id.length > 0 && id.leng
 
 const overrideFor = ({ row, title }) => (title == null || showKeyOf(title) === showKeyOf(row.title) ? null : title)
 
-const loadLibraryRows = () => db('recordings')
-  .whereNull('purged_at')
-  .where((q) => q.whereIn('status', ['done', 'partial']).orWhereNull('deleted_from_tvh_at'))
+const loadLibraryRows = async () => {
+  const [rows, retentionDays] = await Promise.all([
+    db('recordings')
+      .leftJoin('shows', 'recordings.show_id', 'shows.id')
+      .whereNull('recordings.purged_at')
+      .where((q) => q.whereIn('recordings.status', ['done', 'partial']).orWhereNull('recordings.deleted_from_tvh_at'))
+      .select('recordings.*', 'shows.ad_removal as show_ad_removal'),
+    originalRetentionDays().catch(() => DEFAULT_RETENTION_DAYS),
+  ])
+  const progress = snapshotProgress(rows.filter((row) => row.ad_status === 'scanning').map((row) => row.recording_id))
+  return rows.map((row) => withAdState({ row, retentionDays, progress: progress[row.recording_id] }))
+}
+
+const withAdState = ({ row, retentionDays, progress }) => ({
+  ...row,
+  ad_backup_kept_until: row.ad_backup_saved_at ? backupKeptUntil({ savedAt: row.ad_backup_saved_at, retentionDays }) : null,
+  ad_progress: progress ? { phase: progress.phase, percent: progress.percent ?? null } : null,
+})
 
 const loadActiveRecordings = async () => (await getRecordingNow().catch(() => ({ active: [] }))).active || []
 
 const loadTimedSeriesTags = async () => (await getRecordingState()).seriesTags || []
 
+const DEFAULT_RETENTION_DAYS = 7
 const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }
 const MAX_EPISODES_TO_KEEP = 999
 const DEFAULT_EPISODE_LIMIT = 20

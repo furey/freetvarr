@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 
 import {
+  adsOf,
   episodeLimitFrom,
   getLibraryShow,
   getLibraryShows,
@@ -377,4 +378,25 @@ test('showMoveFrom: needs recording ids and a trimmed title of up to 200 charact
   assert.ok(showMoveFrom({ ids: ['a'] }).error)
   assert.ok(showMoveFrom({ ids: ['a'], title: 'x'.repeat(201) }).error)
   assert.equal(showMoveFrom({ ids: ['a'], title: 'x'.repeat(200) }).title.length, 200)
+})
+
+test('adsOf: the ad state an episode menu needs, including the backup and its kept-until date', () => {
+  assert.deepEqual(adsOf({
+    ad_status: 'cut',
+    ad_breaks_json: '[{"start":1,"end":2},{"start":3,"end":4}]',
+    show_ad_removal: 'cut',
+    ad_cut_at: '2026-10-20 01:00:00',
+    ad_backup_saved_at: '2026-10-20 01:00:00',
+    ad_backup_kept_until: '2026-10-27T01:00:00.000Z',
+    ad_backup_uncut: 1,
+    ad_progress: null,
+  }), {
+    status: 'cut',
+    breakCount: 2,
+    showMode: 'cut',
+    cut: true,
+    backup: { keptUntil: '2026-10-27T01:00:00.000Z', uncut: true },
+    progress: null,
+  })
+  assert.deepEqual(adsOf({}), { status: null, breakCount: 0, showMode: 'off', cut: false, backup: null, progress: null })
 })

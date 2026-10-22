@@ -4,7 +4,7 @@ import { artFallbackStyle } from '/art-fallback.js'
 import { ForYouOverlays, ForYouRows } from '/components/for-you-parts.js'
 import { HomeHeroCarousel } from '/components/home-hero-carousel.js'
 import { useLibraryActions } from '/components/library-actions.js'
-import { DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
+import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
 import { MenuCard } from '/components/menu-card.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { MOVIES_URL, heroCandidatesOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
@@ -129,7 +129,7 @@ const heroPoolsWithin = (pools) =>
   Promise.race([pools, new Promise((resolve) => setTimeout(() => resolve(null), HERO_POOL_WAIT_MS))])
 
 export const HomeView = {
-  components: { DeleteConfirm, ForYouOverlays, ForYouRows, HomeHeroCarousel, LibraryInfoSheet, LibraryMenuSheet, MenuCard, RecordingOptionsSheet },
+  components: { ActionConfirm, DeleteConfirm, ForYouOverlays, ForYouRows, HomeHeroCarousel, LibraryInfoSheet, LibraryMenuSheet, MenuCard, RecordingOptionsSheet },
   template: `
     <div v-page-reveal class="ui-page home-page">
       <page-header :title="greeting" subtitle="Here's what's happening." subtitle-short="" brand health-alert />
@@ -270,6 +270,7 @@ export const HomeView = {
         :pending-key="libraryPendingKey" @close="closeEpisodeMenu" @choose="chooseEpisodeAction" />
       <library-info-sheet :open="Boolean(episodeInfo)" :info="episodeInfo" @close="closeEpisodeInfo" />
       <delete-confirm :request="deleteRequest" @cancel="cancelDelete" @done="onDeleted" />
+      <action-confirm :request="actionRequest" @cancel="cancelAction" @done="onActionDone" />
     </div>
   `,
   setup() {
@@ -567,6 +568,7 @@ export const HomeView = {
       menuEpisode: library.menuEpisode, libraryBusy: library.busy, libraryPendingKey: library.pendingKey,
       closeEpisodeMenu: library.closeMenus, episodeInfo: library.info, closeEpisodeInfo: () => { library.info.value = null },
       deleteRequest: library.deleteRequest, cancelDelete: library.cancelDelete, onDeleted: library.onDeleted,
+      actionRequest: library.actionRequest, cancelAction: library.cancelAction, onActionDone: library.onActionDone,
     }
   },
 }
