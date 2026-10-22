@@ -1,10 +1,12 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { DOCS_BASE } from '/shared/constants.js'
+import { diagramHrefOf } from '/system-diagram.js'
 
 export const InfoButton = {
   props: {
     title: { type: String, required: true },
     doc: { type: String, default: '' },
+    piece: { type: String, default: '' },
   },
   template: `
     <button type="button" class="info-btn" :aria-label="'About ' + title" :title="'About ' + title"
@@ -14,8 +16,9 @@ export const InfoButton = {
         <button type="button" class="ui-icon-button" aria-label="Close" @click="open = false"><close-glyph /></button>
       </template>
       <div class="info-sheet-body"><slot /></div>
-      <template v-if="doc" #footer>
-        <a :href="docUrl" target="_blank" rel="noopener noreferrer" class="ui-button ui-button-secondary ui-button-block">
+      <template v-if="doc || piece" #footer>
+        <a v-if="piece" :href="diagramUrl" class="ui-button ui-button-secondary ui-button-block">System diagram</a>
+        <a v-if="doc" :href="docUrl" target="_blank" rel="noopener noreferrer" class="ui-button ui-button-secondary ui-button-block">
           Read the docs <external-link-icon />
         </a>
       </template>
@@ -25,6 +28,7 @@ export const InfoButton = {
   setup(props) {
     const open = ref(false)
     const docUrl = computed(() => `${DOCS_BASE}${props.doc}`)
-    return { open, docUrl }
+    const diagramUrl = computed(() => diagramHrefOf(props.piece))
+    return { open, docUrl, diagramUrl }
   },
 }

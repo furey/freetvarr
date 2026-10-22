@@ -20,6 +20,13 @@ When [Health](/guide/doctor) finds a problem, a dot shows on the Settings icon a
 ## About
 
 - **About Freetvarr**: links to **Setup** and **Health checks**, the versions of Freetvarr, TVHeadend, and Node with the uptime, the licences, and the data credits.
+- **System diagram**: a diagram of each component, from the aerial to the TV, and how a recording moves between them.
+
+### System diagram
+
+Press a component to see its function, whether it is required, and who supplies it. **Current** shows the value Freetvarr uses now, such as the TVHeadend address or the recordings folder. **Existing setup** says what to use if you already have that component. The buttons under it open the matching Settings pages.
+
+The info sheets on the TVHeadend, Recording folders, Library and Plex, Ad removal, Film and TV info, Watch on TV, Channels, and Setup pages have a **System diagram** button. It opens the diagram with that component selected.
 
 ## Watching
 

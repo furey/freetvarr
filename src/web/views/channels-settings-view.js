@@ -6,6 +6,12 @@ import { loadNowAll } from '/shared/channel-twins.js'
 export const ChannelsSettingsView = {
   template: `
     <div v-page-reveal class="settings-page channels-settings">
+      <teleport defer to="#settings-page-info">
+        <info-button title="Channels" doc="guide/tv-guide#favourites" piece="tuner">
+          <p>The TV tuner receives the channels, and TVHeadend lists them after a channel scan.</p>
+          <p>These switches hide SD channels from Live TV, the TV guide, and search. A favourite is never hidden.</p>
+        </info-button>
+      </teleport>
       <p v-if="error" class="ui-banner is-error" role="alert">{{ error }}</p>
       <div class="settings-group">
         <div class="ui-group">

@@ -62,7 +62,7 @@ export const ChannelsModal = {
         <template v-else>
         <header class="ui-sheet-header">
           <h2 id="channels-sheet-title" class="ui-sheet-title">Channels</h2>
-          <info-button title="Channels" doc="guide/tv-guide#favourites">
+          <info-button title="Channels" doc="guide/tv-guide#favourites" piece="tuner">
             <p>Favourites sit at the top of Live TV and the TV guide, in the order set here. Press a star to add or remove a favourite, and press Edit order to change the order.</p>
             <p>Turn a channel off to hide it from both pages. A favourite is always shown. The sort order, Hide SD simulcasts, and Hide SD channels apply to the other channels.</p>
             <p>Each channel's shows come from a channel in the TV guide you set up. If a channel shows the wrong shows, or none, press the pencil and pick the guide channel that matches it. Tick to keep the pick, or cross to drop it. Pick No listings to remove its shows. A new pick can take a minute to show in the Guide.</p>

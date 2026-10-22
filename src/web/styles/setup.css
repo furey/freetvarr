@@ -78,8 +78,9 @@
   text-align: center;
 }
 
-.setup-hero-start .ui-button-primary {
+.setup-hero-start .ui-button {
   width: 100%;
+  min-height: 48px;
 }
 
 .setup-later {
@@ -730,12 +731,11 @@
   }
 
   .setup-hero-start {
-    justify-items: center;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .setup-hero-start .ui-button-primary {
-    width: auto;
-    min-width: 240px;
+  .setup-hero-start .setup-hint {
+    grid-column: 1 / -1;
   }
 
   .setup-fields.is-two {

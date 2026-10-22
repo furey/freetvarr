@@ -35,7 +35,7 @@ test('SETTINGS_GROUPS: about, watching, recording, and system in order', () => {
 })
 
 test('SETTINGS_GROUPS: each group lists its pages in order', () => {
-  assert.deepEqual(labelsOf('about'), ['About Freetvarr'])
+  assert.deepEqual(labelsOf('about'), ['About Freetvarr', 'System diagram'])
   assert.deepEqual(labelsOf('watching'), ['Channels', 'Player', 'For you', 'Film and TV info', 'Watch on TV'])
   assert.deepEqual(labelsOf('recording'), ['Series rules', 'Title matches', 'Recording log', 'Ad removal', 'Library and Plex', 'Recording folders'])
   assert.deepEqual(labelsOf('system'), ['Health', 'Activity', 'Setup', 'TVHeadend', 'Schedule', 'Danger zone'])
@@ -52,6 +52,7 @@ test('SETTINGS_GROUPS: every page keeps the address it had before the regrouping
   const hrefs = Object.fromEntries(SETTINGS_GROUPS.flatMap((group) => group.pages).map((page) => [page.id, page.href]))
   assert.deepEqual(hrefs, {
     about: '#/settings/about',
+    diagram: '#/settings/diagram',
     channels: '#/settings/channels',
     player: '#/settings/player',
     'for-you': '#/settings/for-you',
@@ -103,6 +104,8 @@ test('settingsPageOf: old addresses and route aliases open the right page', () =
     '#/recordings?status=failed': 'log',
     '#/settings/system/activity/42': 'activity',
     '#/settings/system/setup/channels': 'setup',
+    '#/settings/diagram/tvheadend': 'diagram',
+    '#/settings/Diagram': 'diagram',
   }
   for (const [hash, id] of Object.entries(expected)) assert.equal(pageAt(hash)?.id, id, hash)
 })
@@ -123,6 +126,8 @@ test('settingsPageOf: pages carry their view and group', () => {
   assert.equal(settingsPageOf({ params: ['player'] }).view, 'player')
   assert.equal(settingsPageOf({ params: ['player'] }).group, 'watching')
   assert.equal(settingsPageOf({ params: ['system', 'series'] }).group, 'recording')
+  assert.equal(settingsPageOf({ params: ['diagram'] }).view, 'diagram')
+  assert.equal(settingsPageOf({ params: ['diagram'] }).group, 'about')
   assert.equal(settingsPageOf({ params: ['plex'] }).section, 'plex')
   assert.equal(settingsPageOf({ params: ['system', 'tvheadend'] }).section, 'tvheadend')
   assert.equal(settingsPageOf({ params: ['system', 'reset'] }).section, 'danger-zone')

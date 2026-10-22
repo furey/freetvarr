@@ -10,6 +10,12 @@ export const SetupSettingsView = {
   components: { SetupStatusIcon },
   template: `
     <div v-page-reveal class="setup-settings">
+      <teleport defer to="#settings-page-info">
+        <info-button title="Setup" doc="guide/getting-started#_2-run-setup" piece="all">
+          <p>Setup connects Freetvarr to TVHeadend, finds the channels and the TV guide, and checks the folders and Plex.</p>
+          <p>The system diagram shows each component, from the aerial to the TV, and what each one does.</p>
+        </info-button>
+      </teleport>
       <div class="ui-group">
         <template v-for="row in rows" :key="row.key">
           <button type="button" :class="['ui-group-row', 'setup-settings-row', { 'is-open': open === row.key }]"

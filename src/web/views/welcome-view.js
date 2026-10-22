@@ -50,6 +50,7 @@ import {
 import { tz, browserTimeZone } from '/shared/time.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
 import { SetupRunList, SetupStatusIcon, BOOTSTRAP_REVEAL_POLL_MS } from '/views/welcome-shared.js'
+import { SystemTour } from '/components/system-tour.js'
 
 const syncFrequency = (cron) => {
   const preset = SYNC_SCHEDULE_PRESETS.find((p) => p.cron === syncSchedulePreset(cron))
@@ -57,10 +58,11 @@ const syncFrequency = (cron) => {
 }
 
 export const WelcomeView = {
-  components: { SetupRunList, SetupStatusIcon },
+  components: { SetupRunList, SetupStatusIcon, SystemTour },
   template: `
     <div :class="['setup-page', { 'has-rail': step > 1 }]">
-      <section v-if="step === 1" class="setup-hero" aria-labelledby="setup-hero-title">
+      <system-tour v-if="step === 1 && touring" @done="startFromTour" />
+      <section v-else-if="step === 1" class="setup-hero" aria-labelledby="setup-hero-title">
         <button type="button" class="setup-later setup-hero-later" @click="skipToSettings">Finish later</button>
         <div class="setup-hero-inner">
           <h1 id="setup-hero-title" class="setup-hero-title"><brand-wordmark class="setup-hero-word" data-intro-target /></h1>
@@ -91,8 +93,8 @@ export const WelcomeView = {
           <p v-if="hasExistingConfig" class="setup-quiet-text">Your saved settings are filled in. A field you leave as it is keeps its saved value.</p>
         </div>
         <div class="setup-hero-inner setup-hero-start">
+          <button type="button" class="ui-button ui-button-secondary" @click="touring = true">How it works</button>
           <button type="button" class="ui-button ui-button-primary" @click="next" :disabled="saving">Start setup <arrow-right-icon /></button>
-          <span class="ui-meta">About 5 minutes, most of it the channel scan</span>
           <p v-if="saveStatusText" class="setup-hint is-error">{{ saveStatusText }}</p>
         </div>
       </section>
@@ -372,6 +374,7 @@ export const WelcomeView = {
     const [tvhText, tvhKind, setTvhText] = makeStatus()
     const [saveStatusText, saveStatusKind, setSaveStatus, clearSaveStatus] = makeStatus()
     const step = ref(1)
+    const touring = ref(false)
     const totalSteps = FIRST_STEP + SETUP_STEPS.length
     const current = computed(() => step.value - FIRST_STEP)
     const isReady = computed(() => step.value === totalSteps)
@@ -747,6 +750,11 @@ export const WelcomeView = {
       run: leaveSetup,
     })
 
+    const startFromTour = async () => {
+      await next()
+      touring.value = false
+    }
+
     const back = () => {
       if (step.value > 1) {
         clearSaveStatus()
@@ -1112,7 +1120,7 @@ export const WelcomeView = {
     }
 
     return {
-      step, totalSteps, current, isReady, fills, caption, rail, stepTitle, subtitle, saving, primary, secondary, barNote,
+      step, touring, startFromTour, totalSteps, current, isReady, fills, caption, rail, stepTitle, subtitle, saving, primary, secondary, barNote,
       summaryRows, complete, markState, doneMark, heading, jumpTo, jumpToKey, channelStep, guideStep,
       hasExistingConfig, channelState, guideState, plexIsSetUp, syncFrequencyText,
       timeZone, tzSource, zones, zoneClock, zoneSourceText,
@@ -1152,7 +1160,7 @@ const PROGRESS_FILL_MS = 280
 const MORPH_HOLD_MS = 700
 
 const PLAN = [
-  { title: 'Connect to TVHeadend', meta: 'The program that runs your tuner' },
+  { title: 'Connect to TVHeadend', meta: 'TV recording server that controls the tuner' },
   { title: 'Find channels and the guide', meta: 'A scan takes a few minutes' },
   { title: 'Choose where recordings save', meta: 'Plex is optional' },
 ]

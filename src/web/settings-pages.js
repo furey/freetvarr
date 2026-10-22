@@ -6,7 +6,10 @@ export const SETTINGS_GROUPS = [
   {
     key: 'about',
     label: 'About',
-    pages: [{ id: 'about', label: 'About Freetvarr', view: 'settings', section: 'help' }],
+    pages: [
+      { id: 'about', label: 'About Freetvarr', view: 'settings', section: 'help' },
+      { id: 'diagram', label: 'System diagram', view: 'diagram' },
+    ],
   },
   {
     key: 'watching',

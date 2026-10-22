@@ -17,6 +17,7 @@ import { SettingsView } from '/views/settings-view.js'
 import { SetupSettingsView } from '/views/setup-settings-view.js'
 import { SuggestionsSettingsView } from '/views/suggestions-settings-view.js'
 import { SyncsView } from '/views/syncs-view.js'
+import { SystemDiagramView } from '/views/system-diagram-view.js'
 
 const SYSTEM_VIEWS = {
   setup: { view: SetupSettingsView, props: {} },
@@ -39,6 +40,7 @@ const PAGE_INTROS = {
   player: 'How the player starts and behaves on this device.',
   channels: 'The channels that Live TV, the TV guide, and search show.',
   'for-you': 'For you picks shows from the guide based on what this household watches and records.',
+  diagram: 'Select a component to see its function, whether it is required, and its settings.',
   about: 'Records free-to-air TV from your TVHeadend-compatible tuner and saves it where your media player finds it.',
 }
 
@@ -88,6 +90,7 @@ export const SettingsShell = {
       if (page.value?.view === 'for-you') return { view: SuggestionsSettingsView, props: {} }
       if (page.value?.view === 'player') return { view: PlayerSettingsView, props: {} }
       if (page.value?.view === 'channels') return { view: ChannelsSettingsView, props: {} }
+      if (page.value?.view === 'diagram') return { view: SystemDiagramView, props: {} }
       return { view: SettingsView, props: { section: page.value?.section } }
     })
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))

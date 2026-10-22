@@ -134,7 +134,7 @@ export const SettingsView = {
         <section id="section-tvheadend" class="settings-section">
           <p class="settings-intro">The address and login Freetvarr uses to read the guide, channels, and recordings, and to set recordings.</p>
           <teleport v-if="section === 'tvheadend'" defer to="#settings-page-info">
-            <info-button title="TVHeadend" doc="guide/tvheadend">
+            <info-button title="TVHeadend" doc="guide/tvheadend" piece="tvheadend">
               <p>The address and login Freetvarr uses for the TVHeadend API. Freetvarr reads the guide, channels, and recordings from it, and sets and cancels recordings.</p>
               <p><strong>Auto-discover TVHeadend</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
             </info-button>
@@ -199,7 +199,7 @@ export const SettingsView = {
         <section id="section-storage" class="settings-section">
           <p class="settings-intro">Where recordings come from and where Freetvarr files them.</p>
           <teleport v-if="section === 'storage'" defer to="#settings-page-info">
-            <info-button title="Recording folders" doc="guide/configuration#the-two-recordings-paths">
+            <info-button title="Recording folders" doc="guide/configuration#the-two-recordings-paths" piece="recordings">
               <ul><li><strong>Media root</strong>: where imported episodes go. Plex reads this folder.</li><li><strong>One-off folder</strong>: where single recordings go, such as sport and specials. Point a separate Plex library at it.</li><li><strong>Recordings folder (as Freetvarr sees it)</strong>: the TVHeadend recordings folder, at the path Freetvarr uses.</li><li><strong>Recordings folder (as TVHeadend sees it)</strong>: the same folder, at the path TVHeadend reports.</li></ul>
               <p>When both apps see the folder at the same path, the two recordings paths are the same. Keep the recordings and the media root inside one shared folder: imports are then instant and use no extra disk space.</p>
             </info-button>
@@ -284,7 +284,7 @@ export const SettingsView = {
         <section id="section-plex" class="settings-section">
           <p class="settings-intro">What goes into your library, and how Freetvarr tells Plex about it.</p>
           <teleport v-if="section === 'plex'" defer to="#settings-page-info">
-            <info-button title="Plex" doc="guide/plex">
+            <info-button title="Plex" doc="guide/plex" piece="player">
               <p>Optional. After a sync imports an episode, Freetvarr asks Plex to refresh the library section, so new episodes show up without a manual scan.</p>
               <p>Freetvarr needs the Plex address, a token, and the section. Without Plex, Freetvarr still imports and files episodes.</p>
             </info-button>
@@ -461,7 +461,7 @@ export const SettingsView = {
         <section id="section-film-tv-info" class="settings-section">
           <p class="settings-intro">Pictures, ratings, reviews, and cast from online film and TV databases.</p>
           <teleport v-if="section === 'film-tv-info'" defer to="#settings-page-info">
-            <info-button title="Film and TV info" doc="guide/tv-guide#missing-pictures">
+            <info-button title="Film and TV info" doc="guide/tv-guide#missing-pictures" piece="metadata">
               <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database. For films and other shows TVmaze does not list, it finds the matching Wikipedia article through Wikidata and uses its picture, or the TMDB poster when you add a TMDB key.</p>
               <p>Films and drama series also get a score on the programme sheet. Film scores come from TMDB users. Show scores come from TMDB users when you add a TMDB key and TMDB has enough votes, and from TVmaze users otherwise. With a TMDB key, the sheet also shows a line from a TMDB review.</p>
               <p>A recorded show's page lists its cast and crew from TMDB and TVmaze, reality hosts included.</p>
@@ -525,7 +525,7 @@ export const SettingsView = {
         <section id="section-ad-removal" class="settings-section">
           <p class="settings-intro">Optional. Finds the ad breaks in a recording, and can cut them out.</p>
           <teleport v-if="section === 'ad-removal'" defer to="#settings-page-info">
-            <info-button title="Ad removal" doc="guide/ad-removal">
+            <info-button title="Ad removal" doc="guide/ad-removal" piece="ad-removal">
               <p>Finds the ad breaks in a recording with comskip, and can cut them out with ffmpeg. Both come with Freetvarr.</p>
               <p>Turn it on here, then set a mode for each series under <strong>Series rules</strong>. <strong>Detect</strong> saves the breaks in a <code>.edl</code> file beside the video, so apps that read it skip them. <strong>Cut</strong> removes them and keeps the original for a set number of days.</p>
               <p>Detection is not always right. Use <strong>Detect</strong> on a channel first, and check the breaks before you let it cut.</p>
