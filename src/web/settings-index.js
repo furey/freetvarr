@@ -109,7 +109,7 @@ const ENTRIES = [
   { label: 'Syncs', page: 'schedule', setting: 'syncs', description: 'When Freetvarr checks TVHeadend for new recordings.', tags: ['import'] },
   { label: 'Sync schedule', page: 'schedule', setting: 'syncs', description: 'How often Freetvarr syncs.', tags: ['cron', 'how often', 'timer'] },
   { label: 'Custom schedule', page: 'schedule', setting: 'syncs', description: 'A cron expression for the sync schedule.', tags: ['cron'] },
-  { page: 'reset', description: 'Delete Freetvarr\'s settings and start setup again.', tags: ['reset', 'wipe', 'factory', 'delete everything'] },
+  { page: 'reset', description: 'Delete Freetvarr\'s settings and start setup again.', tags: ['reset', 'wipe', 'factory', 'delete everything', 'danger zone'] },
   { label: 'Reset Freetvarr', page: 'reset', setting: 'reset', description: 'Deletes the settings, series, and history.', tags: ['wipe', 'factory', 'start again'] },
 ]
 

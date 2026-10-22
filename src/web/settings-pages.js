@@ -43,7 +43,13 @@ export const SETTINGS_GROUPS = [
       { id: 'setup', label: 'Setup', view: 'system' },
       { id: 'tvheadend', label: 'TVHeadend', view: 'settings', section: 'tvheadend' },
       { id: 'schedule', label: 'Schedule', view: 'settings', section: 'schedule' },
-      { id: 'reset', label: 'Danger zone', view: 'settings', section: 'danger-zone' },
+    ],
+  },
+  {
+    key: 'danger',
+    label: 'Danger zone',
+    pages: [
+      { id: 'reset', label: 'Reset', view: 'settings', section: 'danger-zone' },
     ],
   },
 ].map((group) => ({

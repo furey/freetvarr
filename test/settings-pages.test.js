@@ -29,22 +29,24 @@ const settingsLinksInSource = () => {
   return [...new Set(links)].filter((link) => !link.endsWith('/'))
 }
 
-test('SETTINGS_GROUPS: about, watching, recording, and system in order', () => {
-  assert.deepEqual(SETTINGS_GROUPS.map((group) => group.key), ['about', 'watching', 'recording', 'system'])
-  assert.deepEqual(SETTINGS_GROUPS.map((group) => group.label), ['About', 'Watching', 'Recording', 'System'])
+test('SETTINGS_GROUPS: about, watching, recording, system, and danger zone in order', () => {
+  assert.deepEqual(SETTINGS_GROUPS.map((group) => group.key), ['about', 'watching', 'recording', 'system', 'danger'])
+  assert.deepEqual(SETTINGS_GROUPS.map((group) => group.label), ['About', 'Watching', 'Recording', 'System', 'Danger zone'])
 })
 
 test('SETTINGS_GROUPS: each group lists its pages in order', () => {
   assert.deepEqual(labelsOf('about'), ['About Freetvarr', 'System diagram'])
   assert.deepEqual(labelsOf('watching'), ['For you', 'Playback', 'Channels', 'Film and TV info', 'Watch on TV'])
   assert.deepEqual(labelsOf('recording'), ['Series rules', 'Title matches', 'Recording log', 'Ad removal', 'Media library', 'Plex'])
-  assert.deepEqual(labelsOf('system'), ['Health', 'Activity', 'Setup', 'TVHeadend', 'Schedule', 'Danger zone'])
+  assert.deepEqual(labelsOf('system'), ['Health', 'Activity', 'Setup', 'TVHeadend', 'Schedule'])
+  assert.deepEqual(labelsOf('danger'), ['Reset'])
 })
 
-test('SETTINGS_GROUPS: About is the first page and Danger zone the last', () => {
+test('SETTINGS_GROUPS: About is the first page and Reset, in Danger zone, the last', () => {
   const pages = SETTINGS_GROUPS.flatMap((group) => group.pages)
   assert.equal(pages[0].id, 'about')
-  assert.equal(pages.at(-1).label, 'Danger zone')
+  assert.equal(SETTINGS_GROUPS.at(-1).label, 'Danger zone')
+  assert.equal(pages.at(-1).label, 'Reset')
   assert.equal(pages.at(-1).href, '#/settings/system/reset')
 })
 

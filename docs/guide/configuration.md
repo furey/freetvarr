@@ -88,7 +88,8 @@ The TVHeadend URL, username, and password, the Plex URL, token, and section, the
 - **About**: About Freetvarr (versions and licences). Settings opens on it.
 - **Watching**: For you, Playback, Channels, Film and TV info, and Watch on TV.
 - **Recording**: Series rules, Title matches, Recording log, Ad removal, Media library, and Plex.
-- **System**: Health, Activity, Setup, TVHeadend, Schedule, and Danger zone.
+- **System**: Health, Activity, Setup, TVHeadend, and Schedule.
+- **Danger zone**: Reset.
 
 [Settings](/guide/settings) describes each page. Press **Save settings** to keep your changes. An optional TMDB API key for film posters, film ratings, reviews, and film cast goes in Settings → Watching → Film and TV info ([TMDB key](/guide/tv-guide#tmdb-key)); Freetvarr stores it in its database and never sends it to the browser. **Test path** checks the media root and Freetvarr's recordings folder, and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
