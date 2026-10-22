@@ -57,7 +57,7 @@ export const HomeHeroCarousel = {
   props: {
     slides: { type: Array, required: true },
   },
-  emits: ['action', 'menu'],
+  emits: ['action', 'menu', 'art-missing'],
   template: `
     <section class="hero-carousel" aria-roledescription="carousel" aria-label="Highlights"
       :class="{ 'is-reduced': rotation.reducedMotion }"
@@ -491,7 +491,10 @@ export const HomeHeroCarousel = {
     const emitAction = (slide, button) => emit('action', { slide, action: button.action })
     const fallbackStyleOf = (slide) => artFallbackStyle(slide.art.title)
     const artKeyOf = (slide) => `${slide.key}|${slide.art.image}`
-    const markArtFailed = (slide) => { failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true } }
+    const markArtFailed = (slide) => {
+      failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true }
+      emit('art-missing', slide)
+    }
 
     return {
       stampedShowImage, heroSrcsetOf, heroSizes: HERO_SIZES,

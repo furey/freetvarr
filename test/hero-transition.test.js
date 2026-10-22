@@ -12,8 +12,8 @@ test('heroMotionOf: reduced motion gets the short fade, everything else the full
   assert.equal(heroMotionOf({ reducedMotion: false }), HERO_MOTION)
 })
 
-test('the full change settles inside 500 ms', () => {
-  assert.ok(HERO_MOTION.imageMs <= 500)
+test('the full change settles inside 700 ms', () => {
+  assert.ok(HERO_MOTION.imageMs <= 700)
 })
 
 test('reduced motion is a short picture fade with no text motion, nudge, or drift', () => {

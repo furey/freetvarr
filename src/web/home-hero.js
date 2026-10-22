@@ -28,8 +28,8 @@ export const withHeroWidth = (url, width) => {
   return `${path}?${[...kept, `w=${width}`].join('&')}`
 }
 
-export const heroSlidesOf = ({ pools = {}, limit = HERO_SLIDE_LIMIT, remix = true, ...feed }) => {
-  const ranked = heroCandidatesOf(feed)
+export const heroSlidesOf = ({ pools = {}, limit = HERO_SLIDE_LIMIT, remix = true, missingArtKeys = new Set(), ...feed }) => {
+  const ranked = heroCandidatesOf(feed).filter((slide) => !missingArtKeys.has(slide.key))
   const candidates = remix ? hourlyOrderOf({ candidates: ranked, nowMs: feed.nowMs, timeZone: feed.timeZone }) : ranked
   return arrangeHero({ chosen: candidates.slice(0, limit), waiting: candidates.slice(limit), pools, limit })
 }

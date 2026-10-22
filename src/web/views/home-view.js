@@ -8,6 +8,7 @@ import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLi
 import { MenuCard } from '/components/menu-card.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { MOVIES_URL, heroCandidatesOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
+import { missingArtKeysOf, rememberMissingArt } from '/hero-missing-art.js'
 import {
   continueWatchingUrl,
   newRecordingsUrl,
@@ -180,7 +181,7 @@ export const HomeView = {
         </section>
       </template>
       <template v-else>
-        <home-hero-carousel v-if="heroSlides.length" :slides="heroSlides" @action="runSlideAction" @menu="openSlideMenu" />
+        <home-hero-carousel v-if="heroSlides.length" :slides="heroSlides" @action="runSlideAction" @menu="openSlideMenu" @art-missing="dropSlideWithoutArt" />
 
         <section v-if="newRecordingsRow.length" class="ui-section" aria-labelledby="home-new-title">
           <div class="ui-row-header">
@@ -306,7 +307,12 @@ export const HomeView = {
     }))
     const heroFeed = computed(() => heroFeedOf({ home: home.value, nowMs: nowMs.value }))
     const forYouSlide = computed(() => heroFeed.value.forYou)
-    const heroSlides = computed(() => heroSlidesOf({ ...heroFeed.value, pools: home.value.heroPools }))
+    const missingArtKeys = shallowRef(missingArtKeysOf({ storage: browserStorage(), nowMs: Date.now() }))
+    const dropSlideWithoutArt = (slide) => {
+      const remembered = rememberMissingArt({ storage: browserStorage(), key: slide.key, nowMs: Date.now() })
+      missingArtKeys.value = new Set([...missingArtKeys.value, ...remembered])
+    }
+    const heroSlides = computed(() => heroSlidesOf({ ...heroFeed.value, pools: home.value.heroPools, missingArtKeys: missingArtKeys.value }))
     const heroRecordingIds = computed(() => heroRecordingIdsOf(heroSlides.value))
     const heroProgramIds = computed(() => heroProgramIdsOf(heroSlides.value))
     const newRecordingsRow = computed(() => newRecordings.value.filter((r) => !heroRecordingIds.value.has(r.recordingId)))
@@ -568,7 +574,7 @@ export const HomeView = {
 
     return {
       showArtOf,
-      loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
+      loaded, greeting, heroSlides, dropSlideWithoutArt, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
       optionsShow, optionsOpen, load, onOptionsStopped, watchChannel, showHref, newCardMeta, newCardLabel,
       clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
       forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF,

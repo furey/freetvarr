@@ -1,7 +1,7 @@
 export const HERO_MOTION = {
-  imageMs: 420,
+  imageMs: 600,
   imageNudgeScale: 1.02,
-  textOutMs: 140,
+  textOutMs: 200,
   drift: true,
 }
 
