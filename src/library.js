@@ -13,6 +13,7 @@ import { showKeyOf } from './web/show-key.js'
 import { artworkChoices } from './artwork-choices.js'
 import { backupKeptUntil, originalRetentionDays } from './commercials.js'
 import { snapshotProgress } from './progress.js'
+import { inProgressImageOf, inProgressRowsOf, inProgressSummaryOf, isInProgressRow } from './recording-now-library.js'
 
 export const MOVIE_MIN_DURATION_S = 4500
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
@@ -22,20 +23,23 @@ export const getLibraryShows = async ({
   loadRows = loadLibraryRows,
   loadSeries = getSeries,
   loadRecordingNow = loadActiveRecordings,
+  loadFinishing = loadFinishingRecordings,
   loadMoviesRoot = getMoviesRoot,
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
 } = {}) => {
-  const [rows, seriesData, active, moviesRoot, stamps, kindOverrides] = await Promise.all([
+  const [rows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
+    loadFinishing(),
     loadMoviesRoot().catch(() => ''),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
   ])
+  const merged = [...rows, ...inProgressRowsOf({ active, finishing, rows })]
   return {
-    shows: showSummariesOf({ rows, series: seriesData.series, active, moviesRoot, stamps, kindOverrides }),
+    shows: showSummariesOf({ rows: merged, series: seriesData.series, active, moviesRoot, stamps, kindOverrides }),
     stale: Boolean(seriesData.stale || seriesData.error),
   }
 }
@@ -46,29 +50,32 @@ export const getLibraryShow = async ({
   loadRows = loadLibraryRows,
   loadSeries = getSeries,
   loadRecordingNow = loadActiveRecordings,
+  loadFinishing = loadFinishingRecordings,
   loadMoviesRoot = getMoviesRoot,
   loadSeriesTags = loadTimedSeriesTags,
   refreshStates = refreshLibraryStates,
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
 } = {}) => {
-  const [rows, seriesData, active, moviesRoot, seriesTags, stamps, kindOverrides] = await Promise.all([
+  const [rows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
+    loadFinishing(),
     loadMoviesRoot().catch(() => ''),
     loadSeriesTags().catch(() => []),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
   ])
   const groupRows = rows.filter((row) => groupKeyOf(row) === key)
+  const inProgressRows = inProgressRowsOf({ active, finishing, rows }).filter((row) => groupKeyOf(row) === key)
   const series = seriesByKey(seriesData.series).get(key) || null
-  if (!groupRows.length && !series) return null
+  if (!groupRows.length && !inProgressRows.length && !series) return null
   const checkedRows = await refreshStates(groupRows)
   const playable = await Promise.all(checkedRows.map(async (row) => Boolean(await resolvePlayable(row))))
   return showDetailOf({
     key,
-    rows: checkedRows,
+    rows: [...checkedRows, ...inProgressRows],
     playable,
     series,
     active,
@@ -274,8 +281,9 @@ export const episodeOf = ({ row, playable = false }) => {
     playedAt: row.played_at ?? null,
     watched,
     watchedPercent: watched ? 100 : percentOf({ position: positionS, duration: row.duration_s }),
-    new: row.played_at == null && !watched,
+    new: row.played_at == null && !watched && !isInProgressRow(row),
     ads: adsOf(row),
+    inProgress: row.in_progress ?? null,
   }
 }
 
@@ -362,11 +370,13 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = N
     artworkStamps: { background: stamps.background ?? null, poster: stamps.poster ?? null },
     counts: {
       total: rows.length,
-      new: watchable.filter((row) => row.played_at == null && !isWatched(row)).length,
+      new: watchable.filter((row) => row.played_at == null && !isWatched(row) && !isInProgressRow(row)).length,
       unwatched: watchable.filter((row) => !isWatched(row)).length,
       failed: rows.filter(isFailed).length,
+      inProgress: rows.filter(isInProgressRow).length,
     },
     recordingNow,
+    inProgress: inProgressSummaryOf(rows),
     nextAiring: series?.nextAiring ?? null,
     rule: series ? ruleOf(series) : null,
     latest: latestRow ? latestOf(latestRow) : null,
@@ -485,9 +495,10 @@ const stampParamOf = (stamp) => (stamp ? `&c=${stamp}` : '')
 
 const choiceStampsByKey = () => artworkChoices.stampsByKey()
 
-const recordingImageOf = (row) => (row.image_path
-  ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}`
-  : null)
+const recordingImageOf = (row) => {
+  if (isInProgressRow(row)) return inProgressImageOf(row, CARD_IMAGE_WIDTH)
+  return row.image_path ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}` : null
+}
 
 const percentOf = ({ position, duration }) => {
   const total = Number(duration)
@@ -559,6 +570,8 @@ const withAdState = ({ row, retentionDays, progress }) => ({
 })
 
 const loadActiveRecordings = async () => (await getRecordingNow().catch(() => ({ active: [] }))).active || []
+
+const loadFinishingRecordings = async () => (await getRecordingNow().catch(() => ({ finishing: [] }))).finishing || []
 
 const loadTimedSeriesTags = async () => (await getRecordingState()).seriesTags || []
 

@@ -85,7 +85,7 @@ export const describeActiveRecording = ({ recording, inputs, subscriptions, nowM
 }
 
 export const recordingOutcome = (recording) => {
-  if (!recording) return { failed: false, statusText: '' }
+  if (!recording) return { failed: false, statusText: '', removed: recording === null }
   return {
     failed: isRecordingFailure(recording),
     statusText: recording.statusText,
@@ -148,12 +148,53 @@ const loadRecordingNow = async (nowMs) => {
   }
   trackActive({ active, nowMs })
   await resolveOutcomes(conn)
-  const journeys = await describeJourneys(nowMs)
+  const importContext = active.length || hasEnded() ? await loadImportContext() : null
+  const { journeys, finishing } = await describeEnded({ nowMs, importContext })
   return {
-    active: active.map((recording) => describeActiveRecording({ recording, inputs, subscriptions, nowMs })),
+    active: active.map((recording) => ({
+      ...describeActiveRecording({ recording, inputs, subscriptions, nowMs }),
+      libraryHold: libraryHoldOf({ recording, ...importContext }),
+    })),
     journeys,
+    finishing,
     fetchedAt: nowMs,
   }
+}
+
+export const libraryHoldOf = ({ recording, existing = null, shows = [], importUnmatched = true }) => {
+  const decision = libraryDecision({
+    existing,
+    libraryChoice: recording.libraryChoice ?? null,
+    show: matchShow(shows, recording.name || '') || null,
+    importUnmatched,
+  })
+  return decision.action === 'hold' ? decision.reason : null
+}
+
+export const finishingOf = ({ entry, libraryHold = null }) => ({
+  ...cardBasics(entry.recording),
+  start: entry.recording.startDate,
+  stop: entry.recording.endDate,
+  stopPadded: entry.recording.stopPadded,
+  recordingStartedAt: entry.recording.recordingSince ?? entry.recording.startPadded ?? null,
+  endedAt: entry.endedAt,
+  libraryHold,
+})
+
+export const isAwaitingRow = ({ entry, row, nowMs }) => !row
+  && !entry.outcome?.failed
+  && !entry.outcome?.removed
+  && nowMs - entry.endedAt <= JOURNEY_MAX_AGE_MS
+
+const hasEnded = () => [...tracked.values()].some((t) => t.endedAt != null)
+
+const loadImportContext = async () => {
+  const [shows, importUnmatchedSetting, adRemovalSetting] = await Promise.all([
+    db('shows').where({ enabled: true }),
+    getSetting('import_unmatched'),
+    getSetting('ad_removal_enabled'),
+  ])
+  return { shows, importUnmatched: importUnmatchedSetting !== 'false', adRemovalOn: adRemovalSetting === 'true' }
 }
 
 const trackActive = ({ active, nowMs }) => {
@@ -190,38 +231,44 @@ const resolveOutcomes = async (conn) => {
   }))
 }
 
-const describeJourneys = async (nowMs) => {
-  const ended = [...tracked.values()].filter((t) => t.outcome)
-  if (!ended.length) return []
-  const [rows, shows, adRemovalSetting, importUnmatchedSetting] = await Promise.all([
-    db('recordings').whereIn('recording_id', ended.map((t) => t.recording.uuid)),
-    db('shows').where({ enabled: true }),
-    getSetting('ad_removal_enabled'),
-    getSetting('import_unmatched'),
-  ])
+const describeEnded = async ({ nowMs, importContext }) => {
+  const ended = [...tracked.values()].filter((t) => t.endedAt != null)
+  if (!ended.length) return { journeys: [], finishing: [] }
+  const { shows, importUnmatched, adRemovalOn } = importContext
+  const rows = await db('recordings').whereIn('recording_id', ended.map((t) => t.recording.uuid))
   const rowById = new Map(rows.map((r) => [r.recording_id, r]))
   const progress = snapshotProgress(ended.map((t) => t.recording.uuid))
   const activeSyncId = getActiveSyncId()
   const journeys = []
+  const finishing = []
   for (const entry of ended) {
     const row = rowById.get(entry.recording.uuid) || null
     const show = (row?.show_id && shows.find((s) => s.id === row.show_id))
       || matchShow(shows, entry.recording.name || '')
       || null
+    if (entry.outcome?.removed) {
+      tracked.delete(entry.recording.uuid)
+      continue
+    }
+    const awaitingRow = isAwaitingRow({ entry, row, nowMs })
+    if (awaitingRow) {
+      finishing.push(finishingOf({ entry, libraryHold: libraryHoldOf({ recording: entry.recording, shows, importUnmatched }) }))
+    }
+    if (!entry.outcome) continue
     const journey = describeJourney({
       outcome: entry.outcome,
       row,
       show,
       libraryChoice: entry.recording.libraryChoice ?? null,
-      importUnmatched: importUnmatchedSetting !== 'false',
-      adRemovalOn: adRemovalSetting === 'true',
+      importUnmatched,
+      adRemovalOn,
       progress: progress[entry.recording.uuid] || null,
       activeSyncId,
       importSync: row?.imported_at ? await findImportSync(row.imported_at) : null,
     })
     if (journey.settled && entry.settledAt == null) entry.settledAt = nowMs
     if (isExpired({ entry, nowMs })) {
-      tracked.delete(entry.recording.uuid)
+      if (!awaitingRow) tracked.delete(entry.recording.uuid)
       continue
     }
     journeys.push({
@@ -236,7 +283,7 @@ const describeJourneys = async (nowMs) => {
       expiresAt: entry.settledAt != null ? entry.settledAt + JOURNEY_LINGER_MS : null,
     })
   }
-  return journeys
+  return { journeys, finishing }
 }
 
 const findImportSync = async (importedAt) => {

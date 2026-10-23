@@ -195,6 +195,8 @@ import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf } from './artwork-match.js'
 import { listWatchlist, mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
+import { applyInProgressPositions, rememberInProgressPosition } from './in-progress-positions.js'
+import { recordingTitlesOf } from './recording-now-library.js'
 import { mountProgrammeKindRoutes } from './programme-kind.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
@@ -1200,14 +1202,21 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
   }
 })
 
+const isInProgressRecording = async (recordingId) => {
+  const { active = [], finishing = [] } = await getRecordingNow().catch(() => ({}))
+  return [...active, ...finishing].some((item) => (item.dvrUuid ?? item.uuid) === recordingId)
+}
+
 app.post('/api/recordings/:recording_id/position', playPingLimiter, doubleCsrfProtection, async (req, res) => {
   const seconds = positionFrom(req.body?.seconds)
   if (seconds == null) return res.status(400).json({ error: 'seconds must be a number from 0 to 86400' })
   const n = await db('recordings')
     .where({ recording_id: req.params.recording_id })
     .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds }) })
-  if (n === 0) return res.status(404).json({ error: 'recording not found' })
-  res.json({ ok: true, seconds })
+  if (n > 0) return res.json({ ok: true, seconds })
+  if (!(await isInProgressRecording(req.params.recording_id))) return res.status(404).json({ error: 'recording not found' })
+  await rememberInProgressPosition({ recordingId: req.params.recording_id, seconds })
+  res.json({ ok: true, seconds, pending: true })
 })
 
 app.get('/api/play/:session/:file', async (req, res) => {
@@ -1284,7 +1293,12 @@ mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
 mountTmdbKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
-mountSearchRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
+mountSearchRoutes({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: epgLimiter,
+  loadRecordingTitles: async () => recordingTitlesOf(await getRecordingNow().catch(() => ({}))),
+})
 const refreshAfterKindChange = () => {
   clearGuideCache()
   forgetForYouCache()
@@ -2342,6 +2356,8 @@ const server = app.listen(PORT, async () => {
   watchPendingSkips()
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())
+  onSyncFinished(() => applyInProgressPositions({ watchedAtFor: watchedAtAfterPosition })
+    .catch((err) => console.warn(`[positions] failed to apply in-progress positions: ${err.message}`)))
   onForYouResult(() => homeHero.invalidate())
   startUserEvents().catch((err) => console.warn(`[events] failed to start: ${err.message}`))
   try {

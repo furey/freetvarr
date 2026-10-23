@@ -19,6 +19,8 @@ export const showKeyFrom = (raw) => {
   return key.length <= MAX_SHOW_KEY_LENGTH && SHOW_KEY.test(key) ? key : null
 }
 
+export const recordingRowsOf = (titles = []) => titles.map((title) => ({ title, count: 1 }))
+
 export const showCatalogueOf = (rows = []) => {
   const shows = new Map()
   for (const row of rows) {
@@ -49,14 +51,15 @@ export const rememberKnownAsFromTvmaze = (found) => knownAs.fromTvmazeShow(found
 
 export const rememberKnownAsFromWikidata = (found) => knownAs.fromWikidataFilm(found)
 
-export const mountSearchRoutes = ({ app, csrf, limiter = passThrough }) => {
+export const mountSearchRoutes = ({ app, csrf, limiter = passThrough, loadRecordingTitles = async () => [] }) => {
   app.get('/api/search/catalogue', async (req, res) => {
     try {
-      const [rows, { curated, aliases }] = await Promise.all([
+      const [rows, { curated, aliases }, recordingTitles] = await Promise.all([
         db('recordings').whereNull('purged_at').whereNotNull('title').select(db.raw(`${GROUP_TITLE} as title`)).count({ count: 'recording_id' }).groupByRaw(GROUP_TITLE),
         loadSearchAliases(),
+        loadRecordingTitles().catch(() => []),
       ])
-      res.json({ shows: showCatalogueOf(rows), curated, aliases })
+      res.json({ shows: showCatalogueOf([...rows, ...recordingRowsOf(recordingTitles)]), curated, aliases })
     } catch (err) {
       res.status(500).json({ error: err.message })
     }

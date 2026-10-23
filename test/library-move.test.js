@@ -49,6 +49,7 @@ const overridesOf = async () => Object.fromEntries((await db('recordings').order
 const showKeys = async () => (await getLibraryShows({
   loadSeries: async () => ({ series: [] }),
   loadRecordingNow: async () => [],
+  loadFinishing: async () => [],
   loadMoviesRoot: async () => '',
   loadChoiceStamps: async () => new Map(),
 })).shows.map((show) => `${show.key}:${show.counts.total}`).sort()

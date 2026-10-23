@@ -116,7 +116,7 @@ test('showSummariesOf: groups by show key, counts new and unwatched, and keeps r
   })
   assert.deepEqual(shows.map((s) => s.key), ['grand-designs', 'the-block', 'melbourne-cup'])
   const block = shows.find((s) => s.key === 'the-block')
-  assert.deepEqual(block.counts, { total: 4, new: 1, unwatched: 2, failed: 1 })
+  assert.deepEqual(block.counts, { total: 4, new: 1, unwatched: 2, failed: 1, inProgress: 0 })
   assert.equal(block.recordingNow, true)
   assert.equal(block.kind, 'show')
   assert.equal(block.image, '/api/recordings/a/image?w=384')
@@ -224,6 +224,7 @@ test('getLibraryShows: marks the list stale when the series rules are missing', 
     loadRows: async () => [row()],
     loadSeries: async () => ({ series: [], stale: false, error: 'TVHeadend URL is not configured.' }),
     loadRecordingNow: async () => [],
+    loadFinishing: async () => [],
     loadMoviesRoot: async () => '',
     loadChoiceStamps: async () => new Map(),
     loadOverrides: async () => new Map(),
@@ -237,6 +238,7 @@ test('getLibraryShow: returns 404 data as null and fills autorec padding from th
     loadRows: async () => [row({ recording_id: 'a', season: 22, episode: 45 })],
     loadSeries: async () => ({ series: [blockSeries()] }),
     loadRecordingNow: async () => [],
+    loadFinishing: async () => [],
     loadMoviesRoot: async () => '',
     loadSeriesTags: async () => [{ id: 'auto-1', leadTime: 2, lagTime: 5 }],
     refreshStates: async (rows) => rows,
@@ -360,6 +362,7 @@ test('a show title override moves a recording into the named show everywhere the
     loadRows: async () => rows,
     loadSeries: async () => ({ series: [] }),
     loadRecordingNow: async () => [],
+    loadFinishing: async () => [],
     loadMoviesRoot: async () => '',
     loadSeriesTags: async () => [],
     refreshStates: async (list) => list,
