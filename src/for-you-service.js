@@ -3,7 +3,6 @@ import { Worker } from 'node:worker_threads'
 
 import { db, getSetting, setSetting } from './db.js'
 import { getChannelPrefs, getGuideSnapshot, getRecordingState, onGuideLoaded } from './epg.js'
-import { buildForYouFromRequest } from './for-you-worker.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { pickableShowsOf } from './for-you-pickable.js'
 import {
@@ -16,7 +15,8 @@ import {
   runEmbeddings,
   vectorsVersion,
 } from './for-you-engine.js'
-import { createGenreEnrichment, isMovieLike, loadTitleGenres, yearOf } from './genre-enrichment.js'
+import { createGenreEnrichment, loadTitleGenres, yearOf } from './genre-enrichment.js'
+import { createDisplayKinds } from './display-kind.js'
 import { rememberKnownAsFromTvmaze, rememberKnownAsFromWikidata } from './search-aliases.js'
 import { showKeyOf } from './web/show-key.js'
 import { showTitleKey } from './show-artwork.js'
@@ -59,14 +59,24 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
     if (saved && !cached) cached = { signature: null, result: saved }
   }
 
+  let announced = null
+
+  const announce = (result) => {
+    const fingerprint = resultFingerprintOf(result)
+    if (fingerprint === announced) return
+    announced = fingerprint
+    Promise.resolve().then(() => onResult(result)).catch(() => {})
+  }
+
   const computeFor = ({ snapshot, signature, nowMs }) => {
     if (computing?.signature === signature && computing.generation === generation) return computing.promise
     const startedIn = generation
     const promise = compute({ snapshot, nowMs })
       .then((result) => {
-        if (startedIn === generation) cached = { signature, result }
+        if (startedIn !== generation) return result
+        cached = { signature, result }
         store?.save(result).catch(() => {})
-        Promise.resolve().then(() => onResult(result)).catch(() => {})
+        announce(result)
         return result
       })
       .finally(() => {
@@ -101,7 +111,7 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
 
   const warm = async ({ nowMs }) => {
     await restore()
-    if (cached || computing) return null
+    if (cached || computing?.generation === generation) return null
     return refreshInBackground({ nowMs })
   }
 
@@ -113,9 +123,15 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
   return { get, warm, forget }
 }
 
+export const resultFingerprintOf = (result) => {
+  if (!result) return null
+  const { computeMs, explanations, ...shown } = result
+  return hashOf(JSON.stringify(shown))
+}
+
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
-export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, otherLanguageFilms = 'few', channelPrefs = null }) => {
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone() }) => {
   const autorecs = (state?.seriesTags || []).map(({ seriesLinkId, channelId, enabled, match }) => ({ seriesLinkId, channelId, enabled, match }))
   const ruleKeys = new Set([
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
@@ -146,6 +162,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       tier,
       filmRatings: `${Number(filmRatings?.count) || 0}:${Number(filmRatings?.latest) || 0}`,
       otherLanguageFilms,
+      timeZone,
       scoring: SCORING_VERSION,
     },
   }
@@ -230,19 +247,22 @@ export const isUpkeepDue = ({ last, nowMs, nightStart = NIGHT_START, nightEnd = 
 }
 
 export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
-  const [guideRows, recordings, events, pinned] = await Promise.all([
+  const [guideRows, recordings, events, pinned, recordsByKey] = await Promise.all([
     db('guide_programs').where('end', '>', nowMs).select('program_json'),
     db('recordings').select('title'),
     db('user_events').whereNotNull('title').distinct('title'),
     pinnedChannelIds(),
+    loadTitleGenres().catch(() => new Map()),
   ])
   const pinnedSet = new Set(pinned)
+  const programmes = guideRows.map((row) => JSON.parse(row.program_json))
+  const kindOf = createDisplayKinds({ programmes, recordsByKey })
   const titles = [
     ...recordings.map((row) => ({ title: row.title, priority: 3 })),
     ...events.map((row) => ({ title: row.title, priority: 3 })),
-    ...guideRows.map((row) => JSON.parse(row.program_json)).map((programme) => ({
+    ...programmes.map((programme) => ({
       title: programme.title,
-      movie: isMovieLike(programme),
+      movie: kindOf(programme) === 'movie',
       year: yearOf(programme),
       priority: (pinnedSet.has(String(programme.channel_id)) ? 1 : 0) + (isPrimeTime(programme.start) ? 1 : 0),
     })),
@@ -329,15 +349,16 @@ const computeForYou = async ({ snapshot, nowMs }) => {
   }
   const started = Date.now()
   const built = await forYouWorker.build({ guide, vectorsByHash, request })
-    .catch(() => buildForYouFromRequest({ guide, vectorsByHash, request }))
+    .catch((err) => (err.code === WORKER_TIMED_OUT ? Promise.reject(err) : forYouWorker.build({ guide, vectorsByHash, request })))
   const result = await withClassifications({ result: built.result, programmes: guide.programmes })
   result.computeMs = Date.now() - started
   return withLazyExplanations({ result, explanationsJson: built.explanationsJson })
 }
 
-export const createForYouWorker = ({ url, timeoutMs } = {}) => {
+export const createForYouWorker = ({ url, timeoutMs, createWorker = (workerUrl) => new Worker(workerUrl), zoneOf = currentZone } = {}) => {
   const pending = new Map()
   let worker = null
+  let startedZone = null
   let sent = {}
   let nextId = 0
 
@@ -361,8 +382,20 @@ export const createForYouWorker = ({ url, timeoutMs } = {}) => {
     pending.clear()
   }
 
+  const restart = (err = new Error('For you worker restarted')) => {
+    const old = worker
+    stop(err)
+    old?.terminate()?.catch?.(() => {})
+  }
+
+  const timedOut = (id) => {
+    if (!pending.has(id)) return
+    restart(Object.assign(new Error('For you worker timed out'), { code: WORKER_TIMED_OUT }))
+  }
+
   const start = () => {
-    const started = new Worker(url ?? WORKER_URL)
+    const started = createWorker(url ?? WORKER_URL)
+    startedZone = zoneOf()
     started.on('message', settle)
     started.on('error', stop)
     started.on('exit', () => {
@@ -374,6 +407,7 @@ export const createForYouWorker = ({ url, timeoutMs } = {}) => {
   }
 
   const build = async ({ guide, vectorsByHash, request }) => {
+    if (worker && startedZone !== zoneOf()) restart()
     const target = worker ?? start()
     const message = {
       ...request,
@@ -384,7 +418,7 @@ export const createForYouWorker = ({ url, timeoutMs } = {}) => {
     const id = ++nextId
     target.ref()
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => settle({ id, error: 'For you worker timed out' }), timeoutMs ?? WORKER_TIMEOUT_MS)
+      const timer = setTimeout(() => timedOut(id), timeoutMs ?? WORKER_TIMEOUT_MS)
       pending.set(id, { resolve, reject, timer })
       target.postMessage({ id, request: message })
     })
@@ -392,7 +426,7 @@ export const createForYouWorker = ({ url, timeoutMs } = {}) => {
 
   const close = () => worker?.terminate()
 
-  return { build, close }
+  return { build, close, restart }
 }
 
 export const createSavedResultStore = ({ read = getSetting, write = setSetting, now = Date.now, maxAgeMs = SAVED_RESULT_MAX_AGE_MS, scoring = SCORING_VERSION } = {}) => ({
@@ -454,6 +488,8 @@ const pinnedChannelIds = async () => {
   }
 }
 
+const currentZone = () => process.env.TZ ?? ''
+
 const isPrimeTime = (ms) => {
   const hour = new Date(Number(ms)).getHours()
   return hour >= 18 && hour < 22
@@ -475,13 +511,12 @@ const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFro
 const CACHED_LIMIT = 20
 const WORKER_URL = new URL('./for-you-worker.js', import.meta.url)
 const WORKER_TIMEOUT_MS = 60 * 1000
-const RECORDING_STAMP_FIELDS = ['count', 'watched', 'position', 'imported', 'played', 'watchedAt', 'aired']
+const WORKER_TIMED_OUT = 'worker-timed-out'
+const RECORDING_STAMP_FIELDS = ['count', 'watched', 'imported', 'watchedAt', 'aired']
 const RECORDING_STAMP_COLUMNS = [
   'count(*) as count',
   'count(watched_at) as watched',
-  'total(playback_position_s) as position',
   'max(imported_at) as imported',
-  'max(played_at) as played',
   'max(watched_at) as watchedAt',
   'max(aired_at) as aired',
 ]

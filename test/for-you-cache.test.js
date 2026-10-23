@@ -304,3 +304,99 @@ test('warm reports a failed build without throwing', async () => {
   await cache.warm({ nowMs: 0 })
   assert.deepEqual(errors, ['no guide'])
 })
+
+test('the For you signature ignores playback position and play times, and follows the time zone', () => {
+  const base = signatureOf()
+  assert.equal(signatureOf({ recordings: { count: 2, watched: 1, position: 900, played: NOW } }), base)
+  assert.notEqual(signatureOf({ recordings: { count: 2, watched: 1, watchedAt: NOW } }), base)
+  assert.notEqual(signatureOf({ timeZone: 'Australia/Perth' }), signatureOf({ timeZone: 'Australia/Sydney' }))
+})
+
+test('a rebuild with the same picks does not announce a new result', async () => {
+  const announced = []
+  const stamps = { version: 1 }
+  const cache = createForYouCache({
+    loadSnapshot: async () => ({ stamps: { ...stamps } }),
+    compute: async () => ({ sections: [{ items: [{ title: 'Heat' }] }], computeMs: Math.random() }),
+    onResult: (result) => announced.push(result),
+    onRefreshError: () => {},
+  })
+  await cache.get({ nowMs: NOW })
+  stamps.version = 2
+  await cache.get({ nowMs: NOW })
+  await settle()
+  await settle()
+  assert.equal(announced.length, 1)
+})
+
+test('a build that started before forget is neither saved nor announced', async () => {
+  const saved = []
+  const announced = []
+  const releases = []
+  const release = (result) => releases[0](result)
+  const cache = createForYouCache({
+    loadSnapshot: async () => ({ stamps: { version: 1 } }),
+    compute: () => new Promise((resolve) => { releases.push(resolve) }),
+    store: { load: async () => null, save: async (result) => saved.push(result) },
+    onResult: (result) => announced.push(result),
+    onRefreshError: () => {},
+  })
+  const first = cache.get({ nowMs: NOW })
+  await settle()
+  cache.forget()
+  cache.warm({ nowMs: NOW })
+  await settle()
+  await settle()
+  assert.equal(releases.length, 2)
+  release({ sections: [] })
+  await first
+  await settle()
+  assert.deepEqual(saved, [])
+  assert.deepEqual(announced, [])
+})
+
+const fakeWorkers = () => {
+  const made = []
+  const createWorker = () => {
+    const listeners = {}
+    const worker = {
+      terminated: false,
+      on: (name, listener) => { listeners[name] = listener },
+      ref: () => {},
+      unref: () => {},
+      postMessage: () => {},
+      terminate: async () => { worker.terminated = true },
+      emit: (name, value) => listeners[name]?.(value),
+    }
+    made.push(worker)
+    return worker
+  }
+  return { made, createWorker }
+}
+
+test('a timed-out For you build stops the worker and the next build starts a fresh one', async () => {
+  const { made, createWorker } = fakeWorkers()
+  const worker = createForYouWorker({ createWorker, timeoutMs: 5, zoneOf: () => 'UTC' })
+  await assert.rejects(worker.build({ guide: null, vectorsByHash: null, request: {} }), { code: 'worker-timed-out' })
+  assert.equal(made.length, 1)
+  assert.equal(made[0].terminated, true)
+  const next = worker.build({ guide: null, vectorsByHash: null, request: {} })
+  assert.equal(made.length, 2)
+  made[1].emit('message', { id: 2, result: { sections: [] } })
+  assert.deepEqual(await next, { result: { sections: [] } })
+})
+
+test('a time zone change restarts the For you worker before the next build', async () => {
+  const { made, createWorker } = fakeWorkers()
+  let zone = 'UTC'
+  const worker = createForYouWorker({ createWorker, timeoutMs: 1000, zoneOf: () => zone })
+  const first = worker.build({ guide: null, vectorsByHash: null, request: {} })
+  made[0].emit('message', { id: 1, result: 'utc' })
+  await first
+  zone = 'Australia/Sydney'
+  const second = worker.build({ guide: null, vectorsByHash: null, request: {} })
+  assert.equal(made.length, 2)
+  assert.equal(made[0].terminated, true)
+  made[1].emit('message', { id: 2, result: 'sydney' })
+  assert.deepEqual(await second, { result: 'sydney' })
+})
