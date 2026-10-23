@@ -1,5 +1,4 @@
-import { formatMinutes } from '/time-format.js'
-import { now, fmtClockTz } from '/shared/time.js'
+import { now } from '/shared/time.js'
 
 export const fmtBytes = (n) => {
   if (!n || n <= 0) return ''
@@ -39,7 +38,3 @@ export const onNowPercent = (p) => {
   return Math.min(100, Math.max(0, Math.round(((now.value.getTime() - p.start) / span) * 100)))
 }
 
-export const onNowMeta = (p) => {
-  const mins = Math.max(0, Math.ceil((p.end - now.value.getTime()) / 60_000))
-  return `${fmtClockTz(p.start)} · ${formatMinutes(mins)} remaining`
-}

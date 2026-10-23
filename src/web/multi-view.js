@@ -6,8 +6,6 @@ export const COMPANIONS = PICTURES.slice(1)
 
 export const LAYOUTS = ['split', 'inset']
 
-export const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-
 export const COMPACT_PICTURE_LIMIT = 2
 
 export const SMALL_TILE_WIDTH = 420
@@ -35,8 +33,6 @@ export const soundButtonOf = ({ audible, picture, channelName = '', count = 2 })
 export const isMutedIn = ({ audible, picture }) => audible !== picture
 
 export const mainPictureOf = (state) => state.order[0]
-
-export const otherPictureOf = (picture) => (picture === 'primary' ? 'secondary' : 'primary')
 
 export const swapPictures = (state) => ({ ...state, order: [state.order[1], state.order[0], ...state.order.slice(2)] })
 

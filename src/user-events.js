@@ -10,19 +10,6 @@ export const FEEDBACK_KINDS = new Set([
   'programme_opened',
 ])
 
-export const EVENT_KINDS = new Set([
-  'watch_start',
-  'watch_end',
-  'record_request',
-  'record_cancel',
-  'series_stop',
-  'series_pause',
-  'series_resume',
-  'recording_deleted',
-  'not_interested_undo',
-  ...FEEDBACK_KINDS,
-])
-
 export const VIEWING_HISTORY_KEY = 'viewing_history_enabled'
 export const HISTORY_RETENTION_MS = 730 * 24 * 60 * 60 * 1000
 export const SHOWN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000

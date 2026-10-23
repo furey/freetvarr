@@ -1,6 +1,5 @@
 import { ref, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { syncStatus } from '/shared/sync-status.js'
-import { holdAtLeast, PENDING_MIN_MS } from '/pending.js'
 import { toast, dismissToast } from '/shared/toast.js'
 
 export const useMediaQuery = (query) => {
@@ -27,20 +26,6 @@ export const useFlash = () => {
     const safetyTimer = setTimeout(clear, SYNC_FLASH_SAFETY_MS)
   }
   return { flash, flashUntilSyncDone }
-}
-
-export const usePending = ({ minMs = PENDING_MIN_MS } = {}) => {
-  const pending = ref(false)
-  const run = async (task) => {
-    if (pending.value) return undefined
-    pending.value = true
-    try {
-      return await holdAtLeast({ task, minMs })
-    } finally {
-      pending.value = false
-    }
-  }
-  return { pending, run }
 }
 
 export const nextPaint = () => new Promise((resolve) => {

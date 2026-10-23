@@ -288,8 +288,6 @@ export const togglePlayerMuted = () => {
   if (!multi.active) playerMuted.value = !playerMuted.value
 }
 
-export const isMultiActive = () => multi.active && live.open
-
 let tunerTimer = null
 let tunerWatchers = 0
 

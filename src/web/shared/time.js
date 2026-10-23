@@ -1,12 +1,9 @@
-import { ref, computed, watch } from '/vendor/vue.esm-browser.prod.js'
+import { ref, watch } from '/vendor/vue.esm-browser.prod.js'
 import { localDayNumber } from '/guide-time.js'
 import {
   dateFormat as cachedDateFormat,
   formatClock,
-  formatClockSeconds,
   formatDate,
-  formatHours,
-  formatMinutes,
 } from '/time-format.js'
 import { readSnapshot, writeSnapshot } from '/warm-start.js'
 import { browserStorage } from '/shared/storage.js'
@@ -31,14 +28,6 @@ export const fmtTime = (s) => {
   return `${day} ${formatClock(date.getTime(), tz.value)}`
 }
 
-export const fmtAgo = ({ at, nowMs }) => {
-  const mins = Math.floor((nowMs - Date.parse(toIso(at))) / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${formatMinutes(mins)} ago`
-  if (mins < 1440) return `${formatHours(Math.floor(mins / 60))} ago`
-  return fmtTime(at)
-}
-
 export const fmtElapsed = ({ at, nowMs }) => {
   const secs = Math.max(0, Math.floor((nowMs - Date.parse(toIso(at))) / 1000))
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
@@ -46,17 +35,6 @@ export const fmtElapsed = ({ at, nowMs }) => {
 
 export const now = ref(new Date())
 setInterval(() => { now.value = new Date() }, 1000)
-
-export const clockReadout = computed(() => formatClockSeconds(now.value.getTime(), tz.value))
-
-export const tzShortName = computed(() => {
-  try {
-    const parts = dateFormat({ timeZoneName: 'short' }).formatToParts(now.value)
-    return parts.find((p) => p.type === 'timeZoneName')?.value || tz.value
-  } catch {
-    return tz.value
-  }
-})
 
 export const fmtClockTz = (ms) => formatClock(ms, tz.value)
 

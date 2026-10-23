@@ -1,7 +1,5 @@
 import { episodeHeading } from './show-page.js'
 
-export const DELETE_VARIANTS = ['all', 'watched', 'episode', 'selected']
-
 export const sizeText = (bytes) => {
   if (!(bytes > 0)) return ''
   if (bytes >= TERABYTE) return `${trimmed(bytes / TERABYTE)} TB`

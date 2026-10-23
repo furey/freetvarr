@@ -13,12 +13,6 @@ export const withoutRegionWords = (normalised) => normalised
   .filter((word) => !REGION_WORDS.has(word))
   .join(' ')
 
-export const wordsOfTitle = (title) => foldText(title)
-  .replace(/[’'`]/g, '')
-  .replace(/[&+]/g, ' and ')
-  .split(/[^a-z0-9]+/)
-  .filter(Boolean)
-
 export const startsAtWord = ({ haystack, needle }) => ` ${haystack}`.includes(` ${needle}`)
 
 const ASCII_ONLY = /^[\x00-\x7f]*$/
