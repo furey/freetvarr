@@ -94,6 +94,8 @@ import { VIDEO_STATE_EVENTS } from '/player-paused.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
 import { programmeSheetOpen, useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, fmtClockTz } from '/shared/time.js'
+import { controlsHideMsOf } from '/controls-hide.js'
+import { TUNE_IN_EXIT_MS, startsTuneInInfo, confirmedChannelAfter, tuneInExitWaitMs, isSlowTune, showsTuneInBadge } from '/tune-in-info.js'
 
 export const LivePlayer = {
   components: {
@@ -107,7 +109,7 @@ export const LivePlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="live.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Live TV'">
-      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active }]"
+      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline controlslist="nofullscreen"></video>
@@ -120,14 +122,15 @@ export const LivePlayer = {
         <div v-if="chips === 'ended'" class="live-chips-row" aria-hidden="true">
           <i v-for="n in 3" :key="n" class="live-chip"></i>
         </div>
-        <span v-if="chips === 'tuning'" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText || TUNING_TEXT }}</span>
+        <span v-if="chips === 'tuning' && !tuneInShown" class="live-chip-caption">{{ live.channel?.name }} · {{ statusText || TUNING_TEXT }}</span>
+        <span v-else-if="chips === 'tuning' && slowTune" class="live-chip-caption" role="status">{{ SLOW_TUNE_TEXT }}</span>
         <div class="pl-scrim is-top" aria-hidden="true"></div>
         <transition name="pl-classification">
-          <classification-chip v-if="tuneInClassification && !infoOpen && live.phase === 'live'" variant="player"
+          <classification-chip v-if="tuneInClassification && !panelOpen && live.phase === 'live'" variant="player"
             class="pl-classification" :classification="tuneInClassification" />
         </transition>
         <div class="pl-scrim is-bottom" aria-hidden="true"></div>
-        <player-info-panel :open="infoOpen" panel-id="live-info">
+        <player-info-panel :open="panelOpen" panel-id="live-info">
           <template #image>
           <programme-image v-if="info.now" :key="info.now.program_id" class="live-info-image" variant="info"
             :event-id="info.now.has_image ? info.now.program_id : null" :title="info.now.title"
@@ -151,13 +154,14 @@ export const LivePlayer = {
               </p>
               <p v-if="info.now.synopsis" class="live-info-synopsis">{{ info.now.synopsis }}</p>
             </template>
+            <p v-else-if="tuneInShown && !info.loaded && live.nowTitle" class="live-info-title">{{ live.nowTitle }}</p>
             <p v-else-if="info.loaded && !info.next" class="live-info-empty">{{ NO_GUIDE_TEXT }}</p>
-            <p v-if="info.next" class="live-info-next">
+            <p v-if="info.next && !tuneInShown" class="live-info-next">
               Next <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
             </p>
         </player-info-panel>
         <player-top-bar :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="playerTitle"
-          :subtitle="playerSubtitle" back-label="Stop and close" :info-open="infoOpen" info-id="live-info"
+          :subtitle="playerSubtitle" back-label="Stop and close" :info-open="panelOpen" info-id="live-info"
           :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :fullscreen="isStageFullscreen"
           :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
           @back="stopLive" @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @toggle-fullscreen="toggleLiveFullscreen"
@@ -171,7 +175,7 @@ export const LivePlayer = {
           </template>
         </player-top-bar>
         <p v-if="conflictText && live.phase === 'live'" class="pl-notice" role="status">{{ conflictText }}</p>
-        <player-center-controls v-if="live.phase === 'live' && chips === 'hidden' && !infoOpen" :paused="shownPaused"
+        <player-center-controls v-if="live.phase === 'live' && chips === 'hidden' && !panelOpen && !tuneInExit" :paused="shownPaused"
           :show-start-over="startOverOptions.length > 0" :start-over-disabled="startOverAction.kind === 'none'" :start-over-title="startOverButtonTitle"
           @start-over="openStartOver" @toggle-pause="toggleLivePause">
           <template #end>
@@ -192,7 +196,7 @@ export const LivePlayer = {
             <button type="button" class="ui-button ui-button-secondary" @click="stopLive">Close</button>
           </div>
         </div>
-        <footer v-if="live.phase === 'live' && !infoOpen" class="pl-bottom">
+        <footer v-if="live.phase === 'live' && !panelOpen && !tuneInExit" class="pl-bottom">
           <player-scrubber v-if="hasBufferBar" :min="live.bufferFrom" :max="live.bufferTo" :value="shownLivePosition"
             :fill-percent="liveFillPercent" :start-text="bufferStartText" :end-text="bufferEndText"
             aria-label="Position in the live buffer"
@@ -226,6 +230,48 @@ export const LivePlayer = {
     let chipsTimer = null
     let chipsShownAt = 0
     let handOffPending = false
+    const tuneInInfo = ref(false)
+    const tuneInExit = ref(false)
+    let confirmedChannelId = null
+    let tuneInShownAt = 0
+    let tuneInExitTimer = null
+    let releaseControlsQuietly = false
+
+    const startTuneIn = () => {
+      clearTimeout(tuneInExitTimer)
+      tuneInShownAt = Date.now()
+      tuneInExit.value = false
+      tuneInInfo.value = true
+      releaseControlsQuietly = true
+    }
+
+    const endTuneIn = () => {
+      clearTimeout(tuneInExitTimer)
+      if (!tuneInInfo.value) return
+      tuneInExit.value = true
+      tuneInInfo.value = false
+      tuneInExitTimer = setTimeout(() => { tuneInExit.value = false }, TUNE_IN_EXIT_MS)
+    }
+
+    const clearTuneIn = () => {
+      clearTimeout(tuneInExitTimer)
+      tuneInInfo.value = false
+      tuneInExit.value = false
+      releaseControlsQuietly = false
+    }
+
+    const endTuneInAfterMinimum = () => {
+      const wait = tuneInExitWaitMs({ shownAtMs: tuneInShownAt, nowMs: Date.now(), minimumMs: controlsHideMsOf(localStorage) })
+      if (wait === 0) return endTuneIn()
+      clearTimeout(tuneInExitTimer)
+      tuneInExitTimer = setTimeout(endTuneIn, wait)
+    }
+
+    const takesQuietRelease = () => {
+      const quiet = releaseControlsQuietly
+      releaseControlsQuietly = false
+      return quiet
+    }
 
     const showChips = (state) => {
       clearTimeout(chipsTimer)
@@ -240,6 +286,7 @@ export const LivePlayer = {
     const animateChipsAway = () => {
       handOffPending = false
       if (chips.value !== 'tuning' || live.phase !== 'live') return
+      endTuneInAfterMinimum()
       chips.value = 'handoff'
       chipsTimer = setTimeout(() => { chips.value = 'hidden' }, CHIPS_HANDOFF_MS)
     }
@@ -268,11 +315,12 @@ export const LivePlayer = {
     const behindMinutes = ref(0)
     const isBehindLive = computed(() => live.phase === 'live' && behindMinutes.value > 0)
 
+    const slowTune = computed(() => isSlowTune({ phase: live.phase, startedAtMs: live.tuningStartedAt, nowMs: now.value.getTime() }))
+
     const statusText = computed(() => {
       if (live.phase === 'ended') return live.message
       if (live.phase !== 'tuning') return ''
-      const slow = now.value.getTime() - live.tuningStartedAt > TUNING_SLOW_MS
-      return slow ? 'Tuning… still waiting for a signal' : TUNING_TEXT
+      return slowTune.value ? 'Tuning… still waiting for a signal' : TUNING_TEXT
     })
 
     const conflictText = computed(() => {
@@ -305,7 +353,10 @@ export const LivePlayer = {
       liveVideo.textTracks?.addEventListener?.('addtrack', onTextTrackAdded)
       liveVideo.textTracks?.addEventListener?.('change', syncCaptionPreferenceFromTracks)
     })
-    onUnmounted(() => clearTimeout(chipsTimer))
+    onUnmounted(() => {
+      clearTimeout(chipsTimer)
+      clearTimeout(tuneInExitTimer)
+    })
     usePausedResync(syncLivePaused)
     useRotateToFullscreen({
       isEligible: () => live.open && !mini.value && !multi.active && live.phase === 'live',
@@ -326,7 +377,33 @@ export const LivePlayer = {
     let airingTimer = null
     let bufferedLoading = false
 
-    const toggleInfo = () => { infoOpen.value = !infoOpen.value }
+    const tuneInShown = computed(() => tuneInInfo.value && !infoOpen.value && !mini.value && !multi.active)
+    const panelOpen = computed(() => infoOpen.value || tuneInShown.value)
+
+    watch([() => live.open, () => live.phase, () => live.channel?.id], ([open, phase, channelId]) => {
+      if (!open) {
+        confirmedChannelId = null
+        return clearTuneIn()
+      }
+      if (startsTuneInInfo({ phase, channelId, confirmedChannelId, multiview: multi.active })) startTuneIn()
+      confirmedChannelId = confirmedChannelAfter({ phase, channelId, confirmedChannelId })
+    }, { immediate: true })
+
+    const closePanel = () => {
+      if (tuneInShown.value) return endTuneIn()
+      infoOpen.value = false
+    }
+    const panelShown = computed({
+      get: () => panelOpen.value,
+      set: (open) => {
+        if (!open) closePanel()
+      },
+    })
+
+    const toggleInfo = () => {
+      if (tuneInShown.value) return endTuneIn()
+      infoOpen.value = !infoOpen.value
+    }
     const toggleLiveFullscreen = () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo })
     live.customControls = true
 
@@ -440,8 +517,9 @@ export const LivePlayer = {
       controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,
     } = useControlsAutoHide({
       enabled: computed(() => live.open && !mini.value && !multi.active),
-      holdShown: computed(() => shownPaused.value || live.phase !== 'live' || live.scrubbing || infoOpen.value
+      holdShown: computed(() => shownPaused.value || live.phase !== 'live' || live.scrubbing || infoOpen.value || tuneInShown.value
         || chips.value !== 'hidden' || programmeSheetOpen.value),
+      quietRelease: takesQuietRelease,
       rootEl: frameEl,
     })
     watch(controlsShown, (shown) => {
@@ -474,7 +552,7 @@ export const LivePlayer = {
     }
 
     const { onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick } = useInfoDismissTaps({
-      infoOpen,
+      infoOpen: panelShown,
       onPointerDown: onLivePointerDown,
       onPointerUp: (e) => onLivePointerUp(e, {
         onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, hideControls, togglePause: toggleLivePause }),
@@ -487,7 +565,7 @@ export const LivePlayer = {
 
     usePlayerKeys({
       isActive: () => live.open && !mini.value && !programmeSheetOpen.value && !startOverOpen.value && !pickerOpen.value,
-      infoOpen,
+      infoOpen: panelShown,
       close: stopLive,
       toggleInfo,
       canToggleCaptions: () => live.captions && !infoOpen.value,
@@ -563,6 +641,7 @@ export const LivePlayer = {
     const tuneInClassification = ref(null)
     let tuneInTimer = null
     let lastBadgeKey = null
+    let panelBadgeKey = null
 
     const hideTuneInBadge = () => {
       clearTimeout(tuneInTimer)
@@ -584,13 +663,18 @@ export const LivePlayer = {
 
     watch(() => live.open && live.channel?.id, () => {
       lastBadgeKey = null
+      panelBadgeKey = null
       hideTuneInBadge()
+    })
+
+    watch([badgeKey, tuneInShown], ([key, shown]) => {
+      if (key && shown) panelBadgeKey = key
     })
 
     watch([badgeKey, videoShowing], ([key, showing]) => {
       if (!key || !showing || key === lastBadgeKey) return
       lastBadgeKey = key
-      showTuneInBadge(infoClassification.value)
+      if (showsTuneInBadge({ key, panelKey: panelBadgeKey })) showTuneInBadge(infoClassification.value)
     })
 
     watch(() => mini.value || multi.active, (hidden) => {
@@ -700,7 +784,7 @@ export const LivePlayer = {
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
-      infoOpen, toggleInfo, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
+      infoOpen, toggleInfo, tuneInShown, tuneInExit, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
       tuneInClassification,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT, TUNING_TEXT,
@@ -725,8 +809,8 @@ const TUNE_IN_BADGE_MS = 5_000
 
 const CHIPS_HANDOFF_MS = 440
 const CHIPS_MIN_SHOWN_MS = 1_800
-const TUNING_SLOW_MS = 15_000
 const TUNING_TEXT = 'Tuning…'
+const SLOW_TUNE_TEXT = 'Still waiting for a signal'
 
 const HAVE_FUTURE_DATA = 3
 

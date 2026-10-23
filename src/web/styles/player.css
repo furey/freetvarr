@@ -1781,3 +1781,35 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
     transition: none;
   }
 }
+
+.pl-frame.is-tune-in .pl-heading {
+  opacity: 0;
+}
+
+.pl-frame.is-tune-in-exit .live-info-leave-active {
+  transition:
+    opacity 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-height: 500px) {
+  .pl-frame:is(.is-tune-in, .is-tune-in-exit) :is(.live-info-synopsis, .live-info-image) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-frame.is-tune-in-exit .live-info-leave-active {
+    transition: opacity 0.2s;
+  }
+}
+
+@media (max-height: 500px) {
+  .pl-frame:is(.is-tune-in, .is-tune-in-exit) {
+    --chip-w: clamp(18px, 4cqw, 28px);
+  }
+
+  .pl-frame.is-tune-in .live-chip-caption {
+    top: calc(50% - var(--r) - 72px);
+  }
+}

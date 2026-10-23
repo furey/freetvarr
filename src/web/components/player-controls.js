@@ -100,7 +100,7 @@ export const singleTapActionFor = ({ pointerType, controlsShown, revealControls,
   }
 }
 
-export const useControlsAutoHide = ({ enabled, holdShown, rootEl }) => {
+export const useControlsAutoHide = ({ enabled, holdShown, rootEl, quietRelease = () => false }) => {
   const controlsShown = ref(true)
   let hideTimer = null
 
@@ -137,7 +137,10 @@ export const useControlsAutoHide = ({ enabled, holdShown, rootEl }) => {
     if (enabled.value) revealControls()
   }
 
-  watch([enabled, holdShown], revealControls)
+  watch([enabled, holdShown], ([, held], [, wasHeld]) => {
+    if (wasHeld && !held && quietRelease()) return hideControls()
+    revealControls()
+  })
   onMounted(() => window.addEventListener('keydown', onKeydown, true))
   onUnmounted(() => {
     clearTimeout(hideTimer)
