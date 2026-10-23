@@ -21,9 +21,19 @@ import { createClassificationLookup, createClassificationStore } from './classif
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
-export const startSync = async ({ trigger = 'manual', showId = null } = {}) => {
+export const startSync = async (options = {}) => {
+  while (starting) await starting.catch(() => {})
   if (inFlight) return { syncId: inFlight.syncId, alreadyRunning: true }
+  const attempt = beginSync(options)
+  starting = attempt
+  try {
+    return await attempt
+  } finally {
+    if (starting === attempt) starting = null
+  }
+}
 
+const beginSync = async ({ trigger = 'manual', showId = null }) => {
   const missingUrl = await tvheadendUrlMissing()
   if (missingUrl && AUTOMATIC_TRIGGERS.includes(trigger)) return { skipped: true, reason: missingUrl.message }
   if (missingUrl) throw missingUrl
@@ -35,7 +45,7 @@ export const startSync = async ({ trigger = 'manual', showId = null } = {}) => {
     })
     .finally(() => {
       inFlight = null
-      syncFinishedListeners.forEach((listener) => listener({ syncId, trigger }))
+      syncFinishedListeners.forEach((listener) => notifySyncFinished({ listener, syncId, trigger }))
     })
   inFlight = { syncId, promise }
   return { syncId, alreadyRunning: false }
@@ -46,7 +56,16 @@ export const onSyncFinished = (listener) => {
   return () => syncFinishedListeners.delete(listener)
 }
 
+const notifySyncFinished = ({ listener, syncId, trigger }) => {
+  try {
+    listener({ syncId, trigger })
+  } catch (err) {
+    console.warn(`[sync] finish listener failed: ${err.message}`)
+  }
+}
+
 const syncFinishedListeners = new Set()
+let starting = null
 
 export const matchShow = (shows, showTitle) => {
   const t = showTitle.toLowerCase()
