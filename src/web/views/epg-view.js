@@ -99,6 +99,7 @@ const GUIDE_STALE_CHECK_MS = 30_000
 const LISTINGS_LOADING_TEXT = 'Loading the new listings. This can take a couple of minutes.'
 
 const EPG_SEARCH_DEBOUNCE_MS = 300
+const EPG_ROW_MOVE_MS = 350
 const SCHEDULED_HREF = '#/recordings/scheduled'
 
 export const EpgView = {
@@ -1168,6 +1169,8 @@ export const EpgView = {
       currentPins,
       applyPins: applyFavouritePins,
       isBusy: () => sort.isActive(),
+      rows: () => [...(scrollEl.value?.querySelectorAll('.epg-row[data-channel-id]') || [])],
+      moveMs: EPG_ROW_MOVE_MS,
     })
     const togglePin = favourites.toggle
     const isStarred = favourites.isStarred

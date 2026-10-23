@@ -91,7 +91,7 @@ export const LiveView = {
       <p v-else-if="!groups.length && favouritesHint" class="live-note">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
       <p v-else-if="!groups.length" class="live-note">{{ emptyText }}</p>
       <div :class="['live-groups', 'live-zoom-' + zoom, { 'live-images-off': !showImages, 'live-images-leaving': imagesLeaving }]" ref="groupsEl">
-        <section v-for="g in groups" :key="g.key" class="live-group" :aria-label="g.label">
+        <section v-for="g in groups" :key="g.key" class="live-group" :data-group-key="g.key" :aria-label="g.label">
           <div class="live-group-head">
             <h2 class="ui-group-label">{{ g.label }}</h2>
             <button v-if="g.key === 'pinned' && narrow && g.entries.length >= 2" type="button" class="sort-edit-order"
@@ -306,7 +306,8 @@ export const LiveView = {
       currentPins,
       applyPins: applyFavouritePins,
       isBusy: () => sort.isActive(),
-      flipRows: () => [...(groupsEl.value?.querySelectorAll('.live-row[data-channel-id]') || [])],
+      rows: () => [...(groupsEl.value?.querySelectorAll('.live-row[data-channel-id]') || [])],
+      groups: () => groupsEl.value,
     })
     const togglePin = favourites.toggle
     const isStarred = favourites.isStarred

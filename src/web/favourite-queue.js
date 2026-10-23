@@ -26,22 +26,42 @@ export const createFavouriteToggle = ({
     return starred
   }
 
+  let placing = Promise.resolve()
+  let placesRunning = 0
+
+  const afterPlaces = (step) => {
+    placesRunning += 1
+    placing = placing.then(step).catch(() => {}).finally(() => { placesRunning -= 1 })
+    return placing
+  }
+
   const place = () => {
     const pins = intended
-    intended = null
-    overrides.clear()
-    if (pins) applyPins(pins, { animate: true })
+    if (!pins) return undefined
+    return afterPlaces(async () => {
+      await applyPins(pins, { animate: true })
+      if (intended === pins) intended = null
+      pruneOverrides(pins)
+    })
+  }
+
+  const pruneOverrides = (pins) => {
+    [...overrides].forEach(([id, starred]) => {
+      if (starred === pins.includes(id)) overrides.delete(id)
+    })
   }
 
   const rollback = ({ pins, err }) => {
     settler.cancel()
     intended = null
-    overrides.clear()
-    if (!samePins(pins, currentPins())) applyPins(pins, { animate: true })
     onFailed(err)
+    return afterPlaces(async () => {
+      overrides.clear()
+      if (!samePins(pins, currentPins())) await applyPins(pins, { animate: true })
+    })
   }
 
-  const placementToKeep = () => (intended || queue.isPending() ? currentPins() : null)
+  const placementToKeep = () => (intended || placesRunning || queue.isPending() ? currentPins() : null)
 
   const adopt = (replace) => {
     const keep = placementToKeep()
@@ -49,7 +69,7 @@ export const createFavouriteToggle = ({
     if (keep) applyPins(keep, { animate: false })
   }
 
-  const isUnsettled = () => intended !== null || queue.isPending()
+  const isUnsettled = () => intended !== null || placesRunning > 0 || queue.isPending()
 
   const queue = createSaveQueue({ save, onFailed: rollback })
   const settler = createSettleTimer({ delayMs, isBusy, onSettle: place, timers })
