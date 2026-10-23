@@ -135,8 +135,9 @@ export const installPullToRefresh = ({ onRefresh }) => {
     if (e.cancelable) e.preventDefault()
     if (move === 'hold') return
     claimed = true
-    place(pullOffsetOf({ dy, span: window.innerHeight }), { pullProgress: pullProgressOf(dy) })
-    if (!committed && isPullCommitted(dy)) commit()
+    const pullOffset = pullOffsetOf(dy)
+    place(pullOffset, { pullProgress: pullProgressOf(pullOffset) })
+    if (!committed && isPullCommitted(pullOffset)) commit()
   }, { passive: false })
   window.addEventListener('touchend', (e) => {
     if (!start || e.touches.length > 0) return

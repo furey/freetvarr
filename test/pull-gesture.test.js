@@ -2,12 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   PULL_SLOP_PX,
-  PULL_DEADZONE_PX,
-  PULL_TRIGGER_TRAVEL_PX,
+  PULL_REVEAL_OFFSET_PX,
+  PULL_COMMIT_OFFSET_PX,
   pullMoveOf,
-  pullTravelOf,
-  pullProgressOf,
   pullOffsetOf,
+  pullProgressOf,
   isPullCommitted
 } from '../src/web/pull-gesture.js'
 
@@ -43,36 +42,31 @@ test('pullMoveOf abandons an unclaimed move the browser already scrolls natively
   assert.equal(pullMoveOf({ dx: 0, dy: 30, claimed: true, cancelable: false }), 'pull')
 })
 
-test('pull travel stays zero through the slop and the dead zone', () => {
-  assert.equal(pullTravelOf(30), 0)
-  assert.equal(pullTravelOf(PULL_SLOP_PX + PULL_DEADZONE_PX), 0)
-  assert.equal(pullTravelOf(PULL_SLOP_PX + PULL_DEADZONE_PX + 10), 10)
+test('the page follows the finger from the first move past the slop, with growing resistance', () => {
+  assert.equal(pullOffsetOf(PULL_SLOP_PX), 0)
+  assert.ok(pullOffsetOf(PULL_SLOP_PX + 4) > 2)
+  const early = pullOffsetOf(40) - pullOffsetOf(20)
+  const late = pullOffsetOf(200) - pullOffsetOf(180)
+  assert.ok(early > late)
+  assert.ok(pullOffsetOf(200) < 200)
 })
 
-test('a slight pull shows no indicator and moves no page', () => {
-  assert.equal(pullProgressOf(30), 0)
-  assert.equal(pullOffsetOf({ dy: 30, span: 800 }), 0)
-})
-
-test('the indicator stays hidden until the finger passes the slop and the dead zone', () => {
-  const edge = PULL_SLOP_PX + PULL_DEADZONE_PX
-  assert.equal(pullProgressOf(edge), 0)
-  assert.equal(pullOffsetOf({ dy: edge, span: 800 }), 0)
-  assert.ok(pullProgressOf(edge + 1) > 0)
-})
-
-test('progress and offset grow past the dead zone', () => {
-  const dy = PULL_SLOP_PX + PULL_DEADZONE_PX + PULL_TRIGGER_TRAVEL_PX / 2
-  assert.equal(pullProgressOf(dy), 0.5)
-  assert.ok(pullOffsetOf({ dy, span: 800 }) > 0)
-  assert.ok(pullOffsetOf({ dy: dy + 20, span: 800 }) > pullOffsetOf({ dy, span: 800 }))
-})
-
-test('only a deliberate pull commits a refresh', () => {
-  const triggerDy = PULL_SLOP_PX + PULL_DEADZONE_PX + PULL_TRIGGER_TRAVEL_PX
-  assert.equal(isPullCommitted(60), false)
-  assert.equal(isPullCommitted(triggerDy - 1), false)
-  assert.equal(isPullCommitted(triggerDy), true)
-  assert.equal(isPullCommitted(140), true)
+test('the indicator stays hidden until the page offset passes the reveal point', () => {
+  assert.equal(pullProgressOf(0), 0)
+  assert.equal(pullProgressOf(PULL_REVEAL_OFFSET_PX), 0)
+  assert.ok(pullProgressOf(PULL_REVEAL_OFFSET_PX + 1) > 0)
+  assert.equal(pullProgressOf((PULL_REVEAL_OFFSET_PX + PULL_COMMIT_OFFSET_PX) / 2), 0.5)
+  assert.equal(pullProgressOf(PULL_COMMIT_OFFSET_PX), 1)
   assert.equal(pullProgressOf(500), 1)
+})
+
+test('a commit needs the page offset at the commit point', () => {
+  assert.equal(isPullCommitted(PULL_COMMIT_OFFSET_PX - 1), false)
+  assert.equal(isPullCommitted(PULL_COMMIT_OFFSET_PX), true)
+})
+
+test('a commit takes a deliberate pull of about 150 to 170 px of finger travel', () => {
+  assert.equal(isPullCommitted(pullOffsetOf(150)), false)
+  assert.equal(isPullCommitted(pullOffsetOf(170)), true)
+  assert.equal(pullProgressOf(pullOffsetOf(50)), 0)
 })
