@@ -61,6 +61,11 @@
   min-width: 0;
 }
 
+.settings-nav-label + .ui-dot {
+  margin-left: -4px;
+  margin-right: auto;
+}
+
 .settings-nav-chevron {
   flex: none;
   width: 16px;
