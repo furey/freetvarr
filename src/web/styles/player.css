@@ -1813,3 +1813,7 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
     top: calc(50% - var(--r) - 72px);
   }
 }
+
+.pl-frame.is-tune-in-exit :is(.pl-top > :not(.pl-actions), .pl-actions > *, .pl-centre-slot > *, .pl-bottom, .pl-scrim) {
+  transition: opacity 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}

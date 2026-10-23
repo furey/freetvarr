@@ -525,7 +525,7 @@ export const LivePlayer = {
     } = useControlsAutoHide({
       enabled: computed(() => live.open && !mini.value && !multi.active),
       holdShown: computed(() => shownPaused.value || live.phase !== 'live' || live.scrubbing || infoOpen.value || tuneInShown.value
-        || chips.value !== 'hidden' || programmeSheetOpen.value),
+        || (chips.value !== 'hidden' && !tuneInExit.value) || programmeSheetOpen.value),
       quietRelease: takesQuietRelease,
       rootEl: frameEl,
     })
