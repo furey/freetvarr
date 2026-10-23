@@ -26,8 +26,11 @@ export const fromStartAiringOf = ({ programme, fetched }) => ({
 const guideMatches = ({ programme, guide }) => {
   if (!guide) return false
   if (programme?.programId != null && guide.program_id != null) return String(guide.program_id) === String(programme.programId)
+  if (Number.isFinite(programme?.start)) return Math.abs(guide.start - programme.start) < SAME_START_MS
   return !programme?.title || titleKeyOf(guide.title) === titleKeyOf(programme.title)
 }
+
+const SAME_START_MS = 60_000
 
 const programmeRowOf = (programme) => (programme?.title
   ? {

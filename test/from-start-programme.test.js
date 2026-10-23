@@ -64,8 +64,15 @@ test('fromStartAiringOf: before the guide answers, the recording itself fills th
   assert.equal(airing.now.has_image, true)
 })
 
-test('fromStartAiringOf: matches by title when the recording has no programme id', () => {
+test('fromStartAiringOf: without a programme id, matches the start time, since the post-game show shares the title', () => {
   const programme = fromStartProgrammeOf({ ...rugbyRecording, programId: null })
+  const sameTitlePostGame = { ...postGame, title: 'Rugby League World Cup 2026', episode_title: 'Post Game: Tonga v Lebanon' }
+  assert.equal(fromStartAiringOf({ programme, fetched: { now: rugbyGuide } }).now, rugbyGuide)
+  assert.equal(fromStartAiringOf({ programme, fetched: { now: sameTitlePostGame } }).now.episode_title, 'Tonga v Lebanon')
+})
+
+test('fromStartAiringOf: with no times either, matches by title', () => {
+  const programme = fromStartProgrammeOf({ ...rugbyRecording, programId: null, start: null, stop: null })
   const guide = { ...rugbyGuide, title: 'rugby league world cup 2026 ' }
   assert.equal(fromStartAiringOf({ programme, fetched: { now: guide } }).now, guide)
   assert.equal(fromStartAiringOf({ programme, fetched: { now: postGame } }).now.title, 'Rugby League World Cup 2026')
