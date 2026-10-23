@@ -59,6 +59,7 @@ export const createOutboundClient = ({
         breaker.recordSuccess()
         return outcome.response
       }
+      if (verdict === 'too-large') throw new OutboundError(`${host} sent more than ${maxBytes} bytes`, { code: 'too-large', host })
       if (verdict === 'missing') {
         breaker.recordSuccess()
         return null
@@ -139,6 +140,7 @@ export const allowedUrlOf = ({ url, isAllowedHost }) => {
 }
 
 export const responseVerdictOf = ({ status, error }) => {
+  if (error?.code === TOO_LARGE) return 'too-large'
   if (error || status == null) return 'retry'
   if (status >= 200 && status < 300) return 'ok'
   if (status === 404 || status === 410) return 'missing'
@@ -251,7 +253,18 @@ const parsedUrlOf = (url) => {
 
 const hostOf = (url) => parsedUrlOf(url)?.hostname || 'unknown host'
 
-const axiosRequest = async ({ method = 'get', url, params, headers, timeoutMs, maxBytes, isAllowedHost }) => {
+const axiosRequest = async (options) => {
+  try {
+    return await axiosSend(options)
+  } catch (error) {
+    if (isOversizeError(error)) throw Object.assign(new Error(error.message), { code: TOO_LARGE })
+    throw error
+  }
+}
+
+export const isOversizeError = (error) => /max(ContentLength|BodyLength)/.test(String(error?.message || ''))
+
+const axiosSend = async ({ method = 'get', url, params, headers, timeoutMs, maxBytes, isAllowedHost }) => {
   const res = await axios.request({
     method,
     url,
@@ -275,6 +288,7 @@ const axiosRequest = async ({ method = 'get', url, params, headers, timeoutMs, m
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+const TOO_LARGE = 'too-large'
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504])
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const IMAGE_ACCEPT = 'image/webp,image/jpeg,image/png,image/gif;q=0.8'

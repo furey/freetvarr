@@ -6,6 +6,7 @@ import {
   createCircuitBreaker,
   createHostLimiter,
   createOutboundClient,
+  isOversizeError,
   responseVerdictOf,
   retryAfterOf,
   retryDelayMs,
@@ -31,6 +32,18 @@ const clientWith = ({ responses, hosts = { 'api.example.org': {} }, clock = { ms
 }
 
 const jsonResponse = (body, status = 200, headers = JSON_HEADERS) => ({ status, headers, body: Buffer.from(JSON.stringify(body)) })
+
+test('an oversize response fails at once, is not retried, and does not open the host breaker', async () => {
+  const tooLarge = () => Object.assign(new Error('maxContentLength size of 2097152 exceeded'), { code: 'too-large' })
+  const { client, calls } = clientWith({ responses: [...Array.from({ length: 8 }, tooLarge), jsonResponse({ ok: true })] })
+  for (let index = 0; index < 8; index += 1) {
+    await assert.rejects(client.getJson({ url: 'https://api.example.org/big' }), { code: 'too-large' })
+  }
+  assert.equal(calls.length, 8)
+  assert.deepEqual(await client.getJson({ url: 'https://api.example.org/small' }), { ok: true })
+  assert.ok(isOversizeError(new Error('maxContentLength size of 100 exceeded')))
+  assert.ok(!isOversizeError(new Error('timeout of 8000ms exceeded')))
+})
 
 test('allowedUrlOf accepts only https hosts on the allow-list', () => {
   const isAllowedHost = (host) => host === 'api.example.org'
