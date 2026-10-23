@@ -1022,27 +1022,42 @@ code {
   transform: translateY(20px);
 }
 
-.update-card-mark span {
-  animation: update-card-chip 900ms var(--ease-standard) 160ms 4;
-}
-
-.update-card-mark span:nth-child(2) {
-  animation-delay: 220ms;
-}
-
-.update-card-mark span:nth-child(3) {
-  animation-delay: 280ms;
-}
-
-@keyframes update-card-chip {
-  9% {
-    transform: scale(1.35);
-    filter: brightness(1.6);
+@media (prefers-reduced-motion: no-preference) {
+  .update-card-mark span {
+    animation: 4s 400ms infinite;
   }
 
-  18% {
-    transform: none;
-    filter: none;
+  .update-card-mark span:nth-child(1) {
+    animation-name: update-card-orbit-1;
+  }
+
+  .update-card-mark span:nth-child(2) {
+    animation-name: update-card-orbit-2;
+  }
+
+  .update-card-mark span:nth-child(3) {
+    animation-name: update-card-orbit-3;
+  }
+
+  @keyframes update-card-orbit-1 {
+    0% { transform: translateX(0) rotate(150deg) translateX(0) rotate(-150deg); animation-timing-function: cubic-bezier(0.4, 0, 0.7, 0.4); }
+    15% { transform: translateX(12px) rotate(200deg) translateX(9px) rotate(-200deg); animation-timing-function: linear; }
+    55% { transform: translateX(12px) rotate(460deg) translateX(9px) rotate(-460deg); animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1); }
+    70%, 100% { transform: translateX(0) rotate(510deg) translateX(0) rotate(-510deg); }
+  }
+
+  @keyframes update-card-orbit-2 {
+    0% { transform: translateX(0) rotate(270deg) translateX(0) rotate(-270deg); animation-timing-function: cubic-bezier(0.4, 0, 0.7, 0.4); }
+    15% { transform: translateX(0) rotate(320deg) translateX(9px) rotate(-320deg); animation-timing-function: linear; }
+    55% { transform: translateX(0) rotate(580deg) translateX(9px) rotate(-580deg); animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1); }
+    70%, 100% { transform: translateX(0) rotate(630deg) translateX(0) rotate(-630deg); }
+  }
+
+  @keyframes update-card-orbit-3 {
+    0% { transform: translateX(0) rotate(30deg) translateX(0) rotate(-30deg); animation-timing-function: cubic-bezier(0.4, 0, 0.7, 0.4); }
+    15% { transform: translateX(-12px) rotate(80deg) translateX(9px) rotate(-80deg); animation-timing-function: linear; }
+    55% { transform: translateX(-12px) rotate(340deg) translateX(9px) rotate(-340deg); animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1); }
+    70%, 100% { transform: translateX(0) rotate(390deg) translateX(0) rotate(-390deg); }
   }
 }
 
@@ -1068,10 +1083,6 @@ code {
   .update-card-enter-from,
   .update-card-leave-to {
     transform: none;
-  }
-
-  .update-card-mark span {
-    animation: none;
   }
 }
 
