@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   canDismissTuneIn,
+  endsTuneInInfo,
   TUNE_IN_SLOW_MS,
   startsTuneInInfo,
   confirmedChannelAfter,
@@ -94,4 +95,10 @@ test('showsPrePlayChrome: the trim holds after playback starts until the control
 
 test('showsPrePlayChrome: a failed tune shows the full top bar', () => {
   assert.equal(showsPrePlayChrome({ phase: 'ended', headingHeld: false }), false)
+})
+
+test('endsTuneInInfo: a failed tune releases the info so Escape, i, and Info work again', () => {
+  assert.equal(endsTuneInInfo({ phase: 'ended' }), true)
+  assert.equal(endsTuneInInfo({ phase: 'tuning' }), false)
+  assert.equal(endsTuneInInfo({ phase: 'live' }), false)
 })

@@ -97,7 +97,7 @@ import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/rec
 import { programmeSheetOpen, useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, fmtClockTz } from '/shared/time.js'
 import { controlsHideMsOf } from '/controls-hide.js'
-import { TUNE_IN_EXIT_MS, startsTuneInInfo, confirmedChannelAfter, tuneInExitWaitMs, isSlowTune, showsTuneInBadge, canDismissTuneIn, showsPrePlayChrome } from '/tune-in-info.js'
+import { TUNE_IN_EXIT_MS, startsTuneInInfo, confirmedChannelAfter, tuneInExitWaitMs, isSlowTune, showsTuneInBadge, canDismissTuneIn, endsTuneInInfo, showsPrePlayChrome } from '/tune-in-info.js'
 
 export const LivePlayer = {
   components: {
@@ -397,6 +397,7 @@ export const LivePlayer = {
         confirmedChannelId = null
         return clearTuneIn()
       }
+      if (endsTuneInInfo({ phase })) clearTuneIn()
       if (startsTuneInInfo({ phase, channelId, confirmedChannelId, multiview: multi.active })) startTuneIn()
       confirmedChannelId = confirmedChannelAfter({ phase, channelId, confirmedChannelId })
     }, { immediate: true })
