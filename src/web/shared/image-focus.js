@@ -1,4 +1,5 @@
 import { dueRechecksOf, focusEntriesOf, focusKeyOf, focusPointInViewOf, objectPositionOf, recheckDelayOf } from '/image-focus.js'
+import { boundedMap, boundedSet } from '/bounded-cache.js'
 
 export const FOCUS_PLACED_EVENT = 'focus-placed'
 
@@ -212,8 +213,8 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
   }
 }
 
-const known = new Map()
-const warmed = new Set()
+const known = boundedMap(2000)
+const warmed = boundedSet(2000)
 
 const fetchFocusBatch = async (keys, { warm = false } = {}) => {
   const query = keys.map((key) => `k=${encodeURIComponent(key)}`).join('&')

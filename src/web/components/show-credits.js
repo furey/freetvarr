@@ -4,6 +4,7 @@ import { artFallbackStyle } from '/art-fallback.js'
 import { creditsKeyOf, creditsUrlOf, isSettledCredits } from '/credits-display.js'
 import { retryDelayOf } from '/ratings-display.js'
 import { ProgrammeReviewCard } from '/components/programme-ratings.js'
+import { boundedMap } from '/bounded-cache.js'
 
 export const useProgrammeCredits = (programme) => {
   const credits = shallowRef(null)
@@ -104,4 +105,4 @@ export const ShowCast = {
   },
 }
 
-const creditsCache = new Map()
+const creditsCache = boundedMap(500)

@@ -25,6 +25,7 @@ import {
   startDrift,
   predecode,
 } from '/hero-transition.js'
+import { boundedMap } from '/bounded-cache.js'
 
 const SWIPE_GAP_PX = 12
 const SWIPE_COMMIT_FRACTION = 0.2
@@ -33,7 +34,7 @@ const SETTLE_MS = 280
 const DOT_KEY_STEPS = { ArrowRight: 1, ArrowLeft: -1 }
 const PAUSE_ZONE_SELECTOR = '.hero-slide-actions, .hero-carousel-controls'
 const TAP_IGNORE_SELECTOR = 'a, button, input, [role="button"], .hero-carousel-controls'
-const knownFocus = new Map()
+const knownFocus = boundedMap(200)
 
 const fetchFocus = async (key) => {
   const res = await fetch(`/api/image-focus?k=${encodeURIComponent(key)}`).catch(() => null)

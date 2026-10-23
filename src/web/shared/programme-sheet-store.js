@@ -17,6 +17,7 @@ import { programmeOpenedOf } from '/for-you.js'
 import { api } from '/shared/api.js'
 import { recordingNow } from '/shared/recording-now.js'
 import { now, tsOfMs, tz } from '/shared/time.js'
+import { boundedMap } from '/bounded-cache.js'
 
 export const epgState = ref(null)
 export const watchItems = ref([])
@@ -159,6 +160,6 @@ const isOlderThan = (at, ms) => Date.now() - at > ms
 
 const SHEET_DATA_FRESH_MS = 30_000
 const PROGRAMME_SHEET_FRESH_MS = 120_000
-const programmeSheets = new Map()
+const programmeSheets = boundedMap(200)
 const loadedAt = { state: 0, watchlist: 0, libraryDefault: 0 }
 let requestCount = 0
