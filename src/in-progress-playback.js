@@ -12,7 +12,7 @@ import { listActiveRecordings, loadRecording, openDvrFile, resolveConnection } f
 
 export const IN_PROGRESS_POLL_MS = 1000
 export const RECORDING_CHECK_MS = 5000
-export const PROBE_HEAD_BYTES = 8 * 1024 * 1024
+export const PROBE_HEAD_BYTES = 2 * 1024 * 1024
 
 export const mountInProgressPlayback = ({
   app, csrf, limiter, sessions, encoderReady, folders, onError,

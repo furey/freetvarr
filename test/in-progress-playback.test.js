@@ -1,10 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { PassThrough, Readable } from 'stream'
-import { getEventListeners } from 'events'
+import { EventEmitter, getEventListeners } from 'events'
 
-import { abortableSleep, feedGrowing, recordingChecker, recordingStartedAtOf, scheduledEndAtOf, skipFirstBytes } from '../src/in-progress-playback.js'
-import { planForFile, playbackArgsFor, view } from '../src/playback.js'
+import {
+  abortableSleep, feedGrowing, recordingChecker, recordingStartedAtOf, scheduledEndAtOf, skipFirstBytes, PROBE_HEAD_BYTES,
+} from '../src/in-progress-playback.js'
+import { createPlaybackSessions, planForFile, playbackArgsFor, view } from '../src/playback.js'
 
 const collect = (sink) => {
   const chunks = []
@@ -156,4 +158,83 @@ test('view: an in-progress session reports its live edge', () => {
     { inProgress: true, growing: true, recordingStartedAt: 99, scheduledEndAt: 199, liveEdgeSeconds: 42 },
   )
   assert.equal('inProgress' in view({ ...session, inProgress: null }), false)
+})
+
+const valueAfter = (args, flag) => args[args.indexOf(flag) + 1]
+
+test('playbackArgsFor: a growing recording starts fast, with a short input probe and 2 s segments like live TV', () => {
+  const plan = { video: { index: 1 }, audio: { index: 2 }, teletext: null, videoMode: 'copy' }
+  const args = playbackArgsFor({ plan, file: null, dir: '/tmp/p', piped: true, probe: 'short' })
+  assert.equal(valueAfter(args, '-probesize'), '500000')
+  assert.equal(valueAfter(args, '-analyzeduration'), '500000')
+  assert.ok(args.indexOf('-probesize') < args.indexOf('-i'))
+  assert.equal(valueAfter(args, '-hls_time'), '2')
+  assert.equal(args.includes('-hls_init_time'), false)
+  assert.equal(valueAfter(args, '-hls_playlist_type'), 'event')
+})
+
+test('playbackArgsFor: a full probe drops the probe limits, and a finished file keeps 6 s segments', () => {
+  const plan = { video: { index: 1 }, audio: { index: 2 }, teletext: null, videoMode: 'copy' }
+  assert.equal(playbackArgsFor({ plan, file: null, dir: '/tmp/p', piped: true, probe: 'full' }).includes('-probesize'), false)
+  const file = playbackArgsFor({ plan, file: '/r/a.ts', dir: '/tmp/p' })
+  assert.equal(file.includes('-probesize'), false)
+  assert.equal(valueAfter(file, '-hls_time'), '6')
+})
+
+test('PROBE_HEAD_BYTES: a 2 MB head, enough for DVB-T streams and their height, so the probe waits less on TVHeadend', () => {
+  assert.equal(PROBE_HEAD_BYTES, 2 * 1024 * 1024)
+})
+
+const growingHarness = () => {
+  const spawned = []
+  const sessions = createPlaybackSessions({
+    rootDir: '/tmp/fake-growing',
+    makeDir: async () => {},
+    removeDir: async () => {},
+    readText: async () => null,
+    spawnProcess: (command, args) => {
+      const child = new EventEmitter()
+      child.stdin = new PassThrough()
+      child.stderr = new PassThrough()
+      child.kill = (signal) => setImmediate(() => child.emit('exit', null, signal))
+      spawned.push({ args, child })
+      return child
+    },
+  })
+  return { sessions, spawned }
+}
+
+const growingStart = (sessions) => sessions.start({
+  recordingId: 'dvr1', label: 'x', file: null, plan: { video: { index: 1 }, audio: { index: 2 }, teletext: null, videoMode: 'copy' },
+  feed: async ({ sink }) => sink.end(),
+})
+
+const settle = () => new Promise((resolve) => setImmediate(resolve))
+
+test('growing session: missing stream parameters after the short probe start ffmpeg again with a full probe', async () => {
+  const h = growingHarness()
+  const session = await growingStart(h.sessions)
+  assert.equal(valueAfter(h.spawned[0].args, '-probesize'), '500000')
+  h.spawned[0].child.stderr.write('Could not find codec parameters for stream 2 (Audio: ac3, 0 channels)\n')
+  await settle()
+  h.spawned[0].child.emit('exit', 1, null)
+  await settle()
+  assert.equal(h.spawned.length, 2)
+  assert.equal(h.spawned[1].args.includes('-probesize'), false)
+  assert.equal(h.sessions.get(session.id).status, 'starting')
+  h.spawned[1].child.emit('exit', 1, null)
+  await settle()
+  assert.equal(h.spawned.length, 2)
+  assert.equal(session.status, 'ended')
+})
+
+test('growing session: other ffmpeg failures do not retry the probe', async () => {
+  const h = growingHarness()
+  const session = await growingStart(h.sessions)
+  h.spawned[0].child.stderr.write('Invalid data found when processing input\n')
+  await settle()
+  h.spawned[0].child.emit('exit', 1, null)
+  await settle()
+  assert.equal(h.spawned.length, 1)
+  assert.equal(session.status, 'ended')
 })

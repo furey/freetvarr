@@ -117,7 +117,7 @@ export const teletextPageOf = (subtitlePid) => {
   return Number.isInteger(page) && page >= 100 && page <= 899 ? page : DEFAULT_CAPTION_PAGE
 }
 
-const probeArgs = (probe) => probe === 'full'
+export const probeArgs = (probe) => probe === 'full'
   ? []
   : ['-probesize', String(SHORT_PROBE_BYTES), '-analyzeduration', String(SHORT_PROBE_MICROSECONDS)]
 

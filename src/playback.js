@@ -4,8 +4,11 @@ import fs from 'fs/promises'
 import { spawn, execFile } from 'child_process'
 
 import {
+  HLS_SEGMENT_SECONDS,
   LIVE_ROOT,
   LiveTvError,
+  missingStreamParameters,
+  probeArgs,
   pickStreams,
   hardwareDecodeArgs,
   videoCodecArgs,
@@ -24,6 +27,7 @@ export const MASTER_PLAYLIST = 'index.m3u8'
 export const MEDIA_PLAYLIST = 'play.m3u8'
 export const PLAY_SESSION_PATTERN = /^[a-f0-9]{16}$/
 export const PLAY_SEGMENT_SECONDS = 6
+export const GROWING_SEGMENT_SECONDS = HLS_SEGMENT_SECONDS
 export const RESUME_END_MARGIN_S = 30
 export const MAX_POSITION_S = 24 * 60 * 60
 
@@ -44,13 +48,14 @@ export const durationFrom = (probe) => {
   return Number.isFinite(duration) && duration > 0 ? duration : null
 }
 
-export const playbackArgsFor = ({ plan, file, offset = 0, dir, piped = false }) => [
+export const playbackArgsFor = ({ plan, file, offset = 0, dir, piped = false, probe = 'full' }) => [
   '-hide_banner',
   '-loglevel', 'error',
   ...(piped ? [] : ['-nostdin']),
   ...hardwareDecodeArgs(plan),
   ...(offset > 0 ? ['-ss', String(offset)] : []),
   '-fflags', '+genpts+discardcorrupt',
+  ...(piped ? probeArgs(probe) : []),
   ...teletextDecoderArgs(plan),
   '-i', piped ? 'pipe:0' : file,
   '-map', `0:${plan.video.index}`,
@@ -61,7 +66,7 @@ export const playbackArgsFor = ({ plan, file, offset = 0, dir, piped = false }) 
   ...(plan.teletext ? ['-c:s', 'webvtt', '-muxdelay', '0'] : []),
   '-max_muxing_queue_size', '1024',
   '-f', 'hls',
-  '-hls_time', String(PLAY_SEGMENT_SECONDS),
+  '-hls_time', String(piped ? GROWING_SEGMENT_SECONDS : PLAY_SEGMENT_SECONDS),
   '-hls_playlist_type', 'event',
   '-hls_flags', 'independent_segments+temp_file',
   '-hls_segment_filename', path.join(dir, 'seg%d.ts'),
@@ -210,6 +215,7 @@ export const createPlaybackSessions = ({
       ending: null,
       feed,
       feeder: null,
+      probe: feed ? 'short' : 'full',
       inProgress,
       growing: Boolean(feed),
       producedSeconds: 0,
@@ -232,7 +238,7 @@ export const createPlaybackSessions = ({
   const spawnEncoder = (session) => {
     const piped = Boolean(session.feed)
     session.child = spawnProcess('ffmpeg', playbackArgsFor({
-      plan: session.plan, file: session.file, offset: session.offset, dir: session.dir, piped,
+      plan: session.plan, file: session.file, offset: session.offset, dir: session.dir, piped, probe: session.probe,
     }), { stdio: [piped ? 'pipe' : 'ignore', 'ignore', 'pipe'] })
     if (piped) startFeeding(session)
   }
@@ -251,8 +257,8 @@ export const createPlaybackSessions = ({
       })
   }
 
-  const retryWithoutCaptions = (session) => {
-    session.plan = { ...session.plan, teletext: null }
+  const respawnWith = (session, change) => {
+    Object.assign(session, change)
     session.exited = false
     session.errorLines = []
     try {
@@ -284,7 +290,8 @@ export const createPlaybackSessions = ({
         session.status = 'ready'
         return
       }
-      if (session.plan?.teletext) return retryWithoutCaptions(session)
+      if (session.probe === 'short' && missingStreamParameters(session.errorLines)) return respawnWith(session, { probe: 'full' })
+      if (session.plan?.teletext) return respawnWith(session, { plan: { ...session.plan, teletext: null } })
       end(session, {
         code: 'ffmpeg',
         detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,
