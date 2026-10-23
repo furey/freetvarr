@@ -57,7 +57,14 @@ export const ToastRegion = {
     }
     const onVisibility = () => (document.hidden ? pauseToast('hidden') : resumeToast('hidden'))
 
-    watch(shown, (next) => { if (next) measureSoon() })
+    const resumeIfFocusLeft = () => {
+      if (!regionEl.value?.contains(document.activeElement)) resumeToast('focus')
+    }
+
+    watch(shown, (next) => {
+      resumeIfFocusLeft()
+      if (next) measureSoon()
+    }, { flush: 'post' })
     watch([playerMini, () => live.open, () => playback.open], measureSoon)
     onMounted(() => {
       window.addEventListener('resize', measureSoon)
