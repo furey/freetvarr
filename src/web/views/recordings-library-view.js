@@ -206,16 +206,15 @@ export const RecordingsLibraryView = {
         : null
     }
 
-    const refresh = () => Promise.all([loadShows(), loadFailures()])
+    const refresh = () => Promise.all([loadShows(), loadFailures(), loadScheduledCount()])
 
     let pollTimer = null
     onMounted(() => {
       refresh()
-      loadScheduledCount()
       pollTimer = setInterval(refresh, LIBRARY_POLL_MS)
     })
     onUnmounted(() => clearInterval(pollTimer))
-    watch(recordingChangeTick, loadShows)
+    watch(recordingChangeTick, () => Promise.all([loadShows(), loadScheduledCount()]))
     watch(recordingSetKey, (current, previous) => {
       if (current !== previous) loadShows()
     })
