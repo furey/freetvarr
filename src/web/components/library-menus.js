@@ -450,6 +450,8 @@ const MENU_ICONS = {
   pause: [rect(6, 5, 4, 14), rect(14, 5, 4, 14)],
   info: [circle(12, 12, 9), path('M12 11v6M12 7.5v.5')],
   tag: [path('M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z'), { tag: 'circle', attrs: { cx: 7.5, cy: 7.5, r: 0.5, fill: 'currentColor' } }],
+  movie: [path('M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'), path('M3 11 2.3 8.4a1.6 1.6 0 0 1 1.1-2l13.3-3.6a1.6 1.6 0 0 1 2 1.1L19.4 6.6z'), path('m6.3 5.3 3.3 3.9M12.2 3.7l3.3 3.9')],
+  'not-movie': [path('M7 11H3v8a2 2 0 0 0 2 2h12M15 11h6v6'), path('M3 11l-.7-2.6a1.6 1.6 0 0 1 .8-1.9M9.5 4.6l7.2-1.9a1.6 1.6 0 0 1 2 1.1l.7 2.7-5.8 1.6'), path('m12.2 3.7 2.6 3.1'), path('m2 2 20 20')],
   external: [path('M14 4h6v6M20 4l-9 9M18 14v6H4V6h6')],
   picture: [{ tag: 'rect', attrs: { x: 3, y: 3, width: 18, height: 18, rx: 2 } }, circle(9, 9, 2), path('m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21')],
   refresh: [path('M21 12a9 9 0 1 1-3-6.7L21 8'), path('M21 3v5h-5')],

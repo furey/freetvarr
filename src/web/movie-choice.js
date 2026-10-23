@@ -1,7 +1,9 @@
 export const movieChoiceLabelOf = (choice) => MOVIE_CHOICE_LABELS[choice] ?? null
 
+export const movieChoiceIconOf = (choice) => (MOVIE_CHOICE_LABELS[choice] ? choice : null)
+
 export const movieKindRowOf = (choice) => (MOVIE_CHOICE_LABELS[choice]
-  ? { key: 'movie-kind', label: MOVIE_CHOICE_LABELS[choice], icon: 'tag' }
+  ? { key: 'movie-kind', label: MOVIE_CHOICE_LABELS[choice], icon: movieChoiceIconOf(choice) }
   : null)
 
 export const correctionRowsOf = (overrides = []) => overrides

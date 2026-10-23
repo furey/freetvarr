@@ -19,7 +19,7 @@ import { holdAtLeast } from '/pending.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopConfirmOf, stopRecordingOutcome } from '/stop-recording.js'
 import { ActionConfirm, MenuIcon } from '/components/library-menus.js'
-import { movieChoiceLabelOf } from '/movie-choice.js'
+import { movieChoiceIconOf, movieChoiceLabelOf } from '/movie-choice.js'
 import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
@@ -144,7 +144,7 @@ export const ProgrammeSheetHost = {
               </button>
             </div>
             <button v-if="canShowInGuide" type="button" class="programme-sheet-guide-link" @click="showSelectedInGuide">Show in TV guide <chevron-right-icon /></button>
-            <button v-if="movieChoiceLabel" type="button" class="programme-sheet-guide-link" @click="changeSelectedKind"><menu-icon name="tag" /> {{ movieChoiceLabel }}</button>
+            <button v-if="movieChoiceLabel" type="button" class="programme-sheet-guide-link" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /> {{ movieChoiceLabel }}</button>
           </div>
         </template>
         </div>
@@ -478,6 +478,7 @@ export const ProgrammeSheetHost = {
     }
 
     const movieChoiceLabel = computed(() => movieChoiceLabelOf(selected.value?.program?.movieChoice))
+    const movieChoiceIcon = computed(() => movieChoiceIconOf(selected.value?.program?.movieChoice))
 
     const changeSelectedKind = () => {
       const { program } = selected.value
@@ -790,7 +791,7 @@ export const ProgrammeSheetHost = {
     return {
       pendingActionLabelOf, ANY_CHANNEL_HINT,
       selected, selectedChannelId, sheetEl, closeModal, modalBusy, modalAction,
-      canWatchLive, watchSelected, canShowInGuide, showSelectedInGuide, movieChoiceLabel, changeSelectedKind,
+      canWatchLive, watchSelected, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,

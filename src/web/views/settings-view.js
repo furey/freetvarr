@@ -29,6 +29,7 @@ const LICENCES = [
   { name: 'Figtree', note: 'Interface typeface, by Erik Kennedy.', licence: 'SIL OFL 1.1', href: '/fonts/figtree-OFL.txt' },
   { name: 'Geist Mono', note: 'Typeface for paths and code.', licence: 'SIL OFL 1.1', href: '/fonts/geist-mono-OFL.txt' },
   { name: 'Vue', note: 'Interface framework.', licence: 'MIT', href: 'https://github.com/vuejs/core/blob/main/LICENSE' },
+  { name: 'Lucide', note: 'Icon set some interface icons are adapted from.', licence: 'ISC', href: 'https://github.com/lucide-icons/lucide/blob/main/LICENSE' },
   { name: 'UltraFace', note: 'Face detector for cropping pictures, by Linzaer.', licence: 'MIT', href: 'https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/blob/master/LICENSE' },
   { name: 'Hold music', note: '"Local Forecast – Elevator" by Kevin MacLeod (incompetech.com).', licence: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' },
 ]

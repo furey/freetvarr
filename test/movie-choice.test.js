@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { correctionRowsOf, movieChoiceLabelOf, movieKindRowOf } from '../src/web/movie-choice.js'
+import { correctionRowsOf, movieChoiceIconOf, movieChoiceLabelOf, movieKindRowOf } from '../src/web/movie-choice.js'
 
 test('movieChoiceLabelOf: names the action for each choice', () => {
   assert.equal(movieChoiceLabelOf('not-movie'), 'Not a movie')
@@ -8,9 +8,15 @@ test('movieChoiceLabelOf: names the action for each choice', () => {
   assert.equal(movieChoiceLabelOf(null), null)
 })
 
-test('movieKindRowOf: a tag menu row for a choice, nothing without one', () => {
-  assert.deepEqual(movieKindRowOf('not-movie'), { key: 'movie-kind', label: 'Not a movie', icon: 'tag' })
-  assert.deepEqual(movieKindRowOf('movie'), { key: 'movie-kind', label: 'This is a movie', icon: 'tag' })
+test('movieChoiceIconOf: a slashed clapperboard for Not a movie, a clapperboard for This is a movie', () => {
+  assert.equal(movieChoiceIconOf('not-movie'), 'not-movie')
+  assert.equal(movieChoiceIconOf('movie'), 'movie')
+  assert.equal(movieChoiceIconOf(null), null)
+})
+
+test('movieKindRowOf: a clapperboard menu row for a choice, nothing without one', () => {
+  assert.deepEqual(movieKindRowOf('not-movie'), { key: 'movie-kind', label: 'Not a movie', icon: 'not-movie' })
+  assert.deepEqual(movieKindRowOf('movie'), { key: 'movie-kind', label: 'This is a movie', icon: 'movie' })
   assert.equal(movieKindRowOf(undefined), null)
 })
 

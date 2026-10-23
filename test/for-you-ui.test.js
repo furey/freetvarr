@@ -348,7 +348,8 @@ test('menuOf: the movie row sits between Not interested and Why this, labelled b
   assert.deepEqual(labelsOf('not-movie'), ['Not interested in Grand Designs Australia', 'Not a movie', 'Why this?'])
   assert.deepEqual(labelsOf('movie'), ['Not interested in Grand Designs Australia', 'This is a movie', 'Why this?'])
   assert.deepEqual(labelsOf(null), ['Not interested in Grand Designs Australia', 'Why this?'])
-  assert.equal(menuOf({ item: item({ movieChoice: 'movie' }), nowMs, timeZone }).more[1].icon, 'tag')
+  assert.equal(menuOf({ item: item({ movieChoice: 'movie' }), nowMs, timeZone }).more[1].icon, 'movie')
+  assert.equal(menuOf({ item: item({ movieChoice: 'not-movie' }), nowMs, timeZone }).more[1].icon, 'not-movie')
 })
 
 test('movieKindToastOf: says whether the show is now listed as a movie', () => {

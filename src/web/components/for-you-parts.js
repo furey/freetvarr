@@ -243,6 +243,17 @@ const FOR_YOU_ICONS = {
     { tag: 'path', attrs: { d: 'M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z' } },
     { tag: 'circle', attrs: { cx: 7.5, cy: 7.5, r: 0.5, fill: 'currentColor' } },
   ],
+  movie: [
+    { tag: 'path', attrs: { d: 'M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' } },
+    { tag: 'path', attrs: { d: 'M3 11 2.3 8.4a1.6 1.6 0 0 1 1.1-2l13.3-3.6a1.6 1.6 0 0 1 2 1.1L19.4 6.6z' } },
+    { tag: 'path', attrs: { d: 'm6.3 5.3 3.3 3.9M12.2 3.7l3.3 3.9' } },
+  ],
+  'not-movie': [
+    { tag: 'path', attrs: { d: 'M7 11H3v8a2 2 0 0 0 2 2h12M15 11h6v6' } },
+    { tag: 'path', attrs: { d: 'M3 11l-.7-2.6a1.6 1.6 0 0 1 .8-1.9M9.5 4.6l7.2-1.9a1.6 1.6 0 0 1 2 1.1l.7 2.7-5.8 1.6' } },
+    { tag: 'path', attrs: { d: 'm12.2 3.7 2.6 3.1' } },
+    { tag: 'path', attrs: { d: 'm2 2 20 20' } },
+  ],
   clock: [
     { tag: 'circle', attrs: { cx: 12, cy: 12, r: 10 } },
     { tag: 'path', attrs: { d: 'M12 6v6l4 2' } },
