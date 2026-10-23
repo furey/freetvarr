@@ -19,6 +19,7 @@ import {
   PICTURES,
 } from '/multi-view.js'
 import { EMPTY_TUNER_STATUS } from '/tuner-status.js'
+import { createWatchedPoll } from '/watched-poll.js'
 import { SIZES_KEY, parseSizes, sizesAfterSet } from '/multi-resize.js'
 import { keyPictureOf } from '/multi-picture.js'
 import { steadyLiveWindowOf, videoLiveInputOf } from '/live-edge.js'
@@ -274,14 +275,9 @@ export const loadTunerStatus = async () => {
   multi.tunerLoaded = true
 }
 
-export const watchTunerStatus = () => {
-  tunerWatchers += 1
-  if (tunerWatchers === 1) pollTunerStatus()
-  return () => {
-    tunerWatchers = Math.max(0, tunerWatchers - 1)
-    if (!tunerWatchers) clearTimeout(tunerTimer)
-  }
-}
+const TUNER_POLL_MS = 5_000
+
+export const watchTunerStatus = createWatchedPoll({ load: loadTunerStatus, everyMs: TUNER_POLL_MS })
 
 export const applySingleMuting = () => {
   if (liveVideo) liveVideo.muted = playerMuted.value
@@ -291,8 +287,6 @@ export const togglePlayerMuted = () => {
   if (!multi.active) playerMuted.value = !playerMuted.value
 }
 
-let tunerTimer = null
-let tunerWatchers = 0
 
 const removeOneOfMany = (picture) => {
   if (picture !== 'primary') {
@@ -307,12 +301,6 @@ const removeOneOfMany = (picture) => {
   multi.view = promoteIntoPrimary(multi.view, survivor)
   if (sessionId) return adoptLiveSession({ channel, session: { id: sessionId, playlist, bufferSeconds, captions } })
   retuneLive({ channel, nowTitle: '' })
-}
-
-const pollTunerStatus = async () => {
-  clearTimeout(tunerTimer)
-  await loadTunerStatus()
-  if (tunerWatchers) tunerTimer = setTimeout(pollTunerStatus, TUNER_POLL_MS)
 }
 
 const exitMulti = () => {
@@ -376,6 +364,7 @@ const pollCompanion = async (id, run) => {
   } catch {
     if (run !== rig.run) return
   }
+  clearTimeout(rig.pollTimer)
   rig.pollTimer = setTimeout(() => pollCompanion(id, run), rig.attached ? POLL_PLAYING_MS : POLL_TUNING_MS)
 }
 
@@ -512,16 +501,36 @@ liveStopHooks.add(() => {
   exitMulti()
 })
 
-window.addEventListener('pagehide', (event) => {
+const companionSessionIds = () => COMPANIONS.map((id) => multi.companions[id].sessionId).filter(Boolean)
+
+const sendCompanionBeacon = ({ sessionId, method, suffix = '' }) => {
+  fetch(`/api/live/${sessionId}${suffix}`, {
+    method,
+    keepalive: true,
+    headers: { 'x-csrf-token': csrfToken || '' },
+  }).catch(() => {})
+}
+
+const holdCompanions = () => {
+  for (const sessionId of companionSessionIds()) sendCompanionBeacon({ sessionId, method: 'POST', suffix: '/hold' })
+}
+
+const repollCompanions = () => {
   for (const id of COMPANIONS) {
-    const sessionId = multi.companions[id].sessionId
-    if (!sessionId) continue
-    fetch(`/api/live/${sessionId}${event.persisted ? '/hold' : ''}`, {
-      method: event.persisted ? 'POST' : 'DELETE',
-      keepalive: true,
-      headers: { 'x-csrf-token': csrfToken || '' },
-    }).catch(() => {})
+    if (!multi.companions[id].sessionId) continue
+    clearTimeout(rigs[id].pollTimer)
+    pollCompanion(id, rigs[id].run)
   }
+}
+
+window.addEventListener('pagehide', (event) => {
+  if (event.persisted) return holdCompanions()
+  for (const sessionId of companionSessionIds()) sendCompanionBeacon({ sessionId, method: 'DELETE' })
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') return holdCompanions()
+  repollCompanions()
 })
 
 const COMPANION_HLS_CONFIG = {
@@ -534,4 +543,3 @@ const COMPANION_TRACK_EVENTS = ['play', 'pause', 'playing', 'seeked', 'timeupdat
 const HAVE_CURRENT_DATA = 2
 const POLL_TUNING_MS = 1_000
 const POLL_PLAYING_MS = 10_000
-const TUNER_POLL_MS = 5_000
