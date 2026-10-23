@@ -37,5 +37,5 @@ test('show hero skeletons clear once loading ends, even for a missing show', () 
 
 test('show page reuses the last loaded detail for an instant repeat visit', () => {
   assert.match(view, /const show = ref\(cachedDetails\.get\(key\.value\) \|\| null\)/)
-  assert.match(view, /if \(requestedKey !== key\.value\) return/)
+  assert.match(view, /const isStale = \(\) => requestedKey !== key\.value \|\| !loads\.accept\(ticket\)/)
 })
