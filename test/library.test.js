@@ -86,7 +86,9 @@ test('kindOf: with no series rule or folder, the import files it as a one-off, w
 
 test('kindOf: films and one-offs', () => {
   assert.equal(kindOf({ rows: [row({ file_path: '/media/movies/Heat (1995)/Heat.ts' })], moviesRoot: '/media/movies' }), 'movie')
-  assert.equal(kindOf({ rows: [row({ status: 'pending', duration_s: 7200 })] }), 'movie')
+  assert.equal(kindOf({ rows: [row({ status: 'pending', duration_s: 7200, genres_json: '[16]' })], moviesRoot: '/media/movies' }), 'movie')
+  assert.equal(kindOf({ rows: [row({ status: 'pending', duration_s: 7200, genres_json: '[16]' })] }), 'oneoff')
+  assert.equal(kindOf({ rows: [row({ status: 'pending', duration_s: 7200 })], moviesRoot: '/media/movies' }), 'oneoff')
   assert.equal(kindOf({ rows: [row({ file_path: '/media/one-offs/Cup/Cup.ts' })], moviesRoot: '/media/movies' }), 'oneoff')
 })
 

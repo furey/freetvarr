@@ -333,6 +333,7 @@ const cardBasics = (recording) => ({
   episode: recording.episode,
   channelId: recording.channelId,
   channelName: recording.channelName,
+  genres: recording.genres || [],
 })
 
 const importingStep = ({ row, show, libraryChoice, importUnmatched, progress, activeSyncId }) => {

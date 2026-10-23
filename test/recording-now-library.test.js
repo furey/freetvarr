@@ -115,14 +115,17 @@ test('inProgressRowsOf: one stand-in per recording, skipping failures and record
 
 test('getLibraryShows: a one-off recording appears on the right shelf the moment it starts', async () => {
   const oneOff = active({ uuid: 'o1', dvrUuid: 'o1', title: 'Australian of the Year Awards', season: null, episode: null, episodeTitle: null, stop: NOW })
-  const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null })
+  const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null, genres: [0x10] })
   const filed = active({ uuid: 'b1', dvrUuid: 'b1', title: 'The Block', season: 22, episode: 4, seriesFolderId: 3 })
   const ruled = active({ uuid: 'h1', dvrUuid: 'h1', title: 'Hard Quiz', season: null, episode: null, autorecId: 'auto-9' })
   const guideNumbered = active()
-  const { shows } = await getLibraryShows(deps({
-    recording: [oneOff, film, filed, ruled, guideNumbered],
-    series: [{ key: 'hard quiz', title: 'Hard Quiz', autorecs: [], folder: null }],
-  }))
+  const { shows } = await getLibraryShows({
+    ...deps({
+      recording: [oneOff, film, filed, ruled, guideNumbered],
+      series: [{ key: 'hard quiz', title: 'Hard Quiz', autorecs: [], folder: null }],
+    }),
+    loadMoviesRoot: async () => '/media/movies',
+  })
   const kindOf = Object.fromEntries(shows.map((s) => [s.key, s.kind]))
   assert.deepEqual(kindOf, {
     'australian-of-the-year-awards': 'oneoff',
@@ -155,9 +158,33 @@ test('a guide-numbered recording with no series folder: the import and the shelf
   assert.equal(after.shows[0].kind, 'oneoff')
 })
 
+test('long sport and news with no episode numbers stay on the one-off shelf before and after import', async () => {
+  const long = { season: null, episode: null, episodeTitle: null, start: NOW - 60 * MIN, stop: NOW + 120 * MIN }
+  const sport = active({ ...long, uuid: 's1', dvrUuid: 's1', title: 'AFL Grand Final', genres: [0x40] })
+  const news = active({ ...long, uuid: 'n1', dvrUuid: 'n1', title: 'Election Night Coverage', genres: [0x20] })
+  for (const item of [sport, news]) {
+    const importItem = { title: item.title, season: null, episode: null, genres: item.genres, start: item.start, end: item.stop }
+    assert.equal(libraryKind({ show: null, item: importItem, moviesRoot: '/media/movies' }), 'oneOff')
+  }
+  const withMovies = (overrides) => ({ ...deps(overrides), loadMoviesRoot: async () => '/media/movies' })
+  const recording = await getLibraryShows(withMovies({ recording: [sport, news] }))
+  assert.deepEqual(recording.shows.map((s) => [s.key, s.kind]).sort(), [['afl-grand-final', 'oneoff'], ['election-night-coverage', 'oneoff']])
+  const held = row({ recording_id: 's1', title: 'AFL Grand Final', season: null, episode: null, status: 'not_imported', duration_s: 10800, genres_json: '[64]' })
+  const heldShows = await getLibraryShows(withMovies({ rows: [held] }))
+  assert.equal(heldShows.shows[0].kind, 'oneoff')
+})
+
+test('a film recording sits on Movies while it records, as the import will file it', async () => {
+  const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null, genres: [0x10] })
+  const item = { title: 'The Castle', season: null, episode: null, genres: film.genres, start: film.start, end: film.stop }
+  assert.equal(libraryKind({ show: null, item, moviesRoot: '/media/movies' }), 'film')
+  const { shows } = await getLibraryShows({ ...deps({ recording: [film] }), loadMoviesRoot: async () => '/media/movies' })
+  assert.equal(shows[0].kind, 'movie')
+})
+
 test('getLibraryShows: a programme kind override moves the stand-in like an imported row', async () => {
-  const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null })
-  const { shows } = await getLibraryShows({ ...deps({ recording: [film] }), loadOverrides: async () => new Map([['the-castle', 'not-movie']]) })
+  const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null, genres: [0x10] })
+  const { shows } = await getLibraryShows({ ...deps({ recording: [film] }), loadMoviesRoot: async () => '/media/movies', loadOverrides: async () => new Map([['the-castle', 'not-movie']]) })
   assert.equal(shows[0].kind, 'oneoff')
 })
 

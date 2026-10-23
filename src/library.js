@@ -9,13 +9,13 @@ import { RESUME_END_MARGIN_S } from './playback.js'
 import { getSeries } from './series.js'
 import { libraryKindWith, loadKindOverrides } from './programme-kind.js'
 import { getMoviesRoot } from './sync.js'
+import { looksLikeFilm } from './film-rule.js'
 import { showKeyOf } from './web/show-key.js'
 import { artworkChoices } from './artwork-choices.js'
 import { backupKeptUntil, originalRetentionDays } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { inProgressImageOf, inProgressRowsOf, inProgressSummaryOf, isInProgressRow } from './recording-now-library.js'
 
-export const MOVIE_MIN_DURATION_S = 4500
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
 export const EPISODE_KINDS = ['show', 'movie', 'oneoff']
 
@@ -201,7 +201,7 @@ export const kindOf = ({ rows, hasRule = false, moviesRoot = '', override = null
 const automaticKindOf = ({ rows, hasRule, moviesRoot }) => {
   if (hasRule || rows.some((r) => r.show_id != null)) return 'show'
   if (moviesRoot && rows.some((r) => isInsideFolder({ filePath: r.file_path, folder: moviesRoot }))) return 'movie'
-  if (rows.some(looksLikeUnimportedFilm)) return 'movie'
+  if (moviesRoot && rows.some(looksLikeUnimportedFilm)) return 'movie'
   return 'oneoff'
 }
 
@@ -498,8 +498,22 @@ const listText = (items) => (items.length < 2
 
 const activeKeysOf = (active = []) => new Set(active.filter((r) => !r.failed).map((r) => showKeyOf(r.title)))
 
-const looksLikeUnimportedFilm = (row) => !['done', 'partial'].includes(row.status)
-  && row.season == null && row.episode == null && Number(row.duration_s) >= MOVIE_MIN_DURATION_S
+const looksLikeUnimportedFilm = (row) => !['done', 'partial'].includes(row.status) && looksLikeFilm({
+  genres: genresOf(row),
+  season: row.season,
+  episode: row.episode,
+  start: 0,
+  end: Number(row.duration_s) * 1000,
+})
+
+const genresOf = (row) => {
+  try {
+    const genres = JSON.parse(row.genres_json || '[]')
+    return Array.isArray(genres) ? genres.map(Number) : []
+  } catch {
+    return []
+  }
+}
 
 const chosenBackgroundOf = ({ title, stamp }) => (stamp
   ? `/api/epg/show-image?title=${encodeURIComponent(title)}&w=${CARD_IMAGE_WIDTH}${stampParamOf(stamp)}`

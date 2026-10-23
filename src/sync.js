@@ -384,6 +384,7 @@ const saveRecordingDetails = async ({ item, show = null, conn }) => {
     synopsis: item.description,
     image_url: item.image,
     tvh_filename: item.tvhFilename,
+    genres_json: JSON.stringify(item.genres || []),
     ...(item.year ? { year: item.year } : {}),
   }
   await db('recordings')

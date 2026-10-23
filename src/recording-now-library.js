@@ -29,6 +29,7 @@ export const inProgressRowOf = ({ item, phase }) => ({
   duration_s: durationSecondsOf(item),
   synopsis: null,
   classification: null,
+  genres_json: JSON.stringify(item.genres || []),
   image_path: null,
   file_path: null,
   status: phase,
