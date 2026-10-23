@@ -13,6 +13,7 @@ import {
   showInfoOf,
   showMenuOf,
   undoMovesOf,
+  unmarkedText,
   watchedChangeTargets,
 } from '/library-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
@@ -142,9 +143,11 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   const setEpisodesWatched = (list, watched) => run('Marking episodes', async () => {
     const targets = watchedChangeTargets({ episodes: list, watched })
-    await Promise.all(targets.map((episode) => api('POST', `/api/recordings/${encodeURIComponent(episode.recordingId)}/watched`, { watched })))
-    showToast({ title: markedText({ count: targets.length, watched }) })
+    const results = await Promise.allSettled(targets.map((episode) => api('POST', `/api/recordings/${encodeURIComponent(episode.recordingId)}/watched`, { watched })))
+    const failures = results.filter((result) => result.status === 'rejected')
     await reload()
+    if (!failures.length) return showToast({ title: markedText({ count: targets.length, watched }) })
+    showToast({ kind: 'error', title: unmarkedText({ failed: failures.length, total: targets.length }), detail: failures[0].reason?.message || '' })
   })
 
   const setShowWatched = (watched, throughRecordingId = null) => run('Marking episodes', async () => {

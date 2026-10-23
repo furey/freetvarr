@@ -8,6 +8,7 @@ import {
   episodeMenuOf,
   latestEarlierEpisodeOf,
   markedText,
+  unmarkedText,
   movedText,
   moveSubtitleOf,
   moveTargetsOf,
@@ -197,4 +198,9 @@ test('move copy and undo: a short subtitle, the toast text, and one undo request
     { ids: ['a', 'c'], title: null },
     { ids: ['b'], title: 'Specials' },
   ])
+})
+
+test('unmarkedText names how many episodes failed', () => {
+  assert.equal(unmarkedText({ failed: 1, total: 1 }), 'Could not mark the episode')
+  assert.equal(unmarkedText({ failed: 2, total: 5 }), 'Could not mark 2 of 5 episodes')
 })

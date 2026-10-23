@@ -152,6 +152,11 @@ export const markedText = ({ count, watched }) => {
   return `Marked ${what} as ${watched ? 'watched' : 'unwatched'}`
 }
 
+export const unmarkedText = ({ failed, total }) => {
+  const what = total === 1 ? 'the episode' : `${failed} of ${total} episodes`
+  return `Could not mark ${what}`
+}
+
 export const episodeInfoOf = ({ episode, showTitle, timeZone }) => ({
   title: episodeHeading(episode),
   subtitle: showTitle,
