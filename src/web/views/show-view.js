@@ -189,14 +189,14 @@ export const ShowView = {
                 <img v-if="episodeImage(e) && !failedImages[e.recordingId]" :src="episodeImage(e)" alt="" loading="lazy" @error="markImageFailed(e)" />
                 <span v-else class="ui-art-title">{{ title }}</span>
                 <span class="show-episode-play" aria-hidden="true"><play-glyph /></span>
-                <span v-if="e.inProgress" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
-                <span v-else-if="e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
+                <span v-if="recordedPercent(e) != null" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
+                <span v-else-if="!e.inProgress && e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
               </button>
               <div v-else :class="['show-episode-thumb', 'ui-art-fallback', { 'is-unplayable': !selecting }]" :style="artStyle">
                 <img v-if="episodeImage(e) && !failedImages[e.recordingId]" :src="episodeImage(e)" alt="" loading="lazy" @error="markImageFailed(e)" />
                 <span v-else class="ui-art-title">{{ title }}</span>
-                <span v-if="e.inProgress" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
-                <span v-else-if="e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
+                <span v-if="recordedPercent(e) != null" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
+                <span v-else-if="!e.inProgress && e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
               </div>
               <div class="show-episode-text">
                 <h3 class="show-episode-title">{{ episodeHeading(e) }} <span v-if="episodeBadge(e) === 'rec'" class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span><span v-else-if="episodeBadge(e) === 'new'" class="ui-new-badge">New</span></h3>
@@ -373,7 +373,7 @@ export const ShowView = {
     const openEpisode = (episode) => (episode.inProgress ? actions.watchFromStart(episode) : playEpisode(episode))
     const recordedPercent = (episode) => {
       const item = itemOf(episode)
-      return item ? recordedPercentOf({ start: item.start, stop: item.stop, nowMs: nowMs.value }) : 0
+      return isRecordingPhase(item) ? recordedPercentOf({ start: item.start, stop: item.stop, nowMs: nowMs.value }) : null
     }
 
     const playNext = () => {
