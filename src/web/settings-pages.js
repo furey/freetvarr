@@ -15,10 +15,10 @@ export const SETTINGS_GROUPS = [
     key: 'watching',
     label: 'Watching',
     pages: [
-      { id: 'for-you', label: 'For you', view: 'for-you' },
       { id: 'player', label: 'Playback', view: 'player' },
       { id: 'channels', label: 'Channels', view: 'channels' },
       { id: 'film-tv-info', label: 'Film and TV info', view: 'settings', section: 'film-tv-info' },
+      { id: 'for-you', label: 'For you', view: 'for-you' },
       { id: 'tv-apps', label: 'Watch on TV', view: 'settings', section: 'tv-apps' },
     ],
   },
@@ -28,21 +28,21 @@ export const SETTINGS_GROUPS = [
     pages: [
       { id: 'series', label: 'Series rules', view: 'system' },
       { id: 'folders', label: 'Title matches', view: 'system' },
-      { id: 'log', label: 'Recording log', view: 'system' },
-      { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
       { id: 'storage', label: 'Media library', view: 'settings', section: 'storage' },
+      { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
       { id: 'plex', label: 'Plex', view: 'settings', section: 'plex' },
+      { id: 'log', label: 'Recording log', view: 'system' },
     ],
   },
   {
     key: 'system',
     label: 'System',
     pages: [
+      { id: 'setup', label: 'Setup', view: 'system' },
       { id: 'health', label: 'Health', view: 'system' },
       { id: 'activity', label: 'Activity', view: 'system' },
-      { id: 'setup', label: 'Setup', view: 'system' },
-      { id: 'tvheadend', label: 'TVHeadend', view: 'settings', section: 'tvheadend' },
       { id: 'schedule', label: 'Schedule', view: 'settings', section: 'schedule' },
+      { id: 'tvheadend', label: 'TVHeadend', view: 'settings', section: 'tvheadend' },
     ],
   },
   {
