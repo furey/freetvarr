@@ -10,6 +10,7 @@ import { resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import { useConfirm } from '/components/dialogs.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { holdAtLeast } from '/pending.js'
+import { createSettingBaseline } from '/setting-baseline.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { tvhDetectSummary, tvhTestSummary } from '/shared/format.js'
@@ -658,6 +659,8 @@ export const SettingsView = {
     const reviewsLookupEnabled = ref(true)
     const creditsLookupEnabled = ref(true)
     const genreLookup = ref(true)
+    const genreLookupBaseline = createSettingBaseline()
+    const addToLibraryBaseline = createSettingBaseline()
     const tmdbKeySet = ref(false)
     const plexOneOffSectionId = ref('')
     const moviesRoot = ref('')
@@ -694,6 +697,7 @@ export const SettingsView = {
       .then((body) => {
         dataCredits.value = dataCreditsOf(body.attribution)
         genreLookup.value = body.genreLookup !== false
+        genreLookupBaseline.remember(genreLookup.value)
       })
       .catch(() => {}))
     onMounted(async () => {
@@ -783,7 +787,7 @@ export const SettingsView = {
         flash({ msg: 'Saved.' })
         await refreshSyncSchedule()
       } catch (err) {
-        flash({ msg: `Error: ${err.message}`, kind: 'error', ms: 5000 })
+        flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
       } finally {
         saving.value = false
       }
@@ -791,12 +795,24 @@ export const SettingsView = {
 
     const loadRecordingDefaults = async () => {
       const defaults = await api('GET', '/api/recording-defaults').catch(() => null)
-      if (defaults) addToLibraryDefault.value = defaults.add_to_library !== false
+      if (!defaults) return
+      addToLibraryDefault.value = defaults.add_to_library !== false
+      addToLibraryBaseline.remember(addToLibraryDefault.value)
     }
 
-    const saveRecordingDefaults = () => api('PUT', '/api/recording-defaults', { add_to_library: addToLibraryDefault.value })
+    const saveRecordingDefaults = async () => {
+      const value = addToLibraryDefault.value
+      if (!addToLibraryBaseline.isChanged(value)) return
+      await api('PUT', '/api/recording-defaults', { add_to_library: value })
+      addToLibraryBaseline.remember(value)
+    }
 
-    const saveGenreLookup = () => api('PUT', '/api/for-you/settings', { genreLookup: genreLookup.value })
+    const saveGenreLookup = async () => {
+      const value = genreLookup.value
+      if (!genreLookupBaseline.isChanged(value)) return
+      await api('PUT', '/api/for-you/settings', { genreLookup: value })
+      genreLookupBaseline.remember(value)
+    }
 
     const refreshSyncSchedule = async () => {
       const fresh = await fetchSettings().catch(() => null)
