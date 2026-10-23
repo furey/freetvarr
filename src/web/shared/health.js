@@ -40,8 +40,12 @@ export const dismissHealthAlert = ({ sentence, nowMs = Date.now() }) => {
 
 export const pollHealth = async ({ fresh = false } = {}) => {
   clearTimeout(healthTimer)
-  health.value = { ...(await currentHealth({ fresh })), known: true }
+  const poll = ++latestHealthPoll
+  const current = await currentHealth({ fresh })
+  if (poll !== latestHealthPoll) return
+  health.value = { ...current, known: true }
   rememberHealth(health.value)
+  clearTimeout(healthTimer)
   healthTimer = setTimeout(() => pollHealth(), HEALTH_POLL_MS)
 }
 
@@ -76,6 +80,7 @@ const healthFromFallbackSources = async () => {
 const failingRecordingCount = () => recordingNow.value.active.filter((entry) => entry.failed).length
 
 let healthTimer = null
+let latestHealthPoll = 0
 
 const HEALTH_POLL_MS = 60_000
 
