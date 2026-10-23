@@ -204,13 +204,14 @@ export const createHostLimiter = ({
   now = Date.now,
   sleep = wait,
 } = {}) => {
-  const queue = []
+  const urgent = []
+  const background = []
   let active = 0
   let nextStartAt = 0
 
   const pump = () => {
-    while (active < concurrency && queue.length) {
-      const { task, resolve, reject } = queue.shift()
+    while (active < concurrency && (urgent.length || background.length)) {
+      const { task, resolve, reject } = urgent.length ? urgent.shift() : background.shift()
       active += 1
       const startAt = Math.max(now(), nextStartAt)
       nextStartAt = startAt + gapMs
@@ -224,17 +225,25 @@ export const createHostLimiter = ({
     }
   }
 
-  const run = (task) => {
+  const run = (task, { isBackground = false, id = null } = {}) => {
+    const queue = isBackground ? background : urgent
     if (queue.length >= maxQueue) return Promise.reject(Object.assign(new Error('queue full'), { code: 'queue-full' }))
     return new Promise((resolve, reject) => {
-      queue.push({ task, resolve, reject })
+      queue.push({ task, resolve, reject, id })
       pump()
     })
   }
 
-  const size = () => ({ active, queued: queue.length })
+  const promote = (id) => {
+    const index = background.findIndex((entry) => entry.id === id)
+    if (index < 0) return false
+    urgent.push(...background.splice(index, 1))
+    return true
+  }
 
-  return { run, size }
+  const size = () => ({ active, queued: urgent.length + background.length, background: background.length })
+
+  return { run, promote, size }
 }
 
 export const isImageContentType = (contentType) => ALLOWED_IMAGE_TYPES.has(contentType)

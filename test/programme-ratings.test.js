@@ -18,6 +18,7 @@ import {
   upcomingProgrammesOf,
 } from '../src/programme-ratings.js'
 import { programmeHintsOf } from '../src/artwork-match.js'
+import { createHostLimiter } from '../src/outbound-http.js'
 
 const memoryCache = () => {
   const rows = new Map()
@@ -673,4 +674,67 @@ test('a hit saved before the TMDB-first change answers at once and refreshes in 
   assert.equal(calls, 1)
   assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 8)
   assert.equal(calls, 1)
+})
+
+const recordingRatings = ({ lookUpMs = 5, limiter = createHostLimiter({ concurrency: 1 }), isAllowed = async () => true } = {}) => {
+  const looked = []
+  const ratings = createProgrammeRatings({
+    lookUp: ({ title }) => {
+      looked.push(title)
+      return new Promise((resolve) => setTimeout(() => resolve({ score: 7, votes: 900, source: 'tmdb', url: null, reviews: null }), lookUpMs))
+    },
+    cache: memoryCache(),
+    ratingsEnabled: async () => true,
+    reviewsEnabled: async () => true,
+    tmdbKey: async () => 'k',
+    lookupLimiter: limiter,
+    isAllowed,
+    linkOf: (url) => url,
+  })
+  return { ratings, looked }
+}
+
+test('a sheet the user opens is looked up ahead of the warm-up backlog', async () => {
+  const { ratings, looked } = recordingRatings()
+  const warming = ratings.warm(['A', 'B', 'C', 'D'].map((title) => ({ title, kind: 'movie' })))
+  await new Promise((resolve) => setTimeout(resolve, 1))
+  await ratings.ratingsFor('Opened', { kind: 'movie', wait: false })
+  await warming
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.ok(looked.indexOf('Opened') <= 1, looked.join(','))
+  assert.deepEqual(looked.filter((title) => title !== 'Opened'), ['A', 'B', 'C', 'D'])
+})
+
+test('a full lookup queue answers pending without a failure backoff', async () => {
+  let full = true
+  const limiter = {
+    run: (task) => (full ? Promise.reject(Object.assign(new Error('queue full'), { code: 'queue-full' })) : Promise.resolve().then(task)),
+  }
+  const { ratings, looked } = recordingRatings({ limiter })
+  assert.equal((await ratings.ratingsFor('Heat', { kind: 'movie', wait: false })).status, 'pending')
+  await new Promise((resolve) => setTimeout(resolve, 1))
+  full = false
+  await ratings.ratingsFor('Heat', { kind: 'movie', wait: false })
+  await new Promise((resolve) => setTimeout(resolve, 15))
+  assert.deepEqual(looked, ['Heat'])
+  assert.equal((await ratings.ratingsFor('Heat', { kind: 'movie' })).score, 7)
+})
+
+test('a title the gate refuses gets no lookup and no ratings', async () => {
+  const { ratings, looked } = recordingRatings({ isAllowed: async (title) => title !== 'Random Junk 123' })
+  assert.equal((await ratings.ratingsFor('Random Junk 123', { kind: 'movie' })).status, 'none')
+  await ratings.warm([{ title: 'Random Junk 123', kind: 'movie' }])
+  assert.deepEqual(looked, [])
+})
+
+test('forget also clears the dated film keys a sheet asked for', async () => {
+  const cache = memoryCache()
+  cache.removeDated = async (key) => {
+    for (const stored of [...cache.rows.keys()]) if (stored > `${key}@` && stored < `${key}A`) cache.rows.delete(stored)
+  }
+  cache.rows.set('tmdb:movie:heat@1995', { found: { score: 8 }, expiresAt: Infinity })
+  cache.rows.set('tmdb:movie:heat 2@1995', { found: { score: 5 }, expiresAt: Infinity })
+  const { ratings } = ratingsWith({ cache })
+  await ratings.forget('Heat')
+  assert.deepEqual([...cache.rows.keys()], ['tmdb:movie:heat 2@1995'])
 })

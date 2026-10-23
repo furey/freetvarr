@@ -2,6 +2,7 @@ import { db, getSetting } from './db.js'
 import { showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { createOutboundClient, createHostLimiter } from './outbound-http.js'
 import { currentTimeZone } from './time-zone.js'
+import { lookupAllowed } from './lookup-gate.js'
 import { countryForTimeZone } from './zone-countries.js'
 import {
   articleCandidateIdsOf,
@@ -45,11 +46,27 @@ export const createFallbackArtwork = ({
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
+  isAllowed = lookupAllowed,
 } = {}) => {
   const inflight = new Map()
   const failedUntil = new Map()
 
-  const recentlyFailed = (cacheKey) => (failedUntil.get(cacheKey) || 0) > now()
+  const recentlyFailed = (cacheKey) => {
+    const until = failedUntil.get(cacheKey)
+    if (until === undefined) return false
+    if (until > now()) return true
+    failedUntil.delete(cacheKey)
+    return false
+  }
+
+  const noteFailure = ({ cacheKey, error }) => {
+    if (error?.code === 'queue-full') return
+    failedUntil.delete(cacheKey)
+    failedUntil.set(cacheKey, now() + failureBackoffMs)
+    while (failedUntil.size > MAX_FAILED_KEYS) failedUntil.delete(failedUntil.keys().next().value)
+  }
+
+  const mayStart = async ({ title, cacheKey }) => inflight.has(cacheKey) || isAllowed(title)
 
   const settingsFor = async ({ title, kind }) => {
     const key = showTitleKey(title)
@@ -82,8 +99,8 @@ export const createFallbackArtwork = ({
         await cache.write({ key: sizedKeyOf(cacheKey), sources, reference, expiresAt }).catch(() => {})
         return sources
       })
-      .catch(() => {
-        failedUntil.set(cacheKey, now() + failureBackoffMs)
+      .catch((error) => {
+        noteFailure({ cacheKey, error })
         return []
       })
       .finally(() => inflight.delete(cacheKey))
@@ -98,6 +115,7 @@ export const createFallbackArtwork = ({
     refreshStale({ cached, title, settings })
     if (cached.sources) return cached.sources
     if (recentlyFailed(settings.cacheKey)) return []
+    if (!(await mayStart({ title, cacheKey: settings.cacheKey }))) return []
     return startLookup({ title, ...settings })
   }
 
@@ -108,6 +126,7 @@ export const createFallbackArtwork = ({
     refreshStale({ cached, title, settings })
     if (cached.sources) return { sources: cached.sources, pending: false }
     if (recentlyFailed(settings.cacheKey)) return NO_ARTWORK
+    if (!(await mayStart({ title, cacheKey: settings.cacheKey }))) return NO_ARTWORK
     startLookup({ title, ...settings })
     return PENDING_ARTWORK
   }
@@ -355,6 +374,7 @@ const FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const MISS_REFERENCE = 'miss:guide-network-v1'
 const LOOKUP_CONCURRENCY = 2
 const LOOKUP_MAX_QUEUE = 300
+const MAX_FAILED_KEYS = 2000
 const WIKIDATA_SEARCH_LIMIT = 10
 const WIKIPEDIA_SEARCH_LIMIT = 5
 const WIKIPEDIA_THUMB_WIDTH = 1920

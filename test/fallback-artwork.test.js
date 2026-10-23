@@ -269,3 +269,23 @@ test('a matched TMDB show offers up to eight backgrounds and eight posters, Engl
   assert.equal(detailsCall.params.include_image_language, 'en,null')
   assert.match(detailsCall.params.append_to_response, /images/)
 })
+
+test('a title the lookup gate refuses gets no lookup, and a full queue sets no failure backoff', async () => {
+  const looked = []
+  let full = true
+  const artwork = createFallbackArtwork({
+    lookUp: async ({ title }) => { looked.push(title); return { sources: [{ url: 'https://image.tmdb.org/t/p/w1280/a.jpg' }] } },
+    cache: memoryCache(),
+    isEnabled: async () => true,
+    tmdbKey: async () => 'k',
+    isAllowed: async (title) => title !== 'Junk',
+    lookupLimiter: { run: (task) => (full ? Promise.reject(Object.assign(new Error('queue full'), { code: 'queue-full' })) : Promise.resolve().then(task)) },
+    staleBeforeMs: 0,
+  })
+  assert.deepEqual(await artwork.artworkFor('Junk'), { sources: [], pending: false })
+  assert.deepEqual(await artwork.sourcesFor('Junk'), [])
+  assert.deepEqual(await artwork.sourcesFor('Seinfeld'), [])
+  full = false
+  assert.equal((await artwork.sourcesFor('Seinfeld')).length, 1)
+  assert.deepEqual(looked, ['Seinfeld'])
+})

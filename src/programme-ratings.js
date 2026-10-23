@@ -6,6 +6,7 @@ import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { pickReviewSnippet } from './review-snippet.js'
 import { linkHealth } from './link-health.js'
+import { lookupAllowed } from './lookup-gate.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import {
   artworkKindOf,
@@ -51,8 +52,9 @@ export const createProgrammeRatings = ({
   waitMs = 0,
   linkOf = linkHealth.linkOf,
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
+  isAllowed = lookupAllowed,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage, staleBeforeMs })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage, staleBeforeMs, isAllowed })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
@@ -83,23 +85,50 @@ export const createProgrammeRatings = ({
     }
   }
 
-  const warm = async (programmes = []) => {
-    const unique = new Map(programmes
-      .filter((programme) => programme?.title)
-      .map((programme) => [`${artworkKindOf(programme.kind) || ''}|${showTitleKey(programme.title)}`, programme]))
-    for (const programme of unique.values()) {
-      await ratingsFor(programme.title, { kind: programme.kind, wait: false }).catch(() => null)
+  const warmQueue = new Map()
+  let warming = null
+
+  const warm = (programmes = []) => {
+    for (const programme of programmes.filter((candidate) => candidate?.title)) {
+      const key = `${artworkKindOf(programme.kind) || ''}|${showTitleKey(programme.title)}`
+      if (!warmQueue.has(key) && warmQueue.size < MAX_WARM_QUEUE) warmQueue.set(key, programme)
+    }
+    warming ??= warmQueued().finally(() => { warming = null })
+    return warming
+  }
+
+  const warmQueued = async () => {
+    while (warmQueue.size) {
+      const [key, programme] = warmQueue.entries().next().value
+      warmQueue.delete(key)
+      const settings = await settingsFor({ title: programme.title, kind: programme.kind, year: null }).catch(() => null)
+      if (settings) await lookups.warm({ title: programme.title, ...settings }).catch(() => null)
     }
   }
 
   return { ratingsFor, forget, warm }
 }
 
-export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0, isOutdated = () => false, staleBeforeMs = 0 }) => {
+export const createBackgroundLookups = ({
+  lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0, isOutdated = () => false, staleBeforeMs = 0, isAllowed = async () => true,
+}) => {
   const inflight = new Map()
   const failedUntil = new Map()
 
-  const recentlyFailed = (cacheKey) => (failedUntil.get(cacheKey) || 0) > now()
+  const recentlyFailed = (cacheKey) => {
+    const until = failedUntil.get(cacheKey)
+    if (until === undefined) return false
+    if (until > now()) return true
+    failedUntil.delete(cacheKey)
+    return false
+  }
+
+  const noteFailure = ({ cacheKey, error }) => {
+    if (error?.code === 'queue-full') return
+    failedUntil.delete(cacheKey)
+    failedUntil.set(cacheKey, now() + failureBackoffMs)
+    while (failedUntil.size > MAX_FAILED_KEYS) failedUntil.delete(failedUntil.keys().next().value)
+  }
 
   const cachedFound = async (cacheKey) => {
     const cached = await cache.read(cacheKey).catch(() => null)
@@ -107,18 +136,21 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
     return state === 'missing' ? null : { ...cached, stale: state === 'stale' }
   }
 
-  const startLookup = ({ title, kind, year, apiKey, cacheKey }) => {
-    if (inflight.has(cacheKey)) return inflight.get(cacheKey)
+  const startLookup = ({ title, kind, year, apiKey, cacheKey, isBackground = false }) => {
+    if (inflight.has(cacheKey)) {
+      if (!isBackground) lookupLimiter.promote?.(cacheKey)
+      return inflight.get(cacheKey)
+    }
     const pending = lookupLimiter.run(async () =>
-      lookUp({ title, kind, year, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }))
+      lookUp({ title, kind, year, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }), { isBackground, id: cacheKey })
       .then(async (found) => {
         const result = found?.missReason ? null : found || null
         const expiresAt = lookupExpiryOf({ found: Boolean(result), nowMs: now(), hitTtlMs, missTtlMs })
         await cache.write({ key: cacheKey, found: result, expiresAt, missReason: found?.missReason ?? null }).catch(() => {})
         return result
       })
-      .catch(() => {
-        failedUntil.set(cacheKey, now() + failureBackoffMs)
+      .catch((error) => {
+        noteFailure({ cacheKey, error })
         return null
       })
       .finally(() => inflight.delete(cacheKey))
@@ -132,6 +164,7 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
     if (refresh) startLookup({ cacheKey, ...request })
     if (cached) return { status: 'ready', found: cached.found }
     if (recentlyFailed(cacheKey)) return PENDING_LOOKUP
+    if (!inflight.has(cacheKey) && !(await isAllowed(request.title))) return NO_LOOKUP
     const lookup = startLookup({ cacheKey, ...request })
     if (!wait || waitMs <= 0) return PENDING_LOOKUP
     const settled = await settledWithin({ promise: lookup, ms: waitMs })
@@ -139,12 +172,22 @@ export const createBackgroundLookups = ({ lookUp, cache, hintsFor, now, hitTtlMs
     return { status: 'ready', found: settled.value }
   }
 
-  const forget = async (cacheKey) => {
-    failedUntil.delete(cacheKey)
-    await cache.remove?.(cacheKey).catch(() => {})
+  const warm = async ({ cacheKey, ...request }) => {
+    const cached = await cachedFound(cacheKey)
+    if (cached && !cached.stale && !isOutdated(cached.found)) return
+    if (recentlyFailed(cacheKey) || !(await isAllowed(request.title))) return
+    await startLookup({ cacheKey, ...request, isBackground: true })
   }
 
-  return { foundFor, forget }
+  const forget = async (cacheKey) => {
+    for (const key of [...failedUntil.keys()]) {
+      if (key === cacheKey || key.startsWith(`${cacheKey}@`)) failedUntil.delete(key)
+    }
+    await cache.remove?.(cacheKey).catch(() => {})
+    await cache.removeDated?.(cacheKey).catch(() => {})
+  }
+
+  return { foundFor, warm, forget }
 }
 
 export const forYouProgrammesOf = (result) => [result?.topPick, ...(result?.sections || []).flatMap((section) => section.items || [])]
@@ -495,6 +538,7 @@ export const databaseCacheOf = (table) => ({
     .onConflict('lookup_key')
     .merge(),
   remove: (key) => db(table).where({ lookup_key: key }).del(),
+  removeDated: (key) => db(table).where('lookup_key', '>', `${key}@`).where('lookup_key', '<', `${key}A`).del(),
 })
 
 const missOf = (reason, detail = null) => ({ missReason: detail ? `${reason}:${detail}` : reason })
@@ -522,6 +566,9 @@ const MIN_REQUESTED_YEAR = 1900
 const MAX_REQUESTED_YEAR = 2100
 
 const PENDING_LOOKUP = { status: 'pending', found: null }
+const NO_LOOKUP = { status: 'none', found: null }
+const MAX_FAILED_KEYS = 2000
+const MAX_WARM_QUEUE = 2000
 
 export const settledOf = (promise) => Promise.resolve(promise).then((value) => ({ value }), (error) => ({ error, value: null }))
 

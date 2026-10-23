@@ -4,6 +4,7 @@ import { createHostLimiter } from './outbound-http.js'
 import { storedTmdbKey } from './fallback-artwork.js'
 import { artworkKindOf, TMDB_FIRST_SAVED_AFTER_MS } from './artwork-match.js'
 import { linkHealth } from './link-health.js'
+import { lookupAllowed } from './lookup-gate.js'
 import {
   lookupCacheKeyOf,
   createBackgroundLookups,
@@ -38,8 +39,9 @@ export const createProgrammeCredits = ({
   waitMs = 0,
   linkOf = linkHealth.linkOf,
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
+  isAllowed = lookupAllowed,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, staleBeforeMs })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, staleBeforeMs, isAllowed })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)

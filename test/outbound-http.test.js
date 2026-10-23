@@ -196,3 +196,24 @@ test('isReachable sends one HEAD and counts only server errors and no answer as 
   const silent = clientWith({ responses: [new Error('timeout')] })
   assert.equal(await silent.client.isReachable({ url: 'https://api.example.org/' }), false)
 })
+
+test('createHostLimiter runs urgent tasks before background ones, caps each queue on its own, and promotes by id', async () => {
+  const order = []
+  let release
+  const gate = new Promise((resolve) => { release = resolve })
+  const limiter = createHostLimiter({ concurrency: 1, maxQueue: 2 })
+  const task = (name) => async () => { order.push(name); if (name === 'first') await gate }
+  const runs = [
+    limiter.run(task('first')),
+    limiter.run(task('warm 1'), { isBackground: true, id: 'w1' }),
+    limiter.run(task('warm 2'), { isBackground: true, id: 'w2' }),
+  ]
+  await assert.rejects(limiter.run(task('warm 3'), { isBackground: true }), { code: 'queue-full' })
+  runs.push(limiter.run(task('opened')))
+  assert.equal(limiter.promote('w2'), true)
+  assert.equal(limiter.promote('missing'), false)
+  assert.deepEqual(limiter.size(), { active: 1, queued: 3, background: 1 })
+  release()
+  await Promise.all(runs)
+  assert.deepEqual(order, ['first', 'opened', 'warm 2', 'warm 1'])
+})
