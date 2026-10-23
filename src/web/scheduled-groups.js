@@ -118,6 +118,15 @@ export const scheduledCountOfState = ({ state, skipped = [], activeProgramIds = 
     timeZone,
   }))
 
+export const withoutListedSkips = ({ localSkipped, state }) => {
+  const listed = new Set([
+    ...(state?.upcomingRecordings || []),
+    ...(state?.skippedRecordings || []),
+  ].map((entry) => String(entry.programId)))
+  if (![...localSkipped.keys()].some((id) => listed.has(id))) return localSkipped
+  return new Map([...localSkipped].filter(([id]) => !listed.has(id)))
+}
+
 export const scheduledCount = (groups) =>
   Object.values(groups).flat().filter((row) => !isSkippedRow(row)).length
 

@@ -7,6 +7,7 @@ import { tz, now } from '/shared/time.js'
 import { recordingNow, recordingChangeTick, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { localDayNumber } from '/guide-time.js'
 import { showHrefOf } from '/show-key.js'
+import { createResponseOrder } from '/response-order.js'
 import {
   SCHEDULED_SECTIONS,
   groupScheduled,
@@ -17,6 +18,7 @@ import {
   withoutRepeats,
   repeatsChipOf,
   weekStrip,
+  withoutListedSkips,
 } from '/scheduled-groups.js'
 import {
   planTuners,
@@ -365,9 +367,14 @@ export const ScheduledView = {
     const isEmpty = computed(() =>
       recordingRows.value.length === 0 && visibleSections.value.length === 0 && watching.value.length === 0)
 
+    const stateLoads = createResponseOrder()
     const loadState = async ({ fresh = false } = {}) => {
+      const ticket = stateLoads.issue()
       try {
-        state.value = await api('GET', fresh ? '/api/epg/state?fresh=1' : '/api/epg/state')
+        const loadedState = await api('GET', fresh ? '/api/epg/state?fresh=1' : '/api/epg/state')
+        if (!stateLoads.accept(ticket)) return
+        state.value = loadedState
+        localSkipped.value = withoutListedSkips({ localSkipped: localSkipped.value, state: loadedState })
         loadError.value = ''
       } catch (err) {
         if (!state.value) loadError.value = err.message || 'Could not load the schedule.'

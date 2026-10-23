@@ -10,6 +10,7 @@ import {
   weekStrip,
   episodeMetaParts,
   scheduledCountOfState,
+  withoutListedSkips,
   repeatCount,
   withoutRepeats,
   repeatsChipOf,
@@ -298,4 +299,16 @@ test('repeatsChipOf: the repeats chip keeps its slot while loading, with repeats
   assert.deepEqual(repeatsChipOf({ loaded: true, total: 0, showRepeats: true }), {
     kind: 'chip', text: 'No repeats', countText: '', label: 'No repeats coming up', pressed: null, disabled: true,
   })
+})
+
+test('local skips drop out once the server lists the programme again', () => {
+  const localSkipped = new Map([['1', { programId: 1 }], ['2', { programId: 2 }], ['3', { programId: 3 }]])
+  const state = { upcomingRecordings: [{ programId: 1 }], skippedRecordings: [{ programId: '2' }] }
+  assert.deepEqual([...withoutListedSkips({ localSkipped, state }).keys()], ['3'])
+})
+
+test('local skips stay the same map when the server lists none of them', () => {
+  const localSkipped = new Map([['3', { programId: 3 }]])
+  assert.equal(withoutListedSkips({ localSkipped, state: { upcomingRecordings: [{ programId: 1 }] } }), localSkipped)
+  assert.equal(withoutListedSkips({ localSkipped, state: null }), localSkipped)
 })

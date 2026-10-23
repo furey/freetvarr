@@ -37,6 +37,7 @@ import { api, loadedBuild } from '/shared/api.js'
 import { browserStorage } from '/shared/storage.js'
 import { readHomeCache } from '/home-cache.js'
 import { knownShowTitleOf } from '/show-key.js'
+import { createResponseOrder } from '/response-order.js'
 import { rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
 import { showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
@@ -292,12 +293,15 @@ export const ShowView = {
       navigate(backTarget.value.route)
     }
 
+    const loads = createResponseOrder()
     const load = async () => {
       const requestedKey = key.value
+      const ticket = loads.issue()
+      const isStale = () => requestedKey !== key.value || !loads.accept(ticket)
       try {
         const detail = await api('GET', `/api/library/shows/${encodeURIComponent(requestedKey)}`)
+        if (isStale()) return
         cachedDetails.set(requestedKey, detail)
-        if (requestedKey !== key.value) return
         show.value = detail
         rememberShowStamps(detail)
         missing.value = false
@@ -305,7 +309,7 @@ export const ShowView = {
         const seasons = detail.seasons.map((s) => s.season)
         if (!seasons.includes(selectedSeason.value)) selectedSeason.value = seasons[0]
       } catch (err) {
-        if (requestedKey !== key.value) return
+        if (isStale()) return
         if (err.status === 404) {
           cachedDetails.delete(requestedKey)
           missing.value = true
