@@ -109,7 +109,7 @@ export const LivePlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="live.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Live TV'">
-      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit }]"
+      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline controlslist="nofullscreen"></video>
@@ -232,6 +232,7 @@ export const LivePlayer = {
     let handOffPending = false
     const tuneInInfo = ref(false)
     const tuneInExit = ref(false)
+    const headingHeld = ref(false)
     let confirmedChannelId = null
     let tuneInShownAt = 0
     let tuneInExitTimer = null
@@ -242,6 +243,7 @@ export const LivePlayer = {
       tuneInShownAt = Date.now()
       tuneInExit.value = false
       tuneInInfo.value = true
+      headingHeld.value = true
       releaseControlsQuietly = true
     }
 
@@ -257,6 +259,7 @@ export const LivePlayer = {
       clearTimeout(tuneInExitTimer)
       tuneInInfo.value = false
       tuneInExit.value = false
+      headingHeld.value = false
       releaseControlsQuietly = false
     }
 
@@ -527,6 +530,7 @@ export const LivePlayer = {
       rootEl: frameEl,
     })
     watch(controlsShown, (shown) => {
+      if (shown && !tuneInInfo.value && !tuneInExit.value) headingHeld.value = false
       live.captionsLifted = shown
       placeLiveCaptions()
     }, { immediate: true })
@@ -788,7 +792,7 @@ export const LivePlayer = {
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
-      infoOpen, toggleInfo, tuneInShown, tuneInExit, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
+      infoOpen, toggleInfo, tuneInShown, tuneInExit, headingHeld, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
       tuneInClassification,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT, TUNING_TEXT,

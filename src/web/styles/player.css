@@ -1782,7 +1782,7 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
   }
 }
 
-.pl-frame.is-tune-in .pl-heading {
+.pl-frame:is(.is-tune-in, .is-heading-held) .pl-heading {
   opacity: 0;
 }
 
