@@ -155,19 +155,41 @@ const registerComponents = async (components) => {
     .forEach((name) => app.component(name, modules[index][name])))
 }
 
+const ViewLoadError = {
+  template: `
+    <section class="ui-empty" role="alert">
+      <h2 class="ui-empty-title">This page did not load</h2>
+      <p class="ui-empty-text">Check the connection to Freetvarr, then reload.</p>
+      <button type="button" class="ui-button" @click="reload">Reload</button>
+    </section>
+  `,
+  setup: () => ({ reload: () => window.location.reload() }),
+}
+
+const lazyView = (loader) => defineAsyncComponent({
+  loader,
+  errorComponent: ViewLoadError,
+  onError: (err, retry, fail, attempts) => (attempts <= VIEW_LOAD_RETRIES
+    ? setTimeout(retry, attempts * VIEW_RETRY_STEP_MS)
+    : fail()),
+})
+
+const VIEW_LOAD_RETRIES = 3
+const VIEW_RETRY_STEP_MS = 1000
+
 const RECORDINGS_VIEWS = {
-  library: defineAsyncComponent(VIEW_LOADERS.library),
-  scheduled: defineAsyncComponent(VIEW_LOADERS.scheduled),
-  show: defineAsyncComponent(VIEW_LOADERS.show),
+  library: lazyView(VIEW_LOADERS.library),
+  scheduled: lazyView(VIEW_LOADERS.scheduled),
+  show: lazyView(VIEW_LOADERS.show),
 }
 
 const VIEW_MAP = {
   home: HomeView,
-  'for-you': defineAsyncComponent(VIEW_LOADERS.forYou),
-  live: defineAsyncComponent(VIEW_LOADERS.live),
-  guide: defineAsyncComponent(VIEW_LOADERS.guide),
-  settings: defineAsyncComponent(VIEW_LOADERS.settings),
-  welcome: defineAsyncComponent(VIEW_LOADERS.welcome),
+  'for-you': lazyView(VIEW_LOADERS.forYou),
+  live: lazyView(VIEW_LOADERS.live),
+  guide: lazyView(VIEW_LOADERS.guide),
+  settings: lazyView(VIEW_LOADERS.settings),
+  welcome: lazyView(VIEW_LOADERS.welcome),
 }
 
 const PREFETCHED_VIEWS = ['live', 'guide', 'library', 'forYou', 'scheduled', 'show', 'settings']
