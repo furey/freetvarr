@@ -48,7 +48,7 @@ const pop = (icon) => {
 const fade = async ({ els, from, to }) => {
   const runs = els.filter((el) => el.animate).map((el) => el.animate(
     [{ opacity: from }, { opacity: to }],
-    { duration: FADE_MS, easing: EASE, fill: 'forwards' },
+    { duration: FADE_MS, easing: FADE_EASE, fill: 'forwards' },
   ))
   await Promise.all(runs.map((run) => run.finished.catch(() => {})))
 }
@@ -129,8 +129,9 @@ const prefersReducedMotion = () => {
 }
 
 const EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+const FADE_EASE = 'cubic-bezier(0.42, 0, 0.58, 1)'
 const POP_MS = 320
-const FADE_MS = 140
+const FADE_MS = 220
 const MOVE_MS = 300
 const POP_FRAMES = [
   { transform: 'scale(1)', opacity: 0.6 },
