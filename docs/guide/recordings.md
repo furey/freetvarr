@@ -22,9 +22,11 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 
 The library groups your recordings in shelves:
 
-- **Shows**: a poster for each series. A number badge counts the episodes you have not started. A `REC` badge means an episode is recording now.
+- **Shows**: a poster for each series. A number badge counts the episodes you have not started. A `REC` badge means an episode is recording now, and a red bar on the picture shows how much of the programme has aired.
 - **Movies**: films that Freetvarr filed in the movies folder.
 - **Specials and one-offs**: single recordings, such as a sports final.
+
+A recording appears on its shelf as soon as it starts, even before it is in your library. See [Recordings in progress](#recordings-in-progress).
 
 **Sort** has two choices: **Recent** (the default) and **A–Z**. A leading "The" is ignored, so `The Block` sorts under B. The **Unwatched** chip hides shows you have finished; when you have watched everything, the page says `You are all caught up`. The browser remembers both choices.
 
@@ -47,11 +49,36 @@ A show page has these parts:
 - **About**: the synopsis of the show, and a line from a review. See [About and cast and crew](#about-and-cast-and-crew).
 - **Cast and crew**: the people in the show. See [About and cast and crew](#about-and-cast-and-crew).
 - **Season chips**: pick a season when the show has more than one.
-- **Episodes**: a row for each episode, with a thumbnail and a bar for how much you watched, the title, the air date and channel, and the synopsis. A `New` badge marks an episode you have not started, and a `REC` badge an episode that records now.
+- **Episodes**: a row for each episode, with a thumbnail and a bar for how much you watched, the title, the air date and channel, and the synopsis. A `New` badge marks an episode you have not started, and a `REC` badge an episode that records now. A recording in progress has a red bar for how much of the programme has aired, and its row says how much is recorded and how many minutes are left.
 
 Press an episode row to play it. Press **⋯** on the row, or hold the row on a touch screen, to open the [episode menu](#episode-menu).
 
 A show with a series recording but no episodes yet still gets a poster. The page says when the first episode records, for example `First episode records Tue 8:30 pm`.
+
+### Recordings in progress
+
+A recording shows in the Library from the moment TVHeadend starts it. Its show page opens from the Library, from **RECORDING NOW** in [Scheduled](#scheduled), or from the recording chip in the header.
+
+When the show has no other episodes, the show page has these parts:
+
+- **Watch from the start**: plays the recording from its first minute while TVHeadend keeps recording it. You can move anywhere in the part that is already recorded, or go to live.
+- **Watch live**: opens the channel in the live player.
+- **⋯**: opens the [show menu](#show-menu). It has **Watch from the start** and **Stop recording…** while the recording runs.
+- **Recording card**: says when the recording ends, such as `Recording now until 10:10 pm`. When the recording started late, the card says so, for example `Recording started at 8:00 pm, 30 min after the programme began.` **Watch from the start** then plays from 8:00 pm, because the recording has nothing earlier.
+
+When the show already has episodes, **Play** or **Resume** stays the main button, and the recording card has its own **Watch from the start** button. A show with a series recording shows the end time in its status line instead.
+
+To watch a recording from the start while it records:
+
+1. Go to Recordings → Library.
+2. Press the poster or card with the `REC` badge.
+3. Press **Watch from the start**.
+
+Watching from the start reads the recording file, so it does not use a tuner. It uses one of the streams that Freetvarr can play at once. When all of them are in use, the player says what is already playing; stop one of them and try again. Freetvarr remembers where you stopped, and the episode resumes from there after it is imported.
+
+When the recording finishes, the row says `Waiting to import` until the next sync imports it. The imported episode then takes the same place in the list. You cannot delete, select, move, or mark a recording in progress. To stop it, press **⋯** on the row, then **Stop recording…**, then **Stop recording** in the sheet.
+
+A recording that Freetvarr will not import, because Settings → Recording → Media library → **Import every recording** is off and no series folder matches it, also shows in the Library. Its card says `When it finishes it stays in TVHeadend`. After it finishes, its row says `Not imported` and offers **Import**.
 
 ### About and cast and crew
 
@@ -144,7 +171,7 @@ An episode whose library file is already gone is listed in the dialog. Freetvarr
 
 The list has these sections:
 
-- **RECORDING NOW**: each recording with a progress bar.
+- **RECORDING NOW**: each recording with a progress bar. Press a row to open its show page, where you can [watch it from the start](#recordings-in-progress).
 - **TODAY**, **TOMORROW**, and **LATER THIS WEEK**: the recordings that TVHeadend has scheduled, plus the episodes that your series recordings will catch.
 - **WATCHLIST**: the shows you add to your watchlist from Search. Each row says when the show next airs, or `Not in the guide yet`, and whether it will record automatically, with any start and finish padding. A number badge counts new airings. See [Watchlist](/guide/tv-guide#watchlist).
 
