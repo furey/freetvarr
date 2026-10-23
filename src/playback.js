@@ -416,6 +416,7 @@ const inProgressView = (session) => ({
   inProgress: true,
   growing: session.growing,
   recordingStartedAt: session.inProgress.recordingStartedAt ?? null,
+  scheduledEndAt: session.inProgress.scheduledEndAt ?? null,
   liveEdgeSeconds: session.producedSeconds ?? 0,
 })
 

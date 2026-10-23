@@ -33,6 +33,7 @@ import {
   joinedParts,
 } from '/player-labels.js'
 import { canRewind } from '/live-edge.js'
+import { scheduledSecondsOf, fromStartScaleOf, fromStartTimelineOf, clampFromStartSeek, fromStartEndMsOf } from '/from-start-timeline.js'
 import { api } from '/shared/api.js'
 import {
   liveVideo,
@@ -197,9 +198,10 @@ export const LivePlayer = {
           </div>
         </div>
         <footer v-if="live.phase === 'live' && !panelOpen && !tuneInExit" class="pl-bottom">
-          <player-scrubber v-if="hasBufferBar" :min="live.bufferFrom" :max="live.bufferTo" :value="shownLivePosition"
-            :fill-percent="liveFillPercent" :start-text="bufferStartText" :end-text="bufferEndText"
-            aria-label="Position in the live buffer"
+          <player-scrubber v-if="hasBufferBar" :min="liveScrubber.min" :max="liveScrubber.max" :value="liveScrubber.value"
+            :fill-percent="liveScrubber.fillPercent" :buffer-percent="liveScrubber.bufferPercent" :edge-percent="liveScrubber.edgePercent"
+            :growing="liveScrubber.growing" :class="{ 'is-scrubbing': live.scrubbing }"
+            :start-text="liveScrubber.startText" :end-text="liveScrubber.endText" :aria-label="liveScrubber.ariaLabel"
             :value-text="scrubberPill.text" @scrub="onLiveScrubInput" @commit="onLiveScrubCommit" />
           <p class="pl-hint">{{ hintText }}</p>
         </footer>
@@ -422,8 +424,9 @@ export const LivePlayer = {
 
     const bufferSpan = computed(() =>
       (live.bufferFrom == null || live.bufferTo == null ? 0 : live.bufferTo - live.bufferFrom))
-    const hasBufferBar = computed(() =>
-      live.phase === 'live' && live.bufferSeconds > 0 && canRewind({ span: bufferSpan.value }))
+    const hasBufferBar = computed(() => live.phase === 'live' && (live.fromStart
+      ? live.bufferTo != null
+      : live.bufferSeconds > 0 && canRewind({ span: bufferSpan.value })))
     const shownLivePosition = computed(() => (live.scrubbing ? live.scrubValue : live.position))
     const liveFillPercent = computed(() =>
       (bufferSpan.value
@@ -449,9 +452,47 @@ export const LivePlayer = {
       ? `Watching ${live.fromStart.title || 'the recording'} from the start while it keeps recording.`
       : liveHintText(live.bufferSeconds)))
 
+    const fromStartFinished = computed(() => live.fromStart?.growing === false)
+    const fromStartEdge = computed(() => {
+      const playable = live.bufferTo ?? 0
+      return fromStartFinished.value ? live.fromStart.edgeSeconds || playable : playable
+    })
+    const fromStartHeldScale = ref(null)
+    const fromStartScale = computed(() => fromStartScaleOf({
+      scheduledSeconds: scheduledSecondsOf({
+        startedAtMs: live.fromStart?.recordingStartedAt, scheduledEndMs: live.fromStart?.scheduledEndAt,
+      }),
+      edgeSeconds: fromStartEdge.value,
+      heldSeconds: fromStartHeldScale.value,
+      finished: fromStartFinished.value,
+    }))
+    watch(fromStartScale, (seconds) => { fromStartHeldScale.value = live.fromStart ? seconds : null })
+    watch(() => live.fromStart?.dvrUuid, () => { fromStartHeldScale.value = null })
+    const liveScrubber = computed(() => {
+      if (!live.fromStart) {
+        return {
+          min: live.bufferFrom ?? 0, max: live.bufferTo ?? 0, value: shownLivePosition.value,
+          fillPercent: liveFillPercent.value, bufferPercent: 100, edgePercent: null, growing: false,
+          startText: bufferStartText.value, endText: bufferEndText.value, ariaLabel: 'Position in the live buffer',
+        }
+      }
+      const timeline = fromStartTimelineOf({
+        position: shownLivePosition.value, edgeSeconds: fromStartEdge.value, scaleSeconds: fromStartScale.value,
+      })
+      const startedAtMs = live.fromStart.recordingStartedAt
+      return {
+        min: 0, max: fromStartScale.value, value: timeline.position,
+        fillPercent: timeline.playedPercent, bufferPercent: timeline.availablePercent,
+        edgePercent: fromStartFinished.value ? null : timeline.edgePercent, growing: true,
+        startText: fmtClockTz(startedAtMs),
+        endText: fmtClockTz(fromStartEndMsOf({ startedAtMs, scaleSeconds: fromStartScale.value })),
+        ariaLabel: 'Position in the recording',
+      }
+    })
+
     const onLiveScrubInput = (value) => {
       live.scrubbing = true
-      live.scrubValue = value
+      live.scrubValue = live.fromStart ? clampFromStartSeek({ value, edgeSeconds: fromStartEdge.value }) : value
     }
 
     const onLiveScrubCommit = (value) => {
@@ -790,7 +831,7 @@ export const LivePlayer = {
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause, topActions, onTopAction, shownPaused,
       live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
-      isBehindLive, jumpToLive, hasBufferBar, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
+      isBehindLive, jumpToLive, hasBufferBar, liveScrubber, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
       bufferStartText, bufferEndText, hintText, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
       canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, expand, miniMeta, miniProgress,

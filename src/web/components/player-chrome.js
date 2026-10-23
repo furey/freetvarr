@@ -209,6 +209,8 @@ export const PlayerScrubber = {
     fillPercent: { type: Number, default: 0 },
     bufferPercent: { type: Number, default: 100 },
     markers: { type: Array, default: () => [] },
+    edgePercent: { type: Number, default: null },
+    growing: Boolean,
     startText: { type: String, default: '' },
     endText: { type: String, default: '' },
     pillText: { type: String, default: '' },
@@ -218,7 +220,7 @@ export const PlayerScrubber = {
   },
   emits: ['scrub', 'commit'],
   template: `
-    <div class="pl-scrub">
+    <div :class="['pl-scrub', { 'is-growing': growing }]">
       <span class="pl-time">{{ startText }}</span>
       <div class="pl-track" :style="{ '--played': fillPercent + '%' }">
         <span class="pl-track-rail"></span>
@@ -226,6 +228,7 @@ export const PlayerScrubber = {
         <span v-for="(marker, index) in markers" :key="index" class="pl-track-ad"
           :style="{ left: marker.left + '%', width: marker.width + '%' }"></span>
         <span class="pl-track-played"></span>
+        <span v-if="edgePercent != null" class="pl-track-edge" :style="{ left: edgePercent + '%' }"></span>
         <span class="pl-thumb"></span>
         <input type="range" class="pl-range" :step="step" :min="min" :max="max" :value="value"
           :aria-label="ariaLabel" :aria-valuetext="valueText || null"

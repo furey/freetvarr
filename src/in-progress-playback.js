@@ -60,7 +60,7 @@ export const startInProgressPlayback = async ({ dvrUuid, sessions, encoder, fold
     plan,
     replace,
     player,
-    inProgress: { recordingStartedAt: recordingStartedAtOf(recording) },
+    inProgress: { recordingStartedAt: recordingStartedAtOf(recording), scheduledEndAt: scheduledEndAtOf(recording) },
     feed: ({ sink, signal }) => feedGrowing({ open: source.open, sink, isRecording, signal }),
   })
   if (session.status === 'ended') {
@@ -70,6 +70,8 @@ export const startInProgressPlayback = async ({ dvrUuid, sessions, encoder, fold
 }
 
 export const recordingStartedAtOf = (recording) => recording.recordingSince ?? recording.startPadded ?? null
+
+export const scheduledEndAtOf = (recording) => recording.stopPadded ?? recording.stop ?? null
 
 export const feedGrowing = async ({
   open,

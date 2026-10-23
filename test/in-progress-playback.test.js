@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { PassThrough, Readable } from 'stream'
 import { getEventListeners } from 'events'
 
-import { abortableSleep, feedGrowing, recordingChecker, recordingStartedAtOf, skipFirstBytes } from '../src/in-progress-playback.js'
-import { playbackArgsFor, view } from '../src/playback.js'
+import { abortableSleep, feedGrowing, recordingChecker, recordingStartedAtOf, scheduledEndAtOf, skipFirstBytes } from '../src/in-progress-playback.js'
+import { planForFile, playbackArgsFor, view } from '../src/playback.js'
 
 const collect = (sink) => {
   const chunks = []
@@ -106,6 +106,30 @@ test('recordingStartedAtOf: the time TVHeadend started the file, else the padded
   assert.equal(recordingStartedAtOf({ recordingSince: null, startPadded: 1 }), 1)
 })
 
+test('scheduledEndAtOf: the padded scheduled stop, else the scheduled stop', () => {
+  assert.equal(scheduledEndAtOf({ stopPadded: 9, stop: 8 }), 9)
+  assert.equal(scheduledEndAtOf({ stop: 8 }), 8)
+  assert.equal(scheduledEndAtOf({}), null)
+})
+
+test('playbackArgsFor: a DVB-T recording with EPG, H.264, AC-3, and teletext maps the AC-3 track and encodes AAC', () => {
+  const probe = {
+    streams: [
+      { index: 0, codec_type: 'data', codec_name: 'epg' },
+      { index: 1, codec_type: 'video', codec_name: 'h264', height: 1080 },
+      { index: 2, codec_type: 'audio', codec_name: 'ac3', tags: { language: 'eng' }, disposition: { visual_impaired: 0 } },
+      { index: 3, codec_type: 'subtitle', codec_name: 'dvb_teletext', tags: { language: 'eng' } },
+    ],
+  }
+  const plan = planForFile({ probe, encoder: { captions: false } })
+  const args = playbackArgsFor({ plan, file: null, dir: '/tmp/p', piped: true })
+  const maps = args.flatMap((arg, i) => (arg === '-map' ? [args[i + 1]] : []))
+  assert.deepEqual(maps, ['0:1', '0:2'])
+  assert.deepEqual(args.slice(args.indexOf('-c:a'), args.indexOf('-c:a') + 6), ['-c:a', 'aac', '-ac', '2', '-b:a', '128k'])
+  assert.equal(args.includes('-an'), false)
+  assert.equal(args[args.indexOf('-var_stream_map') + 1], 'v:0,a:0')
+})
+
 test('playbackArgsFor: a piped session reads stdin and keeps the EVENT playlist', () => {
   const plan = { video: { index: 0 }, audio: { index: 1 }, teletext: null, videoMode: 'copy' }
   const args = playbackArgsFor({ plan, file: '/r/a.ts', dir: '/tmp/p', piped: true })
@@ -123,13 +147,13 @@ test('view: an in-progress session reports its live edge', () => {
     duration: null,
     finished: false,
     plan: {},
-    inProgress: { recordingStartedAt: 99 },
+    inProgress: { recordingStartedAt: 99, scheduledEndAt: 199 },
     growing: true,
     producedSeconds: 42,
   }
   assert.deepEqual(
-    (({ inProgress, growing, recordingStartedAt, liveEdgeSeconds }) => ({ inProgress, growing, recordingStartedAt, liveEdgeSeconds }))(view(session)),
-    { inProgress: true, growing: true, recordingStartedAt: 99, liveEdgeSeconds: 42 },
+    (({ inProgress, growing, recordingStartedAt, scheduledEndAt, liveEdgeSeconds }) => ({ inProgress, growing, recordingStartedAt, scheduledEndAt, liveEdgeSeconds }))(view(session)),
+    { inProgress: true, growing: true, recordingStartedAt: 99, scheduledEndAt: 199, liveEdgeSeconds: 42 },
   )
   assert.equal('inProgress' in view({ ...session, inProgress: null }), false)
 })

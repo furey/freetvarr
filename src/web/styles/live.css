@@ -1054,6 +1054,24 @@ body.player-open .app-tabbar {
   background: var(--color-text-1);
 }
 
+.pl-track-edge {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 14px;
+  margin: -7px 0 0 -1px;
+  border-radius: 1px;
+  background: var(--color-live);
+}
+
+.pl-scrub.is-growing :is(.pl-track-buffer, .pl-track-edge) {
+  transition: width 1s linear, left 1s linear;
+}
+
+.pl-scrub.is-growing:not(.is-scrubbing) :is(.pl-track-played, .pl-thumb) {
+  transition: width 0.25s linear, left 0.25s linear;
+}
+
 .pl-track:has(.pl-range:focus-visible) .pl-thumb {
   box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--color-primary);
 }
@@ -1364,5 +1382,9 @@ body.player-open .app-tabbar {
 
   .pl-pill.is-recording .pl-record-dot {
     animation: none;
+  }
+
+  .pl-scrub.is-growing :is(.pl-track-buffer, .pl-track-edge, .pl-track-played, .pl-thumb) {
+    transition: none;
   }
 }

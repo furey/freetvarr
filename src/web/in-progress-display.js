@@ -121,6 +121,7 @@ export const fromStartRecordingOf = ({ item, title }) => ({
   start: item.start,
   startPadded: item.startPadded ?? null,
   recordingStartedAt: item.recordingStartedAt,
+  stopPadded: item.stopPadded ?? null,
 })
 
 const RECORDING_KIND_TEXT = { show: 'Series recording', movie: 'Movie recording', oneoff: 'One-off recording' }

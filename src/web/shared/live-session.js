@@ -146,6 +146,7 @@ export const watchFromStart = async (recording) => {
     fromStart: {
       dvrUuid: recording.dvrUuid, title: recording.title, sessionId: null,
       recordingStartedAt: recording.recordingStartedAt ?? recording.startPadded ?? recording.start,
+      scheduledEndAt: recording.stopPadded ?? recording.stop ?? null,
       edgeSeconds: 0, growing: true,
     },
   })
@@ -160,6 +161,7 @@ export const watchFromStart = async (recording) => {
     Object.assign(live.fromStart, {
       sessionId: r.session.id,
       recordingStartedAt: r.session.recordingStartedAt ?? live.fromStart.recordingStartedAt,
+      scheduledEndAt: r.session.scheduledEndAt ?? live.fromStart.scheduledEndAt,
       edgeSeconds: r.session.liveEdgeSeconds || 0,
     })
     live.captions = Boolean(r.session.captions)
@@ -277,13 +279,8 @@ const attachLiveVideo = async (run, playlist, { eager = false, config = LIVE_HLS
   liveAttached = true
   liveEdgeAnchor = null
   if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager, config })
-  liveVideo.addEventListener('loadedmetadata', () => {
-    if (live.fromStart && run === liveRun) {
-      liveVideo.currentTime = 0
-      playAfterSeek()
-    }
-    markLiveStarted(run)
-  }, { once: true })
+  liveVideo.addEventListener('loadedmetadata', () => markLiveStarted(run), { once: true })
+  if (live.fromStart) liveVideo.addEventListener('playing', () => keepRecordingStart(run), { once: true })
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
@@ -292,6 +289,11 @@ const attachLiveVideo = async (run, playlist, { eager = false, config = LIVE_HLS
   }, { once: true })
   liveVideo.src = playlist
   liveVideo.play()?.catch(() => {})
+}
+
+const keepRecordingStart = (run) => {
+  if (run !== liveRun || !live.fromStart || liveVideo.currentTime <= FROM_START_TOLERANCE_S) return
+  liveVideo.currentTime = 0
 }
 
 const markLiveStarted = (run) => {
@@ -717,6 +719,7 @@ const FROM_START_HLS_CONFIG = {
   backBufferLength: 90,
 }
 const FROM_START_HEARTBEAT_MS = 15_000
+const FROM_START_TOLERANCE_S = 2
 const FROM_START_PLAYER = `from-start-${crypto.randomUUID?.() ?? String(Math.random()).slice(2)}`
 const LIVE_START_CHECK_MS = 100
 const LIVE_POLL_PLAYING_MS = 10_000
