@@ -1,14 +1,14 @@
 import { computed } from '/vendor/vue.esm-browser.prod.js'
 import { healthAlertOf } from '/health-level.js'
-import { recordingChipOf } from '/recording-chip.js'
+import { recordingChipOf, recordingChipTargetOf } from '/recording-chip.js'
 import { WarningGlyph } from '/components/nav-icons.js'
 import { openSearch } from '/components/search-overlay.js'
 import { dismissHealthAlert, health, healthAlertDismissal } from '/shared/health.js'
 import { recordingNow } from '/shared/recording-now.js'
+import { navigateFrom } from '/shared/router.js'
 import { now, fmtClockTz } from '/shared/time.js'
 
 const HEALTH_HREF = '#/settings/system/health'
-const SCHEDULED_HREF = '#/recordings/scheduled'
 
 export const SearchButton = {
   template: `
@@ -65,19 +65,26 @@ export const RecordingChip = {
   props: { variant: { type: String, default: 'chip' } },
   template: `
     <template v-if="chip">
-      <a v-if="variant === 'banner'" :href="href" class="ui-banner is-live ui-only-phone ui-page-banner">
+      <a v-if="variant === 'banner'" :href="target.href" class="ui-banner is-live ui-only-phone ui-page-banner" @click="open">
         <span class="ui-dot is-live"></span>
         <span class="ui-banner-text">{{ chip.label }}<template v-if="chip.detail"> · {{ chip.detail }}</template></span>
         <chevron-glyph class="ui-group-row-chevron" />
       </a>
-      <a v-else :href="href" class="ui-header-chip is-live ui-only-wide" :title="chip.detail || null">
+      <a v-else :href="target.href" class="ui-header-chip is-live ui-only-wide" :title="chip.detail || null" @click="open">
         <span class="ui-dot is-live"></span><span>{{ chip.label }}</span>
       </a>
     </template>
   `,
   setup() {
     const chip = computed(() => recordingChipOf({ active: recordingNow.value.active, nowMs: now.value.getTime() }))
-    return { chip, href: SCHEDULED_HREF }
+    const target = computed(() => recordingChipTargetOf({ active: recordingNow.value.active }))
+    const open = (event) => {
+      const { href, originHash } = recordingChipTargetOf({ active: recordingNow.value.active, currentHash: window.location.hash })
+      if (!originHash) return
+      event.preventDefault()
+      navigateFrom({ hash: href, originHash })
+    }
+    return { chip, target, open }
   },
 }
 

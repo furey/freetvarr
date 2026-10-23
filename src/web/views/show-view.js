@@ -43,7 +43,7 @@ import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
 import { playback } from '/shared/player-shared.js'
 import { recordingNow, recordingChangeTick, recordingSetKey } from '/shared/recording-now.js'
-import { routeParams, cameFromHash, navigate } from '/shared/router.js'
+import { routeParams, cameFromHash, cameFromHistory, navigate } from '/shared/router.js'
 import { backTargetOf } from '/back-target.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { now, tz } from '/shared/time.js'
@@ -285,6 +285,7 @@ export const ShowView = {
     const backTarget = computed(() => backTargetOf({
       previousHash: cameFromHash.value,
       currentHash: window.location.hash,
+      inHistory: cameFromHistory.value,
     }))
     const goBack = () => {
       if (backTarget.value.usesHistory) return history.back()

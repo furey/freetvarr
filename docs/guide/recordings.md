@@ -40,7 +40,7 @@ An empty library says `Nothing recorded yet` and offers **Find a show in the TV 
 
 A show page has these parts:
 
-- **Back**: returns to the page you came from, such as Home or Scheduled. A show page opened from a link returns to Recordings.
+- **Back**: returns to the page you came from, such as Home, Library, or Scheduled. A show page opened from a link, or from the recording chip in the header, returns to the Library.
 - **Play** or **Resume**: plays the next episode you have not watched.
 - **Recording options**: opens the [Recording options](#recording-options) of a show with a series recording.
 - **⋯**: opens the [show menu](#show-menu).
@@ -57,7 +57,7 @@ A show with a series recording but no episodes yet still gets a poster. The page
 
 ### Recordings in progress
 
-A recording shows in the Library from the moment TVHeadend starts it. Its show page opens from the Library, from **RECORDING NOW** in [Scheduled](#scheduled), or from the recording chip in the header.
+A recording shows in the Library from the moment TVHeadend starts it. Its show page opens from the Library, from **RECORDING NOW** in [Scheduled](#scheduled), or from the recording chip in the header. From the chip, **Back** goes to the Library; from Scheduled, it goes to Scheduled. When recordings of more than one show run at once, the chip says how many, for example `Recording 2 shows`, and opens Scheduled.
 
 When the show has no other episodes, the line under the title says `Series recording`, `One-off recording`, or `Movie recording`, to match the shelf, and the show page has these parts:
 
@@ -167,7 +167,7 @@ An episode whose library file is already gone is listed in the dialog. Freetvarr
 
 ## Scheduled
 
-**Scheduled** lists what TVHeadend records now and what it will record over the next 7 days. The TV guide's `N scheduled` chip, the **Recording tonight** row on Home, and the recording chip in the header open it.
+**Scheduled** lists what TVHeadend records now and what it will record over the next 7 days. The TV guide's `N scheduled` chip and the **Recording tonight** row on Home open it, and so does the recording chip in the header while recordings of more than one show run.
 
 The list has these sections:
 

@@ -16,10 +16,16 @@ export const routeSection = ref(initial.section)
 
 let currentHash = window.location.hash
 export const cameFromHash = ref(history.state?.cameFrom ?? null)
+export const cameFromHistory = ref(!history.state?.cameFromOutsideHistory)
+
+let originOverride = null
 
 const stampOrigin = (originHash) => {
-  history.replaceState(entryStateWithOrigin({ state: history.state, originHash }), '')
+  const origin = originOverride ?? originHash
+  originOverride = null
+  history.replaceState(entryStateWithOrigin({ state: history.state, originHash: origin, inHistory: origin === originHash }), '')
   cameFromHash.value = history.state.cameFrom
+  cameFromHistory.value = !history.state.cameFromOutsideHistory
 }
 
 const scrollMemory = createScrollMemory()
@@ -79,6 +85,12 @@ window.addEventListener('hashchange', () => {
 })
 
 export const navigate = (hash) => {
+  window.location.hash = hash
+}
+
+export const navigateFrom = ({ hash, originHash }) => {
+  if (window.location.hash === hash) return
+  originOverride = originHash || null
   window.location.hash = hash
 }
 

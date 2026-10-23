@@ -23,7 +23,7 @@ Freetvarr has five destinations: **Home**, **Live TV**, **TV guide**, **Recordin
 Each page has these controls in its header:
 
 - **Search**: finds a show. See [Search](#search).
-- The recording chip, while TVHeadend records, for example `Recording The Block`. Press it to open [Scheduled](/guide/recordings#scheduled). On a phone it is a banner under the page title.
+- The recording chip, while TVHeadend records, for example `Recording The Block`. Press it to open the show page; **Back** then goes to Recordings → Library. While recordings of more than one show run, it says how many, such as `Recording 2 shows`, and opens [Scheduled](/guide/recordings#scheduled). On a phone it is a banner under the page title.
 - The clock, on a tablet or computer.
 
 While anything records, the browser tab title also starts with `● REC`.
