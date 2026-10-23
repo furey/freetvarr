@@ -7,7 +7,7 @@ import { useLibraryActions } from '/components/library-actions.js'
 import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
 import { MenuCard } from '/components/menu-card.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
-import { HOME_HERO_URL, MOVIES_URL, currentCandidateTestOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
+import { HOME_HERO_URL, MOVIES_URL, currentCandidateTestOf, heroClockMsOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf } from '/home-hero.js'
 import {
   continueWatchingUrl,
   newRecordingsUrl,
@@ -54,7 +54,6 @@ const FOCUS_WARM_ROW_ITEMS = 4
 const HERO_REFRESH_MS = 60_000
 const HERO_REBUILD_WAIT_MS = 5_000
 const HERO_BUILDING_RETRY_MS = 3_000
-const MINUTE_MS = 60_000
 const HOME_BUILD = loadedBuild || 'dev'
 
 const EMPTY_HOME = {
@@ -304,8 +303,8 @@ export const HomeView = {
       scheduledKeys: scheduledKeys.value,
       hiddenKeys: forYouHiddenKeys.value,
     }))
-    const heroMinuteMs = computed(() => Math.floor(nowMs.value / MINUTE_MS) * MINUTE_MS)
-    const heroSlides = computed(() => heroSlidesFor({ home: home.value, nowMs: heroMinuteMs.value }))
+    const heroClockMs = computed(() => heroClockMsOf({ candidates: home.value.hero?.candidates, nowMs: nowMs.value }))
+    const heroSlides = computed(() => heroSlidesFor({ home: home.value, nowMs: heroClockMs.value }))
     const forYouSlide = computed(() => heroSlides.value.find((slide) => slide.type === 'for-you') ?? null)
     const heroRecordingIds = computed(() => heroRecordingIdsOf(heroSlides.value))
     const heroProgramIds = computed(() => heroProgramIdsOf(heroSlides.value))
@@ -322,15 +321,19 @@ export const HomeView = {
     let heroTimer = null
     let heroRefreshTimer = null
 
+    let unmounted = false
+
     const scheduleHeroRefresh = (ms) => {
       clearTimeout(heroTimer)
+      if (unmounted) return
       heroTimer = setTimeout(refreshHero, ms)
     }
 
     const refreshHero = async () => {
+      if (unmounted) return
       const loadId = latestLoadId
       const { snapshot, part } = await fetchHero()
-      if (loadId !== latestLoadId || !homeStore.value) return
+      if (unmounted || loadId !== latestLoadId || !homeStore.value) return
       if (part.hero) keepHome({ ...homeStore.value, ...part })
       if (heroIsBuilding(snapshot)) scheduleHeroRefresh(HERO_BUILDING_RETRY_MS)
     }
@@ -350,6 +353,7 @@ export const HomeView = {
       heroRefreshTimer = setInterval(refreshHeroWhenVisible, HERO_REFRESH_MS)
     })
     onUnmounted(() => {
+      unmounted = true
       clearTimeout(heroTimer)
       clearInterval(heroRefreshTimer)
     })

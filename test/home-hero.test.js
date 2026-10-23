@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   HERO_SLIDE_LIMIT, MOVIES_URL, heroSrcsetOf, heroSlidesOf, heroRecordingIdsOf, heroProgramIdsOf, liveGenreOf, durationText,
-  recordedWhenOf, airingWhenOf, watchedShowKeysOf, activeRecordingOf, recordingWhenEyebrowOf, nextUpcomingOf, heroCandidatesOf, reusedArtSlidesOf,
+  heroClockMsOf, recordedWhenOf, airingWhenOf, watchedShowKeysOf, activeRecordingOf, recordingWhenEyebrowOf, nextUpcomingOf, heroCandidatesOf, reusedArtSlidesOf,
   slideOf, currentCandidateTestOf, slideArtIdentityOf,
 } from '../src/web/home-hero.js'
 import { artIdentityFrom, candidatesOf } from '../src/web/hero-art.js'
@@ -431,4 +431,14 @@ test('heroCandidatesOf stamps show pictures with the stampUrl it is given', () =
   const chosenImage = '/api/epg/show-image?title=The%20Block&w=384'
   const [chosen] = heroCandidatesOf({ inProgress: [episode({ artChosen: true, image: chosenImage })], nowMs, timeZone, stampUrl })
   assert.equal(chosen.art.image, '/api/epg/show-image?title=The%20Block&w=768&c=server')
+})
+
+test('the hero clock ticks by the minute until a recording slide nears its end', () => {
+  const nowMs = Date.parse('2026-10-23T10:00:30Z')
+  const minute = Date.parse('2026-10-23T10:00:00Z')
+  const ending = (stopPadded) => ({ type: 'recording', source: { recording: { stop: stopPadded, stopPadded } } })
+  assert.equal(heroClockMsOf({ candidates: [], nowMs }), minute)
+  assert.equal(heroClockMsOf({ candidates: [ending(Date.parse('2026-10-23T10:30:00Z'))], nowMs }), minute)
+  assert.equal(heroClockMsOf({ candidates: [ending(Date.parse('2026-10-23T10:01:00Z'))], nowMs }), nowMs)
+  assert.equal(heroClockMsOf({ candidates: [{ type: 'upcoming', endsAt: Date.parse('2026-10-23T10:01:00Z') }], nowMs }), minute)
 })

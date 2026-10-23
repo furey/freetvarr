@@ -70,6 +70,14 @@ export const currentCandidateTestOf = ({
   }
 }
 
+export const heroClockMsOf = ({ candidates = [], nowMs }) => {
+  const endsSoon = candidates.some((candidate) => candidate.type === 'recording'
+    && candidateEndMsOf(candidate) - nowMs < HERO_SECOND_CLOCK_MS)
+  return endsSoon ? nowMs : Math.floor(nowMs / HERO_MINUTE_MS) * HERO_MINUTE_MS
+}
+
+const candidateEndMsOf = (candidate) => candidate.endsAt ?? recordingEndMsOf(candidate.source?.recording) ?? Infinity
+
 export const hasEnded =({ candidate, nowMs }) => candidate.endsAt != null && candidate.endsAt <= nowMs
 
 export const heroCandidatesOf = ({
@@ -450,3 +458,6 @@ const HERO_IMAGE_WIDTH = 768
 const TONIGHT_FROM_HOUR = 17
 const LIVE_GENRES = { 2: 'news', 4: 'sport' }
 const GENRE_WORDS = { news: 'News', sport: 'Sport' }
+
+const HERO_MINUTE_MS = 60_000
+const HERO_SECOND_CLOCK_MS = 2 * HERO_MINUTE_MS
