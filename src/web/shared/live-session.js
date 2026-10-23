@@ -13,6 +13,7 @@ import {
   captionPreferenceAfterChange,
 } from '/live-captions.js'
 import { isReadyToStart } from '/live-start.js'
+import { fromStartProgrammeOf } from '/from-start-programme.js'
 import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/live-edge.js'
 import { captionLineOf, closePictureInPictureOf } from '/mini-player.js'
 import { initialPausedState, pausedStateAfter } from '/player-paused.js'
@@ -144,7 +145,7 @@ export const watchFromStart = async (recording) => {
   Object.assign(live, {
     sessionId: null, phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
     fromStart: {
-      dvrUuid: recording.dvrUuid, title: recording.title, sessionId: null,
+      dvrUuid: recording.dvrUuid, title: recording.title, sessionId: null, programme: fromStartProgrammeOf(recording),
       recordingStartedAt: recording.recordingStartedAt ?? recording.startPadded ?? recording.start,
       scheduledEndAt: recording.stopPadded ?? recording.stop ?? null,
       edgeSeconds: 0, growing: true,

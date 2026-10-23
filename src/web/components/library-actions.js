@@ -112,7 +112,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     const item = liveItemOf(episode)
     if (!item) return
     const title = show.value?.title || episode.title
-    watchRecordingFromStart({ channel: recordingChannelOf(item), recording: fromStartRecordingOf({ item, title }), nowTitle: title })
+    watchRecordingFromStart({ channel: recordingChannelOf(item), recording: fromStartRecordingOf({ item, title, episode }), nowTitle: title })
   }
 
   const watchRecordingLive = (episode) => {

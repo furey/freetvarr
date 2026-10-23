@@ -34,6 +34,7 @@ import {
 } from '/player-labels.js'
 import { canRewind } from '/live-edge.js'
 import { scheduledSecondsOf, fromStartScaleOf, fromStartTimelineOf, clampFromStartSeek, fromStartEndMsOf } from '/from-start-timeline.js'
+import { fromStartAiringOf, recordedProgrammeAtMsOf } from '/from-start-programme.js'
 import { api } from '/shared/api.js'
 import {
   liveVideo,
@@ -140,7 +141,7 @@ export const LivePlayer = {
             <p class="live-info-channel">
               <channel-logo class="live-info-logo" :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" />
               <span class="truncate">{{ infoChannelLabel }}</span>
-              <span v-if="isBehindLive" class="live-info-buffer">From buffer</span>
+              <span v-if="isBehindLive && !live.fromStart" class="live-info-buffer">From buffer</span>
             </p>
             <template v-if="info.now">
               <p class="live-info-title">{{ info.now.title }}</p>
@@ -664,11 +665,25 @@ export const LivePlayer = {
     const playingAtMs = computed(() => now.value.getTime() - live.behindSeconds * 1000)
 
     watch(playingAtMs, (atMs) => {
-      if (!isBehindLive.value || bufferedLoading) return
+      if (!isBehindLive.value || live.fromStart || bufferedLoading) return
       if (!airingCovers({ airing: bufferedAiring.value, atMs })) loadBufferedAiring(atMs)
     })
 
-    const info = computed(() => (isBehindLive.value && bufferedAiring.value) || airing.value)
+    const fromStartGuide = ref(null)
+    const loadFromStartGuide = async () => {
+      const fromStart = live.fromStart
+      fromStartGuide.value = null
+      const atMs = fromStart && recordedProgrammeAtMsOf(fromStart)
+      if (atMs == null || !live.channel?.id) return
+      const result = await fetchChannelAiring({ channelId: live.channel.id, atMs })
+      if (live.fromStart === fromStart) fromStartGuide.value = result
+    }
+    watch(() => live.open && live.fromStart?.dvrUuid, loadFromStartGuide, { immediate: true })
+
+    const info = computed(() => {
+      if (live.fromStart) return fromStartAiringOf({ programme: live.fromStart.programme, fetched: fromStartGuide.value })
+      return (isBehindLive.value && bufferedAiring.value) || airing.value
+    })
 
     watch(info, (shown) => {
       if (shown.now) live.nowTitle = shown.now.title
@@ -738,7 +753,8 @@ export const LivePlayer = {
 
     const infoProgress = computed(() => {
       const program = info.value.now
-      return program ? programmeProgress({ program, atMs: playingAtMs.value }) : 0
+      if (!program || !Number.isFinite(program.start) || !Number.isFinite(program.end)) return 0
+      return programmeProgress({ program, atMs: live.fromStart ? now.value.getTime() : playingAtMs.value })
     })
 
     onUnmounted(() => {

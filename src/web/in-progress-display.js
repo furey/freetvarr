@@ -114,10 +114,15 @@ export const recordingChannelOf = (item) => ({
   hasLogo: true,
 })
 
-export const fromStartRecordingOf = ({ item, title }) => ({
+export const fromStartRecordingOf = ({ item, title, episode = {} }) => ({
   dvrUuid: item.dvrUuid,
+  programId: item.programId ?? null,
   title,
+  episodeTitle: episode.episodeTitle || '',
+  season: episode.season ?? null,
+  episode: episode.episode ?? null,
   start: item.start,
+  stop: item.stop ?? null,
   startPadded: item.startPadded ?? null,
   recordingStartedAt: item.recordingStartedAt,
   stopPadded: item.stopPadded ?? null,
