@@ -27,9 +27,14 @@ export const changeProgrammeKind = async ({ showKey, title, kind }) => {
   toast({ text: movieKindToastOf({ title, kind }), action: { label: 'Undo', run: () => undoProgrammeKind({ showKey, title, kind }) } })
 }
 
-export const undoProgrammeKind = ({ showKey, title, kind }) => {
+export const undoProgrammeKind = async ({ showKey, title, kind }) => {
+  try {
+    await movieKindChanges.undo({ showKey, reload: reloadAll })
+  } catch (err) {
+    toast({ text: `Could not undo the change to ${title}`, detail: err.message, kind: 'error' })
+    return
+  }
   toast({ text: undoneMovieKindToastOf({ title, kind }) })
-  return movieKindChanges.undo({ showKey, reload: reloadAll })
 }
 
 const reloaders = new Set()
@@ -39,5 +44,6 @@ const reloadAll = () => Promise.all([...reloaders].map((reload) => Promise.resol
 const movieKindChanges = createMovieKindChanges({
   save: setProgrammeKind,
   clear: clearProgrammeKind,
+  previousOf: async (showKey) => (await listProgrammeKinds()).find((override) => override.showKey === showKey) ?? null,
   onPendingChange: (keys) => { kindPendingKeys.value = keys },
 })

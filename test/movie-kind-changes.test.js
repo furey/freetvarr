@@ -68,11 +68,29 @@ test('change: a failed save puts the show back and rethrows', async () => {
   assert.deepEqual(timers.delays(), [])
 })
 
-test('undo: a failed clear still reloads so the list shows what the server holds', async () => {
+test('undo: a failed clear still reloads so the list shows what the server holds, then rethrows', async () => {
   const { changes, calls, reload } = changesWith({ clear: async () => { throw new Error('offline') } })
   await changes.change({ showKey: 'heron', kind: 'not-movie', reload })
-  await changes.undo({ showKey: 'heron', reload })
+  await assert.rejects(changes.undo({ showKey: 'heron', reload }), /offline/)
   assert.deepEqual(calls.at(-1), ['reload'])
+})
+
+test('undo: restores the override the show had before the change', async () => {
+  const { setTimer, clearTimer } = fakeTimers()
+  const calls = []
+  const changes = createMovieKindChanges({
+    setTimer,
+    clearTimer,
+    save: async (body) => { calls.push(['save', body]) },
+    clear: async (showKey) => { calls.push(['clear', showKey]) },
+    previousOf: async (showKey) => ({ showKey, kind: 'movie', title: 'Heron' }),
+  })
+  await changes.change({ showKey: 'heron', kind: 'not-movie' })
+  await changes.undo({ showKey: 'heron' })
+  assert.deepEqual(calls, [
+    ['save', { showKey: 'heron', kind: 'not-movie' }],
+    ['save', { showKey: 'heron', kind: 'movie' }],
+  ])
 })
 
 test('change: other shows stay pending while one is undone or confirmed', async () => {

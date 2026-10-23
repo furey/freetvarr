@@ -5,6 +5,7 @@ export const CONFIRM_AFTER_MS = TOAST_ACTION_MS + 1000
 export const createMovieKindChanges = ({
   save,
   clear,
+  previousOf = async () => null,
   onPendingChange = () => {},
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -29,10 +30,11 @@ export const createMovieKindChanges = ({
 
   const change = async ({ showKey, kind, title = null, reload = () => {} }) => {
     drop(showKey)
-    const entry = { kind, timer: null }
+    const entry = { kind, timer: null, previous: null }
     pending.set(showKey, entry)
     publish()
     try {
+      entry.previous = (await Promise.resolve(previousOf(showKey)).catch(() => null))?.kind ?? null
       await save({ showKey, kind, ...(title && { title }) })
     } catch (err) {
       drop(showKey, entry)
@@ -43,9 +45,14 @@ export const createMovieKindChanges = ({
   }
 
   const undo = async ({ showKey, reload = () => {} }) => {
+    const previous = pending.get(showKey)?.previous ?? null
     drop(showKey)
-    await Promise.resolve(clear(showKey)).catch(() => {})
-    await Promise.resolve(reload()).catch(() => {})
+    try {
+      if (previous) await save({ showKey, kind: previous })
+      else await clear(showKey)
+    } finally {
+      await Promise.resolve(reload()).catch(() => {})
+    }
   }
 
   return { change, undo, pendingKeys: () => new Set(pending.keys()) }
