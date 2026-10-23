@@ -6,6 +6,7 @@ import { storedFlag } from '/shared/storage.js'
 import { tz, now } from '/shared/time.js'
 import { recordingNow, recordingChangeTick, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { localDayNumber } from '/guide-time.js'
+import { showHrefOf } from '/show-key.js'
 import {
   SCHEDULED_SECTIONS,
   groupScheduled,
@@ -188,7 +189,7 @@ export const ScheduledView = {
           <section v-if="recordingRows.length" class="ui-section" aria-label="Recording now" :data-day="todayNumber">
             <h2 class="ui-group-label">Recording now</h2>
             <div class="ui-group">
-              <a v-for="row in recordingRows" :key="row.key" :href="'#/recordings/show/' + row.showKey"
+              <a v-for="row in recordingRows" :key="row.key" :href="showHrefOf(row.title)"
                 class="ui-group-row is-tall scheduled-row">
                 <span class="scheduled-thumb">
                   <title-art :title="row.title" :src="row.thumbSrc" />
@@ -210,7 +211,7 @@ export const ScheduledView = {
             <div class="ui-group">
               <div v-for="row in section.rows" :key="row.key" class="ui-group-row is-tall scheduled-row"
                 :class="{ 'is-off': row.state === 'off', 'is-repeat': row.state === 'repeat' }" :data-day="row.dayNumber">
-                <a :href="'#/recordings/show/' + row.showKey" class="scheduled-row-link">
+                <a :href="showHrefOf(row.title)" class="scheduled-row-link">
                   <span class="scheduled-time ui-tabular">{{ row.time }}<small>{{ row.day ? row.day + ' ' : '' }}{{ row.period }}</small></span>
                   <span class="scheduled-thumb">
                     <title-art :title="row.title" :src="row.thumbSrc" />
@@ -460,7 +461,7 @@ export const ScheduledView = {
     onBeforeUnmount(() => clearInterval(refreshTimer))
 
     return {
-      state, loaded, loadError, actionError, busyIds, recordingRows, visibleSections, watching, removingWatchKey, removeWatch,
+      showHrefOf, state, loaded, loadError, actionError, busyIds, recordingRows, visibleSections, watching, removingWatchKey, removeWatch,
       showRepeats, repeatsChip, count, isEmpty, toggle, switchLabel, switchHintOf, isWide, todayNumber, plan,
       clashTextFor, timeline, clashSentences, weekDays, scrollToDay,
     }
