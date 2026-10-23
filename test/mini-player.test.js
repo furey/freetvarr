@@ -53,6 +53,42 @@ test('picture in picture falls back to the WebKit presentation mode on iOS', asy
   assert.equal(video.webkitPresentationMode, 'picture-in-picture')
 })
 
+test('picture in picture on WebKit uses the presentation mode, never the promise API', async () => {
+  const calls = []
+  const doc = { pictureInPictureEnabled: true, pictureInPictureElement: null, exitPictureInPicture: async () => calls.push('exit') }
+  const video = {
+    webkitPresentationMode: 'inline',
+    webkitSupportsPresentationMode: (mode) => mode === 'picture-in-picture',
+    webkitSetPresentationMode(mode) { calls.push(mode); this.webkitPresentationMode = mode },
+    requestPictureInPicture: async () => calls.push('request'),
+  }
+  assert.equal(await togglePictureInPicture({ video, doc }), true)
+  doc.pictureInPictureElement = video
+  assert.equal(await togglePictureInPicture({ video, doc }), false)
+  assert.deepEqual(calls, ['picture-in-picture', 'inline'])
+})
+
+test('picture in picture enters synchronously within the tap on WebKit', () => {
+  const calls = []
+  const video = {
+    webkitPresentationMode: 'inline',
+    webkitSupportsPresentationMode: () => true,
+    webkitSetPresentationMode: (mode) => calls.push(mode),
+  }
+  togglePictureInPicture({ video, doc: {} })
+  assert.deepEqual(calls, ['picture-in-picture'])
+})
+
+test('picture in picture is hidden in an iOS Home Screen app, where WebKit refuses it', () => {
+  const doc = { pictureInPictureEnabled: true }
+  const video = {
+    requestPictureInPicture: async () => {},
+    webkitSupportsPresentationMode: () => false,
+    webkitSetPresentationMode() {},
+  }
+  assert.equal(pictureInPictureSupportOf({ video, doc }), false)
+})
+
 test('picture in picture is hidden when unsupported', () => {
   assert.equal(pictureInPictureSupportOf({ video: {}, doc: { pictureInPictureEnabled: false } }), false)
   assert.equal(pictureInPictureSupportOf({ video: { requestPictureInPicture() {}, disablePictureInPicture: true }, doc: { pictureInPictureEnabled: true } }), false)

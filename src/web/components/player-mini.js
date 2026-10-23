@@ -345,14 +345,17 @@ export const StartOverSheet = {
 export const usePictureInPicture = ({ videoEl }) => {
   const canPip = ref(false)
   const pipActive = ref(false)
-  const syncPip = () => { pipActive.value = isInPictureInPicture({ video: videoEl.value, doc: document }) }
+  const syncPip = () => {
+    const video = videoEl.value
+    pipActive.value = isInPictureInPicture({ video, doc: document })
+    canPip.value = pipActive.value || pictureInPictureSupportOf({ video, doc: document })
+  }
   const togglePip = () => togglePictureInPicture({ video: videoEl.value, doc: document }).then(syncPip, syncPip)
   onMounted(() => {
-    const video = videoEl.value
-    canPip.value = pictureInPictureSupportOf({ video, doc: document })
-    for (const name of PIP_EVENTS) video?.addEventListener(name, syncPip)
+    syncPip()
+    for (const name of PIP_EVENTS) videoEl.value?.addEventListener(name, syncPip)
   })
   return { canPip, pipActive, togglePip }
 }
 
-const PIP_EVENTS = ['enterpictureinpicture', 'leavepictureinpicture', 'webkitpresentationmodechanged']
+const PIP_EVENTS = ['enterpictureinpicture', 'leavepictureinpicture', 'webkitpresentationmodechanged', 'loadedmetadata', 'emptied']

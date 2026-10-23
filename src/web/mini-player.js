@@ -16,38 +16,38 @@ export const minutesLeftText = ({ endMs, nowMs }) => {
 export const miniMetaOf = (parts) => parts.filter(Boolean).join(' · ')
 
 export const pictureInPictureSupportOf = ({ video, doc }) => {
-  if (!video) return false
-  if (doc?.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function'
-    && !video.disablePictureInPicture) return true
-  return typeof video.webkitSupportsPresentationMode === 'function'
-    && video.webkitSupportsPresentationMode('picture-in-picture')
+  if (!video || video.disablePictureInPicture) return false
+  if (hasWebkitPresentationMode(video)) return video.webkitSupportsPresentationMode('picture-in-picture')
+  return Boolean(doc?.pictureInPictureEnabled) && typeof video.requestPictureInPicture === 'function'
 }
 
 export const isInPictureInPicture = ({ video, doc }) =>
   Boolean(video) && (doc?.pictureInPictureElement === video || video.webkitPresentationMode === 'picture-in-picture')
 
 export const togglePictureInPicture = async ({ video, doc }) => {
+  if (closePictureInPictureOf({ video, doc })) return false
   if (!pictureInPictureSupportOf({ video, doc })) return false
-  const inside = isInPictureInPicture({ video, doc })
-  if (typeof video.requestPictureInPicture === 'function' && doc?.pictureInPictureEnabled) {
-    if (inside) await doc.exitPictureInPicture()
-    else await video.requestPictureInPicture()
-    return !inside
+  if (hasWebkitPresentationMode(video)) {
+    video.webkitSetPresentationMode('picture-in-picture')
+    return true
   }
-  video.webkitSetPresentationMode(inside ? 'inline' : 'picture-in-picture')
-  return !inside
+  await video.requestPictureInPicture()
+  return true
 }
 
 export const closePictureInPictureOf = ({ video, doc }) => {
   if (!video) return false
-  if (doc?.pictureInPictureElement === video) {
-    doc.exitPictureInPicture?.()?.catch?.(() => {})
+  if (video.webkitPresentationMode === 'picture-in-picture' && typeof video.webkitSetPresentationMode === 'function') {
+    video.webkitSetPresentationMode('inline')
     return true
   }
-  if (video.webkitPresentationMode !== 'picture-in-picture' || typeof video.webkitSetPresentationMode !== 'function') return false
-  video.webkitSetPresentationMode('inline')
+  if (doc?.pictureInPictureElement !== video) return false
+  doc.exitPictureInPicture?.()?.catch?.(() => {})
   return true
 }
+
+const hasWebkitPresentationMode = (video) =>
+  typeof video.webkitSupportsPresentationMode === 'function' && typeof video.webkitSetPresentationMode === 'function'
 
 export const MINI_CAPTION_LINE = 90
 
