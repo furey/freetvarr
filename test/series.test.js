@@ -203,6 +203,12 @@ test('newAutorecConfOf: a new rule records unless the show is paused', () => {
   assert.equal(newAutorecConfOf({ ...base, paused: true }).enabled, false)
 })
 
+test('newAutorecConfOf: escapes the guide title so TVHeadend matches it as plain text', () => {
+  const conf = newAutorecConfOf({ title: 'Mr. Bean (1990)?', channelId: ABC_TV, configName: 'dvr' })
+  assert.equal(conf.title, 'Mr\\. Bean \\(1990\\)\\?')
+  assert.equal(conf.name, 'Mr. Bean (1990)?')
+})
+
 test('joinSeries: no airing in the guide leaves nextAiring empty', () => {
   const seriesTags = [{ id: 'a', seriesLinkId: `${ABC_TV}|hard quiz`, name: 'Hard Quiz', channelId: ABC_TV, enabled: true }]
   assert.equal(joinSeries({ seriesTags, nowMs: NOW }).series[0].nextAiring, null)

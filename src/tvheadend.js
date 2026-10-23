@@ -7,7 +7,7 @@ import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 import { cleanGuideText } from './consumer-advice.js'
-import { autorecMatchFieldsOf } from './autorec-match.js'
+import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -181,8 +181,8 @@ export const listAutorecs = async (conn) => {
   const body = await apiGet('dvr/autorec/grid', { limit: 1000 }, conn)
   return (body?.entries || []).map((a) => ({
     id: a.uuid,
-    seriesLinkId: seriesKey({ channelId: a.channel, title: a.title }),
-    name: a.title || a.name || '',
+    seriesLinkId: seriesKey({ channelId: a.channel, title: autorecTitleOf(a) }),
+    name: autorecTitleOf(a) || a.name || '',
     channelId: a.channel || '',
     enabled: a.enabled !== false,
     leadTime: a.start_extra ?? 0,
@@ -338,7 +338,7 @@ const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
 export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodesToKeep, paused = false, configName }) => ({
   enabled: !paused,
   name: title,
-  title,
+  title: escapeAutorecTitle(title),
   fulltext: false,
   channel: channelId,
   start: 'Any',
@@ -352,6 +352,8 @@ export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodes
   config_name: configName,
   comment: CREATOR_TAG,
 })
+
+const autorecTitleOf = (autorec) => (autorec.title ? literalTitleOf(autorec.title) ?? autorec.title : '')
 
 export const autorecFieldsOf = ({ episodesToKeep, leadTime, lagTime } = {}) => ({
   ...(episodesToKeep != null ? { maxcount: episodesToKeep } : {}),

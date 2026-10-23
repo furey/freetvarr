@@ -9,7 +9,7 @@ import {
   preferredAiringsOf,
   twinAnnotationOf,
 } from '../src/airing-identity.js'
-import { autorecMatchFieldsOf, autorecMatchesAiring } from '../src/autorec-match.js'
+import { autorecMatchFieldsOf, autorecMatchesAiring, escapeAutorecTitle, literalTitleOf } from '../src/autorec-match.js'
 import { orderChannels } from '../src/channel-order.js'
 import { twinCoverOf } from '../src/web/programme-state.js'
 import { timeshiftOf } from '../src/web/simulcast.js'
@@ -154,6 +154,29 @@ test('rule titles match as a caseless, unanchored regex, like TVHeadend', () => 
   assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title: 'Big Brother', channel: 'ten-sd' }), programme }), false)
   assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title: 'Big Brother', enabled: false }), programme }), false)
   assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title: '(' }), programme }), false)
+})
+
+test('escaped rule titles match the guide title as plain text', () => {
+  const programme = airing({ channel: 'ten-hd', title: 'Who Wants To Be A Millionaire? (2026)' })
+  const title = escapeAutorecTitle('Who Wants To Be A Millionaire? (2026)')
+  assert.equal(title, 'Who Wants To Be A Millionaire\\? \\(2026\\)')
+  assert.equal(literalTitleOf(title), 'Who Wants To Be A Millionaire? (2026)')
+  assert.equal(literalTitleOf('Doctor Who|Torchwood'), null)
+  assert.equal(literalTitleOf('Mr\\d'), null)
+  assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title }), programme }), true)
+  assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title }), programme: { ...programme, title: 'Who Wants To Be A Millionair (2026)' } }), false)
+})
+
+test('typed regex rules keep their regex meaning, and backtracking patterns never run', () => {
+  const programme = airing({ channel: 'ten-hd', title: 'a'.repeat(400) })
+  assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title: '^a+$' }), programme }), true)
+  assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title: '.*a.*' }), programme }), true)
+  assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title: '^(?:The |x)?a{3}' }), programme }), true)
+  const startedAt = performance.now()
+  for (const title of ['(a+)+$', '(a|aa)*$', '(\\w+\\s?)+$', 'a*a*a*b', '.*.*.*b', '(a)\\1+b', 'a{1,100}a{1,100}b']) {
+    assert.equal(autorecMatchesAiring({ autorec: autorecOf({ title }), programme: { ...programme, title: `${'a'.repeat(400)}!` } }), false, title)
+  }
+  assert.ok(performance.now() - startedAt < 200)
 })
 
 test('fulltext rules also search the episode title and synopsis', () => {
