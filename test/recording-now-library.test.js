@@ -25,7 +25,7 @@ const {
   withPosition,
 } = await import('../src/in-progress-positions.js')
 const { recordingRowsOf, showCatalogueOf } = await import('../src/search-aliases.js')
-const { db, getSetting } = await import('../src/db.js')
+const { db, getSetting, setSetting } = await import('../src/db.js')
 const { seriesFolderIdOf } = await import('../src/recording-now.js')
 const { libraryKind } = await import('../src/sync.js')
 
@@ -240,6 +240,13 @@ test('in-progress positions: kept by id, pruned after three days, and parsed saf
   assert.deepEqual(prunedPositions({ positions: kept, nowMs: NOW + POSITION_KEEP_MS + 1 }), {})
   assert.deepEqual(parsePositions('not json'), {})
   assert.deepEqual(parsePositions('[1]'), {})
+})
+
+test('rememberInProgressPosition: positions saved at the same moment all stay', async () => {
+  await db.migrate.latest()
+  await Promise.all(['a', 'b', 'c'].map((recordingId, at) => rememberInProgressPosition({ recordingId, seconds: at + 1, nowMs: NOW })))
+  assert.deepEqual(Object.keys(JSON.parse(await getSetting(IN_PROGRESS_POSITIONS_KEY))).sort(), ['a', 'b', 'c'])
+  await setSetting(IN_PROGRESS_POSITIONS_KEY, '{}')
 })
 
 test('applyInProgressPositions: the imported row takes the position saved while it recorded', async () => {
