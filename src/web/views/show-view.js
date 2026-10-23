@@ -39,11 +39,22 @@ import { showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
 import { playback } from '/shared/player-shared.js'
-import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
+import { recordingNow, recordingChangeTick, recordingSetKey } from '/shared/recording-now.js'
 import { routeParams, cameFromHash, navigate } from '/shared/router.js'
 import { backTargetOf } from '/back-target.js'
 import { syncStatus } from '/shared/sync-status.js'
-import { tz } from '/shared/time.js'
+import { now, tz } from '/shared/time.js'
+import {
+  canWatchFromStart,
+  episodeBadgeOf,
+  inProgressEpisodeLineOf,
+  inProgressEpisodeMetaOf,
+  inProgressHeroMetaOf,
+  isRecordingPhase,
+  liveInProgressOf,
+  recordedPercentOf,
+  recordingCardOf,
+} from '/in-progress-display.js'
 
 export const ShowView = {
   components: { ActionConfirm, RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast, MoveToShowSheet },
@@ -58,12 +69,17 @@ export const ShowView = {
         </div>
         <div class="show-hero-body">
           <h1 class="show-title"><template v-if="title">{{ title }}</template><span v-else class="ui-skeleton is-text show-title-skeleton" aria-hidden="true"></span></h1>
-          <p class="show-hero-meta"><template v-if="show">{{ heroMeta }}</template><span v-else class="ui-skeleton is-text show-meta-skeleton" aria-hidden="true"></span></p>
-          <div v-if="!show" class="show-actions ui-only-wide" aria-hidden="true">
+          <p class="show-hero-meta"><template v-if="show">{{ shownHeroMeta }}</template><span v-else-if="!loaded" class="ui-skeleton is-text show-meta-skeleton" aria-hidden="true"></span></p>
+          <div v-if="!loaded" class="show-actions ui-only-wide" aria-hidden="true">
             <span class="ui-button ui-button-secondary show-options-button ui-skeleton show-skeleton-button"></span>
             <span class="ui-icon-button show-more-button ui-skeleton"></span>
           </div>
-          <div v-else class="show-actions ui-only-wide">
+          <div v-else-if="show && heroFromStart" class="show-actions ui-only-wide">
+            <button type="button" class="ui-button ui-button-primary show-from-start" @click="watchFromStart(currentEpisode)"><play-glyph /> Watch from the start</button>
+            <button type="button" class="ui-button ui-button-secondary show-options-button" @click="watchRecordingLive(currentEpisode)"><tv-icon /> Watch live</button>
+            <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
+          </div>
+          <div v-else-if="show" class="show-actions ui-only-wide">
             <button v-if="playLabel" type="button" class="ui-button ui-button-primary" @click="playNext"><play-glyph /> {{ playLabel }}</button>
             <button v-if="show.rule" type="button" class="ui-button ui-button-secondary show-options-button" @click="optionsOpen = true"><sliders-icon /> Recording options</button>
             <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
@@ -111,20 +127,33 @@ export const ShowView = {
       <p v-else-if="error && !show" class="ui-banner is-error" role="alert">Cannot load this show: {{ error }}</p>
 
       <div v-else-if="show" class="show-body">
-        <div class="show-actions ui-only-phone">
+        <div v-if="heroFromStart" class="show-actions ui-only-phone">
+          <button type="button" class="ui-button ui-button-primary show-from-start" @click="watchFromStart(currentEpisode)"><play-glyph /> Watch from the start</button>
+          <button type="button" class="ui-button ui-button-secondary show-options-button" @click="watchRecordingLive(currentEpisode)"><tv-icon /> Watch live</button>
+          <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
+        </div>
+        <div v-else class="show-actions ui-only-phone">
           <button v-if="playLabel" type="button" class="ui-button ui-button-primary" @click="playNext"><play-glyph /> {{ playLabel }}</button>
           <button v-if="show.rule" type="button" class="ui-button ui-button-secondary show-options-button" @click="optionsOpen = true"><sliders-icon /> Recording options</button>
           <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
         </div>
 
         <button v-if="show.rule" type="button" class="show-rule" @click="optionsOpen = true" aria-haspopup="dialog">
-          <span :class="['show-rule-mark', 'is-' + ruleStatus.tone]" aria-hidden="true"><span></span></span>
+          <span :class="['show-rule-mark', 'is-' + shownRuleStatus.tone]" aria-hidden="true"><span></span></span>
           <span class="show-rule-text">
-            <span class="show-rule-headline">{{ ruleStatus.headline }}</span>
-            <span class="show-rule-detail">{{ ruleStatus.detail }}</span>
+            <span class="show-rule-headline">{{ shownRuleStatus.headline }}</span>
+            <span class="show-rule-detail">{{ shownRuleStatus.detail }}</span>
           </span>
           <chevron-glyph class="ui-group-row-chevron" />
         </button>
+        <div v-else-if="recordingCard" class="show-rule is-static show-recording">
+          <span :class="['show-rule-mark', 'is-' + recordingCard.tone]" aria-hidden="true"><span></span></span>
+          <span class="show-rule-text">
+            <span class="show-rule-headline">{{ recordingCard.headline }}</span>
+            <span class="show-rule-detail">{{ recordingCard.detail }}</span>
+          </span>
+          <button v-if="cardFromStart" type="button" class="ui-button ui-button-sm" @click="watchFromStart(currentEpisode)">Watch from the start</button>
+        </div>
         <div v-else class="show-rule is-static">
           <span class="show-rule-mark is-idle" aria-hidden="true"><span></span></span>
           <span class="show-rule-text">
@@ -142,11 +171,11 @@ export const ShowView = {
                 :aria-pressed="String(s.season === selectedSeason)" @click="selectedSeason = s.season">{{ seasonLabel(s.season) }}</button>
             </div>
             <div v-else class="show-seasons"><span class="ui-chip is-selected show-season-only">{{ seasonLabel(show.seasons[0].season) }}</span></div>
-            <button v-if="!selecting" type="button" class="show-select-button" @click="startSelecting">Select</button>
+            <button v-if="!selecting && anySelectable" type="button" class="show-select-button" @click="startSelecting">Select</button>
           </div>
           <ul class="show-episode-list">
             <li v-for="e in visibleEpisodes" :key="e.recordingId"
-              :class="['show-episode', { 'is-failed': e.failed, 'is-playable': e.playable && !selecting, 'is-selected': selecting && selected.has(e.recordingId), 'is-locked': selecting && isLocked(e) }]"
+              :class="['show-episode', { 'is-failed': e.failed, 'is-playable': isTappable(e) && !selecting, 'is-selected': selecting && selected.has(e.recordingId), 'is-locked': selecting && isLocked(e) }]"
               @click="onEpisodeRowClick(e)" @contextmenu="episodePress.onContextMenu($event, e)" @pointerdown="episodePress.onPointerDown($event, e)"
               @pointermove="episodePress.onPointerMove" @pointerup="episodePress.onPointerEnd" @pointercancel="episodePress.onPointerEnd"
               @pointerleave="episodePress.onPointerEnd">
@@ -155,22 +184,24 @@ export const ShowView = {
                 :aria-label="checkLabel(e)" @click.stop="toggleEpisode(e)">
                 <menu-icon v-if="selected.has(e.recordingId)" name="check" />
               </button>
-              <button v-if="e.playable && !selecting" type="button" class="show-episode-thumb ui-art-fallback" :style="artStyle" @click.stop="playEpisode(e)"
-                :aria-label="'Play ' + episodeHeading(e)">
+              <button v-if="isTappable(e) && !selecting" type="button" class="show-episode-thumb ui-art-fallback" :style="artStyle" @click.stop="openEpisode(e)"
+                :aria-label="(e.inProgress ? 'Watch from the start: ' : 'Play ') + episodeHeading(e)">
                 <img v-if="episodeImage(e) && !failedImages[e.recordingId]" :src="episodeImage(e)" alt="" loading="lazy" @error="markImageFailed(e)" />
                 <span v-else class="ui-art-title">{{ title }}</span>
                 <span class="show-episode-play" aria-hidden="true"><play-glyph /></span>
-                <span v-if="e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
+                <span v-if="e.inProgress" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
+                <span v-else-if="e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
               </button>
               <div v-else :class="['show-episode-thumb', 'ui-art-fallback', { 'is-unplayable': !selecting }]" :style="artStyle">
                 <img v-if="episodeImage(e) && !failedImages[e.recordingId]" :src="episodeImage(e)" alt="" loading="lazy" @error="markImageFailed(e)" />
                 <span v-else class="ui-art-title">{{ title }}</span>
-                <span v-if="e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
+                <span v-if="e.inProgress" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
+                <span v-else-if="e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
               </div>
               <div class="show-episode-text">
-                <h3 class="show-episode-title">{{ episodeHeading(e) }} <span v-if="isRecordingNow({ episode: e, activeIds })" class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span><span v-else-if="e.new" class="ui-new-badge">New</span></h3>
+                <h3 class="show-episode-title">{{ episodeHeading(e) }} <span v-if="episodeBadge(e) === 'rec'" class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span><span v-else-if="episodeBadge(e) === 'new'" class="ui-new-badge">New</span></h3>
                 <p class="show-episode-meta">{{ episodeMeta(e) }}</p>
-                <p v-if="e.synopsis" class="show-episode-synopsis">{{ e.synopsis }}</p>
+                <p v-if="episodeLine(e)" class="show-episode-synopsis">{{ episodeLine(e) }}</p>
               </div>
               <button v-if="!selecting" type="button" class="ui-icon-button is-plain show-episode-more" :aria-label="'Actions for ' + episodeHeading(e)"
                 aria-haspopup="dialog" @click.stop="openEpisodeMenu(e)"><more-glyph /></button>
@@ -210,7 +241,7 @@ export const ShowView = {
         :groups="showGroups" :busy="busy" :pending-key="pendingKey" @close="closeMenus" @choose="chooseShowAction" />
 
       <library-menu-sheet :open="Boolean(menuEpisode)" :title="menuEpisode ? episodeHeading(menuEpisode) : ''" :subtitle="menuEpisode ? episodeMeta(menuEpisode) : ''"
-        :art-src="menuEpisode?.image || ''" :fallback-src="episodeFallbackSrc" :art-title="title" :groups="episodeGroups" :tip="episodeTip" :busy="busy" :pending-key="pendingKey"
+        :art-src="menuEpisode?.image || ''" :fallback-src="episodeFallbackSrc" :art-title="title" :groups="episodeGroups" :tip="menuEpisode?.inProgress ? '' : episodeTip" :busy="busy" :pending-key="pendingKey"
         @close="closeMenus" @choose="chooseEpisodeAction" />
 
       <library-info-sheet :open="Boolean(info)" :info="info" @close="info = null" />
@@ -244,7 +275,7 @@ export const ShowView = {
 
     const onEpisodeRowClick = (episode) => {
       if (selecting.value) return toggleEpisode(episode)
-      if (episode.playable) playEpisode(episode)
+      if (isTappable(episode)) openEpisode(episode)
     }
     const backTarget = computed(() => backTargetOf({
       previousHash: cameFromHash.value,
@@ -298,6 +329,9 @@ export const ShowView = {
     const playLabel = computed(() => (show.value ? playButtonLabel({ show: show.value }) : ''))
     const activeRecording = computed(() => activeRecordingFor({ active: recordingNow.value.active, key: key.value }))
     const ruleStatus = computed(() => ruleStatusOf({ show: show.value, activeRecording: activeRecording.value, timeZone: tz.value }))
+    const shownRuleStatus = computed(() => (recordingCard.value && isRecordingPhase(currentItem.value)
+      ? { ...ruleStatus.value, tone: 'live', headline: recordingCard.value.headline }
+      : ruleStatus.value))
     const firstEpisodeLine = computed(() => firstEpisodeText({ nextAiring: show.value?.nextAiring, timeZone: tz.value }))
     const visibleEpisodes = computed(() => {
       const seasons = show.value?.seasons || []
@@ -319,8 +353,28 @@ export const ShowView = {
     const selectedEpisodes = computed(() => allEpisodes.value.filter((e) => selected.value.has(e.recordingId)))
     const seasonAllSelected = computed(() => allSelectedIn({ episodes: visibleEpisodes.value, selected: selected.value, activeIds: activeIds.value }))
     const seasonSelectable = computed(() => visibleEpisodes.value.some((e) => !isRecordingNow({ episode: e, activeIds: activeIds.value })))
+    const anySelectable = computed(() => allEpisodes.value.some((e) => !isRecordingNow({ episode: e, activeIds: activeIds.value })))
 
     const playEpisode = (episode) => actions.play(episode)
+
+    const nowMs = computed(() => now.value.getTime())
+    const itemOf = (episode) => liveInProgressOf({ episode, active: recordingNow.value.active })
+    const inProgressEpisodes = computed(() => allEpisodes.value.filter((e) => e.inProgress))
+    const currentEpisode = computed(() => inProgressEpisodes.value.find((e) => isRecordingPhase(itemOf(e))) || inProgressEpisodes.value[0] || null)
+    const currentItem = computed(() => (currentEpisode.value ? itemOf(currentEpisode.value) : null))
+    const onlyInProgress = computed(() => allEpisodes.value.length > 0 && inProgressEpisodes.value.length === allEpisodes.value.length)
+    const heroFromStart = computed(() => canWatchFromStart(currentItem.value) && !playLabel.value)
+    const cardFromStart = computed(() => canWatchFromStart(currentItem.value) && !heroFromStart.value)
+    const recordingCard = computed(() => (currentItem.value ? recordingCardOf({ item: currentItem.value, nowMs: nowMs.value, timeZone: tz.value }) : null))
+    const shownHeroMeta = computed(() => (show.value && onlyInProgress.value && currentItem.value
+      ? inProgressHeroMetaOf({ show: show.value, item: currentItem.value })
+      : heroMeta.value))
+    const isTappable = (episode) => (episode.inProgress ? canWatchFromStart(itemOf(episode)) : episode.playable)
+    const openEpisode = (episode) => (episode.inProgress ? actions.watchFromStart(episode) : playEpisode(episode))
+    const recordedPercent = (episode) => {
+      const item = itemOf(episode)
+      return item ? recordedPercentOf({ start: item.start, stop: item.stop, nowMs: nowMs.value }) : 0
+    }
 
     const playNext = () => {
       const episode = episodeById({ show: show.value, recordingId: show.value.resumeNext?.recordingId })
@@ -408,6 +462,9 @@ export const ShowView = {
       if (wasOpen && !open) load()
     })
     watch(recordingChangeTick, load)
+    watch(recordingSetKey, (current, previous) => {
+      if (current !== previous) load()
+    })
     watch(() => syncStatus.value.activeSyncId, (current, previous) => {
       if (previous && !current) load()
     })
@@ -415,13 +472,18 @@ export const ShowView = {
     return {
       ...actions,
       show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
-      ruleStatus, firstEpisodeLine, visibleEpisodes, selectedSeason, optionsOpen, failedImages,
-      flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable,
+      ruleStatus, shownRuleStatus, firstEpisodeLine, currentEpisode, heroFromStart, cardFromStart, recordingCard, shownHeroMeta,
+      isTappable, openEpisode, recordedPercent, visibleEpisodes, selectedSeason, optionsOpen, failedImages,
+      flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable, anySelectable,
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
       episodePress, isLocked, checkLabel, isRecordingNow, selectionTitle,
       episodeHeading, seasonLabel, ratingScore, ratingReview, ratingCardOpen, ratingLoading, aboutSynopsis, castList, crewLines,
-      episodeMeta: (episode) => episodeMetaOf({ episode, timeZone: tz.value }),
+      episodeMeta: (episode) => (episode.inProgress
+        ? inProgressEpisodeMetaOf({ episode, item: itemOf(episode), nowMs: nowMs.value, timeZone: tz.value })
+        : episodeMetaOf({ episode, timeZone: tz.value })),
+      episodeLine: (episode) => (episode.inProgress ? inProgressEpisodeLineOf({ item: itemOf(episode), timeZone: tz.value }) : episode.synopsis),
+      episodeBadge: (episode) => episodeBadgeOf({ episode, activeIds: activeIds.value }),
       episodeFallbackSrc,
       episodeImage: (episode) => episode.image || episodeFallbackSrc.value,
     }

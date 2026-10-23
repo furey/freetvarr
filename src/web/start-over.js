@@ -11,9 +11,14 @@ export const fromStartOption = ({ recording, clockText }) => {
   return {
     key: 'from-start',
     title: 'From the start',
-    detail: `Watch ${title} from ${clockText(recording.start)} while it keeps recording`,
+    detail: `Watch ${title} from ${clockText(playsFromMsOf(recording))} while it keeps recording`,
   }
 }
+
+export const playsFromMsOf = ({ start, recordingStartedAt }) => (
+  recordingStartedAt != null && (start == null || recordingStartedAt - start > LATE_START_GRACE_MS)
+    ? recordingStartedAt
+    : start)
 
 export const tunedInOption = ({ bufferStartMs, hasBuffer = bufferStartMs != null, nowMs, clockText }) => {
   if (!hasBuffer) return null
@@ -40,6 +45,8 @@ export const startOverActionOf = (options = []) => {
   if (enabled.length === 1) return { kind: 'direct', key: enabled[0].key, title: `${enabled[0].title}: ${enabled[0].detail}` }
   return { kind: 'sheet' }
 }
+
+export const LATE_START_GRACE_MS = 60_000
 
 export const NOTHING_BUFFERED_TEXT = 'Nothing to go back to yet. Ready a few seconds after you tune in.'
 

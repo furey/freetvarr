@@ -6,7 +6,11 @@ import { showKeyOf } from './show-key.js'
 
 export const allEpisodesOf = (show) => (show?.seasons || []).flatMap((season) => season.episodes)
 
-export const isRecordingNow = ({ episode, activeIds }) => Boolean(activeIds?.has(episode.recordingId))
+export const isRecordingNow = ({ episode, activeIds }) => Boolean(episode.inProgress) || Boolean(activeIds?.has(episode.recordingId))
+
+export const importedEpisodesOf = (show) => allEpisodesOf(show).filter((episode) => !episode.inProgress)
+
+export const runningEpisodeOf = (show) => allEpisodesOf(show).find((episode) => episode.inProgress?.phase === 'recording') || null
 
 export const deletableEpisodesOf = ({ episodes, activeIds }) =>
   episodes.filter((episode) => !isRecordingNow({ episode, activeIds }))
@@ -32,13 +36,15 @@ export const clockOf = (seconds) => {
 }
 
 export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => {
-  const episodes = allEpisodesOf(show)
+  const episodes = importedEpisodesOf(show)
+  const running = runningEpisodeOf(show)
   const next = show.resumeNext ? episodes.find((e) => e.recordingId === show.resumeNext.recordingId) : null
   const deletable = deletableEpisodesOf({ episodes, activeIds })
   const watchedCount = deletable.filter((episode) => episode.watched).length
-  const hasArtwork = episodes.length > 0 || Boolean(show.rule)
+  const hasArtwork = episodes.length > 0 || Boolean(show.rule) || Boolean(running)
   return [
     [
+      running?.inProgress.canPlayFromStart && { key: 'from-start', label: 'Watch from the start', icon: 'restart' },
       next && { key: 'play-next', label: 'Play next unwatched', icon: 'play', detail: next.episode != null ? `E${next.episode}` : '' },
       episodes.some((e) => !e.watched && !e.failed) && { key: 'mark-all-watched', label: 'Mark all as watched', icon: 'check' },
       episodes.some((e) => e.watched || e.positionS > 0) && { key: 'mark-all-unwatched', label: 'Mark all as unwatched', icon: 'unwatched' },
@@ -55,6 +61,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
       hasArtwork && { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
     ],
     [
+      running && { key: 'stop-recording', label: 'Stop recording…', icon: 'stop', danger: true },
       watchedCount && { key: 'delete-watched', label: 'Delete watched episodes', icon: 'trash', danger: true, detail: String(watchedCount) },
       deletable.length && { key: 'delete-all', label: 'Delete all episodes', icon: 'trash', danger: true, detail: String(deletable.length) },
     ],
@@ -62,6 +69,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
 }
 
 export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false, canMove = false }) => {
+  if (episode.inProgress) return inProgressMenuOf(episode)
   const recording = isRecordingNow({ episode, activeIds })
   const resumable = episode.playable && !episode.watched && episode.positionS > 0
   const hasUnwatchedEarlier = earlierEpisodesOf({ episodes, episode }).some((other) => !other.watched && !other.failed)
@@ -86,6 +94,22 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
     ],
     [
       !recording && { key: 'delete-episode', label: 'Delete episode', icon: 'trash', danger: true },
+    ],
+  ].map((group) => group.filter(Boolean)).filter((group) => group.length)
+}
+
+export const inProgressMenuOf = (episode) => {
+  const recording = episode.inProgress.phase === 'recording'
+  return [
+    [
+      recording && episode.inProgress.canPlayFromStart && { key: 'from-start', label: 'Watch from the start', icon: 'restart' },
+      recording && { key: 'watch-live', label: 'Watch live', icon: 'show' },
+    ],
+    [
+      { key: 'episode-info', label: 'Episode info', icon: 'info' },
+    ],
+    [
+      recording && { key: 'stop-recording', label: 'Stop recording…', icon: 'stop', danger: true },
     ],
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
 }
@@ -119,7 +143,7 @@ export const prunedSelection = ({ selected, episodes, activeIds }) => {
   return new Set([...selected].filter((id) => allowed.has(id)))
 }
 
-export const watchedChangeTargets = ({ episodes, watched }) => episodes.filter((episode) => (watched
+export const watchedChangeTargets = ({ episodes, watched }) => episodes.filter((episode) => !episode.inProgress && (watched
   ? !episode.watched && !episode.failed
   : episode.watched || episode.positionS > 0))
 

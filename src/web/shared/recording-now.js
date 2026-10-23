@@ -2,20 +2,23 @@ import { ref, computed, watch } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import { setFaviconRecording } from '/shared/favicon.js'
 import { live } from '/shared/player-shared.js'
+import { recordingSetKeyOf } from '/in-progress-display.js'
 
-export const recordingNow = ref({ active: [], journeys: [] })
+export const recordingNow = ref({ active: [], journeys: [], finishing: [] })
 let recordingNowTimer = null
 
 export const recordingCount = computed(() => recordingNow.value.active.length)
 
 const recordingNowBusy = computed(() =>
-  recordingNow.value.active.length > 0 || recordingNow.value.journeys.length > 0)
+  recordingNow.value.active.length > 0 || recordingNow.value.journeys.length > 0 || (recordingNow.value.finishing || []).length > 0)
+
+export const recordingSetKey = computed(() => recordingSetKeyOf(recordingNow.value))
 
 const loadRecordingNow = async () => {
   try {
     recordingNow.value = await api('GET', '/api/recording-now')
   } catch {
-    recordingNow.value = { active: [], journeys: [] }
+    recordingNow.value = { active: [], journeys: [], finishing: [] }
   }
 }
 

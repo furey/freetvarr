@@ -8,6 +8,7 @@ import {
   markedText,
   menuPendingLabelOf,
   movedText,
+  runningEpisodeOf,
   showInfoOf,
   showMenuOf,
   undoMovesOf,
@@ -20,6 +21,9 @@ import { loadNicknames } from '/components/also-known-as.js'
 import { holdAtLeast } from '/pending.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { playRecording } from '/shared/playback-session.js'
+import { watchLive, watchRecordingFromStart } from '/shared/live-session.js'
+import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
+import { fromStartRecordingOf, liveInProgressOf, recordingChannelOf } from '/in-progress-display.js'
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { navigate } from '/shared/router.js'
 import { toast } from '/shared/toast.js'
@@ -100,6 +104,40 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   }
 
   const play = (episode, options) => playRecording(recordingRowOf(episode), options)
+
+  const { openProgramme } = useProgrammeSheet()
+  const liveItemOf = (episode) => liveInProgressOf({ episode, active: recordingNow.value.active || [] })
+
+  const watchFromStart = (episode) => {
+    const item = liveItemOf(episode)
+    if (!item) return
+    const title = show.value?.title || episode.title
+    watchRecordingFromStart({ channel: recordingChannelOf(item), recording: fromStartRecordingOf({ item, title }), nowTitle: title })
+  }
+
+  const watchRecordingLive = (episode) => {
+    const item = liveItemOf(episode)
+    if (item) watchLive({ channel: recordingChannelOf(item), nowTitle: show.value?.title || episode.title })
+  }
+
+  const openRecordingProgramme = (episode) => {
+    const item = liveItemOf(episode)
+    if (!item) return
+    openProgramme({
+      channelId: item.channelId,
+      channelHint: { name: item.channelName, hasLogo: true },
+      programme: {
+        program_id: item.programId,
+        programId: item.programId,
+        title: episode.title,
+        episode_title: episode.episodeTitle,
+        start: item.start,
+        end: item.stop,
+        channelId: item.channelId,
+        has_image: item.hasImage,
+      },
+    })
+  }
 
   const setEpisodesWatched = (list, watched) => run('Marking episodes', async () => {
     const targets = watchedChangeTargets({ episodes: list, watched })
@@ -252,6 +290,8 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   const startShowAction = (key) => {
     const current = show.value
+    if (key === 'from-start') return watchFromStart(runningEpisodeOf(current))
+    if (key === 'stop-recording') return openRecordingProgramme(runningEpisodeOf(current))
     if (key === 'play-next') {
       const next = episodeById({ show: current, recordingId: current.resumeNext?.recordingId })
       return next && play(next)
@@ -280,6 +320,9 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   const startEpisodeAction = (key, episode) => {
     if (!episode) return
+    if (key === 'from-start') return watchFromStart(episode)
+    if (key === 'watch-live') return watchRecordingLive(episode)
+    if (key === 'stop-recording') return openRecordingProgramme(episode)
     if (key === 'resume') return play(episode)
     if (key === 'play-start') return play(episode, { fromStart: episode.positionS > 0 && !episode.watched })
     if (key === 'watched') return setEpisodesWatched([episode], true)
@@ -307,5 +350,6 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     showGroups, episodeGroups, showMenuSubtitle, episodeTip,
     openShowMenu, openEpisodeMenu, closeMenus, chooseShowAction, chooseEpisodeAction,
     askDelete, cancelDelete, onDeleted, setEpisodesWatched, runPending, play,
+    watchFromStart, watchRecordingLive, openRecordingProgramme, liveItemOf,
   }
 }

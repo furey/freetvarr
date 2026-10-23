@@ -19,10 +19,11 @@ import { scheduledCountOfState } from '/scheduled-groups.js'
 import { showHrefOf } from '/show-key.js'
 import { api } from '/shared/api.js'
 import { useLongPress } from '/shared/long-press.js'
-import { recordingNow, recordingChangeTick } from '/shared/recording-now.js'
+import { recordingNow, recordingChangeTick, recordingSetKey } from '/shared/recording-now.js'
+import { inProgressCardMetaOf, isRecordingPhase, recordedPercentOf } from '/in-progress-display.js'
 import { storedChoice, storedFlag } from '/shared/storage.js'
 import { syncStatus } from '/shared/sync-status.js'
-import { tz } from '/shared/time.js'
+import { now, tz } from '/shared/time.js'
 
 const LIBRARY_SORT_KEY = 'freetvarr.librarySort'
 const LIBRARY_UNWATCHED_KEY = 'freetvarr.libraryUnwatched'
@@ -99,6 +100,7 @@ export const RecordingsLibraryView = {
                 <title-art shape="poster" :title="show.title" :src="posterSrc(show)">
                   <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
                   <span v-if="show.counts.new" class="ui-art-badge is-end"><span class="ui-count-badge">{{ show.counts.new }}</span></span>
+                  <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
                 </title-art>
                 <div class="ui-card-title">{{ show.title }}</div>
                 <div class="ui-card-meta">{{ posterMeta(show) }}</div>
@@ -118,9 +120,10 @@ export const RecordingsLibraryView = {
             <a v-for="show in shelves.movies" :key="show.key" :href="showHrefOf(show.title)" class="ui-poster">
               <title-art shape="poster" :title="show.title" :src="posterSrc(show)">
                 <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
+                <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
               </title-art>
               <div class="ui-card-title">{{ show.title }}</div>
-              <div class="ui-card-meta">{{ movieMetaOf({ show }) }}</div>
+              <div class="ui-card-meta">{{ inProgressMeta(show) || movieMetaOf({ show }) }}</div>
             </a>
           </div>
         </section>
@@ -134,9 +137,10 @@ export const RecordingsLibraryView = {
             <a v-for="show in shelves.oneoffs" :key="show.key" :href="showHrefOf(show.title)" class="ui-card">
               <title-art :title="show.title" :src="cardSrc(show)">
                 <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
+                <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
               </title-art>
               <div class="ui-card-title">{{ show.title }}</div>
-              <div class="ui-card-meta">{{ oneOffMetaOf({ show, timeZone: tz }) }}</div>
+              <div class="ui-card-meta">{{ inProgressMeta(show) || oneOffMetaOf({ show, timeZone: tz }) }}</div>
             </a>
           </div>
         </section>
@@ -212,6 +216,9 @@ export const RecordingsLibraryView = {
     })
     onUnmounted(() => clearInterval(pollTimer))
     watch(recordingChangeTick, loadShows)
+    watch(recordingSetKey, (current, previous) => {
+      if (current !== previous) loadShows()
+    })
     watch(() => syncStatus.value.activeSyncId, (current, previous) => {
       if (previous && !current) refresh()
     })
@@ -260,7 +267,19 @@ export const RecordingsLibraryView = {
 
     const onOptionsFlash = ({ msg, kind }) => showToast({ kind: kind === 'err' ? 'error' : 'ok', title: msg })
 
-    const posterMeta = (show) => posterMetaOf({ show, timeZone: tz.value })
+    const inProgressMeta = (show) => inProgressCardMetaOf({ show: { ...show, inProgress: freshInProgressOf(show) }, timeZone: tz.value })
+    const posterMeta = (show) => inProgressMeta(show) || posterMetaOf({ show, timeZone: tz.value })
+    const freshInProgressOf = (show) => {
+      const item = show.inProgress
+      if (!item) return null
+      const fresh = recordingNow.value.active.find((r) => !r.failed && String(r.dvrUuid) === String(item.dvrUuid))
+      return fresh ? { ...item, stop: fresh.stop, stopPadded: fresh.stopPadded } : item
+    }
+    const recordingPercent = (show) => {
+      const item = freshInProgressOf(show)
+      if (!isRecordingPhase(item)) return null
+      return recordedPercentOf({ start: item.start, stop: item.stop, nowMs: now.value.getTime() })
+    }
     const posterLabel = (show) => [show.title, show.recordingNow ? 'recording now' : '', posterMeta(show)].filter(Boolean).join(', ')
     const posterSrc = (show) => `${show.poster}&w=384`
     const cardSrc = (show) => show.image || `/api/epg/show-image?title=${encodeURIComponent(show.title)}&w=384`
@@ -270,7 +289,7 @@ export const RecordingsLibraryView = {
       menuShow, menuLoadingKey, optionsOpen, openPosterMenu, posterPress, onStopped, onOptionsFlash, reloadMenuShow,
       shows, stale, loaded, error, shelves, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
-      posterMeta, posterLabel, posterSrc, cardSrc, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,
+      posterMeta, posterLabel, inProgressMeta, recordingPercent, posterSrc, cardSrc, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,
     }
   },
 }
