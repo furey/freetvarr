@@ -39,6 +39,7 @@ export let liveVideo = null
 export let liveHls = null
 let liveHlsBuffered = false
 let liveAttached = false
+let liveNativeListeners = null
 let liveStarted = false
 let liveStartTimer = null
 let liveMetadataAt = 0
@@ -116,7 +117,7 @@ export const adoptLiveSession = ({ channel, session, nowTitle = '' }) => {
     channel, nowTitle, sessionId: session.id, phase: 'tuning', message: '', holders: [], conflict: null,
     tuningStartedAt: Date.now(), bufferSeconds: session.bufferSeconds || 0, captions: Boolean(session.captions),
   })
-  attachLiveVideo(run, session.playlist)
+  attachLiveVideo(run, session.playlist, { eager: true })
   pollLive(run)
 }
 
@@ -280,14 +281,17 @@ const attachLiveVideo = async (run, playlist, { eager = false, config = LIVE_HLS
   liveAttached = true
   liveEdgeAnchor = null
   if (!playsHlsOnlyNatively()) return attachHlsJs(run, playlist, { eager, config })
-  liveVideo.addEventListener('loadedmetadata', () => markLiveStarted(run), { once: true })
-  if (live.fromStart) liveVideo.addEventListener('playing', () => keepRecordingStart(run), { once: true })
+  liveNativeListeners?.abort()
+  liveNativeListeners = new AbortController()
+  const options = { once: true, signal: liveNativeListeners.signal }
+  liveVideo.addEventListener('loadedmetadata', () => markLiveStarted(run), options)
+  if (live.fromStart) liveVideo.addEventListener('playing', () => keepRecordingStart(run), options)
   liveVideo.addEventListener('error', () => {
     if (run !== liveRun || !liveAttached || liveHls) return
     clearVideoSource()
     if (eager) return abandonEagerAttach(run)
     attachHlsJs(run, playlist)
-  }, { once: true })
+  }, options)
   liveVideo.src = playlist
   liveVideo.play()?.catch(() => {})
 }
@@ -405,6 +409,8 @@ const detachLiveVideo = () => {
   liveHls?.destroy()
   liveHls = null
   liveHlsBuffered = false
+  liveNativeListeners?.abort()
+  liveNativeListeners = null
   liveAttached = false
   liveStarted = false
   liveMetadataAt = 0
