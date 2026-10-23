@@ -1,4 +1,4 @@
-import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, onScopeDispose } from '/vendor/vue.esm-browser.prod.js'
 import { revealStepMs, isStepResolved, shownJob, STEP_PACING } from '/paced-reveal.js'
 import { runStepValue, runStepProgress } from '/setup-steps.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
@@ -6,6 +6,8 @@ import { wait, prefersReducedMotion } from '/shared/utils.js'
 export const usePacedJob = (job) => {
   const revealed = ref(0)
   let revealing = false
+  let alive = true
+  onScopeDispose(() => { alive = false })
   const shown = computed(() => shownJob({ job: job.value, revealed: revealed.value }))
 
   const stepAtCursor = () => job.value?.steps[revealed.value]
@@ -14,10 +16,10 @@ export const usePacedJob = (job) => {
     if (revealing) return
     revealing = true
     try {
-      while (job.value && revealed.value < job.value.steps.length) {
+      while (alive && job.value && revealed.value < job.value.steps.length) {
         const stepMs = revealStepMs(job.value.steps.length, STEP_PACING)
         const shownAt = Date.now()
-        while (job.value?.running && !isStepResolved(stepAtCursor())) await wait(BOOTSTRAP_REVEAL_POLL_MS)
+        while (alive && job.value?.running && !isStepResolved(stepAtCursor())) await wait(BOOTSTRAP_REVEAL_POLL_MS)
         const step = stepAtCursor()
         if (!isStepResolved(step)) break
         await wait(Math.max(0, stepMs - (Date.now() - shownAt)))

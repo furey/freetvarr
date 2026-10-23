@@ -789,6 +789,7 @@ export const WelcomeView = {
     }
 
     const next = async () => {
+      if (saving.value) return
       if (step.value === totalSteps) return finish()
       clearSaveStatus()
       saving.value = true
