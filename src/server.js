@@ -33,7 +33,8 @@ import {
 } from './sync.js'
 import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
-import { startScheduler, getSchedulerExpression, getSchedulerNextRun, stopScheduler } from './scheduler.js'
+import { startScheduler, getSchedulerExpression, getSchedulerNextRun, scheduledSyncsOn, stopScheduler } from './scheduler.js'
+import { createAutoImport, watchForFinishedRecordings } from './auto-import.js'
 import {
   detectPlexTokenFromPreferences,
   listPlexSections,
@@ -137,7 +138,7 @@ import {
   originalRetentionDays,
 } from './commercials.js'
 import { snapshotProgress } from './progress.js'
-import { getRecordingNow, recordingImageSource } from './recording-now.js'
+import { getRecordingNow, onRecordingFinished, recordingImageSource } from './recording-now.js'
 import { CHANNEL_LOGO_WIDTHS, HERO_IMAGE_WIDTHS, heroWidthFrom, thumbnailWidthFrom } from './image-thumbnails.js'
 import {
   LIVE_ROOT,
@@ -2365,7 +2366,26 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.error('[scheduler] failed to start:', err.message)
   }
+  startAutoImport()
 })
+
+let stopAutoImport = () => {}
+
+const startAutoImport = () => {
+  const autoImport = createAutoImport({
+    isEnabled: scheduledSyncsOn,
+    runSync: () => startSync({ trigger: 'recording-finished' }),
+    isSyncRunning: () => getActiveSyncId() != null,
+    onSyncFinished,
+  })
+  const stopNoting = onRecordingFinished(() => autoImport.noteFinished())
+  const stopWatching = watchForFinishedRecordings({ isEnabled: scheduledSyncsOn, poll: () => getRecordingNow() })
+  stopAutoImport = () => {
+    stopWatching()
+    stopNoting()
+    autoImport.stop()
+  }
+}
 
 const liveReaper = setInterval(() => {
   liveSessions.tick().catch((err) => console.error('[live] reaper failed:', err.message))
@@ -2374,6 +2394,7 @@ const liveReaper = setInterval(() => {
 
 const shutdown = async () => {
   stopScheduler()
+  stopAutoImport()
   clearInterval(liveReaper)
   await liveSessions.stopAll().catch(() => {})
   await playbackSessions.stopAll().catch(() => {})

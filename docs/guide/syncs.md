@@ -29,6 +29,8 @@ Choose how often Freetvarr checks TVHeadend in Settings → Schedule, with **Syn
 
 Activity states the schedule in plain words, such as "Syncs run every 30 minutes." A schedule that has no plain description shows its cron expression instead.
 
+Freetvarr also syncs about a minute after a recording finishes, so the episode joins the library without a wait for the next scheduled sync. Recordings that finish close together share one sync. When a sync is already running, Freetvarr waits for it to end and then syncs again. A custom schedule that never runs, such as `0 0 31 2 *` (31 February), turns these syncs off too. In Activity, these syncs say `Sync after a recording finished`.
+
 Only one sync runs at a time. A second request while one runs returns the running sync.
 
 ## Reading a sync

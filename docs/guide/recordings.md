@@ -76,7 +76,7 @@ To watch a recording from the start while it records:
 
 Watching from the start reads the recording file, so it does not use a tuner. It uses one of the streams that Freetvarr can play at once. When all of them are in use, the player says what is already playing; stop one of them and try again. Freetvarr remembers where you stopped, and the episode resumes from there after it is imported.
 
-When the recording finishes, the row says `Waiting to import` until the next sync imports it. The imported episode then takes the same place in the list. You cannot delete, select, move, or mark a recording in progress. To stop it, press **⋯** on the row, then **Stop recording…**, then **Stop recording** in the sheet.
+When the recording finishes, the row says `Waiting to import`. About a minute later Freetvarr starts a sync that imports it (see [Scheduled and manual](/guide/syncs#scheduled-and-manual)). The imported episode then takes the same place in the list. You cannot delete, select, move, or mark a recording in progress. To stop it, press **⋯** on the row, then **Stop recording…**, then **Stop recording** in the sheet.
 
 A recording that Freetvarr will not import, because Settings → Recording → Media library → **Import every recording** is off and no series folder matches it, also shows in the Library. Its card says `When it finishes it stays in TVHeadend`. After it finishes, its row says `Not imported` and offers **Import**.
 
@@ -259,7 +259,7 @@ An error shows under the status, cut to two lines. Press the row to see the full
 With ad removal on, an ad status also appears: **SCANNING**, **DETECTED**, **NO BREAKS**, **CUT**, **DETECT FAILED**, or **CUT FAILED**. See [Ad removal](/guide/ad-removal).
 
 > [!NOTE]<br>
-> A recording still in progress shows as **SKIPPED**. The first sync after TVHeadend finishes the recording imports it, up to ten minutes after the programme ends because of the padding.
+> A recording still in progress shows as **SKIPPED**. Freetvarr syncs about a minute after TVHeadend finishes the recording, up to ten minutes after the programme ends because of the padding, and that sync imports it.
 
 ### Live progress
 

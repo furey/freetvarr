@@ -25,7 +25,7 @@ export const startSync = async ({ trigger = 'manual', showId = null } = {}) => {
   if (inFlight) return { syncId: inFlight.syncId, alreadyRunning: true }
 
   const missingUrl = await tvheadendUrlMissing()
-  if (missingUrl && trigger === 'cron') return { skipped: true, reason: missingUrl.message }
+  if (missingUrl && AUTOMATIC_TRIGGERS.includes(trigger)) return { skipped: true, reason: missingUrl.message }
   if (missingUrl) throw missingUrl
 
   const syncId = await createSync(trigger, showId)
@@ -673,6 +673,7 @@ const upsertRecording = async ({ item, show, file_path, status, error }) => {
     .merge(mergeable)
 }
 
+const AUTOMATIC_TRIGGERS = ['cron', 'recording-finished']
 const DEFAULT_MEDIA_ROOT = '/media/tv'
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const DEFAULT_ONEOFF_ROOT = '/media/one-offs'

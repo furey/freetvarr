@@ -5,6 +5,7 @@ import { startSync } from './sync.js'
 import { getGuideSnapshot } from './epg.js'
 import { backfillUserEvents, pruneUserEvents } from './user-events-log.js'
 import { runForYouUpkeep } from './for-you-service.js'
+import { createScheduleCheck } from './schedule-runs.js'
 
 const DEFAULT_CRON = '*/30 * * * *'
 
@@ -21,6 +22,8 @@ export const startScheduler = async () => {
 }
 
 export const getSchedulerExpression = () => currentExpr
+
+export const scheduledSyncsOn = createScheduleCheck({ expression: () => currentExpr })
 
 export const getSchedulerNextRun = () => task?.getNextRun()?.toISOString() ?? null
 

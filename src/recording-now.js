@@ -30,6 +30,11 @@ export const invalidateRecordingNow = () => {
   cache = null
 }
 
+export const onRecordingFinished = (listener) => {
+  finishedListeners.add(listener)
+  return () => finishedListeners.delete(listener)
+}
+
 export const recordingImageSource = (eventId) => {
   for (const { recording } of tracked.values()) {
     const ids = [recording.programId, recording.uuid].filter((id) => id != null).map(String)
@@ -228,8 +233,17 @@ const resolveOutcomes = async (conn) => {
     if (latest && /^recording/.test(latest.schedStatus)) return
     if (latest) entry.recording = { ...entry.recording, ...latest, image: entry.recording.image }
     entry.outcome = recordingOutcome(latest)
+    if (!entry.outcome.removed) announceFinished(entry.recording)
   }))
 }
+
+const announceFinished = (recording) => finishedListeners.forEach((listener) => {
+  try {
+    listener(recording)
+  } catch (err) {
+    console.warn(`[recording-now] finish listener failed: ${err.message}`)
+  }
+})
 
 const describeEnded = async ({ nowMs, importContext }) => {
   const ended = [...tracked.values()].filter((t) => t.endedAt != null)
@@ -371,6 +385,7 @@ const parseJson = (text) => {
 }
 
 const tracked = new Map()
+const finishedListeners = new Set()
 let bootstrapped = false
 let cache = null
 let inflight = null

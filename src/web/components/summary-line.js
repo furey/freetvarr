@@ -22,6 +22,7 @@ const adsSummary = (a) => {
 
 const triggerMeta = (t) => {
   if (t === 'cron') return { kind: 'trigger-cron', title: 'Cron-scheduled sync' }
+  if (t === 'recording-finished') return { kind: 'trigger-cron', title: 'Sync after a recording finished' }
   if (t === 'manual-single') return { kind: 'trigger-manual', title: 'Manual single-show sync' }
   if (t === 'manual') return { kind: 'trigger-manual', title: 'Manual full sync' }
   return { kind: 'text', text: t }
