@@ -97,8 +97,6 @@ export const recordingImageRoute = ({
   },
 })
 
-export const serveRecordingImage = (options) => serveArtImage(recordingImageRoute(options))
-
 export const createArtPool = ({
   loadShowRows = libraryShowRows,
   loadRuleTitle = ruleTitleOf,

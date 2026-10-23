@@ -501,21 +501,6 @@
   margin: -6px -10px 0 0;
 }
 
-.show-action-group .show-action {
-  min-height: 52px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.show-action-group .show-action.is-danger {
-  color: var(--color-live-text);
-}
-
-.show-action-group .show-action:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .options-done {
   min-height: 40px;
 }

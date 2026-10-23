@@ -145,12 +145,6 @@ export const withoutRepeats = (groups) =>
 
 export const isSkippedRow = (row) => row.state === 'off' || row.state === 'repeat'
 
-export const repeatOriginalText = ({ repeatOf, timeZone = 'UTC' }) => {
-  if (!repeatOf) return ''
-  if (repeatOf.status === 'recording') return 'recording now'
-  return `${ORIGINAL_STATUS_WORDS[repeatOf.status] || 'scheduled'} ${airingWhenOf({ repeatOf, timeZone })}`
-}
-
 export const repeatSkippedText = ({ repeatOf, timeZone = 'UTC' }) => {
   if (!repeatOf) return 'already recorded'
   if (repeatOf.status === 'recording') return 'recording now'
@@ -158,8 +152,6 @@ export const repeatSkippedText = ({ repeatOf, timeZone = 'UTC' }) => {
   if (repeatOf.status === 'skipped') return `already skipped ${when}`
   return repeatOf.status === 'recorded' ? `recorded ${when}` : `records ${when} instead`
 }
-
-const ORIGINAL_STATUS_WORDS = { recorded: 'recorded', skipped: 'skipped', scheduled: 'scheduled' }
 
 export const repeatNoticeOf = ({ repeatOf, timeZone = 'UTC' }) => repeatOf?.status === 'skipped'
   ? `Repeat of the episode you skipped ${airingWhenOf({ repeatOf, timeZone })}, so it won't record.`

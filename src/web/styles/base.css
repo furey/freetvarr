@@ -105,14 +105,6 @@ body {
   .ui-only-phone { display: none !important; }
 }
 
-.ui-pressable {
-  transition: transform var(--motion-fast) var(--ease-standard);
-}
-
-.ui-pressable:active {
-  transform: scale(0.97);
-}
-
 .app-shell {
   min-height: 100dvh;
   padding-left: var(--app-rail-w);
@@ -816,15 +808,6 @@ body.sheet-open .app-tabbar {
 
 .show-hero-badges .programme-score-card.programme-classification-card {
   transform-origin: top right;
-}
-
-.ui-channel-tag {
-  padding: 3px 7px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .ui-count-badge {
@@ -1579,10 +1562,6 @@ button.ui-group-row {
   margin-top: auto;
 }
 
-.ui-sheet-group .ui-group {
-  background: var(--color-surface-1);
-}
-
 .ui-sheet .ui-chip {
   background: var(--color-surface-3);
 }
@@ -2314,7 +2293,6 @@ html .guide-page .epg-corner-filter:focus-visible {
     animation: none;
   }
 
-  .ui-pressable:active,
   .ui-button:active:not(:disabled),
   .ui-icon-button:active:not(:disabled),
   .ui-card:active .ui-card-art,

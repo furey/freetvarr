@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { serveImageRoute } from '../src/image-routes.js'
 import {
   composeShowPool, contentKeyOf, createArtPool, guideEpisodePoolOf, imageIdOf, plexArtsPoolOf, plexEpisodePoolOf, plexSourceOf,
-  plexTranscodeOrigin, poolImagesOf, serveRecordingImage, tvmazePoolOf, warmHomeArtPools,
+  plexTranscodeOrigin, poolImagesOf, recordingImageRoute as recordingImageRouteOf, tvmazePoolOf, warmHomeArtPools,
 } from '../src/art-pool.js'
 
 const tvImage = (over) => ({
@@ -253,14 +254,18 @@ const responseRecorder = () => {
 
 const recordingImageRoute = () => {
   const widths = []
-  const route = serveRecordingImage({
-    loadOriginal: async (id) => (id === 'r1' ? { body: Buffer.from('jpeg'), contentType: 'image/jpeg' } : null),
-    thumbnails: () => ({
-      thumbnailFor: async ({ key, width, loadOriginal }) => {
-        widths.push({ key, width })
-        const original = await loadOriginal()
-        return { body: Buffer.from(`${original.body}|${width}`), contentType: 'image/webp' }
-      },
+  const route = serveImageRoute({
+    missingMaxAgeS: 300,
+    imageMaxAgeS: 86400,
+    route: recordingImageRouteOf({
+      loadOriginal: async (id) => (id === 'r1' ? { body: Buffer.from('jpeg'), contentType: 'image/jpeg' } : null),
+      thumbnails: () => ({
+        thumbnailFor: async ({ key, width, loadOriginal }) => {
+          widths.push({ key, width })
+          const original = await loadOriginal()
+          return { body: Buffer.from(`${original.body}|${width}`), contentType: 'image/webp' }
+        },
+      }),
     }),
   })
   const call = async ({ id = 'r1', query = {} } = {}) => {

@@ -59,7 +59,6 @@ import { ChannelLogo, GuideCellImage, ProgrammeImage } from '/components/images.
 import { InfoButton } from '/components/info-button.js'
 import { ListSkeleton } from '/components/list-skeleton.js'
 import { LivePlayer } from '/components/live-player.js'
-import { ManualOption } from '/components/manual-option.js'
 import {
   HomeNavIcon,
   LiveNavIcon,
@@ -296,7 +295,6 @@ app.component('toggle-switch', ToggleSwitch)
 app.component('cancel-series-step', CancelSeriesStep)
 app.component('time-zone-field', TimeZoneField)
 app.component('guide-combobox', GuideCombobox)
-app.component('manual-option', ManualOption)
 app.component('channel-identity', ChannelIdentity)
 app.component('star-icon', StarIcon)
 app.component('step-mark-icon', StepMarkIcon)

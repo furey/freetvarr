@@ -1236,10 +1236,6 @@ body.player-open .app-tabbar {
     width: 40px;
     padding: 0;
   }
-
-  .pl-sound-label {
-    display: none;
-  }
 }
 
 @container (max-width: 1000px) {
@@ -1271,8 +1267,7 @@ body.player-open .app-tabbar {
   padding: 0;
 }
 
-.pl-pill.is-record.is-compact .pl-record-text,
-.pl-pill.is-sound.is-compact .pl-sound-label {
+.pl-pill.is-record.is-compact .pl-record-text {
   display: none;
 }
 
@@ -1339,12 +1334,6 @@ body.player-open .app-tabbar {
 
 .live-info-title {
   font-weight: 800;
-}
-
-@media (pointer: coarse) {
-  .pl-fullscreen {
-    display: none;
-  }
 }
 
 @media (max-width: 480px) {
