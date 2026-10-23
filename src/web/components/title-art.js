@@ -22,9 +22,15 @@ export const TitleArt = {
     const failed = ref(false)
     const attempt = ref(0)
     let retryTimer = null
+    let probe = null
     const cancelRetry = () => {
       clearTimeout(retryTimer)
       retryTimer = null
+      if (!probe) return
+      probe.onload = null
+      probe.onerror = null
+      probe.src = ''
+      probe = null
     }
     const retryLater = () => {
       const delay = RETRY_DELAYS_MS[attempt.value]
@@ -32,13 +38,15 @@ export const TitleArt = {
       const url = shownSrc.value
       retryTimer = setTimeout(() => {
         retryTimer = null
-        const probe = new Image()
+        probe = new Image()
         probe.onload = () => {
+          probe = null
           if (shownSrc.value !== url) return
           attempt.value += 1
           failed.value = false
         }
         probe.onerror = () => {
+          probe = null
           if (shownSrc.value !== url) return
           attempt.value += 1
           retryLater()
