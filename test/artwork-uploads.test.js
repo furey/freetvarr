@@ -203,3 +203,14 @@ test('createSingleSlot prepares one upload at a time and turns away a long queue
   assert.equal(most, 1)
   assert.equal(await job(), 'done')
 })
+
+test('parallel saves never pass the per-kind limit', async () => {
+  const root = path.join(tmpDir, 'parallel-uploads')
+  let tick = 1_800_000_000_000
+  const store = createArtworkUploads({ root, now: () => tick++, maxPerKind: 2 })
+  const body = Buffer.from('webp')
+  const results = await Promise.allSettled([1, 2, 3, 4].map(() => store.save({ key: 'muster-dogs', kind: 'poster', body })))
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 2)
+  assert.ok(results.filter((result) => result.status === 'rejected').every((result) => result.reason instanceof UploadRejected))
+  assert.equal((await store.list({ key: 'muster-dogs', kind: 'poster' })).length, 2)
+})

@@ -69,7 +69,7 @@ export const uploadPartsOf = (origin) => {
   return { key: match[1], kind: match[2], file: `${match[2]}-${match[3]}-${match[4]}.webp`, savedAt: parseInt(match[3], 36) }
 }
 
-export const createArtworkUploads = ({ root = getUploadRoot(), now = Date.now, randomHex = defaultRandomHex } = {}) => {
+export const createArtworkUploads = ({ root = getUploadRoot(), now = Date.now, randomHex = defaultRandomHex, maxPerKind = MAX_UPLOADS_PER_KIND } = {}) => {
   const dirOf = (key) => path.join(root, key)
 
   const list = async ({ key, kind = null }) => {
@@ -82,8 +82,20 @@ export const createArtworkUploads = ({ root = getUploadRoot(), now = Date.now, r
       .map((parts) => ({ origin: originOf(parts), kind: parts.kind, source: 'upload' }))
   }
 
-  const save = async ({ key, kind, body }) => {
+  const saving = new Map()
+
+  const save = ({ key, kind, body }) => {
+    const previous = saving.get(key) ?? Promise.resolve()
+    const run = previous.catch(() => {}).then(() => saveWithinLimit({ key, kind, body }))
+    const settled = run.catch(() => {})
+    saving.set(key, settled)
+    settled.then(() => { if (saving.get(key) === settled) saving.delete(key) })
+    return run
+  }
+
+  const saveWithinLimit = async ({ key, kind, body }) => {
     if (!isShowKey(key) || !artworkChoiceKindFrom(kind)) throw new UploadRejected('bad show or kind')
+    if ((await list({ key, kind })).length >= maxPerKind) throw new UploadRejected(`remove a picture first: each show keeps up to ${maxPerKind}`)
     const file = `${kind}-${now().toString(36)}-${randomHex()}.webp`
     await fs.mkdir(dirOf(key), { recursive: true })
     const target = path.join(dirOf(key), file)
