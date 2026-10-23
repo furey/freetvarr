@@ -4,17 +4,17 @@ export const MIN_TMDB_VOTES = 50
 export const ratingsKeyOf = ({ title, kind, year }) => {
   const name = String(title || '').trim()
   if (!name) return ''
-  return `${ratingsKindOf(kind)}|${name.toLowerCase()}|${yearOf(year) ?? ''}`
+  return `${ratingsKindOf(kind)}|${name.toLowerCase()}|${releaseYearOf(year) ?? ''}`
 }
 
 export const ratingsUrlOf = ({ title, kind, year }) => {
   const base = `/api/epg/programme-ratings?title=${encodeURIComponent(String(title || '').trim())}&kind=${ratingsKindOf(kind)}`
-  return yearOf(year) ? `${base}&year=${yearOf(year)}` : base
+  return releaseYearOf(year) ? `${base}&year=${releaseYearOf(year)}` : base
 }
 
-const yearOf = (year) => {
+export const releaseYearOf = (year) => {
   const value = Number(year)
-  return Number.isInteger(value) && value > 1800 ? value : null
+  return Number.isInteger(value) && value >= 1880 && value <= 2200 ? value : null
 }
 
 export const ratingsKindOf = (kind) => (kind === 'movie' ? 'movie' : '')
@@ -106,7 +106,7 @@ export const hoverClosesCard = ({ pointerType, openedByHover, open }) => pointer
 
 export const pressKeepsCardOpen = ({ openedByHover, open }) => openedByHover || !open
 
-const safeLinkOf = (url) => (/^https:\/\//i.test(String(url || '')) ? String(url) : null)
+export const safeLinkOf = (url) => (/^https:\/\//i.test(String(url || '')) ? String(url) : null)
 
 const stripOuterQuotes = (text) => text.replace(/^["“”']+|["“”']+$/g, '').trim()
 

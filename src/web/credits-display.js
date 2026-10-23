@@ -1,4 +1,4 @@
-import { ratingsKindOf } from './ratings-display.js'
+import { ratingsKindOf, releaseYearOf, safeLinkOf } from './ratings-display.js'
 
 export const MAX_CAST = 12
 
@@ -58,8 +58,6 @@ export const initialsOf = (name) => {
   return picked.map((word) => [...word][0].toUpperCase()).join('')
 }
 
-export const safeLinkOf = (url) => (/^https:\/\//i.test(String(url || '')) ? String(url) : null)
-
 const castMemberOf = (member) => {
   const name = cleanText(member?.name)
   if (!name) return null
@@ -72,9 +70,6 @@ const castMemberOf = (member) => {
   }
 }
 
-const yearOf = (year) => {
-  const value = Number(year)
-  return Number.isInteger(value) && value >= 1880 && value <= 2200 ? String(value) : ''
-}
+const yearOf = (year) => String(releaseYearOf(year) ?? '')
 
 const cleanText = (text) => String(text ?? '').replace(/\s+/g, ' ').trim()

@@ -9,6 +9,7 @@ import {
   pressKeepsCardOpen,
   ratingsKeyOf,
   ratingsUrlOf,
+  releaseYearOf,
   retryDelayOf,
   reviewsLinkLabelOf,
   shownReviewOf,
@@ -130,4 +131,12 @@ test('pressKeepsCardOpen pins a hover-opened card and toggles a pressed one', ()
   assert.equal(pressKeepsCardOpen({ openedByHover: true, open: true }), true)
   assert.equal(pressKeepsCardOpen({ openedByHover: false, open: false }), true)
   assert.equal(pressKeepsCardOpen({ openedByHover: false, open: true }), false)
+})
+
+test('releaseYearOf accepts only plausible release years', () => {
+  assert.equal(releaseYearOf(1999), 1999)
+  assert.equal(releaseYearOf('2024'), 2024)
+  assert.equal(releaseYearOf(1850), null)
+  assert.equal(releaseYearOf(2500), null)
+  assert.equal(releaseYearOf('abc'), null)
 })
