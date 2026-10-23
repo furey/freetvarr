@@ -28,6 +28,7 @@ import {
   liveStopHooks,
   adoptLiveSession,
   retuneLive,
+  closeLivePictureInPicture,
   liveReasonText,
   toggleLivePause,
 } from '/shared/live-session.js'
@@ -232,6 +233,7 @@ export const changePictureChannel = ({ picture, channel }) => {
 }
 
 export const stopWatchingPicture = (picture) => {
+  if (picture === 'primary') closeLivePictureInPicture()
   if (multi.view.order.length > 2) return removeOneOfMany(picture)
   if (picture !== 'primary' || !multi.companions[companionsShown()[0]]?.sessionId) {
     for (const id of companionsShown()) stopCompanion(id)

@@ -5,6 +5,7 @@ import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js
 import { csrfToken, api } from '/shared/api.js'
 import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
 import { stopLive } from '/shared/live-session.js'
+import { closePictureInPictureOf } from '/mini-player.js'
 import {
   live,
   liveCaptionsOn,
@@ -80,6 +81,7 @@ export const stopPlayback = () => {
   playRun += 1
   clearTimeout(playHeartbeatTimer)
   clearTimeout(playSingleTapTimer)
+  closePictureInPictureOf({ video: playVideo, doc: document })
   detachPlayVideo()
   if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
   Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })

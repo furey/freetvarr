@@ -14,7 +14,7 @@ import {
 } from '/live-captions.js'
 import { isReadyToStart } from '/live-start.js'
 import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/live-edge.js'
-import { captionLineOf } from '/mini-player.js'
+import { captionLineOf, closePictureInPictureOf } from '/mini-player.js'
 import { initialPausedState, pausedStateAfter } from '/player-paused.js'
 import { csrfToken, api } from '/shared/api.js'
 import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
@@ -90,6 +90,7 @@ const unlockLiveVideo = () => {
 export const stopLive = () => {
   liveRun += 1
   clearTimeout(livePollTimer)
+  closeLivePictureInPicture()
   detachLiveVideo()
   if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
   stopFromStartSession()
@@ -396,6 +397,8 @@ const detachLiveVideo = () => {
   liveVideo.pause()
   clearVideoSource()
 }
+
+export const closeLivePictureInPicture = () => closePictureInPictureOf({ video: liveVideo, doc: document })
 
 const clearVideoSource = () => {
   liveVideo.removeAttribute('src')

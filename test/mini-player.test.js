@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   MINI_CAPTION_LINE,
   captionLineOf,
+  closePictureInPictureOf,
   isHoverPointer,
   isSwipeDown,
   miniControlsShownOf,
@@ -87,4 +88,34 @@ test('miniMenuItemsOf lists captions only with captions and pop out only with su
   assert.deepEqual([captions.value, captions.on], ['On', true])
   const sound = miniMenuItemsOf({ ...wide, phone: true, muted: true }).find((item) => item.key === 'sound')
   assert.deepEqual([sound.value, sound.on], ['Muted', false])
+})
+
+test('closePictureInPictureOf exits the standard window when it shows this video', () => {
+  const video = {}
+  const calls = []
+  const doc = { pictureInPictureElement: video, exitPictureInPicture: () => { calls.push('exit'); return Promise.resolve() } }
+  assert.equal(closePictureInPictureOf({ video, doc }), true)
+  assert.deepEqual(calls, ['exit'])
+})
+
+test('closePictureInPictureOf leaves another video in picture in picture alone', () => {
+  const calls = []
+  const doc = { pictureInPictureElement: {}, exitPictureInPicture: () => { calls.push('exit'); return Promise.resolve() } }
+  assert.equal(closePictureInPictureOf({ video: {}, doc }), false)
+  assert.deepEqual(calls, [])
+})
+
+test('closePictureInPictureOf returns iOS Safari picture in picture to inline', () => {
+  const modes = []
+  const video = { webkitPresentationMode: 'picture-in-picture', webkitSetPresentationMode: (mode) => modes.push(mode) }
+  assert.equal(closePictureInPictureOf({ video, doc: { pictureInPictureElement: null } }), true)
+  assert.deepEqual(modes, ['inline'])
+})
+
+test('closePictureInPictureOf does nothing for an inline or missing video', () => {
+  const modes = []
+  const video = { webkitPresentationMode: 'inline', webkitSetPresentationMode: (mode) => modes.push(mode) }
+  assert.equal(closePictureInPictureOf({ video, doc: {} }), false)
+  assert.equal(closePictureInPictureOf({ video: null, doc: {} }), false)
+  assert.deepEqual(modes, [])
 })

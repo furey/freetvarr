@@ -38,6 +38,17 @@ export const togglePictureInPicture = async ({ video, doc }) => {
   return !inside
 }
 
+export const closePictureInPictureOf = ({ video, doc }) => {
+  if (!video) return false
+  if (doc?.pictureInPictureElement === video) {
+    doc.exitPictureInPicture?.()?.catch?.(() => {})
+    return true
+  }
+  if (video.webkitPresentationMode !== 'picture-in-picture' || typeof video.webkitSetPresentationMode !== 'function') return false
+  video.webkitSetPresentationMode('inline')
+  return true
+}
+
 export const MINI_CAPTION_LINE = 90
 
 export const captionLineOf = ({ mini, lifted, liftedLine, restingLine }) => {
