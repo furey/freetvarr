@@ -23,4 +23,10 @@ export const attentionChangesOf = ({ sent = new Map(), current = [] }) => {
   return { changes, sent: next }
 }
 
+export const unsentAttention = ({ sent, change }) => {
+  const key = `${change.kind}:${change.sessionId}`
+  if (sent.get(key)?.attending !== change.attending) return sent
+  return new Map(sent).set(key, { ...change, attending: !change.attending })
+}
+
 const isAudible = (video) => !video.muted && video.volume > 0

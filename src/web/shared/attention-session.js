@@ -1,5 +1,5 @@
 import { api } from '/shared/api.js'
-import { ATTENTION_MEDIA_EVENTS, ATTENTION_SAMPLE_MS, attentionChangesOf, attentionPathOf, isAttending } from '/attention.js'
+import { ATTENTION_MEDIA_EVENTS, ATTENTION_SAMPLE_MS, attentionChangesOf, attentionPathOf, isAttending, unsentAttention } from '/attention.js'
 
 const sources = new Set()
 let sent = new Map()
@@ -21,7 +21,9 @@ export const reportAttention = () => {
   const outcome = attentionChangesOf({ sent, current })
   sent = outcome.sent
   for (const change of outcome.changes) {
-    api('POST', attentionPathOf(change), { attending: change.attending }).catch(() => {})
+    api('POST', attentionPathOf(change), { attending: change.attending }).catch((err) => {
+      if (err.status !== 404) sent = unsentAttention({ sent, change })
+    })
   }
 }
 

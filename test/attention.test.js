@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { attentionChangesOf, attentionPathOf, isAttending } from '../src/web/attention.js'
+import { attentionChangesOf, attentionPathOf, isAttending, unsentAttention } from '../src/web/attention.js'
 
 const video = (overrides = {}) => ({ paused: false, ended: false, muted: false, volume: 1, ...overrides })
 
@@ -64,4 +64,19 @@ test('ended sessions drop out and live and playback ids stay apart', () => {
   assert.deepEqual([...next.keys()], ['play:x'])
   assert.equal(attentionPathOf({ kind: 'live', sessionId: 'x' }), '/api/live/x/attention')
   assert.equal(attentionPathOf({ kind: 'play', sessionId: 'x' }), '/api/play/x/attention')
+})
+
+test('a failed report is sent again on the next sample', () => {
+  const first = attentionChangesOf({ current: [{ kind: 'live', sessionId: 'a', attending: true }] })
+  const reverted = unsentAttention({ sent: first.sent, change: first.changes[0] })
+  const retry = attentionChangesOf({ sent: reverted, current: [{ kind: 'live', sessionId: 'a', attending: true }] })
+  assert.deepEqual(retry.changes, [{ kind: 'live', sessionId: 'a', attending: true }])
+})
+
+test('a failed report does not undo a newer state or an ended session', () => {
+  const change = { kind: 'live', sessionId: 'a', attending: true }
+  const newer = new Map([['live:a', { ...change, attending: false }]])
+  assert.equal(unsentAttention({ sent: newer, change }), newer)
+  const ended = new Map()
+  assert.equal(unsentAttention({ sent: ended, change }), ended)
 })
