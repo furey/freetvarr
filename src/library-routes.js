@@ -19,7 +19,7 @@ import {
   updateShowRule,
 } from './library.js'
 
-export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, playbackSourceResolver, forgetLookups = async () => {} }) => {
+export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, playbackSourceResolver, forgetLookups = async () => {}, loadInProgressIds }) => {
   app.get('/api/library/shows', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     res.json(await getLibraryShows())
@@ -65,7 +65,7 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
   app.post('/api/library/recordings/show', ruleLimiter, csrf, async (req, res) => {
     const { ids, title, error } = showMoveFrom(req.body || {})
     if (error) return res.status(400).json({ error })
-    const result = await moveRecordingsToShow({ ids, title })
+    const result = await moveRecordingsToShow({ ids, title, ...(loadInProgressIds ? { loadInProgressIds } : {}) })
     if (!result) return res.status(404).json({ error: 'recording not found' })
     res.json({ ok: true, title, ...result })
   })

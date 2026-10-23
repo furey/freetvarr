@@ -58,7 +58,7 @@ before(async () => {
   await db.migrate.latest()
   const app = express()
   app.use(express.json())
-  mountLibraryRoutes({ app, csrf: countingCsrf, ruleLimiter: passThrough, watchedLimiter: passThrough, playbackSourceResolver: async () => async () => false })
+  mountLibraryRoutes({ app, csrf: countingCsrf, ruleLimiter: passThrough, watchedLimiter: passThrough, playbackSourceResolver: async () => async () => false, loadInProgressIds: async () => new Set(['dvr-live']) })
   appServer = app.listen(0, '127.0.0.1')
   await new Promise((resolve) => appServer.once('listening', resolve))
   baseUrl = `http://127.0.0.1:${appServer.address().port}`
@@ -113,4 +113,12 @@ test('POST /api/library/recordings/show: rejects bad ids and titles without chan
   const missing = await move({ ids: ['b', 'nope'], title: 'The Block' })
   assert.equal(missing.status, 404)
   assert.deepEqual(await overridesOf(), { a: null, b: null, c: null })
+})
+
+test('POST /api/library/recordings/show: skips a recording still in progress and moves the imported ones', async () => {
+  const { status, body } = await move({ ids: ['b', 'dvr-live', 'c'], title: 'The Block' })
+  assert.equal(status, 200)
+  assert.deepEqual(body.previous, [{ id: 'b', title: null }, { id: 'c', title: null }])
+  assert.deepEqual(await overridesOf(), { a: null, b: 'The Block', c: 'The Block' })
+  assert.equal((await move({ ids: ['dvr-live'], title: 'The Block' })).status, 404)
 })

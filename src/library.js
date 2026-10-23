@@ -130,7 +130,19 @@ export const showMoveFrom = (body = {}) => {
   return { ids: unique(ids), title: trimmed }
 }
 
-export const moveRecordingsToShow = async ({ ids, title }) => db.transaction(async (trx) => {
+export const moveRecordingsToShow = async ({ ids, title, loadInProgressIds = loadInProgressRecordingIds }) => {
+  const movable = await withoutInProgressIds({ ids, loadInProgressIds })
+  return movable.length ? moveRowsToShow({ ids: movable, title }) : null
+}
+
+const withoutInProgressIds = async ({ ids, loadInProgressIds }) => {
+  const known = await db('recordings').whereIn('recording_id', ids).pluck('recording_id')
+  if (known.length === ids.length) return ids
+  const inProgress = await loadInProgressIds()
+  return ids.filter((id) => !inProgress.has(id))
+}
+
+const moveRowsToShow = ({ ids, title }) => db.transaction(async (trx) => {
   const rows = await trx('recordings').whereIn('recording_id', ids).select('recording_id', 'title', 'show_title_override')
   if (rows.length !== ids.length) return null
   for (const row of rows) {
@@ -574,6 +586,11 @@ const withAdState = ({ row, retentionDays, progress }) => ({
 const loadActiveRecordings = async () => (await getRecordingNow().catch(() => ({ active: [] }))).active || []
 
 const loadFinishingRecordings = async () => (await getRecordingNow().catch(() => ({ finishing: [] }))).finishing || []
+
+const loadInProgressRecordingIds = async () => {
+  const { active = [], finishing = [] } = await getRecordingNow().catch(() => ({}))
+  return new Set(inProgressRowsOf({ active, finishing }).map((row) => row.recording_id))
+}
 
 const loadTimedSeriesTags = async () => (await getRecordingState()).seriesTags || []
 
