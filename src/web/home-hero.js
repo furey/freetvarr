@@ -7,6 +7,7 @@ import { artUrlKeyOf, pickDistinctArt } from './hero-art.js'
 import { forYouItemSlideOf, identityOf as suggestionIdentityOf, topRatedItemSlideOf } from './for-you.js'
 import { episodeCodeOf, minutesLeftOf, watchedFractionOf, showHrefOf } from './home-feed.js'
 import { hourlyOrderOf } from './hero-remix.js'
+import { recordingEndMsOf, recordingLeftText } from './recording-time-left.js'
 
 export const HERO_SLIDE_LIMIT = 5
 export const HERO_SLIDES_PER_KIND = 2
@@ -212,7 +213,7 @@ export const watchedShowKeysOf = ({ shows = [], inProgress = [] }) => new Set([
 ])
 
 export const activeRecordingOf = ({ active = [], nowMs }) => active
-  .filter((r) => !r.failed && r.start <= nowMs && nowMs < r.stop)
+  .filter((r) => !r.failed && r.start <= nowMs && nowMs < recordingEndMsOf(r))
   .sort((a, b) => a.start - b.start)[0] ?? null
 
 const continueSlideOf = ({ episode, stampUrl }) => ({
@@ -249,7 +250,8 @@ const newEpisodeSlideOf = ({ episode, nowMs, timeZone, stampUrl }) => {
 
 const recordingNowSlideOf = ({ recording, channel, nowMs, timeZone, stampUrl }) => {
   const canStartOver = Boolean(recording.canPlayFromStart && recording.dvrUuid)
-  const left = minutesUntil({ ms: recording.stop, nowMs })
+  const left = recordingLeftText({ recording, nowMs })
+  const endsAt = recordingEndMsOf(recording)
   const lead = episodeCodeOf(recording) || recording.episodeTitle
   return {
     key: `recording:${recording.dvrUuid ?? recording.uuid}`,
@@ -257,8 +259,8 @@ const recordingNowSlideOf = ({ recording, channel, nowMs, timeZone, stampUrl }) 
     eyebrow: 'Recording now',
     badge: 'REC',
     title: recording.title,
-    meta: joinMeta([lead, recording.channelName, `until ${formatClock(recording.stop, timeZone)}`, `${left} min left`]),
-    metaShort: joinMeta([recording.channelName, `${left} min left`]),
+    meta: joinMeta([lead, recording.channelName, `until ${formatClock(endsAt, timeZone)}`, left]),
+    metaShort: joinMeta([recording.channelName, left]),
     progress: { percent: percentBetween({ start: recording.start, end: recording.stop, nowMs }), live: true, label: 'Recorded so far' },
     art: { image: showImageOf({ title: recording.title, stampUrl }), title: recording.title },
     primary: canStartOver
@@ -268,7 +270,7 @@ const recordingNowSlideOf = ({ recording, channel, nowMs, timeZone, stampUrl }) 
     programId: recording.programId ?? null,
     target: { recording, channel },
     source: { recording, channel },
-    endsAt: recording.stop,
+    endsAt,
   }
 }
 

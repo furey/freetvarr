@@ -107,6 +107,15 @@ test('hero, row, and card text for a show with only a recording in progress', ()
   assert.equal(inProgressCardMetaOf({ show: { ...show, counts: { total: 3, inProgress: 1 } }, timeZone: TZ }), '')
 })
 
+test('inProgressEpisodeMetaOf: in the end padding the row counts to the padded stop, never 0', () => {
+  const padding = inProgressEpisodeMetaOf({ episode: episode(), item: item(), nowMs: START + 158 * MIN, timeZone: TZ })
+  assert.match(padding, /· 2 mins left$/)
+  const last = inProgressEpisodeMetaOf({ episode: episode(), item: item(), nowMs: START + 160 * MIN - 20_000, timeZone: TZ })
+  assert.match(last, /· less than a minute left$/)
+  const overrun = inProgressEpisodeMetaOf({ episode: episode(), item: item(), nowMs: START + 165 * MIN, timeZone: TZ })
+  assert.match(overrun, /· finishing$/)
+})
+
 test('liveInProgressOf: fresher stop times from the poll win, and a finished one stops offering from the start', () => {
   const extended = liveInProgressOf({ episode: episode(), active: [{ dvrUuid: 'c53af306', canPlayFromStart: true, stop: START + 170 * MIN, stopPadded: START + 180 * MIN }] })
   assert.equal(extended.stopPadded, START + 180 * MIN)

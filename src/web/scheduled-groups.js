@@ -2,6 +2,7 @@ import { localDayNumber, weekdayOfDayNumber } from './guide-time.js'
 import { formatClock, formatDate } from './time-format.js'
 import { showKeyOf } from './show-key.js'
 import { showImageUrlOf } from './artwork-stamps.js'
+import { recordingLeftText } from './recording-time-left.js'
 
 const LATER_DAYS = 6
 const MINUTE_MS = 60_000
@@ -60,7 +61,7 @@ export const recordingNowRows = ({ active = [], nowMs = Date.now() } = {}) =>
     programId: r.programId,
     title: r.title,
     showKey: showKeyOf(r.title),
-    meta: [...episodeMetaParts(r), r.channelName, minutesLeftText({ stop: r.stop, nowMs })]
+    meta: [...episodeMetaParts(r), r.channelName, recordingLeftText({ recording: r, nowMs })]
       .filter(Boolean).join(' · '),
     percent: progressPercent({ start: r.start, stop: r.stop, nowMs }),
     thumbSrc: thumbSrcOf(r),
@@ -181,12 +182,6 @@ export const progressPercent = ({ start, stop, nowMs }) => {
   const span = Number(stop) - Number(start)
   if (!(span > 0)) return 0
   return Math.min(100, Math.max(0, Math.round(((nowMs - Number(start)) / span) * 100)))
-}
-
-export const minutesLeftText = ({ stop, nowMs }) => {
-  const minutes = Math.ceil((Number(stop) - nowMs) / MINUTE_MS)
-  if (!Number.isFinite(minutes) || minutes <= 0) return ''
-  return `${minutes} min left`
 }
 
 const groupKeyOf = (daysAhead) => {

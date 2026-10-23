@@ -14,6 +14,13 @@ test('recordingChipOf: one recording names the show and the time left', () => {
   assert.deepEqual(chip, { label: 'Recording The Block', detail: '34 min left' })
 })
 
+test('recordingChipOf: counts to the padded stop while the recording runs past the programme', () => {
+  const rugby = { title: 'Rugby League World Cup 2026', stop: NOW - 8 * 60_000, stopPadded: NOW + 2 * 60_000 - 1 }
+  assert.equal(recordingChipOf({ active: [rugby], nowMs: NOW }).detail, '2 min left')
+  assert.equal(recordingChipOf({ active: [{ ...rugby, stopPadded: NOW + 30_000 }], nowMs: NOW }).detail, 'less than a minute left')
+  assert.equal(recordingChipOf({ active: [{ ...rugby, stopPadded: NOW - 30_000 }], nowMs: NOW }).detail, 'finishing')
+})
+
 test('recordingChipOf: several recordings count the shows', () => {
   const chip = recordingChipOf({ active: [{ title: 'A' }, { title: 'B' }], nowMs: NOW })
   assert.deepEqual(chip, { label: 'Recording 2 shows', detail: '' })

@@ -2,6 +2,7 @@ import { durationText } from './recording-info.js'
 import { shortDayOf } from './show-page.js'
 import { LATE_START_GRACE_MS, playsFromMsOf } from './start-over.js'
 import { formatClock, formatMinutes } from './time-format.js'
+import { recordingLeftText } from './recording-time-left.js'
 
 export const RECORDING = 'recording'
 export const FINISHING = 'finishing'
@@ -38,8 +39,6 @@ export const recordedPercentOf = ({ start, stop, nowMs }) => {
 }
 
 export const recordingEndOf = (item) => item.stopPadded ?? item.stop
-
-export const minutesLeftOf = ({ item, nowMs }) => Math.max(0, Math.ceil((recordingEndOf(item) - nowMs) / 60_000))
 
 export const holdReasonOf = (reason) => HOLD_REASONS[reason] || (reason ? reason.charAt(0).toLowerCase() + reason.slice(1) : '')
 
@@ -82,7 +81,7 @@ export const inProgressEpisodeMetaOf = ({ episode, item, nowMs, timeZone }) => {
   }
   const recordedFrom = item.recordingStartedAt ?? item.start
   const recorded = durationText(Math.max(60, (nowMs - recordedFrom) / 1000))
-  return [day, episode.channelName, recorded ? `${recorded} recorded` : '', `${formatMinutes(minutesLeftOf({ item, nowMs }))} left`]
+  return [day, episode.channelName, recorded ? `${recorded} recorded` : '', recordingLeftText({ recording: item, nowMs, minutesText: formatMinutes })]
     .filter(Boolean).join(' · ')
 }
 

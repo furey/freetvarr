@@ -6,7 +6,6 @@ import {
   watchingRows,
   scheduledCount,
   progressPercent,
-  minutesLeftText,
   durationText,
   weekStrip,
   episodeMetaParts,
@@ -141,9 +140,12 @@ test('progressPercent: clamps and tolerates a zero span', () => {
   assert.equal(progressPercent({ start: 10, stop: 20, nowMs: 0 }), 0)
 })
 
-test('minutesLeftText: empty once the programme has ended', () => {
-  assert.equal(minutesLeftText({ stop: NOW - 1, nowMs: NOW }), '')
-  assert.equal(minutesLeftText({ stop: NOW + 90_000, nowMs: NOW }), '2 min left')
+test('recordingNowRows: counts minutes left to the padded stop, not the programme end', () => {
+  const rows = recordingNowRows({
+    active: [{ uuid: 'u1', title: 'Rugby', channelName: '7 Sydney', start: NOW - 2 * HOUR, stop: NOW - 8 * 60_000, stopPadded: NOW + 2 * 60_000 }],
+    nowMs: NOW,
+  })
+  assert.equal(rows[0].meta, '7 Sydney · 2 min left')
 })
 
 test('watchingRows: describes matches and missing matches', () => {

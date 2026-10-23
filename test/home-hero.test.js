@@ -218,6 +218,17 @@ test('heroRecordingIdsOf and heroProgramIdsOf: what the rows hide', () => {
   assert.deepEqual([...heroProgramIdsOf(varied)], ['78'])
 })
 
+test('recording now slide: stays through the end padding and counts to the padded stop', () => {
+  const padded = recording({ start: nowMs - 150 * MIN, stop: nowMs - 8 * MIN, stopPadded: nowMs + 2 * MIN })
+  assert.equal(activeRecordingOf({ active: [padded], nowMs }), padded)
+  const [slide] = slidesFrom({ recordingNow: [padded], nowEntries: [entry({ channel: { id: 'c9', name: '9HD' } })], nowMs, timeZone })
+  assert.equal(slide.type, 'recording')
+  assert.match(slide.meta, /· 2 min left$/)
+  assert.equal(slide.metaShort, '9HD · 2 min left')
+  assert.equal(slide.endsAt, nowMs + 2 * MIN)
+  assert.equal(activeRecordingOf({ active: [padded], nowMs: nowMs + 3 * MIN }), null)
+})
+
 test('liveGenreOf, durationText, watchedShowKeysOf, activeRecordingOf', () => {
   assert.equal(liveGenreOf(64), 'sport')
   assert.equal(liveGenreOf(0x2f), 'news')
