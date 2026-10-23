@@ -29,7 +29,7 @@ before(async () => {
   const app = express()
   app.use(express.json())
   mountWatchlist({ app, csrf: passThrough })
-  appServer = app.listen(0)
+  appServer = app.listen(0, '127.0.0.1')
   await new Promise((resolve) => appServer.once('listening', resolve))
   baseUrl = `http://127.0.0.1:${appServer.address().port}`
 })

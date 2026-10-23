@@ -72,7 +72,7 @@ before(async () => {
       return { body: Buffer.from('img'), contentType: 'image/webp' }
     },
   })
-  appServer = app.listen(0)
+  appServer = app.listen(0, '127.0.0.1')
   await new Promise((resolve) => appServer.once('listening', resolve))
   baseUrl = `http://127.0.0.1:${appServer.address().port}`
 })

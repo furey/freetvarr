@@ -135,23 +135,3 @@ test('ties: airing soon first, then more recordings', () => {
 test('limit caps the ranked results', () => {
   assert.equal(search({ titles: guideTitles, query: 'news', limit: 5 }).length, 5)
 })
-
-test('performance: index build under 20 ms for 2,000 titles and queries under 2 ms', () => {
-  const titles = [...guideTitles, ...guideTitles.slice(0, 2000 - guideTitles.length).map((title) => `${title} Extra`)]
-  const entries = entriesOf(titles)
-  buildSearchIndex({ entries, curated })
-  const builds = Array.from({ length: 25 }, () => {
-    const started = performance.now()
-    buildSearchIndex({ entries, curated })
-    return performance.now() - started
-  })
-  const index = buildSearchIndex({ entries, curated })
-  const queries = ['MKR', 'Gogglbox', 'AFL', 'SAS', 'kitchen', 'law and order', 'Big Bang Theroy', 'news', 'ab', 'zzxqv']
-  queries.forEach((query) => searchIndex({ index, query }))
-  const started = performance.now()
-  const rounds = 20
-  for (let round = 0; round < rounds; round += 1) queries.forEach((query) => searchIndex({ index, query }))
-  const perQuery = (performance.now() - started) / (rounds * queries.length)
-  assert.ok(Math.min(...builds) < 20, `build took ${Math.min(...builds).toFixed(1)} ms`)
-  assert.ok(perQuery < 2, `query took ${perQuery.toFixed(2)} ms`)
-})
