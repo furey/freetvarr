@@ -414,7 +414,8 @@ const useAlertDialog = ({ dialog, isOpen, onOpen, cancel, zIndex, initialFocus =
 export const useLibraryToast = () => {
   const showToast = ({ kind = 'ok', title, detail = '', failures = [] }) =>
     toast({ text: title, detail: [detail, ...failures].filter(Boolean).join('\n'), kind })
-  return { showToast }
+  const showFlash = ({ msg, kind = 'ok' }) => showToast({ kind, title: msg })
+  return { showToast, showFlash }
 }
 
 export const openPlexLink = async ({ url, onMissing }) => {

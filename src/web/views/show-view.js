@@ -264,7 +264,7 @@ export const ShowView = {
     </div>
   `,
   setup() {
-    const { showToast } = useLibraryToast()
+    const { showToast, showFlash: flash } = useLibraryToast()
     const key = computed(() => recordingsPageOf(routeParams.value).showKey || '')
     const show = ref(cachedDetails.get(key.value) || null)
     const loaded = ref(Boolean(show.value))
@@ -318,7 +318,6 @@ export const ShowView = {
       }
     }
 
-    const flash = ({ msg, kind = 'ok' }) => showToast({ kind: kind === 'err' ? 'error' : 'ok', title: msg })
 
     const actions = useLibraryActions({ show, reload: load, showToast, openOptions: () => { optionsOpen.value = true }, canMove: true })
     const { activeIds, artworkVersion } = actions

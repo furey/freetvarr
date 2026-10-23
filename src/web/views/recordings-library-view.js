@@ -223,7 +223,7 @@ export const RecordingsLibraryView = {
       if (previous && !current) refresh()
     })
 
-    const { showToast } = useLibraryToast()
+    const { showToast, showFlash: onOptionsFlash } = useLibraryToast()
     const menuShow = ref(null)
     const menuLoadingKey = ref('')
     const optionsOpen = ref(false)
@@ -265,7 +265,6 @@ export const RecordingsLibraryView = {
       await reloadMenuShow()
     }
 
-    const onOptionsFlash = ({ msg, kind }) => showToast({ kind: kind === 'err' ? 'error' : 'ok', title: msg })
 
     const inProgressMeta = (show) => inProgressCardMetaOf({ show: { ...show, inProgress: freshInProgressOf(show) }, timeZone: tz.value })
     const posterMeta = (show) => inProgressMeta(show) || posterMetaOf({ show, timeZone: tz.value })

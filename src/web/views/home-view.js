@@ -268,7 +268,7 @@ export const HomeView = {
         </section>
       </template>
       <recording-options-sheet v-if="optionsShow" :open="optionsOpen" :show="optionsShow" @close="optionsOpen = false"
-        @changed="load" @stopped="onOptionsStopped" />
+        @changed="load" @stopped="onOptionsStopped" @flash="showFlash" />
       <for-you-overlays :ctl="forYou" />
       <library-menu-sheet :open="Boolean(homeMenu)" :title="homeMenu?.title || ''" :subtitle="homeMenu?.subtitle || ''"
         :art-src="homeMenu?.art || ''" :groups="homeMenu?.groups || []" @close="homeMenu = null" @choose="chooseHomeAction" />
@@ -514,7 +514,7 @@ export const HomeView = {
     }
 
     const episodeShow = ref(null)
-    const { showToast } = useLibraryToast()
+    const { showToast, showFlash } = useLibraryToast()
     const library = useLibraryActions({
       show: episodeShow,
       reload: load,
@@ -593,7 +593,7 @@ export const HomeView = {
     return {
       showArtOf,
       loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
-      optionsShow, optionsOpen, load, onOptionsStopped, watchChannel, showHref, newCardMeta, newCardLabel,
+      optionsShow, optionsOpen, load, onOptionsStopped, showFlash, watchChannel, showHref, newCardMeta, newCardLabel,
       clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
       forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF,
       homeMenu, chooseHomeAction, openSlideMenu, openOnNowMenu, openTonightMenu, openEpisodeMenu, chooseEpisodeAction,
