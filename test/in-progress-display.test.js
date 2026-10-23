@@ -92,8 +92,11 @@ test('recordedPercentOf: clamps to the programme', () => {
 })
 
 test('hero, row, and card text for a show with only a recording in progress', () => {
-  assert.equal(inProgressHeroMetaOf({ show: { rule: null }, item: item() }), 'One-off recording · 7 Sydney · Not in your library yet')
-  assert.equal(inProgressHeroMetaOf({ show: { rule: {} }, item: item({ libraryHold: 'Kept out of the library' }) }), 'Series recording · 7 Sydney · Stays in TVHeadend')
+  assert.equal(inProgressHeroMetaOf({ show: { kind: 'oneoff', rule: null }, item: item() }), 'One-off recording · 7 Sydney · Not in your library yet')
+  assert.equal(inProgressHeroMetaOf({ show: { kind: 'show', rule: {} }, item: item({ libraryHold: 'Kept out of the library' }) }), 'Series recording · 7 Sydney · Stays in TVHeadend')
+  assert.equal(inProgressHeroMetaOf({ show: { kind: 'show', rule: null }, item: item({ seriesRecording: false }) }), 'Series recording · 7 Sydney · Not in your library yet')
+  assert.equal(inProgressHeroMetaOf({ show: { kind: 'oneoff', rule: null }, item: item({ seriesRecording: true }) }), 'One-off recording · 7 Sydney · Not in your library yet')
+  assert.equal(inProgressHeroMetaOf({ show: { kind: 'movie', rule: null }, item: item() }), 'Movie recording · 7 Sydney · Not in your library yet')
   const meta = inProgressEpisodeMetaOf({ episode: episode(), item: item(), nowMs: START + 113 * MIN, timeZone: TZ })
   assert.equal(meta, 'Fri 23 Oct · 7 Sydney · 1 hr 23 mins recorded · 47 mins left')
   assert.equal(inProgressEpisodeMetaOf({ episode: episode(), item: item({ phase: 'finishing' }), nowMs: START, timeZone: TZ }), 'Fri 23 Oct · 7 Sydney · 2 hrs 30 mins · Waiting to import')

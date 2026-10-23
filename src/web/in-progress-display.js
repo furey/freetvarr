@@ -69,7 +69,7 @@ export const recordingCardOf = ({ item, nowMs, timeZone }) => {
 }
 
 export const inProgressHeroMetaOf = ({ show, item }) => [
-  item.seriesRecording || show.rule ? 'Series recording' : 'One-off recording',
+  RECORDING_KIND_TEXT[show.kind] || RECORDING_KIND_TEXT.oneoff,
   item.channelName || '',
   item.libraryHold ? 'Stays in TVHeadend' : 'Not in your library yet',
 ].filter(Boolean).join(' · ')
@@ -122,6 +122,8 @@ export const fromStartRecordingOf = ({ item, title }) => ({
   startPadded: item.startPadded ?? null,
   recordingStartedAt: item.recordingStartedAt,
 })
+
+const RECORDING_KIND_TEXT = { show: 'Series recording', movie: 'Movie recording', oneoff: 'One-off recording' }
 
 const HOLD_REASONS = {
   'No series folder for this title, and Import every recording is off': 'Import every recording is off and no series folder matches it',

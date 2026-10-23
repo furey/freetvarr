@@ -22,7 +22,29 @@ export const keepLabel = (count) => (count > 0 ? String(count) : 'All')
 
 export const paddingLabel = (minutes) => `${minutes}m`
 
-export const seasonLabel = (season) => (season == null ? 'Other' : `Season ${season}`)
+export const seasonLabel = (season, title = '') => {
+  if (season == null) return 'Other'
+  const year = seasonYearOf({ season, title })
+  return year ? String(year) : `Season ${season}`
+}
+
+export const seasonYearOf = ({ season, title = '' }) => {
+  if (season == null) return null
+  if (season >= FIRST_YEAR && season <= LAST_YEAR) return season
+  return yearsIn(title).find((year) => year % 100 === season) ?? null
+}
+
+export const isSeriesShow = (show) => show?.kind === 'show'
+
+export const showsSeasonChips = (show) => isSeriesShow(show)
+  && show.seasons.length > 0
+  && !(show.seasons.length === 1 && seasonYearOf({ season: show.seasons[0].season, title: show.title }))
+
+export const listedEpisodesOf = ({ show, season }) => {
+  const seasons = show?.seasons || []
+  if (!isSeriesShow(show)) return seasons.flatMap((s) => s.episodes).sort((a, b) => (b.airedAt ?? 0) - (a.airedAt ?? 0))
+  return (seasons.find((s) => s.season === season) || seasons[0])?.episodes || []
+}
 
 export const episodeHeading = (episode) => {
   const number = episode.episode != null ? `E${episode.episode}` : ''
@@ -48,14 +70,16 @@ export const episodeStateText = (episode) => {
 }
 
 export const heroMetaOf = ({ show }) => {
-  const latestSeason = show.seasons.find((s) => s.season != null)?.season
+  const latestSeason = isSeriesShow(show)
+    ? show.seasons.find((s) => s.season != null && !seasonYearOf({ season: s.season, title: show.title }))?.season
+    : null
   const episodes = show.seasons.reduce((sum, s) => sum + s.episodes.length, 0)
   const channels = show.rule?.anyChannel ? [] : show.rule?.channels ?? []
   const channel = channels[0] || show.seasons[0]?.episodes[0]?.channelName || ''
   return [
     channel,
     latestSeason != null ? `Season ${latestSeason}` : '',
-    episodes ? `${episodes} ${episodes === 1 ? 'episode' : 'episodes'} recorded` : '',
+    recordedCountText({ count: episodes, series: isSeriesShow(show) }),
   ].filter(Boolean).join(' · ')
 }
 
@@ -196,3 +220,14 @@ const STATE_TEXT = {
   not_in_library: 'Not in library',
   replaced: 'Replaced in library',
 }
+
+const recordedCountText = ({ count, series }) => {
+  if (!count) return ''
+  if (!series) return `${count} ${count === 1 ? 'recording' : 'recordings'}`
+  return `${count} ${count === 1 ? 'episode' : 'episodes'} recorded`
+}
+
+const yearsIn = (title) => [...String(title ?? '').matchAll(/\b(19|20)\d{2}\b/g)].map((match) => Number(match[0]))
+
+const FIRST_YEAR = 1900
+const LAST_YEAR = 2100

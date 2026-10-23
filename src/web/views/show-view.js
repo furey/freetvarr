@@ -7,9 +7,12 @@ import {
   episodeHeading,
   episodeMetaOf,
   heroMetaOf,
+  isSeriesShow,
+  listedEpisodesOf,
   playButtonLabel,
   ruleStatusOf,
   seasonLabel,
+  showsSeasonChips,
   showTitleIn,
   titleFromKey,
 } from '/show-page.js'
@@ -165,12 +168,14 @@ export const ShowView = {
 
         <section v-if="show.seasons.length" ref="episodesSection" class="show-episodes" aria-labelledby="show-episodes-title">
           <div class="show-episodes-header">
-            <h2 id="show-episodes-title" class="ui-section-title">Episodes</h2>
-            <div v-if="show.seasons.length > 1" class="ui-chip-row is-scroll show-seasons" role="group" aria-label="Season">
-              <button v-for="s in show.seasons" :key="String(s.season)" type="button" class="ui-chip"
-                :aria-pressed="String(s.season === selectedSeason)" @click="selectedSeason = s.season">{{ seasonLabel(s.season) }}</button>
-            </div>
-            <div v-else class="show-seasons"><span class="ui-chip is-selected show-season-only">{{ seasonLabel(show.seasons[0].season) }}</span></div>
+            <h2 id="show-episodes-title" :class="['ui-section-title', { 'ui-visually-hidden': !seriesShow }]">{{ seriesShow ? 'Episodes' : 'Recordings' }}</h2>
+            <template v-if="seasonChips">
+              <div v-if="show.seasons.length > 1" class="ui-chip-row is-scroll show-seasons" role="group" aria-label="Season">
+                <button v-for="s in show.seasons" :key="String(s.season)" type="button" class="ui-chip"
+                  :aria-pressed="String(s.season === selectedSeason)" @click="selectedSeason = s.season">{{ seasonLabel(s.season, show.title) }}</button>
+              </div>
+              <div v-else class="show-seasons"><span class="ui-chip is-selected show-season-only">{{ seasonLabel(show.seasons[0].season, show.title) }}</span></div>
+            </template>
             <button v-if="!selecting && anySelectable" type="button" class="show-select-button" @click="startSelecting">Select</button>
           </div>
           <ul class="show-episode-list">
@@ -333,10 +338,9 @@ export const ShowView = {
       ? { ...ruleStatus.value, tone: 'live', headline: recordingCard.value.headline }
       : ruleStatus.value))
     const firstEpisodeLine = computed(() => firstEpisodeText({ nextAiring: show.value?.nextAiring, timeZone: tz.value }))
-    const visibleEpisodes = computed(() => {
-      const seasons = show.value?.seasons || []
-      return (seasons.find((s) => s.season === selectedSeason.value) || seasons[0])?.episodes || []
-    })
+    const seriesShow = computed(() => isSeriesShow(show.value))
+    const seasonChips = computed(() => Boolean(show.value) && showsSeasonChips(show.value))
+    const visibleEpisodes = computed(() => listedEpisodesOf({ show: show.value, season: selectedSeason.value }))
     const programmeInfo = computed(() => (show.value
       ? { title: show.value.title, kind: show.value.kind === 'movie' ? 'movie' : '', year: show.value.year ?? null }
       : null))
@@ -473,7 +477,7 @@ export const ShowView = {
       ...actions,
       show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
       ruleStatus, shownRuleStatus, firstEpisodeLine, currentEpisode, heroFromStart, cardFromStart, recordingCard, shownHeroMeta,
-      isTappable, openEpisode, recordedPercent, visibleEpisodes, selectedSeason, optionsOpen, failedImages,
+      isTappable, openEpisode, recordedPercent, visibleEpisodes, selectedSeason, seriesShow, seasonChips, optionsOpen, failedImages,
       flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable, anySelectable,
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,

@@ -19,10 +19,13 @@ import {
   guideMatchesFor,
   heroMetaOf,
   keepLabel,
+  listedEpisodesOf,
   playButtonLabel,
   recordingRowOf,
   ruleStatusOf,
   seasonLabel,
+  seasonYearOf,
+  showsSeasonChips,
   stepOption,
   LEAD_OPTIONS,
 } from '../src/web/show-page.js'
@@ -115,6 +118,49 @@ test('episode lines: heading, meta with time left or watched', () => {
   assert.equal(episodeMetaOf({ episode: episode({ watched: true }), timeZone: TZ }), 'Sun 18 Oct · 1 hr 25 mins · Watched')
   assert.equal(seasonLabel(null), 'Other')
   assert.equal(seasonLabel(22), 'Season 22')
+})
+
+test('seasonYearOf: a season that is the year, or the last two digits of a year in the title, is a guide artefact', () => {
+  assert.equal(seasonYearOf({ season: 26, title: 'Rugby League World Cup 2026' }), 2026)
+  assert.equal(seasonYearOf({ season: 2026, title: 'AFL' }), 2026)
+  assert.equal(seasonYearOf({ season: 26, title: 'Home and Away' }), null)
+  assert.equal(seasonYearOf({ season: 25, title: 'Rugby League World Cup 2026' }), null)
+  assert.equal(seasonYearOf({ season: 2, title: 'The Block 2002' }), 2002)
+  assert.equal(seasonYearOf({ season: 22, title: 'The Block' }), null)
+  assert.equal(seasonYearOf({ season: null, title: 'The Block 2026' }), null)
+})
+
+test('seasonLabel: a year-like season shows the year, never Season 26', () => {
+  assert.equal(seasonLabel(26, 'Rugby League World Cup 2026'), '2026')
+  assert.equal(seasonLabel(2025, 'NRL'), '2025')
+  assert.equal(seasonLabel(26, 'Neighbours'), 'Season 26')
+})
+
+test('showsSeasonChips and listedEpisodesOf: one-offs and movies list their recordings with no season chips', () => {
+  const rugby = show({
+    key: 'rugby-league-world-cup-2026',
+    title: 'Rugby League World Cup 2026',
+    kind: 'oneoff',
+    seasons: [
+      { season: 26, episodes: [episode({ recordingId: 'a', airedAt: 1 })] },
+      { season: null, episodes: [episode({ recordingId: 'b', airedAt: 2 })] },
+    ],
+  })
+  assert.equal(showsSeasonChips(rugby), false)
+  assert.deepEqual(listedEpisodesOf({ show: rugby, season: 26 }).map((e) => e.recordingId), ['b', 'a'])
+  assert.equal(heroMetaOf({ show: rugby }), '2 recordings')
+  assert.equal(showsSeasonChips({ ...rugby, kind: 'movie' }), false)
+})
+
+test('showsSeasonChips: a series shows chips, except one season that is only the year', () => {
+  const block = show({ seasons: [{ season: 22, episodes: [episode()] }] })
+  assert.equal(showsSeasonChips(block), true)
+  assert.deepEqual(listedEpisodesOf({ show: block, season: 22 }).map((e) => e.recordingId), ['e45'])
+  const cup = show({ title: 'NRL 2026', seasons: [{ season: 26, episodes: [episode()] }] })
+  assert.equal(showsSeasonChips(cup), false)
+  assert.equal(heroMetaOf({ show: cup }), '1 episode recorded')
+  const years = show({ title: 'AFL', seasons: [{ season: 2026, episodes: [episode()] }, { season: 2025, episodes: [episode({ recordingId: 'x' })] }] })
+  assert.equal(showsSeasonChips(years), true)
 })
 
 test('episodeActionsOf: offers the same delete and import actions as the recording log', () => {

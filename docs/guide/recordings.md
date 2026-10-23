@@ -48,7 +48,7 @@ A show page has these parts:
 - **Classification**: the age label of the latest episode, such as `M` or `MA15+`. A show recorded before this version has none.
 - **About**: the synopsis of the show, and a line from a review. See [About and cast and crew](#about-and-cast-and-crew).
 - **Cast and crew**: the people in the show. See [About and cast and crew](#about-and-cast-and-crew).
-- **Season chips**: pick a season when the show has more than one.
+- **Season chips**: pick a season when the show has more than one. When the TV guide uses the year as the season, such as season `26` of `NRL 2026`, the chip says `2026`, and a show with only that season has no chip. One-offs and movies have no season chips; their page lists each recording, newest first.
 - **Episodes**: a row for each episode, with a thumbnail and a bar for how much you watched, the title, the air date and channel, and the synopsis. A `New` badge marks an episode you have not started, and a `REC` badge an episode that records now. A recording in progress has a red bar for how much of the programme has aired, and its row says how much is recorded and how many minutes are left.
 
 Press an episode row to play it. Press **⋯** on the row, or hold the row on a touch screen, to open the [episode menu](#episode-menu).
@@ -59,7 +59,7 @@ A show with a series recording but no episodes yet still gets a poster. The page
 
 A recording shows in the Library from the moment TVHeadend starts it. Its show page opens from the Library, from **RECORDING NOW** in [Scheduled](#scheduled), or from the recording chip in the header.
 
-When the show has no other episodes, the show page has these parts:
+When the show has no other episodes, the line under the title says `Series recording`, `One-off recording`, or `Movie recording`, to match the shelf, and the show page has these parts:
 
 - **Watch from the start**: plays the recording from its first minute while TVHeadend keeps recording it. You can move anywhere in the part that is already recorded, or go to live.
 - **Watch live**: opens the channel in the live player.
