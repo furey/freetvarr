@@ -1290,24 +1290,6 @@ a.settings-row-link:hover {
   }
 }
 
-.settings-nav-reason {
-  display: block;
-  margin-top: 2px;
-  font-size: 13px;
-  line-height: 18px;
-  font-weight: 500;
-  color: var(--color-live-text);
-}
-
-.settings-nav-reason.is-warn {
-  color: var(--color-warning);
-}
-
-.settings-nav-link:has(.settings-nav-reason) .settings-nav-label {
-  flex: 1;
-  padding: 8px 0;
-}
-
 .health-check-groups {
   display: flex;
   flex-direction: column;

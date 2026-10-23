@@ -1,5 +1,5 @@
 import { computed } from '/vendor/vue.esm-browser.prod.js'
-import { healthBadgeOf, healthReasonOf, healthRowNameOf } from '/health-level.js'
+import { healthBadgeOf, healthRowNameOf } from '/health-level.js'
 import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
 import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
@@ -57,8 +57,7 @@ export const SettingsShell = {
           <div class="settings-nav-list">
             <a v-for="item in group.pages" :key="item.id" :href="item.href" class="settings-nav-link"
               :aria-current="page && item.id === page.id ? 'page' : null" :aria-label="item.id === 'health' && healthBadge ? healthRowName : null">
-              <span class="settings-nav-label">{{ item.label }}<span v-if="item.id === 'health' && healthBadge"
-                :class="['settings-nav-reason', 'is-' + healthBadge]">{{ healthReason }}</span></span>
+              <span class="settings-nav-label">{{ item.label }}</span>
               <span v-if="item.id === 'health' && healthBadge" :class="['ui-dot', 'is-' + healthBadge]" aria-hidden="true"></span>
               <chevron-glyph class="settings-nav-chevron ui-only-phone" />
             </a>
@@ -99,7 +98,6 @@ export const SettingsShell = {
     const ownHeader = computed(() => PAGES_WITH_OWN_HEADER.includes(page.value?.id))
     const intro = computed(() => PAGE_INTROS[page.value?.id] || '')
     const healthBadge = computed(() => healthBadgeOf(health.value))
-    const healthReason = computed(() => healthReasonOf(health.value.sentence))
     const healthRowName = computed(() => healthRowNameOf({ label: 'Health', badge: healthBadge.value, sentence: health.value.sentence }))
     const canReplayIntro = !prefersReducedMotion()
     const replayIntro = () => playBrandIntro()
@@ -117,7 +115,6 @@ export const SettingsShell = {
       ownHeader,
       intro,
       healthBadge,
-      healthReason,
       healthRowName,
       canReplayIntro,
       replayIntro,
