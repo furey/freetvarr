@@ -465,9 +465,3 @@ export const ChannelsModal = {
 }
 
 const IDLE_FAVOURITES_SHOWN = 5
-
-export const togglePinnedChannel = async ({ pinnedIds, channelId }) => {
-  const key = String(channelId)
-  const next = pinnedIds.includes(key) ? pinnedIds.filter((id) => id !== key) : [...pinnedIds, key]
-  await saveChannelPrefs({ pinned_ids: next })
-}

@@ -336,7 +336,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .epg-rows-enter-active {
+  .epg-rows-enter-active,
+  .epg-rows-move {
     transition: none;
   }
 }

@@ -38,7 +38,8 @@ export const GuideRow = {
           @pointerdown="canSort && sort.onPointerDown(rowKey, $event)"
           @keydown="canSort && sort.onKeydown(rowKey, $event)"
           @blur="sort.onBlur(rowKey)"><sort-grip-icon /></button>
-        <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" @pin="togglePin(ch)" />
+        <channel-identity :channel="ch" :has-logo="Boolean(ch.logos?.length)" :number="railNum(ch)" :starred="isStarred(ch)"
+          @pin="togglePin(ch, $event)" />
       </div>
       <div class="epg-track" :style="{ width: trackWidth + 'px' }">
         <span v-if="loadingIds.has(ch.id)" class="epg-loading-note" role="status"

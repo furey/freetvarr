@@ -7,6 +7,7 @@ import {
   provide,
   watch,
   nextTick,
+  toRaw,
 } from '/vendor/vue.esm-browser.prod.js'
 import {
   localDayNumber,
@@ -23,7 +24,6 @@ import { formatDate } from '/time-format.js'
 import { cellMarksOf, clockWithoutPeriod } from '/programme-sheet.js'
 import { watchForOfferOf } from '/watch-for.js'
 import { channelGroupLabel } from '/components/channel-identity.js'
-import { togglePinnedChannel } from '/components/channels-modal.js'
 import { openWatchFor } from '/components/watch-for-sheet.js'
 import { api } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
@@ -40,6 +40,8 @@ import { channelPrefsChangedSince } from '/shared/channel-prefs.js'
 import { rememberLineup } from '/shared/channel-twins.js'
 import { RAIL_EDGE_ATTRIBUTE } from '/shared/scroll-proximity.js'
 import { arrangeByOrder } from '/sortable-math.js'
+import { arrangeForPins } from '/favourite-queue.js'
+import { useFavouriteToggle } from '/shared/favourite-toggle.js'
 import {
   activeRecordingSet,
   cellState,
@@ -782,11 +784,13 @@ export const EpgView = {
       todayFetchedAt = Date.now()
     }
 
+    const showGuide = (g) => favourites.adopt(() => { guide.value = g })
+
     const loadDay = async (d, { force = false } = {}) => {
       error.value = ''
       errorCode.value = ''
       if (!force && guideByDay.has(d)) {
-        guide.value = guideByDay.get(d)
+        showGuide(guideByDay.get(d))
         return
       }
       loading.value = true
@@ -796,9 +800,11 @@ export const EpgView = {
           errorCode.value = 'no-url'
           return
         }
-        rememberDay(d, g)
+        favourites.adopt(() => {
+          rememberDay(d, g)
+          if (day.value === d) guide.value = g
+        })
         dayFreshAt = Date.now()
-        if (day.value === d) guide.value = g
       } catch (err) {
         error.value = `TV guide load failed: ${err.message}`
         errorCode.value = err.code || ''
@@ -927,9 +933,11 @@ export const EpgView = {
         const g = await api('GET', `/api/epg/guide?day=${d}`)
         if (g.configured === false) return
         guideByDay.clear()
-        rememberDay(d, g)
+        favourites.adopt(() => {
+          rememberDay(d, g)
+          if (day.value === d) guide.value = g
+        })
         dayFreshAt = Date.now()
-        if (day.value === d) guide.value = g
       } catch {
         return
       }
@@ -1136,15 +1144,33 @@ export const EpgView = {
       try { localStorage.setItem(EPG_RAIL_KEY, String(railPx.value)) } catch { /* private mode */ }
     }
 
-    const togglePin = async (ch) => {
-      const pinnedIds = (guide.value?.channels || []).filter((c) => c.pinned).map((c) => String(c.id))
-      try {
-        await togglePinnedChannel({ pinnedIds, channelId: ch.id })
-        await reloadGuide()
-      } catch (err) {
-        flash({ msg: `Favourite failed: ${err.message}`, kind: 'error' })
-      }
+    const guidesHeld = () => {
+      const shown = guide.value
+      const others = [...guideByDay.values()].filter((g) => g !== toRaw(shown))
+      return shown ? [shown, ...others] : others
     }
+
+    const applyFavouritePins = (pins) => {
+      guidesHeld().forEach((g) => {
+        const arranged = arrangeForPins({ channels: g.channels || [], pins, prefs: g })
+        arranged.forEach(({ channel, pinned, hidden }) => {
+          if (channel.pinned !== pinned) channel.pinned = pinned
+          if (channel.hidden !== hidden) channel.hidden = hidden
+        })
+        const order = arranged.map((a) => a.channel)
+        if (order.some((channel, i) => channel !== g.channels[i])) g.channels = order
+      })
+      const today = guideByDay.get(0)
+      if (today) guideStore.keep(today)
+    }
+
+    const favourites = useFavouriteToggle({
+      currentPins,
+      applyPins: applyFavouritePins,
+      isBusy: () => sort.isActive(),
+    })
+    const togglePin = favourites.toggle
+    const isStarred = favourites.isStarred
 
     const openChannelsModal = () => {
       channelsModalMode.value = 'channels'
@@ -1171,8 +1197,10 @@ export const EpgView = {
         try {
           const g = await api('GET', `/api/epg/guide?day=${d}`)
           if (!g.loadingListings?.length) guideByDay.clear()
-          rememberDay(d, g)
-          if (day.value === d) guide.value = g
+          favourites.adopt(() => {
+            rememberDay(d, g)
+            if (day.value === d) guide.value = g
+          })
         } catch {
           refreshWhileListingsLoad()
         }
@@ -1376,7 +1404,7 @@ export const EpgView = {
 
     provide(GUIDE_IMAGES_ON, showImages)
     provide(GUIDE_ROW_CONTEXT, {
-      narrow, pinnedCount, openOrderEditor, canSort, sort, railNum, togglePin,
+      narrow, pinnedCount, openOrderEditor, canSort, sort, railNum, togglePin, isStarred,
       canEditOrder, editingOrder, toggleOrderEditing, railLayout,
       trackWidth, loadingIds, LISTINGS_LOADING_TEXT, nowX, loadingNoteMaxPx, guide, nowMs,
       rowCells, cellViewOf, cellKey, openProgram,

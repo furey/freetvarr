@@ -110,6 +110,15 @@
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
+.live-list.is-favourite-flip {
+  overflow: visible;
+}
+
+.live-row.is-favourite-moving {
+  z-index: 1;
+  background: var(--color-surface-1);
+}
+
 .live-row:first-child {
   border-top: 0;
 }

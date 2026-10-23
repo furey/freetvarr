@@ -1,7 +1,6 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { watchRowLabel } from '/live-info.js'
 import { OFF_AIR_MESSAGE, channelGroupLabel } from '/components/channel-identity.js'
-import { togglePinnedChannel } from '/components/channels-modal.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { onNowPercent } from '/shared/format.js'
 import { animateImagesToggle, viewportWithin } from '/shared/guide-images-motion.js'
@@ -13,6 +12,8 @@ import { canEditOrderOf } from '/guide-rail.js'
 import { useFavouriteOrderSave, useOrderEditing, useSortable } from '/shared/pin-drag.js'
 import { SORT_PART_COMPONENTS } from '/components/sort-parts.js'
 import { arrangeByOrder } from '/sortable-math.js'
+import { arrangeForPins } from '/favourite-queue.js'
+import { useFavouriteToggle } from '/shared/favourite-toggle.js'
 import { useFlash, useMediaQuery } from '/shared/composables.js'
 import { CHANNELS_SAVED_TEXT, PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import { lineupOf, rememberLineup } from '/shared/channel-twins.js'
@@ -108,10 +109,10 @@ export const LiveView = {
                 @keydown="canSort && sort.onKeydown(String(e.channel.id), $event)"
                 @blur="sort.onBlur(String(e.channel.id))"><sort-grip-icon /></button>
               <div class="live-row-lead">
-                <button type="button" :class="['live-star', { pinned: e.channel.pinned }]" :aria-pressed="String(Boolean(e.channel.pinned))"
-                  :title="e.channel.pinned ? 'Remove from favourites' : 'Add to favourites'"
-                  :aria-label="e.channel.pinned ? 'Remove ' + e.channel.name + ' from favourites' : 'Add ' + e.channel.name + ' to favourites'"
-                  @click="togglePin(e.channel)"><star-icon /></button>
+                <button type="button" :class="['live-star', { pinned: isStarred(e.channel) }]" :aria-pressed="String(isStarred(e.channel))"
+                  :title="isStarred(e.channel) ? 'Remove from favourites' : 'Add to favourites'"
+                  :aria-label="isStarred(e.channel) ? 'Remove ' + e.channel.name + ' from favourites' : 'Add ' + e.channel.name + ' to favourites'"
+                  @click="togglePin(e.channel, $event)"><star-icon /></button>
                 <span class="live-logo"><channel-logo :channel-id="e.channel.id" :has-logo="e.channel.hasLogo" /><channel-twin-tag :channel-id="e.channel.id" /></span>
                 <span class="live-number">{{ paddedNumber(e.channel.number) }}</span>
               </div>
@@ -232,7 +233,7 @@ export const LiveView = {
       if (!tvhConfigured.value) return
       try {
         const live = await api('GET', '/api/epg/now?all=1')
-        data.value = live
+        favourites.adopt(() => { data.value = live })
         liveStore.keep(live)
         rememberLineup(lineupOf(live))
         error.value = ''
@@ -282,15 +283,33 @@ export const LiveView = {
       channelsModal.value = true
     }
 
-    const togglePin = async (channel) => {
-      const pinnedIds = currentPins()
-      try {
-        await togglePinnedChannel({ pinnedIds, channelId: channel.id })
-        await load()
-      } catch (err) {
-        flash({ msg: `Favourite failed: ${err.message}`, kind: 'error' })
-      }
+    const applyFavouritePins = (pins) => {
+      const current = data.value
+      if (!current) return
+      const arranged = arrangeForPins({ channels: current.channels || [], pins, prefs: current })
+      const pinnedSet = new Set(pins)
+      const entryById = new Map((current.entries || []).map((e) => [String(e.channel.id), e]))
+      arranged.forEach(({ channel, pinned, hidden }) => {
+        if (channel.pinned !== pinned) channel.pinned = pinned
+        if (channel.hidden !== hidden) channel.hidden = hidden
+      })
+      const entries = arranged.filter((a) => !a.hidden).map((a) => entryById.get(String(a.channel.id))).filter(Boolean)
+      entries.forEach((e) => {
+        const pinned = pinnedSet.has(String(e.channel.id))
+        if (e.channel.pinned !== pinned) e.channel.pinned = pinned
+      })
+      current.channels = arranged.map((a) => a.channel)
+      current.entries = entries
     }
+
+    const favourites = useFavouriteToggle({
+      currentPins,
+      applyPins: applyFavouritePins,
+      isBusy: () => sort.isActive(),
+      flipRows: () => [...(groupsEl.value?.querySelectorAll('.live-row[data-channel-id]') || [])],
+    })
+    const togglePin = favourites.toggle
+    const isStarred = favourites.isStarred
 
     const onChannelPrefsSaved = async () => {
       channelsModal.value = false
@@ -321,7 +340,7 @@ export const LiveView = {
     return {
       data, error, tvhConfigured, filterQ, pinnedOnly, showImages, toggleImages, imagesLeaving, groupsEl, channelsModal, groups, favouritesHint, emptyText,
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
-      OFF_AIR_MESSAGE, load, togglePin, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
+      OFF_AIR_MESSAGE, load, togglePin, isStarred, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
       zoom, pageEl, narrow, dateSubtitle, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,
       isRecordingChannel, onNowPercent, fmtClockTz, kindFilter, showsMovieChip, MOVIE_CHIP_TEXT,
     }

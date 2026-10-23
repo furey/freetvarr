@@ -2420,7 +2420,7 @@ html :is(button, a[href], [role="button"], [role="tab"], [role="option"], summar
   -webkit-touch-callout: none;
 }
 
-html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .ui-row-title-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
+html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .ui-row-title-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner, .epg-pin, .live-star) {
   -webkit-tap-highlight-color: transparent;
   transition-property: background-color, color, border-color, opacity, transform, filter;
   transition-duration: var(--motion-fast);
@@ -2440,7 +2440,7 @@ html :is(.ui-icon-button.is-plain, .btn-link, .ui-row-link, .ui-row-title-link, 
   background-color: rgba(255, 255, 255, 0.08);
 }
 
-html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending) {
+html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .epg-pin, .live-star):active:not(:disabled, .is-pending) {
   transform: scale(0.97);
   transition-duration: 70ms;
 }
@@ -2493,11 +2493,11 @@ html :is(.ui-button, .ui-icon-button, .pl-round, .pl-pill, .pl-control, .ui-chip
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner) {
+  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner, .epg-pin, .live-star) {
     transition-duration: 0.01ms;
   }
 
-  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel):active:not(:disabled, .is-pending),
+  html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .epg-pin, .live-star):active:not(:disabled, .is-pending),
   html .app-nav-item:active .app-nav-pill {
     transform: none;
   }
