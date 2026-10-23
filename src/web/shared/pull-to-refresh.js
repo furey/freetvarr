@@ -4,9 +4,8 @@ import { pollRecordingNow } from '/shared/recording-now.js'
 import { refreshTick } from '/shared/store.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
-import { PULL_SLOP_PX, pullMoveOf } from '/pull-gesture.js'
+import { pullMoveOf, pullOffsetOf, pullProgressOf, isPullCommitted } from '/pull-gesture.js'
 
-const PULL_TRIGGER_PX = 60
 const PULL_HOLD_PX = 52
 const PULL_TICKS = 8
 const PULL_MIN_SPIN_MS = 600
@@ -33,10 +32,6 @@ const pullBlocked = (e) => window.scrollY > 0
   || Boolean(e.target.closest?.('.ui-sheet-backdrop, .ui-search-backdrop, .epg-row.pinned .epg-rail-cell, .live-row.pinned .live-row-handle'))
   || hasScrolledAncestor(e.target)
 
-const clamp01 = (n) => Math.min(1, Math.max(0, n))
-
-const rubberBand = (dragged, span = window.innerHeight) => (1 - 1 / ((dragged * 0.55) / span + 1)) * span
-
 const refreshInPlace = async () => {
   refreshTick.value += 1
   await Promise.all([loadSyncStatus(), pollRecordingNow(), wait(PULL_MIN_SPIN_MS)])
@@ -60,6 +55,7 @@ export const installPullToRefresh = ({ onRefresh }) => {
   let claimed = false
   let committed = false
   let offset = 0
+  let progress = 0
   let refreshing = false
   let frame = 0
   const settleTransition = () => (prefersReducedMotion()
@@ -76,10 +72,11 @@ export const installPullToRefresh = ({ onRefresh }) => {
       bar.style.transform = offset ? `translate3d(0, ${-offset}px, 0)` : ''
     }
     indicator.style.transform = `translate3d(-50%, ${offset / 2}px, 0)`
-    indicator.style.setProperty('--pull-progress', clamp01(offset / PULL_TRIGGER_PX))
+    indicator.style.setProperty('--pull-progress', progress)
   }
-  const place = (px, { animate = false } = {}) => {
+  const place = (px, { animate = false, pullProgress = 0 } = {}) => {
     offset = px
+    progress = pullProgress
     cancelAnimationFrame(frame)
     frame = requestAnimationFrame(() => render(animate))
   }
@@ -137,8 +134,8 @@ export const installPullToRefresh = ({ onRefresh }) => {
     if (e.cancelable) e.preventDefault()
     if (move === 'hold') return
     claimed = true
-    place(rubberBand(Math.max(0, dy - PULL_SLOP_PX)))
-    if (!committed && offset >= PULL_TRIGGER_PX) commit()
+    place(pullOffsetOf({ dy, span: window.innerHeight }), { pullProgress: pullProgressOf(dy) })
+    if (!committed && isPullCommitted(dy)) commit()
   }, { passive: false })
   window.addEventListener('touchend', (e) => {
     if (!start || e.touches.length > 0) return
