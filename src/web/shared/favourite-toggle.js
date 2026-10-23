@@ -1,6 +1,6 @@
 import { nextTick, onUnmounted, reactive } from '/vendor/vue.esm-browser.prod.js'
 import { changedPins, createFavouriteToggle } from '/favourite-queue.js'
-import { saveChannelPrefs } from '/shared/channel-prefs.js'
+import { channelPrefsSaveCount, saveChannelPrefs } from '/shared/channel-prefs.js'
 import { toast } from '/shared/toast.js'
 
 export const useFavouriteToggle = ({ currentPins, applyPins, isBusy, rows, groups = null, moveMs = MOVE_MS }) => {
@@ -37,7 +37,11 @@ export const useFavouriteToggle = ({ currentPins, applyPins, isBusy, rows, group
 
   onUnmounted(favourites.cancel)
 
-  return { toggle, isStarred: favourites.isStarred, adopt: favourites.adopt }
+  const adopt = (replace, ticket = null) => favourites.adopt(replace, {
+    stale: ticket !== null && ticket !== channelPrefsSaveCount(),
+  })
+
+  return { toggle, isStarred: favourites.isStarred, adopt, ticket: channelPrefsSaveCount }
 }
 
 const pop = (icon) => {

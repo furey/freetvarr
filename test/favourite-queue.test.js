@@ -206,6 +206,23 @@ test('incoming data keeps the local placement while a change is unsettled or uns
   assert.deepEqual(view.state.pins, ['1', '2', '3'])
 })
 
+test('a settled response from a request started before the save keeps the local pins', async () => {
+  const timers = fakeTimers()
+  const { save, calls } = controlledSave()
+  const view = viewOf(['1'])
+  const favourites = createFavouriteToggle({ save, ...view, timers })
+  favourites.toggle(view.channel('2'))
+  timers.runAll()
+  await flush()
+  calls[0].resolve()
+  await flush()
+  assert.equal(favourites.isUnsettled(), false)
+  favourites.adopt(() => { view.state.pins = ['1'] }, { stale: true })
+  assert.deepEqual(view.state.pins, ['1', '2'])
+  favourites.adopt(() => { view.state.pins = ['1', '2', '5'] })
+  assert.deepEqual(view.state.pins, ['1', '2', '5'])
+})
+
 test('a failed save rolls the star and the rows back and reports the error', async () => {
   const timers = fakeTimers()
   const { save, calls } = controlledSave()

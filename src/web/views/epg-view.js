@@ -796,6 +796,7 @@ export const EpgView = {
       }
       loading.value = true
       try {
+        const ticket = favourites.ticket()
         const g = await api('GET', `/api/epg/guide?day=${d}`)
         if (g.configured === false) {
           errorCode.value = 'no-url'
@@ -804,7 +805,7 @@ export const EpgView = {
         favourites.adopt(() => {
           rememberDay(d, g)
           if (day.value === d) guide.value = g
-        })
+        }, ticket)
         dayFreshAt = Date.now()
       } catch (err) {
         error.value = `TV guide load failed: ${err.message}`
@@ -931,13 +932,14 @@ export const EpgView = {
     const refreshDayQuietly = async ({ withState = true } = {}) => {
       const d = day.value
       try {
+        const ticket = favourites.ticket()
         const g = await api('GET', `/api/epg/guide?day=${d}`)
         if (g.configured === false) return
         guideByDay.clear()
         favourites.adopt(() => {
           rememberDay(d, g)
           if (day.value === d) guide.value = g
-        })
+        }, ticket)
         dayFreshAt = Date.now()
       } catch {
         return
@@ -1198,12 +1200,13 @@ export const EpgView = {
       listingsTimer = setTimeout(async () => {
         const d = day.value
         try {
+          const ticket = favourites.ticket()
           const g = await api('GET', `/api/epg/guide?day=${d}`)
           if (!g.loadingListings?.length) guideByDay.clear()
           favourites.adopt(() => {
             rememberDay(d, g)
             if (day.value === d) guide.value = g
-          })
+          }, ticket)
         } catch {
           refreshWhileListingsLoad()
         }

@@ -63,8 +63,8 @@ export const createFavouriteToggle = ({
 
   const placementToKeep = () => (intended || placesRunning || queue.isPending() ? currentPins() : null)
 
-  const adopt = (replace) => {
-    const keep = placementToKeep()
+  const adopt = (replace, { stale = false } = {}) => {
+    const keep = placementToKeep() ?? (stale ? currentPins() : null)
     replace()
     if (keep) applyPins(keep, { animate: false })
   }

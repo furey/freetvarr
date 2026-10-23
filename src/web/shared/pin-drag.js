@@ -3,7 +3,7 @@ import {
   autoScrollStep, cancelledText, clampOffset, keyboardTarget, mergeVisibleOrder, moveItem,
   movedText, offsetsFor, pickedUpText, positionText, slotOffsetFor, targetIndexFor,
 } from '/sortable-math.js'
-import { api } from '/shared/api.js'
+import { saveChannelPrefs } from '/shared/channel-prefs.js'
 import { toast } from '/shared/toast.js'
 
 export const setDragLock = (on) => {
@@ -299,7 +299,7 @@ export const useOrderEditing = ({ canEdit }) => {
 }
 
 export const useFavouriteOrderSave = ({ currentPins, applyOrder, reload }) => {
-  const savePins = (pins) => api('PUT', '/api/epg/channel-prefs', { pinned_ids: pins })
+  const savePins = (pins) => saveChannelPrefs({ pinned_ids: pins })
 
   const onDrop = async ({ order }) => {
     const pins = mergeVisibleOrder({ all: currentPins(), visible: order })

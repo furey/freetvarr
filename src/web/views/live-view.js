@@ -232,8 +232,9 @@ export const LiveView = {
       }
       if (!tvhConfigured.value) return
       try {
+        const ticket = favourites.ticket()
         const live = await api('GET', '/api/epg/now?all=1')
-        favourites.adopt(() => { data.value = live })
+        favourites.adopt(() => { data.value = live }, ticket)
         liveStore.keep(live)
         rememberLineup(lineupOf(live))
         error.value = ''
