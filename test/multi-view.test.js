@@ -25,6 +25,7 @@ import {
   shownLayoutOf,
   slotCountOf,
   tileBoxesOf,
+  stopPlanOf,
 } from '../src/web/multi-view.js'
 
 test('tapping Muted gives that picture the sound and mutes the other', () => {
@@ -205,4 +206,27 @@ test('the strip sits to the right when landscape and below when portrait', () =>
   assert.ok(below.every((box) => inside(box, portraitArea)))
   const short = { left: 0, top: 0, width: 1000, height: 300 }
   assert.ok(tileBoxesOf({ layout: 'strip', slots: 4, area: short }).every((box) => inside(box, short)))
+})
+
+test('stopPlanOf: with more than 2 pictures only the chosen picture goes', () => {
+  const survivor = { channel: { id: 'b' }, sessionId: null }
+  assert.equal(stopPlanOf({ picture: 'primary', count: 3, survivor }), 'remove-one')
+  assert.equal(stopPlanOf({ picture: 'third', count: 4, survivor }), 'remove-one')
+})
+
+test('stopPlanOf: stopping the companion keeps the primary', () => {
+  assert.equal(stopPlanOf({ picture: 'secondary', count: 2, survivor: { channel: { id: 'b' }, sessionId: 's2' } }), 'keep-primary')
+})
+
+test('stopPlanOf: stopping the primary adopts a companion session', () => {
+  assert.equal(stopPlanOf({ picture: 'primary', count: 2, survivor: { channel: { id: 'b' }, sessionId: 's2' } }), 'adopt')
+})
+
+test('stopPlanOf: stopping the primary retunes a companion that has no session yet or has ended', () => {
+  assert.equal(stopPlanOf({ picture: 'primary', count: 2, survivor: { channel: { id: 'b' }, sessionId: null } }), 'retune')
+})
+
+test('stopPlanOf: stopping the primary keeps it when no companion channel exists', () => {
+  assert.equal(stopPlanOf({ picture: 'primary', count: 2, survivor: undefined }), 'keep-primary')
+  assert.equal(stopPlanOf({ picture: 'primary', count: 2, survivor: { channel: null, sessionId: null } }), 'keep-primary')
 })

@@ -69,6 +69,12 @@ export const promoteIntoPrimary = (state, companion) => {
   return { ...state, order, audible: audibleAfterPromotion({ audible: state.audible, companion, order }) }
 }
 
+export const stopPlanOf = ({ picture, count, survivor }) => {
+  if (count > 2) return 'remove-one'
+  if (picture !== 'primary' || !survivor?.channel) return 'keep-primary'
+  return survivor.sessionId ? 'adopt' : 'retune'
+}
+
 export const pictureLimitOf = ({ compact, streams }) => {
   const device = compact ? COMPACT_PICTURE_LIMIT : MAX_PICTURES
   const shared = streams?.max > 0 ? streams.max : MAX_PICTURES

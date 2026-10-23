@@ -14,6 +14,7 @@ import {
   soundAfterStop,
   canAddPictureOf,
   nextPictureOf,
+  stopPlanOf,
   COMPANIONS,
   PICTURES,
 } from '/multi-view.js'
@@ -234,17 +235,19 @@ export const changePictureChannel = ({ picture, channel }) => {
 
 export const stopWatchingPicture = (picture) => {
   if (picture === 'primary') closeLivePictureInPicture()
-  if (multi.view.order.length > 2) return removeOneOfMany(picture)
-  if (picture !== 'primary' || !multi.companions[companionsShown()[0]]?.sessionId) {
+  const survivor = companionsShown()[0]
+  const plan = stopPlanOf({ picture, count: multi.view.order.length, survivor: multi.companions[survivor] })
+  if (plan === 'remove-one') return removeOneOfMany(picture)
+  if (plan === 'keep-primary') {
     for (const id of companionsShown()) stopCompanion(id)
     return exitMultiKeepingSound('primary')
   }
-  const survivor = companionsShown()[0]
   const { channel, sessionId, playlist, bufferSeconds, captions } = multi.companions[survivor]
   releaseCompanionVideo(survivor)
   multi.companions[survivor] = emptyCompanion()
   exitMultiKeepingSound(survivor)
-  adoptLiveSession({ channel, session: { id: sessionId, playlist, bufferSeconds, captions } })
+  if (plan === 'adopt') return adoptLiveSession({ channel, session: { id: sessionId, playlist, bufferSeconds, captions } })
+  retuneLive({ channel, nowTitle: '' })
 }
 
 export const fullScreenPicture = (picture) => {
