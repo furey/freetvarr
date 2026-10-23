@@ -73,6 +73,7 @@ export const installPullToRefresh = ({ onRefresh }) => {
     }
     indicator.style.transform = `translate3d(-50%, ${offset / 2}px, 0)`
     indicator.style.setProperty('--pull-progress', progress)
+    indicator.classList.toggle('pulling', progress > 0)
   }
   const place = (px, { animate = false, pullProgress = 0 } = {}) => {
     offset = px
@@ -125,7 +126,7 @@ export const installPullToRefresh = ({ onRefresh }) => {
     const touch = e.touches[0]
     const dx = touch.clientX - start.x
     const dy = touch.clientY - start.y
-    const move = pullMoveOf({ dx, dy, claimed })
+    const move = pullMoveOf({ dx, dy, claimed, cancelable: e.cancelable })
     if (move === 'wait') return
     if (move === 'abandon') {
       start = null

@@ -2356,7 +2356,15 @@ body.epg-drag-lock * {
   height: var(--pull-size);
   color: var(--color-text-2);
   transform: translate3d(-50%, 0, 0);
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+}
+
+.pull-refresh.pulling,
+.pull-refresh.refreshing {
+  opacity: 1;
+  visibility: visible;
 }
 
 .pull-refresh-spinner {

@@ -37,6 +37,12 @@ test('pullMoveOf keeps pulling once claimed, whatever the direction', () => {
   assert.equal(pullMoveOf({ dx: 0, dy: -20, claimed: true }), 'pull')
 })
 
+test('pullMoveOf abandons an unclaimed move the browser already scrolls natively', () => {
+  assert.equal(pullMoveOf({ dx: 0, dy: 2, claimed: false, cancelable: false }), 'abandon')
+  assert.equal(pullMoveOf({ dx: 0, dy: 30, claimed: false, cancelable: false }), 'abandon')
+  assert.equal(pullMoveOf({ dx: 0, dy: 30, claimed: true, cancelable: false }), 'pull')
+})
+
 test('pull travel stays zero through the slop and the dead zone', () => {
   assert.equal(pullTravelOf(30), 0)
   assert.equal(pullTravelOf(PULL_SLOP_PX + PULL_DEADZONE_PX), 0)
@@ -46,6 +52,13 @@ test('pull travel stays zero through the slop and the dead zone', () => {
 test('a slight pull shows no indicator and moves no page', () => {
   assert.equal(pullProgressOf(30), 0)
   assert.equal(pullOffsetOf({ dy: 30, span: 800 }), 0)
+})
+
+test('the indicator stays hidden until the finger passes the slop and the dead zone', () => {
+  const edge = PULL_SLOP_PX + PULL_DEADZONE_PX
+  assert.equal(pullProgressOf(edge), 0)
+  assert.equal(pullOffsetOf({ dy: edge, span: 800 }), 0)
+  assert.ok(pullProgressOf(edge + 1) > 0)
 })
 
 test('progress and offset grow past the dead zone', () => {

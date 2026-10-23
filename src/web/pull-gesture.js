@@ -5,8 +5,9 @@ export const PULL_VERTICAL_RATIO = 2
 
 const rubberBandOf = (dragged, span) => (1 - 1 / ((dragged * 0.55) / span + 1)) * span
 
-export const pullMoveOf = ({ dx, dy, claimed }) => {
+export const pullMoveOf = ({ dx, dy, claimed, cancelable = true }) => {
   if (claimed) return 'pull'
+  if (!cancelable) return 'abandon'
   const isDownward = dy > 0 && dy > PULL_VERTICAL_RATIO * Math.abs(dx)
   const insideSlop = Math.abs(dx) < PULL_SLOP_PX && Math.abs(dy) < PULL_SLOP_PX
   if (insideSlop) return isDownward ? 'hold' : 'wait'
