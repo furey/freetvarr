@@ -12,19 +12,33 @@ import { snapshotProgress } from './progress.js'
 
 export const getRecordingNow = async ({ nowMs = Date.now() } = {}) => {
   if (cache && cache.expiresAt > nowMs) return cache.value
+  if (failure && failure.retryAt > nowMs) return lastGoodOr(failure.err)
   if (inflight) return inflight
   inflight = loadRecordingNow(nowMs)
     .then((value) => {
       cache = { value, expiresAt: nowMs + CACHE_MS }
+      failure = null
       return value
     })
     .catch((err) => {
-      if (cache) return { ...cache.value, stale: true }
-      throw err
+      if (!isConfigurationError(err)) failure = nextFailure({ err, nowMs })
+      return lastGoodOr(err)
     })
     .finally(() => { inflight = null })
   return inflight
 }
+
+const lastGoodOr = (err) => {
+  if (cache) return { ...cache.value, stale: true }
+  throw err
+}
+
+const nextFailure = ({ err, nowMs }) => {
+  const count = (failure?.count ?? 0) + 1
+  return { err, count, retryAt: nowMs + Math.min(FAILURE_MAX_BACKOFF_MS, FAILURE_BACKOFF_MS * 2 ** (count - 1)) }
+}
+
+const isConfigurationError = (err) => err?.stage === 'config'
 
 export const invalidateRecordingNow = () => {
   cache = null
@@ -225,6 +239,7 @@ const trackRecentlyEnded = async ({ conn, nowMs }) => {
       endedAt: recording.stopPadded,
       outcome: recordingOutcome(recording),
       settledAt: null,
+      endedWhileStopped: true,
     })
   }
 }
@@ -249,6 +264,12 @@ const announceFinished = (recording) => finishedListeners.forEach((listener) => 
   }
 })
 
+const announceEndedWhileStopped = ({ entry, awaitingRow }) => {
+  if (!entry.endedWhileStopped || !finishedListeners.size) return
+  entry.endedWhileStopped = false
+  if (awaitingRow) announceFinished(entry.recording)
+}
+
 const describeEnded = async ({ nowMs, importContext }) => {
   const ended = [...tracked.values()].filter((t) => t.endedAt != null)
   if (!ended.length) return { journeys: [], finishing: [] }
@@ -269,6 +290,7 @@ const describeEnded = async ({ nowMs, importContext }) => {
       continue
     }
     const awaitingRow = isAwaitingRow({ entry, row, nowMs })
+    announceEndedWhileStopped({ entry, awaitingRow })
     if (awaitingRow) {
       finishing.push(finishingOf({
         entry,
@@ -397,9 +419,12 @@ const tracked = new Map()
 const finishedListeners = new Set()
 let bootstrapped = false
 let cache = null
+let failure = null
 let inflight = null
 
 const CACHE_MS = 4000
+const FAILURE_BACKOFF_MS = 5000
+const FAILURE_MAX_BACKOFF_MS = 60_000
 const JOURNEY_LINGER_MS = 10 * 60 * 1000
 const JOURNEY_MAX_AGE_MS = 12 * 60 * 60 * 1000
 const BOOTSTRAP_WINDOW_MS = 60 * 60 * 1000
