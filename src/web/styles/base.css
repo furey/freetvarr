@@ -734,23 +734,6 @@ body.sheet-open .app-tabbar {
   pointer-events: none;
 }
 
-.classification-chip.is-g {
-  background: #1f9d55;
-}
-
-.classification-chip.is-pg {
-  background: #f2c230;
-  color: #1a1400;
-}
-
-.classification-chip.is-m {
-  background: #1f6fd1;
-}
-
-.classification-chip.is-ma {
-  background: #d7263d;
-}
-
 .programme-classification-wrap {
   position: absolute;
   right: 10px;
@@ -779,6 +762,23 @@ body.sheet-open .app-tabbar {
 .programme-classification-wrap > .programme-classification:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+:is(.classification-chip, .programme-classification).is-g {
+  background: #1f9d55;
+}
+
+:is(.classification-chip, .programme-classification).is-pg {
+  background: #f2c230;
+  color: #1a1400;
+}
+
+:is(.classification-chip, .programme-classification).is-m {
+  background: #1f6fd1;
+}
+
+:is(.classification-chip, .programme-classification).is-ma {
+  background: #d7263d;
 }
 
 .programme-score-card.programme-classification-card {

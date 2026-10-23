@@ -1170,23 +1170,6 @@
   pointer-events: none;
 }
 
-.programme-classification.is-g {
-  background: #1f9d55;
-}
-
-.programme-classification.is-pg {
-  background: #f2c230;
-  color: #1a1400;
-}
-
-.programme-classification.is-m {
-  background: #1f6fd1;
-}
-
-.programme-classification.is-ma {
-  background: #d7263d;
-}
-
 .programme-score-loading {
   position: absolute;
   left: 10px;
