@@ -217,6 +217,12 @@ test('GET artwork-stamps lists the stamps of every show with a pick', async () =
   await call('DELETE', '/api/library/shows/the-block/artwork/poster')
 })
 
+test('artworkCandidatesOf offers TMDB backgrounds at the original size as backgrounds', () => {
+  const original = 'https://image.tmdb.org/t/p/original/back.jpg'
+  const candidates = artworkCandidatesOf({ automatic: { library: [], fallback: [original], guide: [] } })
+  assert.deepEqual(candidates.map((c) => [c.source, c.kind, c.origin]), [['tmdb', 'background', original]])
+})
+
 test('artworkCandidatesOf offers every TMDB background and poster the lookup found', () => {
   const base = 'https://image.tmdb.org/t/p'
   const backgrounds = Array.from({ length: 8 }, (_, at) => `${base}/w1280/b${at}.jpg`)

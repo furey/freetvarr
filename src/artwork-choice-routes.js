@@ -291,7 +291,7 @@ const plexPathKindOf = (path) => {
 const fallbackEntriesOf = (source) => {
   const host = hostOf(source)
   if (host === 'image.tmdb.org') {
-    if (source.includes('/w1280/')) return [{ origin: source, kind: 'background', source: 'tmdb' }]
+    if (/\/t\/p\/(w1280|original)\//.test(source)) return [{ origin: source, kind: 'background', source: 'tmdb' }]
     if (source.includes('/w780/')) return [{ origin: source, kind: 'poster', source: 'tmdb' }]
     return []
   }
