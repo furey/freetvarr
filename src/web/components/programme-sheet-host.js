@@ -161,7 +161,7 @@ export const ProgrammeSheetHost = {
     <teleport to="body">
     <transition name="ui-sheet">
     <div v-if="hdOffer" class="ui-sheet-backdrop programme-sheet-backdrop is-top" @click.self="hdOffer = null">
-      <section ref="hdSheetEl" class="ui-sheet programme-sheet is-compact" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title"
+      <section ref="hdSheetEl" class="ui-sheet programme-sheet is-compact" role="alertdialog" aria-modal="true" aria-labelledby="hd-offer-title" tabindex="-1"
         @touchstart.passive="hdDrag.onTouchStart" @touchmove="hdDrag.onTouchMove" @touchend="hdDrag.onTouchEnd" @touchcancel="hdDrag.onTouchCancel">
         <button type="button" class="ui-sheet-grab" aria-label="Close" @click="hdDrag.onHandleClick"></button>
         <header class="ui-sheet-header">
@@ -542,7 +542,11 @@ export const ProgrammeSheetHost = {
       try { document.body.classList.toggle('sheet-open', open || overlayStack.size() > 0) } catch { /* ignore */ }
     }, { flush: 'post' })
 
+    let sheetToken = 0
+
     const showProgramme = ({ program, channel, focus = '' }) => {
+      sheetToken += 1
+      modalBusy.value = false
       leadTime.value = 2
       lagTime.value = 10
       episodesToKeep.value = 0
@@ -652,20 +656,24 @@ export const ProgrammeSheetHost = {
     const recordSelectedSeries = () => (!anyChannel.value && offerHdFirst('record-series')) || recordSeries()
 
     const runSheetAction = async ({ key, task, failure }) => {
+      const token = sheetToken
+      const isSameSheet = () => token === sheetToken
       modalBusy.value = true
       modalAction.value = key
       try {
-        await task()
+        await task(token)
       } catch (err) {
-        setModalStatus(`${failure}: ${err.message}`, 'err', 8000)
+        if (isSameSheet()) setModalStatus(`${failure}: ${err.message}`, 'err', 8000)
       } finally {
-        modalBusy.value = false
-        modalAction.value = ''
+        if (isSameSheet()) {
+          modalBusy.value = false
+          modalAction.value = ''
+        }
       }
     }
 
-    const afterRecordingChange = async () => {
-      closeModal()
+    const afterRecordingChange = async (token = sheetToken) => {
+      if (token === sheetToken) closeModal()
       refreshAfterRecordingChange()
       await loadEpgState({ fresh: true })
     }
@@ -675,7 +683,7 @@ export const ProgrammeSheetHost = {
       return runSheetAction({
         key: 'record',
         failure: 'Record failed',
-        task: async () => {
+        task: async (token) => {
           await holdAtLeast({ task: () => api('POST', '/api/epg/record', {
             channel_id: channel?.id ?? program.channelId,
             program_id: program.program_id,
@@ -685,7 +693,7 @@ export const ProgrammeSheetHost = {
             add_to_library: addToLibrary.value,
           }) })
           flash({ msg: `Scheduled "${program.title}".` })
-          await afterRecordingChange()
+          await afterRecordingChange(token)
         },
       })
     }
@@ -695,7 +703,7 @@ export const ProgrammeSheetHost = {
       return runSheetAction({
         key: 'record-series',
         failure: 'Series record failed',
-        task: async () => {
+        task: async (token) => {
           const result = await holdAtLeast({ task: () => api('POST', '/api/epg/record-series', {
             series_link: program.series_link,
             channel_id: channel?.id ?? program.channelId,
@@ -709,7 +717,7 @@ export const ProgrammeSheetHost = {
           }) })
           const ruleNote = result.showRule ? ` Episodes go into ${result.showRule.dest_folder}.` : ''
           flash({ msg: `Series recording set for "${program.title}".${ruleNote}` })
-          await afterRecordingChange()
+          await afterRecordingChange(token)
         },
       })
     }
@@ -725,10 +733,10 @@ export const ProgrammeSheetHost = {
       return runSheetAction({
         key: 'cancel',
         failure: 'Cancel failed',
-        task: async () => {
+        task: async (token) => {
           const result = await holdAtLeast({ task: () => api('POST', '/api/epg/cancel', { program_id: program.program_id }) })
           flash({ msg: cancelledMessage({ title: program.title, result }) })
-          await afterRecordingChange()
+          await afterRecordingChange(token)
         },
       })
     }
@@ -772,7 +780,7 @@ export const ProgrammeSheetHost = {
       return runSheetAction({
         key: 'cancel-series',
         failure: 'Cancel failed',
-        task: async () => {
+        task: async (token) => {
           try {
             await holdAtLeast({ task: () => api('POST', '/api/epg/cancel-series', {
               series_link_id: step.link,
@@ -780,11 +788,11 @@ export const ProgrammeSheetHost = {
               title_match_id: removeTitleMatch ? step.titleMatch.id : null,
             }) })
           } catch (err) {
-            cancelSeriesStep.value = null
+            if (token === sheetToken) cancelSeriesStep.value = null
             throw err
           }
           flash({ msg: `Cancelled the series recording of "${step.title}".` })
-          await Promise.all([afterRecordingChange(), loadShowRules()])
+          await Promise.all([afterRecordingChange(token), loadShowRules()])
         },
       })
     }
@@ -792,9 +800,22 @@ export const ProgrammeSheetHost = {
     const drag = useSheetDrag({ sheet: sheetEl, onClose: () => closeModal(), canDrag: () => !modalBusy.value })
     const hdDrag = useSheetDrag({ sheet: hdSheetEl, onClose: () => { hdOffer.value = null } })
 
+    let hdOfferReturnFocus = null
+    watch(() => Boolean(hdOffer.value), async (offered) => {
+      if (offered) {
+        hdOfferReturnFocus = document.activeElement
+        await nextTick()
+        const primary = hdSheetEl.value?.querySelector('.programme-sheet-primary')
+        return (primary || hdSheetEl.value)?.focus()
+      }
+      if (hdOfferReturnFocus?.isConnected) hdOfferReturnFocus.focus()
+      hdOfferReturnFocus = null
+    })
+
     const onKeydown = (e) => {
       if (!selected.value || (layerId != null && !overlayStack.isTop(layerId))) return
-      if (e.key === 'Tab' && !hdOffer.value && sheetEl.value) return keepFocusInside({ event: e, root: sheetEl.value })
+      const focusRoot = hdOffer.value ? hdSheetEl.value : sheetEl.value
+      if (e.key === 'Tab' && focusRoot) return keepFocusInside({ event: e, root: focusRoot })
       if (e.key !== 'Escape') return
       e.stopImmediatePropagation()
       e.preventDefault()
