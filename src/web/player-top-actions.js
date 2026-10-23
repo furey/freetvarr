@@ -19,6 +19,21 @@ export const LABELLED_PILL_WIDTHS = {
 
 export const MENU_ORDER = ['info', 'series', 'multiview', 'minimise', 'airplay']
 
+export const topBarActionsOf = ({ actions = [], canMinimise, infoOpen, infoId, prePlay }) => {
+  if (prePlay) return []
+  return [
+    ...actions,
+    canMinimise && {
+      key: 'minimise', order: 2, priority: 3, icon: 'minimise-icon', label: 'Miniplayer', ariaLabel: 'Miniplayer',
+      menuLabel: 'Miniplayer',
+    },
+    {
+      key: 'info', order: 4, priority: 1, icon: 'info-icon', label: 'Info', ariaLabel: 'Programme info', menuLabel: 'Programme info',
+      pressed: infoOpen, expanded: infoOpen, controls: infoId,
+    },
+  ].filter((action) => action && !action.hidden)
+}
+
 export const topBarLayoutOf = ({
   barWidth,
   gap,

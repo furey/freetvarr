@@ -1782,8 +1782,14 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
   }
 }
 
-.pl-frame:is(.is-tune-in, .is-heading-held) .pl-heading {
+.pl-frame:is(.is-tune-in, .is-heading-held) :is(.pl-logo, .pl-heading) {
   opacity: 0;
+}
+
+@starting-style {
+  .pl-frame .pl-actions > * {
+    opacity: 0;
+  }
 }
 
 .pl-frame.is-tune-in-exit .live-info-leave-active {

@@ -8,6 +8,7 @@ import {
   tuneInExitWaitMs,
   isSlowTune,
   showsTuneInBadge,
+  showsPrePlayChrome,
 } from '../src/web/tune-in-info.js'
 
 test('a first tune shows the programme info', () => {
@@ -80,4 +81,17 @@ test('canDismissTuneIn: the info cannot be closed until the stream is playing', 
   assert.equal(canDismissTuneIn({ phase: 'tuning' }), false)
   assert.equal(canDismissTuneIn({ phase: 'error' }), false)
   assert.equal(canDismissTuneIn({ phase: 'live' }), true)
+})
+
+test('showsPrePlayChrome: the top bar stays trimmed while tuning', () => {
+  assert.equal(showsPrePlayChrome({ phase: 'tuning', headingHeld: false }), true)
+})
+
+test('showsPrePlayChrome: the trim holds after playback starts until the controls next show', () => {
+  assert.equal(showsPrePlayChrome({ phase: 'live', headingHeld: true }), true)
+  assert.equal(showsPrePlayChrome({ phase: 'live', headingHeld: false }), false)
+})
+
+test('showsPrePlayChrome: a failed tune shows the full top bar', () => {
+  assert.equal(showsPrePlayChrome({ phase: 'ended', headingHeld: false }), false)
 })

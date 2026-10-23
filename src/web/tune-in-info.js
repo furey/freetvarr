@@ -19,3 +19,5 @@ export const isSlowTune = ({ phase, startedAtMs, nowMs }) =>
 export const canDismissTuneIn = ({ phase }) => phase === 'live'
 
 export const showsTuneInBadge = ({ key, panelKey }) => Boolean(key) && key !== panelKey
+
+export const showsPrePlayChrome = ({ phase, headingHeld }) => phase === 'tuning' || Boolean(headingHeld)

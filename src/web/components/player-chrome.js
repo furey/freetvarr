@@ -2,6 +2,7 @@ import { ref, computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.p
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
 import { soundToggleOf, playerMenuItemsOf } from '/player-mute.js'
 import {
+  topBarActionsOf,
   topBarLayoutOf,
   optionalWidthOf,
   moreMenuKeysOf,
@@ -33,6 +34,7 @@ export const PlayerTopBar = {
     muted: Boolean,
     actions: { type: Array, default: () => [] },
     hasRecord: Boolean,
+    prePlay: Boolean,
   },
   emits: ['back', 'toggle-info', 'toggle-captions', 'toggle-fullscreen', 'toggle-pip', 'minimise', 'toggle-mute', 'action'],
   setup(props, { emit }) {
@@ -42,17 +44,9 @@ export const PlayerTopBar = {
     const measure = ref({ barWidth: 0, frameWidth: 0, gap: 10, actionsGap: 8 })
     const sound = computed(() => soundToggleOf({ muted: props.muted }))
 
-    const allActions = computed(() => [
-      ...props.actions,
-      props.canMinimise && {
-        key: 'minimise', order: 2, priority: 3, icon: 'minimise-icon', label: 'Miniplayer', ariaLabel: 'Miniplayer',
-        menuLabel: 'Miniplayer',
-      },
-      {
-        key: 'info', order: 4, priority: 1, icon: 'info-icon', label: 'Info', ariaLabel: 'Programme info', menuLabel: 'Programme info',
-        pressed: props.infoOpen, expanded: props.infoOpen, controls: props.infoId,
-      },
-    ].filter((action) => action && !action.hidden))
+    const allActions = computed(() => topBarActionsOf({
+      actions: props.actions, canMinimise: props.canMinimise, infoOpen: props.infoOpen, infoId: props.infoId, prePlay: props.prePlay,
+    }))
 
     const layout = computed(() => {
       const { barWidth, frameWidth, gap, actionsGap } = measure.value
@@ -82,7 +76,7 @@ export const PlayerTopBar = {
         .map(menuItemOf),
       hasCaptions: props.hasCaptions,
       captionsOn: props.captionsOn,
-      canPip: props.canPip,
+      canPip: props.canPip && !props.prePlay,
       pipActive: props.pipActive,
       fullscreen: props.fullscreen,
     }))

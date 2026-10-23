@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  topBarActionsOf,
   topBarLayoutOf,
   optionalWidthOf,
   menuOrderOf,
@@ -129,4 +130,17 @@ test('a labelled Miniplayer drops to the menu after Multiview and before Series'
     const order = ['multiview', 'minimise', 'series', 'info'].slice(0, overflow.length)
     assert.deepEqual([...overflow].sort(), [...order].sort())
   }
+})
+
+test('topBarActionsOf adds Miniplayer and Info after the player actions', () => {
+  const actions = topBarActionsOf({
+    actions: [{ key: 'series' }, { key: 'multiview', hidden: true }], canMinimise: true, infoOpen: true, infoId: 'live-info',
+  })
+  assert.deepEqual(actions.map((action) => action.key), ['series', 'minimise', 'info'])
+  assert.equal(actions.at(-1).pressed, true)
+  assert.equal(actions.at(-1).controls, 'live-info')
+})
+
+test('topBarActionsOf drops every optional action before playback starts', () => {
+  assert.deepEqual(topBarActionsOf({ actions: [{ key: 'series' }], canMinimise: true, infoOpen: false, infoId: 'live-info', prePlay: true }), [])
 })

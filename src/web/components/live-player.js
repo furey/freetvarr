@@ -95,7 +95,7 @@ import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/rec
 import { programmeSheetOpen, useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, fmtClockTz } from '/shared/time.js'
 import { controlsHideMsOf } from '/controls-hide.js'
-import { TUNE_IN_EXIT_MS, startsTuneInInfo, confirmedChannelAfter, tuneInExitWaitMs, isSlowTune, showsTuneInBadge, canDismissTuneIn } from '/tune-in-info.js'
+import { TUNE_IN_EXIT_MS, startsTuneInInfo, confirmedChannelAfter, tuneInExitWaitMs, isSlowTune, showsTuneInBadge, canDismissTuneIn, showsPrePlayChrome } from '/tune-in-info.js'
 
 export const LivePlayer = {
   components: {
@@ -166,9 +166,9 @@ export const LivePlayer = {
           :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
           @back="stopLive" @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @toggle-fullscreen="toggleLiveFullscreen"
           @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
-          :actions="topActions" has-record @action="onTopAction">
+          :actions="topActions" :has-record="!prePlayChrome" :pre-play="prePlayChrome" @action="onTopAction">
           <template #default="{ compact }">
-            <button type="button" :class="['pl-pill', 'is-record', { 'is-recording': recordButton.recording, 'is-compact': compact }]"
+            <button v-if="!prePlayChrome" type="button" :class="['pl-pill', 'is-record', { 'is-recording': recordButton.recording, 'is-compact': compact }]"
               :disabled="recordButton.disabled" :title="recordButton.title" :aria-label="recordButton.ariaLabel" @click="recordFromLive">
               <span class="pl-record-dot" aria-hidden="true"></span><span class="pl-record-text">{{ recordButton.recording ? 'Recording' : 'Record' }}</span>
             </button>
@@ -252,7 +252,12 @@ export const LivePlayer = {
       if (!tuneInInfo.value) return
       tuneInExit.value = true
       tuneInInfo.value = false
-      tuneInExitTimer = setTimeout(() => { tuneInExit.value = false }, TUNE_IN_EXIT_MS)
+      tuneInExitTimer = setTimeout(finishTuneInExit, TUNE_IN_EXIT_MS)
+    }
+
+    const finishTuneInExit = () => {
+      if (chips.value === 'handoff') showChips('hidden')
+      tuneInExit.value = false
     }
 
     const clearTuneIn = () => {
@@ -382,6 +387,7 @@ export const LivePlayer = {
 
     const tuneInShown = computed(() => tuneInInfo.value && !infoOpen.value && !mini.value && !multi.active)
     const panelOpen = computed(() => infoOpen.value || tuneInShown.value)
+    const prePlayChrome = computed(() => showsPrePlayChrome({ phase: live.phase, headingHeld: headingHeld.value }))
 
     watch([() => live.open, () => live.phase, () => live.channel?.id], ([open, phase, channelId]) => {
       if (!open) {
@@ -792,7 +798,7 @@ export const LivePlayer = {
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
-      infoOpen, toggleInfo, tuneInShown, tuneInExit, headingHeld, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
+      infoOpen, toggleInfo, tuneInShown, tuneInExit, headingHeld, prePlayChrome, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
       tuneInClassification,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT, TUNING_TEXT,
