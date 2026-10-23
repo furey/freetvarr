@@ -5,8 +5,10 @@ import {
   suppressOverlaps, warmPlanOf,
 } from '../src/image-focus.js'
 import {
-  FOCUS_RECHECK_DELAYS_MS, dueRechecksOf, focusEntriesOf, focusKeyOf, focusPointInViewOf, isFocusImagePath, objectPositionOf, recheckDelayOf, requestedWidthOf,
+  FOCUS_RECHECK_DELAYS_MS, canonicalFocusKeysOf, dueRechecksOf, focusEntriesOf, focusKeyOf, focusPointInViewOf, isFocusImagePath, objectPositionOf, recheckDelayOf, requestedWidthOf,
 } from '../src/web/image-focus.js'
+import { forgetFocusRows, localRenderUrlOf, pruneFocusRows } from '../src/image-focus-service.js'
+import knexFactory from 'knex'
 
 const WIDE = { width: 768, height: 432 }
 const PHONE_HERO = { width: 390, height: 488 }
@@ -52,10 +54,24 @@ const createQueue = (overrides = {}) => {
 }
 
 test('focusKeyOf drops the width and stamp and sorts the query', () => {
-  assert.equal(focusKeyOf('/api/epg/show-image?w=768&title=Merlin&c=abc'), '/api/epg/show-image?title=Merlin')
+  assert.equal(focusKeyOf('/api/epg/show-image?w=768&title=Merlin&c=abc'), '/api/epg/show-image?title=merlin')
   assert.equal(focusKeyOf('http://localhost/api/epg/image/123?w=192'), '/api/epg/image/123')
-  assert.equal(focusKeyOf('/api/epg/show-image?title=A%20B&kind=film'), '/api/epg/show-image?kind=film&title=A+B')
-  assert.equal(focusKeyOf('/api/epg/show-image?title=A+B&kind=film'), focusKeyOf('/api/epg/show-image?kind=film&title=A%20B'))
+  assert.equal(focusKeyOf('/api/epg/show-image?title=A%20B&kind=movie'), '/api/epg/show-image?kind=movie&title=a+b')
+  assert.equal(focusKeyOf('/api/epg/show-image?title=A+B&kind=movie'), focusKeyOf('/api/epg/show-image?kind=movie&title=A%20B'))
+})
+
+test('focusKeyOf keeps only the params each picture route reads, so junk params give no new keys', () => {
+  const keys = new Set([
+    '/api/epg/show-image?title=Seinfeld&z=1',
+    '/api/epg/show-image?title=Seinfeld&z=2',
+    '/api/epg/show-image?title=SEINFELD%20%20&kind=film&shape=wide',
+    '/api/epg/show-image?title=Seinfeld&title=Other',
+  ].map((url) => focusKeyOf(url)))
+  assert.deepEqual([...keys], ['/api/epg/show-image?title=seinfeld'])
+  assert.equal(focusKeyOf('/api/epg/show-image?title=Merlin&shape=poster&kind=movie&x=1'), '/api/epg/show-image?kind=movie&shape=poster&title=merlin')
+  assert.equal(focusKeyOf('/api/epg/image/123?junk=1'), '/api/epg/image/123')
+  assert.equal(focusKeyOf('/api/epg/image/%31%32%33'), '/api/epg/image/123')
+  assert.equal(focusKeyOf('/api/epg/person-image?src=https%3A%2F%2Fimage.tmdb.org%2Fa.jpg&q=1'), '/api/epg/person-image?src=https%3A%2F%2Fimage.tmdb.org%2Fa.jpg')
 })
 
 test('focusKeyOf ignores channel logos, other paths, and other hosts', () => {
@@ -89,7 +105,7 @@ test('focusEntriesOf keys supplied focus by picture, ignoring width and pictures
   ]
   assert.deepEqual(focusEntriesOf(pictures, 'http://nas:3744'), [
     ['/api/recordings/a07b/image', focus],
-    ['/api/epg/show-image?title=The+Block', { x: 0.5, y: 0.5 }],
+    ['/api/epg/show-image?title=the+block', { x: 0.5, y: 0.5 }],
   ])
 })
 
@@ -199,13 +215,13 @@ test('the queue detects a served picture once and answers lookups', async () => 
   const body = Buffer.from('picture one')
   assert.ok(focus.noteServed({ url: '/api/epg/show-image?title=Merlin&w=768', body }))
   await waitForDrain(focus)
-  assert.deepEqual(calls, [['/api/epg/show-image?title=Merlin']])
+  assert.deepEqual(calls, [['/api/epg/show-image?title=merlin']])
   assert.equal(saved[0].method, 'faces')
   assert.equal(focus.noteServed({ url: '/api/epg/show-image?title=Merlin&w=768&c=1', body }), false)
   assert.equal(focus.noteServed({ url: '/api/epg/show-image?title=Merlin&w=384', body: Buffer.from('smaller') }), false)
-  const { enabled, items } = await focus.lookup(['/api/epg/show-image?title=Merlin', '/api/epg/image/9'])
+  const { enabled, items } = await focus.lookup(['/api/epg/show-image?title=merlin', '/api/epg/image/9'])
   assert.equal(enabled, true)
-  assert.deepEqual(Object.keys(items), ['/api/epg/show-image?title=Merlin'])
+  assert.deepEqual(Object.keys(items), ['/api/epg/show-image?title=merlin'])
 })
 
 test('the queue detects again when the picture changes', async () => {
@@ -231,7 +247,40 @@ test('the queue waits while free memory is under 400 MB', async () => {
   focus.noteServed({ url: '/api/epg/image/1?w=384', body: Buffer.from('first') })
   await waitForDrain(focus)
   assert.deepEqual(calls, [])
-  assert.equal(focus.stats().pending, 1)
+  assert.equal(focus.stats().pending, 0)
+  assert.equal(focus.stats().pendingBytes, 0)
+})
+
+test('the queue keeps no picture bodies while it is paused', async () => {
+  const { focus, calls } = createQueue({ readHeadroomMb: async () => 300 })
+  focus.noteServed({ url: '/api/epg/image/1?w=384', body: Buffer.from('first') })
+  await waitForDrain(focus)
+  for (const id of [2, 3, 4]) assert.equal(focus.noteServed({ url: `/api/epg/image/${id}?w=384`, body: Buffer.alloc(1000) }), false)
+  assert.deepEqual(focus.stats().pending, 0)
+  assert.deepEqual(await focus.focusStatusOf('/api/epg/image/3?w=384'), { settled: true, focus: null })
+  assert.deepEqual(calls, [])
+})
+
+test('the queue caps waiting pictures by total bytes and drops the oldest first', () => {
+  const { focus } = createQueue({ delayMs: 60_000, maxPendingBytes: 2500 })
+  for (const id of [1, 2, 3]) focus.noteServed({ url: `/api/epg/image/${id}?w=384`, body: Buffer.alloc(1000, id) })
+  assert.deepEqual(focus.pendingKeys(), ['/api/epg/image/2', '/api/epg/image/3'])
+  assert.equal(focus.stats().pendingBytes, 2000)
+  assert.equal(focus.noteServed({ url: '/api/epg/image/9?w=384', body: Buffer.alloc(3000) }), false)
+})
+
+test('the queue keeps at most the configured number of focus rows and forgets the oldest', async () => {
+  const forgotten = []
+  const loaded = [3, 1, 2].map((id) => ({ urlKey: `/api/epg/image/${id}`, method: 'centre', version: FOCUS_VERSION, updatedAt: id, width: 384, sourceHash: 'h' }))
+  const { focus } = createQueue({ loadRows: async () => loaded, maxRows: 2, forgetRows: async (keys) => { forgotten.push(...keys) } })
+  await focus.prepare()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(forgotten, ['/api/epg/image/1'])
+  focus.noteServed({ url: '/api/epg/image/4?w=384', body: Buffer.from('four') })
+  await waitForDrain(focus)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(forgotten, ['/api/epg/image/1', '/api/epg/image/2'])
+  assert.equal(focus.stats().rows, 2)
 })
 
 test('the queue pauses after the detector fails', async () => {
@@ -375,15 +424,15 @@ test('a warm lookup renders a missing hero picture and detects it ahead of the n
     warmStartMs: 0,
     render: async (url) => { rendered.push(url); return Buffer.from(`body of ${url}`) },
   })
-  const answer = await focus.lookup(['/api/epg/show-image?title=Chefs+Ahoy'], { warmMissing: true })
+  const answer = await focus.lookup(['/api/epg/show-image?title=chefs+ahoy'], { warmMissing: true })
   assert.deepEqual(answer.items, {})
   await focus.settleWarming()
   await new Promise((resolve) => setTimeout(resolve, 20))
   await focus.settle()
-  assert.deepEqual(rendered, ['/api/epg/show-image?title=Chefs+Ahoy&w=768'])
-  assert.deepEqual(calls, [['/api/epg/show-image?title=Chefs+Ahoy']])
-  const again = await focus.lookup(['/api/epg/show-image?title=Chefs+Ahoy'], { warmMissing: true })
-  assert.ok(again.items['/api/epg/show-image?title=Chefs+Ahoy'])
+  assert.deepEqual(rendered, ['/api/epg/show-image?title=chefs+ahoy&w=768'])
+  assert.deepEqual(calls, [['/api/epg/show-image?title=chefs+ahoy']])
+  const again = await focus.lookup(['/api/epg/show-image?title=chefs+ahoy'], { warmMissing: true })
+  assert.ok(again.items['/api/epg/show-image?title=chefs+ahoy'])
   assert.equal(rendered.length, 1)
 })
 
@@ -544,4 +593,40 @@ test('focusStatusOf: too little memory to detect settles waiting pictures with n
   await waitForDrain(focus)
   assert.deepEqual(await focus.focusStatusOf(url), { settled: true, focus: null })
   assert.deepEqual(calls, [])
+})
+
+test('canonicalFocusKeysOf keeps only canonical keys of known picture routes', () => {
+  assert.deepEqual(canonicalFocusKeysOf([
+    '/api/epg/image/12',
+    '/api/epg/state?fresh=1',
+    '0/x',
+    '//evil.example/api/epg/image/1',
+    '/api/epg/show-image?title=Seinfeld',
+    '/api/epg/show-image?title=seinfeld',
+    '/api/epg/image/12?w=768',
+    ['/api/recordings/a/image'],
+  ]), ['/api/epg/image/12', '/api/epg/show-image?title=seinfeld'])
+  assert.deepEqual(canonicalFocusKeysOf(undefined), [])
+  assert.deepEqual(canonicalFocusKeysOf('/api/recordings/a/image'), ['/api/recordings/a/image'])
+})
+
+test('localRenderUrlOf renders only same-origin picture routes', () => {
+  const origin = 'http://127.0.0.1:3733'
+  assert.equal(localRenderUrlOf('/api/epg/image/12?w=768', origin), 'http://127.0.0.1:3733/api/epg/image/12?w=768')
+  assert.equal(localRenderUrlOf('0/x?w=768', origin), null)
+  assert.equal(localRenderUrlOf('//evil.example/api/epg/image/1', origin), null)
+  assert.equal(localRenderUrlOf('/api/epg/state?fresh=1&w=768', origin), null)
+})
+
+test('pruneFocusRows keeps the newest rows and forgetFocusRows deletes by key', async () => {
+  const database = knexFactory({ client: 'better-sqlite3', connection: { filename: ':memory:' }, useNullAsDefault: true })
+  await database.schema.createTable('image_focus', (t) => {
+    t.string('url_key').primary()
+    t.bigInteger('updated_at')
+  })
+  await database('image_focus').insert([1, 2, 3, 4].map((id) => ({ url_key: `/api/epg/image/${id}`, updated_at: id })))
+  await pruneFocusRows({ keep: 3, database })
+  await forgetFocusRows(['/api/epg/image/4'], database)
+  assert.deepEqual((await database('image_focus').select('url_key').orderBy('updated_at')).map((row) => row.url_key), ['/api/epg/image/2', '/api/epg/image/3'])
+  await database.destroy()
 })

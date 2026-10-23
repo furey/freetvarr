@@ -330,7 +330,7 @@ test('a picture waiting for face focus stays off Home, and finished detection re
   hero = built.hero
   assert.deepEqual((await hero.read()).candidates, [])
   Object.assign(focusStatus, { settled: true, focus: { x: 0.2, y: 0.3, box: null } })
-  proof.focusSettled('/api/epg/show-image?title=No+Picture+Cup')
+  proof.focusSettled('/api/epg/show-image?title=no+picture+cup')
   await clock.advance(3000)
   await settle()
   const [candidate] = (await hero.read()).candidates

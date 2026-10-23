@@ -13,11 +13,15 @@ export const isFocusImagePath = (pathname) => FOCUS_IMAGE_PATHS.some((pattern) =
 export const focusKeyOf = (url, base = LOCAL_BASE) => {
   const parsed = parsedUrlOf(url, base)
   if (!parsed || parsed.origin !== new URL(base).origin || !isFocusImagePath(parsed.pathname)) return null
-  IGNORED_PARAMS.forEach((name) => parsed.searchParams.delete(name))
-  parsed.searchParams.sort()
-  const query = parsed.searchParams.toString()
-  return query ? `${parsed.pathname}?${query}` : parsed.pathname
+  const pathname = canonicalPathOf(parsed.pathname)
+  if (!pathname) return null
+  const query = canonicalQueryOf({ pathname, params: parsed.searchParams })
+  return query ? `${pathname}?${query}` : pathname
 }
+
+export const canonicalFocusKeysOf = (keys) => [keys ?? []].flat()
+  .filter((key) => typeof key === 'string' && key.startsWith('/') && !key.startsWith('//'))
+  .filter((key) => focusKeyOf(key) === key)
 
 export const focusEntriesOf = (pictures, base = LOCAL_BASE) => pictures
   .filter((picture) => isFocus(picture?.focus))
@@ -112,6 +116,27 @@ const parsedUrlOf = (url, base) => {
   }
 }
 
+const canonicalPathOf = (pathname) => {
+  try {
+    return pathname.split('/').map((segment) => encodeURIComponent(decodeURIComponent(segment))).join('/')
+  } catch {
+    return null
+  }
+}
+
+const canonicalQueryOf = ({ pathname, params }) => {
+  const known = KNOWN_PARAMS.find(({ path }) => path.test(pathname))?.params ?? {}
+  const kept = new URLSearchParams()
+  for (const [name, canonical] of Object.entries(known)) {
+    const value = canonical(params.get(name))
+    if (value) kept.set(name, value)
+  }
+  kept.sort()
+  return kept.toString()
+}
+
+const canonicalTitleOf = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase().slice(0, MAX_TITLE_LENGTH)
+
 const isSized = (size) => size?.width > 0 && size?.height > 0
 
 const clampFraction = (value) => clamp(Number(value) || 0, 0, MAX_AVOID)
@@ -123,7 +148,22 @@ const toThousandths = (value) => Math.round(value * 1000) / 1000
 const isFocus = (focus) => Number.isFinite(focus?.x) && Number.isFinite(focus?.y)
 
 const LOCAL_BASE = 'http://localhost'
-const IGNORED_PARAMS = ['w', 'c']
+const MAX_TITLE_LENGTH = 200
+const MAX_SOURCE_LENGTH = 300
+const KNOWN_PARAMS = [
+  {
+    path: /^\/api\/epg\/show-image$/,
+    params: {
+      title: canonicalTitleOf,
+      shape: (value) => (value === 'poster' ? value : null),
+      kind: (value) => (value === 'movie' ? value : null),
+    },
+  },
+  {
+    path: /^\/api\/epg\/person-image$/,
+    params: { src: (value) => (value ? String(value).slice(0, MAX_SOURCE_LENGTH) : null) },
+  },
+]
 const CENTRE = 0.5
 const EYE_LINE_AT = 0.4
 const MIN_OVERFLOW_PX = 1

@@ -214,6 +214,7 @@ import { transmitterLabel } from './web/transmitter-label.js'
 import { limitFrom, mountForYou, publicResultOf } from './for-you-routes.js'
 import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
 import { imageFocus } from './image-focus-service.js'
+import { canonicalFocusKeysOf } from './web/image-focus.js'
 import {
   liveSessionHooks,
   mountUserEvents,
@@ -729,7 +730,7 @@ const showImageRoute = imageRouteFor({
 for (const route of [channelLogoRoute, programmeImageRoute, personImageRoute, showImageRoute]) app.get(route.path, serveImage(route))
 
 app.get('/api/image-focus', async (req, res) => {
-  const keys = [req.query.k ?? []].flat().map(String).slice(0, MAX_FOCUS_KEYS)
+  const keys = canonicalFocusKeysOf(req.query.k).slice(0, MAX_FOCUS_KEYS)
   res.setHeader('Cache-Control', 'no-store')
   const warmMissing = req.query.warm === '1'
   res.json(await imageFocus.lookup(keys, { warmMissing }).catch(() => ({ enabled: false, items: {} })))

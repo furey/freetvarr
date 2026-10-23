@@ -9,6 +9,7 @@ import { focusKeyOf, isFocusImagePath, requestedWidthOf } from './web/image-focu
 
 export const FOCUS_VERSION = 2
 export const FOCUS_SETTING = 'face_focus_enabled'
+export const MAX_FOCUS_ROWS = 20000
 
 export const faceFocusEnabledFrom = (stored) => stored !== 'false'
 
@@ -129,6 +130,9 @@ export const createImageFocus = ({
   failureBackoffMs = FAILURE_BACKOFF_MS,
   batchSize = BATCH_SIZE,
   maxPending = MAX_PENDING,
+  maxPendingBytes = MAX_PENDING_BYTES,
+  maxRows = MAX_FOCUS_ROWS,
+  forgetRows = async () => {},
 }) => {
   const rows = new Map()
   const pending = new Map()
@@ -144,11 +148,15 @@ export const createImageFocus = ({
   let warmed = null
   let refreshing = null
   let pausedUntil = 0
+  let pendingBytes = 0
 
   const prepare = () => {
     loading ??= Promise.resolve()
       .then(loadRows)
-      .then((list) => list.forEach((row) => rows.set(row.urlKey, row)))
+      .then((list) => {
+        list.sort((a, b) => (a.updatedAt ?? 0) - (b.updatedAt ?? 0)).forEach((row) => rows.set(row.urlKey, row))
+        trimRows()
+      })
       .catch(() => {})
     return loading
   }
@@ -167,12 +175,41 @@ export const createImageFocus = ({
     const verdict = servedVerdictOf({ row, width, sourceHash, pendingWidth: pending.get(urlKey)?.width ?? 0 })
     if (verdict === 'note-hash') rememberHash({ row, width, sourceHash })
     if (verdict !== 'detect') return false
-    const job = { urlKey, width, body, sourceHash }
-    pending.delete(urlKey)
-    pending.set(urlKey, job)
-    while (pending.size > maxPending) pending.delete(pending.keys().next().value)
+    if (now() < pausedUntil || body.length > maxPendingBytes) {
+      markUnavailable([urlKey])
+      return false
+    }
+    dropPending(urlKey)
+    pending.set(urlKey, { urlKey, width, body, sourceHash })
+    pendingBytes += body.length
+    while (pending.size > maxPending || pendingBytes > maxPendingBytes) dropPending(pending.keys().next().value)
     schedule(delayMs)
     return true
+  }
+
+  const dropPending = (key) => {
+    const job = pending.get(key)
+    if (!job) return null
+    pending.delete(key)
+    pendingBytes -= job.body.length
+    return job
+  }
+
+  const clearPending = () => {
+    const dropped = [...pending.keys()]
+    pending.clear()
+    pendingBytes = 0
+    return dropped
+  }
+
+  const trimRows = () => {
+    const evicted = []
+    while (rows.size > maxRows) {
+      const key = rows.keys().next().value
+      rows.delete(key)
+      evicted.push(key)
+    }
+    if (evicted.length) Promise.resolve().then(() => forgetRows(evicted)).catch(() => {})
   }
 
   const schedule = (ms) => {
@@ -293,22 +330,18 @@ export const createImageFocus = ({
   const drain = async () => {
     await prepare()
     if (now() < pausedUntil) return
-    if (!(await Promise.resolve().then(isEnabled).catch(() => false))) {
-      const dropped = [...pending.keys()]
-      pending.clear()
-      return announceSettled(dropped)
-    }
+    if (!(await Promise.resolve().then(isEnabled).catch(() => false))) return announceSettled(clearPending())
     const headroomMb = await Promise.resolve().then(readHeadroomMb).catch(() => null)
     if (Number.isFinite(headroomMb) && headroomMb < MIN_HEADROOM_MB) {
       pausedUntil = now() + retryMs
-      return markUnavailable([...pending.keys()])
+      return markUnavailable(clearPending())
     }
     const jobs = takeBatch()
     if (!jobs.length) return
     const results = await Promise.resolve().then(() => detect(jobs)).catch(() => null)
     if (!results) {
       pausedUntil = now() + failureBackoffMs
-      return markUnavailable(jobs.map((job) => job.urlKey))
+      return markUnavailable([...jobs.map((job) => job.urlKey), ...clearPending()])
     }
     for (const job of jobs.filter((candidate) => results.has(candidate.urlKey))) {
       await remember({ job, result: results.get(job.urlKey) })
@@ -337,7 +370,7 @@ export const createImageFocus = ({
     const jobs = []
     for (const job of pending.values()) {
       if (jobs.length >= batchSize) break
-      pending.delete(job.urlKey)
+      dropPending(job.urlKey)
       if (!isCurrent(job)) jobs.push(job)
     }
     return jobs
@@ -349,7 +382,9 @@ export const createImageFocus = ({
     const changed = previous[job.width] && previous[job.width] !== job.sourceHash
     const hashes = { ...(changed ? {} : previous), [job.width]: job.sourceHash }
     const row = { urlKey: job.urlKey, sourceHash: job.sourceHash, width: job.width, hashes, ...focus, version: FOCUS_VERSION, updatedAt: now() }
+    rows.delete(job.urlKey)
     rows.set(job.urlKey, row)
+    trimRows()
     await Promise.resolve().then(() => saveRow(row)).catch(() => {})
   }
 
@@ -387,7 +422,7 @@ export const createImageFocus = ({
     await warming
   }
 
-  const stats = () => ({ rows: rows.size, pending: pending.size, warming: warmQueue.length })
+  const stats = () => ({ rows: rows.size, pending: pending.size, pendingBytes, warming: warmQueue.length })
 
   const pendingKeys = () => [...pending.keys()]
 
@@ -503,6 +538,7 @@ const ORIGINAL_WIDTH = 1000
 const LOW_PRIORITY = 19
 const BATCH_SIZE = 16
 const MAX_PENDING = 2000
+const MAX_PENDING_BYTES = 32 * 1024 * 1024
 const DRAIN_DELAY_MS = 5 * 1000
 const URGENT_DELAY_MS = 1000
 const WARM_WIDTH = 768
