@@ -96,7 +96,7 @@ export const canAddPicture = computed(() => canAddPictureOf({
 }))
 
 const rigs = Object.fromEntries(COMPANIONS.map((id) => [id, {
-  video: null, hls: null, edgeAnchor: null, run: 0, pollTimer: null, attached: false, track: () => trackCompanion(id),
+  video: null, hls: null, edgeAnchor: null, run: 0, pollTimer: null, attached: false, nativeListeners: null, track: () => trackCompanion(id),
 }]))
 
 export const setCompanionVideo = (id, el) => {
@@ -376,7 +376,10 @@ const attachCompanion = async (id, run, playlist) => {
   const video = rig.video
   const nativeOnly = !('MediaSource' in window) && video.canPlayType('application/vnd.apple.mpegurl') !== ''
   if (nativeOnly) {
-    video.addEventListener('loadedmetadata', () => markCompanionLive(id, run), { once: true })
+    rig.nativeListeners = new AbortController()
+    const options = { once: true, signal: rig.nativeListeners.signal }
+    video.addEventListener('loadedmetadata', () => markCompanionLive(id, run), options)
+    video.addEventListener('error', () => endCompanionOnNativeError(id, run), options)
     video.src = playlist
     video.play()?.catch(() => {})
     return
@@ -399,6 +402,10 @@ const attachCompanion = async (id, run, playlist) => {
   hls.loadSource(playlist)
   hls.attachMedia(video)
   video.play()?.catch(() => {})
+}
+
+const endCompanionOnNativeError = (id, run) => {
+  if (run === rigs[id].run && rigs[id].attached) endCompanion(id, run, 'Playback failed.')
 }
 
 const markCompanionLive = (id, run) => {
@@ -447,6 +454,8 @@ const detachCompanionVideo = (id) => {
   const rig = rigs[id]
   rig.hls?.destroy()
   rig.hls = null
+  rig.nativeListeners?.abort()
+  rig.nativeListeners = null
   rig.attached = false
   rig.edgeAnchor = null
   if (!rig.video) return
