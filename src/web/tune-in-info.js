@@ -16,4 +16,6 @@ export const tuneInExitWaitMs = ({ shownAtMs, nowMs, minimumMs }) =>
 export const isSlowTune = ({ phase, startedAtMs, nowMs }) =>
   phase === 'tuning' && nowMs - startedAtMs > TUNE_IN_SLOW_MS
 
+export const canDismissTuneIn = ({ phase }) => phase === 'live'
+
 export const showsTuneInBadge = ({ key, panelKey }) => Boolean(key) && key !== panelKey

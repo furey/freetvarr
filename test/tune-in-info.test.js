@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  canDismissTuneIn,
   TUNE_IN_SLOW_MS,
   startsTuneInInfo,
   confirmedChannelAfter,
@@ -73,4 +74,10 @@ test('the badge shows for a new programme while watching', () => {
 
 test('the badge needs a programme', () => {
   assert.equal(showsTuneInBadge({ key: null, panelKey: null }), false)
+})
+
+test('canDismissTuneIn: the info cannot be closed until the stream is playing', () => {
+  assert.equal(canDismissTuneIn({ phase: 'tuning' }), false)
+  assert.equal(canDismissTuneIn({ phase: 'error' }), false)
+  assert.equal(canDismissTuneIn({ phase: 'live' }), true)
 })

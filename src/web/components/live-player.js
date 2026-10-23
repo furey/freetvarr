@@ -95,7 +95,7 @@ import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/rec
 import { programmeSheetOpen, useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, fmtClockTz } from '/shared/time.js'
 import { controlsHideMsOf } from '/controls-hide.js'
-import { TUNE_IN_EXIT_MS, startsTuneInInfo, confirmedChannelAfter, tuneInExitWaitMs, isSlowTune, showsTuneInBadge } from '/tune-in-info.js'
+import { TUNE_IN_EXIT_MS, startsTuneInInfo, confirmedChannelAfter, tuneInExitWaitMs, isSlowTune, showsTuneInBadge, canDismissTuneIn } from '/tune-in-info.js'
 
 export const LivePlayer = {
   components: {
@@ -389,8 +389,12 @@ export const LivePlayer = {
       confirmedChannelId = confirmedChannelAfter({ phase, channelId, confirmedChannelId })
     }, { immediate: true })
 
+    const dismissTuneIn = () => {
+      if (canDismissTuneIn({ phase: live.phase })) endTuneIn()
+    }
+
     const closePanel = () => {
-      if (tuneInShown.value) return endTuneIn()
+      if (tuneInShown.value) return dismissTuneIn()
       infoOpen.value = false
     }
     const panelShown = computed({
@@ -401,7 +405,7 @@ export const LivePlayer = {
     })
 
     const toggleInfo = () => {
-      if (tuneInShown.value) return endTuneIn()
+      if (tuneInShown.value) return dismissTuneIn()
       infoOpen.value = !infoOpen.value
     }
     const toggleLiveFullscreen = () => toggleStageFullscreen({ stage: frameEl.value, video: liveVideo })
