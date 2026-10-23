@@ -690,17 +690,31 @@ export const MultiViewLayer = {
 
     onUnmounted(() => cancelAnimationFrame(resizeFrame))
 
-    const loadAiring = async (id, channelId) => {
-      airings[id] = null
-      if (!channelId) return
+    const fetchAiring = async (id, channelId) => {
       const params = new URLSearchParams({ channel: channelId, at: String(Date.now()) })
       const result = await api('GET', `/api/epg/channel-now?${params}`).catch(() => null)
       if (String(multi.companions[id].channel?.id) === String(channelId)) airings[id] = result?.now || null
     }
 
+    const loadAiring = (id, channelId) => {
+      airings[id] = null
+      airingRetryAt[id] = 0
+      if (channelId) fetchAiring(id, channelId)
+    }
+
+    const airingRetryAt = Object.fromEntries(COMPANIONS.map((id) => [id, 0]))
+    const refreshEndedAiring = (id, nowMs) => {
+      const end = airings[id]?.end
+      const channelId = multi.companions[id].channel?.id
+      if (!end || !channelId || nowMs < end || nowMs < airingRetryAt[id]) return
+      airingRetryAt[id] = nowMs + AIRING_RETRY_MS
+      fetchAiring(id, channelId)
+    }
+
     for (const id of COMPANIONS) {
       watch(() => multi.companions[id].channel?.id, (channelId) => loadAiring(id, channelId), { immediate: true })
     }
+    watch(now, (date) => COMPANIONS.forEach((id) => refreshEndedAiring(id, date.getTime())))
 
     let resizeObserver = null
     onMounted(() => {
@@ -864,6 +878,7 @@ const styleOfBox = (box) => ({
 
 const isHoverPointer = (e) => e.pointerType === 'mouse'
 
+const AIRING_RETRY_MS = 30000
 const CHIP_ROOM = 116
 
 const DRAG_START_PX = 6
