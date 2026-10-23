@@ -37,6 +37,7 @@ import { KindFilterMenu, useKindFilter } from '/components/kind-filter-menu.js'
 import { airingPairOf, airsKindNowOrNext, showsMovieChip } from '/kind-filter.js'
 import { GUIDE_IMAGES_ON } from '/components/images.js'
 import { channelPrefsChangedSince } from '/shared/channel-prefs.js'
+import { createResponseOrder } from '/response-order.js'
 import { rememberLineup } from '/shared/channel-twins.js'
 import { RAIL_EDGE_ATTRIBUTE } from '/shared/scroll-proximity.js'
 import { arrangeByOrder } from '/sortable-math.js'
@@ -1194,9 +1195,10 @@ export const EpgView = {
     }
 
     let listingsTimer = null
+    let listingsStopped = false
     const refreshWhileListingsLoad = () => {
       clearTimeout(listingsTimer)
-      if (!guide.value?.loadingListings?.length) return
+      if (listingsStopped || !guide.value?.loadingListings?.length) return
       listingsTimer = setTimeout(async () => {
         const d = day.value
         try {
@@ -1213,7 +1215,10 @@ export const EpgView = {
       }, LISTINGS_REFRESH_MS)
     }
     watch(guide, refreshWhileListingsLoad)
-    onUnmounted(() => clearTimeout(listingsTimer))
+    onUnmounted(() => {
+      listingsStopped = true
+      clearTimeout(listingsTimer)
+    })
 
     const tooltip = ref(null)
     const tooltipEl = ref(null)
@@ -1345,18 +1350,24 @@ export const EpgView = {
     watch([programmeSheetOpen, channelsModal, zoom, guide, searchActive], forgetHoveredCell)
 
     let searchTimer = null
+    const searches = createResponseOrder()
     watch(searchQ, () => {
       if (searchTimer) clearTimeout(searchTimer)
-      if (!searchActive.value) { searchResults.value = []; return }
+      const ticket = searches.issue()
+      if (!searchActive.value) {
+        searchResults.value = []
+        searching.value = false
+        return
+      }
       searching.value = true
       searchTimer = setTimeout(async () => {
         try {
           const r = await api('GET', `/api/epg/search?q=${encodeURIComponent(searchQ.value.trim())}`)
-          searchResults.value = r.results || []
+          if (searches.isLatest(ticket)) searchResults.value = r.results || []
         } catch {
-          searchResults.value = []
+          if (searches.isLatest(ticket)) searchResults.value = []
         } finally {
-          searching.value = false
+          if (searches.isLatest(ticket)) searching.value = false
         }
       }, EPG_SEARCH_DEBOUNCE_MS)
     })
