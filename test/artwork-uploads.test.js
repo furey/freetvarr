@@ -12,7 +12,7 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 const { createArtworkChoices } = await import('../src/artwork-choices.js')
 const { candidateIdOf, createArtworkCandidates, mountArtworkChoiceRoutes } = await import('../src/artwork-choice-routes.js')
 const {
-  MAX_UPLOADS_PER_KIND, UploadRejected, createArtworkUploads, croppedSizeOf, prepareUpload, uploadPartsOf,
+  MAX_UPLOADS_PER_KIND, UploadRejected, createArtworkUploads, createSingleSlot, croppedSizeOf, prepareUpload, uploadPartsOf,
 } = await import('../src/artwork-uploads.js')
 
 const passThrough = (req, res, next) => next()
@@ -178,4 +178,28 @@ test('the upload store ignores files that are not uploads', async () => {
   await fs.writeFile(path.join(uploadRoot, 'the-block', 'poster-abc-0123abcd.webp.partial'), 'x')
   assert.deepEqual(await uploads.list({ key: 'the-block', kind: 'poster' }), [])
   assert.equal(await uploads.read('upload:the-block/poster-zzz-0123abcd.webp'), null)
+})
+
+test('prepareUpload rejects a picture over 40 megapixels before decoding it', async () => {
+  const huge = await sharp({ create: { width: 8000, height: 6000, channels: 3, background: { r: 0, g: 0, b: 0 } } }).png().toBuffer()
+  await assert.rejects(prepareUpload({ body: huge, kind: 'background' }), (err) => err instanceof UploadRejected && /too large/.test(err.message))
+})
+
+test('createSingleSlot prepares one upload at a time and turns away a long queue', async () => {
+  const slot = createSingleSlot({ maxWaiting: 2 })
+  let running = 0
+  let most = 0
+  const job = () => slot(async () => {
+    running += 1
+    most = Math.max(most, running)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    running -= 1
+    return 'done'
+  })
+  const first = job()
+  const second = job()
+  await assert.rejects(job(), (err) => err instanceof UploadRejected)
+  assert.deepEqual(await Promise.all([first, second]), ['done', 'done'])
+  assert.equal(most, 1)
+  assert.equal(await job(), 'done')
 })
