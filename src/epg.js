@@ -611,19 +611,36 @@ const skipExpectedEpisode = async ({ err, programId }) => {
   return { ok: true, programId, pendingSkip: true }
 }
 
-const withPendingSkipsApplied = async ({ state, pendingSkips }) => {
+export const withPendingSkipsApplied = async ({
+  state,
+  pendingSkips,
+  skipEntry = skipScheduledEntry,
+  forgetSkip = removePendingSkip,
+  reloadState = getState,
+}) => {
   const due = entriesToSkip({ entries: [...state.futureRecordings, ...state.repeatRecordings], pendingSkips })
   if (due.length === 0) return { state, pendingSkips }
+  const appliedIds = new Set()
   for (const { entry, skip } of due) {
-    await skipScheduledEntry({ uuid: entry.uuid })
-    await removePendingSkip(skip.programId)
-    console.log(`[epg] applied a saved skip to "${entry.name}" at ${new Date(entry.startDate).toISOString()}`)
+    if (await appliedSkip({ entry, skip, skipEntry, forgetSkip })) appliedIds.add(String(skip.programId))
   }
-  const appliedIds = new Set(due.map(({ skip }) => String(skip.programId)))
+  if (appliedIds.size === 0) return { state, pendingSkips }
   return {
-    state: await getState(),
+    state: await reloadState(),
     pendingSkips: pendingSkips.filter((skip) => !appliedIds.has(String(skip.programId))),
   }
+}
+
+const appliedSkip = async ({ entry, skip, skipEntry, forgetSkip }) => {
+  try {
+    await skipEntry({ uuid: entry.uuid })
+  } catch (err) {
+    console.warn(`[epg] saved skip for "${entry.name}" not applied yet: ${err.message}`)
+    return false
+  }
+  await forgetSkip(skip.programId).catch((err) => console.warn(`[epg] saved skip not cleared: ${err.message}`))
+  console.log(`[epg] applied a saved skip to "${entry.name}" at ${new Date(entry.startDate).toISOString()}`)
+  return true
 }
 
 export const recordSeries = async ({ programId, channelId, ...args }) => {
