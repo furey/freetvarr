@@ -1,5 +1,6 @@
 import { db, getSetting } from './db.js'
 import {
+  forgetPastAirings,
   resolveConnection,
   listActiveRecordings,
   listRecentlyEnded,
@@ -252,6 +253,7 @@ const resolveOutcomes = async (conn) => {
     if (latest && /^recording/.test(latest.schedStatus)) return
     if (latest) entry.recording = { ...entry.recording, ...latest, image: entry.recording.image }
     entry.outcome = recordingOutcome(latest)
+    forgetPastAirings()
     if (!entry.outcome.removed) announceFinished(entry.recording)
   }))
 }

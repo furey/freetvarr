@@ -165,17 +165,45 @@ export const listFinished = async (conn) => {
   return (body?.entries || []).map(normaliseEntry)
 }
 
-const listPastAirings = async (conn) => {
+export const forgetPastAirings = () => {
+  pastAiringsGeneration++
+  pastAiringsCache = null
+}
+
+const listPastAirings = async (conn, nowMs = Date.now()) => {
+  if (pastAiringsCache?.url === conn.url && pastAiringsCache.expiresAt > nowMs) return pastAiringsCache.value
+  const generation = pastAiringsGeneration
+  const value = await loadPastAirings(conn)
+  if (generation === pastAiringsGeneration) {
+    pastAiringsCache = { url: conn.url, value, expiresAt: nowMs + PAST_AIRINGS_TTL_MS }
+  }
+  return value
+}
+
+const loadPastAirings = async (conn) => {
   const [finished, removed, failed] = await Promise.all(
-    ['grid_finished', 'grid_removed', 'grid_failed'].map((grid) => apiGet(`dvr/entry/${grid}`, { limit: 5000 }, conn)),
+    ['grid_finished', 'grid_removed', 'grid_failed'].map((grid) => allGridEntries(`dvr/entry/${grid}`, conn)),
   )
-  const entriesOf = (body) => (body?.entries || []).map(normaliseEntry)
   return [
-    ...entriesOf(finished),
-    ...entriesOf(removed).map((entry) => ({ ...entry, removed: true })),
-    ...entriesOf(failed).map((entry) => ({ ...entry, failed: true })),
+    ...finished,
+    ...removed.map((entry) => ({ ...entry, removed: true })),
+    ...failed.map((entry) => ({ ...entry, failed: true })),
   ]
 }
+
+const allGridEntries = async (path, conn) => {
+  const entries = []
+  for (let page = 0; page < MAX_PAST_AIRING_PAGES; page++) {
+    const body = await apiGet(path, { limit: PAST_AIRINGS_PAGE_SIZE, start: entries.length }, conn)
+    const batch = body?.entries || []
+    entries.push(...batch.map(normaliseEntry))
+    if (batch.length < PAST_AIRINGS_PAGE_SIZE || !(Number(body?.total) > entries.length)) break
+  }
+  return entries
+}
+
+let pastAiringsCache = null
+let pastAiringsGeneration = 0
 
 export const listAutorecs = async (conn) => {
   const body = await apiGet('dvr/autorec/grid', { limit: 1000 }, conn)
@@ -894,7 +922,12 @@ const apiGet = async (path, params, conn) => {
 
 const apiPost = async (path, form, conn) => {
   const c = conn || (await resolveConnection())
-  return request({ method: 'post', path, form, conn: c })
+  forgetPastAirings()
+  try {
+    return await request({ method: 'post', path, form, conn: c })
+  } finally {
+    forgetPastAirings()
+  }
 }
 
 const request = async ({ method, path, params, form, conn }) => {
@@ -1026,6 +1059,9 @@ const SCALE_RELATIVE = 1
 const SCALE_DECIBEL = 2
 const RELATIVE_FULL_SCALE = 65535
 const RECENTLY_ENDED_LIMIT = 5
+const PAST_AIRINGS_TTL_MS = 10 * 60 * 1000
+const PAST_AIRINGS_PAGE_SIZE = 5000
+const MAX_PAST_AIRING_PAGES = 10
 const PROGRAMME_IMAGE_TIMEOUT_MS = 5000
 const PROGRAMME_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 const TUNER_COUNT_TTL_MS = 10 * 60 * 1000
