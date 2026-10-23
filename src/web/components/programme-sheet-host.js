@@ -28,7 +28,8 @@ import { useSheetDrag } from '/shared/sheet-drag.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
-import { liveChannelOf, watchLive } from '/shared/live-session.js'
+import { liveChannelOf, watchLive, watchRecordingFromStart } from '/shared/live-session.js'
+import { playsFromMsOf } from '/start-over.js'
 import { makeStatus } from '/shared/path-check.js'
 import { live } from '/shared/player-shared.js'
 import {
@@ -133,6 +134,10 @@ export const ProgrammeSheetHost = {
           <p v-if="!sheetStrengths.length && !cancelActions.length" class="programme-sheet-line">This programme has already aired.</p>
           <p v-if="modalStatusText" :class="['programme-sheet-error', modalStatusKind]" role="status">{{ modalStatusText }}</p>
           <div class="ui-sheet-footer programme-sheet-footer">
+            <div v-if="fromStartRecording" class="programme-sheet-from-start">
+              <button type="button" :class="['ui-button', 'ui-button-block', primaryAction ? 'ui-button-secondary' : 'ui-button-primary']" @click="watchSelectedFromStart"><play-glyph /> Watch from the start</button>
+              <p class="programme-sheet-outcome">{{ fromStartLine }}</p>
+            </div>
             <button v-if="canWatchLive" type="button" class="ui-button ui-button-secondary ui-button-block" @click="watchSelected"><tv-icon /> Watch live</button>
             <div class="programme-sheet-buttons">
               <button type="button" class="ui-button ui-button-secondary programme-sheet-dismiss" @click="closeModal">Close</button>
@@ -467,14 +472,40 @@ export const ProgrammeSheetHost = {
       }
     }
 
-    const watchSelected = () => {
-      const { program, channel } = selected.value
+    const selectedLiveChannel = () => {
+      const { channel } = selected.value
       const channelId = selectedChannelId.value
-      const liveChannel = channel
+      return channel
         ? liveChannelOf(channel)
         : { id: channelId, name: channelName(channelId), number: null, hasLogo: hasChannelLogo(channelId) }
+    }
+
+    const watchSelected = () => {
+      const { program } = selected.value
+      const liveChannel = selectedLiveChannel()
       closeModal()
       watchLive({ channel: liveChannel, nowTitle: program.title })
+    }
+
+    const fromStartRecording = computed(() => {
+      const program = selected.value?.program
+      if (!program) return null
+      const id = String(program.program_id ?? program.programId)
+      const recording = recordingNow.value.active.find((r) => !r.failed && String(r.programId) === id)
+      if (!recording?.canPlayFromStart || !recording.dvrUuid) return null
+      return live.open && live.fromStart?.dvrUuid === recording.dvrUuid ? null : recording
+    })
+
+    const fromStartLine = computed(() => (fromStartRecording.value
+      ? `Plays from ${fmtClock(playsFromMsOf(fromStartRecording.value))} while it keeps recording.`
+      : ''))
+
+    const watchSelectedFromStart = () => {
+      const { program } = selected.value
+      const recording = fromStartRecording.value
+      const liveChannel = selectedLiveChannel()
+      closeModal()
+      watchRecordingFromStart({ channel: liveChannel, recording, nowTitle: program.title })
     }
 
     const movieChoiceLabel = computed(() => movieChoiceLabelOf(selected.value?.program?.movieChoice))
@@ -791,7 +822,7 @@ export const ProgrammeSheetHost = {
     return {
       pendingActionLabelOf, ANY_CHANNEL_HINT,
       selected, selectedChannelId, sheetEl, closeModal, modalBusy, modalAction,
-      canWatchLive, watchSelected, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind,
+      canWatchLive, watchSelected, fromStartRecording, fromStartLine, watchSelectedFromStart, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,

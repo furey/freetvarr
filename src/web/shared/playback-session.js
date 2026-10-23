@@ -5,6 +5,7 @@ import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js
 import { csrfToken, api } from '/shared/api.js'
 import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
 import { stopLive } from '/shared/live-session.js'
+import { postRecordingPosition } from '/shared/recording-position.js'
 import { closePictureInPictureOf } from '/mini-player.js'
 import {
   live,
@@ -223,14 +224,7 @@ export const savePlaybackPosition = ({ keepalive = false } = {}) => {
   if (seconds === lastSavedPosition) return
   lastSavedPosition = seconds
   recording.playback_position_s = seconds
-  const url = `/api/recordings/${encodeURIComponent(recording.recording_id)}/position`
-  if (!keepalive) return api('POST', url, { seconds }).catch(() => {})
-  fetch(url, {
-    method: 'POST',
-    keepalive: true,
-    headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken || '' },
-    body: JSON.stringify({ seconds }),
-  }).catch(() => {})
+  return postRecordingPosition({ recordingId: recording.recording_id, seconds, keepalive })
 }
 
 const producedEndOf = () => {

@@ -17,6 +17,7 @@ import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/l
 import { captionLineOf, closePictureInPictureOf } from '/mini-player.js'
 import { initialPausedState, pausedStateAfter } from '/player-paused.js'
 import { csrfToken, api } from '/shared/api.js'
+import { postRecordingPosition } from '/shared/recording-position.js'
 import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
 import {
   live,
@@ -88,6 +89,7 @@ const unlockLiveVideo = () => {
 }
 
 export const stopLive = () => {
+  saveFromStartPosition({ keepalive: true })
   liveRun += 1
   clearTimeout(livePollTimer)
   closeLivePictureInPicture()
@@ -102,6 +104,7 @@ export const stopLive = () => {
 }
 
 export const adoptLiveSession = ({ channel, session, nowTitle = '' }) => {
+  saveFromStartPosition()
   liveRun += 1
   const run = liveRun
   clearTimeout(livePollTimer)
@@ -117,6 +120,7 @@ export const adoptLiveSession = ({ channel, session, nowTitle = '' }) => {
 }
 
 export const retuneLive = ({ channel, nowTitle = '' }) => {
+  saveFromStartPosition()
   liveRun += 1
   clearTimeout(livePollTimer)
   detachLiveVideo()
@@ -130,6 +134,7 @@ export const retuneLive = ({ channel, nowTitle = '' }) => {
 }
 
 export const watchFromStart = async (recording) => {
+  saveFromStartPosition()
   liveRun += 1
   const run = liveRun
   clearTimeout(livePollTimer)
@@ -174,9 +179,18 @@ export const returnToLive = () => {
 
 const stopFromStartSession = () => {
   clearTimeout(fromStartBeatTimer)
+  saveFromStartPosition({ keepalive: true })
   const sessionId = live.fromStart?.sessionId
   if (sessionId) api('DELETE', `/api/play/${sessionId}`).catch(() => {})
   live.fromStart = null
+}
+
+const saveFromStartPosition = ({ keepalive = false } = {}) => {
+  const dvrUuid = live.fromStart?.dvrUuid
+  const seconds = Math.round(liveVideo?.currentTime || 0)
+  if (!dvrUuid || !live.fromStart.sessionId || seconds < 1 || seconds === live.fromStart.savedSeconds) return
+  live.fromStart.savedSeconds = seconds
+  postRecordingPosition({ recordingId: dvrUuid, seconds, keepalive })
 }
 
 const scheduleFromStartBeat = (run) => {
@@ -192,6 +206,7 @@ const beatFromStart = async (run) => {
     if (run !== liveRun || !live.fromStart) return
     live.fromStart.edgeSeconds = r.session?.liveEdgeSeconds ?? live.fromStart.edgeSeconds
     live.fromStart.growing = r.session?.growing !== false
+    saveFromStartPosition()
   } catch (err) {
     if (run !== liveRun) return
     if (err.status === 404) return endLive(run, { code: 'gone' })

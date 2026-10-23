@@ -1433,6 +1433,12 @@
   padding-top: 4px;
 }
 
+.programme-sheet-from-start {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .programme-sheet-buttons {
   display: flex;
   gap: 10px;
