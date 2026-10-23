@@ -561,6 +561,7 @@ export const LivePlayer = {
     }
     const openAddPicker = () => openPickerFor('add')
     const choosePickerChannel = (channel) => {
+      if (!pickerOpen.value) return
       pickerOpen.value = false
       if (pickerTarget.value === 'add') return watchAlongside(channel)
       changePictureChannel({ picture: pickerTarget.value, channel })
