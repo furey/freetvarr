@@ -91,17 +91,20 @@ export const getLibraryEpisodes = async ({
   limit,
   kind = null,
   loadRows = loadLibraryRows,
+  loadSeries = getSeries,
   loadMoviesRoot = getMoviesRoot,
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
 } = {}) => {
-  const [rows, moviesRoot, stamps, kindOverrides] = await Promise.all([
+  const [rows, seriesData, moviesRoot, stamps, kindOverrides] = await Promise.all([
     loadRows(),
+    loadSeries().catch(() => ({ series: [] })),
     loadMoviesRoot().catch(() => ''),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
   ])
-  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps, kindOverrides }) }
+  const ruleKeys = new Set(seriesByKey(seriesData.series).keys())
+  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps, kindOverrides, ruleKeys }) }
 }
 
 export const setRecordingWatched = async ({ recordingId, watched, nowIso = new Date().toISOString() }) => {
@@ -184,8 +187,7 @@ export const kindOf = ({ rows, hasRule = false, moviesRoot = '', override = null
   libraryKindWith({ kind: automaticKindOf({ rows, hasRule, moviesRoot }), override })
 
 const automaticKindOf = ({ rows, hasRule, moviesRoot }) => {
-  const hasEpisodeMarks = rows.some((r) => r.show_id != null || r.season != null || r.episode != null)
-  if (hasRule || hasEpisodeMarks || rows.length >= 2) return 'show'
+  if (hasRule || rows.some((r) => r.show_id != null)) return 'show'
   if (moviesRoot && rows.some((r) => isInsideFolder({ filePath: r.file_path, folder: moviesRoot }))) return 'movie'
   if (rows.some(looksLikeUnimportedFilm)) return 'movie'
   return 'oneoff'
@@ -327,10 +329,10 @@ export const resumeNextOf = (episodes) => {
 }
 
 export const libraryEpisodesOf = ({
-  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '', stamps = new Map(), kindOverrides = new Map(),
+  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '', stamps = new Map(), kindOverrides = new Map(), ruleKeys = new Set(),
 }) => {
   const libraryRows = rows.filter(isLibraryMember)
-  const kinds = kindsByKey({ rows: libraryRows, moviesRoot, kindOverrides })
+  const kinds = kindsByKey({ rows: libraryRows, moviesRoot, kindOverrides, ruleKeys })
   const isWantedKind = (row) => !kind || (kinds.get(groupKeyOf(row)) || 'oneoff') === kind
   const members = libraryRows.filter((row) => !isFailed(row) && !isWatched(row) && isWantedKind(row))
   const chosen = {
@@ -452,9 +454,9 @@ const libraryEpisodeOf = ({ row, kind, stamps = NO_STAMPS }) => {
   }
 }
 
-const kindsByKey = ({ rows, moviesRoot, kindOverrides = new Map() }) => new Map(
+const kindsByKey = ({ rows, moviesRoot, kindOverrides = new Map(), ruleKeys = new Set() }) => new Map(
   [...groupBy(rows, groupKeyOf).entries()]
-    .map(([key, group]) => [key, kindOf({ rows: group, moviesRoot, override: kindOverrides.get(key) ?? null })]),
+    .map(([key, group]) => [key, kindOf({ rows: group, hasRule: ruleKeys.has(key), moviesRoot, override: kindOverrides.get(key) ?? null })]),
 )
 
 const mergeSeries = (a, b) => ({

@@ -293,7 +293,7 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
     if (showId != null && show?.id !== showId) continue
     const item = { ...toItem({ entry, tvhRecordingsPath, recordingsRoot }), classification: classificationOf(entry) }
     try {
-      const existing = await saveRecordingDetails({ item, conn })
+      const existing = await saveRecordingDetails({ item, show, conn })
       const decision = libraryDecision({ existing, libraryChoice: entry.libraryChoice, show, importUnmatched })
       if (decision.action === 'hold') {
         await holdRecording({ item, existing, reason: decision.reason })
@@ -371,7 +371,7 @@ const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   ext: entry.filename ? path.extname(entry.filename).slice(1) || 'ts' : 'ts',
 })
 
-const saveRecordingDetails = async ({ item, conn }) => {
+const saveRecordingDetails = async ({ item, show = null, conn }) => {
   const details = {
     title: item.title,
     episode_title: item.episode_title || null,
@@ -387,7 +387,7 @@ const saveRecordingDetails = async ({ item, conn }) => {
     ...(item.year ? { year: item.year } : {}),
   }
   await db('recordings')
-    .insert({ recording_id: item.id, status: 'pending', ...details, classification: item.classification ?? null })
+    .insert({ recording_id: item.id, status: 'pending', show_id: show?.id ?? null, ...details, classification: item.classification ?? null })
     .onConflict('recording_id')
     .merge({ ...details, classification: db.raw('coalesce(recordings.classification, excluded.classification)') })
   const row = await db('recordings').where({ recording_id: item.id }).first()

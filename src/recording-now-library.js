@@ -17,7 +17,7 @@ export const inProgressRowsOf = ({ active = [], finishing = [], rows = [] }) => 
 
 export const inProgressRowOf = ({ item, phase }) => ({
   recording_id: recordingIdOf(item),
-  show_id: null,
+  show_id: item.seriesFolderId ?? null,
   title: item.title,
   show_title_override: null,
   episode_title: item.episodeTitle ?? null,

@@ -26,6 +26,8 @@ const {
 } = await import('../src/in-progress-positions.js')
 const { recordingRowsOf, showCatalogueOf } = await import('../src/search-aliases.js')
 const { db, getSetting } = await import('../src/db.js')
+const { seriesFolderIdOf } = await import('../src/recording-now.js')
+const { libraryKind } = await import('../src/sync.js')
 
 after(async () => {
   await db.destroy()
@@ -114,19 +116,43 @@ test('inProgressRowsOf: one stand-in per recording, skipping failures and record
 test('getLibraryShows: a one-off recording appears on the right shelf the moment it starts', async () => {
   const oneOff = active({ uuid: 'o1', dvrUuid: 'o1', title: 'Australian of the Year Awards', season: null, episode: null, episodeTitle: null, stop: NOW })
   const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null })
-  const series = active()
-  const { shows } = await getLibraryShows(deps({ recording: [oneOff, film, series] }))
+  const filed = active({ uuid: 'b1', dvrUuid: 'b1', title: 'The Block', season: 22, episode: 4, seriesFolderId: 3 })
+  const ruled = active({ uuid: 'h1', dvrUuid: 'h1', title: 'Hard Quiz', season: null, episode: null, autorecId: 'auto-9' })
+  const guideNumbered = active()
+  const { shows } = await getLibraryShows(deps({
+    recording: [oneOff, film, filed, ruled, guideNumbered],
+    series: [{ key: 'hard quiz', title: 'Hard Quiz', autorecs: [], folder: null }],
+  }))
   const kindOf = Object.fromEntries(shows.map((s) => [s.key, s.kind]))
   assert.deepEqual(kindOf, {
     'australian-of-the-year-awards': 'oneoff',
     'the-castle': 'movie',
-    'rugby-league-world-cup-2026': 'show',
+    'the-block': 'show',
+    'hard-quiz': 'show',
+    'rugby-league-world-cup-2026': 'oneoff',
   })
   const rugby = shows.find((s) => s.key === 'rugby-league-world-cup-2026')
   assert.equal(rugby.recordingNow, true)
   assert.deepEqual(rugby.counts, { total: 1, new: 0, unwatched: 1, failed: 0, inProgress: 1 })
   assert.equal(rugby.inProgress.phase, RECORDING)
   assert.equal(rugby.image, '/api/epg/image/358017?w=384')
+})
+
+test('seriesFolderIdOf: names the series folder the import will use, as the sync matches it', () => {
+  const shows = [{ id: 3, show_pattern: 'The Block' }, { id: 4, show_pattern: 'Block' }]
+  assert.equal(seriesFolderIdOf({ recording: { name: 'The Block' }, shows }), 3)
+  assert.equal(seriesFolderIdOf({ recording: { name: 'Rugby League World Cup 2026' }, shows }), null)
+  assert.equal(seriesFolderIdOf({ recording: { name: 'The Block' } }), null)
+})
+
+test('a guide-numbered recording with no series folder: the import and the shelf both say one-off', async () => {
+  const item = { title: 'Rugby League World Cup 2026', season: 26, episode: 6, genres: [0x40], start: NOW - 60 * MIN, end: NOW + 90 * MIN }
+  assert.equal(libraryKind({ show: null, item, moviesRoot: '/media/movies' }), 'oneOff')
+  const { shows } = await getLibraryShows(deps({ recording: [active()] }))
+  assert.equal(shows[0].kind, 'oneoff')
+  const imported = row({ recording_id: 'c53af306', episode: 6, file_path: '/media/one-offs/Rugby League World Cup 2026/x.ts' })
+  const after = await getLibraryShows(deps({ rows: [imported], recording: [] }))
+  assert.equal(after.shows[0].kind, 'oneoff')
 })
 
 test('getLibraryShows: a programme kind override moves the stand-in like an imported row', async () => {

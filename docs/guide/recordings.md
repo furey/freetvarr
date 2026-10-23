@@ -22,9 +22,9 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 
 The library groups your recordings in shelves:
 
-- **Shows**: a poster for each series. A number badge counts the episodes you have not started. A `REC` badge means an episode is recording now, and a red bar on the picture shows how much of the programme has aired.
+- **Shows**: a poster for each show with a series recording or a series folder. A number badge counts the episodes you have not started. A `REC` badge means an episode is recording now, and a red bar on the picture shows how much of the programme has aired.
 - **Movies**: films that Freetvarr filed in the movies folder.
-- **Specials and one-offs**: single recordings, such as a sports final.
+- **Specials and one-offs**: recordings with no series recording and no series folder, such as a sports final. The import puts them in the [one-off folder](/guide/configuration#the-one-off-folder), and they stay on this shelf even when the TV guide gives them season and episode numbers.
 
 A recording appears on its shelf as soon as it starts, even before it is in your library. See [Recordings in progress](#recordings-in-progress).
 

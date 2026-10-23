@@ -72,10 +72,19 @@ test('isLibraryMember: keeps imported rows and rows TVHeadend still has, drops p
   assert.equal(isLibraryMember(row({ purged_at: '2026-10-02' })), false)
 })
 
-test('kindOf: a rule, episode numbers or two recordings make a show', () => {
+test('kindOf: a series rule or a series folder makes a show', () => {
   assert.equal(kindOf({ rows: [row()], hasRule: true }), 'show')
-  assert.equal(kindOf({ rows: [row({ season: 2 })] }), 'show')
-  assert.equal(kindOf({ rows: [row(), row({ recording_id: 'r2' })] }), 'show')
+  assert.equal(kindOf({ rows: [row({ show_id: 3 })] }), 'show')
+  assert.equal(kindOf({ rows: [row(), row({ recording_id: 'r2', show_id: 3 })] }), 'show')
+})
+
+test('kindOf: with no series rule or folder, the import files it as a one-off, whatever the guide numbers', () => {
+  assert.equal(kindOf({ rows: [row({ season: 26, episode: 6 })] }), 'oneoff')
+  assert.equal(kindOf({ rows: [row({ season: 2 }), row({ recording_id: 'r2', season: 2, episode: 3 })] }), 'oneoff')
+  assert.equal(kindOf({ rows: [row({ season: 26, episode: 6, status: 'pending', duration_s: 9000 })] }), 'oneoff')
+})
+
+test('kindOf: films and one-offs', () => {
   assert.equal(kindOf({ rows: [row({ file_path: '/media/movies/Heat (1995)/Heat.ts' })], moviesRoot: '/media/movies' }), 'movie')
   assert.equal(kindOf({ rows: [row({ status: 'pending', duration_s: 7200 })] }), 'movie')
   assert.equal(kindOf({ rows: [row({ file_path: '/media/one-offs/Cup/Cup.ts' })], moviesRoot: '/media/movies' }), 'oneoff')
@@ -184,12 +193,12 @@ test('resumeNextOf: resumes the last played episode, else starts the oldest unwa
 
 test('libraryEpisodesOf: in-progress by last played, new by air date, never failed or watched', () => {
   const rows = [
-    row({ recording_id: 'p1', aired_at: NOW - 5 * DAY_MS, playback_position_s: 100, played_at: '2026-10-10T00:00:00Z', season: 1 }),
-    row({ recording_id: 'p2', aired_at: NOW - 6 * DAY_MS, playback_position_s: 50, played_at: '2026-10-12T00:00:00Z', season: 1 }),
-    row({ recording_id: 'n1', aired_at: NOW - DAY_MS, season: 1 }),
-    row({ recording_id: 'n2', aired_at: NOW, season: 1 }),
-    row({ recording_id: 'f', status: 'failed', season: 1 }),
-    row({ recording_id: 'w', watched_at: '2026-10-01', season: 1 }),
+    row({ recording_id: 'p1', aired_at: NOW - 5 * DAY_MS, playback_position_s: 100, played_at: '2026-10-10T00:00:00Z', season: 1, show_id: 3 }),
+    row({ recording_id: 'p2', aired_at: NOW - 6 * DAY_MS, playback_position_s: 50, played_at: '2026-10-12T00:00:00Z', season: 1, show_id: 3 }),
+    row({ recording_id: 'n1', aired_at: NOW - DAY_MS, season: 1, show_id: 3 }),
+    row({ recording_id: 'n2', aired_at: NOW, season: 1, show_id: 3 }),
+    row({ recording_id: 'f', status: 'failed', season: 1, show_id: 3 }),
+    row({ recording_id: 'w', watched_at: '2026-10-01', season: 1, show_id: 3 }),
   ]
   assert.deepEqual(libraryEpisodesOf({ rows, state: 'in-progress' }).map((e) => e.recordingId), ['p2', 'p1'])
   assert.deepEqual(libraryEpisodesOf({ rows, state: 'new' }).map((e) => e.recordingId), ['n2', 'n1'])
@@ -202,11 +211,14 @@ test('libraryEpisodesOf: a kind keeps only episodes of that kind', () => {
   const rows = [
     row({ recording_id: 's1', aired_at: NOW, season: 1 }),
     row({ recording_id: 'm1', title: 'The Long Paddock', aired_at: NOW - DAY_MS, file_path: '/media/Movies/paddock.ts' }),
+    row({ recording_id: 'o1', title: 'Rugby League World Cup 2026', aired_at: NOW - 2 * DAY_MS, season: 26, episode: 6 }),
   ]
-  const ofKind = (kind) => libraryEpisodesOf({ rows, state: 'new', kind, moviesRoot: '/media/Movies' }).map((e) => e.recordingId)
+  const ofKind = (kind) => libraryEpisodesOf({ rows, state: 'new', kind, moviesRoot: '/media/Movies', ruleKeys: new Set(['the-block']) })
+    .map((e) => e.recordingId)
   assert.deepEqual(ofKind('movie'), ['m1'])
   assert.deepEqual(ofKind('show'), ['s1'])
-  assert.equal(libraryEpisodesOf({ rows, state: 'new' }).length, 2)
+  assert.deepEqual(ofKind('oneoff'), ['o1'])
+  assert.equal(libraryEpisodesOf({ rows, state: 'new' }).length, 3)
 })
 
 test('episodeLimitFrom and rulePatchFrom: validate request values', () => {

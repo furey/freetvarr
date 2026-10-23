@@ -159,6 +159,7 @@ const loadRecordingNow = async (nowMs) => {
     active: active.map((recording) => ({
       ...describeActiveRecording({ recording, inputs, subscriptions, nowMs }),
       libraryHold: libraryHoldOf({ recording, ...importContext }),
+      seriesFolderId: seriesFolderIdOf({ recording, shows: importContext?.shows }),
     })),
     journeys,
     finishing,
@@ -176,7 +177,9 @@ export const libraryHoldOf = ({ recording, existing = null, shows = [], importUn
   return decision.action === 'hold' ? decision.reason : null
 }
 
-export const finishingOf = ({ entry, libraryHold = null }) => ({
+export const seriesFolderIdOf = ({ recording, shows = [] }) => matchShow(shows, recording.name || '')?.id ?? null
+
+export const finishingOf = ({ entry, libraryHold = null, seriesFolderId = null }) => ({
   ...cardBasics(entry.recording),
   start: entry.recording.startDate,
   stop: entry.recording.endDate,
@@ -184,6 +187,7 @@ export const finishingOf = ({ entry, libraryHold = null }) => ({
   recordingStartedAt: entry.recording.recordingSince ?? entry.recording.startPadded ?? null,
   endedAt: entry.endedAt,
   libraryHold,
+  seriesFolderId,
 })
 
 export const isAwaitingRow = ({ entry, row, nowMs }) => !row
@@ -266,7 +270,11 @@ const describeEnded = async ({ nowMs, importContext }) => {
     }
     const awaitingRow = isAwaitingRow({ entry, row, nowMs })
     if (awaitingRow) {
-      finishing.push(finishingOf({ entry, libraryHold: libraryHoldOf({ recording: entry.recording, shows, importUnmatched }) }))
+      finishing.push(finishingOf({
+        entry,
+        libraryHold: libraryHoldOf({ recording: entry.recording, shows, importUnmatched }),
+        seriesFolderId: seriesFolderIdOf({ recording: entry.recording, shows }),
+      }))
     }
     if (!entry.outcome) continue
     const journey = describeJourney({
