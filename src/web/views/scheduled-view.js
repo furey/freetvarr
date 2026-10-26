@@ -3,6 +3,8 @@ import { api } from '/shared/api.js'
 import { useFlash, useMediaQuery } from '/shared/composables.js'
 import { holdAtLeast } from '/pending.js'
 import { storedFlag } from '/shared/storage.js'
+import { viewStoreOf } from '/shared/view-store.js'
+import { SCHEDULED_CACHE } from '/view-cache.js'
 import { tz, now } from '/shared/time.js'
 import { recordingNow, recordingChangeTick, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { localDayNumber } from '/guide-time.js'
@@ -36,6 +38,31 @@ const REPEAT_HINT = 'TVHeadend skips repeats of an episode it has already record
 const WIDE_QUERY = '(min-width: 1024px)'
 const WARNING_ICON = '<svg class="scheduled-warning-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>'
 const BELL_ICON = '<svg class="scheduled-bell" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg>'
+
+const scheduledStore = viewStoreOf(SCHEDULED_CACHE)
+
+let scheduledDraft = null
+
+const keepScheduled = (part) => {
+  scheduledDraft = { ...(scheduledDraft ?? scheduledStore.cached()), ...part }
+  if (SCHEDULED_CACHE.isValid(scheduledDraft)) scheduledStore.keep(scheduledDraft)
+}
+
+export const cachedScheduled = () => scheduledStore.cached()
+
+export const fetchScheduledState = async ({ fresh = false } = {}) => {
+  const state = await api('GET', fresh ? '/api/epg/state?fresh=1' : '/api/epg/state')
+  if (!(scheduledDraft?.state?.fetchedAt > state?.fetchedAt)) keepScheduled({ state })
+  return state
+}
+
+export const fetchWatchlistItems = async () => {
+  const watchlist = (await api('GET', '/api/watchlist'))?.items || []
+  keepScheduled({ watchlist })
+  return watchlist
+}
+
+export const loadScheduledData = () => Promise.all([fetchScheduledState(), fetchWatchlistItems()])
 
 const ScheduledWeekDays = {
   props: { days: { type: Array, default: () => [] } },
@@ -265,9 +292,10 @@ export const ScheduledView = {
   `,
   setup() {
     const { flash } = useFlash()
-    const state = ref(null)
-    const watchlist = ref([])
-    const loaded = ref(false)
+    const saved = cachedScheduled()
+    const state = ref(saved?.state ?? null)
+    const watchlist = ref(saved?.watchlist ?? [])
+    const loaded = ref(Boolean(saved))
     const loadError = ref('')
     const actionError = ref('')
     const busyIds = ref(new Set())
@@ -371,7 +399,7 @@ export const ScheduledView = {
     const loadState = async ({ fresh = false } = {}) => {
       const ticket = stateLoads.issue()
       try {
-        const loadedState = await api('GET', fresh ? '/api/epg/state?fresh=1' : '/api/epg/state')
+        const loadedState = await fetchScheduledState({ fresh })
         if (!stateLoads.accept(ticket)) return
         state.value = loadedState
         localSkipped.value = withoutListedSkips({ localSkipped: localSkipped.value, state: loadedState })
@@ -384,7 +412,7 @@ export const ScheduledView = {
 
     const loadWatchlist = async () => {
       try {
-        watchlist.value = (await api('GET', '/api/watchlist'))?.items || []
+        watchlist.value = await fetchWatchlistItems()
       } catch {
         watchlist.value = []
       }

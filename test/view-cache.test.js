@@ -4,7 +4,9 @@ import assert from 'node:assert/strict'
 import {
   FOR_YOU_CACHE,
   GUIDE_CACHE,
+  LIBRARY_CACHE,
   LIVE_CACHE,
+  SCHEDULED_CACHE,
   readViewCache,
   writeViewCache,
 } from '../src/web/view-cache.js'
@@ -89,4 +91,33 @@ test('a view cache past its size cap is removed instead of written', () => {
   assert.equal(storage.items.has(LIVE_CACHE.key), false)
   const throwing = { setItem: () => { throw new Error('quota') }, removeItem: () => {} }
   assert.doesNotThrow(() => writeViewCache({ storage: throwing, spec: LIVE_CACHE, build: 'b1', value: liveOf(), nowMs: NOW }))
+})
+
+const libraryOf = (shows = []) => ({ shows, stale: false, failedRows: [] })
+const scheduledOf = (overrides = {}) => ({ state: { upcomingRecordings: [], fetchedAt: NOW }, watchlist: [], ...overrides })
+
+test('the library and scheduled caches return what they saved', () => {
+  const show = { key: 'a', title: 'A', recordingNow: false, inProgress: null }
+  assert.deepEqual(roundTrip({ spec: LIBRARY_CACHE, value: libraryOf([show]) }), libraryOf([show]))
+  assert.deepEqual(roundTrip({ spec: SCHEDULED_CACHE, value: scheduledOf() }), scheduledOf())
+  assert.deepEqual(roundTrip({ spec: SCHEDULED_CACHE, value: scheduledOf({ watchlist: undefined }) }), { state: scheduledOf().state })
+  assert.equal(roundTrip({ spec: SCHEDULED_CACHE, value: scheduledOf(), readAt: NOW + SCHEDULED_CACHE.maxAgeMs }), null)
+})
+
+test('the library cache stops showing a recording whose padded stop has passed', () => {
+  const recording = { key: 'r', recordingNow: true, inProgress: { phase: 'recording', stop: NOW + 60_000, stopPadded: NOW + 120_000 } }
+  const finishing = { key: 'f', recordingNow: false, inProgress: { phase: 'finishing', stop: NOW - HOUR } }
+  const value = libraryOf([recording, finishing])
+  assert.deepEqual(roundTrip({ spec: LIBRARY_CACHE, value, readAt: NOW + 90_000 }).shows, [recording, finishing])
+  const later = roundTrip({ spec: LIBRARY_CACHE, value, readAt: NOW + 120_000 }).shows
+  assert.equal(later[0].recordingNow, false)
+  assert.equal(later[0].inProgress.phase, 'finishing')
+  assert.deepEqual(later[1], finishing)
+})
+
+test('the library and scheduled caches reject malformed values', () => {
+  assert.equal(roundTrip({ spec: LIBRARY_CACHE, value: { shows: null } }), null)
+  assert.equal(roundTrip({ spec: SCHEDULED_CACHE, value: { state: null, watchlist: [] } }), null)
+  assert.equal(roundTrip({ spec: SCHEDULED_CACHE, value: { state: {}, watchlist: [] } }), null)
+  assert.equal(roundTrip({ spec: SCHEDULED_CACHE, value: scheduledOf({ watchlist: 'x' }) }), null)
 })

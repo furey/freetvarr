@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import { useLibraryActions } from '/components/library-actions.js'
 import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
 import { MoveToShowSheet } from '/components/move-to-show-sheet.js'
@@ -22,14 +22,43 @@ import { useLongPress } from '/shared/long-press.js'
 import { recordingNow, recordingChangeTick, recordingSetKey } from '/shared/recording-now.js'
 import { inProgressCardMetaOf, isRecordingPhase, recordedPercentOf } from '/in-progress-display.js'
 import { storedChoice, storedFlag } from '/shared/storage.js'
+import { viewStoreOf } from '/shared/view-store.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { now, tz } from '/shared/time.js'
+import { LIBRARY_CACHE } from '/view-cache.js'
+import { cachedScheduled, fetchScheduledState } from '/views/scheduled-view.js'
 
 const LIBRARY_SORT_KEY = 'freetvarr.librarySort'
 const LIBRARY_UNWATCHED_KEY = 'freetvarr.libraryUnwatched'
 const FAILED_LOG_HREF = '#/settings/system/log?status=failed'
 const LIBRARY_POLL_MS = 60_000
 const SKELETON_POSTERS = 6
+const FAILED_RECORDINGS_URL = '/api/recordings?status=failed&sort=aired_at&dir=desc&pageSize=10'
+
+const libraryStore = viewStoreOf(LIBRARY_CACHE)
+
+let libraryDraft = null
+
+const keepLibrary = (part) => {
+  libraryDraft = { failedRows: [], ...(libraryDraft ?? libraryStore.cached()), ...part }
+  if (LIBRARY_CACHE.isValid(libraryDraft)) libraryStore.keep(libraryDraft)
+}
+
+export const fetchLibraryShows = async () => {
+  const result = await api('GET', '/api/library/shows')
+  const library = { shows: result.shows || [], stale: Boolean(result.stale) }
+  keepLibrary(library)
+  return library
+}
+
+export const fetchFailedRecordings = async () => {
+  const result = await api('GET', FAILED_RECORDINGS_URL).catch(() => null)
+  const failedRows = result?.recordings || []
+  keepLibrary({ failedRows })
+  return failedRows
+}
+
+export const loadLibraryData = () => Promise.all([fetchLibraryShows(), fetchFailedRecordings(), fetchScheduledState()])
 
 export const RecordingsLibraryView = {
   components: { ActionConfirm, RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MoveToShowSheet },
@@ -159,12 +188,13 @@ export const RecordingsLibraryView = {
     </div>
   `,
   setup() {
-    const shows = ref([])
-    const stale = ref(false)
-    const loaded = ref(false)
+    const saved = libraryStore.cached()
+    const shows = ref(saved?.shows || [])
+    const stale = ref(Boolean(saved?.stale))
+    const loaded = ref(Boolean(saved))
     const error = ref('')
-    const failedRows = ref([])
-    const scheduledCount = ref(null)
+    const failedRows = ref(saved?.failedRows || [])
+    const scheduledState = shallowRef(cachedScheduled()?.state ?? null)
     const sortKey = storedChoice({ key: LIBRARY_SORT_KEY, options: LIBRARY_SORTS.map((o) => o.key), fallback: 'recent' })
     const unwatchedOnly = storedFlag({ key: LIBRARY_UNWATCHED_KEY, fallback: false })
 
@@ -177,11 +207,20 @@ export const RecordingsLibraryView = {
       reasonOf: failureReasonOf,
     }))
 
+    const scheduledCount = computed(() => (scheduledState.value
+      ? scheduledCountOfState({
+        state: scheduledState.value,
+        activeProgramIds: recordingNow.value.active.filter((r) => !r.failed).map((r) => r.programId),
+        nowMs: now.value.getTime(),
+        timeZone: tz.value,
+      })
+      : null))
+
     const loadShows = async () => {
       try {
-        const result = await api('GET', '/api/library/shows')
-        shows.value = result.shows || []
-        stale.value = Boolean(result.stale)
+        const library = await fetchLibraryShows()
+        shows.value = library.shows
+        stale.value = library.stale
         error.value = ''
       } catch (err) {
         error.value = err.message
@@ -191,22 +230,14 @@ export const RecordingsLibraryView = {
     }
 
     const loadFailures = async () => {
-      const result = await api('GET', '/api/recordings?status=failed&sort=aired_at&dir=desc&pageSize=10').catch(() => null)
-      failedRows.value = result?.recordings || []
+      failedRows.value = await fetchFailedRecordings()
     }
 
     const loadScheduledCount = async () => {
-      const state = await api('GET', '/api/epg/state').catch(() => null)
-      scheduledCount.value = state
-        ? scheduledCountOfState({
-          state,
-          activeProgramIds: recordingNow.value.active.filter((r) => !r.failed).map((r) => r.programId),
-          timeZone: tz.value,
-        })
-        : null
+      scheduledState.value = await fetchScheduledState().catch(() => scheduledState.value)
     }
 
-    const refresh = () => Promise.all([loadShows(), loadFailures(), loadScheduledCount()])
+    const refresh = () => Promise.all([loadShows(), loadFailures()]).then(loadScheduledCount)
 
     let pollTimer = null
     onMounted(() => {
@@ -214,7 +245,7 @@ export const RecordingsLibraryView = {
       pollTimer = setInterval(refresh, LIBRARY_POLL_MS)
     })
     onUnmounted(() => clearInterval(pollTimer))
-    watch(recordingChangeTick, () => Promise.all([loadShows(), loadScheduledCount()]))
+    watch(recordingChangeTick, () => loadShows().then(loadScheduledCount))
     watch(recordingSetKey, (current, previous) => {
       if (current !== previous) loadShows()
     })

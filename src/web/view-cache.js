@@ -32,6 +32,27 @@ export const FOR_YOU_CACHE = {
   freshen: ({ value, nowMs }) => ({ ...value, payload: withoutEndedForYouOf({ payload: value.payload, nowMs }) }),
 }
 
+export const LIBRARY_CACHE = {
+  key: 'freetvarr.libraryShows',
+  version: 1,
+  maxAgeMs: 24 * 60 * 60 * 1000,
+  maxChars: 400_000,
+  isValid: (library) => isPlainObject(library) && Array.isArray(library.shows),
+  freshen: ({ value, nowMs }) => ({ ...value, shows: value.shows.map((show) => withoutEndedRecordingOf({ show, nowMs })) }),
+}
+
+export const SCHEDULED_CACHE = {
+  key: 'freetvarr.scheduled',
+  version: 1,
+  maxAgeMs: 6 * 60 * 60 * 1000,
+  maxChars: 400_000,
+  isValid: (scheduled) => isPlainObject(scheduled)
+    && isPlainObject(scheduled.state)
+    && Array.isArray(scheduled.state.upcomingRecordings)
+    && (scheduled.watchlist == null || Array.isArray(scheduled.watchlist)),
+  freshen: ({ value }) => value,
+}
+
 export const readViewCache = ({ storage, spec, build, nowMs = Date.now() }) => {
   try {
     const saved = JSON.parse(storage.getItem(spec.key))
@@ -70,6 +91,14 @@ export const withoutEndedForYouOf = ({ payload, nowMs }) => {
       items: (section.items ?? []).filter((item) => !hasEnded({ item, nowMs })),
     })),
   }
+}
+
+export const withoutEndedRecordingOf = ({ show, nowMs }) => {
+  const item = show?.inProgress
+  if (item?.phase !== 'recording') return show
+  const stop = Number(item.stopPadded ?? item.stop)
+  if (!Number.isFinite(stop) || stop > nowMs) return show
+  return { ...show, recordingNow: false, inProgress: { ...item, phase: 'finishing' } }
 }
 
 export const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
