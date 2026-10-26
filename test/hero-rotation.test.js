@@ -1,13 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  SLIDE_MS, MAX_TICK_MS, RESUME_MIN_MS, rotationStart, isAdvancing, showsPauseButton, pauseButtonOf,
+  SLIDE_MS, RESUME_MIN_MS, rotationStart, isAdvancing, showsPauseButton, pauseButtonOf,
   fillFractionOf, wrapIndex, nextRotation,
 } from '../src/web/hero-rotation.js'
 
 const run = (state, events) => events.reduce(nextRotation, state)
-const ticks = (count, nowMs = 0) => Array.from({ length: count }, () => ({ type: 'tick', nowMs, dtMs: MAX_TICK_MS }))
-const slideTicks = Math.ceil(SLIDE_MS / MAX_TICK_MS)
+const STEP_MS = 250
+const ticks = (count) => Array.from({ length: count }, () => ({ type: 'elapse', ms: STEP_MS }))
+const slideTicks = Math.ceil(SLIDE_MS / STEP_MS)
 
 test('advances one slide every seven seconds and wraps', () => {
   const start = rotationStart({ count: 3 })
@@ -18,9 +19,10 @@ test('advances one slide every seven seconds and wraps', () => {
   assert.equal(run(start, ticks(slideTicks * 3)).index, 0)
 })
 
-test('a long frame gap counts as one short tick', () => {
-  const state = nextRotation(rotationStart({ count: 2 }), { type: 'tick', nowMs: 0, dtMs: 60_000 })
-  assert.equal(state.elapsedMs, MAX_TICK_MS)
+test('a long gap moves on one slide at most', () => {
+  const state = nextRotation(rotationStart({ count: 3 }), { type: 'elapse', ms: 60_000 })
+  assert.deepEqual([state.index, state.elapsedMs], [1, 0])
+  assert.equal(nextRotation(rotationStart({ count: 3 }), { type: 'elapse', ms: -5 }).elapsedMs, 0)
 })
 
 test('one slide, reduced motion, a hidden page, or an open player never advance', () => {
@@ -38,7 +40,7 @@ test('hover pauses and leaving resumes from where the fill stopped', () => {
   assert.equal(hovered.elapsedMs, mid.elapsedMs)
   assert.equal(pauseButtonOf(hovered, 0).label, 'Play slides')
   const left = run(hovered, [{ type: 'pointerLeave' }, ...ticks(1)])
-  assert.equal(left.elapsedMs, mid.elapsedMs + MAX_TICK_MS)
+  assert.equal(left.elapsedMs, mid.elapsedMs + STEP_MS)
 })
 
 test('keyboard focus pauses until focus leaves the hero or Play is pressed', () => {

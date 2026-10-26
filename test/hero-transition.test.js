@@ -50,7 +50,7 @@ test('imageNudgeOf: the nudge comes from the travel side and never passes its ov
 
 test('changeKindOf: dots, arrow keys, and swipes are manual; the rotation clock and slide list updates are automatic', () => {
   for (const type of ['goTo', 'step']) assert.equal(changeKindOf(type), 'manual')
-  for (const type of ['tick', 'sync']) assert.equal(changeKindOf(type), 'automatic')
+  for (const type of ['elapse', 'sync']) assert.equal(changeKindOf(type), 'automatic')
 })
 
 test('imageNudgeOf: an automatic change is a plain crossfade with no sideways picture move', () => {

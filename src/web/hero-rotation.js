@@ -1,5 +1,4 @@
 export const SLIDE_MS = 7_000
-export const MAX_TICK_MS = 250
 export const RESUME_MIN_MS = 3_000
 
 export const rotationStart = ({ count = 0, reducedMotion = false } = {}) => ({
@@ -43,9 +42,9 @@ export const nextRotation = (state, event) => {
   return handler ? handler(state, event) : state
 }
 
-const tick = (state, { nowMs, dtMs }) => {
-  if (!isAdvancing(state, nowMs)) return state
-  const elapsedMs = state.elapsedMs + Math.min(Math.max(0, dtMs), MAX_TICK_MS)
+const elapse = (state, { ms }) => {
+  if (!isAdvancing(state)) return state
+  const elapsedMs = state.elapsedMs + Math.max(0, ms)
   if (elapsedMs < SLIDE_MS) return { ...state, elapsedMs }
   return { ...state, index: wrapIndex({ index: state.index + 1, count: state.count }), elapsedMs: 0 }
 }
@@ -70,7 +69,7 @@ const overlayOpen = (state, { open }) => {
 const keyboardLeave = (state) => (state.keyboardFocused ? withResumeRoom({ ...state, keyboardFocused: false }) : state)
 
 const HANDLERS = {
-  tick,
+  elapse,
   goTo,
   step,
   sync,

@@ -35,6 +35,7 @@ const DOT_KEY_STEPS = { ArrowRight: 1, ArrowLeft: -1 }
 const PAUSE_ZONE_SELECTOR = '.hero-slide-actions, .hero-carousel-controls'
 const TAP_IGNORE_SELECTOR = 'a, button, input, [role="button"], .hero-carousel-controls'
 const knownFocus = boundedMap(200)
+const FILL_KEYFRAMES = [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }]
 
 const fetchFocus = async (key) => {
   const res = await fetch(`/api/image-focus?k=${encodeURIComponent(key)}`).catch(() => null)
@@ -143,15 +144,15 @@ export const HomeHeroCarousel = {
     const slidesByKey = computed(() => new Map([...(keptSlides.value ?? []), ...props.slides.map((slide) => [slide.key, slide])]))
     const orderedSlides = computed(() => displayKeys.value.map((key) => slidesByKey.value.get(key)).filter(Boolean))
     const rotation = shallowRef(state)
-    const clockMs = ref(Date.now())
     const stage = ref(null)
     const failedArt = ref({})
     const drag = ref(null)
     const carouselId = `hero-${Math.random().toString(36).slice(2, 8)}`
     const dotEls = []
     let fillEl = null
-    let frame = null
-    let lastFrameAt = 0
+    let fillAnimation = null
+    let clockSince = null
+    let slideTimer = null
     let pointerStart = null
     let pendingKeys = null
     let pendingChange = null
@@ -165,6 +166,12 @@ export const HomeHeroCarousel = {
     const motionNow = () => heroMotionOf({ reducedMotion: state.reducedMotion })
 
     const dispatch = (event) => {
+      accrue()
+      apply(event)
+      syncClock()
+    }
+
+    const apply = (event) => {
       const next = withPendingOrder(nextRotation(state, event))
       if (next === state) return
       if (next.index !== state.index) {
@@ -189,7 +196,7 @@ export const HomeHeroCarousel = {
       return 1
     }
 
-    const advancing = computed(() => isAdvancing(rotation.value, clockMs.value))
+    const advancing = computed(() => isAdvancing(rotation.value))
     const activeKey = computed(() => orderedSlides.value[rotation.value.index]?.key)
 
     const isNearActive = (i) => {
@@ -284,44 +291,50 @@ export const HomeHeroCarousel = {
       })
     }
     const pauseShown = computed(() => showsPauseButton(rotation.value))
-    const pauseButton = computed(() => pauseButtonOf(rotation.value, clockMs.value))
+    const pauseButton = computed(() => pauseButtonOf(rotation.value))
 
-    const paintFill = () => {
-      if (fillEl) fillEl.style.transform = `scaleX(${fillFractionOf(state)})`
+    const clockRuns = () => isAdvancing(state) && !drag.value
+
+    const accrue = () => {
+      if (clockSince === null) return
+      const at = performance.now()
+      const ms = at - clockSince
+      clockSince = at
+      apply({ type: 'elapse', ms })
     }
 
-    const onFrame = (at) => {
-      const dtMs = lastFrameAt ? at - lastFrameAt : 0
-      lastFrameAt = at
-      const nowMs = Date.now()
-      if (Math.floor(nowMs / 500) !== Math.floor(clockMs.value / 500)) clockMs.value = nowMs
-      if (!drag.value) dispatch({ type: 'tick', nowMs, dtMs })
-      paintFill()
-      frame = requestAnimationFrame(onFrame)
+    const syncClock = () => {
+      clearTimeout(slideTimer)
+      slideTimer = null
+      clockSince = clockRuns() ? performance.now() : null
+      if (clockSince !== null) slideTimer = setTimeout(onSlideEnd, SLIDE_MS - state.elapsedMs)
+      syncFill()
     }
 
-    const startClock = () => {
-      if (frame) return
-      lastFrameAt = 0
-      frame = requestAnimationFrame(onFrame)
-    }
+    const onSlideEnd = () => dispatch({ type: 'elapse', ms: 0 })
 
     const stopClock = () => {
-      cancelAnimationFrame(frame)
-      frame = null
+      clearTimeout(slideTimer)
+      slideTimer = null
+      clockSince = null
+      fillAnimation?.cancel()
+      fillAnimation = null
+    }
+
+    const syncFill = () => {
+      if (!fillEl) return
+      if (fillAnimation?.effect?.target !== fillEl) {
+        fillAnimation?.cancel()
+        fillAnimation = fillEl.animate(FILL_KEYFRAMES, { duration: SLIDE_MS, fill: 'both' })
+      }
+      fillAnimation.pause()
+      fillAnimation.currentTime = fillFractionOf(state) * SLIDE_MS
+      if (clockSince !== null) fillAnimation.play()
     }
 
     const playerOpen = () => live.open || playback.open
 
-    const syncClock = () => {
-      if (document.hidden || playerOpen()) stopClock()
-      else startClock()
-    }
-
-    const onVisibility = () => {
-      dispatch({ type: 'hidden', hidden: document.hidden })
-      syncClock()
-    }
+    const onVisibility = () => dispatch({ type: 'hidden', hidden: document.hidden })
 
     const onReducedChange = () => dispatch({ type: 'reducedMotion', reduced: reducedQuery.matches })
 
@@ -349,7 +362,6 @@ export const HomeHeroCarousel = {
       dispatch({ type: 'hidden', hidden: document.hidden })
       stopOverlayWatch = overlayStack.subscribe(onOverlayChange)
       onOverlayChange(overlayStack.size())
-      syncClock()
       beginDrift(activeKey.value)
       predecodeNext()
     })
@@ -371,10 +383,9 @@ export const HomeHeroCarousel = {
 
     watch(advancing, syncDrifts)
 
-    watch(playerOpen, (open) => {
-      dispatch({ type: 'playerOpen', open })
-      syncClock()
-    }, { immediate: true })
+    watch(playerOpen, (open) => dispatch({ type: 'playerOpen', open }), { immediate: true })
+
+    watch(() => Boolean(drag.value), () => dispatch({ type: 'drag' }))
 
     const slideKeysJoined = () => props.slides.map((s) => s.key).join('|')
 
@@ -394,8 +405,9 @@ export const HomeHeroCarousel = {
     watch(slideKeysJoined, adoptKeys)
 
     const setFillRef = (el) => {
+      if (!el || el === fillEl) return
       fillEl = el
-      paintFill()
+      syncFill()
     }
 
     const setDotRef = (el, i) => { dotEls[i] = el }
