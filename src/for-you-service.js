@@ -17,6 +17,7 @@ import {
 } from './for-you-engine.js'
 import { createGenreEnrichment, loadTitleGenres, yearOf } from './genre-enrichment.js'
 import { createDisplayKinds } from './display-kind.js'
+import { createEndedHistory } from './guide-history.js'
 import { rememberKnownAsFromTvmaze, rememberKnownAsFromWikidata } from './search-aliases.js'
 import { showKeyOf } from './web/show-key.js'
 import { showTitleKey } from './show-artwork.js'
@@ -47,7 +48,7 @@ export const onForYouResult = (listener) => {
   return () => forYouResultListeners.delete(listener)
 }
 
-export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null, onResult = () => {} }) => {
+export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null, onResult = () => {}, now = Date.now, resaveAfterMs = RESAVE_AFTER_MS }) => {
   let cached = null
   let computing = null
   let generation = 0
@@ -61,12 +62,20 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
   }
 
   let announced = null
+  let saved = null
 
-  const announce = (result) => {
-    const fingerprint = resultFingerprintOf(result)
+  const announce = ({ result, fingerprint }) => {
     if (fingerprint === announced) return
     announced = fingerprint
     Promise.resolve().then(() => onResult(result)).catch(() => {})
+  }
+
+  const saveIfChanged = ({ result, fingerprint }) => {
+    if (!store) return
+    const savedAt = now()
+    if (saved?.fingerprint === fingerprint && savedAt - saved.savedAt < resaveAfterMs) return
+    saved = { fingerprint, savedAt }
+    store.save(result).catch(() => { saved = null })
   }
 
   const computeFor = ({ snapshot, signature, nowMs }) => {
@@ -76,8 +85,9 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
       .then((result) => {
         if (startedIn !== generation) return result
         cached = { signature, result }
-        store?.save(result).catch(() => {})
-        announce(result)
+        const fingerprint = resultFingerprintOf(result)
+        saveIfChanged({ result, fingerprint })
+        announce({ result, fingerprint })
         return result
       })
       .finally(() => {
@@ -248,15 +258,15 @@ export const isUpkeepDue = ({ last, nowMs, nightStart = NIGHT_START, nightEnd = 
 }
 
 export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
-  const [guideRows, recordings, events, pinned, recordsByKey] = await Promise.all([
-    db('guide_programs').where('end', '>', nowMs).select('program_json'),
+  const [guide, recordings, events, pinned, recordsByKey] = await Promise.all([
+    getGuideSnapshot(),
     db('recordings').select('title'),
     db('user_events').whereNotNull('title').distinct('title'),
     pinnedChannelIds(),
     loadTitleGenres().catch(() => new Map()),
   ])
   const pinnedSet = new Set(pinned)
-  const programmes = guideRows.map((row) => JSON.parse(row.program_json))
+  const programmes = Object.values(guide?.programsByChannel || {}).flat().filter((programme) => programme.end > nowMs)
   const kindOf = createDisplayKinds({ programmes, recordsByKey })
   const titles = [
     ...recordings.map((row) => ({ title: row.title, priority: 3 })),
@@ -316,7 +326,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
     db('user_events').orderBy('id'),
     db('recordings').select('recording_id', 'title', 'season', 'episode', 'aired_at', 'imported_at', 'played_at', 'watched_at', 'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status'),
     loadTitleGenres(),
-    db('guide_programs').where('end', '<=', nowMs).select('program_json').catch(() => []),
+    endedHistory.read({ nowMs }).catch(() => []),
     snapshot.embedder ? loadVectors(snapshot.embedder.id) : null,
     filmRatingRows().select('lookup_key', 'found_json').catch(() => []),
   ])
@@ -330,7 +340,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
     inputs: {
       nowMs,
       limit: CACHED_LIMIT,
-      history: history.map((row) => row.program_json),
+      history,
       events,
       recordings,
       scheduledProgramIds: snapshot.scheduledProgramIds,
@@ -496,7 +506,9 @@ const isPrimeTime = (ms) => {
   return hour >= 18 && hour < 22
 }
 
+const RESAVE_AFTER_MS = 6 * 60 * 60 * 1000
 let upkeeping = null
+const endedHistory = createEndedHistory()
 const guideVersions = new WeakMap()
 const forYouWorker = createForYouWorker()
 const forYouResultListeners = new Set()

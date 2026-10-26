@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import axios from 'axios'
 
-import { db, getSetting, setSetting } from './db.js'
+import { db, deleteInChunks, getSetting, setSetting } from './db.js'
 import {
   MODELS,
   dailyTextsOf,
@@ -174,7 +174,7 @@ const embedNow = async ({ nowMs }) => {
     : { count: 0, ok: true }
   const run = { at: nowMs, model: embedder.id, wanted: texts.length, ...stats, wallMs: Date.now() - started }
   await setSetting(SETTINGS.embedRun, JSON.stringify(run))
-  await pruneVectors({ modelId: embedder.id, nowMs })
+  await pruneVectors({ modelId: embedder.id, nowMs }).catch(() => {})
   vectorVersion += 1
   console.log(`[for-you] embedded ${run.count ?? 0} of ${texts.length} text(s) with ${embedder.id} in ${Math.round(run.wallMs / 1000)} s`)
   return run
@@ -182,10 +182,10 @@ const embedNow = async ({ nowMs }) => {
 
 const textsToEmbed = async ({ modelId, nowMs }) => {
   const [guideRows, recordings] = await Promise.all([
-    db('guide_programs').where('end', '>', nowMs - DAY_MS).select('program_json'),
+    db('guide_programs').where('end', '>', nowMs - DAY_MS).select(GUIDE_TEXT_COLUMNS.map((column) => db.raw(column))),
     db('recordings').select('title', 'synopsis'),
   ])
-  const items = [...recordings, ...guideRows.map((row) => parseJson(row.program_json)).filter(Boolean)]
+  const items = [...recordings, ...guideRows]
   const distinct = distinctTextsOf(items)
   const known = new Set()
   for (let i = 0; i < distinct.length; i += SQL_CHUNK) {
@@ -251,9 +251,15 @@ const embedWithOllama = async ({ embedder, texts }) => {
   return { ok: true, count: saved, ms, msPerText: saved ? Math.round((ms / saved) * 10) / 10 : null }
 }
 
-const pruneVectors = async ({ modelId, nowMs }) => {
-  await db('text_embeddings').whereNot({ model_id: modelId }).delete().catch(() => {})
-  await db('text_embeddings').where('created_at', '<', nowMs - VECTOR_TTL_MS).delete().catch(() => {})
+export const createVectorPruner = ({ database = db } = {}) => {
+  let prunedModelId = null
+  return async ({ modelId, nowMs }) => {
+    if (prunedModelId !== modelId) {
+      await deleteInChunks({ database, table: 'text_embeddings', where: (query) => query.where('model_id', '<', modelId).orWhere('model_id', '>', modelId) })
+      prunedModelId = modelId
+    }
+    await deleteInChunks({ database, table: 'text_embeddings', where: (query) => query.where({ model_id: modelId }).andWhere('created_at', '<', nowMs - VECTOR_TTL_MS) })
+  }
 }
 
 const benchTextsOf = async () => {
@@ -344,6 +350,7 @@ let probing = null
 let embedding = null
 let vectorCache = null
 let vectorVersion = 0
+const pruneVectors = createVectorPruner()
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WORKER_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'for-you-embed-worker.js')
@@ -354,6 +361,10 @@ const LOW_PRIORITY = 19
 const MAX_THREADS = 4
 const BENCH_TEXTS = 20
 const SQL_CHUNK = 400
+const GUIDE_TEXT_COLUMNS = [
+  "json_extract(program_json, '$.title') as title",
+  "json_extract(program_json, '$.synopsis') as synopsis",
+]
 const STDERR_TAIL = 2000
 const CHECK_TIMEOUT_MS = 30 * 1000
 const BENCH_TIMEOUT_MS = 5 * 60 * 1000

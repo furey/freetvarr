@@ -1,4 +1,4 @@
-import { db } from './db.js'
+import { db, deleteInChunks } from './db.js'
 
 export const saveGuidePrograms = async ({ programs = [], nowMs = Date.now() } = {}) => {
   await db.transaction(async (trx) => {
@@ -15,8 +15,30 @@ export const saveGuidePrograms = async ({ programs = [], nowMs = Date.now() } = 
       await trx('guide_programs').insert(chunk.map(toSavedRow)).onConflict(['channel_id', 'start']).merge()
     }
     await yieldToEventLoop()
-    await trx('guide_programs').where('end', '<', startOfYesterdayMs(nowMs)).delete()
+    await deleteInChunks({ database: trx, table: 'guide_programs', where: (query) => query.where('end', '<', startOfYesterdayMs(nowMs)) })
   })
+  savedVersion += 1
+}
+
+export const guideHistoryVersion = () => savedVersion
+
+export const createEndedHistory = ({ load = loadEndedProgramJson, version = guideHistoryVersion } = {}) => {
+  let cached = null
+  let queue = Promise.resolve()
+  const refresh = async ({ nowMs }) => {
+    const current = version()
+    const reusable = cached && cached.version === current && nowMs >= cached.untilMs
+    const added = await load({ fromMs: reusable ? cached.untilMs : null, toMs: nowMs })
+    cached = { version: current, untilMs: nowMs, rows: reusable ? [...cached.rows, ...added] : added }
+    return cached.rows
+  }
+  return {
+    read: ({ nowMs }) => {
+      const next = queue.then(() => refresh({ nowMs }))
+      queue = next.catch(() => {})
+      return next
+    },
+  }
 }
 
 export const loadEndedProgramsByChannel = async ({ fromMs, toMs, nowMs = Date.now() }) => {
@@ -84,6 +106,16 @@ const toSavedRow = ({ dvr_state, dvr_uuid, ...program }) => ({
   program_json: JSON.stringify(program),
 })
 
+const loadEndedProgramJson = async ({ fromMs, toMs }) => {
+  const rows = await db('guide_programs')
+    .where('end', '<=', toMs)
+    .modify((query) => {
+      if (fromMs !== null) query.andWhere('end', '>', fromMs)
+    })
+    .select('program_json')
+  return rows.map((row) => row.program_json)
+}
+
 const fromSavedRow = (row) => ({
   ...JSON.parse(row.program_json),
   dvr_state: row.dvr_state,
@@ -116,5 +148,7 @@ const chunksOf = (items, size) => Array.from(
 )
 
 const yieldToEventLoop = () => new Promise(setImmediate)
+
+let savedVersion = 0
 
 const UPSERT_CHUNK_SIZE = 500

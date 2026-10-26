@@ -1,4 +1,4 @@
-import { db } from './db.js'
+import { db, deleteInChunks } from './db.js'
 import { measureJob } from './event-loop-lag.js'
 
 export const LOOKUP_CACHE_TABLES = [
@@ -42,7 +42,9 @@ export const startCachePruning = ({ prune = pruneLookupCaches, delayMs = PRUNE_S
 
 const pruneTable = async ({ database, table, key, before, maxRows }) => {
   if (!(await database.schema.hasTable(table))) return 0
-  const expired = await database(table).where('expires_at', '<', before).del()
+  const expired = await deleteInChunks({ database, table, where: (query) => query.where('expires_at', '<', before) })
+  const { count } = await database(table).count({ count: '*' }).first()
+  if (Number(count) <= maxRows) return expired
   const overflow = await database(table)
     .whereNotIn(key, database(table).select(key).orderBy('expires_at', 'desc').limit(maxRows))
     .del()
