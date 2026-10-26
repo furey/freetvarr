@@ -1,4 +1,5 @@
 import { db } from './db.js'
+import { measureJob } from './event-loop-lag.js'
 
 export const LOOKUP_CACHE_TABLES = [
   { table: 'programme_ratings', key: 'lookup_key' },
@@ -28,7 +29,7 @@ export const pruneLookupCaches = async ({
 }
 
 export const startCachePruning = ({ prune = pruneLookupCaches, delayMs = PRUNE_START_DELAY_MS, everyMs = PRUNE_INTERVAL_MS } = {}) => {
-  const run = () => Promise.resolve().then(() => prune()).catch(() => {})
+  const run = () => Promise.resolve().then(() => measureJob('cache-prune', prune)).catch(() => {})
   const first = setTimeout(run, delayMs)
   const repeat = setInterval(run, everyMs)
   first.unref?.()

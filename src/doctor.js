@@ -17,6 +17,7 @@ import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
 import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { describeSyncSchedule } from './web/sync-schedule.js'
 import { detectDockerVm } from './docker-host.js'
+import { measureJob } from './event-loop-lag.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -31,7 +32,7 @@ export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
 }
 
 export const scheduleDoctorChecks = ({ firstDelayMs = DOCTOR_FIRST_RUN_MS, everyMs = DOCTOR_EVERY_MS, run = () => getDoctorReport({ fresh: true }) } = {}) => {
-  const runQuietly = () => run().catch((err) => console.warn(`[doctor] background check failed: ${err.message}`))
+  const runQuietly = () => measureJob('doctor', run).catch((err) => console.warn(`[doctor] background check failed: ${err.message}`))
   const first = setTimeout(runQuietly, firstDelayMs)
   const repeat = setInterval(runQuietly, everyMs)
   first.unref?.()

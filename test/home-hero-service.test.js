@@ -6,6 +6,7 @@ import {
   HERO_SNAPSHOT_VERSION,
   buildHeroSnapshot,
   createHomeHero,
+  createSnapshotSaver,
   isHomeHeroWrite,
   nextBoundaryOf,
   readFeedWith,
@@ -380,4 +381,34 @@ test('isHomeHeroWrite: writes that change Home, never reads or playback pings', 
     ['POST', '/api/live/s1/attention'], ['POST', '/api/events/feedback'], ['POST', '/api/tvh-test'],
   ]
   others.forEach(([method, path]) => assert.equal(isHomeHeroWrite({ method, path }), false, `${method} ${path}`))
+})
+
+test('the snapshot saver skips writing a rebuild whose candidates did not change', async () => {
+  const writes = []
+  const save = createSnapshotSaver({ write: async (text) => { writes.push(JSON.parse(text)) }, resaveMs: 10 * MIN })
+  const snapshot = (over) => ({ version: HERO_SNAPSHOT_VERSION, builtAt: nowMs, timeZone, candidates: [{ key: 'a' }], ...over })
+  assert.equal(await save(snapshot()), true)
+  assert.equal(await save(snapshot({ builtAt: nowMs + MIN })), false)
+  assert.equal(await save(snapshot({ builtAt: nowMs + 2 * MIN, candidates: [{ key: 'b' }] })), true)
+  assert.equal(await save(snapshot({ builtAt: nowMs + 3 * MIN, candidates: [{ key: 'b' }], timeZone: 'Australia/Sydney' })), true)
+  assert.deepEqual(writes.map((written) => written.builtAt), [nowMs, nowMs + 2 * MIN, nowMs + 3 * MIN])
+})
+
+test('the snapshot saver still refreshes an unchanged snapshot after the resave gap', async () => {
+  const writes = []
+  const save = createSnapshotSaver({ write: async (text) => { writes.push(text) }, resaveMs: 10 * MIN })
+  const snapshot = (builtAt) => ({ version: HERO_SNAPSHOT_VERSION, builtAt, timeZone, candidates: [] })
+  await save(snapshot(nowMs))
+  await save(snapshot(nowMs + 9 * MIN))
+  await save(snapshot(nowMs + 10 * MIN))
+  assert.equal(writes.length, 2)
+})
+
+test('the snapshot saver retries after a failed write', async () => {
+  let fail = true
+  const save = createSnapshotSaver({ write: async () => { if (fail) throw new Error('disk') } })
+  const snapshot = { version: HERO_SNAPSHOT_VERSION, builtAt: nowMs, timeZone, candidates: [] }
+  await assert.rejects(save(snapshot), /disk/)
+  fail = false
+  assert.equal(await save(snapshot), true)
 })

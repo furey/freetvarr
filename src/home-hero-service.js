@@ -3,6 +3,7 @@ import { createArtworkStamps } from './web/artwork-stamps.js'
 import { forYouSlideOf, msOf, scheduledKeysOf, topRatedSlideOf } from './web/for-you.js'
 import { artIdentityFrom, candidatesOf, isEpisodeSlide, slideShowKeyOf } from './web/hero-art.js'
 import { HERO_SLIDE_LIMIT, heroCandidatesOf, heroShowKeyOf, heroSrcsetOf, showImageOf } from './web/home-hero.js'
+import { measureJob } from './event-loop-lag.js'
 
 export const HERO_SNAPSHOT_VERSION = 1
 export const HERO_SNAPSHOT_SETTING = 'home_hero_snapshot'
@@ -16,6 +17,21 @@ export const FIRST_BUILD_BUDGET_MS = 2500
 export const PENDING_RETRY_MS = 60 * 1000
 export const BOUNDARY_SLACK_MS = 2 * 1000
 export const KEEP_SNAPSHOT_THROUGH_OUTAGE_MS = 2 * 60 * 60 * 1000
+export const SNAPSHOT_RESAVE_MS = 10 * 60 * 1000
+
+export const createSnapshotSaver = ({ write, resaveMs = SNAPSHOT_RESAVE_MS }) => {
+  let saved = null
+  return async (snapshot) => {
+    const candidates = JSON.stringify(snapshot.candidates)
+    const unchanged = saved?.candidates === candidates
+      && saved.timeZone === snapshot.timeZone
+      && snapshot.builtAt - saved.builtAt < resaveMs
+    if (unchanged) return false
+    await write(JSON.stringify(snapshot))
+    saved = { candidates, timeZone: snapshot.timeZone, builtAt: snapshot.builtAt }
+    return true
+  }
+}
 
 export const HOME_HERO_WRITE_PATHS = [
   /^\/api\/epg\/(record|record-series|cancel|cancel-series|pause-series|channel-prefs)$/,
@@ -128,7 +144,7 @@ export const createHomeHero = ({
       rebuildWanted = true
       return building
     }
-    building = runBuild().finally(() => {
+    building = measureJob('hero-build', runBuild).finally(() => {
       building = null
       if (!rebuildWanted) return
       rebuildWanted = false

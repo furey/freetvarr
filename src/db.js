@@ -1,7 +1,8 @@
 import knexFactory from 'knex'
 import knexConfig from '../knexfile.js'
+import { trackQueries } from './event-loop-lag.js'
 
-export const db = knexFactory(knexConfig)
+export const db = trackQueries(knexFactory(knexConfig))
 
 export const getSetting = async (key) => {
   const row = await db('settings').where({ key }).first()

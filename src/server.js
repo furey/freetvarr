@@ -182,7 +182,7 @@ import { getSeries } from './series.js'
 import { getLibraryEpisodes, getLibraryShows, watchedAtAfterPosition } from './library.js'
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
-import { HERO_SNAPSHOT_SETTING, createHomeHero, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
+import { HERO_SNAPSHOT_SETTING, createHomeHero, createSnapshotSaver, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
 import { forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou } from './for-you-service.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
@@ -217,6 +217,7 @@ import { imageFocus } from './image-focus-service.js'
 import { canonicalFocusKeysOf } from './web/image-focus.js'
 import { createKnownTitles, createLookupGate, useLookupGate } from './lookup-gate.js'
 import { startCachePruning } from './cache-prune.js'
+import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
 import {
   liveSessionHooks,
   mountUserEvents,
@@ -322,6 +323,8 @@ app.use('/api', (req, res, next) => {
   next()
 })
 
+app.use('/api', trackRequests({ skip: (req) => req.path === LOOP_STATS_PATH }))
+
 app.use(imageFocus.tap)
 
 app.use('/api', (req, res, next) => {
@@ -363,6 +366,11 @@ const syncLimiter = rateLimit({
 })
 
 app.get('/healthz', (req, res) => res.json({ ok: true }))
+
+app.get(`/api${LOOP_STATS_PATH}`, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(loopMonitor.stats())
+})
 
 const readTvheadendVersion = async () => {
   try {
@@ -780,8 +788,9 @@ const warmWeekFilmRatings = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
   return programmeRatings.warm(upcomingFilmsOf({ guide, nowMs: Date.now() }))
 }
-setTimeout(warmUpcomingRatings, RATINGS_WARM_DELAY_MS).unref?.()
-setInterval(warmUpcomingRatings, RATINGS_WARM_WINDOW_MS / 24).unref?.()
+const warmUpcomingRatingsTagged = () => measureJob('ratings-warm', warmUpcomingRatings)
+setTimeout(warmUpcomingRatingsTagged, RATINGS_WARM_DELAY_MS).unref?.()
+setInterval(warmUpcomingRatingsTagged, RATINGS_WARM_WINDOW_MS / 24).unref?.()
 
 const ratingsLimiter = rateLimit({
   windowMs: 60_000,
@@ -1394,7 +1403,7 @@ const homeHero = createHomeHero({
   }),
   proofHeroPicture: heroPictureProof.proofHeroPicture,
   loadSaved: async () => JSON.parse((await getSetting(HERO_SNAPSHOT_SETTING)) || 'null'),
-  save: (snapshot) => setSetting(HERO_SNAPSHOT_SETTING, JSON.stringify(snapshot)),
+  save: createSnapshotSaver({ write: (text) => setSetting(HERO_SNAPSHOT_SETTING, text) }),
   timeZone: currentTimeZone,
 })
 
@@ -2358,6 +2367,7 @@ const escapesMediaRoot = (value) =>
 
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
+  loopMonitor.start()
   scheduleDoctorChecks()
   await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
   try {
@@ -2405,7 +2415,7 @@ const startAutoImport = () => {
     onSyncFinished,
   })
   const stopNoting = onRecordingFinished(() => autoImport.noteFinished())
-  const stopWatching = watchForFinishedRecordings({ isEnabled: scheduledSyncsOn, poll: () => getRecordingNow() })
+  const stopWatching = watchForFinishedRecordings({ isEnabled: scheduledSyncsOn, poll: () => measureJob('recording-now-poll', () => getRecordingNow()) })
   stopAutoImport = () => {
     stopWatching()
     stopNoting()
@@ -2414,14 +2424,15 @@ const startAutoImport = () => {
 }
 
 const liveReaper = setInterval(() => {
-  liveSessions.tick().catch((err) => console.error('[live] reaper failed:', err.message))
-  playbackSessions.tick().catch((err) => console.error('[play] reaper failed:', err.message))
+  measureJob('live-reaper', () => liveSessions.tick()).catch((err) => console.error('[live] reaper failed:', err.message))
+  measureJob('play-reaper', () => playbackSessions.tick()).catch((err) => console.error('[play] reaper failed:', err.message))
 }, LIVE_REAPER_MS)
 
 const shutdown = async () => {
   stopScheduler()
   stopAutoImport()
   clearInterval(liveReaper)
+  loopMonitor.stop()
   await liveSessions.stopAll().catch(() => {})
   await playbackSessions.stopAll().catch(() => {})
   await stopUserEvents().catch(() => {})

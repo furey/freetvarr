@@ -56,6 +56,7 @@ import {
   splitPendingSkips,
 } from './pending-skips.js'
 import { dvrAiringMatchOf, dvrAiringsOf } from './repeat-match.js'
+import { measureJob } from './event-loop-lag.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -485,7 +486,7 @@ export const getRecordingState = async ({ fresh = false } = {}) => {
 
 const reloadRecordingState = (now) => {
   if (stateInflight) return stateInflight
-  stateInflight = loadRecordingState(now)
+  stateInflight = measureJob('recording-state', () => loadRecordingState(now))
     .catch((err) => {
       stateFailedUntil = Date.now() + STATE_RETRY_MS
       stateLastError = err
@@ -1062,7 +1063,7 @@ const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
 const guideListeners = new Set()
 const guideCache = createGuideCache({
-  load: (startMs) => loadGuide(startMs).then(announceGuideLoaded),
+  load: (startMs) => measureJob('guide-load', () => loadGuide(startMs)).then(announceGuideLoaded),
   staleRetryMs: GUIDE_STALE_RETRY_MS,
 })
 

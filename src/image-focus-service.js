@@ -2,6 +2,7 @@ import { db, getSetting } from './db.js'
 import { readHeadroomMb } from './for-you-engine.js'
 import { FOCUS_SETTING, MAX_FOCUS_ROWS, createImageFocus, faceFocusEnabledFrom, runFocusWorker } from './image-focus.js'
 import { focusKeyOf } from './web/image-focus.js'
+import { measureJob } from './event-loop-lag.js'
 
 export const isFaceFocusEnabled = async () => faceFocusEnabledFrom(await getSetting(FOCUS_SETTING))
 
@@ -14,7 +15,7 @@ export const imageFocus = createImageFocus({
   forgetRows: (keys) => forgetFocusRows(keys),
   isEnabled: isFaceFocusEnabled,
   readHeadroomMb,
-  detect: (jobs) => runFocusWorker({ jobs }),
+  detect: (jobs) => measureJob('focus-worker', () => runFocusWorker({ jobs })),
   render: (url) => renderLocally(url),
 })
 

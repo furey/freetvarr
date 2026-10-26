@@ -6,6 +6,7 @@ import { getGuideSnapshot } from './epg.js'
 import { backfillUserEvents, pruneUserEvents } from './user-events-log.js'
 import { runForYouUpkeep } from './for-you-service.js'
 import { createScheduleCheck } from './schedule-runs.js'
+import { measureJob } from './event-loop-lag.js'
 
 const DEFAULT_CRON = '*/30 * * * *'
 
@@ -36,16 +37,16 @@ export const stopScheduler = () => {
 const scheduleWith = (expr) => {
   if (task) task.stop()
   task = cron.schedule(expr, () => {
-    startSync({ trigger: 'cron' }).catch((err) => {
+    measureJob('cron:sync', () => startSync({ trigger: 'cron' })).catch((err) => {
       console.error('[scheduler] sync failed:', err.message)
     })
-    getGuideSnapshot().catch((err) => {
+    measureJob('cron:guide', () => getGuideSnapshot()).catch((err) => {
       console.error('[scheduler] guide refresh failed:', err.message)
     })
-    pruneUserEvents()
-      .then(() => backfillUserEvents())
+    measureJob('cron:viewing-history', () => pruneUserEvents().then(() => backfillUserEvents()))
       .catch((err) => console.error('[scheduler] viewing history upkeep failed:', err.message))
-    runForYouUpkeep().catch((err) => console.error('[scheduler] for you upkeep failed:', err.message))
+    measureJob('cron:for-you', () => runForYouUpkeep())
+      .catch((err) => console.error('[scheduler] for you upkeep failed:', err.message))
   })
   currentExpr = expr
   console.log(`[scheduler] running on "${expr}"`)

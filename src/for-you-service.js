@@ -24,6 +24,7 @@ import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLangu
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
+import { measureJob } from './event-loop-lag.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -501,7 +502,7 @@ const forYouWorker = createForYouWorker()
 const forYouResultListeners = new Set()
 const forYouCache = createForYouCache({
   loadSnapshot,
-  compute: computeForYou,
+  compute: (args) => measureJob('for-you-compute', () => computeForYou(args)),
   store: createSavedResultStore(),
   onResult: (result) => forYouResultListeners.forEach((listener) => listener(result)),
 })
