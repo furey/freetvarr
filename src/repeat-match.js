@@ -21,16 +21,28 @@ export const dvrAiringMatchOf = ({ programme, tag, airings = [] }) => {
   return { status: best.status, startDate: best.entry.startDate, channelName: best.entry.channelName || null }
 }
 
-export const isSameEpisode = ({ programme, entry }) => {
-  if (programme.episode_uri && programme.episode_uri === entry.episodeUri) return true
-  const programmeNumbered = programme.series_no != null && programme.episode_no != null
-  const entryNumbered = entry.season != null && entry.episode != null
-  if (programmeNumbered && entryNumbered) {
-    return Number(programme.series_no) === Number(entry.season) && Number(programme.episode_no) === Number(entry.episode)
-  }
-  return hasRealSubtitle(programme.episode_title)
-    && textKey(programme.title) === textKey(entry.name)
-    && textKey(programme.episode_title) === textKey(entry.episodeTitle)
+export const isSameEpisode = ({ programme, entry }) =>
+  isSameIdentity(identityOfProgramme(programme), identityOfEntry(entry))
+
+export const isSameEpisodeEntry = ({ entry, other }) =>
+  isSameIdentity(identityOfEntry(entry), identityOfEntry(other))
+
+export const earlierAiringOfEntry = ({ entry, upcoming = [], pastAirings = [] }) => {
+  const isEarlierSameEpisode = (other) => other.uuid !== entry.uuid
+    && Number(other.startDate) < Number(entry.startDate)
+    && sharesRule({ entry, other })
+    && isSameEpisodeEntry({ entry, other })
+  const finished = pastAirings.filter((other) => !other.failed && !other.removed)
+  const recorded = pastAirings
+    .filter((other) => !other.failed && (!other.removed || removedStatusOf({ entry: other, finished }) === 'recorded'))
+    .filter(isEarlierSameEpisode)
+    .sort((a, b) => Number(b.startDate) - Number(a.startDate))[0]
+  if (recorded) return airingSummaryOf({ entry: recorded, status: 'recorded' })
+  const pending = upcoming
+    .filter((other) => other.enabled !== false && !other.duplicateOfStart && isPendingStatus(other.schedStatus))
+    .filter(isEarlierSameEpisode)
+    .sort((a, b) => Number(a.startDate) - Number(b.startDate))[0]
+  return pending ? airingSummaryOf({ entry: pending, status: upcomingStatusOf(pending) }) : null
 }
 
 const STATUS_RANK = { recording: 0, scheduled: 1, recorded: 2, skipped: 3 }
@@ -43,23 +55,71 @@ const upcomingStatusOf = (entry) => {
   return entry.schedStatus === 'recording' ? 'recording' : 'scheduled'
 }
 
+const isPendingStatus = (schedStatus) => schedStatus === 'scheduled' || schedStatus === 'recording'
+
+const airingSummaryOf = ({ entry, status }) => ({
+  status,
+  startDate: entry.startDate,
+  channelName: entry.channelName || null,
+  uuid: entry.uuid,
+})
+
 const removedStatusOf = ({ entry, finished }) => {
   const completed = /completed ok/i.test(entry.statusText || '')
-  const copied = finished.some((other) => isSameEpisode({ programme: programmeOfEntry(entry), entry: other }))
+  const copied = finished.some((other) => isSameEpisodeEntry({ entry, other }))
   return completed || copied ? 'recorded' : 'skipped'
 }
 
-const programmeOfEntry = (entry) => ({
-  title: entry.name,
-  episode_title: entry.episodeTitle,
-  episode_uri: entry.episodeUri,
-  series_no: entry.season,
-  episode_no: entry.episode,
+const isSameIdentity = (a, b) => {
+  const uriA = textKey(a.uri)
+  const uriB = textKey(b.uri)
+  if (uriA && uriA === uriB) return true
+  if (hasEpisodeNumber(a) && hasEpisodeNumber(b)) {
+    return Number(a.season) === Number(b.season) && Number(a.episode) === Number(b.episode)
+  }
+  if (uriA && uriB) return false
+  return textKey(a.title) === textKey(b.title)
+    && hasRealSubtitle(a)
+    && textKey(a.subtitle) === textKey(b.subtitle)
+    && descriptionsAgree(a.description, b.description)
+}
+
+const identityOfProgramme = (programme) => ({
+  title: programme.title,
+  subtitle: programme.episode_title,
+  uri: programme.episode_uri,
+  season: programme.series_no,
+  episode: programme.episode_no,
+  description: programme.synopsis,
 })
+
+const identityOfEntry = (entry) => ({
+  title: entry.name,
+  subtitle: entry.episodeTitle,
+  uri: entry.episodeUri,
+  season: entry.season,
+  episode: entry.episode,
+  description: entry.description,
+})
+
+const hasEpisodeNumber = ({ season, episode }) => season != null && episode != null
+
+const hasRealSubtitle = ({ title, subtitle }) =>
+  textKey(subtitle) !== '' && !isPlaceholderEpisodeTitle(subtitle) && textKey(subtitle) !== textKey(title)
+
+const descriptionsAgree = (a, b) => {
+  const keyA = wordsKey(a)
+  const keyB = wordsKey(b)
+  if (!keyA || !keyB) return true
+  return keyA.startsWith(keyB) || keyB.startsWith(keyA)
+}
+
+const sharesRule = ({ entry, other }) =>
+  (entry.autorecId != null && entry.autorecId === other.autorecId) || textKey(entry.name) === textKey(other.name)
 
 const belongsToRule = ({ entry, tag, programme }) =>
   (tag?.id != null && entry.autorecId === tag.id) || textKey(entry.name) === textKey(programme.title)
 
-const hasRealSubtitle = (subtitle) => textKey(subtitle) !== '' && !isPlaceholderEpisodeTitle(subtitle)
+const wordsKey = (text) => String(text ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 
 const textKey = (text) => String(text ?? '').trim().toLowerCase()

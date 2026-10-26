@@ -8,6 +8,7 @@ import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 import { cleanGuideText } from './consumer-advice.js'
 import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
+import { earlierAiringOfEntry } from './repeat-match.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -435,11 +436,13 @@ export const getState = async () => {
     : []
   const { recordings, repeats } = splitRepeats({ upcoming, pastAirings })
   const futureRecordings = recordings.map(withSeriesLink)
+  const repeatUuids = new Set(repeats.map((e) => e.uuid))
+  const skipped = upcoming.filter((e) => !e.enabled && !repeatUuids.has(e.uuid))
   return {
     futureRecordings,
     repeatRecordings: repeats.map(withSeriesLink),
     repeatProgramIds: repeats.map((e) => String(e.programId)),
-    skippedRecordings: upcoming.filter((e) => !e.enabled).map((e) => ({ ...withSeriesLink(e), skipped: true })),
+    skippedRecordings: skipped.map((e) => ({ ...withSeriesLink(e), skipped: true })),
     skippedProgramIds: upcoming.filter((e) => !e.enabled).map((e) => String(e.programId)),
     upcomingEntries: upcoming,
     pastAirings,
@@ -456,12 +459,26 @@ export const splitRepeats = ({ upcoming = [], pastAirings = [] }) => {
   const recordings = []
   const repeats = []
   for (const entry of upcoming.filter((e) => e.enabled)) {
-    const repeatOf = entry.schedStatus === 'scheduled' ? originalAiringOf({ entry, upcoming, pastAirings }) : null
+    const repeatOf = entry.schedStatus === 'scheduled' ? repeatOriginalOf({ entry, upcoming, pastAirings }) : null
     if (repeatOf) repeats.push({ ...entry, repeatOf })
     else recordings.push(entry)
   }
+  for (const entry of upcoming.filter((e) => !e.enabled && !e.duplicateOfStart)) {
+    const repeatOf = earlierAiringOfEntry({ entry, upcoming, pastAirings })
+    if (repeatOf?.status === 'recorded') repeats.push({ ...entry, repeatOf })
+  }
   return { recordings, repeats }
 }
+
+export const isRepeatToSkip = (entry) =>
+  entry.enabled !== false && !entry.duplicateOfStart && entry.repeatOf?.status === 'recorded'
+
+export const isRepeatAwaitingOriginal = (entry) =>
+  entry.enabled !== false && !entry.duplicateOfStart && entry.repeatOf?.status !== 'recorded'
+
+const repeatOriginalOf = ({ entry, upcoming, pastAirings }) => entry.duplicateOfStart
+  ? originalAiringOf({ entry, upcoming, pastAirings })
+  : earlierAiringOfEntry({ entry, upcoming, pastAirings })
 
 const originalAiringOf = ({ entry, upcoming, pastAirings }) => {
   if (!entry.duplicateOfStart) return null

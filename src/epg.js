@@ -10,6 +10,8 @@ import {
   scheduleRecording,
   cancelRecording,
   skipScheduledEntry,
+  isRepeatAwaitingOriginal,
+  isRepeatToSkip,
   enableSeriesTag,
   disableSeriesTag,
   setSeriesTagsEnabled,
@@ -504,7 +506,9 @@ const loadRecordingState = async (now) => {
     recordingsStorageInfo(),
     listPendingSkips({ nowMs: now }).catch(() => []),
   ])
-  const { state, pendingSkips } = await withPendingSkipsApplied({ state: loadedState, pendingSkips: loadedSkips })
+  const skipsApplied = await withPendingSkipsApplied({ state: loadedState, pendingSkips: loadedSkips })
+  const { pendingSkips } = skipsApplied
+  const state = await withRecordedRepeatsSkipped({ state: skipsApplied.state })
   const plan = planUpcomingRecordings({
     seriesTags: state.seriesTags,
     futureRecordings: state.futureRecordings,
@@ -594,8 +598,10 @@ export const cancelProgram = async (args) => {
 }
 
 export const enforcePendingSkips = async () => {
-  if (await hasPendingSkips()) await getRecordingState({ fresh: true })
+  if (await hasPendingSkips() || hasRepeatsAwaitingOriginal()) await getRecordingState({ fresh: true })
 }
+
+const hasRepeatsAwaitingOriginal = () => (stateCache?.value?.repeatRecordings || []).some(isRepeatAwaitingOriginal)
 
 export const watchPendingSkips = () => {
   const enforce = () => enforcePendingSkips().catch((err) => console.warn(`[epg] saved skips: ${err.message}`))
@@ -630,6 +636,25 @@ export const withPendingSkipsApplied = async ({
     state: await reloadState(),
     pendingSkips: pendingSkips.filter((skip) => !appliedIds.has(String(skip.programId))),
   }
+}
+
+export const withRecordedRepeatsSkipped = async ({ state, skipEntry = skipScheduledEntry, reloadState = getState }) => {
+  const due = state.repeatRecordings.filter(isRepeatToSkip)
+  if (due.length === 0) return state
+  const skipped = []
+  for (const entry of due) skipped.push(await skippedRepeat({ entry, skipEntry }))
+  return skipped.some(Boolean) ? reloadState() : state
+}
+
+const skippedRepeat = async ({ entry, skipEntry }) => {
+  try {
+    await skipEntry({ uuid: entry.uuid })
+  } catch (err) {
+    console.warn(`[epg] repeat of "${entry.name}" not skipped yet: ${err.message}`)
+    return false
+  }
+  console.log(`[epg] skipped a repeat of "${entry.name}" at ${new Date(entry.startDate).toISOString()}`)
+  return true
 }
 
 const appliedSkip = async ({ entry, skip, skipEntry, forgetSkip }) => {
