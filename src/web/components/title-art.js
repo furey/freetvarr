@@ -1,4 +1,5 @@
 import { ref, computed, watch, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { primeImageFocus, showLoadedImage } from '/shared/image-focus.js'
 import { artFallbackStyle } from '/art-fallback.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
 
@@ -12,7 +13,7 @@ export const TitleArt = {
   },
   template: `
     <div :class="[shape === 'poster' ? 'ui-poster-art' : 'ui-card-art', 'ui-art-fallback']" :style="fallbackStyle">
-      <img v-if="src && !failed" :key="attempt" :src="shownSrc" alt="" loading="lazy" decoding="async" @error="onError" />
+      <img v-if="src && !failed" :key="attempt" :ref="showIfLoaded" :src="shownSrc" alt="" loading="lazy" decoding="async" @error="onError" />
       <span v-else class="ui-art-title">{{ title }}</span>
       <slot />
     </div>
@@ -63,7 +64,9 @@ export const TitleArt = {
       attempt.value = 0
       failed.value = false
     })
+    watch(shownSrc, (url) => { if (url) primeImageFocus(url) }, { immediate: true })
+    const showIfLoaded = (img) => { if (img) showLoadedImage(img) }
     onUnmounted(cancelRetry)
-    return { shownSrc, failed, attempt, onError, fallbackStyle: computed(() => artFallbackStyle(props.title)) }
+    return { shownSrc, failed, attempt, onError, showIfLoaded, fallbackStyle: computed(() => artFallbackStyle(props.title)) }
   },
 }

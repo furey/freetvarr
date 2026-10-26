@@ -1,4 +1,4 @@
-import { PAGE_REVEAL, isRevealArrival, revealDelaysOf } from '/page-reveal.js'
+import { isRevealArrival, revealDelaysOf, revealPlanOf } from '/page-reveal.js'
 import { latestArrival } from '/shared/router.js'
 import { prefersReducedMotion } from '/shared/utils.js'
 
@@ -10,6 +10,7 @@ export const pageReveal = {
 }
 
 const pending = []
+const visitedRoutes = new Set()
 
 const requestReveal = ({ el, hold }) => {
   const arrival = latestArrival()
@@ -21,35 +22,43 @@ const requestReveal = ({ el, hold }) => {
 const flushReveal = () => {
   latestArrival().revealed = true
   const targets = pending.splice(0)
+  const plan = revealPlanOf({ repeat: isRepeatVisit() })
   if (!canAnimate()) return
   const items = revealItemsOf(targets)
-  const delays = revealDelaysOf({ boxes: items.map(boxOf), viewportHeight: window.innerHeight })
+  const delays = revealDelaysOf({ boxes: items.map(boxOf), viewportHeight: window.innerHeight, stepMs: plan.stepMs })
   items.forEach((item, index) => {
-    if (delays[index] !== null) slideIn({ el: item, delay: delays[index] })
+    if (delays[index] !== null) slideIn({ el: item, delay: delays[index], plan })
   })
-  revealLateArrivals({ targets, startedAt: performance.now() })
+  revealLateArrivals({ targets, startedAt: performance.now(), plan })
 }
 
-const revealLateArrivals = ({ targets, startedAt }) => {
+const isRepeatVisit = () => {
+  const route = location.hash.split('?')[0]
+  const repeat = visitedRoutes.has(route)
+  visitedRoutes.add(route)
+  return repeat
+}
+
+const revealLateArrivals = ({ targets, startedAt, plan }) => {
   const holds = new Map(targets.map(({ el, hold }) => [el, hold]))
   const observer = new MutationObserver((records) => records
     .flatMap(({ target, addedNodes }) => [...addedNodes].map((node) => ({ target, node })))
-    .forEach(({ target, node }) => revealLateChild({ target, node, hold: holds.get(target) ?? 0, startedAt })))
+    .forEach(({ target, node }) => revealLateChild({ target, node, hold: holds.get(target) ?? 0, startedAt, plan })))
   holds.forEach((_, el) => observer.observe(el, { childList: true }))
-  setTimeout(() => observer.disconnect(), revealSpanMs())
+  setTimeout(() => observer.disconnect(), revealSpanMsOf(plan))
 }
 
-const revealLateChild = ({ target, node, hold, startedAt }) => {
+const revealLateChild = ({ target, node, hold, startedAt, plan }) => {
   if (!(node instanceof Element) || !node.isConnected || !isMovable(node)) return
   const index = [...target.children].indexOf(node) - hold
   if (index < 0) return
   const box = boxOf(node)
   if (revealDelaysOf({ boxes: [box], viewportHeight: window.innerHeight })[0] === null) return
-  const planned = Math.min(index, PAGE_REVEAL.maxSteps) * PAGE_REVEAL.stepMs
-  slideIn({ el: node, delay: Math.max(0, planned - (performance.now() - startedAt)) })
+  const planned = Math.min(index, plan.maxSteps) * plan.stepMs
+  slideIn({ el: node, delay: Math.max(0, planned - (performance.now() - startedAt)), plan })
 }
 
-const revealSpanMs = () => PAGE_REVEAL.durationMs + PAGE_REVEAL.maxSteps * PAGE_REVEAL.stepMs
+const revealSpanMsOf = (plan) => plan.durationMs + plan.maxSteps * plan.stepMs
 
 const canAnimate = () => !prefersReducedMotion()
   && !document.body.classList.contains('pull-refreshing')
@@ -71,9 +80,9 @@ const boxOf = (el) => {
   return { top: top + window.scrollY, height }
 }
 
-const slideIn = ({ el, delay }) => el.animate(
-  [{ opacity: 0, translate: `0 ${PAGE_REVEAL.offsetPx}px` }, { opacity: 1, translate: '0 0' }],
-  { duration: PAGE_REVEAL.durationMs, delay, easing: PAGE_REVEAL.easing, fill: 'backwards' },
+const slideIn = ({ el, delay, plan }) => el.animate(
+  [{ opacity: plan.fromOpacity, translate: `0 ${plan.offsetPx}px` }, { opacity: 1, translate: '0 0' }],
+  { duration: plan.durationMs, delay, easing: plan.easing, fill: 'backwards' },
 )
 
 const holdOf = (value) => value?.hold ?? 0

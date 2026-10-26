@@ -13,6 +13,10 @@ export const warmImageFocus = async (urls, { fetchFocus = fetchFocusBatch } = {}
   Object.entries(result?.items ?? {}).forEach(([key, focus]) => known.set(key, { focus, at: Date.now() }))
 }
 
+export const primeImageFocus = (urls) => activeInstall?.prime([urls].flat())
+
+export const showLoadedImage = (img) => activeInstall?.showLoaded(img)
+
 export const rememberImageFocus = (pictures) => focusEntriesOf(pictures, location.origin)
   .forEach(([key, focus]) => known.set(key, { focus, at: Date.now() }))
 
@@ -22,6 +26,7 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
   const rechecks = new Map()
   const keyOf = new WeakMap()
   const queued = new Set()
+  const asking = new Set()
   let flushTimer = null
   let recheckTimer = null
   let enabled = true
@@ -54,10 +59,15 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
     img.classList.add(READY_CLASS)
   }
 
+  const revealDecoded = async (key, img) => {
+    await decodedOf(img)
+    if (focusKeyOf(img.currentSrc || img.src, location.origin) === key) reveal(img, { fade: true })
+  }
+
   const settle = (key, img) => {
     waiting.get(key)?.delete(img)
     if (img.isConnected && keyOf.get(img) === key) place(img)
-    reveal(img, { fade: true })
+    revealDecoded(key, img)
   }
 
   const forget = (img) => {
@@ -79,8 +89,20 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
     if (!waiting.has(key)) waiting.set(key, new Set())
     waiting.get(key).add(img)
     setTimeout(() => giveUpWaiting(key, img), waitCapMs)
+    ask(key)
+  }
+
+  const ask = (key) => {
+    if (queued.has(key) || asking.has(key)) return
     queued.add(key)
     flushTimer ??= setTimeout(flush, FLUSH_DELAY_MS)
+  }
+
+  const prime = (urls) => {
+    if (!enabled) return
+    urls.map((url) => focusKeyOf(url, location.origin))
+      .filter((key) => key && !isFresh(known.get(key)))
+      .forEach(ask)
   }
 
   const giveUpWaiting = (key, img) => {
@@ -149,10 +171,15 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
     flushTimer = null
     const keys = [...queued].slice(0, MAX_KEYS_PER_REQUEST)
     if (!keys.length) return
-    keys.forEach((key) => queued.delete(key))
+    keys.forEach((key) => {
+      queued.delete(key)
+      asking.add(key)
+    })
+    if (queued.size) flushTimer = setTimeout(flush, 0)
     const result = await fetchFocus(keys).catch(() => null)
     if (result?.enabled === false) enabled = false
     keys.forEach((key) => {
+      asking.delete(key)
       const focus = result?.items?.[key] ?? null
       known.set(key, { focus, at: Date.now() })
       const imgs = [...(waiting.get(key) || [])]
@@ -162,7 +189,6 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
       imgs.forEach((img) => watchForLateFocus(key, img))
       startRecheck(key)
     })
-    if (queued.size && enabled) flushTimer ??= setTimeout(flush, FLUSH_DELAY_MS)
   }
 
   const placeShownLate = (key) => {
@@ -172,10 +198,11 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
 
   const onLoad = (event) => track(event.target)
 
-  const track = (img) => {
+  const track = (img, { loadedAtMount = false } = {}) => {
     if (!(img instanceof HTMLImageElement)) return
-    img.classList.remove(FADING_CLASS)
     const key = enabled ? focusKeyOf(img.currentSrc || img.src, location.origin) : null
+    if (key && keyOf.get(img) === key && img.classList.contains(READY_CLASS)) return
+    img.classList.remove(FADING_CLASS)
     if (!key || getComputedStyle(img).objectFit !== 'cover') {
       if (keyOf.has(img)) img.style.objectPosition = ''
       return forget(img)
@@ -183,10 +210,22 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
     keyOf.set(img, key)
     resizer?.observe(img)
     const entry = known.get(key)
-    if (!isFresh(entry)) return waitFor(key, img)
+    if (isFresh(entry)) return showKnown({ key, img, entry })
+    if (!loadedAtMount) return waitFor(key, img)
+    ask(key)
+    watchForLateFocus(key, img)
+    place(img)
+    reveal(img)
+  }
+
+  const showKnown = ({ key, img, entry }) => {
     if (!entry.focus && rechecks.has(key)) watchForLateFocus(key, img)
     place(img)
     reveal(img)
+  }
+
+  const showLoaded = (img) => {
+    if (img?.complete && img.naturalWidth > 0) track(img, { loadedAtMount: true })
   }
 
   const sourceWatcher = typeof MutationObserver === 'function'
@@ -202,8 +241,10 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
   root.addEventListener('load', onLoad, true)
   FADE_END_EVENTS.forEach((type) => root.addEventListener(type, onFadeEnd, true))
   sourceWatcher?.observe(root, { subtree: true, attributes: true, attributeFilter: ['src', 'srcset'] })
-  loadedImagesIn(root).forEach(track)
+  loadedImagesIn(root).forEach((img) => track(img))
+  activeInstall = { prime, showLoaded }
   return () => {
+    activeInstall = null
     sourceWatcher?.disconnect()
     root.removeEventListener('load', onLoad, true)
     FADE_END_EVENTS.forEach((type) => root.removeEventListener(type, onFadeEnd, true))
@@ -213,6 +254,7 @@ export const installImageFocus = ({ root = document, fetchFocus = fetchFocusBatc
   }
 }
 
+let activeInstall = null
 const known = boundedMap(2000)
 const warmed = boundedSet(2000)
 
@@ -223,6 +265,8 @@ const fetchFocusBatch = async (keys, { warm = false } = {}) => {
 }
 
 const loadedImagesIn = (root) => [...(root.querySelectorAll?.('img') ?? [])].filter((img) => img.complete && img.naturalWidth > 0)
+
+const decodedOf = (img) => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve())
 
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 

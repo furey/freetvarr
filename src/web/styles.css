@@ -50,7 +50,7 @@ li {
 }
 
 :root {
-  --picture-fade: opacity 300ms ease;
+  --picture-fade: opacity 200ms ease;
   --spinner-size: 0.9em;
   --spinner-gap: 0.5em;
   --spinner-colour: currentColor;

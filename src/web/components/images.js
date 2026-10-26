@@ -9,29 +9,36 @@ import {
 } from '/vendor/vue.esm-browser.prod.js'
 import { createRequestGate } from '/shared/request-gate.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
+import { primeImageFocus, showLoadedImage } from '/shared/image-focus.js'
+import { logoWidthOf } from '/channel-logo-width.js'
 import { GUIDE_SCROLL_SELECTOR, NEAR_VIEW_MARGIN, observeInScroller, unobserveInScroller } from '/shared/scroll-proximity.js'
 
 export const GUIDE_IMAGES_ON = Symbol('guide-images-on')
 
+const CHANNEL_LOGO_CSS_PX = 36
+const FALLBACK_LOGO_CSS_PX = 96
+
 export const ChannelLogo = {
-  props: { channelId: { type: [String, Number], default: null }, hasLogo: Boolean },
+  props: {
+    channelId: { type: [String, Number], default: null },
+    hasLogo: Boolean,
+    cssPx: { type: Number, default: CHANNEL_LOGO_CSS_PX },
+  },
   setup(props) {
     const failed = ref(false)
     watch(() => props.channelId, () => { failed.value = false })
     const showsImage = computed(() => props.hasLogo && props.channelId != null && !failed.value)
-    const logoUrl = computed(() => `/api/epg/logo/${encodeURIComponent(props.channelId)}`)
-    const src = computed(() => `${logoUrl.value}?w=${CHANNEL_LOGO_WIDTHS[0]}`)
-    const srcset = computed(() => densitySrcset({ url: logoUrl.value, widths: CHANNEL_LOGO_WIDTHS }))
-    return { failed, showsImage, src, srcset }
+    const width = computed(() => logoWidthOf({ cssPx: props.cssPx, dpr: window.devicePixelRatio }))
+    const src = computed(() => `/api/epg/logo/${encodeURIComponent(props.channelId)}?w=${width.value}`)
+    return { failed, showsImage, src }
   },
   template: `
-    <img v-if="showsImage" class="epg-rail-logo" :src="src" :srcset="srcset" alt="" loading="lazy"
+    <img v-if="showsImage" class="epg-rail-logo" loading="lazy" :src="src" alt=""
       draggable="false" @error="failed = true" />
     <tv-icon v-else class="epg-rail-logo channel-logo-fallback" />
   `,
 }
 
-const CHANNEL_LOGO_WIDTHS = [96, 192]
 
 const IMAGE_RETRY_DELAY_MS = 5000
 const FALLBACK_CELL_REQUEST_LIMIT = 4
@@ -118,6 +125,7 @@ export const ProgrammeImage = {
       const cached = imageStatusOf(img.value)
       instant.value = cached !== 'loading'
       status.value = cached
+      if (cached === 'loaded') showLoadedImage(img.value)
     }
     const onLoad = () => { if (status.value === 'loading') status.value = 'loaded' }
     let retryTimer = null
@@ -154,14 +162,10 @@ export const ProgrammeImage = {
       status.value = 'failed'
       retryLater()
     }
-    const fadeInFromCache = () => {
-      const cached = src.value == null ? 'failed' : imageStatusOf(img.value)
-      if (cached !== 'loaded') return settleFromCache()
-      status.value = 'loaded'
-    }
+    watch(src, (url) => { if (url) primeImageFocus(url) }, { immediate: true })
     onMounted(() => {
       revealTitleCardLater()
-      fadeInFromCache()
+      settleFromCache()
     })
     onUnmounted(() => {
       cancelRetry()
@@ -180,7 +184,10 @@ export const ProgrammeImage = {
     watch(status, (now) => { if (now !== 'loading') emit('settle', now) })
     const titleCardStyle = computed(() => ({ '--title-hue': titleHueOf(props.title) }))
     const titleInitials = computed(() => initialsOf(props.title))
-    return { img, status, instant, upgrading, titleCardShown, src, srcset, onLoad, onError, titleCardStyle, titleInitials }
+    return {
+      img, status, instant, upgrading, titleCardShown, src, srcset, onLoad, onError, titleCardStyle, titleInitials,
+      fallbackLogoCssPx: FALLBACK_LOGO_CSS_PX,
+    }
   },
   template: `
     <div :class="['programme-image', variant, 'is-' + status, { 'no-fade': instant, 'is-upgrade': upgrading }]">
@@ -188,10 +195,10 @@ export const ProgrammeImage = {
         <span class="programme-title-card-text">{{ title }}</span>
         <span class="programme-title-card-initials">{{ titleInitials }}</span>
       </span>
-      <img v-if="src != null && status !== 'failed'" ref="img" :src="src" :srcset="srcset" alt=""
-        :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async" @load="onLoad" @error="onError" />
+      <img v-if="src != null && status !== 'failed'" ref="img" :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async"
+        :srcset="srcset" :src="src" alt="" @load="onLoad" @error="onError" />
       <span v-if="status === 'failed' && !title" class="programme-image-fallback">
-        <channel-logo :channel-id="channelId" :has-logo="hasLogo" />
+        <channel-logo :channel-id="channelId" :has-logo="hasLogo" :css-px="fallbackLogoCssPx" />
       </span>
     </div>
   `,

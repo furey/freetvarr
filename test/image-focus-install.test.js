@@ -24,7 +24,7 @@ globalThis.getComputedStyle = () => ({
   getPropertyValue: () => '',
 })
 
-const { installImageFocus, rememberImageFocus } = await import('../src/web/shared/image-focus.js')
+const { installImageFocus, primeImageFocus, rememberImageFocus, showLoadedImage } = await import('../src/web/shared/image-focus.js')
 
 const FACE_LEFT = { x: 0.2, y: 0.425, box: [0.096, 0.184, 0.304, 0.752] }
 
@@ -98,5 +98,62 @@ test('an image already loaded when focus is installed is placed without a load e
   const img = fakeImage('/api/recordings/early/image')
   const uninstall = installImageFocus({ root: fakeRoot([img]), fetchFocus: async () => null })
   assert.equal(img.style.objectPosition, '0% 50%')
+  uninstall()
+})
+
+test('an image already loaded at mount shows at once and glides to focus that arrives later', async () => {
+  const root = fakeRoot()
+  const img = fakeImage('/api/recordings/cached/image')
+  const fetchFocus = async (keys) => {
+    await delay(30)
+    return { enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) }
+  }
+  const uninstall = installImageFocus({ root, fetchFocus })
+  showLoadedImage(img)
+  assert.ok(img.classList.contains('is-focus-ready'))
+  assert.ok(!img.classList.contains('is-focus-fading'))
+  root.load(img)
+  await delay(60)
+  assert.equal(img.style.objectPosition, '0% 50%')
+  uninstall()
+})
+
+test('primed focus is asked once in a batch and lets a later load show without waiting', async () => {
+  const root = fakeRoot()
+  const asked = []
+  const fetchFocus = async (keys) => {
+    asked.push(keys)
+    return { enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) }
+  }
+  const uninstall = installImageFocus({ root, fetchFocus })
+  primeImageFocus(['/api/recordings/a/image?w=384', '/api/recordings/b/image?w=384'])
+  primeImageFocus('/api/recordings/a/image?w=768')
+  await delay(30)
+  assert.deepEqual(asked, [['/api/recordings/a/image', '/api/recordings/b/image']])
+  const img = fakeImage('/api/recordings/b/image')
+  root.load(img)
+  assert.ok(img.classList.contains('is-focus-ready'))
+  assert.equal(img.style.objectPosition, '0% 50%')
+  uninstall()
+})
+
+test('a load while the primed request is out waits for it instead of asking again', async () => {
+  const root = fakeRoot()
+  const asked = []
+  const fetchFocus = async (keys) => {
+    asked.push(keys)
+    await delay(30)
+    return { enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) }
+  }
+  const uninstall = installImageFocus({ root, fetchFocus, waitCapMs: 200 })
+  primeImageFocus('/api/recordings/out/image')
+  await delay(20)
+  const img = fakeImage('/api/recordings/out/image')
+  root.load(img)
+  assert.ok(!img.classList.contains('is-focus-ready'))
+  await delay(40)
+  assert.equal(asked.length, 1)
+  assert.equal(img.style.objectPosition, '0% 50%')
+  assert.ok(img.classList.contains('is-focus-ready'))
   uninstall()
 })

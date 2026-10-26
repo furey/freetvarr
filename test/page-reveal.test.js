@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { PAGE_REVEAL, isRevealArrival, revealDelaysOf } from '../src/web/page-reveal.js'
+import { PAGE_REVEAL, isRevealArrival, revealDelaysOf, revealPlanOf } from '../src/web/page-reveal.js'
 
 test('isRevealArrival: a fresh forward arrival reveals once, inside its window', () => {
   const arrival = { fresh: true, at: 1000 }
@@ -29,4 +29,20 @@ test('revealDelaysOf: boxes below the fold, above the top, or hidden do not anim
 
 test('revealDelaysOf: the whole reveal stays under 600 ms', () => {
   assert.ok(PAGE_REVEAL.maxSteps * PAGE_REVEAL.stepMs + PAGE_REVEAL.durationMs < 600)
+})
+
+test('revealPlanOf: a repeat visit fades briefly from half opacity with no stagger', () => {
+  const repeat = revealPlanOf({ repeat: true })
+  assert.equal(repeat.stepMs, 0)
+  assert.ok(repeat.fromOpacity > 0)
+  assert.ok(repeat.durationMs < PAGE_REVEAL.durationMs)
+  const boxes = [0, 60, 120].map((top) => ({ top, height: 50 }))
+  assert.deepEqual(revealDelaysOf({ boxes, viewportHeight: 800, stepMs: repeat.stepMs }), [0, 0, 0])
+})
+
+test('revealPlanOf: a first visit keeps the full staggered reveal', () => {
+  const first = revealPlanOf({ repeat: false })
+  assert.equal(first.stepMs, PAGE_REVEAL.stepMs)
+  assert.equal(first.durationMs, PAGE_REVEAL.durationMs)
+  assert.equal(first.fromOpacity, 0)
 })
