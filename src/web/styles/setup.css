@@ -478,8 +478,8 @@
   isolation: isolate;
   border-top: 1px solid var(--color-hairline);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  --frost-fill: rgba(20, 28, 36, 0.94);
-  --frost-blur: blur(20px);
+  --frost-fill: rgb(19, 27, 35);
+  --frost-blur: none;
 }
 
 .setup-bar::before {

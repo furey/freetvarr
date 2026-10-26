@@ -972,8 +972,8 @@
   border: 0;
   border-radius: 16px;
   background: none;
-  --frost-fill: rgba(28, 38, 48, 0.94);
-  --frost-blur: blur(20px);
+  --frost-fill: rgb(27, 37, 46);
+  --frost-blur: none;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 

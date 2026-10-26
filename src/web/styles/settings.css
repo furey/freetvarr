@@ -1066,7 +1066,7 @@ a.settings-row-link:hover {
   border-radius: 5px;
   background: linear-gradient(90deg, var(--color-surface-2) 0%, var(--color-surface-3) 50%, var(--color-surface-2) 100%);
   background-size: 200% 100%;
-  animation: ui-skeleton-shimmer 1.6s ease-in-out infinite;
+  animation: ui-skeleton-shimmer-position 1.6s ease-in-out infinite;
 }
 
 .health-check.is-resolved .ui-group-row-main {

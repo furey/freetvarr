@@ -1352,9 +1352,7 @@
   height: calc(env(safe-area-inset-top, 0px) + 56px);
   padding: env(safe-area-inset-top, 0px) 8px 0;
   border-bottom: 1px solid var(--color-hairline);
-  background: var(--frost-fill, rgba(20, 28, 36, 0.94));
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  background: var(--frost-fill, rgb(19, 27, 35));
   box-sizing: border-box;
 }
 
