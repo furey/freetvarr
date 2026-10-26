@@ -103,6 +103,7 @@ export const installPullToRefresh = ({ onRefresh }) => {
   }
   const release = () => {
     start = null
+    syncMoveListener()
     if (committed) {
       committed = false
       return runRefresh()
@@ -116,7 +117,7 @@ export const installPullToRefresh = ({ onRefresh }) => {
     claimed = false
     committed = false
   }, { passive: true })
-  window.addEventListener('touchmove', (e) => {
+  const onTouchMove = (e) => {
     if (!start) return
     if (e.touches.length > 1 || document.body.classList.contains('epg-drag-lock')) {
       committed = false
@@ -130,6 +131,7 @@ export const installPullToRefresh = ({ onRefresh }) => {
     if (move === 'wait') return
     if (move === 'abandon') {
       start = null
+      syncMoveListener()
       return
     }
     if (e.cancelable) e.preventDefault()
@@ -138,7 +140,17 @@ export const installPullToRefresh = ({ onRefresh }) => {
     const pullOffset = pullOffsetOf(dy)
     place(pullOffset, { pullProgress: pullProgressOf(pullOffset) })
     if (!committed && isPullCommitted(pullOffset)) commit()
-  }, { passive: false })
+  }
+  let moveListening = false
+  const syncMoveListener = () => {
+    const wanted = Boolean(start) || window.scrollY <= 0
+    if (wanted === moveListening) return
+    moveListening = wanted
+    if (wanted) window.addEventListener('touchmove', onTouchMove, { passive: false })
+    else window.removeEventListener('touchmove', onTouchMove, { passive: false })
+  }
+  syncMoveListener()
+  window.addEventListener('scroll', syncMoveListener, { passive: true })
   window.addEventListener('touchend', (e) => {
     if (!start || e.touches.length > 0) return
     release()
