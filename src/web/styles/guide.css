@@ -1509,6 +1509,7 @@
 .channels-sheet {
   gap: 16px;
   max-height: 90dvh;
+  max-height: min(90dvh, calc(var(--sheet-room) - env(safe-area-inset-top, 0px) - 24px));
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;

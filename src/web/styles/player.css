@@ -1738,11 +1738,12 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
 }
 
 .pl-classification {
-  --pl-video-w: min(100cqw, 100dvh * 16 / 9);
-  --pl-video-h: min(100dvh, 100cqw * 9 / 16);
+  --pl-frame-h: min(100dvh, var(--visible-viewport-bottom, 100dvh));
+  --pl-video-w: min(100cqw, var(--pl-frame-h) * 16 / 9);
+  --pl-video-h: min(var(--pl-frame-h), 100cqw * 9 / 16);
   --pl-classification-floor: calc(env(safe-area-inset-top, 0px) + 84px);
   position: absolute;
-  top: max(var(--pl-classification-floor), calc((100dvh - var(--pl-video-h)) / 2 + 16px));
+  top: max(var(--pl-classification-floor), calc((var(--pl-frame-h) - var(--pl-video-h)) / 2 + 16px));
   left: max(var(--pl-edge-left), calc((100cqw - var(--pl-video-w)) / 2 + 16px));
   z-index: 3;
   min-width: 28px;

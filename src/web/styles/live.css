@@ -576,6 +576,10 @@ body.player-open .app-tabbar {
   --pl-edge-bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
 }
 
+.pl-backdrop:not(.is-mini) > .pl-frame {
+  bottom: max(0px, calc(100% - var(--visible-viewport-bottom, 100%)));
+}
+
 .pl-frame:focus {
   outline: none;
 }
