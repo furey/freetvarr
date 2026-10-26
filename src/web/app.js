@@ -100,49 +100,14 @@ import { route, routeParams } from '/shared/router.js'
 import { refreshTick } from '/shared/store.js'
 import { loadSyncStatus, ensureSyncPolling } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
-import { recordingsPageOf } from '/route-table.js'
+import { viewKeyOf } from '/route-table.js'
+import { registerViewLoader, warmView } from '/shared/route-warmup.js'
+import { VIEW_ENTRIES } from '/view-modules.js'
 import { FolderEditor, FolderSyncButton } from '/views/folder-editor.js'
 import { HomeView } from '/views/home-view.js'
 
-const SETTINGS_COMPONENTS = {
-  '/views/channel-setup-step.js': ['ChannelSetupStep'],
-  '/views/doctor-view.js': ['DoctorSpinner'],
-  '/views/guide-setup-step.js': ['GuideSetupStep'],
-  '/views/plex-library-setup.js': ['PlexLibrarySetup'],
-  '/views/series-drawer.js': ['SeriesDrawer'],
-  '/components/live-streams-settings.js': ['LiveStreamsSetting', 'TunerStatusPanel'],
-  '/components/movie-corrections.js': ['MovieCorrections'],
-  '/components/tmdb-key-setting.js': ['TmdbKeySetting'],
-  '/components/recording-drawer.js': ['RecordingStatus', 'RecordingDrawer'],
-  '/components/summary-line.js': ['SummaryLine'],
-  '/components/sync-detail.js': ['SyncDetail'],
-  '/components/sync-status.js': ['SyncStatusIcon', 'SyncResult'],
-  '/components/tv-apps-panel.js': ['TvAppsPanel'],
-  '/components/versions-row.js': ['VersionsRow'],
-}
-
-const CHANNEL_COMPONENTS = {
-  '/components/channels-modal.js': ['ChannelsModal'],
-}
-
-const VIEW_LOADERS = {
-  forYou: () => loadView({ url: '/views/for-you-view.js', name: 'ForYouView' }),
-  live: () => loadView({ url: '/views/live-view.js', name: 'LiveView', components: CHANNEL_COMPONENTS }),
-  guide: () => loadView({ url: '/views/epg-view.js', name: 'EpgView', components: CHANNEL_COMPONENTS }),
-  library: () => loadView({ url: '/views/recordings-library-view.js', name: 'RecordingsLibraryView' }),
-  scheduled: () => loadView({ url: '/views/scheduled-view.js', name: 'ScheduledView' }),
-  show: () => loadView({ url: '/views/show-view.js', name: 'ShowView' }),
-  settings: () => loadView({
-    url: '/views/settings-shell.js',
-    name: 'SettingsShell',
-    components: SETTINGS_COMPONENTS,
-  }),
-  welcome: () => loadView({
-    url: '/views/welcome-view.js',
-    name: 'WelcomeView',
-    components: SETTINGS_COMPONENTS,
-  }),
-}
+const VIEW_LOADERS = Object.fromEntries(Object.entries(VIEW_ENTRIES)
+  .map(([key, entry]) => [key, () => loadView(entry)]))
 
 const loadView = async ({ url, name, components = {} }) => {
   const [module] = await Promise.all([import(url), registerComponents(components)])
@@ -178,34 +143,25 @@ const lazyView = (loader) => defineAsyncComponent({
 const VIEW_LOAD_RETRIES = 3
 const VIEW_RETRY_STEP_MS = 1000
 
-const RECORDINGS_VIEWS = {
-  library: lazyView(VIEW_LOADERS.library),
-  scheduled: lazyView(VIEW_LOADERS.scheduled),
-  show: lazyView(VIEW_LOADERS.show),
-}
-
-const VIEW_MAP = {
+const VIEW_COMPONENTS = {
   home: HomeView,
-  'for-you': lazyView(VIEW_LOADERS.forYou),
-  live: lazyView(VIEW_LOADERS.live),
-  guide: lazyView(VIEW_LOADERS.guide),
-  settings: lazyView(VIEW_LOADERS.settings),
-  welcome: lazyView(VIEW_LOADERS.welcome),
+  ...Object.fromEntries(Object.entries(VIEW_LOADERS).map(([key, loader]) => [key, lazyView(loader)])),
 }
 
 const PREFETCHED_VIEWS = ['live', 'guide', 'library', 'forYou', 'scheduled', 'show', 'settings']
 
 const whenIdle = (callback) => (window.requestIdleCallback
   ? window.requestIdleCallback(callback, { timeout: IDLE_TIMEOUT_MS })
-  : setTimeout(callback, IDLE_TIMEOUT_MS))
+  : afterNextPaint(callback))
+
+const afterNextPaint = (callback) => requestAnimationFrame(() => setTimeout(callback, PAINT_GAP_MS))
 
 const IDLE_TIMEOUT_MS = 2000
+const PAINT_GAP_MS = 120
 
 const prefetchViews = ([next, ...rest]) => {
   if (!next) return
-  whenIdle(() => VIEW_LOADERS[next]()
-    .catch(() => {})
-    .finally(() => prefetchViews(rest)))
+  whenIdle(() => warmView(next).finally(() => prefetchViews(rest)))
 }
 
 const prefetchViewsAfterLoad = () => {
@@ -216,9 +172,7 @@ const prefetchViewsAfterLoad = () => {
 
 const FULL_SCREEN_VIEWS = ['welcome']
 
-const viewFor = ({ view, params }) => (view === 'recordings'
-  ? RECORDINGS_VIEWS[recordingsPageOf(params).page]
-  : VIEW_MAP[view] || HomeView)
+const viewFor = (resolved) => VIEW_COMPONENTS[viewKeyOf(resolved)] || HomeView
 
 const App = {
   template: `
@@ -389,4 +343,5 @@ PAGE_ZOOM_GESTURES.forEach((type) => document.addEventListener(type, stopPageZoo
 installImageFocus()
 installVisibleViewport()
 app.mount('#app')
+registerViewLoader((key) => (VIEW_LOADERS[key] ? VIEW_LOADERS[key]() : Promise.resolve()))
 prefetchViewsAfterLoad()

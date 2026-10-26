@@ -64,8 +64,30 @@ const apiCall = async (method, url, body, headersExtra = {}) => {
   return data
 }
 
+export const prefetchGet = (url) => {
+  if (freshPrefetchOf(url)) return
+  const request = apiCall('GET', url)
+  request.catch(() => {})
+  prefetchedGets.set(url, { request, at: Date.now() })
+}
+
+const PREFETCH_TTL_MS = 5000
+const prefetchedGets = new Map()
+
+const freshPrefetchOf = (url) => {
+  const entry = prefetchedGets.get(url)
+  return entry && Date.now() - entry.at < PREFETCH_TTL_MS ? entry : null
+}
+
+const takePrefetchedGet = (url) => {
+  const entry = freshPrefetchOf(url)
+  prefetchedGets.delete(url)
+  return entry ? entry.request.catch(() => apiCall('GET', url)) : null
+}
+
 export const api = async (method, url, body) => {
-  if (method === 'GET') return apiCall(method, url, body)
+  if (method === 'GET') return takePrefetchedGet(url) ?? apiCall(method, url, body)
+  prefetchedGets.clear()
   try {
     return await apiCall(method, url, body, { 'x-csrf-token': await getCsrf() })
   } catch (err) {

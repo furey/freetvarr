@@ -9,6 +9,7 @@ import { ForYouNavIcon } from '/components/nav-icons.js'
 import { forYouReady, forYouShown, keepForYouAnimate, keepForYouRail, twinkleForYouOnce } from '/shared/for-you-session.js'
 import { FOR_YOU_URL, forYouReadyOf } from '/for-you.js'
 import { hashesMatch } from '/scroll-memory.js'
+import { cancelRouteHover, warmRouteOnHover, warmRouteOnPress } from '/shared/route-warmup.js'
 
 const NAV_ICONS = {
   home: 'home-nav-icon',
@@ -55,7 +56,8 @@ export const AppNav = {
         <span v-if="item.key === 'settings'" class="app-rail-spacer"></span>
         <div :class="['app-rail-slot', { 'is-collapsed': item.collapsed, 'is-animated': animated }]" :inert="item.collapsed">
           <div class="app-rail-slot-inner">
-            <a :href="item.href" class="app-nav-item" :aria-current="item.key === railActive ? 'page' : null" :aria-label="nameOf(item)" @click="scrollTopOnRepeatTap">
+            <a :href="item.href" class="app-nav-item" :aria-current="item.key === railActive ? 'page' : null" :aria-label="nameOf(item)" @click="scrollTopOnRepeatTap"
+              @pointerdown.passive="warmRouteOnPress" @pointerenter="warmRouteOnHover" @pointerleave="cancelRouteHover">
               <span class="app-nav-pill"><span class="app-nav-icon"><component :is="item.icon" /><span v-if="badgeOf(item)" :class="['app-nav-badge', 'is-' + badgeOf(item)]" aria-hidden="true"></span></span></span>{{ item.label }}
             </a>
           </div>
@@ -64,7 +66,8 @@ export const AppNav = {
     </nav>
     <nav class="app-tabbar" aria-label="Main">
       <a v-for="item in tabItems" :key="item.key" :href="item.href" class="app-nav-item"
-        :aria-current="item.key === active ? 'page' : null" :aria-label="nameOf(item)" @click="scrollTopOnRepeatTap">
+        :aria-current="item.key === active ? 'page' : null" :aria-label="nameOf(item)" @click="scrollTopOnRepeatTap"
+        @pointerdown.passive="warmRouteOnPress" @touchstart.passive="warmRouteOnPress">
         <span class="app-nav-pill"><span class="app-nav-icon"><component :is="item.icon" /><span v-if="badgeOf(item)" :class="['app-nav-badge', 'is-' + badgeOf(item)]" aria-hidden="true"></span></span></span>{{ item.label }}
       </a>
     </nav>
@@ -85,6 +88,18 @@ export const AppNav = {
     const settingsBadge = computed(() => healthBadgeOf(health.value))
     const badgeOf = (item) => (item.key === 'settings' ? settingsBadge.value : null)
     const nameOf = (item) => (badgeOf(item) ? badgedNameOf({ label: item.label, badge: badgeOf(item) }) : null)
-    return { tabItems, railItems, animated, active, railActive, badgeOf, nameOf, scrollTopOnRepeatTap }
+    return {
+      tabItems,
+      railItems,
+      animated,
+      active,
+      railActive,
+      badgeOf,
+      nameOf,
+      scrollTopOnRepeatTap,
+      warmRouteOnPress,
+      warmRouteOnHover,
+      cancelRouteHover,
+    }
   },
 }

@@ -57,6 +57,19 @@ export const recordingsPageOf = (params = []) => {
   return { page: 'library' }
 }
 
+export const viewKeyOf = ({ view, params = [] }) => (view === 'recordings'
+  ? recordingsPageOf(params).page
+  : VIEW_KEYS[view] ?? null)
+
+const VIEW_KEYS = {
+  home: 'home',
+  'for-you': 'forYou',
+  live: 'live',
+  guide: 'guide',
+  settings: 'settings',
+  welcome: 'welcome',
+}
+
 const ROUTE_ALIASES = {
   dashboard: ['home'],
   series: ['settings', 'system', 'series'],

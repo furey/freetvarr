@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveRoute, activeDestinationOf, recordingsPageOf, RAIL_DESTINATIONS, NAV_DESTINATIONS } from '../src/web/route-table.js'
+import { resolveRoute, activeDestinationOf, recordingsPageOf, viewKeyOf, RAIL_DESTINATIONS, NAV_DESTINATIONS } from '../src/web/route-table.js'
 
 test('resolveRoute: an empty or unknown hash opens home', () => {
   assert.deepEqual(resolveRoute(''), { view: 'home', params: [], section: '', canonicalHash: null })
@@ -109,4 +109,17 @@ test('resolveRoute: old Danger zone addresses open the System page', () => {
 test('RAIL_DESTINATIONS: For you sits second, and the phone tab bar keeps five destinations', () => {
   assert.deepEqual(RAIL_DESTINATIONS.map(({ key }) => key), ['home', 'for-you', 'live', 'guide', 'recordings', 'settings'])
   assert.deepEqual(NAV_DESTINATIONS.map(({ key }) => key), ['home', 'live', 'guide', 'recordings', 'settings'])
+})
+
+test('viewKeyOf: names the view module each route opens', () => {
+  assert.equal(viewKeyOf(resolveRoute('#/home')), 'home')
+  assert.equal(viewKeyOf(resolveRoute('#/for-you')), 'forYou')
+  assert.equal(viewKeyOf(resolveRoute('#/live')), 'live')
+  assert.equal(viewKeyOf(resolveRoute('#/guide')), 'guide')
+  assert.equal(viewKeyOf(resolveRoute('#/recordings')), 'library')
+  assert.equal(viewKeyOf(resolveRoute('#/recordings/scheduled')), 'scheduled')
+  assert.equal(viewKeyOf(resolveRoute('#/recordings/show/abc')), 'show')
+  assert.equal(viewKeyOf(resolveRoute('#/settings/system/health')), 'settings')
+  assert.equal(viewKeyOf(resolveRoute('#/welcome')), 'welcome')
+  assert.equal(viewKeyOf(resolveRoute('#/nowhere')), 'home')
 })
