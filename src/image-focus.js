@@ -461,11 +461,35 @@ export const runFocusWorker = ({ jobs, modelPath = MODEL_PATH, timeoutMs = WORKE
     if (code !== 0 && !results.size) return reject(new Error(`focus worker exited with ${code}`))
     resolve(results)
   })
-  child.stdin.end(JSON.stringify({
-    modelPath,
-    images: jobs.map((job) => ({ id: job.urlKey, body: job.body.toString('base64') })),
-  }))
+  writeFocusJobs({ stream: child.stdin, modelPath, jobs }).catch(() => child.kill('SIGKILL'))
 })
+
+export const writeFocusJobs = async ({ stream, modelPath, jobs, yieldTurn = nextTurn }) => {
+  await writeChunk(stream, `{"modelPath":${JSON.stringify(modelPath)},"images":[`)
+  for (const [index, job] of jobs.entries()) {
+    await yieldTurn()
+    const separator = index ? ',' : ''
+    await writeChunk(stream, `${separator}{"id":${JSON.stringify(job.urlKey)},"body":"${job.body.toString('base64')}"}`)
+  }
+  stream.end(']}')
+}
+
+const writeChunk = (stream, chunk) => new Promise((resolve, reject) => {
+  if (stream.destroyed) return reject(new Error('focus worker input closed'))
+  if (stream.write(chunk)) return resolve()
+  const onDrain = () => {
+    stream.off('close', onClose)
+    resolve()
+  }
+  const onClose = () => {
+    stream.off('drain', onDrain)
+    reject(new Error('focus worker input closed'))
+  }
+  stream.once('drain', onDrain)
+  stream.once('close', onClose)
+})
+
+const nextTurn = () => new Promise((resolve) => setImmediate(resolve))
 
 const isServedPicture = ({ res, body }) => res.statusCode === 200
   && Buffer.isBuffer(body)

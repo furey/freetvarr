@@ -2,13 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   FOCUS_VERSION, columnDetailOf, createImageFocus, facesFromScores, focusOf, pillarBandOf, refreshUrlOf, servedVerdictOf, staleRowsOf,
-  suppressOverlaps, warmPlanOf,
+  suppressOverlaps, warmPlanOf, writeFocusJobs,
 } from '../src/image-focus.js'
 import {
   FOCUS_RECHECK_DELAYS_MS, canonicalFocusKeysOf, dueRechecksOf, focusEntriesOf, focusKeyOf, focusPointInViewOf, isFocusImagePath, objectPositionOf, recheckDelayOf, requestedWidthOf,
 } from '../src/web/image-focus.js'
 import { forgetFocusRows, localRenderUrlOf, pruneFocusRows } from '../src/image-focus-service.js'
 import knexFactory from 'knex'
+import { PassThrough } from 'node:stream'
 
 const WIDE = { width: 768, height: 432 }
 const PHONE_HERO = { width: 390, height: 488 }
@@ -629,4 +630,31 @@ test('pruneFocusRows keeps the newest rows and forgetFocusRows deletes by key', 
   await forgetFocusRows(['/api/epg/image/4'], database)
   assert.deepEqual((await database('image_focus').select('url_key').orderBy('updated_at')).map((row) => row.url_key), ['/api/epg/image/2', '/api/epg/image/3'])
   await database.destroy()
+})
+
+test('writeFocusJobs streams the same JSON the worker parses, one image per write', async () => {
+  const stream = new PassThrough()
+  const chunks = []
+  stream.on('data', (chunk) => chunks.push(chunk))
+  const ended = new Promise((resolve) => stream.on('end', resolve))
+  const jobs = [
+    { urlKey: '/api/epg/image/1', body: Buffer.from('first picture') },
+    { urlKey: '/api/epg/image/"2"', body: Buffer.from([0, 255, 10, 13]) },
+  ]
+  let turns = 0
+  await writeFocusJobs({ stream, modelPath: '/models/face.onnx', jobs, yieldTurn: async () => { turns += 1 } })
+  await ended
+  assert.deepEqual(JSON.parse(Buffer.concat(chunks).toString()), {
+    modelPath: '/models/face.onnx',
+    images: jobs.map((job) => ({ id: job.urlKey, body: job.body.toString('base64') })),
+  })
+  assert.equal(turns, jobs.length)
+})
+
+test('writeFocusJobs stops when the worker closes its input', async () => {
+  const stream = new PassThrough({ highWaterMark: 4 })
+  const jobs = [{ urlKey: '/api/epg/image/1', body: Buffer.alloc(1024) }]
+  const writing = writeFocusJobs({ stream, modelPath: '/m', jobs, yieldTurn: async () => {} })
+  stream.destroy()
+  await assert.rejects(writing, /input closed/)
 })
