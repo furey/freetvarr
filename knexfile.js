@@ -9,6 +9,13 @@ export default {
   client: 'better-sqlite3',
   connection: { filename: dbPath },
   useNullAsDefault: true,
+  pool: {
+    afterCreate: (connection, done) => {
+      connection.pragma('journal_mode = WAL')
+      connection.pragma('synchronous = NORMAL')
+      done(null, connection)
+    },
+  },
   migrations: {
     directory: path.join(__dirname, 'migrations'),
   },
