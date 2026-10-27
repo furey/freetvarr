@@ -355,17 +355,13 @@ test('a build that started before forget is neither saved nor announced', async 
   assert.deepEqual(announced, [])
 })
 
-test('a rebuild with the same picks is saved again only after the resave interval', async () => {
+test('every rebuild saves the result so a restart shows current explanations', async () => {
   const saved = []
   const stamps = { version: 1 }
-  let clock = 0
-  let picks = 'Heat'
   const cache = createForYouCache({
     loadSnapshot: async () => ({ stamps: { ...stamps } }),
-    compute: async () => ({ sections: [{ items: [{ title: picks }] }], computeMs: Math.random() }),
+    compute: async () => ({ sections: [{ items: [{ title: 'Heat' }] }], computeMs: Math.random() }),
     store: { load: async () => null, save: async (result) => saved.push(result) },
-    now: () => clock,
-    resaveAfterMs: 1000,
     onRefreshError: () => {},
   })
   const rebuild = async () => {
@@ -376,14 +372,8 @@ test('a rebuild with the same picks is saved again only after the resave interva
   }
   await cache.get({ nowMs: NOW })
   await rebuild()
-  assert.equal(saved.length, 1)
-  clock = 1000
-  await rebuild()
-  assert.equal(saved.length, 2)
-  picks = 'Alien'
   await rebuild()
   assert.equal(saved.length, 3)
-  assert.equal(saved[2].sections[0].items[0].title, 'Alien')
 })
 
 const fakeWorkers = () => {

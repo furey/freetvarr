@@ -48,7 +48,7 @@ export const onForYouResult = (listener) => {
   return () => forYouResultListeners.delete(listener)
 }
 
-export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null, onResult = () => {}, now = Date.now, resaveAfterMs = RESAVE_AFTER_MS }) => {
+export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logRefreshError, store = null, onResult = () => {} }) => {
   let cached = null
   let computing = null
   let generation = 0
@@ -62,7 +62,6 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
   }
 
   let announced = null
-  let saved = null
 
   const announce = ({ result, fingerprint }) => {
     if (fingerprint === announced) return
@@ -70,12 +69,9 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
     Promise.resolve().then(() => onResult(result)).catch(() => {})
   }
 
-  const saveIfChanged = ({ result, fingerprint }) => {
+  const save = (result) => {
     if (!store) return
-    const savedAt = now()
-    if (saved?.fingerprint === fingerprint && savedAt - saved.savedAt < resaveAfterMs) return
-    saved = { fingerprint, savedAt }
-    store.save(result).catch(() => { saved = null })
+    store.save(result).catch(() => {})
   }
 
   const computeFor = ({ snapshot, signature, nowMs }) => {
@@ -86,7 +82,7 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
         if (startedIn !== generation) return result
         cached = { signature, result }
         const fingerprint = resultFingerprintOf(result)
-        saveIfChanged({ result, fingerprint })
+        save(result)
         announce({ result, fingerprint })
         return result
       })
@@ -506,7 +502,6 @@ const isPrimeTime = (ms) => {
   return hour >= 18 && hour < 22
 }
 
-const RESAVE_AFTER_MS = 6 * 60 * 60 * 1000
 let upkeeping = null
 const endedHistory = createEndedHistory()
 const guideVersions = new WeakMap()
