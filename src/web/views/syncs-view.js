@@ -234,8 +234,8 @@ export const SyncsView = {
 
     const clearLinkedSync = () => {
       if (!linkedSyncId.value) return
-      history.replaceState(null, '', '#/settings/system/activity')
-      routeSection.value = ''
+      history.replaceState(null, '', '#/settings/system/activity/syncs')
+      routeSection.value = 'syncs'
     }
 
     const visibleElementFor = (id) => [...document.querySelectorAll(`[data-sync-id="${id}"]`)]

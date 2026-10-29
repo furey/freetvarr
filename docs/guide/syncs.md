@@ -7,7 +7,23 @@ description: >-
 
 # Activity
 
-A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. **Activity** is the history of those passes. It replaces the SYNCS tab of earlier versions. Open it from Settings → System → **Activity**, or from the **Activity** row on [Health](/guide/doctor). The old address `#/syncs` opens it.
+**Activity** shows what the Freetvarr server does now, and every sync it has run. Open it from Settings → System → **Activity**, or from the **Activity** row on [Health](/guide/doctor). While jobs run, the Settings menu shows how many beside **Activity**, such as "2 running".
+
+The page has two tabs:
+
+- **Now**: the jobs that run at this moment, recordings in progress, live TV and recordings people are watching, the jobs that run next, and the jobs that finished in the last `24` hours. Failed jobs stay for `7` days, also after a restart. Press a row to see its steps, details, and log. Its address is `#/settings/system/activity`.
+- **Syncs**: the history of syncs. Its address is `#/settings/system/activity/syncs`.
+
+A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. The line above the jobs on **Now** shows how long the server has run, how often it paused for more than `100 ms`, and how many tuners are in use.
+
+## Jobs on Now
+
+- **Sync**, with an **Import** row for each recording it copies. An import shows each step: copy from TVHeadend, check the file, scan for ads, and cut ads.
+- **Ad removal** for a scan you start from a recording.
+- **TV guide refresh**, **Viewing history upkeep**, **For you rebuild**, **Home hero rebuild**, **Picture focus**, and **Ratings warm-up**. These run often, so **Now** keeps only the latest finished run of each.
+- **Cache prune** and **Health checks**. A health run lists each check and its result.
+
+**Now** only shows what runs. To start a sync, use **Sync now** on the **Syncs** tab.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/activity">

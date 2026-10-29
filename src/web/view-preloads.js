@@ -72,6 +72,7 @@ export const VIEW_PRELOADS = {
     '/views/show-view.js',
   ],
   settings: [
+    '/activity-rows.js',
     '/ad-scan.js',
     '/clear-list.js',
     '/components/controls-hide-setting.js',
@@ -101,6 +102,7 @@ export const VIEW_PRELOADS = {
     '/settings-index.js',
     '/settings-pages.js',
     '/setup-folders.js',
+    '/shared/activity-summary.js',
     '/shared/channel-prefs.js',
     '/shared/format.js',
     '/shared/setting-landing.js',
@@ -111,6 +113,7 @@ export const VIEW_PRELOADS = {
     '/transmitter-label.js',
     '/tv-apps.js',
     '/version-check.js',
+    '/views/activity-view.js',
     '/views/channel-setup-step.js',
     '/views/channels-settings-view.js',
     '/views/doctor-view.js',

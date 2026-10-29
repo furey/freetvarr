@@ -85,7 +85,7 @@ export const DoctorView = {
             <span class="ui-group-row-main">Imported, last 7 days</span>
             <span class="ui-group-row-value">{{ importedLabel }}</span>
           </div>
-          <a class="ui-group-row" href="#/settings/system/activity">
+          <a class="ui-group-row" href="#/settings/system/activity/syncs">
             <span class="ui-group-row-main">Activity</span>
             <span v-if="syncCountLabel" class="health-row-note">{{ syncCountLabel }}</span>
             <chevron-glyph class="ui-group-row-chevron" />

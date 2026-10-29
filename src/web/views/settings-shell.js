@@ -1,4 +1,4 @@
-import { computed } from '/vendor/vue.esm-browser.prod.js'
+import { computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { healthBadgeOf, healthRowNameOf } from '/health-level.js'
 import { settingsPageOf, SETTINGS_GROUPS } from '/settings-pages.js'
 import { useMediaQuery } from '/shared/composables.js'
@@ -6,9 +6,11 @@ import { PHONE_LAYOUT_QUERY } from '/shared/constants.js'
 import { playBrandIntro } from '/components/brand-intro-overlay.js'
 import { SettingsSearch, isSearchingSettings } from '/components/settings-search.js'
 import { health } from '/shared/health.js'
+import { runningJobs, watchRunningJobs } from '/shared/activity-summary.js'
 import { cameFromHash, routeParams } from '/shared/router.js'
 import { hashesMatch } from '/scroll-memory.js'
 import { prefersReducedMotion } from '/shared/utils.js'
+import { ActivityView } from '/views/activity-view.js'
 import { ChannelsSettingsView } from '/views/channels-settings-view.js'
 import { DoctorView } from '/views/doctor-view.js'
 import { PlayerSettingsView } from '/views/player-settings-view.js'
@@ -17,13 +19,12 @@ import { SeriesView } from '/views/series-view.js'
 import { SettingsView } from '/views/settings-view.js'
 import { SetupSettingsView } from '/views/setup-settings-view.js'
 import { SuggestionsSettingsView } from '/views/suggestions-settings-view.js'
-import { SyncsView } from '/views/syncs-view.js'
 import { SystemDiagramView } from '/views/system-diagram-view.js'
 
 const SYSTEM_VIEWS = {
   setup: { view: SetupSettingsView, props: {} },
   health: { view: DoctorView, props: {} },
-  activity: { view: SyncsView, props: {} },
+  activity: { view: ActivityView, props: {} },
   series: { view: SeriesView, props: { part: 'series' } },
   folders: { view: SeriesView, props: { part: 'folders' } },
   log: { view: RecordingsView, props: {} },
@@ -35,7 +36,7 @@ const PAGES_WITH_OWN_HEADER = ['health']
 
 const PAGE_INTROS = {
   setup: 'What Freetvarr uses now. Press a part to check or change it.',
-  activity: 'Every sync Freetvarr has run, newest first.',
+  activity: 'What the server is doing now, and every sync it has run.',
   series: 'Series recordings in TVHeadend, and the folder each one saves to.',
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
   player: 'How the player starts, and how many live streams play at once.',
@@ -59,6 +60,7 @@ export const SettingsShell = {
               :aria-current="page && item.id === page.id ? 'page' : null" :aria-label="item.id === 'health' && healthBadge ? healthRowName : null">
               <span class="settings-nav-label">{{ item.label }}</span>
               <span v-if="item.id === 'health' && healthBadge" :class="['ui-dot', 'is-' + healthBadge]" aria-hidden="true"></span>
+              <span v-if="item.id === 'activity' && runningJobs" class="settings-nav-running">{{ runningJobs }} running</span>
               <chevron-glyph class="settings-nav-chevron ui-only-phone" />
             </a>
           </div>
@@ -99,6 +101,9 @@ export const SettingsShell = {
     const intro = computed(() => PAGE_INTROS[page.value?.id] || '')
     const healthBadge = computed(() => healthBadgeOf(health.value))
     const healthRowName = computed(() => healthRowNameOf({ label: 'Health', badge: healthBadge.value, sentence: health.value.sentence }))
+    let stopWatchingJobs = () => {}
+    onMounted(() => { stopWatchingJobs = watchRunningJobs() })
+    onUnmounted(() => stopWatchingJobs())
     const canReplayIntro = !prefersReducedMotion()
     const replayIntro = () => playBrandIntro()
     const backToSettings = (event) => {
@@ -116,6 +121,7 @@ export const SettingsShell = {
       intro,
       healthBadge,
       healthRowName,
+      runningJobs,
       canReplayIntro,
       replayIntro,
       backToSettings,
