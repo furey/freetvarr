@@ -175,14 +175,14 @@ test('menuPendingLabelOf: actions that wait keep the menu open with an -ing labe
   assert.equal(menuPendingLabelOf('delete-all'), '')
 })
 
-test('Move to show… follows Show info and Episode info only where moving is offered', () => {
+test('Merge into another show… follows Show info and Episode info only where moving is offered', () => {
   const show = showWith([episode()], { rule: null })
   assert.deepEqual(keysOf(showMenuOf({ show, canMove: true }))[1].slice(0, 2), ['show-info', 'move'])
   assert.ok(!showMenuOf({ show }).flat().some((item) => item.key === 'move'))
   assert.ok(!showMenuOf({ show: showWith([], { seasons: [] }), canMove: true }).flat().some((item) => item.key === 'move'))
   const groups = episodeMenuOf({ episode: episode(), canMove: true })
   assert.deepEqual(keysOf(groups)[1].slice(0, 2), ['episode-info', 'move'])
-  assert.equal(groups[1][1].label, 'Move to show…')
+  assert.equal(groups[1][1].label, 'Merge into another show…')
 })
 
 test('moveTargetsOf and newShowTitleOf: filter other shows and offer a new one unless the text names a show', () => {

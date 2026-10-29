@@ -12,7 +12,7 @@ export const plexWatchStatusText = ({ status, nowMs, timeZone }) => {
   if (!status.lastRunAt) return { text: 'Not synced yet. It runs after each sync.', kind: 'info' }
   const parts = [`Last synced ${whenText({ ms: status.lastRunAt, nowMs, timeZone })}`]
   if (status.matched != null) parts.push(`${status.matched} matched`)
-  if (status.unmatched) parts.push(`${status.unmatched} not in Plex yet`)
+  if (status.unmatched) parts.push(`${status.unmatched} waiting for Plex`)
   if (status.ambiguous) parts.push(`${status.ambiguous} with more than one match`)
   return { text: parts.join(' · '), kind: 'ok' }
 }

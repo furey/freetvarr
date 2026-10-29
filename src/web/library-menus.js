@@ -55,7 +55,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
         ? { key: 'resume-series', label: 'Resume recording', icon: 'play' }
         : { key: 'pause-series', label: 'Pause recording', icon: 'pause' }),
       { key: 'show-info', label: 'Show info', icon: 'info' },
-      canMove && episodes.length > 0 && { key: 'move', label: 'Move to show…', icon: 'move' },
+      canMove && episodes.length > 0 && { key: 'move', label: 'Merge into another show…', icon: 'move' },
       shelfMoveOf(show),
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
       hasArtwork && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
@@ -93,7 +93,7 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
     ],
     [
       { key: 'episode-info', label: 'Episode info', icon: 'info' },
-      canMove && { key: 'move', label: 'Move to show…', icon: 'move' },
+      canMove && { key: 'move', label: 'Merge into another show…', icon: 'move' },
       canImport(episode) && { key: 'import', label: importLabelOf(episode), icon: 'refresh' },
       adRemovalEnabled && canRescan(episode) && adMenuItemOf(episode),
       canRescan(episode) && restoreMenuItemOf(episode),

@@ -133,7 +133,7 @@ The show menu has these items. An item shows only when it applies.
 | **Open in Plex**                                      | Opens the episode in Plex.                                                                                                                                                                                                                                               |
 | **Delete episode**                                    | Deletes the episode. See [Delete episodes](#delete-episodes). It does not show while the episode records.                                                                                                                                                                |
 
-**Move to show…**, in the show menu and the episode menu, puts episodes that the TV guide gave a different title into another show or a new one, and **Undo** in the message puts them back.
+**Merge into another show…**, in the show menu and the episode menu, puts episodes that the TV guide gave a different title into another show or a new one, and **Undo** in the message puts them back.
 
 ### Select mode
 

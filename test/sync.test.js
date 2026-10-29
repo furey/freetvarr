@@ -128,6 +128,16 @@ test('episodeFilename: SxxEyy with episode title when numbered', () => {
   assert.equal(name, 'Bluey (2018) - S01E03 - The Creek.ts')
 })
 
+test('episodeFilename: drops a guide title that only repeats the episode number', () => {
+  const nameOf = (episode_title) => episodeFilename({
+    item: { season: 17, episode: 2, episode_title, ext: 'ts' },
+    show: { dest_folder: 'Big Brother' },
+  })
+  assert.equal(nameOf('Episode 2 of Season 17'), 'Big Brother - S17E02.ts')
+  assert.equal(nameOf('Episode 2'), 'Big Brother - S17E02.ts')
+  assert.equal(nameOf('Episode 2: Eviction'), 'Big Brother - S17E02 - Episode 2 Eviction.ts')
+})
+
 test('episodeFilename: falls back to the air date when unnumbered', () => {
   const name = episodeFilename({
     item: { season: null, episode: null, episode_title: null, start: Date.UTC(2026, 8, 21, 9) },

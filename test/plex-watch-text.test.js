@@ -20,5 +20,5 @@ test('the Settings readout explains each state', () => {
 test('after a run it says when, how many matched, and what is missing', () => {
   const { text, kind } = plexWatchStatusText({ status: { ...base, lastRunAt: NOW - 60_000, matched: 34, unmatched: 2, ambiguous: 0 }, nowMs: NOW, timeZone })
   assert.equal(kind, 'ok')
-  assert.equal(text, 'Last synced 8:59pm · 34 matched · 2 not in Plex yet')
+  assert.equal(text, 'Last synced 8:59pm · 34 matched · 2 waiting for Plex')
 })

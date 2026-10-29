@@ -42,7 +42,7 @@ after(async () => {
 test('planReclassification: a series filed as a one-off moves into a new TV folder', () => {
   const [move] = planReclassification({ rows: [row()], roots })
   assert.equal(move.from, row().file_path)
-  assert.equal(move.to, path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E04 - Episode 4.ts'))
+  assert.equal(move.to, path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E04.ts'))
   assert.equal(move.toShows, true)
   assert.equal(move.showId, null)
   assert.equal(move.showPattern, 'Big Brother')
@@ -53,9 +53,9 @@ test('planReclassification: an existing title match and an existing folder name 
   const love = row({ title: 'Love Island Australia', season: 8, episode: 4, file_path: path.join(roots.oneOffRoot, 'Love Island Australia', 'x.ts') })
   const [move] = planReclassification({ rows: [love], shows, roots })
   assert.equal(move.showId, 7)
-  assert.equal(move.to, path.join(roots.mediaRoot, 'Love Island Australia (2018)', 'Season 08', 'Love Island Australia (2018) - S08E04 - Episode 4.ts'))
+  assert.equal(move.to, path.join(roots.mediaRoot, 'Love Island Australia (2018)', 'Season 08', 'Love Island Australia (2018) - S08E04.ts'))
   const [named] = planReclassification({ rows: [love], folders: ['Love Island Australia'], roots })
-  assert.equal(named.to, path.join(roots.mediaRoot, 'Love Island Australia', 'Season 08', 'Love Island Australia - S08E04 - Episode 4.ts'))
+  assert.equal(named.to, path.join(roots.mediaRoot, 'Love Island Australia', 'Season 08', 'Love Island Australia - S08E04.ts'))
 })
 
 test('planReclassification: one-off events, films, and shows already in the TV folder stay put', () => {
@@ -79,7 +79,7 @@ test('runReclassification: moves the file and its sidecars, adds the title match
     await fs.mkdir(path.dirname(file), { recursive: true })
     await fs.writeFile(file, 'video')
   }
-  const blocked = path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E05 - Episode 5.ts')
+  const blocked = path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E05.ts')
   await fs.mkdir(path.dirname(blocked), { recursive: true })
   await fs.writeFile(blocked, 'someone else')
   await db('recordings').insert([bb, taken])
@@ -87,7 +87,7 @@ test('runReclassification: moves the file and its sidecars, adds the title match
   const result = await runReclassification({ loadSeries: async () => ({ series: [] }) })
   assert.deepEqual(result, { moved: 1, skipped: 1, planned: 2 })
 
-  const target = path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E04 - Episode 4.ts')
+  const target = path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E04.ts')
   assert.equal(await fs.readFile(target, 'utf8'), 'video')
   assert.equal(await fs.readFile(`${target}.orig`, 'utf8'), 'video')
   assert.equal(await fs.readFile(target.replace(/\.ts$/, '.edl'), 'utf8'), 'video')
@@ -100,7 +100,7 @@ test('runReclassification: moves the file and its sidecars, adds the title match
 })
 
 test('runReclassificationOnce: runs again at the next start until nothing is left to skip', async () => {
-  await fs.rm(path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E05 - Episode 5.ts'))
+  await fs.rm(path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E05.ts'))
   await db('settings').where({ key: RECLASSIFY_DONE_KEY }).delete()
   const result = await runReclassificationOnce({ loadSeries: async () => ({ series: [] }) })
   assert.equal(result.moved, 1)

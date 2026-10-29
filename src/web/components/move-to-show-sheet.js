@@ -13,7 +13,7 @@ export const MoveToShowSheet = {
   },
   emits: ['close', 'move'],
   template: `
-    <ui-sheet :open="Boolean(request)" title="Move to show" :subtitle="subtitle" @close="$emit('close')">
+    <ui-sheet :open="Boolean(request)" title="Merge into another show" :subtitle="subtitle" @close="$emit('close')">
       <label class="ui-search-field move-show-field">
         <search-glyph />
         <span class="ui-visually-hidden">Search shows</span>

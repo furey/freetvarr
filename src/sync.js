@@ -219,14 +219,17 @@ export const createValidFilename = (name) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const isNumberOnlyTitle = (title) => /^episode \d+( of season \d+)?$/i.test(String(title ?? '').trim())
+
 export const episodeFilename = ({ item, show }) => {
   const base = createValidFilename(show.dest_folder)
   const suffix = item.episode_title ? ` - ${createValidFilename(item.episode_title)}` : ''
   const ext = item.ext || 'ts'
   if (item.season != null && item.episode != null) {
+    const numberedSuffix = isNumberOnlyTitle(item.episode_title) ? '' : suffix
     const ss = String(item.season).padStart(2, '0')
     const ee = String(item.episode).padStart(2, '0')
-    return `${base} - S${ss}E${ee}${suffix}.${ext}`
+    return `${base} - S${ss}E${ee}${numberedSuffix}.${ext}`
   }
   const aired = new Date(item.start).toISOString().slice(0, 10)
   return `${base} - ${aired}${suffix}.${ext}`
