@@ -11,7 +11,12 @@ test('recordingChipOf: nothing when no healthy recording is running', () => {
 
 test('recordingChipOf: one recording names the show and the time left', () => {
   const chip = recordingChipOf({ active: [{ title: 'The Block', stop: NOW + 34 * 60_000 - 1 }], nowMs: NOW })
-  assert.deepEqual(chip, { label: 'Recording The Block', detail: '34 min left' })
+  assert.deepEqual(chip, {
+    label: 'Recording The Block',
+    detail: '34 min left',
+    bannerTitle: 'The Block',
+    bannerDetail: 'Recording · 34 min left',
+  })
 })
 
 test('recordingChipOf: counts to the padded stop while the recording runs past the programme', () => {
@@ -23,7 +28,7 @@ test('recordingChipOf: counts to the padded stop while the recording runs past t
 
 test('recordingChipOf: several recordings count the shows', () => {
   const chip = recordingChipOf({ active: [{ title: 'A' }, { title: 'B' }], nowMs: NOW })
-  assert.deepEqual(chip, { label: 'Recording 2 shows', detail: '' })
+  assert.deepEqual(chip, { label: 'Recording 2 shows', detail: '', bannerTitle: 'A, B', bannerDetail: 'Recording 2 shows' })
 })
 
 test('recordingChipTargetOf: one recording opens its show page, with Library as the way back', () => {

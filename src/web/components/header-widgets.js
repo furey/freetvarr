@@ -67,8 +67,10 @@ export const RecordingChip = {
     <template v-if="chip">
       <a v-if="variant === 'banner'" :href="target.href" class="ui-banner is-live ui-only-phone ui-page-banner" @click="open">
         <span class="ui-dot is-live"></span>
-        <span class="ui-banner-text">{{ chip.label }}<template v-if="chip.detail"> · {{ chip.detail }}</template></span>
-        <chevron-glyph class="ui-group-row-chevron" />
+        <span class="ui-banner-text is-stacked">
+          <span class="ui-banner-title">{{ chip.bannerTitle }}</span>
+          <span v-if="chip.bannerDetail" class="ui-banner-detail">{{ chip.bannerDetail }}</span>
+        </span>
       </a>
       <a v-else :href="target.href" class="ui-header-chip is-live ui-only-wide" :title="chip.detail || null" @click="open">
         <span class="ui-dot is-live"></span><span>{{ chip.label }}</span>

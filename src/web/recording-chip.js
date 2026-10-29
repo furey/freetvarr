@@ -5,10 +5,22 @@ import { recordingLeftText } from './recording-time-left.js'
 export const recordingChipOf = ({ active = [], nowMs = Date.now() } = {}) => {
   const recording = active.filter((entry) => !entry.failed)
   if (!recording.length) return null
-  if (recording.length > 1) return { label: `Recording ${recording.length} shows`, detail: '' }
+  if (recording.length > 1) {
+    const label = `Recording ${recording.length} shows`
+    const titles = recording.map((entry) => entry.title).filter(Boolean).join(', ')
+    return { label, detail: '', bannerTitle: titles || label, bannerDetail: titles ? label : '' }
+  }
   const [only] = recording
-  return { label: `Recording ${only.title || 'now'}`, detail: recordingLeftText({ recording: only, nowMs }) }
+  const detail = recordingLeftText({ recording: only, nowMs })
+  return {
+    label: `Recording ${only.title || 'now'}`,
+    detail,
+    bannerTitle: only.title || 'Recording now',
+    bannerDetail: only.title ? joinMeta(['Recording', detail]) : detail,
+  }
 }
+
+const joinMeta = (parts) => parts.filter(Boolean).join(' · ')
 
 export const recordingChipTargetOf = ({ active = [], currentHash = '' } = {}) => {
   const titles = active.filter((entry) => !entry.failed).map((entry) => entry.title).filter(Boolean)

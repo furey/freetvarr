@@ -1651,6 +1651,27 @@ a.ui-banner:hover {
   min-width: 0;
 }
 
+.ui-banner-text.is-stacked {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.ui-banner-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ui-banner-detail {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ui-banner-text .ui-meta {
   color: var(--color-text-2);
 }
