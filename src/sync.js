@@ -5,6 +5,7 @@ import { db, getSetting, setSetting } from './db.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import {
   fetchProgrammeImage,
+  listAutorecs,
   listFinished,
   listUpcoming,
   removeRecordings as removeTvhRecordings,
@@ -19,6 +20,11 @@ import { pruneSyncHistory } from './sync-history.js'
 import { looksLikeFilm } from './film-rule.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { currentJob, trackJob } from './activity.js'
+import { rowAiringOf, seriesKindOf } from './series-kind.js'
+import { loadSeriesEvidence } from './series-evidence.js'
+import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
+import { ensureShowFolder } from './show-folders.js'
+import { showKeyOf } from './web/show-key.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
@@ -153,11 +159,27 @@ export const buildFilmPath = ({ item, moviesRoot, copy = 1 }) => {
   return guardWithinRoot({ dest, root: moviesRoot })
 }
 
-export const libraryKind = ({ show, item, moviesRoot }) => {
-  if (show) return 'tv'
-  if (moviesRoot && looksLikeFilm(item)) return 'film'
-  return 'oneOff'
+export const libraryKind = ({ show, item, moviesRoot, override = null, evidence = null, keyRows = [] }) => {
+  const kind = IMPORT_KINDS[seriesKindOf({
+    title: item.title,
+    override,
+    hasRule: Boolean(show) || Boolean(item.autorecId),
+    isFilm: Boolean(moviesRoot) && looksLikeFilm(item),
+    recordings: [...keyRows, importAiringOf(item)],
+    evidence,
+  })]
+  return kind === 'film' && !moviesRoot ? 'oneOff' : kind
 }
+
+export const importAiringOf = (item) => ({
+  start: item.start,
+  season: item.season ?? null,
+  episode: item.episode ?? null,
+  episodeTitle: item.episode_title ?? null,
+  genres: item.genres || [],
+})
+
+const IMPORT_KINDS = { show: 'tv', movie: 'film', oneoff: 'oneOff' }
 
 export const getOneOffRoot = async () => {
   const fromSetting = await getSetting('oneoff_root')
@@ -307,6 +329,7 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
   }
 
   const classificationOf = await recordingClassifications(finished)
+  const context = await importContextOf({ conn })
   const importsStartedAt = Date.now()
   currentJob()?.step(SYNC_STEP_LABELS.imports).total(finished.length, 'recordings')
   for (const entry of finished) {
@@ -321,9 +344,19 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
         await holdRecording({ item, existing, reason: decision.reason })
         continue
       }
-      const kind = libraryKind({ show, item, moviesRoot: roots.moviesRoot })
+      const keyOfItem = showKeyOf(existing?.show_title_override ?? item.title)
+      const override = context.overrides.get(keyOfItem) ?? null
+      const kind = libraryKind({
+        show: override === ONE_OFF_KIND ? null : show,
+        item,
+        moviesRoot: roots.moviesRoot,
+        override,
+        evidence: context.evidence.get(keyOfItem) ?? null,
+        keyRows: (context.rowsByKey.get(keyOfItem) || []).filter((row) => row.recording_id !== item.id).map(rowAiringOf),
+      })
+      const folder = kind === 'tv' ? show ?? await folderForSeries({ item, shows, autorecNames: context.autorecNames }) : null
       const itemStartedAt = Date.now()
-      const { summaryKey, adResult, size, error } = await processItem({ item, show, kind, roots })
+      const { summaryKey, adResult, size, error } = await processItem({ item, show: folder, kind, roots })
       summary[summaryKey]++
       if (summaryKey !== 'skipped') {
         noteItem({ summary, item, kind, outcome: summaryKey, size, error, adResult, ms: Date.now() - itemStartedAt })
@@ -332,8 +365,8 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
       if (adResult) accumulateAdSummary(summary, adResult)
       if (
         summaryKey === 'imported'
-        && show?.delete_after_import
-        && shouldQueueAutoDelete({ show, adResult })
+        && folder?.delete_after_import
+        && shouldQueueAutoDelete({ show: folder, adResult })
       ) {
         deletables.push({ recording_id: item.id, title: item.title })
       }
@@ -357,6 +390,40 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
 
   const finalStatus = summary.failed > 0 ? 'partial' : 'ok'
   await finishSync(syncId, finalStatus, summary)
+}
+
+const importContextOf = async ({ conn }) => {
+  const [overrides, evidence, rows, autorecs] = await Promise.all([
+    loadKindOverrides().catch(() => new Map()),
+    loadSeriesEvidence().catch(() => new Map()),
+    db('recordings').whereNull('purged_at')
+      .select('recording_id', 'title', 'show_title_override', 'season', 'episode', 'episode_title', 'aired_at', 'imported_at', 'genres_json')
+      .catch(() => []),
+    listAutorecs(conn).catch(() => []),
+  ])
+  return {
+    overrides,
+    evidence,
+    rowsByKey: rowsByShowKey(rows),
+    autorecNames: new Map(autorecs.map((autorec) => [autorec.id, autorec.name])),
+  }
+}
+
+const rowsByShowKey = (rows) => {
+  const groups = new Map()
+  for (const row of rows) {
+    const key = showKeyOf(row.show_title_override ?? row.title)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(row)
+  }
+  return groups
+}
+
+const folderForSeries = async ({ item, shows, autorecNames }) => {
+  const title = (item.autorecId && autorecNames.get(item.autorecId)) || item.title
+  const created = await ensureShowFolder({ title, shows })
+  if (!shows.some((show) => show.id === created.id)) shows.push(created)
+  return created
 }
 
 const recordingClassifications = async (entries) => {
@@ -387,6 +454,7 @@ const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   genres: entry.genres || [],
   year: entry.year ?? null,
   tvhFilename: entry.filename || null,
+  autorecId: entry.autorecId || null,
   sourcePath: entry.filename
     ? localPathFor({ tvhFilename: entry.filename, tvhRecordingsPath, recordingsRoot })
     : null,
@@ -456,7 +524,7 @@ const holdRecording = async ({ item, existing, reason }) => {
   })
 }
 
-const refreshSection = async (key) => {
+export const refreshSection = async (key) => {
   const sectionId = await getSetting(key)
   if (!sectionId) return { skipped: true, reason: 'no Plex library chosen for these recordings' }
   return notifyPlexSectionRefresh({ sectionId })

@@ -57,6 +57,7 @@ const deps = ({ rows = [], scheduled = [], series = [], folders = [] } = {}) => 
   resolvePlayable: async () => '/media/file.ts',
   loadScheduled: async () => ({ upcoming: scheduled, activeProgramIds: [] }),
   loadFolders: async () => folders,
+  loadEvidence: async () => new Map(),
 })
 
 test('nextScheduledByKey: keeps only the soonest future entry per show, skipping ones recording now', () => {

@@ -11,7 +11,6 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 const { db } = await import('../src/db.js')
 const {
   kindOverrideFrom,
-  libraryKindWith,
   loadKindOverrides,
   mountProgrammeKindRoutes,
   overrideListOf,
@@ -106,15 +105,13 @@ test('movieChoiceOf: offers Not a movie on films and This is a movie on long one
   assert.equal(movieChoiceOf({ programme: airing({ minutes: 100, title: 'Seven News' }), film: false }), null)
 })
 
-test('libraryKindWith and kindOf: the Movies shelf follows the override', () => {
-  assert.equal(libraryKindWith({ kind: 'movie', override: 'not-movie' }), 'oneoff')
-  assert.equal(libraryKindWith({ kind: 'show', override: 'not-movie' }), 'show')
-  assert.equal(libraryKindWith({ kind: 'oneoff', override: 'movie' }), 'movie')
-  assert.equal(libraryKindWith({ kind: 'oneoff', override: null }), 'oneoff')
+test('kindOf: the Movies, Shows, and One-offs shelves follow the override', () => {
   const film = { status: 'done', season: null, episode: null, duration_s: 6000, file_path: '/movies/Heron/Heron.ts' }
   assert.equal(kindOf({ rows: [film], moviesRoot: '/movies' }), 'movie')
   assert.equal(kindOf({ rows: [film], moviesRoot: '/movies', override: 'not-movie' }), 'oneoff')
   assert.equal(kindOf({ rows: [film, film], override: 'movie' }), 'movie')
+  assert.equal(kindOf({ rows: [film], moviesRoot: '/movies', override: 'show' }), 'show')
+  assert.equal(kindOf({ rows: [{ ...film, show_id: 3 }], override: 'one-off' }), 'oneoff')
 })
 
 test('PUT and DELETE /api/programme-kind/:showKey store and clear the override', async () => {

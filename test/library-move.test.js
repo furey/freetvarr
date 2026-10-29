@@ -46,7 +46,7 @@ const move = async (body) => {
 const overridesOf = async () => Object.fromEntries((await db('recordings').orderBy('recording_id').select('recording_id', 'show_title_override'))
   .map((row) => [row.recording_id, row.show_title_override]))
 
-const showKeys = async () => (await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [],
+const showKeys = async () => (await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(),
   loadSeries: async () => ({ series: [] }),
   loadRecordingNow: async () => [],
   loadFinishing: async () => [],

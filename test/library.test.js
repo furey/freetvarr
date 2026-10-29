@@ -78,10 +78,12 @@ test('kindOf: a series rule or a series folder makes a show', () => {
   assert.equal(kindOf({ rows: [row(), row({ recording_id: 'r2', show_id: 3 })] }), 'show')
 })
 
-test('kindOf: with no series rule or folder, the import files it as a one-off, whatever the guide numbers', () => {
-  assert.equal(kindOf({ rows: [row({ season: 26, episode: 6 })] }), 'oneoff')
-  assert.equal(kindOf({ rows: [row({ season: 2 }), row({ recording_id: 'r2', season: 2, episode: 3 })] }), 'oneoff')
-  assert.equal(kindOf({ rows: [row({ season: 26, episode: 6, status: 'pending', duration_s: 9000 })] }), 'oneoff')
+test('kindOf: with no series rule or folder, the guide numbers decide between Shows and One-offs', () => {
+  assert.equal(kindOf({ rows: [row({ season: 26, episode: 6 })] }), 'show')
+  assert.equal(kindOf({ rows: [row({ season: 2 }), row({ recording_id: 'r2', season: 2, episode: 3 })] }), 'show')
+  assert.equal(kindOf({ rows: [row({ season: 26, episode: 6, status: 'pending', duration_s: 9000 })] }), 'show')
+  assert.equal(kindOf({ rows: [row({ season: null, episode: null })] }), 'oneoff')
+  assert.equal(kindOf({ rows: [row({ season: 2026, episode: 1, genres_json: '[64]' })] }), 'oneoff')
 })
 
 test('kindOf: films and one-offs', () => {
@@ -213,7 +215,7 @@ test('libraryEpisodesOf: a kind keeps only episodes of that kind', () => {
   const rows = [
     row({ recording_id: 's1', aired_at: NOW, season: 1 }),
     row({ recording_id: 'm1', title: 'The Long Paddock', aired_at: NOW - DAY_MS, file_path: '/media/Movies/paddock.ts' }),
-    row({ recording_id: 'o1', title: 'Rugby League World Cup 2026', aired_at: NOW - 2 * DAY_MS, season: 26, episode: 6 }),
+    row({ recording_id: 'o1', title: 'Melbourne Cup', aired_at: NOW - 2 * DAY_MS, season: 2026, episode: 1, genres_json: '[64]' }),
   ]
   const ofKind = (kind) => libraryEpisodesOf({ rows, state: 'new', kind, moviesRoot: '/media/Movies', ruleKeys: new Set(['the-block']) })
     .map((e) => e.recordingId)
@@ -234,7 +236,7 @@ test('episodeLimitFrom and rulePatchFrom: validate request values', () => {
 })
 
 test('getLibraryShows: marks the list stale when the series rules are missing', async () => {
-  const result = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [],
+  const result = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(),
     loadRows: async () => [row()],
     loadSeries: async () => ({ series: [], stale: false, error: 'TVHeadend URL is not configured.' }),
     loadRecordingNow: async () => [],
@@ -260,8 +262,8 @@ test('getLibraryShow: returns 404 data as null and fills autorec padding from th
     loadOverrides: async () => new Map(),
     resolvePlayable: async (r) => (r.recording_id === 'a' ? '/media/a.ts' : null),
   }
-  assert.equal(await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], ...deps, key: 'nothing-here' }), null)
-  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], ...deps, key: 'the-block' })
+  assert.equal(await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps, key: 'nothing-here' }), null)
+  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps, key: 'the-block' })
   assert.equal(show.rule.autorecs[0].leadTime, 2)
   assert.equal(show.rule.autorecs[0].lagTime, 5)
   assert.equal(show.rule.folder.id, 3)
@@ -371,7 +373,7 @@ test('a show title override moves a recording into the named show everywhere the
     ['c', 'the-block-kids-room-and-re-do-room-week', kidsRoom],
     ['a', 'the-block', 'The Block'],
   ])
-  const detail = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [],
+  const detail = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(),
     key: 'the-block',
     loadRows: async () => rows,
     loadSeries: async () => ({ series: [] }),

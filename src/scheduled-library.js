@@ -53,11 +53,6 @@ export const scheduledAiringOf = (entry) => ({
   classification: entry.classification ?? null,
 })
 
-export const scheduledKindOf = (entry) => {
-  if (entry.kind === 'movie') return 'movie'
-  return entry.seriesLinkId ? 'show' : 'oneoff'
-}
-
 const scheduledFieldsOf = (entry) => ({
   programId: entry.programId,
   epgProgramId: entry.epgProgramId ?? null,

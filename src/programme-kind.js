@@ -2,7 +2,9 @@ import { db } from './db.js'
 
 export const MOVIE = 'movie'
 export const NOT_MOVIE = 'not-movie'
-export const KIND_OVERRIDES = [MOVIE, NOT_MOVIE]
+export const SHOW_KIND = 'show'
+export const ONE_OFF_KIND = 'one-off'
+export const KIND_OVERRIDES = [MOVIE, NOT_MOVIE, SHOW_KIND, ONE_OFF_KIND]
 
 export const kindOverrideFrom = (body) => (KIND_OVERRIDES.includes(body?.kind) ? body.kind : null)
 
@@ -26,12 +28,6 @@ export const withKindOverrides = ({ records, overrides }) => {
     merged.set(key, { categories: [], genres: [], source: null, ...merged.get(key), kindOverride })
   }
   return merged
-}
-
-export const libraryKindWith = ({ kind, override }) => {
-  if (override === MOVIE) return 'movie'
-  if (override === NOT_MOVIE && kind === 'movie') return 'oneoff'
-  return kind
 }
 
 export const loadKindOverrides = async () => new Map(

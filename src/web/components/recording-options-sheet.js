@@ -269,7 +269,6 @@ export const RecordingOptionsSheet = {
       lead_time: lead.value,
       lag_time: lag.value,
       episodes_to_keep: keep.value,
-      add_show_rule: false,
       any_channel: anyChannel,
       paused: paused.value,
     })

@@ -49,6 +49,7 @@ import { orderChannels } from './channel-order.js'
 import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
 import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
+import { saveGuideEvidence } from './series-evidence.js'
 import {
   addPendingSkip,
   entriesToSkip,
@@ -1012,6 +1013,7 @@ const loadGuide = async (startMs) => {
     programByEventId.set(String(e.program_id), e)
   }
   saveGuidePrograms({ programs: events }).catch(logHistoryError('save'))
+  saveGuideEvidence({ programmes: listed, recordsByKey }).catch(logHistoryError('series evidence'))
   return {
     startMs,
     channels,

@@ -111,6 +111,15 @@ test('libraryKind: a show rule wins, films need a movies folder, the rest are on
   assert.equal(libraryKind({ show: null, item: { ...film, genres: [64] }, moviesRoot: '/m' }), 'oneOff')
 })
 
+test('libraryKind: a series rule recording is a show even before it has a folder, and the override wins', () => {
+  const episode = { title: 'Big Brother', season: null, episode: null, genres: [], start: 0, end: 60 * 60_000 }
+  assert.equal(libraryKind({ show: null, item: { ...episode, autorecId: 'a1' }, moviesRoot: '/m' }), 'tv')
+  assert.equal(libraryKind({ show: null, item: episode, moviesRoot: '/m' }), 'oneOff')
+  assert.equal(libraryKind({ show: null, item: { ...episode, season: 17, episode: 4 }, moviesRoot: '/m' }), 'tv')
+  assert.equal(libraryKind({ show: null, item: { ...episode, season: 17, episode: 4 }, moviesRoot: '/m', override: 'one-off' }), 'oneOff')
+  assert.equal(libraryKind({ show: null, item: film, moviesRoot: '', override: 'movie' }), 'oneOff')
+})
+
 test('episodeFilename: SxxEyy with episode title when numbered', () => {
   const name = episodeFilename({
     item: { season: 1, episode: 3, episode_title: 'The Creek', ext: 'ts' },

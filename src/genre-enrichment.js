@@ -3,7 +3,7 @@ import axios from 'axios'
 import { db, getSetting } from './db.js'
 import { showTitleKey } from './show-artwork.js'
 import { FILM_MIN_MS } from './film-rule.js'
-import { MOVIE, NOT_MOVIE, loadKindOverrides, withKindOverrides } from './programme-kind.js'
+import { MOVIE, NOT_MOVIE, ONE_OFF_KIND, SHOW_KIND, loadKindOverrides, withKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
@@ -84,7 +84,7 @@ export const isMovieLike = (programme) => {
 
 export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) => {
   if (record?.kindOverride === MOVIE) return true
-  if (record?.kindOverride === NOT_MOVIE) return false
+  if ([NOT_MOVIE, SHOW_KIND, ONE_OFF_KIND].includes(record?.kindOverride)) return false
   if (String(record?.source || '').startsWith('tvmaze:')) return false
   if (record?.categories?.includes('movie')) return true
   if (!isMovieLike(programme)) return false
