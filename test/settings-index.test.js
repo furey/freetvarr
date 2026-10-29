@@ -12,6 +12,7 @@ const SETTINGS_VIEW_FILES = [
   'components/tmdb-key-setting.js',
   'components/movie-corrections.js',
   'components/live-streams-settings.js',
+  'components/plex-watch-setting.js',
 ]
 
 const PAGE_FILES = {

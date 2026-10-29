@@ -329,6 +329,7 @@ export const SettingsView = {
               </div>
             </div>
           </div>
+          <plex-watch-setting ref="plexWatchSetting" />
         </section>
 
         <section id="section-schedule" class="settings-section">
@@ -660,6 +661,7 @@ export const SettingsView = {
     const creditsLookupEnabled = ref(true)
     const genreLookup = ref(true)
     const genreLookupBaseline = createSettingBaseline()
+    const plexWatchSetting = ref(null)
     const addToLibraryBaseline = createSettingBaseline()
     const tmdbKeySet = ref(false)
     const plexOneOffSectionId = ref('')
@@ -774,6 +776,7 @@ export const SettingsView = {
         await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
         await saveRecordingDefaults()
         await saveGenreLookup()
+        await plexWatchSetting.value?.save()
         tz.value = timeZone.value
         tzSource.value = 'setting'
         if (plexToken.value) {
@@ -1047,6 +1050,7 @@ export const SettingsView = {
       plexDiscovering, plexCandidates, plexPrefsPath, plexPrefsOpen, plexDiscoverText, plexDiscoverKind,
       defaultPlexPrefsPath: DEFAULT_PLEX_PREFS_PATH,
       deleteAfterPlexRefreshOnly,
+      plexWatchSetting,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
       resetting, resetError, askResetFreetvarr,

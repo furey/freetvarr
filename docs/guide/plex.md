@@ -78,6 +78,22 @@ After any sync that imported a file, Freetvarr refreshes the configured section 
 
 A recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)). The **Wait for Plex before removing recordings from TVHeadend** switch at the end of Settings → Recording → Plex controls this. Leave it on.
 
+## Watched state
+
+Freetvarr and Plex keep the same watched state and resume point for each recording. An episode you watch in Plex, or in Infuse through Plex, shows as watched in Freetvarr and loses its **New** pill. An episode you watch or mark in Freetvarr shows as watched in Plex.
+
+The **Watched state** group in Settings → Recording → Plex has these controls:
+
+- **From Plex**: copies watched, unwatched, and resume points from Plex to Freetvarr.
+- **Back to Plex**: sends watched, unwatched, and resume points from Freetvarr to Plex.
+- **Sync watched now**: runs a full check at once and shows the result.
+
+Freetvarr matches each recording to its Plex item by file path. A recording that Plex has not scanned yet counts as "not in Plex yet" and syncs after the scan.
+
+The check runs after each sync, a few seconds after you watch or mark something, and when you open Recordings. Once a day it reads every Plex item, so an episode marked unwatched in Plex also shows as unwatched in Freetvarr. When you change the same episode on both sides between checks, the change in Freetvarr wins.
+
+It uses the Plex account that owns the token. Other Plex Home users keep their own watched state.
+
 ## File layout
 
 Imports write under your media root using each series folder and season template ([Series rules](/guide/series)). Plex reads them as an ordinary TV library.
