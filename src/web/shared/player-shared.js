@@ -79,7 +79,6 @@ export const toggleStageFullscreen = ({ stage, video }) => {
 export const enterStageFullscreen = ({ stage, video }) => {
   if (document.fullscreenElement || video?.webkitDisplayingFullscreen) return
   if (stage?.requestFullscreen) return stage.requestFullscreen().catch(() => {})
-  try { video?.webkitEnterFullscreen?.() } catch {}
 }
 
 export const useRotateToFullscreen = ({ isEligible, enter, getVideo }) => {
