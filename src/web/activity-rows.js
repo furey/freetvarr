@@ -24,8 +24,8 @@ export const recordingRowOf = ({ recording, nowMs, timeZone }) => {
   return {
     id: recording.id,
     kind: 'recording',
-    title: [`Recording · ${episodeTitleOf(recording)}`, recording.channelName].filter(Boolean).join(' on '),
-    sub: [recording.failed ? recording.statusText || 'Recording problem' : 'TVHeadend', slot && [slot, stops].filter(Boolean).join(', '), recording.tuner].filter(Boolean).join(' · '),
+    title: `Recording · ${episodeTitleOf(recording)}`,
+    sub: [recording.failed ? recording.statusText || 'Recording problem' : recording.channelName || 'TVHeadend', slot && [slot, stops].filter(Boolean).join(', '), recording.tuner].filter(Boolean).join(' · '),
     side: endMs > nowMs ? `${durationText(endMs - nowMs)} left` : 'finishing',
     icon: 'live',
     tone: recording.failed ? 'fail' : null,
@@ -95,6 +95,8 @@ export const uptimeText = (seconds) => {
 }
 
 export const triggerText = (trigger) => TRIGGERS[trigger] ?? null
+
+export const startedByText = (trigger) => STARTED_BY[trigger] ?? triggerText(trigger)
 
 export const stepStateOf = (step) => STEP_ICONS[step.state] ?? 'idle'
 
@@ -187,11 +189,11 @@ const VIDEO_MODES = {
 }
 
 const TRIGGERS = {
-  cron: 'schedule',
-  schedule: 'schedule',
   manual: 'manual',
   'recording-finished': 'after a recording',
 }
+
+const STARTED_BY = { cron: 'Schedule', schedule: 'Schedule' }
 
 const STEP_ICONS = { done: 'ok', running: 'running', failed: 'failed' }
 

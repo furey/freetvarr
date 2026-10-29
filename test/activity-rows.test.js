@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  clientLabelOf, durationText, jobRowOf, recordingRowOf, serverLineOf, sessionRowOf, triggerText, upNextRowOf, uptimeText,
+  clientLabelOf, durationText, startedByText, jobRowOf, recordingRowOf, serverLineOf, sessionRowOf, triggerText, upNextRowOf, uptimeText,
 } from '../src/web/activity-rows.js'
 
 const timeZone = 'Australia/Sydney'
@@ -31,13 +31,13 @@ test('a running job with no percent shows time so far and an indeterminate bar',
   assert.equal(row.indeterminate, true)
 })
 
-test('a finished job shows its outcome, trigger, clock, and time taken', () => {
+test('a finished job shows its outcome, clock, and time taken, but not a scheduled trigger', () => {
   const row = jobRowOf({
     run: run({ state: 'done', outcome: '1 imported · 9 skipped', finishedAt: at('21:41') + 18_000 }),
     nowMs: at('22:00'),
     timeZone,
   })
-  assert.equal(row.sub, '1 imported · 9 skipped · schedule')
+  assert.equal(row.sub, '1 imported · 9 skipped')
   assert.equal(row.side, '9:41pm · 18s')
   assert.equal(row.icon, 'ok')
   assert.equal(row.percent, null)
@@ -62,8 +62,8 @@ test('a recording row counts down to the padded stop and shows its slot', () => 
     nowMs: at('20:02'),
     timeZone,
   })
-  assert.equal(row.title, 'Recording · Big Brother S16 E12 on 10 HD')
-  assert.equal(row.sub, 'TVHeadend · 7:30pm–8:40pm, stops 8:50pm · Tuner 2')
+  assert.equal(row.title, 'Recording · Big Brother S16 E12')
+  assert.equal(row.sub, '10 HD · 7:30pm–8:40pm, stops 8:50pm · Tuner 2')
   assert.equal(row.side, '48m left')
   assert.equal(row.percent, 41)
   assert.equal(row.live, true)
@@ -117,4 +117,7 @@ test('small formatters', () => {
   assert.equal(uptimeText(3 * 86400), '3 days')
   assert.equal(triggerText('recording-finished'), 'after a recording')
   assert.equal(triggerText(null), null)
+  assert.equal(triggerText('cron'), null)
+  assert.equal(startedByText('cron'), 'Schedule')
+  assert.equal(startedByText('manual'), 'manual')
 })

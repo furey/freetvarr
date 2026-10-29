@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
-  clientLabelOf, itemStateOf, jobRowOf, logLineOf, recordingRowOf, serverLineOf, sessionRowOf, stepStateOf, triggerText, upNextRowOf,
+  clientLabelOf, itemStateOf, jobRowOf, logLineOf, recordingRowOf, serverLineOf, sessionRowOf, startedByText, stepStateOf, upNextRowOf,
 } from '/activity-rows.js'
 import { syncTook } from '/sync-when.js'
 import { api } from '/shared/api.js'
@@ -111,7 +111,7 @@ const JobDetail = {
     }
     const facts = computed(() => {
       const d = props.detail
-      const startedBy = props.parent ? `${props.parent.title}` : triggerText(d.trigger)
+      const startedBy = props.parent ? `${props.parent.title}` : startedByText(d.trigger)
       return [
         ...d.facts,
         { label: 'Started', value: formatClock(d.startedAt, tz.value) },
