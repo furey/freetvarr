@@ -17,6 +17,16 @@ export const ensureShowFolder = async ({ title, shows = null }) => {
 
 export const existingFolderFor = ({ title, folders }) => {
   const wanted = createValidFilename(title).toLowerCase()
-  return folders.find((f) => f.toLowerCase() === wanted)
-    || folders.find((f) => f.toLowerCase().startsWith(`${wanted} (`))
+  const sorted = [...folders].sort()
+  const exact = sorted.find((folder) => folder.toLowerCase() === wanted)
+  if (exact) return exact
+  const suffixed = sorted.filter((folder) => isSuffixedFolderOf({ folder, wanted }))
+  return suffixed.length === 1 ? suffixed[0] : undefined
 }
+
+const isSuffixedFolderOf = ({ folder, wanted }) => {
+  const name = folder.toLowerCase()
+  return name.startsWith(`${wanted} `) && YEAR_OR_COUNTRY_SUFFIX.test(name.slice(wanted.length))
+}
+
+const YEAR_OR_COUNTRY_SUFFIX = /^(?: \((?:\d{4}|[a-z]{2,3})\)){1,2}$/
