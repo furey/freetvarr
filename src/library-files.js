@@ -33,12 +33,14 @@ export const libraryStateOf = async (row) => {
 }
 
 export const findReplacement = async ({ file_path: filePath, season, episode }) => {
-  const token = episodeToken({ season, episode })
-  if (!token) return null
-  const dir = path.dirname(filePath)
-  const names = await fs.readdir(dir).catch(() => [])
-  const match = names.find((name) => isVideo(name) && name.toUpperCase().includes(token))
-  return match ? path.join(dir, match) : null
+  if (season == null || episode == null) return null
+  const wanted = { season: Number(season), episode: Number(episode) }
+  for (const dir of await seasonFoldersOf({ filePath, season: wanted.season })) {
+    const names = (await fs.readdir(dir).catch(() => [])).sort()
+    const match = names.find((name) => isVideo(name) && namesEpisode({ name, ...wanted }))
+    if (match) return path.join(dir, match)
+  }
+  return null
 }
 
 const CHECKED_STATUSES = ['done', 'partial']
@@ -49,10 +51,27 @@ const isPresent = async (filePath) => fs.access(filePath).then(() => true, () =>
 
 const isVideo = (name) => VIDEO_EXTENSIONS.has(path.extname(name).toLowerCase())
 
-const episodeToken = ({ season, episode }) => {
-  if (season == null || episode == null) return null
-  return `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`
+const seasonFoldersOf = async ({ filePath, season }) => {
+  const own = path.dirname(filePath)
+  if (seasonNumberOf(path.basename(own)) == null) return [own]
+  const showDir = path.dirname(own)
+  const siblings = (await fs.readdir(showDir).catch(() => []))
+    .sort()
+    .map((name) => path.join(showDir, name))
+    .filter((dir) => dir !== own && seasonNumberOf(path.basename(dir)) === season)
+  return [own, ...siblings]
 }
+
+const seasonNumberOf = (folderName) => {
+  const match = SEASON_FOLDER.exec(folderName)
+  return match ? Number(match[1]) : null
+}
+
+const namesEpisode = ({ name, season, episode }) => [...name.matchAll(EPISODE_TOKEN)]
+  .some((match) => Number(match[1]) === season && Number(match[2]) === episode)
+
+const SEASON_FOLDER = /^season\s*(\d+)$/i
+const EPISODE_TOKEN = /(?<![a-z0-9])S0?(\d+)\s*E0?(\d+)(?!\d)/gi
 
 const hasChanged = ({ row, state, replacement }) =>
   (row.library_state ?? null) !== state || (row.library_replacement ?? null) !== replacement

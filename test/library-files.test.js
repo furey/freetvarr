@@ -58,6 +58,36 @@ test('findReplacement: needs a season and episode to match on', async () => {
   assert.equal(await findReplacement(row(5, { season: null })), null)
 })
 
+const survivorDir = path.join(tmpDir, 'tv', 'Survivor')
+const survivorFile = (season, name) => path.join(survivorDir, season, name)
+const survivorRow = ({ season, episode, file }) => ({ file_path: file, season, episode })
+
+before(async () => {
+  for (const season of ['Season 01', 'Season 1', 'Season 22']) {
+    await fs.mkdir(path.join(survivorDir, season), { recursive: true })
+  }
+  await fs.writeFile(survivorFile('Season 1', 'Survivor S1E02 WEB.mkv'), '')
+  await fs.writeFile(survivorFile('Season 1', 'Survivor S1E12 WEB.mkv'), '')
+  await fs.writeFile(survivorFile('Season 22', 'Survivor S22 E9.mp4'), '')
+})
+
+test('findReplacement: matches unpadded and spaced episode numbers', async () => {
+  const file = survivorFile('Season 22', 'Survivor - S22E09.ts')
+  const found = await findReplacement(survivorRow({ season: 22, episode: 9, file }))
+  assert.equal(found, survivorFile('Season 22', 'Survivor S22 E9.mp4'))
+})
+
+test('findReplacement: looks in a sibling folder for the same season', async () => {
+  const file = survivorFile('Season 01', 'Survivor - S01E02.ts')
+  const found = await findReplacement(survivorRow({ season: 1, episode: 2, file }))
+  assert.equal(found, survivorFile('Season 1', 'Survivor S1E02 WEB.mkv'))
+})
+
+test('findReplacement: a longer episode number is a different episode', async () => {
+  const file = survivorFile('Season 01', 'Survivor - S01E01.ts')
+  assert.equal(await findReplacement(survivorRow({ season: 1, episode: 1, file })), null)
+})
+
 test('sweepLibraryStates: saves each state and clears it once the file is back', async () => {
   await db('recordings').insert([row(4), row(5), row(6)])
   await sweepLibraryStates()
