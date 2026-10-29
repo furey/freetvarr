@@ -85,7 +85,7 @@ export const CrossIcon = {
 export const RefreshIcon = {
   template: `
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12.7 10.21A5 5 0 1 1 8.5 3.53"/>
+      <path d="M13 8A5 5 0 1 1 8.5 3.53"/>
       <path d="M6.75 1.25 9.25 3.5 6.75 5.75"/>
     </svg>
   `,
