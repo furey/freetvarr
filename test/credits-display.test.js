@@ -31,17 +31,19 @@ test('isSettledCredits accepts ready and none only', () => {
   assert.equal(isSettledCredits(null), false)
 })
 
-test('shownCastOf keeps named people, drops unsafe links, adds initials, and caps the list', () => {
+test('shownCastOf keeps named people, drops unsafe links and outside images, adds initials, and caps the list', () => {
   const cast = shownCastOf({
     status: 'ready',
     cast: [
-      { name: 'Uma Thurman', character: 'The Bride', image: 'https://image.tmdb.org/t/p/w185/a.jpg', url: 'https://www.themoviedb.org/person/139' },
+      { name: 'Uma Thurman', character: 'The Bride', image: '/api/epg/person-image?src=a&w=192', url: 'https://www.themoviedb.org/person/139' },
       { name: '', character: 'Nobody' },
+      { name: 'Lucy Liu', image: 'https://image.tmdb.org/t/p/w185/b.jpg' },
       { name: 'Jonathan LaPaglia', character: null, image: 'http://insecure.test/b.jpg', url: 'javascript:alert(1)' },
     ],
   })
   assert.deepEqual(cast, [
-    { name: 'Uma Thurman', character: 'The Bride', image: 'https://image.tmdb.org/t/p/w185/a.jpg', url: 'https://www.themoviedb.org/person/139', initials: 'UT' },
+    { name: 'Uma Thurman', character: 'The Bride', image: '/api/epg/person-image?src=a&w=192', url: 'https://www.themoviedb.org/person/139', initials: 'UT' },
+    { name: 'Lucy Liu', character: '', image: null, url: null, initials: 'LL' },
     { name: 'Jonathan LaPaglia', character: '', image: null, url: null, initials: 'JL' },
   ])
   const many = Array.from({ length: 20 }, (_, i) => ({ name: `Person ${i}` }))

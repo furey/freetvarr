@@ -64,11 +64,16 @@ const castMemberOf = (member) => {
   return {
     name,
     character: cleanText(member.character),
-    image: safeLinkOf(member.image),
+    image: personImagePathOf(member.image),
     url: safeLinkOf(member.url),
     initials: initialsOf(name),
   }
 }
+
+const personImagePathOf = (image) =>
+  typeof image === 'string' && image.startsWith(PERSON_IMAGE_PREFIX) ? image : null
+
+const PERSON_IMAGE_PREFIX = '/api/epg/person-image?'
 
 const yearOf = (year) => String(releaseYearOf(year) ?? '')
 
