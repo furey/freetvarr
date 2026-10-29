@@ -10,7 +10,7 @@ export const MovieCorrections = {
         <button type="button" class="ui-group-row suggestions-row-button" @click="open = true">
           <span class="settings-toggle-text">
             <span class="settings-row-title">{{ label }}</span>
-            <span class="settings-row-meta">Shows you marked Not a movie or This is a movie</span>
+            <span class="settings-row-meta">Shows you marked Not a movie or This is a movie, or moved between Shows and One-offs</span>
           </span>
           <span class="suggestions-count ui-tabular"><span v-if="!loaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ corrections.length }}</template></span>
           <chevron-glyph class="suggestions-chevron" />
@@ -29,7 +29,7 @@ export const MovieCorrections = {
               @click="undo(correction)">Undo</button>
           </div>
         </div>
-        <p v-else class="settings-row-meta">No movie corrections. Choose Not a movie or This is a movie in a show’s menu to correct how it is listed.</p>
+        <p v-else class="settings-row-meta">No corrections. Choose Not a movie, This is a movie, Move to Shows, or Move to One-offs in a show’s menu to correct how it is listed.</p>
       </ui-sheet>
     </div>
   `,

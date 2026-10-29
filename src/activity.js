@@ -18,6 +18,7 @@ export const JOB_KINDS = {
   ratings: { title: 'Ratings warm-up', quiet: true },
   prune: { title: 'Cache prune' },
   health: { title: 'Health checks' },
+  reclassify: { title: 'Library folders' },
 }
 
 export const createActivity = ({

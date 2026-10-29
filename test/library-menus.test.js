@@ -85,6 +85,13 @@ test('showMenuOf: a series rule with nothing recorded yet offers the picture and
   assert.deepEqual(keysOf(showMenuOf({ show: { ...show, rule: null } })), [['show-info']])
 })
 
+test('showMenuOf: Move to Shows on a one-off, Move to One-offs on a show, neither on a movie', () => {
+  const itemsOf = (kind) => showMenuOf({ show: { ...showWith([episode()], { rule: null }), kind } }).flat().map((item) => item.key)
+  assert.ok(itemsOf('oneoff').includes('kind-show'))
+  assert.ok(itemsOf('show').includes('kind-one-off'))
+  assert.ok(!itemsOf('movie').some((key) => key.startsWith('kind-')))
+})
+
 test('episodeMenuOf: an in-progress episode offers resume, start over and earlier episodes', () => {
   const current = episode({ recordingId: 'b', episode: 44, positionS: 1390 })
   const episodes = [episode({ recordingId: 'a', episode: 43 }), current]

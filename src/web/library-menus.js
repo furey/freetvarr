@@ -56,6 +56,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
         : { key: 'pause-series', label: 'Pause recording', icon: 'pause' }),
       { key: 'show-info', label: 'Show info', icon: 'info' },
       canMove && episodes.length > 0 && { key: 'move', label: 'Move to show…', icon: 'move' },
+      shelfMoveOf(show),
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
       hasArtwork && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
       hasArtwork && { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
@@ -66,6 +67,12 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
       deletable.length && { key: 'delete-all', label: 'Delete all episodes', icon: 'trash', danger: true, detail: String(deletable.length) },
     ],
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
+}
+
+export const shelfMoveOf = (show) => {
+  if (show.kind === 'oneoff') return { key: 'kind-show', label: 'Move to Shows', icon: 'move' }
+  if (show.kind === 'show') return { key: 'kind-one-off', label: 'Move to One-offs', icon: 'move' }
+  return null
 }
 
 export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false, canMove = false }) => {

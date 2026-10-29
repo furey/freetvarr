@@ -174,6 +174,12 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     await reload()
   })
 
+  const moveToShelf = ({ kind, shelf }) => run(`Moving to ${shelf}`, async () => {
+    await api('PUT', `/api/programme-kind/${encodeURIComponent(show.value.key)}`, { kind, title: show.value.title })
+    showToast({ title: `Moved to ${shelf}`, detail: 'Recorded files move to the matching folder in a moment.' })
+    await reload()
+  })
+
   const closePicture = () => { pictureOpen.value = false }
 
   const onPictureChanged = () => reload()
@@ -313,6 +319,8 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
       return
     }
     if (key === 'refresh-artwork') return refreshArtwork()
+    if (key === 'kind-show') return moveToShelf({ kind: 'show', shelf: 'Shows' })
+    if (key === 'kind-one-off') return moveToShelf({ kind: 'one-off', shelf: 'One-offs' })
     if (key === 'delete-watched') return askDelete({ variant: 'watched', list: episodes.value.filter((e) => e.watched) })
     if (key === 'delete-all') return askDelete({ variant: 'all', list: episodes.value })
   }

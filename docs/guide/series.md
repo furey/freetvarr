@@ -141,11 +141,13 @@ To add a title:
 
 ## Recordings with no series
 
-A recording that matches no series folder, such as a sports final or a special, goes to the one-off folder (`/data/media/one-offs` in the example Docker compose file). Each title gets its own folder, and the file name carries the air date and start time:
+A programme that airs once, such as a sports final or a special, goes to the one-off folder (`/data/media/one-offs` in the example Docker compose file). Each title gets its own folder, and the file name carries the air date and start time:
 
 ```text
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts
 ```
+
+A TV series with no series folder does not go there. Freetvarr adds a series folder for it on its first import, named after the series recording or the title. See [Library](/guide/recordings#library) for how Freetvarr tells a series from a one-off.
 
 The one-off folder stays out of the TV folder on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. In your media server, point a separate library at the folder instead (in Plex, use the **Other Videos** library type). See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the **Import every recording** switch in Settings → Recording → Media library that turns this off.
 

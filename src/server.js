@@ -15,6 +15,8 @@ import { isWelcomeDismissed, setWelcomeDismissed } from './welcome.js'
 import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
+import { ensureShowFolder } from './show-folders.js'
+import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
 import {
   startSync,
   onSyncFinished,
@@ -28,8 +30,6 @@ import {
   rebaseFilePaths,
   resetInterruptedImports,
   closeInterruptedSyncs,
-  matchShow,
-  createValidFilename,
 } from './sync.js'
 import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
@@ -892,22 +892,8 @@ const saveArtworkFromGuide = async ({ recordingId, eventId }) => {
 }
 
 const ensureShowRule = async (title) => {
-  const shows = await db('shows').where({ enabled: true })
-  const existing = matchShow(shows, title)
-  if (existing) return { created: false, show_pattern: existing.show_pattern, dest_folder: existing.dest_folder }
-  const folders = await listShowFolders(await getMediaRoot()).catch(() => [])
-  const rule = {
-    show_pattern: title.trim(),
-    dest_folder: existingFolderFor({ title, folders }) || createValidFilename(title) || 'Recordings',
-  }
-  await db('shows').insert(rule)
-  return { created: true, ...rule }
-}
-
-const existingFolderFor = ({ title, folders }) => {
-  const wanted = createValidFilename(title).toLowerCase()
-  return folders.find((f) => f.toLowerCase() === wanted)
-    || folders.find((f) => f.toLowerCase().startsWith(`${wanted} (`))
+  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title })
+  return { created, show_pattern, dest_folder }
 }
 
 app.post('/api/epg/cancel-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
@@ -1341,7 +1327,13 @@ mountSearchRoutes({
   limiter: epgLimiter,
   loadRecordingTitles: async () => recordingTitlesOf(await getRecordingNow().catch(() => ({}))),
 })
+const reclassifyLibrary = (trigger) => runReclassification({ trigger })
+  .catch((err) => console.warn(`[library] folder sort failed: ${err.message}`))
+
+const RECLASSIFY_STARTUP_DELAY_MS = 3 * 60_000
+
 const refreshAfterKindChange = () => {
+  reclassifyLibrary('manual')
   clearGuideCache()
   forgetForYouCache()
   rebuildForYou().catch(() => {})
@@ -2419,6 +2411,9 @@ const server = app.listen(PORT, async () => {
   watchPendingSkips()
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())
+  onSyncFinished(() => reclassifyLibrary('sync'))
+  setTimeout(() => runReclassificationOnce()
+    .catch((err) => console.warn(`[library] folder sort failed: ${err.message}`)), RECLASSIFY_STARTUP_DELAY_MS).unref()
   onSyncFinished(() => applyInProgressPositions({ watchedAtFor: watchedAtAfterPosition })
     .catch((err) => console.warn(`[positions] failed to apply in-progress positions: ${err.message}`)))
   onForYouResult(() => homeHero.invalidate())

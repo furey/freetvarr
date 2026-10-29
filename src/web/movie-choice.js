@@ -18,4 +18,6 @@ const MOVIE_CHOICE_LABELS = {
 const CORRECTION_LABELS = {
   'not-movie': 'Not a movie',
   movie: 'Movie',
+  show: 'Moved to Shows',
+  'one-off': 'Moved to One-offs',
 }
