@@ -188,6 +188,8 @@ import { forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesFo
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
+import { loadPlexWatchConfig, loadPlexWatchStatus, loadPlexWatchToggles, plexWatchSync, savePlexWatchToggles } from './plex-watch.js'
+import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
 import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
@@ -1241,7 +1243,10 @@ app.post('/api/recordings/:recording_id/position', playPingLimiter, doubleCsrfPr
   const n = await db('recordings')
     .where({ recording_id: req.params.recording_id })
     .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds }) })
-  if (n > 0) return res.json({ ok: true, seconds })
+  if (n > 0) {
+    plexWatchSync.noteWatchChange()
+    return res.json({ ok: true, seconds })
+  }
   if (!(await isInProgressRecording(req.params.recording_id))) return res.status(404).json({ error: 'recording not found' })
   await rememberInProgressPosition({ recordingId: req.params.recording_id, seconds })
   res.json({ ok: true, seconds, pending: true })
@@ -1312,6 +1317,18 @@ mountLibraryRoutes({
   watchedLimiter: playPingLimiter,
   playbackSourceResolver,
   forgetLookups: (title) => Promise.all([programmeRatings.forget(title), programmeCredits.forget(title)]),
+  onWatchChange: plexWatchSync.noteWatchChange,
+  onLibraryOpened: plexWatchSync.libraryOpened,
+})
+mountPlexWatchRoutes({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: epgLimiter,
+  sync: plexWatchSync,
+  loadConfig: loadPlexWatchConfig,
+  loadToggles: loadPlexWatchToggles,
+  saveToggles: savePlexWatchToggles,
+  loadStatus: loadPlexWatchStatus,
 })
 const artPool = createArtPool()
 mountArtPoolRoutes({ app, artPool })
@@ -2414,6 +2431,7 @@ const server = app.listen(PORT, async () => {
   onSyncFinished(() => reclassifyLibrary('sync'))
   setTimeout(() => runReclassificationOnce()
     .catch((err) => console.warn(`[library] folder sort failed: ${err.message}`)), RECLASSIFY_STARTUP_DELAY_MS).unref()
+  onSyncFinished(() => plexWatchSync.request({ trigger: 'sync' }))
   onSyncFinished(() => applyInProgressPositions({ watchedAtFor: watchedAtAfterPosition })
     .catch((err) => console.warn(`[positions] failed to apply in-progress positions: ${err.message}`)))
   onForYouResult(() => homeHero.invalidate())

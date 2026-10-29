@@ -19,6 +19,7 @@ export const JOB_KINDS = {
   prune: { title: 'Cache prune' },
   health: { title: 'Health checks' },
   reclassify: { title: 'Library folders' },
+  'plex-watch': { title: 'Plex watched sync', quiet: true },
 }
 
 export const createActivity = ({

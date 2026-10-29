@@ -19,9 +19,10 @@ import {
   updateShowRule,
 } from './library.js'
 
-export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, playbackSourceResolver, forgetLookups = async () => {}, loadInProgressIds }) => {
+export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, playbackSourceResolver, forgetLookups = async () => {}, loadInProgressIds, onWatchChange = () => {}, onLibraryOpened = () => {} }) => {
   app.get('/api/library/shows', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
+    onLibraryOpened()
     res.json(await getLibraryShows())
   })
 
@@ -53,6 +54,7 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
     const result = await setShowWatched({ key: req.params.key, watched, throughRecordingId: through })
     if (!result) return res.status(404).json({ error: 'show not found' })
     if (result.missingThrough) return res.status(404).json({ error: 'recording not found in this show' })
+    onWatchChange()
     res.json({ ok: true, ...result })
   })
 
@@ -104,6 +106,7 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
     if (typeof watched !== 'boolean') return res.status(400).json({ error: 'watched must be true or false' })
     const result = await setRecordingWatched({ recordingId: req.params.recording_id, watched })
     if (!result) return res.status(404).json({ error: 'recording not found' })
+    onWatchChange()
     res.json({ ok: true, ...result })
   })
 }
