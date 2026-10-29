@@ -1,5 +1,6 @@
 import { db, deleteInChunks } from './db.js'
 import { measureJob } from './event-loop-lag.js'
+import { activity, currentJob } from './activity.js'
 
 export const LOOKUP_CACHE_TABLES = [
   { table: 'programme_ratings', key: 'lookup_key' },
@@ -23,15 +24,17 @@ export const pruneLookupCaches = async ({
 } = {}) => {
   const removed = {}
   for (const { table, key } of tables) {
+    currentJob()?.step(table)
     removed[table] = await pruneTable({ database, table, key, before: nowMs - graceMs, maxRows }).catch(() => 0)
   }
   return removed
 }
 
 export const startCachePruning = ({ prune = pruneLookupCaches, delayMs = PRUNE_START_DELAY_MS, everyMs = PRUNE_INTERVAL_MS } = {}) => {
-  const run = () => Promise.resolve().then(() => measureJob('cache-prune', prune)).catch(() => {})
+  const run = () => Promise.resolve().then(() => measureJob('cache-prune', prune, { kind: 'prune', trigger: 'schedule' })).catch(() => {})
   const first = setTimeout(run, delayMs)
   const repeat = setInterval(run, everyMs)
+  activity.planEvery({ kind: 'prune', every: 'every day', firstDelayMs: delayMs, everyMs })
   first.unref?.()
   repeat.unref?.()
   return () => {

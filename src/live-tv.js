@@ -315,7 +315,7 @@ export const createLiveSessions = ({
   const sessions = new Map()
   const ended = new Map()
 
-  const start = async ({ channelId, plan, label = null, weight = liveStreamWeightOf(0) }) => {
+  const start = async ({ channelId, plan, label = null, weight = liveStreamWeightOf(0), client = null }) => {
     const existing = forChannel(channelId)
     if (existing) {
       existing.viewers += 1
@@ -334,6 +334,7 @@ export const createLiveSessions = ({
       label: label || `channel ${channelId}`,
       dir: path.join(rootDir, id),
       userAgent: `Freetvarr-live/${id}`,
+      client,
       status: 'tuning',
       reason: null,
       startedAt: now(),
@@ -595,9 +596,21 @@ export const createLiveSessions = ({
 
   const labels = () => [...sessions.values()].map((s) => `live TV on ${s.label}`)
 
+  const list = () => [...sessions.values()].map((s) => ({
+    id: s.id,
+    kind: 'live',
+    channelId: s.channelId,
+    label: s.label,
+    status: s.status,
+    client: s.client,
+    viewers: s.viewers,
+    videoMode: s.plan?.videoMode ?? null,
+    startedAt: s.startedAt,
+  }))
+
   return {
     start, touch, hold, leave, setAttending, tick, stopAll, forChannel, statusForChannel,
-    waitForPlaylist, playlistFor, fileFor, get, view, labels, activeCount: () => sessions.size,
+    waitForPlaylist, playlistFor, fileFor, get, view, labels, list, activeCount: () => sessions.size,
   }
 }
 
@@ -653,7 +666,7 @@ export const preflightChannel = async ({ channelId, now = Date.now() }) => {
   return { ...verdict, channel: { id: channel.id, name: channel.name } }
 }
 
-export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRank = 0 }) => {
+export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRank = 0, client = null }) => {
   const existing = sessions.forChannel(channelId)
   const verdict = existing ? null : await preflightChannel({ channelId })
   if (verdict && !verdict.ok) {
@@ -664,7 +677,7 @@ export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRa
   }
   const plan = existing ? null : await planForChannel({ channelId, encoder })
   const { session, shared } = await sessions.start({
-    channelId, plan, label: verdict?.channel?.name, weight: liveStreamWeightOf(pictureRank),
+    channelId, plan, label: verdict?.channel?.name, weight: liveStreamWeightOf(pictureRank), client,
   })
   return { session: sessions.view(session), shared, conflict: verdict?.conflict || null }
 }

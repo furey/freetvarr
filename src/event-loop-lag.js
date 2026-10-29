@@ -1,5 +1,7 @@
 import { monitorEventLoopDelay, performance, PerformanceObserver, constants } from 'node:perf_hooks'
 
+import { trackJob } from './activity.js'
+
 export const STALL_THRESHOLD_MS = 100
 export const CHECK_EVERY_MS = 500
 export const LOG_EVERY_MS = 10_000
@@ -18,6 +20,7 @@ export const createLoopMonitor = ({
   observeGc = startGcObserver,
   histogram = monitorEventLoopDelay({ resolution: STATS_RESOLUTION_MS }),
   windowHistogram = monitorEventLoopDelay({ resolution: WINDOW_RESOLUTION_MS }),
+  trackActivity = (job, fn) => fn(),
 } = {}) => {
   const slices = []
   const jobRuns = []
@@ -56,7 +59,8 @@ export const createLoopMonitor = ({
     }
   }
 
-  const measureJob = (label, fn) => {
+  const measureJob = (label, fn, job = null) => {
+    const work = job ? () => trackActivity(job, fn) : fn
     const token = Symbol(label)
     const startedAt = now()
     active.set(token, label)
@@ -66,7 +70,7 @@ export const createLoopMonitor = ({
       if (jobRuns.length > RING_SIZE) jobRuns.shift()
     }
     try {
-      const result = measureSync(label, fn)
+      const result = measureSync(label, work)
       if (typeof result?.finally !== 'function') {
         done()
         return result
@@ -264,7 +268,7 @@ const QUERY_LABEL_LENGTH = 60
 const MAX_LABELS = 300
 const MAX_OPEN_QUERIES = 1000
 
-export const loopMonitor = createLoopMonitor()
+export const loopMonitor = createLoopMonitor({ trackActivity: trackJob })
 export const measureSync = loopMonitor.measureSync
 export const measureJob = loopMonitor.measureJob
 export const trackQueries = loopMonitor.trackQueries

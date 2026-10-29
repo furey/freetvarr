@@ -1088,7 +1088,7 @@ const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
 const guideListeners = new Set()
 const guideCache = createGuideCache({
-  load: (startMs) => measureJob('guide-load', () => loadGuide(startMs)).then(announceGuideLoaded),
+  load: (startMs) => measureJob('guide-load', () => loadGuide(startMs), { kind: 'guide' }).then(announceGuideLoaded),
   staleRetryMs: GUIDE_STALE_RETRY_MS,
 })
 

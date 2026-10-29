@@ -7,6 +7,8 @@ import { backfillUserEvents, pruneUserEvents } from './user-events-log.js'
 import { runForYouUpkeep } from './for-you-service.js'
 import { createScheduleCheck } from './schedule-runs.js'
 import { measureJob } from './event-loop-lag.js'
+import { activity } from './activity.js'
+import { describeSyncFrequency } from './web/sync-schedule.js'
 
 const DEFAULT_CRON = '*/30 * * * *'
 
@@ -43,11 +45,17 @@ const scheduleWith = (expr) => {
     measureJob('cron:guide', () => getGuideSnapshot()).catch((err) => {
       console.error('[scheduler] guide refresh failed:', err.message)
     })
-    measureJob('cron:viewing-history', () => pruneUserEvents().then(() => backfillUserEvents()))
+    measureJob('cron:viewing-history', () => pruneUserEvents().then(() => backfillUserEvents()), { kind: 'history', trigger: 'cron' })
       .catch((err) => console.error('[scheduler] viewing history upkeep failed:', err.message))
     measureJob('cron:for-you', () => runForYouUpkeep())
       .catch((err) => console.error('[scheduler] for you upkeep failed:', err.message))
   })
   currentExpr = expr
+  activity.plan({
+    kind: 'sync',
+    title: 'Sync and TV guide refresh',
+    every: describeSyncFrequency(expr) || expr,
+    nextAt: () => task?.getNextRun()?.getTime() ?? null,
+  })
   console.log(`[scheduler] running on "${expr}"`)
 }

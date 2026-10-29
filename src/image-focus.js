@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { MIN_HEADROOM_MB } from './for-you-capability.js'
 import { focusKeyOf, isFocusImagePath, requestedWidthOf } from './web/image-focus.js'
+import { currentJob } from './activity.js'
 
 export const FOCUS_VERSION = 2
 export const FOCUS_SETTING = 'face_focus_enabled'
@@ -431,6 +432,7 @@ export const createImageFocus = ({
 
 export const runFocusWorker = ({ jobs, modelPath = MODEL_PATH, timeoutMs = WORKER_TIMEOUT_MS }) => new Promise((resolve, reject) => {
   const results = new Map()
+  const job = currentJob()
   let stdout = ''
   let child
   try {
@@ -449,6 +451,7 @@ export const runFocusWorker = ({ jobs, modelPath = MODEL_PATH, timeoutMs = WORKE
     stdout = lines.pop()
     lines.map(parseJson).filter((message) => message?.type === 'focus').forEach((message) => {
       results.set(message.id, { faces: message.faces || [], attention: message.attention || null, band: message.band || null })
+      job?.advance()
     })
   })
   child.stdin.on('error', () => {})

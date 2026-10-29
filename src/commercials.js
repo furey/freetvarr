@@ -6,59 +6,94 @@ import { fileURLToPath } from 'url'
 
 import { db, getSetting } from './db.js'
 import { setProgress, clearProgress, formatEta } from './progress.js'
+import { currentJob, joinJob } from './activity.js'
 
-export const processRecordingAds = async ({ filePath, mode, recordingId, tools = defaultTools() }) => {
+export const processRecordingAds = async ({ filePath, mode, recordingId, title = null, tools = defaultTools() }) => {
   if (scansInFlight.has(recordingId)) return { status: 'busy', breaks: [], adSeconds: 0 }
   scansInFlight.add(recordingId)
+  try {
+    const label = title ?? await adJobTitleOf(recordingId)
+    return await joinJob(
+      { kinds: ['import'], kind: 'ads', title: label ? `Ad removal · ${label}` : 'Ad removal', ref: { recordingId } },
+      async (job) => {
+        const result = await scanRecordingAds({ filePath, mode, recordingId, tools })
+        noteAdResult({ job, result })
+        return result
+      },
+    )
+  } finally {
+    scansInFlight.delete(recordingId)
+  }
+}
+
+const noteAdResult = ({ job, result }) => {
+  const text = AD_RESULT_TEXT[result.status] ?? result.status
+  job.log(`${text}${result.breaks.length ? ` · ${result.breaks.length} breaks` : ''}`)
+  if (job.run.kind !== 'ads') return
+  job.outcome(text)
+  if (result.status.endsWith('_failed')) job.fail(text)
+}
+
+const adJobTitleOf = async (recordingId) => {
+  const row = await db('recordings').where({ recording_id: recordingId }).first('title').catch(() => null)
+  return row?.title ?? null
+}
+
+const AD_RESULT_TEXT = {
+  cut: 'Ads cut',
+  detected: 'Ads marked',
+  no_breaks: 'No ads found',
+  detect_failed: 'Ad scan failed',
+  cut_failed: 'Ad cut failed',
+}
+
+const scanRecordingAds = async ({ filePath, mode, recordingId, tools }) => {
   const workdir = adWorkdir(filePath)
   let status = mode === 'cut' ? 'cut_failed' : 'detect_failed'
   let breaks = []
   let restored = false
   try {
-    try {
-      const before = await db('recordings').where({ recording_id: recordingId }).first()
-      await db('recordings').where({ recording_id: recordingId }).update({ ad_status: 'scanning' })
-      await fs.rm(workdir, { recursive: true, force: true })
-      await fs.mkdir(workdir, { recursive: true })
-      const sourcePath = await scanSourceOf({ filePath, mode, workdir })
-      breaks = await tools.detect({ filePath: sourcePath, workdir, recordingId })
-      if (breaks.length === 0) {
-        if (sourcePath !== filePath) {
-          await putBackupBack({ filePath, recordingId, before })
-          restored = true
-        }
-        status = 'no_breaks'
-      } else if (mode !== 'cut') {
-        status = 'detected'
-      } else {
-        const outPath = await tools.cut({ filePath: sourcePath, workdir, breaks, recordingId })
-        const { backupCreated } = await swapInCut({ filePath, outPath })
-        const { size } = await fs.stat(filePath)
-        await db('recordings').where({ recording_id: recordingId })
-          .update(cutPatchOf({ before, backupCreated, size, now: new Date().toISOString() }))
-        status = 'cut'
+    const before = await db('recordings').where({ recording_id: recordingId }).first()
+    await db('recordings').where({ recording_id: recordingId }).update({ ad_status: 'scanning' })
+    await fs.rm(workdir, { recursive: true, force: true })
+    await fs.mkdir(workdir, { recursive: true })
+    const sourcePath = await scanSourceOf({ filePath, mode, workdir })
+    breaks = await tools.detect({ filePath: sourcePath, workdir, recordingId })
+    if (breaks.length === 0) {
+      if (sourcePath !== filePath) {
+        await putBackupBack({ filePath, recordingId, before })
+        restored = true
       }
-    } catch (err) {
-      console.error(`[ads] ${path.basename(filePath)}: ${err.message}`)
-    } finally {
-      clearProgress(recordingId)
+      status = 'no_breaks'
+    } else if (mode !== 'cut') {
+      status = 'detected'
+    } else {
+      const outPath = await tools.cut({ filePath: sourcePath, workdir, breaks, recordingId })
+      const { backupCreated } = await swapInCut({ filePath, outPath })
+      const { size } = await fs.stat(filePath)
+      await db('recordings').where({ recording_id: recordingId })
+        .update(cutPatchOf({ before, backupCreated, size, now: new Date().toISOString() }))
+      status = 'cut'
     }
-    await fs.rm(workdir, { recursive: true, force: true }).catch(() => {})
-    await fs.rmdir(path.dirname(workdir)).catch(() => {})
-    await syncSkipMarkers({ filePath, status, breaks }).catch((err) => {
-      console.error(`[ads] ${path.basename(filePath)}: failed to update skip markers: ${err.message}`)
-    })
-    await db('recordings').where({ recording_id: recordingId }).update({
-      ad_status: status,
-      ad_breaks_json: breaks.length ? JSON.stringify(breaks) : null,
-      ad_processed_at: db.fn.now(),
-    }).catch((err) => {
-      console.error(`[ads] ${recordingId}: failed to record result: ${err.message}`)
-    })
-    return { status, breaks, adSeconds: totalBreakSeconds(breaks), restored }
+  } catch (err) {
+    console.error(`[ads] ${path.basename(filePath)}: ${err.message}`)
+    currentJob()?.log(err.message, 'error')
   } finally {
-    scansInFlight.delete(recordingId)
+    clearProgress(recordingId)
   }
+  await fs.rm(workdir, { recursive: true, force: true }).catch(() => {})
+  await fs.rmdir(path.dirname(workdir)).catch(() => {})
+  await syncSkipMarkers({ filePath, status, breaks }).catch((err) => {
+    console.error(`[ads] ${path.basename(filePath)}: failed to update skip markers: ${err.message}`)
+  })
+  await db('recordings').where({ recording_id: recordingId }).update({
+    ad_status: status,
+    ad_breaks_json: breaks.length ? JSON.stringify(breaks) : null,
+    ad_processed_at: db.fn.now(),
+  }).catch((err) => {
+    console.error(`[ads] ${recordingId}: failed to record result: ${err.message}`)
+  })
+  return { status, breaks, adSeconds: totalBreakSeconds(breaks), restored }
 }
 
 export const isAdJobRunning = (recordingId) => scansInFlight.has(recordingId)

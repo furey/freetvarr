@@ -144,7 +144,7 @@ export const createHomeHero = ({
       rebuildWanted = true
       return building
     }
-    building = measureJob('hero-build', runBuild).finally(() => {
+    building = measureJob('hero-build', runBuild, { kind: 'hero' }).finally(() => {
       building = null
       if (!rebuildWanted) return
       rebuildWanted = false

@@ -28,6 +28,7 @@ export const mountInProgressPlayback = ({
         folders: await folders(),
         replace: typeof req.body?.replace === 'string' ? req.body.replace : null,
         player: typeof req.body?.player === 'string' ? req.body.player.slice(0, 64) : null,
+        client: req.get('user-agent') || null,
       })
       res.json({ ok: true, ...started })
     } catch (err) {
@@ -41,7 +42,7 @@ export const inProgressFolders = async () => {
   return { tvhRecordingsPath, recordingsRoot }
 }
 
-export const startInProgressPlayback = async ({ dvrUuid, sessions, encoder, folders, replace, player }) => {
+export const startInProgressPlayback = async ({ dvrUuid, sessions, encoder, folders, replace, player, client = null }) => {
   const conn = await resolveConnection()
   const recording = (await listActiveRecordings(conn)).find((r) => r.uuid === dvrUuid)
   if (!recording) {
@@ -60,6 +61,7 @@ export const startInProgressPlayback = async ({ dvrUuid, sessions, encoder, fold
     plan,
     replace,
     player,
+    client,
     inProgress: { recordingStartedAt: recordingStartedAtOf(recording), scheduledEndAt: scheduledEndAtOf(recording) },
     feed: ({ sink, signal }) => feedGrowing({ open: source.open, sink, isRecording, signal }),
   })

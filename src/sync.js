@@ -18,6 +18,7 @@ import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from '
 import { pruneSyncHistory } from './sync-history.js'
 import { looksLikeFilm } from './film-rule.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
+import { currentJob, trackJob } from './activity.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
@@ -39,7 +40,7 @@ const beginSync = async ({ trigger = 'manual', showId = null }) => {
   if (missingUrl) throw missingUrl
 
   const syncId = await createSync(trigger, showId)
-  const promise = doSync({ syncId, trigger, showId })
+  const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId }))
     .catch((err) => {
       console.error('[sync] unhandled error:', err)
     })
@@ -307,7 +308,9 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
 
   const classificationOf = await recordingClassifications(finished)
   const importsStartedAt = Date.now()
+  currentJob()?.step(SYNC_STEP_LABELS.imports).total(finished.length, 'recordings')
   for (const entry of finished) {
+    currentJob()?.advance()
     const show = matchShow(shows, entry.name)
     if (showId != null && show?.id !== showId) continue
     const item = { ...toItem({ entry, tvhRecordingsPath, recordingsRoot }), classification: classificationOf(entry) }
@@ -503,6 +506,15 @@ const processItem = async ({ item, show, kind, roots }) => {
   }
 
   const filePath = await destinationFor({ item, show, kind, roots })
+  return trackJob(
+    { kind: 'import', title: `Import · ${itemLabelOf(item)}`, ref: { recordingId: item.id } },
+    (job) => importItem({ item, show, filePath, sourceStat, job }),
+  )
+}
+
+const importItem = async ({ item, show, filePath, sourceStat, job }) => {
+  job.fact('Recording', recordingFactOf(item)).fact('File', filePath).fact('Size', formatBytes(sourceStat.size))
+  job.step('Copy from TVHeadend')
   await upsertRecording({ item, show, file_path: filePath, status: 'importing', error: null })
   await fs.mkdir(path.dirname(filePath), { recursive: true })
 
@@ -515,7 +527,9 @@ const processItem = async ({ item, show, kind, roots }) => {
     actualSize = null
   }
 
+  job.step('Check the file')
   const outcome = classifyImport({ expectedSize: sourceStat.size, actualSize })
+  if (outcome.error) job.log(outcome.error, 'warn')
   const statusNote = item.statusText && item.statusText !== 'Completed OK'
     ? `TVHeadend reported: ${item.statusText}`
     : null
@@ -530,9 +544,12 @@ const processItem = async ({ item, show, kind, roots }) => {
   if (outcome.dbStatus === 'done' && show && show.ad_removal !== 'off') {
     const adRemovalEnabled = (await getSetting('ad_removal_enabled')) === 'true'
     if (adRemovalEnabled) {
-      adResult = await processRecordingAds({ filePath, mode: show.ad_removal, recordingId: item.id })
+      job.fact('Ad removal', show.ad_removal === 'cut' ? 'Cut ads' : 'Mark ads')
+      adResult = await processRecordingAds({ filePath, mode: show.ad_removal, recordingId: item.id, title: itemLabelOf(item) })
     }
   }
+  job.outcome(importOutcomeOf({ outcome, adResult }))
+  if (outcome.summaryKey === 'failed') job.fail(outcome.error || 'Import failed')
   return { summaryKey: outcome.summaryKey, adResult, size: outcome.sizeToStore, error: outcome.error }
 }
 
@@ -566,6 +583,7 @@ const markRemovedItems = ({ items, removedIds = [] }) => {
 
 const startStepTimer = (steps) => async (name, run) => {
   const startedAt = Date.now()
+  currentJob()?.step(SYNC_STEP_LABELS[name] ?? name)
   try {
     return await run()
   } finally {
@@ -648,6 +666,10 @@ const createSync = async (trigger, showId = null) => {
 }
 
 const finishSync = async (syncId, status, summary) => {
+  const job = currentJob()
+  job?.outcome(syncOutcomeOf(summary))
+  if (status === 'error') job?.fail(summary.errors?.[0] || summary.message || 'Sync failed')
+  for (const error of summary.errors ?? []) job?.log(error, 'error')
   await db('syncs').where({ id: syncId }).update({
     status,
     finished_at: db.fn.now(),
@@ -691,6 +713,49 @@ const upsertRecording = async ({ item, show, file_path, status, error }) => {
     .insert(payload)
     .onConflict('recording_id')
     .merge(mergeable)
+}
+
+export const syncOutcomeOf = (summary) => {
+  const parts = [
+    summary.imported && `${summary.imported} imported`,
+    summary.failed && `${summary.failed} failed`,
+    summary.skipped && `${summary.skipped} skipped`,
+    summary.delete?.removed?.length && `${summary.delete.removed.length} removed`,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : 'Nothing new'
+}
+
+export const importOutcomeOf = ({ outcome, adResult }) => {
+  if (outcome.summaryKey === 'failed') return 'Failed'
+  const ads = AD_OUTCOMES[adResult?.status]
+  return ads ? `Imported · ${ads}` : 'Imported'
+}
+
+const itemLabelOf = (item) => {
+  const number = item.season != null && item.episode != null ? `S${item.season} E${item.episode}` : null
+  return [item.title, number].filter(Boolean).join(' ')
+}
+
+const recordingFactOf = (item) => [item.title, item.episode_title, item.channelName].filter(Boolean).join(' · ')
+
+const formatBytes = (bytes) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(2)} GB` : `${Math.round(bytes / 1e6)} MB`)
+
+const AD_OUTCOMES = {
+  cut: 'ads cut',
+  detected: 'ads marked',
+  no_breaks: 'no ads found',
+  detect_failed: 'ad scan failed',
+  cut_failed: 'ad cut failed',
+}
+
+const SYNC_STEP_LABELS = {
+  list: 'List finished recordings',
+  imports: 'Import new recordings',
+  plexTv: 'Refresh Plex TV',
+  plexOneOffs: 'Refresh Plex one-offs',
+  plexMovies: 'Refresh Plex movies',
+  removals: 'Remove from TVHeadend',
+  libraryCheck: 'Check the library',
 }
 
 const AUTOMATIC_TRIGGERS = ['cron', 'recording-finished']

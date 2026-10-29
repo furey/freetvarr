@@ -15,7 +15,7 @@ export const imageFocus = createImageFocus({
   forgetRows: (keys) => forgetFocusRows(keys),
   isEnabled: isFaceFocusEnabled,
   readHeadroomMb,
-  detect: (jobs) => measureJob('focus-worker', () => runFocusWorker({ jobs })),
+  detect: (jobs) => measureJob('focus-worker', () => runFocusWorker({ jobs }), { kind: 'focus', total: jobs.length, unit: 'pictures' }),
   render: (url) => renderLocally(url),
 })
 

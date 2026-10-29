@@ -18,11 +18,12 @@ import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } fr
 import { describeSyncSchedule } from './web/sync-schedule.js'
 import { detectDockerVm } from './docker-host.js'
 import { measureJob } from './event-loop-lag.js'
+import { activity, trackJob } from './activity.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
   if (reportInflight) return reportInflight
-  reportInflight = runDoctor({ deps })
+  reportInflight = trackJob({ kind: 'health' }, (job) => runDoctor({ deps }).then((report) => noteDoctorRun({ job, report })))
     .then((value) => {
       reportCache = { value, expiresAt: Date.now() + REPORT_TTL_MS }
       return value
@@ -35,12 +36,30 @@ export const scheduleDoctorChecks = ({ firstDelayMs = DOCTOR_FIRST_RUN_MS, every
   const runQuietly = () => measureJob('doctor', run).catch((err) => console.warn(`[doctor] background check failed: ${err.message}`))
   const first = setTimeout(runQuietly, firstDelayMs)
   const repeat = setInterval(runQuietly, everyMs)
+  activity.planEvery({ kind: 'health', every: 'every 3 hours', firstDelayMs, everyMs })
   first.unref?.()
   repeat.unref?.()
   return () => {
     clearTimeout(first)
     clearInterval(repeat)
   }
+}
+
+export const doctorOutcomeOf = (summary = {}) => {
+  const parts = [
+    summary.fail && `${summary.fail} failed`,
+    summary.warn && `${summary.warn} warning${summary.warn === 1 ? '' : 's'}`,
+    `${summary.pass ?? 0} passed`,
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
+
+const noteDoctorRun = ({ job, report }) => {
+  for (const check of report.checks) job.item({ label: check.title, state: check.status, detail: check.detail ?? null })
+  job.outcome(doctorOutcomeOf(report.summary), report.summary.fail || report.summary.warn ? 'warn' : null)
+  const failed = report.checks.find((check) => check.status === 'fail')
+  if (failed) job.log(`${failed.title}: ${failed.detail ?? 'failed'}`, 'error')
+  return report
 }
 
 export const peekDoctorReport = ({ nowMs = Date.now() } = {}) => {
@@ -937,5 +956,5 @@ const SETTINGS_STORAGE = { label: 'Open settings', href: '#/settings/storage' }
 const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
 const SETTINGS_PLAYER = { label: 'Open settings', href: '#/settings/player' }
-const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity' }
+const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity/syncs' }
 const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }

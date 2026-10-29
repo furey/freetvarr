@@ -26,6 +26,7 @@ import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
 import { measureJob } from './event-loop-lag.js'
+import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -318,6 +319,8 @@ const loadSnapshot = async () => {
 }
 
 const computeForYou = async ({ snapshot, nowMs }) => {
+  const job = currentJob()
+  job?.step('Read history and recordings')
   const [events, recordings, genresByKey, history, vectorsByHash, filmRatings] = await Promise.all([
     db('user_events').orderBy('id'),
     db('recordings').select('recording_id', 'title', 'season', 'episode', 'aired_at', 'imported_at', 'played_at', 'watched_at', 'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status'),
@@ -354,9 +357,11 @@ const computeForYou = async ({ snapshot, nowMs }) => {
       otherLanguageFilms: snapshot.otherLanguageFilms,
     },
   }
+  job?.step('Score programmes').fact('Programmes', guide.programmes.length).fact('Events', events.length)
   const started = Date.now()
   const built = await forYouWorker.build({ guide, vectorsByHash, request })
     .catch((err) => (err.code === WORKER_TIMED_OUT ? Promise.reject(err) : forYouWorker.build({ guide, vectorsByHash, request })))
+  job?.step('Add classifications')
   const result = await withClassifications({ result: built.result, programmes: guide.programmes })
   result.computeMs = Date.now() - started
   return withLazyExplanations({ result, explanationsJson: built.explanationsJson })
@@ -509,7 +514,7 @@ const forYouWorker = createForYouWorker()
 const forYouResultListeners = new Set()
 const forYouCache = createForYouCache({
   loadSnapshot,
-  compute: (args) => measureJob('for-you-compute', () => computeForYou(args)),
+  compute: (args) => measureJob('for-you-compute', () => computeForYou(args), { kind: 'for-you' }),
   store: createSavedResultStore(),
   onResult: (result) => forYouResultListeners.forEach((listener) => listener(result)),
 })

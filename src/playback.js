@@ -186,7 +186,7 @@ export const createPlaybackSessions = ({
   const sessions = new Map()
 
   const start = async ({
-    recordingId, label, file, offset = 0, duration = null, plan, replace = null, player = null, feed = null, inProgress = null,
+    recordingId, label, file, offset = 0, duration = null, plan, replace = null, player = null, feed = null, inProgress = null, client = null,
   }) => {
     if (replace) await stop(replace)
     if (player) await Promise.all([...sessions.values()].filter((s) => s.player === player).map((s) => stop(s.id)))
@@ -198,6 +198,7 @@ export const createPlaybackSessions = ({
       id,
       recordingId,
       player,
+      client,
       label: label || 'a recording',
       file,
       offset,
@@ -399,8 +400,23 @@ export const createPlaybackSessions = ({
 
   const labels = () => [...sessions.values()].map((s) => s.label)
 
+  const list = () => [...sessions.values()].map((s) => ({
+    id: s.id,
+    kind: 'playback',
+    recordingId: s.recordingId,
+    label: s.label,
+    status: s.status,
+    client: s.client,
+    videoMode: s.plan?.videoMode ?? null,
+    offset: s.offset,
+    duration: s.duration,
+    producedSeconds: s.producedSeconds ?? null,
+    inProgress: Boolean(s.inProgress),
+    startedAt: s.startedAt,
+  }))
+
   return {
-    start, touch, stop, setAttending, tick, stopAll, status, playlistFor, waitForPlaylist, fileFor, labels,
+    start, touch, stop, setAttending, tick, stopAll, status, playlistFor, waitForPlaylist, fileFor, labels, list,
     get: (id) => sessions.get(id) || null,
     activeCount: () => sessions.size,
   }

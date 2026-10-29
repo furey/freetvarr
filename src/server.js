@@ -53,6 +53,7 @@ import {
   listChannels,
   getRecordingStorage,
   getServerVersion as getTvheadendVersion,
+  getTunerStatus,
   tvhRead,
   tvhWrite,
   verifyLogin as verifyTvheadendLogin,
@@ -218,6 +219,9 @@ import { canonicalFocusKeysOf } from './web/image-focus.js'
 import { createKnownTitles, createLookupGate, useLookupGate } from './lookup-gate.js'
 import { startCachePruning } from './cache-prune.js'
 import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
+import { activity } from './activity.js'
+import { createJobRunStore } from './activity-store.js'
+import { ACTIVITY_STREAM_PATH, cachedFor, mountActivityRoutes, recordingRowsOf } from './activity-routes.js'
 import {
   liveSessionHooks,
   mountUserEvents,
@@ -323,7 +327,7 @@ app.use('/api', (req, res, next) => {
   next()
 })
 
-app.use('/api', trackRequests({ skip: (req) => req.path === LOOP_STATS_PATH }))
+app.use('/api', trackRequests({ skip: (req) => req.path === LOOP_STATS_PATH || req.path === ACTIVITY_STREAM_PATH }))
 
 app.use(imageFocus.tap)
 
@@ -788,9 +792,10 @@ const warmWeekFilmRatings = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
   return programmeRatings.warm(upcomingFilmsOf({ guide, nowMs: Date.now() }))
 }
-const warmUpcomingRatingsTagged = () => measureJob('ratings-warm', warmUpcomingRatings)
+const warmUpcomingRatingsTagged = () => measureJob('ratings-warm', warmUpcomingRatings, { kind: 'ratings', trigger: 'schedule' })
 setTimeout(warmUpcomingRatingsTagged, RATINGS_WARM_DELAY_MS).unref?.()
 setInterval(warmUpcomingRatingsTagged, RATINGS_WARM_WINDOW_MS / 24).unref?.()
+activity.planEvery({ kind: 'ratings', every: 'every hour', firstDelayMs: RATINGS_WARM_DELAY_MS, everyMs: RATINGS_WARM_WINDOW_MS / 24 })
 
 const ratingsLimiter = rateLimit({
   windowMs: 60_000,
@@ -1058,7 +1063,7 @@ app.post('/api/live', liveLimiter, doubleCsrfProtection, async (req, res) => {
   if (!channelId) return res.status(400).json({ error: 'channel_id is required' })
   try {
     const pictureRank = Number(req.body?.picture_rank) || 0
-    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady, pictureRank })) })
+    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady, pictureRank, client: req.get('user-agent') || null })) })
   } catch (err) {
     liveError(res, err, 'live start')
   }
@@ -1224,6 +1229,7 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
       plan,
       replace,
       player,
+      client: req.get('user-agent') || null,
     })
     if (session.status === 'ended') {
       return res.status(500).json({ error: `ffmpeg failed: ${session.reason?.detail || 'unknown error'}`, code: 'ffmpeg' })
@@ -1412,6 +1418,25 @@ app.get('/api/home/hero', async (req, res) => {
   res.json(await homeHero.read())
 })
 mountLiveStreams({ app, csrf: doubleCsrfProtection, limiter: liveLimiter, liveStreams })
+const loadTunerUse = cachedFor({
+  load: async () => {
+    const { inputs, tunerCount } = await getTunerStatus()
+    return { inUse: inputs.filter((input) => input.mux).length, total: tunerCount }
+  },
+})
+
+mountActivityRoutes({
+  app,
+  activity,
+  listSessions: () => [...liveSessions.list(), ...playbackSessions.list()],
+  loadRecordings: async () => recordingRowsOf(await getRecordingNow()),
+  loadServer: async () => {
+    const loop = loopMonitor.stats()
+    const tuners = await loadTunerUse().catch(() => null)
+    return { uptimeSeconds: loop.uptimeSeconds, stalls: loop.stalls, worstStallMs: loop.worstStallMs, thresholdMs: loop.thresholdMs, tuners }
+  },
+})
+
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
 mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })
 
@@ -2368,6 +2393,7 @@ const escapesMediaRoot = (value) =>
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
   loopMonitor.start()
+  activity.useStore(createJobRunStore()).catch((err) => console.warn(`[activity] could not load failed runs: ${err.message}`))
   scheduleDoctorChecks()
   await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
   try {
