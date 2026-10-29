@@ -89,12 +89,12 @@ export const deletionPatch = ({ row, result, now }) => {
   return { ...patch, deleted_from_tvh_at: row.deleted_from_tvh_at ?? now, purged_at: now }
 }
 
-export const previewDeletion = async ({ rows, roots, tvh, fs = fsp }) => {
+export const previewDeletion = async ({ rows, roots, tvh, fs = fsp, ownedElsewhere = isNeverShared }) => {
   const entries = []
   let missingCount = 0
   const items = []
   for (const row of rows) {
-    const itemEntries = await previewEntriesOf({ row, roots, tvh, fs })
+    const itemEntries = await previewEntriesOf({ row, roots, tvh, fs, ownedElsewhere })
     if (itemEntries.missing) missingCount += 1
     entries.push(...itemEntries.entries)
     items.push({
@@ -116,6 +116,7 @@ export const runDeletion = async ({
   tvh,
   plex,
   fs = fsp,
+  ownedElsewhere = isNeverShared,
   save = async () => {},
   now = () => new Date().toISOString(),
 }) => {
@@ -123,7 +124,7 @@ export const runDeletion = async ({
   const entries = []
   const affectedKinds = new Set()
   for (const row of rows) {
-    const outcome = await deleteOne({ row, roots, tvh, fs })
+    const outcome = await deleteOne({ row, roots, tvh, fs, ownedElsewhere })
     entries.push(...outcome.entries)
     if (outcome.libraryChanged) affectedKinds.add(outcome.kind)
     const result = resultOf({ row, outcome })
@@ -134,11 +135,13 @@ export const runDeletion = async ({
   return { results, bytesFreed: bytesFreed(entries), plex: await refreshPlex({ kinds: affectedKinds, plex }) }
 }
 
-const deleteOne = async ({ row, roots, tvh, fs }) => {
+const deleteOne = async ({ row, roots, tvh, fs, ownedElsewhere }) => {
   if (tvh.activeIds?.has(row.recording_id)) {
     return refusedOutcome('This episode is still recording. Stop it or wait until it finishes.')
   }
-  const library = await deleteLibraryFiles({ row, roots, fs })
+  const library = await isSharedFile({ row, ownedElsewhere })
+    ? { status: 'kept_shared', kind: rootFor(row.file_path, roots)?.kind ?? null, entries: [], changed: false }
+    : await deleteLibraryFiles({ row, roots, fs })
   if (library.status === 'failed') {
     return { ...library, library: 'failed', tvh: 'skipped', libraryChanged: library.changed }
   }
@@ -224,8 +227,8 @@ const removeFromTvh = async ({ row, tvh, fs }) => {
   return { status: removed.value, entries }
 }
 
-const previewEntriesOf = async ({ row, roots, tvh, fs }) => {
-  const targets = deletionTargets(row, roots)
+const previewEntriesOf = async ({ row, roots, tvh, fs, ownedElsewhere }) => {
+  const targets = await isSharedFile({ row, ownedElsewhere }) ? { file: null, sidecars: [] } : deletionTargets(row, roots)
   const realRoot = targets.root ? await fs.realpath(targets.root).catch(() => null) : null
   const files = realRoot ? [targets.file, ...targets.sidecars].filter(Boolean) : []
   const inspected = []
@@ -264,6 +267,10 @@ const libraryStatusOf = ({ main, row }) => {
 
 const refusedOutcome = (error) => ({ library: 'skipped', tvh: 'skipped', error, entries: [], libraryChanged: false })
 
+const isNeverShared = async () => false
+
+const isSharedFile = async ({ row, ownedElsewhere }) => Boolean(row.file_path) && await ownedElsewhere(row)
+
 const failedLibrary = (error) => ({ status: 'failed', error, entries: [], changed: false })
 
 const recordingIdsRequestFrom = (ids) => {
@@ -299,7 +306,7 @@ const attempt = async (run) => {
 
 const ORIG_SUFFIX = '.orig'
 const EMPTY_FOLDER_LEVELS = 2
-const LIBRARY_DONE = ['deleted', 'missing', 'kept_replacement', 'none']
+const LIBRARY_DONE = ['deleted', 'missing', 'kept_replacement', 'kept_shared', 'none']
 const TVH_DONE = ['removed', 'missing', 'already_removed']
 const FS_ERROR_MESSAGES = {
   EROFS: 'The library folder is read-only',

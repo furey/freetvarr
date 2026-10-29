@@ -533,15 +533,55 @@ export const refreshSection = async (key) => {
   return notifyPlexSectionRefresh({ sectionId })
 }
 
-const destinationFor = async ({ item, show, kind, roots }) => {
-  if (kind === 'tv') return buildDestPath({ item, show, mediaRoot: roots.mediaRoot })
-  if (kind === 'oneOff') return buildOneOffPath({ item, oneOffRoot: roots.oneOffRoot })
+const destinationFor = ({ item, show, kind, roots }) => freeDestination({
+  candidateFor: candidateBuilderFor({ item, show, kind, roots }),
+  recordingId: item.id,
+  sourcePath: item.sourcePath,
+})
+
+const candidateBuilderFor = ({ item, show, kind, roots }) => {
+  if (kind === 'film') return (copy) => buildFilmPath({ item, moviesRoot: roots.moviesRoot, copy })
+  const base = kind === 'tv'
+    ? buildDestPath({ item, show, mediaRoot: roots.mediaRoot })
+    : buildOneOffPath({ item, oneOffRoot: roots.oneOffRoot })
+  return (copy) => withCopySuffix(base, copy)
+}
+
+export const withCopySuffix = (filePath, copy) => {
+  if (copy <= 1) return filePath
+  const ext = path.extname(filePath)
+  return path.join(path.dirname(filePath), `${path.basename(filePath, ext)} - copy ${copy}${ext}`)
+}
+
+export const freeDestination = async ({
+  candidateFor,
+  recordingId,
+  sourcePath = null,
+  ownersOf = recordingIdsAt,
+  statOf = statOrNull,
+}) => {
+  const source = sourcePath ? await statOf(sourcePath) : null
   for (let copy = 1; ; copy++) {
-    const dest = buildFilmPath({ item, moviesRoot: roots.moviesRoot, copy })
-    const owner = await db('recordings').where({ file_path: dest }).whereNot({ recording_id: item.id }).first()
-    if (!owner) return dest
+    const filePath = candidateFor(copy)
+    if (await isFreeFor({ filePath, recordingId, source, ownersOf, statOf })) {
+      return { filePath, takenPath: copy > 1 ? candidateFor(1) : null }
+    }
   }
 }
+
+const isFreeFor = async ({ filePath, recordingId, source, ownersOf, statOf }) => {
+  const owners = (await ownersOf(filePath)).map(String)
+  if (owners.some((owner) => owner !== String(recordingId))) return false
+  if (owners.length) return true
+  const existing = await statOf(filePath)
+  return !existing || isSameFile(existing, source)
+}
+
+const isSameFile = (a, b) => Boolean(b) && a.dev === b.dev && a.ino === b.ino
+
+const recordingIdsAt = (filePath) => db('recordings').where({ file_path: filePath }).pluck('recording_id')
+
+const statOrNull = (filePath) => fs.stat(filePath).catch(() => null)
 
 const processItem = async ({ item, show, kind, roots }) => {
   const existing = await db('recordings').where({ recording_id: item.id }).first()
@@ -576,15 +616,16 @@ const processItem = async ({ item, show, kind, roots }) => {
     return { summaryKey: 'skipped' }
   }
 
-  const filePath = await destinationFor({ item, show, kind, roots })
+  const { filePath, takenPath } = await destinationFor({ item, show, kind, roots })
   return trackJob(
     { kind: 'import', title: `Import · ${itemLabelOf(item)}`, ref: { recordingId: item.id } },
-    (job) => importItem({ item, show, filePath, sourceStat, job }),
+    (job) => importItem({ item, show, filePath, takenPath, sourceStat, job }),
   )
 }
 
-const importItem = async ({ item, show, filePath, sourceStat, job }) => {
+const importItem = async ({ item, show, filePath, takenPath, sourceStat, job }) => {
   job.fact('Recording', recordingFactOf(item)).fact('File', filePath).fact('Size', formatBytes(sourceStat.size))
+  if (takenPath) noteTakenPath({ takenPath, filePath, job })
   job.step('Copy from TVHeadend')
   await upsertRecording({ item, show, file_path: filePath, status: 'importing', error: null })
   await fs.mkdir(path.dirname(filePath), { recursive: true })
@@ -660,6 +701,15 @@ const startStepTimer = (steps) => async (name, run) => {
   } finally {
     steps[name] = Date.now() - startedAt
   }
+}
+
+const takenPathNote = ({ takenPath, filePath }) =>
+  `${path.basename(takenPath)} is already in that folder and is not this recording, so it stays untouched; saving as ${path.basename(filePath)}`
+
+const noteTakenPath = ({ takenPath, filePath, job }) => {
+  const note = takenPathNote({ takenPath, filePath })
+  console.warn(`[sync] ${note}`)
+  job.log(note, 'warn')
 }
 
 const isDirectory = async (dir) => (await fs.stat(dir).catch(() => null))?.isDirectory() ?? false

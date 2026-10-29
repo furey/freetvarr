@@ -77,8 +77,16 @@ const deletionContext = async () => {
         : null),
     },
     plex: { refresh: refreshPlexSection },
+    ownedElsewhere: isFileOwnedByAnotherRecording,
   }
 }
+
+const isFileOwnedByAnotherRecording = async (row) => Boolean(await db('recordings')
+  .where({ file_path: row.file_path })
+  .whereNot({ recording_id: row.recording_id })
+  .whereNull('purged_at')
+  .whereNull('library_deleted_at')
+  .first())
 
 const loadActiveIds = async () => {
   try {

@@ -279,6 +279,19 @@ test('runDeletion: keeps a file another tool put in place of the recording', asy
   assert.equal(await exists(replacement), true)
 })
 
+test('runDeletion: keeps a file another recording still owns', async () => {
+  const shared = await placeEpisode({ show: 'Shared', season: 1, name: 'Shared - S01E01' })
+  const ownedElsewhere = async (r) => r.file_path === shared
+  const tvh = fakeTvh()
+  const { results } = await runDeletion({
+    rows: [row({ file_path: shared })], roots, tvh, plex: fakePlex(), ownedElsewhere,
+  })
+  assert.deepEqual([results[0].ok, results[0].library, results[0].tvh], [true, 'kept_shared', 'removed'])
+  assert.equal(await exists(shared), true)
+  const preview = await previewDeletion({ rows: [row({ file_path: shared })], roots, tvh: fakeTvh(), ownedElsewhere })
+  assert.deepEqual([preview.bytes, preview.missingCount], [0, 0])
+})
+
 test('runDeletion: refuses an episode that is still recording', async () => {
   const tvh = fakeTvh({ active: ['live'] })
   const { results } = await runDeletion({ rows: [row({ recording_id: 'live' })], roots, tvh, plex: fakePlex() })
