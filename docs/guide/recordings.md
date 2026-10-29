@@ -265,7 +265,7 @@ The buttons under the facts depend on the recording: **Play**, **Import** or **I
 - **FAILED**: the import hit an error.
 - **NOT IMPORTED**: Freetvarr left the recording in TVHeadend. You recorded it with **Add to library** off, or it matches no series folder and **Import every recording** is off in Settings → Recording → Media library. Press **Import** to add it to the library at once.
 - **REPLACED**: Freetvarr imported the recording, but its library file is gone, and the folder has another file for the same episode. Another app, such as Sonarr, replaced it. See [Replaced recordings](/guide/troubleshooting#replaced-recordings).
-- **NOT IN LIBRARY**: Freetvarr imported the recording, but its library file is gone and no other copy of the episode is in the folder. Press **Import again** to import the TVHeadend copy again, while TVHeadend still has it.
+- **NOT IN LIBRARY**: Freetvarr imported the recording, but its library file is gone and no other copy of the episode is in the folder. The episode leaves your library shelves, show pages, and counts, and stays in this log. Press **Import again** on its row to import the TVHeadend copy again, while TVHeadend still has it.
 
 An error shows under the status, cut to two lines. Press the row to see the full error, what it means, and steps to fix it, with a link to the matching section of [Troubleshooting](/guide/troubleshooting).
 

@@ -174,12 +174,9 @@ export const canClearRow = (episode) => Boolean(episode.deletedFromTvhAt) || UNI
 export const canImport = (episode) => RETRYABLE_STATES.includes(episode.libraryState || episode.status)
   && !episode.deletedFromTvhAt
 
-const RETRYABLE_STATES = ['not_imported', 'not_in_library', 'failed', 'skipped']
+const RETRYABLE_STATES = ['not_imported', 'failed', 'skipped']
 
-const importLabelOf = (episode) => {
-  if (episode.libraryState === 'not_in_library') return 'Import again'
-  return ['failed', 'skipped'].includes(episode.status) ? 'Retry' : 'Import'
-}
+const importLabelOf = (episode) => (['failed', 'skipped'].includes(episode.status) ? 'Retry' : 'Import')
 
 export const recordingRowOf = (episode) => ({
   recording_id: episode.recordingId,
@@ -237,7 +234,6 @@ const STATE_TEXT = {
   partial: 'Partly imported',
   skipped: 'Skipped',
   not_imported: 'Not imported',
-  not_in_library: 'Not in library',
   replaced: 'Replaced in library',
 }
 

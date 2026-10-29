@@ -244,17 +244,14 @@ const watchedTextOf = (episode) => {
 
 const canImport = (episode) => IMPORTABLE_STATES.includes(episode.libraryState || episode.status) && !episode.deletedFromTvhAt
 
-const importLabelOf = (episode) => {
-  if (episode.libraryState === 'not_in_library') return 'Import again'
-  return ['failed', 'skipped'].includes(episode.status) ? 'Retry' : 'Import'
-}
+const importLabelOf = (episode) => (['failed', 'skipped'].includes(episode.status) ? 'Retry' : 'Import')
 
 const canRescan = (episode) => episode.status === 'done' && Boolean(episode.filePath) && !episode.libraryState
 
 const SHORT_TITLE_LENGTH = 24
 const MAX_SHOW_TITLE_LENGTH = 200
 
-const IMPORTABLE_STATES =['not_imported', 'not_in_library', 'failed', 'skipped']
+const IMPORTABLE_STATES = ['not_imported', 'failed', 'skipped']
 
 const MENU_PENDING_LABELS = {
   'mark-all-watched': 'Marking as watched…',

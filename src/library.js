@@ -211,6 +211,7 @@ export const groupTitleOf = (row) => row.show_title_override ?? row.title
 export const groupKeyOf = (row) => showKeyOf(groupTitleOf(row))
 
 export const isLibraryMember = (row) => row.purged_at == null
+  && row.library_state !== 'not_in_library'
   && (['done', 'partial'].includes(row.status) || row.deleted_from_tvh_at == null)
 
 export const isWatched = (row) => row.watched_at != null
@@ -664,6 +665,7 @@ const loadLibraryRows = async () => {
     db('recordings')
       .leftJoin('shows', 'recordings.show_id', 'shows.id')
       .whereNull('recordings.purged_at')
+      .where((q) => q.whereNull('recordings.library_state').orWhereNot('recordings.library_state', 'not_in_library'))
       .where((q) => q.whereIn('recordings.status', ['done', 'partial']).orWhereNull('recordings.deleted_from_tvh_at'))
       .select('recordings.*', 'shows.ad_removal as show_ad_removal'),
     originalRetentionDays().catch(() => DEFAULT_RETENTION_DAYS),

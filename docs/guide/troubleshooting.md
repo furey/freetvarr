@@ -161,7 +161,7 @@ The usual cause is Sonarr. When Sonarr and Freetvarr save to the same TV library
 
 Freetvarr leaves the replacement in place. To keep Freetvarr's recordings, open the series in Sonarr and turn off monitoring for the episodes Freetvarr records.
 
-A recording shows `NOT IN LIBRARY` in the recording log when its file is gone and nothing replaced it. Press **Import again** in its episode menu or its recording log row to import the TVHeadend copy again.
+A recording shows `NOT IN LIBRARY` in the recording log when its file is gone and nothing replaced it. The episode disappears from Recordings, and a show with no episodes left disappears too. Press **Import again** on its recording log row to import the TVHeadend copy again.
 
 ## Slow imports
 

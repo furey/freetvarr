@@ -171,7 +171,6 @@ test('episodeActionsOf: offers the same delete and import actions as the recordi
   assert.deepEqual(keys(episode()), ['watched', 'remove-from-tvh'])
   assert.deepEqual(keys(episode({ watched: true, deletedFromTvhAt: '2026-10-01' })), ['unwatched', 'clear'])
   assert.deepEqual(keys(episode({ status: 'not_imported' })), ['watched', 'import', 'clear'])
-  assert.equal(episodeActionsOf(episode({ libraryState: 'not_in_library' }))[1].label, 'Import again')
   assert.deepEqual(keys(episode({ status: 'partial' })), ['watched'])
 })
 
