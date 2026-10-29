@@ -1,11 +1,11 @@
 import { showKeyOf } from './web/show-key.js'
 
-export const nextScheduledByKey = ({ upcoming = [], activeProgramIds = [], nowMs = Date.now() }) => {
+export const nextScheduledByKey = ({ upcoming = [], activeProgramIds = [], nowMs = Date.now(), keyOf = (entry) => showKeyOf(entry.name) }) => {
   const active = new Set(activeProgramIds.map(String))
   const next = new Map()
   for (const entry of upcoming) {
     if (!entry?.name || entry.startDate <= nowMs || active.has(String(entry.programId))) continue
-    const key = showKeyOf(entry.name)
+    const key = keyOf(entry)
     if (!next.has(key) || entry.startDate < next.get(key).startDate) next.set(key, entry)
   }
   return next

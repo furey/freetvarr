@@ -1487,6 +1487,10 @@ body.library-selecting .ui-toast-region {
   padding-right: 28px;
 }
 
+.ui-card-meta.is-scheduled {
+  color: var(--color-primary);
+}
+
 .library-poster-more {
   position: absolute;
   right: -10px;

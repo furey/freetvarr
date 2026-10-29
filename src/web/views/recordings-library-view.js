@@ -8,6 +8,7 @@ import {
   LIBRARY_SORTS,
   failedRecordingsOf,
   failureBannerOf,
+  isScheduledOnly,
   movieMetaOf,
   oneOffMetaOf,
   posterMetaOf,
@@ -132,7 +133,7 @@ export const RecordingsLibraryView = {
                   <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
                 </title-art>
                 <div class="ui-card-title">{{ show.title }}</div>
-                <div class="ui-card-meta">{{ posterMeta(show) }}</div>
+                <div :class="['ui-card-meta', { 'is-scheduled': !inProgressMeta(show) && isScheduledOnly(show) }]">{{ posterMeta(show) }}</div>
               </a>
               <button type="button" class="ui-icon-button is-plain library-poster-more" :aria-label="'More actions for ' + show.title"
                 aria-haspopup="dialog" :disabled="menuLoadingKey === show.key" @click="openPosterMenu(show)"><more-glyph /></button>
@@ -152,7 +153,7 @@ export const RecordingsLibraryView = {
                 <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
               </title-art>
               <div class="ui-card-title">{{ show.title }}</div>
-              <div class="ui-card-meta">{{ inProgressMeta(show) || movieMetaOf({ show, timeZone: tz }) }}</div>
+              <div :class="['ui-card-meta', { 'is-scheduled': !inProgressMeta(show) && isScheduledOnly(show) }]">{{ inProgressMeta(show) || movieMetaOf({ show, timeZone: tz }) }}</div>
             </a>
           </div>
         </section>
@@ -169,7 +170,7 @@ export const RecordingsLibraryView = {
                 <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
               </title-art>
               <div class="ui-card-title">{{ show.title }}</div>
-              <div class="ui-card-meta">{{ inProgressMeta(show) || oneOffMetaOf({ show, timeZone: tz }) }}</div>
+              <div :class="['ui-card-meta', { 'is-scheduled': !inProgressMeta(show) && isScheduledOnly(show) }]">{{ inProgressMeta(show) || oneOffMetaOf({ show, timeZone: tz }) }}</div>
             </a>
           </div>
         </section>
@@ -318,7 +319,7 @@ export const RecordingsLibraryView = {
       menuShow, menuLoadingKey, optionsOpen, openPosterMenu, posterPress, onStopped, onOptionsFlash, reloadMenuShow,
       shows, stale, loaded, error, shelves, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
-      posterMeta, posterLabel, inProgressMeta, recordingPercent, posterSrc, cardSrc, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,
+      posterMeta, posterLabel, inProgressMeta, recordingPercent, posterSrc, cardSrc, isScheduledOnly, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,
     }
   },
 }

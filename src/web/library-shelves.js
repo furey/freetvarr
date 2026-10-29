@@ -27,7 +27,7 @@ export const titleSortKey = (title) => String(title || '').trim().replace(/^the\
 export const posterMetaOf = ({ show, timeZone }) => {
   const { total, new: fresh } = show.counts
   if (!total && show.rule?.paused) return 'Paused'
-  if (!total && !show.rule && show.nextAiring) return scheduledShelfMetaOf({ show, timeZone })
+  if (isScheduledOnly(show)) return scheduledShelfMetaOf({ show, timeZone })
   if (!total) return firstEpisodeText({ nextAiring: show.nextAiring, timeZone, short: true })
   return [countText(total, 'episode'), fresh ? `${fresh} new` : ''].filter(Boolean).join(' · ')
 }
@@ -48,9 +48,18 @@ export const oneOffMetaOf = ({ show, timeZone }) => scheduledShelfMetaOf({ show,
   show.latest?.airedAt ? dayMonthOf({ ms: show.latest.airedAt, timeZone }) : '',
 ].filter(Boolean).join(' · ')
 
-export const scheduledShelfMetaOf = ({ show, timeZone, nowMs = Date.now() }) => (!show.latest && show.nextAiring
-  ? `Records ${lowerDayWord(scheduledWhenOf({ ms: show.nextAiring.startDate, nowMs, timeZone }))}`
+export const isScheduledOnly = (show) => !show.latest && !show.counts?.total && !show.rule && Boolean(show.nextAiring)
+
+export const scheduledShelfMetaOf = ({ show, timeZone, nowMs = Date.now() }) => (isScheduledOnly(show)
+  ? shortWhenOf({ ms: show.nextAiring.startDate, nowMs, timeZone })
   : '')
+
+export const shortWhenOf = ({ ms, nowMs, timeZone }) => {
+  const daysAhead = localDayNumber({ ms, timeZone }) - localDayNumber({ ms: nowMs, timeZone })
+  if (daysAhead === 0) return scheduledWhenOf({ ms, nowMs, timeZone })
+  if (daysAhead > 0 && daysAhead < 7) return weekdayClockOf({ ms, timeZone })
+  return `${dateFormat({ weekday: 'short' }, timeZone).format(new Date(ms))} ${dayMonthOf({ ms, timeZone })}`
+}
 
 export const scheduledWhenOf = ({ ms, nowMs, timeZone }) => {
   const daysAhead = localDayNumber({ ms, timeZone }) - localDayNumber({ ms: nowMs, timeZone })

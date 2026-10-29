@@ -69,7 +69,7 @@ test('posterMetaOf: counts episodes and new ones, or names the first airing', ()
     posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: false }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }),
     'First episode Tue 8:30pm',
   )
-  assert.match(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }), /^Records Tue/)
+  assert.match(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }), /^Tue 20 Oct$/)
 })
 
 test('movie and one-off meta use the channel with the length or the day', () => {
@@ -261,10 +261,14 @@ test('scheduled episodes: pill, meta, hero line, and status card for a show that
   })
   const recorded = { recordingId: 'a', title: 'Love Island Australia', airedAt: SUN_18_OCT, durationS: 3600, channelName: '9HD Sydney' }
   assert.equal(heroMetaOf({ show: { ...detail, seasons: [{ season: 8, episodes: [scheduled, recorded] }] } }), '9HD Sydney · 1 recording')
-  assert.equal(scheduledShelfMetaOf({ show: show({ nextAiring: { startDate: TUE_830PM } }), timeZone: TZ, nowMs }), 'Records tonight 8:30pm')
-  assert.equal(scheduledShelfMetaOf({ show: show({ nextAiring: { startDate: TUE_830PM + 2 * 86_400_000 } }), timeZone: TZ, nowMs }), 'Records Thu 8:30pm')
-  assert.match(oneOffMetaOf({ show: show({ kind: 'oneoff', nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }), /^Records /)
-  assert.equal(scheduledShelfMetaOf({ show: show({ latest: { channelName: '9HD' }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ, nowMs }), '')
+  const upcoming = (startDate, overrides) => show({ counts: { total: 0 }, nextAiring: { startDate }, ...overrides })
+  assert.equal(scheduledShelfMetaOf({ show: upcoming(TUE_830PM), timeZone: TZ, nowMs }), 'Tonight 8:30pm')
+  assert.equal(scheduledShelfMetaOf({ show: upcoming(TUE_830PM + 86_400_000), timeZone: TZ, nowMs }), 'Wed 8:30pm')
+  assert.equal(scheduledShelfMetaOf({ show: upcoming(TUE_830PM + 2 * 86_400_000), timeZone: TZ, nowMs }), 'Thu 8:30pm')
+  assert.equal(scheduledShelfMetaOf({ show: upcoming(TUE_830PM + 7 * 86_400_000), timeZone: TZ, nowMs }), 'Tue 27 Oct')
+  assert.equal(oneOffMetaOf({ show: upcoming(TUE_830PM, { kind: 'oneoff' }), timeZone: TZ }), 'Tue 20 Oct')
+  assert.equal(scheduledShelfMetaOf({ show: upcoming(TUE_830PM, { latest: { channelName: '9HD' } }), timeZone: TZ, nowMs }), '')
+  assert.equal(scheduledShelfMetaOf({ show: upcoming(TUE_830PM, { rule: { paused: false } }), timeZone: TZ, nowMs }), '')
   assert.equal(scheduledWhenOf({ ms: TUE_830PM + 7 * 86_400_000, nowMs, timeZone: TZ }), 'Tue 27 Oct 8:30pm')
   const seriesTimer = { ...scheduled, scheduled: { programId: 7, seriesLinkId: 'auto-1' } }
   assert.equal(ruleStatusOf({ show: { ...detail, seasons: [{ season: 8, episodes: [seriesTimer] }] }, timeZone: TZ, nowMs }).detail, 'Part of a series recording in TVHeadend.')

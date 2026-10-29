@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { getLibraryShow, getLibraryShows } from '../src/library.js'
 import { nextScheduledByKey, scheduledEpisodeOf } from '../src/scheduled-library.js'
 
-const NOW = Date.UTC(2026, 9, 29, 6, 0)
+const NOW = Date.now()
 const HOUR_MS = 60 * 60 * 1000
 
 const entry = (overrides) => ({
@@ -44,9 +44,9 @@ const row = (overrides) => ({
   ...overrides,
 })
 
-const deps = ({ rows = [], scheduled = [] } = {}) => ({
+const deps = ({ rows = [], scheduled = [], series = [], folders = [] } = {}) => ({
   loadRows: async () => rows,
-  loadSeries: async () => ({ series: [] }),
+  loadSeries: async () => ({ series }),
   loadRecordingNow: async () => [],
   loadFinishing: async () => [],
   loadMoviesRoot: async () => '',
@@ -55,7 +55,8 @@ const deps = ({ rows = [], scheduled = [] } = {}) => ({
   loadChoiceStamps: async () => new Map(),
   loadOverrides: async () => new Map(),
   resolvePlayable: async () => '/media/file.ts',
-  loadScheduled: async () => nextScheduledByKey({ upcoming: scheduled, nowMs: NOW }),
+  loadScheduled: async () => ({ upcoming: scheduled, activeProgramIds: [] }),
+  loadFolders: async () => folders,
 })
 
 test('nextScheduledByKey: keeps only the soonest future entry per show, skipping ones recording now', () => {
@@ -121,4 +122,25 @@ test('getLibraryShows: a never-recorded show joins the shelves with its next air
   assert.equal(island.latestAt, NOW + 3 * HOUR_MS)
   assert.equal(shows.find((s) => s.key === 'the-block').counts.total, 1)
   assert.equal(shows.length, 2)
+})
+
+test('getLibraryShow: a series timer under another title joins the show its rule already records', async () => {
+  const rows = [row({ recording_id: 'bb1', title: 'Big Brother', show_id: 9, season: 17, episode: 3 })]
+  const series = [{ title: 'Big Brother', recording: true, episodesToKeep: 0, autorecs: [{ id: 'auto-bb', seriesLinkId: 'link-bb', channelId: 'ch-10' }], nextAiring: null, folder: { id: 9 } }]
+  const scheduled = [entry({ name: 'Big Brother Australia', programId: 62, seriesLinkId: 'link-bb', season: null })]
+  const { shows } = await getLibraryShows(deps({ rows, scheduled, series }))
+  assert.deepEqual(shows.map((s) => s.key), ['big-brother'])
+  const show = await getLibraryShow({ ...deps({ rows, scheduled, series }), key: 'big-brother' })
+  assert.deepEqual(show.seasons[0].episodes.map((e) => e.recordingId), ['scheduled-62', 'bb1'])
+  assert.equal(await getLibraryShow({ ...deps({ rows, scheduled, series }), key: 'big-brother-australia' }), null)
+})
+
+test('getLibraryShow: a timer with no rule joins the show whose folder matches its title', async () => {
+  const rows = [row({ recording_id: 'bb1', title: 'Big Brother', show_id: 9 })]
+  const folders = [{ id: 9, show_pattern: 'Big Brother', enabled: true }]
+  const scheduled = [entry({ name: 'Big Brother Australia', programId: 62 }), entry({ name: 'Gruen', programId: 63 })]
+  const { shows } = await getLibraryShows(deps({ rows, scheduled, folders }))
+  assert.deepEqual(shows.map((s) => s.key).sort(), ['big-brother', 'gruen'])
+  const show = await getLibraryShow({ ...deps({ rows, scheduled, folders }), key: 'big-brother' })
+  assert.deepEqual(show.seasons.flatMap((s) => s.episodes).filter((e) => e.scheduled).map((e) => e.recordingId), ['scheduled-62'])
 })

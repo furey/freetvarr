@@ -8,7 +8,7 @@ import { MAX_PADDING_MINUTES } from './recording-padding.js'
 import { RESUME_END_MARGIN_S } from './playback.js'
 import { getSeries } from './series.js'
 import { libraryKindWith, loadKindOverrides } from './programme-kind.js'
-import { getMoviesRoot } from './sync.js'
+import { getMoviesRoot, matchShow } from './sync.js'
 import { looksLikeFilm } from './film-rule.js'
 import { showKeyOf } from './web/show-key.js'
 import { artworkChoices } from './artwork-choices.js'
@@ -28,9 +28,10 @@ export const getLibraryShows = async ({
   loadMoviesRoot = getMoviesRoot,
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
-  loadScheduled = loadNextScheduled,
+  loadScheduled = loadUpcomingRecordings,
+  loadFolders = loadShowFolders,
 } = {}) => {
-  const [rows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides, scheduled] = await Promise.all([
+  const [rows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides, upcoming, folders] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
@@ -38,9 +39,11 @@ export const getLibraryShows = async ({
     loadMoviesRoot().catch(() => ''),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
-    loadScheduled().catch(() => new Map()),
+    loadScheduled().catch(() => NO_UPCOMING),
+    loadFolders().catch(() => []),
   ])
   const merged = [...rows, ...inProgressRowsOf({ active, finishing, rows })]
+  const scheduled = scheduledByShowKey({ ...upcoming, series: seriesData.series, rows: merged, folders })
   return {
     shows: showSummariesOf({ rows: merged, series: seriesData.series, active, moviesRoot, stamps, kindOverrides, scheduled }),
     stale: Boolean(seriesData.stale || seriesData.error),
@@ -59,9 +62,10 @@ export const getLibraryShow = async ({
   refreshStates = refreshLibraryStates,
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
-  loadScheduled = loadNextScheduled,
+  loadScheduled = loadUpcomingRecordings,
+  loadFolders = loadShowFolders,
 } = {}) => {
-  const [rows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides, scheduled] = await Promise.all([
+  const [rows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides, upcoming, folders] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
@@ -70,8 +74,10 @@ export const getLibraryShow = async ({
     loadSeriesTags().catch(() => []),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
-    loadScheduled().catch(() => new Map()),
+    loadScheduled().catch(() => NO_UPCOMING),
+    loadFolders().catch(() => []),
   ])
+  const scheduled = scheduledByShowKey({ ...upcoming, series: seriesData.series, rows, folders })
   const groupRows = rows.filter((row) => groupKeyOf(row) === key)
   const inProgressRows = inProgressRowsOf({ active, finishing, rows }).filter((row) => groupKeyOf(row) === key)
   const series = seriesByKey(seriesData.series).get(key) || null
@@ -277,6 +283,17 @@ export const showDetailOf = ({
     seasons: withScheduledEpisode({ seasons: seasonsOf(episodes), entry: nextScheduled }),
     resumeNext: resumeNextOf(episodes),
   }
+}
+
+export const scheduledByShowKey = ({ upcoming = [], activeProgramIds = [], series = [], rows = [], folders = [], nowMs = Date.now() }) => {
+  const keyBySeriesLink = new Map([...seriesByKey(series)].flatMap(([key, entry]) =>
+    entry.autorecs.map((autorec) => [String(autorec.seriesLinkId), key])))
+  const keyByFolder = new Map(rows.filter((row) => row.show_id != null).map((row) => [row.show_id, groupKeyOf(row)]))
+  const folderOf = (title) => matchShow(folders.filter((folder) => folder.enabled), title) || matchShow(folders, title)
+  const folderKeyOf = (entry) => keyByFolder.get(folderOf(entry.name)?.id) ?? null
+  const seriesKeyOf = (entry) => (entry.seriesLinkId ? keyBySeriesLink.get(String(entry.seriesLinkId)) : null) ?? null
+  const keyOf = (entry) => seriesKeyOf(entry) ?? folderKeyOf(entry) ?? showKeyOf(entry.name)
+  return nextScheduledByKey({ upcoming, activeProgramIds, nowMs, keyOf })
 }
 
 export const withScheduledEpisode = ({ seasons, entry }) => {
@@ -635,10 +652,12 @@ const loadInProgressRecordingIds = async () => {
 
 const loadTimedSeriesTags = async () => (await getRecordingState()).seriesTags || []
 
-const loadNextScheduled = async () => {
+const loadUpcomingRecordings = async () => {
   const state = await getRecordingState()
-  return nextScheduledByKey({ upcoming: state.upcomingRecordings || [], activeProgramIds: state.activeRecordingIds || [] })
+  return { upcoming: state.upcomingRecordings || [], activeProgramIds: state.activeRecordingIds || [] }
 }
+
+const loadShowFolders = () => db('shows').select('id', 'show_pattern', 'enabled')
 
 const DEFAULT_RETENTION_DAYS = 7
 const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }
@@ -647,6 +666,7 @@ const DEFAULT_EPISODE_LIMIT = 20
 const MAX_EPISODE_LIMIT = 50
 const CARD_IMAGE_WIDTH = 384
 const NO_STAMPS = {}
+const NO_UPCOMING = { upcoming: [], activeProgramIds: [] }
 const MAX_MOVE_IDS = 500
 const MAX_RECORDING_ID_LENGTH = 200
 const MAX_SHOW_TITLE_LENGTH = 200
