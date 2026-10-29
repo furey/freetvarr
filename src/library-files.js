@@ -45,7 +45,7 @@ export const findReplacement = async ({ file_path: filePath, season, episode }) 
 
 const CHECKED_STATUSES = ['done', 'partial']
 const KEPT = { state: null, replacement: null }
-const VIDEO_EXTENSIONS = new Set(['.ts', '.mkv', '.mp4', '.m4v', '.avi', '.mov', '.webm'])
+const VIDEO_EXTENSIONS = new Set(['.ts', '.mkv', '.mp4', '.m4v', '.avi', '.mov', '.webm', '.mpg', '.mpeg'])
 
 const isPresent = async (filePath) => fs.access(filePath).then(() => true, () => false)
 
