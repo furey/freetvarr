@@ -152,7 +152,7 @@ export const RecordingsLibraryView = {
                 <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
               </title-art>
               <div class="ui-card-title">{{ show.title }}</div>
-              <div class="ui-card-meta">{{ inProgressMeta(show) || movieMetaOf({ show }) }}</div>
+              <div class="ui-card-meta">{{ inProgressMeta(show) || movieMetaOf({ show, timeZone: tz }) }}</div>
             </a>
           </div>
         </section>

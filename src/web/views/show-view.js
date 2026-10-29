@@ -16,8 +16,9 @@ import {
   showTitleIn,
   titleFromKey,
 } from '/show-page.js'
-import { firstEpisodeText } from '/library-shelves.js'
+import { firstEpisodeText, scheduledWhenOf } from '/library-shelves.js'
 import {
+  allEpisodesOf,
   allSelectedIn,
   isRecordingNow,
   prunedSelection,
@@ -48,6 +49,7 @@ import { routeParams, cameFromHash, cameFromHistory, navigate } from '/shared/ro
 import { backTargetOf } from '/back-target.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { now, tz } from '/shared/time.js'
+import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import {
   canWatchFromStart,
   episodeBadgeOf,
@@ -83,7 +85,7 @@ export const ShowView = {
             <button type="button" class="ui-button ui-button-secondary show-options-button" @click="watchRecordingLive(currentEpisode)"><tv-icon /> Watch live</button>
             <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
           </div>
-          <div v-else-if="show" class="show-actions ui-only-wide">
+          <div v-else-if="show && hasShowActions" class="show-actions ui-only-wide">
             <button v-if="playLabel" type="button" class="ui-button ui-button-primary" @click="playNext"><play-glyph /> {{ playLabel }}</button>
             <button v-if="show.rule" type="button" class="ui-button ui-button-secondary show-options-button" @click="optionsOpen = true"><sliders-icon /> Recording options</button>
             <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
@@ -136,7 +138,7 @@ export const ShowView = {
           <button type="button" class="ui-button ui-button-secondary show-options-button" @click="watchRecordingLive(currentEpisode)"><tv-icon /> Watch live</button>
           <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
         </div>
-        <div v-else class="show-actions ui-only-phone">
+        <div v-else-if="hasShowActions" class="show-actions ui-only-phone">
           <button v-if="playLabel" type="button" class="ui-button ui-button-primary" @click="playNext"><play-glyph /> {{ playLabel }}</button>
           <button v-if="show.rule" type="button" class="ui-button ui-button-secondary show-options-button" @click="optionsOpen = true"><sliders-icon /> Recording options</button>
           <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
@@ -148,7 +150,6 @@ export const ShowView = {
             <span class="show-rule-headline">{{ shownRuleStatus.headline }}</span>
             <span class="show-rule-detail">{{ shownRuleStatus.detail }}</span>
           </span>
-          <chevron-glyph class="ui-group-row-chevron" />
         </button>
         <div v-else-if="recordingCard" class="show-rule is-static show-recording">
           <span :class="['show-rule-mark', 'is-' + recordingCard.tone]" aria-hidden="true"><span></span></span>
@@ -159,7 +160,7 @@ export const ShowView = {
           <button v-if="cardFromStart" type="button" class="ui-button ui-button-sm" @click="watchFromStart(currentEpisode)">Watch from the start</button>
         </div>
         <div v-else class="show-rule is-static">
-          <span class="show-rule-mark is-idle" aria-hidden="true"><span></span></span>
+          <span :class="['show-rule-mark', 'is-' + ruleStatus.tone]" aria-hidden="true"><span></span></span>
           <span class="show-rule-text">
             <span class="show-rule-headline">{{ ruleStatus.headline }}</span>
             <span class="show-rule-detail">{{ ruleStatus.detail }}</span>
@@ -181,7 +182,7 @@ export const ShowView = {
           </div>
           <ul class="show-episode-list">
             <li v-for="e in visibleEpisodes" :key="e.recordingId"
-              :class="['show-episode', { 'is-failed': e.failed, 'is-playable': isTappable(e) && !selecting, 'is-selected': selecting && selected.has(e.recordingId), 'is-locked': selecting && isLocked(e) }]"
+              :class="['show-episode', { 'is-failed': e.failed, 'is-scheduled': e.scheduled, 'is-playable': (isTappable(e) || e.scheduled) && !selecting, 'is-selected': selecting && selected.has(e.recordingId), 'is-locked': selecting && isLocked(e) }]"
               @click="onEpisodeRowClick(e)" @contextmenu="episodePress.onContextMenu($event, e)" @pointerdown="episodePress.onPointerDown($event, e)"
               @pointermove="episodePress.onPointerMove" @pointerup="episodePress.onPointerEnd" @pointercancel="episodePress.onPointerEnd"
               @pointerleave="episodePress.onPointerEnd">
@@ -206,10 +207,11 @@ export const ShowView = {
               </div>
               <div class="show-episode-text">
                 <h3 class="show-episode-title">{{ episodeHeading(e) }} <span v-if="episodeBadge(e) === 'rec'" class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span><span v-else-if="episodeBadge(e) === 'new'" class="ui-new-badge">New</span></h3>
+                <p v-if="e.scheduled" class="show-episode-when"><span class="ui-chip is-small show-scheduled-chip">{{ scheduledWhen(e) }}</span></p>
                 <p class="show-episode-meta">{{ episodeMeta(e) }}</p>
                 <p v-if="episodeLine(e)" class="show-episode-synopsis">{{ episodeLine(e) }}</p>
               </div>
-              <button v-if="!selecting" type="button" class="ui-icon-button is-plain show-episode-more" :aria-label="'Actions for ' + episodeHeading(e)"
+              <button v-if="!selecting && !e.scheduled" type="button" class="ui-icon-button is-plain show-episode-more" :aria-label="'Actions for ' + episodeHeading(e)"
                 aria-haspopup="dialog" @click.stop="openEpisodeMenu(e)"><more-glyph /></button>
             </li>
           </ul>
@@ -266,6 +268,7 @@ export const ShowView = {
   `,
   setup() {
     const { showToast, showFlash: flash } = useLibraryToast()
+    const { openUpcoming } = useProgrammeSheet()
     const key = computed(() => recordingsPageOf(routeParams.value).showKey || '')
     const show = ref(cachedDetails.get(key.value) || null)
     const loaded = ref(Boolean(show.value))
@@ -281,6 +284,7 @@ export const ShowView = {
 
     const onEpisodeRowClick = (episode) => {
       if (selecting.value) return toggleEpisode(episode)
+      if (episode.scheduled) return openUpcoming(episode.scheduled)
       if (isTappable(episode)) openEpisode(episode)
     }
     const backTarget = computed(() => backTargetOf({
@@ -337,7 +341,8 @@ export const ShowView = {
     const heroMeta = computed(() => (show.value ? heroMetaOf({ show: show.value }) : ''))
     const playLabel = computed(() => (show.value ? playButtonLabel({ show: show.value }) : ''))
     const activeRecording = computed(() => activeRecordingFor({ active: recordingNow.value.active, key: key.value }))
-    const ruleStatus = computed(() => ruleStatusOf({ show: show.value, activeRecording: activeRecording.value, timeZone: tz.value }))
+    const ruleStatus = computed(() => ruleStatusOf({ show: show.value, activeRecording: activeRecording.value, timeZone: tz.value, nowMs: nowMs.value }))
+    const hasShowActions = computed(() => Boolean(playLabel.value || show.value?.rule || allEpisodes.value.length))
     const shownRuleStatus = computed(() => (recordingCard.value && isRecordingPhase(currentItem.value)
       ? { ...ruleStatus.value, tone: 'live', headline: recordingCard.value.headline }
       : ruleStatus.value))
@@ -357,11 +362,11 @@ export const ShowView = {
       if (aboutSynopsis.value || !creditsAnswered.value) return
       aboutSynopsis.value = overviewOf(credits.value) || newestSynopsisOf(show.value)
     }
-    const allEpisodes = computed(() => (show.value?.seasons || []).flatMap((s) => s.episodes))
+    const allEpisodes = computed(() => allEpisodesOf(show.value))
     const selectedEpisodes = computed(() => allEpisodes.value.filter((e) => selected.value.has(e.recordingId)))
     const seasonAllSelected = computed(() => allSelectedIn({ episodes: visibleEpisodes.value, selected: selected.value, activeIds: activeIds.value }))
-    const seasonSelectable = computed(() => visibleEpisodes.value.some((e) => !isRecordingNow({ episode: e, activeIds: activeIds.value })))
-    const anySelectable = computed(() => allEpisodes.value.some((e) => !isRecordingNow({ episode: e, activeIds: activeIds.value })))
+    const seasonSelectable = computed(() => visibleEpisodes.value.some((e) => !isLocked(e)))
+    const anySelectable = computed(() => allEpisodes.value.some((e) => !isLocked(e)))
 
     const playEpisode = (episode) => actions.play(episode)
 
@@ -389,7 +394,7 @@ export const ShowView = {
       if (episode) playEpisode(episode)
     }
 
-    const isLocked = (episode) => isRecordingNow({ episode, activeIds: activeIds.value })
+    const isLocked = (episode) => Boolean(episode.scheduled) || isRecordingNow({ episode, activeIds: activeIds.value })
     const checkLabel = (episode) => (isLocked(episode)
       ? `${episodeHeading(episode)} is recording now, so it cannot be selected`
       : `Select ${episodeHeading(episode)}`)
@@ -481,7 +486,7 @@ export const ShowView = {
       ...actions,
       show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
       ruleStatus, shownRuleStatus, firstEpisodeLine, currentEpisode, heroFromStart, cardFromStart, recordingCard, shownHeroMeta,
-      isTappable, openEpisode, recordedPercent, visibleEpisodes, selectedSeason, seriesShow, seasonChips, optionsOpen, failedImages,
+      isTappable, openEpisode, recordedPercent, hasShowActions, visibleEpisodes, selectedSeason, seriesShow, seasonChips, optionsOpen, failedImages,
       flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable, anySelectable,
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
@@ -493,6 +498,7 @@ export const ShowView = {
       episodeLine: (episode) => (episode.inProgress ? inProgressEpisodeLineOf({ item: itemOf(episode), timeZone: tz.value }) : episode.synopsis),
       episodeBadge: (episode) => episodeBadgeOf({ episode, activeIds: activeIds.value }),
       episodeFallbackSrc,
+      scheduledWhen: (episode) => scheduledWhenOf({ ms: episode.airedAt, nowMs: nowMs.value, timeZone: tz.value }),
       episodeImage: (episode) => episode.image || episodeFallbackSrc.value,
     }
   },

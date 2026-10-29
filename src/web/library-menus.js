@@ -4,7 +4,7 @@ import { airedRangeText, durationText } from './recording-info.js'
 import { episodeHeading } from './show-page.js'
 import { showKeyOf } from './show-key.js'
 
-export const allEpisodesOf = (show) => (show?.seasons || []).flatMap((season) => season.episodes)
+export const allEpisodesOf = (show) => (show?.seasons || []).flatMap((season) => season.episodes).filter((episode) => !episode.scheduled)
 
 export const isRecordingNow = ({ episode, activeIds }) => Boolean(episode.inProgress) || Boolean(activeIds?.has(episode.recordingId))
 
@@ -13,7 +13,7 @@ export const importedEpisodesOf = (show) => allEpisodesOf(show).filter((episode)
 export const runningEpisodeOf = (show) => allEpisodesOf(show).find((episode) => episode.inProgress?.phase === 'recording') || null
 
 export const deletableEpisodesOf = ({ episodes, activeIds }) =>
-  episodes.filter((episode) => !isRecordingNow({ episode, activeIds }))
+  episodes.filter((episode) => !episode.scheduled && !isRecordingNow({ episode, activeIds }))
 
 export const compareEpisodeOrder = (a, b) => {
   const numbered = a.episode != null && b.episode != null

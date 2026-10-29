@@ -15,6 +15,7 @@ import { artworkChoices } from './artwork-choices.js'
 import { backupKeptUntil, originalRetentionDays } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { inProgressImageOf, inProgressRowsOf, inProgressSummaryOf, isInProgressRow } from './recording-now-library.js'
+import { nextScheduledByKey, scheduledAiringOf, scheduledEpisodeOf, scheduledKindOf } from './scheduled-library.js'
 
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
 export const EPISODE_KINDS = ['show', 'movie', 'oneoff']
@@ -27,8 +28,9 @@ export const getLibraryShows = async ({
   loadMoviesRoot = getMoviesRoot,
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
+  loadScheduled = loadNextScheduled,
 } = {}) => {
-  const [rows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides] = await Promise.all([
+  const [rows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides, scheduled] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
@@ -36,10 +38,11 @@ export const getLibraryShows = async ({
     loadMoviesRoot().catch(() => ''),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
+    loadScheduled().catch(() => new Map()),
   ])
   const merged = [...rows, ...inProgressRowsOf({ active, finishing, rows })]
   return {
-    shows: showSummariesOf({ rows: merged, series: seriesData.series, active, moviesRoot, stamps, kindOverrides }),
+    shows: showSummariesOf({ rows: merged, series: seriesData.series, active, moviesRoot, stamps, kindOverrides, scheduled }),
     stale: Boolean(seriesData.stale || seriesData.error),
   }
 }
@@ -56,8 +59,9 @@ export const getLibraryShow = async ({
   refreshStates = refreshLibraryStates,
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
+  loadScheduled = loadNextScheduled,
 } = {}) => {
-  const [rows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides] = await Promise.all([
+  const [rows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides, scheduled] = await Promise.all([
     loadRows(),
     loadSeries(),
     loadRecordingNow(),
@@ -66,11 +70,13 @@ export const getLibraryShow = async ({
     loadSeriesTags().catch(() => []),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
+    loadScheduled().catch(() => new Map()),
   ])
   const groupRows = rows.filter((row) => groupKeyOf(row) === key)
   const inProgressRows = inProgressRowsOf({ active, finishing, rows }).filter((row) => groupKeyOf(row) === key)
   const series = seriesByKey(seriesData.series).get(key) || null
-  if (!groupRows.length && !inProgressRows.length && !series) return null
+  const nextScheduled = scheduled.get(key) || null
+  if (!groupRows.length && !inProgressRows.length && !series && !nextScheduled) return null
   const checkedRows = await refreshStates(groupRows)
   const playable = await Promise.all(checkedRows.map(async (row) => Boolean(await resolvePlayable(row))))
   return showDetailOf({
@@ -83,6 +89,7 @@ export const getLibraryShow = async ({
     seriesTags,
     stamps,
     kindOverride: kindOverrides.get(key) ?? null,
+    nextScheduled,
   })
 }
 
@@ -226,11 +233,13 @@ export const seriesByKey = (series = []) => {
   return groups
 }
 
-export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '', stamps = new Map(), kindOverrides = new Map() }) => {
+export const showSummariesOf = ({
+  rows, series = [], active = [], moviesRoot = '', stamps = new Map(), kindOverrides = new Map(), scheduled = new Map(),
+}) => {
   const rowsByKey = groupBy(rows.filter(isLibraryMember), groupKeyOf)
   const rules = seriesByKey(series)
   const activeKeys = activeKeysOf(active)
-  const keys = new Set([...rowsByKey.keys(), ...rules.keys()])
+  const keys = new Set([...rowsByKey.keys(), ...rules.keys(), ...scheduled.keys()])
   return [...keys]
     .map((key) => showSummaryOf({
       key,
@@ -240,12 +249,13 @@ export const showSummariesOf = ({ rows, series = [], active = [], moviesRoot = '
       moviesRoot,
       stamps: stamps.get(key),
       kindOverride: kindOverrides.get(key) ?? null,
+      nextScheduled: scheduled.get(key) || null,
     }))
     .sort((a, b) => (b.latestAt ?? -Infinity) - (a.latestAt ?? -Infinity) || a.title.localeCompare(b.title))
 }
 
 export const showDetailOf = ({
-  key, rows, playable = [], series, active = [], moviesRoot = '', seriesTags = [], stamps = new Map(), kindOverride = null,
+  key, rows, playable = [], series, active = [], moviesRoot = '', seriesTags = [], stamps = new Map(), kindOverride = null, nextScheduled = null,
 }) => {
   const members = rows.map((row, i) => ({ row, playable: Boolean(playable[i]) })).filter(({ row }) => isLibraryMember(row))
   const summary = showSummaryOf({
@@ -256,6 +266,7 @@ export const showDetailOf = ({
     moviesRoot,
     stamps: stamps.get(key),
     kindOverride,
+    nextScheduled,
   })
   const episodes = members.map(({ row, playable: canPlay }) => episodeOf({ row, playable: canPlay }))
   const { counts, latest, latestAt, ...shown } = summary
@@ -263,9 +274,22 @@ export const showDetailOf = ({
     ...shown,
     counts,
     rule: series ? { ...summary.rule, ...ruleDetailOf({ series, seriesTags }) } : null,
-    seasons: seasonsOf(episodes),
+    seasons: withScheduledEpisode({ seasons: seasonsOf(episodes), entry: nextScheduled }),
     resumeNext: resumeNextOf(episodes),
   }
+}
+
+export const withScheduledEpisode = ({ seasons, entry }) => {
+  if (!entry) return seasons
+  const episode = scheduledEpisodeOf(entry)
+  const home = episode.season != null
+    ? seasons.find((s) => s.season === episode.season)
+    : seasons[0]
+  if (home) {
+    return seasons.map((s) => (s === home ? { ...s, episodes: [{ ...episode, season: s.season }, ...s.episodes] } : s))
+  }
+  return [...seasons, { season: episode.season, episodes: [episode] }]
+    .sort((a, b) => compareMissingLast(a.season, b.season, (x, y) => y - x))
 }
 
 export const episodeOf = ({ row, playable = false }) => {
@@ -366,18 +390,21 @@ export const episodeLimitFrom = (value) => {
   return Number.isInteger(limit) && limit >= 1 && limit <= MAX_EPISODE_LIMIT ? limit : null
 }
 
-const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = NO_STAMPS, kindOverride = null }) => {
+const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = NO_STAMPS, kindOverride = null, nextScheduled = null }) => {
   const newestFirst = [...rows].sort(newestAiredFirst)
   const latestRow = newestFirst[0] || null
-  const title = (latestRow && groupTitleOf(latestRow)) || series?.title || key
+  const title = (latestRow && groupTitleOf(latestRow)) || series?.title || nextScheduled?.name || key
   const watchable = rows.filter((row) => !isFailed(row))
   const latestAiredAt = latestRow ? airedMsOf(latestRow) : null
-  const kind = kindOf({ rows, hasRule: Boolean(series), moviesRoot, override: kindOverride })
+  const kind = !rows.length && !series && nextScheduled
+    ? libraryKindWith({ kind: scheduledKindOf(nextScheduled), override: kindOverride })
+    : kindOf({ rows, hasRule: Boolean(series), moviesRoot, override: kindOverride })
+  const nextAiring = series?.nextAiring ?? (nextScheduled ? scheduledAiringOf(nextScheduled) : null)
   return {
     key,
     title,
     kind,
-    classification: newestFirst.find((row) => row.classification)?.classification ?? series?.nextAiring?.classification ?? null,
+    classification: newestFirst.find((row) => row.classification)?.classification ?? nextAiring?.classification ?? null,
     year: kind === 'movie' ? newestFirst.find((row) => row.year)?.year ?? null : null,
     poster: `/api/epg/show-image?title=${encodeURIComponent(title)}&shape=poster${stampParamOf(stamps.poster)}`,
     image: chosenBackgroundOf({ title, stamp: stamps.background }) || newestFirst.map(recordingImageOf).find(Boolean) || null,
@@ -391,10 +418,10 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = N
     },
     recordingNow,
     inProgress: inProgressSummaryOf(rows),
-    nextAiring: series?.nextAiring ?? null,
+    nextAiring,
     rule: series ? ruleOf(series) : null,
     latest: latestRow ? latestOf(latestRow) : null,
-    latestAt: latestAiredAt ?? series?.nextAiring?.startDate ?? null,
+    latestAt: latestAiredAt ?? nextAiring?.startDate ?? null,
   }
 }
 
@@ -607,6 +634,11 @@ const loadInProgressRecordingIds = async () => {
 }
 
 const loadTimedSeriesTags = async () => (await getRecordingState()).seriesTags || []
+
+const loadNextScheduled = async () => {
+  const state = await getRecordingState()
+  return nextScheduledByKey({ upcoming: state.upcomingRecordings || [], activeProgramIds: state.activeRecordingIds || [] })
+}
 
 const DEFAULT_RETENTION_DAYS = 7
 const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }

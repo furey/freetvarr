@@ -7,6 +7,8 @@ import {
   movieMetaOf,
   oneOffMetaOf,
   posterMetaOf,
+  scheduledShelfMetaOf,
+  scheduledWhenOf,
   shelvesOf,
   showsCountText,
 } from '../src/web/library-shelves.js'
@@ -64,9 +66,10 @@ test('posterMetaOf: counts episodes and new ones, or names the first airing', ()
   assert.equal(posterMetaOf({ show: show(), timeZone: TZ }), '6 episodes · 2 new')
   assert.equal(posterMetaOf({ show: show({ counts: { total: 1, new: 0 } }), timeZone: TZ }), '1 episode')
   assert.equal(
-    posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }),
+    posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: false }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }),
     'First episode Tue 8:30pm',
   )
+  assert.match(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }), /^Records Tue/)
 })
 
 test('movie and one-off meta use the channel with the length or the day', () => {
@@ -238,5 +241,32 @@ test('recordingRowOf: gives the player and confirm copy the row fields they read
 test('posterMetaOf: a paused rule with no episodes says so', () => {
   assert.equal(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: true } }), timeZone: TZ }), 'Paused')
   assert.equal(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: false } }), timeZone: TZ }), 'Not in the guide yet')
+})
+
+test('scheduled episodes: pill, meta, hero line, and status card for a show that has not recorded yet', () => {
+  const nowMs = Date.parse('2026-10-20T02:00:00Z')
+  assert.equal(scheduledWhenOf({ ms: TUE_830PM, nowMs, timeZone: TZ }), 'Tonight 8:30pm')
+  assert.equal(scheduledWhenOf({ ms: Date.parse('2026-10-20T03:00:00Z'), nowMs, timeZone: TZ }), 'Today 2:00pm')
+  assert.equal(scheduledWhenOf({ ms: TUE_830PM + 86_400_000, nowMs, timeZone: TZ }), 'Tomorrow 8:30pm')
+  assert.equal(scheduledWhenOf({ ms: TUE_830PM + 3 * 86_400_000, nowMs, timeZone: TZ }), 'Fri 8:30pm')
+  const scheduled = { recordingId: 'scheduled-7', title: 'Love Island Australia', airedAt: TUE_830PM, durationS: 4380, channelName: '9HD Sydney', scheduled: { programId: 7 } }
+  assert.equal(episodeMetaOf({ episode: scheduled, timeZone: TZ }), '1 hr 13 mins · 9HD Sydney')
+  const detail = show({ kind: 'oneoff', counts: { total: 0 }, seasons: [{ season: 8, episodes: [scheduled] }] })
+  assert.equal(heroMetaOf({ show: detail }), '9HD Sydney · 1 scheduled')
+  assert.equal(showsSeasonChips({ ...detail, kind: 'show', seasons: [{ season: null, episodes: [scheduled] }] }), false)
+  assert.deepEqual(ruleStatusOf({ show: detail, timeZone: TZ, nowMs }), {
+    tone: 'scheduled',
+    headline: 'Records tonight 8:30pm on 9HD Sydney',
+    detail: 'This episode only. To record every episode, open it in the TV guide and choose Every episode.',
+  })
+  const recorded = { recordingId: 'a', title: 'Love Island Australia', airedAt: SUN_18_OCT, durationS: 3600, channelName: '9HD Sydney' }
+  assert.equal(heroMetaOf({ show: { ...detail, seasons: [{ season: 8, episodes: [scheduled, recorded] }] } }), '9HD Sydney · 1 recording')
+  assert.equal(scheduledShelfMetaOf({ show: show({ nextAiring: { startDate: TUE_830PM } }), timeZone: TZ, nowMs }), 'Records tonight 8:30pm')
+  assert.equal(scheduledShelfMetaOf({ show: show({ nextAiring: { startDate: TUE_830PM + 2 * 86_400_000 } }), timeZone: TZ, nowMs }), 'Records Thu 8:30pm')
+  assert.match(oneOffMetaOf({ show: show({ kind: 'oneoff', nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }), /^Records /)
+  assert.equal(scheduledShelfMetaOf({ show: show({ latest: { channelName: '9HD' }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ, nowMs }), '')
+  assert.equal(scheduledWhenOf({ ms: TUE_830PM + 7 * 86_400_000, nowMs, timeZone: TZ }), 'Tue 27 Oct 8:30pm')
+  const seriesTimer = { ...scheduled, scheduled: { programId: 7, seriesLinkId: 'auto-1' } }
+  assert.equal(ruleStatusOf({ show: { ...detail, seasons: [{ season: 8, episodes: [seriesTimer] }] }, timeZone: TZ, nowMs }).detail, 'Part of a series recording in TVHeadend.')
 })
 

@@ -1,5 +1,5 @@
 import { durationText } from './recording-info.js'
-import { weekdayClockOf, dayMonthOf, firstEpisodeText } from './library-shelves.js'
+import { weekdayClockOf, dayMonthOf, firstEpisodeText, lowerDayWord, scheduledWhenOf } from './library-shelves.js'
 import { showKeyOf } from './show-key.js'
 import { dateFormat, formatMinutes } from './time-format.js'
 
@@ -37,7 +37,7 @@ export const seasonYearOf = ({ season, title = '' }) => {
 export const isSeriesShow = (show) => show?.kind === 'show'
 
 export const showsSeasonChips = (show) => isSeriesShow(show)
-  && show.seasons.length > 0
+  && recordedEpisodesOf(show).length > 0
   && !(show.seasons.length === 1 && seasonYearOf({ season: show.seasons[0].season, title: show.title }))
 
 export const listedEpisodesOf = ({ show, season }) => {
@@ -52,11 +52,20 @@ export const episodeHeading = (episode) => {
   return [number, name].filter(Boolean).join(' · ') || episode.title
 }
 
-export const episodeMetaOf = ({ episode, timeZone }) => [
+export const episodeMetaOf = ({ episode, timeZone }) => (episode.scheduled ? scheduledMetaOf({ episode }) : [
   episode.airedAt ? shortDayOf({ ms: episode.airedAt, timeZone }) : '',
   durationText(episode.durationS),
   episodeStateText(episode),
+].filter(Boolean).join(' · '))
+
+export const scheduledMetaOf = ({ episode }) => [
+  durationText(episode.durationS),
+  episode.channelName || '',
 ].filter(Boolean).join(' · ')
+
+export const recordedEpisodesOf = (show) => (show?.seasons || []).flatMap((s) => s.episodes).filter((e) => !e.scheduled)
+
+export const scheduledEpisodeIn = (show) => (show?.seasons || []).flatMap((s) => s.episodes).find((e) => e.scheduled) || null
 
 export const episodeStateText = (episode) => {
   if (episode.failed) return 'Failed'
@@ -73,13 +82,13 @@ export const heroMetaOf = ({ show }) => {
   const latestSeason = isSeriesShow(show)
     ? show.seasons.find((s) => s.season != null && !seasonYearOf({ season: s.season, title: show.title }))?.season
     : null
-  const episodes = show.seasons.reduce((sum, s) => sum + s.episodes.length, 0)
+  const episodes = recordedEpisodesOf(show).length
   const channels = show.rule?.anyChannel ? [] : show.rule?.channels ?? []
   const channel = channels[0] || show.seasons[0]?.episodes[0]?.channelName || ''
   return [
     channel,
     latestSeason != null ? `Season ${latestSeason}` : '',
-    recordedCountText({ count: episodes, series: isSeriesShow(show) }),
+    recordedCountText({ count: episodes, series: isSeriesShow(show) }) || (scheduledEpisodeIn(show) ? '1 scheduled' : ''),
   ].filter(Boolean).join(' · ')
 }
 
@@ -96,8 +105,19 @@ export const playButtonLabel = ({ show }) => {
   return number ? `Play${number}` : 'Play'
 }
 
-export const ruleStatusOf = ({ show, activeRecording, timeZone }) => {
+export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now() }) => {
   const rule = show.rule
+  const scheduled = scheduledEpisodeIn(show)
+  if (!rule && scheduled) {
+    const channel = scheduled.channelName ? ` on ${scheduled.channelName}` : ''
+    return {
+      tone: 'scheduled',
+      headline: `Records ${lowerDayWord(scheduledWhenOf({ ms: scheduled.airedAt, nowMs, timeZone }))}${channel}`,
+      detail: scheduled.scheduled?.seriesLinkId
+        ? 'Part of a series recording in TVHeadend.'
+        : 'This episode only. To record every episode, open it in the TV guide and choose Every episode.',
+    }
+  }
   if (!rule) {
     return {
       tone: 'idle',

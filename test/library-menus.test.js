@@ -2,7 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  allEpisodesOf,
   allSelectedIn,
+  deletableEpisodesOf,
   clockOf,
   episodeInfoOf,
   episodeMenuOf,
@@ -203,4 +205,11 @@ test('move copy and undo: a short subtitle, the toast text, and one undo request
 test('unmarkedText names how many episodes failed', () => {
   assert.equal(unmarkedText({ failed: 1, total: 1 }), 'Could not mark the episode')
   assert.equal(unmarkedText({ failed: 2, total: 5 }), 'Could not mark 2 of 5 episodes')
+})
+
+test('scheduled episodes stay out of the recorded episode list and selection', () => {
+  const scheduled = { recordingId: 'scheduled-7', scheduled: { programId: 7 } }
+  const recorded = { recordingId: 'a' }
+  assert.deepEqual(allEpisodesOf({ seasons: [{ episodes: [scheduled, recorded] }] }), [recorded])
+  assert.deepEqual(deletableEpisodesOf({ episodes: [scheduled, recorded], activeIds: new Set() }), [recorded])
 })

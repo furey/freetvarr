@@ -1,5 +1,6 @@
 import { durationText } from './recording-info.js'
 import { dateFormat, formatClock } from './time-format.js'
+import { localDayNumber } from './guide-time.js'
 
 export const LIBRARY_SORTS = [
   { key: 'recent', label: 'Recent' },
@@ -26,6 +27,7 @@ export const titleSortKey = (title) => String(title || '').trim().replace(/^the\
 export const posterMetaOf = ({ show, timeZone }) => {
   const { total, new: fresh } = show.counts
   if (!total && show.rule?.paused) return 'Paused'
+  if (!total && !show.rule && show.nextAiring) return scheduledShelfMetaOf({ show, timeZone })
   if (!total) return firstEpisodeText({ nextAiring: show.nextAiring, timeZone, short: true })
   return [countText(total, 'episode'), fresh ? `${fresh} new` : ''].filter(Boolean).join(' · ')
 }
@@ -36,15 +38,30 @@ export const firstEpisodeText = ({ nextAiring, timeZone, short = false }) => {
   return short ? `First episode ${when}` : `First episode records ${when}`
 }
 
-export const movieMetaOf = ({ show }) => [
+export const movieMetaOf = ({ show, timeZone }) => scheduledShelfMetaOf({ show, timeZone }) || [
   show.latest?.channelName,
   durationText(show.latest?.durationS),
 ].filter(Boolean).join(' · ')
 
-export const oneOffMetaOf = ({ show, timeZone }) => [
+export const oneOffMetaOf = ({ show, timeZone }) => scheduledShelfMetaOf({ show, timeZone }) || [
   show.latest?.channelName,
   show.latest?.airedAt ? dayMonthOf({ ms: show.latest.airedAt, timeZone }) : '',
 ].filter(Boolean).join(' · ')
+
+export const scheduledShelfMetaOf = ({ show, timeZone, nowMs = Date.now() }) => (!show.latest && show.nextAiring
+  ? `Records ${lowerDayWord(scheduledWhenOf({ ms: show.nextAiring.startDate, nowMs, timeZone }))}`
+  : '')
+
+export const scheduledWhenOf = ({ ms, nowMs, timeZone }) => {
+  const daysAhead = localDayNumber({ ms, timeZone }) - localDayNumber({ ms: nowMs, timeZone })
+  const clock = formatClock(ms, timeZone)
+  if (daysAhead === 0) return `${localHourOf({ ms, timeZone }) >= EVENING_HOUR ? 'Tonight' : 'Today'} ${clock}`
+  if (daysAhead === 1) return `Tomorrow ${clock}`
+  if (daysAhead > 1 && daysAhead < 7) return weekdayClockOf({ ms, timeZone })
+  return `${dateFormat({ weekday: 'short' }, timeZone).format(new Date(ms))} ${dayMonthOf({ ms, timeZone })} ${clock}`
+}
+
+export const lowerDayWord = (text) => (/^(Tonight|Today|Tomorrow) /.test(text) ? text[0].toLowerCase() + text.slice(1) : text)
 
 
 export const showsCountText = (shows) => {
@@ -78,6 +95,10 @@ export const weekdayClockOf = ({ ms, timeZone }) =>
 
 export const dayMonthOf = ({ ms, timeZone }) =>
   dateFormat({ day: 'numeric', month: 'short' }, timeZone).format(new Date(ms))
+
+const localHourOf = ({ ms, timeZone }) => Number(dateFormat({ hour: 'numeric', hourCycle: 'h23' }, timeZone).format(new Date(ms)))
+
+const EVENING_HOUR = 17
 
 const hasUnwatched = (show) => show.counts.unwatched > 0
 

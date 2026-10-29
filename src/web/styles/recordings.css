@@ -486,6 +486,36 @@
   color: var(--color-live-text);
 }
 
+.show-episode.is-scheduled .show-episode-thumb > img,
+.show-episode.is-scheduled .show-episode-thumb .ui-art-title {
+  opacity: 0.4;
+}
+
+.show-episode.is-scheduled .show-episode-title {
+  color: var(--color-text-2);
+}
+
+.show-episode.is-scheduled .show-episode-meta,
+.show-episode.is-scheduled .show-episode-synopsis {
+  color: var(--color-text-3);
+}
+
+.show-episode-when {
+  margin: 4px 0 0;
+  line-height: 0;
+}
+
+.ui-chip.show-scheduled-chip {
+  height: 20px;
+  padding: 0 7px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  cursor: inherit;
+}
+
 .show-episode-synopsis {
   display: -webkit-box;
   margin: 6px 0 0;
