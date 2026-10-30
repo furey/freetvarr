@@ -67,6 +67,8 @@ const reclassify = async ({ trigger, loadSeries, identityFor }) => {
   )
 }
 
+export const isReclassifying = () => running != null
+
 export const runReclassificationOnce = async (options = {}) => {
   if (await getSetting(RECLASSIFY_DONE_KEY)) return null
   const result = await runReclassification({ trigger: 'startup', ...options })

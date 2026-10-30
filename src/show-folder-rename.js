@@ -5,6 +5,7 @@ import { db } from './db.js'
 import { getActiveSyncId, getMediaRoot } from './sync.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import { isAdJobRunning } from './commercials.js'
+import { isReclassifying } from './library-reclassify.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
 import { channelNameOfShow, identityColumnsOf, storedIdentityOf } from './show-identity-store.js'
 
@@ -49,12 +50,14 @@ export const renameShowFolder = async ({
   refreshPlex = notifyPlexSectionRefresh,
   isSyncRunning = () => getActiveSyncId() != null,
   isRecordingBusy = isAdJobRunning,
+  isSorting = isReclassifying,
 }) => {
   const show = await database('shows').where({ id: showId }).first()
   if (!show) throw folderFixError('not-found', 'That series is no longer in Freetvarr.')
   if (!isPlainFolderName(to)) throw folderFixError('bad-name', 'The new folder name must be one folder inside the TV folder.')
   if (to === show.dest_folder) return { from: show.dest_folder, to, recordings: 0, moved: false, plex: null }
   if (isSyncRunning()) throw folderFixError('busy', 'A sync is running. Try again when it finishes.')
+  if (isSorting()) throw folderFixError('busy', 'Freetvarr is moving recordings into their library folders. Try again when it finishes.')
   const mediaRoot = await mediaRootOf()
   const paths = folderPathsOf({ mediaRoot, from: show.dest_folder, to })
   if (await exists({ fsApi, filePath: paths.to })) throw folderFixError('target-exists', `A folder called ${to} already exists.`)

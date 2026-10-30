@@ -266,3 +266,16 @@ test('renameShowFolder: every series that saves to the folder follows the rename
   await renameShowFolder(options({ to: NEW_FOLDER }))
   assert.equal((await db('shows').where({ id: otherId }).first()).dest_folder, NEW_FOLDER)
 })
+
+test('renameShowFolder: refuses while the library folder sort moves recordings', async () => {
+  const { runReclassification } = await import('../src/library-reclassify.js')
+  let release
+  const sorting = runReclassification({ loadSeries: () => new Promise((resolve) => { release = resolve }) })
+  try {
+    await assert.rejects(renameShowFolder(options({ to: NEW_FOLDER, isSyncRunning: undefined })), { code: 'busy' })
+    assert.deepEqual(await folderNames(), ['Big Brother'])
+  } finally {
+    release({ series: [] })
+    await sorting
+  }
+})
