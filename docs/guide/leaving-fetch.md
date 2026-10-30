@@ -177,7 +177,7 @@ Everything in Path 1, plus an always-on computer and somewhere to store recordin
 An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that. Plex is free for watching your own media library at home; see [Plex's plans](https://www.plex.tv/en-au/plans/) for what its paid tier adds.
 
 > [!NOTE]<br>
-> The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. Any always-on computer that runs Docker works; [The computer](/guide/hardware#the-computer) gives minimum and recommended specs.
+> The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. The author also added a `16GB` memory module to the DS220+ (see [Memory upgrade](/guide/hardware#the-computer-memory-upgrade)); it is optional. Any always-on computer that runs Docker works; [The computer](/guide/hardware#the-computer) gives minimum and recommended specs.
 
 ## Saving your Fetch recordings
 
