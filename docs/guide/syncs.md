@@ -1,26 +1,38 @@
 ---
 title: Activity
 description: >-
-  Scheduled and manual sync passes over TVHeadend's finished recordings, and
-  the history of what each one did.
+  What the Freetvarr server does now (jobs, recordings, people watching, what
+  runs next), and the history of every sync over TVHeadend's finished recordings.
 ---
 
 # Activity
 
-**Activity** shows what the Freetvarr server does now, and every sync it has run. Open it from Settings → System → **Activity**, or from the **Activity** row on [Health](/guide/doctor). While jobs run, the Settings menu shows how many beside **Activity**, such as "2 running".
+**Activity** shows what the Freetvarr server does now, and every sync it has run. Open it from Settings → System → **Activity**. The **Activity** row on [Health](/guide/doctor) opens the **Syncs** tab. While jobs run, the Settings menu shows how many beside **Activity**, such as "2 running".
 
 The page has two tabs:
 
-- **Now**: the jobs that run at this moment, recordings in progress, live TV and recordings people are watching, the jobs that run next, and the jobs that finished in the last `24` hours. Failed jobs stay for `7` days, also after a restart. Press a row to see its steps, details, and log. Its address is `#/settings/system/activity`.
-- **Syncs**: the history of syncs. Its address is `#/settings/system/activity/syncs`.
+- **Now**: what the server does at this moment, and what it did in the last `24` hours. Its address is `#/settings/system/activity`.
+- **Syncs**: the history of syncs, with **Sync now**. Its address is `#/settings/system/activity/syncs`.
 
 A sync is one pass over TVHeadend's finished recordings: list them, match them against your series folders, import anything new, then refresh Plex if you use it and something imported. The line above the jobs on **Now** shows how long the server has run, how often it paused for more than `100 ms`, and how many tuners are in use.
 
-## Jobs on Now
+## Now
 
-- **Sync**, with an **Import** row for each recording it copies. An import shows each step: copy from TVHeadend, check the file, scan for ads, and cut ads.
-- **Ad removal** for a scan you start from a recording.
-- **TV guide refresh**, **Viewing history upkeep**, **For you rebuild**, **Home hero rebuild**, **Picture focus**, and **Ratings warm-up**. These run often, so **Now** keeps only the latest finished run of each.
+**Now** has these groups:
+
+- **Running now**: the jobs that run at this moment, with their progress, and each recording TVHeadend makes now, with its channel, tuner, and time left.
+- **Watching now**: each live TV channel or recording that someone plays in Freetvarr, with the device and browser.
+- **Up next**: the jobs that run on a timer, such as the next sync, and when each one starts.
+- **Finished**: the jobs that finished in the last `24` hours, newest first. The group shows the latest `5`; press **Show all** to see the rest. Failed jobs stay for `7` days, also after a restart.
+
+Press a row to see its steps, details, and log, and press it again to close them. A job that belongs to a sync has an **Open sync** link to that sync on the **Syncs** tab.
+
+### Job types
+
+- **Sync**, with an **Import** row for each recording it copies. An import shows its steps (copy from TVHeadend, then check the file), and an **Ad removal** row under it when the show removes ads. When another file already has the episode's file name, the import saves under a new name and its log says so.
+- **Ad removal**, for an import or for a scan you start from a recording.
+- **Library folders**, when Freetvarr moves recorded files between the one-off and TV folders ([Recordings](/guide/recordings)).
+- **Plex watched sync** (the [watched state check](/guide/plex#watched-state)), **TV guide refresh**, **Viewing history upkeep**, **For you rebuild**, **Home hero rebuild**, **Picture focus**, and **Ratings warm-up**. These run often, so **Now** keeps only the latest finished run of each.
 - **Cache prune** and **Health checks**. A health run lists each check and its result.
 
 **Now** only shows what runs. To start a sync, use **Sync now** on the **Syncs** tab.
@@ -41,7 +53,7 @@ In the Freetvarr Home Screen app on an iPhone, pull down from the top of a page 
 
 ## Scheduled and manual
 
-Choose how often Freetvarr checks TVHeadend in Settings → Schedule, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup](/guide/getting-started#_2-run-setup) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and title match at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
+Choose how often Freetvarr checks TVHeadend in Settings → System → **Schedule**, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup](/guide/getting-started#_2-run-setup) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and title match at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
 
 Activity states the schedule in plain words, such as "Syncs run every 30 minutes." A schedule that has no plain description shows its cron expression instead.
 

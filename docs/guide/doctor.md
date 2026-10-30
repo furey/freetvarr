@@ -11,7 +11,7 @@ Health checks the parts Freetvarr depends on and says what to fix. It replaces t
 
 The page has three groups:
 
-- **Sync**: the last sync, the next sync, and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs). **Sync now** at the top runs a sync at once.
+- **Sync**: the last sync, the next sync, and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
 - **Checks**: the read-only checks described below. Settings → About calls them **Health checks**.
 - **Storage**: the free space on the recordings and media folders, with a bar for each.
 
@@ -19,7 +19,7 @@ The sentence under the page title summarises the result, for example `Everything
 
 ## Health badge
 
-Freetvarr runs the checks by itself 2 minutes after it starts and every 3 hours after that, so the badge is up to date without opening Health. When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, and on the Health row in Settings. Amber means it needs a look. Red means it needs attention. The Health row also gives the reason, such as `The last sync failed`.
+Freetvarr runs the checks by itself 2 minutes after it starts and every 3 hours after that, so the badge is up to date without opening Health. When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, and on the Health row in Settings. Amber means it needs a look. Red means it needs attention.
 
 While the result is red, Home also shows the reason as an alert under the greeting. Press it to open Health. Press **×** to hide that alert for a day. A new problem shows again at once. The dot stays until the problem is fixed.
 
@@ -76,7 +76,7 @@ Checks that the recordings folder exists inside the Freetvarr Docker container a
 
 ## TVHeadend recording path {#paths-match}
 
-Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in Settings → Recording → Media library. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
+Compares **Recording system path** on TVHeadend's default DVR profile with **As TVHeadend sees it**, under **Recordings folder** in Settings → Recording → Media library. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
 
 ## Media folder {#paths-media}
 
@@ -112,4 +112,4 @@ Runs only when ad removal is on. It checks that `comskip`, `ffmpeg`, and `ffprob
 
 ## Time zone and network {#host-env}
 
-Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings → Schedule, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).
+Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings → System → Schedule, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).

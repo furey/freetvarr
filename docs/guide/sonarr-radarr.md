@@ -20,24 +20,41 @@ Without a connection, Freetvarr leaves files that Sonarr or Radarr downloaded al
 ## Connect Sonarr and Radarr
 
 1. Open Settings → Recording → Sonarr and Radarr.
-2. Press **Find Sonarr and Radarr**. Freetvarr looks on its own server, at ports `8989` and `7878`, and fills in each address it finds.
+2. Press **Find Sonarr and Radarr**. Freetvarr looks on its own server, at ports `8989` and `7878`, and fills in each empty address it finds. The line beside the button says what it found, such as `Sonarr found. Radarr found; paste its API key.`
 3. Check the **Sonarr URL** and **Radarr URL**. Each is the address you open Sonarr or Radarr at in a browser, such as `http://192.168.1.10:8989`.
 4. If an **API key** field is empty, open Sonarr or Radarr, go to **Settings → General**, copy the **API Key**, and paste it into the field.
 5. Press **Save settings**.
-6. Press **Test connection** under each app. A green dot and `Connected` show the version, the number of series or films, and the recycle bin setting.
+6. Press **Test connection** under each app. `Connected` shows the version, the number of series or films, and the recycle bin setting. `Not connected` shows the reason.
 
 ## Read the API keys for you
 
-Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the same way it reads the Plex token. Add the path of each file to the `.env` file beside your `docker-compose.yml`:
+Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the same way it reads the Plex token. The Docker compose file mounts each file read-only into the Freetvarr Docker container.
 
-```bash
-SONARR_CONFIG_PATH=/path/to/sonarr/config.xml
-RADARR_CONFIG_PATH=/path/to/radarr/config.xml
-```
+1. Add the host path of each file to the `.env` file beside your `docker-compose.yml`:
 
-Then run `docker compose up -d freetvarr`. The compose file mounts each file read-only. A key you paste in Settings wins over the file. If you set the key with an environment variable in Sonarr or Radarr, the file does not hold it, so paste it in Settings.
+   ```bash
+   SONARR_CONFIG_PATH=/path/to/sonarr/config.xml
+   RADARR_CONFIG_PATH=/path/to/radarr/config.xml
+   ```
+
+2. If you installed a Freetvarr version before 2.0, add the mounts to your `docker-compose.yml` (the install script keeps an existing Docker compose file, so it does not add them). Put these lines under the existing `environment:` and `volumes:` keys of the `freetvarr` service:
+
+   ```yaml
+       environment:
+         - SONARR_CONFIG_PATH=${SONARR_CONFIG_PATH:+/sonarr-config.xml}
+         - RADARR_CONFIG_PATH=${RADARR_CONFIG_PATH:+/radarr-config.xml}
+       volumes:
+         - ${SONARR_CONFIG_PATH:-/dev/null}:/sonarr-config.xml:ro
+         - ${RADARR_CONFIG_PATH:-/dev/null}:/radarr-config.xml:ro
+   ```
+
+3. In a terminal in the `freetvarr` folder, recreate the Freetvarr Docker container: `docker compose up -d freetvarr`.
+
+Under each **API key** field, Settings then says `Read from Sonarr's config.xml.` or `Read from Radarr's config.xml.` A key you paste in Settings wins over the file. If you set the key with an environment variable in Sonarr or Radarr, the file does not hold it, so paste it in Settings.
 
 ## When you delete
+
+An episode can have two copies: Freetvarr's recording and a file that Sonarr, Radarr, or you added. The delete dialog for that episode asks which to delete: **Both**, **Recording**, or the other copy (**Sonarr copy**, **Radarr copy**, or **Other copy**). The dialog lists each file, its size, and whether it goes through Sonarr, through Radarr, or from the disk.
 
 **Stop downloading it again**, in the **When you delete** group, is on by default. Turn it off only if you want Sonarr and Radarr to download a deleted episode or film again.
 
