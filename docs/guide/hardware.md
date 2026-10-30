@@ -178,7 +178,7 @@ At startup, Freetvarr measures how many live streams this computer converts smoo
 
 ### The computer: Memory upgrade
 
-Some Synology Plus-series NAS units take one extra memory module, and the author fitted one to his DS220+. On `2026-10-27` he added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
+Some Synology Plus-series NAS units take one extra memory module, and the author fitted one to their DS220+. On `2026-10-27` the author added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
 
 Before the upgrade, the NAS reported `5.8GB` of memory. Another Docker project on the same NAS (a camera system) used about `2.2GB`, and more than half of that sat in compressed swap (zram), which is memory squeezed into a smaller space. Freetvarr's stall monitor (`GET /api/health/loop`) recorded `47` pauses of `100ms` or longer over `8.4` hours, the worst `1.0s`.
 
