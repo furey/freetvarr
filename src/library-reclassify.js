@@ -9,6 +9,7 @@ import {
   getMediaRoot,
   getMoviesRoot,
   getOneOffRoot,
+  guideEpisodeOf,
   matchShow,
   refreshSection,
 } from './sync.js'
@@ -17,6 +18,7 @@ import { groupKeyOf, groupTitleOf, isInsideFolder, kindOf, seriesByKey } from '.
 import { loadKindOverrides } from './programme-kind.js'
 import { loadSeriesEvidence } from './series-evidence.js'
 import { ensureShowFolder, existingFolderFor } from './show-folders.js'
+import { showIdentityFor } from './show-identity.js'
 import { listShowFolders } from './folder-matcher.js'
 import { getSeries } from './series.js'
 import { backupPathOf, isAdJobRunning, skipMarkerPath } from './commercials.js'
@@ -50,18 +52,18 @@ export const planReclassification = ({
   return moves
 }
 
-export const runReclassification = ({ trigger = 'startup', loadSeries = getSeries } = {}) => {
-  running ??= reclassify({ trigger, loadSeries }).finally(() => { running = null })
+export const runReclassification = ({ trigger = 'startup', loadSeries = getSeries, identityFor = showIdentityFor } = {}) => {
+  running ??= reclassify({ trigger, loadSeries, identityFor }).finally(() => { running = null })
   return running
 }
 
-const reclassify = async ({ trigger, loadSeries }) => {
+const reclassify = async ({ trigger, loadSeries, identityFor }) => {
   const inputs = await loadReclassifyInputs({ loadSeries })
   const plan = planReclassification(inputs)
   if (!plan.length) return { moved: 0, skipped: 0, planned: 0 }
   return trackJob(
     { kind: 'reclassify', title: 'Library folders', trigger, total: plan.length, unit: 'recordings' },
-    (job) => applyPlan({ plan, shows: inputs.shows, roots: inputs.roots, job }),
+    (job) => applyPlan({ plan, shows: inputs.shows, roots: inputs.roots, identityFor, job }),
   )
 }
 
@@ -96,7 +98,7 @@ const toShowMoves = ({ group, shows, folders, roots }) => {
   return group
     .filter((row) => !isInsideFolder({ filePath: row.file_path, folder: roots.mediaRoot }))
     .filter((row) => isInsideFolder({ filePath: row.file_path, folder: roots.oneOffRoot }))
-    .map((row) => moveOf({ row, to: buildDestPath({ item: itemOf(row), show: folder, mediaRoot: roots.mediaRoot }), folder, title }))
+    .map((row) => moveOf({ row, item: itemOf(row), to: buildDestPath({ item: itemOf(row), show: folder, mediaRoot: roots.mediaRoot }), folder, title }))
 }
 
 const toOneOffMoves = ({ group, roots }) => group
@@ -109,9 +111,10 @@ const folderFor = ({ title, shows, folders }) => matchShow(shows, title) ?? {
   dest_folder: existingFolderFor({ title, folders }) || createValidFilename(title) || 'Recordings',
 }
 
-const moveOf = ({ row, to, folder, title }) => ({
+const moveOf = ({ row, item = null, to, folder, title }) => ({
   id: row.recording_id,
   title,
+  item,
   from: row.file_path,
   to,
   showPattern: folder?.show_pattern ?? null,
@@ -119,12 +122,12 @@ const moveOf = ({ row, to, folder, title }) => ({
   toShows: Boolean(folder),
 })
 
-const applyPlan = async ({ plan, shows, roots, job }) => {
+const applyPlan = async ({ plan, shows, roots, identityFor, job }) => {
   const result = { moved: 0, skipped: 0, planned: plan.length }
   const movedKinds = new Set()
   for (const move of plan.filter((m) => m.from !== m.to)) {
     job.advance()
-    const outcome = await applyMove({ move, shows }).catch((err) => ({ state: 'fail', detail: err.message }))
+    const outcome = await applyMove({ move, shows, roots, identityFor }).catch((err) => ({ state: 'fail', detail: err.message }))
     job.item({ label: `${move.title}: ${path.basename(move.to)}`, state: outcome.state, detail: outcome.detail ?? null })
     if (outcome.state === 'done') {
       result.moved++
@@ -143,28 +146,29 @@ const applyPlan = async ({ plan, shows, roots, job }) => {
   return result
 }
 
-const applyMove = async ({ move, shows }) => {
+const applyMove = async ({ move, shows, roots, identityFor }) => {
   if (isAdJobRunning(move.id)) return { state: 'skip', detail: 'ad removal is running; tries again next time' }
   const row = await db('recordings').where({ recording_id: move.id }).first()
   if (!row || row.file_path !== move.from) return { state: 'skip', detail: 'the recording changed since the plan' }
   if (!(await exists(move.from))) return { state: 'skip', detail: 'file not found' }
-  if (await exists(move.to)) return { state: 'skip', detail: 'a file already exists there' }
-  const showId = move.toShows ? await showIdFor({ move, shows }) : null
-  await moveFile({ from: move.from, to: move.to })
+  const show = move.toShows ? await showFor({ move, shows, identityFor }) : null
+  const to = show && move.showId == null ? buildDestPath({ item: move.item, show, mediaRoot: roots.mediaRoot }) : move.to
+  if (await exists(to)) return { state: 'skip', detail: 'a file already exists there' }
+  await moveFile({ from: move.from, to })
   for (const sidecar of [backupPathOf, skipMarkerPath]) {
     const from = sidecar(move.from)
-    const to = sidecar(move.to)
-    if (await exists(from) && !(await exists(to))) await moveFile({ from, to })
+    const sidecarTo = sidecar(to)
+    if (await exists(from) && !(await exists(sidecarTo))) await moveFile({ from, to: sidecarTo })
   }
-  await db('recordings').where({ recording_id: move.id }).update({ file_path: move.to, show_id: showId })
+  await db('recordings').where({ recording_id: move.id }).update({ file_path: to, show_id: show?.id ?? null })
   return { state: 'done' }
 }
 
-const showIdFor = async ({ move, shows }) => {
-  if (move.showId != null) return move.showId
-  const created = await ensureShowFolder({ title: move.showPattern, shows })
-  if (!shows.some((show) => show.id === created.id)) shows.push(created)
-  return created.id
+const showFor = async ({ move, shows, identityFor }) => {
+  if (move.showId != null) return { id: move.showId }
+  const show = await ensureShowFolder({ title: move.showPattern, shows, episodes: move.item ? [guideEpisodeOf(move.item)] : [], identityFor })
+  if (!shows.some((known) => known.id === show.id)) shows.push(show)
+  return show
 }
 
 export const moveFile = async ({ from, to }) => {
