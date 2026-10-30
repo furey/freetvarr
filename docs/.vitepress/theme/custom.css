@@ -460,7 +460,6 @@ kbd {
   line-height: 18px;
   font-weight: 500;
   text-align: center;
-  text-wrap: pretty;
 }
 
 .vp-doc .product-shot em {
@@ -1205,6 +1204,8 @@ kbd {
 .vp-doc h1,
 .vp-doc h2,
 .vp-doc h3,
-.vp-doc .custom-block p {
+.vp-doc .custom-block p,
+.vp-doc .product-shot p,
+.vp-doc figcaption {
   text-wrap: balance;
 }
