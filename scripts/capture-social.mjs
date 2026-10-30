@@ -1,9 +1,12 @@
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises'
+import { readFile, mkdir } from 'node:fs/promises'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
+import { TIMEZONE, simulatedNow, prepareDemoContext, waitForImages } from './capture-demo-api.mjs'
+import { startLoopback } from './capture-loopback.mjs'
 
-const WORK = process.env.SOCIAL_WORK ?? '/work'
+const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 const FREETVARR_URL = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
-const ART_CACHE = `${WORK}/scripts/.cache/social-art`
 
 const DOCS_URL = 'furey.github.io/freetvarr'
 const TAGLINE = 'Record free-to-air TV.<br>Watch it on your TV in any<br>media player, ad&nbsp;free.'
@@ -44,45 +47,10 @@ const cards = [
   }
 ]
 
-const HOME_VIEWPORT = { width: 1120, height: 960 }
+const HOME_VIEWPORT = { width: 1280, height: 1100 }
 const HOME_SCALE = 2
-const SIM_NOW = Date.parse('2026-11-01T19:45:00+11:00')
-const MINUTE = 60_000
-const DAY = 24 * 60 * MINUTE
-
-const MIXKIT_ART = {
-  'fire-and-feast': 'https://assets.mixkit.co/videos/49231/49231-thumb-720-2.jpg',
-  'wild-things': 'https://assets.mixkit.co/videos/1489/1489-thumb-720-3.jpg',
-  'fresh-start-kitchen': 'https://assets.mixkit.co/videos/40524/40524-thumb-720-0.jpg',
-  'island-escapes': 'https://assets.mixkit.co/videos/1564/1564-thumb-720-0.jpg',
-  'open-road': 'https://assets.mixkit.co/videos/35540/35540-thumb-720-0.jpg',
-  'night-market': 'https://assets.mixkit.co/videos/4231/4231-thumb-720-0.jpg',
-  'paws-and-claws': 'https://assets.mixkit.co/videos/22732/22732-thumb-720-0.jpg',
-  'fight-night': 'https://assets.mixkit.co/videos/40969/40969-thumb-720-0.jpg',
-  'harbour-patrol': 'https://assets.mixkit.co/videos/5363/5363-thumb-720-0.jpg',
-  'sunset-coast': 'https://assets.mixkit.co/videos/2168/2168-thumb-720-0.jpg',
-  'desert-crossing': 'https://assets.mixkit.co/videos/4285/4285-thumb-720-0.jpg',
-  'city-lights': 'https://assets.mixkit.co/videos/49846/49846-thumb-720-0.jpg'
-}
-
-const RECORDING_NOW = { title: 'Fire and Feast', channelName: 'SBS Food', channelId: 'sbs-food', season: 3, episode: 6 }
-
-const NEW_RECORDINGS = [
-  { title: 'Wild Things', season: 2, episode: 4, channelName: 'ABC TV', daysAgo: 0 },
-  { title: 'Fresh Start Kitchen', season: 5, episode: 12, channelName: 'SBS Food', daysAgo: 0 },
-  { title: 'Island Escapes', season: 1, episode: 8, channelName: '9Life', daysAgo: 1 },
-  { title: 'Open Road', season: 3, episode: 2, channelName: '10 Peach', daysAgo: 1 },
-  { title: 'Night Market', season: 1, episode: 3, channelName: 'SBS Viceland', daysAgo: 2 },
-  { title: 'Paws and Claws', season: 4, episode: 9, channelName: '7two', daysAgo: 3 }
-]
-
-const SUGGESTIONS = [
-  { title: 'Fight Night', kind: 'premiere', channelName: '9Gem', daysAhead: 1 },
-  { title: 'Harbour Patrol', kind: 'returning', channelName: '7mate', daysAhead: 2 },
-  { title: 'Sunset Coast', kind: 'new-season', channelName: 'ABC TV', daysAhead: 2 },
-  { title: 'Desert Crossing', kind: 'premiere', channelName: 'SBS', daysAhead: 3 },
-  { title: 'City Lights', kind: 'returning', channelName: '10 Bold', daysAhead: 4 }
-]
+const HERO_TITLE = process.env.SOCIAL_HERO_TITLE ?? 'Big Brother'
+const HIDE_SCROLLBARS = '::-webkit-scrollbar{width:0!important;height:0!important}html,body{scrollbar-width:none!important}'
 
 const main = async () => {
   const assets = await loadAssets()
@@ -102,8 +70,8 @@ const main = async () => {
     await page.setContent(html)
     await page.evaluate(() => document.fonts.ready)
     await page.waitForFunction(() => [...document.images].every((img) => img.complete))
-    await mkdir(`${WORK}/${card.out.replace(/\/[^/]+$/, '')}`, { recursive: true })
-    await page.screenshot({ path: `${WORK}/${card.out}`, type: 'png' })
+    await mkdir(dirname(`${REPO_ROOT}${card.out}`), { recursive: true })
+    await page.screenshot({ path: `${REPO_ROOT}${card.out}`, type: 'png' })
     console.log(`[social] wrote ${card.out}`)
     await context.close()
   }
@@ -111,24 +79,22 @@ const main = async () => {
 }
 
 const captureHome = async (browser) => {
-  await cacheMixkitArt()
+  const base = await startLoopback({ target: FREETVARR_URL })
   const context = await browser.newContext({
     viewport: HOME_VIEWPORT,
     deviceScaleFactor: HOME_SCALE,
-    timezoneId: 'Australia/Sydney',
+    timezoneId: TIMEZONE,
     colorScheme: 'dark',
     reducedMotion: 'reduce'
   })
-  await context.clock.install({ time: SIM_NOW })
-  await context.route('**/social-art/*', serveArt)
-  await context.route('**/api/**', serveHomeFixtures(homeFixtures()))
+  await prepareDemoContext({ context, base, simNow: simulatedNow() })
   const page = await context.newPage()
-  await page.goto(`${FREETVARR_URL}/#/`, { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('.home-page .hero-carousel:not(.home-skeleton-hero)', { timeout: 20_000 })
+  await page.goto(`${base}/#/home`, { waitUntil: 'networkidle' })
+  await page.waitForSelector('.home-page .hero-carousel', { timeout: 20_000 })
+  await showHeroSlide(page, HERO_TITLE)
   await page.addStyleTag({ content: HIDE_SCROLLBARS })
-  await page.waitForFunction(() => [...document.querySelectorAll('.home-page img')]
-    .every((img) => img.complete && img.naturalWidth > 0), null, { timeout: 15_000 })
-  await page.clock.runFor(3000)
+  await waitForImages(page, '.app-content img')
+  await page.mouse.move(0, 0)
   await page.waitForTimeout(1200)
   const shot = await page.screenshot({ type: 'png' })
   await context.close()
@@ -136,123 +102,19 @@ const captureHome = async (browser) => {
   return shot.toString('base64')
 }
 
-const HIDE_SCROLLBARS = '::-webkit-scrollbar{width:0!important;height:0!important}html,body{scrollbar-width:none!important}'
-
-const serveHomeFixtures = (fixtures) => async (route) => {
-  const url = new URL(route.request().url())
-  if (route.request().method() !== 'GET') return route.abort()
-  if (url.pathname === '/api/settings') return route.fulfill({ json: await configuredSettings(route) })
-  const fixture = fixtures[url.pathname]
-  if (fixture) return route.fulfill({ json: fixture(url) })
-  return route.continue()
+const showHeroSlide = async (page, title) => {
+  const titles = await page.locator('.hero-slide .hero-slide-title').allTextContents()
+  const index = titles.findIndex((text) => text.trim() === title)
+  if (index < 0) return console.log(`[social] no "${title}" hero slide; keeping ${titles[0]}`)
+  await page.locator('.hero-carousel-dot').nth(index).click()
+  const pause = page.locator('.hero-carousel-pause')
+  if (await pause.count()) await pause.click()
+  await page.waitForTimeout(800)
 }
-
-const configuredSettings = async (route) => {
-  const response = await route.fetch()
-  return { ...(await response.json()), tvh_url: 'http://tvheadend:9981', welcome_dismissed: true }
-}
-
-const serveArt = async (route) => {
-  const name = new URL(route.request().url()).pathname.split('/').pop()
-  return route.fulfill({ contentType: 'image/jpeg', body: await readFile(`${ART_CACHE}/${name}`) })
-}
-
-const cacheMixkitArt = async () => {
-  await mkdir(ART_CACHE, { recursive: true })
-  for (const [name, url] of Object.entries(MIXKIT_ART)) {
-    const file = `${ART_CACHE}/${name}.jpg`
-    if (await exists(file)) continue
-    console.log(`[social] downloading Mixkit still for ${name} (Mixkit Free License)`)
-    const response = await fetch(url)
-    if (!response.ok) throw new Error(`[social] ${url} returned ${response.status}`)
-    await writeFile(file, Buffer.from(await response.arrayBuffer()))
-  }
-}
-
-const exists = (file) => access(file).then(() => true, () => false)
-
-const homeFixtures = () => {
-  const recording = recordingNowFixture()
-  const episodes = NEW_RECORDINGS.map(newEpisodeFixture)
-  return {
-    '/api/library/episodes': (url) => ({ episodes: url.searchParams.get('state') === 'new' ? episodes : [] }),
-    '/api/home/hero': () => heroFixture(recording),
-    '/api/for-you': () => suggestionsFixture(),
-    '/api/recording-now': () => ({ active: [recording], journeys: [], finishing: [] }),
-    '/api/epg/state': () => ({ upcomingRecordings: [], activeRecordingIds: [String(recording.programId)] }),
-    '/api/epg/now': () => ({ entries: [] }),
-    '/api/library/shows': () => ({ shows: [] }),
-    '/api/watchlist': () => ({ items: [] }),
-    '/api/health-summary': () => ({ level: 'ok', issues: [] })
-  }
-}
-
-const recordingNowFixture = () => ({
-  ...RECORDING_NOW,
-  start: SIM_NOW - 15 * MINUTE,
-  stop: SIM_NOW + 45 * MINUTE,
-  uuid: 'social-recording',
-  dvrUuid: 'social-recording',
-  programId: 9001,
-  canPlayFromStart: true
-})
-
-const heroFixture = (recording) => ({
-  version: 1,
-  builtAt: SIM_NOW,
-  timeZone: 'Australia/Sydney',
-  stale: false,
-  candidates: [{
-    type: 'recording',
-    source: { recording, channel: { id: recording.channelId, name: recording.channelName } },
-    endsAt: recording.stop,
-    art: {
-      image: artUrl(recording.title),
-      images: [{ url: artUrl(recording.title), identity: slugOf(recording.title) }],
-      title: recording.title
-    }
-  }]
-})
-
-const newEpisodeFixture = ({ title, season, episode, channelName, daysAgo }, index) => ({
-  recordingId: 100 + index,
-  title,
-  showKey: slugOf(title),
-  season,
-  episode,
-  channelName,
-  airedAt: SIM_NOW - daysAgo * DAY - (3 + index) * 60 * MINUTE,
-  durationS: 3600,
-  image: artUrl(title),
-  state: 'new'
-})
-
-const suggestionsFixture = () => ({
-  enabled: true,
-  coldStart: false,
-  sections: [{
-    key: 'might-like',
-    items: SUGGESTIONS.map(({ title, kind, channelName, daysAhead }, index) => ({
-      id: `social-${index}`,
-      title,
-      seriesKey: slugOf(title),
-      kind,
-      channelName,
-      channelId: `social-channel-${index}`,
-      start: (SIM_NOW + daysAhead * DAY + 30 * MINUTE) / 1000,
-      stop: (SIM_NOW + daysAhead * DAY + 90 * MINUTE) / 1000,
-      image: artUrl(title)
-    }))
-  }]
-})
-
-const slugOf = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-
-const artUrl = (title) => `/social-art/${slugOf(title)}.jpg`
 
 const loadAssets = async () => {
-  const fontDir = `${WORK}/docs/.vitepress/theme/fonts`
-  const drawingDir = `${WORK}/scripts/social`
+  const fontDir = `${REPO_ROOT}docs/.vitepress/theme/fonts`
+  const drawingDir = `${REPO_ROOT}scripts/social`
   const [figtree, mono, leavingFetch] = await Promise.all([
     readFile(`${fontDir}/figtree-latin-variable.woff2`),
     readFile(`${fontDir}/geist-mono-latin-500-normal.woff2`),
