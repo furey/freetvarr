@@ -15,6 +15,9 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 
 ## The options
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="26dqAHp7Clk" title="Watch recordings and live TV on your TV with Freetvarr" duration="2:19" />
+
 | App                                 | Platforms                                | Points at              | Note                                                                        |
 | ----------------------------------- | ---------------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
 | Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. Captions. Multiview              |
@@ -22,9 +25,6 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 | Plex live TV                        | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend |
 | Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up        |
 | Kodi + TVHeadend PVR add-on         | Apple TV, Android, Shield                | TVHeadend              | Full guide, and it renders captions. [TV apps](/guide/tv-apps) sets it up   |
-
-<!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="26dqAHp7Clk" title="Watch recordings and live TV on your TV with Freetvarr" duration="2:19" />
 
 ## In Freetvarr
 
