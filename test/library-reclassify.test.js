@@ -120,7 +120,7 @@ test('runReclassification: a new series folder follows the matched show name and
   await fs.mkdir(path.dirname(gruen.file_path), { recursive: true })
   await fs.writeFile(gruen.file_path, 'video')
   await db('recordings').insert(gruen)
-  const identityFor = async () => ({ name: 'Gruen', tvdbId: '83281', tmdbId: null })
+  const identityFor = async () => ({ state: 'matched', identity: { tvmazeId: '7', name: 'Gruen', tvdbId: '83281', tmdbId: null }, candidates: [] })
   const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor })
   assert.equal(result.moved, 1)
   const target = path.join(roots.mediaRoot, 'Gruen {tvdb-83281}', 'Season 16', 'Gruen - S16E02.ts')

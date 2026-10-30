@@ -418,7 +418,7 @@ export const exactShowsOf = ({ results = [], key }) => results
   .map((result) => result?.show)
   .filter((show) => show && showTitleKey(show.name) === key)
 
-export const pickRatedShow = ({ results = [], key, hints, country, strict = false }) => {
+export const pickRatedShow = ({ results = [], key, hints, country }) => {
   const candidates = exactShowsOf({ results, key })
   if (!candidates.length) return null
   const verdicts = candidates.map((show) => ({ show, evidence: tvmazeEvidenceOf({ show, hints }) }))
@@ -431,7 +431,6 @@ export const pickRatedShow = ({ results = [], key, hints, country, strict = fals
   const local = shortlist.filter(({ show }) => isLocalShow({ show, country }))
   if (local.length === 1) return local[0].show
   if (candidates.length === 1 && plausible.length === 1) return plausible[0].show
-  if (strict) return null
   const english = shortlist.filter(({ show }) => show.language === 'English')
   if (english.length === 1) return english[0].show
   return dominantShowOf(english)
@@ -522,7 +521,7 @@ const premiereYearOf = (show) => {
   return year > 0 ? year : null
 }
 
-export const showCountryOf = (show) => show.network?.country?.code || show.webChannel?.country?.code || null
+const showCountryOf = (show) => show.network?.country?.code || show.webChannel?.country?.code || null
 
 const isLocalShow = ({ show, country }) => Boolean(country)
   && String(showCountryOf(show) || '').toUpperCase() === String(country).toUpperCase()

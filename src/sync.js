@@ -426,12 +426,18 @@ const rowsByShowKey = (rows) => {
 
 const folderForSeries = async ({ item, shows, autorecNames }) => {
   const title = (item.autorecId && autorecNames.get(item.autorecId)) || item.title
-  const created = await ensureShowFolder({ title, shows, channelName: item.channelName || null, episodes: [guideEpisodeOf(item)] })
+  const created = await ensureShowFolder({ title, shows, airing: airingOf(item) })
   if (!shows.some((show) => show.id === created.id)) shows.push(created)
   return created
 }
 
-export const guideEpisodeOf = (item) => ({ season: item.season ?? null, episode: item.episode ?? null, title: item.episode_title ?? null })
+export const airingOf = (item) => ({
+  channelName: item.channelName || null,
+  start: Number.isFinite(Number(item.start)) ? Number(item.start) : null,
+  durationS: item.end && item.start ? Math.round((Number(item.end) - Number(item.start)) / 1000) : null,
+  season: item.season ?? null,
+  episode: item.episode ?? null,
+})
 
 const recordingClassifications = async (entries) => {
   const sourceOf = (entry) => ({

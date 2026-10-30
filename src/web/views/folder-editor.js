@@ -2,6 +2,8 @@ import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
 import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
+import { artFallbackStyle } from '/art-fallback.js'
+import { candidateMetaOf, identityRowOf } from '/show-identity-text.js'
 
 export const mediaRootPrefix = (mediaRoot) => `${(mediaRoot || '/media/tv').replace(/\/+$/, '')}/`
 
@@ -31,6 +33,17 @@ export const FolderEditor = {
           </datalist>
           <p class="settings-hint">{{ FOLDER_HINT }}</p>
           <p v-if="folderFix" class="settings-hint">Plex finds the right show more often when the folder name carries its TVDB number. Press <strong>Rename folder</strong> to rename it to <code>{{ folderFix.to }}</code>.</p>
+        </div>
+        <div v-if="identityRow">
+          <span class="field-label">Show</span>
+          <div class="ui-group">
+            <button type="button" class="ui-group-row suggestions-row-button" @click="choosing = true" :disabled="saving || !identity.candidates.length">
+              <span class="settings-toggle-text">
+                <span class="settings-row-title">{{ identityRow.title }}</span>
+                <span class="settings-row-meta">{{ identityRow.meta }}</span>
+              </span>
+            </button>
+          </div>
         </div>
         <div>
           <label class="field-label" :for="'season-template-' + folder.id">Season folders</label>
@@ -74,6 +87,19 @@ export const FolderEditor = {
           <button type="button" class="ui-button ui-button-block" @click="confirming = false" :disabled="saving">Cancel</button>
         </template>
       </ui-sheet>
+      <ui-sheet v-if="identity" :open="choosing" title="Check which show this is" subtitle="Freetvarr names the folder after the show you pick, so Plex matches the right one." @close="closeChoosing">
+        <p v-if="chooseError" class="ui-banner is-error" role="alert">{{ chooseError }}</p>
+        <div class="ui-group move-show-list">
+          <button v-for="candidate in identity.candidates" :key="candidate.tvmazeId" type="button" class="ui-group-row is-tall move-show-row"
+            :disabled="saving" @click="chooseShow(candidate)">
+            <span class="library-menu-art ui-art-fallback is-poster" :style="artFallbackStyle(candidate.name)" aria-hidden="true"></span>
+            <span class="ui-group-row-main">
+              <span class="ui-group-row-title">{{ candidate.identity?.name || candidate.name }}</span>
+              <span class="ui-group-row-meta">{{ candidateMetaOf({ candidate, current: identity.current }) }}</span>
+            </span>
+          </button>
+        </div>
+      </ui-sheet>
       <ui-sheet v-if="folderFix" :open="renaming" title="Rename folder" @close="closeRename">
         <div class="confirm-dialog-body">
           <p>Freetvarr renames <code>{{ folderFix.from }}</code> to <code>{{ folderFix.to }}</code> in your TV library.</p>
@@ -102,6 +128,10 @@ export const FolderEditor = {
     const renameError = ref('')
     const folderFix = ref(null)
     const renameOutcome = computed(() => folderFixOutcomeOf(folderFix.value))
+    const identity = ref(null)
+    const choosing = ref(false)
+    const chooseError = ref('')
+    const identityRow = computed(() => identityRowOf({ status: identity.value, title: props.folder.show_pattern }))
     const removeOutcome = computed(() => {
       const condition = 'If you remove this title match, future recordings with this title'
       return props.importUnmatched
@@ -165,7 +195,31 @@ export const FolderEditor = {
       }
     }
 
-    onMounted(loadFolderFix)
+    const loadIdentity = async () => {
+      identity.value = await api('GET', `/api/shows/${props.folder.id}/identity`).catch(() => null)
+    }
+
+    const closeChoosing = () => {
+      if (saving.value) return
+      choosing.value = false
+      chooseError.value = ''
+    }
+
+    const chooseShow = async (candidate) => {
+      saving.value = true
+      chooseError.value = ''
+      try {
+        await holdAtLeast({ task: () => api('POST', `/api/shows/${props.folder.id}/identity`, { tvmaze_id: candidate.tvmazeId }) })
+        await Promise.all([loadIdentity(), loadFolderFix()])
+        choosing.value = false
+      } catch (err) {
+        chooseError.value = `Error: ${err.message}`
+      } finally {
+        saving.value = false
+      }
+    }
+
+    onMounted(() => Promise.all([loadFolderFix(), loadIdentity()]))
 
     const remove = async () => {
       saving.value = true
@@ -184,6 +238,7 @@ export const FolderEditor = {
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
       folderFix, renaming, renameError, renameOutcome, closeRename, renameFolder,
+      identity, identityRow, choosing, chooseError, closeChoosing, chooseShow, candidateMetaOf, artFallbackStyle,
       removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },

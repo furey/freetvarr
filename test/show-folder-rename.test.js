@@ -10,8 +10,11 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 const { db, setSetting } = await import('../src/db.js')
 const { planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
 const { ensureShowFolder } = await import('../src/show-folders.js')
+const { chooseShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
+const { loadIdentityPick } = await import('../src/show-identity-store.js')
 
-const AU_IDENTITY = { name: 'Big Brother (AU)', tvdbId: '76237', tmdbId: null }
+const AU_IDENTITY = { tvmazeId: '87106', name: 'Big Brother (AU)', tvdbId: '76237', tmdbId: null }
+const AU_MATCH = { state: 'confirm', identity: AU_IDENTITY, candidates: [] }
 const NEW_FOLDER = 'Big Brother (AU) {tvdb-76237}'
 let mediaRoot
 let showId
@@ -37,6 +40,7 @@ after(async () => {
 
 beforeEach(async () => {
   await db('library_items').delete()
+  await db('show_identity_picks').delete()
   await db('recordings').delete()
   await db('shows').delete()
   mediaRoot = await fs.mkdtemp(path.join(tmpDir, 'tv-'))
@@ -56,7 +60,7 @@ beforeEach(async () => {
 const folderNames = async () => (await fs.readdir(mediaRoot)).sort()
 
 test('planFolderFix: shows the new name and how many recordings move', async () => {
-  const plan = await planFolderFix(options({ identityFor: async () => AU_IDENTITY }))
+  const plan = await planFolderFix(options({ identityFor: async () => AU_MATCH }))
   assert.equal(plan.state, 'ready')
   assert.equal(plan.from, 'Big Brother')
   assert.equal(plan.to, NEW_FOLDER)
@@ -146,14 +150,17 @@ test('ensureShowFolder: a new series gets the database title and id folder, and 
   const seen = []
   const identityFor = async (request) => {
     seen.push(request)
-    return { name: 'Gruen', tvdbId: '83281', tmdbId: null }
+    return { state: 'matched', identity: { tvmazeId: '7', name: 'Gruen', tvdbId: '83281', tmdbId: null }, candidates: [] }
   }
-  const show = await ensureShowFolder({ title: 'Gruen', shows: [], channelName: 'ABC TV', episodes: [{ season: 16, episode: 2 }], identityFor })
+  const airing = { channelName: 'ABC TV', start: 1, durationS: 1800, season: 16, episode: 2 }
+  const show = await ensureShowFolder({ title: 'Gruen', shows: [], airing, identityFor })
   assert.equal(show.created, true)
   assert.equal(show.dest_folder, 'Gruen {tvdb-83281}')
   assert.equal(show.tvdb_id, '83281')
   assert.equal(show.database_title, 'Gruen')
-  assert.deepEqual(seen, [{ title: 'Gruen', channelName: 'ABC TV', episodes: [{ season: 16, episode: 2 }] }])
+  assert.equal(show.identity_state, 'matched')
+  assert.equal(show.tvmaze_id, '7')
+  assert.deepEqual(seen, [{ ...airing, title: 'Gruen' }])
 })
 
 test('ensureShowFolder: a failed lookup keeps the bare title', async () => {
@@ -161,4 +168,46 @@ test('ensureShowFolder: a failed lookup keeps the bare title', async () => {
   const show = await ensureShowFolder({ title: 'Hard Quiz', shows: [], identityFor: async () => { throw new Error('offline') } })
   assert.equal(show.dest_folder, 'Hard Quiz')
   assert.equal(show.tvdb_id, null)
+})
+
+const OFFICE_CHOICES = {
+  state: 'choose',
+  identity: null,
+  candidates: [
+    { tvmazeId: '526', name: 'The Office', country: 'US', network: 'NBC', years: '2005–2013', identity: { tvmazeId: '526', name: 'The Office (US)', tvdbId: '73244', tmdbId: null, needsConfirm: false }, folder: 'The Office (US) {tvdb-73244}' },
+    { tvmazeId: '1214', name: 'The Office', country: 'UK', network: 'BBC Two', years: '2001–2003', identity: { tvmazeId: '1214', name: 'The Office (UK)', tvdbId: '78107', tmdbId: null, needsConfirm: false }, folder: 'The Office (UK) {tvdb-78107}' },
+  ],
+}
+
+test('showIdentityStatus: lists the shows to choose from when there is no clear winner', async () => {
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office', identity_state: 'choose' })
+  const status = await showIdentityStatus({ showId: id, identityFor: async () => OFFICE_CHOICES })
+  assert.equal(status.state, 'choose')
+  assert.equal(status.current, null)
+  assert.deepEqual(status.candidates.map((candidate) => candidate.folder), ['The Office (US) {tvdb-73244}', 'The Office (UK) {tvdb-78107}'])
+})
+
+test('chooseShowIdentity: saves the pick on the show and for the title and network, then offers the rename', async () => {
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office', identity_state: 'choose' })
+  await db('recordings').insert({ recording_id: 'o1', show_id: id, title: 'The Office', file_path: path.join(mediaRoot, 'The Office', 'e1.ts'), channel_name: 'ABC TV Plus', aired_at: 5, status: 'done' })
+  const chosen = await chooseShowIdentity({ showId: id, tvmazeId: '1214', identityFor: async () => OFFICE_CHOICES })
+  assert.equal(chosen.folder, 'The Office (UK) {tvdb-78107}')
+  const show = await db('shows').where({ id }).first()
+  assert.equal(show.identity_state, 'chosen')
+  assert.equal(show.tvdb_id, '78107')
+  assert.equal(show.dest_folder, 'The Office')
+  assert.deepEqual(await loadIdentityPick({ titleKey: 'office', family: 'abc' }), { tvmazeId: '1214', name: 'The Office (UK)', tvdbId: '78107', tmdbId: null, needsConfirm: false })
+  const plan = await planFolderFix(options({ showId: id, identityFor: async () => { throw new Error('no lookup expected') } }))
+  assert.equal(plan.to, 'The Office (UK) {tvdb-78107}')
+})
+
+test('chooseShowIdentity: refuses a show that is not in the list', async () => {
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office' })
+  await assert.rejects(chooseShowIdentity({ showId: id, tvmazeId: '999', identityFor: async () => OFFICE_CHOICES }), { code: 'unknown-show' })
+})
+
+test('planFolderFix: offers no rename while the owner still has to pick the show', async () => {
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office', identity_state: 'choose' })
+  const plan = await planFolderFix(options({ showId: id, identityFor: async () => ({ ...OFFICE_CHOICES, identity: OFFICE_CHOICES.candidates[0].identity }) }))
+  assert.equal(plan.state, 'no-match')
 })

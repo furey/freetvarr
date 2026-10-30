@@ -9,7 +9,7 @@ import {
   getMediaRoot,
   getMoviesRoot,
   getOneOffRoot,
-  guideEpisodeOf,
+  airingOf,
   matchShow,
   refreshSection,
 } from './sync.js'
@@ -166,7 +166,7 @@ const applyMove = async ({ move, shows, roots, identityFor }) => {
 
 const showFor = async ({ move, shows, identityFor }) => {
   if (move.showId != null) return { id: move.showId }
-  const show = await ensureShowFolder({ title: move.showPattern, shows, episodes: move.item ? [guideEpisodeOf(move.item)] : [], identityFor })
+  const show = await ensureShowFolder({ title: move.showPattern, shows, airing: move.item ? airingOf(move.item) : {}, identityFor })
   if (!shows.some((known) => known.id === show.id)) shows.push(show)
   return show
 }
@@ -203,6 +203,8 @@ const itemOf = (row) => ({
   season: row.season ?? null,
   episode: row.episode ?? null,
   start: Number(row.aired_at) || Date.parse(row.imported_at ?? '') || Date.now(),
+  end: row.aired_at && row.duration_s ? Number(row.aired_at) + Number(row.duration_s) * 1000 : null,
+  channelName: row.channel_name ?? null,
   ext: path.extname(row.file_path).slice(1) || 'ts',
 })
 

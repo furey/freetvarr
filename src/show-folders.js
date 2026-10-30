@@ -2,19 +2,21 @@ import { db } from './db.js'
 import { listShowFolders } from './folder-matcher.js'
 import { createValidFilename, getMediaRoot, matchShow } from './sync.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
+import { identityColumnsOf } from './show-identity-store.js'
 
-export const ensureShowFolder = async ({ title, shows = null, channelName = null, episodes = [], identityFor = showIdentityFor }) => {
+export const ensureShowFolder = async ({ title, shows = null, airing = {}, identityFor = showIdentityFor }) => {
   const enabled = shows ?? await db('shows').where({ enabled: true })
   const existing = matchShow(enabled, title)
   if (existing) return { ...existing, created: false }
-  const [folders, identity] = await Promise.all([
+  const [folders, match] = await Promise.all([
     getMediaRoot().then(listShowFolders).catch(() => []),
-    Promise.resolve().then(() => identityFor({ title, channelName, episodes })).catch(() => null),
+    Promise.resolve().then(() => identityFor({ ...airing, title })).catch(() => null),
   ])
+  const identity = match?.identity ?? null
   const rule = {
     show_pattern: title.trim(),
     dest_folder: newShowFolderOf({ title, folders, identity }),
-    ...identityColumnsOf(identity),
+    ...identityColumnsOf({ identity, state: match?.state ?? null }),
   }
   const [id] = await db('shows').insert(rule)
   return { ...(await db('shows').where({ id }).first()), created: true }
@@ -26,10 +28,6 @@ export const newShowFolderOf = ({ title, folders = [], identity = null }) => fol
   || identityFolderOf(identity)
   || createValidFilename(title)
   || 'Recordings'
-
-export const identityColumnsOf = (identity) => (identity
-  ? { tvdb_id: identity.tvdbId ?? null, tmdb_id: identity.tmdbId ?? null, database_title: identity.name ?? null }
-  : {})
 
 export const existingFolderFor = ({ title, folders, exactOnly = false }) => {
   const wanted = createValidFilename(title).toLowerCase()

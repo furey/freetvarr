@@ -6,7 +6,7 @@ import { getActiveSyncId, getMediaRoot } from './sync.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import { isAdJobRunning } from './commercials.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
-import { identityColumnsOf } from './show-folders.js'
+import { channelNameOfShow, identityColumnsOf, storedIdentityOf } from './show-identity-store.js'
 
 export const planFolderFix = async ({
   showId,
@@ -17,9 +17,7 @@ export const planFolderFix = async ({
 }) => {
   const show = await database('shows').where({ id: showId }).first()
   if (!show) return { state: 'not-found' }
-  const identity = storedIdentityOf(show) ?? await Promise.resolve()
-    .then(() => identityFor({ title: show.show_pattern }))
-    .catch(() => null)
+  const identity = storedIdentityOf(show) ?? await lookedUpIdentityOf({ show, database, identityFor })
   const target = identityFolderOf(identity)
   if (!target) return { state: 'no-match', from: show.dest_folder }
   if (target === show.dest_folder) return { state: 'done', from: show.dest_folder, to: target, identity }
@@ -70,7 +68,7 @@ export const renameShowFolder = async ({
   let moved = false
   try {
     await database.transaction(async (trx) => {
-      await trx('shows').where({ id: showId }).update({ dest_folder: to, ...identityColumnsOf(identity) })
+      await trx('shows').where({ id: showId }).update({ dest_folder: to, ...(identity ? identityColumnsOf({ identity, state: show.identity_state || 'matched' }) : {}) })
       for (const row of recordings) {
         await trx('recordings').where({ recording_id: row.recording_id }).update({ file_path: rebased({ filePath: row.file_path, paths }) })
       }
@@ -91,9 +89,13 @@ export const renameShowFolder = async ({
 
 export const folderFixError = (code, message) => Object.assign(new Error(message), { code })
 
-const storedIdentityOf = (show) => (show.database_title && (show.tvdb_id || show.tmdb_id)
-  ? { name: show.database_title, tvdbId: show.tvdb_id || null, tmdbId: show.tmdb_id || null }
-  : null)
+const lookedUpIdentityOf = async ({ show, database, identityFor }) => {
+  if (show.identity_state === 'choose') return null
+  const match = await Promise.resolve()
+    .then(async () => identityFor({ title: show.show_pattern, channelName: await channelNameOfShow({ showId: show.id, database }) }))
+    .catch(() => null)
+  return match?.state === 'choose' ? null : match?.identity ?? null
+}
 
 const renameFolder = async ({ fsApi, paths }) => {
   try {

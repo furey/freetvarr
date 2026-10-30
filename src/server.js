@@ -17,6 +17,7 @@ import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone,
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
 import { planFolderFix, renameShowFolder } from './show-folder-rename.js'
+import { chooseShowIdentity, showIdentityStatus } from './show-identity-choice.js'
 import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
 import {
   startSync,
@@ -1563,6 +1564,26 @@ app.post('/api/shows/:id/folder-fix', doubleCsrfProtection, async (req, res) => 
 })
 
 const publicFolderFixOf = ({ identity, ...plan }) => plan
+
+app.get('/api/shows/:id/identity', async (req, res) => {
+  try {
+    const status = await showIdentityStatus({ showId: Number(req.params.id) })
+    if (!status) return res.status(404).json({ error: 'not found' })
+    res.json(status)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/shows/:id/identity', doubleCsrfProtection, async (req, res) => {
+  try {
+    const chosen = await chooseShowIdentity({ showId: Number(req.params.id), tvmazeId: req.body?.tvmaze_id })
+    if (!chosen) return res.status(404).json({ error: 'not found' })
+    res.json({ ok: true, chosen })
+  } catch (err) {
+    res.status(err.code ? 409 : 500).json({ error: err.message, code: err.code ?? null })
+  }
+})
 
 app.delete('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   const id = Number(req.params.id)

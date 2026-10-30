@@ -1,20 +1,27 @@
-import { createTitleMatcher, pickRatedShow, showCountryOf } from './programme-ratings.js'
+import { createTitleMatcher } from './programme-ratings.js'
 import { artworkClient, storedTmdbKey } from './fallback-artwork.js'
-import { episodeTitleKeyOf, programmeHintsOf } from './artwork-match.js'
-import { externalIdsOf } from './external-ids.js'
-import { loadExternalIds } from './external-ids-store.js'
-import { guideHintsFor, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
+import { showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { createValidFilename } from './sync.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
+import { loadIdentityPick } from './show-identity-store.js'
+import {
+  countryOf,
+  countryTagOf,
+  createShowMatcher,
+  nameKeysOf,
+  networkFamilyOf,
+  titleCountryOf,
+  tvdbIdOfShow,
+  yearsOf,
+} from './show-match.js'
 
 export const createShowIdentity = ({
   client = artworkClient,
   tmdbKey = storedTmdbKey,
   isTvmazeEnabled = tvmazeLookupEnabled,
-  hintsFor = guideHintsFor,
-  externalIdsFor = loadExternalIds,
   countryCode = () => countryForTimeZone(currentTimeZone()),
+  loadPick = async () => null,
   knownReference = async () => null,
   waitMs = IDENTITY_WAIT_MS,
   now = Date.now,
@@ -22,151 +29,129 @@ export const createShowIdentity = ({
   missTtlMs = MISS_TTL_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
 } = {}) => {
-  const matcher = createTitleMatcher({ client, countryCode, knownReference })
+  const tmdbMatcher = createTitleMatcher({ client, countryCode, knownReference })
   const remembered = new Map()
   const inflight = new Map()
   let failedUntil = 0
 
-  const searchTvmaze = async (query) => {
-    const results = await client.getJson({ url: `${TVMAZE_API}/search/shows`, params: { q: query } })
-    return Array.isArray(results) ? results : []
-  }
+  const tvmazeGet = async ({ path, params }) => client.getJson({ url: `${TVMAZE_API}${path}`, ...(params ? { params } : {}) })
+  const listOf = (value) => (Array.isArray(value) ? value : [])
 
-  const episodesOf = async (show) => {
-    const episodes = await client.getJson({ url: `${TVMAZE_API}/shows/${encodeURIComponent(show.id)}/episodes` })
-    return Array.isArray(episodes) ? episodes : []
-  }
+  const matchShow = createShowMatcher({
+    search: async (query) => listOf(await tvmazeGet({ path: '/search/shows', params: { q: query } })),
+    akasOf: async (id) => listOf(await tvmazeGet({ path: `/shows/${encodeURIComponent(id)}/akas` })),
+    seasonsOf: async (id) => listOf(await tvmazeGet({ path: `/shows/${encodeURIComponent(id)}/seasons` })),
+    episodesByDate: async ({ id, date }) => listOf(await tvmazeGet({ path: `/shows/${encodeURIComponent(id)}/episodesbydate`, params: { date } })),
+  })
 
-  const showByIds = async (ids) => {
-    for (const [source, id] of [['thetvdb', ids.tvdb], ['imdb', ids.imdb]]) {
-      if (!id) continue
-      const show = await client.getJson({ url: `${TVMAZE_API}/lookup/shows`, params: { [source]: id } })
-      if (show?.id != null) return { show, results: await searchTvmaze(show.name) }
-    }
-    return null
-  }
-
-  const searchedShow = async ({ title, hints, episodes }) => {
-    const titled = titleCountryOf(title)
-    const found = await showForQuery({ ...titled, hints, episodes })
-    return found || !titled.country ? found : showForQuery({ query: title, country: null, hints, episodes })
-  }
-
-  const showForQuery = async ({ query, country, hints, episodes }) => {
-    const results = await searchTvmaze(query)
-    const named = namedShowsOf({ results, key: showTitleKey(query) })
-    const candidates = country ? named.filter((show) => isoCountryOf(showCountryOf(show)) === country) : named
-    const show = await pickedShow({ candidates, key: showTitleKey(query), hints, episodes, country: country || isoCountryOf(countryCode()) })
-    return show ? { show, results, titleCountry: country } : null
-  }
-
-  const pickedShow = async ({ candidates, key, hints, episodes, country }) => {
-    if (candidates.length <= 1) return candidates[0] ?? null
-    const shortlist = await episodeMatchedShows({ candidates, hints, episodes })
-    if (shortlist.length === 1) return shortlist[0]
-    const remaining = shortlist.length ? shortlist : candidates
-    const picked = pickRatedShow({ results: remaining.map((show) => ({ show: { ...show, name: key } })), key, hints, country, strict: true })
-    return remaining.find((show) => show.id === picked?.id) ?? null
-  }
-
-  const episodeMatchedShows = async ({ candidates, hints, episodes }) => {
-    const wanted = guideEpisodesOf({ hints, episodes })
-    if (!wanted.numbers.size && !wanted.titles.size) return []
-    if (candidates.length > MAX_EPISODE_CHECKS) return []
-    const matched = []
-    for (const show of candidates) {
-      if (hasGuideEpisode({ episodes: await episodesOf(show), wanted })) matched.push(show)
-    }
-    return matched
-  }
-
-  const tmdbIdOf = async ({ title, show }) => {
-    if (show.externals?.thetvdb) return null
+  const tmdbIdOf = async ({ title, show, tvdbId }) => {
+    if (tvdbId) return null
     const apiKey = await Promise.resolve().then(tmdbKey).catch(() => null)
     if (!apiKey) return null
-    const details = await matcher.tmdbShow({ title, show, apiKey }).catch(() => null)
+    const details = await tmdbMatcher.tmdbShow({ title, show, apiKey }).catch(() => null)
     return details?.id ?? null
   }
 
-  const lookUp = async ({ title, channelName, episodes }) => {
-    const ids = await externalIdsOf({ externalIdsFor, title, kind: null })
-    const hints = hintsWithChannel({ hints: await Promise.resolve().then(() => hintsFor(title)).catch(() => null), title, channelName })
-    const found = (ids && await showByIds(ids)) || await searchedShow({ title, hints, episodes })
-    if (!found) return null
-    return identityOf({ ...found, tmdbId: await tmdbIdOf({ title, show: found.show }) })
+  const lookUp = async (airing) => {
+    const found = await matchShow({ ...airing, homeCountry: countryCode() })
+    const candidates = found.candidates.map((show) => candidateOf({ show, named: found.named, titleCountry: found.titleCountry }))
+    if (!found.show) return { state: candidates.length ? 'choose' : 'none', identity: null, candidates }
+    const identity = identityOf({
+      show: found.show,
+      named: found.named,
+      titleCountry: found.titleCountry,
+      tvdbId: found.tvdbId,
+      tmdbId: await tmdbIdOf({ title: airing.title, show: found.show, tvdbId: found.tvdbId }),
+      needsConfirm: found.borrowedTvdb,
+    })
+    return { state: found.borrowedTvdb ? 'confirm' : 'matched', identity, candidates }
   }
 
   const rememberedFor = (key) => {
     const entry = remembered.get(key)
     if (!entry) return undefined
-    if (entry.expiresAt > now()) return entry.identity
+    if (entry.expiresAt > now()) return entry.match
     remembered.delete(key)
     return undefined
   }
 
-  const remember = ({ key, identity }) => {
+  const remember = ({ key, match }) => {
     remembered.delete(key)
-    remembered.set(key, { identity, expiresAt: now() + (identity ? hitTtlMs : missTtlMs) })
+    remembered.set(key, { match, expiresAt: now() + (match.identity ? hitTtlMs : missTtlMs) })
     while (remembered.size > MAX_REMEMBERED) remembered.delete(remembered.keys().next().value)
   }
 
-  const startLookup = ({ key, request }) => {
+  const startLookup = ({ key, airing }) => {
     if (inflight.has(key)) return inflight.get(key)
-    const pending = lookUp(request)
-      .then((identity) => {
-        remember({ key, identity })
-        return { identity }
+    const pending = lookUp(airing)
+      .then((match) => {
+        remember({ key, match })
+        return match
       }, () => {
         failedUntil = now() + failureBackoffMs
-        return { identity: null }
+        return NO_MATCH
       })
       .finally(() => inflight.delete(key))
     inflight.set(key, pending)
     return pending
   }
 
-  return async ({ title, channelName = null, episodes = [] }) => {
-    const key = showTitleKey(title)
-    if (!key) return null
+  const forget = ({ title, channelName = null }) => remembered.delete(lookupKeyOf({ title, channelName }))
+
+  const identify = async ({ title, channelName = null, start = null, durationS = null, season = null, episode = null, wait = waitMs, usePick = true }) => {
+    const titleKey = showTitleKey(title)
+    if (!titleKey) return NO_MATCH
+    const picked = usePick && await Promise.resolve().then(() => loadPick({ titleKey, family: networkFamilyOf(channelName) })).catch(() => null)
+    if (picked) return { state: 'chosen', identity: picked, candidates: [] }
+    const key = lookupKeyOf({ title, channelName })
     const known = rememberedFor(key)
     if (known !== undefined) return known
-    if (failedUntil > now()) return null
-    if (!(await Promise.resolve().then(isTvmazeEnabled).catch(() => false))) return null
-    const outcome = await withinMs(startLookup({ key, request: { title, channelName, episodes } }), waitMs)
-    return outcome === TIMED_OUT ? null : outcome.identity
+    if (failedUntil > now()) return NO_MATCH
+    if (!(await Promise.resolve().then(isTvmazeEnabled).catch(() => false))) return NO_MATCH
+    const airing = { title, channelName, start: Number(start) || null, durationS, season: integerOf(season), episode: integerOf(episode) }
+    const outcome = await withinMs(startLookup({ key, airing }), wait)
+    return outcome === TIMED_OUT ? NO_MATCH : outcome
   }
+
+  return Object.assign(identify, { forget })
 }
 
-export const identityOf = ({ show, results = [], titleCountry = null, tmdbId = null }) => {
-  const name = databaseTitleOf({ show, results, titleCountry })
+export const identityOf = ({ show, named = [], titleCountry = null, tvdbId = null, tmdbId = null, needsConfirm = false }) => {
+  const name = databaseTitleOf({ show, named, titleCountry })
   if (!name) return null
   return {
+    tvmazeId: positiveIdOf(show.id),
     name,
-    tvdbId: positiveIdOf(show.externals?.thetvdb),
+    tvdbId: positiveIdOf(tvdbId ?? show.externals?.thetvdb),
     tmdbId: positiveIdOf(tmdbId),
+    needsConfirm: Boolean(needsConfirm),
   }
 }
 
-export const databaseTitleOf = ({ show, results = [], titleCountry = null }) => {
+export const databaseTitleOf = ({ show, named = [], titleCountry = null }) => {
   const name = String(show?.name ?? '').trim()
   if (!name || titleCountryOf(name).country) return name
-  const country = isoCountryOf(showCountryOf(show))
+  const country = countryOf(show)
   if (!country) return name
-  const key = showTitleKey(name)
-  const sharedAbroad = results
-    .map((result) => result?.show)
-    .filter((other) => other && other.id !== show.id && showTitleKey(other.name) === key)
-    .some((other) => isoCountryOf(showCountryOf(other)) !== country)
+  const keys = new Set(nameKeysOf(name))
+  const sharedAbroad = named
+    .filter((other) => other && other.id !== show.id && nameKeysOf(other.name || '').some((key) => keys.has(key)))
+    .some((other) => countryOf(other) !== country)
   return sharedAbroad || titleCountry ? `${name} (${countryTagOf(country)})` : name
 }
 
-export const titleCountryOf = (title) => {
-  const text = String(title ?? '').trim()
-  const match = text.match(TRAILING_COUNTRY)
-  const country = match && TITLE_COUNTRIES[match[1].toLowerCase()]
-  if (!country) return { query: text, country: null }
-  const query = text.slice(0, match.index).trim()
-  return query ? { query, country } : { query: text, country: null }
+export const candidateOf = ({ show, named = [], titleCountry = null }) => {
+  const tvdbId = tvdbIdOfShow({ show, named })
+  const identity = identityOf({ show, named, titleCountry, tvdbId, needsConfirm: Boolean(tvdbId && !show.externals?.thetvdb) })
+  return {
+    tvmazeId: positiveIdOf(show.id),
+    name: show.name,
+    country: countryTagOf(countryOf(show)),
+    network: show.network?.name || show.webChannel?.name || null,
+    years: yearsOf(show),
+    identity,
+    folder: identityFolderOf(identity),
+  }
 }
 
 export const identityFolderOf = (identity) => {
@@ -176,44 +161,18 @@ export const identityFolderOf = (identity) => {
   return identity.tmdbId ? `${name} {tmdb-${identity.tmdbId}}` : null
 }
 
-export const hintsWithChannel = ({ hints, title, channelName }) => {
-  if (!channelName) return hints
-  if (!hints) return programmeHintsOf([{ title, channel_id: 'guide' }], { channelNameOf: () => channelName })
-  const channelNames = hints.channelNames || []
-  return channelNames.includes(channelName) ? hints : { ...hints, channelNames: [...channelNames, channelName] }
-}
-
-export const guideEpisodesOf = ({ hints, episodes = [] }) => ({
-  numbers: new Set(episodes
-    .filter((episode) => Number.isInteger(episode?.season) && Number.isInteger(episode?.episode) && episode.season > 0)
-    .map((episode) => `${episode.season}x${episode.episode}`)),
-  titles: new Set([
-    ...(hints?.episodeTitles || []),
-    ...episodes.map((episode) => episodeTitleKeyOf(episode?.title)),
-  ].filter(Boolean)),
-})
-
-export const hasGuideEpisode = ({ episodes, wanted }) => episodes.some((episode) =>
-  wanted.numbers.has(`${episode?.season}x${episode?.number}`) || wanted.titles.has(episodeTitleKeyOf(episode?.name)))
-
-const namedShowsOf = ({ results, key }) => results
-  .map((result) => result?.show)
-  .filter((show) => show?.name && [show.name, titleCountryOf(show.name).query].some((name) => showTitleKey(name) === key))
+export const lookupKeyOf = ({ title, channelName }) => `${showTitleKey(title)}|${networkFamilyOf(channelName)}`
 
 let sharedIdentity = null
 
 export const showIdentityFor = (request) => {
-  sharedIdentity ??= createShowIdentity()
+  sharedIdentity ??= createShowIdentity({ loadPick: loadIdentityPick })
   return sharedIdentity(request)
 }
 
-const isoCountryOf = (code) => {
-  const upper = String(code ?? '').toUpperCase()
-  if (upper === 'UK') return 'GB'
-  return /^[A-Z]{2}$/.test(upper) ? upper : null
-}
+export const forgetShowIdentity = (request) => sharedIdentity?.forget?.(request)
 
-const countryTagOf = (iso) => (iso === 'GB' ? 'UK' : iso)
+const integerOf = (value) => (Number.isInteger(Number(value)) && value !== null && value !== '' ? Number(value) : null)
 
 const positiveIdOf = (value) => (Number.isInteger(Number(value)) && Number(value) > 0 ? String(Number(value)) : null)
 
@@ -222,25 +181,11 @@ const withinMs = (promise, ms) => Promise.race([
   new Promise((resolve) => setTimeout(resolve, ms, TIMED_OUT).unref?.()),
 ])
 
-const TITLE_COUNTRIES = {
-  uk: 'GB',
-  gb: 'GB',
-  us: 'US',
-  usa: 'US',
-  au: 'AU',
-  aus: 'AU',
-  australia: 'AU',
-  nz: 'NZ',
-  'new zealand': 'NZ',
-  canada: 'CA',
-}
-
+const NO_MATCH = Object.freeze({ state: 'none', identity: null, candidates: [] })
 const TIMED_OUT = Symbol('timed-out')
 const TVMAZE_API = 'https://api.tvmaze.com'
-const TRAILING_COUNTRY = /[\s:-]+\(?(uk|gb|usa?|aus?|australia|nz|new zealand|canada)\)?$/i
-const IDENTITY_WAIT_MS = 8000
+const IDENTITY_WAIT_MS = 15000
 const HIT_TTL_MS = 24 * 60 * 60 * 1000
 const MISS_TTL_MS = 6 * 60 * 60 * 1000
 const FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const MAX_REMEMBERED = 500
-const MAX_EPISODE_CHECKS = 4
