@@ -24,7 +24,7 @@ Series rules and Title matches replace the SERIES tab of earlier versions; the o
 3. Pick **Every episode**.
 4. Press **Record series**.
 
-Freetvarr creates the series folder at the same time, unless you turn **Add to library** off first. The default for **Add to library** is in Settings → Recording → Media library. The programme sheet shows it under **Advanced**. Freetvarr uses an existing folder with the same name under your media root, or creates a new folder named after the series.
+Freetvarr creates the series folder at the same time, unless you turn **Add to library** off first. The default for **Add to library** is in Settings → Recording → Media library. The programme sheet shows it under **Advanced**. Freetvarr uses an existing folder with the same name under your media root. When no folder has that exact name, but one folder has the name plus a year or a country, such as `Bluey (2018)` or `Ghosts (US)`, Freetvarr uses that folder. When more than one such folder exists, or none, Freetvarr creates a new folder named after the series.
 
 Matching is by title: a recording goes to the folder whose title appears in the recording's title. When more than one folder matches, the longest title wins, so `NRL Grand Final` beats `NRL`.
 
@@ -51,7 +51,7 @@ Each row shows one series:
 
 - The title, with the channels and the number of episodes to keep.
 - **Next**: the next airing, or the next expected airing, with its channel.
-- **Saves to**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no series folder shows its folder in the one-off folder, such as `/media/one-offs/Bluey`. When **Import every recording** is off in Settings → Recording → Media library, such a series shows that its episodes wait in the [recording log](/guide/recordings#recording-log).
+- **Saves to**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no series folder shows a path in the one-off folder, such as `/media/one-offs/Bluey`, and **Assign folder**. When **Import every recording** is on, the first import of an episode creates a series folder for it instead, named after the series recording, and the row then shows that folder. When **Import every recording** is off in Settings → Recording → Media library, such a series shows that its episodes wait in the [recording log](/guide/recordings#recording-log).
 
 A row shows a **Paused** badge when the series recording in TVHeadend is paused. A row with no badge records new episodes as normal.
 
@@ -106,11 +106,11 @@ Press a series with a series folder to open these fields under the row:
 
 Press **Save** to keep the changes. To close the form without saving, press the row again, or press `Esc`. A change to **Saves to** applies to future episodes only (episodes already imported stay where they are).
 
-**Unassign folder** removes the folder from the series, after you confirm. Future episodes then save to the one-off folder again. When **Import every recording** is off in Settings → Recording → Media library, they wait in the [recording log](/guide/recordings#recording-log) instead. Episodes already imported stay where they are.
+**Unassign folder** removes the folder from the series, after you confirm. Episodes already imported stay where they are. While the series recording exists and **Import every recording** is on in Settings → Recording → Media library, the next import gives the series a folder again, named after the series recording. When **Import every recording** is off, future episodes wait in the [recording log](/guide/recordings#recording-log) instead.
 
 ## Season template
 
-Each folder has a season template that decides where episodes are saved: `{season}`, `{season_padded}` (zero-padded, `01`), or `{season_unpadded}` (`1`). Freetvarr writes to `<media_root>/<dest_folder>/<season>/…`, and it rejects any template that would point outside your media root.
+Each folder has a season template that decides where episodes are saved. The default is `Season {season}`. `{season}` and `{season_padded}` give the zero-padded number (`01`), and `{season_unpadded}` gives the plain number (`1`). Freetvarr writes to `<media_root>/<dest_folder>/<season>/…`, and it rejects any template that would point outside your media root.
 
 ## Filenames
 
@@ -126,7 +126,24 @@ When the TV guide gave no episode number, the air date stands in:
 Show Name - 2026-09-21 - Episode Title.ts
 ```
 
-The episode title is dropped when the TV guide did not supply one. TVHeadend's own naming is left alone, because nothing downstream reads it.
+Freetvarr leaves the episode title out when the TV guide did not supply one, and when the title only repeats the episode number, such as `Episode 2` or `Episode 2 of Season 1`:
+
+```text
+Show Name - S01E02.ts
+```
+
+TVHeadend's own file names stay as they are, because nothing downstream reads them.
+
+### Name clashes
+
+An import never replaces a file that is already in the library. When the folder already has a file with the same name, and that file is not this recording, Freetvarr saves the recording under a copy name and logs a warning in the sync:
+
+```text
+Show Name - S01E02 - Episode Title - copy 2.ts
+Isle Of Dogs (2018)/Isle Of Dogs (2018) (2).ts
+```
+
+The other file stays as it is. This happens, for example, when Sonarr already downloaded the same episode into the folder.
 
 ## Title matches
 
@@ -159,7 +176,9 @@ Set a **movies folder** in Settings → Recording → Media library, and a film 
 Isle Of Dogs (2018)/Isle Of Dogs (2018).ts
 ```
 
-Freetvarr treats a recording as a film when the TV guide gives it a film or drama genre, no season or episode number, and a length of at least 75 minutes. The year appears only when the TV guide supplies one. Without a movies folder, films go to the one-off folder.
+Freetvarr treats a recording as a film when the TV guide gives it a film or drama genre, no season or episode number, and a length of at least 75 minutes. A title that has a series recording or a series folder is never a film. The year appears only when the TV guide supplies one. Without a movies folder, films go to the one-off folder.
+
+When Freetvarr gets a film wrong, choose **Not a movie** or **This is a movie** in its menu on Home or For you, or from the link in the programme sheet. The choice decides the folder of the next recording, and you can undo it in Settings → Watching → Film and TV info → **Movie corrections**.
 
 ## Import, not download
 
