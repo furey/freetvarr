@@ -3,11 +3,11 @@ set -euo pipefail
 
 # Record the "Record something" step and encode it for the docs.
 #
-# Playwright in host Node opens the TV Guide at a simulated prime time (19:45
+# Run it against the server from capture-local-server.sh. Playwright in host
+# Node opens the TV guide at a simulated prime time (19:45
 # tonight in TZ, or set SIMULATED_NOW), records "Big Wave Season" on 7mate
-# with RECORD, then sets a series recording on a later programme with SERIES.
-# Guide, search, logo, and programme-image GETs come from the real server. The
-# RECORD and SERIES requests are answered by the fixture layer in
+# with Record, then sets a series recording on a later programme with Every
+# episode. Page reads come from the local server. The record requests are answered by the fixture layer in
 # capture-demo-api.mjs, which adds the recording and the series to the state
 # the guide reads, so the markers appear without a write reaching the server.
 # It records every frame Chrome paints (capture-screencast.mjs), then
