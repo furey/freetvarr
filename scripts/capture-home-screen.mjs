@@ -84,9 +84,8 @@ const captureDashboard = async ({ browser, base, viewport, isMobile = false }) =
   await tab.goto(`${base}/#/home`, { waitUntil: 'networkidle' })
   await tab.waitForSelector('a.app-nav-item:visible', { timeout: 20000 })
   await tab.addStyleTag({ content: SCROLLBARS_OFF })
-  await restartHeroCarousel(tab)
   await requireAllArt(tab, { label: `Home at ${viewport.width}x${viewport.height}` })
-  await tab.waitForTimeout(400)
+  await restartHeroCarousel(tab)
   const shot = await tab.screenshot({ type: 'png' })
   await context.close()
   return `data:image/png;base64,${shot.toString('base64')}`
