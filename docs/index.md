@@ -5,7 +5,7 @@ hero:
   name: >-
     <span class="hero-brand"><span class="ftv-wordmark" role="img" aria-label="Freetvarr"><span class="ftv-wordmark-free" aria-hidden="true">Free</span><span class="ftv-wordmark-tv" aria-hidden="true">tv</span><span class="ftv-wordmark-arr" aria-hidden="true">arr</span></span></span>
   text: >-
-    <span class="hero-line-1"><em class="hero-em">Record</em> free-to-air TV.</span><span class="hero-line-2">Watch it <em class="hero-em">on your TV</em> in</span><span class="hero-line-3">any media player, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
+    <span class="hero-line-1"><em class="hero-em">Live TV</em> in your browser.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
     Self-hosted TV for any TVHeadend-compatible tuner. Watch live,
     browse the TV guide, and record straight into your media library.<br><span
