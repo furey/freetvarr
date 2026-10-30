@@ -42,7 +42,7 @@ export const parsedTitleOf = (title) => {
 export const titleCountryOf = (title) => {
   const text = String(title ?? '').trim()
   const trailing = text.match(TRAILING_COUNTRY)
-  if (trailing && text.slice(0, trailing.index).trim()) {
+  if (trailing && text.slice(0, trailing.index).trim() && !isPlainWordCode(trailing)) {
     return { query: text.slice(0, trailing.index).trim(), country: TITLE_COUNTRIES[trailing[1].toLowerCase()] }
   }
   const leading = text.match(LEADING_DEMONYM)
@@ -205,6 +205,8 @@ const COUNTRY_SEARCH_NAMES = { AU: 'Australia', NZ: 'New Zealand', GB: 'UK', US:
 
 const TRAILING_COUNTRY = /[\s:-]+\(?(uk|gb|usa?|aus?|australia|nz|new zealand|canada)\)?$/i
 const LEADING_DEMONYM = /^(australian|british|american|canadian|new zealand)\s+/i
+
+const isPlainWordCode = ([whole, code]) => !whole.includes('(') && code.length <= 3 && code !== code.toUpperCase()
 
 const SCORES = { airTime: 100, network: 40, titleCountry: 30, domestic: 20, running: 5 }
 const MIN_WINNING_SCORE = 10

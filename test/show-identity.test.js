@@ -297,3 +297,10 @@ test('newShowFolderOf skips a folder named for the same title in another country
   assert.equal(newShowFolderOf({ title: 'Big Brother', folders: ['Big Brother (2001)'], identity }), 'Big Brother (2001)')
   assert.equal(newShowFolderOf({ title: 'Big Brother', folders: ['Big Brother (US)'] }), 'Big Brother (US)')
 })
+
+test('titleCountryOf leaves a title that ends in the word Us', () => {
+  assert.deepEqual(titleCountryOf('The Two of Us'), { query: 'The Two of Us', country: null })
+  assert.deepEqual(titleCountryOf('Ghosts US'), { query: 'Ghosts', country: 'US' })
+  assert.deepEqual(titleCountryOf('Ghosts (us)'), { query: 'Ghosts', country: 'US' })
+  assert.deepEqual(titleCountryOf('Love Island Australia'), { query: 'Love Island', country: 'AU' })
+})
