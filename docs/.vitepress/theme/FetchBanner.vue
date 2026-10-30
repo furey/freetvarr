@@ -33,7 +33,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
   box-sizing: border-box;
   height: var(--vp-layout-top-height);
   padding: 0 16px;
-  background: var(--ftv-brand-blue);
+  background: #1a87e6;
   color: #fff;
   font-size: 14px;
   line-height: 1.5;
@@ -42,7 +42,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
 }
 
 .fetch-banner:hover {
-  background-color: color-mix(in srgb, var(--ftv-brand-blue) 88%, #000);
+  background-color: color-mix(in srgb, #1a87e6 88%, #000);
 }
 
 .fetch-banner:hover .fetch-banner__text {
