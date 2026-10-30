@@ -11,7 +11,7 @@ const APP_BACKGROUND = '#0b1117'
 const FAVICON_BACKGROUND = '#141c24'
 const INK = '#fffcfb'
 const CHIP_COLOURS = ['#3ba4ff', '#f28c28', '#f5c542']
-const CHIP_ROW = { chipWidth: 4, chipHeight: 3, gap: 1.75 }
+const CHIP_ROW = { chipWidth: 4, chipHeight: 3, gap: 1.5, cornerRadius: 0.5 }
 const CHIP_ROW_WIDTH = 3 * CHIP_ROW.chipWidth + 2 * CHIP_ROW.gap
 const ICON_ROW_FRACTION = 0.7
 const MASKABLE_ROW_RADIUS = 190
@@ -55,7 +55,7 @@ const maskableUnit = () =>
   MASKABLE_ROW_RADIUS / Math.hypot(CHIP_ROW_WIDTH / 2, CHIP_ROW.chipHeight / 2)
 
 const chipRow = ({ fills, unit }) => {
-  const { chipWidth, chipHeight, gap } = CHIP_ROW
+  const { chipWidth, chipHeight, gap, cornerRadius } = CHIP_ROW
   const left = 256 - (CHIP_ROW_WIDTH * unit) / 2
   const top = 256 - (chipHeight * unit) / 2
   return fills.map((fill, index) => rect({
@@ -63,6 +63,7 @@ const chipRow = ({ fills, unit }) => {
     y: round(top),
     width: round(chipWidth * unit),
     height: round(chipHeight * unit),
+    radius: round(cornerRadius * unit),
     fill
   })).join('')
 }
@@ -113,7 +114,9 @@ const svgDocument = ({ size, background, body }) => [
 
 const round = (value) => Math.round(value * 100) / 100
 
-const rect = ({ x, y, width, height, fill }) =>
-  `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}"/>`
+const rect = ({ x, y, width, height, radius, fill }) => {
+  const corner = radius ? ` rx="${radius}"` : ''
+  return `<rect x="${x}" y="${y}" width="${width}" height="${height}"${corner} fill="${fill}"/>`
+}
 
 await main()
