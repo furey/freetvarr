@@ -160,7 +160,7 @@ test('ensureShowFolder: a new series gets the database title and id folder, and 
   assert.equal(show.database_title, 'Gruen')
   assert.equal(show.identity_state, 'matched')
   assert.equal(show.tvmaze_id, '7')
-  assert.deepEqual(seen, [{ ...airing, title: 'Gruen' }])
+  assert.deepEqual(seen, [{ ...airing, title: 'Gruen', wait: 5000 }])
 })
 
 test('ensureShowFolder: a failed lookup keeps the bare title', async () => {
@@ -321,6 +321,27 @@ test('declineShowIdentity: None of these clears the pick and keeps the plain nam
   assert.equal(status.state, 'declined')
   await settleShowIdentity({ showId: id, title: 'The Office', identityFor: async () => ({ state: 'matched', identity: OFFICE_CHOICES.candidates[0].identity, candidates: [] }) })
   assert.equal((await db('shows').where({ id }).first()).identity_state, 'declined')
+})
+
+test('ensureShowFolder: a slow match in a sync keeps the bare name, then saves the match for Rename folder', async () => {
+  await setSetting('media_root', mediaRoot)
+  const match = { state: 'matched', identity: { tvmazeId: '7', name: 'Gruen', tvdbId: '83281', tmdbId: null }, candidates: [] }
+  let finish
+  const settled = new Promise((resolve) => { finish = resolve })
+  const identityFor = async ({ wait }) => {
+    if (wait === 5000) return { state: 'pending', identity: null, candidates: [] }
+    setImmediate(finish)
+    return match
+  }
+  const show = await ensureShowFolder({ title: 'Gruen', shows: [], identityFor })
+  assert.equal(show.dest_folder, 'Gruen')
+  assert.equal(show.identity_state, null)
+  await settled
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  const saved = await db('shows').where({ id: show.id }).first()
+  assert.equal(saved.dest_folder, 'Gruen')
+  assert.equal(saved.tvdb_id, '83281')
+  assert.equal((await planFolderFix(options({ showId: show.id }))).to, 'Gruen {tvdb-83281}')
 })
 
 test('keptFolderPatchOf: a Saves to the owner types by hand is kept', () => {

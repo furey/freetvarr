@@ -244,7 +244,9 @@ test('a failed lookup gives the bare title and backs off', async () => {
 test('a slow lookup gives the bare title within the wait', async () => {
   const client = fakeClient({ hang: true })
   const started = Date.now()
-  assert.equal((await identityWith({ client, waitMs: 20 })({ title: 'Big Brother' })).identity, null)
+  const match = await identityWith({ client, waitMs: 20 })({ title: 'Big Brother' })
+  assert.equal(match.identity, null)
+  assert.equal(match.state, 'pending')
   assert.ok(Date.now() - started < 1000)
 })
 

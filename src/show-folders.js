@@ -13,27 +13,28 @@ export const ensureShowFolder = async ({ title, shows = null, airing = {}, ident
   if (existing) return { ...existing, created: false }
   const [folders, match] = await Promise.all([
     getMediaRoot().then(listShowFolders).catch(() => []),
-    inBackground ? null : Promise.resolve().then(() => identityFor({ ...airing, title })).catch(() => null),
+    inBackground ? null : Promise.resolve().then(() => identityFor({ ...airing, title, wait: INLINE_WAIT_MS })).catch(() => null),
   ])
   const identity = match?.identity ?? null
   const rule = {
     show_pattern: title.trim(),
     dest_folder: newShowFolderOf({ title, folders, identity }),
-    ...identityColumnsOf({ identity, state: match?.state ?? null }),
+    ...identityColumnsOf({ identity, state: isSettled(match) ? match.state : null }),
   }
   const [id] = await db('shows').insert(rule)
   if (inBackground) settleShowIdentity({ showId: id, title, airing, identityFor }).catch(() => null)
+  else if (match?.state === 'pending') settleShowIdentity({ showId: id, title, airing, identityFor, renameIfEmpty: false }).catch(() => null)
   return { ...(await db('shows').where({ id }).first()), created: true }
 }
 
-export const settleShowIdentity = async ({ showId, title, airing = {}, identityFor = showIdentityFor, wait = BACKGROUND_WAIT_MS }) => {
+export const settleShowIdentity = async ({ showId, title, airing = {}, identityFor = showIdentityFor, wait = BACKGROUND_WAIT_MS, renameIfEmpty = true }) => {
   const match = await Promise.resolve().then(() => identityFor({ ...airing, title, wait })).catch(() => null)
-  if (!match || match.state === 'none') return null
+  if (!isSettled(match) || match.state === 'none') return null
   const show = await db('shows').where({ id: showId }).first()
   if (!show || OWNER_STATES.has(show.identity_state)) return null
   const columns = identityColumnsOf({ identity: match.identity, state: match.state })
   const mediaRoot = await getMediaRoot()
-  if (await hasRecordingsOnDisk({ show, mediaRoot })) {
+  if (!renameIfEmpty || await hasRecordingsOnDisk({ show, mediaRoot })) {
     await db('shows').where({ id: showId }).update(columns)
     return { ...show, ...columns }
   }
@@ -69,6 +70,8 @@ const isSuffixedFolderOf = ({ folder, wanted }) => {
   return name.startsWith(`${wanted} `) && FOLDER_SUFFIX.test(name.slice(wanted.length))
 }
 
+const isSettled = (match) => Boolean(match) && !UNSETTLED_STATES.has(match.state)
+
 const isOtherShowFolder = ({ folder, identity }) => {
   if (!identity) return false
   const ids = { tvdb: identity.tvdbId, tmdb: identity.tmdbId }
@@ -90,6 +93,8 @@ const hasRecordingsOnDisk = async ({ show, mediaRoot }) => {
 }
 
 const BACKGROUND_WAIT_MS = 60000
+const INLINE_WAIT_MS = 5000
+const UNSETTLED_STATES = new Set(['pending', 'unreachable'])
 const OWNER_STATES = new Set(['chosen', 'declined'])
 const ID_HINT = /\{(tvdb|tmdb|imdb)-([^}]*)\}/gi
 const COUNTRY_TAG = /\(([a-z]{2,3})\)$/i

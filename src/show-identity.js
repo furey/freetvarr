@@ -110,7 +110,7 @@ export const createShowIdentity = ({
     if (!(await Promise.resolve().then(isTvmazeEnabled).catch(() => false))) return NO_MATCH
     const airing = { title, channelName, start: Number(start) || null, durationS, season: integerOf(season), episode: integerOf(episode) }
     const outcome = await withinMs(startLookup({ key, airing }), wait)
-    return outcome === TIMED_OUT ? NO_MATCH : outcome
+    return outcome === TIMED_OUT ? STILL_LOOKING : outcome
   }
 
   return Object.assign(identify, { forget })
@@ -182,6 +182,7 @@ const withinMs = (promise, ms) => Promise.race([
 ])
 
 const NO_MATCH = Object.freeze({ state: 'none', identity: null, candidates: [] })
+const STILL_LOOKING = Object.freeze({ state: 'pending', identity: null, candidates: [] })
 const TIMED_OUT = Symbol('timed-out')
 const TVMAZE_API = 'https://api.tvmaze.com'
 const IDENTITY_WAIT_MS = 15000
