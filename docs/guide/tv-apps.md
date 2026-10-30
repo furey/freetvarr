@@ -9,7 +9,13 @@ description: >-
 
 <Illustration name="tv-apps" />
 
-TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, Settings → Watching → **Watch on TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
+In Freetvarr, Settings → Watching → **Watch on TV** is so you can use Jellyfin or Kodi instead of your tuner's own app (e.g. the HDHomeRun app). It makes a watch-only login in TVHeadend and shows the details to copy into the app, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
+
+> [!NOTE]<br>
+> Once set up, the app plays straight from TVHeadend, so your live TV keeps working, even if Freetvarr was stopped for whatever reason. The app also gets TVHeadend's TV guide listings from TVHeadend. Your recordings appear separately, in Plex or Infuse.
+
+> [!TIP]<br>
+> A Freetvarr app for Apple TV and Android TV is planned. Stay tuned!
 
 | App      | On the TV                                                                          | Needs                                                     |
 | -------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |

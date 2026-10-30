@@ -46,7 +46,7 @@ const ENTRIES = [
   { label: 'Keep faces in view', page: 'film-tv-info', setting: 'faces', description: 'Crops pictures so they show the faces.', tags: ['crop', 'face detection'] },
   { label: 'Movie corrections', page: 'film-tv-info', setting: 'movie-corrections', description: 'Shows you marked Not a movie or This is a movie, or moved between Shows and One-offs.', tags: ['not a movie', 'this is a movie', 'film', 'undo', 'move to shows', 'move to one-offs'] },
 
-  { page: 'tv-apps', description: 'Watch live TV with the guide in Jellyfin or Kodi.', tags: ['tv apps', 'jellyfin', 'kodi', 'iptv', 'm3u', 'xmltv'] },
+  { page: 'tv-apps', description: 'Watch live TV on your TV in Jellyfin or Kodi, straight from TVHeadend.', tags: ['tv apps', 'jellyfin', 'kodi', 'iptv', 'm3u', 'xmltv', 'apple tv', 'android tv'] },
   { label: 'TV login', page: 'tv-apps', setting: 'tv-login', description: 'A TVHeadend login that can only watch TV.', tags: ['make a tv login', 'delete tv login', 'account'] },
   { label: 'Login name', page: 'tv-apps', setting: 'tv-login', description: 'The name of the TV login.', tags: ['account'] },
   { label: 'TVHeadend address', page: 'tv-apps', setting: 'tv-apps-address', description: 'The address TV apps use for TVHeadend.', tags: ['host', 'ip'] },
