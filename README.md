@@ -1,4 +1,9 @@
-# Freetvarr
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://furey.github.io/freetvarr/img/freetvarr-logo-dark.gif"/>
+    <img src="https://furey.github.io/freetvarr/img/freetvarr-logo-light.gif" alt="Freetvarr" width="400"/>
+  </picture>
+</p>
 
 <p align="center">
   <strong>Record free-to-air TV.<br/>Watch it on your TV in any media player, ad free.*</strong><br/>

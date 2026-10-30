@@ -30,3 +30,5 @@ img screenshot-series.png
 img screenshot-settings.png
 img screenshot-syncs.png
 img screenshot-wizard-secure.png
+img freetvarr-logo-dark.gif
+img freetvarr-logo-light.gif
