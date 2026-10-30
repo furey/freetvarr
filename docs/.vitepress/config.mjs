@@ -53,7 +53,7 @@ export default withMermaid(defineConfig({
   title: 'Freetvarr',
   description:
     'Self-hosted TV for any TVHeadend-compatible tuner. Watch live, browse the TV guide, and record straight into your media library.',
-  appearance: 'force-dark',
+  appearance: 'dark',
   cleanUrls: true,
   lastUpdated: true,
   metaChunk: true,
@@ -76,8 +76,7 @@ export default withMermaid(defineConfig({
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/freetvarr/favicon.svg' }],
-    ['meta', { name: 'theme-color', content: '#0b1117' }],
-    ['meta', { name: 'color-scheme', content: 'dark' }]
+    ['meta', { name: 'theme-color', content: '#0b1117' }]
   ],
 
   transformHead: ({ pageData, siteData }) => socialHead({ pageData, siteData }),
@@ -93,7 +92,6 @@ export default withMermaid(defineConfig({
     sidebar: [
       {
         text: 'Start here',
-        collapsed: false,
         items: [
           { text: 'What Freetvarr is', link: '/guide/' },
           { text: 'What\'s new in 2.0', link: '/guide/whats-new' },
@@ -106,7 +104,6 @@ export default withMermaid(defineConfig({
       },
       {
         text: 'Using Freetvarr',
-        collapsed: false,
         items: [
           { text: 'Home and search', link: '/guide/home' },
           { text: 'For you', link: '/guide/for-you' },
@@ -119,7 +116,6 @@ export default withMermaid(defineConfig({
       },
       {
         text: 'In Settings',
-        collapsed: false,
         items: [
           { text: 'Series rules and folders', link: '/guide/series' },
           { text: 'Health', link: '/guide/doctor' },
@@ -128,7 +124,6 @@ export default withMermaid(defineConfig({
       },
       {
         text: 'Connect it up',
-        collapsed: false,
         items: [
           { text: 'Plex', link: '/guide/plex' },
           { text: 'Sonarr and Radarr', link: '/guide/sonarr-radarr' },
@@ -139,7 +134,6 @@ export default withMermaid(defineConfig({
       },
       {
         text: 'Coming from Fetch',
-        collapsed: false,
         items: [
           { text: 'Leaving Fetch TV', link: '/guide/leaving-fetch' },
           { text: 'From Fetcharr', link: '/guide/from-fetcharr' }
@@ -147,7 +141,6 @@ export default withMermaid(defineConfig({
       },
       {
         text: 'Help',
-        collapsed: false,
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
           { text: 'Troubleshooting', link: '/guide/troubleshooting' }
@@ -155,7 +148,6 @@ export default withMermaid(defineConfig({
       },
       {
         text: 'Reference',
-        collapsed: false,
         items: [
           { text: 'Overview', link: '/reference/' },
           { text: 'Technical deep dive', link: '/deep-dive' }
