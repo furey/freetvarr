@@ -1079,7 +1079,7 @@ kbd {
   padding: 6px;
 }
 
-/* The hero image slot carries the iPad and iPhone demo video, so let it grow
+/* The hero image slot carries the iPad demo video, so let it grow
    past the default VPImage box. */
 .VPHero .image {
   max-width: none;
@@ -1116,6 +1116,12 @@ kbd {
 @media (max-width: 959px) {
   .VPHero .image {
     margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .VPHero .image-container {
+    width: min(100% - 48px, 560px);
+    height: auto;
   }
 
   .VPHero.VPHero {

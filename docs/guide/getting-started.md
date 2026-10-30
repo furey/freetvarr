@@ -9,6 +9,9 @@ description: >-
 
 <Illustration name="getting-started" />
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="3v_R5MZkYOA" title="Install Freetvarr and run setup on a NAS or mini PC" duration="2:48" />
+
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. [Hardware](/guide/hardware) covers the choice.

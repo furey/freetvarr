@@ -16,9 +16,8 @@ const OUT_DIR = `${REPO_ROOT}docs/public`
 const LOOP_S = 24
 const FPS = 30
 const SCALE = 2
-const STAGE = { width: 1114, height: 918 }
-const IPAD = { left: 23, top: 23, pad: 22, radius: 46, screen: { width: 1024, height: 768, radius: 26 } }
-const IPHONE = { left: 564, top: 175, pad: 12, radius: 52, screen: { width: 320, height: 692, radius: 40 } }
+const STAGE = { width: 1148, height: 900 }
+const IPAD = { left: 40, top: 24, pad: 22, radius: 46, screen: { width: 1024, height: 768, radius: 26 } }
 const THEMES = { light: '#ffffff', dark: '#0b1117' }
 const CRF = { full: Number(process.env.DEVICES_CRF ?? 24), oneX: Number(process.env.DEVICES_1X_CRF ?? 25) }
 const run = promisify(execFile)
@@ -26,14 +25,20 @@ const run = promisify(execFile)
 const main = async () => {
   await mkdir(WORK_DIR, { recursive: true })
   const browser = await chromium.launch({ args: ['--font-render-hinting=none', `--force-device-scale-factor=${SCALE}`] })
-  const screens = {}
-  for (const device of DEVICES) screens[device.name] = await recordDevice({ browser, device })
-  await renderBezels(browser)
+  const screen = await screenFor({ browser, device: IPAD_DEVICE })
+  await renderBezel(browser)
   await browser.close()
-  for (const theme of Object.keys(THEMES)) await composite({ theme, screens })
+  for (const theme of Object.keys(THEMES)) await composite({ theme, screen })
   await reportSizes()
-  const failed = Object.values(screens).some((screen) => screen.artIssues.length)
-  if (failed && process.env.ALLOW_ART_ISSUES !== '1') process.exitCode = 1
+  if (screen.artIssues.length && process.env.ALLOW_ART_ISSUES !== '1') process.exitCode = 1
+}
+
+const screenFor = async ({ browser, device }) => {
+  const file = `${WORK_DIR}/${device.name}.mp4`
+  const reuse = process.env.DEVICES_REUSE_SCREEN === '1' && await stat(file).then(() => true, () => false)
+  if (!reuse) return recordDevice({ browser, device })
+  console.log(`[devices] reusing the recorded ${device.name} pass at ${file}`)
+  return { file, artIssues: [] }
 }
 
 const recordDevice = async ({ browser, device }) => {
@@ -104,42 +109,32 @@ const encodeScreen = ({ framesDir, trimS, screen, file }) => run('ffmpeg', [
   '-c:v', 'libx264', '-crf', '12', '-preset', 'fast', file,
 ], { maxBuffer: 1 << 26 })
 
-const renderBezels = async (browser) => {
+const renderBezel = async (browser) => {
   const page = await browser.newPage({ viewport: STAGE, deviceScaleFactor: SCALE })
-  for (const name of ['ipad', 'iphone']) {
-    await page.setContent(bezelMarkup(name))
-    await page.screenshot({ path: `${WORK_DIR}/bezel-${name}.png`, omitBackground: true })
-  }
-  for (const [name, device] of [['ipad', IPAD], ['iphone', IPHONE]]) {
-    await page.setViewportSize({ width: device.screen.width, height: device.screen.height })
-    await page.setContent(maskMarkup(device.screen))
-    await page.screenshot({ path: `${WORK_DIR}/mask-${name}.png` })
-  }
+  await page.setContent(bezelMarkup())
+  await page.screenshot({ path: `${WORK_DIR}/bezel-ipad.png`, omitBackground: true })
+  await page.setViewportSize({ width: IPAD.screen.width, height: IPAD.screen.height })
+  await page.setContent(maskMarkup(IPAD.screen))
+  await page.screenshot({ path: `${WORK_DIR}/mask-ipad.png` })
   await page.close()
 }
 
-const composite = async ({ theme, screens }) => {
+const composite = async ({ theme, screen }) => {
   const out = `${OUT_DIR}/devices-${theme}`
   const at = (n) => n * SCALE
   const filters = [
     `color=c=${THEMES[theme]}:s=${at(STAGE.width)}x${at(STAGE.height)}:r=${FPS}:d=${LOOP_S}[bg]`,
-    '[0:v]format=yuva420p[ipadraw]', '[4:v]format=gray[ipadmask]', '[ipadraw][ipadmask]alphamerge[ipad]',
-    '[3:v]format=yuva420p[phoneraw]', '[5:v]format=gray[phonemask]', '[phoneraw][phonemask]alphamerge[phone]',
+    '[0:v]format=yuva420p[ipadraw]', '[2:v]format=gray[ipadmask]', '[ipadraw][ipadmask]alphamerge[ipad]',
     `[bg][ipad]overlay=${at(IPAD.left + IPAD.pad)}:${at(IPAD.top + IPAD.pad)}:shortest=1[s1]`,
-    '[s1][1:v]overlay=0:0[s2]',
-    `[s2][phone]overlay=${at(IPHONE.left + IPHONE.pad)}:${at(IPHONE.top + IPHONE.pad)}[s3]`,
-    '[s3][2:v]overlay=0:0,format=yuv420p,split[full][small]',
+    '[s1][1:v]overlay=0:0,format=yuv420p,split[full][small]',
     `[small]scale=${STAGE.width}:${STAGE.height}:flags=lanczos[onex]`,
   ]
   const encode = (crf) => ['-c:v', 'libx264', '-profile:v', 'high', '-crf', String(crf), '-preset', 'slow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', '-t', String(LOOP_S)]
   await run('ffmpeg', [
     '-y', '-loglevel', 'error',
-    '-i', screens.ipad.file,
+    '-i', screen.file,
     '-loop', '1', '-i', `${WORK_DIR}/bezel-ipad.png`,
-    '-loop', '1', '-i', `${WORK_DIR}/bezel-iphone.png`,
-    '-i', screens.iphone.file,
     '-loop', '1', '-i', `${WORK_DIR}/mask-ipad.png`,
-    '-loop', '1', '-i', `${WORK_DIR}/mask-iphone.png`,
     '-filter_complex', filters.join(';'),
     '-map', '[full]', ...encode(CRF.full), `${out}.mp4`,
     '-map', '[onex]', ...encode(CRF.oneX), `${out}-1x.mp4`,
@@ -197,20 +192,15 @@ const closePlayer = async (page) => {
   await page.waitForTimeout(250)
 }
 
-const bezelMarkup = (name) => `<!doctype html><style>
+const bezelMarkup = () => `<!doctype html><style>
 html,body{margin:0;background:transparent}
 .stage{position:relative;width:${STAGE.width}px;height:${STAGE.height}px}
 .device{position:absolute;overflow:hidden;background:transparent}
 .screen{background:transparent;box-shadow:0 0 0 40px #0e0c09}
-.ipad{left:${IPAD.left}px;top:${IPAD.top}px;padding:${IPAD.pad}px;border-radius:${IPAD.radius}px;box-shadow:0 0 0 1.5px #3d3829,0 0 0 3px #0e0c09,0 22px 50px rgba(0,0,0,.3)}
-.iphone{left:${IPHONE.left}px;top:${IPHONE.top}px;padding:${IPHONE.pad}px;border-radius:${IPHONE.radius}px;box-shadow:0 0 0 1.5px #4a4434,0 0 0 3px #0e0c09,-18px 34px 60px rgba(0,0,0,.45),-6px 12px 22px rgba(0,0,0,.35)}
+.ipad{left:${IPAD.left}px;top:${IPAD.top}px;padding:${IPAD.pad}px;border-radius:${IPAD.radius}px;box-shadow:0 0 0 1.5px #3d3829,0 0 0 3px #0e0c09,0 18px 40px rgba(0,0,0,.28)}
 .ipad .screen{width:${IPAD.screen.width}px;height:${IPAD.screen.height}px;border-radius:${IPAD.screen.radius}px}
-.iphone .screen{width:${IPHONE.screen.width}px;height:${IPHONE.screen.height}px;border-radius:${IPHONE.screen.radius}px}
 .camera{position:absolute;top:50%;left:9px;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:#23201b;box-shadow:inset 0 0 0 1.5px #2e2a24}
-.notch{position:absolute;top:${IPHONE.pad}px;left:50%;width:118px;height:26px;margin-left:-59px;border-radius:0 0 16px 16px;background:#0e0c09}
-</style><div class="stage">${name === 'ipad'
-    ? '<div class="device ipad"><div class="camera"></div><div class="screen"></div></div>'
-    : '<div class="device iphone"><div class="screen"></div><div class="notch"></div></div>'}</div>`
+</style><div class="stage"><div class="device ipad"><div class="camera"></div><div class="screen"></div></div></div>`
 
 const maskMarkup = (screen) => `<!doctype html><style>
 html,body{margin:0;background:#000}
@@ -226,19 +216,7 @@ const IPAD_TIMELINE = [
   { at: 18.2, run: (page) => openProgramme(page, 'Civil War') },
 ]
 
-const IPHONE_TIMELINE = [
-  { at: 2.4, run: (page) => scrollDownAndBack(page, { dy: 640, downMs: 1800, holdMs: 800, upMs: 1600 }) },
-  { at: 7.8, run: (page) => goTo(page, '#/home') },
-  { at: 12.6, run: (page) => goTo(page, '#/live') },
-  { at: 13.7, run: playLiveDemo },
-  { at: 19.6, run: closePlayer },
-  { at: 19.9, run: (page) => goTo(page, '#/recordings') },
-]
-
-const DEVICES = [
-  { name: 'ipad', viewport: { width: 1024, height: 768 }, screen: IPAD.screen, mobile: false, start: '#/home', timeline: IPAD_TIMELINE },
-  { name: 'iphone', viewport: { width: 390, height: 844 }, screen: IPHONE.screen, mobile: true, start: '#/for-you', timeline: IPHONE_TIMELINE },
-]
+const IPAD_DEVICE = { name: 'ipad', viewport: { width: 1024, height: 768 }, screen: IPAD.screen, mobile: false, start: '#/home', timeline: IPAD_TIMELINE }
 
 main().catch((err) => {
   console.error(err)

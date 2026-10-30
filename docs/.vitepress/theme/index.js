@@ -6,6 +6,7 @@ import DevicesHero from './DevicesHero.vue'
 import FetchBanner from './FetchBanner.vue'
 import Illustration from './Illustration.vue'
 import NavWordmark from './NavWordmark.vue'
+import YouTubeVideo from './YouTubeVideo.vue'
 import './custom.css'
 import './illustrations.css'
 
@@ -21,6 +22,7 @@ export default {
   enhanceApp: ({ app }) => {
     app.component('BrowserFrame', BrowserFrame)
     app.component('Illustration', Illustration)
+    app.component('YouTubeVideo', YouTubeVideo)
   },
   setup: () => {
     const { isDark } = useData()

@@ -23,6 +23,9 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 | Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up        |
 | Kodi + TVHeadend PVR add-on         | Apple TV, Android, Shield                | TVHeadend              | Full guide, and it renders captions. [TV apps](/guide/tv-apps) sets it up   |
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="26dqAHp7Clk" title="Watch recordings and live TV on your TV with Freetvarr" duration="2:19" />
+
 ## In Freetvarr
 
 <!-- markdownlint-disable MD033 -->

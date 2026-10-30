@@ -28,6 +28,9 @@ The library groups your recordings in shelves:
 - **Movies**: films that Freetvarr filed in the movies folder, and films in your Plex movie library.
 - **Specials and one-offs**: programmes that air once, such as a grand final, an awards night, or a special. The import puts them in the [one-off folder](/guide/configuration#the-one-off-folder).
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="YRZN9NP0nL8" title="Freetvarr recordings library, with Plex, Sonarr, and Radarr" duration="2:37" />
+
 A show that has no recordings yet but has an episode scheduled in TVHeadend also gets a poster on its shelf. The day and time of the recording show under the poster, such as `Tue 8:30pm`.
 
 Freetvarr decides between Shows and One-offs the same way for the shelf and for the folder the file goes to. A programme counts as a series when any of these is true:

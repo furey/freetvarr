@@ -24,6 +24,9 @@ With it, you can:
 
 Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="xGyUyMu3tUY" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:02" />
+
 ## Plex DVR
 
 If you have a Plex Pass, you may not need Freetvarr. Plex's own DVR records free-to-air TV from a network tuner straight into your Plex library, and that is a fine choice. [Plex DVR instead](/guide/plex-dvr) compares the two and says what Plex DVR costs without a Plex Pass.
