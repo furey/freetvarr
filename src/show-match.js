@@ -134,7 +134,7 @@ const scoredShowsOf = async ({ shows, airing, parsed, homeCountry, episodesByDat
     const score = (airedThen ? SCORES.airTime : 0)
       + (onChannelNetwork ? SCORES.network : 0)
       + (parsed.country && countryOf(show) === parsed.country ? SCORES.titleCountry : 0)
-      + (domestic ? SCORES.domestic : 0)
+      + (domestic && (onChannelNetwork || airedThen) ? SCORES.domestic : 0)
       + (runsAt({ show, start: airing.start }) ? SCORES.running : 0)
     scored.push({ show, score })
   }

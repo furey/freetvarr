@@ -9,7 +9,7 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db, setSetting } = await import('../src/db.js')
 const { planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
-const { ensureShowFolder } = await import('../src/show-folders.js')
+const { ensureShowFolder, settleShowIdentity } = await import('../src/show-folders.js')
 const { chooseShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
 const { loadIdentityPick } = await import('../src/show-identity-store.js')
 
@@ -210,4 +210,42 @@ test('planFolderFix: offers no rename while the owner still has to pick the show
   const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office', identity_state: 'choose' })
   const plan = await planFolderFix(options({ showId: id, identityFor: async () => ({ ...OFFICE_CHOICES, identity: OFFICE_CHOICES.candidates[0].identity }) }))
   assert.equal(plan.state, 'no-match')
+})
+
+test('ensureShowFolder in the background: answers at once with the bare title', async () => {
+  await setSetting('media_root', mediaRoot)
+  const started = Date.now()
+  const show = await ensureShowFolder({ title: 'Hard Quiz', shows: [], inBackground: true, identityFor: () => new Promise(() => {}) })
+  assert.ok(Date.now() - started < 1000)
+  assert.equal(show.dest_folder, 'Hard Quiz')
+})
+
+test('settleShowIdentity: with nothing on disk yet, the folder takes the matched name', async () => {
+  await setSetting('media_root', mediaRoot)
+  const [id] = await db('shows').insert({ show_pattern: 'Gruen', dest_folder: 'Gruen' })
+  const match = { state: 'matched', identity: { tvmazeId: '7', name: 'Gruen', tvdbId: '83281', tmdbId: null }, candidates: [] }
+  await settleShowIdentity({ showId: id, title: 'Gruen', identityFor: async () => match })
+  const show = await db('shows').where({ id }).first()
+  assert.equal(show.dest_folder, 'Gruen {tvdb-83281}')
+  assert.equal(show.identity_state, 'matched')
+})
+
+test('settleShowIdentity: with recordings already there, only the state changes and Rename folder is offered', async () => {
+  await setSetting('media_root', mediaRoot)
+  await settleShowIdentity({ showId, title: 'Big Brother', identityFor: async () => AU_MATCH })
+  const show = await db('shows').where({ id: showId }).first()
+  assert.equal(show.dest_folder, 'Big Brother')
+  assert.equal(show.identity_state, 'confirm')
+  assert.equal(show.tvdb_id, '76237')
+  const plan = await planFolderFix(options({ identityFor: async () => { throw new Error('no lookup expected') } }))
+  assert.equal(plan.to, NEW_FOLDER)
+})
+
+test('settleShowIdentity: an unclear match keeps the bare folder and asks the owner', async () => {
+  await setSetting('media_root', mediaRoot)
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office' })
+  await settleShowIdentity({ showId: id, title: 'The Office', identityFor: async () => OFFICE_CHOICES })
+  const show = await db('shows').where({ id }).first()
+  assert.equal(show.dest_folder, 'The Office')
+  assert.equal(show.identity_state, 'choose')
 })

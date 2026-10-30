@@ -181,10 +181,19 @@ test('no clear winner keeps the bare title and lists the shows to choose from', 
   ])
 })
 
-test('a UK install picks the UK show when nothing else separates them', async () => {
+test('a UK install picks the UK show on its own network', async () => {
   const client = fakeClient({ searches: { 'the office': [OFFICE_US, OFFICE_UK] } })
-  const match = await identityWith({ client, country: 'gb' })({ title: 'The Office' })
+  const match = await identityWith({ client, country: 'gb' })({ title: 'The Office', channelName: 'BBC Two HD' })
   assert.equal(identityFolderOf(match.identity), 'The Office (UK) {tvdb-78107}')
+})
+
+test('the home country alone does not pick a show: The Office on ABC is not the Prime Video remake', async () => {
+  const officeAu = tvmazeShow({ id: 74125, name: 'The Office', country: 'AU', network: 'Prime Video', tvdb: 446310, premiered: '2024-10-18', ended: '2024-10-18' })
+  const client = fakeClient({ searches: { 'the office': [officeAu, OFFICE_US, OFFICE_UK] } })
+  const match = await identityWith({ client })({ title: 'The Office', channelName: 'ABC TV', start: AIRED_2026 })
+  assert.equal(match.state, 'choose')
+  assert.equal(match.identity, null)
+  assert.deepEqual(match.candidates.map((candidate) => candidate.tvmazeId), ['74125', '526', '1214'])
 })
 
 test('a unique title gets no country tag', async () => {

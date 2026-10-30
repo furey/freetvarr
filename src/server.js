@@ -900,7 +900,7 @@ const saveArtworkFromGuide = async ({ recordingId, eventId }) => {
 }
 
 const ensureShowRule = async (title) => {
-  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title })
+  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title, inBackground: true })
   return { created, show_pattern, dest_folder }
 }
 
