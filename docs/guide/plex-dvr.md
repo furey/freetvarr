@@ -8,7 +8,7 @@ description: >-
 
 # Plex DVR instead
 
-Before you set up TVHeadend and Freetvarr, check whether you need them at all. Plex has its own recorder, Live TV & DVR. With a network tuner such as an HDHomeRun, it records free-to-air TV straight into your Plex library. If you already have a Plex Pass, that may be all you need.
+Plex has its own recorder, Live TV & DVR. With a network tuner such as an HDHomeRun, it records free-to-air TV straight into your Plex library. If you already have a Plex Pass, that may be all you need, and you can skip TVHeadend and Freetvarr.
 
 The author built Freetvarr before noticing that the author's own Plex Pass already covered Plex DVR.
 

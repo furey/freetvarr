@@ -22,9 +22,6 @@ hero:
       text: What it is
       link: /guide/
     - theme: alt
-      text: What's new in 2.0
-      link: /guide/whats-new
-    - theme: alt
       text: Technical deep dive
       link: /deep-dive
 
@@ -89,8 +86,4 @@ features:
     linkText: The security model
 ---
 
-## Plex DVR
-
-If you have a Plex Pass, Plex's own Live TV & DVR may be all you need. With a network tuner, it records free-to-air TV straight into your Plex library and plays live TV in every Plex app. The author built Freetvarr before noticing that a Plex Pass already covered it.
-
-Plex DVR suits you if Plex Media Server already runs on an always-on computer and you watch in Plex apps. Freetvarr suits you if you have no Plex Pass, or you want live TV in any browser, a recorder that a Plex update cannot stop, an ad cut you can undo, and the broadcast captions kept in each recording. [Plex DVR instead](/guide/plex-dvr) compares the two and shows the Plex setup.
+Already have a Plex Pass? Plex's own DVR may be all you need. See [Plex DVR instead](/guide/plex-dvr).
