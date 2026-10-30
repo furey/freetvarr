@@ -49,7 +49,7 @@ const VIDEO_EXTENSIONS = new Set(['.ts', '.mkv', '.mp4', '.m4v', '.avi', '.mov',
 
 const isPresent = async (filePath) => fs.access(filePath).then(() => true, () => false)
 
-const isVideo = (name) => VIDEO_EXTENSIONS.has(path.extname(name).toLowerCase())
+export const isVideo = (name) => VIDEO_EXTENSIONS.has(path.extname(name).toLowerCase())
 
 const seasonFoldersOf = async ({ filePath, season }) => {
   const own = path.dirname(filePath)

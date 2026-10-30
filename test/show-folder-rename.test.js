@@ -344,6 +344,14 @@ test('ensureShowFolder: a slow match in a sync keeps the bare name, then saves t
   assert.equal((await planFolderFix(options({ showId: show.id }))).to, 'Gruen {tvdb-83281}')
 })
 
+test('planFolderFix: counts the videos in the folder that Freetvarr did not record', async () => {
+  await fs.writeFile(path.join(mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E01.mkv'), 'copy')
+  await fs.writeFile(path.join(mediaRoot, 'Big Brother', 'poster.jpg'), 'art')
+  const plan = await planFolderFix(options({ identityFor: async () => AU_MATCH }))
+  assert.equal(plan.recordings, 1)
+  assert.equal(plan.otherVideos, 1)
+})
+
 test('keptFolderPatchOf: a Saves to the owner types by hand is kept', () => {
   const show = { dest_folder: 'Big Brother' }
   assert.deepEqual(keptFolderPatchOf({ show, patch: { dest_folder: 'BB' } }), { kept_folder: 'BB' })

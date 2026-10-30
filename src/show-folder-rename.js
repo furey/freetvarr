@@ -6,6 +6,7 @@ import { getActiveSyncId, getMediaRoot } from './sync.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import { isAdJobRunning } from './commercials.js'
 import { isReclassifying } from './library-reclassify.js'
+import { isVideo } from './library-files.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
 import { channelNameOfShow, identityColumnsOf, storedIdentityOf } from './show-identity-store.js'
 
@@ -31,12 +32,14 @@ export const planFolderFix = async ({
     exists({ fsApi, filePath: paths.from }),
     exists({ fsApi, filePath: paths.to }),
   ])
+  const otherVideos = folderExists ? await otherVideosIn({ fsApi, folder: paths.from, recordings }) : 0
   return {
     state: libraryItems.some(isManaged) ? 'managed' : targetExists ? 'target-exists' : 'ready',
     from: show.dest_folder,
     to: target,
     recordings: recordings.length,
     folderExists,
+    otherVideos,
     identity,
   }
 }
@@ -116,6 +119,23 @@ const lookedUpIdentityOf = async ({ show, database, identityFor }) => {
   return match?.state === 'choose' ? null : match?.identity ?? null
 }
 
+const otherVideosIn = async ({ fsApi, folder, recordings }) => {
+  const recorded = new Set(recordings.map((row) => row.file_path))
+  const files = await filesUnder({ fsApi, folder, depth: MAX_FOLDER_DEPTH }).catch(() => [])
+  return files.filter((file) => isVideo(file) && !recorded.has(file)).length
+}
+
+const filesUnder = async ({ fsApi, folder, depth }) => {
+  const entries = await fsApi.readdir(folder, { withFileTypes: true }).catch(() => [])
+  const files = []
+  for (const entry of entries) {
+    const filePath = path.join(folder, entry.name)
+    if (entry.isDirectory() && depth > 0) files.push(...await filesUnder({ fsApi, folder: filePath, depth: depth - 1 }))
+    else if (entry.isFile()) files.push(filePath)
+  }
+  return files
+}
+
 const renameFolder = async ({ fsApi, paths }) => {
   try {
     await fsApi.rename(paths.from, paths.to)
@@ -153,6 +173,7 @@ const isPlainFolderName = (name) => typeof name === 'string'
   && name !== '..'
   && !/[\\/]/.test(name)
 
+const MAX_FOLDER_DEPTH = 3
 const UNPICKED_STATES = new Set(['choose', 'declined'])
 
 const exists = ({ fsApi, filePath }) => fsApi.access(filePath).then(() => true, () => false)

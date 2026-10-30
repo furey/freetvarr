@@ -3,7 +3,7 @@ import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
 import { artFallbackStyle } from '/art-fallback.js'
-import { candidateMetaOf, identityRowOf } from '/show-identity-text.js'
+import { candidateMetaOf, folderFixOutcomeOf, identityRowOf } from '/show-identity-text.js'
 
 export const mediaRootPrefix = (mediaRoot) => `${(mediaRoot || '/media/tv').replace(/\/+$/, '')}/`
 
@@ -277,16 +277,6 @@ export const FolderEditor = {
       removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
-}
-
-export const folderFixOutcomeOf = (plan) => {
-  if (!plan) return ''
-  const plex = 'Plex then rescans your TV library.'
-  if (!plan.folderExists) return `The folder is not on disk yet, so Freetvarr changes where new episodes save to. ${plex}`
-  const count = plan.recordings === 1 ? '1 recording' : `${plan.recordings} recordings`
-  return plan.recordings
-    ? `Freetvarr updates the ${count} in it, and new episodes save to the new folder. ${plex}`
-    : `New episodes save to the new folder. ${plex}`
 }
 
 export const FolderSyncButton = {

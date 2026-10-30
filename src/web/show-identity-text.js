@@ -22,4 +22,21 @@ export const candidateMetaOf = ({ candidate, current }) => {
   return isCurrent ? `${details} · Current` : details
 }
 
+export const folderFixOutcomeOf = (plan) => {
+  if (!plan) return ''
+  const plex = 'Plex then rescans your TV library.'
+  if (!plan.folderExists) return `The folder is not on disk yet, so Freetvarr changes where new episodes save to. ${plex}`
+  const count = plan.recordings === 1 ? '1 recording' : `${plan.recordings} recordings`
+  const moved = plan.recordings
+    ? `Freetvarr updates the ${count} in it, and new episodes save to the new folder.`
+    : 'New episodes save to the new folder.'
+  return [moved, otherVideosOf(plan.otherVideos), plex].filter(Boolean).join(' ')
+}
+
+const otherVideosOf = (count) => {
+  if (!count) return ''
+  const videos = count === 1 ? '1 video' : `${count} videos`
+  return `The folder also holds ${videos} that Freetvarr did not record, such as copies you added yourself. They move with the folder.`
+}
+
 const detailsOf = (candidate) => [candidate.country, candidate.network, candidate.years].filter(Boolean).join(' · ')

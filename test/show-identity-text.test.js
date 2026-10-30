@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { candidateMetaOf, identityRowOf } from '../src/web/show-identity-text.js'
+import { candidateMetaOf, folderFixOutcomeOf, identityRowOf } from '../src/web/show-identity-text.js'
 
 const OFFICE_UK = { tvmazeId: '1214', name: 'The Office', country: 'UK', network: 'BBC Two', years: '2001–2003' }
 const OFFICE_US = { tvmazeId: '526', name: 'The Office', country: 'US', network: 'NBC', years: '2005–2013' }
@@ -32,6 +32,14 @@ test('identityRowOf: shows nothing without a match or candidates', () => {
 test('identityRowOf: None of these keeps the plain name and offers the picker again', () => {
   const row = identityRowOf({ status: { state: 'declined', current: null, candidates: [OFFICE_US, OFFICE_UK] }, title: 'The Office' })
   assert.deepEqual(row, { title: 'None of these', meta: 'The folder keeps the plain name. Press to pick a show.' })
+})
+
+test('folderFixOutcomeOf: says how many videos Freetvarr did not record move with the folder', () => {
+  assert.equal(
+    folderFixOutcomeOf({ folderExists: true, recordings: 2, otherVideos: 3 }),
+    'Freetvarr updates the 2 recordings in it, and new episodes save to the new folder. The folder also holds 3 videos that Freetvarr did not record, such as copies you added yourself. They move with the folder. Plex then rescans your TV library.',
+  )
+  assert.equal(folderFixOutcomeOf({ folderExists: true, recordings: 1, otherVideos: 0 }), 'Freetvarr updates the 1 recording in it, and new episodes save to the new folder. Plex then rescans your TV library.')
 })
 
 test('candidateMetaOf: marks the current show', () => {
