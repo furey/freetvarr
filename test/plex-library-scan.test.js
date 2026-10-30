@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createLibraryScan, managerUpdatesOf, QUICK_OVERLAP_S } from '../src/plex-library-scan.js'
+import { libraryItemRowsOf } from '../src/plex-library.js'
 import { rowToSave, wholeLibrarySettingsOf } from '../src/plex-library-store.js'
 import { createPlexWatchSync } from '../src/plex-watch-sync.js'
 
@@ -15,7 +16,7 @@ const job = () => {
 
 const plexItem = (key) => ({ ratingKey: key, grandparentTitle: 'Show', parentIndex: 1, index: Number(key), Media: [{ Part: [{ id: key, file: `/data/media/tv/Show/Season 01/Show - S01E0${key}.mkv` }] }] })
 
-const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending = [], index = null, write = async () => {} } = {}) => {
+const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending = [], index = null, lookup = null, write = async () => {} } = {}) => {
   const state = { saved: [], cleared: [], managerUpdates: [], listCalls: [], writes: [] }
   const client = {
     sections: async () => [{ id: '2', type: 'show' }, { id: '1', type: 'movie' }, { id: '9', type: 'artist' }, { id: '5', type: 'movie' }],
@@ -36,6 +37,7 @@ const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending
     loadPendingPushes: async () => pending,
     clearPendingPush: async (args) => state.cleared.push(args),
     loadManagerIndex: async () => index,
+    createManagerLookup: () => lookup,
     saveManagerFields: async (updates) => state.managerUpdates.push(...updates),
     now: () => NOW,
   })
@@ -134,4 +136,47 @@ test('plex watch sync: runs the whole-library step after the watched sync and ke
   const result = await sync.run({ trigger: 'manual' })
   assert.deepEqual(calls, [true])
   assert.equal(result.full, true)
+})
+
+test('afterSync: a quick pass links new items Sonarr holds and leaves the others as they were', async () => {
+  const asked = []
+  const lookup = {
+    managerOf: async ({ filePath, apps }) => {
+      asked.push(apps)
+      return { found: filePath.endsWith('S01E01.mkv') ? { manager: 'sonarr', fileId: 11, itemId: null, seriesId: 3 } : null, checked: ['sonarr'] }
+    },
+  }
+  const { scan, client, state } = harness({ lookup })
+  const log = job()
+  await scan.afterSync({ client, full: false, status: { lastRunAt: NOW - 60_000 }, job: log })
+  assert.deepEqual(state.managerUpdates.map((update) => [update.rating_key, update.manager, update.manager_file_id]), [['1', 'sonarr', 11]])
+  assert.deepEqual(asked[0], ['sonarr'])
+  assert.deepEqual(log.facts.at(-1), ['Downloaded by Sonarr or Radarr', 1])
+})
+
+test('afterSync: a quick pass keeps going when Sonarr does not answer, and clears no links', async () => {
+  const lookup = { managerOf: async () => { throw new Error('Sonarr did not answer (ECONNREFUSED)') } }
+  const { scan, client, state } = harness({ lookup })
+  const log = job()
+  await scan.afterSync({ client, full: false, status: { lastRunAt: NOW - 60_000 }, job: log })
+  assert.deepEqual(state.managerUpdates, [])
+  assert.match(log.logs[0], /Sonarr did not answer/)
+  assert.equal(state.saved[0].rows.length, 2)
+})
+
+const pathOf = (n) => `/data/media/tv/Show ${n}/Season 01/Show ${n} - S01E01.mkv`
+
+test('managerUpdatesOf and libraryItemRowsOf: path matching stays fast for a large library', () => {
+  const size = 20_000
+  const index = new Map(Array.from({ length: size }, (_, n) => [`/tv/Show ${n}/Season 01/Show ${n} - S01E01.mkv`, { manager: 'sonarr', path: `/tv/Show ${n}/Season 01/Show ${n} - S01E01.mkv`, fileId: n, seriesId: n }]))
+  const rows = Array.from({ length: size }, (_, n) => ({ rating_key: String(n), part_id: String(n), file_path: pathOf(n) }))
+  const recordingFiles = Array.from({ length: size }, (_, n) => ({ recordingId: `r${n}`, filePath: pathOf(n) }))
+  const items = Array.from({ length: size }, (_, n) => ({ ratingKey: String(n), Media: [{ Part: [{ id: n, file: pathOf(n + size) }] }] }))
+  const started = performance.now()
+  const updates = managerUpdatesOf({ rows, index })
+  const itemRows = libraryItemRowsOf({ items, section: { id: '2', type: 'show' }, recordingFiles, roots: ['/data/media/tv'], seenAt: NOW })
+  const elapsed = performance.now() - started
+  assert.equal(updates.filter((update) => update.manager).length, size)
+  assert.equal(itemRows.length, size)
+  assert.ok(elapsed < 1000, `took ${Math.round(elapsed)} ms`)
 })

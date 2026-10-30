@@ -11,9 +11,12 @@ export const ratingKeyOfItemId = (id) => (isPlexItemId(id) ? id.slice(PLEX_ITEM_
 
 export const isPlexRow = (row) => row?.source === 'plex'
 
-export const libraryItemRowsOf = ({ items = [], section, recordingFiles = [], roots = [], seenAt }) => items
-  .flatMap((item) => partsOf(item).map(({ media, part }) => itemRowOf({ item, media, part, section, recordingFiles, roots, seenAt })))
-  .filter((row) => row.file_path)
+export const libraryItemRowsOf = ({ items = [], section, recordingFiles = [], roots = [], seenAt }) => {
+  const recordingIndex = createPathIndex(recordingFiles.map(({ recordingId, filePath }) => ({ recordingId, path: filePath })))
+  return items
+    .flatMap((item) => partsOf(item).map(({ media, part }) => itemRowOf({ item, media, part, section, recordingIndex, roots, seenAt })))
+    .filter((row) => row.file_path)
+}
 
 export const localPathOf = ({ plexFile, roots = [] }) => {
   if (!plexFile) return null
@@ -37,6 +40,26 @@ export const isSameFileByTail = (a, b) => {
   if (!wanted) return false
   for (let i = 1; i <= wanted; i += 1) if (left[left.length - i] !== right[right.length - i]) return false
   return true
+}
+
+export const createPathIndex = (entries) => {
+  const exact = new Map()
+  const byName = new Map()
+  for (const entry of entries) {
+    if (!entry?.path) continue
+    if (!exact.has(entry.path)) exact.set(entry.path, entry)
+    const name = lastSegmentOf(entry.path)
+    if (!byName.has(name)) byName.set(name, [])
+    byName.get(name).push(entry)
+  }
+  return { exact, byName }
+}
+
+export const findInPathIndex = ({ index, filePath }) => {
+  if (!filePath) return null
+  return index.exact.get(filePath)
+    ?? (index.byName.get(lastSegmentOf(filePath)) || []).find((entry) => isSameFileByTail(entry.path, filePath))
+    ?? null
 }
 
 export const baseShowTitleOf = (title) => String(title ?? '').replace(TRAILING_TAGS, '').trim()
@@ -160,7 +183,7 @@ const virtualRowOf = ({ parts, shownTitle, nowMs }) => {
   return { ...row, plex_new: isNewPlexRow({ row, nowMs }) }
 }
 
-const itemRowOf = ({ item, media, part, section, recordingFiles, roots, seenAt }) => {
+const itemRowOf = ({ item, media, part, section, recordingIndex, roots, seenAt }) => {
   const isEpisode = section.type === 'show'
   const plexFile = part.file || null
   const localFile = localPathOf({ plexFile, roots })
@@ -194,7 +217,7 @@ const itemRowOf = ({ item, media, part, section, recordingFiles, roots, seenAt }
     view_offset_s: item.viewOffset ? Math.round(Number(item.viewOffset) / 1000) : 0,
     last_viewed_at: lastViewedMs,
     pending_push: null,
-    recording_id: recordingIdForFile({ files: [localFile, plexFile], recordingFiles }),
+    recording_id: recordingIdForFile({ files: [localFile, plexFile], recordingIndex }),
     manager: null,
     manager_file_id: null,
     manager_item_id: null,
@@ -203,9 +226,10 @@ const itemRowOf = ({ item, media, part, section, recordingFiles, roots, seenAt }
   }
 }
 
-const recordingIdForFile = ({ files, recordingFiles }) => {
-  for (const { recordingId, filePath } of recordingFiles) {
-    if (files.some((file) => isSameFileByTail(file, filePath))) return recordingId
+const recordingIdForFile = ({ files, recordingIndex }) => {
+  for (const file of files) {
+    const found = findInPathIndex({ index: recordingIndex, filePath: file })
+    if (found) return found.recordingId
   }
   return null
 }
@@ -214,6 +238,8 @@ const partsOf = (item) => (Array.isArray(item?.Media) ? item.Media : [])
   .flatMap((media) => (Array.isArray(media?.Part) ? media.Part : []).map((part) => ({ media, part })))
 
 const slotKeyOf = ({ key, season, episode }) => `${key}|${season}|${episode}`
+
+const lastSegmentOf = (filePath) => segmentsOf(filePath).at(-1) ?? ''
 
 const segmentsOf = (filePath) => path.normalize(String(filePath)).split(/[\\/]+/).filter(Boolean)
 

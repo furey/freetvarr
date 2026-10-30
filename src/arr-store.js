@@ -3,6 +3,7 @@ import fs from 'fs/promises'
 import { getSetting, setSetting } from './db.js'
 import { ARR_APPS, ARR_DEFAULT_PORTS, arrConfigOf, createArrClient, pingArr, recycleBinOf } from './arr-client.js'
 import { createCircuitBreaker } from './outbound-http.js'
+import { radarrEntryOf, sonarrEntryOf } from './arr-files.js'
 
 export const loadArrSettings = async ({ readConfig = readArrConfig } = {}) => {
   const entries = await Promise.all(ARR_APPS.map(async (app) => {
@@ -109,19 +110,11 @@ export const buildManagerIndex = async ({ settings, clientFor = arrClientFor } =
   const index = new Map()
   if (sonarr) {
     for (const series of await sonarr.series()) {
-      for (const file of await sonarr.episodeFiles(series.id)) {
-        const filePath = file.path || joinPath(series.path, file.relativePath)
-        if (filePath) index.set(filePath, { manager: 'sonarr', path: filePath, fileId: file.id, itemId: null, seriesId: series.id })
-      }
+      for (const file of await sonarr.episodeFiles(series.id)) addEntry(index, sonarrEntryOf({ series, file }))
     }
   }
   if (radarr) {
-    for (const movie of await radarr.movies()) {
-      const file = movie.movieFile
-      if (!file?.id) continue
-      const filePath = file.path || joinPath(movie.path, file.relativePath)
-      if (filePath) index.set(filePath, { manager: 'radarr', path: filePath, fileId: file.id, itemId: movie.id, seriesId: null })
-    }
+    for (const movie of await radarr.movies()) addEntry(index, radarrEntryOf(movie))
   }
   return index
 }
@@ -143,7 +136,9 @@ const hostOf = (url) => {
   }
 }
 
-const joinPath = (folder, relative) => (folder && relative ? `${String(folder).replace(/\/+$/, '')}/${relative}` : null)
+const addEntry = (index, entry) => {
+  if (entry) index.set(entry.path, entry)
+}
 
 const unique = (items) => [...new Set(items)]
 

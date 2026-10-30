@@ -1,4 +1,5 @@
-import { isSameFileByTail, libraryItemRowsOf } from './plex-library.js'
+import { appsForKind } from './arr-files.js'
+import { createPathIndex, findInPathIndex, libraryItemRowsOf } from './plex-library.js'
 
 export const QUICK_OVERLAP_S = 120
 
@@ -10,6 +11,7 @@ export const createLibraryScan = ({
   loadPendingPushes,
   clearPendingPush,
   loadManagerIndex = async () => null,
+  createManagerLookup = () => null,
   saveManagerFields = async () => {},
   now = Date.now,
 }) => {
@@ -38,6 +40,7 @@ export const createLibraryScan = ({
     }
     job.fact(full ? 'Plex library items' : 'New or changed Plex items', scanned)
     if (full) await linkManagers({ rows: savedRows, job })
+    else await linkNewManagers({ rows: savedRows, job })
     return { pushed, scanned }
   }
 
@@ -68,19 +71,38 @@ export const createLibraryScan = ({
     job.fact('Downloaded by Sonarr or Radarr', updates.filter((update) => update.manager).length)
   }
 
+  const linkNewManagers = async ({ rows, job }) => {
+    const lookup = createManagerLookup()
+    if (!lookup) return
+    const updates = []
+    try {
+      for (const row of rows.filter((entry) => !entry.recording_id)) {
+        const { found } = await lookup.managerOf({ filePath: row.file_path, apps: appsForKind(row.kind) })
+        if (found) updates.push(managerUpdateOf({ row, found }))
+      }
+    } catch (err) {
+      job.log(`Sonarr and Radarr: ${err.message}`, 'warn')
+    }
+    if (!updates.length) return
+    await saveManagerFields(updates)
+    job.fact('Downloaded by Sonarr or Radarr', updates.length)
+  }
+
   return { afterSync }
 }
 
-export const managerUpdatesOf = ({ rows, index }) => rows.map((row) => {
-  const found = index.get(row.file_path) ?? [...index.values()].find((entry) => isSameFileByTail(entry.path, row.file_path)) ?? null
-  return {
-    rating_key: row.rating_key,
-    part_id: row.part_id,
-    manager: found?.manager ?? null,
-    manager_file_id: found?.fileId ?? null,
-    manager_item_id: found?.itemId ?? null,
-    manager_series_id: found?.seriesId ?? null,
-  }
+export const managerUpdatesOf = ({ rows, index }) => {
+  const paths = createPathIndex(index.values())
+  return rows.map((row) => managerUpdateOf({ row, found: findInPathIndex({ index: paths, filePath: row.file_path }) }))
+}
+
+const managerUpdateOf = ({ row, found }) => ({
+  rating_key: row.rating_key,
+  part_id: row.part_id,
+  manager: found?.manager ?? null,
+  manager_file_id: found?.fileId ?? null,
+  manager_item_id: found?.itemId ?? null,
+  manager_series_id: found?.seriesId ?? null,
 })
 
 const uniqueItems = (items) => [...new Map(items.map((item) => [String(item.ratingKey), item])).values()]

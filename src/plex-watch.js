@@ -11,7 +11,8 @@ import {
   saveManagerFields,
   saveScannedItems,
 } from './plex-library-store.js'
-import { buildManagerIndex } from './arr-store.js'
+import { arrClientFor, buildManagerIndex } from './arr-store.js'
+import { createArrLookup } from './arr-files.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot } from './sync.js'
 
 export const loadPlexWatchConfig = async () => {
@@ -84,6 +85,7 @@ const libraryScan = createLibraryScan({
   loadPendingPushes,
   clearPendingPush,
   loadManagerIndex: () => buildManagerIndex(),
+  createManagerLookup: () => createArrLookup({ clientFor: arrClientFor }),
   saveManagerFields,
 })
 
