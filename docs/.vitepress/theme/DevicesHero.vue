@@ -36,7 +36,7 @@ watch(theme, () => nextTick(playUnlessReducedMotion))
       muted
       playsinline
       preload="metadata"
-      aria-label="Freetvarr on an iPad and an iPhone: Home, For you, live TV playing, the TV guide, and recordings"
+      aria-label="Freetvarr on an iPad: Home, live TV playing, and the TV guide"
     >
       <source :src="mediaFor('.mp4')" media="(min-resolution: 2dppx)" type="video/mp4" />
       <source :src="mediaFor('-1x.mp4')" type="video/mp4" />
@@ -48,7 +48,7 @@ watch(theme, () => nextTick(playUnlessReducedMotion))
 .devices-hero {
   margin: 0;
   width: 100%;
-  aspect-ratio: 1114 / 918;
+  aspect-ratio: 1148 / 900;
 }
 
 .devices-hero video {

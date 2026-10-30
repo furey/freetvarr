@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Record the docs home hero: an iPad and an iPhone, both playing a looping tour
-# of Freetvarr, composited over the light and dark site backgrounds.
+# Record the docs home hero: an iPad playing a looping tour of Freetvarr,
+# composited over the light and dark site backgrounds.
 #
 # Run it against the server from capture-local-server.sh, with the variables
-# that script prints. capture-devices.mjs records one pass per device in host
-# Chromium (iPad landscape at 1024x768, iPhone at 390x844 scaled into the
-# phone screen). Each pass first plays its whole tour once so every image is
-# loaded, then records the tour again and fails if any art is unloaded or a
-# placeholder while recording. Live TV plays the Mixkit surf montage from
-# capture-live-clip.sh as "Big Wave Season" on 7mate. ffmpeg layers both
-# screens into the device bezels and writes docs/public/devices-light.mp4,
+# that script prints. capture-devices.mjs records the iPad screen in host
+# Chromium (landscape at 1024x768). It first plays the whole tour once so every
+# image is loaded, then records the tour again and fails if any art is unloaded
+# or a placeholder while recording. Live TV plays the Mixkit surf montage from
+# capture-live-clip.sh as "Big Wave Season" on 7mate. ffmpeg layers the screen
+# into the iPad bezel and writes docs/public/devices-light.mp4,
 # devices-dark.mp4, their -1x.mp4 versions, and a poster for each.
+#
+# DEVICES_REUSE_SCREEN=1 skips the recording and composites the iPad screen
+# already in scripts/.cache/devices/ipad.mp4.
 #
 # Needs host `node` + `ffmpeg`, and the server from capture-local-server.sh.
 #
@@ -41,6 +43,7 @@ echo "[devices] recording in host Chromium"
 FREETVARR_URL="$FREETVARR_URL" \
 TZ="$HOST_TZ" \
 SIMULATED_NOW="${SIMULATED_NOW:-}" \
+DEVICES_REUSE_SCREEN="${DEVICES_REUSE_SCREEN:-}" \
 LIVE_DEMO_DIR="${REPO_ROOT}/scripts/.cache/live-demo" \
 LIVE_TUNING_MS="${LIVE_TUNING_MS:-600}" \
 DEVICES_WORK_DIR="${REPO_ROOT}/scripts/.cache/devices" \
