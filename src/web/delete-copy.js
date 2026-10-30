@@ -25,33 +25,35 @@ export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCo
   const count = preview.count ?? items.length
   const recorded = items.filter((item) => item.recording !== false)
   const missing = recorded.filter((item) => item.missing)
-  const copies = copiesOf(items)
+  const allCopies = copiesOf(items)
+  const copies = allCopies.filter((copy) => !copy.recording)
+  const managedRecordings = allCopies.filter((copy) => copy.recording)
+  const plainRecorded = recorded.filter((item) => !(item.copies || []).some((copy) => copy.recording))
   const offersStopSeries = variant === 'all' && Boolean(show.rule)
   const stopsSeries = offersStopSeries && stopSeries
   const offersRemoveSeries = variant === 'all' && (preview.sonarrSeries || []).length > 0
   const removesSeries = offersRemoveSeries && removeSeries
-  const recordingBytes = copies.length ? recorded.reduce((sum, item) => sum + (item.bytes || 0), 0) : preview.bytes
+  const recordingBytes = allCopies.length ? recorded.reduce((sum, item) => sum + (item.bytes || 0), 0) : preview.bytes
   const single = variant === 'episode'
   const onlyFiles = !recorded.length && copies.length > 0 && copies.every((copy) => copy.route === 'disk')
   const chooser = single && items[0]?.canChoose ? choicesOf(items[0].otherManager) : []
   return {
     title: onlyFiles && single ? 'Delete this file?' : titleOf({ variant, count, showTitle: show.title }),
     deleted: [
-      copies.length && single && recorded.length
-        ? recordingLineOf({ bytes: recordingBytes, filePath: episodes[0]?.filePath })
-        : libraryLineOf({ variant, items: recorded, bytes: recordingBytes }),
+      plainRecordingLineOf({ variant, single, copies, recorded: plainRecorded, bytes: recordingBytes, filePath: episodes[0]?.filePath }),
+      ...managedRecordingLinesOf({ copies: managedRecordings, single, unmonitor: preview.unmonitor !== false, episodeLabel: single ? episodeLabelOf(items[0] || {}) : '' }),
       tvheadendLineOf({ variant, count: recorded.length || count, episodes: recorded.length ? episodes.filter((episode) => episode.source !== 'plex') : [], missingCount: missing.length }),
       ...copyLinesOf({ copies, single, withRecording: recorded.length > 0, unmonitor: preview.unmonitor !== false, episodeLabel: single ? episodeLabelOf(items[0] || {}) : '' }),
       stopsSeries ? { title: 'The series recording', detail: 'New episodes stop recording' } : null,
       removesSeries ? { title: 'The series in Sonarr', detail: 'Sonarr stops downloading new episodes' } : null,
     ].filter(Boolean),
     missingNote: missingNoteOf(missing),
-    notes: copyNotesOf({ copies, single }),
+    notes: [managedRecordingNoteOf({ copies: managedRecordings, single }), ...copyNotesOf({ copies, single })].filter(Boolean),
     stays: [
       ...staysOf({ variant, count, totalCount, episodes, show, stopsSeries }),
-      copies.some((copy) => copy.route === 'sonarr') && !removesSeries ? { title: `The rest of ${show.title} in Sonarr`, detail: 'New episodes still download' } : null,
+      allCopies.some((copy) => copy.route === 'sonarr') && !removesSeries ? { title: `The rest of ${show.title} in Sonarr`, detail: 'New episodes still download' } : null,
     ].filter(Boolean),
-    undoText: undoTextOf({ copies, recorded: recorded.length > 0, recycleBin: preview.recycleBin || {} }),
+    undoText: undoTextOf({ copies: allCopies, recorded: recorded.length > 0, recycleBin: preview.recycleBin || {} }),
     confirmLabel: confirmLabelOf({ variant, count, choice, chooser, onlyFiles }),
     busyLabel: 'Deleting…',
     offersStopSeries,
@@ -74,6 +76,32 @@ const confirmLabelOf = ({ variant, count, choice, chooser, onlyFiles }) => {
   if (chooser.length) return { both: 'Delete both', recording: 'Delete recording', other: `Delete ${chooser[2].label.toLowerCase()}` }[choice]
   if (variant === 'episode') return onlyFiles ? 'Delete file' : 'Delete episode'
   return `Delete ${episodesText(count)}`
+}
+
+const plainRecordingLineOf = ({ variant, single, copies, recorded, bytes, filePath }) => {
+  if (!recorded.length) return null
+  return copies.length && single
+    ? recordingLineOf({ bytes, filePath })
+    : libraryLineOf({ variant, items: recorded, bytes })
+}
+
+const managedRecordingLinesOf = ({ copies, single, unmonitor, episodeLabel }) => ['sonarr', 'radarr'].flatMap((route) => {
+  const list = copies.filter((copy) => copy.route === route)
+  if (!list.length) return []
+  const name = appNameOf(route)
+  const size = sizeText(sumOf(list))
+  const stops = unmonitor ? `, which stops monitoring ${single ? episodeLabel : list.length === 1 ? 'it' : 'them'}` : ''
+  const title = single ? 'The recording' : list.length === 1 ? '1 recording' : `${list.length} recordings`
+  return [{ title, detail: `${size ? `${size}, ` : ''}deleted through ${name}${stops}`, path: single ? fileNameOf(list[0].filePath) : '' }]
+})
+
+const managedRecordingNoteOf = ({ copies, single }) => {
+  const managed = copies.filter((copy) => copy.route === 'sonarr' || copy.route === 'radarr')
+  if (!managed.length) return ''
+  const name = appNameOf(managed[0].route)
+  return single || managed.length === 1
+    ? `${name} manages this recording, so Freetvarr deletes it through ${name}.`
+    : `${name} manages ${managed.length} of these recordings, so Freetvarr deletes them through ${name}.`
 }
 
 const recordingLineOf = ({ bytes, filePath }) => ({

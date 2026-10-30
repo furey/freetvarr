@@ -1,3 +1,6 @@
+import path from 'path'
+import fs from 'fs/promises'
+
 import { db, getSetting } from './db.js'
 import {
   getActiveSyncId,
@@ -15,6 +18,8 @@ import { isPlexItemId } from './plex-library.js'
 import { loadLibraryItemRows, removePartsByFile, loadPartsByFile } from './plex-library-store.js'
 import { arrClientFor, loadArrSettings } from './arr-store.js'
 import { recycleBinOf } from './arr-client.js'
+import { createArrLookup } from './arr-files.js'
+import { recheckManagers } from './delete-manager-check.js'
 import {
   combineResults,
   foreignTargetsOf,
@@ -29,6 +34,7 @@ import {
   deletionRequestFrom,
   expectedCountFrom,
   previewDeletion,
+  rootFor,
   runDeletion,
   summarise,
 } from './library-delete.js'
@@ -39,9 +45,10 @@ export const mountLibraryDeleteRoutes = ({ app, csrf, limiter }) => {
     if (error) return res.status(400).json({ error })
     const { choices, error: choiceError } = versionChoicesFrom(req.body)
     if (choiceError) return res.status(400).json({ error: choiceError })
-    const plan = await planDeletion({ request, choices })
+    const context = await deletionContext()
+    const plan = await planDeletion({ request, choices, context })
     res.setHeader('Cache-Control', 'no-store')
-    res.json(await previewPlan(plan))
+    res.json(await previewPlan({ plan, context }))
   })
 
   app.post('/api/library/delete', limiter, csrf, async (req, res) => {
@@ -51,8 +58,9 @@ export const mountLibraryDeleteRoutes = ({ app, csrf, limiter }) => {
     if (expectedCount == null) return res.status(400).json({ error: 'expected_count must be a whole number' })
     const { choices, error: choiceError } = versionChoicesFrom(req.body)
     if (choiceError) return res.status(400).json({ error: choiceError })
-    const plan = await planDeletion({ request, choices })
-    const blocked = blockedReasonOf({ rows: plan.recordingRows, syncing: getActiveSyncId() != null })
+    const context = await deletionContext()
+    const plan = await planDeletion({ request, choices, context })
+    const blocked = plan.blocked || blockedReasonOf({ rows: plan.recordingRows, syncing: getActiveSyncId() != null })
     if (blocked) return res.status(409).json({ error: blocked })
     if (plan.count !== expectedCount) {
       return res.status(409).json({
@@ -60,39 +68,71 @@ export const mountLibraryDeleteRoutes = ({ app, csrf, limiter }) => {
         count: plan.count,
       })
     }
-    const outcome = await runPlan({ plan, removeSeries: req.body?.remove_series === true })
+    const outcome = await runPlan({ plan, context, removeSeries: req.body?.remove_series === true })
     res.status(summarise(outcome.results).httpStatus).json(outcome)
   })
 }
 
-const planDeletion = async ({ request, choices }) => {
+const planDeletion = async ({ request, choices, context }) => {
   const plexIds = (request.recordingIds || []).filter(isPlexItemId)
   const recordingIds = request.recordingIds?.filter((id) => !isPlexItemId(id))
-  const [recordingRows, itemRows] = await Promise.all([
+  const [loadedRows, itemRows] = await Promise.all([
     request.recordingIds ? (recordingIds.length ? loadDeletionRows({ recordingIds }) : []) : loadDeletionRows(request),
     loadLibraryItemRows().catch(() => []),
   ])
-  const merged = withPlexRows({ rows: recordingRows, itemRows })
+  const merged = withPlexRows({ rows: loadedRows, itemRows })
   const wantedPlex = new Set(plexIds)
   const plexRows = request.recordingIds
     ? merged.filter((row) => wantedPlex.has(row.recording_id))
     : merged.filter((row) => row.source === 'plex' && groupKeyOf(row) === request.showKey && (request.scope !== 'watched' || row.watched_at))
   const mergedRecordings = merged.filter((row) => row.source !== 'plex')
   const rows = [...mergedRecordings, ...plexRows]
+  const keptRows = mergedRecordings.filter((row) => keepsRecording({ row, choices }))
+  const checked = await recheckManagers({
+    targets: foreignTargetsOf({ rows, choices }),
+    recordingRows: keptRows,
+    lookup: createArrLookup({ clientFor: arrClientFor }),
+    kindOfTarget: kindOfTargetIn({ rows, roots: context.roots }),
+    kindOfRow: (row) => recordingKindOf({ row, roots: context.roots }),
+    activeIds: context.tvh.activeIds,
+  })
   return {
     rows,
-    recordingRows: mergedRecordings.filter((row) => keepsRecording({ row, choices })),
-    targets: foreignTargetsOf({ rows, choices }),
+    recordingRows: keptRows,
+    targets: await withRecordingSizes(checked.targets),
+    managedRecordingIds: checked.managedRecordingIds,
+    blocked: checked.blocked,
     count: rows.length,
     requestedIds: rows.map((row) => row.recording_id),
   }
 }
 
-const previewPlan = async (plan) => {
-  const [context, arrSettings] = await Promise.all([deletionContext(), loadArrSettings()])
+const kindOfTargetIn = ({ rows, roots }) => {
+  const byId = new Map(rows.map((row) => [row.recording_id, row]))
+  return (target) => {
+    const row = byId.get(target.recordingId)
+    return row?.source === 'plex' ? row.plex_kind : recordingKindOf({ row, roots })
+  }
+}
+
+const recordingKindOf = ({ row, roots }) => (row?.file_path && path.isAbsolute(row.file_path) ? rootFor(row.file_path, roots)?.kind ?? null : null)
+
+const withRecordingSizes = (targets) => Promise.all(targets.map(async (target) => {
+  if (!target.recording) return target
+  const stat = await fs.stat(target.filePath).catch(() => null)
+  return { ...target, sizeBytes: stat?.size ?? null }
+}))
+
+const managedFreeRows = (plan) => plan.recordingRows
+  .map((row) => (plan.managedRecordingIds.has(row.recording_id) ? { ...row, file_path: null } : row))
+
+const previewPlan = async ({ plan, context }) => {
+  const arrSettings = await loadArrSettings()
   const connected = await connectedApps(arrSettings)
-  const recordings = await previewDeletion({ rows: plan.recordingRows, ...context })
-  const files = await previewForeign({ targets: plan.targets, roots: context.roots, connected, coversOf: coveredEpisodesOf })
+  const recordings = await previewDeletion({ rows: managedFreeRows(plan), ...context })
+  const recordingPaths = new Set(plan.targets.filter((target) => target.recording).map((target) => target.filePath))
+  const files = (await previewForeign({ targets: plan.targets, roots: context.roots, connected, coversOf: coveredEpisodesOf }))
+    .map((file) => (recordingPaths.has(file.filePath) ? { ...file, recording: true } : file))
   const recordingItems = new Map(recordings.items.map((item) => [item.recordingId, item]))
   const items = plan.rows.map((row) => ({
     ...(recordingItems.get(row.recording_id) || itemOf(row)),
@@ -112,15 +152,13 @@ const previewPlan = async (plan) => {
     recycleBin: await recycleBinsOf(connected),
     unmonitor: arrSettings.unmonitorOnDelete,
     sonarrSeries: sonarrSeriesOf(plan.targets),
+    ...(plan.blocked ? { blocked: plan.blocked } : {}),
   }
 }
 
-const runPlan = async ({ plan, removeSeries }) => {
-  const [context, arrSettings] = await Promise.all([deletionContext(), loadArrSettings()])
+const runPlan = async ({ plan, context, removeSeries }) => {
+  const arrSettings = await loadArrSettings()
   const connected = await connectedApps(arrSettings)
-  const recordings = plan.recordingRows.length
-    ? await runDeletion({ rows: plan.recordingRows, ...context, save: saveDeletion })
-    : { results: [], bytesFreed: 0, plex: {} }
   const foreign = await runForeign({
     targets: plan.targets,
     roots: context.roots,
@@ -129,6 +167,10 @@ const runPlan = async ({ plan, removeSeries }) => {
     unmonitor: arrSettings.unmonitorOnDelete,
     removeParts: removePartsByFile,
   })
+  const rows = rowsStillToDelete({ plan, foreign })
+  const recordings = rows.length
+    ? await runDeletion({ rows, ...context, save: saveDeletion })
+    : { results: [], bytesFreed: 0, plex: {} }
   const plex = { ...recordings.plex, ...await refreshForeignSections(foreign) }
   const series = removeSeries && connected.sonarr
     ? await removeSeriesFromSonarr({ seriesIds: sonarrSeriesOf(plan.targets).map((entry) => entry.id), client: await arrClientFor('sonarr', { settings: arrSettings }) })
@@ -136,6 +178,14 @@ const runPlan = async ({ plan, removeSeries }) => {
   const results = combineResults({ recordingResults: recordings.results, foreign, requestedIds: plan.requestedIds })
   const foreignBytes = foreign.filter((outcome) => outcome.ok).reduce((sum, outcome) => sum + (outcome.bytes || 0), 0)
   return { results, bytesFreed: recordings.bytesFreed + foreignBytes, plex, series }
+}
+
+const rowsStillToDelete = ({ plan, foreign }) => {
+  const failedIds = new Set(foreign
+    .filter((outcome) => !outcome.ok)
+    .flatMap((outcome) => outcome.recordingIds)
+    .filter((id) => plan.managedRecordingIds.has(id)))
+  return plan.recordingRows.filter((row) => !failedIds.has(row.recording_id))
 }
 
 const connectedApps = async (settings) => ({

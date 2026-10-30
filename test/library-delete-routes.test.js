@@ -14,17 +14,39 @@ const { mountLibraryDeleteRoutes } = await import('../src/library-delete-routes.
 
 const MEDIA_ROOT = path.join(tmpDir, 'media')
 const RECORDINGS_ROOT = path.join(tmpDir, 'recordings')
-const fake = { finished: [], active: [], posts: [] }
+const fake = { finished: [], active: [], posts: [], arr: [], sonarrFiles: [], sonarrDeleteStatus: 200 }
 
 let fakeServer
+let fakeUrl
 let appServer
 let baseUrl
 
 const passThrough = (req, res, next) => next()
 
+const answerSonarr = ({ req, res, url }) => {
+  const route = url.pathname.replace('/sonarr', '')
+  fake.arr.push(`${req.method} ${route}`)
+  const reply = (status, body) => {
+    res.writeHead(status, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(body))
+  }
+  if (route === '/api/v3/series') return reply(200, [{ id: 3, path: '/tv/The Block' }, { id: 4, path: '/tv/Other Show' }])
+  if (route === '/api/v3/episodefile') return reply(200, fake.sonarrFiles.filter((file) => String(file.seriesId) === url.searchParams.get('seriesId')))
+  if (route === '/api/v3/episode') return reply(200, [{ id: 900, monitored: true }])
+  if (route === '/api/v3/config/mediamanagement') return reply(200, { recycleBin: '' })
+  if (req.method === 'PUT') return reply(202, {})
+  if (req.method === 'DELETE') return reply(fake.sonarrDeleteStatus, {})
+  return reply(404, {})
+}
+
+const SONARR_KEY = 'a'.repeat(32)
+
+const connectSonarr = (url) => db('settings').insert([{ key: 'sonarr_url', value: url }, { key: 'sonarr_api_key', value: SONARR_KEY }])
+
 before(async () => {
   fakeServer = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x')
+    if (url.pathname.startsWith('/sonarr/')) return answerSonarr({ req, res, url })
     if (req.method === 'POST' || url.pathname.endsWith('/refresh')) fake.posts.push(url.pathname)
     const bodies = {
       '/api/dvr/entry/grid_finished': { entries: fake.finished },
@@ -34,7 +56,7 @@ before(async () => {
     res.end(JSON.stringify(bodies[url.pathname] || {}))
   })
   await new Promise((resolve) => fakeServer.listen(0, '127.0.0.1', resolve))
-  const fakeUrl = `http://127.0.0.1:${fakeServer.address().port}`
+  fakeUrl = `http://127.0.0.1:${fakeServer.address().port}`
   await db.migrate.latest()
   await db('settings').insert([
     { key: 'tvh_url', value: fakeUrl },
@@ -64,6 +86,10 @@ beforeEach(async () => {
   fake.finished = []
   fake.active = []
   fake.posts = []
+  fake.arr = []
+  fake.sonarrFiles = []
+  fake.sonarrDeleteStatus = 200
+  await db('settings').whereIn('key', ['sonarr_url', 'sonarr_api_key']).delete()
   await db('recordings').delete()
   await db('library_items').delete()
   await fs.rm(MEDIA_ROOT, { recursive: true, force: true })
@@ -222,4 +248,68 @@ test('delete: a recording TVHeadend no longer has still succeeds; a still-record
 test('requests without ids or a valid scope, or without expected_count, are rejected', async () => {
   assert.equal((await post('/api/library/delete/preview', {})).status, 400)
   assert.equal((await post('/api/library/delete', { show_key: 'the-block', scope: 'all' })).status, 400)
+})
+
+test('delete: a recording Sonarr adopted is deleted through Sonarr, which stops monitoring it, and TVHeadend still removes it', async () => {
+  await connectSonarr(`${fakeUrl}/sonarr`)
+  await importedEpisode({ id: 's1', episode: 1 })
+  fake.sonarrFiles = [{ id: 41, seriesId: 3, relativePath: 'Season 22/The Block S22E01.ts' }]
+  const preview = await post('/api/library/delete/preview', { recording_ids: ['s1'] })
+  assert.equal(preview.status, 200)
+  assert.deepEqual(preview.body.items[0].copies.map((copy) => [copy.route, copy.recording, copy.bytes]), [['sonarr', true, 0]])
+  assert.equal(preview.body.blocked, undefined)
+  const { status, body } = await post('/api/library/delete', { recording_ids: ['s1'], expected_count: 1 })
+  assert.equal(status, 200)
+  assert.equal(body.results[0].ok, true)
+  assert.deepEqual(body.results[0].copies.map((copy) => copy.route), ['sonarr'])
+  assert.ok(fake.arr.includes('PUT /api/v3/episode/monitor'))
+  assert.ok(fake.arr.includes('DELETE /api/v3/episodefile/41'))
+  assert.equal(fake.posts.filter((p) => p === '/api/dvr/entry/remove').length, 1)
+  assert.ok((await db('recordings').where({ recording_id: 's1' }).first()).purged_at)
+})
+
+test('delete: when Sonarr does not delete an adopted recording, Freetvarr keeps the recording and its file', async () => {
+  await connectSonarr(`${fakeUrl}/sonarr`)
+  const { filePath } = await importedEpisode({ id: 's2', episode: 1 })
+  fake.sonarrFiles = [{ id: 42, seriesId: 3, relativePath: 'Season 22/The Block S22E01.ts' }]
+  fake.sonarrDeleteStatus = 400
+  const { status, body } = await post('/api/library/delete', { recording_ids: ['s2'], expected_count: 1 })
+  assert.equal(status, 207)
+  assert.equal(body.results[0].ok, false)
+  assert.match(body.results[0].error, /Sonarr did not delete it/)
+  await fs.access(filePath)
+  assert.equal(fake.posts.filter((p) => p === '/api/dvr/entry/remove').length, 0)
+  assert.equal((await db('recordings').where({ recording_id: 's2' }).first()).purged_at, null)
+})
+
+test('delete: a Plex file saved before Sonarr linked it is checked again and deleted through Sonarr, not from the disk', async () => {
+  await connectSonarr(`${fakeUrl}/sonarr`)
+  const file = await plexOnlyFile({ key: '80' })
+  fake.sonarrFiles = [{ id: 51, seriesId: 4, relativePath: 'Season 01/Other Show - S01E01.mkv' }]
+  const preview = await post('/api/library/delete/preview', { recording_ids: ['plex-80'] })
+  assert.deepEqual(preview.body.items[0].copies.map((copy) => [copy.route, copy.manager]), [['sonarr', 'sonarr']])
+  const { body } = await post('/api/library/delete', { recording_ids: ['plex-80'], expected_count: 1 })
+  assert.equal(body.results[0].ok, true)
+  assert.ok(fake.arr.includes('DELETE /api/v3/episodefile/51'))
+  await fs.access(file)
+})
+
+test('delete: a Plex file Sonarr does not hold goes to the disk even when Sonarr is connected', async () => {
+  await connectSonarr(`${fakeUrl}/sonarr`)
+  const file = await plexOnlyFile({ key: '81' })
+  const { body } = await post('/api/library/delete', { recording_ids: ['plex-81'], expected_count: 1 })
+  assert.equal(body.results[0].ok, true)
+  assert.deepEqual(body.results[0].copies.map((copy) => copy.route), ['disk'])
+  await assert.rejects(fs.access(file))
+})
+
+test('delete: when Sonarr is connected but does not answer, the preview says so and the delete is refused', async () => {
+  await connectSonarr('http://127.0.0.1:9/sonarr')
+  const file = await plexOnlyFile({ key: '82' })
+  const preview = await post('/api/library/delete/preview', { recording_ids: ['plex-82'] })
+  assert.match(preview.body.blocked, /could not check whether Sonarr manages these files, so nothing was deleted/)
+  const { status, body } = await post('/api/library/delete', { recording_ids: ['plex-82'], expected_count: 1 })
+  assert.equal(status, 409)
+  assert.match(body.error, /Try again when Sonarr answers/)
+  await fs.access(file)
 })

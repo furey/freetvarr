@@ -156,13 +156,13 @@ export const DeleteConfirm = {
                   <span class="library-dialog-check-box" aria-hidden="true"><menu-icon name="check" /></span>
                   <span>Remove the series from Sonarr too</span>
                 </label>
-                <p v-if="refusal" class="library-dialog-note" role="alert"><menu-icon name="warning" /><span>{{ refusal }}</span></p>
+                <p v-if="refusal || preview?.blocked" class="library-dialog-note" role="alert"><menu-icon name="warning" /><span>{{ refusal || preview.blocked }}</span></p>
                 <p class="library-dialog-undo">{{ copy.undoText }}</p>
               </template>
             </div>
             <div class="library-dialog-buttons">
               <button ref="cancelButton" type="button" class="library-dialog-cancel" :disabled="busy" @click="cancel">Cancel</button>
-              <button type="button" :class="['library-dialog-go', { 'is-pending': busy }]" :disabled="busy || !copy || !preview?.count"
+              <button type="button" :class="['library-dialog-go', { 'is-pending': busy }]" :disabled="busy || !copy || !preview?.count || Boolean(preview?.blocked)"
                 :aria-busy="busy" @click="confirm">
                 <span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? copy?.busyLabel : (copy?.confirmLabel || 'Delete') }}
               </button>

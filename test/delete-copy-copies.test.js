@@ -68,3 +68,26 @@ test('deleteOutcomeOf: names the recycle bin when a copy went to it', () => {
   })
   assert.equal(outcome.detail, 'Sonarr keeps it in its recycle bin for 7\u00a0days')
 })
+
+test('deleteConfirmOf: a recording Sonarr adopted is one line, deleted through Sonarr, with a note that says why', () => {
+  const adopted = sonarrCopy({ recording: true, filePath: '/tv/The Block/Season 22/The Block S22E01.ts', sizeBytes: 3 * GB })
+  const items = [item(1, { recording: true, bytes: 0, copies: [adopted] })]
+  const copy = deleteConfirmOf({ variant: 'episode', show, preview: { count: 1, bytes: 0, items, unmonitor: true, recycleBin: { sonarr: { on: false } } }, episodes: [{ deletedFromTvhAt: null, filePath: adopted.filePath }], totalCount: 10 })
+  assert.deepEqual(copy.deleted, [
+    { title: 'The recording', detail: '3 GB, deleted through Sonarr, which stops monitoring E1', path: 'The Block S22E01.ts' },
+    { title: 'Its recording in TVHeadend' },
+  ])
+  assert.deepEqual(copy.notes, ['Sonarr manages this recording, so Freetvarr deletes it through Sonarr.'])
+  assert.equal(copy.confirmLabel, 'Delete episode')
+})
+
+test('deleteConfirmOf: several recordings, some adopted by Sonarr, list the plain ones and the Sonarr ones apart', () => {
+  const adopted = sonarrCopy({ recording: true, sizeBytes: 3 * GB })
+  const items = [item(1, { recording: true, bytes: 4 * GB }), item(2, { recording: true, bytes: 0, copies: [adopted] })]
+  const copy = deleteConfirmOf({ variant: 'selected', show, preview: { count: 2, items, unmonitor: true }, episodes: inTvh(2), totalCount: 10 })
+  assert.deepEqual(copy.deleted.slice(0, 2), [
+    { title: 'E1, 4 GB', detail: 'from your library and Plex' },
+    { title: '1 recording', detail: '3 GB, deleted through Sonarr, which stops monitoring it', path: '' },
+  ])
+  assert.deepEqual(copy.notes, ['Sonarr manages this recording, so Freetvarr deletes it through Sonarr.'])
+})
