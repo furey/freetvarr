@@ -51,6 +51,7 @@ import {
   watchItems,
 } from '/shared/programme-sheet-store.js'
 import { showKeyOf } from '/show-key.js'
+import { libraryNoteOf } from '/saves-to-text.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { route } from '/shared/router.js'
@@ -246,16 +247,12 @@ export const ProgrammeSheetHost = {
 
     const libraryNote = computed(() => {
       const program = selected.value?.program
-      if (!program) return { text: '' }
-      if (!addToLibrary.value) return { text: 'Stays in TVHeadend. Freetvarr does not import it.' }
-      const folder = ruleFor(program.title)
-      if (folder) return { text: `Episodes go into ${folder.dest_folder} in your TV library.`, changeable: true }
-      if (moviesFolderSet.value && program.kind === 'movie') return { text: 'The guide lists this as a film, so it goes to the movies folder.' }
-      if (!program.series_link) return { text: 'Goes to the one-off folder.' }
-      return {
-        text: 'Record puts this airing in the one-off folder. Record series gives the series its own folder in your TV library.',
-        changeable: true,
-      }
+      return libraryNoteOf({
+        program,
+        addToLibrary: addToLibrary.value,
+        folder: program ? ruleFor(program.title) : null,
+        moviesFolderSet: moviesFolderSet.value,
+      })
     })
 
     const canRecord = computed(() =>
