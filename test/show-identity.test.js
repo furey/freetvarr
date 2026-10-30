@@ -235,9 +235,11 @@ test('with a TMDB key, a show without a TVDB id gets the TMDB id', async () => {
 test('a failed lookup gives the bare title and backs off', async () => {
   const client = fakeClient({ fail: true })
   const identify = identityWith({ client })
-  assert.equal((await identify({ title: 'Big Brother' })).identity, null)
+  const failed = await identify({ title: 'Big Brother' })
+  assert.equal(failed.identity, null)
+  assert.equal(failed.state, 'unreachable')
   const callsAfterFailure = client.calls.length
-  assert.equal((await identify({ title: 'Gruen' })).identity, null)
+  assert.equal((await identify({ title: 'Gruen' })).state, 'unreachable')
   assert.equal(client.calls.length, callsAfterFailure)
 })
 

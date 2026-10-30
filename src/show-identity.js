@@ -89,7 +89,7 @@ export const createShowIdentity = ({
         return match
       }, () => {
         failedUntil = now() + failureBackoffMs
-        return NO_MATCH
+        return UNREACHABLE
       })
       .finally(() => inflight.delete(key))
     inflight.set(key, pending)
@@ -106,7 +106,7 @@ export const createShowIdentity = ({
     const key = lookupKeyOf({ title, channelName })
     const known = rememberedFor(key)
     if (known !== undefined) return known
-    if (failedUntil > now()) return NO_MATCH
+    if (failedUntil > now()) return UNREACHABLE
     if (!(await Promise.resolve().then(isTvmazeEnabled).catch(() => false))) return NO_MATCH
     const airing = { title, channelName, start: Number(start) || null, durationS, season: integerOf(season), episode: integerOf(episode) }
     const outcome = await withinMs(startLookup({ key, airing }), wait)
@@ -182,6 +182,7 @@ const withinMs = (promise, ms) => Promise.race([
 ])
 
 const NO_MATCH = Object.freeze({ state: 'none', identity: null, candidates: [] })
+const UNREACHABLE = Object.freeze({ state: 'unreachable', identity: null, candidates: [] })
 const STILL_LOOKING = Object.freeze({ state: 'pending', identity: null, candidates: [] })
 const TIMED_OUT = Symbol('timed-out')
 const TVMAZE_API = 'https://api.tvmaze.com'

@@ -17,6 +17,7 @@ export const showIdentityStatus = async ({ showId, database = db, identityFor = 
     current: current ? { ...current, folder: identityFolderOf(current) } : null,
     suggested: match?.identity ? { ...match.identity, folder: identityFolderOf(match.identity) } : null,
     candidates: match?.candidates ?? [],
+    lookup: match?.state ?? 'unreachable',
   }
 }
 
@@ -24,6 +25,9 @@ export const chooseShowIdentity = async ({ showId, tvmazeId, database = db, iden
   const status = await showIdentityStatus({ showId, database, identityFor })
   if (!status) return null
   const candidate = status.candidates.find((entry) => String(entry.tvmazeId) === String(tvmazeId))
+  if (!candidate?.identity && UNANSWERED_LOOKUPS.has(status.lookup)) {
+    throw Object.assign(new Error('Freetvarr cannot reach TVmaze right now. Try again later.'), { code: 'unreachable' })
+  }
   if (!candidate?.identity) throw Object.assign(new Error('That show is no longer in the list. Close and open the series again.'), { code: 'unknown-show' })
   const show = await database('shows').where({ id: showId }).first()
   const channelName = await channelNameOfShow({ showId, database })
@@ -47,3 +51,4 @@ export const declineShowIdentity = async ({ showId, database = db }) => {
 }
 
 const STATUS_WAIT_MS = 20000
+const UNANSWERED_LOOKUPS = new Set(['unreachable', 'pending'])

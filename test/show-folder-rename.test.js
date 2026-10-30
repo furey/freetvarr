@@ -364,6 +364,13 @@ test('loadIdentityPick: a pick made before the channel was known still counts on
   assert.equal(await loadIdentityPick({ titleKey: 'office', family: '' }), null)
 })
 
+test('chooseShowIdentity: says TVmaze cannot be reached when the list cannot load', async () => {
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office', identity_state: 'choose' })
+  const unreachable = async () => ({ state: 'unreachable', identity: null, candidates: [] })
+  await assert.rejects(chooseShowIdentity({ showId: id, tvmazeId: '1214', identityFor: unreachable }), { code: 'unreachable', message: 'Freetvarr cannot reach TVmaze right now. Try again later.' })
+  await assert.rejects(chooseShowIdentity({ showId: id, tvmazeId: '1214', identityFor: async () => { throw new Error('offline') } }), { code: 'unreachable' })
+})
+
 test('keptFolderPatchOf: a Saves to the owner types by hand is kept', () => {
   const show = { dest_folder: 'Big Brother' }
   assert.deepEqual(keptFolderPatchOf({ show, patch: { dest_folder: 'BB' } }), { kept_folder: 'BB' })
