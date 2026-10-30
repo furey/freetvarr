@@ -120,6 +120,18 @@ Freetvarr reads the libraries during the watched state check: new and changed it
 
 To delete these files from Freetvarr, connect [Sonarr and Radarr](/guide/sonarr-radarr) first, so a deleted download does not download again.
 
+## Renamed folders
+
+When you [rename a series folder](/guide/series#rename-folder), Plex finds the episodes at the new path at its next scan and matches the show again, this time with the TVDB number in the folder name. Plex keeps the watched state of an episode that it matches to the same show. An episode that Plex now matches to a different show (the reason to rename a wrongly matched folder) starts unwatched in Plex. Freetvarr keeps its own watched state for each recording.
+
+With **Empty trash automatically after every scan** on (the Plex default), Plex removes the old items at that scan. To keep them until the new items show:
+
+1. In Plex, open **Settings → Library**.
+2. Turn off **Empty trash automatically after every scan**, then press **Save Changes**.
+3. In Freetvarr, rename the folder.
+4. In Plex, check that the show appears with its episodes.
+5. Empty the trash of the TV library (**⋯ → Manage Library → Empty Trash** on the library), then turn the setting back on if you want it.
+
 ## File layout
 
 Imports write under your media root using each series folder and season template ([Series rules](/guide/series)). Plex reads them as an ordinary TV library.

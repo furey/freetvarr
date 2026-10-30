@@ -24,9 +24,71 @@ A series has two parts: a series recording in TVHeadend and a folder in your med
 3. Pick **Every episode**.
 4. Press **Record series**.
 
-Freetvarr creates the series folder at the same time, unless you turn **Add to library** off first. The default for **Add to library** is in Settings → Recording → Media library. The programme sheet shows it under **Advanced**. Freetvarr uses an existing folder with the same name under your media root. When no folder has that exact name, but one folder has the name plus a year or a country, such as `Bluey (2018)` or `Ghosts (US)`, Freetvarr uses that folder. When more than one such folder exists, or none, Freetvarr creates a new folder named after the series.
+Freetvarr creates the series folder at the same time, unless you turn **Add to library** off first. The default for **Add to library** is in Settings → Recording → Media library. The programme sheet shows it under **Advanced**. [Series folder names](#series-folder-names) explains how Freetvarr names the folder.
 
 Matching is by title: a recording goes to the folder whose title appears in the recording's title. When more than one folder matches, the longest title wins, so `NRL Grand Final` beats `NRL`.
+
+## Series folder names
+
+Freetvarr looks up each new series on [TVmaze](https://www.tvmaze.com) and names its folder after the show it finds, with the show's TVDB number in curly brackets:
+
+```text
+Gruen {tvdb-83281}
+Big Brother (AU) {tvdb-76237}
+```
+
+The country code in brackets, such as `(AU)` or `(UK)`, appears only when shows from other countries have the same title. Freetvarr uses the channel, the air time, and the country of your time zone to choose between them. The TVDB number tells Plex which show the folder holds, so Plex does not mix up `Big Brother` from Australia with `Big Brother` from the US. TVmaze needs no account or key. When TVmaze has no TVDB number for the show and you added a TMDB key, the folder carries the TMDB number instead, such as `{tmdb-12345}`.
+
+Freetvarr uses an existing folder first:
+
+1. A folder with the same TVDB or TMDB number, whatever its name.
+2. A folder with the same name as the show, such as `Big Brother (AU)`.
+3. A folder with the same name as the series, such as `Big Brother`, or with the name plus a year or a country, such as `Bluey (2018)` or `Ghosts (US)`, when only one such folder exists. Freetvarr skips a folder that names another country or carries another show's number.
+
+When TVmaze finds no show, finds more than one with no clear winner, or does not answer in time, the folder is named after the series, such as `Big Brother`. The **Show** row of the series then says why, and you can [check which show it is](#check-which-show-this-is) and [rename the folder](#rename-folder) later. Freetvarr does not look up shows when **Missing pictures** is off in Settings → Watching → Film and TV info.
+
+Folders that already exist keep their names. New episodes of a series keep going to its folder until you rename it.
+
+> [!NOTE]<br>
+> Plex reads the TVDB number in the folder name. Jellyfin reads `{tvdb-…}` from Jellyfin 12; older Jellyfin versions ignore it and match the show by name, where the country code helps. Infuse, reading the share directly, matches by the folder and file names; if it picks the wrong show, correct the match in Infuse's own metadata editor.
+
+### Check which show this is
+
+The **Show** row in the [edit form](#edit-a-series-folder) of a series names the show that Freetvarr found, with its country, network, and years. When Freetvarr is not sure, the row says **Check which show this is**:
+
+- **Freetvarr thinks this is …**: Freetvarr took the TVDB number from an earlier run of the same show in the same country. Check that it is the right show.
+- **Freetvarr found more than one show called …**: Freetvarr could not choose. The folder keeps the plain name until you pick.
+
+To pick the show:
+
+1. Press the **Show** row.
+2. Press your show in the list, or press **None of these** to keep the plain folder name.
+
+Freetvarr remembers your pick for that title on that network, so a new series recording of the same title gets the same show. **None of these** clears that pick.
+
+When the row says **No show found**, **TVmaze not reachable**, or **Still looking**, there is nothing to pick yet. Open the series again later.
+
+### Rename folder
+
+When a series folder does not carry the show's TVDB number yet, the edit form shows **Rename folder** and the new name. To rename it:
+
+1. Press **Rename folder**.
+2. Check the old and the new name, the number of recordings Freetvarr updates, and the number of videos in the folder that Freetvarr did not record (they move with the folder).
+3. Press **Rename folder**.
+
+Freetvarr renames the folder on the disk, updates the path of every recording in it, saves new episodes to the new folder, and asks Plex to rescan. Before you rename a folder that Plex already shows, read [Renamed folders](/guide/plex#renamed-folders).
+
+To keep the current name, press **Keep this name** instead. Freetvarr then stops offering the rename for that folder until you pick a show again.
+
+Freetvarr does not offer **Rename folder**:
+
+- For a [title match](#title-matches).
+- For a folder you typed into **Saves to** yourself.
+- While a sync runs, while ad removal works on one of its episodes, or while Freetvarr moves recordings into their library folders. Try again when it finishes.
+- When Sonarr also saves episodes in the folder. Renaming it would break Sonarr's path to the series, so rename the series in Sonarr instead.
+- When a folder with the new name already exists in your TV library.
+
+The edit form says which of the last two applies.
 
 ## Record on any channel
 
@@ -99,12 +161,13 @@ The dialog shows the full path for future episodes. Episodes already imported st
 Press a series with a series folder to open these fields under the row:
 
 - **Saves to**: the folder under your media root (shown before the field) where the series goes. As you type, Freetvarr suggests matching folders that are already there.
+- **Show**: the show the folder is named after. See [Check which show this is](#check-which-show-this-is). Title matches have no **Show** row.
 - **Season folders**: the [season template](#season-template).
 - **Recording titles that contain**: the title that Freetvarr matches. It ignores case.
 - **Ad removal**: **Off**, **Detect**, or **Cut**. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in Settings → Ad removal.
 - **Remove from TVHeadend after import**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 
-Press **Save** to keep the changes. To close the form without saving, press the row again, or press `Esc`. A change to **Saves to** applies to future episodes only (episodes already imported stay where they are).
+Press **Save** to keep the changes. To close the form without saving, press the row again, or press `Esc`. A change to **Saves to** applies to future episodes only (episodes already imported stay where they are). To move the episodes as well, use [Rename folder](#rename-folder) when the form offers it.
 
 A series folder stays while the series recording exists, because each import of a series recording gives the series a folder. To save a series to the one-off folder instead, choose **Move to One-offs** in its ⋯ menu in [Recordings](/guide/recordings#library).
 
@@ -131,6 +194,8 @@ Freetvarr leaves the episode title out when the TV guide did not supply one, and
 ```text
 Show Name - S01E02.ts
 ```
+
+The file name starts with the series folder name without its TVDB or TMDB number, so a folder named `Big Brother (AU) {tvdb-76237}` holds files such as `Big Brother (AU) - S17E06.ts`. Files already imported keep their names, so a folder that you named with a number yourself can hold both shapes.
 
 TVHeadend's own file names stay as they are, because nothing downstream reads them.
 

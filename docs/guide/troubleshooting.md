@@ -206,6 +206,17 @@ Episodes import, but Plex doesn't show them.
 - **`ECONNREFUSED` or `ECONNABORTED`**: the Plex URL is wrong, or Plex isn't running. Use `http://<plex-host-ip>:32400`.
 - **The refresh succeeds but nothing appears**: the Plex library doesn't include the folder Freetvarr writes to. Add the host folder `${DATA_PATH}/media/tv` to the library ([Plex](/guide/plex#the-library-folder)).
 
+## Wrong country in Plex
+
+Plex shows the posters, episode names, or seasons of another country's version of a show, such as the US `Big Brother` for the Australian one. The series folder has a plain name, so Plex matched it by name alone.
+
+1. In Freetvarr, open Settings → Recording → Series rules and press the series.
+2. Check the **Show** row. If it names the wrong show, press it and pick the right one ([Check which show this is](/guide/series#check-which-show-this-is)).
+3. Press **Rename folder**, then **Rename folder** again ([Rename folder](/guide/series#rename-folder)). Read [Renamed folders](/guide/plex#renamed-folders) first to keep the old items in Plex until the new ones match.
+4. If Plex still shows the wrong show after the scan, use **Fix Match** on the show in Plex.
+
+When the edit form says Sonarr also saves episodes in the folder, rename the series in Sonarr instead, then use **Fix Match** in Plex.
+
 ## Plex token auto-detect
 
 - Auto-detect needs Plex's `Preferences.xml` inside the Freetvarr Docker container. The `plex` profile mounts it for you. For another Plex on the same host, set `PLEX_PREFS_PATH` in the `.env`. [Plex](/guide/plex#the-token) lists where the file lives.
