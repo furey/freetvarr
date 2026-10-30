@@ -65,6 +65,7 @@ beforeEach(async () => {
   fake.active = []
   fake.posts = []
   await db('recordings').delete()
+  await db('library_items').delete()
   await fs.rm(MEDIA_ROOT, { recursive: true, force: true })
   await fs.rm(RECORDINGS_ROOT, { recursive: true, force: true })
   await fs.mkdir(MEDIA_ROOT, { recursive: true })
@@ -110,9 +111,60 @@ test('preview: lists the watched episodes of a show with the space they free', a
     count: 1,
     bytes: 100,
     missingCount: 0,
-    items: [{ recordingId: 'w1', title: 'The Block', episodeTitle: null, season: 22, episode: 1, bytes: 100, missing: false }],
+    items: [{
+      recordingId: 'w1',
+      title: 'The Block',
+      episodeTitle: null,
+      season: 22,
+      episode: 1,
+      bytes: 100,
+      missing: false,
+      recording: true,
+      source: 'freetvarr',
+      copies: [],
+      canChoose: false,
+      otherManager: null,
+    }],
+    recycleBin: { sonarr: null, radarr: null },
+    unmonitor: true,
+    sonarrSeries: [],
   })
   assert.deepEqual(fake.posts, [])
+})
+
+const plexOnlyFile = async ({ key = '77', episode = 1, bytes = 50 } = {}) => {
+  const file = path.join(MEDIA_ROOT, 'Other Show', 'Season 01', `Other Show - S01E0${episode}.mkv`)
+  await fs.mkdir(path.dirname(file), { recursive: true })
+  await fs.writeFile(file, 'x'.repeat(bytes))
+  await db('library_items').insert({
+    rating_key: key, part_id: `${key}0`, section_id: '7', kind: 'episode', show_title: 'Other Show', season: 1, episode, title: 'Pilot', file_path: file, size_bytes: bytes, seen_at: 1,
+  })
+  return file
+}
+
+test('delete: a Plex file no app manages is deleted from the disk, leaves the library, and refreshes its Plex library', async () => {
+  const file = await plexOnlyFile()
+  const preview = await post('/api/library/delete/preview', { recording_ids: ['plex-77'] })
+  assert.equal(preview.status, 200)
+  assert.equal(preview.body.count, 1)
+  assert.deepEqual(preview.body.items[0].copies.map((copy) => [copy.route, copy.bytes, copy.hardlinked]), [['disk', 50, false]])
+  const { status, body } = await post('/api/library/delete', { recording_ids: ['plex-77'], expected_count: 1 })
+  assert.equal(status, 200)
+  assert.equal(body.results[0].ok, true)
+  assert.equal(body.bytesFreed, 50)
+  await assert.rejects(fs.stat(file))
+  assert.equal((await db('library_items').where({ rating_key: '77' })).length, 0)
+  assert.ok(fake.posts.some((route) => route.endsWith('/library/sections/7/refresh')))
+})
+
+test('delete: a show scope includes its Plex episodes, and a missing file counts as done', async () => {
+  const file = await plexOnlyFile({ key: '78', episode: 2 })
+  await fs.rm(file)
+  const preview = await post('/api/library/delete/preview', { show_key: 'other-show', scope: 'all' })
+  assert.equal(preview.body.count, 1)
+  assert.equal(preview.body.items[0].copies[0].missing, true)
+  const { body } = await post('/api/library/delete', { show_key: 'other-show', scope: 'all', expected_count: 1 })
+  assert.equal(body.results[0].ok, true)
 })
 
 test('delete: removes library files and TVHeadend recordings, purges the rows and refreshes Plex once', async () => {

@@ -135,6 +135,26 @@ export const runDeletion = async ({
   return { results, bytesFreed: bytesFreed(entries), plex: await refreshPlex({ kinds: affectedKinds, plex }) }
 }
 
+export const inspectFileInRoots = async ({ filePath, roots, fs = fsp }) => {
+  const found = filePath && path.isAbsolute(filePath) ? rootFor(filePath, roots) : null
+  if (!found) return { status: 'outside' }
+  const realRoot = await fs.realpath(found.root).catch(() => null)
+  if (!realRoot) return { status: 'no-root', kind: found.kind }
+  const inspected = await inspectTarget({ target: path.resolve(filePath), realRoot, fs })
+  if (inspected.status !== 'present') return { status: inspected.status, kind: found.kind, error: inspected.error ?? null }
+  return { status: 'present', kind: found.kind, entry: entryOf(inspected.stat) }
+}
+
+export const deleteFileInRoots = async ({ filePath, roots, fs = fsp }) => {
+  const found = filePath && path.isAbsolute(filePath) ? rootFor(filePath, roots) : null
+  if (!found) return { status: 'failed', error: 'The file is outside the library folders, so it was left alone', entries: [] }
+  const realRoot = await fs.realpath(found.root).catch(() => null)
+  if (!realRoot) return { status: 'failed', error: 'The library folder is not available, so nothing was deleted', entries: [], kind: found.kind }
+  const outcome = await unlinkTarget({ target: path.resolve(filePath), realRoot, fs })
+  if (outcome.status === 'deleted') await removeEmptyFolders({ dir: outcome.realParent, realRoot, fs })
+  return { status: outcome.status, error: outcome.error ?? null, entries: outcome.entries, kind: found.kind }
+}
+
 const deleteOne = async ({ row, roots, tvh, fs, ownedElsewhere }) => {
   if (tvh.activeIds?.has(row.recording_id)) {
     return refusedOutcome('This episode is still recording. Stop it or wait until it finishes.')
