@@ -5,6 +5,7 @@ import { storedTmdbKey } from './fallback-artwork.js'
 import { artworkKindOf, TMDB_FIRST_SAVED_AFTER_MS } from './artwork-match.js'
 import { linkHealth } from './link-health.js'
 import { lookupAllowed } from './lookup-gate.js'
+import { externalIdsOf, idKeyedCacheKeyOf } from './external-ids.js'
 import {
   lookupCacheKeyOf,
   createBackgroundLookups,
@@ -31,6 +32,7 @@ export const createProgrammeCredits = ({
   creditsEnabled = creditsLookupEnabled,
   tmdbKey = storedTmdbKey,
   hintsFor = async () => null,
+  externalIdsFor = async () => null,
   now = Date.now,
   hitTtlMs = HIT_TTL_MS,
   missTtlMs = MISS_TTL_MS,
@@ -49,9 +51,10 @@ export const createProgrammeCredits = ({
     const apiKey = await tmdbKey()
     const creditsKind = artworkKindOf(kind)
     if (creditsKind && !apiKey) return null
-    const filmYear = creditsKind ? year : null
-    const cacheKey = lookupCacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: creditsKind, key, year: filmYear })
-    return { apiKey, kind: creditsKind, year: filmYear, cacheKey }
+    const ids = await externalIdsOf({ externalIdsFor, title, kind: creditsKind })
+    const filmYear = creditsKind && !ids ? year : null
+    const cacheKey = idKeyedCacheKeyOf({ cacheKey: lookupCacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: creditsKind, key, year: filmYear }), ids })
+    return { apiKey, kind: creditsKind, year: filmYear, ids, cacheKey }
   }
 
   const creditsFor = async (title, { kind = null, year = null } = {}) => {
@@ -74,29 +77,29 @@ export const createProgrammeCredits = ({
 }
 
 export const createCreditsLookup = ({ matcher = createTitleMatcher() } = {}) => {
-  const filmCredits = async ({ title, hints, apiKey, year }) => {
-    const details = await matcher.matchedFilm({ title, hints, apiKey, year })
+  const filmCredits = async ({ title, hints, apiKey, year, ids }) => {
+    const details = await matcher.matchedFilm({ title, hints, apiKey, year, ids })
     return details ? filmCreditsOf(details) : null
   }
 
-  const seriesCredits = async ({ title, hints, apiKey }) => {
-    const tmdb = await settledOf(matcher.matchedSeries({ title, hints, apiKey }))
+  const seriesCredits = async ({ title, hints, apiKey, ids }) => {
+    const tmdb = await settledOf(matcher.matchedSeries({ title, hints, apiKey, ids }))
     const fromTmdb = tmdb.value
     const tmdbCredits = fromTmdb ? tmdbSeriesCreditsOf(fromTmdb) : null
     if (tmdbCredits?.cast.length) return tmdbCredits
-    const show = await matcher.tvmazeShow({ title, hints })
+    const show = await matcher.tvmazeShow({ title, hints, ids })
     if (!show && tmdb.error) throw tmdb.error
     if (!show) return tmdbCredits
     const cast = await matcher.tvmazeGet(`/shows/${encodeURIComponent(show.id)}/cast`)
     const crew = await matcher.tvmazeGet(`/shows/${encodeURIComponent(show.id)}/crew`)
-    const details = fromTmdb || (apiKey ? await matcher.tmdbShow({ title, show, apiKey }) : null)
+    const details = fromTmdb || (apiKey ? await matcher.tmdbShow({ title, show, apiKey, ids }) : null)
     const overview = plainTextOf(show.summary) || plainTextOf(details?.overview)
     return seriesCreditsOf({ show, cast, crew, overview, currentCast: details?.credits?.cast })
   }
 
-  return async ({ title, kind, hints, apiKey, year = null }) => (artworkKindOf(kind)
-    ? filmCredits({ title, hints, apiKey, year })
-    : seriesCredits({ title, hints, apiKey }))
+  return async ({ title, kind, hints, apiKey, year = null, ids = null }) => (artworkKindOf(kind)
+    ? filmCredits({ title, hints, apiKey, year, ids })
+    : seriesCredits({ title, hints, apiKey, ids }))
 }
 
 export const filmCreditsOf = (details) => creditsOrNull({

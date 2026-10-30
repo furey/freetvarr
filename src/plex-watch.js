@@ -11,7 +11,8 @@ import {
   saveManagerFields,
   saveScannedItems,
 } from './plex-library-store.js'
-import { arrClientFor, buildManagerIndex } from './arr-store.js'
+import { arrClientFor, buildManagerIndex, listSonarrSeries } from './arr-store.js'
+import { saveExternalIds } from './external-ids-store.js'
 import { createArrLookup } from './arr-files.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot } from './sync.js'
 
@@ -87,6 +88,8 @@ const libraryScan = createLibraryScan({
   loadManagerIndex: () => buildManagerIndex(),
   createManagerLookup: () => createArrLookup({ clientFor: arrClientFor }),
   saveManagerFields,
+  saveExternalIds,
+  loadSonarrSeries: listSonarrSeries,
 })
 
 export const plexWatchSync = createPlexWatchSync({

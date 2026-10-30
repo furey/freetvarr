@@ -58,6 +58,7 @@ const creditsWith = ({
   clock = { ms: 1000 },
   lookUp = null,
   linkOf = (url) => url,
+  externalIdsFor = async () => null,
 }) => {
   const client = fakeClient(routes || {})
   const matcher = createTitleMatcher({ client, countryCode: () => country, knownReference })
@@ -67,6 +68,7 @@ const creditsWith = ({
     creditsEnabled: async () => creditsOn,
     tmdbKey: async () => apiKey,
     hintsFor: async () => hints,
+    externalIdsFor,
     now: () => clock.ms,
     hitTtlMs: 100,
     missTtlMs: 10,
@@ -439,4 +441,44 @@ test('a TMDB outage with no TVmaze match backs off instead of caching a miss', a
   await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal((await credits.creditsFor('Fisk')).status, 'pending')
   assert.equal(cache.rows.size, 0)
+})
+
+const DARK_IDS = { tmdb: null, tvdb: '334824', imdb: 'tt5753856' }
+
+const DARK_ROUTES = {
+  '/search/shows': [{ show: { id: 1, name: 'Dark', type: 'Scripted', language: 'English', summary: '<p>A Scottish thriller.</p>', weight: 90 } }],
+  '/shows/1/cast': [{ person: { name: 'Wrong Actor' }, character: { name: 'Wrong Role' } }],
+  '/lookup/shows': (params) => (params.thetvdb === '334824'
+    ? { id: 17861, name: 'Dark', type: 'Scripted', language: 'German', summary: '<p>A missing child sets four families on a hunt through time.</p>' }
+    : null),
+  '/shows/17861/cast': [{ person: { name: 'Louis Hofmann' }, character: { name: 'Jonas Kahnwald' } }],
+  '/shows/17861/crew': [],
+}
+
+test('creditsFor: a library show with agent ids looks up TVmaze by its TVDB id, not by title', async () => {
+  const { credits, client, cache } = creditsWith({ routes: DARK_ROUTES, apiKey: null, externalIdsFor: async ({ title }) => (title === 'Dark' ? DARK_IDS : null) })
+  const answer = await settled(credits, 'Dark')
+  assert.equal(answer.overview, 'A missing child sets four families on a hunt through time.')
+  assert.deepEqual(answer.cast.map((member) => member.name), ['Louis Hofmann'])
+  assert.ok(!client.calls.some((call) => call.path === '/search/shows'))
+  assert.deepEqual(client.calls.find((call) => call.path === '/lookup/shows').params, { thetvdb: '334824' })
+  assert.ok([...cache.rows.keys()].every((key) => key.endsWith('@tvdb-334824.imdb-tt5753856')))
+})
+
+test('creditsFor: a show with no agent ids still matches by title', async () => {
+  const { credits, client } = creditsWith({ routes: DARK_ROUTES, apiKey: null })
+  await settled(credits, 'Dark')
+  assert.ok(client.calls.some((call) => call.path === '/search/shows'))
+  assert.ok(!client.calls.some((call) => call.path === '/lookup/shows'))
+})
+
+test('creditsFor: with a TMDB key, agent ids go to TMDB find and then the series details', async () => {
+  const routes = {
+    '/find/334824': (params) => (params.external_source === 'tvdb_id' ? { tv_results: [{ id: 70523 }] } : null),
+    '/tv/70523': { id: 70523, name: 'Dark', overview: 'Time travel in Winden.', credits: { cast: [{ id: 1, name: 'Louis Hofmann', character: 'Jonas', order: 0 }], crew: [] } },
+  }
+  const { credits, client } = creditsWith({ routes, externalIdsFor: async () => DARK_IDS })
+  const answer = await settled(credits, 'Dark')
+  assert.deepEqual(answer.cast.map((member) => member.name), ['Louis Hofmann'])
+  assert.ok(!client.calls.some((call) => call.path === '/search/tv'))
 })

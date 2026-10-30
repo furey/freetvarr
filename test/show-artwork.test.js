@@ -358,3 +358,16 @@ test('sourcesFor: a picture cached before the wide sizes keeps answering while T
   assert.equal(lookups, 1)
   assert.equal(cache.rows.get(sizedKeyOf(seriesCacheKeyOf('bluey'))).sources[0], 'https://tvmaze.test/wide.jpg')
 })
+
+test('show artwork finds a TVmaze show by its agent ids and keys the cache by them', async () => {
+  const asked = []
+  const cache = memoryCache()
+  const artwork = artworkWith({
+    cache,
+    findSeriesShow: async ({ title, ids }) => { asked.push({ title, ids }); return { id: 17861, name: 'Dark', image: { original: 'https://static.tvmaze.com/dark.jpg' } } },
+    externalIdsFor: async () => ({ tmdb: null, tvdb: '334824', imdb: null }),
+  })
+  assert.deepEqual(await artwork.sourcesFor('Dark'), ['https://static.tvmaze.com/dark.jpg'])
+  assert.deepEqual(asked, [{ title: 'Dark', ids: { tmdb: null, tvdb: '334824', imdb: null } }])
+  assert.ok(cache.rows.has(sizedKeyOf(`${seriesCacheKeyOf('dark')}@tvdb-334824`)))
+})

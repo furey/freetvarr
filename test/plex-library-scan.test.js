@@ -16,13 +16,18 @@ const job = () => {
 
 const plexItem = (key) => ({ ratingKey: key, grandparentTitle: 'Show', parentIndex: 1, index: Number(key), Media: [{ Part: [{ id: key, file: `/data/media/tv/Show/Season 01/Show - S01E0${key}.mkv` }] }] })
 
-const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending = [], index = null, lookup = null, write = async () => {} } = {}) => {
-  const state = { saved: [], cleared: [], managerUpdates: [], listCalls: [], writes: [] }
+const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending = [], index = null, lookup = null, write = async () => {}, shows = [], movies = [], sonarrSeries = null } = {}) => {
+  const state = { saved: [], cleared: [], managerUpdates: [], listCalls: [], writes: [], externalIds: [], showCalls: [] }
   const client = {
     sections: async () => [{ id: '2', type: 'show' }, { id: '1', type: 'movie' }, { id: '9', type: 'artist' }, { id: '5', type: 'movie' }],
     listItems: async (args) => {
       state.listCalls.push({ section: args.section.id, addedSinceS: args.addedSinceS ?? null, viewedSinceS: args.viewedSinceS ?? null })
-      return args.section.id === '2' ? [plexItem('1'), plexItem('2')] : []
+      if (args.section.id === '2') return [plexItem('1'), plexItem('2')]
+      return args.section.id === '1' ? movies : []
+    },
+    listShows: async ({ section }) => {
+      state.showCalls.push(section.id)
+      return shows
     },
     write: async (args) => {
       state.writes.push(args)
@@ -39,6 +44,8 @@ const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending
     loadManagerIndex: async () => index,
     createManagerLookup: () => lookup,
     saveManagerFields: async (updates) => state.managerUpdates.push(...updates),
+    saveExternalIds: async (args) => state.externalIds.push(args),
+    loadSonarrSeries: async () => sonarrSeries,
     now: () => NOW,
   })
   return { scan, client, state }
@@ -179,4 +186,32 @@ test('managerUpdatesOf and libraryItemRowsOf: path matching stays fast for a lar
   assert.equal(updates.filter((update) => update.manager).length, size)
   assert.equal(itemRows.length, size)
   assert.ok(elapsed < 1000, `took ${Math.round(elapsed)} ms`)
+})
+
+test('afterSync: a full pass saves the Plex agent ids of each show and movie, and the Sonarr series ids', async () => {
+  const { scan, client, state } = harness({
+    shows: [{ title: 'Dark', Guid: [{ id: 'imdb://tt5753856' }, { id: 'tmdb://70523' }, { id: 'tvdb://334824' }] }, { title: 'No Ids', Guid: [] }],
+    movies: [{ ratingKey: '9', title: 'Heat', Guid: [{ id: 'tmdb://949' }], Media: [] }],
+    sonarrSeries: [{ title: 'Dark', tvdbId: 334824, tmdbId: 70523, imdbId: 'tt5753856' }],
+  })
+  await scan.afterSync({ client, full: true, job: job() })
+  assert.deepEqual(state.showCalls, ['2'])
+  assert.deepEqual(state.externalIds, [
+    {
+      source: 'plex',
+      replace: true,
+      entries: [
+        { titleKey: 'dark', kind: 'series', ids: { tmdb: '70523', tvdb: '334824', imdb: 'tt5753856' } },
+        { titleKey: 'heat', kind: 'movie', ids: { tmdb: '949', tvdb: null, imdb: null } },
+      ],
+    },
+    { source: 'sonarr', replace: true, entries: [{ titleKey: 'dark', kind: 'series', ids: { tmdb: '70523', tvdb: '334824', imdb: 'tt5753856' } }] },
+  ])
+})
+
+test('afterSync: a quick pass with no new episodes asks Plex for no shows and keeps the saved ids', async () => {
+  const { scan, client, state } = harness({ settings: { enabled: true, sectionIds: ['1'] } })
+  await scan.afterSync({ client, full: false, status: { lastRunAt: NOW - 60_000 }, job: job() })
+  assert.deepEqual(state.showCalls, [])
+  assert.deepEqual(state.externalIds, [])
 })

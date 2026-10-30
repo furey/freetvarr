@@ -119,6 +119,11 @@ export const buildManagerIndex = async ({ settings, clientFor = arrClientFor } =
   return index
 }
 
+export const listSonarrSeries = async ({ clientFor = arrClientFor } = {}) => {
+  const sonarr = await clientFor('sonarr')
+  return sonarr ? sonarr.series() : null
+}
+
 export const readArrConfig = async (app) => {
   const file = configPathOf(app)
   const text = await fs.readFile(file, 'utf8').catch(() => null)

@@ -65,6 +65,7 @@ const ratingsWith = ({
   clock = { ms: 1000 },
   lookUp = null,
   linkOf = (url) => url,
+  externalIdsFor = async () => null,
 }) => {
   const client = fakeClient(routes || {})
   const ratings = createProgrammeRatings({
@@ -74,6 +75,7 @@ const ratingsWith = ({
     reviewsEnabled: async () => reviewsOn,
     tmdbKey: async () => apiKey,
     hintsFor: async () => hints,
+    externalIdsFor,
     now: () => clock.ms,
     hitTtlMs: 100,
     missTtlMs: 10,
@@ -737,4 +739,26 @@ test('forget also clears the dated film keys a sheet asked for', async () => {
   const { ratings } = ratingsWith({ cache })
   await ratings.forget('Heat')
   assert.deepEqual([...cache.rows.keys()], ['tmdb:movie:heat 2@1995'])
+})
+
+test('ratingsFor: a library film with a TMDB id reads that film, not a title search', async () => {
+  const { ratings, client, cache } = ratingsWith({ routes: { '/movie/949': HEAT_DETAILS }, hints: HEAT_HINTS, externalIdsFor: async ({ kind }) => (kind === 'movie' ? { tmdb: '949', tvdb: null, imdb: null } : null) })
+  const answer = await settled(ratings, 'Heat', { kind: 'movie', year: 1995 })
+  assert.equal(answer.score, 7.9)
+  assert.ok(!client.calls.some((call) => call.path.startsWith('/search/')))
+  assert.deepEqual([...cache.rows.keys()], ['tmdb:movie:heat@tmdb-949'])
+})
+
+test('ratingsFor: a series whose ids TMDB does not know is a miss, with no title search', async () => {
+  const { ratings, client } = ratingsWith({ routes: {}, externalIdsFor: async () => ({ tmdb: null, tvdb: '1', imdb: null }) })
+  const answer = await settled(ratings, 'Dark')
+  assert.equal(answer.status, 'none')
+  assert.ok(!client.calls.some((call) => call.path.startsWith('/search/')))
+  assert.ok(client.calls.some((call) => call.path === '/lookup/shows'))
+})
+
+test('ratingsFor: a failing id lookup in the store falls back to the title matcher', async () => {
+  const { ratings, client } = ratingsWith({ routes: {}, apiKey: null, externalIdsFor: async () => { throw new Error('database locked') } })
+  await settled(ratings, 'Dark')
+  assert.ok(client.calls.some((call) => call.path === '/search/shows'))
 })

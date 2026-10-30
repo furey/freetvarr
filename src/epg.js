@@ -60,6 +60,7 @@ import {
 } from './pending-skips.js'
 import { dvrAiringMatchOf, dvrAiringsOf } from './repeat-match.js'
 import { measureJob } from './event-loop-lag.js'
+import { loadExternalIds } from './external-ids-store.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -1056,9 +1057,10 @@ const personImages = createProgrammeImages({
   maxBytes: PERSON_IMAGE_MEMORY_BYTES,
 })
 const showArtwork = createShowArtwork({
+  externalIdsFor: loadExternalIds,
   onTvmazeShow: (found) => Promise.all([rememberTvmazeShow(found), rememberKnownAsFromTvmaze(found)]),
 })
-const fallbackArtwork = createFallbackArtwork({ hintsFor: programmeHintsFor })
+const fallbackArtwork = createFallbackArtwork({ hintsFor: programmeHintsFor, externalIdsFor: loadExternalIds })
 const hintsByGuide = new WeakMap()
 const kindsByGuide = new WeakMap()
 const guideSearchFor = createGuideSearchCache()

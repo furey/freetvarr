@@ -34,16 +34,24 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
     return response.data
   }
 
-  const listItems = async ({ section, viewedSinceS = null, addedSinceS = null }) => {
+  const listItems = ({ section, viewedSinceS = null, addedSinceS = null }) => listPaged({
+    section,
+    params: {
+      type: section.type === 'show' ? EPISODE_TYPE : MOVIE_TYPE,
+      ...(section.type === 'show' ? {} : { includeGuids: 1 }),
+      ...(viewedSinceS != null ? { 'lastViewedAt>>': viewedSinceS } : {}),
+      ...(addedSinceS != null ? { 'addedAt>>': addedSinceS } : {}),
+    },
+  })
+
+  const listShows = ({ section }) => listPaged({ section, params: { type: SHOW_TYPE, includeGuids: 1 } })
+
+  const listPaged = async ({ section, params }) => {
     const items = []
     for (let page = 0; page < MAX_PAGES; page += 1) {
       const data = await get({
         path: `/library/sections/${encodeURIComponent(section.id)}/all`,
-        params: {
-          type: section.type === 'show' ? 4 : 1,
-          ...(viewedSinceS != null ? { 'lastViewedAt>>': viewedSinceS } : {}),
-          ...(addedSinceS != null ? { 'addedAt>>': addedSinceS } : {}),
-        },
+        params,
         headers: { 'X-Plex-Container-Start': String(page * PAGE_SIZE), 'X-Plex-Container-Size': String(PAGE_SIZE) },
       })
       const batch = metadataOf(data)
@@ -74,7 +82,7 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
   const sections = async () => directoriesOf(await get({ path: '/library/sections' }))
     .map((directory) => ({ id: String(directory.key), type: directory.type, title: directory.title ?? '' }))
 
-  return { listItems, metadata, write, sections }
+  return { listItems, listShows, metadata, write, sections }
 }
 
 export const metadataOf = (data) => {
@@ -99,3 +107,6 @@ const axiosRequest = ({ url, params, headers, timeoutMs, maxBytes }) => axios.ge
 })
 
 const PLEX_LIBRARY_IDENTIFIER = 'com.plexapp.plugins.library'
+const MOVIE_TYPE = 1
+const SHOW_TYPE = 2
+const EPISODE_TYPE = 4

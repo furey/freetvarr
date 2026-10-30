@@ -236,6 +236,7 @@ import {
   startUserEvents,
   stopUserEvents,
 } from './user-events-log.js'
+import { loadExternalIds } from './external-ids-store.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -783,8 +784,8 @@ const guideHints = createGuideHints({ loadGuide: getGuideSnapshot })
 const LOOKUP_WAIT_MS = 1500
 const RATINGS_WARM_DELAY_MS = 2 * 60_000
 const RATINGS_WARM_WINDOW_MS = 24 * 60 * 60_000
-const programmeRatings = createProgrammeRatings({ hintsFor: guideHints, waitMs: LOOKUP_WAIT_MS })
-const programmeCredits = createProgrammeCredits({ hintsFor: guideHints, waitMs: LOOKUP_WAIT_MS })
+const programmeRatings = createProgrammeRatings({ hintsFor: guideHints, externalIdsFor: loadExternalIds, waitMs: LOOKUP_WAIT_MS })
+const programmeCredits = createProgrammeCredits({ hintsFor: guideHints, externalIdsFor: loadExternalIds, waitMs: LOOKUP_WAIT_MS })
 
 const programmeCategories = createClassificationStore()
 const warmUpcomingRatings = async () => {

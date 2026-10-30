@@ -30,11 +30,19 @@ test('listItems pages through a large section with container headers', async () 
   assert.equal(calls[0].timeoutMs, 15_000)
 })
 
-test('listItems asks only for items viewed since a time, and movies use type 1', async () => {
+test('listItems asks only for items viewed since a time, and movies use type 1 with their agent ids', async () => {
   const calls = []
   const client = createPlexWatchClient({ url: 'http://plex:32400', token: 'tok', request: async (options) => { calls.push(options); return page(1) } })
   await client.listItems({ section: { id: '5', type: 'movie' }, viewedSinceS: 1_793_000_000 })
-  assert.deepEqual(calls[0].params, { type: 1, 'lastViewedAt>>': 1_793_000_000, 'X-Plex-Token': 'tok' })
+  assert.deepEqual(calls[0].params, { type: 1, includeGuids: 1, 'lastViewedAt>>': 1_793_000_000, 'X-Plex-Token': 'tok' })
+})
+
+test('listShows asks for the shows of a section with their agent ids', async () => {
+  const calls = []
+  const client = createPlexWatchClient({ url: 'http://plex:32400', token: 'tok', request: async (options) => { calls.push(options); return page(2) } })
+  assert.equal((await client.listShows({ section: { id: '2', type: 'show' } })).length, 2)
+  assert.equal(calls[0].url, 'http://plex:32400/library/sections/2/all')
+  assert.deepEqual(calls[0].params, { type: 2, includeGuids: 1, 'X-Plex-Token': 'tok' })
 })
 
 test('a 401 is a token error, other failures are unreachable', async () => {

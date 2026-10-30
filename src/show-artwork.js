@@ -3,6 +3,7 @@ import axios from 'axios'
 import { db, getSetting } from './db.js'
 import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
 import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
+import { externalIdsOf, idKeyedCacheKeyOf } from './external-ids.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
@@ -23,6 +24,7 @@ export const createShowArtwork = ({
   searchTvmaze = null,
   findSeriesShow = null,
   hintsFor = guideHintsFor,
+  externalIdsFor = async () => null,
   loadTvmazeImages = tvmazeImages,
   cache = databaseCache,
   isTvmazeEnabled = tvmazeLookupEnabled,
@@ -47,42 +49,48 @@ export const createShowArtwork = ({
 
   const recentlyFailed = (key) => (failedUntil.get(key) || 0) > now()
 
-  const cachedTvmazeSources = async (key) => {
-    const cached = await readSizedCache({ read: cache.read, key: seriesCacheKeyOf(key) })
+  const tvmazeLookupOf = async ({ key, title }) => {
+    const ids = await externalIdsOf({ externalIdsFor, title, kind: null })
+    return { cacheKey: idKeyedCacheKeyOf({ cacheKey: seriesCacheKeyOf(key), ids }), ids, title }
+  }
+
+  const cachedTvmazeSources = async (cacheKey) => {
+    const cached = await readSizedCache({ read: cache.read, key: cacheKey })
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue: Boolean(cached?.sources?.length) })
     return state === 'missing' ? { stale: false, sources: null } : { stale: state === 'stale', sources: cached.sources }
   }
 
   const tvmazeSourcesFor = async ({ key, title }) => {
     if (!(await isTvmazeEnabled())) return []
-    const cached = await cachedTvmazeSources(key)
-    if (cached.stale && !recentlyFailed(key)) startTvmazeLookup({ key, title })
+    const lookup = await tvmazeLookupOf({ key, title })
+    const cached = await cachedTvmazeSources(lookup.cacheKey)
+    if (cached.stale && !recentlyFailed(lookup.cacheKey)) startTvmazeLookup(lookup)
     if (cached.sources) return cached.sources
-    if (recentlyFailed(key)) return []
-    return startTvmazeLookup({ key, title })
+    if (recentlyFailed(lookup.cacheKey)) return []
+    return startTvmazeLookup(lookup)
   }
 
-  const startTvmazeLookup = ({ key, title }) => {
-    if (inflight.has(key)) return inflight.get(key)
-    const pending = runSpaced(() => lookUpTvmaze({ title }))
+  const startTvmazeLookup = ({ cacheKey, ids, title }) => {
+    if (inflight.has(cacheKey)) return inflight.get(cacheKey)
+    const pending = runSpaced(() => lookUpTvmaze({ title, ids }))
       .then(async ({ sources, hinted }) => {
         const missMs = hinted ? missTtlMs : unhintedMissTtlMs
         const expiresAt = now() + (sources.length ? hitTtlMs : missMs)
-        await cache.write({ key: sizedKeyOf(seriesCacheKeyOf(key)), sources, expiresAt }).catch(() => {})
+        await cache.write({ key: sizedKeyOf(cacheKey), sources, expiresAt }).catch(() => {})
         return sources
       })
       .catch(() => {
-        failedUntil.set(key, now() + failureBackoffMs)
+        failedUntil.set(cacheKey, now() + failureBackoffMs)
         return []
       })
-      .finally(() => inflight.delete(key))
-    inflight.set(key, pending)
+      .finally(() => inflight.delete(cacheKey))
+    inflight.set(cacheKey, pending)
     return pending
   }
 
-  const lookUpTvmaze = async ({ title }) => {
+  const lookUpTvmaze = async ({ title, ids }) => {
     const hints = await Promise.resolve().then(() => hintsFor(title)).catch(() => null)
-    const show = await findShow({ title, hints })
+    const show = await findShow({ title, hints, ids })
     if (!show) return { sources: [], hinted: Boolean(hints) }
     Promise.resolve().then(() => onTvmazeShow({ title, show })).catch(() => {})
     const images = await loadTvmazeImages(show.id)
@@ -104,19 +112,22 @@ export const createShowArtwork = ({
     if (fromPlex === TIMED_OUT) return PENDING_ARTWORK
     if (fromPlex.length) return { sources: fromPlex, pending: false }
     if (!(await isTvmazeEnabled())) return NO_ARTWORK
-    const cached = await cachedTvmazeSources(key)
-    if (cached.stale && !recentlyFailed(key)) startTvmazeLookup({ key, title })
+    const lookup = await tvmazeLookupOf({ key, title })
+    const cached = await cachedTvmazeSources(lookup.cacheKey)
+    if (cached.stale && !recentlyFailed(lookup.cacheKey)) startTvmazeLookup(lookup)
     if (cached.sources) return { sources: cached.sources, pending: false }
-    if (recentlyFailed(key)) return NO_ARTWORK
-    startTvmazeLookup({ key, title })
+    if (recentlyFailed(lookup.cacheKey)) return NO_ARTWORK
+    startTvmazeLookup(lookup)
     return PENDING_ARTWORK
   }
 
   const forget = async (title) => {
     const key = showTitleKey(title)
     if (!key) return
-    failedUntil.delete(key)
-    for (const cacheKey of [sizedKeyOf(seriesCacheKeyOf(key)), seriesCacheKeyOf(key)]) {
+    const { cacheKey: idKey } = await tvmazeLookupOf({ key, title })
+    for (const cacheKey of new Set([seriesCacheKeyOf(key), idKey])) {
+      failedUntil.delete(cacheKey)
+      await cache.remove?.(sizedKeyOf(cacheKey)).catch(() => {})
       await cache.remove?.(cacheKey).catch(() => {})
     }
     plexShows.reset()
@@ -132,9 +143,9 @@ const withinMs = (promise, ms) => Promise.race([
 
 export const seriesShowFinder = ({ searchTvmaze = null, countryCode } = {}) => {
   let matcher = null
-  return ({ title, hints }) => {
+  return ({ title, hints, ids = null }) => {
     matcher ??= createTitleMatcher({ ...(countryCode ? { countryCode } : {}), ...(searchTvmaze ? { searchTvmaze } : {}) })
-    return matcher.tvmazeShow({ title, hints })
+    return matcher.tvmazeShow({ title, hints, ids })
   }
 }
 

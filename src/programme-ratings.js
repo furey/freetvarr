@@ -8,6 +8,7 @@ import { pickReviewSnippet } from './review-snippet.js'
 import { linkHealth } from './link-health.js'
 import { lookupAllowed } from './lookup-gate.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
+import { externalIdsOf, hasExternalIds, idKeyedCacheKeyOf, tmdbIdOfExternalIds } from './external-ids.js'
 import {
   artworkKindOf,
   cachedStateOf,
@@ -44,6 +45,7 @@ export const createProgrammeRatings = ({
   reviewsEnabled = reviewsLookupEnabled,
   tmdbKey = storedTmdbKey,
   hintsFor = async () => null,
+  externalIdsFor = async () => null,
   now = Date.now,
   hitTtlMs = HIT_TTL_MS,
   missTtlMs = MISS_TTL_MS,
@@ -64,9 +66,10 @@ export const createProgrammeRatings = ({
     const apiKey = await tmdbKey()
     const ratingKind = artworkKindOf(kind)
     if (ratingKind && !apiKey) return null
-    const filmYear = ratingKind ? year : null
-    const cacheKey = lookupCacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: ratingKind, key, year: filmYear })
-    return { apiKey, kind: ratingKind, year: filmYear, cacheKey, ratingsOn, reviewsOn }
+    const ids = await externalIdsOf({ externalIdsFor, title, kind: ratingKind })
+    const filmYear = ratingKind && !ids ? year : null
+    const cacheKey = idKeyedCacheKeyOf({ cacheKey: lookupCacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: ratingKind, key, year: filmYear }), ids })
+    return { apiKey, kind: ratingKind, year: filmYear, ids, cacheKey, ratingsOn, reviewsOn }
   }
 
   const ratingsFor = async (title, { kind = null, year = null, wait = true } = {}) => {
@@ -136,13 +139,13 @@ export const createBackgroundLookups = ({
     return state === 'missing' ? null : { ...cached, stale: state === 'stale' }
   }
 
-  const startLookup = ({ title, kind, year, apiKey, cacheKey, isBackground = false }) => {
+  const startLookup = ({ title, kind, year, apiKey, ids = null, cacheKey, isBackground = false }) => {
     if (inflight.has(cacheKey)) {
       if (!isBackground) lookupLimiter.promote?.(cacheKey)
       return inflight.get(cacheKey)
     }
     const pending = lookupLimiter.run(async () =>
-      lookUp({ title, kind, year, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }), { isBackground, id: cacheKey })
+      lookUp({ title, kind, year, ids, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }), { isBackground, id: cacheKey })
       .then(async (found) => {
         const result = found?.missReason ? null : found || null
         const expiresAt = lookupExpiryOf({ found: Boolean(result), nowMs: now(), hitTtlMs, missTtlMs })
@@ -224,35 +227,35 @@ export const createRatingsLookup = ({
   knownReference = storedTmdbReference,
   matcher = createTitleMatcher({ client, countryCode, knownReference }),
 } = {}) => {
-  const filmRatings = async ({ title, hints, apiKey, year }) => {
-    const details = await matcher.matchedFilm({ title, hints, apiKey, year })
-    if (!details) return missOf(hints || year ? 'no-match' : 'no-guide-details')
+  const filmRatings = async ({ title, hints, apiKey, year, ids }) => {
+    const details = await matcher.matchedFilm({ title, hints, apiKey, year, ids })
+    if (!details) return missOf(hints || year || ids ? 'no-match' : 'no-guide-details')
     return filmRatingsOf(details) || missOf('no-score')
   }
 
-  const seriesRatings = async ({ title, hints, apiKey }) => {
-    const tmdb = await settledOf(matcher.matchedSeries({ title, hints, apiKey }))
+  const seriesRatings = async ({ title, hints, apiKey, ids }) => {
+    const tmdb = await settledOf(matcher.matchedSeries({ title, hints, apiKey, ids }))
     const fromTmdb = tmdb.value
     if (fromTmdb?.type && !isCinematicSeries({ tmdbType: fromTmdb.type })) return missOf('not-story', fromTmdb.type)
     const rated = fromTmdb?.type ? tmdbSeriesRatingsOf(fromTmdb) : null
     if (rated?.score != null) return rated
-    const found = await tvmazeSeriesRatings({ title, hints, apiKey, fromTmdb })
+    const found = await tvmazeSeriesRatings({ title, hints, apiKey, fromTmdb, ids })
     if (tmdb.error && found?.missReason && !found.missReason.startsWith('not-story')) throw tmdb.error
     return found?.missReason && rated ? rated : found
   }
 
-  const tvmazeSeriesRatings = async ({ title, hints, apiKey, fromTmdb }) => {
-    const show = await matcher.tvmazeShow({ title, hints })
+  const tvmazeSeriesRatings = async ({ title, hints, apiKey, fromTmdb, ids }) => {
+    const show = await matcher.tvmazeShow({ title, hints, ids })
     if (!show) return missOf('no-match')
     if (show.type && !isCinematicSeries({ tvmazeType: show.type })) return missOf('not-story', show.type)
-    const details = fromTmdb || await matcher.tmdbShow({ title, show, apiKey })
+    const details = fromTmdb || await matcher.tmdbShow({ title, show, apiKey, ids })
     if (!show.type && !isCinematicSeries({ tmdbType: details?.type })) return missOf('not-story', details?.type || 'unknown')
     return seriesRatingsOf({ show, details }) || missOf('no-score')
   }
 
-  return async ({ title, kind, hints, apiKey, year = null }) => (artworkKindOf(kind)
-    ? filmRatings({ title, hints, apiKey, year })
-    : seriesRatings({ title, hints, apiKey }))
+  return async ({ title, kind, hints, apiKey, year = null, ids = null }) => (artworkKindOf(kind)
+    ? filmRatings({ title, hints, apiKey, year, ids })
+    : seriesRatings({ title, hints, apiKey, ids }))
 }
 
 export const createTitleMatcher = ({
@@ -272,7 +275,28 @@ export const createTitleMatcher = ({
     params: { language: TMDB_LANGUAGE, append_to_response: 'credits,reviews' },
   })
 
-  const matchedFilm = async ({ title, hints, apiKey, year = null }) => {
+  const tmdbIdOfIds = ({ apiKey, ids, type }) => tmdbIdOfExternalIds({
+    ids,
+    type,
+    findTmdb: ({ source, id }) => tmdbGet({ apiKey, path: `/find/${encodeURIComponent(id)}`, params: { external_source: source } }),
+  })
+
+  const tmdbDetailsByIds = async ({ apiKey, ids, type }) => {
+    const id = await tmdbIdOfIds({ apiKey, ids, type })
+    return id == null ? null : tmdbDetails({ apiKey, type, id })
+  }
+
+  const tvmazeShowByIds = async (ids) => {
+    for (const [source, id] of [['thetvdb', ids.tvdb], ['imdb', ids.imdb]]) {
+      if (!id) continue
+      const show = await client.getJson({ url: `${TVMAZE_API}/lookup/shows`, params: { [source]: id } })
+      if (show?.id != null) return show
+    }
+    return null
+  }
+
+  const matchedFilm = async ({ title, hints, apiKey, year = null, ids = null }) => {
+    if (hasExternalIds(ids)) return tmdbDetailsByIds({ apiKey, ids, type: 'movie' })
     const known = await knownReference({ title, kind: FILM_KIND })
     if (known?.type === 'movie') {
       const details = await tmdbDetails({ apiKey, type: 'movie', id: known.id })
@@ -309,7 +333,8 @@ export const createTitleMatcher = ({
     return dominant && sharesAnyTerm({ hints, text: tmdbTextOf(dominant) }) ? dominant : null
   }
 
-  const tvmazeShow = async ({ title, hints }) => {
+  const tvmazeShow = async ({ title, hints, ids = null }) => {
+    if (hasExternalIds(ids)) return tvmazeShowByIds(ids)
     for (const variant of titleVariantsOf(title)) {
       const results = await searchTvmaze(variant)
       const key = showTitleKey(variant)
@@ -331,7 +356,8 @@ export const createTitleMatcher = ({
     return matched.length === 1 ? matched[0] : null
   }
 
-  const tmdbShowId = async ({ title, show, apiKey }) => {
+  const tmdbShowId = async ({ title, show, apiKey, ids }) => {
+    if (hasExternalIds(ids)) return tmdbIdOfIds({ apiKey, ids, type: 'tv' })
     const known = await knownReference({ title, kind: null })
     if (known?.type === 'tv') return known.id
     const imdb = show.externals?.imdb
@@ -340,14 +366,15 @@ export const createTitleMatcher = ({
     return found?.tv_results?.[0]?.id ?? null
   }
 
-  const tmdbShow = async ({ title, show, apiKey }) => {
+  const tmdbShow = async ({ title, show, apiKey, ids = null }) => {
     if (!apiKey) return null
-    const id = await tmdbShowId({ title, show, apiKey })
+    const id = await tmdbShowId({ title, show, apiKey, ids })
     return id == null ? null : tmdbDetails({ apiKey, type: 'tv', id })
   }
 
-  const matchedSeries = async ({ title, hints, apiKey }) => {
+  const matchedSeries = async ({ title, hints, apiKey, ids = null }) => {
     if (!apiKey) return null
+    if (hasExternalIds(ids)) return tmdbDetailsByIds({ apiKey, ids, type: 'tv' })
     const known = await knownReference({ title, kind: null })
     if (known?.type === 'tv') return tmdbDetails({ apiKey, type: 'tv', id: known.id })
     if (!hints) return null

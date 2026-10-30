@@ -289,3 +289,32 @@ test('a title the lookup gate refuses gets no lookup, and a full queue sets no f
   assert.equal((await artwork.sourcesFor('Seinfeld')).length, 1)
   assert.deepEqual(looked, ['Seinfeld'])
 })
+
+test('a library show with agent ids reads TMDB by those ids and skips Wikipedia and search', async () => {
+  const client = fakeClient((path, params) => {
+    if (path === '/3/find/334824') return params.external_source === 'tvdb_id' ? { tv_results: [{ id: 70523 }] } : {}
+    if (path === '/3/tv/70523') return { id: 70523, backdrop_path: '/dark.jpg', poster_path: '/dark-poster.jpg' }
+    return null
+  })
+  const lookUp = createArtworkLookup({ client })
+  const found = await lookUp({ title: 'Dark', hints: null, apiKey: 'k', ids: { tmdb: null, tvdb: '334824', imdb: null } })
+  assert.equal(found.reference, 'tmdb:tv:70523')
+  assert.match(found.sources[0], /dark\.jpg$/)
+  assert.ok(!client.calls.some((call) => call.path.includes('/search') || call.path.includes('wikidata') || call.path === '/w/api.php'))
+})
+
+test('fallback artwork keys a lookup with agent ids apart from the title-matched one', async () => {
+  const seen = []
+  const cache = memoryCache()
+  const artwork = createFallbackArtwork({
+    lookUp: async (request) => { seen.push(request.ids); return { sources: ['https://image.tmdb.org/t/p/original/dark.jpg'], reference: 'tmdb:tv:70523' } },
+    cache,
+    isEnabled: async () => true,
+    tmdbKey: async () => 'k',
+    externalIdsFor: async () => ({ tmdb: '70523', tvdb: null, imdb: null }),
+    staleBeforeMs: 0,
+  })
+  assert.deepEqual(await artwork.sourcesFor('Dark'), ['https://image.tmdb.org/t/p/original/dark.jpg'])
+  assert.deepEqual(seen, [{ tmdb: '70523', tvdb: null, imdb: null }])
+  assert.ok([...cache.rows.keys()].every((key) => key.endsWith('tmdb:dark@tmdb-70523')))
+})

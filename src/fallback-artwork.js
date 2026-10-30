@@ -4,6 +4,7 @@ import { createOutboundClient, createHostLimiter } from './outbound-http.js'
 import { currentTimeZone } from './time-zone.js'
 import { lookupAllowed } from './lookup-gate.js'
 import { countryForTimeZone } from './zone-countries.js'
+import { externalIdsOf, hasExternalIds, idKeyedCacheKeyOf, tmdbIdOfExternalIds } from './external-ids.js'
 import {
   articleCandidateIdsOf,
   artworkKindOf,
@@ -40,6 +41,7 @@ export const createFallbackArtwork = ({
   isEnabled = tvmazeLookupEnabled,
   tmdbKey = storedTmdbKey,
   hintsFor = async () => null,
+  externalIdsFor = async () => null,
   now = Date.now,
   hitTtlMs = HIT_TTL_MS,
   missTtlMs = MISS_TTL_MS,
@@ -73,7 +75,9 @@ export const createFallbackArtwork = ({
     if (!key || !(await isEnabled())) return null
     const apiKey = await tmdbKey()
     const artworkKind = artworkKindOf(kind)
-    return { key, apiKey, kind: artworkKind, cacheKey: cacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: artworkKind, key }) }
+    const ids = apiKey ? await externalIdsOf({ externalIdsFor, title, kind: artworkKind }) : null
+    const cacheKey = idKeyedCacheKeyOf({ cacheKey: cacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: artworkKind, key }), ids })
+    return { key, apiKey, kind: artworkKind, ids, cacheKey }
   }
 
   const cachedSources = async (cacheKey) => {
@@ -88,10 +92,10 @@ export const createFallbackArtwork = ({
     if (cached.stale && !recentlyFailed(settings.cacheKey)) startLookup({ title, ...settings })
   }
 
-  const startLookup = ({ title, kind, apiKey, cacheKey }) => {
+  const startLookup = ({ title, kind, apiKey, ids = null, cacheKey }) => {
     if (inflight.has(cacheKey)) return inflight.get(cacheKey)
     const pending = lookupLimiter.run(async () =>
-      lookUp({ title, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }))
+      lookUp({ title, kind, ids, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }))
       .then(async (found) => {
         const sources = found?.sources || []
         const expiresAt = lookupExpiryOf({ found: sources.length > 0, nowMs: now(), hitTtlMs, missTtlMs })
@@ -136,10 +140,13 @@ export const createFallbackArtwork = ({
     if (!key) return
     for (const mode of ['open', 'tmdb']) {
       for (const kind of [null, artworkKindOf('movie')]) {
-        const cacheKey = cacheKeyOf({ mode, kind, key })
-        failedUntil.delete(cacheKey)
-        await cache.remove?.(sizedKeyOf(cacheKey)).catch(() => {})
-        await cache.remove?.(cacheKey).catch(() => {})
+        const plainKey = cacheKeyOf({ mode, kind, key })
+        const ids = await externalIdsOf({ externalIdsFor, title, kind })
+        for (const cacheKey of new Set([plainKey, idKeyedCacheKeyOf({ cacheKey: plainKey, ids })])) {
+          failedUntil.delete(cacheKey)
+          await cache.remove?.(sizedKeyOf(cacheKey)).catch(() => {})
+          await cache.remove?.(cacheKey).catch(() => {})
+        }
       }
     }
   }
@@ -288,7 +295,20 @@ export const createArtworkLookup = ({
     return sources.length ? { sources, reference: `tmdb:movie:${dominant.id}` } : null
   }
 
-  return async ({ title, hints, apiKey }) => {
+  const tmdbForExternalIds = async ({ apiKey, ids, kind }) => {
+    const type = artworkKindOf(kind) ? 'movie' : 'tv'
+    const id = await tmdbIdOfExternalIds({
+      ids,
+      type,
+      findTmdb: ({ source, id: externalId }) => tmdbGet({ apiKey, path: `/find/${encodeURIComponent(externalId)}`, params: { external_source: source } }),
+    })
+    if (id == null) return null
+    const sources = tmdbSourcesOf(await tmdbDetails({ apiKey, type, id }))
+    return sources.length ? { sources, reference: `tmdb:${type}:${id}` } : null
+  }
+
+  return async ({ title, kind = null, hints, apiKey, ids = null }) => {
+    if (apiKey && hasExternalIds(ids)) return tmdbForExternalIds({ apiKey, ids, kind })
     const attempt = await verifiedWikipediaMatch({ title, hints }).then((match) => ({ match }), (error) => ({ error }))
     if (attempt.error) {
       const fromSearch = apiKey ? await tmdbSearch({ apiKey, title, hints }).catch(() => null) : null
