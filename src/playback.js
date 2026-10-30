@@ -10,6 +10,7 @@ import {
   missingStreamParameters,
   probeArgs,
   pickStreams,
+  softwarePlanOf,
   hardwareDecodeArgs,
   videoCodecArgs,
   streamLimitError,
@@ -293,6 +294,8 @@ export const createPlaybackSessions = ({
       }
       if (session.probe === 'short' && missingStreamParameters(session.errorLines)) return respawnWith(session, { probe: 'full' })
       if (session.plan?.teletext) return respawnWith(session, { plan: { ...session.plan, teletext: null } })
+      const softwarePlan = softwarePlanOf(session.plan)
+      if (softwarePlan) return respawnWith(session, { plan: softwarePlan })
       end(session, {
         code: 'ffmpeg',
         detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,

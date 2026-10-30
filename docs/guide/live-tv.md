@@ -124,7 +124,7 @@ If a channel takes longer than about `15` seconds to start, the player says it i
 Freetvarr gets the channel from TVHeadend and converts it with ffmpeg into a stream that any browser can play:
 
 - **H.264 video** is deinterlaced and re-encoded to progressive H.264. See [Video handling](#video-handling).
-- **MPEG-2 or HEVC video** is re-encoded to H.264 in software, because browsers cannot play MPEG-2. Standard-definition channels stay at `576` lines; HD channels in those formats drop to `540` lines to keep the CPU load down.
+- **MPEG-2, HEVC, or VC-1 video** is re-encoded to H.264, because browsers cannot play MPEG-2. Standard-definition channels are re-encoded in software and stay at `576` lines. With hardware transcoding, HD video in those formats is decoded and re-encoded on the GPU at up to `720` lines, and 4K video drops to `1080` lines. Without it, HD and 4K video is re-encoded in software at `540` lines to keep the CPU load down. If the GPU cannot decode a recording or a Plex file, Freetvarr starts its playback again in software.
 - **Audio** becomes stereo, in TVHeadend's default language, without the audio-description track.
 
 Each channel needs a tuner, unless a tuner already carries its multiplex, in which case the two share it. If every tuner is busy, the player says what is using each one. If a recording in the next hour needs the tuner, the player warns you. When the recording starts, the recording takes the tuner and the live stream stops.

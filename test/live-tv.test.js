@@ -6,6 +6,7 @@ import { readFile } from 'fs/promises'
 
 import {
   pickStreams,
+  softwarePlanOf,
   ffmpegArgsFor,
   tunerVerdict,
   stallReason,
@@ -494,6 +495,40 @@ test('pickStreams: H.264 is deinterlaced in software at 540p without hardware', 
 
 test('pickStreams: MPEG-2 SD stays on the software path even with VAAPI', () => {
   assert.equal(pickStreams({ streams: ABC_SD, encoder: VAAPI_ENCODER }).videoMode, 'transcode')
+})
+
+const videoOf = (type, height) => [{ type, pid: 0x66, height }, { type: 'AC3', pid: 0x67, language: 'eng' }]
+
+test('pickStreams: HEVC and HD MPEG-2 or VC-1 decode in VAAPI; 4K scales to 1080p, HD to 720p', () => {
+  const planOf = (type, height) => {
+    const plan = pickStreams({ streams: videoOf(type, height), encoder: VAAPI_ENCODER })
+    return [plan.videoMode, plan.heightCap, plan.deinterlace, plan.scaleFormat ?? null]
+  }
+  assert.deepEqual(planOf('HEVC', 2160), ['vaapi', 1080, false, 'nv12'])
+  assert.deepEqual(planOf('HEVC', 1080), ['vaapi', 720, false, 'nv12'])
+  assert.deepEqual(planOf('MPEG2VIDEO', 1080), ['vaapi', 720, true, 'nv12'])
+  assert.deepEqual(planOf('VC1', 1080), ['vaapi', 720, true, 'nv12'])
+  assert.deepEqual(planOf('MPEG4VIDEO', 1080), ['transcode', 540, false, null])
+})
+
+test('pickStreams: HEVC uses software only when VAAPI is unavailable', () => {
+  const plan = pickStreams({ streams: videoOf('HEVC', 2160), encoder: { kind: 'software' } })
+  assert.deepEqual([plan.videoMode, plan.heightCap], ['transcode', 540])
+})
+
+test('ffmpegArgsFor: 10-bit HEVC is scaled to 8-bit NV12 in VAAPI before h264_vaapi, with no deinterlacer', () => {
+  const plan = pickStreams({ streams: videoOf('HEVC', 2160), encoder: VAAPI_ENCODER })
+  const args = ffmpegArgsFor({ plan, dir: '/tmp/live/abc' })
+  assert.equal(args[args.indexOf('-vf') + 1], 'scale_vaapi=w=-2:h=min(ih\\,1080):format=nv12')
+  assert.deepEqual(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 6), ['-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24'])
+})
+
+test('softwarePlanOf: a VAAPI plan falls back to the software plan for its codec; other plans have none', () => {
+  const hevc = softwarePlanOf(pickStreams({ streams: videoOf('HEVC', 2160), encoder: VAAPI_ENCODER }))
+  assert.deepEqual([hevc.videoMode, hevc.heightCap, hevc.deinterlace, hevc.vaapi, hevc.scaleFormat], ['transcode', 540, false, undefined, undefined])
+  const h264 = softwarePlanOf(pickStreams({ streams: SBS_HD, encoder: VAAPI_ENCODER }))
+  assert.deepEqual([h264.videoMode, h264.heightCap, h264.deinterlace], ['transcode', 540, true])
+  assert.equal(softwarePlanOf(pickStreams({ streams: SBS_HD, encoder: { kind: 'copy' } })), null)
 })
 
 test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', () => {

@@ -58,15 +58,16 @@ export const pickStreams = ({ streams = [], languages = [], encoder = COPY_ENCOD
   const teletext = encoder.captions === false ? null : pickTeletext(streams)
   if (!video) return { video: null, audio, teletext, videoMode: null, heightCap: null, deinterlace: false }
   if (video.type === 'H264') return { video, audio, teletext, ...h264Plan(encoder) }
-  const standardDefinition = isStandardDefinition(video)
-  return {
-    video,
-    audio,
-    teletext,
-    videoMode: 'transcode',
-    heightCap: standardDefinition ? SD_HEIGHT_CAP : HD_TRANSCODE_HEIGHT_CAP,
-    deinterlace: standardDefinition,
-  }
+  if (decodesInHardware({ video, encoder })) return { video, audio, teletext, ...vaapiDecodePlan({ video, encoder }) }
+  return { video, audio, teletext, ...softwareTranscodePlan(video) }
+}
+
+export const softwarePlanOf = (plan) => {
+  if (plan?.videoMode !== 'vaapi') return null
+  const { vaapi, scaleFormat, ...rest } = plan
+  return plan.video.type === 'H264'
+    ? { ...rest, videoMode: 'transcode', heightCap: HD_TRANSCODE_HEIGHT_CAP, deinterlace: true }
+    : { ...rest, ...softwareTranscodePlan(plan.video) }
 }
 
 export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, probe = 'short' }) => [
@@ -748,6 +749,27 @@ const pickTeletext = (streams) => {
 const isStandardDefinition = (video) =>
   video.height ? video.height <= SD_HEIGHT_CAP : video.type === 'MPEG2VIDEO'
 
+const decodesInHardware = ({ video, encoder }) => encoder.kind === 'vaapi'
+  && VAAPI_DECODE_TYPES.includes(video.type)
+  && !isStandardDefinition(video)
+
+const softwareTranscodePlan = (video) => {
+  const standardDefinition = isStandardDefinition(video)
+  return {
+    videoMode: 'transcode',
+    heightCap: standardDefinition ? SD_HEIGHT_CAP : HD_TRANSCODE_HEIGHT_CAP,
+    deinterlace: standardDefinition,
+  }
+}
+
+const vaapiDecodePlan = ({ video, encoder }) => ({
+  videoMode: 'vaapi',
+  heightCap: video.height > VAAPI_HEIGHT_CAP_ABOVE_HD ? VAAPI_HEIGHT_CAP_ABOVE_HD : VAAPI_HEIGHT_CAP,
+  deinterlace: video.type !== 'HEVC',
+  scaleFormat: 'nv12',
+  vaapi: { device: encoder.device, lowPower: encoder.lowPower },
+})
+
 const h264Plan = (encoder) => {
   if (encoder.kind === 'vaapi') {
     return {
@@ -771,7 +793,7 @@ export const videoCodecArgs = (plan) => {
   if (plan.videoMode === 'copy') return ['-c:v', 'copy']
   if (plan.videoMode === 'vaapi') {
     return [
-      '-vf', vaapiFilters(),
+      '-vf', vaapiFilters({ heightCap: plan.heightCap, deinterlace: plan.deinterlace, format: plan.scaleFormat }),
       ...vaapiEncoderArgs({ lowPower: plan.vaapi.lowPower }),
       '-g', '50',
       '-keyint_min', '50',
@@ -802,6 +824,8 @@ const openingKeyframeArgs = () => [
 const pidSpecifier = (pid) => `0:i:0x${Number(pid).toString(16)}`
 
 const VIDEO_TYPES = ['H264', 'HEVC', 'MPEG2VIDEO', 'MPEG4VIDEO', 'VC1']
+const VAAPI_DECODE_TYPES = ['HEVC', 'MPEG2VIDEO', 'VC1']
+const VAAPI_HEIGHT_CAP_ABOVE_HD = 1080
 const AUDIO_TYPES = ['MPEG2AUDIO', 'AC3', 'EAC3', 'AAC', 'AAC-LATM', 'MP4A', 'VORBIS', 'OPUS']
 const DVR_TITLE = /^DVR:\s*/
 const SD_HEIGHT_CAP = 576

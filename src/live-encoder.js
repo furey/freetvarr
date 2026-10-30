@@ -50,8 +50,10 @@ export const vaapiProbeArgs = ({ device, lowPower }) => [
   '-f', 'null', '-',
 ]
 
-export const vaapiFilters = () =>
-  `deinterlace_vaapi=auto=1,scale_vaapi=w=-2:h=min(ih\\,${VAAPI_HEIGHT_CAP})`
+export const vaapiFilters = ({ heightCap = VAAPI_HEIGHT_CAP, deinterlace = true, format = null } = {}) => [
+  ...(deinterlace ? ['deinterlace_vaapi=auto=1'] : []),
+  `scale_vaapi=w=-2:h=min(ih\\,${heightCap})${format ? `:format=${format}` : ''}`,
+].join(',')
 
 export const vaapiEncoderArgs = ({ lowPower }) => [
   '-c:v', 'h264_vaapi',
