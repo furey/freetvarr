@@ -12,7 +12,7 @@ Set CursorBlink false
 Set Theme { "name": "freetvarr", "background": "#0b1117", "foreground": "#f2f5f7", "cursor": "#5ce1c6", "selection": "#26323e", "black": "#0b1117", "red": "#ff8486", "green": "#5ce1c6", "yellow": "#f5c542", "blue": "#3ba4ff", "magenta": "#c79bd8", "cyan": "#62cfff", "white": "#f2f5f7", "brightBlack": "#8d9aa7", "brightRed": "#ff8486", "brightGreen": "#8bebd7", "brightYellow": "#f5c542", "brightBlue": "#62cfff", "brightMagenta": "#dcb5ea", "brightCyan": "#9be3ff", "brightWhite": "#ffffff" }
 
 Hide
-Type "export LANG=C.UTF-8 PS1='\[\e[33m\]~\[\e[0m\] $ ' && cd /tmp && curl() { :; } && sh() { bash /vhs/scripts/demo/install-sim.sh; } && clear"
+Type "export LANG=C.UTF-8 COLORTERM=truecolor PS1='\[\e[33m\]~\[\e[0m\] $ ' && cd /tmp && curl() { :; } && sh() { bash /vhs/scripts/demo/install-sim.sh; } && clear"
 Enter
 Sleep 500ms
 Show
