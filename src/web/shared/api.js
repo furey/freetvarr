@@ -1,5 +1,6 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { isStaleBuild } from '/stale-build.js'
+import { withCsrfRetry } from '/shared/csrf-retry.js'
 
 export let csrfToken = null
 
@@ -88,13 +89,10 @@ const takePrefetchedGet = (url) => {
 export const api = async (method, url, body) => {
   if (method === 'GET') return takePrefetchedGet(url) ?? apiCall(method, url, body)
   prefetchedGets.clear()
-  try {
-    return await apiCall(method, url, body, { 'x-csrf-token': await getCsrf() })
-  } catch (err) {
-    if (!/HTTP 403/.test(err.message)) throw err
-    csrfToken = null
-    return apiCall(method, url, body, { 'x-csrf-token': await getCsrf({ force: true }) })
-  }
+  return withCsrfRetry({
+    send: (token) => apiCall(method, url, body, { 'x-csrf-token': token }),
+    tokenOf: getCsrf,
+  })
 }
 
 let settingsRequest = null
