@@ -7,7 +7,7 @@ description: >-
 
 # TV apps
 
-TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, Settings → **Watch on TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
+TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, Settings → Watching → **Watch on TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
 
 | App      | On the TV                                                                          | Needs                                                     |
 | -------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -18,7 +18,7 @@ If you already run Jellyfin, use it: one server feeds every Jellyfin app in the 
 
 ## The TV login
 
-1. In Freetvarr, open Settings → **Watch on TV**.
+1. In Freetvarr, open Settings → Watching → **Watch on TV**.
 2. Check the login name. `tv` is the default; any name with no spaces works.
 3. Press **Make a TV login** to create the TV login in TVHeadend.
 
@@ -33,8 +33,8 @@ Freetvarr then fills in **TVHeadend address for TV apps** with the address your 
 
 Delete the TV login when no TV app uses it any more, or to stop everyone who has its details.
 
-1. In Freetvarr, open Settings → **Watch on TV**.
-2. Under **TV login**, press **Delete TV login**.
+1. In Freetvarr, open Settings → Watching → **Watch on TV**.
+2. Under **TV LOGIN**, press **Delete TV login**.
 3. Read the confirmation, then press **Delete TV login** again.
 
 Freetvarr deletes only the login it made: the TVHeadend user and password with that name and Freetvarr's note. Other TVHeadend logins stay. TV apps that use the deleted login stop getting channels until you make a new TV login and enter its details in each app.
@@ -63,7 +63,7 @@ If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV lo
 1. In Kodi, open **Settings → Add-ons → Install from repository → PVR clients**.
 2. Choose **Tvheadend HTSP Client** and press **Install**.
 3. Press **Configure** on the add-on.
-4. Enter the values from the **Kodi** rows in Freetvarr's Settings → **Watch on TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
+4. Enter the values from the **KODI (TVHEADEND HTSP CLIENT)** rows in Freetvarr's Settings → Watching → **Watch on TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
 5. Press **OK**, then go back to the Kodi home screen.
 
 **TV** on the home screen now lists the channels, and its **Guide** shows the TV guide. Kodi shows Australian captions, which most other apps do not ([Captions in other apps](/guide/live-tv#captions-in-other-apps)).

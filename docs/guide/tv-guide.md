@@ -1,13 +1,13 @@
 ---
 title: TV guide
 description: >-
-  A 7-day programme guide in the browser: schedule, cancel, series-record, and
-  watch for a show in TVHeadend without opening TVHeadend.
+  A 7-day programme guide in the browser: schedule, cancel, and series-record
+  in TVHeadend without opening TVHeadend, and keep a watchlist of shows.
 ---
 
 # TV guide
 
-The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or ask to be told when it airs. Freetvarr imports each recording into your library after TVHeadend records it.
+The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or add a show to your [watchlist](#watchlist) for when it airs. Freetvarr imports each recording into your library after TVHeadend records it.
 
 The TV guide shows only the listings you loaded into TVHeadend. With the XMLTV guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
 
@@ -55,7 +55,7 @@ A switch in the sheet picks what to do. One line under it says what the main but
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** follows the show to another channel. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the series folder, so the episodes go to the TV library. The note under the switch says where the file will go: the series folder when one matches, the movies folder for a film, or the one-off folder when neither does. The default is in Settings → Recording → Media library. To change a folder later, open [Series rules](/guide/series).
+- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the series folder, so the episodes go to the TV library. The note under the switch says where the file goes: the series folder when one matches, the movies folder for a film, or else the one-off folder. When the recording imports, Freetvarr checks again: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording. See [Library](/guide/recordings#library). The default is in Settings → Recording → Media library. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
 - **Watch from the start** shows when TVHeadend is recording the programme. It plays the recording from its first minute while it keeps recording. The line under it says the time it plays from.
 - **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
@@ -72,6 +72,8 @@ Freetvarr decides from the guide whether a programme is a movie, part of a serie
 - **Movie**: it runs `75` minutes or more and has no season number, episode number, or episode title, and it airs no more than twice in the next 7 days. A programme the guide lists as a movie counts even when it airs more often. A long documentary special counts as a movie too. News and sport never count, unless the movie lookups for [For you](/guide/for-you) know the title as a film.
 - **Series**: it has a season number, an episode number, or an episode title, or it airs `3` or more times in the next 7 days, or TVmaze knows it as a TV show. A show with a series recording always counts as a series.
 - **One-off**: anything else, such as a sports final or a short special.
+
+When Freetvarr gets it wrong, the programme sheet has a link to correct it. A programme with no season, episode, or episode title that Freetvarr counts as a movie shows **Not a movie**. A programme of `75` minutes or more that is not news or sport, and that Freetvarr does not count as a movie, shows **This is a movie**. The same choice is in the **⋯** menus on Home and For you. The correction applies to every airing with that title. Settings → Watching → Film and TV info lists your corrections under **Movie corrections**, each with **Undo**.
 
 [Scheduled](/guide/recordings#scheduled) lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. [Series rules](/guide/series) lists the series recordings themselves.
 

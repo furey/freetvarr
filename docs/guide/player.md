@@ -80,11 +80,11 @@ Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, 
 
 Open **⋯**, then press **Full screen**. On a computer, you can also press `f`, or double-click the picture.
 
-On a phone, turn the phone sideways while the player is open, and the player goes full screen.
+On a phone, turn the phone sideways while the player is open, and the picture fills the screen. On an iPhone, the player stays in Freetvarr with its own controls, so **Start over**, **Multiview**, and the other buttons keep working. **Full screen** in the **⋯** menu opens the iPhone's own video player instead.
 
 ## Multiview
 
-**Multiview** plays up to four live channels at once, for example several sports matches. A tablet or computer shows up to `4` pictures; a phone shows up to `2`. Each picture needs a live stream, so **Live streams at once** also sets the most pictures you get; see [Live streams at once](#live-streams-at-once).
+**Multiview** plays up to four live channels at once, for example several sports matches. A tablet or computer shows up to `4` pictures; a phone shows up to `2`. Each picture needs a live stream, so **Live streams at once** also sets the most pictures you get. A standard install allows `2` until you raise `LIVE_TV_MAX_SESSIONS`; see [Live streams at once](#live-streams-at-once).
 
 1. Open a channel in the player.
 2. Press **Multiview** in the top bar. A sheet lists your favourite channels first, then the other channels.
@@ -147,7 +147,7 @@ Both are saved in the browser, so each device keeps its own. Under **LIVE TV**, 
 
 Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or ad scan runs.
 
-`LIVE_TV_MAX_SESSIONS` in the `.env` sets a hard limit that the setting cannot go above. See [Configuration](/guide/configuration#compose-environment).
+`LIVE_TV_MAX_SESSIONS` in the `.env` sets a hard limit that the setting cannot go above. While it is set, it is also the default, and the measurement no longer picks one. The stock Docker compose file sets it to `2` when the `.env` has no value, so a standard install offers `1` or `2`. To watch three or four pictures in Multiview, add `LIVE_TV_MAX_SESSIONS=4` (or `3`) to the `.env` in the `freetvarr` folder, then run `docker compose up -d` in that folder to restart Freetvarr. See [Configuration](/guide/configuration#compose-environment).
 
 ## Keyboard shortcuts
 

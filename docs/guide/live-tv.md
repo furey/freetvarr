@@ -9,7 +9,7 @@ description: >-
 
 A network tuner streams live channels to any device on your home network, and TVHeadend streams from any tuner it controls. None of it costs anything. Freetvarr has its own player for a quick look in a browser. The apps below suit an evening on the couch and need no Freetvarr at all.
 
-To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's Settings → Watch on TV ([TV apps](/guide/tv-apps) has the steps).
+To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's Settings → Watching → Watch on TV ([TV apps](/guide/tv-apps) has the steps).
 
 ## The options
 
@@ -33,7 +33,7 @@ Open **Live TV** and press a channel to watch it. You can also press a card unde
 
 The page has these controls:
 
-- **All channels** and **Favourites** switch the list. The channels under **FAVOURITES** come first.
+- **Favourites** shows only your favourite channels. Press it again to show every channel. The channels under **FAVOURITES** always come first, then **OTHER CHANNELS**.
 - The **Filter channels or shows** field narrows the list by channel name or programme title. Type `film`, `movie`, `series`, or `one-off` to see only channels with that kind of programme on now or next; the list under the field also offers to match the word in names and titles instead. A movie has a `Movie` tag beside its title.
 - **Images** shows a picture of what is on. **Zoom** has three levels, **S**, **M**, and **L**. Each browser remembers both.
 - The **Channels** button (sliders) at the top right, next to search, opens the same settings as the TV guide: favourites, sort order, hidden channels, and listings. See [Favourites](/guide/tv-guide#favourites).
@@ -131,7 +131,7 @@ Each channel needs a tuner, unless a tuner already carries its multiplex, in whi
 
 Stream limits:
 
-- **One to four channels at once**, set by [Live streams at once](/guide/player#live-streams-at-once) in Settings → Watching → Playback. Freetvarr measures your computer when it starts and picks the default. `LIVE_TV_MAX_SESSIONS` in the `.env` caps it. Recordings that play in Freetvarr count against the same limit, and viewers of the same channel share one stream.
+- **One to four channels at once**, set by [Live streams at once](/guide/player#live-streams-at-once) in Settings → Watching → Playback. `LIVE_TV_MAX_SESSIONS` in the `.env` caps it, and the stock Docker compose file sets it to `2`. With no cap, Freetvarr measures your computer when it starts and picks the default. Recordings that play in Freetvarr count against the same limit, and viewers of the same channel share one stream.
 - **The stream stops 20 seconds** after the last viewer closes the player or the tab. A locked phone or a hidden tab keeps it for the buffer length instead ([Pause and rewind](#pause-and-rewind)).
 - **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 
