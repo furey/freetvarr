@@ -33,11 +33,11 @@ setup_colour() {
   orange=33 chip_blue=36 chip_orange=33 chip_yellow=93 plate=40
   case "${TERM:-}:${COLORTERM:-}" in
     *truecolor*|*24bit*)
-      orange="38;5;208" chip_blue="38;2;30;182;255" chip_orange="38;2;255;138;0"
-      chip_yellow="38;2;226;176;60" plate="48;2;11;17;23" ;;
+      orange="38;5;208" chip_blue="38;2;59;164;255" chip_orange="38;2;242;140;40"
+      chip_yellow="38;2;245;197;66" plate="48;2;11;17;23" ;;
     *256color*)
-      orange="38;5;208" chip_blue="38;5;39" chip_orange="38;5;208"
-      chip_yellow="38;5;178" plate="48;5;233" ;;
+      orange="38;5;208" chip_blue="38;5;75" chip_orange="38;5;208"
+      chip_yellow="38;5;221" plate="48;5;233" ;;
   esac
   RESET="$(paint 0)" BOLD="$(paint 1)" DIM="$(paint 2)" ACCENT="$(paint "1;$orange")"
   YELLOW="$(paint 93)" GREEN="$(paint 32)" LINK="$(paint "1;4;$orange")"
