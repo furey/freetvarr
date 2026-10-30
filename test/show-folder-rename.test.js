@@ -279,3 +279,18 @@ test('renameShowFolder: refuses while the library folder sort moves recordings',
     await sorting
   }
 })
+
+test('settleShowIdentity: a show the owner picked while the lookup ran keeps the pick', async () => {
+  await setSetting('media_root', mediaRoot)
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office' })
+  const picked = OFFICE_CHOICES.candidates[1].identity
+  const identityFor = async () => {
+    await db('shows').where({ id }).update({ tvmaze_id: picked.tvmazeId, tvdb_id: picked.tvdbId, database_title: picked.name, identity_state: 'chosen' })
+    return { state: 'matched', identity: OFFICE_CHOICES.candidates[0].identity, candidates: [] }
+  }
+  await settleShowIdentity({ showId: id, title: 'The Office', identityFor })
+  const show = await db('shows').where({ id }).first()
+  assert.equal(show.identity_state, 'chosen')
+  assert.equal(show.tvdb_id, '78107')
+  assert.equal(show.dest_folder, 'The Office')
+})

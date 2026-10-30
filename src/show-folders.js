@@ -30,7 +30,7 @@ export const settleShowIdentity = async ({ showId, title, airing = {}, identityF
   const match = await Promise.resolve().then(() => identityFor({ ...airing, title, wait })).catch(() => null)
   if (!match || match.state === 'none') return null
   const show = await db('shows').where({ id: showId }).first()
-  if (!show) return null
+  if (!show || show.identity_state === 'chosen') return null
   const columns = identityColumnsOf({ identity: match.identity, state: match.state })
   const mediaRoot = await getMediaRoot()
   if (await hasRecordingsOnDisk({ show, mediaRoot })) {
