@@ -72,15 +72,15 @@ Freetvarr runs in Docker next to TVHeadend, on a computer that stays on, such as
 
 A walkthrough of the app: Home, Live TV, the TV guide, and Recordings.
 
-<https://github.com/user-attachments/assets/a07c9175-c67d-44a1-a958-d78fab1d4833>
+<https://github.com/user-attachments/assets/3e4dc9c0-f541-4c23-88ae-1586049a8a63>
 
 The one-line install, from the `curl` command to the address of the setup wizard.
 
-<https://gist.github.com/user-attachments/assets/9bc17370-e762-4368-b2f1-a7059f47cd46>
+<https://github.com/user-attachments/assets/5c557238-4642-4603-aaee-d707e70e3c6f>
 
 The setup wizard, from the time zone to the ready step.
 
-<https://github.com/user-attachments/assets/4c5a36b3-a66e-43ad-bb05-5f48714b588f>
+<https://github.com/user-attachments/assets/a38c1fb6-ee34-4db8-b992-73a3e2af5026>
 
 ## Screenshots
 
