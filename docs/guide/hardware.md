@@ -28,7 +28,7 @@ Buy an **HDHomeRun Flex Quatro**, model `HDFX-4DT`, direct from [SiliconDust](ht
 It is a network tuner: it plugs into your router, or a switch on your home network, with a network (ethernet) cable, and serves its tuners over your home network. Nothing plugs into the NAS. The author's router has a single LAN port, so a `TP-Link TL-SG105` five-port switch connects the router, the NAS, and the tuner.
 
 > [!IMPORTANT]<br>
-> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in his order notes, and both came in the box.
+> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the author's order notes, and both came in the box.
 
 No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
 
@@ -138,6 +138,21 @@ The common faults:
 - **Strong signal, poor quality.** Only with a masthead amplifier: the amplifier plus a short cable run can overload the front end. A `12 dB` inline attenuator between the adapter and the tuner is the first thing to try.
 
 Only with a power injector: if its `TELEVISION` port is not fully isolated it can pass a few volts AC through to the tuner. Tuners tolerate this, but if the readings look strange, a `$5` inline DC block (Jaycar `LT3068`, or any F-type DC block) between the adapter and the tuner removes it.
+
+## Memory upgrade
+
+Some Synology Plus-series NAS units take one extra memory module (RAM), and the author fitted one to the author's DS220+. On `2026-10-27` the author added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
+
+Before the upgrade, the NAS reported `5.8GB` of memory. Another Docker project on the same NAS (a camera system) used about `2.2GB`, and more than half of that sat in compressed swap (zram), which is memory squeezed into a smaller space.
+
+After the upgrade, `free -m` on the NAS reports `17836MB` in total, `13774MB` available, and about `62MB` of swap in use.
+
+Synology lists a `4GB` module (`D4NESO-2666-4G`) for the DS220+, DS420+, DS720+, and DS920+, and a larger module is not on its list. DSM `7.3.2` on the author's NAS showed no warning when the `16GB` module went in, and reports the full `18GB`. Other DSM versions may warn about third-party memory, and Synology does not support the setup. Check your model's memory page on Synology's site and your DSM version before you buy.
+
+Fitting a module means shutting the NAS down, opening the memory cover on the underside, and clicking the module into the slot. Freetvarr does not need the upgrade; it runs on a stock DS220+.
+
+> [!NOTE]<br>
+> The Amazon link is an affiliate link: as an Amazon Associate the author earns from qualifying purchases, at no extra cost to you.
 
 ## Hardware transcoding
 
