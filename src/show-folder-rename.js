@@ -18,6 +18,7 @@ export const planFolderFix = async ({
 }) => {
   const show = await database('shows').where({ id: showId }).first()
   if (!show) return { state: 'not-found' }
+  if (isKeptFolder(show)) return { state: 'kept', from: show.dest_folder }
   const identity = storedIdentityOf(show) ?? await lookedUpIdentityOf({ show, database, identityFor })
   const target = identityFolderOf(identity)
   if (!target) return { state: 'no-match', from: show.dest_folder }
@@ -94,6 +95,17 @@ export const renameShowFolder = async ({
   return { from: show.dest_folder, to, recordings: recordings.length, moved, plex }
 }
 
+export const keepShowFolder = async ({ showId, database = db }) => {
+  const show = await database('shows').where({ id: showId }).first()
+  if (!show) return null
+  await database('shows').where({ id: showId }).update({ kept_folder: show.dest_folder })
+  return { kept: show.dest_folder }
+}
+
+export const keptFolderPatchOf = ({ show, patch }) => (patch.dest_folder !== undefined && patch.dest_folder !== show?.dest_folder
+  ? { kept_folder: patch.dest_folder }
+  : {})
+
 export const folderFixError = (code, message) => Object.assign(new Error(message), { code })
 
 const lookedUpIdentityOf = async ({ show, database, identityFor }) => {
@@ -127,6 +139,8 @@ const libraryItemsUnder = async ({ database, folder }) => (await database('libra
   .filter((row) => isUnder({ filePath: row.file_path, folder }))
 
 const managedFolderError = (name) => folderFixError('managed', `${name} also saves episodes in this folder. Rename the series in ${name} instead, so ${name} keeps finding its files.`)
+
+const isKeptFolder = (show) => Boolean(show.kept_folder) && show.kept_folder === show.dest_folder
 
 const isManaged = (row) => Boolean(row.manager)
 

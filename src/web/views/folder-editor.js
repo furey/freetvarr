@@ -110,6 +110,7 @@ export const FolderEditor = {
           <button type="button" :class="['ui-button', 'ui-button-primary', 'ui-button-block', { 'is-pending': saving }]" @click="renameFolder" :disabled="saving" :aria-busy="saving">
             <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Renaming…</template><template v-else>Rename folder</template>
           </button>
+          <button type="button" class="ui-button ui-button-block" @click="keepName" :disabled="saving">Keep this name</button>
           <button type="button" class="ui-button ui-button-block" @click="closeRename" :disabled="saving">Cancel</button>
         </template>
       </ui-sheet>
@@ -195,6 +196,20 @@ export const FolderEditor = {
       }
     }
 
+    const keepName = async () => {
+      saving.value = true
+      renameError.value = ''
+      try {
+        await holdAtLeast({ task: () => api('POST', `/api/shows/${props.folder.id}/folder-fix/keep`) })
+        folderFix.value = null
+        renaming.value = false
+      } catch (err) {
+        renameError.value = `Error: ${err.message}`
+      } finally {
+        saving.value = false
+      }
+    }
+
     const loadIdentity = async () => {
       identity.value = await api('GET', `/api/shows/${props.folder.id}/identity`).catch(() => null)
     }
@@ -219,7 +234,7 @@ export const FolderEditor = {
       }
     }
 
-    onMounted(() => Promise.all([loadFolderFix(), loadIdentity()]))
+    onMounted(() => (props.isSeries ? Promise.all([loadFolderFix(), loadIdentity()]) : null))
 
     const remove = async () => {
       saving.value = true
@@ -237,7 +252,7 @@ export const FolderEditor = {
 
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
-      folderFix, renaming, renameError, renameOutcome, closeRename, renameFolder,
+      folderFix, renaming, renameError, renameOutcome, closeRename, renameFolder, keepName,
       identity, identityRow, choosing, chooseError, closeChoosing, chooseShow, candidateMetaOf, artFallbackStyle,
       removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }

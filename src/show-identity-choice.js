@@ -29,7 +29,7 @@ export const chooseShowIdentity = async ({ showId, tvmazeId, database = db, iden
   const channelName = await channelNameOfShow({ showId, database })
   const identity = { ...candidate.identity, needsConfirm: false }
   await database.transaction(async (trx) => {
-    await trx('shows').where({ id: showId }).update(identityColumnsOf({ identity, state: 'chosen' }))
+    await trx('shows').where({ id: showId }).update({ ...identityColumnsOf({ identity, state: 'chosen' }), kept_folder: null })
     await saveIdentityPick({ titleKey: showTitleKey(show.show_pattern), family: networkFamilyOf(channelName), identity, database: trx })
   })
   return { ...identity, folder: identityFolderOf(identity) }

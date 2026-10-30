@@ -16,7 +16,7 @@ import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
-import { planFolderFix, renameShowFolder } from './show-folder-rename.js'
+import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
 import { chooseShowIdentity, showIdentityStatus } from './show-identity-choice.js'
 import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
 import {
@@ -1535,9 +1535,16 @@ app.patch('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   if (Object.keys(patch).length === 0) {
     return res.status(400).json({ error: 'no fields to update' })
   }
-  const n = await db('shows').where({ id }).update(patch)
-  if (n === 0) return res.status(404).json({ error: 'not found' })
+  const current = await db('shows').where({ id }).first()
+  if (!current) return res.status(404).json({ error: 'not found' })
+  await db('shows').where({ id }).update({ ...patch, ...keptFolderPatchOf({ show: current, patch }) })
   res.json({ ok: true })
+})
+
+app.post('/api/shows/:id/folder-fix/keep', doubleCsrfProtection, async (req, res) => {
+  const kept = await keepShowFolder({ showId: Number(req.params.id) })
+  if (!kept) return res.status(404).json({ error: 'not found' })
+  res.json({ ok: true, ...kept })
 })
 
 app.get('/api/shows/:id/folder-fix', async (req, res) => {

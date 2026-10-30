@@ -8,7 +8,7 @@ const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'freetv
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db, setSetting } = await import('../src/db.js')
-const { planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
+const { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
 const { ensureShowFolder, settleShowIdentity } = await import('../src/show-folders.js')
 const { chooseShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
 const { loadIdentityPick } = await import('../src/show-identity-store.js')
@@ -293,4 +293,21 @@ test('settleShowIdentity: a show the owner picked while the lookup ran keeps the
   assert.equal(show.identity_state, 'chosen')
   assert.equal(show.tvdb_id, '78107')
   assert.equal(show.dest_folder, 'The Office')
+})
+
+test('keepShowFolder: Keep this name stops the rename offer until the show is picked again', async () => {
+  await keepShowFolder({ showId })
+  const plan = await planFolderFix(options({ identityFor: async () => { throw new Error('no lookup expected') } }))
+  assert.equal(plan.state, 'kept')
+  await db('recordings').where({ recording_id: 'r1' }).update({ channel_name: '10 HD', aired_at: 5 })
+  const choices = { state: 'choose', identity: null, candidates: [{ tvmazeId: '87106', name: 'Big Brother', identity: AU_IDENTITY }] }
+  await chooseShowIdentity({ showId, tvmazeId: '87106', identityFor: async () => choices })
+  assert.equal((await planFolderFix(options())).state, 'ready')
+})
+
+test('keptFolderPatchOf: a Saves to the owner types by hand is kept', () => {
+  const show = { dest_folder: 'Big Brother' }
+  assert.deepEqual(keptFolderPatchOf({ show, patch: { dest_folder: 'BB' } }), { kept_folder: 'BB' })
+  assert.deepEqual(keptFolderPatchOf({ show, patch: { dest_folder: 'Big Brother' } }), {})
+  assert.deepEqual(keptFolderPatchOf({ show, patch: { season_template: 'S{season}' } }), {})
 })
