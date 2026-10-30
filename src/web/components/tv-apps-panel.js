@@ -14,15 +14,20 @@ export const TvAppsPanel = {
   },
   template: `
     <section id="section-tv-apps" class="settings-section">
-      <p class="settings-intro">Watch live TV with the guide in Jellyfin or Kodi.</p>
+      <p class="settings-intro">Watch live TV on your TV in Jellyfin or Kodi. Freetvarr sets up the connection to TVHeadend; the app then plays straight from TVHeadend.</p>
       <teleport v-if="showInfo" defer to="#settings-page-info">
         <info-button title="Watch on TV" doc="guide/tv-apps" piece="player">
-          <p>Watch live TV with the guide in an app on your TV, tablet, or phone (e.g. Jellyfin or Kodi). The app gets the channels and the guide straight from TVHeadend.</p>
-          <p v-if="!login.authCode"><strong>Make a TV login</strong> makes a login that can only watch TV. It cannot change your settings or your recordings.</p>
-          <p v-else>Your TV login can only watch TV. It cannot change your settings or your recordings.</p>
-          <p>Copy each detail into the app. The setup guide has the steps for each app.</p>
+          <p>Watch live TV on your TV in an app like Jellyfin or Kodi, instead of your tuner's own app (e.g. the HDHomeRun app).</p>
+          <p v-if="!login.authCode"><strong>Make a TV login</strong> makes a login in TVHeadend that can only watch TV. Freetvarr then shows the details to copy into the app.</p>
+          <p v-else>Your TV login is a login in TVHeadend that can only watch TV. Copy its details into the app.</p>
+          <p>After that, the app gets the channels and TVHeadend's TV guide listings straight from TVHeadend. Freetvarr is not part of this, so the app keeps working when Freetvarr is stopped.</p>
+          <p>Your recordings appear separately, in Plex or Infuse, from your media library.</p>
+          <p>A Freetvarr app for Apple TV and Android TV is planned.</p>
+          <p>The setup guide has the steps for each app.</p>
         </info-button>
       </teleport>
+      <p class="ui-banner">Use Jellyfin or Kodi instead of your tuner's own app (e.g. the HDHomeRun app). Once set up, the app keeps working even when Freetvarr is stopped. Your recordings appear separately, in Plex or Infuse.</p>
+      <p class="ui-banner is-info">A Freetvarr app for Apple TV and Android TV is planned.</p>
       <div v-if="!tvhUrl" class="ui-group">
         <p class="settings-row settings-row-meta">Set the TVHeadend address in Settings → System → TVHeadend first.</p>
       </div>
@@ -30,7 +35,7 @@ export const TvAppsPanel = {
         <h3 class="ui-group-label">TV login</h3>
         <div class="ui-group">
           <div class="settings-row">
-            <p class="settings-row-meta">A TV app needs its own login to get your channels. Press Make a TV login, and Freetvarr makes a login that can only watch TV. It then shows the details to copy into the app.</p>
+            <p class="settings-row-meta">A TV app needs its own login to get your channels from TVHeadend. Press Make a TV login, and Freetvarr makes a login in TVHeadend that can only watch TV. It then shows the details to copy into the app.</p>
           </div>
           <div class="settings-row">
             <label class="field-label" for="tv-login-name">Login name</label>
