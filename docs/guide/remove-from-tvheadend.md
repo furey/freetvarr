@@ -7,6 +7,8 @@ description: >-
 
 # Remove from TVHeadend
 
+<Illustration name="removes-that-work" />
+
 Once an episode is in your library, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after Plex has the file. This is optional, and you turn it on per series.
 
 ## How it works

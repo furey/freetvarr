@@ -7,6 +7,8 @@ description: >-
 
 # Getting started
 
+<Illustration name="getting-started" />
+
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. [Hardware](/guide/hardware) covers the choice.

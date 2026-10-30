@@ -5,6 +5,8 @@ description: 'Fixes keyed by symptom: the TVHeadend login, the setup checks, tun
 
 # Troubleshooting
 
+<Illustration name="troubleshooting" />
+
 Run [Health](/guide/doctor) first (Settings → System → **Health**, or press the alert on Home). It checks TVHeadend, the TV guide, the folders, and Plex, and links each problem it finds to the section below that fixes it.
 
 Each section starts from what you see, then gives the cause and the fix. The sections follow the order of a first install.

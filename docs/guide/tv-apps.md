@@ -7,6 +7,8 @@ description: >-
 
 # TV apps
 
+<Illustration name="tv-apps" />
+
 TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, Settings → Watching → **Watch on TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
 
 | App      | On the TV                                                                          | Needs                                                     |

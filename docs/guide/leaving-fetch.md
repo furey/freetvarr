@@ -10,6 +10,8 @@ imageAlt: 'A step-by-step guide: Leaving Fetch TV? Keep recording free-to-air TV
 
 # Leaving Fetch TV
 
+<Illustration name="leaving-fetch" />
+
 Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now asks for a one-off levy to keep it working until at least June 2028. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
 ## What you'll need

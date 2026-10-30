@@ -8,6 +8,8 @@ description: >-
 
 # Recordings
 
+<Illustration name="recordings" />
+
 The Recordings page holds everything Freetvarr has recorded and everything TVHeadend will record. A switch at the top picks **Library** or **Scheduled**. The **Scheduled** label also shows how many recordings are coming up.
 
 Freetvarr saves each programme image while the recording is still scheduled, because TV guide image links often stop working once the programme has aired. A recording with no saved image shows a title card.

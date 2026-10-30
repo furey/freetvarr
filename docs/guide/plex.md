@@ -8,6 +8,8 @@ description: >-
 
 # Plex
 
+<Illustration name="plex-integration" />
+
 Plex is optional. Without it, Freetvarr still imports and files episodes (you refresh your media library yourself). With it, Freetvarr refreshes the matching Plex library section after every sync that imported something, keeps watched marks and resume points the same in both apps, and can list your whole Plex library in Recordings.
 
 ## No Plex yet?

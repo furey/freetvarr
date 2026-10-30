@@ -7,6 +7,8 @@ description: >-
 
 # Ad removal
 
+<Illustration name="ad-removal" />
+
 Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using comskip (an ad-detection tool) and ffmpeg, both bundled in the Freetvarr Docker image. Ad removal is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
 
 > [!WARNING]<br>

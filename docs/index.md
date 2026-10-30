@@ -27,18 +27,21 @@ hero:
 
 features:
   - title: Live TV
+    illustration: live-tv
     details: >-
       Watch any channel in the browser, on a phone or a desktop. Pause, rewind,
       start a show over while it records, or watch up to four channels with Multiview.
     link: /guide/player
     linkText: The player
   - title: Free to run
+    illustration: free-to-run
     details: >-
       A tuner you own and a free XMLTV guide. No subscription, no levy, no
       vendor who can retire your recorder.
     link: /guide/hardware
     linkText: What to buy
   - title: TV guide
+    illustration: tv-guide
     details: >-
       A 7-day programme guide in the browser: schedule, cancel, and
       series-record in TVHeadend, see which tuner records what, or watch for a
@@ -46,6 +49,7 @@ features:
     link: /guide/tv-guide
     linkText: Browse and record
   - title: Series folders
+    illustration: series-folders
     details: >-
       Record a series from the TV guide, match it to a folder under your media
       root, set a season template, and Freetvarr imports new episodes on your
@@ -53,18 +57,21 @@ features:
     link: /guide/series
     linkText: Set it up
   - title: Hardlink imports
+    illustration: hardlink-imports
     details: >-
       Recordings are already on disk, so the import is a hardlink, not a
       download: instant, and no second copy of a 3GB transport stream.
     link: /deep-dive#import-state-machine
     linkText: The state machine
   - title: Plex integration
+    illustration: plex-integration
     details: >-
       Refreshes your Plex library after each sync that imports something, and
       keeps watched marks and resume points the same in Plex and Freetvarr.
     link: /guide/plex
     linkText: Set up Plex
   - title: Optional ad removal
+    illustration: ad-removal
     details: >-
       <code>comskip</code> commercial detection with a detect-only audit mode and
       keyframe stream-copy cutting (no transcode), keeping an .orig backup of
@@ -72,6 +79,7 @@ features:
     link: /deep-dive#ad-removal
     linkText: How it works
   - title: Removes that work
+    illustration: removes-that-work
     details: >-
       TVHeadend's DVR API deletes the file once Plex has confirmed its copy,
       and keeps the entry so TVHeadend's duplicate check still sees the
@@ -79,6 +87,7 @@ features:
     link: /guide/remove-from-tvheadend
     linkText: The rules
   - title: Authless LAN service
+    illustration: authless-lan
     details: >-
       SQLite-backed, single Docker container, no external runtime dependencies.
       CSRF, rate limiting, and a strict CSP, built for a trusted home network.

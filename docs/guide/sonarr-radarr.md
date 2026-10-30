@@ -7,6 +7,8 @@ description: >-
 
 # Sonarr and Radarr
 
+<Illustration name="sonarr-radarr" />
+
 Sonarr and Radarr are optional. When Plex is connected, Recordings lists your [whole Plex library](/guide/plex#your-whole-library), including the episodes and films Sonarr and Radarr downloaded. Connect Sonarr and Radarr so that a delete in Freetvarr goes through them:
 
 1. Freetvarr asks Sonarr or Radarr to stop monitoring the episode or film.

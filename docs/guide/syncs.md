@@ -7,6 +7,8 @@ description: >-
 
 # Activity
 
+<Illustration name="activity" />
+
 **Activity** shows what the Freetvarr server does now, and every sync it has run. Open it from Settings → System → **Activity**. The **Activity** row on [Health](/guide/doctor) opens the **Syncs** tab. While jobs run, the Settings menu shows how many beside **Activity**, such as "2 running".
 
 The page has two tabs:

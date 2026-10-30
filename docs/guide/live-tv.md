@@ -7,6 +7,8 @@ description: >-
 
 # Live TV
 
+<Illustration name="live-tv" />
+
 A network tuner streams live channels to any device on your home network, and TVHeadend streams from any tuner it controls. None of it costs anything. Freetvarr has its own player for a quick look in a browser. The apps below suit an evening on the couch and need no Freetvarr at all.
 
 To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's Settings → Watching → Watch on TV ([TV apps](/guide/tv-apps) has the steps).
