@@ -94,7 +94,7 @@ const hasRecordingsOnDisk = async ({ show, mediaRoot }) => {
 
 const BACKGROUND_WAIT_MS = 60000
 const INLINE_WAIT_MS = 5000
-const UNSETTLED_STATES = new Set(['pending', 'unreachable'])
+const UNSETTLED_STATES = new Set(['pending', 'unreachable', 'off'])
 const OWNER_STATES = new Set(['chosen', 'declined'])
 const ID_HINT = /\{(tvdb|tmdb|imdb)-([^}]*)\}/gi
 const COUNTRY_TAG = /\(([a-z]{2,3})\)$/i

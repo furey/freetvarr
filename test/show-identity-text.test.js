@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { candidateMetaOf, folderFixOutcomeOf, identityRowOf } from '../src/web/show-identity-text.js'
+import { candidateMetaOf, folderFixNoteOf, folderFixOutcomeOf, identityRowOf } from '../src/web/show-identity-text.js'
 
 const OFFICE_UK = { tvmazeId: '1214', name: 'The Office', country: 'UK', network: 'BBC Two', years: '2001–2003' }
 const OFFICE_US = { tvmazeId: '526', name: 'The Office', country: 'US', network: 'NBC', years: '2005–2013' }
@@ -24,9 +24,21 @@ test('identityRowOf: names a matched show with its details', () => {
   assert.deepEqual(identityRowOf({ status, title: 'The Office' }), { title: 'The Office (UK)', meta: 'UK · BBC Two · 2001–2003' })
 })
 
-test('identityRowOf: shows nothing without a match or candidates', () => {
-  assert.equal(identityRowOf({ status: { state: 'none', current: null, candidates: [] }, title: 'Gruen' }), null)
-  assert.equal(identityRowOf({ status: null, title: 'Gruen' }), null)
+test('identityRowOf: says why there is no show, so the row keeps its place', () => {
+  const rowFor = (lookup) => identityRowOf({ status: { state: 'none', current: null, candidates: [], lookup }, title: 'Gruen' })
+  assert.deepEqual(rowFor('none'), { title: 'No show found', meta: 'TVmaze has no show called Gruen, so the folder keeps the plain name.' })
+  assert.equal(rowFor('unreachable').title, 'TVmaze not reachable')
+  assert.equal(rowFor('pending').title, 'Still looking')
+  assert.equal(rowFor('off').title, 'No show lookups')
+  assert.equal(identityRowOf({ status: null, title: 'Gruen' }).title, 'TVmaze not reachable')
+  assert.equal(identityRowOf({ status: null, title: 'Gruen', loading: true }).title, 'Looking up the show')
+})
+
+test('folderFixNoteOf: says in one line why Rename folder is not offered', () => {
+  assert.equal(folderFixNoteOf({ state: 'managed', manager: 'Sonarr' }), 'Sonarr also saves episodes in this folder, so rename the series in Sonarr instead of here.')
+  assert.equal(folderFixNoteOf({ state: 'target-exists', to: 'Gruen {tvdb-83281}' }), 'A folder called Gruen {tvdb-83281} is already in your TV library, so Freetvarr cannot rename this folder to it.')
+  assert.equal(folderFixNoteOf({ state: 'ready' }), '')
+  assert.equal(folderFixNoteOf(null), '')
 })
 
 test('identityRowOf: None of these keeps the plain name and offers the picker again', () => {

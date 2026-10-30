@@ -254,7 +254,9 @@ test('a slow lookup gives the bare title within the wait', async () => {
 
 test('TVmaze lookups turned off give the bare title with no requests', async () => {
   const client = fakeClient({ searches: { gruen: [GRUEN] } })
-  assert.equal((await identityWith({ client, isTvmazeEnabled: async () => false })({ title: 'Gruen' })).identity, null)
+  const off = await identityWith({ client, isTvmazeEnabled: async () => false })({ title: 'Gruen' })
+  assert.equal(off.identity, null)
+  assert.equal(off.state, 'off')
   assert.equal(client.calls.length, 0)
 })
 

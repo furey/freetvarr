@@ -107,7 +107,7 @@ export const createShowIdentity = ({
     const known = rememberedFor(key)
     if (known !== undefined) return known
     if (failedUntil > now()) return UNREACHABLE
-    if (!(await Promise.resolve().then(isTvmazeEnabled).catch(() => false))) return NO_MATCH
+    if (!(await Promise.resolve().then(isTvmazeEnabled).catch(() => false))) return LOOKUPS_OFF
     const airing = { title, channelName, start: Number(start) || null, durationS, season: integerOf(season), episode: integerOf(episode) }
     const outcome = await withinMs(startLookup({ key, airing }), wait)
     return outcome === TIMED_OUT ? STILL_LOOKING : outcome
@@ -182,6 +182,7 @@ const withinMs = (promise, ms) => Promise.race([
 ])
 
 const NO_MATCH = Object.freeze({ state: 'none', identity: null, candidates: [] })
+const LOOKUPS_OFF = Object.freeze({ state: 'off', identity: null, candidates: [] })
 const UNREACHABLE = Object.freeze({ state: 'unreachable', identity: null, candidates: [] })
 const STILL_LOOKING = Object.freeze({ state: 'pending', identity: null, candidates: [] })
 const TIMED_OUT = Symbol('timed-out')

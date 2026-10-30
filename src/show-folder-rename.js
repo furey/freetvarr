@@ -33,13 +33,15 @@ export const planFolderFix = async ({
     exists({ fsApi, filePath: paths.to }),
   ])
   const otherVideos = folderExists ? await otherVideosIn({ fsApi, folder: paths.from, recordings }) : 0
+  const managed = libraryItems.find(isManaged)
   return {
-    state: libraryItems.some(isManaged) ? 'managed' : targetExists ? 'target-exists' : 'ready',
+    state: managed ? 'managed' : targetExists ? 'target-exists' : 'ready',
     from: show.dest_folder,
     to: target,
     recordings: recordings.length,
     folderExists,
     otherVideos,
+    manager: managed ? managerNameOf(managed.manager) : null,
     identity,
   }
 }

@@ -3,7 +3,7 @@ import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
 import { artFallbackStyle } from '/art-fallback.js'
-import { candidateMetaOf, folderFixOutcomeOf, identityRowOf } from '/show-identity-text.js'
+import { candidateMetaOf, folderFixNoteOf, folderFixOutcomeOf, identityRowOf } from '/show-identity-text.js'
 
 export const mediaRootPrefix = (mediaRoot) => `${(mediaRoot || '/media/tv').replace(/\/+$/, '')}/`
 
@@ -32,12 +32,13 @@ export const FolderEditor = {
             <option v-for="d in folders" :key="d" :value="d" />
           </datalist>
           <p class="settings-hint">{{ FOLDER_HINT }}</p>
+          <p v-if="folderFixNote" class="settings-hint">{{ folderFixNote }}</p>
           <p v-if="folderFix" class="settings-hint">Plex finds the right show more often when the folder name carries its TVDB number. Press <strong>Rename folder</strong> to rename it to <code>{{ folderFix.to }}</code>.</p>
         </div>
-        <div v-if="identityRow">
+        <div v-if="isSeries">
           <span class="field-label">Show</span>
           <div class="ui-group">
-            <button type="button" class="ui-group-row suggestions-row-button" @click="choosing = true" :disabled="saving || !identity.candidates.length">
+            <button type="button" class="ui-group-row suggestions-row-button" @click="choosing = true" :disabled="saving || !identity?.candidates?.length">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">{{ identityRow.title }}</span>
                 <span class="settings-row-meta">{{ identityRow.meta }}</span>
@@ -138,7 +139,10 @@ export const FolderEditor = {
     const identity = ref(null)
     const choosing = ref(false)
     const chooseError = ref('')
-    const identityRow = computed(() => identityRowOf({ status: identity.value, title: props.folder.show_pattern }))
+    const identityLoading = ref(true)
+    const folderPlan = ref(null)
+    const folderFixNote = computed(() => folderFixNoteOf(folderPlan.value))
+    const identityRow = computed(() => identityRowOf({ status: identity.value, title: props.folder.show_pattern, loading: identityLoading.value }))
     const removeOutcome = computed(() => {
       const condition = 'If you remove this title match, future recordings with this title'
       return props.importUnmatched
@@ -177,6 +181,7 @@ export const FolderEditor = {
 
     const loadFolderFix = async () => {
       const plan = await api('GET', `/api/shows/${props.folder.id}/folder-fix`).catch(() => null)
+      folderPlan.value = plan
       folderFix.value = plan?.state === 'ready' ? plan : null
     }
 
@@ -218,6 +223,7 @@ export const FolderEditor = {
 
     const loadIdentity = async () => {
       identity.value = await api('GET', `/api/shows/${props.folder.id}/identity`).catch(() => null)
+      identityLoading.value = false
     }
 
     const closeChoosing = () => {
@@ -272,7 +278,7 @@ export const FolderEditor = {
 
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
-      folderFix, renaming, renameError, renameOutcome, closeRename, renameFolder, keepName,
+      folderFix, folderFixNote, renaming, renameError, renameOutcome, closeRename, renameFolder, keepName,
       identity, identityRow, choosing, chooseError, closeChoosing, chooseShow, declineShow, candidateMetaOf, artFallbackStyle,
       removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
