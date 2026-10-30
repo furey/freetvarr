@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { TIMEZONE, simulatedNow, prepareDemoContext, waitForImages } from './capture-demo-api.mjs'
+import { TIMEZONE, simulatedNow, prepareDemoContext, restartHeroCarousel, waitForImages } from './capture-demo-api.mjs'
 import { startScreencast } from './capture-screencast.mjs'
 import { startLoopback } from './capture-loopback.mjs'
 
@@ -85,6 +85,7 @@ const captureDashboard = async ({ browser, base, viewport, isMobile = false }) =
   await tab.waitForSelector('a.app-nav-item:visible', { timeout: 20000 })
   await tab.addStyleTag({ content: SCROLLBARS_OFF })
   await waitForImages(tab, '.app-content img')
+  await restartHeroCarousel(tab)
   await tab.waitForTimeout(1200)
   const shot = await tab.screenshot({ type: 'png' })
   await context.close()

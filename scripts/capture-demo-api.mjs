@@ -36,6 +36,8 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await context.route('**/api/epg/channel-now**', rewriteJson(withLiveDemoChannelNow({ guide, simNow })))
   await context.route('**/api/epg/state**', rewriteJson((data) => desk.applyTo(withActiveRecording({ data, simNow, recording: picks.recording }))))
   await context.route('**/api/settings', rewriteJson(maskSettings))
+  await context.route('**/api/home/hero', rewriteJson(withHeroShowcase({ guide, simNow })))
+  await context.route(/\/hero-remix\.js(\?|$)/, keepHeroOrder)
   await context.route(/\/api\/sync-status(\?|$)/, (route) => fulfillJson(route, fixtures.syncStatus))
   await context.route(/\/api\/recording-now(\?|$)/, (route) => fulfillJson(route, fixtures.recordingNow))
   await context.route(/\/api\/activity(\?|$)/, (route) => fulfillJson(route, fixtures.activity))
@@ -76,9 +78,21 @@ export const waitForProgrammeImages = (page) => page.waitForFunction(() => [...d
 
 export const waitForImages = (page, selector) => page.waitForFunction((sel) => {
   const images = [...document.querySelectorAll(sel)]
-    .filter((img) => img.getBoundingClientRect().top < window.innerHeight)
+    .filter((img) => {
+      const box = img.getBoundingClientRect()
+      return box.top < window.innerHeight && box.left < window.innerWidth
+    })
   return images.length > 0 && images.every((img) => img.complete && img.naturalWidth > 0)
 }, selector, { timeout: 10_000 }).catch(() => console.log(`  images not ready: ${selector}`))
+
+export const restartHeroCarousel = async (page) => {
+  const restarted = await page.evaluate(() => {
+    const firstDot = document.querySelector('.hero-carousel-dot')
+    firstDot?.click()
+    return Boolean(firstDot)
+  })
+  if (restarted) await page.waitForTimeout(HERO_SETTLE_MS)
+}
 
 export const installCursor = (page) =>
   page.evaluate(() => {
@@ -220,6 +234,7 @@ export const refuseUnknownGet = (route) => {
 }
 
 const SCROLL_MS = 1600
+const HERO_SETTLE_MS = 900
 const VIEW_REVEAL_MS = 850
 const PRIME_TIME = { hour: 19, minute: 45 }
 const LIVE_DEMO_DIR = process.env.LIVE_DEMO_DIR || '/work/scripts/.cache/live-demo'
@@ -248,6 +263,13 @@ const LIVE_DEMO_PROGRAMME = {
   has_image: false,
   classification: 'PG',
 }
+const HERO_SHOWCASE = (process.env.HERO_SHOWCASE ?? 'Big Brother|Once Upon A Time... In Hollywood|Civil War|Millionaire Hot Seat|Seven')
+  .split('|')
+  .map((title) => title.trim())
+  .filter(Boolean)
+const GUIDE_PICK_TYPES = ['for-you', 'top-rated']
+const HERO_ORDER_SOURCE = 'export const hourlyOrderOf = ('
+const HERO_ORDER_KEPT = 'export const hourlyOrderOf = ({ candidates = [] }) => candidates\nconst remixedOrderOf = ('
 const DEMO_PREFS = {
   'freetvarr.guideZoom': 'm',
   'freetvarr.guideImages': '1',
@@ -717,6 +739,69 @@ const rewriteJson = (transform) => ignoreClosed(async (route) => {
     return route.fulfill({ response })
   }
   return fulfillJson(route, transform(data, url))
+})
+
+const withHeroShowcase = ({ guide, simNow }) => (data) => {
+  if (!HERO_SHOWCASE.length || !Array.isArray(data?.candidates)) return data
+  const titleOf = (candidate) => candidate.art?.title
+  const guidePicks = HERO_SHOWCASE.filter((title) => !data.candidates.some((c) => titleOf(c) === title))
+  const picked = guidePicks
+    .map((title) => guideAiringOf({ guide, title, simNow }))
+    .filter(Boolean)
+    .map((airing, index) => guidePickCandidate({ ...airing, type: GUIDE_PICK_TYPES[index % GUIDE_PICK_TYPES.length] }))
+  const pool = [...data.candidates, ...picked]
+  const chosen = HERO_SHOWCASE.map((title) => pool.find((c) => titleOf(c) === title)).filter(Boolean)
+  const rest = data.candidates.filter((c) => !chosen.includes(c))
+  console.log(`  hero showcase: ${chosen.map(titleOf).join(', ') || 'none found'}`)
+  return { ...data, candidates: [...chosen, ...rest] }
+}
+
+const guideAiringOf = ({ guide, title, simNow }) => {
+  for (const channel of visibleChannels(guide)) {
+    const program = programsOf(guide, channel).find((p) => p.title === title && p.has_image && p.end > simNow)
+    if (program) return { channel, program, simNow }
+  }
+  return null
+}
+
+const guidePickCandidate = ({ channel, program, simNow, type }) => {
+  const id = String(program.program_id)
+  const image = `/api/epg/image/${id}`
+  const item = {
+    id,
+    programmeKey: `${program.channel_id}:${program.start}`,
+    seriesKey: program.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+    title: program.title,
+    episodeTitle: program.episode_title || null,
+    synopsis: program.synopsis || null,
+    image,
+    channelId: program.channel_id,
+    channelName: channel.name,
+    start: program.start,
+    stop: program.end,
+    onNow: airsAt(program, simNow),
+    kind: 'liked',
+    programmeKind: program.kind,
+    canRecordSeries: false,
+    movieChoice: 'not-movie',
+    classification: null,
+  }
+  const srcset = [768, 1280, 1920].map((width) => `${image}?w=${width} ${width}w`).join(', ')
+  return {
+    key: `${type}:${id}`,
+    type,
+    source: { item },
+    startsAt: program.start,
+    endsAt: type === 'top-rated' ? program.start : program.end,
+    art: { title: program.title, image: `${image}?w=768`, images: [{ url: `${image}?w=768`, srcset, focus: null, identity: `epg:${id}` }] },
+  }
+}
+
+const keepHeroOrder = ignoreClosed(async (route) => {
+  const response = await route.fetch()
+  const source = await response.text()
+  if (!source.includes(HERO_ORDER_SOURCE)) throw new Error('hero-remix.js changed: update keepHeroOrder')
+  return route.fulfill({ response, body: source.replace(HERO_ORDER_SOURCE, HERO_ORDER_KEPT) })
 })
 
 const plexItemImage = ({ base }) => ignoreClosed(async (route) => {

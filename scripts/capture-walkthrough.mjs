@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 import {
-  TIMEZONE, simulatedNow, prepareDemoContext, waitForImages,
+  TIMEZONE, simulatedNow, prepareDemoContext, restartHeroCarousel, waitForImages,
   installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll, clickTab,
 } from './capture-demo-api.mjs'
 import { startScreencast } from './capture-screencast.mjs'
@@ -122,7 +122,7 @@ const run = async () => {
   })
   await installCursor(page)
   await cursorTo(page, 700, 300)
-  await page.waitForTimeout(400)
+  await restartHeroCarousel(page)
   const settledAt = Date.now()
 
   await page.waitForTimeout(3600)
