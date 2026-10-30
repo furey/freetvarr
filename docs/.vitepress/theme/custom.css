@@ -951,6 +951,22 @@ kbd {
   padding: 24px;
 }
 
+.VPFeature .icon.icon:has(> .ftv-ill) {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: none;
+}
+
+.VPFeature .icon > .ftv-ill {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .VPFeature .title.title {
   font-size: 17px;
   line-height: 22px;

@@ -3,8 +3,10 @@ import { useData } from 'vitepress'
 import { h, onMounted, watch } from 'vue'
 import BrowserFrame from './BrowserFrame.vue'
 import FetchBanner from './FetchBanner.vue'
+import Illustration from './Illustration.vue'
 import NavWordmark from './NavWordmark.vue'
 import './custom.css'
+import './illustrations.css'
 
 const themeColours = { dark: '#0b1117', light: '#ffffff' }
 
@@ -17,6 +19,7 @@ export default {
   extends: DefaultTheme,
   enhanceApp: ({ app }) => {
     app.component('BrowserFrame', BrowserFrame)
+    app.component('Illustration', Illustration)
   },
   setup: () => {
     const { isDark } = useData()

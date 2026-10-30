@@ -5,7 +5,7 @@
     "MD024": { "siblings_only": true },
     "MD025": { "front_matter_title": "" },
     "MD028": false,
-    "MD033": { "allowed_elements": ["a", "BrowserFrame", "br", "div", "em", "img", "p", "picture", "source", "strong", "style", "sub", "code"] },
+    "MD033": { "allowed_elements": ["a", "BrowserFrame", "br", "div", "em", "Illustration", "img", "p", "picture", "source", "strong", "style", "sub", "code"] },
     "MD041": false,
     "MD051": false
   },

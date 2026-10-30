@@ -1,0 +1,28 @@
+.ftv-ill {
+  --ill-p: #0b1117;
+  --ill-k1: #1c2630;
+  --ill-k2: #26323e;
+  --ill-k3: #3a4856;
+  --ill-ink: #8d9aa7;
+  --ill-hi: #f2f5f7;
+  --ill-b: #3ba4ff;
+  --ill-o: #f28c28;
+  --ill-y: #f5c542;
+}
+
+html:not(.dark) .ftv-ill {
+  --ill-p: #ffffff;
+  --ill-k1: #e6ebf0;
+  --ill-k2: #d9e0e7;
+  --ill-k3: #b4c0cb;
+  --ill-ink: #5b6773;
+  --ill-hi: #0b1117;
+  --ill-b: #1a87e6;
+  --ill-o: #d9730f;
+  --ill-y: #c08a08;
+}
+
+.ftv-ill text {
+  font-family: var(--vp-font-family-base);
+  font-weight: 700;
+}

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+import { illustrations } from './theme/illustrations.js'
 
 const repo = 'https://github.com/furey/freetvarr'
 const site = 'https://furey.github.io/freetvarr/'
@@ -13,7 +14,16 @@ const pageUrl = (relativePath) => {
   return `${site}${path}`
 }
 
-const absoluteUrl = (path) => `${site}${path.replace(/^\//, '')}`
+const withFeatureIllustrations = (pageData) => {
+  const { features } = pageData.frontmatter
+  if (!features) return
+  pageData.frontmatter.features = features.map((feature) => {
+    const illustration = illustrations[feature.illustration]
+    return illustration ? { ...feature, icon: illustration.svg } : feature
+  })
+}
+
+const absoluteUrl =(path) => `${site}${path.replace(/^\//, '')}`
 
 const socialTitle = ({ pageData, siteData }) => {
   const isHome = pageData.frontmatter.layout === 'home'
@@ -78,6 +88,8 @@ export default withMermaid(defineConfig({
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/freetvarr/favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#0b1117' }]
   ],
+
+  transformPageData: withFeatureIllustrations,
 
   transformHead: ({ pageData, siteData }) => socialHead({ pageData, siteData }),
 
