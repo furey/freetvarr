@@ -1,5 +1,5 @@
 export const FALLBACK_ATTRIBUTION = [
-  { name: 'TVmaze', url: 'https://www.tvmaze.com', licence: 'CC BY-SA 4.0', use: 'show genres, show ratings, cast, and some artwork' },
+  { name: 'TVmaze', url: 'https://www.tvmaze.com', licence: 'CC BY-SA 4.0', use: 'show genres, show ratings, cast, some artwork, and the show each TV folder is named after' },
   { name: 'Wikidata', url: 'https://www.wikidata.org', licence: 'CC0', use: 'movie genres and links to film and show articles' },
   { name: 'Wikipedia', url: 'https://en.wikipedia.org', licence: 'CC BY-SA 4.0', use: 'some film and show pictures', notice: 'Some film and show pictures from Wikipedia. Each picture keeps its own licence.' },
   { name: 'TMDB', url: 'https://www.themoviedb.org', licence: 'TMDB API terms', use: 'film and show posters, film ratings, reviews, and cast, with a TMDB key', notice: 'This product uses the TMDB API but is not endorsed or certified by TMDB. Film and show posters, film ratings, reviews, and cast come from TMDB when you add a TMDB key.' },

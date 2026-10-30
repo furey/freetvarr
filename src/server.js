@@ -16,6 +16,8 @@ import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
+import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
+import { chooseShowIdentity, declineShowIdentity, showIdentityStatus } from './show-identity-choice.js'
 import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
 import {
   startSync,
@@ -30,6 +32,7 @@ import {
   rebaseFilePaths,
   resetInterruptedImports,
   closeInterruptedSyncs,
+  airingOf,
 } from './sync.js'
 import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
@@ -885,7 +888,7 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
       ...(episodes_to_keep != null ? { episodesToKeep: Number(episodes_to_keep) } : {}),
     })
-    const showRule = add_show_rule === false ? null : await ensureShowRule(result.title)
+    const showRule = add_show_rule === false ? null : await ensureShowRule(result.title, result.airing)
     res.json({ ok: true, ...result, showRule })
   } catch (err) {
     epgError(res, err, 'record-series')
@@ -897,8 +900,8 @@ const saveArtworkFromGuide = async ({ recordingId, eventId }) => {
   if (image) await saveArtwork({ kind: 'recording', id: recordingId, image }).catch(() => null)
 }
 
-const ensureShowRule = async (title) => {
-  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title })
+const ensureShowRule = async (title, airing = null) => {
+  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title, inBackground: true, airing: airing ? airingOf(airing) : {} })
   return { created, show_pattern, dest_folder }
 }
 
@@ -1532,9 +1535,72 @@ app.patch('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   if (Object.keys(patch).length === 0) {
     return res.status(400).json({ error: 'no fields to update' })
   }
-  const n = await db('shows').where({ id }).update(patch)
-  if (n === 0) return res.status(404).json({ error: 'not found' })
+  const current = await db('shows').where({ id }).first()
+  if (!current) return res.status(404).json({ error: 'not found' })
+  await db('shows').where({ id }).update({ ...patch, ...keptFolderPatchOf({ show: current, patch }) })
   res.json({ ok: true })
+})
+
+app.post('/api/shows/:id/folder-fix/keep', doubleCsrfProtection, async (req, res) => {
+  const kept = await keepShowFolder({ showId: Number(req.params.id) })
+  if (!kept) return res.status(404).json({ error: 'not found' })
+  res.json({ ok: true, ...kept })
+})
+
+app.get('/api/shows/:id/folder-fix', async (req, res) => {
+  try {
+    const plan = await planFolderFix({ showId: Number(req.params.id) })
+    if (plan.state === 'not-found') return res.status(404).json({ error: 'not found' })
+    res.json(publicFolderFixOf(plan))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/shows/:id/folder-fix', doubleCsrfProtection, async (req, res) => {
+  const showId = Number(req.params.id)
+  try {
+    const plan = await planFolderFix({ showId })
+    if (plan.state === 'not-found') return res.status(404).json({ error: 'not found' })
+    if (plan.state !== 'ready' || req.body?.to !== plan.to) {
+      return res.status(409).json({ error: 'The folder plan changed. Close and open the series again.', plan: publicFolderFixOf(plan) })
+    }
+    res.json({ ok: true, ...(await renameShowFolder({ showId, to: plan.to, identity: plan.identity })) })
+  } catch (err) {
+    res.status(err.code ? 409 : 500).json({ error: err.message, code: err.code ?? null })
+  }
+})
+
+const publicFolderFixOf = ({ identity, ...plan }) => plan
+
+app.get('/api/shows/:id/identity', async (req, res) => {
+  try {
+    const status = await showIdentityStatus({ showId: Number(req.params.id) })
+    if (!status) return res.status(404).json({ error: 'not found' })
+    res.json(status)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/shows/:id/identity', doubleCsrfProtection, async (req, res) => {
+  try {
+    const chosen = await chooseShowIdentity({ showId: Number(req.params.id), tvmazeId: req.body?.tvmaze_id })
+    if (!chosen) return res.status(404).json({ error: 'not found' })
+    res.json({ ok: true, chosen })
+  } catch (err) {
+    res.status(err.code ? 409 : 500).json({ error: err.message, code: err.code ?? null })
+  }
+})
+
+app.delete('/api/shows/:id/identity', doubleCsrfProtection, async (req, res) => {
+  try {
+    const declined = await declineShowIdentity({ showId: Number(req.params.id) })
+    if (!declined) return res.status(404).json({ error: 'not found' })
+    res.json({ ok: true, ...declined })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 app.delete('/api/shows/:id', doubleCsrfProtection, async (req, res) => {

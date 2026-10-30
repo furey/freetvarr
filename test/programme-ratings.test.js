@@ -476,6 +476,7 @@ const waitingRatings = ({ lookUpMs, waitMs }) => createProgrammeRatings({
   reviewsEnabled: async () => true,
   tmdbKey: async () => 'k',
   waitMs,
+  linkOf: (url) => url,
 })
 
 test('a lookup that finishes within the wait answers ready on the first request', async () => {

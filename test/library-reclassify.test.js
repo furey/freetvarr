@@ -84,7 +84,7 @@ test('runReclassification: moves the file and its sidecars, adds the title match
   await fs.writeFile(blocked, 'someone else')
   await db('recordings').insert([bb, taken])
 
-  const result = await runReclassification({ loadSeries: async () => ({ series: [] }) })
+  const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })
   assert.deepEqual(result, { moved: 1, skipped: 1, planned: 2 })
 
   const target = path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E04.ts')
@@ -102,8 +102,29 @@ test('runReclassification: moves the file and its sidecars, adds the title match
 test('runReclassificationOnce: runs again at the next start until nothing is left to skip', async () => {
   await fs.rm(path.join(roots.mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E05.ts'))
   await db('settings').where({ key: RECLASSIFY_DONE_KEY }).delete()
-  const result = await runReclassificationOnce({ loadSeries: async () => ({ series: [] }) })
+  const result = await runReclassificationOnce({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })
   assert.equal(result.moved, 1)
   assert.ok(await db('settings').where({ key: RECLASSIFY_DONE_KEY }).first())
-  assert.equal(await runReclassificationOnce({ loadSeries: async () => ({ series: [] }) }), null)
+  assert.equal(await runReclassificationOnce({ loadSeries: async () => ({ series: [] }), identityFor: async () => null }), null)
+})
+
+test('runReclassification: a new series folder follows the matched show name and id', async () => {
+  const gruen = row({
+    recording_id: 'r3',
+    title: 'Gruen',
+    season: 16,
+    episode: 2,
+    episode_title: 'Episode 2',
+    file_path: path.join(roots.oneOffRoot, 'Gruen', 'Gruen - 2026-10-28 1930 - Episode 2.ts'),
+  })
+  await fs.mkdir(path.dirname(gruen.file_path), { recursive: true })
+  await fs.writeFile(gruen.file_path, 'video')
+  await db('recordings').insert(gruen)
+  const identityFor = async () => ({ state: 'matched', identity: { tvmazeId: '7', name: 'Gruen', tvdbId: '83281', tmdbId: null }, candidates: [] })
+  const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor })
+  assert.equal(result.moved, 1)
+  const target = path.join(roots.mediaRoot, 'Gruen {tvdb-83281}', 'Season 16', 'Gruen - S16E02.ts')
+  assert.equal(await fs.readFile(target, 'utf8'), 'video')
+  assert.equal((await db('recordings').where({ recording_id: 'r3' }).first()).file_path, target)
+  assert.equal((await db('shows').where({ show_pattern: 'Gruen' }).first()).dest_folder, 'Gruen {tvdb-83281}')
 })

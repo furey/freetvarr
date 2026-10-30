@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { localMidnightMs, orderChannels, nowAndNext } from '../src/epg.js'
+import { localMidnightMs, orderChannels, nowAndNext, seriesAiringOf } from '../src/epg.js'
+import { airingOf } from '../src/sync.js'
 
 const LINEUP = [
   { id: 11, name: '7mate', number: 74 },
@@ -52,4 +53,16 @@ test('localMidnightMs: floors to local midnight', () => {
   assert.equal(d.getMinutes(), 0)
   assert.equal(d.getSeconds(), 0)
   assert.equal(d.getDate(), 25)
+})
+
+test('seriesAiringOf: Record series passes the channel, time, and episode to the show match', () => {
+  const program = { start: Date.UTC(2026, 9, 28, 8, 30), end: Date.UTC(2026, 9, 28, 10), series_no: 17, episode_no: 6 }
+  assert.deepEqual(airingOf(seriesAiringOf({ program, channelName: '10 HD' })), {
+    channelName: '10 HD',
+    start: program.start,
+    durationS: 5400,
+    season: 17,
+    episode: 6,
+  })
+  assert.equal(seriesAiringOf({ program: { start: 1, end: 2 } }).channelName, null)
 })

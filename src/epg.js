@@ -680,8 +680,17 @@ export const recordSeries = async ({ programId, channelId, ...args }) => {
   }
   const result = await enableSeriesTag({ ...args, channelId, title: program.title })
   invalidateRecordingState()
-  return { ...result, title: program.title }
+  const channel = guide.channels.find((entry) => String(entry.id) === String(channelId))
+  return { ...result, title: program.title, airing: seriesAiringOf({ program, channelName: channel?.name }) }
 }
+
+export const seriesAiringOf = ({ program, channelName = null }) => ({
+  channelName: channelName || null,
+  start: program.start,
+  end: program.end,
+  season: program.series_no ?? null,
+  episode: program.episode_no ?? null,
+})
 
 export const cancelSeries = async (args) => {
   const result = await disableSeriesTag(args)

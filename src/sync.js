@@ -221,8 +221,10 @@ export const createValidFilename = (name) =>
 
 const isNumberOnlyTitle = (title) => /^episode \d+( of season \d+)?$/i.test(String(title ?? '').trim())
 
+export const withoutIdHint = (folder) => String(folder ?? '').replace(ID_HINT, ' ').replace(/\s+/g, ' ').trim()
+
 export const episodeFilename = ({ item, show }) => {
-  const base = createValidFilename(show.dest_folder)
+  const base = createValidFilename(withoutIdHint(show.dest_folder))
   const suffix = item.episode_title ? ` - ${createValidFilename(item.episode_title)}` : ''
   const ext = item.ext || 'ts'
   if (item.season != null && item.episode != null) {
@@ -424,10 +426,18 @@ const rowsByShowKey = (rows) => {
 
 const folderForSeries = async ({ item, shows, autorecNames }) => {
   const title = (item.autorecId && autorecNames.get(item.autorecId)) || item.title
-  const created = await ensureShowFolder({ title, shows })
+  const created = await ensureShowFolder({ title, shows, airing: airingOf(item) })
   if (!shows.some((show) => show.id === created.id)) shows.push(created)
   return created
 }
+
+export const airingOf = (item) => ({
+  channelName: item.channelName || null,
+  start: Number.isFinite(Number(item.start)) ? Number(item.start) : null,
+  durationS: item.end && item.start ? Math.round((Number(item.end) - Number(item.start)) / 1000) : null,
+  season: item.season ?? null,
+  episode: item.episode ?? null,
+})
 
 const recordingClassifications = async (entries) => {
   const sourceOf = (entry) => ({
@@ -896,3 +906,4 @@ const RECORDING_TOMBSTONE_TTL_DAYS = 30
 let inFlight = null
 const failedArtworkSources = new Set()
 const classificationStore = createClassificationStore()
+const ID_HINT = /\s*\{(?:tvdb|tmdb|imdb)-[^}]*\}/gi
