@@ -28,7 +28,7 @@ Buy an **HDHomeRun Flex Quatro**, model `HDFX-4DT`, direct from [SiliconDust](ht
 It is a network tuner: it plugs into your router, or a switch on your home network, with a network (ethernet) cable, and serves its tuners over your home network. Nothing plugs into the NAS. The author's router has a single LAN port, so a `TP-Link TL-SG105` five-port switch connects the router, the NAS, and the tuner.
 
 > [!IMPORTANT]<br>
-> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in his order notes, and both came in the box.
+> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the order notes, and both came in the box.
 
 No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
 
@@ -153,18 +153,18 @@ Freetvarr and TVHeadend run in Docker on one computer that stays on: a NAS (e.g.
 
 With the minimum, Freetvarr records, imports, and serves every page, but it is limited in these ways:
 
-- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores.
+- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores. The example Docker compose file sets **Live streams at once** to `2`, so choose `1` in Settings → Watching → Playback if two streams stutter.
 - **Multiview:** each picture needs a live stream, so Multiview shows only as many pictures as **Live streams at once** allows.
 - **Ad removal:** a scan takes about `30` minutes per `75`-minute recording on a `2`-core Celeron, and longer on a slower processor.
 - **For you:** Freetvarr picks **Basic** when the nightly work with the language model would take more than `5` minutes, or when less than `400MB` of memory is free.
 
 With the recommended computer, you get these:
 
-- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer.
+- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer. The example Docker compose file allows `2` until you set `LIVE_TV_MAX_SESSIONS=4` in the `.env` (see [Configuration](/guide/configuration#compose-environment)).
 - **Ad removal:** scans that finish sooner on a faster processor, at low priority so imports still run at full speed.
 - **For you:** **Standard**, or **Plus** on a fast processor.
 
-At startup, Freetvarr measures how many live streams this computer converts smoothly, and sets the default for **Live streams at once** from the result (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
+At startup, Freetvarr measures how many live streams this computer converts smoothly. When `LIVE_TV_MAX_SESSIONS` is empty, the result sets the default for **Live streams at once**; when it is set, its value is the default and the upper limit (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
 
 ### The computer: Examples
 
@@ -178,13 +178,13 @@ At startup, Freetvarr measures how many live streams this computer converts smoo
 
 ### The computer: Memory upgrade
 
-Some Synology Plus-series NAS units take one extra memory module, and the author fitted one to their DS220+. On `2026-10-27` the author added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
+Some Synology Plus-series NAS units take one extra memory module, and the author fitted one to the DS220+ that runs Freetvarr. On `2026-10-27` the author added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
 
 Before the upgrade, the NAS reported `5.8GB` of memory. Another Docker project on the same NAS (a camera system) used about `2.2GB`, and more than half of that sat in compressed swap (zram), which is memory squeezed into a smaller space. Freetvarr's stall monitor (`GET /api/health/loop`) recorded `47` pauses of `100ms` or longer over `8.4` hours, the worst `1.0s`.
 
 After the upgrade, `free -m` on the NAS reports `17836MB` in total, `13774MB` available, and about `62MB` of swap in use. The stall monitor recorded `23` pauses of `100ms` or longer in the first `2` hours after Freetvarr restarted, the worst `1.1s`. The restart itself (guide load, first sync) causes some of them, so that count says nothing yet about a settled day.
 
-Synology lists a `4GB` module (`D4NESO-2666-4G`) for the DS220+, DS420+, DS720+, and DS920+, and a larger module is not on its list. DSM `7.3.2` on the author's NAS accepted the `16GB` module and reports the full `18GB`. Other DSM versions may warn about third-party memory, and Synology does not support the setup. Check your model's memory page on Synology's site and your DSM version before you buy.
+Synology lists a `4GB` module (`D4NESO-2666-4G`) for the DS220+, DS420+, DS720+, and DS920+, and a larger module is not on its list. DSM `7.3.2` on the author's NAS accepted the `16GB` module with no warning, and reports the full `18GB`. Synology does not support memory that is not on its list. Check your model's memory page on Synology's site before you buy.
 
 Fitting a module means shutting the NAS down, opening the memory cover on the underside, and clicking the module into the slot. Freetvarr needs none of this: it runs with `4GB` or less.
 
@@ -201,7 +201,7 @@ Live TV in the browser re-encodes H.264 so that Chrome can play interlaced chann
 4. Recreate the Docker containers: run `docker compose up -d` in the `freetvarr` folder.
 5. Check Freetvarr's log: run `docker compose logs freetvarr | grep "\[live\] video"`. The line says `hardware (VAAPI` when it works.
 
-The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. Set `LIVE_TV_VAAPI_DEVICE` in the `.env` if the render node is not `/dev/dri/renderD128`.
+The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. If the render node is not `/dev/dri/renderD128`, add `LIVE_TV_VAAPI_DEVICE` under `environment:` of the `freetvarr` service in `docker-compose.override.yml` (e.g. `- LIVE_TV_VAAPI_DEVICE=/dev/dri/renderD129`), because the example Docker compose file does not pass it through from the `.env`.
 
 > [!NOTE]<br>
 > The author's NAS is a Synology DS220+ (Intel Celeron J4025, UHD 600 graphics) with render group `937`. Hardware `1080i` to `720p` ran at about `6.5x` real time, using about `5%` of one core. Software `720p` ran at only `1.36x` real time on both cores.

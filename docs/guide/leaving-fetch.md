@@ -32,7 +32,7 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
-[Freetvarr](/guide/) is one more optional piece. The author built it for his own setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
+[Freetvarr](/guide/) is one more optional piece. Freetvarr's author built it for a home setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
 
 > [!TIP]<br>
 > If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
@@ -167,7 +167,7 @@ Prices are in Australian dollars, as of October 2026, and change often. Check th
   <p>Left: the PAL plug on an Australian aerial lead. Right: an F plug, the type the tuner takes. The F-to-PAL adapter joins the two.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:TV_antenna_connectors.jpg">Sajad-HasanAhmadi</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
 </div>
 
-Buy only a `DT` model. Anything with `US` in the model number, any Flex Duo, and anything branded 4K is built for American TV and cannot receive Australian channels. Most HDHomeRun listings on Amazon AU and eBay AU are these American models. When you order from SiliconDust, write in the order notes that you need the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in his order notes, and both came in the box. Shipping from the US takes about a week, so order early.
+Buy only a `DT` model. Anything with `US` in the model number, any Flex Duo, and anything branded 4K is built for American TV and cannot receive Australian channels. Most HDHomeRun listings on Amazon AU and eBay AU are these American models. When you order from SiliconDust, write in the order notes that you need the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the order notes, and both came in the box. Shipping from the US takes about a week, so order early.
 
 ### Path 2 shopping
 
@@ -218,13 +218,14 @@ Once the NAS and Freetvarr are set up, open the NAS's shared folder from your co
 | A film (saved without a season folder)                                                            | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
 | Anything else, such as a news bulletin or a sports final                                          | `one-offs`                                                                        |
 
-Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex.
+Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex. When Plex has them, Freetvarr's [Recordings](/guide/recordings#library) lists them beside your new recordings, on the same show page (Settings → Recording → Plex → [Your whole library](/guide/plex#your-whole-library) turns this off).
 
-If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex` and use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac). This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy.
+If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex` and use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac). This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy. `fetchtv` also writes a `fetchtv.json` file at the top of the save folder, with a list of the files it saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
 
-Add `--exclude=` with the name of each film or news show to leave it out (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`:
+Add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`:
 
 ```console
+npx fetchtv recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/data/media/tv
 npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/data/media/movies
 npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/data/media/one-offs
 ```
@@ -300,7 +301,7 @@ Freetvarr works only on your home network and has no sign-in, so never make it r
 
 ### Captions
 
-Australian channels send captions in an older format called Teletext. Freetvarr's browser player shows them: press **CC** in the player (see [Captions](/guide/live-tv#captions)). The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them too (see [Captions in other apps](/guide/live-tv#captions-in-other-apps)).
+Australian channels send captions in an older format called Teletext. Freetvarr's browser player shows them: open **⋯** in the player and press **Captions** (see [Captions](/guide/live-tv#captions)). The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them too (see [Captions in other apps](/guide/live-tv#captions-in-other-apps)).
 
 ### Your aerial
 

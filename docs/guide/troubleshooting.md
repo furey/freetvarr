@@ -38,7 +38,7 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 - **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither Docker container is on a Docker bridge network, so container names don't resolve).
 - **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run `docker compose logs tvheadend` in a terminal in the `freetvarr` folder.
 - **`TVHeadend request failed: ENOTFOUND`**: the hostname in the URL doesn't resolve. Use the host's IP address.
-- **Auto-discover TVHeadend finds nothing**: no TVHeadend answered on port `9981` at any address of the host. Type the URL yourself, or set `TVH_URL` in `.env` ([Configuration](/guide/configuration)).
+- **Auto-discover TVHeadend finds nothing**: no TVHeadend answered on port `9981` at any address of the host. Type the URL yourself, or set `TVH_URL` for the Freetvarr Docker container ([Configuration](/guide/configuration#compose-environment)).
 - **`Connected` with `0 channels`**: TVHeadend has no enabled channels yet. See [No channels](#no-channels).
 - **`Connected` with `0 tuners`**: the Freetvarr user lacks **Admin**, or TVHeadend sees no tuner. See [Missing tuner](#missing-tuner).
 
@@ -89,7 +89,7 @@ The TV guide shows channels but no programmes, or only about a day of them.
 - TVHeadend's log (`docker compose logs tvheadend`) says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. In TVHeadend's web interface, link them under **Configuration → Channel/EPG → EPG Grabber Channels**, then press **Re-run internal EPG grabbers**.
 - With the feed loaded but one channel blank, that channel isn't linked to a feed channel. See [Wrong programmes on a channel](#wrong-programmes-on-a-channel).
 - After you install a grabber script, restart TVHeadend (`docker compose restart tvheadend`). TVHeadend looks for grabbers at startup only, so a running TVHeadend never loads a new one.
-- Freetvarr keeps a copy of the TV guide for an hour, or a minute when it has no programmes. Freetvarr loads the TV guide again after guide setup and after a guide link change. After you fix TVHeadend, press the refresh button on the TV guide.
+- Freetvarr keeps a copy of the TV guide for an hour, or a minute when it has no programmes. Freetvarr loads the TV guide again after guide setup and after a guide link change. After you fix TVHeadend, restart Freetvarr (`docker compose restart freetvarr`) to load the TV guide at once, or wait up to an hour.
 
 ## Wrong programmes on a channel
 
@@ -137,9 +137,10 @@ TVHeadend's first-run wizard opens on every page load. The `wizard` value in **C
 
 TVHeadend finished a recording, but nothing appears in Recordings or in your media library.
 
-- **No series folder matches it.** Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)). Pick **Every episode** and press **Record series** in the TV guide, or use **Add title** in Settings → Recording → [Title matches](/guide/series#title-matches).
+- **No series folder matches it, and Import every recording is off.** With **Import every recording** off (Settings → Recording → Media library), Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)), and recordings made with **Add to library** on. Pick **Every episode** and press **Record series** in the TV guide, use **Add title** in Settings → Recording → [Title matches](/guide/series#title-matches), or turn on **Import every recording**. The recording log row says `No series folder for this title, and Import every recording is off`.
+- **It was recorded with Add to library off.** The recording log row shows **NOT IMPORTED** and says `Recorded with Add to library off`. Press **Import** on the row to import it.
 - **The folder is off.** Scheduled syncs skip a series folder that is switched off.
-- **The sync hasn't run yet.** The default **Sync schedule** is `Every 30 minutes`. Press **Sync now** in Settings → System → [Activity](/guide/syncs) to run one at once.
+- **The sync hasn't run yet.** Freetvarr syncs about a minute after a recording finishes, and on the **Sync schedule** (default `Every 30 minutes`). To run one at once, open the **Syncs** tab in Settings → System → [Activity](/guide/syncs) and press **Sync now**.
 - **It came in as SKIPPED or PARTIAL.** See the next two sections.
 
 ## Skipped recordings
@@ -159,9 +160,15 @@ A recording shows `REPLACED` in the recording log when its library file is gone 
 
 The usual cause is Sonarr. When Sonarr and Freetvarr save to the same TV library folder, Sonarr counts Freetvarr's recording as its own file for that episode. When Sonarr downloads a copy its quality profile rates higher, it moves Freetvarr's file to its recycle bin and keeps the download. The INFO panel of the recording names the file that replaced it.
 
-Freetvarr leaves the replacement in place. To keep Freetvarr's recordings, open the series in Sonarr and turn off monitoring for the episodes Freetvarr records.
+Freetvarr leaves the replacement in place. To keep Freetvarr's recordings, open the series in Sonarr and turn off monitoring for the episodes Freetvarr records. With Sonarr connected ([Sonarr and Radarr](/guide/sonarr-radarr)), the delete dialog in Freetvarr can also delete the downloaded copy through Sonarr.
 
 A recording shows `NOT IN LIBRARY` in the recording log when its file is gone and nothing replaced it. The episode disappears from Recordings, and a show with no episodes left disappears too. Press **Import again** on its recording log row to import the TVHeadend copy again.
+
+## Copy files in the library
+
+A file named like `Show - S01E02 - copy 2.ts` appears in the TV library or the one-off folder. Freetvarr never writes over a file it did not import. When the name an import needs already belongs to another file (e.g. a Sonarr download, a file you copied in, or a Fetch recording saved by `fetchtv`), Freetvarr leaves that file as it is and saves the recording under the next free `copy` name. The import's log in Settings → System → [Activity](/guide/syncs) names both files.
+
+Keep the file you want and delete the other. To delete Freetvarr's copy, press **Delete episode** in its [episode menu](/guide/recordings#episode-menu), so that the TVHeadend copy goes too.
 
 ## Slow imports
 
@@ -255,8 +262,8 @@ Freetvarr's own captions show inside the picture. Open **⋯** in the player and
 
 ## Wrong timestamps
 
-- Freetvarr uses the time zone you chose in setup. If Health warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings → Schedule. Freetvarr shows every time in that zone, on every device.
-- A `TZ` in your `.env` only pre-fills the zone. The zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings → Schedule, or correct `TZ` (e.g. `Australia/Sydney`) and run `docker compose up -d` to recreate the Docker containers.
+- Freetvarr uses the time zone you chose in setup. If Health warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings → System → Schedule. Freetvarr shows every time in that zone, on every device.
+- A `TZ` in your `.env` only pre-fills the zone. The zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings → System → Schedule, or correct `TZ` (e.g. `Australia/Sydney`) and run `docker compose up -d` to recreate the Docker containers.
 - TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
 
 ## CSRF secret

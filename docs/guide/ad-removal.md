@@ -14,7 +14,7 @@ Free-to-air recordings come with their ad breaks. Freetvarr can find those break
 
 ## Turn it on
 
-In Freetvarr, turn on ad removal in Settings → Ad removal, then press **Save settings**. Then open the series in [Series rules](/guide/series#edit-a-series-folder), pick a mode under **Ad removal**, and press **Save**. For one show, you can also use **Remove ads** in [Recording options](/guide/recordings#recording-options). Ad removal runs only when both the Settings switch and the series mode are on. To scan one episode by hand, press **Find ads**, **Remove ads**, or **Remove ads again** in its [episode menu](/guide/recordings#episode-menu) or in the [recording log](/guide/recordings#re-scan-and-re-cut). A dialog says what changes and what stays before anything starts.
+In Freetvarr, turn on ad removal in Settings → Recording → Ad removal, then press **Save settings**. Then open the series in [Series rules](/guide/series#edit-a-series-folder), pick a mode under **Ad removal**, and press **Save**. For one show, you can also turn on **Remove ads** in [Recording options](/guide/recordings#recording-options), which sets the series to **Cut**. Ad removal runs only when both the Settings switch and the series mode are on. To scan one episode by hand, press **Find ads**, **Remove ads**, or **Remove ads again** in its [episode menu](/guide/recordings#episode-menu) or in the [recording log](/guide/recordings#re-scan-and-re-cut). A dialog says what changes and what stays before anything starts.
 
 ## Modes
 
@@ -35,7 +35,7 @@ If you rename or move a video by hand, rename or move its `.edl` with it. A late
 
 ## Backups and retention
 
-The first cut keeps the original recording as `<file>.ts.orig` for a window you choose (`ad_original_retention_days`, default 7). The cleanup after each sync removes the backup when the window ends, whatever the last scan found. Deleting the episode deletes its backup too.
+The first cut keeps the original recording as `<file>.ts.orig` for the number of days in **Keep the original after a cut for (days)** in Settings → Recording → Ad removal (default `7`). The cleanup after each sync removes the backup when the window ends, whatever the last scan found. Deleting the episode deletes its backup too.
 
 **Remove ads again** starts from the `.orig` backup while it exists, so the original with ads always survives a second cut. A second cut does not restart the window: the backup keeps the date from the first cut. If the scan of the original finds no breaks, Freetvarr puts the original back in place of the cut, the same as **Put the original back**. After the backup is gone, **Remove ads again** cuts the episode as it is now and keeps that version as the new `.orig` backup. The dialog says which version it keeps.
 
@@ -43,7 +43,7 @@ To undo a cut, press **Put the original back** in the [episode menu](/guide/reco
 
 ## The comskip.ini
 
-Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. It is an example, not a requirement. To use your own, put a `comskip.ini` in the `/config` bind mount (`${CONFIG_PATH}/freetvarr` on the host). Settings shows which file is in use.
+Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. It is an example, not a requirement. To use your own, put a `comskip.ini` in the `/config` bind mount (`${CONFIG_PATH}/freetvarr` on the host). Settings → Recording → Ad removal shows which file is in use.
 
 ## Cost and gating
 

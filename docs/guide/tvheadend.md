@@ -67,7 +67,7 @@ When setup finds a TVHeadend with only the default entry, it asks for three thin
 
 - **An admin username and password.** You sign in to TVHeadend's web interface with these. Freetvarr sends them to TVHeadend once and does not store them. The password has one field with a show and hide button, so check it for typos before you continue.
 - **The allowed networks.** Both logins work only from these address ranges. Setup fills in one `/24` range for each address of the Freetvarr host and for the network of your browser, plus `127.0.0.0/8` (a host at `192.168.86.254` gives `192.168.86.0/24`). Add any other network you sign in from.
-- **Confirmation.** Press **Secure TVHeadend and connect Freetvarr** to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
+- **Confirmation.** Press **Secure and connect** to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/welcome">
@@ -217,7 +217,7 @@ The path is the one inside the TVHeadend Docker container, not the host path. Fr
 
 Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series rules](/guide/series)).
 
-Freetvarr also sets these two on each recording it schedules:
+Freetvarr also sets these two on each recording it schedules, unless you change them with **Start early** and **Finish late** in the programme sheet:
 
 - **Pre-recording padding**: `2` minutes.
 - **Post-recording padding**: `10` minutes, because free-to-air broadcasts often run late.

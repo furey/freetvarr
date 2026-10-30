@@ -90,7 +90,7 @@ A USB tuner does not work. The usbipd-win tool connects a USB device to WSL, but
 
 Keep the `freetvarr` folder, and so the recordings, in the Ubuntu file system. Microsoft recommends the Linux file system for Linux programs, because files under `/mnt/c` are slower to reach ([Microsoft: Working across file systems](https://learn.microsoft.com/en-us/windows/wsl/filesystems)). Windows drives also do not keep the Linux file owners that `PUID` and `PGID` set. The Ubuntu file system is one virtual disk file on the C: drive, `1TB` at most by default (`defaultVhdSize` in `.wslconfig`).
 
-To copy a recording to Windows, open `\\wsl$\Ubuntu\home\<linux username>\freetvarr\data` in File Explorer. To back up Freetvarr's settings, copy the `config` folder out the same way.
+To copy a recording to Windows, open `\\wsl$\Ubuntu\home\<linux username>\freetvarr\data` in File Explorer. To back up Freetvarr's settings, stop Freetvarr and copy the whole `config` folder out the same way (see [Backups](/guide/configuration#backups)).
 
 ### Always on
 
