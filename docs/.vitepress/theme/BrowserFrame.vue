@@ -82,9 +82,9 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
     <div class="browser-frame" :class="{ 'browser-frame--phone': phone, 'browser-frame--bare': bare }">
       <div v-if="!bare" class="browser-frame__bar">
         <span class="browser-frame__dots" aria-hidden="true">
-          <span class="browser-frame__dot browser-frame__dot--blue"></span>
-          <span class="browser-frame__dot browser-frame__dot--orange"></span>
-          <span class="browser-frame__dot browser-frame__dot--yellow"></span>
+          <span class="browser-frame__dot"></span>
+          <span class="browser-frame__dot"></span>
+          <span class="browser-frame__dot"></span>
         </span>
         <span class="browser-frame__url" aria-hidden="true">{{ label }}</span>
         <button
@@ -152,11 +152,8 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--vp-c-divider);
-  background: var(--vp-c-bg-soft);
-  box-shadow:
-    0 24px 48px -24px rgba(0, 0, 0, 0.7),
-    0 8px 20px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--ftv-hairline);
+  background: var(--ftv-surface-1);
 }
 
 .browser-frame__bar {
@@ -164,8 +161,8 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
   display: flex;
   align-items: center;
   padding: 10px 14px;
-  background: var(--vp-c-bg-elv);
-  border-bottom: 1px solid var(--vp-c-divider);
+  background: var(--ftv-surface-1);
+  border-bottom: 1px solid var(--ftv-hairline);
 }
 
 .browser-frame--phone .browser-frame__dots {
@@ -192,11 +189,9 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
   width: 11px;
   height: 11px;
   border-radius: 50%;
+  background: var(--ftv-surface-3);
 }
 
-.browser-frame__dot--blue { background: #3ba4ff; }
-.browser-frame__dot--orange { background: #f28c28; }
-.browser-frame__dot--yellow { background: #f5c542; }
 
 .browser-frame__url {
   position: absolute;
@@ -222,15 +217,15 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
   height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: var(--vp-c-text-2);
   cursor: pointer;
 }
 
 .browser-frame__fullscreen:hover {
-  color: var(--vp-c-brand-1);
-  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-1);
+  background: var(--ftv-surface-2);
 }
 
 .browser-frame__screen video:fullscreen {
