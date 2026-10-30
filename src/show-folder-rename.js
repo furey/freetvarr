@@ -72,6 +72,7 @@ export const renameShowFolder = async ({
   try {
     await database.transaction(async (trx) => {
       await trx('shows').where({ id: showId }).update({ dest_folder: to, ...(identity ? identityColumnsOf({ identity, state: show.identity_state || 'matched' }) : {}) })
+      await trx('shows').where({ dest_folder: show.dest_folder }).update({ dest_folder: to })
       for (const row of recordings) {
         await trx('recordings').where({ recording_id: row.recording_id }).update({ file_path: rebased({ filePath: row.file_path, paths }) })
       }

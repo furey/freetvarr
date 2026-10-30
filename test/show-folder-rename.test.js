@@ -260,3 +260,9 @@ test('renameShowFolder: refuses a folder that Sonarr downloads into, so Sonarr k
   assert.deepEqual(await folderNames(), ['Big Brother'])
   assert.equal((await db('shows').where({ id: showId }).first()).dest_folder, 'Big Brother')
 })
+
+test('renameShowFolder: every series that saves to the folder follows the rename', async () => {
+  const [otherId] = await db('shows').insert({ show_pattern: 'Big Brother Australia', dest_folder: 'Big Brother' })
+  await renameShowFolder(options({ to: NEW_FOLDER }))
+  assert.equal((await db('shows').where({ id: otherId }).first()).dest_folder, NEW_FOLDER)
+})
