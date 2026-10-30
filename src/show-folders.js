@@ -3,7 +3,7 @@ import fs from 'fs/promises'
 
 import { db } from './db.js'
 import { listShowFolders } from './folder-matcher.js'
-import { createValidFilename, getMediaRoot, matchShow } from './sync.js'
+import { createValidFilename, getMediaRoot, matchShow, withoutIdHint } from './sync.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
 import { identityColumnsOf } from './show-identity-store.js'
 
@@ -45,7 +45,7 @@ export const settleShowIdentity = async ({ showId, title, airing = {}, identityF
 
 export const newShowFolderOf = ({ title, folders = [], identity = null }) => folderWithIdOf({ folders, identity })
   || (identity && existingFolderFor({ title: identity.name, folders, exactOnly: true }))
-  || existingFolderFor({ title, folders })
+  || existingFolderFor({ title, folders: folders.filter((folder) => !isOtherShowFolder({ folder, identity })) })
   || identityFolderOf(identity)
   || createValidFilename(title)
   || 'Recordings'
@@ -69,6 +69,20 @@ const isSuffixedFolderOf = ({ folder, wanted }) => {
   return name.startsWith(`${wanted} `) && FOLDER_SUFFIX.test(name.slice(wanted.length))
 }
 
+const isOtherShowFolder = ({ folder, identity }) => {
+  if (!identity) return false
+  const ids = { tvdb: identity.tvdbId, tmdb: identity.tmdbId }
+  const otherId = [...folder.matchAll(ID_HINT)].some(([, source, id]) => {
+    const known = ids[source.toLowerCase()]
+    return Boolean(known) && String(known) !== id
+  })
+  const folderCountry = countryTagIn(withoutIdHint(folder))
+  const showCountry = countryTagIn(identity.name)
+  return otherId || Boolean(folderCountry && showCountry && folderCountry !== showCountry)
+}
+
+const countryTagIn = (name) => String(name ?? '').match(COUNTRY_TAG)?.[1]?.toUpperCase() ?? null
+
 const hasRecordingsOnDisk = async ({ show, mediaRoot }) => {
   const recordings = await db('recordings').where({ show_id: show.id }).whereNotNull('file_path').first('recording_id')
   if (recordings) return true
@@ -76,4 +90,6 @@ const hasRecordingsOnDisk = async ({ show, mediaRoot }) => {
 }
 
 const BACKGROUND_WAIT_MS = 60000
+const ID_HINT = /\{(tvdb|tmdb|imdb)-([^}]*)\}/gi
+const COUNTRY_TAG = /\(([a-z]{2,3})\)$/i
 const FOLDER_SUFFIX = /^(?:(?: \((?:\d{4}|[a-z]{2,3})\)){1,2}(?: \{(?:tvdb|tmdb|imdb)-[a-z0-9]+\})?| \{(?:tvdb|tmdb|imdb)-[a-z0-9]+\})$/

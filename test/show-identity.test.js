@@ -288,3 +288,12 @@ test('existingFolderFor matches a folder that carries an id hint', () => {
   assert.equal(existingFolderFor({ title: 'Gruen', folders: ['Gruen {tvdb-83281}'] }), 'Gruen {tvdb-83281}')
   assert.equal(existingFolderFor({ title: 'Big Brother', folders: ['Big Brother (AU) {tvdb-76237}'] }), 'Big Brother (AU) {tvdb-76237}')
 })
+
+test('newShowFolderOf skips a folder named for the same title in another country or with another id', () => {
+  const identity = { name: 'Big Brother (AU)', tvdbId: '76237', tmdbId: null }
+  assert.equal(newShowFolderOf({ title: 'Big Brother', folders: ['Big Brother (US) {tvdb-76706}'], identity }), 'Big Brother (AU) {tvdb-76237}')
+  assert.equal(newShowFolderOf({ title: 'Big Brother', folders: ['Big Brother (US)'], identity }), 'Big Brother (AU) {tvdb-76237}')
+  assert.equal(newShowFolderOf({ title: 'Big Brother', folders: ['Big Brother {tvdb-76706}'], identity }), 'Big Brother (AU) {tvdb-76237}')
+  assert.equal(newShowFolderOf({ title: 'Big Brother', folders: ['Big Brother (2001)'], identity }), 'Big Brother (2001)')
+  assert.equal(newShowFolderOf({ title: 'Big Brother', folders: ['Big Brother (US)'] }), 'Big Brother (US)')
+})
