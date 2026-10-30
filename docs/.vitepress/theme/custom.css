@@ -63,6 +63,7 @@
   --ftv-text-2: #46525e;
   --ftv-text-3: #5b6773;
   --ftv-text-soft: #26313b;
+  --ftv-hero-soft: #808c97;
   --ftv-primary: #5ce1c6;
   --ftv-primary-hi: #8bebd7;
   --ftv-primary-text: #0a7563;
@@ -103,6 +104,7 @@
   --ftv-text-2: #a9b4be;
   --ftv-text-3: #8d9aa7;
   --ftv-text-soft: #d3dae0;
+  --ftv-hero-soft: #a9b4be;
   --ftv-primary-text: #5ce1c6;
   --ftv-primary-text-hi: #8bebd7;
   --ftv-primary-tint: rgba(92, 225, 198, 0.14);
@@ -239,11 +241,28 @@ kbd {
   font-feature-settings: "tnum" 1;
 }
 
-/* Type scale: page title 32/38, section 22/28, card 17/22, body 16/26. */
+/* Type scale: page title 32/38, section 22/28, card 17/22, body 17/1.7 at
+   weight 450 with a measure of about 72 characters. */
 
 .vp-doc p,
 .vp-doc li {
   line-height: 26px;
+}
+
+.vp-doc > div > p,
+.vp-doc li {
+  font-size: 17px;
+  line-height: 1.7;
+  font-weight: 450;
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc > div > :is(p:not(:has(> img, > video)), ul, ol, .custom-block) {
+  max-width: 544px;
+}
+
+.vp-doc li + li {
+  margin-top: 6px;
 }
 
 .vp-doc h1 {
@@ -361,6 +380,11 @@ kbd {
   line-height: 22px;
 }
 
+.vp-doc td {
+  line-height: 24px;
+  font-weight: 450;
+}
+
 .vp-doc thead th {
   border-top: 0;
   padding-top: 14px;
@@ -415,6 +439,12 @@ kbd {
 
 .custom-block.custom-block :is(p, li) {
   color: var(--ftv-text-1);
+}
+
+.vp-doc .custom-block :is(p:not(.custom-block-title), li) {
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 450;
 }
 
 .custom-block.custom-block a {
@@ -1013,8 +1043,10 @@ kbd {
   letter-spacing: -0.02em;
 }
 
-.VPHero .text .hero-line-1,
-.VPHero .text .hero-line-2 { display: block; color: var(--ftv-text-2); }
+.VPHero .text :is(.hero-line-1, .hero-line-2, .hero-line-3) {
+  display: block;
+  color: var(--ftv-hero-soft);
+}
 
 .VPHero .text .hero-em { color: var(--ftv-text-1); font-style: normal; }
 
@@ -1026,7 +1058,7 @@ kbd {
 .VPHero .text:has(.hero-line-1) {
   font-size: clamp(28px, 3.4vw, 40px);
   line-height: 1.15;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
@@ -1162,6 +1194,11 @@ kbd {
     margin-left: calc(var(--phone-gutter) * -1);
     margin-right: calc(var(--phone-gutter) * -1);
     border-radius: 0;
+  }
+
+  .vp-doc > div > p,
+  .vp-doc li {
+    font-size: 16.5px;
   }
 
   .VPHero .text.text:has(.hero-line-1) {
