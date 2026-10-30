@@ -9,8 +9,8 @@ import {
   personImagePathOf,
   plainTextOf,
 } from '../src/programme-credits.js'
-import { createTitleMatcher } from '../src/programme-ratings.js'
-import { programmeHintsOf } from '../src/artwork-match.js'
+import { createTitleMatcher, lookupCacheControlOf, requestedYearOf } from '../src/programme-ratings.js'
+import { artworkKindOf, programmeHintsOf } from '../src/artwork-match.js'
 
 const memoryCache = () => {
   const rows = new Map()
@@ -481,4 +481,19 @@ test('creditsFor: with a TMDB key, agent ids go to TMDB find and then the series
   const answer = await settled(credits, 'Dark')
   assert.deepEqual(answer.cast.map((member) => member.name), ['Louis Hofmann'])
   assert.ok(!client.calls.some((call) => call.path === '/search/tv'))
+})
+
+test('creditsFor: the show page request for Dark answers from its ids once they arrive, past the old title-matched row', async () => {
+  let ids = null
+  const { credits, cache } = creditsWith({ routes: DARK_ROUTES, apiKey: null, externalIdsFor: async () => ids })
+  const showPageQuery = new URLSearchParams('title=Dark&kind=')
+  const options = { kind: artworkKindOf(showPageQuery.get('kind')), year: requestedYearOf(showPageQuery.get('year')) }
+  const before = await settled(credits, showPageQuery.get('title'), options)
+  assert.deepEqual(before.cast.map((member) => member.name), ['Wrong Actor'])
+  ids = DARK_IDS
+  const after = await settled(credits, showPageQuery.get('title'), options)
+  assert.deepEqual(after.cast.map((member) => member.name), ['Louis Hofmann'])
+  assert.equal(cache.rows.size, 2)
+  assert.equal(lookupCacheControlOf(after), 'private, no-cache')
+  assert.equal(lookupCacheControlOf({ status: 'pending' }), 'no-store')
 })

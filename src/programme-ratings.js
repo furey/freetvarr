@@ -203,6 +203,8 @@ export const upcomingProgrammesOf = ({ guide, nowMs, windowMs }) => [...(guide?.
 export const upcomingFilmsOf = ({ guide, nowMs, windowMs = WEEK_MS }) => upcomingProgrammesOf({ guide, nowMs, windowMs })
   .filter((programme) => programme.kind === 'movie')
 
+export const lookupCacheControlOf = (answer) => (answer?.status === 'pending' ? 'no-store' : 'private, no-cache')
+
 export const withLiveLinksOf = ({ found, linkOf }) => (found
   ? { ...found, url: linkOf(found.url), reviews: found.reviews ? { ...found.reviews, url: linkOf(found.reviews.url) } : null }
   : found)

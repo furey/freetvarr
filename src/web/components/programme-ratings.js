@@ -12,7 +12,7 @@ import {
   shownReviewOf,
   shownScoreOf,
 } from '/ratings-display.js'
-import { boundedMap } from '/bounded-cache.js'
+import { expiringMap } from '/bounded-cache.js'
 
 export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => {
   const ratings = shallowRef(null)
@@ -224,7 +224,8 @@ export const ProgrammeReviewCard = {
 
 const hoverPointer = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches === true
 
-const ratingsCache = boundedMap(500)
+const LOOKUP_ANSWER_TTL_MS = 5 * 60_000
+const ratingsCache = expiringMap({ limit: 500, ttlMs: LOOKUP_ANSWER_TTL_MS })
 let nextCardId = 1
 
 const REVIEW_INSERT_WINDOW_MS = 2500

@@ -10,6 +10,22 @@ export const boundedMap = (limit) => {
   return map
 }
 
+export const expiringMap = ({ limit, ttlMs, now = Date.now }) => {
+  const entries = boundedMap(limit)
+  return {
+    get: (key) => {
+      const entry = entries.get(key)
+      if (!entry) return undefined
+      if (now() - entry.savedAt < ttlMs) return entry.value
+      entries.delete(key)
+      return undefined
+    },
+    set: (key, value) => {
+      entries.set(key, { value, savedAt: now() })
+    },
+  }
+}
+
 export const boundedSet = (limit) => {
   const set = new Set()
   const addEntry = set.add.bind(set)

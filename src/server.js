@@ -209,7 +209,7 @@ import { mountProgrammeKindRoutes } from './programme-kind.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
 import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
-import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
+import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, lookupCacheControlOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
 import { describeBenchmark } from './live-benchmark.js'
@@ -288,7 +288,6 @@ const MAX_SHOW_TITLE_LENGTH = 200
 const HERO_FOR_YOU_WAIT_MS = 5000
 const MAX_FOCUS_KEYS = 40
 const MAX_PERSON_IMAGE_SOURCE_LENGTH = 300
-const RATINGS_MAX_AGE_S = 5 * 60
 
 dns.setDefaultResultOrder('ipv4first')
 net.setDefaultAutoSelectFamilyAttemptTimeout(CONNECT_ATTEMPT_TIMEOUT_MS)
@@ -818,7 +817,7 @@ app.get('/api/epg/programme-ratings', ratingsLimiter, async (req, res) => {
     kind: artworkKindOf(req.query.kind),
     year: requestedYearOf(req.query.year),
   })
-  res.setHeader('Cache-Control', ratings.status === 'pending' ? 'no-store' : `private, max-age=${RATINGS_MAX_AGE_S}`)
+  res.setHeader('Cache-Control', lookupCacheControlOf(ratings))
   res.json(ratings)
 })
 
@@ -829,7 +828,7 @@ app.get('/api/epg/programme-credits', ratingsLimiter, async (req, res) => {
     kind: artworkKindOf(req.query.kind),
     year: requestedYearOf(req.query.year),
   })
-  res.setHeader('Cache-Control', credits.status === 'pending' ? 'no-store' : `private, max-age=${RATINGS_MAX_AGE_S}`)
+  res.setHeader('Cache-Control', lookupCacheControlOf(credits))
   res.json(credits)
 })
 
