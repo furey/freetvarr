@@ -38,6 +38,8 @@ Titles such as Grand Final, Awards, Logies, Melbourne Cup, Telethon, Carols, and
 
 A recording appears on its shelf as soon as it starts, even before it is in your library. See [Recordings in progress](#recordings-in-progress).
 
+When Plex is connected, the shelves also list every episode and film in your Plex TV and Movies libraries, including files that Sonarr or Radarr downloaded and files you copied in yourself. These episodes sit beside your recordings on the same show page, play in Freetvarr's player, and take their watched state and resume point from Plex. An episode that Plex has as both a recording and a download shows once; **Episode info** lists both versions. Turn this off, or choose the Plex libraries it lists, in Settings → Recording → Plex → [Your whole library](/guide/plex#your-whole-library).
+
 **Sort** has two choices: **Recent** (the default) and **A–Z**. A leading "The" is ignored, so `The Block` sorts under B. The **Unwatched** chip hides shows you have finished; when you have watched everything, the page says `You are all caught up`. The browser remembers both choices.
 
 Press a poster to open the show page. Press **⋯** under a poster, or hold the poster on a touch screen, to open the [show menu](#show-menu) without opening the show.
@@ -156,6 +158,13 @@ After the delete, Freetvarr refreshes Plex, if you use it. The series recording 
 Before anything changes, a dialog lists **What gets deleted**, with the number of episodes and their size, and **What stays**. **Delete all episodes** on a show with a series recording also offers **Stop recording this show too**. Press the delete button in the dialog to go ahead, or **Cancel** to leave everything as it is. You cannot undo a delete.
 
 An episode whose library file is already gone is listed in the dialog. Freetvarr then deletes only its TVHeadend recording.
+
+An episode or film that Freetvarr did not record is deleted by the app that downloaded it:
+
+- **Sonarr or Radarr**: Freetvarr asks it to stop monitoring the episode or film, then to delete the file, so it does not download it again. The file goes to the app's recycle bin when that is on, and the dialog says for how many days. Connect the apps in Settings → Recording → [Sonarr and Radarr](/guide/sonarr-radarr).
+- **No app**: Freetvarr deletes the file from the disk. The dialog shows the full path first. Plex removes the episode at its next scan.
+
+An episode with two versions, such as your recording and a Sonarr download, offers **Both**, **Recording**, or **Sonarr copy** at the top of the dialog. **Delete all episodes** on a show that Sonarr downloads also offers **Remove the series from Sonarr too**, which is off until you tick it.
 
 ## Recording options
 

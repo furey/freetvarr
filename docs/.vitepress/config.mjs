@@ -131,6 +131,7 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: 'Plex', link: '/guide/plex' },
+          { text: 'Sonarr and Radarr', link: '/guide/sonarr-radarr' },
           { text: 'Remove from TVHeadend', link: '/guide/remove-from-tvheadend' },
           { text: 'Ad removal', link: '/guide/ad-removal' },
           { text: 'TV apps', link: '/guide/tv-apps' }

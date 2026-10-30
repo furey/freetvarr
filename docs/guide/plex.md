@@ -88,11 +88,24 @@ The **Watched state** group in Settings → Recording → Plex has these control
 - **Back to Plex**: sends watched, unwatched, and resume points from Freetvarr to Plex.
 - **Sync watched now**: runs a full check at once and shows the result.
 
-Freetvarr matches each recording to its Plex item by file path. A recording that Plex has not scanned yet counts as "not in Plex yet" and syncs after the scan.
+Freetvarr matches each recording to its Plex item by file path. A recording that Plex has not scanned yet counts as "waiting for Plex" and syncs after the scan.
 
 The check runs after each sync, a few seconds after you watch or mark something, and when you open Recordings. Once a day it reads every Plex item, so an episode marked unwatched in Plex also shows as unwatched in Freetvarr. When you change the same episode on both sides between checks, the change in Freetvarr wins.
 
 It uses the Plex account that owns the token. Other Plex Home users keep their own watched state.
+
+## Your whole library
+
+Recordings can list everything in your Plex TV and Movies libraries, not only what Freetvarr recorded. Files from Sonarr, Radarr, and your own copies show on the same shelves and show pages, and play in Freetvarr's player. Freetvarr does not import, rename, or move these files.
+
+The **Your whole library** group in Settings → Recording → Plex has these controls:
+
+- **Show your whole Plex library**: on by default once Plex is connected.
+- **Libraries to show**: the Plex libraries it lists. The one-off library is never listed, because it holds only Freetvarr's own recordings.
+
+Freetvarr reads the libraries during the watched state check: new and watched items every 30 minutes, and every item once a day. Press **Sync watched now** to read them at once. Watched, unwatched, and resume points for these files always go back to Plex, because Plex keeps their watched state.
+
+To delete these files from Freetvarr, connect [Sonarr and Radarr](/guide/sonarr-radarr) first, so a deleted download does not download again.
 
 ## File layout
 

@@ -13,6 +13,8 @@
 #   FREETVARR_PORT=3733
 #   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # only for a Plex on this host
 #                                             # that is not the plex profile
+#   SONARR_CONFIG_PATH=/path/to/sonarr/config.xml   # optional: reads Sonarr's API key
+#   RADARR_CONFIG_PATH=/path/to/radarr/config.xml   # optional: reads Radarr's API key
 #   COMPOSE_PROFILES=plex                     # adds the plex service
 #   PLEX_CLAIM=claim-xxxxxxxx                 # plex profile only, from
 #                                             # https://plex.tv/claim (expires in 4 minutes)
@@ -116,6 +118,10 @@ services:
       # unless PLEX_PREFS_PATH is set, which makes Freetvarr read the plex
       # profile's settings folder.
       - PLEX_PREFS_PATH=${PLEX_PREFS_PATH:+/plex-preferences.xml}
+      # Where Freetvarr reads the Sonarr and Radarr API keys. Empty unless the
+      # matching path is set in the .env file.
+      - SONARR_CONFIG_PATH=${SONARR_CONFIG_PATH:+/sonarr-config.xml}
+      - RADARR_CONFIG_PATH=${RADARR_CONFIG_PATH:+/radarr-config.xml}
     volumes:
       - ${CONFIG_PATH:-./config}/freetvarr:/config
       - ${DATA_PATH:-./data}:/data
@@ -125,6 +131,10 @@ services:
       # Another Plex on this host: its Preferences.xml, read-only. Defaults to
       # /dev/null when PLEX_PREFS_PATH is unset, so leaving it blank is safe.
       - ${PLEX_PREFS_PATH:-/dev/null}:/plex-preferences.xml:ro
+      # Sonarr's and Radarr's config.xml, read-only, for their API keys.
+      # /dev/null when unset, so leaving them blank is safe.
+      - ${SONARR_CONFIG_PATH:-/dev/null}:/sonarr-config.xml:ro
+      - ${RADARR_CONFIG_PATH:-/dev/null}:/radarr-config.xml:ro
     depends_on:
       init:
         condition: service_completed_successfully
