@@ -8,6 +8,9 @@ description: >-
 
 # Home and search
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="jWodWm2xSTY" title="Freetvarr Home, For you, Activity, Health, and Settings" duration="2:19" />
+
 Home is the first page Freetvarr opens. It answers one question: what can I watch now? Its title greets you for the time of day, such as `Good evening`.
 
 <!-- markdownlint-disable MD033 -->
@@ -15,9 +18,6 @@ Home is the first page Freetvarr opens. It answers one question: what can I watc
   <img src="../img/screenshot-dashboard.png" alt="Home" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
-
-<!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="jWodWm2xSTY" title="Freetvarr Home, For you, Activity, Health, and Settings" duration="2:19" />
 
 ## Navigation
 

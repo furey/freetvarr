@@ -7,6 +7,9 @@ description: >-
 
 # What Freetvarr is
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="xGyUyMu3tUY" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:02" />
+
 Freetvarr records free-to-air TV and files each episode into your media library. Watch it on your TV in Plex, Jellyfin, Kodi, or another media player, with pause, rewind, and skip.
 
 <!-- markdownlint-disable-next-line MD033 -->
@@ -23,9 +26,6 @@ With it, you can:
 - **[Clear out TVHeadend](/guide/remove-from-tvheadend).** If you use Plex, Freetvarr can delete each recording once Plex has the episode.
 
 Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
-
-<!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="xGyUyMu3tUY" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:02" />
 
 ## Plex DVR
 

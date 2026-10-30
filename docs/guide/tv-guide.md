@@ -7,6 +7,9 @@ description: >-
 
 # TV guide
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="RuAWde2_9v4" title="Record free-to-air TV from the Freetvarr TV guide" duration="2:35" />
+
 The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or add a show to your [watchlist](#watchlist) for when it airs. Freetvarr imports each recording into your library after TVHeadend records it.
 
 The TV guide shows only the listings you loaded into TVHeadend. With the XMLTV guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
@@ -16,9 +19,6 @@ The TV guide shows only the listings you loaded into TVHeadend. With the XMLTV g
   <img src="../img/screenshot-guide.png" alt="The TV guide" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
-
-<!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="RuAWde2_9v4" title="Record free-to-air TV from the Freetvarr TV guide" duration="2:35" />
 
 ## The grid
 
