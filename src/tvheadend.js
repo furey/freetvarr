@@ -4,6 +4,11 @@ import axios from 'axios'
 import { getSetting, setSetting } from './db.js'
 import { authorizationFor, createChallengeCache } from './http-auth.js'
 import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
+import { isHdChannelName } from './web/simulcast.js'
+import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
+import { cleanGuideText } from './consumer-advice.js'
+import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
+import { earlierAiringOfEntry } from './repeat-match.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -110,7 +115,7 @@ export const isHdChannel = ({ name = '', serviceIds = [], services = new Map() }
     .map((service) => service.serviceType)
   if (types.some((type) => HD_SERVICE_TYPES.has(type))) return true
   if (types.some((type) => SD_SERVICE_TYPES.has(type))) return false
-  return /hd$/i.test((name || '').trim())
+  return isHdChannelName(name)
 }
 
 export const isOffAir = ({ serviceIds = [], services }) =>
@@ -161,17 +166,58 @@ export const listFinished = async (conn) => {
   return (body?.entries || []).map(normaliseEntry)
 }
 
+export const forgetPastAirings = () => {
+  pastAiringsGeneration++
+  pastAiringsCache = null
+}
+
+const listPastAirings = async (conn, nowMs = Date.now()) => {
+  if (pastAiringsCache?.url === conn.url && pastAiringsCache.expiresAt > nowMs) return pastAiringsCache.value
+  const generation = pastAiringsGeneration
+  const value = await loadPastAirings(conn)
+  if (generation === pastAiringsGeneration) {
+    pastAiringsCache = { url: conn.url, value, expiresAt: nowMs + PAST_AIRINGS_TTL_MS }
+  }
+  return value
+}
+
+const loadPastAirings = async (conn) => {
+  const [finished, removed, failed] = await Promise.all(
+    ['grid_finished', 'grid_removed', 'grid_failed'].map((grid) => allGridEntries(`dvr/entry/${grid}`, conn)),
+  )
+  return [
+    ...finished,
+    ...removed.map((entry) => ({ ...entry, removed: true })),
+    ...failed.map((entry) => ({ ...entry, failed: true })),
+  ]
+}
+
+const allGridEntries = async (path, conn) => {
+  const entries = []
+  for (let page = 0; page < MAX_PAST_AIRING_PAGES; page++) {
+    const body = await apiGet(path, { limit: PAST_AIRINGS_PAGE_SIZE, start: entries.length }, conn)
+    const batch = body?.entries || []
+    entries.push(...batch.map(normaliseEntry))
+    if (batch.length < PAST_AIRINGS_PAGE_SIZE || !(Number(body?.total) > entries.length)) break
+  }
+  return entries
+}
+
+let pastAiringsCache = null
+let pastAiringsGeneration = 0
+
 export const listAutorecs = async (conn) => {
   const body = await apiGet('dvr/autorec/grid', { limit: 1000 }, conn)
   return (body?.entries || []).map((a) => ({
     id: a.uuid,
-    seriesLinkId: seriesKey({ channelId: a.channel, title: a.title }),
-    name: a.title || a.name || '',
+    seriesLinkId: seriesKey({ channelId: a.channel, title: autorecTitleOf(a) }),
+    name: autorecTitleOf(a) || a.name || '',
     channelId: a.channel || '',
     enabled: a.enabled !== false,
     leadTime: a.start_extra ?? 0,
     lagTime: a.stop_extra ?? 0,
     episodesToKeep: a.maxcount ?? 0,
+    match: autorecMatchFieldsOf(a),
   }))
 }
 
@@ -224,6 +270,12 @@ export const cancelRecording = async ({ programId, nowMs = Date.now() } = {}) =>
   return { ok: true, uuid: entry.uuid, programId }
 }
 
+export const skipScheduledEntry = async ({ uuid, conn } = {}) => {
+  const c = conn || (await resolveConnection())
+  await apiPost('idnode/save', { node: JSON.stringify({ uuid, enabled: false }) }, c)
+  return { ok: true, uuid }
+}
+
 export const stopRecordingEntry = async ({ entry, nowMs = Date.now(), conn }) => {
   const recordedMs = recordedMsOf({ recordingSince: entry.recordingSince, nowMs })
   const kept = keepsStoppedRecording(recordedMs)
@@ -248,30 +300,22 @@ export const enableSeriesTag = async ({
   leadTime = DEFAULT_LEAD_MINUTES,
   lagTime = DEFAULT_LAG_MINUTES,
   episodesToKeep = 0,
+  paused = false,
 } = {}) => {
   const conn = await resolveConnection()
   const seriesLink = anyChannel ? seriesKey({ channelId: '', title }) : requestedLink
   const existing = (await listAutorecs(conn)).find((a) => a.seriesLinkId === seriesLink)
   if (existing) return { ok: true, uuid: existing.id, seriesLinkId: seriesLink, existed: true }
-  const body = await apiPost('dvr/autorec/create', {
-    conf: JSON.stringify({
-      enabled: true,
-      name: title,
-      title,
-      fulltext: false,
-      channel: anyChannel ? '' : channelId,
-      start: 'Any',
-      start_window: 'Any',
-      weekdays: [1, 2, 3, 4, 5, 6, 7],
-      pri: 2,
-      record: DUPLICATE_DETECTION_EPISODE_NUMBER,
-      start_extra: leadTime,
-      stop_extra: lagTime,
-      maxcount: episodesToKeep,
-      config_name: await defaultDvrConfig(conn),
-      comment: CREATOR_TAG,
-    }),
-  }, conn)
+  const conf = newAutorecConfOf({
+    title,
+    channelId: anyChannel ? '' : channelId,
+    leadTime,
+    lagTime,
+    episodesToKeep,
+    paused,
+    configName: await defaultDvrConfig(conn),
+  })
+  const body = await apiPost('dvr/autorec/create', { conf: JSON.stringify(conf) }, conn)
   if (!body?.uuid) {
     throw new TvheadendError('TVHeadend did not return an autorec uuid.', { stage: 'series', code: 'no-uuid' })
   }
@@ -295,7 +339,18 @@ export const disableSeriesTag = async ({ seriesLinkId, stopRecordingNow = false,
   return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId, title: autorec.name, stopped }
 }
 
-export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => {
+export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => ({
+  ok: true,
+  enabled,
+  uuids: await saveMatchingSeriesTags({ seriesLinkIds, fields: { enabled }, conn }),
+})
+
+export const updateSeriesTags = async ({ seriesLinkIds = [], patch = {}, conn } = {}) => ({
+  ok: true,
+  uuids: await saveMatchingSeriesTags({ seriesLinkIds, fields: autorecFieldsOf(patch), conn }),
+})
+
+const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
   const connection = conn || (await resolveConnection())
   const wanted = new Set(seriesLinkIds.map(String))
   const autorecs = (await listAutorecs(connection))
@@ -304,10 +359,36 @@ export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn }
     throw new TvheadendError('No series recording matches.', { stage: 'series', code: 'not-found' })
   }
   for (const autorec of autorecs) {
-    await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, enabled }) }, connection)
+    await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, ...fields }) }, connection)
   }
-  return { ok: true, enabled, uuids: autorecs.map((a) => a.id) }
+  return autorecs.map((a) => a.id)
 }
+
+export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodesToKeep, paused = false, configName }) => ({
+  enabled: !paused,
+  name: title,
+  title: escapeAutorecTitle(title),
+  fulltext: false,
+  channel: channelId,
+  start: 'Any',
+  start_window: 'Any',
+  weekdays: [1, 2, 3, 4, 5, 6, 7],
+  pri: 2,
+  record: DUPLICATE_DETECTION_EPISODE_NUMBER,
+  start_extra: leadTime,
+  stop_extra: lagTime,
+  maxcount: episodesToKeep,
+  config_name: configName,
+  comment: CREATOR_TAG,
+})
+
+const autorecTitleOf = (autorec) => (autorec.title ? literalTitleOf(autorec.title) ?? autorec.title : '')
+
+export const autorecFieldsOf = ({ episodesToKeep, leadTime, lagTime } = {}) => ({
+  ...(episodesToKeep != null ? { maxcount: episodesToKeep } : {}),
+  ...(leadTime != null ? { start_extra: leadTime } : {}),
+  ...(lagTime != null ? { stop_extra: lagTime } : {}),
+})
 
 export const removeRecordings = async ({ recordingIds } = {}) => {
   const ids = (recordingIds || []).map(String).filter(Boolean)
@@ -346,13 +427,25 @@ export const getState = async () => {
     countTuners(conn).catch(() => null),
   ])
   const keyByAutorecId = new Map(autorecs.map((a) => [a.id, a.seriesLinkId]))
-  const futureRecordings = upcoming.filter((e) => e.enabled).map((e) => ({
+  const withSeriesLink = (e) => ({
     ...e,
     seriesLinkId: e.autorecId ? keyByAutorecId.get(e.autorecId) || null : null,
-  }))
+  })
+  const pastAirings = needsPastAirings(upcoming) || autorecs.length > 0
+    ? await listPastAirings(conn).catch(() => [])
+    : []
+  const { recordings, repeats } = splitRepeats({ upcoming, pastAirings })
+  const futureRecordings = recordings.map(withSeriesLink)
+  const repeatUuids = new Set(repeats.map((e) => e.uuid))
+  const skipped = upcoming.filter((e) => !e.enabled && !repeatUuids.has(e.uuid))
   return {
     futureRecordings,
+    repeatRecordings: repeats.map(withSeriesLink),
+    repeatProgramIds: repeats.map((e) => String(e.programId)),
+    skippedRecordings: skipped.map((e) => ({ ...withSeriesLink(e), skipped: true })),
     skippedProgramIds: upcoming.filter((e) => !e.enabled).map((e) => String(e.programId)),
+    upcomingEntries: upcoming,
+    pastAirings,
     seriesTags: autorecs,
     activeRecordingIds: futureRecordings
       .filter((e) => e.schedStatus === 'recording' && e.programId != null)
@@ -361,6 +454,52 @@ export const getState = async () => {
     tunerCount: tuners,
   }
 }
+
+export const splitRepeats = ({ upcoming = [], pastAirings = [] }) => {
+  const recordings = []
+  const repeats = []
+  for (const entry of upcoming.filter((e) => e.enabled)) {
+    const repeatOf = entry.schedStatus === 'scheduled' ? repeatOriginalOf({ entry, upcoming, pastAirings }) : null
+    if (repeatOf) repeats.push({ ...entry, repeatOf })
+    else recordings.push(entry)
+  }
+  for (const entry of upcoming.filter((e) => !e.enabled && !e.duplicateOfStart)) {
+    const repeatOf = earlierAiringOfEntry({ entry, upcoming, pastAirings })
+    if (repeatOf?.status === 'recorded') repeats.push({ ...entry, repeatOf })
+  }
+  return { recordings, repeats }
+}
+
+export const isRepeatToSkip = (entry) =>
+  entry.enabled !== false && !entry.duplicateOfStart && entry.repeatOf?.status === 'recorded'
+
+export const isRepeatAwaitingOriginal = (entry) =>
+  entry.enabled !== false && !entry.duplicateOfStart && entry.repeatOf?.status !== 'recorded'
+
+const repeatOriginalOf = ({ entry, upcoming, pastAirings }) => entry.duplicateOfStart
+  ? originalAiringOf({ entry, upcoming, pastAirings })
+  : earlierAiringOfEntry({ entry, upcoming, pastAirings })
+
+const originalAiringOf = ({ entry, upcoming, pastAirings }) => {
+  if (!entry.duplicateOfStart) return null
+  const isOriginal = (e) => e.uuid !== entry.uuid && e.name === entry.name && e.startDate === entry.duplicateOfStart
+  const pending = upcoming.find(isOriginal)
+  if (pending) return pending.enabled ? airingSummaryOf({ entry: pending, status: pendingStatusOf(pending) }) : null
+  const done = pastAirings.filter(isOriginal).find((e) => !e.failed)
+  return done ? airingSummaryOf({ entry: done, status: 'recorded' }) : null
+}
+
+const pendingStatusOf = (entry) => (entry.schedStatus === 'recording' ? 'recording' : 'scheduled')
+
+const airingSummaryOf = ({ entry, status }) => ({
+  status,
+  startDate: entry.startDate,
+  channelName: entry.channelName,
+  uuid: entry.uuid,
+})
+
+const needsPastAirings = (upcoming) => upcoming.some((e) => e.duplicateOfStart
+  && !upcoming.some((other) => other.uuid !== e.uuid && other.startDate === e.duplicateOfStart))
 
 export const getTunerStatus = async (conn) => {
   const c = conn || (await resolveConnection())
@@ -420,11 +559,11 @@ export const getDefaultLanguages = async (conn) => {
   return languagesCache
 }
 
-export const openChannelStream = async ({ channelId, signal, userAgent, conn } = {}) => {
+export const openChannelStream = async ({ channelId, signal, userAgent, weight = LIVE_STREAM_WEIGHT, conn } = {}) => {
   const c = conn || (await resolveConnection())
   const url = new URL(`${c.url}/stream/channel/${encodeURIComponent(channelId)}`)
   url.searchParams.set('profile', 'pass')
-  url.searchParams.set('weight', String(LIVE_STREAM_WEIGHT))
+  url.searchParams.set('weight', String(weight))
   const res = await sendAuthenticated({
     method: 'get',
     url: url.toString(),
@@ -439,6 +578,19 @@ export const openChannelStream = async ({ channelId, signal, userAgent, conn } =
   throw new TvheadendError(`TVHeadend refused the stream (HTTP ${res.status}).`, {
     stage: 'stream', status: res.status, code,
   })
+}
+
+export const openDvrFile = async ({ uuid, start = 0, signal, conn } = {}) => {
+  const c = conn || (await resolveConnection())
+  const res = await sendAuthenticated({
+    method: 'get',
+    url: `${c.url}/dvrfile/${encodeURIComponent(uuid)}`,
+    responseType: 'stream',
+    signal,
+    timeout: REQUEST_TIMEOUT_MS,
+    headers: { Range: `bytes=${start}-` },
+  }, c)
+  return { status: res.status, stream: res.data }
 }
 
 export const streamRequestError = (err) => {
@@ -490,7 +642,7 @@ export const seriesKey = ({ channelId, title }) =>
 export const resolveConnection = async ({ url, username, password } = {}) => {
   const resolvedUrl = (url ?? (await getSetting('tvh_url')) ?? '').trim().replace(/\/+$/, '')
   if (!resolvedUrl) {
-    throw new TvheadendError('TVHeadend URL is not configured.', { stage: 'config', code: 'no-url' })
+    throw new TvheadendError('TVHeadend URL is not configured.', { stage: 'config', code: TVHEADEND_UNCONFIGURED_CODE })
   }
   const resolvedUser = (username ?? (await getSetting('tvh_username')) ?? '').trim()
   const resolvedPass = password || (await getSetting('tvh_password')) || ''
@@ -504,32 +656,40 @@ const removeKeepingHistory = async ({ uuid, rerecords, conn }) => {
   await apiPost('dvr/entry/remove', { uuid }, conn)
 }
 
-export const normaliseEvent = (e) => ({
-  program_id: e.eventId,
-  epg_program_id: e.eventId,
-  channel_id: e.channelUuid,
-  title: e.title || '',
-  episode_title: e.subtitle || null,
-  synopsis: e.description || e.summary || '',
-  start: e.start * 1000,
-  end: e.stop * 1000,
-  series_no: e.seasonNumber ?? null,
-  episode_no: e.episodeNumber ?? null,
-  series_link: seriesKey({ channelId: e.channelUuid, title: e.title }),
-  genre: (e.genre || [])[0] ?? null,
-  rating: e.ageRating ? String(e.ageRating) : null,
-  dvr_state: e.dvrState || null,
-  dvr_uuid: e.dvrUuid || null,
-  image: e.image || null,
-})
+export const normaliseEvent = (e) => {
+  const guideText = cleanGuideText({ episodeTitle: e.subtitle, synopsis: e.description || e.summary })
+  return {
+    program_id: e.eventId,
+    epg_program_id: e.eventId,
+    channel_id: e.channelUuid,
+    title: e.title || '',
+    episode_title: guideText.episodeTitle,
+    synopsis: guideText.synopsis,
+    advice: guideText.advice,
+    start: e.start * 1000,
+    end: e.stop * 1000,
+    series_no: e.seasonNumber ?? null,
+    episode_no: e.episodeNumber ?? null,
+    series_link: seriesKey({ channelId: e.channelUuid, title: e.title }),
+    episode_uri: e.episodeUri || null,
+    serieslink_uri: e.serieslinkUri || null,
+    genre: (e.genre || [])[0] ?? null,
+    rating: e.ageRating ? String(e.ageRating) : null,
+    dvr_state: e.dvrState || null,
+    dvr_uuid: e.dvrUuid || null,
+    image: e.image || null,
+  }
+}
 
 const normaliseEntry = (e) => {
   const { season, episode } = parseEpisodeDisp(e.episode_disp)
+  const guideText = cleanGuideText({ episodeTitle: e.disp_subtitle, synopsis: e.disp_description || e.disp_summary })
   return {
     uuid: e.uuid,
     programId: e.broadcast || null,
+    episodeUri: e.uri || null,
     name: e.disp_title || '',
-    episodeTitle: e.disp_subtitle || null,
+    episodeTitle: guideText.episodeTitle,
     channelId: e.channel || '',
     channelName: e.channelname || null,
     startDate: e.start * 1000,
@@ -539,15 +699,19 @@ const normaliseEntry = (e) => {
     schedStatus: e.sched_status || '',
     statusText: e.status || '',
     autorecId: e.autorec || null,
+    duplicateOfStart: e.duplicate > 0 ? e.duplicate * 1000 : null,
     recordingSince: recordingSinceOf(e),
     enabled: e.enabled !== false,
     parentId: e.parent || null,
     filename: e.filename || null,
     filesize: e.filesize ?? null,
     image: e.image || null,
-    description: e.disp_description || e.disp_summary || null,
+    description: guideText.synopsis || null,
+    advice: guideText.advice,
     genres: Array.isArray(e.genre) ? e.genre : [],
     year: e.copyright_year > 0 ? e.copyright_year : null,
+    rating: e.age_rating ? String(e.age_rating) : null,
+    ratingLabel: e.rating_label || null,
     libraryChoice: Object.keys(LIBRARY_TAGS).find((choice) => LIBRARY_TAGS[choice] === e.comment) || null,
     errors: e.errors ?? 0,
     dataErrors: e.data_errors ?? 0,
@@ -775,7 +939,12 @@ const apiGet = async (path, params, conn) => {
 
 const apiPost = async (path, form, conn) => {
   const c = conn || (await resolveConnection())
-  return request({ method: 'post', path, form, conn: c })
+  forgetPastAirings()
+  try {
+    return await request({ method: 'post', path, form, conn: c })
+  } finally {
+    forgetPastAirings()
+  }
 }
 
 const request = async ({ method, path, params, form, conn }) => {
@@ -907,6 +1076,9 @@ const SCALE_RELATIVE = 1
 const SCALE_DECIBEL = 2
 const RELATIVE_FULL_SCALE = 65535
 const RECENTLY_ENDED_LIMIT = 5
+const PAST_AIRINGS_TTL_MS = 10 * 60 * 1000
+const PAST_AIRINGS_PAGE_SIZE = 5000
+const MAX_PAST_AIRING_PAGES = 10
 const PROGRAMME_IMAGE_TIMEOUT_MS = 5000
 const PROGRAMME_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 const TUNER_COUNT_TTL_MS = 10 * 60 * 1000

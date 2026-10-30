@@ -6,8 +6,6 @@ export const anyChannelLinkFor = (seriesLink) => {
   return separator < 0 ? null : `${ANY_CHANNEL_PREFIX}${link.slice(separator + 1)}`
 }
 
-export const isAnyChannelLink = (seriesLink) => String(seriesLink ?? '').startsWith(ANY_CHANNEL_PREFIX)
-
 export const findSeriesLink = ({ links, seriesLink }) => {
   if (seriesLink == null) return null
   const exact = String(seriesLink)

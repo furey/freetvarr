@@ -7,12 +7,6 @@ export const recordingSeasonEpisode = ({ season, episode }) => {
   return `${s}${e}`
 }
 
-export const recordingHeaderLine = (recording) => uniqueParts([
-  recording.title,
-  recordingSeasonEpisode(recording),
-  recording.episode_title,
-]).join(' · ')
-
 export const recordingEpisodeLine = (recording) => uniqueParts([
   recordingSeasonEpisode(recording),
   recording.episode_title !== recording.title ? recording.episode_title : '',
@@ -28,6 +22,7 @@ export const airedRangeText = ({ airedAt, durationSeconds, timeZone }) => {
 }
 
 export const durationText = (durationSeconds) => {
+  if (isUnderAMinute(durationSeconds)) return UNDER_A_MINUTE_TEXT
   const totalMinutes = Math.round(Number(durationSeconds) / 60)
   if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return ''
   const hours = Math.floor(totalMinutes / 60)
@@ -119,3 +114,7 @@ const SOURCE_BADGES = {
   library: 'FROM LIBRARY',
   tvheadend: 'FROM TVHEADEND',
 }
+
+const isUnderAMinute = (durationSeconds) => Number(durationSeconds) > 0 && Number(durationSeconds) < 60
+
+const UNDER_A_MINUTE_TEXT = 'under 1 min'

@@ -1,18 +1,18 @@
 ---
 title: TVHeadend
 description: >-
-  What Freetvarr's install script and setup wizard set up in TVHeadend, and
+  What Freetvarr's install script and setup change in TVHeadend, and
   how to do each step by hand: tuner, channels, XMLTV guide, and user.
 ---
 
 # TVHeadend
 
-TVHeadend is the recorder. It drives the tuner, holds the channel list and the TV guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so Freetvarr needs a working TVHeadend. Freetvarr's install script and [setup wizard](/guide/getting-started#_2-run-the-wizard) set one up for you.
+TVHeadend is the recorder. It drives the tuner, holds the channel list and the TV guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so Freetvarr needs a working TVHeadend. Freetvarr's install script and [setup](/guide/getting-started#_2-run-setup) set one up for you.
 
 This page lists each TVHeadend setting in the order TVHeadend needs it. Each step depends on the one before it. Any TVHeadend-compatible tuner works here. The steps change only where they name a device or a country.
 
 > [!TIP]<br>
-> Most of this page is manual setup, and you can skip most of it. The [install script](/guide/getting-started#_1-install) does step 1. Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) does steps 2 to 6 and step 8 for an aerial or cable tuner, and checks step 7. Read on to set up TVHeadend by hand, to use a satellite tuner, to connect an existing TVHeadend, or to see what the wizard changed.
+> Most of this page is manual setup, and you can skip most of it. The [install script](/guide/getting-started#_1-install) does step 1. Freetvarr's [setup](/guide/getting-started#_2-run-setup) does steps 2 to 6 and step 8 for an aerial or cable tuner, and checks step 7. Read on to set up TVHeadend by hand, to use a satellite tuner, to connect an existing TVHeadend, or to see what setup changed.
 
 > [!NOTE]<br>
 > The HDHomeRun tuner, the `au-Sydney` mux list, and the Sydney XMLTV feed on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
@@ -61,23 +61,23 @@ In a terminal in the `freetvarr` folder, run `docker compose up -d tvheadend` to
 
 ## 2. Secure TVHeadend
 
-A fresh linuxserver TVHeadend has no logins. It starts with a default access entry, username `*`, that gives anyone on any network full admin rights. Freetvarr's setup wizard replaces that entry with real logins, so run it now: install Freetvarr ([Getting started](/guide/getting-started#_1-install)) and open its wizard ([step 2](/guide/getting-started#_2-run-the-wizard)).
+A fresh linuxserver TVHeadend has no logins. It starts with a default access entry, username `*`, that gives anyone on any network full admin rights. Freetvarr's setup replaces that entry with real logins, so run it now: install Freetvarr ([Getting started](/guide/getting-started#_1-install)) and open setup ([step 2](/guide/getting-started#_2-run-setup)).
 
-When the wizard finds a TVHeadend with only the default entry, it asks for three things:
+When setup finds a TVHeadend with only the default entry, it asks for three things:
 
 - **An admin username and password.** You sign in to TVHeadend's web interface with these. Freetvarr sends them to TVHeadend once and does not store them. The password has one field with a show and hide button, so check it for typos before you continue.
-- **The allowed networks.** Both logins work only from these address ranges. The wizard fills in one `/24` range for each address of the Freetvarr host and for the network of your browser, plus `127.0.0.0/8` (a host at `192.168.86.254` gives `192.168.86.0/24`). Add any other network you sign in from.
-- **Confirmation.** Press `SECURE TVHEADEND AND CONNECT FREETVARR` to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
+- **The allowed networks.** Both logins work only from these address ranges. Setup fills in one `/24` range for each address of the Freetvarr host and for the network of your browser, plus `127.0.0.0/8` (a host at `192.168.86.254` gives `192.168.86.0/24`). Add any other network you sign in from.
+- **Confirmation.** Press **Secure and connect** to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/welcome">
-  <img src="../img/screenshot-wizard-secure.png" alt="The wizard's TVHeadend step when Freetvarr installed TVHeadend, with the admin username, password, allowed networks, and the SECURE TVHEADEND AND CONNECT FREETVARR button" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-wizard-secure.png" alt="The TVHeadend step of setup when Freetvarr installed TVHeadend, with the admin username, password, allowed networks, and the Secure and connect button" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **SETTINGS → TVHEADEND → RESTORE OPEN ACCESS** in Freetvarr.
+Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **Restore open access** in Settings → System → TVHeadend.
 
-If you installed TVHeadend yourself, the wizard asks for the TVHeadend username and password you created for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. The [Doctor](/guide/doctor#tvh-open) warns while the default entry is still there.
+If you installed TVHeadend yourself, setup asks for the TVHeadend username and password you created for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. [Health](/guide/doctor#tvh-open) warns while the default entry is still there.
 
 In TVHeadend's web interface, set the interface and TV guide (EPG) languages under **Configuration → General → Base**.
 
@@ -99,7 +99,7 @@ Finish or cancel the wizard, even if you configured TVHeadend by hand. An unfini
 
 ## 3. Add the tuner
 
-The **CHANNELS** step of the Freetvarr wizard does steps 3 to 5 for an antenna or cable tuner, and sets **Re-record if errors** from step 7. Follow steps 3 to 5 by hand for a satellite tuner, or to choose each setting yourself.
+The **Channels** step of Freetvarr setup does steps 3 to 5 for an antenna or cable tuner, and sets **Re-record if errors** from step 7. Follow steps 3 to 5 by hand for a satellite tuner, or to choose each setting yourself.
 
 The linuxserver image is built with `--enable-hdhomerun_client`, so TVHeadend discovers HDHomeRun tuners on your home network by itself. The author's tuner is an HDHomeRun Flex Quatro, and the screens below follow it.
 
@@ -138,7 +138,7 @@ The channels appear in **Configuration → Channel/EPG → Channels**. Fix the n
 
 ## 6. Load the XMLTV guide
 
-The **GUIDE** step of the Freetvarr wizard does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
+The **Guide** step of Freetvarr setup does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
 
 Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and episode naming work. The Australian feed below is the example. [Outside Australia](#outside-australia) lists the source to use in other countries.
 
@@ -186,7 +186,7 @@ In TVHeadend's web interface, go to **Configuration → Channel/EPG → EPG Grab
 
 The mjh feed has no +1 channels. For each channel whose name ends in `+1` or `+2`, Freetvarr serves TVHeadend a copy of the feed at `http://<freetvarr-host>:3733/guide/xmltv.xml`. The copy adds a guide channel with the name of the +1 channel and its channel number. That guide channel lists every programme of the main channel, one or two hours later. Freetvarr downloads the feed you chose each time TVHeadend asks for the copy.
 
-The wizard sets **Extra arguments** of the XMLTV URL grabber to that address, then links the +1 channel to its guide channel. If TVHeadend does not ask for the copy within `150` seconds, the wizard sets **Extra arguments** back to the feed address, and +1 channels stay without listings. To use the copy without the wizard, set **Extra arguments** to the Freetvarr address, press **Re-run internal EPG grabbers**, and link the +1 channel to its new row in **EPG Grabber Channels**.
+Setup sets **Extra arguments** of the XMLTV URL grabber to that address, then links the +1 channel to its guide channel. If TVHeadend does not ask for the copy within `150` seconds, setup sets **Extra arguments** back to the feed address, and +1 channels stay without listings. To use the copy without Freetvarr setup, set **Extra arguments** to the Freetvarr address, press **Re-run internal EPG grabbers**, and link the +1 channel to its new row in **EPG Grabber Channels**.
 
 If Freetvarr is stopped when TVHeadend downloads the guide, TVHeadend keeps the listings it has until the next download. If a +1 channel leaves out a programme that the main channel shows, the copy still lists that programme.
 
@@ -213,11 +213,11 @@ Switch the view level to Advanced or Expert if the fields are hidden.
 
 In TVHeadend's web interface, go to **Configuration → Recording → Digital Video Recorder Profiles** and open the default profile (the one with an empty name, listed as `(Default profile)`). Freetvarr records with that profile and reads its path. Set **Recording system path** to `/recordings`, the container path from step 1, and press **Save**.
 
-The path is the one inside the TVHeadend Docker container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. The Freetvarr wizard's `CHECK TVHEADEND` button compares the two.
+The path is the one inside the TVHeadend Docker container, not the host path. Freetvarr sees the same host folder at `/data/recordings` and rewrites the `/recordings` prefix to that path. In the **Folders** step of Freetvarr setup, the **Recordings, as TVHeadend sees them** row compares the two.
 
-Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series](/guide/series)).
+Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series rules](/guide/series)).
 
-Freetvarr also sets these two on each recording it schedules:
+Freetvarr also sets these two on each recording it schedules, unless you change them with **Start early** and **Finish late** in the programme sheet:
 
 - **Pre-recording padding**: `2` minutes.
 - **Post-recording padding**: `10` minutes, because free-to-air broadcasts often run late.
@@ -226,7 +226,7 @@ Set **Re-record if errors** (`rerecord-errors`) on the same profile to `0` (off)
 
 ## 8. Make a user for Freetvarr
 
-Freetvarr signs in as an ordinary TVHeadend user with its own login. If Freetvarr's wizard secured TVHeadend in [step 2](#_2-secure-tvheadend), Freetvarr already created this user, `freetvarr`, with the rights in the table below. Skip to the table.
+Freetvarr signs in as an ordinary TVHeadend user with its own login. If Freetvarr setup secured TVHeadend in [step 2](#_2-secure-tvheadend), Freetvarr already created this user, `freetvarr`, with the rights in the table below. Skip to the table.
 
 If you already set up TVHeadend users, create one for Freetvarr by hand in TVHeadend's web interface. TVHeadend keeps a user in two places: the access entry holds the rights, and a separate password entry holds the password. Create both, with the same username.
 
@@ -235,16 +235,16 @@ If you already set up TVHeadend users, create one for Freetvarr by hand in TVHea
 3. **Allowed networks**: your home network's prefix (LAN prefix), the same one as the admin entry (`192.168.86.0/24` for a host at `192.168.86.254`). Freetvarr connects from the host's own LAN address, so that address has to fall inside the prefix.
 4. **Change parameters**: keep **Rights** ticked, or the entry grants nothing.
 5. Tick the rights in the table below, then press **Save**.
-6. Open **Configuration → Users → Passwords** and press **Add**. Tick **Enabled**, enter the same username, set a password, and press **Save**. You enter this username and password in Freetvarr's setup wizard once.
+6. Open **Configuration → Users → Passwords** and press **Add**. Tick **Enabled**, enter the same username, set a password, and press **Save**. You enter this username and password in Freetvarr setup once.
 
 | Right              | Tick                              | Why Freetvarr needs it                                                                                                                            |
 | ------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for `CHECK TVHEADEND`)                      |
+| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for **Check TVHeadend**)                    |
 | **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series recordings, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend |
 | **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                         |
 | **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web interface as this user                                                                                 |
 
-Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, `TEST CONNECTION` still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
+Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, **Test connection** still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
 
 TVHeadend's default configuration accepts only HTTP Digest logins. Freetvarr answers whichever challenge TVHeadend sends, Digest or Basic, so leave TVHeadend's authentication setting as it is.
 
@@ -261,4 +261,4 @@ curl --digest -u freetvarr:<password> -o /dev/null -w '%{http_code}\n' \
 ## Where next
 
 - **[Getting started](/guide/getting-started)**: run Freetvarr and point it at this TVHeadend.
-- **[TV Guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from Freetvarr instead of TVHeadend's own web interface.
+- **[TV guide](/guide/tv-guide)**: once the XMLTV feed is in, browse and schedule from Freetvarr instead of TVHeadend's own web interface.

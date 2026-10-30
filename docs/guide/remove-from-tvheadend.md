@@ -7,6 +7,8 @@ description: >-
 
 # Remove from TVHeadend
 
+<Illustration name="removes-that-work" />
+
 Once an episode is in your library, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after Plex has the file. This is optional, and you turn it on per series.
 
 ## How it works
@@ -34,16 +36,18 @@ To let TVHeadend record an episode again, delete its entry in the **Removed Reco
 
 ## Turn it on
 
-Remove after import is a per-series switch on the [SERIES tab](/guide/series#edit-a-series-folder). Press **EDIT** on a series, turn on **REMOVE FROM TVHEADEND AFTER IMPORT**, then press **SAVE**. Turn it on for series you are happy to keep only in your media library. Leave it off for anything you want a second copy of.
+Remove after import is a per-series switch in [Series rules](/guide/series#edit-a-series-folder). Press a series, turn on **Remove from TVHeadend after import**, then press **Save**. Turn it on for series you are happy to keep only in your media library. Leave it off for anything you want a second copy of.
 
 ## When it removes
 
 Freetvarr removes a recording only after Plex confirms the imported file, and only when both of these checks pass:
 
-- **The Plex guard.** If Freetvarr tried the Plex refresh and it failed, Freetvarr skips the remove and the recording stays in TVHeadend. To turn this off, switch off **Wait for Plex before removing recordings from TVHeadend** in SETTINGS → PLEX.
-- **The cut guard.** For a `CUT`-mode show, the TVHeadend copy is the last untouched original once Freetvarr has rewritten the local file. The remove waits for the cut to pass its checks. A failed cut keeps the original ([Ad removal](/guide/ad-removal)).
+- **The Plex guard.** If Freetvarr tried the Plex refresh and it failed, Freetvarr skips the remove and the recording stays in TVHeadend. To turn this off, switch off **Wait for Plex before removing recordings from TVHeadend** in Settings → Recording → Plex.
+- **The cut guard.** For a **Cut**-mode show, the TVHeadend copy is the last untouched original once Freetvarr has rewritten the local file. The remove waits for the cut to pass its checks. A failed cut keeps the original ([Ad removal](/guide/ad-removal)).
 
-Removed recordings stay in [Recordings](/guide/recordings#not-in-tvheadend), marked **NOT IN TVHEADEND**, for 30 days.
+Removed recordings stay in the [recording log](/guide/recordings#not-in-tvheadend), marked `NOT IN TVHEADEND`, for 30 days.
+
+**Delete** in [Recordings](/guide/recordings#delete-episodes) uses the same calls when it removes a recording from TVHeadend, so a deleted episode does not record again either.
 
 ## If a remove fails
 

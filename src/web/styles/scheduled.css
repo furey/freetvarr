@@ -1,0 +1,551 @@
+.scheduled-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  min-width: 0;
+}
+
+.scheduled-main,
+.scheduled-side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.scheduled-main .ui-section {
+  scroll-margin-top: calc(var(--app-header-h) + 16px);
+}
+
+@media (min-width: 1024px) {
+  .scheduled-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+    align-items: start;
+    gap: 32px;
+  }
+
+  .scheduled-side {
+    position: sticky;
+    top: calc(var(--app-header-h) + 16px);
+    gap: 16px;
+    padding-top: 26px;
+  }
+}
+
+.scheduled-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+}
+
+.scheduled-card.is-top {
+  padding: 12px;
+}
+
+.scheduled-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scheduled-card-title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+
+.scheduled-card .scheduled-watching {
+  margin: 0 -16px -16px;
+  background: transparent;
+}
+
+.scheduled-card .scheduled-watching .scheduled-row:first-child {
+  border-top: 0;
+}
+
+.scheduled-week-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scheduled-week-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 72px;
+  padding: 6px 2px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  color: var(--color-text-1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.scheduled-week-day:hover:not(:disabled) {
+  background: var(--color-surface-3);
+}
+
+.scheduled-week-day:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.scheduled-week-day:disabled {
+  cursor: default;
+}
+
+.scheduled-week-day.is-today {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+}
+
+.scheduled-week-weekday {
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 700;
+  color: var(--color-text-2);
+}
+
+.scheduled-week-day.is-today .scheduled-week-weekday {
+  color: var(--color-text-1);
+}
+
+.scheduled-week-date {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 800;
+}
+
+.scheduled-week-count {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  color: var(--color-text-3);
+  white-space: nowrap;
+}
+
+.scheduled-week-day.is-today .scheduled-week-count {
+  color: var(--color-primary);
+}
+
+.scheduled-week-clash {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-warning);
+}
+
+.scheduled-row {
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+.scheduled-row-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.scheduled-row-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.scheduled-row-link:focus-visible,
+a.scheduled-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.scheduled-time {
+  flex: none;
+  width: 56px;
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 800;
+}
+
+.scheduled-time small {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.scheduled-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scheduled-row.is-off,
+.scheduled-row.is-repeat {
+  background: color-mix(in srgb, var(--color-surface-1) 45%, var(--color-bg));
+}
+
+.scheduled-row.is-off .scheduled-time,
+.scheduled-row.is-off .scheduled-time small,
+.scheduled-row.is-off .ui-group-row-title,
+.scheduled-row.is-off .scheduled-meta,
+.scheduled-row.is-repeat .scheduled-time,
+.scheduled-row.is-repeat .scheduled-time small,
+.scheduled-row.is-repeat .ui-group-row-title,
+.scheduled-row.is-repeat .scheduled-meta {
+  color: color-mix(in srgb, var(--color-text-3) 65%, var(--color-bg));
+}
+
+.scheduled-row.is-off .ui-group-row-title,
+.scheduled-row.is-repeat .ui-group-row-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-3);
+}
+
+.scheduled-row.is-off .scheduled-thumb,
+.scheduled-row.is-repeat .scheduled-thumb {
+  opacity: 0.45;
+}
+
+.scheduled-row.is-repeat .scheduled-repeat-chip,
+.scheduled-repeat-reason {
+  opacity: 0.75;
+}
+
+.scheduled-repeat-reason {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: var(--weight-small);
+  color: var(--color-warning);
+  vertical-align: 1px;
+}
+
+@media (max-width: 767px), (max-height: 500px) {
+  .scheduled-page .library-filters {
+    margin-left: auto;
+  }
+
+  .scheduled-repeats-count {
+    display: none;
+  }
+}
+
+.ui-chip.scheduled-repeats-chip {
+  gap: 0.3em;
+}
+
+.ui-chip.scheduled-repeats-chip:is(span, :disabled) {
+  cursor: default;
+}
+
+.ui-chip.scheduled-repeats-chip:disabled {
+  color: var(--color-text-3);
+}
+
+.ui-chip.scheduled-repeat-chip {
+  height: 20px;
+  margin: 0 6px 0 8px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  vertical-align: 1px;
+  cursor: default;
+}
+
+.scheduled-thumb {
+  position: relative;
+  flex: none;
+  width: 100px;
+  display: block;
+}
+
+.scheduled-thumb .ui-card-art {
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.scheduled-thumb .ui-art-title {
+  font-size: 11px;
+}
+
+.scheduled-thumb .ui-art-badge {
+  top: 6px;
+  left: 6px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+.scheduled-progress {
+  display: block;
+  max-width: 340px;
+  margin-top: 6px;
+}
+
+.scheduled-progress .ui-progress-fill {
+  background: var(--color-live);
+}
+
+.scheduled-clash {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--color-warning);
+}
+
+.scheduled-warning-icon {
+  flex: none;
+  color: var(--color-warning);
+}
+
+.scheduled-bell {
+  flex: none;
+  margin: 0 15px;
+  color: var(--color-primary);
+}
+
+.scheduled-tuners-empty {
+  margin: 0;
+}
+
+.tuner-timeline {
+  --label-w: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tuner-ticks {
+  position: relative;
+  height: 16px;
+  margin-left: var(--label-w);
+}
+
+.tuner-tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+}
+
+.tuner-tick:last-child {
+  transform: translateX(-80%);
+}
+
+.tuner-grid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tuner-lane {
+  display: flex;
+  align-items: center;
+}
+
+.tuner-lane-label {
+  flex: none;
+  width: var(--label-w);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+  color: var(--color-text-2);
+}
+
+.tuner-lane.is-clash .tuner-lane-label {
+  color: var(--color-warning);
+}
+
+.tuner-track {
+  position: relative;
+  flex: 1;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--color-surface-2);
+}
+
+.tuner-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  min-width: 4px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  border-radius: 5px;
+  box-sizing: border-box;
+  background: var(--color-surface-3);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tuner-bar.is-recording {
+  border-color: var(--color-live);
+  background: var(--color-live-tint);
+  color: var(--color-live-text);
+}
+
+.tuner-bar.is-clash {
+  border-color: var(--color-warning);
+  background: repeating-linear-gradient(135deg, var(--color-warning-tint) 0 6px, transparent 6px 12px), var(--color-surface-2);
+  color: var(--color-warning);
+}
+
+.tuner-now {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: calc(var(--label-w) + (100% - var(--label-w)) * var(--now) / 100);
+  width: 2px;
+  background: var(--color-live);
+  pointer-events: none;
+}
+
+.scheduled-tuner-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-soft);
+}
+
+.scheduled-tuner-warning .scheduled-warning-icon {
+  margin-top: 2px;
+}
+
+@media (max-width: 767px), (max-height: 500px) {
+  .scheduled-row {
+    padding: 10px 12px;
+  }
+
+  .scheduled-row-link {
+    gap: 12px;
+  }
+
+  .scheduled-time {
+    width: 52px;
+  }
+
+  .scheduled-row-link .scheduled-thumb {
+    display: none;
+  }
+
+  .scheduled-thumb {
+    width: 84px;
+  }
+
+  .scheduled-meta {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .scheduled-week-days {
+    gap: 4px;
+  }
+
+  .scheduled-week-day {
+    min-height: 68px;
+    padding-top: 12px;
+  }
+
+  .scheduled-week-clash {
+    top: 4px;
+    right: auto;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    transform: translateX(-50%);
+  }
+
+  .scheduled-week-date {
+    font-size: 18px;
+    line-height: 22px;
+  }
+
+  .scheduled-clash {
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scheduled-row .toggle-track,
+  .scheduled-row .toggle-knob {
+    transition: none;
+  }
+}
+
+.scheduled-watch-row {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+}
+
+.scheduled-watch-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+.scheduled-watch-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px 16px;
+}
+
+.scheduled-watch-note {
+  flex: 1 1 200px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-2);
+}

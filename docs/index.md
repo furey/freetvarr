@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: >-
-    <span class="hero-brand"><span class="hero-chips" aria-hidden="true"><i></i><i></i><i></i></span>Freetvarr</span>
+    <span class="hero-brand"><span class="ftv-wordmark" role="img" aria-label="Freetvarr"><span class="ftv-wordmark-free" aria-hidden="true">Free</span><span class="ftv-wordmark-tv" aria-hidden="true">tv</span><span class="ftv-wordmark-arr" aria-hidden="true">arr</span></span></span>
   text: >-
     <span class="hero-line-1"><em class="hero-em">Live TV</em> in your browser.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
@@ -27,43 +27,51 @@ hero:
 
 features:
   - title: Live TV
+    illustration: live-tv
     details: >-
-      Watch any channel in the browser, on a phone or a desktop, and pause or
-      rewind up to 30 minutes. See what's on now and next across every channel.
-    link: /guide/live-tv
-    linkText: Watch live
+      Watch any channel in the browser, on a phone or a desktop. Pause, rewind,
+      start a show over while it records, or watch up to four channels with Multiview.
+    link: /guide/player
+    linkText: The player
   - title: Free to run
+    illustration: free-to-run
     details: >-
       A tuner you own and a free XMLTV guide. No subscription, no levy, no
       vendor who can retire your recorder.
     link: /guide/hardware
     linkText: What to buy
-  - title: TV Guide
+  - title: TV guide
+    illustration: tv-guide
     details: >-
       A 7-day programme guide in the browser: schedule, cancel, and
-      series-record in TVHeadend, with favourite channels.
+      series-record in TVHeadend, see which tuner records what, or watch for a
+      show that is not in the guide yet.
     link: /guide/tv-guide
     linkText: Browse and record
   - title: Series folders
+    illustration: series-folders
     details: >-
-      Record a series from the TV Guide, match it to a folder under your media
+      Record a series from the TV guide, match it to a folder under your media
       root, set a season template, and Freetvarr imports new episodes on your
       schedule.
     link: /guide/series
     linkText: Set it up
   - title: Hardlink imports
+    illustration: hardlink-imports
     details: >-
       Recordings are already on disk, so the import is a hardlink, not a
       download: instant, and no second copy of a 3GB transport stream.
     link: /deep-dive#import-state-machine
     linkText: The state machine
   - title: Plex integration
+    illustration: plex-integration
     details: >-
-      Refreshes your Plex library after each sync that imports something, or
-      whenever you ask.
+      Refreshes your Plex library after each sync that imports something, and
+      keeps watched marks and resume points the same in Plex and Freetvarr.
     link: /guide/plex
     linkText: Set up Plex
   - title: Optional ad removal
+    illustration: ad-removal
     details: >-
       <code>comskip</code> commercial detection with a detect-only audit mode and
       keyframe stream-copy cutting (no transcode), keeping an .orig backup of
@@ -71,6 +79,7 @@ features:
     link: /deep-dive#ad-removal
     linkText: How it works
   - title: Removes that work
+    illustration: removes-that-work
     details: >-
       TVHeadend's DVR API deletes the file once Plex has confirmed its copy,
       and keeps the entry so TVHeadend's duplicate check still sees the
@@ -78,6 +87,7 @@ features:
     link: /guide/remove-from-tvheadend
     linkText: The rules
   - title: Authless LAN service
+    illustration: authless-lan
     details: >-
       SQLite-backed, single Docker container, no external runtime dependencies.
       CSRF, rate limiting, and a strict CSP, built for a trusted home network.
@@ -85,8 +95,4 @@ features:
     linkText: The security model
 ---
 
-## Plex DVR
-
-If you have a Plex Pass, Plex's own Live TV & DVR may be all you need. With a network tuner, it records free-to-air TV straight into your Plex library and plays live TV in every Plex app. The author built Freetvarr before noticing that a Plex Pass already covered it.
-
-Plex DVR suits you if Plex Media Server already runs on an always-on computer and you watch in Plex apps. Freetvarr suits you if you have no Plex Pass, or you want live TV in any browser, a recorder that a Plex update cannot stop, an ad cut you can undo, and the broadcast captions kept in each recording. [Plex DVR instead](/guide/plex-dvr) compares the two and shows the Plex setup.
+Already have a Plex Pass? Plex's own DVR may be all you need. See [Plex DVR instead](/guide/plex-dvr).

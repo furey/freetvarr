@@ -2,23 +2,36 @@ import fs from 'fs/promises'
 
 import { getSetting, setSetting } from './db.js'
 import { anyChannelLinkFor } from './web/series-link.js'
+import { SIMULCAST_START_TOLERANCE_MS, findHdSimulcast, isHdChannel, sdSimulcastIds } from './web/simulcast.js'
 import {
   listChannels,
   listEvents,
   getState,
   scheduleRecording,
   cancelRecording,
+  skipScheduledEntry,
+  isRepeatAwaitingOriginal,
+  isRepeatToSkip,
   enableSeriesTag,
   disableSeriesTag,
   setSeriesTagsEnabled,
+  updateSeriesTags,
   resolveConnection,
   getChannelIcon,
   fetchProgrammeImage,
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
+import { createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
+import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
-import { createShowArtwork } from './show-artwork.js'
+import { createShowArtwork, showTitleKey } from './show-artwork.js'
+import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource } from './fallback-artwork.js'
+import { isPersonImageSource } from './programme-credits.js'
+import { artworkKindOf, guideKindsByTitle, programmeHintsByTitle } from './artwork-match.js'
+import { loadTitleGenres, rememberTvmazeShow } from './genre-enrichment.js'
+import { createGuideSearchCache, searchGuideListings } from './guide-search.js'
+import { loadSearchAliases, rememberKnownAsFromTvmaze } from './search-aliases.js'
 import {
   saveGuidePrograms,
   loadEndedProgramsByChannel,
@@ -27,22 +40,52 @@ import {
   savedProgramFor,
 } from './guide-history.js'
 import { findArtwork, saveArtwork } from './artwork.js'
+import { PLEX_ORIGIN_PREFIX, RECORDING_ORIGIN_PREFIX, UPLOAD_ORIGIN_PREFIX, artworkChoices, plexSourceOf } from './artwork-choices.js'
+import { artworkUploads } from './artwork-uploads.js'
+import { getPlexConnection } from './plex.js'
+import { showKeyOf } from './web/show-key.js'
 import { createGuideCache } from './guide-cache.js'
+import { orderChannels } from './channel-order.js'
+import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
+import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
+import { saveGuideEvidence } from './series-evidence.js'
+import {
+  addPendingSkip,
+  entriesToSkip,
+  hasPendingSkips,
+  listPendingSkips,
+  removePendingSkip,
+  splitPendingSkips,
+} from './pending-skips.js'
+import { dvrAiringMatchOf, dvrAiringsOf } from './repeat-match.js'
+import { measureJob } from './event-loop-lag.js'
+import { loadExternalIds } from './external-ids-store.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
   const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: guide.startMs, day })
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: spillEnd, nowMs })
     .catch(logHistoryError('load'))
-  const programs = {}
-  for (const channel of guide.channels) {
+  const merged = guide.channels.map((channel) => {
     const rows = guide.programsByChannel[String(channel.epgId)] || []
     const live = programsInWindow({ rows, fromMs: dayStart, toMs: spillEnd })
-    const saved = endedByChannel?.get(String(channel.epgId)) || []
-    programs[channel.id] = mergeGuidePrograms({ live, saved }).map((program) => toGuideCell({ program, nowMs }))
-  }
-  const prefs = await getChannelPrefs()
+    const saved = savedWithKinds({ guide, saved: endedByChannel?.get(String(channel.epgId)) })
+    return [channel.id, mergeGuidePrograms({ live, saved })]
+  })
+  const [classificationOf, prefs] = await Promise.all([
+    classificationLookupFor(merged.flatMap(([, rows]) => rows)),
+    getChannelPrefs(),
+  ])
+  const twinContext = await twinContextFor({ guide, prefs })
+  const programs = Object.fromEntries(merged.map(([channelId, rows]) => [
+    channelId,
+    rows.map((program) => ({
+      ...toGuideCell({ program, nowMs }),
+      classification: classificationOf(program),
+      ...twinFieldsOf({ programme: program, twinContext }),
+    })),
+  ]))
   return {
     day,
     dayStart,
@@ -59,58 +102,9 @@ export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   }
 }
 
-// An SD channel is a simulcast sibling when another channel shares its base name
-// (name minus a trailing "HD", with AU aliases like Nine↔9) and that sibling is
-// the HD one. Anything unpaired stays visible.
-const SIMULCAST_ALIASES = { nine: '9', seven: '7', ten: '10' }
+export { sdSimulcastIds }
 
-const simulcastBaseKey = (name) => {
-  const base = (name || '').toLowerCase().replace(/\s*hd$/, '').trim()
-  return SIMULCAST_ALIASES[base] || base
-}
-
-const isHdChannel = (c) => c.hd === true || /hd$/i.test((c.name || '').trim())
-
-export const sdSimulcastIds = (channels) => {
-  const groups = new Map()
-  for (const c of channels) {
-    const key = simulcastBaseKey(c.name)
-    if (!key) continue
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key).push(c)
-  }
-  const ids = new Set()
-  for (const group of groups.values()) {
-    if (group.length < 2 || !group.some(isHdChannel)) continue
-    for (const c of group) {
-      if (!isHdChannel(c)) ids.add(String(c.id))
-    }
-  }
-  return ids
-}
-
-// Pinned channels float to the top in pin order; the rest follow in the chosen
-// sort. Hidden and pinned are mutually exclusive (enforced on save).
-export const orderChannels = ({ channels, pinnedIds = [], hiddenIds = [], sort = 'default', hideSdSimulcasts = false, hideSdChannels = false }) => {
-  const hiddenSet = new Set(hiddenIds.map(String))
-  const simulcastSet = hideSdSimulcasts && !hideSdChannels ? sdSimulcastIds(channels) : new Set()
-  const pinOrder = new Map(pinnedIds.map((id, i) => [String(id), i]))
-  const annotated = channels.map((c) => {
-    const pinned = pinOrder.has(String(c.id))
-    const id = String(c.id)
-    return { ...c, pinned, hidden: !pinned && (hiddenSet.has(id) || simulcastSet.has(id) || (hideSdChannels && !c.hd)) }
-  })
-  const pinned = annotated
-    .filter((c) => c.pinned)
-    .sort((a, b) => pinOrder.get(String(a.id)) - pinOrder.get(String(b.id)))
-  const rest = annotated.filter((c) => !c.pinned)
-  if (sort === 'name') {
-    rest.sort((a, b) => a.name.localeCompare(b.name, 'en-AU', { numeric: true, sensitivity: 'base' }))
-  } else if (sort === 'number') {
-    rest.sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity))
-  }
-  return [...pinned, ...rest]
-}
+export { orderChannels }
 
 export const getChannelPrefs = async () => {
   const [pinnedRaw, hiddenRaw, sortRaw, hideSdRaw, hideSdChannelsRaw] = await Promise.all([
@@ -161,24 +155,23 @@ export const getOnNowForPinned = async ({ nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
   const { pinnedIds } = await getChannelPrefs()
   const byId = new Map(guide.channels.map((c) => [String(c.id), c]))
-  const entries = []
-  for (const id of pinnedIds) {
-    const channel = byId.get(String(id))
-    if (!channel) continue
-    const rows = guide.programsByChannel[String(channel.epgId)] || []
-    const { now, next } = nowAndNext(rows, nowMs)
-    entries.push({
-      channel: {
-        id: channel.id,
-        name: channel.name,
-        number: channel.number ?? null,
-        hasLogo: channel.logos.length > 0,
-        offAir: Boolean(channel.offAir),
-      },
-      now,
-      next,
-    })
-  }
+  const airings = pinnedIds
+    .map((id) => byId.get(String(id)))
+    .filter(Boolean)
+    .map((channel) => ({ channel, ...airingPair(guide.programsByChannel[String(channel.epgId)] || [], nowMs) }))
+  const classificationOf = await classificationLookupFor(airings.flatMap(({ now, next }) => [now, next]))
+  const classified = (program) => program && { ...trimProgram(program), classification: classificationOf(program) }
+  const entries = airings.map(({ channel, now, next }) => ({
+    channel: {
+      id: channel.id,
+      name: channel.name,
+      number: channel.number ?? null,
+      hasLogo: channel.logos.length > 0,
+      offAir: Boolean(channel.offAir),
+    },
+    now: classified(now),
+    next: classified(next),
+  }))
   return { entries }
 }
 
@@ -201,22 +194,25 @@ const airingPair = (programs, nowMs) => {
 export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
   const [guide, prefs] = await Promise.all([getCachedGuide(), getChannelPrefs()])
   const channels = orderChannels({ channels: guide.channels, ...prefs })
-  const entries = channels.filter((c) => !c.hidden).map((channel) => {
-    const rows = guide.programsByChannel[String(channel.epgId)] || []
-    const { now, next } = airingPair(rows, nowMs)
-    return {
-      channel: {
-        id: channel.id,
-        name: channel.name,
-        number: channel.number ?? null,
-        hasLogo: channel.logos.length > 0,
-        offAir: Boolean(channel.offAir),
-        pinned: channel.pinned,
-      },
-      now: now && toBrowserProgram(now),
-      next: next && toBrowserProgram(next),
-    }
-  })
+  const airings = channels.filter((c) => !c.hidden).map((channel) => ({
+    channel,
+    ...airingPair(guide.programsByChannel[String(channel.epgId)] || [], nowMs),
+  }))
+  const classificationOf = await classificationLookupFor(airings.flatMap(({ now, next }) => [now, next]))
+  const classified = (program) => program && { ...toBrowserProgram(program), classification: classificationOf(program) }
+  const entries = airings.map(({ channel, now, next }) => ({
+    channel: {
+      id: channel.id,
+      name: channel.name,
+      number: channel.number ?? null,
+      hasLogo: channel.logos.length > 0,
+      offAir: Boolean(channel.offAir),
+      pinned: channel.pinned,
+      hd: channel.hd === true,
+    },
+    now: classified(now),
+    next: classified(next),
+  }))
   return {
     fetchedAt: guide.fetchedAt,
     stale: Boolean(guide.stale),
@@ -229,15 +225,19 @@ export const getOnNowAll = async ({ nowMs = Date.now() } = {}) => {
   }
 }
 
-// TVHeadend materialises autorec timers only within its EPG update window, so a
-// series set for later in the week may have no timer yet. Project the next
+// TVHeadend holds back autorec timers for episodes it already scheduled, recorded,
+// or skipped, and creates them only after an EPG update. Project the next
 // episodes from each series rule against the loaded guide and merge them with
 // the real timers, so the Upcoming view reflects what will actually record.
 // A projected entry is source:'series' (expected); a real timer is source:'timer'.
-export const projectUpcomingRecordings = ({
+export const projectUpcomingRecordings = (args) => planUpcomingRecordings(args).upcoming
+
+export const planUpcomingRecordings = ({
   seriesTags = [],
   futureRecordings = [],
   skippedProgramIds = [],
+  repeatProgramIds = [],
+  dvrAirings = [],
   guide,
   nowMs = Date.now(),
 } = {}) => {
@@ -254,59 +254,76 @@ export const projectUpcomingRecordings = ({
       seriesLinkId: r.seriesLinkId || null,
       season: r.season ?? null,
       hasImage: Boolean(guide?.programByEventId?.get(String(r.programId))?.image),
+      kind: guide?.programByEventId?.get(String(r.programId))?.kind ?? null,
+      synopsis: guide?.programByEventId?.get(String(r.programId))?.synopsis || null,
       source: 'timer',
     }))
-  const timerProgramIds = new Set([...timers.map((t) => String(t.programId)), ...skippedProgramIds.map(String)])
+  const timerProgramIds = new Set([
+    ...timers.map((t) => String(t.programId)),
+    ...skippedProgramIds.map(String),
+    ...repeatProgramIds.map(String),
+  ])
 
   const projected = []
+  const repeats = []
   if (guide?.channels?.length) {
     const tagByLink = new Map()
     for (const t of seriesTags) {
       const link = t?.seriesLinkId ?? t?.id
       if (link != null) tagByLink.set(String(link), t)
     }
-    const seenEpisode = scheduledEpisodeKeys({ guide, programIds: timerProgramIds })
+    const firstAiringByEpisode = timerEpisodeAirings({ guide, timers })
+    const candidates = []
     for (const channel of guide.channels) {
-      const rows = [...(guide.programsByChannel?.[String(channel.epgId)] || [])]
-        .sort((a, b) => a.start - b.start)
-      for (const p of rows) {
+      for (const p of guide.programsByChannel?.[String(channel.epgId)] || []) {
         if (p.start <= nowMs || p.series_link == null) continue
         const tag = tagByLink.get(String(p.series_link)) || tagByLink.get(anyChannelLinkFor(p.series_link))
         if (!tag) continue
         if (tag.channelId && String(tag.channelId) !== String(channel.id)) continue
         if (timerProgramIds.has(String(p.program_id))) continue
-        if (p.series_no != null && p.episode_no != null) {
-          const key = episodeKey(p)
-          if (seenEpisode.has(key)) continue
-          seenEpisode.add(key)
-        }
-        projected.push({
-          programId: p.program_id,
-          name: p.title,
-          channelId: channel.id,
-          channelName: channel.name || null,
-          startDate: p.start,
-          endDate: p.end,
-          episodeTitle: p.episode_title || null,
-          seriesLinkId: p.series_link,
-          seriesNo: p.series_no ?? null,
-          episodeNo: p.episode_no ?? null,
-          season: p.series_no ?? null,
-          hasImage: Boolean(p.image),
-          source: 'series',
-        })
+        candidates.push({ channel, p, tag })
       }
+    }
+    for (const { channel, p, tag } of candidates.sort((a, b) => a.p.start - b.p.start)) {
+      const firstAiring = earlierAiringOf({ firstAiringByEpisode, programme: p })
+      const dvrAiring = firstAiring ? null : dvrAiringMatchOf({ programme: p, tag, airings: dvrAirings })
+      if (hasEpisodeNumber(p) && !firstAiring && !dvrAiring) {
+        firstAiringByEpisode.set(episodeKey(p), { startDate: p.start, channelName: channel.name || null })
+      }
+      const entry = {
+        programId: p.program_id,
+        name: p.title,
+        channelId: channel.id,
+        channelName: channel.name || null,
+        startDate: p.start,
+        endDate: p.end,
+        episodeTitle: p.episode_title || null,
+        seriesLinkId: p.series_link,
+        seriesNo: p.series_no ?? null,
+        episodeNo: p.episode_no ?? null,
+        season: p.series_no ?? null,
+        hasImage: Boolean(p.image),
+        kind: p.kind ?? null,
+        synopsis: p.synopsis || null,
+        source: 'series',
+      }
+      if (firstAiring) repeats.push({ ...entry, repeatOf: { status: 'scheduled', ...firstAiring } })
+      else if (dvrAiring) repeats.push({ ...entry, repeatOf: dvrAiring })
+      else projected.push(entry)
     }
   }
 
-  return [...timers, ...projected].sort((a, b) => a.startDate - b.startDate)
+  return {
+    upcoming: [...timers, ...projected].sort((a, b) => a.startDate - b.startDate),
+    repeats,
+  }
 }
 
 export const channelAiringAt = ({ guide, channelId, atMs, endedByChannel = null }) => {
   const channel = guide.channels.find((c) => String(c.id) === String(channelId))
   if (!channel) return { now: null, next: null }
   const live = guide.programsByChannel[String(channel.epgId)] || []
-  const saved = endedByChannel?.get(String(channel.epgId)) || []
+  const saved = savedWithKinds({ guide, saved: endedByChannel?.get(String(channel.epgId)) })
   const rows = mergeGuidePrograms({ live, saved })
   const now = rows.find((p) => p.start <= atMs && p.end > atMs) || null
   const next = earliestStartingFrom({ rows, fromMs: now ? now.end : atMs })
@@ -317,8 +334,65 @@ export const getChannelAiring = async ({ channelId, atMs = Date.now(), nowMs = D
   const guide = await getCachedGuide()
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: atMs, toMs: nowMs, nowMs })
     .catch(logHistoryError('load'))
-  return channelAiringAt({ guide, channelId, atMs, endedByChannel })
+  const { now, next } = channelAiringAt({ guide, channelId, atMs, endedByChannel })
+  const classificationOf = await classificationLookupFor([now, next])
+  return {
+    now: now && { ...now, classification: classificationOf(now) },
+    next: next && { ...next, classification: classificationOf(next) },
+  }
 }
+
+export const programmeSheetAt = ({ guide, channelId, startMs, nowMs = Date.now(), endedByChannel = null, twinContext = null }) => {
+  const channel = guide.channels.find((c) => String(c.id) === String(channelId)) || null
+  if (!channel) return { channel: null, programme: null, hdEpisode: null, hdSeries: null }
+  const rowsOf = (c) => mergeGuidePrograms({
+    live: guide.programsByChannel[String(c.epgId)] || [],
+    saved: savedWithKinds({ guide, saved: endedByChannel?.get(String(c.epgId)) }),
+  })
+  const rows = rowsOf(channel)
+  const listed = rows.find((p) => p.start === startMs) || rows.find((p) => p.start <= startMs && p.end > startMs) || null
+  const programme = listed && { ...toGuideCell({ program: listed, nowMs }), ...twinFieldsOf({ programme: listed, twinContext }) }
+  const programsByChannel = Object.fromEntries(guide.channels
+    .filter((c) => c !== channel && isHdChannel(c))
+    .map((c) => [c.id, rowsOf(c)
+      .filter((p) => Math.abs(p.start - (programme?.start ?? startMs)) <= SIMULCAST_START_TOLERANCE_MS)
+      .map((program) => toGuideCell({ program, nowMs }))]))
+  const hdTwinFor = (needsSeriesLink) => (programme
+    ? findHdSimulcast({ program: programme, channelId: channel.id, channels: guide.channels, programsByChannel, needsSeriesLink })
+    : null)
+  return { channel, programme, hdEpisode: hdTwinFor(false), hdSeries: hdTwinFor(true) }
+}
+
+export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now() }) => {
+  const guide = await getCachedGuide()
+  const endedByChannel = startMs < nowMs
+    ? await loadEndedProgramsByChannel({ fromMs: startMs, toMs: nowMs, nowMs }).catch(logHistoryError('load'))
+    : null
+  const twinContext = await twinContextFor({ guide, prefs: await getChannelPrefs() })
+  const sheet = programmeSheetAt({ guide, channelId, startMs, nowMs, endedByChannel, twinContext })
+  return withClassification({ sheet, store: classificationStore })
+}
+
+export const withClassification = async ({ sheet, store }) => {
+  if (!sheet.programme) return sheet
+  const [classification, category] = await Promise.all([
+    programmeClassification({ programme: sheet.programme, store }),
+    store.categoryAt?.({ title: sheet.programme.title, startMs: sheet.programme.start }).catch(() => null) ?? null,
+  ])
+  const ratingsLikely = isRatingsLikely({ kind: sheet.programme.kind, category })
+  return { ...sheet, programme: { ...sheet.programme, classification, ratingsLikely } }
+}
+
+const classificationStore = createClassificationStore()
+
+const classificationLookupFor = (programmes) => createClassificationLookup({
+  programmes: programmes.filter(Boolean),
+  store: classificationStore,
+})
+
+export const savedWithKinds = ({ guide, saved = [] }) => (guide?.kindOf
+  ? withDisplayKinds({ programmes: saved, kindOf: guide.kindOf })
+  : saved)
 
 const earliestStartingFrom = ({ rows, fromMs }) => rows
   .filter((p) => p.start >= fromMs)
@@ -344,6 +418,7 @@ const trimProgram = (p) => p == null ? null : {
   start: p.start,
   end: p.end,
   series_link: p.series_link || null,
+  kind: p.kind ?? null,
 }
 
 const parseJsonArray = (raw) => {
@@ -356,28 +431,44 @@ const parseJsonArray = (raw) => {
 }
 
 export const searchGuide = async ({ q } = {}) => {
-  const needle = (q || '').trim().toLowerCase()
-  if (needle.length < 2) return { results: [] }
-  const guide = await getCachedGuide()
-  const prefs = await getChannelPrefs()
-  const searchChannels = orderChannels({ channels: guide.channels, ...prefs })
-    .filter((c) => !c.hidden)
+  if ((q || '').trim().length < 2) return { results: [] }
+  const [guide, prefs, aliases] = await Promise.all([getCachedGuide(), getChannelPrefs(), loadSearchAliases()])
+  const channels = orderChannels({ channels: guide.channels, ...prefs }).filter((c) => !c.hidden)
+  const built = guideSearchFor({ guide, aliases })
   const nowMs = Date.now()
-  const results = []
-  for (const channel of searchChannels) {
-    const rows = guide.programsByChannel[String(channel.epgId)] || []
-    for (const p of rows) {
-      if (p.end <= nowMs) continue
-      const haystack = `${p.title || ''} ${p.episode_title || ''}`.toLowerCase()
-      if (!haystack.includes(needle)) continue
-      results.push({ ...toBrowserProgram(p), channelId: channel.id, channelName: channel.name })
-      if (results.length >= SEARCH_RESULT_CAP) break
-    }
-    if (results.length >= SEARCH_RESULT_CAP) break
-  }
-  results.sort((a, b) => a.start - b.start)
+  const twinContext = await twinContextFor({ guide, prefs })
+  const results = searchGuideListings({ built, channels, query: q, nowMs, toProgramme: toBrowserProgram })
+    .filter((programme) => isPreferredAiring({ identity: twinContext.identity, programme, nowMs }))
+    .map((programme) => ({ ...programme, ...twinFieldsOf({ programme, twinContext }) }))
   return { results }
 }
+
+export const guideIdentityFor = ({ guide, prefs }) => {
+  const key = JSON.stringify(prefs)
+  const cached = guideIdentities.get(guide)
+  if (cached?.key === key) return cached.identity
+  const channels = guide.channels || []
+  const channelIdByProgramme = new Map(channels.flatMap((channel) =>
+    (guide.programsByChannel?.[String(channel.epgId)] || []).map((programme) => [programme, channel.id])))
+  const identity = airingIdentityOf({
+    programmes: [...channelIdByProgramme.keys()],
+    channels: orderChannels({ channels, ...prefs }),
+    channelIdOf: (programme) => channelIdByProgramme.get(programme) ?? programme.channel_id,
+  })
+  guideIdentities.set(guide, { key, identity })
+  return identity
+}
+
+const twinContextFor = async ({ guide, prefs }) => {
+  const state = await getRecordingState().catch(() => null)
+  return { identity: guideIdentityFor({ guide, prefs }), autorecs: state?.seriesTags || [] }
+}
+
+const twinFieldsOf = ({ programme, twinContext }) => (twinContext
+  ? twinAnnotationOf({ identity: twinContext.identity, programme, autorecs: twinContext.autorecs })
+  : {})
+
+const guideIdentities = new WeakMap()
 
 // Concurrent requests share one TVHeadend round-trip, a failure opens a
 // cooldown during which no new attempt starts, and the last good state is
@@ -399,7 +490,7 @@ export const getRecordingState = async ({ fresh = false } = {}) => {
 
 const reloadRecordingState = (now) => {
   if (stateInflight) return stateInflight
-  stateInflight = loadRecordingState(now)
+  stateInflight = measureJob('recording-state', () => loadRecordingState(now))
     .catch((err) => {
       stateFailedUntil = Date.now() + STATE_RETRY_MS
       stateLastError = err
@@ -411,18 +502,31 @@ const reloadRecordingState = (now) => {
 }
 
 const loadRecordingState = async (now) => {
-  const [state, guide, storageInfo] = await Promise.all([
+  const [loadedState, guide, storageInfo, loadedSkips] = await Promise.all([
     getState(),
     getCachedGuide().catch(() => null),
     recordingsStorageInfo(),
+    listPendingSkips({ nowMs: now }).catch(() => []),
   ])
-  const upcomingRecordings = projectUpcomingRecordings({
+  const skipsApplied = await withPendingSkipsApplied({ state: loadedState, pendingSkips: loadedSkips })
+  const { pendingSkips } = skipsApplied
+  const state = await withRecordedRepeatsSkipped({ state: skipsApplied.state })
+  const plan = planUpcomingRecordings({
     seriesTags: state.seriesTags,
     futureRecordings: state.futureRecordings,
     skippedProgramIds: state.skippedProgramIds,
+    repeatProgramIds: state.repeatProgramIds,
+    dvrAirings: dvrAiringsOf({ upcoming: state.upcomingEntries, pastAirings: state.pastAirings }),
     guide,
     nowMs: now,
   })
+  const held = splitPendingSkips({ upcoming: plan.upcoming, pendingSkips })
+  const upcomingRecordings = await withUpcomingClassifications({
+    upcoming: held.upcoming,
+    futureRecordings: state.futureRecordings,
+    guide,
+  })
+  const repeatRecordings = [...state.repeatRecordings, ...plan.repeats].sort((a, b) => a.startDate - b.startDate)
   await syncSavedDvrState({ futureRecordings: state.futureRecordings, nowMs: now })
     .catch(logHistoryError('dvr sync'))
   const value = {
@@ -432,6 +536,8 @@ const loadRecordingState = async (now) => {
     maxConcurrentRecordings: state.tunerCount,
     activeInputs: state.activeInputs,
     futureRecordings: state.futureRecordings,
+    skippedRecordings: [...state.skippedRecordings, ...held.skipped],
+    repeatRecordings,
     upcomingRecordings,
     seriesTags: withSeriesImages({ seriesTags: state.seriesTags, guide, nowMs: now }),
     activeRecordingIds: state.activeRecordingIds,
@@ -440,6 +546,22 @@ const loadRecordingState = async (now) => {
   stateCache = { value, expiresAt: now + STATE_TTL_MS }
   stateFailedUntil = 0
   return value
+}
+
+const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
+  const timerById = new Map(futureRecordings.map((recording) => [String(recording.programId), recording]))
+  const sources = upcoming.map((recording) => {
+    const timer = timerById.get(String(recording.programId))
+    const listed = guide?.programByEventId?.get(String(recording.programId))
+    return {
+      title: recording.name,
+      start: recording.startDate,
+      rating: timer?.rating ?? listed?.rating ?? null,
+      ratingLabel: timer?.ratingLabel ?? null,
+    }
+  })
+  const classificationOf = await classificationLookupFor(sources)
+  return upcoming.map((recording, i) => ({ ...recording, classification: classificationOf(sources[i]) }))
 }
 
 export const withSeriesImages = ({ seriesTags = [], guide, nowMs = Date.now() }) => {
@@ -464,15 +586,89 @@ export const invalidateRecordingState = () => {
 }
 
 export const recordProgram = async (args) => {
-  const result = await scheduleRecording(args)
+  const result = (await removePendingSkip(args.programId))
+    ? { ok: true, programId: args.programId, pendingSkipRemoved: true }
+    : await scheduleRecording(args)
   invalidateRecordingState()
   return result
 }
 
 export const cancelProgram = async (args) => {
-  const result = await cancelRecording(args)
+  const result = await cancelRecording(args).catch((err) => skipExpectedEpisode({ err, programId: args.programId }))
   invalidateRecordingState()
   return result
+}
+
+export const enforcePendingSkips = async () => {
+  if (await hasPendingSkips() || hasRepeatsAwaitingOriginal()) await getRecordingState({ fresh: true })
+}
+
+const hasRepeatsAwaitingOriginal = () => (stateCache?.value?.repeatRecordings || []).some(isRepeatAwaitingOriginal)
+
+export const watchPendingSkips = () => {
+  const enforce = () => enforcePendingSkips().catch((err) => console.warn(`[epg] saved skips: ${err.message}`))
+  onGuideLoaded(enforce)
+  setInterval(enforce, PENDING_SKIP_CHECK_MS).unref()
+}
+
+const skipExpectedEpisode = async ({ err, programId }) => {
+  if (!(err instanceof TvheadendError) || err.code !== 'not-found') throw err
+  const { upcomingRecordings = [] } = await getRecordingState()
+  const expected = upcomingRecordings.find((e) => e.source === 'series' && String(e.programId) === String(programId))
+  if (!expected) throw err
+  await addPendingSkip(expected)
+  return { ok: true, programId, pendingSkip: true }
+}
+
+export const withPendingSkipsApplied = async ({
+  state,
+  pendingSkips,
+  skipEntry = skipScheduledEntry,
+  forgetSkip = removePendingSkip,
+  reloadState = getState,
+}) => {
+  const due = entriesToSkip({ entries: [...state.futureRecordings, ...state.repeatRecordings], pendingSkips })
+  if (due.length === 0) return { state, pendingSkips }
+  const appliedIds = new Set()
+  for (const { entry, skip } of due) {
+    if (await appliedSkip({ entry, skip, skipEntry, forgetSkip })) appliedIds.add(String(skip.programId))
+  }
+  if (appliedIds.size === 0) return { state, pendingSkips }
+  return {
+    state: await reloadState(),
+    pendingSkips: pendingSkips.filter((skip) => !appliedIds.has(String(skip.programId))),
+  }
+}
+
+export const withRecordedRepeatsSkipped = async ({ state, skipEntry = skipScheduledEntry, reloadState = getState }) => {
+  const due = state.repeatRecordings.filter(isRepeatToSkip)
+  if (due.length === 0) return state
+  const skipped = []
+  for (const entry of due) skipped.push(await skippedRepeat({ entry, skipEntry }))
+  return skipped.some(Boolean) ? reloadState() : state
+}
+
+const skippedRepeat = async ({ entry, skipEntry }) => {
+  try {
+    await skipEntry({ uuid: entry.uuid })
+  } catch (err) {
+    console.warn(`[epg] repeat of "${entry.name}" not skipped yet: ${err.message}`)
+    return false
+  }
+  console.log(`[epg] skipped a repeat of "${entry.name}" at ${new Date(entry.startDate).toISOString()}`)
+  return true
+}
+
+const appliedSkip = async ({ entry, skip, skipEntry, forgetSkip }) => {
+  try {
+    await skipEntry({ uuid: entry.uuid })
+  } catch (err) {
+    console.warn(`[epg] saved skip for "${entry.name}" not applied yet: ${err.message}`)
+    return false
+  }
+  await forgetSkip(skip.programId).catch((err) => console.warn(`[epg] saved skip not cleared: ${err.message}`))
+  console.log(`[epg] applied a saved skip to "${entry.name}" at ${new Date(entry.startDate).toISOString()}`)
+  return true
 }
 
 export const recordSeries = async ({ programId, channelId, ...args }) => {
@@ -495,6 +691,12 @@ export const cancelSeries = async (args) => {
 
 export const pauseSeries = async ({ seriesLinkIds, paused }) => {
   const result = await setSeriesTagsEnabled({ seriesLinkIds, enabled: !paused })
+  invalidateRecordingState()
+  return result
+}
+
+export const updateSeriesRule = async ({ seriesLinkIds, patch }) => {
+  const result = await updateSeriesTags({ seriesLinkIds, patch })
   invalidateRecordingState()
   return result
 }
@@ -525,28 +727,30 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
 }
 
 export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
-  const { sources, title } = await programmeImageSources({ eventId, fallbackSource })
+  const { sources, title, kind } = await programmeImageSources({ eventId, fallbackSource })
   return await firstImageOf({ sources, load: (source) => programmeImages.imageFor(source) })
-    || await firstImageOf({ sources: await showArtSources(title), load: showArtOriginal })
+    || await firstImageOf({ sources: await showArtSources({ title, kind }), load: showArtOriginal })
 }
 
 export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
 
 export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
-  const { sources, title } = await programmeImageSources({ eventId, fallbackSource })
+  const { sources, title, kind } = await programmeImageSources({ eventId, fallbackSource })
   const fromGuide = await firstImageWithin({
     sources,
     load: guideThumbnailLoader(width),
     budgetMs: GUIDE_IMAGE_BUDGET_MS,
   })
   if (fromGuide.image) return fromGuide
-  const fromShow = await findShowThumbnail({ title, width })
+  const fromShow = await findShowThumbnail({ title, width, kind })
   return { image: fromShow.image, pending: fromGuide.pending || fromShow.pending }
 }
 
-export const findShowThumbnail = async ({ title, width } = {}) => {
+export const findShowThumbnail = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
-  const artwork = await showArtwork.artworkFor(title).catch(() => ({ sources: [], pending: false }))
+  const chosen = await chosenShowImage({ title, kind: 'background', width })
+  if (chosen) return chosen
+  const artwork = await showArtworkFor({ title, kind })
   const found = await firstImageWithin({
     sources: artwork.sources,
     load: showThumbnailLoader(width),
@@ -555,7 +759,82 @@ export const findShowThumbnail = async ({ title, width } = {}) => {
   return { image: found.image, pending: artwork.pending || found.pending }
 }
 
+export const findShowPoster = async ({ title, width, kind = null } = {}) => {
+  if (!title) return NO_IMAGE
+  const chosen = await chosenShowImage({ title, kind: 'poster', width })
+  if (chosen) return chosen
+  const artwork = await showArtworkFor({ title, kind })
+  const found = await firstImageWithin({
+    sources: artwork.sources,
+    load: posterThumbnailLoader(width),
+    budgetMs: SHOW_IMAGE_BUDGET_MS,
+  })
+  return { image: found.image, pending: artwork.pending || found.pending }
+}
+
+export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
+
+export const artworkOriginImage = ({ origin, kind, width }) => thumbnailStore.thumbnailFor({
+  key: `chosen-1080:${kind}:${origin}`,
+  width,
+  loadOriginal: () => originalOfOrigin({ origin, kind }),
+})
+
+export const automaticShowSources = async ({ title, kind = null }) => {
+  if (!title) return { library: [], fallback: [], guide: [] }
+  const artworkKind = kind ?? await guideKindFor(title)
+  const [library, fallback, guide] = await Promise.all([
+    isFilmKind(artworkKind) ? [] : showArtwork.sourcesFor(title).catch(() => []),
+    fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => []),
+    guideImagesFor(title),
+  ])
+  return { library, fallback, guide }
+}
+
+const guideImagesFor = async (title) => {
+  const guide = await getCachedGuide().catch(() => null)
+  return guide?.imagesByTitle?.get(titleKeyOf(title)) || []
+}
+
+const chosenShowImage = async ({ title, kind, width }) => {
+  const chosen = await artworkChoices.chosenFor({ key: showKeyOf(title), kind }).catch(() => null)
+  if (!chosen) return null
+  const image = await resolveWithin(
+    Promise.resolve(artworkOriginImage({ origin: chosen.origin, kind, width })).catch(() => null),
+    SHOW_IMAGE_BUDGET_MS,
+  )
+  if (image === TIMED_OUT) return PENDING_IMAGE
+  return image ? { image, pending: false } : null
+}
+
+const originalOfOrigin = async ({ origin, kind }) => {
+  const image = await rawImageOfOrigin(origin)
+  if (!image || kind !== 'background') return image
+  return landscapeOf(image).catch(() => image)
+}
+
+const rawImageOfOrigin = async (origin) => {
+  if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
+  if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
+    return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
+  }
+  if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageFor(origin)
+  const connection = await getPlexConnection().catch(() => null)
+  return connection ? programmeImages.imageFor(plexSourceOf({ origin, ...connection })) : null
+}
+
+const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
+  key: `show-poster:${source}`,
+  width,
+  loadOriginal: async () => portraitOf(await programmeImages.imageFor(source)),
+})
+
 export const prepareThumbnailCache = () => thumbnailStore.prepare()
+
+export const findPersonThumbnail = async ({ source, width }) => {
+  if (!isPersonImageSource(source)) return null
+  return thumbnailStore.thumbnailFor({ key: `person:${source}`, width, loadOriginal: () => personImages.imageFor(source) })
+}
 
 const programmeImageSources = async ({ eventId, fallbackSource }) => {
   const guide = await getCachedGuide().catch(() => null)
@@ -567,10 +846,45 @@ const programmeImageSources = async ({ eventId, fallbackSource }) => {
   const title = inGuide?.title ?? saved?.title
   const sameTitle = guide?.imagesByTitle.get(titleKeyOf(title)) || []
   const sources = [...new Set([own, ...sameTitle].filter(Boolean))].slice(0, MAX_IMAGE_SOURCES)
-  return { sources, title }
+  return { sources, title, kind: inGuide?.kind ?? null }
 }
 
-const showArtSources = (title) => (title ? showArtwork.sourcesFor(title).catch(() => []) : [])
+const showArtSources = async ({ title, kind = null }) => {
+  if (!title) return []
+  const artworkKind = kind ?? await guideKindFor(title)
+  const sources = isFilmKind(artworkKind) ? [] : await showArtwork.sourcesFor(title).catch(() => [])
+  return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => [])
+}
+
+const showArtworkFor = async ({ title, kind = null }) => {
+  const artworkKind = kind ?? await guideKindFor(title)
+  if (isFilmKind(artworkKind)) return fallbackArtwork.artworkFor(title, { kind: artworkKind }).catch(() => NO_ARTWORK)
+  const artwork = await showArtwork.artworkFor(title).catch(() => NO_ARTWORK)
+  if (artwork.sources.length) return artwork
+  if (artwork.pending) {
+    showArtSources({ title, kind: artworkKind })
+    return artwork
+  }
+  return fallbackArtwork.artworkFor(title, { kind: artworkKind }).catch(() => NO_ARTWORK)
+}
+
+const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
+
+const guideKindFor = async (title) => {
+  const guide = await getCachedGuide().catch(() => null)
+  if (!guide) return null
+  if (!kindsByGuide.has(guide)) kindsByGuide.set(guide, guideKindsByTitle([...guide.programByEventId.values()]))
+  return kindsByGuide.get(guide).get(showTitleKey(title)) || null
+}
+
+const programmeHintsFor = async (title) => {
+  const guide = await getCachedGuide().catch(() => null)
+  if (!guide) return null
+  if (!hintsByGuide.has(guide)) {
+    hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()], { channels: guide.channels || [] }))
+  }
+  return hintsByGuide.get(guide).get(showTitleKey(title)) || null
+}
 
 const guideThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
   key: `programme:${source}`,
@@ -579,7 +893,7 @@ const guideThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor(
 })
 
 const showThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
-  key: `show:${source}`,
+  key: `show-1080:${source}`,
   width,
   loadOriginal: () => showArtOriginal(source),
 })
@@ -632,6 +946,11 @@ export const listGuideChannels = async () => (await getCachedGuide()).channels
 
 export const getGuideSnapshot = () => getCachedGuide()
 
+export const onGuideLoaded = (listener) => {
+  guideListeners.add(listener)
+  return () => guideListeners.delete(listener)
+}
+
 export const keepGuideWarm = () => {
   const warm = () => getCachedGuide()
     .then(() => getRecordingState())
@@ -665,13 +984,21 @@ export const programsInWindow = ({ rows, fromMs, toMs }) =>
 
 const getCachedGuide = () => guideCache.get(localMidnightMs())
 
+const announceGuideLoaded = (guide) => {
+  setImmediate(() => guideListeners.forEach((listener) => listener(guide)))
+  return guide
+}
+
 const loadGuide = async (startMs) => {
   const conn = await resolveConnection()
   const endMs = guideDayWindow({ startMs, day: GUIDE_DAYS - 1 }).dayEnd
-  const [channels, events] = await Promise.all([
+  const [channels, listed, recordsByKey] = await Promise.all([
     listChannels(conn),
     listEvents({ startMs, endMs, conn }),
+    loadTitleGenres().catch(() => new Map()),
   ])
+  const kindOf = createDisplayKinds({ programmes: listed, recordsByKey })
+  const events = withDisplayKinds({ programmes: listed, kindOf })
   if (channels.length === 0) {
     throw new TvheadendError(
       'TVHeadend has no channels yet. Scan the mux and map services to channels in TVHeadend first.',
@@ -687,12 +1014,14 @@ const loadGuide = async (startMs) => {
     programByEventId.set(String(e.program_id), e)
   }
   saveGuidePrograms({ programs: events }).catch(logHistoryError('save'))
+  saveGuideEvidence({ programmes: listed, recordsByKey }).catch(logHistoryError('series evidence'))
   return {
     startMs,
     channels,
     programsByChannel,
     programByEventId,
     imagesByTitle: imagesByTitleOf(events),
+    kindOf,
     fetchedAt: Date.now(),
     expiresAt: Date.now() + (events.length ? GUIDE_TTL_MS : GUIDE_EMPTY_TTL_MS),
   }
@@ -718,9 +1047,24 @@ let stateFailedUntil = 0
 let stateLastError = null
 const imageCache = new Map()
 const programmeImages = createProgrammeImages({
-  fetchImage: (source) => fetchProgrammeImage({ source }),
+  fetchImage: (source) => (isFallbackImageSource(source) ? fetchFallbackImage(source) : fetchProgrammeImage({ source })),
 })
-const showArtwork = createShowArtwork()
+const PERSON_IMAGE_MEMORY_ENTRIES = 48
+const PERSON_IMAGE_MEMORY_BYTES = 4 * 1024 * 1024
+const personImages = createProgrammeImages({
+  fetchImage: fetchFallbackImage,
+  maxEntries: PERSON_IMAGE_MEMORY_ENTRIES,
+  maxBytes: PERSON_IMAGE_MEMORY_BYTES,
+})
+const showArtwork = createShowArtwork({
+  externalIdsFor: loadExternalIds,
+  onTvmazeShow: (found) => Promise.all([rememberTvmazeShow(found), rememberKnownAsFromTvmaze(found)]),
+})
+const fallbackArtwork = createFallbackArtwork({ hintsFor: programmeHintsFor, externalIdsFor: loadExternalIds })
+const hintsByGuide = new WeakMap()
+const kindsByGuide = new WeakMap()
+const guideSearchFor = createGuideSearchCache()
+export const forgetShowArtwork = (title) => Promise.all([showArtwork.forget(title), fallbackArtwork.forget(title)])
 const thumbnailStore = createThumbnailStore({
   dir: getThumbnailRoot(),
   maxBytes: imageCacheBytesFrom(process.env.IMAGE_CACHE_MAX_MB),
@@ -733,6 +1077,7 @@ const GUIDE_IMAGE_BUDGET_MS = 1500
 const SHOW_IMAGE_BUDGET_MS = 3000
 const TIMED_OUT = Symbol('timed out')
 const NO_IMAGE = { image: null, pending: false }
+const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_IMAGE = { image: null, pending: true }
 const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
@@ -741,17 +1086,33 @@ const MIDNIGHT_WARM_DELAY_MS = 5 * 1000
 const GUIDE_STALE_RETRY_MS = 60 * 1000
 const GUIDE_EMPTY_TTL_MS = 60 * 1000
 const STATE_TTL_MS = 45 * 1000
+const PENDING_SKIP_CHECK_MS = 5 * 60 * 1000
 const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
-const SEARCH_RESULT_CAP = 100
-const guideCache = createGuideCache({ load: loadGuide, staleRetryMs: GUIDE_STALE_RETRY_MS })
+const guideListeners = new Set()
+const guideCache = createGuideCache({
+  load: (startMs) => measureJob('guide-load', () => loadGuide(startMs), { kind: 'guide' }).then(announceGuideLoaded),
+  staleRetryMs: GUIDE_STALE_RETRY_MS,
+})
 
 const episodeKey = (p) => `${anyChannelLinkFor(p.series_link) ?? p.series_link}|${p.series_no}x${p.episode_no}`
 
-const scheduledEpisodeKeys = ({ guide, programIds }) => new Set(
-  Object.values(guide.programsByChannel || {})
-    .flat()
-    .filter((p) => programIds.has(String(p.program_id)) && p.series_no != null && p.episode_no != null)
-    .map(episodeKey),
-)
+const hasEpisodeNumber = (p) => p.series_no != null && p.episode_no != null
+
+const timerEpisodeAirings = ({ guide, timers }) => {
+  const timerById = new Map(timers.map((timer) => [String(timer.programId), timer]))
+  return new Map(
+    Object.values(guide.programsByChannel || {})
+      .flat()
+      .filter((p) => timerById.has(String(p.program_id)) && hasEpisodeNumber(p))
+      .sort((a, b) => b.start - a.start)
+      .map((p) => [episodeKey(p), { startDate: p.start, channelName: timerById.get(String(p.program_id)).channelName }]),
+  )
+}
+
+const earlierAiringOf = ({ firstAiringByEpisode, programme }) => {
+  if (!hasEpisodeNumber(programme)) return null
+  const first = firstAiringByEpisode.get(episodeKey(programme))
+  return first && first.startDate < programme.start ? first : null
+}

@@ -2,27 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Freetvarr" />
     <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b1117" />
     <title>Freetvarr</title>
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="modulepreload" href="/app.js" />
-    <link rel="modulepreload" href="/vendor/vue.esm-browser.prod.js" />
-    <link rel="preload" href="/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/jetbrains-mono-variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/figtree-latin-variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/geist-mono-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/tailwind.css" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/brand.css" />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles/home.css" />
+    <link rel="stylesheet" href="/styles/recordings.css" />
+    <link rel="stylesheet" href="/styles/scheduled.css" />
+    <link rel="stylesheet" href="/styles/guide.css" />
+    <link rel="stylesheet" href="/styles/live.css" />
+    <link rel="stylesheet" href="/styles/player.css" />
+    <link rel="stylesheet" href="/styles/settings.css" />
+    <link rel="stylesheet" href="/styles/setup.css" />
+    <link rel="stylesheet" href="/styles/system-diagram.css" />
   </head>
-  <body class="bg-surface-deep text-ink font-sans antialiased min-h-dvh">
+  <body class="bg-bg text-text-1 font-sans min-h-dvh">
     <div id="app">
-      <div class="grid min-h-dvh place-items-center text-ink-dim font-mono text-sm">
-        <span class="signal-boot"><svg viewBox="0 0 10 4" class="signal-bars" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="4" height="4"/><rect x="5.5" y="0" width="4" height="4"/></svg>initialising</span>
+      <div class="grid min-h-dvh place-items-center text-text-2 text-body">
+        <span class="app-brand-mark signal-boot" role="img" aria-label="Freetvarr is loading"><span></span><span></span><span></span></span>
       </div>
     </div>
     <script type="module" src="/app.js"></script>

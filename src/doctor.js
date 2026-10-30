@@ -8,6 +8,7 @@ import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { findOpenAdminEntries } from './tvheadend-bootstrap.js'
 import { listPlexSections } from './plex.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
+import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
@@ -16,17 +17,54 @@ import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
 import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { describeSyncSchedule } from './web/sync-schedule.js'
 import { detectDockerVm } from './docker-host.js'
+import { measureJob } from './event-loop-lag.js'
+import { activity, trackJob } from './activity.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
   if (reportInflight) return reportInflight
-  reportInflight = runDoctor({ deps })
+  reportInflight = trackJob({ kind: 'health' }, (job) => runDoctor({ deps }).then((report) => noteDoctorRun({ job, report })))
     .then((value) => {
       reportCache = { value, expiresAt: Date.now() + REPORT_TTL_MS }
       return value
     })
     .finally(() => { reportInflight = null })
   return reportInflight
+}
+
+export const scheduleDoctorChecks = ({ firstDelayMs = DOCTOR_FIRST_RUN_MS, everyMs = DOCTOR_EVERY_MS, run = () => getDoctorReport({ fresh: true }) } = {}) => {
+  const runQuietly = () => measureJob('doctor', run).catch((err) => console.warn(`[doctor] background check failed: ${err.message}`))
+  const first = setTimeout(runQuietly, firstDelayMs)
+  const repeat = setInterval(runQuietly, everyMs)
+  activity.planEvery({ kind: 'health', every: 'every 3 hours', firstDelayMs, everyMs })
+  first.unref?.()
+  repeat.unref?.()
+  return () => {
+    clearTimeout(first)
+    clearInterval(repeat)
+  }
+}
+
+export const doctorOutcomeOf = (summary = {}) => {
+  const parts = [
+    summary.fail && `${summary.fail} failed`,
+    summary.warn && `${summary.warn} warning${summary.warn === 1 ? '' : 's'}`,
+    `${summary.pass ?? 0} passed`,
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
+
+const noteDoctorRun = ({ job, report }) => {
+  for (const check of report.checks) job.item({ label: check.title, state: check.status, detail: check.detail ?? null })
+  job.outcome(doctorOutcomeOf(report.summary), report.summary.fail || report.summary.warn ? 'warn' : null)
+  const failed = report.checks.find((check) => check.status === 'fail')
+  if (failed) job.log(`${failed.title}: ${failed.detail ?? 'failed'}`, 'error')
+  return report
+}
+
+export const peekDoctorReport = ({ nowMs = Date.now() } = {}) => {
+  if (!reportCache) return null
+  return { report: reportCache.value, ageMs: Math.max(0, nowMs - Date.parse(reportCache.value.ranAt)) }
 }
 
 export const runDoctor = async ({ now = Date.now(), timeoutMs = DEFAULT_TIMEOUT_MS, deps = {} } = {}) => {
@@ -83,7 +121,7 @@ const TVH_REACH = {
   id: 'tvh.reach',
   group: 'tvheadend',
   title: 'Connection',
-  doc: 'guide/troubleshooting#wizard-connection-test',
+  doc: 'guide/troubleshooting#setup-connection-test',
   run: async (ctx) => {
     try {
       ctx.conn = await ctx.deps.connection()
@@ -175,7 +213,7 @@ const LATER_CHECKS = [
       return {
         status: 'warn',
         detail: `TVHeadend has an access entry with username * and admin rights (${networks}): anyone on your network can change TVHeadend.`,
-        fix: 'If Freetvarr installed TVHeadend for you, run the setup wizard and choose SECURE TVHEADEND. If you installed TVHeadend yourself, make an admin user in TVHeadend, then delete the * entry under Configuration → Users → Access Entries.',
+        fix: 'If Freetvarr installed TVHeadend for you, press RUN THE WHOLE SETUP FROM THE START under SETTINGS → SETUP, then press SECURE AND CONNECT. If you installed TVHeadend yourself, make an admin user in TVHeadend, then delete the * entry under Configuration → Users → Access Entries.',
       }
     },
   },
@@ -197,7 +235,7 @@ const LATER_CHECKS = [
         return {
           status: 'warn',
           detail: `TVHeadend sees ${plural(count, 'tuner')}, but none is turned on.`,
-          fix: 'Run the CHANNELS step of the setup wizard, or turn the tuner on in TVHeadend under Configuration → DVB Inputs → TV adapters.',
+          fix: 'Scan for channels under SETTINGS → SETUP → CHANNELS, or turn the tuner on in TVHeadend under Configuration → DVB Inputs → TV adapters.',
         }
       }
       const detail = `${plural(count, 'tuner')}: ${inputs.join('; ')}.`
@@ -225,7 +263,7 @@ const LATER_CHECKS = [
         return {
           status: 'fail',
           detail: 'TVHeadend has no channels.',
-          fix: 'No channels yet. Run the CHANNELS step of the setup wizard, or scan and map services in TVHeadend.',
+          fix: 'No channels yet. Scan for channels under SETTINGS → SETUP → CHANNELS, or scan and map services in TVHeadend.',
         }
       }
       return { status: 'pass', detail: `${plural(total, 'channel')} in TVHeadend.` }
@@ -523,6 +561,13 @@ const LATER_CHECKS = [
     },
   },
   {
+    id: 'live.streams',
+    group: 'live',
+    title: 'Live streams',
+    doc: 'guide/hardware#hardware-transcoding',
+    run: async (ctx) => liveStreamsCheck(await ctx.deps.liveStreams()),
+  },
+  {
     id: 'ads.comskip',
     group: 'host',
     title: 'Ad removal tools',
@@ -572,6 +617,25 @@ const LATER_CHECKS = [
     },
   },
 ]
+
+export const liveStreamsCheck = (streams) => {
+  const measured = describeBenchmark(streams?.benchmark)
+  if (!measured) return { status: 'skip', detail: 'The live TV speed test has not run yet.' }
+  const limit = `Freetvarr plays up to ${streams.max_live_streams} at once.`
+  if (streams.max_live_streams > streams.benchmark.estimated) {
+    return {
+      status: 'warn',
+      detail: `${measured}. ${limit}`,
+      fix: liveStreamsFix(streams.benchmark.estimated),
+      action: SETTINGS_PLAYER,
+    }
+  }
+  return { status: 'pass', detail: `${measured}. ${limit}` }
+}
+
+const liveStreamsFix = (estimated) => estimated
+  ? `Pictures may stutter. Set Live streams at once to ${estimated}.`
+  : 'Pictures may stutter even with 1 live stream.'
 
 const runCheck = async ({ spec, ctx }) => {
   const base = { id: spec.id, group: spec.group, title: spec.title, doc: spec.doc, fix: '' }
@@ -694,16 +758,16 @@ const noTunerFix = ({ dockerVm, interfaces }) => {
   const vm = dockerVm()
   if (vm) {
     return {
-      fix: `Docker on a Mac or Windows PC (${vm}) cannot find a network tuner by itself. Enter the tuner's address in the CHANNELS step of the setup wizard, or run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi).`,
-      action: OPEN_WIZARD,
+      fix: `Docker on a Mac or Windows PC (${vm}) cannot find a network tuner by itself. Enter the tuner's address under SETTINGS → SETUP → CHANNELS, or run Freetvarr on Linux (a NAS, mini PC, or Raspberry Pi).`,
+      action: OPEN_SETUP_CHANNELS,
     }
   }
   const network = isBridgeOnly(interfaces())
     ? 'Set network_mode: host on the tvheadend and freetvarr services.'
     : 'Check that the tuner is on and connected to your network.'
   return {
-    fix: `${network} Or enter the tuner's address in the CHANNELS step of the setup wizard. For a USB or PCIe tuner, pass /dev/dvb into the tvheadend service.`,
-    action: OPEN_WIZARD,
+    fix: `${network} Or enter the tuner's address under SETTINGS → SETUP → CHANNELS. For a USB or PCIe tuner, pass /dev/dvb into the tvheadend service.`,
+    action: OPEN_SETUP_CHANNELS,
   }
 }
 
@@ -772,6 +836,7 @@ const defaultDeps = () => ({
   latestSync: readLatestSync,
   schedulerExpression: getSchedulerExpression,
   liveEncoder: async () => null,
+  liveStreams: async () => null,
   which: findOnPath,
   envTimeZone: timeZoneFromEnv,
   systemTimeZone: currentTimeZone,
@@ -860,6 +925,8 @@ const STATUSES = ['pass', 'warn', 'fail', 'skip']
 const STATUS_RANK = { fail: 0, warn: 1, pass: 2, skip: 3 }
 const DEFAULT_TIMEOUT_MS = 8000
 const REPORT_TTL_MS = 15_000
+const DOCTOR_FIRST_RUN_MS = 2 * 60 * 1000
+const DOCTOR_EVERY_MS = 3 * 60 * 60 * 1000
 const MIN_API_VERSION = 19
 const CHANNEL_LIMIT = 1000
 const HOUR_MS = 60 * 60 * 1000
@@ -869,7 +936,7 @@ const GUIDE_WARN_MS = 48 * HOUR_MS
 const GUIDE_EMPTY_SHARE = 0.25
 const GB = 1e9
 const NO_CHANNELS_YET = 'No channels yet.'
-const DISK_FAIL_BYTES = 2 * GB
+const DISK_FAIL_BYTES = 10 * GB
 const DISK_WARN_BYTES = 20 * GB
 const DISK_WARN_SHARE = 0.1
 const LINK_LOCAL = /\b169\.254\.\d+\.\d+/
@@ -884,9 +951,10 @@ const RIGHT_PROBES = [
   { right: 'Admin', path: 'status/inputs', params: {} },
   { right: 'Video recorder', path: 'dvr/entry/grid_upcoming', params: { limit: 1 } },
 ]
-const SETTINGS_TVHEADEND = { label: 'Open settings', href: '#/settings/tvheadend' }
+const SETTINGS_TVHEADEND = { label: 'Open settings', href: '#/settings/system/tvheadend' }
 const SETTINGS_STORAGE = { label: 'Open settings', href: '#/settings/storage' }
 const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
-const OPEN_SYNCS = { label: 'Open syncs', href: '#/syncs' }
-const OPEN_WIZARD = { label: 'Open setup wizard', href: '#/welcome' }
+const SETTINGS_PLAYER = { label: 'Open settings', href: '#/settings/player' }
+const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity/syncs' }
+const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }

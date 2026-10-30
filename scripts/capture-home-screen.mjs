@@ -81,10 +81,10 @@ const captureDashboard = async ({ browser, base, viewport, isMobile = false }) =
   })
   await prepareDemoContext({ context, base, simNow: simulatedNow() })
   const tab = await context.newPage()
-  await tab.goto(`${base}/#/dashboard`, { waitUntil: 'domcontentloaded' })
-  await tab.waitForSelector('.panel-title', { timeout: 20000 })
+  await tab.goto(`${base}/#/home`, { waitUntil: 'networkidle' })
+  await tab.waitForSelector('a.app-nav-item:visible', { timeout: 20000 })
   await tab.addStyleTag({ content: SCROLLBARS_OFF })
-  await waitForImages(tab, '#app img')
+  await waitForImages(tab, '.app-content img')
   await tab.waitForTimeout(1200)
   const shot = await tab.screenshot({ type: 'png' })
   await context.close()
@@ -127,6 +127,13 @@ const launchApp = ({ name, iconRadius, screenRadius, launchMs, fadeDelayMs, fade
   device.querySelector('.app-layer').animate([{ opacity: 0 }, { opacity: 1 }], { duration: fadeMs, delay: fadeDelayMs, easing: 'ease-out', fill: 'forwards' })
 }
 
+const statusClock = () => {
+  const at = new Date(simulatedNow())
+  const part = (options) => new Intl.DateTimeFormat('en-AU', { timeZone: TIMEZONE, ...options }).format(at)
+  const [time, period] = part({ hour: 'numeric', minute: '2-digit', hour12: true }).split(/\s+/)
+  return { time, period: (period || '').toUpperCase(), date: part({ weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '') }
+}
+
 const page = ({ iconUri, dashboards }) => `<!doctype html>
 <html><head><meta charset="utf-8"><title>Home Screens</title>
 <style>${styles()}</style></head>
@@ -156,8 +163,8 @@ const screen = ({ device, iconUri, dashboardUri, notch = false }) => `
 </div>`
 
 const statusBar = (device) => device === IPHONE
-  ? `<span>7:45</span><span class="status-right">${wifi()}${battery()}</span>`
-  : `<span>7:45 PM&nbsp;&nbsp;Fri 16 Oct</span><span class="status-right">${wifi()}<span>82%</span>${battery()}</span>`
+  ? `<span>${statusClock().time}</span><span class="status-right">${wifi()}${battery()}</span>`
+  : `<span>${statusClock().time} ${statusClock().period}&nbsp;&nbsp;${statusClock().date}</span><span class="status-right">${wifi()}<span>82%</span>${battery()}</span>`
 
 const dock = (groups) => groups
   .map((glyphs) => glyphs.map((glyph) => tile(glyph)).join(''))

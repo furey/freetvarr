@@ -4,12 +4,17 @@ import fs from 'fs/promises'
 import { spawn, execFile } from 'child_process'
 
 import {
+  HLS_SEGMENT_SECONDS,
   LIVE_ROOT,
   LiveTvError,
+  missingStreamParameters,
+  probeArgs,
   pickStreams,
+  softwarePlanOf,
   hardwareDecodeArgs,
   videoCodecArgs,
   streamLimitError,
+  limitOf,
   teletextDecoderArgs,
   teletextPageOf,
   variantStreamMap,
@@ -23,6 +28,7 @@ export const MASTER_PLAYLIST = 'index.m3u8'
 export const MEDIA_PLAYLIST = 'play.m3u8'
 export const PLAY_SESSION_PATTERN = /^[a-f0-9]{16}$/
 export const PLAY_SEGMENT_SECONDS = 6
+export const GROWING_SEGMENT_SECONDS = HLS_SEGMENT_SECONDS
 export const RESUME_END_MARGIN_S = 30
 export const MAX_POSITION_S = 24 * 60 * 60
 
@@ -43,15 +49,16 @@ export const durationFrom = (probe) => {
   return Number.isFinite(duration) && duration > 0 ? duration : null
 }
 
-export const playbackArgsFor = ({ plan, file, offset = 0, dir }) => [
+export const playbackArgsFor = ({ plan, file, offset = 0, dir, piped = false, probe = 'full' }) => [
   '-hide_banner',
   '-loglevel', 'error',
-  '-nostdin',
+  ...(piped ? [] : ['-nostdin']),
   ...hardwareDecodeArgs(plan),
   ...(offset > 0 ? ['-ss', String(offset)] : []),
   '-fflags', '+genpts+discardcorrupt',
+  ...(piped ? probeArgs(probe) : []),
   ...teletextDecoderArgs(plan),
-  '-i', file,
+  '-i', piped ? 'pipe:0' : file,
   '-map', `0:${plan.video.index}`,
   ...(plan.audio ? ['-map', `0:${plan.audio.index}`] : []),
   ...(plan.teletext ? ['-map', `0:${plan.teletext.index}`] : []),
@@ -60,7 +67,7 @@ export const playbackArgsFor = ({ plan, file, offset = 0, dir }) => [
   ...(plan.teletext ? ['-c:s', 'webvtt', '-muxdelay', '0'] : []),
   '-max_muxing_queue_size', '1024',
   '-f', 'hls',
-  '-hls_time', String(PLAY_SEGMENT_SECONDS),
+  '-hls_time', String(piped ? GROWING_SEGMENT_SECONDS : PLAY_SEGMENT_SECONDS),
   '-hls_playlist_type', 'event',
   '-hls_flags', 'independent_segments+temp_file',
   '-hls_segment_filename', path.join(dir, 'seg%d.ts'),
@@ -173,19 +180,26 @@ export const createPlaybackSessions = ({
   streamsElsewhere = () => [],
   idleMs = 60_000,
   killGraceMs = 3_000,
+  onStart = () => {},
+  onEnd = () => {},
+  onAttention = () => {},
 } = {}) => {
   const sessions = new Map()
 
-  const start = async ({ recordingId, label, file, offset = 0, duration = null, plan, replace = null, player = null }) => {
+  const start = async ({
+    recordingId, label, file, offset = 0, duration = null, plan, replace = null, player = null, feed = null, inProgress = null, client = null,
+  }) => {
     if (replace) await stop(replace)
     if (player) await Promise.all([...sessions.values()].filter((s) => s.player === player).map((s) => stop(s.id)))
     const playing = [...labels(), ...streamsElsewhere()]
-    if (playing.length >= maxSessions) throw streamLimitError({ maxSessions, playing })
+    const limit = limitOf(maxSessions)
+    if (playing.length >= limit) throw streamLimitError({ maxSessions: limit, playing })
     const id = newId()
     const session = {
       id,
       recordingId,
       player,
+      client,
       label: label || 'a recording',
       file,
       offset,
@@ -201,8 +215,16 @@ export const createPlaybackSessions = ({
       finished: false,
       errorLines: [],
       ending: null,
+      feed,
+      feeder: null,
+      probe: feed ? 'short' : 'full',
+      inProgress,
+      growing: Boolean(feed),
+      producedSeconds: 0,
+      attending: false,
     }
     sessions.set(id, session)
+    onStart(session)
     try {
       await makeDir(session.dir)
       spawnEncoder(session)
@@ -216,13 +238,29 @@ export const createPlaybackSessions = ({
   }
 
   const spawnEncoder = (session) => {
+    const piped = Boolean(session.feed)
     session.child = spawnProcess('ffmpeg', playbackArgsFor({
-      plan: session.plan, file: session.file, offset: session.offset, dir: session.dir,
-    }), { stdio: ['ignore', 'ignore', 'pipe'] })
+      plan: session.plan, file: session.file, offset: session.offset, dir: session.dir, piped, probe: session.probe,
+    }), { stdio: [piped ? 'pipe' : 'ignore', 'ignore', 'pipe'] })
+    if (piped) startFeeding(session)
   }
 
-  const retryWithoutCaptions = (session) => {
-    session.plan = { ...session.plan, teletext: null }
+  const startFeeding = (session) => {
+    session.feeder?.abort()
+    const feeder = new AbortController()
+    session.feeder = feeder
+    session.growing = true
+    const { stdin } = session.child
+    stdin.on('error', () => {})
+    session.feed({ sink: stdin, signal: feeder.signal })
+      .catch(() => stdin.end())
+      .finally(() => {
+        if (session.feeder === feeder) session.growing = false
+      })
+  }
+
+  const respawnWith = (session, change) => {
+    Object.assign(session, change)
     session.exited = false
     session.errorLines = []
     try {
@@ -246,6 +284,7 @@ export const createPlaybackSessions = ({
     })
     child.on('exit', async (code, signal) => {
       session.exited = true
+      session.feeder?.abort()
       if (session.ending) return
       const playlist = await readPlaylist(session)
       if (hasSegments(playlist)) {
@@ -253,7 +292,10 @@ export const createPlaybackSessions = ({
         session.status = 'ready'
         return
       }
-      if (session.plan?.teletext) return retryWithoutCaptions(session)
+      if (session.probe === 'short' && missingStreamParameters(session.errorLines)) return respawnWith(session, { probe: 'full' })
+      if (session.plan?.teletext) return respawnWith(session, { plan: { ...session.plan, teletext: null } })
+      const softwarePlan = softwarePlanOf(session.plan)
+      if (softwarePlan) return respawnWith(session, { plan: softwarePlan })
       end(session, {
         code: 'ffmpeg',
         detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,
@@ -265,11 +307,13 @@ export const createPlaybackSessions = ({
     if (session.ending) return session.ending
     session.status = 'ended'
     session.reason = reason
+    onEnd(session, reason)
     session.ending = teardown(session).finally(() => sessions.delete(session.id))
     return session.ending
   }
 
   const teardown = async (session) => {
+    session.feeder?.abort()
     await stopChild(session)
     await removeDir(session.dir).catch(() => {})
   }
@@ -294,6 +338,15 @@ export const createPlaybackSessions = ({
     await Promise.all(idle.map((s) => end(s, { code: 'idle' })))
   }
 
+  const setAttending = (id, attending) => {
+    const session = sessions.get(id)
+    if (!session || session.ending) return false
+    if (session.attending === attending) return true
+    session.attending = attending
+    onAttention(session, attending)
+    return true
+  }
+
   const touch = (id) => {
     const session = sessions.get(id)
     if (session && !session.ending) session.lastSeenAt = now()
@@ -316,7 +369,8 @@ export const createPlaybackSessions = ({
     if (!session) return null
     const playlist = await readPlaylist(session)
     if (session.status === 'starting' && hasSegments(playlist)) session.status = 'ready'
-    return { ...view(session), producedSeconds: producedSecondsOf(playlist) }
+    session.producedSeconds = producedSecondsOf(playlist)
+    return { ...view(session), producedSeconds: session.producedSeconds }
   }
 
   const playlistFor = async (id, name = MASTER_PLAYLIST) => {
@@ -349,8 +403,23 @@ export const createPlaybackSessions = ({
 
   const labels = () => [...sessions.values()].map((s) => s.label)
 
+  const list = () => [...sessions.values()].map((s) => ({
+    id: s.id,
+    kind: 'playback',
+    recordingId: s.recordingId,
+    label: s.label,
+    status: s.status,
+    client: s.client,
+    videoMode: s.plan?.videoMode ?? null,
+    offset: s.offset,
+    duration: s.duration,
+    producedSeconds: s.producedSeconds ?? null,
+    inProgress: Boolean(s.inProgress),
+    startedAt: s.startedAt,
+  }))
+
   return {
-    start, touch, stop, tick, stopAll, status, playlistFor, waitForPlaylist, fileFor, labels,
+    start, touch, stop, setAttending, tick, stopAll, status, playlistFor, waitForPlaylist, fileFor, labels, list,
     get: (id) => sessions.get(id) || null,
     activeCount: () => sessions.size,
   }
@@ -366,6 +435,15 @@ export const view = (session) => ({
   finished: session.finished,
   captions: Boolean(session.plan?.teletext),
   playlist: `/api/play/${session.id}/${MASTER_PLAYLIST}`,
+  ...(session.inProgress ? inProgressView(session) : {}),
+})
+
+const inProgressView = (session) => ({
+  inProgress: true,
+  growing: session.growing,
+  recordingStartedAt: session.inProgress.recordingStartedAt ?? null,
+  scheduledEndAt: session.inProgress.scheduledEndAt ?? null,
+  liveEdgeSeconds: session.producedSeconds ?? 0,
 })
 
 const audioTypeOf = (stream) => (stream.disposition?.visual_impaired ? 3 : 0)

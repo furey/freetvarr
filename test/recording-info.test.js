@@ -9,7 +9,6 @@ import {
   libraryStatusOf,
   libraryStatusText,
   recordingEpisodeLine,
-  recordingHeaderLine,
   recordingSeasonEpisode,
   savesToLine,
   sourceBadgeText,
@@ -22,12 +21,6 @@ test('recordingSeasonEpisode: pads, and copes with one part missing', () => {
   assert.equal(recordingSeasonEpisode(MKR), 'S16E05')
   assert.equal(recordingSeasonEpisode({ season: null, episode: 3 }), 'E03')
   assert.equal(recordingSeasonEpisode({}), '')
-})
-
-test('recordingHeaderLine: title · SxxEyy · episode title, without repeats', () => {
-  assert.equal(recordingHeaderLine(MKR), 'My Kitchen Rules · S16E05 · Episode 5 of Season 16')
-  assert.equal(recordingHeaderLine({ title: 'NRL', episode_title: 'NRL' }), 'NRL')
-  assert.equal(recordingHeaderLine({ title: 'News' }), 'News')
 })
 
 test('recordingEpisodeLine: leaves out the title', () => {
@@ -47,6 +40,10 @@ test('durationText: hours and minutes', () => {
   assert.equal(durationText(3600), '1 hr')
   assert.equal(durationText(1500), '25 mins')
   assert.equal(durationText(null), '')
+  assert.equal(durationText(20), 'under 1 min')
+  assert.equal(durationText(45), 'under 1 min')
+  assert.equal(durationText(60), '1 min')
+  assert.equal(durationText(0), '')
 })
 
 test('watchedPercent: clamps to 0–100', () => {

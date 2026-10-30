@@ -1,11 +1,12 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+import { illustrations } from './theme/illustrations.js'
 
 const repo = 'https://github.com/furey/freetvarr'
 const site = 'https://furey.github.io/freetvarr/'
 const defaultSocialImage = {
   path: '/social/default.png',
-  alt: 'Freetvarr: live TV in your browser, recordings in your media library, ad free. Self-hosted TV for any TVHeadend-compatible tuner.'
+  alt: 'Freetvarr: record free-to-air TV. Watch it on your TV in any media player, ad free.'
 }
 
 const pageUrl = (relativePath) => {
@@ -13,7 +14,16 @@ const pageUrl = (relativePath) => {
   return `${site}${path}`
 }
 
-const absoluteUrl = (path) => `${site}${path.replace(/^\//, '')}`
+const withFeatureIllustrations = (pageData) => {
+  const { features } = pageData.frontmatter
+  if (!features) return
+  pageData.frontmatter.features = features.map((feature) => {
+    const illustration = illustrations[feature.illustration]
+    return illustration ? { ...feature, icon: illustration.svg } : feature
+  })
+}
+
+const absoluteUrl =(path) => `${site}${path.replace(/^\//, '')}`
 
 const socialTitle = ({ pageData, siteData }) => {
   const isHome = pageData.frontmatter.layout === 'home'
@@ -53,7 +63,7 @@ export default withMermaid(defineConfig({
   title: 'Freetvarr',
   description:
     'Self-hosted TV for any TVHeadend-compatible tuner. Watch live, browse the TV guide, and record straight into your media library.',
-  appearance: 'force-dark',
+  appearance: 'dark',
   cleanUrls: true,
   lastUpdated: true,
   metaChunk: true,
@@ -76,9 +86,10 @@ export default withMermaid(defineConfig({
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/freetvarr/favicon.svg' }],
-    ['meta', { name: 'theme-color', content: '#1a1611' }],
-    ['meta', { name: 'color-scheme', content: 'dark' }]
+    ['meta', { name: 'theme-color', content: '#0b1117' }]
   ],
+
+  transformPageData: withFeatureIllustrations,
 
   transformHead: ({ pageData, siteData }) => socialHead({ pageData, siteData }),
 
@@ -93,39 +104,47 @@ export default withMermaid(defineConfig({
     sidebar: [
       {
         text: 'Start here',
-        collapsed: false,
         items: [
           { text: 'What Freetvarr is', link: '/guide/' },
           { text: 'Plex DVR instead', link: '/guide/plex-dvr' },
           { text: 'Hardware', link: '/guide/hardware' },
+          { text: 'Windows (untested)', link: '/guide/windows' },
           { text: 'TVHeadend', link: '/guide/tvheadend' },
           { text: 'Getting started', link: '/guide/getting-started' }
         ]
       },
       {
         text: 'Using Freetvarr',
-        collapsed: false,
         items: [
-          { text: 'TV Guide', link: '/guide/tv-guide' },
-          { text: 'Series', link: '/guide/series' },
+          { text: 'Home and search', link: '/guide/home' },
+          { text: 'For you', link: '/guide/for-you' },
+          { text: 'Live TV', link: '/guide/live-tv' },
+          { text: 'Player', link: '/guide/player' },
+          { text: 'TV guide', link: '/guide/tv-guide' },
           { text: 'Recordings', link: '/guide/recordings' },
-          { text: 'Syncs', link: '/guide/syncs' },
-          { text: 'Ad removal', link: '/guide/ad-removal' }
+          { text: 'Settings', link: '/guide/settings' }
+        ]
+      },
+      {
+        text: 'In Settings',
+        items: [
+          { text: 'Series rules and folders', link: '/guide/series' },
+          { text: 'Health', link: '/guide/doctor' },
+          { text: 'Activity', link: '/guide/syncs' }
         ]
       },
       {
         text: 'Connect it up',
-        collapsed: false,
         items: [
           { text: 'Plex', link: '/guide/plex' },
+          { text: 'Sonarr and Radarr', link: '/guide/sonarr-radarr' },
           { text: 'Remove from TVHeadend', link: '/guide/remove-from-tvheadend' },
-          { text: 'Live TV', link: '/guide/live-tv' },
+          { text: 'Ad removal', link: '/guide/ad-removal' },
           { text: 'TV apps', link: '/guide/tv-apps' }
         ]
       },
       {
         text: 'Coming from Fetch',
-        collapsed: false,
         items: [
           { text: 'Leaving Fetch TV', link: '/guide/leaving-fetch' },
           { text: 'From Fetcharr', link: '/guide/from-fetcharr' }
@@ -133,16 +152,13 @@ export default withMermaid(defineConfig({
       },
       {
         text: 'Help',
-        collapsed: false,
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
-          { text: 'Troubleshooting', link: '/guide/troubleshooting' },
-          { text: 'Doctor', link: '/guide/doctor' }
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' }
         ]
       },
       {
         text: 'Reference',
-        collapsed: false,
         items: [
           { text: 'Overview', link: '/reference/' },
           { text: 'Technical deep dive', link: '/deep-dive' }

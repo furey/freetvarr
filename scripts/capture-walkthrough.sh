@@ -3,20 +3,19 @@ set -euo pipefail
 
 # Record a walkthrough of the freetvarr UI and encode it for the docs + README.
 #
-# Playwright in host Node drives a scripted cursor tour of the tabs against a
-# running freetvarr at a simulated prime time (19:45 tonight in TZ, or set
-# SIMULATED_NOW). Guide, search, logo, and programme-image GETs come from the
-# real server; settings are masked; syncs, series, recordings, and recording-now
-# are synthetic fixtures; live TV plays a Mixkit surfing montage
-# prepared by capture-live-clip.sh as the fixture programme "Big Wave Season"
-# on "7mate", so no live session starts on the server; every non-GET is answered locally and never reaches
-# the server. It records every frame Chrome paints (capture-screencast.mjs),
-# then encode-screencast.sh trims and encodes them on the host to
+# Playwright in host Node drives a scripted cursor tour of Home, Live TV, the
+# TV guide, Recordings, For you, and Settings at a simulated prime time. Run it
+# against the throwaway server from capture-local-server.sh: page reads come
+# from that server and its seeded library, the fixtures in
+# capture-demo-api.mjs answer Plex, Sonarr, Radarr, tuner, and activity reads,
+# live TV plays a Mixkit surfing montage prepared by capture-live-clip.sh as
+# "Big Wave Season" on "7mate", and every write is answered in the browser. It
+# records every frame Chrome paints (capture-screencast.mjs), then
+# encode-screencast.sh trims and encodes them on the host to
 # docs/public/demo.mp4 with a matching poster frame, and cuts the opening
 # seconds into the README's docs/img/hero.webp.
 #
-# Needs host `node` + `ffmpeg`, and a running freetvarr with a reachable
-# TVHeadend EPG (the tour shows its real channels, logos, and artwork).
+# Needs host `node` + `ffmpeg`, and the server from capture-local-server.sh.
 #
 #   ./scripts/capture-walkthrough.sh
 #   FREETVARR_URL=http://localhost:3733 ./scripts/capture-walkthrough.sh
@@ -66,7 +65,7 @@ rm -rf "$FRAMES_DIR" "$TOUR_LOG"
 HERO="${REPO_ROOT}/docs/img/hero.webp"
 HERO_SECONDS="${WALKTHROUGH_HERO_SECONDS:-9.2}"
 ffmpeg -y -loglevel error -t "$HERO_SECONDS" -i "$MP4" -vf "fps=12,scale=800:-1:flags=lanczos" \
-  -c:v libwebp -quality 80 -compression_level 6 -loop 0 -an "$HERO"
+  -c:v libwebp -quality 65 -compression_level 6 -loop 0 -an "$HERO"
 
 echo "[walkthrough] done:"
 ls -lh "$MP4" "$POSTER" "$HERO"

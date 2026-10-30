@@ -1,18 +1,6 @@
 import { formatClock, dateFormat } from './time-format.js'
 import { localDayNumber } from './guide-time.js'
 
-export const syncWhen = ({ startedMs, finishedMs = null, nowMs, timeZone }) => {
-  const startDay = dayLabel({ ms: startedMs, nowMs, timeZone })
-  const startClock = formatClock(startedMs, timeZone)
-  if (finishedMs == null) return `${startDay} ${startClock} – now`
-  const finishClock = formatClock(finishedMs, timeZone)
-  if (!isSameDay({ a: startedMs, b: finishedMs, timeZone })) {
-    return `${startDay} ${startClock} – ${dayLabel({ ms: finishedMs, nowMs, timeZone })} ${finishClock}`
-  }
-  if (startClock === finishClock) return `${startDay} ${startClock}`
-  return `${startDay} ${clockRange({ startClock, finishClock })}`
-}
-
 export const syncDay = ({ ms, nowMs, timeZone }) => dayLabel({ ms, nowMs, timeZone })
 
 export const syncTime = ({ startedMs, finishedMs = null, timeZone }) => {

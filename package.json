@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "1.21.24",
+  "version": "2.0.0",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into your media library.",
   "license": "GPL-3.0-or-later",
@@ -55,6 +55,7 @@
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.1",
     "axios": "^1.7.2",
     "better-sqlite3": "12.11.1",
     "compression": "^1.8.2",

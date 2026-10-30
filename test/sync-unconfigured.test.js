@@ -27,6 +27,12 @@ test('startSync: a scheduled sync skips without a history row while TVHeadend is
   assert.equal(await syncRowCount(), 0)
 })
 
+test('startSync: a sync after a recording finished skips like a scheduled one while TVHeadend is not configured', async () => {
+  const result = await startSync({ trigger: 'recording-finished' })
+  assert.equal(result.skipped, true)
+  assert.equal(await syncRowCount(), 0)
+})
+
 test('startSync: a manual sync reports the missing URL and leaves no history row', async () => {
   await assert.rejects(startSync({ trigger: 'manual' }), { code: 'no-url' })
   await assert.rejects(startSync({ trigger: 'manual-single', showId: 1 }), { code: 'no-url' })

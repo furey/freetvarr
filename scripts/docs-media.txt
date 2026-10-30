@@ -30,3 +30,15 @@ img screenshot-series.png
 img screenshot-settings.png
 img screenshot-syncs.png
 img screenshot-wizard-secure.png
+img freetvarr-logo-dark.gif
+img freetvarr-logo-light.gif
+img screenshot-for-you.png
+img screenshot-scheduled.png
+img screenshot-show.png
+img screenshot-show-scheduled.png
+img screenshot-delete.png
+img screenshot-merge.png
+img screenshot-plex.png
+img screenshot-arr.png
+img screenshot-programme-movie.png
+img screenshot-mobile-recording-banner.png

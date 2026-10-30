@@ -6,7 +6,7 @@ const MEDIA_ROOT_DEFAULT = '/media/tv'
 
 export const listShowFolders = async (mediaRoot = MEDIA_ROOT_DEFAULT) => {
   const entries = await fs.readdir(mediaRoot, { withFileTypes: true })
-  return entries.filter((e) => e.isDirectory()).map((e) => e.name)
+  return entries.filter((e) => e.isDirectory()).map((e) => e.name).sort()
 }
 
 export const matchShowFolder = async (

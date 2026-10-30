@@ -6,9 +6,11 @@ import { readFile } from 'fs/promises'
 
 import {
   pickStreams,
+  softwarePlanOf,
   ffmpegArgsFor,
   tunerVerdict,
   stallReason,
+  liveStreamWeightOf,
   createLiveSessions,
   missingStreamParameters,
   LIVE_FILE_PATTERN,
@@ -271,7 +273,7 @@ const OPENING_KEYFRAMES = 'expr:lt(t,4)*gte(t,n_forced)'
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
-const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError, files = {} } = {}) => {
+const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError, files = {}, onAttention } = {}) => {
   const events = []
   const spawnArgs = []
   let clock = NOW
@@ -307,6 +309,7 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, up
       return upstream
     },
     describeStall: async () => ({ code: 'gone' }),
+    onAttention,
   })
   return { sessions, events, spawnArgs, children, upstreams, advance: (ms) => { clock += ms } }
 }
@@ -337,12 +340,55 @@ test('sessions: viewers share one session per channel', async () => {
   assert.equal(h.sessions.activeCount(), 0)
 })
 
+test('sessions: start unattended and report each attention change once', async () => {
+  const seen = []
+  const h = fakeHarness({ onAttention: (session, attending) => seen.push(attending) })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(session.attending, false)
+  assert.equal(h.sessions.setAttending(session.id, false), true)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, false), true)
+  assert.equal(h.sessions.setAttending('missing', true), false)
+  assert.deepEqual(seen, [true, false])
+  await h.sessions.stopAll()
+})
+
 test('sessions: refuses a channel past the session limit', async () => {
   const h = fakeHarness()
   await h.sessions.start({ channelId: 'c1', plan: PLAN })
   await h.sessions.start({ channelId: 'c2', plan: PLAN })
-  await assert.rejects(h.sessions.start({ channelId: 'c3', plan: PLAN }), { code: 'max-sessions' })
+  await assert.rejects(h.sessions.start({ channelId: 'c3', plan: PLAN }), { code: 'stream-limit' })
   await h.sessions.stopAll()
+})
+
+test('sessions: the stream limit is read at each start, so a changed setting applies at once', async () => {
+  let limit = 1
+  const sessions = createLiveSessions({
+    maxSessions: () => limit,
+    newId: (() => { let n = 0; return () => String(++n).padStart(16, '0') })(),
+    makeDir: async () => {},
+    removeDir: async () => {},
+    spawnProcess: () => {
+      const child = new EventEmitter()
+      child.stdin = new PassThrough()
+      child.stderr = new PassThrough()
+      child.kill = () => child.emit('exit', null, 'SIGTERM')
+      return child
+    },
+    openUpstream: async () => new PassThrough(),
+  })
+  await sessions.start({ channelId: 'c1', plan: PLAN, label: 'ABC TV' })
+  await assert.rejects(sessions.start({ channelId: 'c2', plan: PLAN }), (err) => {
+    assert.equal(err.code, 'stream-limit')
+    assert.equal(err.status, 409)
+    assert.deepEqual(err.details, { playing: ['live TV on ABC TV'], limit: 1 })
+    return true
+  })
+  limit = 2
+  await sessions.start({ channelId: 'c2', plan: PLAN })
+  assert.equal(sessions.activeCount(), 2)
+  await sessions.stopAll()
 })
 
 test('sessions: the reaper ends a session nobody has fetched from for 20 s', async () => {
@@ -451,6 +497,40 @@ test('pickStreams: MPEG-2 SD stays on the software path even with VAAPI', () => 
   assert.equal(pickStreams({ streams: ABC_SD, encoder: VAAPI_ENCODER }).videoMode, 'transcode')
 })
 
+const videoOf = (type, height) => [{ type, pid: 0x66, height }, { type: 'AC3', pid: 0x67, language: 'eng' }]
+
+test('pickStreams: HEVC and HD MPEG-2 or VC-1 decode in VAAPI; 4K scales to 1080p, HD to 720p', () => {
+  const planOf = (type, height) => {
+    const plan = pickStreams({ streams: videoOf(type, height), encoder: VAAPI_ENCODER })
+    return [plan.videoMode, plan.heightCap, plan.deinterlace, plan.scaleFormat ?? null]
+  }
+  assert.deepEqual(planOf('HEVC', 2160), ['vaapi', 1080, false, 'nv12'])
+  assert.deepEqual(planOf('HEVC', 1080), ['vaapi', 720, false, 'nv12'])
+  assert.deepEqual(planOf('MPEG2VIDEO', 1080), ['vaapi', 720, true, 'nv12'])
+  assert.deepEqual(planOf('VC1', 1080), ['vaapi', 720, true, 'nv12'])
+  assert.deepEqual(planOf('MPEG4VIDEO', 1080), ['transcode', 540, false, null])
+})
+
+test('pickStreams: HEVC uses software only when VAAPI is unavailable', () => {
+  const plan = pickStreams({ streams: videoOf('HEVC', 2160), encoder: { kind: 'software' } })
+  assert.deepEqual([plan.videoMode, plan.heightCap], ['transcode', 540])
+})
+
+test('ffmpegArgsFor: 10-bit HEVC is scaled to 8-bit NV12 in VAAPI before h264_vaapi, with no deinterlacer', () => {
+  const plan = pickStreams({ streams: videoOf('HEVC', 2160), encoder: VAAPI_ENCODER })
+  const args = ffmpegArgsFor({ plan, dir: '/tmp/live/abc' })
+  assert.equal(args[args.indexOf('-vf') + 1], 'scale_vaapi=w=trunc(min(ih\\,1080)*dar/2)*2:h=min(ih\\,1080):format=nv12,setsar=1')
+  assert.deepEqual(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 6), ['-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24'])
+})
+
+test('softwarePlanOf: a VAAPI plan falls back to the software plan for its codec; other plans have none', () => {
+  const hevc = softwarePlanOf(pickStreams({ streams: videoOf('HEVC', 2160), encoder: VAAPI_ENCODER }))
+  assert.deepEqual([hevc.videoMode, hevc.heightCap, hevc.deinterlace, hevc.vaapi, hevc.scaleFormat], ['transcode', 540, false, undefined, undefined])
+  const h264 = softwarePlanOf(pickStreams({ streams: SBS_HD, encoder: VAAPI_ENCODER }))
+  assert.deepEqual([h264.videoMode, h264.heightCap, h264.deinterlace], ['transcode', 540, true])
+  assert.equal(softwarePlanOf(pickStreams({ streams: SBS_HD, encoder: { kind: 'copy' } })), null)
+})
+
 test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', () => {
   const plan = pickStreams({ streams: SBS_HD, encoder: VAAPI_ENCODER })
   assert.deepEqual(ffmpegArgsFor({ plan, dir: '/tmp/live/abc' }), [
@@ -460,7 +540,7 @@ test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', (
     '-probesize', '500000', '-analyzeduration', '500000',
     '-f', 'mpegts', '-i', 'pipe:0',
     '-map', '0:i:0x66', '-map', '0:i:0x67',
-    '-vf', 'deinterlace_vaapi=auto=1,scale_vaapi=w=-2:h=min(ih\\,720)',
+    '-vf', 'deinterlace_vaapi=auto=1,scale_vaapi=w=trunc(min(ih\\,720)*dar/2)*2:h=min(ih\\,720),setsar=1',
     '-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24',
     '-g', '50', '-keyint_min', '50', '-force_key_frames', OPENING_KEYFRAMES,
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
@@ -862,8 +942,8 @@ test('sessions: a probe failure and then a missing teletext stream each restart 
 })
 
 test('vendor: the server sends the full hls.js build, which has caption support', async () => {
-  const server = await readFile(new URL('../src/server.js', import.meta.url), 'utf8')
-  assert.match(server, /'\/vendor\/hls\.mjs', sendVendorFile\('hls\.js', 'dist', 'hls\.min\.mjs'\)/)
+  const assets = await readFile(new URL('../src/web-assets.js', import.meta.url), 'utf8')
+  assert.match(assets, /'\/vendor\/hls\.mjs': 'hls\.js\/dist\/hls\.min\.mjs'/)
   const build = await readFile(new URL('../node_modules/hls.js/dist/hls.min.mjs', import.meta.url), 'utf8')
   assert.match(build, /subtitleStreamController:(?!void)/)
 })
@@ -894,4 +974,8 @@ test('withCaptionDateTimes: gives each caption segment the date time of its vide
     .join('\n')
   assert.equal(withCaptionDateTimes({ captions, media }), ['#EXTINF:2.000000,', dated(2), 'live7.vtt',
     '#EXTINF:2.000000,', dated(4), 'live8.vtt', '#EXTINF:2.000000,', 'live9.vtt'].join('\n'))
+})
+
+test('liveStreamWeightOf: later pictures ask TVHeadend for a lower weight so a recording takes their tuner first', () => {
+  assert.deepEqual([0, 1, 2, 3, 9, -1, undefined].map(liveStreamWeightOf), [50, 40, 30, 20, 20, 50, 50])
 })

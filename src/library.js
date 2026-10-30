@@ -1,0 +1,744 @@
+import path from 'path'
+
+import { db } from './db.js'
+import { getRecordingNow } from './recording-now.js'
+import { getRecordingState, updateSeriesRule } from './epg.js'
+import { refreshLibraryStates } from './library-files.js'
+import { MAX_PADDING_MINUTES } from './recording-padding.js'
+import { RESUME_END_MARGIN_S } from './playback.js'
+import { getSeries } from './series.js'
+import { loadKindOverrides } from './programme-kind.js'
+import { loadSeriesEvidence } from './series-evidence.js'
+import { rowAiringOf, seriesKindOf } from './series-kind.js'
+import { getMoviesRoot, matchShow } from './sync.js'
+import { looksLikeFilm } from './film-rule.js'
+import { showKeyOf } from './web/show-key.js'
+import { artworkChoices } from './artwork-choices.js'
+import { backupKeptUntil, originalRetentionDays } from './commercials.js'
+import { snapshotProgress } from './progress.js'
+import { inProgressImageOf, inProgressRowsOf, inProgressSummaryOf, isInProgressRow } from './recording-now-library.js'
+import { nextScheduledByKey, scheduledAiringOf, scheduledEpisodeOf } from './scheduled-library.js'
+import { isPlexRow, mergeWithRecordings } from './plex-library.js'
+import { loadLibraryItemRows } from './plex-library-store.js'
+
+export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
+export const EPISODE_KINDS = ['show', 'movie', 'oneoff']
+
+export const getLibraryShows = async ({
+  loadRows = loadLibraryRows,
+  loadSeries = getSeries,
+  loadRecordingNow = loadActiveRecordings,
+  loadFinishing = loadFinishingRecordings,
+  loadMoviesRoot = getMoviesRoot,
+  loadChoiceStamps = choiceStampsByKey,
+  loadOverrides = loadKindOverrides,
+  loadScheduled = loadUpcomingRecordings,
+  loadFolders = loadShowFolders,
+  loadEvidence = loadSeriesEvidence,
+  loadItems = loadPlexItems,
+} = {}) => {
+  const [recordingRows, itemRows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides, upcoming, folders, evidence] = await Promise.all([
+    loadRows(),
+    loadItems().catch(() => []),
+    loadSeries(),
+    loadRecordingNow(),
+    loadFinishing(),
+    loadMoviesRoot().catch(() => ''),
+    loadChoiceStamps().catch(() => new Map()),
+    loadOverrides().catch(() => new Map()),
+    loadScheduled().catch(() => NO_UPCOMING),
+    loadFolders().catch(() => []),
+    loadEvidence().catch(() => new Map()),
+  ])
+  const rows = withPlexRows({ rows: recordingRows, itemRows })
+  const merged = [...rows, ...inProgressRowsOf({ active, finishing, rows: recordingRows })]
+  const scheduled = scheduledByShowKey({ ...upcoming, series: seriesData.series, rows: merged, folders })
+  return {
+    shows: showSummariesOf({ rows: merged, series: seriesData.series, active, moviesRoot, stamps, kindOverrides, scheduled, evidence }),
+    stale: Boolean(seriesData.stale || seriesData.error),
+  }
+}
+
+export const getLibraryShow = async ({
+  key,
+  resolvePlayable = async () => false,
+  loadRows = loadLibraryRows,
+  loadSeries = getSeries,
+  loadRecordingNow = loadActiveRecordings,
+  loadFinishing = loadFinishingRecordings,
+  loadMoviesRoot = getMoviesRoot,
+  loadSeriesTags = loadTimedSeriesTags,
+  refreshStates = refreshLibraryStates,
+  loadChoiceStamps = choiceStampsByKey,
+  loadOverrides = loadKindOverrides,
+  loadScheduled = loadUpcomingRecordings,
+  loadFolders = loadShowFolders,
+  loadEvidence = loadSeriesEvidence,
+  loadItems = loadPlexItems,
+} = {}) => {
+  const [recordingRows, itemRows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides, upcoming, folders, evidence] = await Promise.all([
+    loadRows(),
+    loadItems().catch(() => []),
+    loadSeries(),
+    loadRecordingNow(),
+    loadFinishing(),
+    loadMoviesRoot().catch(() => ''),
+    loadSeriesTags().catch(() => []),
+    loadChoiceStamps().catch(() => new Map()),
+    loadOverrides().catch(() => new Map()),
+    loadScheduled().catch(() => NO_UPCOMING),
+    loadFolders().catch(() => []),
+    loadEvidence().catch(() => new Map()),
+  ])
+  const rows = withPlexRows({ rows: recordingRows, itemRows })
+  const scheduled = scheduledByShowKey({ ...upcoming, series: seriesData.series, rows: recordingRows, folders })
+  const groupRows = rows.filter((row) => groupKeyOf(row) === key)
+  const inProgressRows = inProgressRowsOf({ active, finishing, rows: recordingRows }).filter((row) => groupKeyOf(row) === key)
+  const series = seriesByKey(seriesData.series).get(key) || null
+  const nextScheduled = scheduled.get(key) || null
+  if (!groupRows.length && !inProgressRows.length && !series && !nextScheduled) return null
+  const checkedRows = [
+    ...await refreshStates(groupRows.filter((row) => !isPlexRow(row))),
+    ...groupRows.filter(isPlexRow),
+  ]
+  const playable = await Promise.all(checkedRows.map(async (row) => Boolean(await resolvePlayable(row))))
+  return showDetailOf({
+    key,
+    rows: [...checkedRows, ...inProgressRows],
+    playable,
+    series,
+    active,
+    moviesRoot,
+    seriesTags,
+    stamps,
+    kindOverride: kindOverrides.get(key) ?? null,
+    nextScheduled,
+    evidence,
+  })
+}
+
+export const getLibraryEpisodes = async ({
+  state,
+  limit,
+  kind = null,
+  loadRows = loadLibraryRows,
+  loadSeries = getSeries,
+  loadMoviesRoot = getMoviesRoot,
+  loadChoiceStamps = choiceStampsByKey,
+  loadOverrides = loadKindOverrides,
+  loadEvidence = loadSeriesEvidence,
+  loadItems = loadPlexItems,
+} = {}) => {
+  const [recordingRows, itemRows, seriesData, moviesRoot, stamps, kindOverrides, evidence] = await Promise.all([
+    loadRows(),
+    loadItems().catch(() => []),
+    loadSeries().catch(() => ({ series: [] })),
+    loadMoviesRoot().catch(() => ''),
+    loadChoiceStamps().catch(() => new Map()),
+    loadOverrides().catch(() => new Map()),
+    loadEvidence().catch(() => new Map()),
+  ])
+  const rows = withPlexRows({ rows: recordingRows, itemRows })
+  const ruleKeys = new Set(seriesByKey(seriesData.series).keys())
+  return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps, kindOverrides, ruleKeys, evidence }) }
+}
+
+export const setRecordingWatched = async ({ recordingId, watched, nowIso = new Date().toISOString() }) => {
+  const patch = watched
+    ? { watched_at: nowIso, played_at: nowIso }
+    : { watched_at: null, playback_position_s: null }
+  const n = await db('recordings').where({ recording_id: recordingId }).update(patch)
+  if (n === 0) return null
+  const row = await db('recordings').where({ recording_id: recordingId }).first()
+  return { watched, watched_at: row.watched_at ?? null, playback_position_s: row.playback_position_s ?? null }
+}
+
+export const showMoveFrom = (body = {}) => {
+  const { ids, title } = body
+  if (!Array.isArray(ids) || !ids.length || ids.length > MAX_MOVE_IDS || !ids.every(isRecordingId)) {
+    return { error: `ids must be a list of 1 to ${MAX_MOVE_IDS} recording ids` }
+  }
+  if (title === null) return { ids: unique(ids), title: null }
+  const trimmed = typeof title === 'string' ? title.trim() : ''
+  if (!trimmed || trimmed.length > MAX_SHOW_TITLE_LENGTH) {
+    return { error: `title must be 1 to ${MAX_SHOW_TITLE_LENGTH} characters, or null` }
+  }
+  return { ids: unique(ids), title: trimmed }
+}
+
+export const moveRecordingsToShow = async ({ ids, title, loadInProgressIds = loadInProgressRecordingIds }) => {
+  const movable = await withoutInProgressIds({ ids, loadInProgressIds })
+  return movable.length ? moveRowsToShow({ ids: movable, title }) : null
+}
+
+const withoutInProgressIds = async ({ ids, loadInProgressIds }) => {
+  const known = await db('recordings').whereIn('recording_id', ids).pluck('recording_id')
+  if (known.length === ids.length) return ids
+  const inProgress = await loadInProgressIds()
+  return ids.filter((id) => !inProgress.has(id))
+}
+
+const moveRowsToShow = ({ ids, title }) => db.transaction(async (trx) => {
+  const rows = await trx('recordings').whereIn('recording_id', ids).select('recording_id', 'title', 'show_title_override')
+  if (rows.length !== ids.length) return null
+  for (const row of rows) {
+    await trx('recordings').where({ recording_id: row.recording_id }).update({ show_title_override: overrideFor({ row, title }) })
+  }
+  return { previous: rows.map((row) => ({ id: row.recording_id, title: row.show_title_override ?? null })) }
+})
+
+export const watchedAtAfterPosition =({ seconds, nowIso = new Date().toISOString() }) => db.raw(
+  `CASE WHEN duration_s > 0 AND ? >= duration_s - ${RESUME_END_MARGIN_S} THEN ? ELSE watched_at END`,
+  [seconds, nowIso],
+)
+
+export const updateShowRule = async ({ key, patch, loadSeries = getSeries, update = updateSeriesRule }) => {
+  const series = seriesByKey((await loadSeries()).series).get(key)
+  if (!series) return null
+  return update({ seriesLinkIds: series.autorecs.map((a) => a.id), patch })
+}
+
+export const rulePatchFrom = (body = {}) => {
+  const fields = [
+    ['episodes_to_keep', 'episodesToKeep', MAX_EPISODES_TO_KEEP],
+    ['lead_time', 'leadTime', MAX_PADDING_MINUTES],
+    ['lag_time', 'lagTime', MAX_PADDING_MINUTES],
+  ]
+  const patch = {}
+  for (const [name, key, max] of fields) {
+    if (body[name] === undefined) continue
+    const value = Number(body[name])
+    if (!Number.isInteger(value) || value < 0 || value > max) {
+      return { error: `${name} must be a whole number from 0 to ${max}` }
+    }
+    patch[key] = value
+  }
+  if (!Object.keys(patch).length) return { error: 'send episodes_to_keep, lead_time or lag_time' }
+  return { patch }
+}
+
+export const ruleTitleOf = async (key, { loadSeries = getSeries } = {}) =>
+  seriesByKey((await loadSeries()).series).get(key)?.title ?? null
+
+export const groupTitleOf = (row) => row.show_title_override ?? row.title
+
+export const groupKeyOf = (row) => showKeyOf(groupTitleOf(row))
+
+export const isLibraryMember = (row) => row.purged_at == null
+  && row.library_state !== 'not_in_library'
+  && (['done', 'partial'].includes(row.status) || row.deleted_from_tvh_at == null)
+
+export const isWatched = (row) => row.watched_at != null
+
+export const isFailed = (row) => row.status === 'failed'
+
+export const kindOf = ({ rows, hasRule = false, moviesRoot = '', override = null, evidence = null, scheduled = null }) => seriesKindOf({
+  title: (rows[0] && groupTitleOf(rows[0])) || scheduled?.name || '',
+  override,
+  hasRule: hasRule || Boolean(scheduled?.seriesLinkId) || rows.some((r) => r.show_id != null || isPlexEpisodeRow(r)),
+  isFilm: isFilmGroup({ rows, moviesRoot, scheduled }),
+  recordings: [...rows.map(rowAiringOf), ...(scheduled ? [scheduledAiringFactsOf(scheduled)] : [])],
+  evidence,
+})
+
+const scheduledAiringFactsOf = (entry) => ({
+  start: entry.startDate,
+  season: entry.seriesNo ?? null,
+  episode: entry.episodeNo ?? null,
+  episodeTitle: entry.episodeTitle ?? null,
+  genres: [],
+})
+
+const isFilmGroup = ({ rows, moviesRoot, scheduled }) => {
+  if (!rows.length && scheduled) return scheduled.kind === 'movie'
+  if (rows.some(isPlexMovieRow)) return true
+  if (!moviesRoot) return false
+  return rows.some((r) => isInsideFolder({ filePath: r.file_path, folder: moviesRoot })) || rows.some(looksLikeUnimportedFilm)
+}
+
+export const isInsideFolder = ({ filePath, folder }) => {
+  if (!filePath || !folder) return false
+  const relative = path.relative(path.resolve(folder), path.resolve(filePath))
+  return Boolean(relative) && !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
+export const ruleSummaryOf = ({ paused, anyChannel, channels = [], episodesToKeep, adRemoval }) => [
+  paused ? 'Paused' : recordsOnText({ anyChannel, channels }),
+  episodesToKeep > 0 ? `keeps the latest ${episodesToKeep}` : 'keeps every episode',
+  AD_REMOVAL_TEXT[adRemoval] || '',
+].filter(Boolean).join(' · ')
+
+export const seriesByKey = (series = []) => {
+  const groups = new Map()
+  for (const entry of series) {
+    const key = showKeyOf(entry.title)
+    groups.set(key, groups.has(key) ? mergeSeries(groups.get(key), entry) : entry)
+  }
+  return groups
+}
+
+export const showSummariesOf = ({
+  rows, series = [], active = [], moviesRoot = '', stamps = new Map(), kindOverrides = new Map(), scheduled = new Map(), evidence = new Map(),
+}) => {
+  const rowsByKey = groupBy(rows.filter(isLibraryMember), groupKeyOf)
+  const rules = seriesByKey(series)
+  const activeKeys = activeKeysOf(active)
+  const keys = new Set([...rowsByKey.keys(), ...rules.keys(), ...scheduled.keys()])
+  return [...keys]
+    .map((key) => showSummaryOf({
+      key,
+      rows: rowsByKey.get(key) || [],
+      series: rules.get(key) || null,
+      recordingNow: activeKeys.has(key),
+      moviesRoot,
+      stamps: stamps.get(key),
+      kindOverride: kindOverrides.get(key) ?? null,
+      nextScheduled: scheduled.get(key) || null,
+      evidence: evidence.get(key) ?? null,
+    }))
+    .sort((a, b) => (b.latestAt ?? -Infinity) - (a.latestAt ?? -Infinity) || a.title.localeCompare(b.title))
+}
+
+export const showDetailOf = ({
+  key, rows, playable = [], series, active = [], moviesRoot = '', seriesTags = [], stamps = new Map(), kindOverride = null, nextScheduled = null,
+  evidence = new Map(),
+}) => {
+  const members = rows.map((row, i) => ({ row, playable: Boolean(playable[i]) })).filter(({ row }) => isLibraryMember(row))
+  const summary = showSummaryOf({
+    key,
+    rows: members.map(({ row }) => row),
+    series,
+    recordingNow: activeKeysOf(active).has(key),
+    moviesRoot,
+    stamps: stamps.get(key),
+    kindOverride,
+    nextScheduled,
+    evidence: evidence.get(key) ?? null,
+  })
+  const episodes = members.map(({ row, playable: canPlay }) => episodeOf({ row, playable: canPlay }))
+  const { counts, latest, latestAt, ...shown } = summary
+  return {
+    ...shown,
+    counts,
+    rule: series ? { ...summary.rule, ...ruleDetailOf({ series, seriesTags }) } : null,
+    seasons: withScheduledEpisode({ seasons: seasonsOf(episodes), entry: nextScheduled }),
+    resumeNext: resumeNextOf(episodes),
+  }
+}
+
+export const scheduledByShowKey = ({ upcoming = [], activeProgramIds = [], series = [], rows = [], folders = [], nowMs = Date.now() }) => {
+  const keyBySeriesLink = new Map([...seriesByKey(series)].flatMap(([key, entry]) =>
+    entry.autorecs.map((autorec) => [String(autorec.seriesLinkId), key])))
+  const keyByFolder = new Map(rows.filter((row) => row.show_id != null).map((row) => [row.show_id, groupKeyOf(row)]))
+  const folderOf = (title) => matchShow(folders.filter((folder) => folder.enabled), title) || matchShow(folders, title)
+  const folderKeyOf = (entry) => keyByFolder.get(folderOf(entry.name)?.id) ?? null
+  const seriesKeyOf = (entry) => (entry.seriesLinkId ? keyBySeriesLink.get(String(entry.seriesLinkId)) : null) ?? null
+  const keyOf = (entry) => seriesKeyOf(entry) ?? folderKeyOf(entry) ?? showKeyOf(entry.name)
+  return nextScheduledByKey({ upcoming, activeProgramIds, nowMs, keyOf })
+}
+
+export const withScheduledEpisode = ({ seasons, entry }) => {
+  if (!entry) return seasons
+  const episode = scheduledEpisodeOf(entry)
+  const home = episode.season != null
+    ? seasons.find((s) => s.season === episode.season)
+    : seasons[0]
+  if (home) {
+    return seasons.map((s) => (s === home ? { ...s, episodes: [{ ...episode, season: s.season }, ...s.episodes] } : s))
+  }
+  return [...seasons, { season: episode.season, episodes: [episode] }]
+    .sort((a, b) => compareMissingLast(a.season, b.season, (x, y) => y - x))
+}
+
+export const episodeOf = ({ row, playable = false }) => {
+  const watched = isWatched(row)
+  const positionS = row.playback_position_s ?? null
+  return {
+    recordingId: row.recording_id,
+    title: groupTitleOf(row),
+    episodeTitle: row.episode_title ?? null,
+    season: row.season ?? null,
+    episode: row.episode ?? null,
+    airedAt: numberOrNull(row.aired_at),
+    durationS: row.duration_s ?? null,
+    synopsis: row.synopsis ?? null,
+    channelId: row.channel_id ?? null,
+    channelName: row.channel_name ?? null,
+    classification: row.classification ?? null,
+    image: recordingImageOf(row),
+    status: row.status,
+    libraryState: row.library_state ?? null,
+    deletedFromTvhAt: row.deleted_from_tvh_at ?? null,
+    filePath: row.file_path ?? null,
+    failed: isFailed(row),
+    error: row.error ?? null,
+    playable,
+    positionS,
+    playedAt: row.played_at ?? null,
+    watched,
+    watchedPercent: watched ? 100 : percentOf({ position: positionS, duration: row.duration_s }),
+    new: isNewRow(row),
+    ads: adsOf(row),
+    inProgress: row.in_progress ?? null,
+    source: isPlexRow(row) ? 'plex' : 'freetvarr',
+    versions: isPlexRow(row) ? row.versions ?? [] : [],
+    otherVersions: row.other_versions ?? [],
+  }
+}
+
+export const isNewRow = (row) => (isPlexRow(row)
+  ? Boolean(row.plex_new)
+  : row.played_at == null && !isWatched(row) && !isInProgressRow(row))
+
+const isPlexEpisodeRow = (row) => isPlexRow(row) && row.plex_kind === 'episode'
+
+const isPlexMovieRow = (row) => isPlexRow(row) && row.plex_kind === 'movie'
+
+export const withPlexRows = ({ rows, itemRows = [], nowMs = Date.now() }) => (itemRows.length
+  ? mergeWithRecordings({ rows, itemRows, keyOf: groupKeyOf, nowMs })
+  : rows)
+
+export const adsOf = (row) => ({
+  status: row.ad_status ?? null,
+  breakCount: breakCountOf(row.ad_breaks_json),
+  showMode: row.show_ad_removal || 'off',
+  cut: Boolean(row.ad_cut_at),
+  backup: row.ad_backup_saved_at
+    ? { keptUntil: row.ad_backup_kept_until ?? null, uncut: Boolean(row.ad_backup_uncut) }
+    : null,
+  progress: row.ad_progress ?? null,
+})
+
+const breakCountOf = (json) => {
+  try {
+    const breaks = JSON.parse(json || '[]')
+    return Array.isArray(breaks) ? breaks.length : 0
+  } catch {
+    return 0
+  }
+}
+
+export const seasonsOf = (episodes) => {
+  const bySeason = groupBy(episodes, (e) => e.season ?? null)
+  return [...bySeason.entries()]
+    .sort(([a], [b]) => compareMissingLast(a, b, (x, y) => y - x))
+    .map(([season, list]) => ({ season, episodes: [...list].sort(newestEpisodeFirst) }))
+}
+
+export const resumeNextOf = (episodes) => {
+  const playable = episodes.filter((e) => e.playable && !e.failed)
+  const inProgress = playable
+    .filter((e) => !e.watched && e.positionS > 0)
+    .sort((a, b) => timeOf(b.playedAt) - timeOf(a.playedAt))[0]
+  if (inProgress) return { recordingId: inProgress.recordingId, positionS: inProgress.positionS }
+  const oldestUnwatched = playable
+    .filter((e) => !e.watched)
+    .sort((a, b) => -newestEpisodeFirst(a, b))[0]
+  return oldestUnwatched ? { recordingId: oldestUnwatched.recordingId, positionS: 0 } : null
+}
+
+export const libraryEpisodesOf = ({
+  rows, state = 'unwatched', limit = DEFAULT_EPISODE_LIMIT, kind = null, moviesRoot = '', stamps = new Map(), kindOverrides = new Map(), ruleKeys = new Set(),
+  evidence = new Map(),
+}) => {
+  const libraryRows = rows.filter(isLibraryMember)
+  const kinds = kindsByKey({ rows: libraryRows, moviesRoot, kindOverrides, ruleKeys, evidence })
+  const isWantedKind = (row) => !kind || (kinds.get(groupKeyOf(row)) || 'oneoff') === kind
+  const members = libraryRows.filter((row) => !isFailed(row) && !isWatched(row) && isWantedKind(row))
+  const chosen = {
+    'in-progress': () => members
+      .filter((row) => row.playback_position_s > 0)
+      .sort((a, b) => timeOf(b.played_at) - timeOf(a.played_at)),
+    new: () => members.filter(isNewRow).sort(newestAiredFirst),
+    unwatched: () => [...members].sort(newestAiredFirst),
+  }[state]?.() ?? []
+  return chosen.slice(0, limit).map((row) => libraryEpisodeOf({
+    row,
+    kind: kinds.get(groupKeyOf(row)),
+    stamps: stamps.get(groupKeyOf(row)),
+  }))
+}
+
+export const episodeLimitFrom = (value) => {
+  const limit = Number(value ?? DEFAULT_EPISODE_LIMIT)
+  return Number.isInteger(limit) && limit >= 1 && limit <= MAX_EPISODE_LIMIT ? limit : null
+}
+
+const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = NO_STAMPS, kindOverride = null, nextScheduled = null, evidence = null }) => {
+  const newestFirst = [...rows].sort(newestAiredFirst)
+  const latestRow = newestFirst[0] || null
+  const title = (latestRow && groupTitleOf(latestRow)) || series?.title || nextScheduled?.name || key
+  const watchable = rows.filter((row) => !isFailed(row))
+  const latestAiredAt = latestRow ? airedMsOf(latestRow) : null
+  const kind = kindOf({
+    rows,
+    hasRule: Boolean(series),
+    moviesRoot,
+    override: kindOverride,
+    evidence,
+    scheduled: !rows.length ? nextScheduled : null,
+  })
+  const nextAiring = series?.nextAiring ?? (nextScheduled ? scheduledAiringOf(nextScheduled) : null)
+  return {
+    key,
+    title,
+    kind,
+    classification: newestFirst.find((row) => row.classification)?.classification ?? nextAiring?.classification ?? null,
+    year: kind === 'movie' ? newestFirst.find((row) => row.year)?.year ?? null : null,
+    poster: `/api/epg/show-image?title=${encodeURIComponent(title)}&shape=poster${stampParamOf(stamps.poster)}`,
+    image: chosenBackgroundOf({ title, stamp: stamps.background }) || newestFirst.map(recordingImageOf).find(Boolean) || null,
+    artworkStamps: { background: stamps.background ?? null, poster: stamps.poster ?? null },
+    counts: {
+      total: rows.length,
+      new: watchable.filter(isNewRow).length,
+      unwatched: watchable.filter((row) => !isWatched(row)).length,
+      failed: rows.filter(isFailed).length,
+      inProgress: rows.filter(isInProgressRow).length,
+    },
+    recordingNow,
+    inProgress: inProgressSummaryOf(rows),
+    nextAiring,
+    rule: series ? ruleOf(series) : null,
+    latest: latestRow ? latestOf(latestRow) : null,
+    latestAt: latestAiredAt ?? nextAiring?.startDate ?? null,
+  }
+}
+
+const ruleOf = (series) => {
+  const anyChannel = series.autorecs.some((a) => a.anyChannel)
+  const channels = unique(series.autorecs.filter((a) => !a.anyChannel).map((a) => a.channelName).filter(Boolean))
+  const paused = !series.recording
+  const episodesToKeep = series.episodesToKeep || 0
+  const adRemoval = series.folder?.ad_removal || 'off'
+  return {
+    recording: Boolean(series.recording),
+    paused,
+    channels,
+    anyChannel,
+    episodesToKeep,
+    adRemoval,
+    folderId: series.folder?.id ?? null,
+    summary: ruleSummaryOf({ paused, anyChannel, channels, episodesToKeep, adRemoval }),
+  }
+}
+
+const ruleDetailOf = ({ series, seriesTags }) => {
+  const tagsById = new Map(seriesTags.map((tag) => [String(tag.id), tag]))
+  return {
+    autorecs: series.autorecs.map((a) => ({
+      ...a,
+      leadTime: tagsById.get(String(a.id))?.leadTime ?? null,
+      lagTime: tagsById.get(String(a.id))?.lagTime ?? null,
+    })),
+    folder: series.folder ?? null,
+    savesTo: series.savesTo ?? null,
+  }
+}
+
+const latestOf = (row) => ({
+  recordingId: row.recording_id,
+  episodeTitle: row.episode_title ?? null,
+  season: row.season ?? null,
+  episode: row.episode ?? null,
+  airedAt: numberOrNull(row.aired_at),
+  durationS: row.duration_s ?? null,
+  channelName: row.channel_name ?? null,
+  watched: isWatched(row),
+  positionS: row.playback_position_s ?? null,
+})
+
+const libraryEpisodeOf = ({ row, kind, stamps = NO_STAMPS }) => {
+  const episode = episodeOf({ row })
+  const chosenImage = chosenBackgroundOf({ title: groupTitleOf(row), stamp: stamps.background })
+  return {
+    recordingId: episode.recordingId,
+    showKey: groupKeyOf(row),
+    title: episode.title,
+    episodeTitle: episode.episodeTitle,
+    season: episode.season,
+    episode: episode.episode,
+    airedAt: episode.airedAt,
+    durationS: episode.durationS,
+    synopsis: episode.synopsis,
+    channelId: episode.channelId,
+    channelName: episode.channelName,
+    classification: episode.classification,
+    image: chosenImage || episode.image,
+    artChosen: Boolean(chosenImage),
+    positionS: episode.positionS,
+    playedAt: episode.playedAt,
+    watchedPercent: episode.watchedPercent,
+    kind: kind || 'oneoff',
+  }
+}
+
+const kindsByKey = ({ rows, moviesRoot, kindOverrides = new Map(), ruleKeys = new Set(), evidence = new Map() }) => new Map(
+  [...groupBy(rows, groupKeyOf).entries()]
+    .map(([key, group]) => [key, kindOf({
+      rows: group,
+      hasRule: ruleKeys.has(key),
+      moviesRoot,
+      override: kindOverrides.get(key) ?? null,
+      evidence: evidence.get(key) ?? null,
+    })]),
+)
+
+const mergeSeries = (a, b) => ({
+  ...a,
+  recording: a.recording || b.recording,
+  episodesToKeep: Math.max(a.episodesToKeep || 0, b.episodesToKeep || 0),
+  autorecs: [...a.autorecs, ...b.autorecs],
+  nextAiring: earliestAiring(a.nextAiring, b.nextAiring),
+  folder: a.folder || b.folder,
+  savesTo: a.folder ? a.savesTo : b.savesTo,
+})
+
+const earliestAiring = (a, b) => {
+  if (!a || !b) return a || b || null
+  return a.startDate <= b.startDate ? a : b
+}
+
+const recordsOnText = ({ anyChannel, channels }) => {
+  if (anyChannel) return 'Records every new episode on any channel'
+  if (!channels.length) return 'Records every new episode'
+  return `Records every new episode on ${listText(channels)}`
+}
+
+const listText = (items) => (items.length < 2
+  ? items.join('')
+  : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
+
+const activeKeysOf = (active = []) => new Set(active.filter((r) => !r.failed).map((r) => showKeyOf(r.title)))
+
+const looksLikeUnimportedFilm = (row) => !['done', 'partial'].includes(row.status) && looksLikeFilm({
+  genres: genresOf(row),
+  season: row.season,
+  episode: row.episode,
+  start: 0,
+  end: Number(row.duration_s) * 1000,
+})
+
+const genresOf = (row) => {
+  try {
+    const genres = JSON.parse(row.genres_json || '[]')
+    return Array.isArray(genres) ? genres.map(Number) : []
+  } catch {
+    return []
+  }
+}
+
+const chosenBackgroundOf = ({ title, stamp }) => (stamp
+  ? `/api/epg/show-image?title=${encodeURIComponent(title)}&w=${CARD_IMAGE_WIDTH}${stampParamOf(stamp)}`
+  : null)
+
+const stampParamOf = (stamp) => (stamp ? `&c=${stamp}` : '')
+
+const choiceStampsByKey = () => artworkChoices.stampsByKey()
+
+const recordingImageOf = (row) => {
+  if (isPlexRow(row)) return row.image_url ?? null
+  if (isInProgressRow(row)) return inProgressImageOf(row, CARD_IMAGE_WIDTH)
+  return row.image_path ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}` : null
+}
+
+const percentOf = ({ position, duration }) => {
+  const total = Number(duration)
+  if (!Number.isFinite(total) || total <= 0 || !position) return 0
+  return Math.min(100, Math.max(0, Math.round((Number(position) / total) * 100)))
+}
+
+const newestEpisodeFirst = (a, b) => compareMissingLast(a.episode, b.episode, (x, y) => y - x)
+  || (b.airedAt ?? 0) - (a.airedAt ?? 0)
+
+const newestAiredFirst = (a, b) => (airedMsOf(b) ?? 0) - (airedMsOf(a) ?? 0)
+
+const airedMsOf = (row) => numberOrNull(row.aired_at) ?? (row.imported_at ? timeOf(row.imported_at) : null)
+
+const compareMissingLast = (a, b, compare) => {
+  if (a == null && b == null) return 0
+  if (a == null) return 1
+  if (b == null) return -1
+  return compare(a, b)
+}
+
+const timeOf = (stamp) => {
+  if (stamp == null) return 0
+  const text = String(stamp)
+  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(text) ? `${text.replace(' ', 'T')}Z` : text
+  const ms = Date.parse(iso)
+  return Number.isFinite(ms) ? ms : 0
+}
+
+const numberOrNull = (value) => {
+  if (value == null) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+const groupBy = (items, keyOf) => {
+  const groups = new Map()
+  for (const item of items) {
+    const key = keyOf(item)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(item)
+  }
+  return groups
+}
+
+const unique = (items) => [...new Set(items)]
+
+const isRecordingId = (id) => typeof id === 'string' && id.length > 0 && id.length <= MAX_RECORDING_ID_LENGTH
+
+const overrideFor = ({ row, title }) => (title == null || showKeyOf(title) === showKeyOf(row.title) ? null : title)
+
+const loadLibraryRows = async () => {
+  const [rows, retentionDays] = await Promise.all([
+    db('recordings')
+      .leftJoin('shows', 'recordings.show_id', 'shows.id')
+      .whereNull('recordings.purged_at')
+      .where((q) => q.whereNull('recordings.library_state').orWhereNot('recordings.library_state', 'not_in_library'))
+      .where((q) => q.whereIn('recordings.status', ['done', 'partial']).orWhereNull('recordings.deleted_from_tvh_at'))
+      .select('recordings.*', 'shows.ad_removal as show_ad_removal'),
+    originalRetentionDays().catch(() => DEFAULT_RETENTION_DAYS),
+  ])
+  const progress = snapshotProgress(rows.filter((row) => row.ad_status === 'scanning').map((row) => row.recording_id))
+  return rows.map((row) => withAdState({ row, retentionDays, progress: progress[row.recording_id] }))
+}
+
+const withAdState = ({ row, retentionDays, progress }) => ({
+  ...row,
+  ad_backup_kept_until: row.ad_backup_saved_at ? backupKeptUntil({ savedAt: row.ad_backup_saved_at, retentionDays }) : null,
+  ad_progress: progress ? { phase: progress.phase, percent: progress.percent ?? null } : null,
+})
+
+const loadActiveRecordings = async () => (await getRecordingNow().catch(() => ({ active: [] }))).active || []
+
+const loadFinishingRecordings = async () => (await getRecordingNow().catch(() => ({ finishing: [] }))).finishing || []
+
+const loadInProgressRecordingIds = async () => {
+  const { active = [], finishing = [] } = await getRecordingNow().catch(() => ({}))
+  return new Set(inProgressRowsOf({ active, finishing }).map((row) => row.recording_id))
+}
+
+const loadTimedSeriesTags = async () => (await getRecordingState()).seriesTags || []
+
+const loadUpcomingRecordings = async () => {
+  const state = await getRecordingState()
+  return { upcoming: state.upcomingRecordings || [], activeProgramIds: state.activeRecordingIds || [] }
+}
+
+const loadPlexItems = () => loadLibraryItemRows()
+
+const loadShowFolders = () => db('shows').select('id', 'show_pattern', 'enabled')
+
+const DEFAULT_RETENTION_DAYS = 7
+const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }
+const MAX_EPISODES_TO_KEEP = 999
+const DEFAULT_EPISODE_LIMIT = 20
+const MAX_EPISODE_LIMIT = 50
+const CARD_IMAGE_WIDTH = 384
+const NO_STAMPS = {}
+const NO_UPCOMING = { upcoming: [], activeProgramIds: [] }
+const MAX_MOVE_IDS = 500
+const MAX_RECORDING_ID_LENGTH = 200
+const MAX_SHOW_TITLE_LENGTH = 200

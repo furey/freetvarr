@@ -4,6 +4,8 @@ import { join } from 'node:path'
 export const TIMEZONE = process.env.TZ || 'Australia/Sydney'
 
 export const simulatedNow = () => {
+  const offset = Number(process.env.CAPTURE_CLOCK_OFFSET_MS)
+  if (Number.isFinite(offset) && offset !== 0) return Date.now() + offset
   const forced = Date.parse(process.env.SIMULATED_NOW || '')
   if (Number.isFinite(forced)) return forced
   const tonight = new Date()
@@ -14,59 +16,63 @@ export const simulatedNow = () => {
 }
 
 export const prepareDemoContext = async ({ context, base, simNow }) => {
-  const { guide, dayOffset } = await loadSimulatedGuide({ request: context.request, base, simNow })
+  const guide = withLiveDemoSlot(simNow)(await fetchJson({ request: context.request, url: `${base}/api/epg/guide?day=0` }))
   const picks = await pickShowcase({ request: context.request, base, guide, simNow })
-  const library = await pickLibrary({ request: context.request, base, guide, simNow })
-  const fixtures = demoFixtures({ simNow, recording: picks.recording, library })
+  const fixtures = demoFixtures({ simNow, picks })
   const desk = createRecordingDesk({ guide, simNow })
   await context.clock.install({ time: simNow })
-  await context.addInitScript((prefs) => {
+  await context.addInitScript(({ local, session }) => {
     try {
-      for (const [key, value] of Object.entries(prefs)) localStorage.setItem(key, value)
+      for (const [key, value] of Object.entries(local)) localStorage.setItem(key, value)
+      for (const [key, value] of Object.entries(session)) sessionStorage.setItem(key, value)
     } catch {}
-  }, DEMO_PREFS)
+  }, { local: DEMO_PREFS, session: DEMO_SESSION_PREFS })
   await context.addInitScript(keepRequestsRoutable)
   context.on('response', reportServerWrites)
-  await context.route('**/api/**', refuseUnknownGet)
-  await context.route('**/api/epg/logo/**', (route) => route.continue())
-  await context.route('**/api/epg/image/**', (route) => route.continue())
-  await context.route('**/api/csrf-token', (route) => route.continue())
-  await context.route('**/api/version**', (route) => route.continue())
-  await context.route('**/api/epg/guide**', rewriteJson(withSimulatedDay({ dayOffset, simNow }), shiftDay(dayOffset)))
-  await context.route('**/api/epg/now**', (route) => fulfillJson(route, onNowAt({ guide, simNow, url: route.request().url() })))
-  await context.route('**/api/epg/channel-now**', (route) => fulfillJson(route, channelNowAt({ guide, simNow, url: route.request().url() })))
-  await context.route('**/api/epg/search**', rewriteJson(futureResults(simNow)))
-  await context.route('**/api/epg/state**', rewriteJson((data, url) => desk.applyTo(sanitiseState({ simNow, recording: picks.recording })(data, url))))
-  await context.route('**/api/settings', rewriteJson(maskSettings))
-  await context.route('**/api/sync-status', (route) => fulfillJson(route, fixtures.syncStatus))
-  await context.route('**/api/syncs**', (route) => fulfillJson(route, syncsPage({ syncs: fixtures.syncs, url: route.request().url() })))
-  await context.route('**/api/shows', (route) => fulfillJson(route, { shows: fixtures.shows }))
-  await context.route('**/api/series', (route) => fulfillJson(route, fixtures.series))
-  await context.route('**/api/recordings**', (route) => fulfillJson(route, fixtures.recordingsPage))
-  await context.route('**/api/recordings/*/image', recordingImage({ base, imageSources: fixtures.recordingImages }))
-  await context.route('**/api/recording-now', (route) => fulfillJson(route, fixtures.recordingNow))
-  await context.route('**/api/folder-suggest**', (route) => fulfillJson(route, { match: null, folders: [] }))
-  await context.route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
-  await context.route('**/api/tv-login', (route) => fulfillJson(route, {}))
-  await context.route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
   await context.route('**/*', refuseWrites)
-  await context.route(/\/api\/live(\/|\?|$)/, demoLiveTv())
+  await context.route('**/api/**', passThroughRead)
+  await context.route('**/api/epg/guide**', rewriteJson(withLiveDemoSlot(simNow)))
+  await context.route('**/api/epg/now**', rewriteJson(withLiveDemoNow(simNow)))
+  await context.route('**/api/epg/channel-now**', rewriteJson(withLiveDemoChannelNow({ guide, simNow })))
+  await context.route('**/api/epg/state**', rewriteJson((data) => desk.applyTo(withActiveRecording({ data, simNow, recording: picks.recording }))))
+  await context.route('**/api/settings', rewriteJson(maskSettings))
+  await context.route(/\/api\/sync-status(\?|$)/, (route) => fulfillJson(route, fixtures.syncStatus))
+  await context.route(/\/api\/recording-now(\?|$)/, (route) => fulfillJson(route, fixtures.recordingNow))
+  await context.route(/\/api\/activity(\?|$)/, (route) => fulfillJson(route, fixtures.activity))
+  await context.route(/\/api\/activity\/summary(\?|$)/, (route) => fulfillJson(route, { running: fixtures.activity.runningCount }))
+  await context.route('**/api/activity/stream', (route) => route.fulfill({
+    status: 200,
+    contentType: 'text/event-stream',
+    body: `event: jobs\ndata: ${JSON.stringify(jobsOf(fixtures.activity))}\n\n`,
+  }))
+  await context.route(/\/api\/health-summary(\?|$)/, (route) => fulfillJson(route, fixtures.healthSummary))
+  await context.route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
+  await context.route(/\/api\/plex\/whole-library(\?|$)/, (route) => fulfillJson(route, fixtures.wholeLibrary))
+  await context.route(/\/api\/plex\/watch-sync(\?|$)/, (route) => fulfillJson(route, fixtures.watchSync))
+  await context.route(/\/api\/arr(\?|$)/, (route) => fulfillJson(route, fixtures.arr))
+  await context.route('**/api/arr/*/test', (route) => fulfillJson(route, fixtures.arrTest(route.request().url())))
+  await context.route('**/api/live/tuner-status', (route) => fulfillJson(route, fixtures.tunerStatus))
+  await context.route('**/api/library/items/*/image**', plexItemImage({ base }))
+  await context.route('**/api/tv-login', (route) => fulfillJson(route, {}))
+  await context.route('**/api/library/delete/preview', (route) => route.continue())
+  await context.route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
+  await context.route(/\/api\/live(\/|\?|$)(?!tuner-status)/, demoLiveTv())
   await context.route('**/api/epg/record', desk.recordOneOff)
   await context.route('**/api/epg/record-series', desk.recordSeries)
   return picks
 }
 
-export const onAirCell = (page, { program }) => page.locator('.epg-cell.on-now')
-  .filter({ has: page.locator('.epg-cell-title', { hasText: program.title }) })
+export const onAirCell = (page, { program }) => page.locator('.epg-cell.is-now, .epg-cell.on-now')
+  .filter({ hasText: program.title })
   .first()
 
-export const waitForProgrammeImages = (page) => page.waitForFunction(() => [...document.querySelectorAll('.programme-image')]
-  .filter((el) => {
-    const box = el.getBoundingClientRect()
+export const waitForProgrammeImages = (page) => page.waitForFunction(() => [...document.querySelectorAll('img')]
+  .filter((img) => {
+    const box = img.getBoundingClientRect()
     return box.width > 0 && box.bottom > 0 && box.top < window.innerHeight && box.right > 0 && box.left < window.innerWidth
   })
-  .every((el) => !el.classList.contains('is-loading')), null, { timeout: 15_000 })
-  .catch(() => console.log('  programme images still loading'))
+  .every((img) => img.complete), null, { timeout: 15_000 })
+  .catch(() => console.log('  images still loading'))
 
 export const waitForImages = (page, selector) => page.waitForFunction((sel) => {
   const images = [...document.querySelectorAll(sel)]
@@ -98,7 +104,7 @@ export const installCursor = (page) =>
         const r = document.createElement('div')
         r.style.cssText =
           `position:fixed;left:${this.x}px;top:${this.y}px;width:10px;height:10px;` +
-          'margin:-5px 0 0 -5px;border-radius:50%;border:2px solid #1eb6ff;' +
+          'margin:-5px 0 0 -5px;border-radius:50%;border:2px solid #5ee0c5;' +
           'z-index:2147483646;pointer-events:none;opacity:.9;' +
           'transition:transform .5s ease-out,opacity .5s ease-out'
         document.body.appendChild(r)
@@ -134,16 +140,16 @@ export const clickWithCursor = async (page, locator, { dwellMs = 180 } = {}) => 
 }
 
 export const clickTab = async (page, route) => {
-  const link = page.locator(`.tab-strip a[href="#/${route}"]`)
+  const link = page.locator(`a.app-nav-item[href="#/${route}"]:visible`).first()
   await cursorToBox(page, link)
   await page.waitForTimeout(220)
   await page.evaluate(() => window.__wt?.click())
   await Promise.all([
     page.waitForFunction(
-      (r) => document.querySelector(`.tab-strip a[href="#/${r}"]`)?.dataset.active === 'true',
+      (r) => [...document.querySelectorAll(`a.app-nav-item[href="#/${r}"]`)].some((a) => a.getAttribute('aria-current') === 'page'),
       route,
       { timeout: 8000 },
-    ),
+    ).catch(() => {}),
     link.click(),
   ])
   await page.waitForTimeout(VIEW_REVEAL_MS)
@@ -175,20 +181,59 @@ export const glideScroll = (page, { selector = null, dx = 0, dy = 0, ms = SCROLL
     requestAnimationFrame(step)
   }), { selector, dx, dy, ms })
 
+export const keepRequestsRoutable = () => {
+  const fetchRoutable = window.fetch.bind(window)
+  window.fetch = (input, init) => fetchRoutable(input, init?.keepalive ? { ...init, keepalive: false } : init)
+  navigator.sendBeacon = () => true
+}
+
+const READ_ONLY_POSTS = ['/api/library/delete/preview']
+
+export const isServerWrite = (response) => {
+  const method = response.request().method()
+  if (method === 'GET' || method === 'HEAD') return false
+  if (READ_ONLY_POSTS.includes(new URL(response.url()).pathname)) return false
+  return Boolean(response.headers()['x-freetvarr-build'])
+}
+
+export const reportServerWrites = (response) => {
+  if (!isServerWrite(response)) return
+  const request = response.request()
+  console.log(`  SERVER WRITE ${request.method()} ${new URL(request.url()).pathname}`)
+}
+
+export const fulfillJson = (route, data) => route.fulfill({
+  status: 200,
+  contentType: 'application/json',
+  body: JSON.stringify(data),
+})
+
+export const refuseWrites = (route) => {
+  if (['GET', 'HEAD'].includes(route.request().method())) return route.fallback()
+  console.log(`  blocked ${route.request().method()} ${new URL(route.request().url()).pathname}`)
+  return fulfillJson(route, { ok: true })
+}
+
+export const refuseUnknownGet = (route) => {
+  console.log(`  refused unstubbed GET ${new URL(route.request().url()).pathname}`)
+  return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
+}
+
 const SCROLL_MS = 1600
 const VIEW_REVEAL_MS = 850
 const PRIME_TIME = { hour: 19, minute: 45 }
 const LIVE_DEMO_DIR = process.env.LIVE_DEMO_DIR || '/work/scripts/.cache/live-demo'
+const PATH_ROOT = process.env.CAPTURE_PATH_ROOT || ''
+const SHOWN_PATH_ROOT = '/data'
 const LIVE_SESSION_ID = 'demo-live'
 const LIVE_TUNING_MS = 2_600
 const LIVE_WINDOW_SEGMENTS = 3
 const MINUTE_MS = 60_000
-const DAY_MS = 86_400_000
+const HOUR_MS = 60 * MINUTE_MS
 const SYNC_INTERVAL_MIN = 30
 const LAST_SYNC_AGO_MIN = 16
-const FAVOURITE_CHANNEL_PATTERNS = [/^ABC TV/i, /^SBS\b/i, /^9/i, /^7/i]
-const FAVOURITE_COUNT = 3
 const SEARCH_TITLE_MAX = 24
+const TUNER_NAMES = ['HDHomeRun DVB-T Tuner #0', 'HDHomeRun DVB-T Tuner #1', 'HDHomeRun DVB-T Tuner #2', 'HDHomeRun DVB-T Tuner #3']
 const LIVE_DEMO_CHANNEL_PATTERN = /^7mate\b/i
 const LIVE_DEMO_CHANNEL_NAME = '7mate'
 const LIVE_DEMO_PROGRAMME = {
@@ -198,52 +243,34 @@ const LIVE_DEMO_PROGRAMME = {
   series_no: null,
   episode_no: null,
   genre: null,
+  kind: 'series',
   has_image: false,
+  classification: 'PG',
 }
 const DEMO_PREFS = {
-  'freetvarr.welcomeDismissed': '1',
   'freetvarr.guideZoom': 'm',
   'freetvarr.guideImages': '1',
   'freetvarr.liveImages': '1',
   'freetvarr.liveFavouritesOnly': '0',
 }
-
+const DEMO_SESSION_PREFS = { 'freetvarr.introPlayed': '1' }
 const SANITISED_SETTINGS = {
   tvh_url: 'http://192.168.1.50:9981',
   tvh_username: 'freetvarr',
-  recordings_root: '/recordings',
+  recordings_root: '/data/media/recordings',
   tvh_recordings_path: '/recordings',
   plex_url: 'http://192.168.1.100:32400',
   plex_prefs_path: '/plex-preferences.xml',
-  media_root: '/media/tv',
-  oneoff_root: '/media/one-offs',
-  movies_root: '/media/movies',
+  media_root: '/data/media/tv',
+  oneoff_root: '/data/media/one-offs',
+  movies_root: '/data/media/movies',
+  sync_cron: '*/30 * * * *',
+  sync_cron_effective: '*/30 * * * *',
 }
 
-const SHOW_PROFILES = [
-  { delete_after_import: false, created_at: '2026-07-01 09:12:00' },
-  { delete_after_import: true, created_at: '2026-06-20 18:00:00' },
-  { delete_after_import: false, created_at: '2026-06-11 20:30:00' },
-]
-const LIBRARY_SHOW_COUNT = 3
-const EPISODES_PER_SHOW = 2
-const IMPORT_LAG_MIN = 5
-const SPORT_TITLE = /sport|football|rugby|league|\bAFL\b|\bNRL\b|cricket|tennis|golf|racing|indycar|supercars|netball|soccer|motogp|formula|grand prix/i
-const NEWSY_TITLE = /news|today|sunrise|weather|update|bundle|offer|skincare|shopping/i
-const GENERIC_EPISODE_TITLE = /^(episode \d+|(mon|tues|wednes|thurs|fri|satur|sun)day\b)/i
-const BYTES_PER_SECOND = 920_000
-const AD_FREE_NETWORKS = ['ABC']
-
-const loadSimulatedGuide = async ({ request, base, simNow }) => {
-  const today = await fetchGuideDay({ request, base, day: 0 })
-  const dayOffset = Math.round((localMidnight(simNow) - today.dayStart) / DAY_MS)
-  const guide = dayOffset === 0 ? today : await fetchGuideDay({ request, base, day: dayOffset })
-  return { guide: withLiveDemoSlot(simNow)(withFavouriteChannels(guide)), dayOffset }
-}
-
-const fetchGuideDay = async ({ request, base, day }) => {
-  const response = await request.get(`${base}/api/epg/guide?day=${day}`)
-  if (!response.ok()) throw new Error(`guide day ${day} failed: HTTP ${response.status()}`)
+const fetchJson = async ({ request, url }) => {
+  const response = await request.get(url)
+  if (!response.ok()) throw new Error(`${url} failed: HTTP ${response.status()}`)
   return response.json()
 }
 
@@ -252,11 +279,27 @@ const pickShowcase = async ({ request, base, guide, simNow }) => {
   const pinned = onAir.filter(({ channel }) => channel.pinned)
   const [programme, recording] = [...pinned, ...onAir.filter(({ channel }) => !channel.pinned)]
   if (!programme) throw new Error('no on-air programme with an image at the simulated time')
-  return { programme, recording: recording ?? null, searchTerm: upNextTitle({ guide, simNow }) }
+  return {
+    programme,
+    recording: recording ?? null,
+    upNext: upNextOf({ guide, simNow, fits: (p) => p.kind === 'series' && p.series_no != null && p.episode_no != null }),
+    upNextFilm: upNextOf({ guide, simNow, fits: (p) => p.kind === 'movie' && p.movieChoice }),
+    searchTerm: upNextTitle({ guide, simNow }),
+    guide,
+  }
+}
+
+const upNextOf = ({ guide, simNow, fits }) => {
+  const channels = visibleChannels(guide)
+  return [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
+    .flatMap((channel) => programsOf(guide, channel)
+      .filter((p) => p.start > simNow && p.start < simNow + 3 * HOUR_MS && p.has_image && fits(p))
+      .slice(0, 1)
+      .map((program) => ({ channel, program })))[0] ?? null
 }
 
 const onAirWithImage = ({ guide, simNow }) => visibleChannels(guide).flatMap((channel) => {
-  const program = programsOf(guide, channel).find((p) => airsAt(p, simNow) && p.has_image)
+  const program = programsOf(guide, channel).find((p) => airsAt(p, simNow) && p.has_image && p.kind !== 'movie')
   return program ? [{ channel, program }] : []
 })
 
@@ -278,306 +321,56 @@ const upNextTitle = ({ guide, simNow }) => {
   return titles[0] ?? null
 }
 
-const pickLibrary = async ({ request, base, guide, simNow }) => {
-  const aired = airedWithImage({ guide, simNow })
-  const served = servedImageCheck({ request, base })
-  const episodeGroups = spreadAcrossNetworks(groupByTitle(aired.filter(({ program }) => isEpisode(program))))
-  const episodes = []
-  const shows = []
-  for (const group of episodeGroups) {
-    if (shows.length === LIBRARY_SHOW_COUNT) break
-    const picked = await firstServed({ entries: group, served, count: EPISODES_PER_SHOW })
-    if (!picked.length) continue
-    shows.push({ title: picked[0].program.title, channel: picked[0].channel })
-    const importing = shows.length === LIBRARY_SHOW_COUNT
-    episodes.push(...picked.map((entry, i) => ({ ...entry, show: picked[0].program.title, importing: importing && i === 0 })))
-  }
-  const unclaimed = aired.filter(({ program }) => !shows.some((show) => show.title === program.title) && !isNewsy(program))
-  const [sport] = await firstServed({ entries: unclaimed.filter(({ program }) => isSport(program)), served, count: 1 })
-  const others = unclaimed.filter(({ program }) => program.title !== sport?.program.title && !isSport(program))
-  const [unimported] = await firstServed({ entries: rankOneOffs(others), served, count: 1 })
-  if (shows.length < LIBRARY_SHOW_COUNT) throw new Error(`only ${shows.length} shows with aired episodes before the simulated time`)
-  return {
-    shows,
-    rows: [
-      ...episodes,
-      ...(sport ? [{ ...sport, show: null, oneOff: true }] : []),
-      ...(unimported ? [{ ...unimported, show: null, unimported: true }] : []),
-    ],
-  }
-}
-
-const airedWithImage = ({ guide, simNow }) => {
-  const importedBy = simNow - (LAST_SYNC_AGO_MIN + IMPORT_LAG_MIN) * MINUTE_MS
-  return visibleChannels(guide)
-    .flatMap((channel) => programsOf(guide, channel)
-      .filter((program) => program.has_image && program.end <= importedBy)
-      .map((program) => ({ channel, program })))
-    .sort((a, b) => b.program.end - a.program.end)
-}
-
-const groupByTitle = (entries) => {
-  const groups = new Map()
-  for (const entry of entries) {
-    const key = entry.program.title
-    const episodeKey = `${entry.program.series_no}x${entry.program.episode_no}`
-    const group = groups.get(key) ?? []
-    if (group.length && group[0].channel.id !== entry.channel.id) continue
-    if (!group.some((e) => `${e.program.series_no}x${e.program.episode_no}` === episodeKey)) group.push(entry)
-    groups.set(key, group)
-  }
-  return [...groups.values()].sort((a, b) => groupScore(b) - groupScore(a)
-    || b.length - a.length
-    || b[0].program.end - a[0].program.end)
-}
-
-const spreadAcrossNetworks = (groups) => {
-  const seen = new Set()
-  const firsts = []
-  const rest = []
-  for (const group of groups) {
-    const network = networkOf(group[0].channel)
-    if (seen.has(network)) rest.push(group)
-    else firsts.push(group)
-    seen.add(network)
-  }
-  return [...firsts, ...rest]
-}
-
-const networkOf = (channel) => (channel.name || '').match(/^(ABC|SBS|NITV|7|9|10)/i)?.[1].toUpperCase() ?? channel.name
-
-const groupScore = (group) => {
-  const onFavourite = group.some(({ channel }) => channel.pinned)
-  const named = group.every(({ program }) => program.episode_title && !GENERIC_EPISODE_TITLE.test(program.episode_title))
-  return (onFavourite ? 2 : 0) + (named ? 1 : 0)
-}
-
-const rankOneOffs = (entries) => [
-  ...entries.filter(({ program }) => program.series_no == null),
-  ...entries.filter(({ program }) => program.series_no != null),
-]
-
-const isEpisode = (program) => program.series_no != null && program.series_no < 100
-  && program.episode_no != null && !isNewsy(program) && !isSport(program)
-
-const isSport = (program) => SPORT_TITLE.test(program.title || '')
-
-const isNewsy = (program) => NEWSY_TITLE.test(program.title || '')
-
-const servedImageCheck = ({ request, base }) => {
-  const cache = new Map()
-  return (program) => {
-    if (!cache.has(program.program_id)) {
-      cache.set(program.program_id, request.get(`${base}/api/epg/image/${encodeURIComponent(program.program_id)}`)
-        .then((response) => response.ok() && (response.headers()['content-type'] || '').startsWith('image/'))
-        .catch(() => false))
-    }
-    return cache.get(program.program_id)
-  }
-}
-
-const firstServed = async ({ entries, served, count }) => {
-  const picked = []
-  for (const entry of entries) {
-    if (picked.length === count) break
-    if (await served(entry.program)) picked.push(entry)
-  }
-  return picked
-}
-
-const libraryRecording = ({ row, index, shows, simNow }) => {
-  const { channel, program } = row
-  const show = shows.find((s) => s.show_pattern === row.show) ?? null
-  const durationS = Math.round((program.end - program.start) / 1000)
-  const size = Math.round(durationS * BYTES_PER_SECOND * (0.94 + (index % 4) * 0.03))
-  const episodeTitle = GENERIC_EPISODE_TITLE.test(program.episode_title || '') ? null : program.episode_title || null
-  const importedAt = importSlotAfter({ end: program.end, simNow })
-  const status = rowStatus(row)
-  const notInTvh = status === 'done' && show?.delete_after_import
-  const base = {
-    recording_id: `demo-${program.program_id}`,
-    show_id: show?.id ?? null,
-    title: program.title,
-    episode_title: episodeTitle,
-    season: row.show ? program.series_no : null,
-    episode: row.show ? program.episode_no : null,
-    channel_id: channel.id,
-    channel_name: channel.name,
-    aired_at: program.start,
-    duration_s: durationS,
-    synopsis: program.synopsis || null,
-    image_path: `artwork/demo-${program.program_id}.jpg`,
-    file_path: libraryPath({ program, show }),
-    size,
-    status,
-    error: null,
-    imported_at: status === 'done' ? sqlTime(importedAt) : null,
-    deleted_from_tvh_at: notInTvh ? sqlTime(importedAt + 2 * MINUTE_MS) : null,
-    show_pattern: show?.show_pattern ?? null,
-    show_dest_folder: show?.dest_folder ?? null,
-    playable: true,
-    playback_position_s: null,
-    progress: null,
-    ...adFields({ show, status, durationS, importedAt }),
-  }
-  if (status === 'importing') {
-    return { ...base, file_path: null, progress: { phase: 'importing', percent: 47, etaSeconds: 72, etaLabel: '1m 12s', detail: null, startedAt: simNow - 2 * MINUTE_MS } }
-  }
-  if (status === 'not_imported') return { ...base, file_path: null, size }
-  if (index === 0) return { ...base, playback_position_s: Math.round(durationS * 0.38) }
-  return base
-}
-
-const serverOrder = (recordings) => [...recordings].sort((a, b) =>
-  Number(Boolean(a.deleted_from_tvh_at)) - Number(Boolean(b.deleted_from_tvh_at))
-  || (b.aired_at ?? 0) - (a.aired_at ?? 0))
-
-const rowStatus = (row) => {
-  if (row.unimported) return 'not_imported'
-  if (row.importing) return 'importing'
-  return 'done'
-}
-
-const adFields = ({ show, status, durationS, importedAt }) => {
-  if (status !== 'done' || !show || show.ad_removal === 'off') {
-    return { ad_status: null, ad_breaks_json: null, ad_processed_at: null }
-  }
-  const breaks = adBreaks(durationS)
-  return {
-    ad_status: show.ad_removal === 'cut' ? 'cut' : 'detected',
-    ad_breaks_json: JSON.stringify(breaks),
-    ad_processed_at: sqlTime(importedAt + 3 * MINUTE_MS),
-  }
-}
-
-const adBreaks = (durationS) => {
-  const count = Math.max(1, Math.floor(durationS / 900))
-  return Array.from({ length: count }, (_, i) => {
-    const start = Math.round(((i + 1) * durationS) / (count + 1))
-    return { start, end: start + 150 + (i % 2) * 45 }
-  })
-}
-
-const importSlotAfter = ({ end, simNow }) => {
-  const lastSync = simNow - LAST_SYNC_AGO_MIN * MINUTE_MS
-  const slotsBack = Math.floor((lastSync - end - IMPORT_LAG_MIN * MINUTE_MS) / (SYNC_INTERVAL_MIN * MINUTE_MS))
-  return lastSync - Math.max(0, slotsBack) * SYNC_INTERVAL_MIN * MINUTE_MS + MINUTE_MS
-}
-
-const libraryPath = ({ program, show }) => {
-  if (!show) return `${SANITISED_SETTINGS.oneoff_root}/${program.title}/${program.title}.ts`
-  const se = seasonEpisode(program)
-  return `${seasonPath({ show, season: program.series_no })}/${show.dest_folder} - ${se}.ts`
-}
-
-const seasonPath = ({ show, season }) => {
-  const seasonDir = season == null ? 'Season …' : `Season ${String(season).padStart(2, '0')}`
-  return `${SANITISED_SETTINGS.media_root}/${show.dest_folder}/${seasonDir}`
-}
-
-const seasonEpisode = (program) => `S${String(program.series_no).padStart(2, '0')}E${String(program.episode_no).padStart(2, '0')}`
-
-const recordingLabel = (recording) => (recording.season != null
-  ? `${recording.title} - ${seasonEpisode({ series_no: recording.season, episode_no: recording.episode })}`
-  : recording.title)
-
-const sqlTime = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ')
-
-const recordingImage = ({ base, imageSources }) => async (route) => {
-  const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').at(-2))
-  const programId = imageSources.get(id)
-  if (programId == null) return route.fulfill({ status: 404, body: '' })
-  const response = await route.fetch({ url: `${base}/api/epg/image/${encodeURIComponent(programId)}` })
-  return route.fulfill({ response })
-}
-
-export const keepRequestsRoutable = () => {
-  const fetchRoutable = window.fetch.bind(window)
-  window.fetch = (input, init) => fetchRoutable(input, init?.keepalive ? { ...init, keepalive: false } : init)
-  navigator.sendBeacon = () => true
-}
-
-export const isServerWrite = (response) => {
-  const method = response.request().method()
-  if (method === 'GET' || method === 'HEAD') return false
-  return Boolean(response.headers()['x-freetvarr-build'])
-}
-
-export const reportServerWrites = (response) => {
-  if (!isServerWrite(response)) return
-  const request = response.request()
-  console.log(`  SERVER WRITE ${request.method()} ${new URL(request.url()).pathname}`)
-}
-
 const visibleChannels = (guide) => (guide.channels || []).filter((c) => !c.hidden)
 
 const programsOf = (guide, channel) => guide.programs?.[channel.id] || []
 
 const airsAt = (p, ms) => p.start <= ms && p.end > ms
 
-const onNowAt = ({ guide, simNow, url }) => {
-  const entries = visibleChannels(guide).map((channel) => ({
-    channel: {
-      id: channel.id,
-      name: channel.name,
-      number: channel.number ?? null,
-      hasLogo: (channel.logos || []).length > 0,
-      pinned: Boolean(channel.pinned),
-    },
-    ...nowAndNext(programsOf(guide, channel), simNow),
-  }))
-  if (new URL(url).searchParams.get('all') !== '1') {
-    return { entries: entries.filter((e) => e.channel.pinned) }
-  }
-  return {
-    fetchedAt: simNow,
-    stale: false,
-    sort: guide.sort,
-    hideSdSimulcasts: guide.hideSdSimulcasts,
-    hiddenIds: guide.hiddenIds,
-    channels: guide.channels,
-    entries,
-  }
-}
-
-const channelNowAt = ({ guide, simNow, url }) => {
-  const params = new URL(url).searchParams
-  const atMs = Number(params.get('at') || simNow)
-  return nowAndNext(guide.programs?.[params.get('channel')] || [], atMs)
-}
-
 const nowAndNext = (programs, ms) => ({
   now: programs.find((p) => airsAt(p, ms)) || null,
   next: programs.filter((p) => p.start > ms).sort((a, b) => a.start - b.start)[0] || null,
 })
 
-const shiftDay = (dayOffset) => (url) => {
-  const shifted = new URL(url)
-  shifted.searchParams.set('day', String(Number(url.searchParams.get('day') || 0) + dayOffset))
-  return shifted
-}
+const isLiveDemoChannel = (channel) => LIVE_DEMO_CHANNEL_PATTERN.test(channel?.name || '')
 
-const withSimulatedDay = ({ dayOffset, simNow }) => (data) => ({
-  ...withLiveDemoSlot(simNow)(withFavouriteChannels(data)),
-  day: data.day - dayOffset,
-  fetchedAt: simNow,
-})
+const liveDemoProgramme = (program) => ({ ...program, ...LIVE_DEMO_PROGRAMME, series_link: `${program.channel_id}|big wave season` })
 
-const futureResults = (simNow) => (data) => ({
-  ...data,
-  results: (data.results || []).filter((r) => r.end > simNow),
-})
-
-const sanitiseState = ({ simNow, recording }) => (data) => {
-  const upcoming = (rows) => (rows || []).filter((r) => r.endDate > simNow)
-  const future = upcoming(data.futureRecordings).map((r) => ({ ...r, filename: null }))
+const withLiveDemoSlot = (simNow) => (data) => {
+  const channel = (data.channels || []).find(isLiveDemoChannel)
+  if (!channel) return data
+  const programs = (data.programs?.[channel.id] || []).map((p) => (airsAt(p, simNow) ? liveDemoProgramme(p) : p))
   return {
     ...data,
-    storageInfo: data.storageInfo && { free: data.storageInfo.free, total: data.storageInfo.total, used: data.storageInfo.used },
-    activeInputs: [],
-    futureRecordings: recording ? [...future, scheduledEntry(recording)] : future,
-    upcomingRecordings: upcoming(data.upcomingRecordings),
-    activeRecordingIds: recording ? [String(recording.program.program_id)] : [],
+    channels: data.channels.map((c) => (c === channel ? { ...c, name: LIVE_DEMO_CHANNEL_NAME } : c)),
+    programs: { ...data.programs, [channel.id]: programs },
+  }
+}
+
+const withLiveDemoNow = (simNow) => (data) => ({
+  ...data,
+  ...(data.channels ? { channels: data.channels.map((c) => (isLiveDemoChannel(c) ? { ...c, name: LIVE_DEMO_CHANNEL_NAME } : c)) } : {}),
+  entries: (data.entries || []).map((entry) => (isLiveDemoChannel(entry.channel)
+    ? {
+      ...entry,
+      channel: { ...entry.channel, name: LIVE_DEMO_CHANNEL_NAME },
+      now: entry.now && airsAt(entry.now, simNow) ? liveDemoProgramme(entry.now) : entry.now,
+    }
+    : entry)),
+})
+
+const withLiveDemoChannelNow = ({ guide, simNow }) => (data, url) => {
+  const channel = (guide.channels || []).find((c) => String(c.id) === url.searchParams.get('channel'))
+  if (!isLiveDemoChannel(channel) && channel?.name !== LIVE_DEMO_CHANNEL_NAME) return data
+  return { ...data, now: data.now && airsAt(data.now, simNow) ? liveDemoProgramme(data.now) : data.now }
+}
+
+const withActiveRecording = ({ data, simNow, recording }) => {
+  if (!recording) return data
+  return {
+    ...data,
+    futureRecordings: [...(data.futureRecordings || []), scheduledEntry(recording)],
+    activeRecordingIds: [...(data.activeRecordingIds || []), String(recording.program.program_id)],
     fetchedAt: simNow,
   }
 }
@@ -591,6 +384,8 @@ const scheduledEntry = ({ channel, program }) => ({
   channelName: channel.name,
   startDate: program.start,
   endDate: program.end,
+  startPadded: program.start - 2 * MINUTE_MS,
+  stopPadded: program.end + 10 * MINUTE_MS,
   schedStatus: 'recording',
   statusText: 'Running',
   filename: null,
@@ -632,6 +427,7 @@ const createRecordingDesk = ({ guide, simNow }) => {
   const applyTo = (state) => ({
     ...state,
     futureRecordings: [...(state.futureRecordings || []), ...entries],
+    upcomingRecordings: [...(state.upcomingRecordings || []), ...entries.filter((e) => e.schedStatus === 'scheduled')],
     seriesTags: [...(state.seriesTags || []), ...seriesTags],
     activeRecordingIds: [
       ...(state.activeRecordingIds || []),
@@ -658,6 +454,8 @@ const activeRecordingCard = ({ recording, simNow }) => {
   return {
     uuid: 'demo-active-recording',
     programId: program.program_id,
+    autorecId: null,
+    recordingSince: program.start - 2 * MINUTE_MS,
     hasImage: true,
     title: program.title,
     episodeTitle: program.episode_title || null,
@@ -665,6 +463,10 @@ const activeRecordingCard = ({ recording, simNow }) => {
     episode: plausibleNumber(program.episode_no),
     channelId: channel.id,
     channelName: channel.name,
+    genres: [],
+    dvrUuid: 'demo-active-recording',
+    canPlayFromStart: true,
+    recordingStartedAt: program.start - 2 * MINUTE_MS,
     start: program.start,
     stop: program.end,
     startPadded: program.start - 2 * MINUTE_MS,
@@ -683,124 +485,182 @@ const activeRecordingCard = ({ recording, simNow }) => {
     continuityErrors: 0,
     transportErrors: 0,
     uncorrectedBlocks: 0,
-    tuner: null,
+    tuner: TUNER_NAMES[1],
   }
 }
 
-const demoFixtures = ({ simNow, recording, library }) => {
-  const sqlTimeAgo = (minutes) => sqlTime(simNow - minutes * MINUTE_MS)
-  const demoSync = ({ id, slot, status = 'ok', summary }) => ({
-    id,
-    started_at: sqlTimeAgo(LAST_SYNC_AGO_MIN + slot * SYNC_INTERVAL_MIN),
-    finished_at: sqlTimeAgo(LAST_SYNC_AGO_MIN + slot * SYNC_INTERVAL_MIN - 1),
-    status,
-    summary_json: JSON.stringify(summary),
-    summary,
-  })
-  const adModes = ['cut', 'detect', 'off']
-  const shows = library.shows.map(({ title, channel }, i) => {
-    const profile = SHOW_PROFILES[i % SHOW_PROFILES.length]
-    const adFree = AD_FREE_NETWORKS.includes(networkOf(channel))
-    return {
-      id: i + 1,
-      show_pattern: title,
-      dest_folder: title,
-      season_template: 'Season {season}',
-      enabled: true,
-      ...profile,
-      ad_removal: adFree ? 'off' : adModes.shift(),
-    }
-  })
-  const recordings = serverOrder(library.rows.map((row, i) => libraryRecording({ row, index: i, shows, simNow })))
-  const partialLabel = recordingLabel(recordings.find((r) => r.status === 'importing') ?? recordings[0])
-  const imported = recordings.filter((r) => r.status === 'done')
-  const failedRecording = recordings.find((r) => r.status === 'importing') ?? recordings[0]
-  const shortCopy = 'short copy: on-disk 1200000000 bytes vs TVHeadend 2100000000 bytes (Δ 900000000)'
+const demoFixtures = ({ simNow, picks }) => {
+  const active = picks.recording ? [activeRecordingCard({ recording: picks.recording, simNow })] : []
+  const activity = demoActivity({ simNow, active, picks })
   return {
-    recordingImages: new Map(library.rows.map((row) => [`demo-${row.program.program_id}`, row.program.program_id])),
+    recordingNow: { active, journeys: [], finishing: [], fetchedAt: simNow },
     syncStatus: {
       activeSyncId: null,
       cron: `*/${SYNC_INTERVAL_MIN} * * * *`,
       nextRunAt: new Date(simNow + (SYNC_INTERVAL_MIN - LAST_SYNC_AGO_MIN) * MINUTE_MS).toISOString(),
     },
-    syncs: [
-      demoSync({ id: 412, slot: 0, summary: {
-        trigger: 'cron', imported: 2, skipped: 14, failed: 0, errors: [],
-        plex: { triggered: true, status: 200 },
-        ads: { scanned: 2, detected: 1, cut: 1, failed: 0, adSeconds: 278 },
-        items: [
-          syncItem({ recording: imported[0], outcome: 'imported', ms: 1800, ads: { status: 'cut', adSeconds: 278 } }),
-          syncItem({ recording: imported[1], outcome: 'imported', ms: 900, ads: { status: 'detected', adSeconds: 0 } }),
-        ].filter(Boolean),
-        steps: { list: 640, imports: 2700, plexTv: 380, libraryCheck: 90 },
-      } }),
-      demoSync({ id: 411, slot: 1, summary: { trigger: 'cron', imported: 0, skipped: 14, failed: 0, errors: [], items: [], steps: { list: 610, imports: 40, libraryCheck: 80 } } }),
-      demoSync({ id: 410, slot: 2, status: 'partial', summary: {
-        trigger: 'manual', imported: 1, skipped: 13, failed: 1, errors: [`${partialLabel}: ${shortCopy}`],
-        plex: { triggered: true, status: 200 },
-        items: [
-          syncItem({ recording: imported[2], outcome: 'imported', ms: 1100 }),
-          syncItem({ recording: failedRecording, outcome: 'failed', ms: 64000, error: shortCopy }),
-        ].filter(Boolean),
-        steps: { list: 700, imports: 65200, plexTv: 410, libraryCheck: 95 },
-      } }),
-      demoSync({ id: 409, slot: 3, summary: { trigger: 'cron', imported: 0, skipped: 13, failed: 0, errors: [], items: [], steps: { list: 590, imports: 35, libraryCheck: 70 } } }),
-      demoSync({ id: 408, slot: 4, summary: {
-        trigger: 'cron', imported: 1, skipped: 12, failed: 0, errors: [],
-        plex: { triggered: true, status: 200 },
-        delete: { triggered: true, removed: [imported[3]?.recording_id ?? 'demo'] },
-        items: [syncItem({ recording: imported[3], outcome: 'imported', ms: 1300, removedFromTvh: true })].filter(Boolean),
-        steps: { list: 620, imports: 1300, plexTv: 390, removals: 820, libraryCheck: 85 },
-      } }),
-    ],
-    shows,
-    series: demoSeries({ shows, library, simNow }),
-    recordingsPage: { recordings, total: recordings.length, page: 1, pageSize: 50 },
-    recordingNow: {
-      active: recording ? [activeRecordingCard({ recording, simNow })] : [],
-      journeys: [],
-      fetchedAt: simNow,
+    activity,
+    healthSummary: {
+      level: 'ok',
+      sentence: null,
+      sources: {
+        doctor: { ranAt: new Date(simNow - 2 * HOUR_MS).toISOString(), summary: { pass: 19, warn: 0, fail: 0, skip: 0 } },
+        tvheadend: 'ok',
+        lastSync: {
+          id: 336,
+          status: 'ok',
+          finishedAt: new Date(simNow - (LAST_SYNC_AGO_MIN - 1) * MINUTE_MS).toISOString().slice(0, 19).replace('T', ' '),
+          summary: { trigger: 'cron', imported: 2, skipped: 14, failed: 0, errors: [], items: [], steps: { list: 640, imports: 2700, libraryCheck: 90 } },
+        },
+        syncRunning: false,
+        recentFailures: 0,
+      },
+      counts: { importedLast7Days: 14, failedLast24Hours: 0, syncs: 336 },
+      storage: [{ key: 'recordings', path: SANITISED_SETTINGS.recordings_root, total: 3_925_264_318_464, free: 2_129_770_651_648 }],
+      checkedAt: new Date(simNow - MINUTE_MS).toISOString(),
     },
     doctor: doctorReport(simNow),
+    wholeLibrary: {
+      enabled: true,
+      sectionIds: ['2', '1'],
+      sections: [{ id: '1', title: 'Movies', type: 'movie' }, { id: '2', title: 'TV Shows', type: 'show' }, { id: '5', title: 'One-offs', type: 'movie' }],
+      itemCount: 1043,
+    },
+    watchSync: {
+      configured: true,
+      fromPlex: true,
+      toPlex: true,
+      running: false,
+      lastRunAt: simNow - 6 * MINUTE_MS,
+      lastFullAt: simNow - 3 * HOUR_MS,
+      matched: 58,
+      unmatched: 0,
+      ambiguous: 0,
+      error: null,
+      errorKind: null,
+      lastErrorAt: null,
+      nextAttemptAt: null,
+    },
+    arr: {
+      sonarr: { url: 'http://192.168.1.100:8989', hasKey: true, keySource: 'config.xml', configFound: true },
+      radarr: { url: 'http://192.168.1.100:7878', hasKey: true, keySource: 'config.xml', configFound: true },
+      unmonitorOnDelete: true,
+    },
+    arrTest: (url) => (url.includes('/sonarr/')
+      ? { ok: true, version: '4.0.15.2941', count: 186, recycleBin: '/data/media/.recycle' }
+      : { ok: true, version: '5.26.2.10099', count: 412, recycleBin: '/data/media/.recycle' }),
+    tunerStatus: tunerStatus({ active }),
   }
 }
 
-const syncItem = ({ recording, outcome, ms, error = null, ads = null, removedFromTvh = false }) => recording && ({
-  id: recording.recording_id,
-  title: recording.title,
-  episodeTitle: recording.episode_title,
-  season: recording.season,
-  episode: recording.episode,
-  channel: recording.channel_name,
-  airedAt: recording.aired_at,
-  durationS: recording.duration_s,
-  kind: recording.show_id ? 'tv' : 'oneOff',
-  outcome,
-  size: outcome === 'failed' ? 1200000000 : recording.size,
-  error,
-  ads,
-  ms,
-  removedFromTvh,
-})
-
-const SYNC_OUTCOME_TESTS = {
-  imports: (s) => s.summary.imported > 0,
-  fails: (s) => s.status !== 'ok',
-  removals: (s) => Boolean(s.summary.delete?.triggered),
-  empty: (s) => s.status === 'ok' && !s.summary.imported && !s.summary.failed && !s.summary.delete?.triggered,
+const tunerStatus = ({ active }) => {
+  const names = TUNER_NAMES
+  const tuners = names.map((name, i) => {
+    const recording = active[i - 1]
+    return recording
+      ? { name, inUseBy: `Recording ${recording.title}`, label: `Recording ${recording.title}` }
+      : { name, inUseBy: null, label: 'Free' }
+  })
+  const inUse = tuners.filter((t) => t.inUseBy).length
+  return { configured: true, total: tuners.length, inUse, recording: inUse, free: tuners.length - inUse, tuners }
 }
 
-const syncsPage = ({ syncs, url }) => {
-  const params = new URL(url).searchParams
-  const outcomes = (params.get('show') || '').split(',').filter((o) => SYNC_OUTCOME_TESTS[o])
-  const pageSize = Number(params.get('pageSize')) || 50
-  const matches = outcomes.length
-    ? syncs.filter((s) => outcomes.some((o) => SYNC_OUTCOME_TESTS[o](s)))
-    : syncs
+const demoActivity = ({ simNow, active, picks }) => {
+  const at = (minutesAgo) => simNow - minutesAgo * MINUTE_MS
+  const done = ({ id, kind, title, minutesAgo, seconds, outcome = null, trigger = null, progress = null }) => ({
+    id, kind, title, state: 'done', trigger, parentId: null, ref: null, detail: null, step: null, stepIndex: 0,
+    outcome, tone: null, error: null, progress, percent: progress ? 100 : null, etaSeconds: null,
+    startedAt: at(minutesAgo), finishedAt: at(minutesAgo) + seconds * 1000,
+  })
+  const recent = [
+    done({ id: 'sync-demo-1', kind: 'sync', title: 'Sync and TV guide refresh', minutesAgo: LAST_SYNC_AGO_MIN, seconds: 41, outcome: '2 imported', trigger: 'schedule' }),
+    done({ id: 'ads-demo-1', kind: 'ads', title: 'Ad removal', minutesAgo: LAST_SYNC_AGO_MIN - 1, seconds: 96, outcome: '1 cut, 1 marked', progress: { done: 2, total: 2, unit: 'recordings' } }),
+    done({ id: 'plex-watch-demo-1', kind: 'plex-watch', title: 'Plex watched sync', minutesAgo: 6, seconds: 1, outcome: 'No changes', trigger: 'library-open' }),
+    done({ id: 'for-you-demo-1', kind: 'for-you', title: 'For you rebuild', minutesAgo: LAST_SYNC_AGO_MIN - 2, seconds: 1 }),
+    done({ id: 'hero-demo-1', kind: 'hero', title: 'Home hero rebuild', minutesAgo: LAST_SYNC_AGO_MIN - 2, seconds: 1 }),
+    done({ id: 'focus-demo-1', kind: 'focus', title: 'Picture focus', minutesAgo: LAST_SYNC_AGO_MIN - 3, seconds: 2, progress: { done: 6, total: 6, unit: 'pictures' } }),
+    done({ id: 'health-demo-1', kind: 'health', title: 'Health checks', minutesAgo: 120, seconds: 2, outcome: '19 passed' }),
+    done({ id: 'ratings-demo-1', kind: 'ratings', title: 'Ratings warm-up', minutesAgo: 45, seconds: 3, trigger: 'schedule' }),
+  ]
+  const liveChannel = (picks.guide.channels || []).find((c) => c.name === LIVE_DEMO_CHANNEL_NAME) ?? picks.programme.channel
+  const liveSession = {
+    id: 'demo-live-session',
+    kind: 'live',
+    channelId: liveChannel.id,
+    label: liveChannel.name,
+    status: 'live',
+    client: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1',
+    viewers: 1,
+    videoMode: 'vaapi',
+    startedAt: at(12),
+  }
   return {
-    syncs: matches.slice(0, pageSize).map(({ summary_json, ...s }) => s),
-    total: matches.length,
-    emptyCount: syncs.filter(SYNC_OUTCOME_TESTS.empty).length,
+    running: [],
+    upNext: [
+      { kind: 'sync', title: 'Sync and TV guide refresh', every: 'every 30 minutes', nextAt: at(LAST_SYNC_AGO_MIN - SYNC_INTERVAL_MIN) },
+      { kind: 'ratings', title: 'Ratings warm-up', every: 'every hour', nextAt: at(-15) },
+      { kind: 'health', title: 'Health checks', every: 'every 3 hours', nextAt: at(-60) },
+      { kind: 'prune', title: 'Cache prune', every: 'every day', nextAt: at(-6 * 60 - 15) },
+    ],
+    recent,
+    runningCount: 0,
+    recordings: active.map((recording) => ({
+      id: `recording-${recording.dvrUuid}`,
+      dvrUuid: recording.dvrUuid,
+      title: recording.title,
+      episodeTitle: recording.episodeTitle,
+      season: recording.season,
+      episode: recording.episode,
+      channelName: recording.channelName,
+      start: recording.start,
+      stop: recording.stop,
+      stopPadded: recording.stopPadded,
+      recordingStartedAt: recording.recordingStartedAt,
+      failed: false,
+      statusText: 'Running',
+      filesize: recording.filesize,
+      tuner: recording.tuner,
+    })),
+    sessions: [liveSession],
+    server: { uptimeSeconds: 5 * 86_400 + 4 * 3600, stalls: 3, worstStallMs: 240, thresholdMs: 100, tuners: { inUse: 1 + active.length, total: TUNER_NAMES.length } },
+  }
+}
+
+const jobsOf = ({ running, upNext, recent, runningCount }) => ({ running, upNext, recent, runningCount })
+
+const doctorCheck = (id, group, title, detail, doc = null) => ({ id, group, title, doc, fix: '', status: 'pass', detail })
+
+const doctorStamp = (ms) => new Intl.DateTimeFormat('en-AU', {
+  day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: TIMEZONE,
+}).format(new Date(ms)).replace(' am', 'am').replace(' pm', 'pm')
+
+const doctorReport = (simNow) => {
+  const checks = [
+    doctorCheck('tvh.reach', 'tvheadend', 'Connection', `TVHeadend 4.3 at ${SANITISED_SETTINGS.tvh_url}.`, 'guide/troubleshooting#setup-connection-test'),
+    doctorCheck('tvh.auth', 'tvheadend', 'Login', `Signed in as ${SANITISED_SETTINGS.tvh_username}.`, 'guide/troubleshooting#tvheadend-401-or-403'),
+    doctorCheck('tvh.rights', 'tvheadend', 'User rights', `The ${SANITISED_SETTINGS.tvh_username} entry has the Admin and Video recorder rights.`),
+    doctorCheck('tvh.open', 'tvheadend', 'Open access', 'Every TVHeadend admin needs a login.'),
+    doctorCheck('tvh.tuners', 'tvheadend', 'Tuners', `${TUNER_NAMES.length} tuners: ${TUNER_NAMES.map((name) => `${name} (192.168.1.60)`).join('; ')}.`),
+    doctorCheck('tvh.channels', 'tvheadend', 'Channels', '35 channels in TVHeadend.'),
+    doctorCheck('guide.depth', 'guide', 'Guide depth', `The guide runs 167 hrs ahead, to ${doctorStamp(simNow + 167 * HOUR_MS)}. Every channel has listings in the next 24 hrs.`),
+    doctorCheck('guide.logos', 'guide', 'Channel logos', '35 of 35 channels have a TVHeadend icon.'),
+    doctorCheck('paths.recordings', 'storage', 'Recordings folder', `${SANITISED_SETTINGS.recordings_root} is readable.`),
+    doctorCheck('paths.match', 'storage', 'TVHeadend recording path', `TVHeadend and Freetvarr both use ${SANITISED_SETTINGS.tvh_recordings_path}.`),
+    doctorCheck('paths.media', 'storage', 'Media folder', `${SANITISED_SETTINGS.media_root} is writable.`),
+    doctorCheck('paths.hardlink', 'storage', 'Hardlinks', `Imports from ${SANITISED_SETTINGS.recordings_root} into ${SANITISED_SETTINGS.media_root} and ${SANITISED_SETTINGS.oneoff_root} and ${SANITISED_SETTINGS.movies_root} hardlink.`),
+    doctorCheck('disk.free', 'storage', 'Free space', `2.1TB free on ${SANITISED_SETTINGS.recordings_root} (54% of the disk); 2.1TB free on ${SANITISED_SETTINGS.media_root} (54% of the disk).`),
+    doctorCheck('plex.reach', 'plex', 'Plex library', `Section TV Shows reads ${SANITISED_SETTINGS.media_root}.`),
+    doctorCheck('sync.health', 'syncs', 'Syncs', `Last sync finished ${doctorStamp(simNow - (LAST_SYNC_AGO_MIN - 1) * MINUTE_MS)}. Runs every 30 minutes.`, 'guide/syncs'),
+    doctorCheck('live.encoder', 'live', 'Live TV encoder', 'Hardware encoding. VAAPI test encode passed on /dev/dri/renderD128.'),
+    doctorCheck('live.streams', 'live', 'Live streams', 'Hardware transcoding measured smooth for 4 live streams at once, each at 1.4× real time or better. Freetvarr plays up to 2 at once, one per free tuner.'),
+    doctorCheck('ads.comskip', 'host', 'Ad removal tools', 'comskip, ffmpeg, and ffprobe are installed.'),
+    doctorCheck('host.env', 'host', 'Time zone and network', `Time zone ${TIMEZONE} (from Settings); 192.168.1.20.`),
+  ]
+  return {
+    ranAt: new Date(simNow - 4_000).toISOString(),
+    durationMs: 1_840,
+    summary: { pass: checks.length, warn: 0, fail: 0, skip: 0 },
+    checks,
   }
 }
 
@@ -826,132 +686,44 @@ const demoGuideLinks = (guide) => {
   }
 }
 
-const demoSeries = ({ shows, library, simNow }) => ({
-  series: shows.map((folder, i) => {
-    const { channel } = library.shows[i]
-    const season = library.rows.find((row) => row.program.title === folder.show_pattern)?.program.series_no
-    const startDate = simNow + (i + 1) * DAY_MS
-    return {
-      key: folder.show_pattern.toLowerCase(),
-      title: folder.show_pattern,
-      recording: true,
-      episodesToKeep: 0,
-      imageProgramId: null,
-      autorecs: [{
-        id: `demo-autorec-${folder.id}`,
-        seriesLinkId: `demo-series-${folder.id}`,
-        channelId: channel.id,
-        channelName: channel.name,
-        enabled: true,
-        episodesToKeep: 0,
-      }],
-      nextAiring: {
-        programId: null,
-        startDate,
-        endDate: startDate + 60 * MINUTE_MS,
-        episodeTitle: null,
-        channelId: channel.id,
-        channelName: channel.name,
-        expected: true,
-      },
-      folder,
-      savesTo: { kind: 'library', path: seasonPath({ show: folder, season }) },
-    }
-  }),
-  titleMatches: [],
-  stale: false,
-  error: null,
-})
-
-const doctorCheck = (id, group, title, status, detail, extra = {}) => ({ id, group, title, status, detail, fix: '', doc: null, ...extra })
-
-const doctorStamp = (ms) => {
-  const d = new Date(ms)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-const doctorReport = (simNow) => ({
-  ranAt: new Date(simNow - 4_000).toISOString(),
-  durationMs: 1_840,
-  checks: [
-    doctorCheck('tvh.reach', 'tvheadend', 'Connection', 'pass', `TVHeadend 4.3-2491 at ${SANITISED_SETTINGS.tvh_url}, API version 19.`),
-    doctorCheck('tvh.auth', 'tvheadend', 'Login', 'pass', `Signed in as ${SANITISED_SETTINGS.tvh_username}.`),
-    doctorCheck('tvh.rights', 'tvheadend', 'User rights', 'pass', `The ${SANITISED_SETTINGS.tvh_username} entry has the Admin and Video recorder rights.`),
-    doctorCheck('tvh.tuners', 'tvheadend', 'Tuners', 'pass', '2 tuners: HDHomeRun FLEX DUO Tuner #0; HDHomeRun FLEX DUO Tuner #1.'),
-    doctorCheck('tvh.channels', 'tvheadend', 'Channels', 'pass', '38 channels in TVHeadend.'),
-    doctorCheck('guide.depth', 'guide', 'Guide depth', 'warn', `The guide runs 172 h ahead, to ${doctorStamp(simNow + 172 * 3_600_000)}. 3 of 38 channels have nothing in the next 24 h.`, {
-      fix: 'Link the empty channels under Configuration → Channel/EPG → EPG Grabber Channels.',
-      doc: 'guide/troubleshooting#empty-guide',
-    }),
-    doctorCheck('guide.logos', 'guide', 'Channel logos', 'pass', '38 of 38 channels have a TVHeadend icon.'),
-    doctorCheck('paths.recordings', 'storage', 'Recordings folder', 'pass', `${SANITISED_SETTINGS.recordings_root} is readable.`),
-    doctorCheck('paths.match', 'storage', 'TVHeadend recording path', 'pass', `TVHeadend and Freetvarr both use ${SANITISED_SETTINGS.tvh_recordings_path}.`),
-    doctorCheck('paths.media', 'storage', 'Media folder', 'pass', `${SANITISED_SETTINGS.media_root} is writable.`),
-    doctorCheck('paths.hardlink', 'storage', 'Hardlinks', 'pass', 'Recordings and media share a filesystem, so imports hardlink.'),
-    doctorCheck('disk.free', 'storage', 'Free space', 'pass', `1452 GB free on ${SANITISED_SETTINGS.recordings_root} (41%); 1452 GB free on ${SANITISED_SETTINGS.media_root} (41%).`),
-    doctorCheck('plex.reach', 'plex', 'Plex library', 'pass', `Section TV Shows reads ${SANITISED_SETTINGS.media_root}.`),
-    doctorCheck('sync.health', 'plex', 'Syncs', 'pass', `Sync #412 finished ${doctorStamp(simNow - (LAST_SYNC_AGO_MIN - 1) * MINUTE_MS)}. Schedule: */${SYNC_INTERVAL_MIN} * * * *.`),
-    doctorCheck('live.encoder', 'live', 'Live TV encoder', 'pass', 'Hardware encoding. VAAPI H.264 on /dev/dri/renderD128.'),
-    doctorCheck('ads.comskip', 'host', 'Ad removal tools', 'pass', 'comskip, ffmpeg, and ffprobe are installed.'),
-    doctorCheck('host.env', 'host', 'Time zone and network', 'pass', `Time zone ${TIMEZONE}; 192.168.1.20.`),
-  ],
-})
-
-const favouriteIds = (channels) => {
-  const existing = channels.filter((c) => c.pinned).map((c) => String(c.id))
-  if (existing.length) return existing
-  const visible = channels.filter((c) => !c.hidden)
-  const matched = FAVOURITE_CHANNEL_PATTERNS.flatMap((re) => visible.filter((c) => re.test(c.name || '')).slice(0, 1))
-  return [...new Set([...matched, ...visible].map((c) => String(c.id)))].slice(0, FAVOURITE_COUNT)
-}
-
-const markPinned = (pinIds) => (channel) => {
-  const pinned = pinIds.includes(String(channel.id))
-  return { ...channel, pinned, hidden: pinned ? false : channel.hidden }
-}
-
-const pinnedFirst = ({ items, pinIds }) => {
-  const rank = (item) => {
-    const i = pinIds.indexOf(String(item.id))
-    return i === -1 ? pinIds.length : i
-  }
-  return [...items].sort((a, b) => rank(a) - rank(b))
-}
-
-const withFavouriteChannels = (data) => {
-  const pinIds = favouriteIds(data.channels || [])
-  return { ...data, channels: pinnedFirst({ items: (data.channels || []).map(markPinned(pinIds)), pinIds }) }
-}
-
-const withLiveDemoSlot = (simNow) => (data) => {
-  const channel = (data.channels || []).find((c) => LIVE_DEMO_CHANNEL_PATTERN.test(c.name || ''))
-  if (!channel) return data
-  const renamed = { ...channel, name: LIVE_DEMO_CHANNEL_NAME, pinned: true, hidden: false }
-  const others = data.channels.filter((c) => c !== channel)
-  const programs = (data.programs?.[channel.id] || []).map((p) => airsAt(p, simNow)
-    ? { ...p, ...LIVE_DEMO_PROGRAMME, series_link: `${channel.id}|big wave season` }
-    : p)
-  return {
-    ...data,
-    channels: [renamed, ...others.filter((c) => c.pinned), ...others.filter((c) => !c.pinned)],
-    programs: { ...data.programs, [channel.id]: programs },
-  }
-}
-
 const maskSettings = (data) => {
   const masked = { ...data }
-  for (const [key, value] of Object.entries(SANITISED_SETTINGS)) {
-    if (masked[key]) masked[key] = value
-  }
+  for (const [key, value] of Object.entries(SANITISED_SETTINGS)) masked[key] = value
   return masked
 }
 
-const localMidnight = (ms) => {
-  const midnight = new Date(ms)
-  midnight.setHours(0, 0, 0, 0)
-  return midnight.getTime()
-}
+const maskPaths = (text) => (PATH_ROOT ? text.split(PATH_ROOT).join(SHOWN_PATH_ROOT) : text)
+
+const ignoreClosed = (handler) => (route) => handler(route).catch(() => route.abort().catch(() => {}))
+
+const passThroughRead = ignoreClosed(async (route) => {
+  const request = route.request()
+  if (!['GET', 'HEAD'].includes(request.method())) return route.fallback()
+  const response = await route.fetch()
+  const type = response.headers()['content-type'] || ''
+  if (!type.includes('application/json')) return route.fulfill({ response })
+  return route.fulfill({ response, body: maskPaths(await response.text()) })
+})
+
+const rewriteJson = (transform) => ignoreClosed(async (route) => {
+  const url = new URL(route.request().url())
+  const response = await route.fetch()
+  if (!response.ok()) return route.fulfill({ response })
+  let data
+  try {
+    data = JSON.parse(maskPaths(await response.text()))
+  } catch {
+    return route.fulfill({ response })
+  }
+  return fulfillJson(route, transform(data, url))
+})
+
+const plexItemImage = ({ base }) => ignoreClosed(async (route) => {
+  const ratingKey = decodeURIComponent(new URL(route.request().url()).pathname.split('/').at(-2))
+  const programId = ratingKey.replace(/^9/, '').slice(0, -2)
+  const response = await route.fetch({ url: `${base}/api/epg/image/${encodeURIComponent(programId)}` })
+  return route.fulfill({ response })
+})
 
 const demoLiveTv = () => {
   let session = null
@@ -961,12 +733,16 @@ const demoLiveTv = () => {
     status: Date.now() - session.startedAt < LIVE_TUNING_MS ? 'tuning' : 'live',
     reason: null,
     startedAt: session.startedAt,
+    bufferSeconds: 0,
+    captions: false,
     playlist: `/api/live/${LIVE_SESSION_ID}/index.m3u8`,
   }
   return async (route) => {
     const request = route.request()
     const { pathname } = new URL(request.url())
-    if (request.method() === 'POST' && pathname.endsWith('/hold')) return fulfillJson(route, { ok: true })
+    if (pathname.endsWith('/tuner-status')) return route.fallback()
+    if (request.method() === 'POST' && /\/(hold|attention)$/.test(pathname)) return fulfillJson(route, { ok: true, held: true, changed: false })
+    if (request.method() === 'POST' && pathname.endsWith('/benchmark')) return fulfillJson(route, { ok: true })
     if (request.method() === 'POST') {
       session = { channelId: String(request.postDataJSON()?.channel_id || ''), startedAt: Date.now() }
       return fulfillJson(route, { ok: true, session: sessionView(), shared: false, conflict: null })
@@ -980,7 +756,7 @@ const demoLiveTv = () => {
     }
     const file = pathname.split('/').pop()
     if (!session) return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"not found"}' })
-    if (file === 'index.m3u8') return fulfillLivePlaylist({ route, liveSince: session.startedAt + LIVE_TUNING_MS })
+    if (file.endsWith('.m3u8')) return fulfillLivePlaylist({ route, liveSince: session.startedAt + LIVE_TUNING_MS })
     return route.fulfill({ path: join(LIVE_DEMO_DIR, file), contentType: 'video/mp4', headers: { 'Cache-Control': 'no-store' } })
   }
 }
@@ -1000,34 +776,4 @@ const fulfillLivePlaylist = async ({ route, liveSince }) => {
     '',
   ].join('\n')
   return route.fulfill({ status: 200, contentType: 'application/vnd.apple.mpegurl', headers: { 'Cache-Control': 'no-store' }, body })
-}
-
-export const fulfillJson = (route, data) => route.fulfill({
-  status: 200,
-  contentType: 'application/json',
-  body: JSON.stringify(data),
-})
-
-const rewriteJson = (transform, fetchUrl = (url) => url) => async (route) => {
-  const url = new URL(route.request().url())
-  const response = await route.fetch({ url: fetchUrl(url).toString() })
-  if (!response.ok()) return route.fulfill({ response })
-  let data
-  try {
-    data = await response.json()
-  } catch {
-    return route.fulfill({ response })
-  }
-  return fulfillJson(route, transform(data, url))
-}
-
-export const refuseWrites = (route) => {
-  if (route.request().method() === 'GET') return route.fallback()
-  console.log(`  blocked ${route.request().method()} ${new URL(route.request().url()).pathname}`)
-  return fulfillJson(route, { ok: true })
-}
-
-export const refuseUnknownGet = (route) => {
-  console.log(`  refused unstubbed GET ${new URL(route.request().url()).pathname}`)
-  return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
 }

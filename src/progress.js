@@ -1,8 +1,25 @@
 import prettyMs from 'pretty-ms'
 
+import { currentJob } from './activity.js'
+
 export const setProgress = (recordingId, patch) => {
   const existing = registry.get(recordingId) || {}
   registry.set(recordingId, { ...existing, ...patch, updatedAt: Date.now() })
+  currentJob()?.update(jobUpdateOf(patch))
+}
+
+export const jobUpdateOf = ({ phase, percent = null, etaSeconds = null, detail = null }) => ({
+  step: PHASE_STEPS[phase],
+  percent,
+  etaSeconds,
+  detail,
+})
+
+const PHASE_STEPS = {
+  importing: 'Copy from TVHeadend',
+  scanning: 'Scan for ads',
+  cutting: 'Cut ads',
+  verifying: 'Check the cut',
 }
 
 export const clearProgress = (recordingId) => {

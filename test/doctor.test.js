@@ -13,6 +13,7 @@ import {
   plexLocationMatches,
   isBridgeOnly,
   guideCoverage,
+  liveStreamsCheck,
 } from '../src/doctor.js'
 
 const HOUR_MS = 60 * 60 * 1000
@@ -101,6 +102,7 @@ const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
     latestSync: async () => null,
     schedulerExpression: () => '*/30 * * * *',
     liveEncoder: async () => ({ kind: 'vaapi', reason: 'VAAPI test encode passed on /dev/dri/renderD128' }),
+    liveStreams: async () => ({ max_live_streams: 2, benchmark: { encoder: 'vaapi', speed: 6.2, estimated: 4 } }),
     which: async (tool) => `/usr/bin/${tool}`,
     statfs: async () => ({ bavail: (500 * GB) / 4096, bsize: 4096, blocks: (1000 * GB) / 4096 }),
     envTimeZone: () => 'Australia/Sydney',
@@ -128,7 +130,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 16, warn: 0, fail: 0, skip: 2 })
+  assert.deepEqual(report.summary, { pass: 17, warn: 0, fail: 0, skip: 2 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -187,7 +189,7 @@ test('runDoctor: the open default access entry warns that anyone can change TVHe
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /0\.0\.0\.0\/0,::\/0/)
   assert.match(check.detail, /anyone on your network can change TVHeadend/)
-  assert.match(check.fix, /SECURE TVHEADEND/)
+  assert.match(check.fix, /SECURE AND CONNECT/)
   assert.equal(check.doc, 'guide/tvheadend#_2-secure-tvheadend')
 })
 
@@ -211,8 +213,8 @@ test('runDoctor: an empty hardware tree and no inputs fails the tuner check', as
   const tuners = byId(report)['tvh.tuners']
   assert.equal(tuners.status, 'fail')
   assert.doesNotMatch(tuners.fix, /network_mode/)
-  assert.match(tuners.fix, /tuner's address in the CHANNELS step/)
-  assert.equal(tuners.action.href, '#/welcome')
+  assert.match(tuners.fix, /tuner's address under SETTINGS → SETUP → CHANNELS/)
+  assert.equal(tuners.action.href, '#/settings/system/setup/channels')
   assert.equal(tuners.doc, 'guide/troubleshooting#missing-tuner')
 })
 
@@ -324,9 +326,11 @@ test('runDoctor: a real link between the test folders passes the hardlink check'
   assert.match(check.detail, /hardlink\.$/)
 })
 
-test('classifyDiskFree: under 2 GB fails, under 20 GB or 10% warns', () => {
+test('classifyDiskFree: under 10 GB fails, under 20 GB or 10% warns', () => {
   assert.equal(classifyDiskFree({ free: 1 * GB, total: 1000 * GB }), 'fail')
   assert.equal(classifyDiskFree({ free: 15 * GB, total: 50 * GB }), 'warn')
+  assert.equal(classifyDiskFree({ free: 9 * GB, total: 1000 * GB }), 'fail')
+  assert.equal(classifyDiskFree({ free: 10 * GB, total: 50 * GB }), 'warn')
   assert.equal(classifyDiskFree({ free: 90 * GB, total: 1000 * GB }), 'warn')
   assert.equal(classifyDiskFree({ free: 200 * GB, total: 1000 * GB }), 'pass')
 })
@@ -516,4 +520,22 @@ test('host.env: a Docker VM omits its internal address', async () => {
     now,
   })
   assert.doesNotMatch(byId(report)['host.env'].detail, /192\.168\.139\.2/)
+})
+
+test('live.streams: names the measured streams and the limit', () => {
+  const benchmark = { encoder: 'vaapi', speed: 3.6, estimated: 4, rounds: [{ streams: 4, speed: 1.3, smooth: true }] }
+  const check = liveStreamsCheck({ max_live_streams: 2, benchmark })
+  assert.equal(check.status, 'pass')
+  assert.equal(check.detail, 'Hardware transcoding measured smooth for 4 live streams at once, each at 1.3× real time or better. Freetvarr plays up to 2 at once.')
+})
+
+test('live.streams: warns when the limit is above the estimate, skips before the first run', () => {
+  const check = liveStreamsCheck({ max_live_streams: 2, benchmark: { encoder: 'software', speed: 2.1, estimated: 1 } })
+  assert.equal(check.status, 'warn')
+  assert.match(check.fix, /Set Live streams at once to 1\./)
+  assert.equal(check.action.href, '#/settings/player')
+  const tooSlow = liveStreamsCheck({ max_live_streams: 1, benchmark: { encoder: 'software', speed: 0.9, estimated: 0 } })
+  assert.equal(tooSlow.status, 'warn')
+  assert.equal(tooSlow.fix, 'Pictures may stutter even with 1 live stream.')
+  assert.equal(liveStreamsCheck({ max_live_streams: 1, benchmark: null }).status, 'skip')
 })

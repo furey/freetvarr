@@ -29,6 +29,37 @@ export const createTvLogin = async ({ http, conn, username, fallbackPrefix, gene
   }
 }
 
+export const deleteTvLogin = async ({ http, conn, username }) => {
+  const name = validTvLoginName(username)
+  const [accessEntries, passwordEntries] = await Promise.all([
+    gridEntries({ http, conn, path: 'access/entry/grid' }),
+    gridEntries({ http, conn, path: 'passwd/entry/grid' }),
+  ])
+  const uuids = [...accessEntries, ...passwordEntries]
+    .filter((entry) => isMadeByFreetvarr({ entry, username: name }))
+    .map((entry) => entry.uuid)
+  for (const uuid of uuids) await http.post('idnode/delete', { uuid }, conn)
+  return { username: name, removed: uuids }
+}
+
+export const deleteTvLoginRoute = ({ http, resolveConnection, readLogin, clearLogin }) => async (req, res) => {
+  const stored = await readLogin()
+  const requested = String(req.body?.username ?? '').trim()
+  if (!stored.username) return res.status(404).json({ ok: false, error: 'There is no TV login to delete.' })
+  if (requested !== stored.username) {
+    return res.status(409).json({ ok: false, error: `The TV login is ${stored.username}, not ${requested || 'blank'}.` })
+  }
+  try {
+    const result = await deleteTvLogin({ http, conn: await resolveConnection(), username: stored.username })
+    await clearLogin()
+    console.log(`[tv-login] deleted the watch-only TVHeadend login ${result.username}`)
+    res.json({ ok: true, ...result })
+  } catch (err) {
+    if (err instanceof TvLoginError) return res.status(400).json({ ok: false, error: err.message, code: err.code })
+    res.status(502).json({ ok: false, error: `TVHeadend did not delete the TV login: ${err.message}` })
+  }
+}
+
 export const validTvLoginName = (username) => {
   const name = String(username ?? '').trim()
   if (!name) throw new TvLoginError('Enter a name for the TV login.', 'invalid')
@@ -50,6 +81,9 @@ const readAuthCode = async ({ http, conn, username }) => {
   const entries = await gridEntries({ http, conn, path: 'passwd/entry/grid' })
   return entries.find((e) => e.username === username)?.authcode || ''
 }
+
+const isMadeByFreetvarr = ({ entry, username }) =>
+  Boolean(entry.uuid) && entry.username === username && entry.comment === CREATED_COMMENT
 
 const gridEntries = async ({ http, conn, path }) => {
   const body = await http.get(path, { limit: GRID_LIMIT }, conn)

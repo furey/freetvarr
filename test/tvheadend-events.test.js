@@ -14,6 +14,8 @@ let listing
 let requestedOffsets
 let openRequests
 let peakOpenRequests
+let barrierSize
+let waiting
 
 const eventAt = (index) => ({
   eventId: index,
@@ -28,10 +30,24 @@ const gridPage = ({ offset, limit, withTotalCount }) => ({
   ...(withTotalCount ? { totalCount: EVENT_COUNT } : {}),
 })
 
-const answerAfterDelay = async (res, body) => {
+const BARRIER_TIMEOUT_MS = 2000
+
+const releaseWaiting = () => {
+  const released = waiting
+  waiting = []
+  released.forEach((release) => release())
+}
+
+const waitForBarrier = () => new Promise((resolve) => {
+  waiting.push(resolve)
+  if (waiting.length >= barrierSize) return releaseWaiting()
+  setTimeout(releaseWaiting, BARRIER_TIMEOUT_MS).unref()
+})
+
+const answer = async (res, body, offset) => {
   openRequests += 1
   peakOpenRequests = Math.max(peakOpenRequests, openRequests)
-  await new Promise((resolve) => setTimeout(resolve, 10))
+  if (barrierSize && offset > 0) await waitForBarrier()
   openRequests -= 1
   res.writeHead(200, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify(body))
@@ -42,7 +58,7 @@ before(async () => {
     const params = new URL(req.url, 'http://x').searchParams
     const offset = Number(params.get('start'))
     requestedOffsets.push(offset)
-    answerAfterDelay(res, gridPage({ offset, limit: Number(params.get('limit')), ...listing }))
+    answer(res, gridPage({ offset, limit: Number(params.get('limit')), ...listing }), offset)
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   conn = { url: `http://127.0.0.1:${server.address().port}`, username: '', password: '' }
@@ -57,9 +73,12 @@ beforeEach(() => {
   requestedOffsets = []
   openRequests = 0
   peakOpenRequests = 0
+  barrierSize = 0
+  waiting = []
 })
 
 test('listEvents reads the pages after the first in parallel and keeps their order', async () => {
+  barrierSize = 4
   const events = await listEvents({ startMs: 0, endMs: Infinity, conn })
   assert.equal(events.length, EVENT_COUNT)
   assert.deepEqual(events.map((e) => e.program_id), Array.from({ length: EVENT_COUNT }, (_, i) => i))

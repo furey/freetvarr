@@ -7,15 +7,17 @@ description: >-
 
 # Live TV
 
+<Illustration name="live-tv" />
+
 A network tuner streams live channels to any device on your home network, and TVHeadend streams from any tuner it controls. None of it costs anything. Freetvarr has its own player for a quick look in a browser. The apps below suit an evening on the couch and need no Freetvarr at all.
 
-To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's **SETTINGS → WATCH ON YOUR TV** ([TV apps](/guide/tv-apps) has the steps).
+To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's Settings → Watching → Watch on TV ([TV apps](/guide/tv-apps) has the steps).
 
 ## The options
 
 | App                                 | Platforms                                | Points at              | Note                                                                        |
 | ----------------------------------- | ---------------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
-| Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. Captions                         |
+| Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. Captions. Multiview              |
 | The tuner's own app, e.g. HDHomeRun | Apple TV, iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                            |
 | Plex live TV                        | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend |
 | Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up        |
@@ -25,25 +27,42 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/live">
-  <img src="../img/screenshot-live.png" alt="The Live TV tab" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-live.png" alt="The Live TV page" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Tap a channel in the **LIVE TV** tab, or under **LIVE NOW** in the dashboard's **WHAT'S ON** panel, to watch it. A channel with no guide listing plays too. The **INFO** button at the end of each row opens the programme's details in the TV Guide; close them to return to the list. In the TV Guide, click a programme that is on air to open it, then press **WATCH LIVE**. The player keeps playing while you switch tabs. Close the player with the **✕** button to free the tuner.
+Open **Live TV** and press a channel to watch it. You can also press a card under **On now** on [Home](/guide/home), or press **Watch live** in a [programme sheet](/guide/tv-guide#recording-a-programme). A channel with no guide listing plays too. The [player](/guide/player) fills the screen. Press the back button at the top left to close the player and free the tuner, or press **Miniplayer** to keep watching while you use the rest of Freetvarr.
 
-A dimmed channel marked **OFF AIR** is not broadcasting right now, so a tap shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
+The page has these controls:
 
-The **zoom buttons** above the channel list change the row size. Zoom out for more channels on screen; zoom in for bigger pictures and text. Each browser remembers its zoom.
+- **Favourites** shows only your favourite channels. Press it again to show every channel. The channels under **FAVOURITES** always come first, then **OTHER CHANNELS**.
+- The **Filter channels or shows** field narrows the list by channel name or programme title. Type `film`, `movie`, `series`, or `one-off` to see only channels with that kind of programme on now or next; the list under the field also offers to match the word in names and titles instead. A movie has a `Movie` tag beside its title.
+- **Images** shows a picture of what is on. **Zoom** has three levels, **S**, **M**, and **L**. Each browser remembers both.
+- The **Channels** button (sliders) at the top right, next to search, opens the same settings as the TV guide: favourites, sort order, hidden channels, and listings. See [Favourites](/guide/tv-guide#favourites).
+- The star adds a channel to the favourites, or removes it.
+
+To reorder the favourites:
+
+- On a phone, press **Edit order** above the favourites. The **Favourite order** sheet opens. Drag a channel by its handle, or press the menu button on its row and pick a move. Press **Done** to save the order.
+- On a tablet or computer, press **Edit order** at the right of the **FAVOURITES** heading. A handle (three lines) appears at the start of each favourite. Drag a favourite by its handle to its new place. With a keyboard, tab to a handle, press Space to pick the channel up, move it with the arrow keys, and press Space again to drop it. Press **Done**, or press Esc, to hide the handles.
+
+Each drop saves the new order. To go back, drag the channel to its old place.
+
+Each row shows the channel number and logo, the programme on now with a progress bar and the time left, and **Next** with the programme after it. A `REC` badge marks a channel that records now. An `HD` or `SD` tag on the logo shows the channel's picture quality while both hide settings are off; see [Favourites](/guide/tv-guide#favourites). Press **Next**, or the info button at the end of a row, to open that programme's [sheet](/guide/tv-guide#recording-a-programme) over the list.
+
+A dimmed channel marked `Off air` is not broadcasting right now, so a press shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/live">
-  <img src="../img/screenshot-player.png" alt="The player over the Live TV tab" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-player.png" alt="The full-screen player" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
+The [Player](/guide/player) page covers the controls that live TV shares with recordings: **Start over**, sound, captions, the Miniplayer, **Pop out (picture in picture)**, full screen, [Multiview](/guide/player#multiview), and the keyboard shortcuts.
+
 ## Programme info
 
-Press the **i** button beside the status under the picture, or the `i` key on a computer, to show what is on. On a phone turned sideways, the button sits on the picture. The panel sits over the bottom of the picture and shows:
+Press **Info** in the top bar of the player to show what is on. On a narrow screen, **Info** is **Programme info** in the **⋯** menu. The panel sits over the bottom of the picture and shows:
 
 - The channel logo, number, and name.
 - The title, the episode title, and the season and episode number.
@@ -51,58 +70,70 @@ Press the **i** button beside the status under the picture, or the `i` key on a 
 - The genre, the classification, and the start of the description.
 - The programme that is on next, and when it starts.
 
-On a wide screen, the panel also shows the programme picture. While you watch from the rewind buffer, the panel describes what you are watching, not what is on air, and reads **FROM BUFFER**. The title at the top of the player changes when a new programme starts. If the guide has nothing for the channel, the panel says so.
+On a wide screen, the panel also shows the programme picture. While you watch from the rewind buffer, the panel describes what you are watching, not what is on air, and reads `FROM BUFFER`. The title at the top of the player changes when a new programme starts. If the guide has nothing for the channel, the panel says so.
 
-Press the button again, press `Esc`, or click the picture above the panel to close it. That click closes the panel only: it does not pause or skip. The player's own controls come back when the panel closes. Press the full-screen button beside **CC**, double-click the middle of the picture, or press the `f` key to go full screen. In full screen, the info, **CC**, and exit full-screen buttons show at the top right of the picture. To stop watching, exit full screen first, then close the player.
+When you tune in to a channel, and when a new programme starts, the classification (such as `M` or `MA15+`) shows over the picture for 5 seconds. The panel also shows it. The label does not show in the miniplayer or in Multiview. See [Classification](/guide/tv-guide#classification).
+
+Press **Info** again, or click the picture above the panel, to close it. That click closes the panel only: it does not pause or skip.
 
 ## Captions
 
-Press the **CC** button beside the **i** button, or the `c` key on a computer, to turn captions on. Press it again to turn them off. Captions are off until you turn them on, and each browser remembers your choice for the next channel. While the programme info panel is open, captions hide and the **CC** button is dimmed. Closing the panel brings them back if they were on.
+Open **⋯** in the player, then press **Captions** to turn captions on or off. On a keyboard, press `c`. Captions are off until you turn them on, and each browser remembers your choice for the next channel. While the programme info panel is open, captions hide. Closing the panel brings them back if they were on.
 
-Captions come from the broadcast's Teletext subtitles. A channel shows the **CC** button only when it carries them, and some programmes on that channel have no captions at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
+Captions come from the broadcast's Teletext subtitles. **Captions** shows only for a channel that carries them, and some programmes on that channel have no captions at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
 
 ## Record from the player
 
-Press **RECORD** in the player to record the programme on now, or **SERIES** to record every episode. Both buttons open the same dialog as the TV Guide, with **RECORD** for this airing, **SERIES** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. Under the status line, the dialog says what each button does. A recording starts from the moment you confirm, so the part that already aired is not included.
+Press **Record** in the top bar to record the programme on now, or **Series** to record every episode. Both buttons open the [programme sheet](/guide/tv-guide#recording-a-programme) over the player, with **Record** for this airing, **Record series** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. A recording starts from the moment you confirm, so the part that already aired is not included. On a narrow screen, **Series** is **Record series** in the **⋯** menu.
 
-If the guide has no listing for what is on now, both buttons are dimmed. **SERIES** turns gold with a tick while a series recording records the programme; press it to change or cancel the series.
+If the guide has no listing for what is on now, both buttons are dimmed. **Series** turns on while a series recording records the programme; press it to change or cancel the series.
 
-While the programme on now records, the record button reads **STOP REC** with a flashing orange dot (on a phone, the dot alone). Press it to open the dialog, then press **STOP RECORDING**. The dialog says what happens to the part already recorded:
+While the programme on now records, the record button reads **Recording**. Press it to open the sheet, then press **Stop recording**. A dialog asks you to confirm, and says what happens to the part already recorded:
 
-- After `5` minutes or more, the recording stops and the part recorded so far stays, and imports to your library like any finished recording.
-- Before `5` minutes, the recording stops and Freetvarr deletes the part recorded so far.
+- After `5` minutes or more, the recording stops and the part recorded so far stays, and imports to your library like any finished recording. Press **Stop recording** in the dialog.
+- Before `5` minutes, the recording stops and Freetvarr deletes the part recorded so far. The dialog lists it under **What gets deleted**; press **Stop and delete**.
+
+For an episode of a series recording, the dialog also says that the next episode still records. Press **Cancel** to keep recording.
 
 Stopping an episode of a series recording stops that episode only. The series keeps recording future episodes, and it does not record the stopped episode again.
 
 ## Pause and rewind
 
-Press **PAUSE** under the picture, or the space bar or `k` key on a computer, to pause. The status reads **PAUSED** and the channel keeps recording into the buffer. Press **PLAY** to carry on from where you paused, or **GO LIVE** to jump to now. Pausing for longer than the buffer resumes from the oldest part the buffer still holds.
+Freetvarr keeps the last `30` minutes of the channel you watch in a rewind buffer, so you can pause and rewind live TV.
 
-Pause the player, or drag back along its timeline, to rewind up to `30` minutes. While you are behind live, the player shows how far behind you are, and **GO LIVE** jumps back to now. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` to keep more or fewer minutes, or `0` to turn it off.
+- **Pause** (the large button) pauses. The channel keeps recording into the buffer. Press **Play** to carry on from where you paused. Pausing for longer than the buffer resumes from the oldest part the buffer still holds.
+- **Start over** offers **From the start**, when TVHeadend is recording the programme, and **Back to when you tuned in**. See [Start over](/guide/player#start-over).
+- **Go live** returns to now. At live, the button is replaced by the `LIVE` mark.
 
-To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. Keep tapping to skip further. On a computer, the left and right arrow keys skip `10` seconds too. Skipping stops at the start of the buffer and at live. Safari on an iPhone shows no timeline for live TV, so double-tap is the way to rewind there.
+Drag the position bar at the bottom of the picture to rewind. While you are behind live, the text under **Go live** says how far behind you are, such as `2 min behind`. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` to keep more or fewer minutes, or `0` to turn it off.
 
-If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (close the player with **✕** to free it at once).
+To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. On a computer, the left and right arrow keys skip `10` seconds too. Skipping stops at the start of the buffer and at live.
 
-The buffer starts when you open the channel, so you can rewind only as far back as that. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
+If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (close the player to free it at once).
+
+The buffer starts when you open the channel, so you can rewind only as far back as that. To watch a programme from its start, record it; **From the start** then plays the recording while it records. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
 
 Freetvarr keeps the buffer on disk, in the Freetvarr Docker container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2GB` for each channel that is playing.
 
+## Keyboard shortcuts
+
+The player's keys are the same for live TV and recordings. See [Keyboard shortcuts](/guide/player#keyboard-shortcuts).
+
 ## Stream handling
 
-If a channel takes longer than about `15` seconds to start, the player says it is still waiting for a signal. If a stream stops, the player says why (for example, a recording took the tuner), and **RETRY** tunes the channel again.
+If a channel takes longer than about `15` seconds to start, the player says it is still waiting for a signal. If a stream stops, the player says why (for example, a recording took the tuner), and **Try again** tunes the channel again.
 
 Freetvarr gets the channel from TVHeadend and converts it with ffmpeg into a stream that any browser can play:
 
 - **H.264 video** is deinterlaced and re-encoded to progressive H.264. See [Video handling](#video-handling).
-- **MPEG-2 or HEVC video** is re-encoded to H.264 in software, because browsers cannot play MPEG-2. Standard-definition channels stay at `576` lines; HD channels in those formats drop to `540` lines to keep the CPU load down.
+- **MPEG-2, HEVC, or VC-1 video** is re-encoded to H.264, because browsers cannot play MPEG-2. Standard-definition channels are re-encoded in software and stay at `576` lines. With hardware transcoding, HD video in those formats is decoded and re-encoded on the GPU at up to `720` lines, and 4K video drops to `1080` lines. Without it, HD and 4K video is re-encoded in software at `540` lines to keep the CPU load down. If the GPU cannot decode a recording or a Plex file, Freetvarr starts its playback again in software.
 - **Audio** becomes stereo, in TVHeadend's default language, without the audio-description track.
 
 Each channel needs a tuner, unless a tuner already carries its multiplex, in which case the two share it. If every tuner is busy, the player says what is using each one. If a recording in the next hour needs the tuner, the player warns you. When the recording starts, the recording takes the tuner and the live stream stops.
 
 Stream limits:
 
-- **Two channels at once** by default. Set `LIVE_TV_MAX_SESSIONS` in the `.env` to change it. Viewers of the same channel share one stream.
+- **One to four channels at once**, set by [Live streams at once](/guide/player#live-streams-at-once) in Settings → Watching → Playback. Freetvarr measures your computer when it starts and picks the default. `LIVE_TV_MAX_SESSIONS` in the `.env` caps it. Recordings that play in Freetvarr count against the same limit, and viewers of the same channel share one stream.
 - **The stream stops 20 seconds** after the last viewer closes the player or the tab. A locked phone or a hidden tab keeps it for the buffer length instead ([Pause and rewind](#pause-and-rewind)).
 - **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 

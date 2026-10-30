@@ -5,10 +5,12 @@ description: >-
   free-to-air setup before the Gen 3 Extended Service Levy: save your
   recordings, buy a tuner, and cancel.
 image: /social/leaving-fetch.png
-imageAlt: 'Leaving Fetch TV? Keep recording free-to-air TV and watching it on your TV. Own your setup before the levy.'
+imageAlt: 'A step-by-step guide: Leaving Fetch TV? Keep recording free-to-air TV and watching it on your TV.'
 ---
 
 # Leaving Fetch TV
+
+<Illustration name="leaving-fetch" />
 
 Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now asks for a one-off levy to keep it working until at least June 2028. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
@@ -32,7 +34,7 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
-[Freetvarr](/guide/) is one more optional piece. The author built it for the author's own setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's [setup wizard](/guide/getting-started#_2-run-the-wizard) sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
+[Freetvarr](/guide/) is one more optional piece. Freetvarr's author built it for a home setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
 
 > [!TIP]<br>
 > If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
@@ -108,7 +110,7 @@ SiliconDust also sells a recording service, its [DVR service](https://info.hdhom
 
 This is the author's setup. The tuner sends TV to TVHeadend, free recording software that runs on an always-on computer at home. Freetvarr runs alongside it and gives you:
 
-- A 7-day [TV Guide](/guide/tv-guide), where you record one programme or a whole series.
+- A 7-day [TV guide](/guide/tv-guide), where you record one programme or a whole series.
 - [Recordings](/guide/recordings) filed into your media library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 - [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, watch live TV with the 7-day guide in Jellyfin or Kodi: Freetvarr shows the addresses to copy into the app ([TV apps](/guide/tv-apps)).
@@ -118,20 +120,20 @@ The clip below shows Freetvarr in use.
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Recording works like the record button on the Fetch remote. In Freetvarr's TV Guide, click a programme to open it, then press **RECORD** for one episode or **SERIES** for every episode.
+Recording works like the record button on the Fetch remote. In Freetvarr's [TV guide](/guide/tv-guide), press a programme to open it, then press **Record** for one episode. Pick **Every episode** and press **Record series** for every episode.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme opened from the TV Guide, with its image, description, padding settings, and RECORD, SERIES, and WATCH LIVE buttons" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme sheet in the TV guide, with its image, description, padding settings, and Record, Record series, and Watch live buttons" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-On a phone, open Freetvarr in the browser, open the LIVE TV tab, and tap a channel. The browser plays the channel, with no app to install.
+On a phone, open Freetvarr in the browser, open Live TV, and tap a channel. The browser plays the channel, with no app to install.
 
 <!-- markdownlint-disable MD033 -->
 <div class="phone-frames">
   <BrowserFrame phone label="freetvarr.lan/#/live">
-    <img src="../img/screenshot-mobile-live.png" alt="The Live TV tab on a phone, listing channels with the programme on now" width="780" height="1688" loading="lazy">
+    <img src="../img/screenshot-mobile-live.png" alt="The Live TV page on a phone, listing channels with the programme on now" width="780" height="1688" loading="lazy">
   </BrowserFrame>
   <BrowserFrame phone label="freetvarr.lan/#/live">
     <img src="../img/screenshot-mobile-player.png" alt="The live TV player on a phone, playing a channel" width="780" height="1688" loading="lazy">
@@ -167,7 +169,7 @@ Prices are in Australian dollars, as of October 2026, and change often. Check th
   <p>Left: the PAL plug on an Australian aerial lead. Right: an F plug, the type the tuner takes. The F-to-PAL adapter joins the two.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:TV_antenna_connectors.jpg">Sajad-HasanAhmadi</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
 </div>
 
-Buy only a `DT` model. Anything with `US` in the model number, any Flex Duo, and anything branded 4K is built for American TV and cannot receive Australian channels. Most HDHomeRun listings on Amazon AU and eBay AU are these American models. When you order from SiliconDust, write in the order notes that you need the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the author's order notes, and both came in the box. Shipping from the US takes about a week, so order early.
+Buy only a `DT` model. Anything with `US` in the model number, any Flex Duo, and anything branded 4K is built for American TV and cannot receive Australian channels. Most HDHomeRun listings on Amazon AU and eBay AU are these American models. When you order from SiliconDust, write in the order notes that you need the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the order notes, and both came in the box. Shipping from the US takes about a week, so order early.
 
 ### Path 2 shopping
 
@@ -184,7 +186,7 @@ Everything in Path 1, plus an always-on computer and somewhere to store recordin
 An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that. Plex is free for watching your own media library at home; see [Plex's plans](https://www.plex.tv/en-au/plans/) for what its paid tier adds.
 
 > [!NOTE]<br>
-> The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. The author also added a `16GB` memory module to the DS220+ (see [Memory upgrade](/guide/hardware#memory-upgrade)); it is optional. Any always-on computer that runs Docker works; the [Hardware](/guide/hardware) guide has the details.
+> The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. The author also added a `16GB` memory module to the DS220+ (see [Memory upgrade](/guide/hardware#the-computer-memory-upgrade)); it is optional. Any always-on computer that runs Docker works; [The computer](/guide/hardware#the-computer) gives minimum and recommended specs.
 
 ## Saving your Fetch recordings
 
@@ -218,13 +220,14 @@ Once the NAS and Freetvarr are set up, open the NAS's shared folder from your co
 | A film (saved without a season folder)                                                            | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
 | Anything else, such as a news bulletin or a sports final                                          | `one-offs`                                                                        |
 
-Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex.
+Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex. When Plex has them, Freetvarr's [Recordings](/guide/recordings#library) lists them beside your new recordings, on the same show page (Settings → Recording → Plex → [Your whole library](/guide/plex#your-whole-library) turns this off).
 
-If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex` and use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac). This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy.
+If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex` and use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac). This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy. `fetchtv` also writes a `fetchtv.json` file at the top of the save folder, with a list of the files it saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
 
-Add `--exclude=` with the name of each film or news show to leave it out (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`:
+Add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`:
 
 ```console
+npx fetchtv recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/data/media/tv
 npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/data/media/movies
 npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/data/media/one-offs
 ```
@@ -241,7 +244,7 @@ Do these in order. The times are for someone doing it the first time.
 4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch live TV. `10 minutes`.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
 6. **Install Freetvarr** ([Getting started](/guide/getting-started)). The install script also installs TVHeadend. To get Plex as well, add your Plex claim code before you run it ([No Plex yet?](/guide/plex#no-plex-yet)). If you already run TVHeadend or Plex, Freetvarr connects to them instead ([An existing TVHeadend](/guide/getting-started#an-existing-tvheadend)). `15–30 minutes`.
-7. **Run the Freetvarr [setup wizard](/guide/getting-started#_2-run-the-wizard)**. It secures TVHeadend, scans for channels, loads the TV guide, sets the recording folders, and creates your Plex libraries. `30–60 minutes`.
+7. **Run the Freetvarr [setup](/guide/getting-started#_2-run-setup)**. It secures TVHeadend, scans for channels, loads the TV guide, sets the recording folders, and creates your Plex libraries. `30–60 minutes`.
 8. **[Add your Fetch recordings](#adding-them-to-your-media-library)** to your media library (e.g. Plex, Jellyfin, or Kodi): drag them into Freetvarr's `media` folder. `15 minutes`, plus copying time.
 9. **Watch [Live TV](/guide/live-tv)** in Freetvarr in a browser to check that the whole setup works. `5 minutes`.
 
@@ -300,7 +303,7 @@ Freetvarr works only on your home network and has no sign-in, so never make it r
 
 ### Captions
 
-Australian channels send captions in an older format called Teletext. Freetvarr's browser player shows them: press **CC** in the player (see [Captions](/guide/live-tv#captions)). The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them too (see [Captions in other apps](/guide/live-tv#captions-in-other-apps)).
+Australian channels send captions in an older format called Teletext. Freetvarr's browser player shows them: open **⋯** in the player and press **Captions** (see [Captions](/guide/live-tv#captions)). The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them too (see [Captions in other apps](/guide/live-tv#captions-in-other-apps)).
 
 ### Your aerial
 

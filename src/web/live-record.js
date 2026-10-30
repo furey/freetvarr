@@ -1,3 +1,4 @@
+import { canRecordSeriesOf } from './record-wording.js'
 import { findSeriesLink } from './series-link.js'
 
 export const NO_LISTING_TITLE = "No listing for what's on now, so there is nothing to record."
@@ -9,9 +10,6 @@ const SERIES_SET_TITLE = 'A series recording in TVHeadend records this show. Pre
 
 export const isOnAir = ({ program, nowMs }) =>
   Boolean(program) && program.start <= nowMs && program.end > nowMs
-
-export const nowProgramFor = ({ entries = [], channelId }) =>
-  entries.find((e) => String(e.channel?.id) === String(channelId))?.now || null
 
 export const liveRecordButton = ({ program, nowMs, recordingProgramIds = new Set() }) => {
   if (!isOnAir({ program, nowMs })) {
@@ -27,7 +25,7 @@ export const recordingProgramIdsOf = (active = []) =>
 
 export const liveSeriesButton = ({ program, nowMs, seriesTags, channelName = () => '' }) => {
   if (!isOnAir({ program, nowMs })) return seriesButton({ disabled: true, title: SERIES_NO_LISTING_TITLE })
-  if (!program.series_link) return { ...seriesButton({ disabled: true }), hidden: true }
+  if (!canRecordSeriesOf(program)) return { ...seriesButton({ disabled: true }), hidden: true }
   if (!seriesTags) return seriesButton({ disabled: true, title: SERIES_CHECKING_TITLE })
   const links = new Set(seriesTags.map((t) => String(t?.seriesLinkId ?? t?.id)))
   if (findSeriesLink({ links, seriesLink: program.series_link })) {

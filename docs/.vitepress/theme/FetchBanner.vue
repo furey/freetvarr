@@ -10,8 +10,8 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
   <a v-if="!isLeavingFetchPage" class="fetch-banner" :href="withBase('/guide/leaving-fetch')">
     <span class="fetch-banner__text">
       <strong>Leaving Fetch TV?</strong>
-      <span class="fetch-banner__long">A step-by-step guide to owning your setup before the levy</span>
-      <span class="fetch-banner__short">Read the guide before the levy</span>
+      <span class="fetch-banner__long">Read the guide</span>
+      <span class="fetch-banner__short">Read the guide</span>
     </span>
     <svg class="fetch-banner__arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 8h10M9 4l4 4-4 4"/>
@@ -33,7 +33,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
   box-sizing: border-box;
   height: var(--vp-layout-top-height);
   padding: 0 16px;
-  background: #007bb6;
+  background: #12403a;
   color: #fff;
   font-size: 14px;
   line-height: 1.5;
@@ -42,7 +42,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
 }
 
 .fetch-banner:hover {
-  background-color: #006da3;
+  background-color: #175048;
 }
 
 .fetch-banner:hover .fetch-banner__text {
@@ -64,7 +64,7 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
 
 .fetch-banner__text strong {
   margin-right: 4px;
-  color: inherit;
+  color: #8bebd7;
   font-weight: 700;
 }
 

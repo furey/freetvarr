@@ -38,7 +38,14 @@ COPY package.json package-lock.json .npmrc ./
 # verify package contents during `npm ci`.
 RUN npm install -g npm@11.15.0 \
  && npm ci --omit=dev --ignore-scripts \
- && npm run rebuild:natives
+ && npm run rebuild:natives \
+ && ort=node_modules/onnxruntime-node/bin/napi-v6 \
+ && find "$ort" -mindepth 1 -maxdepth 1 ! -name linux -exec rm -rf {} + \
+ && find "$ort/linux" -mindepth 1 -maxdepth 1 ! -name "$(node -p process.arch)" -exec rm -rf {} + \
+ && rm -rf node_modules/onnxruntime-web \
+ && find node_modules/@huggingface/transformers/dist -type f ! -name transformers.node.mjs -delete \
+ && rm -rf node_modules/@huggingface/transformers/src node_modules/@huggingface/transformers/types \
+ && npm cache clean --force
 
 COPY . .
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import http from 'node:http'
 
-import { createPlexLibraries, listPlexSections, planPlexLibraries, plexLibraryLocale } from '../src/plex.js'
+import { createPlexLibraries, listPlexSectionItems, listPlexSections, planPlexLibraries, plexLibraryLocale } from '../src/plex.js'
 
 const TOKEN = 'test-token'
 
@@ -192,4 +192,26 @@ test('createPlexLibraries: a rejected token stops before any library is made', a
       /Plex rejected the token \(401\)/,
     )
   })
+})
+
+test('concurrent section listings share one Plex request', async () => {
+  let listings = 0
+  const server = http.createServer((req, res) => {
+    listings += 1
+    setTimeout(() => {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ MediaContainer: { Metadata: [{ ratingKey: '1' }] } }))
+    }, 20)
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const url = `http://127.0.0.1:${server.address().port}`
+    const section = { id: '7', type: 'show' }
+    const results = await Promise.all(Array.from({ length: 5 }, () => listPlexSectionItems({ url, token: TOKEN, section })))
+    assert.equal(listings, 1)
+    assert.ok(results.every((items) => items === results[0]))
+    assert.deepEqual(results[0], [{ ratingKey: '1' }])
+  } finally {
+    server.close()
+  }
 })

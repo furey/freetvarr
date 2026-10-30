@@ -1,88 +1,237 @@
 /*
-  Brand styling for the freetvarr docs.
-  Palette and fonts are lifted from the web app (src/web/index.html @theme,
-  src/web/styles.css): warm near-black #1a1611 canvas, #fffcfb ink, signal-blue
-  interactive accent, with orange and Plex-yellow as the wordmark's other two chips.
+  Brand styling for the Freetvarr docs, matching the 2.0 web app: the tokens in
+  src/tailwind.css, Figtree for text, Geist Mono for machine data, mint for
+  primary actions and the current page, and the three brand colours only in
+  the wordmark and mark. Dark is the default, as in the app. Light keeps the
+  same accents, with deeper text shades where mint or the brand colours would
+  fail contrast on white.
 */
 
 @font-face {
-  font-family: "Inter";
+  font-family: "Figtree";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("./fonts/inter-variable.woff2") format("woff2-variations"),
-       url("./fonts/inter-variable.woff2") format("woff2");
+  src: url("./fonts/figtree-latin-variable.woff2") format("woff2-variations"),
+       url("./fonts/figtree-latin-variable.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-  font-family: "JetBrains Mono";
+  font-family: "Figtree";
   font-style: normal;
-  font-weight: 100 800;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("./fonts/jetbrains-mono-variable.woff2") format("woff2-variations"),
-       url("./fonts/jetbrains-mono-variable.woff2") format("woff2");
+  src: url("./fonts/figtree-latin-ext-variable.woff2") format("woff2-variations"),
+       url("./fonts/figtree-latin-ext-variable.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/geist-mono-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/geist-mono-latin-500-normal.woff2") format("woff2");
 }
 
 :root:has(.fetch-banner) {
   --vp-layout-top-height: 40px;
 }
 
+/* Tokens. Light values first (VitePress puts light on :root), dark below. */
+
 :root {
-  --vp-font-family-base: "Inter", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, sans-serif;
-  --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
-    "Courier New", monospace;
-
-  --vp-c-brand-1: #0a9fe6;
-  --vp-c-brand-2: #1eb6ff;
-  --vp-c-brand-3: #62cfff;
-  --vp-c-brand-soft: rgba(30, 182, 255, 0.16);
-  --vp-c-brand-softer: rgba(30, 182, 255, 0.08);
-
-  --vp-button-brand-border: transparent;
-  --vp-button-brand-text: #1a1611;
-  --vp-button-brand-bg: #1eb6ff;
-  --vp-button-brand-hover-border: transparent;
-  --vp-button-brand-hover-text: #1a1611;
-  --vp-button-brand-hover-bg: #62cfff;
-  --vp-button-brand-active-border: transparent;
-  --vp-button-brand-active-text: #1a1611;
-  --vp-button-brand-active-bg: #0a9fe6;
-
-  --vp-home-hero-name-color: var(--vp-c-text-1);
-  --hero-line-2: #c25e00;
-  --vp-home-hero-image-background-image: linear-gradient(
-    135deg,
-    rgba(98, 207, 255, 0.4),
-    rgba(30, 182, 255, 0.32) 45%,
-    rgba(255, 138, 0, 0.7)
-  );
-  --vp-home-hero-image-filter: blur(52px);
+  --ftv-bg: #ffffff;
+  --ftv-rail: #f6f8fa;
+  --ftv-well: #ffffff;
+  --ftv-surface-1: #f1f4f7;
+  --ftv-surface-2: #e6ebf0;
+  --ftv-surface-3: #d9e0e7;
+  --ftv-surface-4: #cdd6de;
+  --ftv-hairline: rgba(11, 17, 23, 0.09);
+  --ftv-field-edge: rgba(11, 17, 23, 0.16);
+  --ftv-text-1: #0b1117;
+  --ftv-text-2: #46525e;
+  --ftv-text-3: #5b6773;
+  --ftv-text-soft: #26313b;
+  --ftv-primary: #5ce1c6;
+  --ftv-primary-hi: #8bebd7;
+  --ftv-primary-text: #0a7563;
+  --ftv-primary-text-hi: #075a4c;
+  --ftv-primary-tint: rgba(92, 225, 198, 0.2);
+  --ftv-on-primary: #04201a;
+  --ftv-live: #ff4d4f;
+  --ftv-live-text: #b42318;
+  --ftv-live-tint: rgba(255, 77, 79, 0.1);
+  --ftv-warning-text: #8a5300;
+  --ftv-warning-tint: rgba(255, 181, 71, 0.16);
+  --ftv-info-text: #0369a1;
+  --ftv-info-tint: rgba(98, 207, 255, 0.14);
+  --ftv-tip-tint: rgba(92, 225, 198, 0.16);
+  --ftv-brand-blue: #3ba4ff;
+  --ftv-brand-orange: #f28c28;
+  --ftv-brand-yellow: #f5c542;
+  --ftv-wordmark-blue: #1a87e6;
+  --ftv-wordmark-orange: #d9730f;
+  --ftv-wordmark-yellow: #c08a08;
+  --ftv-press: rgba(11, 17, 23, 0.06);
+  --ftv-backdrop: rgba(11, 17, 23, 0.4);
+  --ftv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ftv-motion: 160ms;
 }
 
 .dark {
-  --hero-line-2: #ff8a00;
-  --vp-c-brand-1: #62cfff;
-  --vp-c-brand-2: #1eb6ff;
-  --vp-c-brand-3: #0a9fe6;
-
-  --vp-c-bg: #1a1611;
-  --vp-c-bg-alt: #201b15;
-  --vp-c-bg-soft: #28231b;
-  --vp-c-bg-elv: #28231b;
-  --vp-c-bg-elv-mute: #332f21;
-
-  --vp-c-gutter: #12100c;
-  --vp-c-divider: #3d3829;
-  --vp-c-border: #3d3829;
-
-  --vp-c-text-1: #fffcfb;
-  --vp-c-text-2: #b0a89e;
-  --vp-c-text-3: #8b837e;
+  --ftv-bg: #0b1117;
+  --ftv-rail: #0e151c;
+  --ftv-well: #070b0f;
+  --ftv-surface-1: #141c24;
+  --ftv-surface-2: #1c2630;
+  --ftv-surface-3: #26323e;
+  --ftv-surface-4: #303d4a;
+  --ftv-hairline: rgba(255, 255, 255, 0.08);
+  --ftv-field-edge: rgba(255, 255, 255, 0.14);
+  --ftv-text-1: #f2f5f7;
+  --ftv-text-2: #a9b4be;
+  --ftv-text-3: #8d9aa7;
+  --ftv-text-soft: #d3dae0;
+  --ftv-primary-text: #5ce1c6;
+  --ftv-primary-text-hi: #8bebd7;
+  --ftv-primary-tint: rgba(92, 225, 198, 0.14);
+  --ftv-live-text: #ff8486;
+  --ftv-live-tint: rgba(255, 77, 79, 0.12);
+  --ftv-warning-text: #ffb547;
+  --ftv-warning-tint: rgba(255, 181, 71, 0.12);
+  --ftv-info-text: #62cfff;
+  --ftv-info-tint: rgba(98, 207, 255, 0.12);
+  --ftv-tip-tint: rgba(92, 225, 198, 0.12);
+  --ftv-wordmark-blue: #3ba4ff;
+  --ftv-wordmark-orange: #f28c28;
+  --ftv-wordmark-yellow: #f5c542;
+  --ftv-press: rgba(255, 255, 255, 0.06);
+  --ftv-backdrop: rgba(0, 0, 0, 0.6);
 }
 
-/* The app renders numbers tabular so live readings hold their width; carry the
-   same tabular figures into code and tables here. */
+:root,
+.dark {
+  --vp-font-family-base: "Figtree", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --vp-font-family-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo,
+    "Courier New", monospace;
+
+  --vp-c-bg: var(--ftv-bg);
+  --vp-c-bg-alt: var(--ftv-rail);
+  --vp-c-bg-soft: var(--ftv-surface-1);
+  --vp-c-bg-elv: var(--ftv-surface-1);
+  --vp-c-bg-elv-mute: var(--ftv-surface-2);
+  --vp-c-gutter: var(--ftv-hairline);
+  --vp-c-divider: var(--ftv-hairline);
+  --vp-c-border: var(--ftv-field-edge);
+  --vp-c-default-soft: var(--ftv-surface-2);
+  --vp-c-text-1: var(--ftv-text-1);
+  --vp-c-text-2: var(--ftv-text-2);
+  --vp-c-text-3: var(--ftv-text-3);
+
+  --vp-c-brand-1: var(--ftv-primary-text);
+  --vp-c-brand-2: var(--ftv-primary-text-hi);
+  --vp-c-brand-3: var(--ftv-primary);
+  --vp-c-brand-soft: var(--ftv-primary-tint);
+  --vp-c-brand-softer: var(--ftv-primary-tint);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: var(--ftv-on-primary);
+  --vp-button-brand-bg: var(--ftv-primary);
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: var(--ftv-on-primary);
+  --vp-button-brand-hover-bg: var(--ftv-primary-hi);
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: var(--ftv-on-primary);
+  --vp-button-brand-active-bg: var(--ftv-primary);
+  --vp-button-alt-border: transparent;
+  --vp-button-alt-text: var(--ftv-text-1);
+  --vp-button-alt-bg: var(--ftv-surface-3);
+  --vp-button-alt-hover-border: transparent;
+  --vp-button-alt-hover-text: var(--ftv-text-1);
+  --vp-button-alt-hover-bg: var(--ftv-surface-4);
+  --vp-button-alt-active-border: transparent;
+  --vp-button-alt-active-text: var(--ftv-text-1);
+  --vp-button-alt-active-bg: var(--ftv-surface-3);
+
+  --vp-c-tip-1: var(--ftv-primary-text);
+  --vp-c-tip-2: var(--ftv-primary-text-hi);
+  --vp-c-tip-3: var(--ftv-primary);
+  --vp-c-tip-soft: var(--ftv-tip-tint);
+  --vp-c-note-1: var(--ftv-info-text);
+  --vp-c-note-soft: var(--ftv-info-tint);
+  --vp-c-important-1: var(--ftv-info-text);
+  --vp-c-important-soft: var(--ftv-info-tint);
+  --vp-c-warning-1: var(--ftv-warning-text);
+  --vp-c-warning-soft: var(--ftv-warning-tint);
+  --vp-c-caution-1: var(--ftv-live-text);
+  --vp-c-caution-soft: var(--ftv-live-tint);
+  --vp-c-danger-1: var(--ftv-live-text);
+  --vp-c-danger-soft: var(--ftv-live-tint);
+
+  --vp-home-hero-name-color: var(--ftv-text-1);
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
+
+  --vp-code-block-bg: var(--ftv-surface-1);
+  --vp-code-bg: var(--ftv-surface-2);
+  --vp-code-color: var(--ftv-text-1);
+  --vp-code-font-size: 0.875em;
+  --vp-code-lang-color: var(--ftv-text-3);
+  --vp-code-copy-code-border-color: transparent;
+  --vp-code-copy-code-bg: var(--ftv-surface-2);
+  --vp-code-copy-code-hover-border-color: transparent;
+  --vp-code-copy-code-hover-bg: var(--ftv-surface-3);
+  --vp-code-copy-code-active-text: var(--ftv-text-2);
+
+  --vp-nav-bg-color: var(--ftv-bg);
+  --vp-local-nav-bg-color: var(--ftv-bg);
+  --vp-sidebar-bg-color: var(--ftv-rail);
+  --vp-input-border-color: var(--ftv-field-edge);
+  --vp-input-bg-color: var(--ftv-well);
+  --vp-input-switch-bg-color: var(--ftv-surface-3);
+  --vp-backdrop-bg-color: var(--ftv-backdrop);
+
+  --vp-local-search-bg: var(--ftv-surface-1);
+  --vp-local-search-result-bg: var(--ftv-surface-2);
+  --vp-local-search-result-border: transparent;
+  --vp-local-search-result-selected-bg: var(--ftv-primary-tint);
+  --vp-local-search-result-selected-border: transparent;
+  --vp-local-search-highlight-bg: var(--ftv-primary);
+  --vp-local-search-highlight-text: var(--ftv-on-primary);
+
+  --vp-custom-block-font-size: 15px;
+  --vp-shadow-1: none;
+  --vp-shadow-2: none;
+  --vp-shadow-3: 0 12px 32px rgba(0, 0, 0, 0.24);
+  --vp-shadow-4: 0 12px 32px rgba(0, 0, 0, 0.24);
+  --vp-shadow-5: 0 12px 32px rgba(0, 0, 0, 0.24);
+}
+
+/* Base. */
+
+body {
+  background: var(--ftv-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(a, button, [role="button"], [role="switch"], input, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ftv-primary);
+  outline-offset: 2px;
+}
+
 .vp-doc table,
 .vp-doc code,
 .vp-doc kbd,
@@ -90,136 +239,207 @@ kbd {
   font-feature-settings: "tnum" 1;
 }
 
-/* Headings use the web app's tighter tracking rather than the looser default. */
-.vp-doc h1,
-.vp-doc h2,
-.vp-doc h3,
-.vp-doc h4,
-.vp-doc h5,
-.vp-doc h6,
-.VPHero .name,
-.VPHero .text,
-.VPFeature .title {
-  letter-spacing: -0.025em;
+/* Type scale: page title 32/38, section 22/28, card 17/22, body 16/26. */
+
+.vp-doc p,
+.vp-doc li {
+  line-height: 26px;
 }
 
-/* The hero name is the wordmark: three chips, then Freetvarr in mono. */
-.VPHero .name .hero-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.49em;
-  font-size: 0.8em;
-  font-family: var(--vp-font-family-mono);
-  font-weight: 400;
-  letter-spacing: 0;
+.vp-doc h1 {
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
-.VPHero .hero-chips {
-  display: inline-flex;
-  gap: 0.23em;
+.vp-doc h2 {
+  margin: 48px 0 16px;
+  padding-top: 0;
+  border-top: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.VPHero .hero-chips i {
-  width: 0.55em;
-  height: 0.41em;
+.vp-doc h3 {
+  margin: 32px 0 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
 }
 
-.VPHero .hero-chips i:nth-child(1) { background: #1eb6ff; }
-.VPHero .hero-chips i:nth-child(2) { background: #ff8a00; }
-.VPHero .hero-chips i:nth-child(3) { background: #e2b03c; }
-
-.VPHero .text .hero-line-1,
-.VPHero .text .hero-line-2 { display: block; color: var(--hero-line-2); }
-
-.VPHero .text .hero-em { color: var(--vp-c-text-1); font-style: normal; }
-
-.VPHero .heading .name:has(.hero-brand) {
-  padding-bottom: 0.45em;
+.vp-doc h4 {
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.VPHero .text:has(.hero-line-1) {
-  font-size: clamp(30px, 3.6vw, 44px);
-  line-height: 1.15;
+.vp-doc a {
+  font-weight: 500;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--ftv-primary-text) 45%, transparent);
+  transition: text-decoration-color var(--ftv-motion) var(--ftv-ease), color var(--ftv-motion) var(--ftv-ease);
 }
 
-.VPHero .tagline.tagline {
-  padding-top: 38px;
-  line-height: 1.25;
+.vp-doc a:hover {
+  color: var(--ftv-primary-text);
+  text-decoration-color: currentColor;
 }
 
-.VPHero .actions.actions {
-  padding-top: 30px;
+.vp-doc :not(pre) > code {
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-weight: 500;
+}
+
+.vp-doc a > code {
+  color: var(--ftv-primary-text);
+}
+
+.vp-doc hr {
+  border-top-color: var(--ftv-hairline);
+}
+
+/* Code blocks: a surface-1 card, like the app's grouped lists. */
+
+.vp-doc div[class*="language-"],
+.vp-doc .vp-code-group .tabs {
+  border-radius: 12px;
+}
+
+.vp-doc div[class*="language-"] {
+  border: 0;
+}
+
+.vp-doc .vp-code-group .tabs {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: inset 0 -1px 0 var(--ftv-hairline);
+}
+
+.vp-doc .vp-code-group div[class*="language-"] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.vp-doc div[class*="language-"] > span.lang {
+  top: 6px;
+  right: 12px;
+  font-family: var(--vp-font-family-base);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vp-doc div[class*="language-"] > button.copy {
+  border-radius: 10px;
+}
+
+/* Tables: the app's grouped list, with group-label column headers. */
+
+.vp-doc table {
+  border: 0;
+  border-radius: 12px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--ftv-surface-1);
+}
+
+.vp-doc tr,
+.vp-doc tr:nth-child(2n) {
+  border-top: 0;
+  background: transparent;
+}
+
+.vp-doc th,
+.vp-doc td {
+  border: 0;
+  border-top: 1px solid var(--ftv-hairline);
+  padding: 12px 16px;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.vp-doc thead th {
+  border-top: 0;
+  padding-top: 14px;
+  padding-bottom: 10px;
+  background: transparent;
+  color: var(--ftv-text-3);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vp-doc table :not(pre) > code {
+  background: var(--ftv-surface-2);
+}
+
+/* GitHub alerts: the app's tinted banner, with a group-label title. */
+
+.vp-doc .custom-block,
+.custom-block {
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  color: var(--ftv-text-1);
+}
+
+.custom-block p {
+  line-height: 24px;
+}
+
+.custom-block .custom-block-title {
+  margin-bottom: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vp-doc .custom-block.note,
+.custom-block.note { background-color: var(--ftv-surface-1); }
+.vp-doc .custom-block.important,
+.custom-block.important { background-color: var(--ftv-info-tint); }
+
+.custom-block.note .custom-block-title { color: var(--ftv-info-text); }
+.custom-block.tip .custom-block-title { color: var(--ftv-primary-text); }
+.custom-block.important .custom-block-title { color: var(--ftv-info-text); }
+.custom-block.warning .custom-block-title { color: var(--ftv-warning-text); }
+.custom-block.caution .custom-block-title,
+.custom-block.danger .custom-block-title { color: var(--ftv-live-text); }
+
+.custom-block.custom-block :is(p, li) {
+  color: var(--ftv-text-1);
+}
+
+.custom-block.custom-block a {
+  color: var(--ftv-text-1);
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.custom-block.custom-block :not(pre) > code {
+  background: color-mix(in srgb, var(--ftv-text-1) 8%, transparent);
+  color: var(--ftv-text-1);
 }
 
 /* Keyboard hints. */
+
 kbd {
   display: inline-block;
   padding: 0.1em 0.45em;
-  border: 1px solid var(--vp-c-divider);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--ftv-field-edge);
+  border-radius: 6px;
+  background: var(--ftv-surface-1);
   font-size: 0.85em;
   line-height: 1.2;
 }
 
-/* Home hero: the image slot carries the browser-framed demo video, so let it
-   grow past the default VPImage box and re-centre the glow behind it. */
-.VPHero .image {
-  max-width: none;
-}
-
-.VPHero .image-container {
-  transform: none;
-  padding: 0;
-  max-width: 560px;
-}
-
-.VPHero {
-  overflow-x: clip;
-}
-
-.VPHero .image-bg {
-  width: 644px;
-  height: 644px;
-  top: 58%;
-  opacity: 0.6;
-}
-
-@media (min-width: 960px) {
-  .VPHero .image-container {
-    max-width: 100%;
-  }
-
-  /* Keep the hero copy off the video frame; the default layout butts the two
-     columns together with no space between them. */
-  .VPHero .container {
-    gap: 40px;
-  }
-}
-
-@media (max-width: 959px) {
-  .VPHero .image {
-    margin-top: 0;
-  }
-}
-
-@media (min-width: 960px) {
-  .VPHero.VPHero {
-    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 40px);
-  }
-}
-
-/* Let the browser balance line breaks so no last line is left with a single
-   orphaned word (the CSS behind Tailwind's text-pretty). */
-.VPHero .text,
-.VPHero .tagline,
-.VPFeature .title,
-.VPFeature .details,
-.vp-doc p,
-.vp-doc li {
-  text-wrap: pretty;
-}
+/* Media: screenshots and videos take the app's card radius. */
 
 .vp-doc .product-shot {
   max-width: 440px;
@@ -230,14 +450,15 @@ kbd {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 .vp-doc .product-shot p {
   margin-top: 8px;
   color: var(--vp-c-text-2);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 18px;
+  font-weight: 500;
   text-align: center;
   text-wrap: pretty;
 }
@@ -245,7 +466,7 @@ kbd {
 .vp-doc .product-shot em {
   font-style: normal;
   color: var(--vp-c-text-3);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .vp-doc .phone-frames {
@@ -262,8 +483,647 @@ kbd {
   max-width: 260px;
 }
 
-/* Phones: a 16px side gutter instead of VitePress's 24px. The doubled
-   selectors outrank the default theme's scoped component styles. */
+.vp-doc > div > p > img,
+.vp-doc > div > video,
+.vp-doc > div > p > video {
+  border-radius: 12px;
+}
+
+/* Nav bar. */
+
+.VPNavBar.has-sidebar .content-body,
+.VPNavBar:not(.home) .content-body,
+.VPNavBar .divider-line {
+  background-color: var(--vp-c-bg);
+}
+
+.VPNavBar .divider-line.divider-line {
+  background-color: var(--ftv-hairline);
+}
+
+.VPNavBarTitle .title {
+  gap: 10px;
+}
+
+.VPNavBarTitle.has-sidebar.has-sidebar .title {
+  border-bottom-color: transparent;
+}
+
+.VPNavBarTitle .title > span:not(.ftv-nav-wordmark) {
+  display: none;
+}
+
+.VPNavBarMenuLink.VPNavBarMenuLink {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ftv-text-2);
+}
+
+.VPNavBarMenuLink.VPNavBarMenuLink:hover {
+  color: var(--ftv-text-1);
+}
+
+.VPNavBarMenuLink.VPNavBarMenuLink.active {
+  color: var(--ftv-primary-text);
+}
+
+.VPSocialLink.VPSocialLink {
+  color: var(--ftv-text-2);
+}
+
+.VPSocialLink.VPSocialLink:hover {
+  color: var(--ftv-text-1);
+}
+
+/* Search button: the app's search field. */
+
+@media (min-width: 768px) {
+  .DocSearch-Button.DocSearch-Button {
+    height: 40px;
+    border: 1px solid var(--ftv-field-edge);
+    border-radius: 12px;
+    background: var(--ftv-well);
+    transition: border-color var(--ftv-motion) var(--ftv-ease);
+  }
+
+  .DocSearch-Button.DocSearch-Button:hover {
+    border-color: color-mix(in srgb, var(--ftv-text-1) 28%, transparent);
+    background: var(--ftv-well);
+  }
+}
+
+.DocSearch-Button .DocSearch-Button-Placeholder.DocSearch-Button-Placeholder {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ftv-text-3);
+}
+
+.DocSearch-Button .DocSearch-Search-Icon.DocSearch-Search-Icon {
+  color: var(--ftv-text-3);
+}
+
+.DocSearch-Button .DocSearch-Button-Keys.DocSearch-Button-Keys {
+  border-radius: 6px;
+  border-color: var(--ftv-field-edge);
+  color: var(--ftv-text-3);
+}
+
+/* Search dialog: a sheet with the app's search field and result rows. */
+
+.VPLocalSearchBox .shell.shell {
+  padding: 16px;
+  gap: 12px;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+}
+
+.VPLocalSearchBox .search-bar.search-bar {
+  min-height: 48px;
+  border: 1px solid var(--ftv-field-edge);
+  border-radius: 12px;
+  background: var(--ftv-well);
+}
+
+.VPLocalSearchBox .search-bar.search-bar:focus-within {
+  border-color: var(--ftv-primary);
+  box-shadow: inset 0 0 0 1px var(--ftv-primary);
+}
+
+.VPLocalSearchBox .search-input.search-input {
+  font-size: 16px;
+}
+
+.VPLocalSearchBox .search-input.search-input::placeholder {
+  color: var(--ftv-text-3);
+}
+
+.VPLocalSearchBox .result.result {
+  border-radius: 12px;
+  border-width: 0;
+  background: var(--vp-local-search-result-bg);
+}
+
+.VPLocalSearchBox .result.result > div {
+  margin: 12px 16px;
+}
+
+.VPLocalSearchBox .titles .title.main {
+  font-weight: 700;
+}
+
+.VPLocalSearchBox .title-icon.title-icon {
+  color: var(--ftv-text-3);
+  opacity: 1;
+}
+
+.VPLocalSearchBox .search-keyboard-shortcuts.search-keyboard-shortcuts {
+  color: var(--ftv-text-3);
+}
+
+.VPLocalSearchBox .search-keyboard-shortcuts kbd {
+  border-radius: 6px;
+  background: var(--ftv-surface-2);
+}
+
+.VPLocalSearchBox .no-results.no-results {
+  color: var(--ftv-text-2);
+}
+
+@media (max-width: 767px) {
+  .VPLocalSearchBox .shell.shell {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* Appearance switch: the app's toggle track and knob. */
+
+.VPSwitch.VPSwitch {
+  width: 44px;
+  height: 28px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ftv-surface-3);
+}
+
+.VPSwitch.VPSwitch:hover {
+  background: var(--ftv-surface-4);
+}
+
+.VPSwitch .check.check {
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  background: var(--ftv-bg);
+  box-shadow: none;
+}
+
+.VPSwitch .icon.icon {
+  width: 22px;
+  height: 22px;
+}
+
+.VPSwitch .icon.icon [class^="vpi-"] {
+  top: 4px;
+  left: 4px;
+  width: 14px;
+  height: 14px;
+}
+
+.dark .VPSwitchAppearance.VPSwitchAppearance .check {
+  transform: translateX(16px);
+}
+
+/* Brand mark and wordmark. */
+
+.ftv-mark {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.ftv-mark i {
+  display: block;
+  width: 8px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+.ftv-mark i:nth-child(1) { background: var(--ftv-brand-blue); }
+.ftv-mark i:nth-child(2) { background: var(--ftv-brand-orange); }
+.ftv-mark i:nth-child(3) { background: var(--ftv-brand-yellow); }
+
+.ftv-nav-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ftv-wordmark {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ftv-nav-wordmark .ftv-wordmark {
+  font-size: 19px;
+}
+
+.ftv-wordmark-free { color: var(--ftv-wordmark-blue); }
+.ftv-wordmark-tv { color: var(--ftv-wordmark-orange); }
+.ftv-wordmark-arr { color: var(--ftv-wordmark-yellow); }
+
+.ftv-wordmark [class^="ftv-wordmark-"] {
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Sidebar: the app's Settings navigation. Group labels in caps, the current
+   page on a surface-2 fill, hover lifts text colour only. */
+
+.VPSidebar.VPSidebar {
+  border-right: 1px solid var(--ftv-hairline);
+}
+
+.VPSidebar .group.group + .group {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.VPSidebarItem.VPSidebarItem.level-0 {
+  padding-bottom: 20px;
+}
+
+.VPSidebarItem.VPSidebarItem.VPSidebarItem.level-0 > .item .text {
+  padding: 8px 0 6px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ftv-text-3);
+}
+
+.VPSidebarItem.VPSidebarItem.level-1 > .item {
+  margin: 1px -12px;
+  padding: 0 12px;
+  border-radius: 10px;
+  transition: background-color var(--ftv-motion) var(--ftv-ease);
+}
+
+.VPSidebarItem.VPSidebarItem.level-1 > .item .text {
+  padding: 6px 0;
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--ftv-text-soft);
+}
+
+.VPSidebarItem.VPSidebarItem.level-1.is-link > .item > .link:hover .text {
+  color: var(--ftv-text-1);
+}
+
+.VPSidebarItem.VPSidebarItem.level-1.is-active > .item {
+  background: var(--ftv-surface-2);
+}
+
+.VPSidebarItem.VPSidebarItem.level-1.is-active > .item .link > .text {
+  color: var(--ftv-text-1);
+  font-weight: 700;
+}
+
+.VPSidebarItem.VPSidebarItem.level-1 > .item:active {
+  background: var(--ftv-press);
+}
+
+.VPSidebarItem.VPSidebarItem.level-1.is-active > .item:active {
+  background: var(--ftv-surface-2);
+}
+
+/* Phone local nav (Menu and On this page). */
+
+.VPLocalNav.VPLocalNav {
+  border-bottom-color: var(--ftv-hairline);
+  background-color: var(--ftv-bg);
+}
+
+.VPLocalNav .menu.menu,
+.VPLocalNavOutlineDropdown button {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ftv-text-2);
+}
+
+.VPLocalNavOutlineDropdown .items.items {
+  border: 0;
+  border-radius: 12px;
+  background: var(--ftv-surface-1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+}
+
+/* Outline aside. */
+
+.VPDocAsideOutline .outline-title.outline-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ftv-text-3);
+}
+
+.VPDocAsideOutline .content.content {
+  border-left-color: var(--ftv-hairline);
+}
+
+.VPDocAsideOutline .outline-link {
+  font-weight: 500;
+  color: var(--ftv-text-2);
+}
+
+.VPDocAsideOutline .outline-link:hover {
+  color: var(--ftv-text-1);
+}
+
+.VPDocAsideOutline .outline-link.active {
+  color: var(--ftv-primary-text);
+}
+
+.VPDocAsideOutline .outline-marker.outline-marker {
+  background-color: var(--ftv-primary);
+}
+
+/* Doc footer: edit link, updated time, and the previous and next pages as
+   surface-1 cards. */
+
+.VPDocFooter .edit-link-button.edit-link-button {
+  font-weight: 600;
+  color: var(--ftv-primary-text);
+}
+
+.VPDocFooter .prev-next.prev-next {
+  border-top: 0;
+  padding-top: 8px;
+  grid-column-gap: 12px;
+}
+
+.VPDocFooter .pager-link.pager-link {
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  background: var(--ftv-surface-1);
+  transition: background-color var(--ftv-motion) var(--ftv-ease);
+}
+
+.VPDocFooter .pager-link.pager-link:hover {
+  background: var(--ftv-surface-2);
+}
+
+.VPDocFooter .pager-link .desc.desc {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--ftv-text-2);
+}
+
+.VPDocFooter .pager-link .title.title {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 700;
+  color: var(--ftv-text-1);
+}
+
+.VPLastUpdated.VPLastUpdated {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ftv-text-3);
+}
+
+/* Site footer. */
+
+.VPFooter.VPFooter {
+  border-top: 1px solid var(--ftv-hairline);
+  background: var(--ftv-bg);
+}
+
+.VPFooter .message,
+.VPFooter .copyright {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--ftv-text-3);
+}
+
+.VPFooter .copyright a {
+  color: var(--ftv-text-2);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.VPFooter .copyright a:hover {
+  color: var(--ftv-text-1);
+}
+
+/* Buttons: the app's 12px-radius buttons, mint primary, surface secondary. */
+
+.VPButton.VPButton.VPButton {
+  border-radius: 12px;
+  font-weight: 700;
+  transition: background-color var(--ftv-motion) var(--ftv-ease), transform var(--ftv-motion) var(--ftv-ease);
+}
+
+.VPButton.VPButton.medium {
+  min-height: 44px;
+  line-height: 44px;
+  padding: 0 18px;
+  font-size: 15px;
+}
+
+.VPButton.VPButton.big {
+  min-height: 48px;
+  line-height: 48px;
+  padding: 0 22px;
+  font-size: 16px;
+}
+
+.VPButton.VPButton.VPButton:active {
+  transform: scale(0.97);
+  transition-duration: 70ms;
+}
+
+/* Home feature cards: surface-1 cards, elevation by colour only. */
+
+.VPFeature.VPFeature {
+  border: 0;
+  border-radius: 12px;
+  background: var(--ftv-surface-1);
+  transition: background-color var(--ftv-motion) var(--ftv-ease);
+}
+
+.VPFeature.VPFeature.link:hover {
+  background: var(--ftv-surface-2);
+}
+
+.VPFeature.VPFeature.link:active {
+  background: var(--ftv-surface-2);
+}
+
+.VPFeature .box.box {
+  padding: 24px;
+}
+
+.VPFeature .icon.icon:has(> .ftv-ill) {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: none;
+}
+
+.VPFeature .icon > .ftv-ill {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.VPFeature .title.title {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.VPFeature .details.details {
+  padding-top: 8px;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--ftv-text-2);
+}
+
+.VPFeature .link-text.link-text {
+  padding-top: 16px;
+}
+
+.VPFeature .link-text-value.link-text-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ftv-primary-text);
+}
+
+.VPFeature .link-text-icon.link-text-icon {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity var(--ftv-motion) var(--ftv-ease), transform var(--ftv-motion) var(--ftv-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .VPFeature.link:hover .link-text-icon.link-text-icon {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Home hero. */
+
+.VPHero .name .hero-brand {
+  display: inline-flex;
+  font-size: 1em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.VPHero .text .hero-line-1,
+.VPHero .text .hero-line-2 { display: block; color: var(--ftv-text-2); }
+
+.VPHero .text .hero-em { color: var(--ftv-text-1); font-style: normal; }
+
+.VPHero .heading .name:has(.hero-brand) {
+  padding-bottom: 0.3em;
+  line-height: 1;
+}
+
+.VPHero .text:has(.hero-line-1) {
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.VPHero .tagline.tagline {
+  padding-top: 28px;
+  line-height: 1.4;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ftv-text-2);
+}
+
+.VPHero .actions.actions {
+  padding-top: 30px;
+  margin: -6px;
+}
+
+.VPHero .actions .action.action {
+  padding: 6px;
+}
+
+/* The hero image slot carries the browser-framed demo video, so let it grow
+   past the default VPImage box. */
+.VPHero .image {
+  max-width: none;
+}
+
+.VPHero .image-container {
+  transform: none;
+  padding: 0;
+  max-width: 560px;
+}
+
+.VPHero {
+  overflow-x: clip;
+}
+
+.VPHero .image-bg {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-container {
+    max-width: 100%;
+  }
+
+  .VPHero .container {
+    gap: 40px;
+  }
+
+  .VPHero.VPHero {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 40px);
+  }
+}
+
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin-top: 0;
+  }
+
+  .VPHero.VPHero {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 32px);
+  }
+}
+
+.VPHomeContent .vp-doc h2:first-child {
+  margin-top: 0;
+}
+
+/* Balance line breaks so no last line is a single orphaned word. */
+.VPHero .text,
+.VPHero .tagline,
+.VPFeature .title,
+.VPFeature .details,
+.vp-doc p,
+.vp-doc li {
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .VPButton.VPButton.VPButton,
+  .VPFeature.VPFeature,
+  .VPFeature .link-text-icon.link-text-icon,
+  .VPSidebarItem.VPSidebarItem.level-1 > .item,
+  .VPDocFooter .pager-link.pager-link,
+  .vp-doc a {
+    transition: none;
+  }
+
+  .VPButton.VPButton.VPButton:active {
+    transform: none;
+  }
+}
+
+/* Phones: a 16px side gutter instead of VitePress's 24px, and the app's phone
+   title size. The doubled selectors outrank the default theme's scoped
+   component styles. */
 @media (max-width: 639px) {
   :root {
     --phone-gutter: 16px;
@@ -284,14 +1144,25 @@ kbd {
     padding-left: var(--phone-gutter);
   }
 
-  .vp-doc.vp-doc div[class*="language-"],
-  .VPHero .image-bg.image-bg {
-    margin-left: calc(var(--phone-gutter) * -1);
-    margin-right: calc(var(--phone-gutter) * -1);
+  .VPHero.VPHero {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 16px);
   }
 
-  .VPHero .image-bg.image-bg {
-    opacity: 0.5;
+  .vp-doc h1 {
+    font-size: 28px;
+    line-height: 32px;
+  }
+
+  .vp-doc h2 {
+    margin-top: 40px;
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .vp-doc.vp-doc div[class*="language-"] {
+    margin-left: calc(var(--phone-gutter) * -1);
+    margin-right: calc(var(--phone-gutter) * -1);
+    border-radius: 0;
   }
 
   .VPHero .text.text:has(.hero-line-1) {
@@ -304,14 +1175,18 @@ kbd {
   }
 
   .VPHero .actions.actions {
-    padding-top: 36px;
+    padding-top: 30px;
+  }
+
+  .VPFeature .box.box {
+    padding: 20px;
   }
 
   /* Tables: tighter cells, and columns wide enough to read in tables of three
      or more columns. A wider table scrolls sideways inside its own box. */
   .vp-doc th,
   .vp-doc td {
-    padding: 6px 10px;
+    padding: 10px 12px;
   }
 
   .vp-doc table:has(th:nth-child(3)) :is(th, td) {
@@ -325,21 +1200,4 @@ kbd {
   .vp-doc table:has(th:nth-child(3)) :is(th, td):first-child {
     min-width: 6em;
   }
-}
-
-/* Homepage hero buttons: outlined in the site blue, white on hover. */
-.VPHero {
-  --vp-button-brand-hover-border: #fffcfb;
-  --vp-button-brand-hover-bg: #fffcfb;
-  --vp-button-brand-active-border: var(--vp-c-text-2);
-  --vp-button-brand-active-bg: var(--vp-c-text-2);
-  --vp-button-alt-border: var(--vp-c-brand-2);
-  --vp-button-alt-text: var(--vp-c-brand-1);
-  --vp-button-alt-bg: transparent;
-  --vp-button-alt-hover-border: #fffcfb;
-  --vp-button-alt-hover-text: #fffcfb;
-  --vp-button-alt-hover-bg: transparent;
-  --vp-button-alt-active-border: var(--vp-c-text-2);
-  --vp-button-alt-active-text: var(--vp-c-text-2);
-  --vp-button-alt-active-bg: transparent;
 }

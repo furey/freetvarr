@@ -3,7 +3,7 @@ import http from 'node:http'
 export const startLoopback = ({ target }) => new Promise((resolve) => {
   const upstream = new URL(target)
   const server = http.createServer((request, response) => {
-    if (!READ_METHODS.has(request.method)) return refuseWrite({ request, response })
+    if (!READ_METHODS.has(request.method) && !READ_ONLY_POSTS.has(request.url.split('?')[0])) return refuseWrite({ request, response })
     forwardRead({ upstream, request, response })
   })
   server.on('connection', (socket) => socket.unref())
@@ -14,6 +14,7 @@ export const startLoopback = ({ target }) => new Promise((resolve) => {
 })
 
 const READ_METHODS = new Set(['GET', 'HEAD'])
+const READ_ONLY_POSTS = new Set(['/api/library/delete/preview'])
 
 const forwardRead = ({ upstream, request, response }) => {
   const forwarded = http.request({
@@ -30,7 +31,7 @@ const forwardRead = ({ upstream, request, response }) => {
     if (!response.headersSent) response.writeHead(502)
     response.end()
   })
-  forwarded.end()
+  request.pipe(forwarded)
 }
 
 const refuseWrite = ({ request, response }) => {

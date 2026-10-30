@@ -15,6 +15,8 @@ const {
   syncSavedDvrState,
   savedImageFor,
   startOfYesterdayMs,
+  createEndedHistory,
+  guideHistoryVersion,
 } = await import('../src/guide-history.js')
 const { toGuideCell } = await import('../src/epg.js')
 const { normaliseEvent } = await import('../src/tvheadend.js')
@@ -141,6 +143,10 @@ test('toGuideCell: flags past programmes and keeps their recording state', () =>
   assert.equal(toGuideCell({ program: programme(), nowMs: recorded.end }).recorded, false)
 })
 
+test('toGuideCell: sends the server-side programme kind to the browser', () => {
+  assert.equal(toGuideCell({ program: programme({ kind: 'movie' }), nowMs: T0 }).kind, 'movie')
+})
+
 test('syncSavedDvrState: marks scheduled programmes and clears cancelled ones before they end', async () => {
   await saveGuidePrograms({
     programs: [
@@ -166,4 +172,43 @@ test('savedImageFor: finds the image of a programme TVHeadend no longer returns'
   await saveGuidePrograms({ programs: [programme({ image: 'https://example.test/b.jpg' })], nowMs: T0 })
   assert.equal(await savedImageFor({ programId: RAW_EVENT.eventId }), 'https://example.test/b.jpg')
   assert.equal(await savedImageFor({ programId: 999 }), null)
+})
+
+test('createEndedHistory: reads only programmes that ended since the last read until the guide is saved again', async () => {
+  const loads = []
+  let version = 1
+  const history = createEndedHistory({
+    load: async (range) => {
+      loads.push(range)
+      return [`${range.fromMs}-${range.toMs}`]
+    },
+    version: () => version,
+  })
+  assert.deepEqual(await history.read({ nowMs: 100 }), ['null-100'])
+  assert.deepEqual(await history.read({ nowMs: 200 }), ['null-100', '100-200'])
+  version = 2
+  assert.deepEqual(await history.read({ nowMs: 250 }), ['null-250'])
+  assert.deepEqual(await history.read({ nowMs: 240 }), ['null-240'])
+  assert.deepEqual(loads.map(({ fromMs }) => fromMs), [null, 100, null, null])
+})
+
+test('createEndedHistory: matches a full read of ended programmes as time passes', async () => {
+  const shows = [30, 60, 90].map((minutes) => programme({ start: T0 + (minutes - 30) * MIN, title: `Show ${minutes}` }))
+  await saveGuidePrograms({ programs: shows, nowMs: T0 })
+  const history = createEndedHistory()
+  const titlesAt = async (nowMs) => (await history.read({ nowMs })).map((json) => JSON.parse(json).title)
+  assert.deepEqual(await titlesAt(T0 + 45 * MIN), ['Show 30'])
+  assert.deepEqual(await titlesAt(T0 + 95 * MIN), ['Show 30', 'Show 60', 'Show 90'])
+  const before = guideHistoryVersion()
+  await saveGuidePrograms({ programs: [{ ...shows[0], title: 'Renamed' }], nowMs: T0 })
+  assert.equal(guideHistoryVersion(), before + 1)
+  assert.deepEqual(await titlesAt(T0 + 95 * MIN), ['Renamed', 'Show 60', 'Show 90'])
+})
+
+test('saveGuidePrograms: removes programmes that ended before yesterday in chunks', async () => {
+  const nowMs = T0 + 3 * 24 * 60 * MIN
+  const old = Array.from({ length: 450 }, (_, i) => programme({ start: T0 + i * MIN, title: `Old ${i}` }, 1))
+  await saveGuidePrograms({ programs: old, nowMs: T0 })
+  await saveGuidePrograms({ programs: [programme({ start: nowMs, title: 'Today' })], nowMs })
+  assert.deepEqual((await db('guide_programs').select('program_json')).map((row) => JSON.parse(row.program_json).title), ['Today'])
 })

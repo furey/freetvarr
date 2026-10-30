@@ -217,7 +217,7 @@ const fakeChild = (events) => {
 
 const PLAN = planForFile({ probe: HD_PROBE, encoder: { kind: 'copy' } })
 
-const playbackHarness = ({ streamsElsewhere, readText = async () => null } = {}) => {
+const playbackHarness = ({ streamsElsewhere, readText = async () => null, onAttention } = {}) => {
   const events = []
   const children = []
   let clock = 1_000_000
@@ -235,12 +235,26 @@ const playbackHarness = ({ streamsElsewhere, readText = async () => null } = {})
       children.push(child)
       return child
     },
+    onAttention,
   })
   return { sessions, events, children, advance: (ms) => { clock += ms } }
 }
 
 const start = (sessions, extra = {}) => sessions.start({
   recordingId: 'r1', label: '"Show"', file: '/media/a.ts', offset: 0, duration: 3600, plan: PLAN, ...extra,
+})
+
+test('playback sessions: start unattended and report each attention change once', async () => {
+  const seen = []
+  const h = playbackHarness({ onAttention: (session, attending) => seen.push(attending) })
+  const session = await start(h.sessions)
+  assert.equal(session.attending, false)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, true), true)
+  assert.equal(h.sessions.setAttending(session.id, false), true)
+  assert.equal(h.sessions.setAttending('missing', true), false)
+  assert.deepEqual(seen, [true, false])
+  await h.sessions.stop(session.id)
 })
 
 test('playback sessions: stop kills ffmpeg and removes the folder', async () => {
@@ -337,11 +351,11 @@ test('stream cap: live TV and recordings share one limit and name what is playin
   await live.start({ channelId: 'c1', plan: { video: { pid: 1 }, audio: null, videoMode: 'copy' }, label: 'ABC TV' })
   await start(h.sessions)
   await assert.rejects(start(h.sessions, { recordingId: 'r2' }), (err) => {
-    assert.equal(err.code, 'max-sessions')
+    assert.equal(err.code, 'stream-limit')
     assert.match(err.message, /Only 2 streams can play at once\. Playing now: "Show", live TV on ABC TV\./)
     return true
   })
-  await assert.rejects(live.start({ channelId: 'c2', plan: {} }), { code: 'max-sessions' })
+  await assert.rejects(live.start({ channelId: 'c2', plan: {} }), { code: 'stream-limit' })
   await live.stopAll()
   await h.sessions.stopAll()
 })
@@ -352,4 +366,37 @@ test('playbackSourceFor: library when the resolved file is the library copy, els
   assert.equal(await playbackSourceFor({ file: '/real/tvh/a.ts', libraryPath: '/lib/a.ts', realpath }), 'tvheadend')
   assert.equal(await playbackSourceFor({ file: '/real/tvh/a.ts', libraryPath: '/gone.ts', realpath }), 'tvheadend')
   assert.equal(await playbackSourceFor({ file: '/real/tvh/a.ts', libraryPath: null, realpath }), 'tvheadend')
+})
+
+const UHD_HEVC_PROBE = {
+  format: { duration: '3600' },
+  streams: [
+    { index: 0, codec_type: 'video', codec_name: 'hevc', height: 2160 },
+    { index: 1, codec_type: 'audio', codec_name: 'eac3', tags: { language: 'eng' } },
+  ],
+}
+
+const VAAPI = { kind: 'vaapi', device: '/dev/dri/renderD128', lowPower: true }
+
+test('playbackArgsFor: a 4K HEVC file decodes and encodes in VAAPI and scales to 1080p as 8-bit', () => {
+  const plan = planForFile({ probe: UHD_HEVC_PROBE, encoder: VAAPI })
+  const args = playbackArgsFor({ plan, file: '/media/a.mkv', offset: 0, dir: '/tmp/p' })
+  assert.deepEqual(args.slice(args.indexOf('-hwaccel'), args.indexOf('-hwaccel') + 6), ['-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi'])
+  assert.equal(args[args.indexOf('-vf') + 1], 'scale_vaapi=w=trunc(min(ih\\,1080)*dar/2)*2:h=min(ih\\,1080):format=nv12,setsar=1')
+  assert.ok(args.includes('h264_vaapi'))
+  assert.ok(!args.includes('libx264'))
+})
+
+test('playback sessions: a VAAPI encode that fails before any segment starts again in software', async () => {
+  const h = playbackHarness()
+  const plan = planForFile({ probe: UHD_HEVC_PROBE, encoder: VAAPI })
+  const session = await start(h.sessions, { plan })
+  h.children[0].emit('exit', 1, null)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(h.children.length, 2)
+  const retried = h.sessions.get(session.id).plan
+  assert.deepEqual({ mode: retried.videoMode, cap: retried.heightCap, vaapi: retried.vaapi }, { mode: 'transcode', cap: 540, vaapi: undefined })
+  h.children[1].emit('exit', 1, null)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(session.status, 'ended')
 })
