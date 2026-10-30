@@ -60,15 +60,15 @@ test('benchmarkFrom: reads a saved result and ignores junk', () => {
   assert.equal(benchmarkFrom(null), null)
 })
 
-const harness = ({ settings = {}, busy = false, encoder = { kind: 'vaapi' } } = {}) => {
+const harness = ({ settings = {}, busy = false, encoder = { kind: 'vaapi' }, envValue, tunerCount = 2 } = {}) => {
   const store = { ...settings }
   let runs = 0
   const streams = createLiveStreams({
-    envValue: undefined,
+    envValue,
     encoderReady: Promise.resolve(encoder),
     getSetting: async (key) => store[key] ?? null,
     setSetting: async (key, value) => { store[key] = value },
-    readTunerCount: async () => 2,
+    readTunerCount: async () => tunerCount,
     isBusy: () => busy,
     benchmark: async () => {
       runs += 1
@@ -86,6 +86,18 @@ test('createLiveStreams: loads the saved choice and a benchmark for the same enc
   const other = harness({ settings: { live_benchmark: JSON.stringify(BENCHMARK) }, encoder: { kind: 'software' } })
   await other.streams.load()
   assert.equal(other.streams.describe().benchmark, null)
+})
+
+test('createLiveStreams: an empty LIVE_TV_MAX_SESSIONS from compose lets the benchmark pick the default', async () => {
+  const settings = { live_benchmark: JSON.stringify(BENCHMARK) }
+  const empty = harness({ settings, envValue: '', tunerCount: 4 })
+  await empty.streams.load()
+  assert.equal(empty.streams.current(), 4)
+  assert.equal(empty.streams.describe().cap, null)
+  const capped = harness({ settings, envValue: '2', tunerCount: 4 })
+  await capped.streams.load()
+  assert.equal(capped.streams.current(), 2)
+  assert.deepEqual(capped.streams.describe().choices, [1, 2])
 })
 
 test('createLiveStreams: measuring saves the result and lowers the default', async () => {

@@ -304,6 +304,7 @@ The TVHeadend URL and login, the Plex token, the Sonarr and Radarr connections, 
 | `RADARR_CONFIG_PATH`   | Path to Radarr's `config.xml`, mounted read-only so Freetvarr can read Radarr's API key                                                       |
 | `TVH_URL`              | Fixes the address **Auto-discover TVHeadend** offers; omit to let Freetvarr probe port `9981` on the host                                     |
 | `LIVE_TV_MAX_SESSIONS` | The most live streams the player plays at once. Unset, Freetvarr measures the computer and sets the default                                   |
+| `MOVIES_ROOT`          | The default folder for films with no series folder, e.g. `/data/media/movies`; empty sends them to the one-off folder                         |
 | `CSRF_SECRET`          | Override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`                        |
 
 After a change, run `docker compose up -d` in the `freetvarr` folder to restart the Docker containers. [Configuration](https://furey.github.io/freetvarr/guide/configuration) covers every variable, the folders under `DATA_PATH`, and the live TV settings.

@@ -153,18 +153,18 @@ Freetvarr and TVHeadend run in Docker on one computer that stays on: a NAS (e.g.
 
 With the minimum, Freetvarr records, imports, and serves every page, but it is limited in these ways:
 
-- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores. The example Docker compose file sets **Live streams at once** to `2`, so choose `1` in Settings → Watching → Playback if two streams stutter.
+- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores. The startup measurement sets **Live streams at once**; if streams stutter, choose a lower number in Settings → Watching → Playback.
 - **Multiview:** each picture needs a live stream, so Multiview shows only as many pictures as **Live streams at once** allows.
 - **Ad removal:** a scan takes about `30` minutes per `75`-minute recording on a `2`-core Celeron, and longer on a slower processor.
 - **For you:** Freetvarr picks **Basic** when the nightly work with the language model would take more than `5` minutes, or when less than `400MB` of memory is free.
 
 With the recommended computer, you get these:
 
-- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer. The example Docker compose file allows `2` until you set `LIVE_TV_MAX_SESSIONS=4` in the `.env` (see [Configuration](/guide/configuration#compose-environment)).
+- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer. The startup measurement sets the default; on the author's DS220+ it measured `4`.
 - **Ad removal:** scans that finish sooner on a faster processor, at low priority so imports still run at full speed.
 - **For you:** **Standard**, or **Plus** on a fast processor.
 
-At startup, Freetvarr measures how many live streams this computer converts smoothly. When `LIVE_TV_MAX_SESSIONS` is empty, the result sets the default for **Live streams at once**; when it is set, its value is the default and the upper limit (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
+At startup, Freetvarr measures how many live streams this computer converts smoothly. The result sets the default for **Live streams at once**. When `LIVE_TV_MAX_SESSIONS` is set in the `.env`, its value is the default and the upper limit instead (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
 
 ### The computer: Examples
 
@@ -201,7 +201,7 @@ Live TV in the browser re-encodes H.264 so that Chrome can play interlaced chann
 4. Recreate the Docker containers: run `docker compose up -d` in the `freetvarr` folder.
 5. Check Freetvarr's log: run `docker compose logs freetvarr | grep "\[live\] video"`. The line says `hardware (VAAPI` when it works.
 
-The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. If the render node is not `/dev/dri/renderD128`, add `LIVE_TV_VAAPI_DEVICE` under `environment:` of the `freetvarr` service in `docker-compose.override.yml` (e.g. `- LIVE_TV_VAAPI_DEVICE=/dev/dri/renderD129`), because the example Docker compose file does not pass it through from the `.env`.
+The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. If the render node is not `/dev/dri/renderD128`, set `LIVE_TV_VAAPI_DEVICE` in the `.env` (e.g. `LIVE_TV_VAAPI_DEVICE=/dev/dri/renderD129`).
 
 > [!NOTE]<br>
 > The author's NAS is a Synology DS220+ (Intel Celeron J4025, UHD 600 graphics) with render group `937`. Hardware `1080i` to `720p` ran at about `6.5x` real time, using about `5%` of one core. Software `720p` ran at only `1.36x` real time on both cores.
