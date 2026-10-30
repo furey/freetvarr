@@ -57,7 +57,7 @@ The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-e
 - **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack). Apps billed through Fetch, such as Netflix, do not count. The cheapest subscription that avoids the levy is Movie Box at `$3.99` a month.
 - **More than one box**: a second box needs Multiroom at `$4.49` a month, so most homes with two or more boxes do not pay the levy. They already pay Fetch `$53.88` a year.
 - **How much**: `$29.99` once per household, however many Gen 3 boxes you have.
-- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in) by `31 October 2026`. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026. The deadline has not moved.
+- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in). Fetch set the deadline for `31 October 2026` and has not moved it. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026.
 - **Concessions and hardship**: pensioners, eligible concession card holders, and households in financial difficulty can ask Fetch Customer Support to review their circumstances. Members of Fetch user groups report that Fetch asks for evidence (e.g. a letter from a financial counsellor, a bank statement, or a statutory declaration), and that some had to raise a concession card more than once.
 - **Credit if you upgrade**: if you buy a new Fetch box or start an eligible subscription within 30 days of the levy charge, Fetch credits the full levy to your account. There is no credit after 30 days, or while the account is suspended.
 - **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that. Members report that some Fetch support replies give "at least 31 October 2027" instead, so check the date in your own Fetch email or account.
@@ -79,7 +79,7 @@ Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at
 </div>
 
 > [!WARNING]<br>
-> Save your recordings before `31 October 2026`. Once the box is cancelled or suspended, you cannot play or copy them. [Saving your Fetch recordings](#saving-your-fetch-recordings) takes an afternoon; do it before you cancel.
+> Save your recordings before you cancel and before Fetch suspends the box. Once the box is cancelled or suspended, you cannot play or copy them. [Saving your Fetch recordings](#saving-your-fetch-recordings) takes an afternoon; do it before you cancel.
 
 ## Two paths
 
@@ -195,7 +195,7 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a Fetch box over your home network. It does not need your Fetch account. It runs on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
 
-Save your recordings before `31 October 2026`. Once Fetch suspends the box, you cannot reach them.
+Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
 1. Install Node.js, the free software that runs the tool. Download the LTS installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **PowerShell** on Windows.
@@ -257,7 +257,7 @@ Do these in order. The times are for someone doing it the first time.
 2. Watch and record for a week. Check that every channel you watch works.
 3. Sign in to [Fetch account management](https://www.fetchtv.com.au/manage/account). Your username is your email address, in lower case.
 4. Choose **Cancel Service** under **Packages** in the left menu.
-5. Choose **Yes, cancel my service**, on or before `31 October 2026`. This cancels every box on the account, so you do not need to remove the boxes one at a time first.
+5. Choose **Yes, cancel my service**. This cancels every box on the account, so you do not need to remove the boxes one at a time first.
 6. Unplug the Fetch box.
 
 After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so `fetchtv` finds none. **Continue** leads to "Enter your Activation Code", which a cancelled account cannot supply.
@@ -284,7 +284,7 @@ flowchart LR
   split --> tuner
 ```
 
-If the new setup will not be ready by the deadline, opt in to the `$29.99` levy by `31 October 2026`. It keeps the Fetch box going until at least `30 June 2028` while you finish.
+If the new setup will not be ready in time, the `$29.99` levy keeps the Fetch box going until at least `30 June 2028` while you finish. Fetch set the opt-in deadline for `31 October 2026`.
 
 ## FAQ
 
