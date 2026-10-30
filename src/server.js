@@ -16,6 +16,7 @@ import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
+import { planFolderFix, renameShowFolder } from './show-folder-rename.js'
 import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
 import {
   startSync,
@@ -1536,6 +1537,32 @@ app.patch('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   if (n === 0) return res.status(404).json({ error: 'not found' })
   res.json({ ok: true })
 })
+
+app.get('/api/shows/:id/folder-fix', async (req, res) => {
+  try {
+    const plan = await planFolderFix({ showId: Number(req.params.id) })
+    if (plan.state === 'not-found') return res.status(404).json({ error: 'not found' })
+    res.json(publicFolderFixOf(plan))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/shows/:id/folder-fix', doubleCsrfProtection, async (req, res) => {
+  const showId = Number(req.params.id)
+  try {
+    const plan = await planFolderFix({ showId })
+    if (plan.state === 'not-found') return res.status(404).json({ error: 'not found' })
+    if (plan.state !== 'ready' || req.body?.to !== plan.to) {
+      return res.status(409).json({ error: 'The folder plan changed. Close and open the series again.', plan: publicFolderFixOf(plan) })
+    }
+    res.json({ ok: true, ...(await renameShowFolder({ showId, to: plan.to, identity: plan.identity })) })
+  } catch (err) {
+    res.status(err.code ? 409 : 500).json({ error: err.message, code: err.code ?? null })
+  }
+})
+
+const publicFolderFixOf = ({ identity, ...plan }) => plan
 
 app.delete('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   const id = Number(req.params.id)

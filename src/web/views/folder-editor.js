@@ -1,4 +1,4 @@
-import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, onMounted } from '/vendor/vue.esm-browser.prod.js'
 import { holdAtLeast } from '/pending.js'
 import { api } from '/shared/api.js'
 import { makeStatus } from '/shared/path-check.js'
@@ -30,6 +30,7 @@ export const FolderEditor = {
             <option v-for="d in folders" :key="d" :value="d" />
           </datalist>
           <p class="settings-hint">{{ FOLDER_HINT }}</p>
+          <p v-if="folderFix" class="settings-hint">Plex finds the right show more often when the folder name carries its TVDB number. Press <strong>Rename folder</strong> to rename it to <code>{{ folderFix.to }}</code>.</p>
         </div>
         <div>
           <label class="field-label" :for="'season-template-' + folder.id">Season folders</label>
@@ -57,6 +58,7 @@ export const FolderEditor = {
         <button type="submit" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving && !confirming }]" :disabled="saving" :aria-busy="saving && !confirming">
           <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save</template>
         </button>
+        <button v-if="folderFix" type="button" class="ui-button" @click="renaming = true" :disabled="saving">Rename folder</button>
         <button v-if="!isSeries" type="button" class="ui-button ui-button-destructive" @click="confirming = true" :disabled="saving"><minus-icon /> Remove title match</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
@@ -72,6 +74,19 @@ export const FolderEditor = {
           <button type="button" class="ui-button ui-button-block" @click="confirming = false" :disabled="saving">Cancel</button>
         </template>
       </ui-sheet>
+      <ui-sheet v-if="folderFix" :open="renaming" title="Rename folder" @close="closeRename">
+        <div class="confirm-dialog-body">
+          <p>Freetvarr renames <code>{{ folderFix.from }}</code> to <code>{{ folderFix.to }}</code> in your TV library.</p>
+          <p>{{ renameOutcome }}</p>
+          <p v-if="renameError" class="status-readout err">{{ renameError }}</p>
+        </div>
+        <template #footer>
+          <button type="button" :class="['ui-button', 'ui-button-primary', 'ui-button-block', { 'is-pending': saving }]" @click="renameFolder" :disabled="saving" :aria-busy="saving">
+            <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Renaming…</template><template v-else>Rename folder</template>
+          </button>
+          <button type="button" class="ui-button ui-button-block" @click="closeRename" :disabled="saving">Cancel</button>
+        </template>
+      </ui-sheet>
     </form>
   `,
   setup(props, { emit }) {
@@ -83,6 +98,10 @@ export const FolderEditor = {
     const deleteAfter = ref(Boolean(props.folder.delete_after_import))
     const saving = ref(false)
     const confirming = ref(false)
+    const renaming = ref(false)
+    const renameError = ref('')
+    const folderFix = ref(null)
+    const renameOutcome = computed(() => folderFixOutcomeOf(folderFix.value))
     const removeOutcome = computed(() => {
       const condition = 'If you remove this title match, future recordings with this title'
       return props.importUnmatched
@@ -116,8 +135,37 @@ export const FolderEditor = {
     }
 
     const closeEditor = () => {
-      if (!saving.value && !confirming.value) emit('cancel')
+      if (!saving.value && !confirming.value && !renaming.value) emit('cancel')
     }
+
+    const loadFolderFix = async () => {
+      const plan = await api('GET', `/api/shows/${props.folder.id}/folder-fix`).catch(() => null)
+      folderFix.value = plan?.state === 'ready' ? plan : null
+    }
+
+    const closeRename = () => {
+      if (saving.value) return
+      renaming.value = false
+      renameError.value = ''
+    }
+
+    const renameFolder = async () => {
+      saving.value = true
+      renameError.value = ''
+      try {
+        await holdAtLeast({ task: () => api('POST', `/api/shows/${props.folder.id}/folder-fix`, { to: folderFix.value.to }) })
+        destFolder.value = folderFix.value.to
+        folderFix.value = null
+        renaming.value = false
+        emit('saved')
+      } catch (err) {
+        renameError.value = `Error: ${err.message}`
+      } finally {
+        saving.value = false
+      }
+    }
+
+    onMounted(loadFolderFix)
 
     const remove = async () => {
       saving.value = true
@@ -135,9 +183,20 @@ export const FolderEditor = {
 
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
+      folderFix, renaming, renameError, renameOutcome, closeRename, renameFolder,
       removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
+}
+
+export const folderFixOutcomeOf = (plan) => {
+  if (!plan) return ''
+  const plex = 'Plex then rescans your TV library.'
+  if (!plan.folderExists) return `The folder is not on disk yet, so Freetvarr changes where new episodes save to. ${plex}`
+  const count = plan.recordings === 1 ? '1 recording' : `${plan.recordings} recordings`
+  return plan.recordings
+    ? `Freetvarr updates the ${count} in it, and new episodes save to the new folder. ${plex}`
+    : `New episodes save to the new folder. ${plex}`
 }
 
 export const FolderSyncButton = {
