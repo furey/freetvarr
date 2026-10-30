@@ -58,6 +58,7 @@ const deps = ({ rows = [], scheduled = [], series = [], folders = [] } = {}) => 
   loadScheduled: async () => ({ upcoming: scheduled, activeProgramIds: [] }),
   loadFolders: async () => folders,
   loadEvidence: async () => new Map(),
+  loadItems: async () => [],
 })
 
 test('nextScheduledByKey: keeps only the soonest future entry per show, skipping ones recording now', () => {

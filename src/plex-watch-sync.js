@@ -23,6 +23,7 @@ export const createPlexWatchSync = ({
   loadStatus,
   saveStatus,
   track = (options, fn) => fn(silentJob),
+  afterSync = async () => null,
   createClient = createPlexWatchClient,
   now = Date.now,
   setTimer = setTimeout,
@@ -117,7 +118,16 @@ export const createPlexWatchSync = ({
     const pushOutcome = await applyPushes({ plans: planned.plans, rowById, client, job })
     job.step('Save state')
     await saveSnapshots(snapshotsToSave({ plans: planned.plans, snapshotById, pushOutcome }))
-    job.outcome(outcomeText({ pulled, pushed: pushOutcome.pushed, failed: pushOutcome.failed }), pushOutcome.failed ? 'warn' : null)
+    const library = await afterSync({ client, full: fullPass, status, job }).catch((err) => {
+      if (err.kind === 'token') throw err
+      job.log(`Whole library: ${err.message}`, 'warn')
+      return null
+    })
+    job.outcome(outcomeText({
+      pulled,
+      pushed: pushOutcome.pushed + (library?.pushed ?? 0),
+      failed: pushOutcome.failed,
+    }), pushOutcome.failed ? 'warn' : null)
     return {
       startedAt,
       full: fullPass,

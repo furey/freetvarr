@@ -236,7 +236,7 @@ test('episodeLimitFrom and rulePatchFrom: validate request values', () => {
 })
 
 test('getLibraryShows: marks the list stale when the series rules are missing', async () => {
-  const result = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(),
+  const result = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(),
     loadRows: async () => [row()],
     loadSeries: async () => ({ series: [], stale: false, error: 'TVHeadend URL is not configured.' }),
     loadRecordingNow: async () => [],
@@ -262,8 +262,8 @@ test('getLibraryShow: returns 404 data as null and fills autorec padding from th
     loadOverrides: async () => new Map(),
     resolvePlayable: async (r) => (r.recording_id === 'a' ? '/media/a.ts' : null),
   }
-  assert.equal(await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps, key: 'nothing-here' }), null)
-  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps, key: 'the-block' })
+  assert.equal(await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps, key: 'nothing-here' }), null)
+  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps, key: 'the-block' })
   assert.equal(show.rule.autorecs[0].leadTime, 2)
   assert.equal(show.rule.autorecs[0].lagTime, 5)
   assert.equal(show.rule.folder.id, 3)
@@ -373,7 +373,7 @@ test('a show title override moves a recording into the named show everywhere the
     ['c', 'the-block-kids-room-and-re-do-room-week', kidsRoom],
     ['a', 'the-block', 'The Block'],
   ])
-  const detail = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(),
+  const detail = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(),
     key: 'the-block',
     loadRows: async () => rows,
     loadSeries: async () => ({ series: [] }),

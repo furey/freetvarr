@@ -34,7 +34,7 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
     return response.data
   }
 
-  const listItems = async ({ section, viewedSinceS = null }) => {
+  const listItems = async ({ section, viewedSinceS = null, addedSinceS = null }) => {
     const items = []
     for (let page = 0; page < MAX_PAGES; page += 1) {
       const data = await get({
@@ -42,6 +42,7 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
         params: {
           type: section.type === 'show' ? 4 : 1,
           ...(viewedSinceS != null ? { 'lastViewedAt>>': viewedSinceS } : {}),
+          ...(addedSinceS != null ? { 'addedAt>>': addedSinceS } : {}),
         },
         headers: { 'X-Plex-Container-Start': String(page * PAGE_SIZE), 'X-Plex-Container-Size': String(PAGE_SIZE) },
       })
@@ -70,11 +71,20 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
     return get({ path: `/:/${action}`, params, timeoutMs: WRITE_TIMEOUT_MS })
   }
 
-  return { listItems, metadata, write }
+  const sections = async () => directoriesOf(await get({ path: '/library/sections' }))
+    .map((directory) => ({ id: String(directory.key), type: directory.type, title: directory.title ?? '' }))
+
+  return { listItems, metadata, write, sections }
 }
 
 export const metadataOf = (data) => {
   const list = data?.MediaContainer?.Metadata
+  if (Array.isArray(list)) return list
+  return list ? [list] : []
+}
+
+const directoriesOf = (data) => {
+  const list = data?.MediaContainer?.Directory
   if (Array.isArray(list)) return list
   return list ? [list] : []
 }

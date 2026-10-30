@@ -2,6 +2,7 @@ import {
   getRecordingPlexLink,
   getShowPlexLink,
   refreshShowArtwork,
+  setEpisodeWatched,
   setShowWatched,
 } from './library-actions.js'
 import { TvheadendError } from './tvheadend.js'
@@ -14,7 +15,6 @@ import {
   getLibraryShows,
   moveRecordingsToShow,
   rulePatchFrom,
-  setRecordingWatched,
   showMoveFrom,
   updateShowRule,
 } from './library.js'
@@ -104,7 +104,7 @@ export const mountLibraryRoutes = ({ app, csrf, ruleLimiter, watchedLimiter, pla
   app.post('/api/recordings/:recording_id/watched', watchedLimiter, csrf, async (req, res) => {
     const watched = req.body?.watched
     if (typeof watched !== 'boolean') return res.status(400).json({ error: 'watched must be true or false' })
-    const result = await setRecordingWatched({ recordingId: req.params.recording_id, watched })
+    const result = await setEpisodeWatched({ recordingId: req.params.recording_id, watched })
     if (!result) return res.status(404).json({ error: 'recording not found' })
     onWatchChange()
     res.json({ ok: true, ...result })

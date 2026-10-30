@@ -2,7 +2,9 @@ import path from 'path'
 
 import { db } from './db.js'
 import { removeArtwork } from './artwork.js'
-import { groupKeyOf, groupTitleOf, isLibraryMember, ruleTitleOf, setRecordingWatched } from './library.js'
+import { groupKeyOf, groupTitleOf, isLibraryMember, ruleTitleOf, setRecordingWatched, withPlexRows } from './library.js'
+import { isPlexItemId, ratingKeyOfItemId } from './plex-library.js'
+import { loadLibraryItemRows, markItemWatched } from './plex-library-store.js'
 import { forgetShowArtwork } from './epg.js'
 import { getPlexConnection, getPlexMachineIdentifier, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
 
@@ -11,7 +13,7 @@ export const setShowWatched = async ({
   watched,
   throughRecordingId = null,
   loadRows = loadShowRows,
-  setWatched = setRecordingWatched,
+  setWatched = setEpisodeWatched,
 }) => {
   const rows = await loadRows(key)
   if (!rows.length) return null
@@ -21,6 +23,10 @@ export const setShowWatched = async ({
   await Promise.all(targets.map((row) => setWatched({ recordingId: row.recording_id, watched })))
   return { changed: targets.length, recording_ids: targets.map((row) => row.recording_id) }
 }
+
+export const setEpisodeWatched = ({ recordingId, watched }) => (isPlexItemId(recordingId)
+  ? markItemWatched({ itemId: recordingId, watched })
+  : setRecordingWatched({ recordingId, watched }))
 
 export const refreshShowArtwork = async ({
   key,
@@ -69,7 +75,12 @@ export const findPlexLink = async ({
   return { url: null, reason: 'Plex has not found this recording yet' }
 }
 
-export const getRecordingPlexLink = async ({ recordingId, loadRow = loadRecordingRow, find = findPlexLink }) => {
+export const getRecordingPlexLink = async ({ recordingId, loadRow = loadRecordingRow, find = findPlexLink, fetchIdentifier = plexIdentifier }) => {
+  if (isPlexItemId(recordingId)) {
+    const machineIdentifier = await fetchIdentifier().catch(() => null)
+    if (!machineIdentifier) return { url: null, reason: 'Plex could not be reached' }
+    return { url: plexDetailsUrl({ machineIdentifier, ratingKey: ratingKeyOfItemId(recordingId) }) }
+  }
   const row = await loadRow(recordingId)
   if (!row) return null
   if (!row.file_path) return { url: null, reason: 'This recording has no file yet' }
@@ -156,8 +167,16 @@ const airedMsOf = (row) => {
   return Number.isFinite(imported) ? imported : 0
 }
 
-const loadShowRows = async (key) => (await db('recordings').whereNull('purged_at'))
-  .filter((row) => isLibraryMember(row) && row.status !== 'failed' && groupKeyOf(row) === key)
+const loadShowRows = async (key) => {
+  const [recordings, itemRows] = await Promise.all([
+    db('recordings').whereNull('purged_at'),
+    loadLibraryItemRows().catch(() => []),
+  ])
+  return withPlexRows({ rows: recordings, itemRows })
+    .filter((row) => isLibraryMember(row) && row.status !== 'failed' && groupKeyOf(row) === key)
+}
+
+const plexIdentifier = async () => getPlexMachineIdentifier(await getPlexConnection())
 
 const resetRecordingImages = (recordingIds) => db('recordings')
   .whereIn('recording_id', recordingIds)

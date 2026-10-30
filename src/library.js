@@ -18,6 +18,8 @@ import { backupKeptUntil, originalRetentionDays } from './commercials.js'
 import { snapshotProgress } from './progress.js'
 import { inProgressImageOf, inProgressRowsOf, inProgressSummaryOf, isInProgressRow } from './recording-now-library.js'
 import { nextScheduledByKey, scheduledAiringOf, scheduledEpisodeOf } from './scheduled-library.js'
+import { isPlexRow, mergeWithRecordings } from './plex-library.js'
+import { loadLibraryItemRows } from './plex-library-store.js'
 
 export const EPISODE_STATES = ['in-progress', 'new', 'unwatched']
 export const EPISODE_KINDS = ['show', 'movie', 'oneoff']
@@ -33,9 +35,11 @@ export const getLibraryShows = async ({
   loadScheduled = loadUpcomingRecordings,
   loadFolders = loadShowFolders,
   loadEvidence = loadSeriesEvidence,
+  loadItems = loadPlexItems,
 } = {}) => {
-  const [rows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides, upcoming, folders, evidence] = await Promise.all([
+  const [recordingRows, itemRows, seriesData, active, finishing, moviesRoot, stamps, kindOverrides, upcoming, folders, evidence] = await Promise.all([
     loadRows(),
+    loadItems().catch(() => []),
     loadSeries(),
     loadRecordingNow(),
     loadFinishing(),
@@ -46,7 +50,8 @@ export const getLibraryShows = async ({
     loadFolders().catch(() => []),
     loadEvidence().catch(() => new Map()),
   ])
-  const merged = [...rows, ...inProgressRowsOf({ active, finishing, rows })]
+  const rows = withPlexRows({ rows: recordingRows, itemRows })
+  const merged = [...rows, ...inProgressRowsOf({ active, finishing, rows: recordingRows })]
   const scheduled = scheduledByShowKey({ ...upcoming, series: seriesData.series, rows: merged, folders })
   return {
     shows: showSummariesOf({ rows: merged, series: seriesData.series, active, moviesRoot, stamps, kindOverrides, scheduled, evidence }),
@@ -69,9 +74,11 @@ export const getLibraryShow = async ({
   loadScheduled = loadUpcomingRecordings,
   loadFolders = loadShowFolders,
   loadEvidence = loadSeriesEvidence,
+  loadItems = loadPlexItems,
 } = {}) => {
-  const [rows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides, upcoming, folders, evidence] = await Promise.all([
+  const [recordingRows, itemRows, seriesData, active, finishing, moviesRoot, seriesTags, stamps, kindOverrides, upcoming, folders, evidence] = await Promise.all([
     loadRows(),
+    loadItems().catch(() => []),
     loadSeries(),
     loadRecordingNow(),
     loadFinishing(),
@@ -83,13 +90,17 @@ export const getLibraryShow = async ({
     loadFolders().catch(() => []),
     loadEvidence().catch(() => new Map()),
   ])
-  const scheduled = scheduledByShowKey({ ...upcoming, series: seriesData.series, rows, folders })
+  const rows = withPlexRows({ rows: recordingRows, itemRows })
+  const scheduled = scheduledByShowKey({ ...upcoming, series: seriesData.series, rows: recordingRows, folders })
   const groupRows = rows.filter((row) => groupKeyOf(row) === key)
-  const inProgressRows = inProgressRowsOf({ active, finishing, rows }).filter((row) => groupKeyOf(row) === key)
+  const inProgressRows = inProgressRowsOf({ active, finishing, rows: recordingRows }).filter((row) => groupKeyOf(row) === key)
   const series = seriesByKey(seriesData.series).get(key) || null
   const nextScheduled = scheduled.get(key) || null
   if (!groupRows.length && !inProgressRows.length && !series && !nextScheduled) return null
-  const checkedRows = await refreshStates(groupRows)
+  const checkedRows = [
+    ...await refreshStates(groupRows.filter((row) => !isPlexRow(row))),
+    ...groupRows.filter(isPlexRow),
+  ]
   const playable = await Promise.all(checkedRows.map(async (row) => Boolean(await resolvePlayable(row))))
   return showDetailOf({
     key,
@@ -116,15 +127,18 @@ export const getLibraryEpisodes = async ({
   loadChoiceStamps = choiceStampsByKey,
   loadOverrides = loadKindOverrides,
   loadEvidence = loadSeriesEvidence,
+  loadItems = loadPlexItems,
 } = {}) => {
-  const [rows, seriesData, moviesRoot, stamps, kindOverrides, evidence] = await Promise.all([
+  const [recordingRows, itemRows, seriesData, moviesRoot, stamps, kindOverrides, evidence] = await Promise.all([
     loadRows(),
+    loadItems().catch(() => []),
     loadSeries().catch(() => ({ series: [] })),
     loadMoviesRoot().catch(() => ''),
     loadChoiceStamps().catch(() => new Map()),
     loadOverrides().catch(() => new Map()),
     loadEvidence().catch(() => new Map()),
   ])
+  const rows = withPlexRows({ rows: recordingRows, itemRows })
   const ruleKeys = new Set(seriesByKey(seriesData.series).keys())
   return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps, kindOverrides, ruleKeys, evidence }) }
 }
@@ -221,7 +235,7 @@ export const isFailed = (row) => row.status === 'failed'
 export const kindOf = ({ rows, hasRule = false, moviesRoot = '', override = null, evidence = null, scheduled = null }) => seriesKindOf({
   title: (rows[0] && groupTitleOf(rows[0])) || scheduled?.name || '',
   override,
-  hasRule: hasRule || Boolean(scheduled?.seriesLinkId) || rows.some((r) => r.show_id != null),
+  hasRule: hasRule || Boolean(scheduled?.seriesLinkId) || rows.some((r) => r.show_id != null || isPlexEpisodeRow(r)),
   isFilm: isFilmGroup({ rows, moviesRoot, scheduled }),
   recordings: [...rows.map(rowAiringOf), ...(scheduled ? [scheduledAiringFactsOf(scheduled)] : [])],
   evidence,
@@ -237,6 +251,7 @@ const scheduledAiringFactsOf = (entry) => ({
 
 const isFilmGroup = ({ rows, moviesRoot, scheduled }) => {
   if (!rows.length && scheduled) return scheduled.kind === 'movie'
+  if (rows.some(isPlexMovieRow)) return true
   if (!moviesRoot) return false
   return rows.some((r) => isInsideFolder({ filePath: r.file_path, folder: moviesRoot })) || rows.some(looksLikeUnimportedFilm)
 }
@@ -362,11 +377,26 @@ export const episodeOf = ({ row, playable = false }) => {
     playedAt: row.played_at ?? null,
     watched,
     watchedPercent: watched ? 100 : percentOf({ position: positionS, duration: row.duration_s }),
-    new: row.played_at == null && !watched && !isInProgressRow(row),
+    new: isNewRow(row),
     ads: adsOf(row),
     inProgress: row.in_progress ?? null,
+    source: isPlexRow(row) ? 'plex' : 'freetvarr',
+    versions: isPlexRow(row) ? row.versions ?? [] : [],
+    otherVersions: row.other_versions ?? [],
   }
 }
+
+export const isNewRow = (row) => (isPlexRow(row)
+  ? Boolean(row.plex_new)
+  : row.played_at == null && !isWatched(row) && !isInProgressRow(row))
+
+const isPlexEpisodeRow = (row) => isPlexRow(row) && row.plex_kind === 'episode'
+
+const isPlexMovieRow = (row) => isPlexRow(row) && row.plex_kind === 'movie'
+
+export const withPlexRows = ({ rows, itemRows = [], nowMs = Date.now() }) => (itemRows.length
+  ? mergeWithRecordings({ rows, itemRows, keyOf: groupKeyOf, nowMs })
+  : rows)
 
 export const adsOf = (row) => ({
   status: row.ad_status ?? null,
@@ -419,7 +449,7 @@ export const libraryEpisodesOf = ({
     'in-progress': () => members
       .filter((row) => row.playback_position_s > 0)
       .sort((a, b) => timeOf(b.played_at) - timeOf(a.played_at)),
-    new: () => members.filter((row) => row.played_at == null).sort(newestAiredFirst),
+    new: () => members.filter(isNewRow).sort(newestAiredFirst),
     unwatched: () => [...members].sort(newestAiredFirst),
   }[state]?.() ?? []
   return chosen.slice(0, limit).map((row) => libraryEpisodeOf({
@@ -460,7 +490,7 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = N
     artworkStamps: { background: stamps.background ?? null, poster: stamps.poster ?? null },
     counts: {
       total: rows.length,
-      new: watchable.filter((row) => row.played_at == null && !isWatched(row) && !isInProgressRow(row)).length,
+      new: watchable.filter(isNewRow).length,
       unwatched: watchable.filter((row) => !isWatched(row)).length,
       failed: rows.filter(isFailed).length,
       inProgress: rows.filter(isInProgressRow).length,
@@ -606,6 +636,7 @@ const stampParamOf = (stamp) => (stamp ? `&c=${stamp}` : '')
 const choiceStampsByKey = () => artworkChoices.stampsByKey()
 
 const recordingImageOf = (row) => {
+  if (isPlexRow(row)) return row.image_url ?? null
   if (isInProgressRow(row)) return inProgressImageOf(row, CARD_IMAGE_WIDTH)
   return row.image_path ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}` : null
 }
@@ -695,6 +726,8 @@ const loadUpcomingRecordings = async () => {
   const state = await getRecordingState()
   return { upcoming: state.upcomingRecordings || [], activeProgramIds: state.activeRecordingIds || [] }
 }
+
+const loadPlexItems = () => loadLibraryItemRows()
 
 const loadShowFolders = () => db('shows').select('id', 'show_pattern', 'enabled')
 

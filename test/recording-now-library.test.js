@@ -97,7 +97,7 @@ const deps = ({ rows = [], recording = [], finishing = [], series = [] } = {}) =
   loadChoiceStamps: async () => new Map(),
   loadOverrides: async () => new Map(),
   loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }),
-  loadFolders: async () => [],
+  loadFolders: async () => [], loadItems: async () => [],
   loadEvidence: async () => new Map(),
   resolvePlayable: async (r) => (r.status === 'done' ? `/media/${r.recording_id}.ts` : null),
 })
@@ -122,7 +122,7 @@ test('getLibraryShows: a one-off recording appears on the right shelf the moment
   const filed = active({ uuid: 'b1', dvrUuid: 'b1', title: 'The Block', season: 22, episode: 4, seriesFolderId: 3 })
   const ruled = active({ uuid: 'h1', dvrUuid: 'h1', title: 'Hard Quiz', season: null, episode: null, autorecId: 'auto-9' })
   const guideNumbered = active()
-  const { shows } = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(),
+  const { shows } = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(),
     ...deps({
       recording: [oneOff, film, filed, ruled, guideNumbered],
       series: [{ key: 'hard quiz', title: 'Hard Quiz', autorecs: [], folder: null }],
@@ -188,18 +188,18 @@ test('a film recording sits on Movies while it records, as the import will file 
   const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null, genres: [0x10] })
   const item = { title: 'The Castle', season: null, episode: null, genres: film.genres, start: film.start, end: film.stop }
   assert.equal(libraryKind({ show: null, item, moviesRoot: '/media/movies' }), 'film')
-  const { shows } = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [film] }), loadMoviesRoot: async () => '/media/movies' })
+  const { shows } = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [film] }), loadMoviesRoot: async () => '/media/movies' })
   assert.equal(shows[0].kind, 'movie')
 })
 
 test('getLibraryShows: a programme kind override moves the stand-in like an imported row', async () => {
   const film = active({ uuid: 'm1', dvrUuid: 'm1', title: 'The Castle', season: null, episode: null, episodeTitle: null, genres: [0x10] })
-  const { shows } = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [film] }), loadMoviesRoot: async () => '/media/movies', loadOverrides: async () => new Map([['the-castle', 'not-movie']]) })
+  const { shows } = await getLibraryShows({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [film] }), loadMoviesRoot: async () => '/media/movies', loadOverrides: async () => new Map([['the-castle', 'not-movie']]) })
   assert.equal(shows[0].kind, 'oneoff')
 })
 
 test('getLibraryShow: a show with only a recording in progress loads instead of 404', async () => {
-  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [active()] }), key: 'rugby-league-world-cup-2026' })
+  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [active()] }), key: 'rugby-league-world-cup-2026' })
   assert.equal(show.title, 'Rugby League World Cup 2026')
   const [episode] = show.seasons[0].episodes
   assert.equal(episode.recordingId, 'c53af306')
@@ -207,11 +207,11 @@ test('getLibraryShow: a show with only a recording in progress loads instead of 
   assert.equal(episode.new, false)
   assert.equal(episode.inProgress.recordingStartedAt, NOW - 30 * MIN)
   assert.equal(show.resumeNext, null)
-  assert.equal(await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [active({ failed: true })] }), key: 'rugby-league-world-cup-2026' }), null)
+  assert.equal(await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps({ recording: [active({ failed: true })] }), key: 'rugby-league-world-cup-2026' }), null)
 })
 
 test('getLibraryShow: the new episode sits in the season list of a show you already have', async () => {
-  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps({ rows: [row()], recording: [active()] }), key: 'rugby-league-world-cup-2026' })
+  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps({ rows: [row()], recording: [active()] }), key: 'rugby-league-world-cup-2026' })
   const ids = show.seasons[0].episodes.map((e) => e.recordingId)
   assert.deepEqual(ids, ['c53af306', 'old-1'])
   assert.deepEqual(show.resumeNext, { recordingId: 'old-1', positionS: 0 })
@@ -220,7 +220,7 @@ test('getLibraryShow: the new episode sits in the season list of a show you alre
 
 test('getLibraryShow: the imported row replaces the stand-in with the same id', async () => {
   const imported = row({ recording_id: 'c53af306', episode: 6, status: 'pending', aired_at: NOW - 60 * MIN })
-  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadEvidence: async () => new Map(), ...deps({ rows: [imported], finishing: [active()] }), key: 'rugby-league-world-cup-2026' })
+  const show = await getLibraryShow({ loadScheduled: async () => ({ upcoming: [], activeProgramIds: [] }), loadFolders: async () => [], loadItems: async () => [], loadEvidence: async () => new Map(), ...deps({ rows: [imported], finishing: [active()] }), key: 'rugby-league-world-cup-2026' })
   const [episode] = show.seasons[0].episodes
   assert.equal(show.seasons[0].episodes.length, 1)
   assert.equal(episode.status, 'pending')

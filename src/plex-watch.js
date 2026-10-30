@@ -2,6 +2,17 @@ import { trackJob } from './activity.js'
 import { db, getSetting, setSetting } from './db.js'
 import { plexSectionsToSearch } from './plex.js'
 import { createPlexWatchSync } from './plex-watch-sync.js'
+import { createLibraryScan } from './plex-library-scan.js'
+import {
+  clearPendingPush,
+  loadPendingPushes,
+  loadRecordingFiles,
+  loadWholeLibrarySettings,
+  saveManagerFields,
+  saveScannedItems,
+} from './plex-library-store.js'
+import { buildManagerIndex } from './arr-store.js'
+import { getMediaRoot, getMoviesRoot, getOneOffRoot } from './sync.js'
 
 export const loadPlexWatchConfig = async () => {
   const [url, token, sections] = await Promise.all([getSetting('plex_url'), getSetting('plex_token'), plexSectionsToSearch()])
@@ -63,6 +74,19 @@ const pruneSnapshots = async (keepIds) => {
 
 const applyPull = ({ recordingId, patch }) => db('recordings').where({ recording_id: recordingId }).update(patch)
 
+const loadLibraryRoots = async () => Promise.all([getMediaRoot(), getMoviesRoot(), getOneOffRoot()])
+
+const libraryScan = createLibraryScan({
+  loadSettings: loadWholeLibrarySettings,
+  loadRecordingFiles,
+  loadRoots: loadLibraryRoots,
+  saveScannedItems,
+  loadPendingPushes,
+  clearPendingPush,
+  loadManagerIndex: () => buildManagerIndex(),
+  saveManagerFields,
+})
+
 export const plexWatchSync = createPlexWatchSync({
   loadConfig: loadPlexWatchConfig,
   loadToggles: loadPlexWatchToggles,
@@ -74,6 +98,7 @@ export const plexWatchSync = createPlexWatchSync({
   loadStatus: loadPlexWatchStatus,
   saveStatus: savePlexWatchStatus,
   track: trackJob,
+  afterSync: libraryScan.afterSync,
 })
 
 const FROM_PLEX_KEY = 'plex_watch_from_plex'

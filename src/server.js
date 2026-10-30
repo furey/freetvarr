@@ -181,6 +181,8 @@ import {
 import { detectDockerVm } from './docker-host.js'
 import { getSeries } from './series.js'
 import { getLibraryEpisodes, getLibraryShows, watchedAtAfterPosition } from './library.js'
+import { isPlexItemId } from './plex-library.js'
+import { plexItemPlaybackRow, saveItemPosition } from './plex-library-store.js'
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, createSnapshotSaver, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
@@ -194,6 +196,8 @@ import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImag
 import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
+import { mountPlexLibraryRoutes } from './plex-library-routes.js'
+import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf } from './artwork-match.js'
@@ -1193,8 +1197,13 @@ const adBreaksFor = async (file) => {
 
 const recordingLabel = (row) => `"${[row.title, row.episode_title].filter(Boolean).join(': ')}"`
 
+const loadPlayableRow = (recordingId, partId) => (isPlexItemId(recordingId)
+  ? plexItemPlaybackRow({ itemId: recordingId, partId })
+  : db('recordings').where({ recording_id: recordingId }).first())
+
 app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection, async (req, res) => {
-  const row = await db('recordings').where({ recording_id: req.params.recording_id }).first()
+  const partId = typeof req.body?.part_id === 'string' ? req.body.part_id : null
+  const row = await loadPlayableRow(req.params.recording_id, partId)
   if (!row) return res.status(404).json({ error: 'recording not found' })
   const file = await (await playbackSourceResolver())(row)
   if (!file) return res.status(410).json({ error: 'The recording file is not on disk.', code: 'missing' })
@@ -1240,6 +1249,13 @@ const isInProgressRecording = async (recordingId) => {
 app.post('/api/recordings/:recording_id/position', playPingLimiter, doubleCsrfProtection, async (req, res) => {
   const seconds = positionFrom(req.body?.seconds)
   if (seconds == null) return res.status(400).json({ error: 'seconds must be a number from 0 to 86400' })
+  if (isPlexItemId(req.params.recording_id)) {
+    const row = await plexItemPlaybackRow({ itemId: req.params.recording_id })
+    if (!row) return res.status(404).json({ error: 'recording not found' })
+    await saveItemPosition({ itemId: req.params.recording_id, seconds, durationS: row.duration_s })
+    plexWatchSync.noteWatchChange()
+    return res.json({ ok: true, seconds })
+  }
   const n = await db('recordings')
     .where({ recording_id: req.params.recording_id })
     .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds }) })
@@ -1334,6 +1350,8 @@ const artPool = createArtPool()
 mountArtPoolRoutes({ app, artPool })
 mountArtworkChoiceRoutes({ app, csrf: doubleCsrfProtection, readLimiter: ratingsLimiter, writeLimiter: epgLimiter, artPool })
 mountLibraryDeleteRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
+mountPlexLibraryRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, sync: plexWatchSync })
+mountArrRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange: () => plexWatchSync.request({ trigger: 'settings', full: true }) })
 
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
