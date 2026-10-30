@@ -5,7 +5,7 @@ const repo = 'https://github.com/furey/freetvarr'
 const site = 'https://furey.github.io/freetvarr/'
 const defaultSocialImage = {
   path: '/social/default.png',
-  alt: 'Freetvarr: live TV in your browser, recordings in your media library, ad free. Self-hosted TV for any TVHeadend-compatible tuner.'
+  alt: 'Freetvarr: record free-to-air TV. Watch it on your TV in any media player, ad free.'
 }
 
 const pageUrl = (relativePath) => {
