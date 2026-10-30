@@ -32,7 +32,7 @@ features:
   - title: Live TV
     details: >-
       Watch any channel in the browser, on a phone or a desktop. Pause, rewind,
-      start a show over while it records, or watch two channels with Multiview.
+      start a show over while it records, or watch up to four channels with Multiview.
     link: /guide/player
     linkText: The player
   - title: Free to run
@@ -63,8 +63,8 @@ features:
     linkText: The state machine
   - title: Plex integration
     details: >-
-      Refreshes your Plex library after each sync that imports something, or
-      whenever you ask.
+      Refreshes your Plex library after each sync that imports something, and
+      keeps watched marks and resume points the same in Plex and Freetvarr.
     link: /guide/plex
     linkText: Set up Plex
   - title: Optional ad removal

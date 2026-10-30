@@ -95,7 +95,7 @@ The first visit to `http://<host-ip>:3733` in a browser opens setup. Setup fills
 
 ## 3. Record something
 
-In Freetvarr, open the [TV guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. Freetvarr checks for finished recordings every `30` minutes (change it in Settings → Schedule) and imports each one into your library ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
+In Freetvarr, open the [TV guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. About a minute after a recording finishes, Freetvarr imports it into your library. Freetvarr also checks for finished recordings every `30` minutes (change it in Settings → System → Schedule) ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the TV guide: press the programme and press Record for one airing, then pick Every episode on another programme and press Record series" />
@@ -139,7 +139,9 @@ If TVHeadend already runs on another host or in another compose project:
 2. Remove `tvheadend` from the `depends_on` of `freetvarr`.
 3. Mount the folder TVHeadend records into (a NAS share, for example) into the Freetvarr Docker container.
 4. In the **TVHeadend** step of setup, enter `http://<tvheadend-host>:9981` and the TVHeadend username and password you created for Freetvarr.
-5. On the **Storage** step, open **Advanced: change folders**. Set "Recordings folder (as Freetvarr sees it)" to where Freetvarr sees the folder, and set "Recordings folder (as TVHeadend sees it)" to the path TVHeadend writes to. Press **Check TVHeadend** to compare it with TVHeadend.
+5. On the **Folders** step of setup, press **Change folders**.
+6. Set **Recordings folder, as Freetvarr sees it** to the path of the folder inside the Freetvarr Docker container.
+7. Set **Recordings folder, as TVHeadend sees it** to the path TVHeadend writes to, then press **Test** beside it to compare it with TVHeadend.
 
 The Freetvarr host's address must fall inside the allowed networks of the TVHeadend user. See [The two recordings paths](/guide/configuration#the-two-recordings-paths).
 

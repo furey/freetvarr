@@ -17,9 +17,9 @@ With it, you can:
 - **[Record from a 7-day guide](/guide/tv-guide)** on your phone or computer: one episode, or every episode of a series.
 - **[Browse your recordings](/guide/recordings)** as shows with posters and episode lists, and see what records next and which tuner each recording uses.
 - **[Get suggestions](/guide/for-you)** from the next week of the TV guide, worked out on your own computer from what you record and watch.
-- **[Watch recordings in your own player](/guide/series).** Each episode goes into a series and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells Plex to scan for new episodes.
+- **[Watch recordings in your own player](/guide/series).** Each episode goes into a series and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells Plex to scan for new episodes and keeps what you have watched the same in both.
 - **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
-- **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install. Pause or rewind up to `30` minutes, start a programme over while it records, or watch two channels at once with [Multiview](/guide/player#multiview). To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
+- **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install. Pause or rewind up to `30` minutes, start a programme over while it records, or watch up to four channels at once with [Multiview](/guide/player#multiview) (two on a phone). To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
 - **[Clear out TVHeadend](/guide/remove-from-tvheadend).** If you use Plex, Freetvarr can delete each recording once Plex has the episode.
 
 Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
@@ -43,7 +43,7 @@ Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PC
 
 ## What Freetvarr isn't
 
-- **Not an indexer integration** (Sonarr / Radarr / Prowlarr). Freetvarr works with the recordings TVHeadend has made, and its [TV guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content.
+- **Not a downloader.** Freetvarr works with the recordings TVHeadend has made, and its [TV guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content. If Sonarr or Radarr download to the same Plex library, Freetvarr can list those files in Recordings and delete them through Sonarr and Radarr ([Sonarr and Radarr](/guide/sonarr-radarr)).
 - **Not a tuner.** TVHeadend drives the tuner, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never controls the hardware. See [TVHeadend](/guide/tvheadend).
 - **Not authenticated.** There's no login, so it's built for a home network you trust. The usual web hardening is in place (CSRF protection, rate limiting, a strict content-security policy), but anyone who can reach the page can change its settings, so don't expose it to the internet. See the [security model](/deep-dive#security-model).
 - **Not a converter.** Files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad removal drops the ad sections without re-encoding, so there's no quality loss. If you want `.mkv`, run the files through Tdarr or similar afterwards.
@@ -54,7 +54,7 @@ Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PC
 
 ## Background
 
-The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copied recordings off a Fetch TV box into Plex. When Fetch announced its Gen 3 levy, he bought an HDHomeRun tuner, set up TVHeadend, and swapped Fetcharr's pieces one at a time until the new setup worked. That became Freetvarr. Only after all that did he notice that his own Plex Pass already covered Plex DVR, which records from the same tuner with no extra software; [Plex DVR instead](/guide/plex-dvr) compares the two. For people without a Plex Pass, Freetvarr is one option, but the hardware still costs a few hundred dollars. [Leaving Fetch TV](/guide/leaving-fetch) compares that cost with a new Fetch box.
+The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copied recordings off a Fetch TV box into Plex. When Fetch announced its Gen 3 levy, the author bought an HDHomeRun tuner, set up TVHeadend, and swapped Fetcharr's pieces one at a time until the new setup worked. That became Freetvarr. Only after all that did it turn out that the author's Plex Pass already covered Plex DVR, which records from the same tuner with no extra software; [Plex DVR instead](/guide/plex-dvr) compares the two. For people without a Plex Pass, Freetvarr is one option, but the hardware still costs a few hundred dollars. [Leaving Fetch TV](/guide/leaving-fetch) compares that cost with a new Fetch box.
 
 ## Where next
 

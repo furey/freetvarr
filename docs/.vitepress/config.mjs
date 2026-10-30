@@ -118,12 +118,12 @@ export default withMermaid(defineConfig({
         ]
       },
       {
-        text: 'Settings → System',
+        text: 'In Settings',
         collapsed: false,
         items: [
+          { text: 'Series rules and folders', link: '/guide/series' },
           { text: 'Health', link: '/guide/doctor' },
-          { text: 'Activity', link: '/guide/syncs' },
-          { text: 'Series rules and folders', link: '/guide/series' }
+          { text: 'Activity', link: '/guide/syncs' }
         ]
       },
       {
