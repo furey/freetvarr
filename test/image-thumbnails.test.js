@@ -10,6 +10,8 @@ import {
   imageCacheBytesFrom,
   resizeToWebp,
   thumbnailWidthFrom,
+  heroWidthFrom,
+  HERO_IMAGE_WIDTHS,
   PROGRAMME_IMAGE_WIDTHS,
 } from '../src/image-thumbnails.js'
 
@@ -152,4 +154,19 @@ test('createThumbnailStore: a zero cap still serves thumbnails but keeps none', 
   const thumbnail = await store.thumbnailFor({ key: 'programme:a', width: 192, loadOriginal: countingLoader() })
   assert.equal(thumbnail.body.length, 192)
   assert.deepEqual(await cachedFiles(), [])
+})
+
+test('heroWidthFrom: allows the hero sizes and keeps 768 as the default', () => {
+  assert.deepEqual(HERO_IMAGE_WIDTHS, [192, 384, 768, 1280, 1920])
+  assert.equal(heroWidthFrom(undefined), 768)
+  assert.equal(heroWidthFrom('1280'), 1280)
+  assert.equal(heroWidthFrom('1920'), 1920)
+  assert.equal(heroWidthFrom('2560'), null)
+  assert.equal(thumbnailWidthFrom({ requested: '1920', allowed: PROGRAMME_IMAGE_WIDTHS }), null)
+})
+
+test('resizeToWebp never enlarges a small source for a 1920 request', async () => {
+  const body = await sharp({ create: { width: 219, height: 123, channels: 3, background: '#345' } }).png().toBuffer()
+  const { body: out } = await resizeToWebp({ body, width: 1920 })
+  assert.equal((await sharp(out).metadata()).width, 219)
 })

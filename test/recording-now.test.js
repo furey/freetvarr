@@ -116,6 +116,17 @@ test('describeActiveRecording: builds the live card without exposing the image U
   assert.ok(!JSON.stringify(card).includes('fetchtv'))
 })
 
+test('describeActiveRecording: offers watching from the start unless the recording failed', () => {
+  const card = describeActiveRecording({ recording: recording(), inputs: [], subscriptions: [], nowMs: T0 })
+  assert.equal(card.dvrUuid, card.uuid)
+  assert.equal(card.canPlayFromStart, true)
+  assert.ok(card.recordingStartedAt)
+  const failed = describeActiveRecording({
+    recording: recording({ schedStatus: 'recordingError' }), inputs: [], subscriptions: [], nowMs: T0,
+  })
+  assert.equal(failed.canPlayFromStart, false)
+})
+
 test('isRecordingFailure: an error state or error code fails the recording', () => {
   assert.equal(isRecordingFailure(recording()), false)
   assert.equal(isRecordingFailure(recording({ schedStatus: 'recordingError' })), true)
@@ -315,4 +326,38 @@ test('describeJourney: a recording marked for re-record still imports, with a wa
   assert.equal(steps[0].state, 'warn')
   assert.match(steps[0].detail, /20 data errors/)
   assert.equal(steps[1].key, 'importing')
+})
+
+test('getRecordingNow: an active recording says when the library will hold it back', async () => {
+  tvh.upcoming = [rawEntry('r5', { channel: '7 Sydney', title: 'Rugby League World Cup 2026' })]
+  const imported = await poll(T0 + 200 * MIN)
+  assert.equal(imported.active[0].libraryHold, null)
+  await db('settings').insert({ key: 'import_unmatched', value: 'false' })
+  const held = await poll(T0 + 201 * MIN)
+  assert.match(held.active[0].libraryHold, /Import every recording is off/)
+  tvh.upcoming = [...tvh.upcoming, rawEntry('r6', { channel: '9HD Sydney', title: 'The Block' })]
+  const matched = await poll(T0 + 202 * MIN)
+  assert.equal(matched.active.find((r) => r.uuid === 'r6').libraryHold, null)
+})
+
+test('getRecordingNow: a finished recording stays in finishing until its row exists, and a deleted one goes', async () => {
+  tvh.upcoming = []
+  await db('recordings').insert({ recording_id: 'r2', title: 'The Block', status: 'done' })
+  tvh.loaded.r5 =rawEntry('r5', { channel: '7 Sydney', title: 'Rugby League World Cup 2026', sched: 'completed', status: 'Completed OK' })
+  delete tvh.loaded.r6
+  const ended = await poll(T0 + 203 * MIN)
+  assert.deepEqual(ended.finishing.map((f) => f.uuid), ['r5'])
+  assert.match(ended.finishing[0].libraryHold, /Import every recording is off/)
+  assert.equal(ended.finishing[0].start, T0)
+  assert.equal(ended.journeys.find((j) => j.uuid === 'r6'), undefined)
+  assert.equal(ended.journeys.find((j) => j.uuid === 'r5').settled, true)
+
+  const afterLinger = await poll(T0 + 220 * MIN)
+  assert.equal(afterLinger.journeys.find((j) => j.uuid === 'r5'), undefined)
+  assert.deepEqual(afterLinger.finishing.map((f) => f.uuid), ['r5'])
+
+  await db('recordings').insert({ recording_id: 'r5', title: 'Rugby League World Cup 2026', status: 'not_imported' })
+  const imported = await poll(T0 + 221 * MIN)
+  assert.deepEqual(imported.finishing, [])
+  await db('settings').where({ key: 'import_unmatched' }).delete()
 })

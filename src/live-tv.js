@@ -58,15 +58,16 @@ export const pickStreams = ({ streams = [], languages = [], encoder = COPY_ENCOD
   const teletext = encoder.captions === false ? null : pickTeletext(streams)
   if (!video) return { video: null, audio, teletext, videoMode: null, heightCap: null, deinterlace: false }
   if (video.type === 'H264') return { video, audio, teletext, ...h264Plan(encoder) }
-  const standardDefinition = isStandardDefinition(video)
-  return {
-    video,
-    audio,
-    teletext,
-    videoMode: 'transcode',
-    heightCap: standardDefinition ? SD_HEIGHT_CAP : HD_TRANSCODE_HEIGHT_CAP,
-    deinterlace: standardDefinition,
-  }
+  if (decodesInHardware({ video, encoder })) return { video, audio, teletext, ...vaapiDecodePlan({ video, encoder }) }
+  return { video, audio, teletext, ...softwareTranscodePlan(video) }
+}
+
+export const softwarePlanOf = (plan) => {
+  if (plan?.videoMode !== 'vaapi') return null
+  const { vaapi, scaleFormat, ...rest } = plan
+  return plan.video.type === 'H264'
+    ? { ...rest, videoMode: 'transcode', heightCap: HD_TRANSCODE_HEIGHT_CAP, deinterlace: true }
+    : { ...rest, ...softwareTranscodePlan(plan.video) }
 }
 
 export const ffmpegArgsFor = ({ plan, dir, segmentCount = MIN_LIVE_SEGMENTS, probe = 'short' }) => [
@@ -117,7 +118,7 @@ export const teletextPageOf = (subtitlePid) => {
   return Number.isInteger(page) && page >= 100 && page <= 899 ? page : DEFAULT_CAPTION_PAGE
 }
 
-const probeArgs = (probe) => probe === 'full'
+export const probeArgs = (probe) => probe === 'full'
   ? []
   : ['-probesize', String(SHORT_PROBE_BYTES), '-analyzeduration', String(SHORT_PROBE_MICROSECONDS)]
 
@@ -268,6 +269,11 @@ export const tunerVerdict = ({
   }
 }
 
+export const liveStreamWeightOf = (pictureRank = 0) => {
+  const rank = Math.min(Math.max(0, Math.floor(Number(pictureRank) || 0)), MAX_PICTURE_RANK)
+  return LIVE_MAIN_WEIGHT - rank * LIVE_WEIGHT_STEP
+}
+
 export const stallReason = ({ subscriptions = [], userAgent, sessionStartedAt = 0 }) => {
   const recording = subscriptions
     .filter((s) => DVR_TITLE.test(s.title) && s.startedAt >= sessionStartedAt)
@@ -303,11 +309,14 @@ export const createLiveSessions = ({
   stallMs = 10_000,
   killGraceMs = 3_000,
   endedMemoryMs = 60_000,
+  onStart = () => {},
+  onEnd = () => {},
+  onAttention = () => {},
 } = {}) => {
   const sessions = new Map()
   const ended = new Map()
 
-  const start = async ({ channelId, plan, label = null }) => {
+  const start = async ({ channelId, plan, label = null, weight = liveStreamWeightOf(0), client = null }) => {
     const existing = forChannel(channelId)
     if (existing) {
       existing.viewers += 1
@@ -315,8 +324,9 @@ export const createLiveSessions = ({
       return { session: existing, shared: true }
     }
     const playing = [...labels(), ...streamsElsewhere()]
-    if (playing.length >= maxSessions) {
-      throw streamLimitError({ maxSessions, playing })
+    const limit = limitOf(maxSessions)
+    if (playing.length >= limit) {
+      throw streamLimitError({ maxSessions: limit, playing })
     }
     const id = newId()
     const session = {
@@ -325,12 +335,15 @@ export const createLiveSessions = ({
       label: label || `channel ${channelId}`,
       dir: path.join(rootDir, id),
       userAgent: `Freetvarr-live/${id}`,
+      client,
       status: 'tuning',
       reason: null,
       startedAt: now(),
       lastSeenAt: now(),
       lastByteAt: now(),
       viewers: 1,
+      attending: false,
+      weight,
       heldUntil: 0,
       bufferSeconds: bufferMinutes * 60,
       controller: new AbortController(),
@@ -342,6 +355,7 @@ export const createLiveSessions = ({
     }
     sessions.set(id, session)
     ended.delete(channelId)
+    onStart(session)
     try {
       await makeDir(session.dir)
       session.child = spawnFfmpeg(session)
@@ -422,6 +436,7 @@ export const createLiveSessions = ({
         channelId: session.channelId,
         signal: session.controller.signal,
         userAgent: session.userAgent,
+        weight: session.weight,
       })
       if (session.ending) return upstream.destroy?.()
       session.upstream = upstream
@@ -451,6 +466,7 @@ export const createLiveSessions = ({
     if (session.ending) return session.ending
     session.status = 'ended'
     session.reason = reason
+    onEnd(session, reason)
     ended.set(session.channelId, { ...view(session), endedAt: now() })
     session.ending = teardown(session).finally(() => sessions.delete(session.id))
     return session.ending
@@ -503,6 +519,15 @@ export const createLiveSessions = ({
     if (!session || session.ending) return false
     if (!bufferMinutes) return leave(id)
     session.heldUntil = now() + bufferMinutes * 60_000
+    return true
+  }
+
+  const setAttending = (id, attending) => {
+    const session = sessions.get(id)
+    if (!session || session.ending) return false
+    if (session.attending === attending) return true
+    session.attending = attending
+    onAttention(session, attending)
     return true
   }
 
@@ -572,17 +597,31 @@ export const createLiveSessions = ({
 
   const labels = () => [...sessions.values()].map((s) => `live TV on ${s.label}`)
 
+  const list = () => [...sessions.values()].map((s) => ({
+    id: s.id,
+    kind: 'live',
+    channelId: s.channelId,
+    label: s.label,
+    status: s.status,
+    client: s.client,
+    viewers: s.viewers,
+    videoMode: s.plan?.videoMode ?? null,
+    startedAt: s.startedAt,
+  }))
+
   return {
-    start, touch, hold, leave, tick, stopAll, forChannel, statusForChannel,
-    waitForPlaylist, playlistFor, fileFor, get, view, labels, activeCount: () => sessions.size,
+    start, touch, hold, leave, setAttending, tick, stopAll, forChannel, statusForChannel,
+    waitForPlaylist, playlistFor, fileFor, get, view, labels, list, activeCount: () => sessions.size,
   }
 }
 
 export const streamLimitError = ({ maxSessions, playing }) =>
   new LiveTvError(
     `Only ${maxSessions} stream${maxSessions === 1 ? '' : 's'} can play at once. Playing now: ${playing.join(', ')}.`,
-    { code: 'max-sessions', details: { playing } },
+    { code: 'stream-limit', details: { playing, limit: maxSessions } },
   )
+
+export const limitOf = (maxSessions) => (typeof maxSessions === 'function' ? maxSessions() : maxSessions)
 
 export const view = (session) => ({
   id: session.id,
@@ -628,7 +667,7 @@ export const preflightChannel = async ({ channelId, now = Date.now() }) => {
   return { ...verdict, channel: { id: channel.id, name: channel.name } }
 }
 
-export const startLiveChannel = async ({ channelId, sessions, encoder }) => {
+export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRank = 0, client = null }) => {
   const existing = sessions.forChannel(channelId)
   const verdict = existing ? null : await preflightChannel({ channelId })
   if (verdict && !verdict.ok) {
@@ -638,7 +677,9 @@ export const startLiveChannel = async ({ channelId, sessions, encoder }) => {
     })
   }
   const plan = existing ? null : await planForChannel({ channelId, encoder })
-  const { session, shared } = await sessions.start({ channelId, plan, label: verdict?.channel?.name })
+  const { session, shared } = await sessions.start({
+    channelId, plan, label: verdict?.channel?.name, weight: liveStreamWeightOf(pictureRank), client,
+  })
   return { session: sessions.view(session), shared, conflict: verdict?.conflict || null }
 }
 
@@ -649,8 +690,8 @@ export const describeStallFor = async (session) =>
     sessionStartedAt: session.startedAt,
   })
 
-export const openUpstreamFor = ({ channelId, signal, userAgent }) =>
-  openChannelStream({ channelId, signal, userAgent })
+export const openUpstreamFor = ({ channelId, signal, userAgent, weight }) =>
+  openChannelStream({ channelId, signal, userAgent, weight })
 
 const planForChannel = async ({ channelId, encoder }) => {
   const channel = await findChannel(channelId)
@@ -708,6 +749,27 @@ const pickTeletext = (streams) => {
 const isStandardDefinition = (video) =>
   video.height ? video.height <= SD_HEIGHT_CAP : video.type === 'MPEG2VIDEO'
 
+const decodesInHardware = ({ video, encoder }) => encoder.kind === 'vaapi'
+  && VAAPI_DECODE_TYPES.includes(video.type)
+  && !isStandardDefinition(video)
+
+const softwareTranscodePlan = (video) => {
+  const standardDefinition = isStandardDefinition(video)
+  return {
+    videoMode: 'transcode',
+    heightCap: standardDefinition ? SD_HEIGHT_CAP : HD_TRANSCODE_HEIGHT_CAP,
+    deinterlace: standardDefinition,
+  }
+}
+
+const vaapiDecodePlan = ({ video, encoder }) => ({
+  videoMode: 'vaapi',
+  heightCap: video.height > VAAPI_HEIGHT_CAP_ABOVE_HD ? VAAPI_HEIGHT_CAP_ABOVE_HD : VAAPI_HEIGHT_CAP,
+  deinterlace: video.type !== 'HEVC',
+  scaleFormat: 'nv12',
+  vaapi: { device: encoder.device, lowPower: encoder.lowPower },
+})
+
 const h264Plan = (encoder) => {
   if (encoder.kind === 'vaapi') {
     return {
@@ -731,7 +793,7 @@ export const videoCodecArgs = (plan) => {
   if (plan.videoMode === 'copy') return ['-c:v', 'copy']
   if (plan.videoMode === 'vaapi') {
     return [
-      '-vf', vaapiFilters(),
+      '-vf', vaapiFilters({ heightCap: plan.heightCap, deinterlace: plan.deinterlace, format: plan.scaleFormat }),
       ...vaapiEncoderArgs({ lowPower: plan.vaapi.lowPower }),
       '-g', '50',
       '-keyint_min', '50',
@@ -762,6 +824,8 @@ const openingKeyframeArgs = () => [
 const pidSpecifier = (pid) => `0:i:0x${Number(pid).toString(16)}`
 
 const VIDEO_TYPES = ['H264', 'HEVC', 'MPEG2VIDEO', 'MPEG4VIDEO', 'VC1']
+const VAAPI_DECODE_TYPES = ['HEVC', 'MPEG2VIDEO', 'VC1']
+const VAAPI_HEIGHT_CAP_ABOVE_HD = 1080
 const AUDIO_TYPES = ['MPEG2AUDIO', 'AC3', 'EAC3', 'AAC', 'AAC-LATM', 'MP4A', 'VORBIS', 'OPUS']
 const DVR_TITLE = /^DVR:\s*/
 const SD_HEIGHT_CAP = 576
@@ -779,6 +843,9 @@ const MAX_INTERLEAVE_MICROSECONDS = 500_000
 const TELETEXT_FAILURE = /teletext|zvbi|txt_/i
 const PLAYLIST_NAMES = new Set([MASTER_PLAYLIST, MEDIA_PLAYLIST, CAPTIONS_PLAYLIST])
 const MAX_ERROR_LINES = 20
+const LIVE_MAIN_WEIGHT = 50
+const LIVE_WEIGHT_STEP = 10
+const MAX_PICTURE_RANK = 3
 const LIVE_REFUSALS = {
   'off-air': "This channel isn't broadcasting right now, so TVHeadend can't tune it.",
   'no-tuner': 'Every tuner is busy on another multiplex.',

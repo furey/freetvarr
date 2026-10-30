@@ -13,10 +13,14 @@
 #   FREETVARR_PORT=3733
 #   PLEX_PREFS_PATH=/path/to/Plex/Preferences.xml   # only for a Plex on this host
 #                                             # that is not the plex profile
+#   SONARR_CONFIG_PATH=/path/to/sonarr/config.xml   # optional: reads Sonarr's API key
+#   RADARR_CONFIG_PATH=/path/to/radarr/config.xml   # optional: reads Radarr's API key
 #   COMPOSE_PROFILES=plex                     # adds the plex service
 #   PLEX_CLAIM=claim-xxxxxxxx                 # plex profile only, from
 #                                             # https://plex.tv/claim (expires in 4 minutes)
 #   TZ=Australia/Sydney                       # pre-fills Freetvarr's time zone
+#   LIVE_TV_MAX_SESSIONS=4                    # caps live streams at once; unset,
+#                                             # Freetvarr measures this computer
 #
 # The one-shot `init` service creates the folders inside CONFIG_PATH and
 # DATA_PATH and gives them to PUID:PGID before the other services start.
@@ -103,12 +107,22 @@ services:
       - ONEOFF_ROOT=/data/media/one-offs
       - RECORDINGS_ROOT=/data/recordings
       - TVH_RECORDINGS_PATH=/recordings
-      - LIVE_TV_MAX_SESSIONS=${LIVE_TV_MAX_SESSIONS:-2}
+      # Films with no show rule, e.g. /data/media/movies. Empty sends them to
+      # the one-off folder; the movies folder in Settings wins once saved.
+      - MOVIES_ROOT=${MOVIES_ROOT:-}
+      # A fixed TVHeadend address for Auto-discover, e.g. http://192.168.1.10:9981.
+      # Empty makes Freetvarr probe port 9981 on this host.
+      - TVH_URL=${TVH_URL:-}
+      # The most live streams at once (1 to 4). Empty lets the startup
+      # measurement of this computer pick the default.
+      - LIVE_TV_MAX_SESSIONS=${LIVE_TV_MAX_SESSIONS:-}
       # Minutes of live TV kept for pause and rewind (0 turns it off, max 120).
       - LIVE_TV_BUFFER_MINUTES=${LIVE_TV_BUFFER_MINUTES:-30}
       # auto (hardware if available, else software), hardware, software, or copy.
       # See docker-compose.hwaccel.example.yml to enable hardware transcoding.
       - LIVE_TV_TRANSCODE=${LIVE_TV_TRANSCODE:-auto}
+      # The render device for hardware transcoding. Empty means /dev/dri/renderD128.
+      - LIVE_TV_VAAPI_DEVICE=${LIVE_TV_VAAPI_DEVICE:-}
       # Megabytes of resized guide images and channel logos kept on disk.
       - IMAGE_CACHE_MAX_MB=${IMAGE_CACHE_MAX_MB:-100}
       - CSRF_SECRET
@@ -116,6 +130,10 @@ services:
       # unless PLEX_PREFS_PATH is set, which makes Freetvarr read the plex
       # profile's settings folder.
       - PLEX_PREFS_PATH=${PLEX_PREFS_PATH:+/plex-preferences.xml}
+      # Where Freetvarr reads the Sonarr and Radarr API keys. Empty unless the
+      # matching path is set in the .env file.
+      - SONARR_CONFIG_PATH=${SONARR_CONFIG_PATH:+/sonarr-config.xml}
+      - RADARR_CONFIG_PATH=${RADARR_CONFIG_PATH:+/radarr-config.xml}
     volumes:
       - ${CONFIG_PATH:-./config}/freetvarr:/config
       - ${DATA_PATH:-./data}:/data
@@ -125,6 +143,10 @@ services:
       # Another Plex on this host: its Preferences.xml, read-only. Defaults to
       # /dev/null when PLEX_PREFS_PATH is unset, so leaving it blank is safe.
       - ${PLEX_PREFS_PATH:-/dev/null}:/plex-preferences.xml:ro
+      # Sonarr's and Radarr's config.xml, read-only, for their API keys.
+      # /dev/null when unset, so leaving them blank is safe.
+      - ${SONARR_CONFIG_PATH:-/dev/null}:/sonarr-config.xml:ro
+      - ${RADARR_CONFIG_PATH:-/dev/null}:/radarr-config.xml:ro
     depends_on:
       init:
         condition: service_completed_successfully

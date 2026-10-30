@@ -1,0 +1,14 @@
+[
+  { "title": "My Kitchen Rules", "aliases": ["MKR"] },
+  { "title": "Married at First Sight (Australia)", "aliases": ["MAFS"] },
+  { "title": "A Current Affair", "aliases": ["ACA"] },
+  { "title": "SAS Australia", "aliases": ["SAS"] },
+  { "title": "Q+A", "aliases": ["Q&A", "QandA", "Q and A"] },
+  { "title": "Have I Got News for You", "aliases": ["HIGNFY"] },
+  { "title": "The Great British Bake Off", "aliases": ["GBBO", "Bake Off", "The Great British Baking Show"] },
+  { "title": "The Big Bang Theory", "aliases": ["TBBT", "Big Bang"] },
+  { "title": "I'm a Celebrity... Get Me Out of Here! (Australia)", "aliases": ["I'm a Celeb", "I'm a Celebrity"] },
+  { "title": "Australian Survivor", "aliases": ["Survivor Australia"] },
+  { "title": "Survivor Australia", "aliases": ["Australian Survivor"] },
+  { "title": "7.30", "aliases": ["7.30 Report", "730 Report"] }
+]

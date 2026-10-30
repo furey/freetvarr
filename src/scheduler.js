@@ -3,6 +3,12 @@ import cron from 'node-cron'
 import { getSetting } from './db.js'
 import { startSync } from './sync.js'
 import { getGuideSnapshot } from './epg.js'
+import { backfillUserEvents, pruneUserEvents } from './user-events-log.js'
+import { runForYouUpkeep } from './for-you-service.js'
+import { createScheduleCheck } from './schedule-runs.js'
+import { measureJob } from './event-loop-lag.js'
+import { activity } from './activity.js'
+import { describeSyncFrequency } from './web/sync-schedule.js'
 
 const DEFAULT_CRON = '*/30 * * * *'
 
@@ -20,6 +26,8 @@ export const startScheduler = async () => {
 
 export const getSchedulerExpression = () => currentExpr
 
+export const scheduledSyncsOn = createScheduleCheck({ expression: () => currentExpr })
+
 export const getSchedulerNextRun = () => task?.getNextRun()?.toISOString() ?? null
 
 export const stopScheduler = () => {
@@ -31,13 +39,23 @@ export const stopScheduler = () => {
 const scheduleWith = (expr) => {
   if (task) task.stop()
   task = cron.schedule(expr, () => {
-    startSync({ trigger: 'cron' }).catch((err) => {
+    measureJob('cron:sync', () => startSync({ trigger: 'cron' })).catch((err) => {
       console.error('[scheduler] sync failed:', err.message)
     })
-    getGuideSnapshot().catch((err) => {
+    measureJob('cron:guide', () => getGuideSnapshot()).catch((err) => {
       console.error('[scheduler] guide refresh failed:', err.message)
     })
+    measureJob('cron:viewing-history', () => pruneUserEvents().then(() => backfillUserEvents()), { kind: 'history', trigger: 'cron' })
+      .catch((err) => console.error('[scheduler] viewing history upkeep failed:', err.message))
+    measureJob('cron:for-you', () => runForYouUpkeep())
+      .catch((err) => console.error('[scheduler] for you upkeep failed:', err.message))
   })
   currentExpr = expr
+  activity.plan({
+    kind: 'sync',
+    title: 'Sync and TV guide refresh',
+    every: describeSyncFrequency(expr) || expr,
+    nextAt: () => task?.getNextRun()?.getTime() ?? null,
+  })
   console.log(`[scheduler] running on "${expr}"`)
 }

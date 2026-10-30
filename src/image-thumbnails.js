@@ -6,15 +6,20 @@ import sharp from 'sharp'
 import knexConfig from '../knexfile.js'
 
 export const PROGRAMME_IMAGE_WIDTHS = [192, 384, 768]
+export const HERO_IMAGE_WIDTHS = [...PROGRAMME_IMAGE_WIDTHS, 1280, 1920]
+export const DEFAULT_PROGRAMME_WIDTH = 768
 export const CHANNEL_LOGO_WIDTHS = [96, 192]
 
 export const getThumbnailRoot = () =>
   path.join(path.dirname(knexConfig.connection.filename), 'image-cache')
 
-export const thumbnailWidthFrom = ({ requested, allowed }) => {
-  if (requested === undefined) return allowed.at(-1)
+export const thumbnailWidthFrom = ({ requested, allowed, fallback = allowed.at(-1) }) => {
+  if (requested === undefined) return fallback
   return allowed.find((width) => String(width) === requested) ?? null
 }
+
+export const heroWidthFrom = (requested) =>
+  thumbnailWidthFrom({ requested, allowed: HERO_IMAGE_WIDTHS, fallback: DEFAULT_PROGRAMME_WIDTH })
 
 export const imageCacheBytesFrom = (megabytes) => {
   const parsed = Number(megabytes)
@@ -170,7 +175,7 @@ const isPartialWrite = (name) => name.endsWith(PARTIAL_SUFFIX)
 
 const WEBP = 'image/webp'
 const MIN_LANDSCAPE_RATIO = 1.3
-const LANDSCAPE_MAX_HEIGHT = 720
+const LANDSCAPE_MAX_HEIGHT = 1080
 const LANDSCAPE_BLUR_SIGMA = 24
 const LANDSCAPE_BACKDROP_BRIGHTNESS = 0.55
 const LANDSCAPE_JPEG_QUALITY = 85

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { anyChannelLinkFor, isAnyChannelLink, findSeriesLink } from '../src/web/series-link.js'
+import { anyChannelLinkFor, findSeriesLink } from '../src/web/series-link.js'
 import { adBreakAt } from '../src/web/playback.js'
 import { seriesKey } from '../src/tvheadend.js'
 import { projectUpcomingRecordings } from '../src/epg.js'
@@ -21,11 +21,6 @@ test('anyChannelLinkFor: matches the key of a TVHeadend autorec with no channel'
     seriesKey({ channelId: '', title: 'Home and Away' }))
 })
 
-test('isAnyChannelLink: true only for a key with an empty channel', () => {
-  assert.equal(isAnyChannelLink('|hard quiz'), true)
-  assert.equal(isAnyChannelLink('abc|hard quiz'), false)
-})
-
 test('findSeriesLink: prefers the exact key, then the any-channel key', () => {
   const links = new Set(['|hard quiz', 'abc|other'])
   assert.equal(findSeriesLink({ links, seriesLink: 'abc|other' }), 'abc|other')
@@ -41,7 +36,7 @@ test('projectUpcomingRecordings: an any-channel series projects airings from eve
       { id: 'ch7mate', epgId: 2, name: '7mate' },
     ],
     programsByChannel: {
-      1: [{ program_id: 'a', series_link: 'ch7|home', title: 'Home', start: NOW + HOUR, end: NOW + 2 * HOUR, series_no: 1, episode_no: 1 }],
+      1: [{ program_id: 'a', series_link: 'ch7|home', title: 'Home', synopsis: 'Alf returns.', start: NOW + HOUR, end: NOW + 2 * HOUR, series_no: 1, episode_no: 1 }],
       2: [
         { program_id: 'b', series_link: 'ch7mate|home', title: 'Home', start: NOW + 3 * HOUR, end: NOW + 4 * HOUR, series_no: 1, episode_no: 2 },
         { program_id: 'c', series_link: 'ch7mate|home', title: 'Home', start: NOW + 5 * HOUR, end: NOW + 6 * HOUR, series_no: 1, episode_no: 1 },
@@ -51,6 +46,7 @@ test('projectUpcomingRecordings: an any-channel series projects airings from eve
   const seriesTags = [{ seriesLinkId: '|home', name: 'Home', channelId: '' }]
   const out = projectUpcomingRecordings({ seriesTags, futureRecordings: [], guide, nowMs: NOW })
   assert.deepEqual(out.map((r) => r.programId), ['a', 'b'])
+  assert.deepEqual(out.map((r) => r.synopsis), ['Alf returns.', null])
 })
 
 test('joinSeries: flags an autorec with no channel as any channel', () => {

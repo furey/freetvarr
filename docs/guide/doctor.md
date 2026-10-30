@@ -1,30 +1,46 @@
 ---
-title: Doctor
+title: Health
 description: >-
   A read-only health check of TVHeadend, the TV guide, the folders, Plex, live TV,
   and the host, with the fix for each problem it finds.
 ---
 
-# Doctor
+# Health
 
-The Doctor checks the parts Freetvarr depends on and says what to fix. Open it from **SETTINGS → HELP → RUN DOCTOR**, from the TVHEADEND cell on the dashboard when TVHeadend does not answer, or by adding `#/doctor` to Freetvarr's address in the browser's address bar.
+Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → System → **Health**, from the alert on [Home](/guide/home#health-alert), or from **Health checks** in Settings → About. The old address `#/doctor` opens it.
 
-The Doctor only reads. It sends `GET` requests to TVHeadend and Plex, and it looks at folders without writing to them. It never saves settings, changes TVHeadend, refreshes Plex, or starts a test encode.
+The page has three groups:
 
-Each check gets one of these results:
+- **Sync**: the last sync, the next sync, and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
+- **Checks**: the read-only checks described below. Settings → About calls them **Health checks**.
+- **Storage**: the free space on the recordings and media folders, with a bar for each.
 
-- **PASS**: nothing to do.
-- **WARN**: Freetvarr works, but something costs you space, guide data, or picture quality.
-- **FAIL**: something Freetvarr needs is broken. The row says how to fix it and links to the matching docs.
-- **SKIP**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
+The sentence under the page title summarises the result, for example `Everything is working.`
 
-Failing rows come first. Press `RE-RUN` to check again. A check that gets no answer in `8` seconds fails.
+## Health badge
+
+Freetvarr runs the checks by itself 2 minutes after it starts and every 3 hours after that, so the badge is up to date without opening Health. When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, and on the Health row in Settings. Amber means it needs a look. Red means it needs attention.
+
+While the result is red, Home also shows the reason as an alert under the greeting. Press it to open Health. Press **×** to hide that alert for a day. A new problem shows again at once. The dot stays until the problem is fixed.
+
+## Results
+
+The checks only read. They send `GET` requests to TVHeadend and Plex, and look at folders without writing to them. They never save settings, change TVHeadend, refresh Plex, or start a test encode.
+
+Each check gets one of these results, shown as a dot beside the check:
+
+- **Pass**: nothing to do.
+- **Warn**: Freetvarr works, but something costs you space, guide data, or picture quality.
+- **Fail**: something Freetvarr needs is broken. The row says how to fix it, and **Read more** opens the matching docs.
+- **Skip**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
+
+When every check passes, the page says `Everything's working`. Otherwise the checks are grouped as **Needs attention** (fails), **Needs a look** (warnings), and **Working**. The **Working** group folds into one row, such as `12 checks working`; press it to see each check. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
 
 From a source checkout, `npm run doctor` outputs the same checks in the terminal. It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
 
 ## Connection {#tvh-reach}
 
-Asks TVHeadend for its version (`/api/serverinfo`). It fails when no TVHeadend address is set, or when nothing answers at that address. It warns when TVHeadend is older than a 4.3 build. See [Wizard connection test](/guide/troubleshooting#wizard-connection-test).
+Asks TVHeadend for its version (`/api/serverinfo`). It fails when no TVHeadend address is set, or when nothing answers at that address. It warns when TVHeadend is older than a 4.3 build. See [Setup connection test](/guide/troubleshooting#setup-connection-test).
 
 ## Login {#tvh-auth}
 
@@ -32,7 +48,7 @@ Checks that TVHeadend accepts the username and password. A `401` means TVHeadend
 
 ## User rights {#tvh-rights}
 
-Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the TVHeadend access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The Doctor cannot test the **Streaming** rights without starting a stream, so it does not check them.
+Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the TVHeadend access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The checks cannot test the **Streaming** rights without starting a stream, so it does not check them.
 
 ## Open access {#tvh-open}
 
@@ -44,7 +60,7 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 ## Channels {#tvh-channels}
 
-Counts TVHeadend's channels. It fails at `0` (the **CHANNELS** step of the [setup wizard](/guide/getting-started#_2-run-the-wizard) adds them). See [No channels](/guide/troubleshooting#no-channels).
+Counts TVHeadend's channels. It fails at `0` (the **Channels** step of [setup](/guide/getting-started#_2-run-setup) adds them). See [No channels](/guide/troubleshooting#no-channels).
 
 ## Guide depth {#guide-depth}
 
@@ -56,11 +72,11 @@ Counts the channels that have a TVHeadend icon. It skips when there are no chann
 
 ## Recordings folder {#paths-recordings}
 
-Checks that the recordings folder exists inside the Freetvarr Docker container and is readable. See [TEST PATH failures](/guide/troubleshooting#test-path-failures).
+Checks that the recordings folder exists inside the Freetvarr Docker container and is readable. See [Test path failures](/guide/troubleshooting#test-path-failures).
 
 ## TVHeadend recording path {#paths-match}
 
-Compares **Recording system path** on TVHeadend's default DVR profile with the TVHeadend recordings path in **SETTINGS**. They must match. See [CHECK TVHEADEND mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
+Compares **Recording system path** on TVHeadend's default DVR profile with **As TVHeadend sees it**, under **Recordings folder** in Settings → Recording → Media library. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
 
 ## Media folder {#paths-media}
 
@@ -72,7 +88,7 @@ Makes a real test hardlink from the recordings folder into the media folder and 
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `2GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk. The real limit is your computer's own disk.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `10GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk. The real limit is your computer's own disk.
 
 ## Plex library {#plex-reach}
 
@@ -80,11 +96,15 @@ Lists Plex's library sections. It skips when Plex is not set up. It fails when P
 
 ## Syncs {#sync-health}
 
-Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. It works without Plex, so it has its own **SYNCS** group on the Doctor page. See [Syncs](/guide/syncs).
+Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. It works without Plex. See [Activity](/guide/syncs).
 
 ## Live TV encoder {#live-encoder}
 
 Reports the video encoder Freetvarr chose for live TV when it started. It fails when `ffmpeg` is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes, and so does Docker on a Mac or Windows PC, which cannot use the graphics chip. See [Hardware transcoding](/guide/hardware#hardware-transcoding).
+
+## Live streams {#live-streams}
+
+Reports the result of the live TV speed test that Freetvarr runs when it starts, and how many live streams Freetvarr plays at once. It skips until the test has run. It warns when [Live streams at once](/guide/player#live-streams-at-once) is set higher than the test says the computer can manage, because the picture can then stutter.
 
 ## Ad removal tools {#ads-comskip}
 
@@ -92,4 +112,4 @@ Runs only when ad removal is on. It checks that `comskip`, `ffmpeg`, and `ffprob
 
 ## Time zone and network {#host-env}
 
-Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in **SETTINGS → SCHEDULE**, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).
+Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings → System → Schedule, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).

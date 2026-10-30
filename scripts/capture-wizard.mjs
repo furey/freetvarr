@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 import { join } from 'node:path'
-import { TIMEZONE, simulatedNow, installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll } from './capture-demo-api.mjs'
+import { TIMEZONE, simulatedNow, installCursor, cursorTo, cursorToBox, clickWithCursor } from './capture-demo-api.mjs'
 import { ADMIN_PASSWORD, prepareWizardContext } from './capture-wizard-api.mjs'
 import { startScreencast } from './capture-screencast.mjs'
 import { startLoopback } from './capture-loopback.mjs'
@@ -18,10 +18,6 @@ const TYPE_DELAY_MS = 50
 const EDGE_MARGIN_PX = 110
 const JOB_TIMEOUT_MS = 40_000
 const HIDE_SCROLLBARS = '::-webkit-scrollbar{width:0!important;height:0!important}html,body{scrollbar-width:none!important}'
-const GUIDE_PICKS = [
-  { channel: 'ABCTV', guide: 'ABC TV' },
-  { channel: 'SBS ONE', guide: 'SBS' },
-]
 
 const run = async () => {
   const browser = await chromium.launch({
@@ -45,13 +41,13 @@ const captureSecureStill = async (browser) => {
   const { serverWrites } = await prepareWizardContext({ context, timeZone: TIMEZONE, simNow })
   const page = await context.newPage()
   await openWizard(page)
-  await page.locator('.panel-body .btn-primary', { hasText: 'NEXT' }).click()
+  await page.getByRole('button', { name: 'Start setup' }).click()
   await waitForSecureForm(page)
-  await secureField(page, 'Admin password').fill(ADMIN_PASSWORD)
+  await page.getByLabel('Admin password').fill(ADMIN_PASSWORD)
   await page.evaluate(() => document.activeElement?.blur())
   await page.addStyleTag({ content: HIDE_SCROLLBARS })
   await page.mouse.move(0, 0)
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(800)
   await page.screenshot({
     path: join(STILL_OUT, STILL_FILE),
     clip: { x: 0, y: 0, width: STILL_VIEWPORT.width, height: STILL_VIEWPORT.height },
@@ -95,115 +91,91 @@ const recordTour = async (browser) => {
 }
 
 const tourWelcome = async (page) => {
-  await page.waitForTimeout(1000)
-  await cursorToBox(page, page.locator('#time-zone-select'))
-  await page.waitForTimeout(1000)
-  await pressNext(page, 'TVHEADEND')
+  await page.waitForTimeout(1200)
+  await cursorToBox(page, page.locator('select:visible').first())
+  await page.waitForTimeout(1100)
+  await pressButton(page, 'Start setup')
 }
 
 const tourTvheadend = async (page) => {
-  await page.waitForSelector('.status-readout.ok:has-text("Found TVHeadend")', { timeout: 10_000 })
   await waitForSecureForm(page)
-  await page.waitForTimeout(1000)
-  await typeInto(page, secureField(page, 'Admin password'), ADMIN_PASSWORD)
-  await cursorToBox(page, secureField(page, 'Allowed networks'))
-  await page.waitForTimeout(600)
-  await tap(page, page.locator('.btn-primary', { hasText: 'SECURE TVHEADEND AND CONNECT FREETVARR' }))
+  await page.waitForTimeout(900)
+  await typeInto(page, page.getByLabel('Admin password'), ADMIN_PASSWORD)
+  await cursorToBox(page, page.getByLabel('Allowed networks'))
+  await page.waitForTimeout(700)
+  await pressButton(page, 'Secure and connect')
   await cursorTo(page, 1180, 300)
-  await page.waitForSelector('.status-readout.ok:has-text("TVHeadend is secured")', { timeout: JOB_TIMEOUT_MS })
-  await page.waitForSelector('.status-readout.ok:has-text("Connected")', { timeout: 10_000 })
-  await revealBottom(page)
+  await page.getByRole('button', { name: 'Save and next' }).waitFor({ timeout: JOB_TIMEOUT_MS })
+  await revealLocator(page, page.getByText('Turn off open access'))
   await page.waitForTimeout(1400)
-  await pressNext(page, 'CHANNELS')
+  await pressButton(page, 'Save and next')
 }
 
 const tourChannels = async (page) => {
-  const find = page.locator('.btn-primary', { hasText: 'FIND CHANNELS' })
+  const find = page.getByRole('button', { name: 'Find channels' })
   await find.waitFor({ timeout: 15_000 })
-  await page.waitForTimeout(600)
-  await cursorToBox(page, page.locator('#channel-transmitter'))
   await page.waitForTimeout(900)
-  await tap(page, find)
+  await pressButton(page, 'Find channels')
   await cursorTo(page, 1180, 330)
-  await page.waitForSelector('.status-readout.ok:has-text("Added")', { timeout: JOB_TIMEOUT_MS })
-  const doneAt = Date.now()
+  await page.getByText(/^Added \d+ channels/).waitFor({ timeout: JOB_TIMEOUT_MS })
   await page.waitForTimeout(1600)
-  await pressNext(page, 'GUIDE')
-  return doneAt
+  await pressButton(page, 'Next')
 }
 
 const tourGuide = async (page) => {
-  const setUp = page.locator('.btn-primary', { hasText: 'SET UP GUIDE' })
+  const setUp = page.getByRole('button', { name: 'Set up guide' })
   await setUp.waitFor({ timeout: 15_000 })
   await page.waitForTimeout(600)
-  await cursorToBox(page, page.locator('#guide-feed'))
+  await cursorToBox(page, page.locator('select:visible').first())
   await page.waitForTimeout(900)
-  await tap(page, setUp)
+  await pressButton(page, 'Set up guide')
   await cursorTo(page, 1180, 330)
-  await page.waitForSelector('.status-readout.ok:has-text("channels have a guide")', { timeout: JOB_TIMEOUT_MS })
-  await page.waitForTimeout(1000)
-  for (const pick of GUIDE_PICKS) await pickGuide(page, pick)
-  await page.waitForTimeout(800)
-  await glideScroll(page, { dy: -2000, ms: 900 })
-  await page.waitForTimeout(700)
-  await pressNext(page, 'STORAGE')
-}
-
-const pickGuide = async (page, { channel, guide }) => {
-  const input = page.locator('.panel-body div.grid', { has: page.locator('label', { hasText: new RegExp(`^${channel}\\b`) }) })
-    .locator('input.combobox-input')
-  if (!(await input.count())) return console.log(`  no unmatched channel ${channel}`)
-  await revealLocator(page, input)
-  await clickRing(page, input)
-  await input.click()
-  await page.waitForTimeout(500)
-  await page.locator('.combobox-list:visible .combobox-option', { hasText: new RegExp(`^${guide}$`) }).first().click()
-  await page.waitForTimeout(700)
+  await page.getByText(/channels have a guide/).waitFor({ timeout: JOB_TIMEOUT_MS })
+  await page.waitForTimeout(1200)
+  const picks = page.getByText(/channels without a guide/i)
+  await revealLocator(page, picks)
+  await cursorToBox(page, picks)
+  await page.waitForTimeout(1600)
+  await pressButton(page, /^(Save and next|Next)$/)
 }
 
 const tourStorage = async (page) => {
-  await page.waitForSelector('.status-readout.ok:has-text("The folder checks passed")', { timeout: 10_000 })
-  await page.waitForTimeout(700)
-  await cursorToBox(page, page.locator('.panel-body .settings-disclosure > summary', { hasText: 'Advanced' }))
+  await page.getByText('TV library').first().waitFor({ timeout: 10_000 })
+  await page.waitForTimeout(900)
+  await cursorToBox(page, page.getByText('TV library').first())
   await page.waitForTimeout(1200)
-  await pressNext(page, 'PLEX')
+  await pressButton(page, 'Next')
 }
 
 const tourPlex = async (page) => {
-  await page.waitForSelector('text=Connected to Plex', { timeout: 15_000 })
-  const library = page.locator('#wizard-plex-tv-library')
-  await library.waitFor({ timeout: 10_000 })
-  await page.waitForTimeout(600)
-  await revealLocator(page, library)
-  await cursorToBox(page, library)
-  await page.waitForTimeout(1200)
-  await pressNext(page, 'READY')
+  await page.getByText('Connected').first().waitFor({ timeout: 15_000 })
+  await page.waitForTimeout(700)
+  await cursorToBox(page, page.locator('select:visible').first())
+  await page.waitForTimeout(1300)
+  await pressButton(page, 'Next')
 }
 
 const tourReady = async (page) => {
+  await page.getByRole('button', { name: 'Start watching' }).waitFor({ timeout: 10_000 })
   await page.waitForTimeout(1000)
-  await cursorToBox(page, page.locator('.panel-body .btn-primary', { hasText: 'OPEN TV GUIDE' }))
-  await page.waitForTimeout(2200)
+  await cursorToBox(page, page.getByRole('button', { name: 'Start watching' }))
+  await page.waitForTimeout(2400)
 }
 
 const openWizard = async (page) => {
-  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('.panel-title:has-text("WELCOME")', { timeout: 20_000 })
-  await page.waitForSelector('#time-zone-select', { timeout: 10_000 })
+  await page.goto(`${BASE}/#/welcome`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Start setup' }).waitFor({ timeout: 20_000 })
+  await page.waitForTimeout(600)
 }
 
 const waitForSecureForm = (page) =>
   page.waitForSelector('text=This TVHeadend has no logins yet', { timeout: 15_000 })
 
-const secureField = (page, label) =>
-  page.locator('.panel-body .field-row', { has: page.locator('.field-label', { hasText: label }) }).locator('input')
-
-const pressNext = async (page, nextTitle) => {
-  const next = page.locator('.panel-body .btn-primary').last()
-  await tap(page, next)
-  await page.waitForSelector(`.panel-title:has-text("${nextTitle}")`, { timeout: 15_000 })
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
-  await page.waitForTimeout(500)
+const pressButton = async (page, name) => {
+  const button = page.getByRole('button', { name, exact: typeof name === 'string' }).last()
+  await button.waitFor({ timeout: 15_000 })
+  await tap(page, button)
+  await page.waitForTimeout(700)
 }
 
 const tap = async (page, locator) => {
@@ -217,12 +189,6 @@ const typeInto = async (page, locator, text) => {
   await page.waitForTimeout(300)
 }
 
-const clickRing = async (page, locator) => {
-  await cursorToBox(page, locator)
-  await page.waitForTimeout(180)
-  await page.evaluate(() => window.__wt?.click())
-}
-
 const revealLocator = async (page, locator) => {
   const box = await locator.boundingBox().catch(() => null)
   if (!box) return
@@ -231,12 +197,22 @@ const revealLocator = async (page, locator) => {
   const above = box.y - EDGE_MARGIN_PX
   const dy = below > 0 ? below : above < 0 ? above : 0
   if (!dy) return
-  await glideScroll(page, { dy, ms: 900 })
+  await locator.evaluate((el, { dy, ms }) => new Promise((resolve) => {
+    let scroller = el.parentElement
+    while (scroller && !(scroller.scrollHeight > scroller.clientHeight && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement
+    scroller = scroller || document.scrollingElement
+    const from = scroller.scrollTop
+    const startedAt = performance.now()
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
+    const step = () => {
+      const progress = Math.min(1, (performance.now() - startedAt) / ms)
+      scroller.scrollTop = from + dy * ease(progress)
+      if (progress < 1) requestAnimationFrame(step)
+      else resolve()
+    }
+    requestAnimationFrame(step)
+  }), { dy, ms: 900 })
   await page.waitForTimeout(250)
-}
-
-const revealBottom = async (page) => {
-  await revealLocator(page, page.locator('.panel-body .btn-primary').last())
 }
 
 run().catch((err) => {

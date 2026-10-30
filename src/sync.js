@@ -5,6 +5,7 @@ import { db, getSetting, setSetting } from './db.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import {
   fetchProgrammeImage,
+  listAutorecs,
   listFinished,
   listUpcoming,
   removeRecordings as removeTvhRecordings,
@@ -16,27 +17,62 @@ import { makeImportProgress } from './progress.js'
 import { sweepLibraryStates } from './library-files.js'
 import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from './artwork.js'
 import { pruneSyncHistory } from './sync-history.js'
+import { looksLikeFilm } from './film-rule.js'
+import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
+import { currentJob, trackJob } from './activity.js'
+import { rowAiringOf, seriesKindOf } from './series-kind.js'
+import { loadSeriesEvidence } from './series-evidence.js'
+import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
+import { ensureShowFolder } from './show-folders.js'
+import { showKeyOf } from './web/show-key.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
-export const startSync = async ({ trigger = 'manual', showId = null } = {}) => {
+export const startSync = async (options = {}) => {
+  while (starting) await starting.catch(() => {})
   if (inFlight) return { syncId: inFlight.syncId, alreadyRunning: true }
+  const attempt = beginSync(options)
+  starting = attempt
+  try {
+    return await attempt
+  } finally {
+    if (starting === attempt) starting = null
+  }
+}
 
+const beginSync = async ({ trigger = 'manual', showId = null }) => {
   const missingUrl = await tvheadendUrlMissing()
-  if (missingUrl && trigger === 'cron') return { skipped: true, reason: missingUrl.message }
+  if (missingUrl && AUTOMATIC_TRIGGERS.includes(trigger)) return { skipped: true, reason: missingUrl.message }
   if (missingUrl) throw missingUrl
 
   const syncId = await createSync(trigger, showId)
-  const promise = doSync({ syncId, trigger, showId })
+  const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId }))
     .catch((err) => {
       console.error('[sync] unhandled error:', err)
     })
     .finally(() => {
       inFlight = null
+      syncFinishedListeners.forEach((listener) => notifySyncFinished({ listener, syncId, trigger }))
     })
   inFlight = { syncId, promise }
   return { syncId, alreadyRunning: false }
 }
+
+export const onSyncFinished = (listener) => {
+  syncFinishedListeners.add(listener)
+  return () => syncFinishedListeners.delete(listener)
+}
+
+const notifySyncFinished = ({ listener, syncId, trigger }) => {
+  try {
+    listener({ syncId, trigger })
+  } catch (err) {
+    console.warn(`[sync] finish listener failed: ${err.message}`)
+  }
+}
+
+const syncFinishedListeners = new Set()
+let starting = null
 
 export const matchShow = (shows, showTitle) => {
   const t = showTitle.toLowerCase()
@@ -80,17 +116,36 @@ export const rebasePrefix = ({ from, to }) => {
 export const resetInterruptedImports = () =>
   db('recordings').where({ status: 'importing' }).update({ status: 'pending', error: null })
 
+export const INTERRUPTED_SYNC_ERROR = 'Freetvarr restarted before this sync finished.'
+
+export const interruptedSyncSummaryOf = (summaryJson) => {
+  const summary = parseSummary(summaryJson)
+  return { ...summary, errors: [...(summary.errors || []), INTERRUPTED_SYNC_ERROR] }
+}
+
+export const closeInterruptedSyncs = async () => {
+  const stuck = await db('syncs').where({ status: 'running' }).whereNull('finished_at').select('id', 'summary_json')
+  for (const { id, summary_json } of stuck) {
+    await db('syncs').where({ id }).update({
+      status: 'error',
+      finished_at: db.fn.now(),
+      summary_json: JSON.stringify(interruptedSyncSummaryOf(summary_json)),
+    })
+  }
+  return stuck.length
+}
+
+const parseSummary = (summaryJson) => {
+  try { return JSON.parse(summaryJson || '{}') || {} } catch { return {} }
+}
+
 export const getMoviesRoot = async () => {
   const fromSetting = await getSetting('movies_root')
   if (fromSetting != null) return fromSetting.trim()
   return (process.env.MOVIES_ROOT || '').trim()
 }
 
-export const looksLikeFilm = ({ genres = [], season, episode, start, end }) =>
-  genres.some((g) => g >= FILM_GENRE_MIN && g <= FILM_GENRE_MAX)
-  && season == null
-  && episode == null
-  && end - start >= FILM_MIN_MS
+export { looksLikeFilm }
 
 export const filmName = (item) => {
   const title = createValidFilename(item.title) || 'Film'
@@ -104,11 +159,27 @@ export const buildFilmPath = ({ item, moviesRoot, copy = 1 }) => {
   return guardWithinRoot({ dest, root: moviesRoot })
 }
 
-export const libraryKind = ({ show, item, moviesRoot }) => {
-  if (show) return 'tv'
-  if (moviesRoot && looksLikeFilm(item)) return 'film'
-  return 'oneOff'
+export const libraryKind = ({ show, item, moviesRoot, override = null, evidence = null, keyRows = [] }) => {
+  const kind = IMPORT_KINDS[seriesKindOf({
+    title: item.title,
+    override,
+    hasRule: Boolean(show) || Boolean(item.autorecId),
+    isFilm: Boolean(moviesRoot) && looksLikeFilm(item),
+    recordings: [...keyRows, importAiringOf(item)],
+    evidence,
+  })]
+  return kind === 'film' && !moviesRoot ? 'oneOff' : kind
 }
+
+export const importAiringOf = (item) => ({
+  start: item.start,
+  season: item.season ?? null,
+  episode: item.episode ?? null,
+  episodeTitle: item.episode_title ?? null,
+  genres: item.genres || [],
+})
+
+const IMPORT_KINDS = { show: 'tv', movie: 'film', oneoff: 'oneOff' }
 
 export const getOneOffRoot = async () => {
   const fromSetting = await getSetting('oneoff_root')
@@ -148,14 +219,17 @@ export const createValidFilename = (name) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const isNumberOnlyTitle = (title) => /^episode \d+( of season \d+)?$/i.test(String(title ?? '').trim())
+
 export const episodeFilename = ({ item, show }) => {
   const base = createValidFilename(show.dest_folder)
   const suffix = item.episode_title ? ` - ${createValidFilename(item.episode_title)}` : ''
   const ext = item.ext || 'ts'
   if (item.season != null && item.episode != null) {
+    const numberedSuffix = isNumberOnlyTitle(item.episode_title) ? '' : suffix
     const ss = String(item.season).padStart(2, '0')
     const ee = String(item.episode).padStart(2, '0')
-    return `${base} - S${ss}E${ee}${suffix}.${ext}`
+    return `${base} - S${ss}E${ee}${numberedSuffix}.${ext}`
   }
   const aired = new Date(item.start).toISOString().slice(0, 10)
   return `${base} - ${aired}${suffix}.${ext}`
@@ -257,21 +331,35 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
     return
   }
 
+  const classificationOf = await recordingClassifications(finished)
+  const context = await importContextOf({ conn })
   const importsStartedAt = Date.now()
+  currentJob()?.step(SYNC_STEP_LABELS.imports).total(finished.length, 'recordings')
   for (const entry of finished) {
+    currentJob()?.advance()
     const show = matchShow(shows, entry.name)
     if (showId != null && show?.id !== showId) continue
-    const item = toItem({ entry, tvhRecordingsPath, recordingsRoot })
+    const item = { ...toItem({ entry, tvhRecordingsPath, recordingsRoot }), classification: classificationOf(entry) }
     try {
-      const existing = await saveRecordingDetails({ item, conn })
+      const existing = await saveRecordingDetails({ item, show, conn })
       const decision = libraryDecision({ existing, libraryChoice: entry.libraryChoice, show, importUnmatched })
       if (decision.action === 'hold') {
         await holdRecording({ item, existing, reason: decision.reason })
         continue
       }
-      const kind = libraryKind({ show, item, moviesRoot: roots.moviesRoot })
+      const keyOfItem = showKeyOf(existing?.show_title_override ?? item.title)
+      const override = context.overrides.get(keyOfItem) ?? null
+      const kind = libraryKind({
+        show: override === ONE_OFF_KIND ? null : show,
+        item,
+        moviesRoot: roots.moviesRoot,
+        override,
+        evidence: context.evidence.get(keyOfItem) ?? null,
+        keyRows: (context.rowsByKey.get(keyOfItem) || []).filter((row) => row.recording_id !== item.id).map(rowAiringOf),
+      })
+      const folder = kind === 'tv' ? show ?? await folderForSeries({ item, shows, autorecNames: context.autorecNames }) : null
       const itemStartedAt = Date.now()
-      const { summaryKey, adResult, size, error } = await processItem({ item, show, kind, roots })
+      const { summaryKey, adResult, size, error } = await processItem({ item, show: folder, kind, roots })
       summary[summaryKey]++
       if (summaryKey !== 'skipped') {
         noteItem({ summary, item, kind, outcome: summaryKey, size, error, adResult, ms: Date.now() - itemStartedAt })
@@ -280,8 +368,8 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
       if (adResult) accumulateAdSummary(summary, adResult)
       if (
         summaryKey === 'imported'
-        && show?.delete_after_import
-        && shouldQueueAutoDelete({ show, adResult })
+        && folder?.delete_after_import
+        && shouldQueueAutoDelete({ show: folder, adResult })
       ) {
         deletables.push({ recording_id: item.id, title: item.title })
       }
@@ -307,6 +395,51 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
   await finishSync(syncId, finalStatus, summary)
 }
 
+const importContextOf = async ({ conn }) => {
+  const [overrides, evidence, rows, autorecs] = await Promise.all([
+    loadKindOverrides().catch(() => new Map()),
+    loadSeriesEvidence().catch(() => new Map()),
+    db('recordings').whereNull('purged_at')
+      .select('recording_id', 'title', 'show_title_override', 'season', 'episode', 'episode_title', 'aired_at', 'imported_at', 'genres_json')
+      .catch(() => []),
+    listAutorecs(conn).catch(() => []),
+  ])
+  return {
+    overrides,
+    evidence,
+    rowsByKey: rowsByShowKey(rows),
+    autorecNames: new Map(autorecs.map((autorec) => [autorec.id, autorec.name])),
+  }
+}
+
+const rowsByShowKey = (rows) => {
+  const groups = new Map()
+  for (const row of rows) {
+    const key = showKeyOf(row.show_title_override ?? row.title)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(row)
+  }
+  return groups
+}
+
+const folderForSeries = async ({ item, shows, autorecNames }) => {
+  const title = (item.autorecId && autorecNames.get(item.autorecId)) || item.title
+  const created = await ensureShowFolder({ title, shows })
+  if (!shows.some((show) => show.id === created.id)) shows.push(created)
+  return created
+}
+
+const recordingClassifications = async (entries) => {
+  const sourceOf = (entry) => ({
+    title: entry.name,
+    start: entry.startDate,
+    rating: entry.rating,
+    ratingLabel: entry.ratingLabel,
+  })
+  const lookup = await createClassificationLookup({ programmes: entries.map(sourceOf), store: classificationStore })
+  return (entry) => lookup(sourceOf(entry))
+}
+
 const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   id: entry.uuid,
   title: entry.name,
@@ -324,13 +457,14 @@ const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   genres: entry.genres || [],
   year: entry.year ?? null,
   tvhFilename: entry.filename || null,
+  autorecId: entry.autorecId || null,
   sourcePath: entry.filename
     ? localPathFor({ tvhFilename: entry.filename, tvhRecordingsPath, recordingsRoot })
     : null,
   ext: entry.filename ? path.extname(entry.filename).slice(1) || 'ts' : 'ts',
 })
 
-const saveRecordingDetails = async ({ item, conn }) => {
+const saveRecordingDetails = async ({ item, show = null, conn }) => {
   const details = {
     title: item.title,
     episode_title: item.episode_title || null,
@@ -343,11 +477,13 @@ const saveRecordingDetails = async ({ item, conn }) => {
     synopsis: item.description,
     image_url: item.image,
     tvh_filename: item.tvhFilename,
+    genres_json: JSON.stringify(item.genres || []),
+    ...(item.year ? { year: item.year } : {}),
   }
   await db('recordings')
-    .insert({ recording_id: item.id, status: 'pending', ...details })
+    .insert({ recording_id: item.id, status: 'pending', show_id: show?.id ?? null, ...details, classification: item.classification ?? null })
     .onConflict('recording_id')
-    .merge(details)
+    .merge({ ...details, classification: db.raw('coalesce(recordings.classification, excluded.classification)') })
   const row = await db('recordings').where({ recording_id: item.id }).first()
   if (!row.image_checked_at) await saveRecordingImage({ item, conn })
   return row
@@ -391,21 +527,61 @@ const holdRecording = async ({ item, existing, reason }) => {
   })
 }
 
-const refreshSection = async (key) => {
+export const refreshSection = async (key) => {
   const sectionId = await getSetting(key)
   if (!sectionId) return { skipped: true, reason: 'no Plex library chosen for these recordings' }
   return notifyPlexSectionRefresh({ sectionId })
 }
 
-const destinationFor = async ({ item, show, kind, roots }) => {
-  if (kind === 'tv') return buildDestPath({ item, show, mediaRoot: roots.mediaRoot })
-  if (kind === 'oneOff') return buildOneOffPath({ item, oneOffRoot: roots.oneOffRoot })
+const destinationFor = ({ item, show, kind, roots }) => freeDestination({
+  candidateFor: candidateBuilderFor({ item, show, kind, roots }),
+  recordingId: item.id,
+  sourcePath: item.sourcePath,
+})
+
+const candidateBuilderFor = ({ item, show, kind, roots }) => {
+  if (kind === 'film') return (copy) => buildFilmPath({ item, moviesRoot: roots.moviesRoot, copy })
+  const base = kind === 'tv'
+    ? buildDestPath({ item, show, mediaRoot: roots.mediaRoot })
+    : buildOneOffPath({ item, oneOffRoot: roots.oneOffRoot })
+  return (copy) => withCopySuffix(base, copy)
+}
+
+export const withCopySuffix = (filePath, copy) => {
+  if (copy <= 1) return filePath
+  const ext = path.extname(filePath)
+  return path.join(path.dirname(filePath), `${path.basename(filePath, ext)} - copy ${copy}${ext}`)
+}
+
+export const freeDestination = async ({
+  candidateFor,
+  recordingId,
+  sourcePath = null,
+  ownersOf = recordingIdsAt,
+  statOf = statOrNull,
+}) => {
+  const source = sourcePath ? await statOf(sourcePath) : null
   for (let copy = 1; ; copy++) {
-    const dest = buildFilmPath({ item, moviesRoot: roots.moviesRoot, copy })
-    const owner = await db('recordings').where({ file_path: dest }).whereNot({ recording_id: item.id }).first()
-    if (!owner) return dest
+    const filePath = candidateFor(copy)
+    if (await isFreeFor({ filePath, recordingId, source, ownersOf, statOf })) {
+      return { filePath, takenPath: copy > 1 ? candidateFor(1) : null }
+    }
   }
 }
+
+const isFreeFor = async ({ filePath, recordingId, source, ownersOf, statOf }) => {
+  const owners = (await ownersOf(filePath)).map(String)
+  if (owners.some((owner) => owner !== String(recordingId))) return false
+  if (owners.length) return true
+  const existing = await statOf(filePath)
+  return !existing || isSameFile(existing, source)
+}
+
+const isSameFile = (a, b) => Boolean(b) && a.dev === b.dev && a.ino === b.ino
+
+const recordingIdsAt = (filePath) => db('recordings').where({ file_path: filePath }).pluck('recording_id')
+
+const statOrNull = (filePath) => fs.stat(filePath).catch(() => null)
 
 const processItem = async ({ item, show, kind, roots }) => {
   const existing = await db('recordings').where({ recording_id: item.id }).first()
@@ -440,7 +616,17 @@ const processItem = async ({ item, show, kind, roots }) => {
     return { summaryKey: 'skipped' }
   }
 
-  const filePath = await destinationFor({ item, show, kind, roots })
+  const { filePath, takenPath } = await destinationFor({ item, show, kind, roots })
+  return trackJob(
+    { kind: 'import', title: `Import · ${itemLabelOf(item)}`, ref: { recordingId: item.id } },
+    (job) => importItem({ item, show, filePath, takenPath, sourceStat, job }),
+  )
+}
+
+const importItem = async ({ item, show, filePath, takenPath, sourceStat, job }) => {
+  job.fact('Recording', recordingFactOf(item)).fact('File', filePath).fact('Size', formatBytes(sourceStat.size))
+  if (takenPath) noteTakenPath({ takenPath, filePath, job })
+  job.step('Copy from TVHeadend')
   await upsertRecording({ item, show, file_path: filePath, status: 'importing', error: null })
   await fs.mkdir(path.dirname(filePath), { recursive: true })
 
@@ -453,7 +639,9 @@ const processItem = async ({ item, show, kind, roots }) => {
     actualSize = null
   }
 
+  job.step('Check the file')
   const outcome = classifyImport({ expectedSize: sourceStat.size, actualSize })
+  if (outcome.error) job.log(outcome.error, 'warn')
   const statusNote = item.statusText && item.statusText !== 'Completed OK'
     ? `TVHeadend reported: ${item.statusText}`
     : null
@@ -468,9 +656,12 @@ const processItem = async ({ item, show, kind, roots }) => {
   if (outcome.dbStatus === 'done' && show && show.ad_removal !== 'off') {
     const adRemovalEnabled = (await getSetting('ad_removal_enabled')) === 'true'
     if (adRemovalEnabled) {
-      adResult = await processRecordingAds({ filePath, mode: show.ad_removal, recordingId: item.id })
+      job.fact('Ad removal', show.ad_removal === 'cut' ? 'Cut ads' : 'Mark ads')
+      adResult = await processRecordingAds({ filePath, mode: show.ad_removal, recordingId: item.id, title: itemLabelOf(item) })
     }
   }
+  job.outcome(importOutcomeOf({ outcome, adResult }))
+  if (outcome.summaryKey === 'failed') job.fail(outcome.error || 'Import failed')
   return { summaryKey: outcome.summaryKey, adResult, size: outcome.sizeToStore, error: outcome.error }
 }
 
@@ -504,11 +695,21 @@ const markRemovedItems = ({ items, removedIds = [] }) => {
 
 const startStepTimer = (steps) => async (name, run) => {
   const startedAt = Date.now()
+  currentJob()?.step(SYNC_STEP_LABELS[name] ?? name)
   try {
     return await run()
   } finally {
     steps[name] = Date.now() - startedAt
   }
+}
+
+const takenPathNote = ({ takenPath, filePath }) =>
+  `${path.basename(takenPath)} is already in that folder and is not this recording, so it stays untouched; saving as ${path.basename(filePath)}`
+
+const noteTakenPath = ({ takenPath, filePath, job }) => {
+  const note = takenPathNote({ takenPath, filePath })
+  console.warn(`[sync] ${note}`)
+  job.log(note, 'warn')
 }
 
 const isDirectory = async (dir) => (await fs.stat(dir).catch(() => null))?.isDirectory() ?? false
@@ -586,6 +787,10 @@ const createSync = async (trigger, showId = null) => {
 }
 
 const finishSync = async (syncId, status, summary) => {
+  const job = currentJob()
+  job?.outcome(syncOutcomeOf(summary))
+  if (status === 'error') job?.fail(summary.errors?.[0] || summary.message || 'Sync failed')
+  for (const error of summary.errors ?? []) job?.log(error, 'error')
   await db('syncs').where({ id: syncId }).update({
     status,
     finished_at: db.fn.now(),
@@ -631,12 +836,53 @@ const upsertRecording = async ({ item, show, file_path, status, error }) => {
     .merge(mergeable)
 }
 
+export const syncOutcomeOf = (summary) => {
+  const parts = [
+    summary.imported && `${summary.imported} imported`,
+    summary.failed && `${summary.failed} failed`,
+    summary.skipped && `${summary.skipped} skipped`,
+    summary.delete?.removed?.length && `${summary.delete.removed.length} removed`,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : 'Nothing new'
+}
+
+export const importOutcomeOf = ({ outcome, adResult }) => {
+  if (outcome.summaryKey === 'failed') return 'Failed'
+  const ads = AD_OUTCOMES[adResult?.status]
+  return ads ? `Imported · ${ads}` : 'Imported'
+}
+
+const itemLabelOf = (item) => {
+  const number = item.season != null && item.episode != null ? `S${item.season} E${item.episode}` : null
+  return [item.title, number].filter(Boolean).join(' ')
+}
+
+const recordingFactOf = (item) => [item.title, item.episode_title, item.channelName].filter(Boolean).join(' · ')
+
+const formatBytes = (bytes) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(2)} GB` : `${Math.round(bytes / 1e6)} MB`)
+
+const AD_OUTCOMES = {
+  cut: 'ads cut',
+  detected: 'ads marked',
+  no_breaks: 'no ads found',
+  detect_failed: 'ad scan failed',
+  cut_failed: 'ad cut failed',
+}
+
+const SYNC_STEP_LABELS = {
+  list: 'List finished recordings',
+  imports: 'Import new recordings',
+  plexTv: 'Refresh Plex TV',
+  plexOneOffs: 'Refresh Plex one-offs',
+  plexMovies: 'Refresh Plex movies',
+  removals: 'Remove from TVHeadend',
+  libraryCheck: 'Check the library',
+}
+
+const AUTOMATIC_TRIGGERS = ['cron', 'recording-finished']
 const DEFAULT_MEDIA_ROOT = '/media/tv'
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const DEFAULT_ONEOFF_ROOT = '/media/one-offs'
-const FILM_GENRE_MIN = 0x10
-const FILM_GENRE_MAX = 0x1f
-const FILM_MIN_MS = 75 * 60 * 1000
 const HOLD_REASONS = {
   excluded: 'Kept out of the library',
   recordedOff: 'Recorded with Add to library off',
@@ -649,3 +895,4 @@ const RECORDING_TOMBSTONE_TTL_DAYS = 30
 
 let inFlight = null
 const failedArtworkSources = new Set()
+const classificationStore = createClassificationStore()

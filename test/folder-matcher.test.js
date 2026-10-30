@@ -54,6 +54,11 @@ test('listShowFolders: returns the full set with no duplicates', async () => {
   assert.deepEqual([...folders].sort(), [...dirs].sort())
 })
 
+test('listShowFolders: returns the folders in sorted order', async () => {
+  const folders = await listShowFolders(tmpRoot)
+  assert.deepEqual(folders, [...folders].sort())
+})
+
 test('matchShowFolder: exact title finds the disambiguated folder', async () => {
   const m = await matchShowFolder('Bluey', { mediaRoot: tmpRoot })
   assert.equal(m.folder, 'Bluey (2018)')

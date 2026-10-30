@@ -7,7 +7,9 @@ description: >-
 
 # TV apps
 
-TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, **SETTINGS → WATCH ON YOUR TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV Guide](/guide/tv-guide).
+<Illustration name="tv-apps" />
+
+TVHeadend already serves your channels and the TV guide to other apps. In Freetvarr, Settings → Watching → **Watch on TV** creates a TVHeadend login for those apps and shows each address to copy, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
 
 | App      | On the TV                                                                          | Needs                                                     |
 | -------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -18,9 +20,9 @@ If you already run Jellyfin, use it: one server feeds every Jellyfin app in the 
 
 ## The TV login
 
-1. In Freetvarr, open **SETTINGS → WATCH ON YOUR TV**.
+1. In Freetvarr, open Settings → Watching → **Watch on TV**.
 2. Check the login name. `tv` is the default; any name with no spaces works.
-3. Press `MAKE A TV LOGIN` to create the TV login in TVHeadend.
+3. Press **Make a TV login** to create the TV login in TVHeadend.
 
 Freetvarr creates a TVHeadend login that can only watch: it cannot record, change settings, or open TVHeadend's web pages. The login works only from the same networks as Freetvarr's own login. Freetvarr keeps the password and shows it in the panel, so you can copy it again later.
 
@@ -28,6 +30,16 @@ Freetvarr then fills in **TVHeadend address for TV apps** with the address your 
 
 > [!NOTE]<br>
 > The playlist and TV guide addresses carry a code instead of a password. Anyone on your home network who has them can watch your channels, but they cannot change TVHeadend or your recordings.
+
+### Delete the TV login
+
+Delete the TV login when no TV app uses it any more, or to stop everyone who has its details.
+
+1. In Freetvarr, open Settings → Watching → **Watch on TV**.
+2. Under **TV LOGIN**, press **Delete TV login**.
+3. Read the confirmation, then press **Delete TV login** again.
+
+Freetvarr deletes only the login it made: the TVHeadend user and password with that name and Freetvarr's note. Other TVHeadend logins stay. TV apps that use the deleted login stop getting channels until you make a new TV login and enter its details in each app.
 
 ## Jellyfin
 
@@ -37,10 +49,10 @@ Jellyfin has its own TVHeadend plugin, but each plugin release suits only some J
 2. Open the user menu (top right), then **Dashboard → Live TV**.
 3. Under **Tuner Devices**, press **Add Tuner Device**.
 4. Set **Tuner Type** to **M3U Tuner**.
-5. In Freetvarr, press `COPY` beside **Tuner (M3U) URL**.
+5. In Freetvarr, press **Copy** beside **Tuner (M3U) URL**.
 6. In Jellyfin, paste the address into **File or URL**, then press **Save**.
 7. Under **TV Guide Data Providers**, press **Add Provider** and choose **XMLTV**.
-8. In Freetvarr, press `COPY` beside **Guide (XMLTV) URL**.
+8. In Freetvarr, press **Copy** beside **Guide (XMLTV) URL**.
 9. In Jellyfin, paste the address into **File or URL**, then press **Save**.
 10. Press **Refresh Guide Data**, beside **Add Provider**, and wait for the progress bar to finish.
 
@@ -53,7 +65,7 @@ If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV lo
 1. In Kodi, open **Settings → Add-ons → Install from repository → PVR clients**.
 2. Choose **Tvheadend HTSP Client** and press **Install**.
 3. Press **Configure** on the add-on.
-4. Enter the values from the **KODI** rows in Freetvarr's **SETTINGS → WATCH ON YOUR TV**: **HOSTNAME**, **HTTP PORT**, **HTSP PORT**, **USERNAME**, and **PASSWORD**.
+4. Enter the values from the **KODI (TVHEADEND HTSP CLIENT)** rows in Freetvarr's Settings → Watching → **Watch on TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
 5. Press **OK**, then go back to the Kodi home screen.
 
 **TV** on the home screen now lists the channels, and its **Guide** shows the TV guide. Kodi shows Australian captions, which most other apps do not ([Captions in other apps](/guide/live-tv#captions-in-other-apps)).

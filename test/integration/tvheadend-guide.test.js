@@ -139,10 +139,12 @@ test('a +1 channel gets the listings of its base channel one hour later from the
   assert.equal(later[0] - base[0], 3600)
 })
 
+const NO_CLASSIFICATIONS = { record: async () => {}, prune: async () => {} }
+
 const serveShifted = ({ sourceUrl, requests, planShifts }) => new Promise((resolve) => {
   const server = http.createServer((req, res) => {
     requests.note()
-    serveShiftedFeed({ sourceUrl, res, planShifts }).catch(() => res.destroy())
+    serveShiftedFeed({ sourceUrl, res, planShifts, classifications: NO_CLASSIFICATIONS }).catch(() => res.destroy())
   })
   server.listen(0, '0.0.0.0', () => resolve({ port: server.address().port, close: () => server.close() }))
 })

@@ -1,15 +1,17 @@
 ---
 title: Hardware
 description: >-
-  What tuner to buy for free-to-air, how to match it to your broadcast
-  standard, and how it wires into the aerial you already have.
+  What tuner and computer to buy for free-to-air, how to match the tuner to
+  your broadcast standard, and how it wires into the aerial you already have.
 ---
 
 # Hardware
 
+<Illustration name="hardware" />
+
 You need one TVHeadend-compatible tuner, and any type works: a network tuner, a USB DVB-T/T2/C/S2 stick, a PCIe card, SAT>IP, or IPTV. Freetvarr talks only to TVHeadend and the recordings folder, so the tuner type makes no difference to it. The author recommends the HDHomeRun Flex Quatro, and it is the only tuner Freetvarr has been tested with. On a NAS a network tuner is the easiest choice, because there is no USB passthrough to arrange (most NAS kernels ship no DVB drivers, so a USB stick gives you no `/dev/dvb` to pass in).
 
-The broadcast standard where you live decides the model: DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way.
+The broadcast standard where you live decides the model: DVB-T/T2 in Australia, New Zealand, the UK, and Europe; ATSC in North America; DVB-C on cable. An HDHomeRun model exists for each, and TVHeadend drives them all the same way. For the computer that runs Freetvarr, see [The computer](#the-computer).
 
 | Region                             | Standard       | HDHomeRun model                                                    |
 | ---------------------------------- | -------------- | ------------------------------------------------------------------ |
@@ -28,7 +30,7 @@ Buy an **HDHomeRun Flex Quatro**, model `HDFX-4DT`, direct from [SiliconDust](ht
 It is a network tuner: it plugs into your router, or a switch on your home network, with a network (ethernet) cable, and serves its tuners over your home network. Nothing plugs into the NAS. The author's router has a single LAN port, so a `TP-Link TL-SG105` five-port switch connects the router, the NAS, and the tuner.
 
 > [!IMPORTANT]<br>
-> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the author's order notes, and both came in the box.
+> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the order notes, and both came in the box.
 
 No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
 
@@ -139,20 +141,57 @@ The common faults:
 
 Only with a power injector: if its `TELEVISION` port is not fully isolated it can pass a few volts AC through to the tuner. Tuners tolerate this, but if the readings look strange, a `$5` inline DC block (Jaycar `LT3068`, or any F-type DC block) between the adapter and the tuner removes it.
 
-## Memory upgrade
+## The computer
 
-Some Synology Plus-series NAS units take one extra memory module (RAM), and the author fitted one to the author's DS220+. On `2026-10-27` the author added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
+Freetvarr and TVHeadend run in Docker on one computer that stays on: a NAS (e.g. Synology, QNAP, etc.), a mini PC, or an old laptop or desktop. Recording takes almost no processor time, because TVHeadend saves the broadcast to disk as it arrives, with no conversion. The processor and graphics chip matter for live TV in a browser, ad removal, and the For you suggestions.
 
-Before the upgrade, the NAS reported `5.8GB` of memory. Another Docker project on the same NAS (a camera system) used about `2.2GB`, and more than half of that sat in compressed swap (zram), which is memory squeezed into a smaller space.
+| Part             | Minimum                                                       | Recommended                                                                                                  | What it changes                                                                                                                                           |
+| ---------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Processor        | Any 64-bit `x86-64` or `ARM64` processor with `2` cores       | An Intel processor with Quick Sync, or an AMD processor with graphics (e.g. Intel Celeron J4025, Intel N100) | Quick Sync or AMD graphics converts live TV with almost no processor time (see [Hardware transcoding](#hardware-transcoding))                             |
+| Memory (RAM)     | `2GB`                                                         | `4GB` or more                                                                                                | For you (Standard and Plus) and face-aware picture crops need `400MB` free; with less, they wait or stay at Basic                                         |
+| Storage          | Room for the recordings you keep: `3–6GB` for each hour of HD | `4TB` or more (about `650–1,300` hours of HD)                                                                | Health warns under `20GB` free, and recordings fail when the disk fills                                                                                   |
+| Operating system | Linux with Docker and Compose v2                              | The same, on a NAS or a mini PC that stays on                                                                | A Mac runs Freetvarr, but Docker on a Mac cannot find a network tuner by itself or use the graphics chip. Windows is untested ([Windows](/guide/windows)) |
+| Network          | Wired network on the same part of the network as the tuner    | The same                                                                                                     | TVHeadend finds a network tuner by broadcast, which does not cross between subnets                                                                        |
 
-After the upgrade, `free -m` on the NAS reports `17836MB` in total, `13774MB` available, and about `62MB` of swap in use.
+With the minimum, Freetvarr records, imports, and serves every page, but it is limited in these ways:
 
-Synology lists a `4GB` module (`D4NESO-2666-4G`) for the DS220+, DS420+, DS720+, and DS920+, and a larger module is not on its list. DSM `7.3.2` on the author's NAS showed no warning when the `16GB` module went in, and reports the full `18GB`. Other DSM versions may warn about third-party memory, and Synology does not support the setup. Check your model's memory page on Synology's site and your DSM version before you buy.
+- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores. The startup measurement sets **Live streams at once**; if streams stutter, choose a lower number in Settings → Watching → Playback.
+- **Multiview:** each picture needs a live stream, so Multiview shows only as many pictures as **Live streams at once** allows.
+- **Ad removal:** a scan takes about `30` minutes per `75`-minute recording on a `2`-core Celeron, and longer on a slower processor.
+- **For you:** Freetvarr picks **Basic** when the nightly work with the language model would take more than `5` minutes, or when less than `400MB` of memory is free.
 
-Fitting a module means shutting the NAS down, opening the memory cover on the underside, and clicking the module into the slot. Freetvarr does not need the upgrade; it runs on a stock DS220+.
+With the recommended computer, you get these:
+
+- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer. The startup measurement sets the default; on the author's DS220+ it measured `4`.
+- **Ad removal:** scans that finish sooner on a faster processor, at low priority so imports still run at full speed.
+- **For you:** **Standard**, or **Plus** on a fast processor.
+
+At startup, Freetvarr measures how many live streams this computer converts smoothly. The result sets the default for **Live streams at once**. When `LIVE_TV_MAX_SESSIONS` is set in the `.env`, its value is the default and the upper limit instead (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
+
+### The computer: Examples
+
+- **A Synology Plus-series NAS with an Intel Celeron**, such as the DS225+. Its Quick Sync chip converts live TV, and the drives hold the recordings.
+- **A mini PC with an Intel N100 or N150.** It is cheaper than a NAS and has Quick Sync. It also takes a USB tuner, which a NAS cannot use (see [Why not a USB tuner](#why-not-a-usb-tuner)).
+- **An old laptop or desktop that runs Linux.** Many Intel processors with built-in graphics have Quick Sync; the log check in [Hardware transcoding](#hardware-transcoding) shows whether Freetvarr can use it. Without it, live TV converts in software, with the limits above.
+- **A Raspberry Pi 5 or another ARM board.** The Freetvarr Docker image is built for `ARM64`, but the author has not tested it on an ARM board. Freetvarr's hardware path uses VAAPI, which Raspberry Pi boards do not offer, so live TV converts in software.
 
 > [!NOTE]<br>
-> The Amazon link is an affiliate link: as an Amazon Associate the author earns from qualifying purchases, at no extra cost to you.
+> The author's computer is a Synology DS220+: an Intel Celeron J4025 with `2` cores, Intel UHD 600 graphics with Quick Sync, and `18GB` of memory after the upgrade in [The computer: Memory upgrade](#the-computer-memory-upgrade) (`6GB` before). It also runs Plex and other Docker containers. The startup check measured `4` smooth live streams in hardware. For you picked Standard (about `64` seconds a day for `510` new descriptions). Face detection takes about `74ms` per picture. Freetvarr and TVHeadend together use about `450MB` of memory when idle.
+
+### The computer: Memory upgrade
+
+Some Synology Plus-series NAS units take one extra memory module, and the author fitted one to the DS220+ that runs Freetvarr. On `2026-10-27` the author added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
+
+Before the upgrade, the NAS reported `5.8GB` of memory. Another Docker project on the same NAS (a camera system) used about `2.2GB`, and more than half of that sat in compressed swap (zram), which is memory squeezed into a smaller space. Freetvarr's stall monitor (`GET /api/health/loop`) recorded `47` pauses of `100ms` or longer over `8.4` hours, the worst `1.0s`.
+
+After the upgrade, `free -m` on the NAS reports `17836MB` in total, `13774MB` available, and about `62MB` of swap in use. The stall monitor recorded `23` pauses of `100ms` or longer in the first `2` hours after Freetvarr restarted, the worst `1.1s`. The restart itself (guide load, first sync) causes some of them, so that count says nothing yet about a settled day.
+
+Synology lists a `4GB` module (`D4NESO-2666-4G`) for the DS220+, DS420+, DS720+, and DS920+, and a larger module is not on its list. DSM `7.3.2` on the author's NAS accepted the `16GB` module with no warning, and reports the full `18GB`. Synology does not support memory that is not on its list. Check your model's memory page on Synology's site before you buy.
+
+Fitting a module means shutting the NAS down, opening the memory cover on the underside, and clicking the module into the slot. Freetvarr needs none of this: it runs with `4GB` or less.
+
+> [!NOTE]<br>
+> The Amazon link is an affiliate link: as an Amazon Associate I earn from qualifying purchases, at no extra cost to you.
 
 ## Hardware transcoding
 
@@ -164,12 +203,12 @@ Live TV in the browser re-encodes H.264 so that Chrome can play interlaced chann
 4. Recreate the Docker containers: run `docker compose up -d` in the `freetvarr` folder.
 5. Check Freetvarr's log: run `docker compose logs freetvarr | grep "\[live\] video"`. The line says `hardware (VAAPI` when it works.
 
-The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. Set `LIVE_TV_VAAPI_DEVICE` in the `.env` if the render node is not `/dev/dri/renderD128`.
+The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. If the render node is not `/dev/dri/renderD128`, set `LIVE_TV_VAAPI_DEVICE` in the `.env` (e.g. `LIVE_TV_VAAPI_DEVICE=/dev/dri/renderD129`).
 
 > [!NOTE]<br>
 > The author's NAS is a Synology DS220+ (Intel Celeron J4025, UHD 600 graphics) with render group `937`. Hardware `1080i` to `720p` ran at about `6.5x` real time, using about `5%` of one core. Software `720p` ran at only `1.36x` real time on both cores.
 
 ## Where next
 
-- **[Getting started](/guide/getting-started)**: install Freetvarr. Its [setup wizard](/guide/getting-started#_2-run-the-wizard) finds the tuner and scans for channels.
+- **[Getting started](/guide/getting-started)**: install Freetvarr. Its [setup](/guide/getting-started#_2-run-setup) finds the tuner and scans for channels.
 - **[Live TV](/guide/live-tv)**: watch the tuner directly, with no recording involved.

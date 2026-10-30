@@ -76,6 +76,7 @@ const RESULT_FIELDS = { plexTv: 'plex', plexOneOffs: 'plexOneOffs', plexMovies: 
 
 const TRIGGER_LABELS = {
   cron: 'Scheduled sync',
+  'recording-finished': 'Sync after a recording finished',
   manual: 'Manual sync',
   'manual-single': 'Manual single-series sync',
   'manual:import': 'Manual import',

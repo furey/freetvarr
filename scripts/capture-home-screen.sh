@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Record the "Save it as an app" step and encode it for the docs.
 #
-# Playwright in host Node takes a Dashboard still at iPad landscape size from
+# Run it against the server from capture-local-server.sh. Playwright in host
+# Node takes a Home still at iPad landscape size from
 # the demo fixtures (capture-demo-api.mjs), then plays an iPad Home Screen:
 # a tap on the Freetvarr icon, the icon zooming up to fill the screen, and the
 # Dashboard fading in. It records every frame Chrome paints

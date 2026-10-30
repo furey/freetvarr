@@ -68,10 +68,15 @@ export const compareRecordingPaths = ({ configured, tvhStorage }) => {
   }
 }
 
+export const codedErrorText = ({ code, message = '' }) => {
+  const prefix = `${code || 'error'}: `
+  return message.startsWith(prefix) ? message : `${prefix}${message}`
+}
+
 const describeAccessError = ({ err, probePath, need }) => {
   if (err.code === 'ENOENT') return { problem: 'missing', error: `${probePath} does not exist inside the container` }
   if (err.code === 'EACCES') return { problem: 'denied', error: `${probePath} is not ${need} by the container user` }
-  return { problem: 'error', error: `${err.code || 'error'}: ${err.message}` }
+  return { problem: 'error', error: codedErrorText(err) }
 }
 
 const trimTrailingSlash = (value) => {

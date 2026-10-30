@@ -1,10 +1,3 @@
-export const isNotableSync = (sync) => {
-  if (sync.status === 'running') return false
-  if (sync.status !== 'ok') return true
-  const summary = sync.summary || {}
-  return Boolean(summary.imported || summary.failed || summary.delete?.triggered)
-}
-
 export const syncOutcome = (sync) => {
   if (sync.status === 'running') return 'running'
   if (sync.status === 'ok') return 'ok'
@@ -28,32 +21,11 @@ export const syncResult = (sync) => {
 
 export const firstSyncError = (sync) => sync.summary?.errors?.[0] ?? ''
 
-export const syncStrip = ({ syncs, size }) => {
-  const marks = syncs.slice(0, size).map((sync) => ({ key: sync.id, mark: stripMarkOf(sync) })).reverse()
-  const padding = Array.from({ length: size - marks.length }, (_, i) => ({ key: `none-${i}`, mark: 'none' }))
-  return [...padding, ...marks]
-}
-
-export const syncStripLabel = ({ syncs, size }) => {
-  const shown = syncs.slice(0, size)
-  const marks = shown.map(stripMarkOf)
-  const changed = marks.filter((mark) => mark === 'changed').length
-  const failed = marks.filter((mark) => mark === 'failed').length
-  const noun = shown.length === 1 ? 'sync' : 'syncs'
-  return `Last ${shown.length} ${noun}: ${changed} with changes, ${failed} failed`
-}
-
 export const groupSyncsByDay = ({ syncs, dayOf }) => syncs.reduce((groups, sync) => {
   const day = dayOf(sync)
   const last = groups.at(-1)
   if (last?.day === day) return [...groups.slice(0, -1), { day, syncs: [...last.syncs, sync] }]
   return [...groups, { day, syncs: [sync] }]
 }, [])
-
-const stripMarkOf = (sync) => {
-  if (sync.status === 'running') return 'running'
-  if (sync.status !== 'ok') return 'failed'
-  return isNotableSync(sync) ? 'changed' : 'quiet'
-}
 
 const removedCount = (summary) => (summary.delete?.triggered ? summary.delete.removed?.length ?? 0 : 0)

@@ -56,6 +56,7 @@ test('stampIndexHtml: adds the build meta tag and versions the script and styles
     '<link rel="preload" href="/fonts/inter-variable.woff2" as="font" />',
     '<link rel="stylesheet" href="/tailwind.css" />',
     '<link rel="stylesheet" href="/styles.css" />',
+    '<link rel="stylesheet" href="/styles/base.css" />',
     '<link rel="icon" href="/favicon.svg" />',
     '<script type="module" src="/app.js"></script>',
   ].join('\n')
@@ -66,7 +67,8 @@ test('stampIndexHtml: adds the build meta tag and versions the script and styles
   assert.match(stamped, /href="\/vendor\/vue\.esm-browser\.prod\.js\?v=abc123"/)
   assert.match(stamped, /href="\/tailwind\.css\?v=abc123"/)
   assert.match(stamped, /href="\/styles\.css\?v=abc123"/)
-  assert.match(stamped, /href="\/fonts\/inter-variable\.woff2"/)
+  assert.match(stamped, /href="\/styles\/base\.css\?v=abc123"/)
+  assert.match(stamped, /href="\/fonts\/inter-variable\.woff2\?v=abc123"/)
   assert.match(stamped, /href="\/favicon\.svg"/)
 })
 
@@ -87,6 +89,65 @@ test('stampAssetUrls: versions module imports, dynamic imports, and worker paths
     "fetch('/api/settings')",
     "link.href = '/favicon.svg'",
   ].join('\n'))
+})
+
+test('stampAssetUrls: versions imports from the views, components, and shared folders', () => {
+  const source = [
+    "import { LiveView } from '/views/live-view.js'",
+    "import { api } from '/shared/api.js'",
+    "import { TvIcon } from '/components/icons.js'",
+  ].join('\n')
+  assert.equal(stampAssetUrls({ text: source, build: 'abc123' }), [
+    "import { LiveView } from '/views/live-view.js?v=abc123'",
+    "import { api } from '/shared/api.js?v=abc123'",
+    "import { TvIcon } from '/components/icons.js?v=abc123'",
+  ].join('\n'))
+})
+
+test('stampIndexHtml: expands the app.js modulepreload into the given preloads', () => {
+  const html = '<head>\n    <link rel="modulepreload" href="/app.js" />\n</head>'
+  const stamped = stampIndexHtml({ html, build: 'abc123', preloads: ['/app.js', '/views/home-view.js'] })
+  assert.equal(stamped, [
+    '<head>',
+    '    <link rel="modulepreload" href="/app.js?v=abc123" />',
+    '    <link rel="modulepreload" href="/views/home-view.js?v=abc123" />',
+    '</head>',
+  ].join('\n'))
+})
+
+test('stampAssetUrls: versions relative imports so they resolve to the same url as absolute ones', () => {
+  const source = [
+    "import { showKey } from './show-key.js'",
+    "import { api } from '../shared/api.js'",
+    "import { HomeView } from './views/home-view.js'",
+  ].join('\n')
+  assert.equal(stampAssetUrls({ text: source, build: 'abc123' }), [
+    "import { showKey } from './show-key.js?v=abc123'",
+    "import { api } from '../shared/api.js?v=abc123'",
+    "import { HomeView } from './views/home-view.js?v=abc123'",
+  ].join('\n'))
+})
+
+test('stampAssetUrls: versions font urls in stylesheets', () => {
+  const css = "src: url('/fonts/figtree-latin-variable.woff2') format('woff2');"
+  assert.equal(stampAssetUrls({ text: css, build: 'abc123' }),
+    "src: url('/fonts/figtree-latin-variable.woff2?v=abc123') format('woff2');")
+})
+
+test('readBuildId: hashes fonts', async () => {
+  const root = await tempWebRoot({ 'app.js': 'a', 'font.woff2': 'one' })
+  const before = await readBuildId({ webRoot: root, version: '1.0.2' })
+  await fs.writeFile(path.join(root, 'font.woff2'), 'two')
+  assert.notEqual(await readBuildId({ webRoot: root, version: '1.0.2' }), before)
+})
+
+test('readBuildId: hashes scripts in subfolders', async () => {
+  const root = await tempWebRoot({ 'app.js': 'a' })
+  await fs.mkdir(path.join(root, 'views'))
+  await fs.writeFile(path.join(root, 'views', 'live-view.js'), 'one')
+  const before = await readBuildId({ webRoot: root, version: '1.0.2' })
+  await fs.writeFile(path.join(root, 'views', 'live-view.js'), 'two')
+  assert.notEqual(await readBuildId({ webRoot: root, version: '1.0.2' }), before)
 })
 
 test('cacheControlFor: only the current build is immutable', () => {

@@ -28,10 +28,14 @@ test('seasonEpisodeOf formats season and episode numbers', () => {
   assert.equal(seasonEpisodeOf({ series_no: null, episode_no: null }), '')
 })
 
-test('ratingLabel keeps classification letters and drops bare numbers', () => {
-  assert.equal(ratingLabel({ rating: 'PG' }), 'PG')
+test('ratingLabel shows the programme classification', () => {
+  assert.equal(ratingLabel({ classification: 'PG' }), 'PG')
+  assert.equal(ratingLabel({ classification: 'MA15+' }), 'MA15+')
+  assert.equal(ratingLabel({ classification: 'ma 15+' }), 'MA15+')
+  assert.equal(ratingLabel({ classification: 'R18+', rating: '18' }), 'R18+')
   assert.equal(ratingLabel({ rating: '15' }), '')
-  assert.equal(ratingLabel({ rating: null }), '')
+  assert.equal(ratingLabel({ classification: 'X' }), '')
+  assert.equal(ratingLabel({ classification: null }), '')
   assert.equal(ratingLabel(null), '')
 })
 

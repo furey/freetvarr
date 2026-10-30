@@ -1,3 +1,5 @@
+import { classificationOf } from './ratings-display.js'
+
 export const NO_GUIDE_TEXT = 'No guide information for this channel.'
 
 export const channelNumberLabel = (number) =>
@@ -10,10 +12,7 @@ export const seasonEpisodeOf = (p) => {
   return `${season}${episode}`
 }
 
-export const ratingLabel = (p) => {
-  const rating = p?.rating
-  return typeof rating === 'string' && rating && Number.isNaN(Number(rating)) ? rating : ''
-}
+export const ratingLabel = (p) => classificationOf(p?.classification) || ''
 
 export const watchRowLabel = ({ channel, now }) =>
   (now ? `Watch ${channel.name} live, ${now.title} on now` : `Watch ${channel.name} live`)

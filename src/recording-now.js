@@ -1,5 +1,6 @@
 import { db, getSetting } from './db.js'
 import {
+  forgetPastAirings,
   resolveConnection,
   listActiveRecordings,
   listRecentlyEnded,
@@ -12,22 +13,41 @@ import { snapshotProgress } from './progress.js'
 
 export const getRecordingNow = async ({ nowMs = Date.now() } = {}) => {
   if (cache && cache.expiresAt > nowMs) return cache.value
+  if (failure && failure.retryAt > nowMs) return lastGoodOr(failure.err)
   if (inflight) return inflight
   inflight = loadRecordingNow(nowMs)
     .then((value) => {
       cache = { value, expiresAt: nowMs + CACHE_MS }
+      failure = null
       return value
     })
     .catch((err) => {
-      if (cache) return { ...cache.value, stale: true }
-      throw err
+      if (!isConfigurationError(err)) failure = nextFailure({ err, nowMs })
+      return lastGoodOr(err)
     })
     .finally(() => { inflight = null })
   return inflight
 }
 
+const lastGoodOr = (err) => {
+  if (cache) return { ...cache.value, stale: true }
+  throw err
+}
+
+const nextFailure = ({ err, nowMs }) => {
+  const count = (failure?.count ?? 0) + 1
+  return { err, count, retryAt: nowMs + Math.min(FAILURE_MAX_BACKOFF_MS, FAILURE_BACKOFF_MS * 2 ** (count - 1)) }
+}
+
+const isConfigurationError = (err) => err?.stage === 'config'
+
 export const invalidateRecordingNow = () => {
   cache = null
+}
+
+export const onRecordingFinished = (listener) => {
+  finishedListeners.add(listener)
+  return () => finishedListeners.delete(listener)
 }
 
 export const recordingImageSource = (eventId) => {
@@ -59,6 +79,9 @@ export const describeActiveRecording = ({ recording, inputs, subscriptions, nowM
   const { subscription, input } = inputForRecording({ recording, inputs, subscriptions })
   return {
     ...cardBasics(recording),
+    dvrUuid: recording.uuid,
+    canPlayFromStart: !isRecordingFailure(recording),
+    recordingStartedAt: recording.recordingSince ?? recording.startPadded ?? null,
     start: recording.startDate,
     stop: recording.endDate,
     startPadded: recording.startPadded,
@@ -82,7 +105,7 @@ export const describeActiveRecording = ({ recording, inputs, subscriptions, nowM
 }
 
 export const recordingOutcome = (recording) => {
-  if (!recording) return { failed: false, statusText: '' }
+  if (!recording) return { failed: false, statusText: '', removed: recording === null }
   return {
     failed: isRecordingFailure(recording),
     statusText: recording.statusText,
@@ -145,12 +168,57 @@ const loadRecordingNow = async (nowMs) => {
   }
   trackActive({ active, nowMs })
   await resolveOutcomes(conn)
-  const journeys = await describeJourneys(nowMs)
+  const importContext = active.length || hasEnded() ? await loadImportContext() : null
+  const { journeys, finishing } = await describeEnded({ nowMs, importContext })
   return {
-    active: active.map((recording) => describeActiveRecording({ recording, inputs, subscriptions, nowMs })),
+    active: active.map((recording) => ({
+      ...describeActiveRecording({ recording, inputs, subscriptions, nowMs }),
+      libraryHold: libraryHoldOf({ recording, ...importContext }),
+      seriesFolderId: seriesFolderIdOf({ recording, shows: importContext?.shows }),
+    })),
     journeys,
+    finishing,
     fetchedAt: nowMs,
   }
+}
+
+export const libraryHoldOf = ({ recording, existing = null, shows = [], importUnmatched = true }) => {
+  const decision = libraryDecision({
+    existing,
+    libraryChoice: recording.libraryChoice ?? null,
+    show: matchShow(shows, recording.name || '') || null,
+    importUnmatched,
+  })
+  return decision.action === 'hold' ? decision.reason : null
+}
+
+export const seriesFolderIdOf = ({ recording, shows = [] }) => matchShow(shows, recording.name || '')?.id ?? null
+
+export const finishingOf = ({ entry, libraryHold = null, seriesFolderId = null }) => ({
+  ...cardBasics(entry.recording),
+  start: entry.recording.startDate,
+  stop: entry.recording.endDate,
+  stopPadded: entry.recording.stopPadded,
+  recordingStartedAt: entry.recording.recordingSince ?? entry.recording.startPadded ?? null,
+  endedAt: entry.endedAt,
+  libraryHold,
+  seriesFolderId,
+})
+
+export const isAwaitingRow = ({ entry, row, nowMs }) => !row
+  && !entry.outcome?.failed
+  && !entry.outcome?.removed
+  && nowMs - entry.endedAt <= JOURNEY_MAX_AGE_MS
+
+const hasEnded = () => [...tracked.values()].some((t) => t.endedAt != null)
+
+const loadImportContext = async () => {
+  const [shows, importUnmatchedSetting, adRemovalSetting] = await Promise.all([
+    db('shows').where({ enabled: true }),
+    getSetting('import_unmatched'),
+    getSetting('ad_removal_enabled'),
+  ])
+  return { shows, importUnmatched: importUnmatchedSetting !== 'false', adRemovalOn: adRemovalSetting === 'true' }
 }
 
 const trackActive = ({ active, nowMs }) => {
@@ -172,6 +240,7 @@ const trackRecentlyEnded = async ({ conn, nowMs }) => {
       endedAt: recording.stopPadded,
       outcome: recordingOutcome(recording),
       settledAt: null,
+      endedWhileStopped: true,
     })
   }
 }
@@ -184,41 +253,68 @@ const resolveOutcomes = async (conn) => {
     if (latest && /^recording/.test(latest.schedStatus)) return
     if (latest) entry.recording = { ...entry.recording, ...latest, image: entry.recording.image }
     entry.outcome = recordingOutcome(latest)
+    forgetPastAirings()
+    if (!entry.outcome.removed) announceFinished(entry.recording)
   }))
 }
 
-const describeJourneys = async (nowMs) => {
-  const ended = [...tracked.values()].filter((t) => t.outcome)
-  if (!ended.length) return []
-  const [rows, shows, adRemovalSetting, importUnmatchedSetting] = await Promise.all([
-    db('recordings').whereIn('recording_id', ended.map((t) => t.recording.uuid)),
-    db('shows').where({ enabled: true }),
-    getSetting('ad_removal_enabled'),
-    getSetting('import_unmatched'),
-  ])
+const announceFinished = (recording) => finishedListeners.forEach((listener) => {
+  try {
+    listener(recording)
+  } catch (err) {
+    console.warn(`[recording-now] finish listener failed: ${err.message}`)
+  }
+})
+
+const announceEndedWhileStopped = ({ entry, awaitingRow }) => {
+  if (!entry.endedWhileStopped || !finishedListeners.size) return
+  entry.endedWhileStopped = false
+  if (awaitingRow) announceFinished(entry.recording)
+}
+
+const describeEnded = async ({ nowMs, importContext }) => {
+  const ended = [...tracked.values()].filter((t) => t.endedAt != null)
+  if (!ended.length) return { journeys: [], finishing: [] }
+  const { shows, importUnmatched, adRemovalOn } = importContext
+  const rows = await db('recordings').whereIn('recording_id', ended.map((t) => t.recording.uuid))
   const rowById = new Map(rows.map((r) => [r.recording_id, r]))
   const progress = snapshotProgress(ended.map((t) => t.recording.uuid))
   const activeSyncId = getActiveSyncId()
   const journeys = []
+  const finishing = []
   for (const entry of ended) {
     const row = rowById.get(entry.recording.uuid) || null
     const show = (row?.show_id && shows.find((s) => s.id === row.show_id))
       || matchShow(shows, entry.recording.name || '')
       || null
+    if (entry.outcome?.removed) {
+      tracked.delete(entry.recording.uuid)
+      continue
+    }
+    const awaitingRow = isAwaitingRow({ entry, row, nowMs })
+    announceEndedWhileStopped({ entry, awaitingRow })
+    if (awaitingRow) {
+      finishing.push(finishingOf({
+        entry,
+        libraryHold: libraryHoldOf({ recording: entry.recording, shows, importUnmatched }),
+        seriesFolderId: seriesFolderIdOf({ recording: entry.recording, shows }),
+      }))
+    }
+    if (!entry.outcome) continue
     const journey = describeJourney({
       outcome: entry.outcome,
       row,
       show,
       libraryChoice: entry.recording.libraryChoice ?? null,
-      importUnmatched: importUnmatchedSetting !== 'false',
-      adRemovalOn: adRemovalSetting === 'true',
+      importUnmatched,
+      adRemovalOn,
       progress: progress[entry.recording.uuid] || null,
       activeSyncId,
       importSync: row?.imported_at ? await findImportSync(row.imported_at) : null,
     })
     if (journey.settled && entry.settledAt == null) entry.settledAt = nowMs
     if (isExpired({ entry, nowMs })) {
-      tracked.delete(entry.recording.uuid)
+      if (!awaitingRow) tracked.delete(entry.recording.uuid)
       continue
     }
     journeys.push({
@@ -233,7 +329,7 @@ const describeJourneys = async (nowMs) => {
       expiresAt: entry.settledAt != null ? entry.settledAt + JOURNEY_LINGER_MS : null,
     })
   }
-  return journeys
+  return { journeys, finishing }
 }
 
 const findImportSync = async (importedAt) => {
@@ -261,6 +357,7 @@ const cardBasics = (recording) => ({
   episode: recording.episode,
   channelId: recording.channelId,
   channelName: recording.channelName,
+  genres: recording.genres || [],
 })
 
 const importingStep = ({ row, show, libraryChoice, importUnmatched, progress, activeSyncId }) => {
@@ -321,11 +418,15 @@ const parseJson = (text) => {
 }
 
 const tracked = new Map()
+const finishedListeners = new Set()
 let bootstrapped = false
 let cache = null
+let failure = null
 let inflight = null
 
 const CACHE_MS = 4000
+const FAILURE_BACKOFF_MS = 5000
+const FAILURE_MAX_BACKOFF_MS = 60_000
 const JOURNEY_LINGER_MS = 10 * 60 * 1000
 const JOURNEY_MAX_AGE_MS = 12 * 60 * 60 * 1000
 const BOOTSTRAP_WINDOW_MS = 60 * 60 * 1000

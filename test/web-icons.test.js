@@ -38,6 +38,30 @@ test('apple touch icon is an opaque 180 px png', async () => {
   assert.deepEqual({ width, height, hasAlpha }, { width: 180, height: 180, hasAlpha: false })
 })
 
+test('maskable icon differs from the any icon', async () => {
+  const [maskable, any] = await Promise.all(['icon-maskable-512.png', 'icon-512.png']
+    .map((name) => fs.readFile(path.join(WEB_ROOT, name))))
+  assert.notDeepEqual(maskable, any)
+})
+
+test('maskable icon content stays inside the 80 percent safe circle', async () => {
+  const { data, info } = await sharp(path.join(WEB_ROOT, 'icon-maskable-512.png'))
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const centre = info.width / 2
+  const safeRadius = info.width * 0.4
+  const background = [0x0b, 0x11, 0x17]
+  const outsideCircleDiffers = (index) => {
+    const x = (index % info.width) + 0.5 - centre
+    const y = Math.floor(index / info.width) + 0.5 - centre
+    if (Math.hypot(x, y) <= safeRadius) return false
+    return background.some((value, channel) => data[index * info.channels + channel] !== value)
+  }
+  const pixelCount = info.width * info.height
+  const offenders = Array.from({ length: pixelCount }, (_, index) => index).filter(outsideCircleDiffers)
+  assert.equal(offenders.length, 0)
+})
+
 test('every icon and manifest link in index.html points at a shipped file', async () => {
   const hrefs = await headHrefs()
   assert.ok(hrefs.includes('/favicon.ico'))

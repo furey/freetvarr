@@ -214,3 +214,13 @@ test('createProgrammeImages: a failed fetch counts as a miss and the miss list s
   await images.imageFor('c')
   assert.equal(images.stats().misses, 2)
 })
+
+test('onGuideLoaded: tells listeners once the guide has loaded', async () => {
+  const loaded = []
+  const stop = epg.onGuideLoaded((guide) => loaded.push(guide.channels.length))
+  epg.clearGuideCache()
+  await epg.getGuideSnapshot()
+  await new Promise((resolve) => setImmediate(resolve))
+  stop()
+  assert.deepEqual(loaded, [1])
+})

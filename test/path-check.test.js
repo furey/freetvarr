@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
-import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from '../src/path-check.js'
+import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, codedErrorText } from '../src/path-check.js'
 
 const tempDir = () => fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-path-check-'))
 
@@ -103,4 +103,13 @@ test('checkMediaRoot: a read-only folder is not writable', { skip: process.getui
 
 test('checkMediaRoot: a relative path is rejected', async () => {
   assert.equal((await checkMediaRoot('media')).error, 'path must be absolute (start with /)')
+})
+
+test('codedErrorText: adds the error code once', () => {
+  assert.equal(
+    codedErrorText({ code: 'EROFS', message: "EROFS: read-only file system, access '/data/media/tv'" }),
+    "EROFS: read-only file system, access '/data/media/tv'",
+  )
+  assert.equal(codedErrorText({ code: 'EIO', message: 'i/o error' }), 'EIO: i/o error')
+  assert.equal(codedErrorText({ message: 'boom' }), 'error: boom')
 })
