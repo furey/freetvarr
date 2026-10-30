@@ -1,6 +1,6 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { isStaleBuild } from '/stale-build.js'
-import { withCsrfRetry } from '/shared/csrf-retry.js'
+import { sharedCsrfToken, withCsrfRetry } from '/shared/csrf-retry.js'
 
 export let csrfToken = null
 
@@ -33,8 +33,7 @@ export const staleBuild = computed(() => isStaleBuild({
   latest: latestBuild.value,
 }))
 
-const getCsrf = async ({ force = false } = {}) => {
-  if (csrfToken && !force) return csrfToken
+const fetchCsrf = async () => {
   const res = noteBuild(await fetch('/api/csrf-token'))
   if (!res.ok) throw new Error(`csrf-token HTTP ${res.status}`)
   const data = await res.json().catch(() => {
@@ -43,6 +42,8 @@ const getCsrf = async ({ force = false } = {}) => {
   csrfToken = data.token
   return csrfToken
 }
+
+const getCsrf = sharedCsrfToken(fetchCsrf)
 
 const apiCall = async (method, url, body, headersExtra = {}) => {
   const isFile = typeof Blob !== 'undefined' && body instanceof Blob
