@@ -1,9 +1,14 @@
 import { db } from './db.js'
 
 export const loadIdentityPick = async ({ titleKey, family, database = db }) => {
-  const row = await database('show_identity_picks').where({ title_key: titleKey, network_family: family || '' }).first()
+  const rows = await database('show_identity_picks').where({ title_key: titleKey })
+  const row = pickForFamily({ rows, family: family || '' })
   return row ? storedIdentityOf(row) : null
 }
+
+const pickForFamily = ({ rows, family }) => rows.find((row) => row.network_family === family)
+  ?? rows.find((row) => row.network_family === '')
+  ?? (!family && rows.length === 1 ? rows[0] : null)
 
 export const saveIdentityPick = ({ titleKey, family, identity, database = db, now = Date.now }) => database('show_identity_picks')
   .insert({

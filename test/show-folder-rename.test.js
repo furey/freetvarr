@@ -11,7 +11,7 @@ const { db, setSetting } = await import('../src/db.js')
 const { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
 const { ensureShowFolder, settleShowIdentity } = await import('../src/show-folders.js')
 const { chooseShowIdentity, declineShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
-const { loadIdentityPick } = await import('../src/show-identity-store.js')
+const { loadIdentityPick, saveIdentityPick } = await import('../src/show-identity-store.js')
 
 const AU_IDENTITY = { tvmazeId: '87106', name: 'Big Brother (AU)', tvdbId: '76237', tmdbId: null }
 const AU_MATCH = { state: 'confirm', identity: AU_IDENTITY, candidates: [] }
@@ -350,6 +350,18 @@ test('planFolderFix: counts the videos in the folder that Freetvarr did not reco
   const plan = await planFolderFix(options({ identityFor: async () => AU_MATCH }))
   assert.equal(plan.recordings, 1)
   assert.equal(plan.otherVideos, 1)
+})
+
+test('loadIdentityPick: a pick made before the channel was known still counts once it is', async () => {
+  const office = OFFICE_CHOICES.candidates[1].identity
+  await saveIdentityPick({ titleKey: 'office', family: '', identity: office })
+  assert.equal((await loadIdentityPick({ titleKey: 'office', family: 'abc' })).tvdbId, '78107')
+  await db('show_identity_picks').delete()
+  await saveIdentityPick({ titleKey: 'office', family: 'abc', identity: office })
+  assert.equal((await loadIdentityPick({ titleKey: 'office', family: '' })).tvdbId, '78107')
+  assert.equal(await loadIdentityPick({ titleKey: 'office', family: 'nine' }), null)
+  await saveIdentityPick({ titleKey: 'office', family: 'nine', identity: OFFICE_CHOICES.candidates[0].identity })
+  assert.equal(await loadIdentityPick({ titleKey: 'office', family: '' }), null)
 })
 
 test('keptFolderPatchOf: a Saves to the owner types by hand is kept', () => {
