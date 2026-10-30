@@ -32,6 +32,7 @@ import {
   rebaseFilePaths,
   resetInterruptedImports,
   closeInterruptedSyncs,
+  airingOf,
 } from './sync.js'
 import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
@@ -887,7 +888,7 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
       ...(episodes_to_keep != null ? { episodesToKeep: Number(episodes_to_keep) } : {}),
     })
-    const showRule = add_show_rule === false ? null : await ensureShowRule(result.title)
+    const showRule = add_show_rule === false ? null : await ensureShowRule(result.title, result.airing)
     res.json({ ok: true, ...result, showRule })
   } catch (err) {
     epgError(res, err, 'record-series')
@@ -899,8 +900,8 @@ const saveArtworkFromGuide = async ({ recordingId, eventId }) => {
   if (image) await saveArtwork({ kind: 'recording', id: recordingId, image }).catch(() => null)
 }
 
-const ensureShowRule = async (title) => {
-  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title, inBackground: true })
+const ensureShowRule = async (title, airing = null) => {
+  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title, inBackground: true, airing: airing ? airingOf(airing) : {} })
   return { created, show_pattern, dest_folder }
 }
 
