@@ -117,7 +117,7 @@ const copyNotesOf = ({ copies, single }) => {
       ? 'Another copy of this file stays on the disk, so deleting it frees no space.'
       : `Other copies of ${filesText(linked.length)} stay on the disk, so deleting them frees no space.`) : '',
     outside.length ? `${outside.length === 1 ? 'One file is' : `${outside.length} files are`} outside your library folders, so Freetvarr leaves ${outside.length === 1 ? 'it' : 'them'} alone.` : '',
-    unconnected.length ? `${appNameOf(unconnected[0].manager)} is not connected, so Freetvarr leaves its files alone. Connect it in Settings → Sonarr and Radarr.` : '',
+    unconnected.length ? `${appNameOf(unconnected[0].manager)} is not connected, so Freetvarr leaves its files alone. Connect it in Settings → Recording → Sonarr and Radarr.` : '',
   ].filter(Boolean)
 }
 
