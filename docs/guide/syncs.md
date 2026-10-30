@@ -91,7 +91,7 @@ A sync still running shows its details when it finishes. Syncs from Freetvarr ve
 
 To delete one sync from the history, open its details and press **Delete sync**. The recordings it imported stay in your library.
 
-Each sync has its own address, `#/settings/system/activity/<number>`. The old address `#/syncs/<number>` redirects to it. Open that address to show the sync with its details open.
+Each sync has its own address, `#/settings/system/activity/<number>`. Open that address to show the sync with its details open.
 
 ## History
 

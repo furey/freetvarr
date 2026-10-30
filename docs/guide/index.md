@@ -61,7 +61,6 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 - **[Hardware](/guide/hardware)**: what tuner and computer to buy, and how the tuner wires into the aerial you already have.
 - **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the [setup](/guide/getting-started#_2-run-setup) in a browser.
 - **[TVHeadend](/guide/tvheadend)**: what setup changes in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
-- **[What's new in 2.0](/guide/whats-new)**: the five destinations, and where each old screen went.
 - **[Home and search](/guide/home)** and **[For you](/guide/for-you)**: what to watch now, and suggestions.
 - **[Live TV](/guide/live-tv)** and **[Player](/guide/player)**: watch live and recorded TV in the browser.
 - **[TV guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.

@@ -9,7 +9,7 @@ description: >-
 
 A series has two parts: a series recording in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync. Settings → Recording → **Series rules** lists both parts together. Settings → Recording → **Title matches** lists the [title matches](#title-matches).
 
-Series rules and Title matches replace the SERIES tab of earlier versions; the old addresses `#/series` and `#/shows` open Series rules. To change one show, you can also use [Recording options](/guide/recordings#recording-options) on its show page.
+[Recording options](/guide/recordings#recording-options) on a show page change one show.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/series">

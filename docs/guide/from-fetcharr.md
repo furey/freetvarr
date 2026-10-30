@@ -9,7 +9,7 @@ description: >-
 
 If you ran [Fetcharr](https://github.com/furey/fetcharr) against a Fetch TV box, the notes below cover the move. If you never used Fetcharr, read [Leaving Fetch TV](/guide/leaving-fetch) instead. That page covers the levy, saving your recordings, the tuner, and cancelling.
 
-Freetvarr is Fetcharr with the recorder swapped out. The series folders, the filing of episodes into your media library, and the ad removal work the same way. TVHeadend and a TVHeadend-compatible tuner replace the Fetch box. Freetvarr `2.0` also has a new web interface (see [What's new in 2.0](/guide/whats-new)).
+Freetvarr is Fetcharr with the recorder swapped out. The series folders, the filing of episodes into your media library, and the ad removal work the same way. TVHeadend and a TVHeadend-compatible tuner replace the Fetch box.
 
 ## The database
 

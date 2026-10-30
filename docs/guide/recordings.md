@@ -56,7 +56,7 @@ An empty library says `Nothing recorded yet` and offers **Find a show in the TV 
 
 Freetvarr moves a recorded file when its shelf and its folder do not match:
 
-- Once, 3 minutes after the first start of this version. Recordings that an earlier version saved in the wrong folder, such as the episodes of a weekly series in the one-off folder, move to the matching folder.
+- Once, 3 minutes after the first start. A recording in the wrong folder, such as the episodes of a weekly series in the one-off folder, moves to the matching folder.
 - After each sync, for a title that changed shelf.
 - At once, after you choose **Move to Shows** or **Move to One-offs**, or undo that choice.
 

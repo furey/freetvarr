@@ -80,4 +80,4 @@ On the Film and TV info, Ad removal, Media library, Plex, Sonarr and Radarr, TVH
 
 ## Old addresses
 
-Settings pages have their own addresses, such as `#/settings/player` or `#/settings/system/health`. A page keeps its address when its name changes: **Playback** is `#/settings/player`, and **Media library** is `#/settings/storage`. `#/settings/playback` and `#/settings/media-library` open them too. The addresses of the old tabs open the new pages; [What's new in 2.0](/guide/whats-new#old-links-still-work) lists them.
+Settings pages have their own addresses, such as `#/settings/player` or `#/settings/system/health`. A page keeps its address when its name changes: **Playback** is `#/settings/player`, and **Media library** is `#/settings/storage`.

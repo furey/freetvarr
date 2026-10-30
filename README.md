@@ -39,7 +39,6 @@
 ## Contents
 
 - [Overview](#overview)
-- [What's new in 2.0](#whats-new-in-20)
 - [Demo](#demo)
 - [Screenshots](#screenshots)
 - [Prerequisites](#prerequisites)
@@ -68,19 +67,6 @@ TVHeadend names each recording after the programme title only, such as `The Bloc
 Freetvarr is also a TV app for your home network. Schedule recordings from a 7-day TV guide on a TV, tablet, or phone. Watch live TV or your recordings in the browser, and pause and rewind live TV up to `30` minutes.
 
 Freetvarr runs in Docker next to TVHeadend, on a computer that stays on, such as a NAS or a mini PC. Any TVHeadend-compatible tuner works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
-
-## What's new in 2.0
-
-Freetvarr 2.0 is a redesign of the app. Your recordings, series rules, folders, settings, and sync history carry over, and old links still open the new pages. [What's new in 2.0](https://furey.github.io/freetvarr/guide/whats-new) lists where each old screen went.
-
-- **Redesigned app**: five destinations (Home, Live TV, TV guide, Recordings, and Settings), on a tab bar on a phone and a rail on a wider screen. Home has highlights, **For you** suggestions, new recordings, and what is on now. Each show has its own page with episodes, watched marks, and **Recording options**.
-- **New player**: one full-screen player for live TV and recordings, with **Start over** from the first minute of a programme TVHeadend is recording, a Miniplayer, and Multiview for two live channels at once.
-- **Plex watched sync**: Freetvarr and Plex keep the same watched state and resume point for each recording, in both directions. Settings → Recording → Plex has **From Plex** and **Back to Plex** switches and **Sync watched now**.
-- **Your whole Plex library**: Recordings lists every episode and film in your Plex TV and Movies libraries, beside your recordings and playable in Freetvarr's player. Freetvarr does not import, rename, or move these files.
-- **Sonarr and Radarr delete**: connect Sonarr and Radarr, and a delete in Freetvarr goes through them. Freetvarr stops monitoring the episode or film first, so the file does not download again ([Sonarr and Radarr](https://furey.github.io/freetvarr/guide/sonarr-radarr)).
-- **Server Activity**: Settings → System → Activity shows what the server does now (syncs, imports, ad removal, background jobs, and who is watching), with the steps and log of each job. Failed jobs stay for `7` days.
-- **Shows and one-offs**: one rule decides whether a recording is a series, a one-off, or a film, for both its shelf in Recordings and the folder it goes to. **Move to Shows** and **Move to One-offs** correct a wrong guess and move the files ([Library](https://furey.github.io/freetvarr/guide/recordings#library)).
-- **Leaving Fetch TV guide**: copy your recordings off a Fetch box with [`fetchtv`](https://github.com/furey/fetchtv), already named for your media library, then choose a tuner and cancel before the levy ([Leaving Fetch TV](https://furey.github.io/freetvarr/guide/leaving-fetch)).
 
 ## Demo
 
@@ -208,17 +194,18 @@ docker compose up -d
 
 - **Series folders**: each series gets a folder under your media root, matched by name to an existing folder (even when the names are not identical), with a season template.
 - **Library-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the TV guide gave no episode number.
-- **Shows, one-offs, and films**: a programme counts as a series when it has a series recording, you recorded it on two or more days, or the TV guide numbers its episodes or seasons. A one-off goes to its own folder for a separate library. A film goes to the movies folder as `Title (Year)` when you set one.
+- **Shows, one-offs, and films**: a programme counts as a series when it has a series recording, you recorded it on two or more days, or the TV guide numbers its episodes or seasons. A one-off goes to its own folder for a separate library. A film goes to the movies folder as `Title (Year)` when you set one. **Move to Shows** and **Move to One-offs** correct a wrong guess and move the files.
 - **Hardlink imports**: when Freetvarr sees the recordings folder and the media library through one mount, the import is a hardlink. A hardlink is instant and uses no extra disk space. Across mounts, the import is a copy.
 - **Short-file detection**: an import more than `1MB` short of what TVHeadend reported stays `partial`, and the next sync imports it again.
 - **Remove after import**: once Plex confirms its copy, Freetvarr can delete the recording's file from TVHeadend.
 
 ### Watching
 
+- **Five destinations**: Home, Live TV, TV guide, Recordings, and Settings, on a tab bar on a phone and a rail on a wider screen.
 - **Home**: highlights such as the episode to carry on with, a new episode, and what records now; then rows for **For you**, new recordings, what is on now, and what records tonight.
 - **For you**: suggestions from the next week of the TV guide, worked out on your own computer from what you record and watch ([For you](https://furey.github.io/freetvarr/guide/for-you)).
 - **Live TV in the browser**: watch any channel on a TV, tablet, or phone. Freetvarr checks for a free tuner first and warns when a recording will need it within the hour. It converts channels a browser cannot play, in hardware through VAAPI when the host has it.
-- **Player**: pause and rewind live TV up to `30` minutes, **Start over** a programme, and **Go live** to return to now. Recordings resume where you stopped, and **Skip ad** jumps past a detected ad break. **Captions** shows the Teletext subtitles of the broadcast.
+- **Player**: pause and rewind live TV up to `30` minutes, **Start over** a programme, and **Go live** to return to now. Recordings resume where you stopped, and **Skip ad** jumps past a detected ad break. **Captions** shows the Teletext subtitles of the broadcast. A Miniplayer keeps playing while you browse, and Multiview shows up to four live channels at once.
 - **Watch on your TV**: Settings → Watching → **Watch on TV** makes a TVHeadend login for TV apps and shows each address to copy, so a TV app (e.g. Jellyfin, Kodi, etc.) plays live TV on the TV itself ([TV apps](https://furey.github.io/freetvarr/guide/tv-apps)).
 - **Search**: each page header has **Search**, which finds a show by its title, a nickname, its initials, or a close spelling.
 

@@ -35,9 +35,6 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 | `SONARR_CONFIG_PATH`     | Optional. Host path to Sonarr's `config.xml`. The Freetvarr Docker container mounts it read-only and reads Sonarr's API key from it ([Sonarr and Radarr](/guide/sonarr-radarr#read-the-api-keys-for-you)); omit otherwise                                                            |
 | `RADARR_CONFIG_PATH`     | Optional. Host path to Radarr's `config.xml`, read the same way for Radarr's API key; omit otherwise                                                                                                                                                                                 |
 
-> [!NOTE]<br>
-> The install script keeps an existing `docker-compose.yml`. If you installed before Freetvarr `2.0.0`, your Docker compose file has no `SONARR_CONFIG_PATH`, `RADARR_CONFIG_PATH`, `TVH_URL`, `MOVIES_ROOT`, or `LIVE_TV_VAAPI_DEVICE` lines, and its `LIVE_TV_MAX_SESSIONS` line caps live streams at `2`. Copy the `environment:` and `volumes:` lines you need from [`docker-compose.example.yml`](https://github.com/furey/freetvarr/blob/main/docker-compose.example.yml) into the `freetvarr` service, change `${LIVE_TV_MAX_SESSIONS:-2}` to `${LIVE_TV_MAX_SESSIONS:-}`, then run `docker compose up -d`. You can also paste each API key into Settings instead.
-
 ## Backups
 
 Freetvarr keeps its database, its CSRF secret, your uploaded pictures, and its caches in one folder: `${CONFIG_PATH}/freetvarr` on the host (`/config` in the Freetvarr Docker container). The database is `state.db`. Freetvarr writes it in SQLite's WAL mode, so recent changes sit in the files `state.db-wal` and `state.db-shm` beside it until SQLite folds them into `state.db`. A copy of `state.db` alone can miss those changes. Back up the whole folder:

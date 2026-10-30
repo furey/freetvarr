@@ -62,8 +62,6 @@ Freetvarr needs to know about at least five shows before it makes personal sugge
 - The Home row is called **New this week**, and lists premieres and films from the TV guide.
 - The For you page asks you to **Pick a few shows you like** from this week's TV guide. This is optional. Press the posters you like, then **Done**. Press **Skip** to hide the question for a week.
 
-If you already have recordings when you upgrade, they count, so suggestions start at once.
-
 ## How it works
 
 Freetvarr scores each programme in the next 7 days of the TV guide against what you have recorded and watched. It looks at:

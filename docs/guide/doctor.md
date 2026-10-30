@@ -7,7 +7,7 @@ description: >-
 
 # Health
 
-Health checks the parts Freetvarr depends on and says what to fix. It replaces the Doctor of earlier versions. Open it from Settings → System → **Health**, from the alert on [Home](/guide/home#health-alert), or from **Health checks** in Settings → About. The old address `#/doctor` opens it.
+Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → System → **Health**, from the alert on [Home](/guide/home#health-alert), or from **Health checks** in Settings → About. The old address `#/doctor` opens it.
 
 The page has three groups:
 
