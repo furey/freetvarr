@@ -17,6 +17,9 @@ The TV guide shows only the listings you loaded into TVHeadend. With the XMLTV g
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="RuAWde2_9v4" title="Record free-to-air TV from the Freetvarr TV guide" duration="2:35" />
+
 ## The grid
 
 Channels run down the page and time runs across. The TV guide opens at the current half hour.

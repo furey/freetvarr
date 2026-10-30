@@ -194,6 +194,9 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 
 Save your recordings before `31 October 2026`. Once Fetch suspends the box, you cannot reach them.
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="H1zWepdwW6Y" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
+
 1. Install Node.js, the free software that runs the tool. Download the LTS installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **PowerShell** on Windows.
 3. Find the box. In the terminal, type `npx fetchtv` and press Enter. If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
