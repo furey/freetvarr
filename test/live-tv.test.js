@@ -519,7 +519,7 @@ test('pickStreams: HEVC uses software only when VAAPI is unavailable', () => {
 test('ffmpegArgsFor: 10-bit HEVC is scaled to 8-bit NV12 in VAAPI before h264_vaapi, with no deinterlacer', () => {
   const plan = pickStreams({ streams: videoOf('HEVC', 2160), encoder: VAAPI_ENCODER })
   const args = ffmpegArgsFor({ plan, dir: '/tmp/live/abc' })
-  assert.equal(args[args.indexOf('-vf') + 1], 'scale_vaapi=w=-2:h=min(ih\\,1080):format=nv12')
+  assert.equal(args[args.indexOf('-vf') + 1], 'scale_vaapi=w=trunc(min(ih\\,1080)*dar/2)*2:h=min(ih\\,1080):format=nv12,setsar=1')
   assert.deepEqual(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 6), ['-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24'])
 })
 
@@ -540,7 +540,7 @@ test('ffmpegArgsFor: exact arguments for a hardware-transcoded H.264 channel', (
     '-probesize', '500000', '-analyzeduration', '500000',
     '-f', 'mpegts', '-i', 'pipe:0',
     '-map', '0:i:0x66', '-map', '0:i:0x67',
-    '-vf', 'deinterlace_vaapi=auto=1,scale_vaapi=w=-2:h=min(ih\\,720)',
+    '-vf', 'deinterlace_vaapi=auto=1,scale_vaapi=w=trunc(min(ih\\,720)*dar/2)*2:h=min(ih\\,720),setsar=1',
     '-c:v', 'h264_vaapi', '-low_power', '1', '-qp', '24',
     '-g', '50', '-keyint_min', '50', '-force_key_frames', OPENING_KEYFRAMES,
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',

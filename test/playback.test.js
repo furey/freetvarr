@@ -382,7 +382,7 @@ test('playbackArgsFor: a 4K HEVC file decodes and encodes in VAAPI and scales to
   const plan = planForFile({ probe: UHD_HEVC_PROBE, encoder: VAAPI })
   const args = playbackArgsFor({ plan, file: '/media/a.mkv', offset: 0, dir: '/tmp/p' })
   assert.deepEqual(args.slice(args.indexOf('-hwaccel'), args.indexOf('-hwaccel') + 6), ['-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi'])
-  assert.equal(args[args.indexOf('-vf') + 1], 'scale_vaapi=w=-2:h=min(ih\\,1080):format=nv12')
+  assert.equal(args[args.indexOf('-vf') + 1], 'scale_vaapi=w=trunc(min(ih\\,1080)*dar/2)*2:h=min(ih\\,1080):format=nv12,setsar=1')
   assert.ok(args.includes('h264_vaapi'))
   assert.ok(!args.includes('libx264'))
 })

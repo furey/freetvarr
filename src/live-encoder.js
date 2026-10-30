@@ -52,8 +52,13 @@ export const vaapiProbeArgs = ({ device, lowPower }) => [
 
 export const vaapiFilters = ({ heightCap = VAAPI_HEIGHT_CAP, deinterlace = true, format = null } = {}) => [
   ...(deinterlace ? ['deinterlace_vaapi=auto=1'] : []),
-  `scale_vaapi=w=-2:h=min(ih\\,${heightCap})${format ? `:format=${format}` : ''}`,
+  `scale_vaapi=w=${squarePixelWidth(heightCap)}:h=${cappedHeight(heightCap)}${format ? `:format=${format}` : ''}`,
+  'setsar=1',
 ].join(',')
+
+const cappedHeight = (heightCap) => `min(ih\\,${heightCap})`
+
+const squarePixelWidth = (heightCap) => `trunc(${cappedHeight(heightCap)}*dar/2)*2`
 
 export const vaapiEncoderArgs = ({ lowPower }) => [
   '-c:v', 'h264_vaapi',
