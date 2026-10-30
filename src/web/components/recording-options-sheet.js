@@ -16,6 +16,7 @@ import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.j
 import { refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { mediaRootPrefix } from '/views/folder-editor.js'
 import { AlsoKnownAs } from '/components/also-known-as.js'
+import { unfiledShowText } from '/saves-to-text.js'
 
 const RULE_SAVE_DELAY_MS = 600
 const DEFAULT_LEAD_MINUTES = 2
@@ -106,7 +107,7 @@ export const RecordingOptionsSheet = {
             </template>
             <series-folder-editor v-else-if="rule.folder" class="options-folder-editor" :folder="rule.folder" :folders="folders"
               :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" is-series :import-unmatched="importUnmatched"
-              @saved="onFolderChanged('Saved the folder.')" @deleted="onFolderChanged('Unassigned the folder.')" @cancel="editingFolder = false" />
+              @saved="onFolderChanged('Saved the folder.')" @cancel="editingFolder = false" />
             <form v-else class="options-assign" @submit.prevent="assignFolder">
               <p class="options-hint">{{ unassignedText }}</p>
               <label class="options-label" for="options-assign-folder">Folder in your TV library</label>
@@ -157,9 +158,7 @@ export const RecordingOptionsSheet = {
       if (!rule.value.folder) return 'Assign a folder in Advanced first.'
       return ''
     })
-    const unassignedText = computed(() => (rule.value.savesTo?.path
-      ? `This show has no folder in your TV library, so its episodes save to ${rule.value.savesTo.path}.`
-      : 'This show has no folder in your TV library, so its episodes wait in the recording log.'))
+    const unassignedText = computed(() => unfiledShowText(rule.value.savesTo))
 
     const resetFromShow = () => {
       const autorecs = rule.value.autorecs || []

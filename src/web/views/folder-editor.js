@@ -57,17 +57,17 @@ export const FolderEditor = {
         <button type="submit" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving && !confirming }]" :disabled="saving" :aria-busy="saving && !confirming">
           <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save</template>
         </button>
-        <button type="button" class="ui-button ui-button-destructive" @click="confirming = true" :disabled="saving"><component :is="removeIcon" /> {{ removeLabel }}</button>
+        <button v-if="!isSeries" type="button" class="ui-button ui-button-destructive" @click="confirming = true" :disabled="saving"><minus-icon /> Remove title match</button>
         <span v-if="statusText" :class="['status-readout', statusKind]">{{ statusText }}</span>
       </div>
-      <ui-sheet :open="confirming" :title="removeTitle" @close="confirming = false">
+      <ui-sheet v-if="!isSeries" :open="confirming" title="Remove title match" @close="confirming = false">
         <div class="confirm-dialog-body">
           <p>{{ removeOutcome }}</p>
-          <p>{{ isSeries ? 'Episodes' : 'Recordings' }} already imported will stay where they are.</p>
+          <p>Recordings already imported will stay where they are.</p>
         </div>
         <template #footer>
           <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-pending': saving }]" @click="remove" :disabled="saving" :aria-busy="saving">
-            <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Removing…</template><template v-else><component :is="removeIcon" /> {{ removeLabel }}</template>
+            <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Removing…</template><template v-else><minus-icon /> Remove title match</template>
           </button>
           <button type="button" class="ui-button ui-button-block" @click="confirming = false" :disabled="saving">Cancel</button>
         </template>
@@ -83,15 +83,10 @@ export const FolderEditor = {
     const deleteAfter = ref(Boolean(props.folder.delete_after_import))
     const saving = ref(false)
     const confirming = ref(false)
-    const removeLabel = computed(() => (props.isSeries ? 'Unassign folder' : 'Remove title match'))
-    const removeIcon = computed(() => (props.isSeries ? 'unlink-icon' : 'minus-icon'))
-    const removeTitle = computed(() => (props.isSeries ? 'Unassign folder' : 'Remove title match'))
     const removeOutcome = computed(() => {
-      const condition = props.isSeries
-        ? 'If you unassign this series folder, future episodes'
-        : 'If you remove this title match, future recordings with this title'
+      const condition = 'If you remove this title match, future recordings with this title'
       return props.importUnmatched
-        ? `${condition} will save to the one-off folder again.`
+        ? `${condition} will save to the one-off folder, or to a new show folder when Freetvarr finds they are a series.`
         : `${condition} will wait in the Recording log until you import them.`
     })
 
@@ -140,7 +135,7 @@ export const FolderEditor = {
 
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
-      removeLabel, removeIcon, removeTitle, removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
+      removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },
 }

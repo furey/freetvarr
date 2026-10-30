@@ -87,13 +87,20 @@ test('joinSeries: lists an SD and HD autorec pair as one series filed to its fol
   assert.deepEqual(titleMatches, [])
 })
 
-test('joinSeries: a series with no matching row saves to the one-off folder', async () => {
+test('joinSeries: a series with no matching row saves to a new folder in the TV library, as the import does', async () => {
   const seriesTags = await withAutorecGrid(listAutorecs)
   const { series } = joinSeries({ seriesTags, shows: [show()], channels, saving: SAVING, nowMs: NOW })
   const news = series.find((s) => s.title === 'SBS World News')
   assert.equal(news.folder, null)
-  assert.deepEqual(news.savesTo, { kind: 'oneOff', path: '/media/one-offs/SBS World News' })
+  assert.deepEqual(news.savesTo, { kind: 'newFolder', path: '/media/tv/SBS World News' })
   assert.equal(news.autorecs[0].channelName, 'SBS ONE')
+})
+
+test('joinSeries: a series moved to One-offs saves to the one-off folder, even with a folder', () => {
+  const seriesTags = [{ id: 'a', seriesLinkId: `${ABC_HD}|hard quiz`, name: 'Hard Quiz', channelId: ABC_HD, enabled: true }]
+  const kindOverrides = new Map([['hard-quiz', 'one-off']])
+  const [hardQuiz] = joinSeries({ seriesTags, shows: [show()], saving: SAVING, kindOverrides, nowMs: NOW }).series
+  assert.deepEqual(hardQuiz.savesTo, { kind: 'oneOff', path: '/media/one-offs/Hard Quiz' })
 })
 
 test('joinSeries: a disabled autorec shows the series as not recording', async () => {
@@ -156,6 +163,12 @@ test('savesTo: a disabled row saves to the one-off folder, as sync does', () => 
 
 test('savesTo: with Import every recording off, a recording with no row is held', () => {
   assert.deepEqual(savesTo({ title: 'Hard Quiz', saving: { ...SAVING, importUnmatched: false } }), { kind: 'held', path: null })
+  assert.deepEqual(savesTo({ title: 'Hard Quiz', series: true, saving: { ...SAVING, importUnmatched: false } }), { kind: 'held', path: null })
+})
+
+test('savesTo: a series with a disabled row gets a new folder, because the import skips disabled rows', () => {
+  const folder = show({ enabled: false })
+  assert.deepEqual(savesTo({ folder, title: 'Hard Quiz', series: true, saving: SAVING }), { kind: 'newFolder', path: '/media/tv/Hard Quiz' })
 })
 
 test('setSeriesTagsEnabled: pauses both autorecs of an SD and HD pair', async () => {
@@ -231,6 +244,7 @@ test('getSeries: an unreachable TVHeadend still returns every row as a title mat
   const result = await getSeries({
     loadShows: async () => shows,
     loadSaving: async () => SAVING,
+    loadOverrides: async () => new Map(),
     loadState: async () => { throw new Error('TVHeadend is not reachable') },
     loadChannels: async () => [],
   })
@@ -243,6 +257,7 @@ test('getSeries: passes the stale flag through from the recording state', async 
   const result = await getSeries({
     loadShows: async () => [show()],
     loadSaving: async () => SAVING,
+    loadOverrides: async () => new Map(),
     loadState: async () => ({ seriesTags: [], upcomingRecordings: [], stale: true }),
     loadChannels: async () => { throw new Error('no guide') },
   })

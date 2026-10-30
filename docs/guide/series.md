@@ -51,7 +51,7 @@ Each row shows one series:
 
 - The title, with the channels and the number of episodes to keep.
 - **Next**: the next airing, or the next expected airing, with its channel.
-- **Saves to**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no series folder shows a path in the one-off folder, such as `/media/one-offs/Bluey`, and **Assign folder**. When **Import every recording** is on, the first import of an episode creates a series folder for it instead, named after the series recording, and the row then shows that folder. When **Import every recording** is off in Settings → Recording → Media library, such a series shows that its episodes wait in the [recording log](/guide/recordings#recording-log).
+- **Saves to**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no series folder shows the new folder that its next import makes, named after the series recording, such as `/media/tv/Bluey`; after that import, the row shows that folder. A series you moved to One-offs in [Recordings](/guide/recordings#library) shows a path in the one-off folder, such as `/media/one-offs/Bluey`. When **Import every recording** is off in Settings → Recording → Media library, a series with no series folder shows that its episodes wait in the [recording log](/guide/recordings#recording-log).
 
 A row shows a **Paused** badge when the series recording in TVHeadend is paused. A row with no badge records new episodes as normal.
 
@@ -61,7 +61,7 @@ Press a row to open the series under it. Press the row again, or press `Esc`, to
 
 - **Series recording**: whether TVHeadend records new episodes, with **Pause** and **Cancel series**.
 - A series with a series folder shows the [edit form](#edit-a-series-folder).
-- A series that saves to the one-off folder shows that path and **Assign folder**, which gives the series a folder in your media library. See [Assign a folder](#assign-a-folder).
+- A series with no series folder shows where its episodes go and **Assign folder**, which lets you choose the folder in your media library before the next import. See [Assign a folder](#assign-a-folder).
 - **Pause** stops TVHeadend recording new episodes of this series. Episodes already recorded still import. **Resume** starts it again. On an SD and HD pair, both series recordings pause and resume together.
 - **Cancel series** removes the series recording from TVHeadend. See [Cancel a series recording](#cancel-a-series-recording).
 
@@ -70,7 +70,7 @@ Press a row to open the series under it. Press the row again, or press `Esc`, to
 The controls above the series rows narrow and order the list:
 
 - **Filter series or channels**: type part of a title, a channel name, `any channel`, or part of a **Saves to** path.
-- **Sort**: **A–Z** (the default), **Next airing**, or **Recently added**. **A–Z** ignores a leading "The", so `The Block` sorts under B. **Next airing** puts series with nothing in the TV guide last. **Recently added** uses the date the series got its series folder, so a series that saves to the one-off folder sorts last.
+- **Sort**: **A–Z** (the default), **Next airing**, or **Recently added**. **A–Z** ignores a leading "The", so `The Block` sorts under B. **Next airing** puts series with nothing in the TV guide last. **Recently added** uses the date the series got its series folder, so a series with no series folder sorts last.
 - **Status**: **All**, **Paused**, **Not in guide** (nothing in the TV guide for the next `7` days), or **Recording now**.
 
 The group title shows how many series match. **Clear filters** shows all series again. The browser remembers the sort order; the filter and status reset when you leave the page.
@@ -86,7 +86,7 @@ To change nothing, close the question. **Keep series** goes back.
 
 ## Assign a folder
 
-Press a series that saves to the one-off folder, then **Assign folder**. A dialog opens before anything changes:
+Press a series with no series folder, then **Assign folder**. A dialog opens before anything changes:
 
 1. Check the folder name. Freetvarr fills in an existing folder with the same name under your media root, or a new folder named after the series.
 2. To use another folder, type its name, or choose it from the list of existing folders.
@@ -106,7 +106,7 @@ Press a series with a series folder to open these fields under the row:
 
 Press **Save** to keep the changes. To close the form without saving, press the row again, or press `Esc`. A change to **Saves to** applies to future episodes only (episodes already imported stay where they are).
 
-**Unassign folder** removes the folder from the series, after you confirm. Episodes already imported stay where they are. While the series recording exists and **Import every recording** is on in Settings → Recording → Media library, the next import gives the series a folder again, named after the series recording. When **Import every recording** is off, future episodes wait in the [recording log](/guide/recordings#recording-log) instead.
+A series folder stays while the series recording exists, because each import of a series recording gives the series a folder. To save a series to the one-off folder instead, choose **Move to One-offs** in its ⋯ menu in [Recordings](/guide/recordings#library).
 
 ## Season template
 

@@ -7,7 +7,7 @@ export const SeriesDrawer = {
     importUnmatched: { type: Boolean, default: true },
     busy: Boolean,
   },
-  emits: ['saved', 'deleted', 'close', 'assign', 'pause', 'cancel-series'],
+  emits: ['saved', 'close', 'assign', 'pause', 'cancel-series'],
   template: `
     <div class="series-drawer" @keydown.esc="$emit('close')">
       <div class="series-drawer-tvh">
@@ -24,11 +24,12 @@ export const SeriesDrawer = {
       </div>
       <series-folder-editor v-if="series.folder" :folder="series.folder" :folders="folders"
         :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled" is-series :import-unmatched="importUnmatched"
-        @saved="$emit('saved')" @deleted="$emit('deleted')" @cancel="$emit('close')" />
+        @saved="$emit('saved')" @cancel="$emit('close')" />
       <div v-else class="series-drawer-unassigned">
-        <p v-if="series.savesTo?.path" class="settings-row-body">This series has no folder in your TV library, so its episodes save to the one-off folder: <code>{{ series.savesTo.path }}</code>.</p>
+        <p v-if="series.savesTo?.kind === 'newFolder'" class="settings-row-body">This series has no folder in your TV library yet. The next import makes a new folder for it: <code>{{ series.savesTo.path }}</code>.</p>
+        <p v-else-if="series.savesTo?.kind === 'oneOff'" class="settings-row-body">This series is in One-offs, so its episodes save to the one-off folder: <code>{{ series.savesTo.path }}</code>.</p>
         <p v-else class="settings-row-body">This series has no folder in your TV library, so its episodes wait in the <a href="#/settings/system/log">Recording log</a>.</p>
-        <p class="settings-hint">To save its episodes in their own folder in your TV library, press <strong>Assign folder</strong>. You can then set the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
+        <p class="settings-hint">To choose the folder in your TV library yourself, press <strong>Assign folder</strong>. You can then set the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
         <div class="card-actions">
           <button type="button" class="ui-button ui-button-primary" @click="$emit('assign')" :disabled="busy"><plus-icon /> Assign folder</button>
         </div>

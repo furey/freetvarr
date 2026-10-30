@@ -36,7 +36,7 @@ export const SeriesView = {
             <p>Each row is a series recording in TVHeadend. <strong>Saves to</strong> shows the folder where each sync saves its finished episodes.</p>
             <p>To record a new series, open the <strong>TV guide</strong>, pick a programme, and press <strong>Record series</strong>. An SD and an HD recording of the same title show as one series.</p>
             <p>Press a row to open the series under it. There you change where episodes save, the season folders, ad removal, and whether Freetvarr removes the TVHeadend copy after import.</p>
-            <p>A series with no folder in your TV library saves to the one-off folder. Open it and press <strong>Assign folder</strong> to give it one. <strong>Unassign folder</strong> in the same place takes it away again. Episodes already imported stay where they are.</p>
+            <p>A series with no folder in your TV library gets a new folder, named after the series, on its next import. To choose the folder first, open the series and press <strong>Assign folder</strong>. To save a series to the one-off folder instead, choose <strong>Move to One-offs</strong> in its ⋯ menu in Recordings. Episodes already imported stay where they are.</p>
             <p><strong>Pause</strong>, in the open series, stops TVHeadend recording new episodes of this series, and the row shows <strong>Paused</strong>. Episodes already recorded still import. <strong>Resume</strong> starts it again.</p>
             <p><strong>Cancel series</strong>, in the open series, cancels the series recording in TVHeadend. It asks whether to stop an episode recording now and whether to keep the title match. Episodes already recorded stay, and so do their files.</p>
             <p>Type in the filter box to find a series by title, channel, or folder. <strong>Sort</strong> orders the rows, and <strong>Status</strong> shows only paused series, series not in the TV guide, or series recording now.</p>
@@ -102,7 +102,7 @@ export const SeriesView = {
                           </div>
                         </td>
                         <td class="series-next">{{ nextAiringLabel(s) }}</td>
-                        <td class="series-saves-to"><code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>Nowhere yet: episodes wait in the <a href="#/settings/system/log">Recording log</a></template></td>
+                        <td class="series-saves-to"><template v-if="s.savesTo?.path"><code>{{ s.savesTo.path }}</code> <template v-if="s.savesTo?.kind === 'newFolder'">(a new folder, made on the next import)</template></template><template v-else>Nowhere yet: episodes wait in the <a href="#/settings/system/log">Recording log</a></template></td>
                         <td>
                           <div class="rec-actions flex items-center justify-end gap-2">
                             <folder-sync-button v-if="s.folder" :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
@@ -113,7 +113,7 @@ export const SeriesView = {
                         <td colspan="4">
                           <series-drawer class="drawer-card" :series="s" :folders="folders" :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
                             :import-unmatched="importUnmatched" :busy="busyKey === s.key"
-                            @saved="onSaved" @deleted="onDeleted" @close="editingKey = ''" @assign="openAssign(s)"
+                            @saved="onSaved" @close="editingKey = ''" @assign="openAssign(s)"
                             @pause="pauseSeries(s, s.recording)" @cancel-series="openCancelSeries(s)" />
                         </td>
                       </tr>
@@ -131,14 +131,14 @@ export const SeriesView = {
                           <span class="deck-card-title">{{ s.title }}<span v-if="!s.recording" class="settings-badge">Paused</span></span>
                           <p class="deck-card-meta">{{ channelsOf(s) }}<template v-if="s.episodesToKeep"> · keeps the latest {{ s.episodesToKeep }}</template></p>
                           <p class="deck-card-meta"><span class="deck-card-label">Next</span> {{ nextAiringLabel(s) }}</p>
-                          <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <code v-if="s.savesTo?.path">{{ s.savesTo.path }}</code><template v-else>nowhere yet: episodes wait in the <a href="#/settings/system/log">Recording log</a></template></p>
+                          <p class="deck-card-meta"><span class="deck-card-label">Saves to</span> <template v-if="s.savesTo?.path"><code>{{ s.savesTo.path }}</code> <template v-if="s.savesTo?.kind === 'newFolder'">(a new folder, made on the next import)</template></template><template v-else>nowhere yet: episodes wait in the <a href="#/settings/system/log">Recording log</a></template></p>
                         </div>
                       </div>
                       <folder-sync-button v-if="s.folder" :folder="s.folder" is-series :syncing="syncingId === s.folder.id" @sync="syncOne(s.folder)" />
                     </div>
                     <series-drawer v-if="isEditing(s)" class="drawer-card" @click.stop @keydown.stop :series="s" :folders="folders" :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
                       :import-unmatched="importUnmatched" :busy="busyKey === s.key"
-                      @saved="onSaved" @deleted="onDeleted" @close="editingKey = ''" @assign="openAssign(s)"
+                      @saved="onSaved" @close="editingKey = ''" @assign="openAssign(s)"
                       @pause="pauseSeries(s, s.recording)" @cancel-series="openCancelSeries(s)" />
                   </article>
                 </div>
