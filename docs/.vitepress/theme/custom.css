@@ -1201,3 +1201,10 @@ kbd {
     min-width: 6em;
   }
 }
+
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc .custom-block p {
+  text-wrap: balance;
+}
