@@ -13,6 +13,8 @@ const SETTINGS_VIEW_FILES = [
   'components/movie-corrections.js',
   'components/live-streams-settings.js',
   'components/plex-watch-setting.js',
+  'components/plex-library-setting.js',
+  'components/arr-settings.js',
 ]
 
 const PAGE_FILES = {

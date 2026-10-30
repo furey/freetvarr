@@ -6,6 +6,8 @@ const SETTINGS_COMPONENTS = {
   '/views/series-drawer.js': ['SeriesDrawer'],
   '/components/live-streams-settings.js': ['LiveStreamsSetting', 'TunerStatusPanel'],
   '/components/movie-corrections.js': ['MovieCorrections'],
+  '/components/arr-settings.js': ['ArrSettings'],
+  '/components/plex-library-setting.js': ['PlexLibrarySetting'],
   '/components/plex-watch-setting.js': ['PlexWatchSetting'],
   '/components/tmdb-key-setting.js': ['TmdbKeySetting'],
   '/components/recording-drawer.js': ['RecordingStatus', 'RecordingDrawer'],

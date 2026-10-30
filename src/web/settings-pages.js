@@ -31,6 +31,7 @@ export const SETTINGS_GROUPS = [
       { id: 'storage', label: 'Media library', view: 'settings', section: 'storage' },
       { id: 'ad-removal', label: 'Ad removal', view: 'settings', section: 'ad-removal' },
       { id: 'plex', label: 'Plex', view: 'settings', section: 'plex' },
+      { id: 'arr', label: 'Sonarr and Radarr', view: 'settings', section: 'arr' },
       { id: 'log', label: 'Recording log', view: 'system' },
     ],
   },

@@ -329,7 +329,19 @@ export const SettingsView = {
               </div>
             </div>
           </div>
+          <plex-library-setting ref="plexLibrarySetting" />
           <plex-watch-setting ref="plexWatchSetting" />
+        </section>
+
+        <section id="section-arr" class="settings-section">
+          <p class="settings-intro">Optional. Freetvarr asks Sonarr and Radarr to delete the episodes and films they downloaded, so they do not download them again.</p>
+          <teleport v-if="section === 'arr'" defer to="#settings-page-info">
+            <info-button title="Sonarr and Radarr" doc="guide/sonarr-radarr">
+              <p>Recordings lists your whole Plex library, including what Sonarr and Radarr downloaded. When you delete one of those files, Freetvarr asks Sonarr or Radarr to stop monitoring it, then to delete it, so the file goes to their recycle bin and does not download again.</p>
+              <p>Freetvarr reads each API key from Sonarr's and Radarr's <code>config.xml</code> when your compose file mounts it. Otherwise paste the key from <strong>Settings → General</strong> in Sonarr or Radarr.</p>
+            </info-button>
+          </teleport>
+          <arr-settings ref="arrSettings" />
         </section>
 
         <section id="section-schedule" class="settings-section">
@@ -662,6 +674,8 @@ export const SettingsView = {
     const genreLookup = ref(true)
     const genreLookupBaseline = createSettingBaseline()
     const plexWatchSetting = ref(null)
+    const plexLibrarySetting = ref(null)
+    const arrSettings = ref(null)
     const addToLibraryBaseline = createSettingBaseline()
     const tmdbKeySet = ref(false)
     const plexOneOffSectionId = ref('')
@@ -777,6 +791,8 @@ export const SettingsView = {
         await saveRecordingDefaults()
         await saveGenreLookup()
         await plexWatchSetting.value?.save()
+        await plexLibrarySetting.value?.save()
+        await arrSettings.value?.save()
         tz.value = timeZone.value
         tzSource.value = 'setting'
         if (plexToken.value) {
@@ -1051,6 +1067,8 @@ export const SettingsView = {
       defaultPlexPrefsPath: DEFAULT_PLEX_PREFS_PATH,
       deleteAfterPlexRefreshOnly,
       plexWatchSetting,
+      plexLibrarySetting,
+      arrSettings,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
       status, statusKind, plexStatus, plexStatusKind, saving,
       resetting, resetError, askResetFreetvarr,

@@ -55,7 +55,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
         ? { key: 'resume-series', label: 'Resume recording', icon: 'play' }
         : { key: 'pause-series', label: 'Pause recording', icon: 'pause' }),
       { key: 'show-info', label: 'Show info', icon: 'info' },
-      canMove && episodes.length > 0 && { key: 'move', label: 'Merge into another show…', icon: 'move' },
+      canMove && episodes.some(isRecorded) && { key: 'move', label: 'Merge into another show…', icon: 'move' },
       shelfMoveOf(show),
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
       hasArtwork && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
@@ -93,7 +93,7 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
     ],
     [
       { key: 'episode-info', label: 'Episode info', icon: 'info' },
-      canMove && { key: 'move', label: 'Merge into another show…', icon: 'move' },
+      canMove && isRecorded(episode) && { key: 'move', label: 'Merge into another show…', icon: 'move' },
       canImport(episode) && { key: 'import', label: importLabelOf(episode), icon: 'refresh' },
       adRemovalEnabled && canRescan(episode) && adMenuItemOf(episode),
       canRescan(episode) && restoreMenuItemOf(episode),
@@ -164,18 +164,66 @@ export const unmarkedText = ({ failed, total }) => {
   return `Could not mark ${what}`
 }
 
-export const episodeInfoOf = ({ episode, showTitle, timeZone }) => ({
-  title: episodeHeading(episode),
-  subtitle: showTitle,
-  text: episode.synopsis || '',
-  rows: [
-    { label: 'Aired', value: airedRangeText({ airedAt: episode.airedAt, durationSeconds: episode.durationS, timeZone }) },
-    { label: 'Channel', value: episode.channelName || '' },
-    { label: 'Length', value: durationText(episode.durationS) },
-    { label: 'Watched', value: watchedTextOf(episode) },
-    { label: 'Saves to', value: episode.filePath || '', mono: true },
-  ].filter((row) => row.value),
-})
+export const episodeInfoOf = ({ episode, showTitle, timeZone }) => {
+  const fromPlex = episode.source === 'plex'
+  const copies = fromPlex ? episode.versions || [] : episode.otherVersions || []
+  const versionCount = copies.length + (fromPlex ? 0 : 1)
+  return {
+    title: episodeHeading(episode),
+    subtitle: showTitle,
+    note: versionCount > 1 ? versionsNoteOf({ count: versionCount, fromPlex }) : '',
+    text: episode.synopsis || '',
+    rows: [
+      { label: 'Aired', value: airedRangeText({ airedAt: episode.airedAt, durationSeconds: episode.durationS, timeZone }) },
+      { label: 'Channel', value: episode.channelName || '' },
+      { label: 'Length', value: durationText(episode.durationS) },
+      { label: 'Watched', value: watchedTextOf(episode) },
+      !fromPlex && { label: copies.length ? 'Recording' : 'Saves to', value: episode.filePath || '', mono: true },
+      ...copies.flatMap((copy, i) => copyRowsOf({ copy, label: copyLabelOf({ copy, index: i, fromPlex, count: copies.length }) })),
+    ].filter((row) => row && row.value),
+  }
+}
+
+export const isRecorded = (episode) => episode.source !== 'plex'
+
+export const copySourceText = (manager) => COPY_SOURCES[manager] || 'In your Plex library'
+
+export const copySizeText = (copy) => [
+  sizeOf(copy.sizeBytes),
+  [videoCodecText(copy.videoCodec), resolutionText(copy.resolution)].filter(Boolean).join(' '),
+  audioCodecText(copy.audioCodec),
+].filter(Boolean).join(' · ')
+
+const versionsNoteOf = ({ count, fromPlex }) => (fromPlex
+  ? `This episode has ${count} versions. Freetvarr plays the first; Plex picks either.`
+  : `This episode has ${count} versions. Freetvarr plays the recording; Plex picks either.`)
+
+const copyLabelOf = ({ copy, index, fromPlex, count }) => {
+  if (fromPlex) return count > 1 ? `Version ${index + 1}` : 'Came from'
+  return { sonarr: 'Sonarr copy', radarr: 'Radarr copy' }[copy.manager] || 'Other copy'
+}
+
+const copyRowsOf = ({ copy, label }) => [
+  { label, value: copySourceText(copy.manager) },
+  { label: 'File', value: copy.filePath || '', mono: true },
+  { label: 'Size', value: copySizeText(copy) },
+]
+
+const sizeOf = (bytes) => {
+  if (!(bytes > 0)) return ''
+  if (bytes >= 1e9) return `${Number((bytes / 1e9).toFixed(1))} GB`
+  return `${Math.max(1, Math.round(bytes / 1e6))} MB`
+}
+
+const videoCodecText = (codec) => ({ h264: 'H.264', hevc: 'HEVC', mpeg2video: 'MPEG-2', vc1: 'VC-1', av1: 'AV1' }[String(codec || '').toLowerCase()] || (codec ? String(codec).toUpperCase() : ''))
+
+const resolutionText = (resolution) => {
+  if (!resolution) return ''
+  if (/^\d+$/.test(String(resolution))) return `${resolution}p`
+  return String(resolution).toUpperCase()
+}
+
+const audioCodecText = (codec) => ({ aac: 'AAC', ac3: 'AC-3', eac3: 'E-AC-3', mp2: 'MP2', dca: 'DTS', truehd: 'TrueHD' }[String(codec || '').toLowerCase()] || '')
 
 export const showInfoOf = ({ show, timeZone, nicknames = [] }) => {
   const episodes = allEpisodesOf(show)
@@ -246,8 +294,9 @@ const canImport = (episode) => IMPORTABLE_STATES.includes(episode.libraryState |
 
 const importLabelOf = (episode) => (['failed', 'skipped'].includes(episode.status) ? 'Retry' : 'Import')
 
-const canRescan = (episode) => episode.status === 'done' && Boolean(episode.filePath) && !episode.libraryState
+const canRescan = (episode) => isRecorded(episode) && episode.status === 'done' && Boolean(episode.filePath) && !episode.libraryState
 
+const COPY_SOURCES = { sonarr: 'Downloaded by Sonarr', radarr: 'Downloaded by Radarr' }
 const SHORT_TITLE_LENGTH = 24
 const MAX_SHOW_TITLE_LENGTH = 200
 

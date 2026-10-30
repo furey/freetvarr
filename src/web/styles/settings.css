@@ -191,6 +191,7 @@
 .settings-content[data-settings-section="tvheadend"] #section-tvheadend,
 .settings-content[data-settings-section="storage"] #section-storage,
 .settings-content[data-settings-section="plex"] #section-plex,
+.settings-content[data-settings-section="arr"] #section-arr,
 .settings-content[data-settings-section="schedule"] #section-schedule,
 .settings-content[data-settings-section="film-tv-info"] #section-film-tv-info,
 .settings-content[data-settings-section="ad-removal"] #section-ad-removal,
@@ -1565,4 +1566,14 @@ a.settings-row-link:hover {
   .activity-log {
     font-size: 11px;
   }
+}
+
+.arr-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plex-library-sections-label {
+  margin: 0 0 10px;
 }

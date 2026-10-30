@@ -5,6 +5,7 @@ import {
   episodeInfoOf,
   episodeMenuOf,
   importedEpisodesOf,
+  isRecorded,
   latestEarlierEpisodeOf,
   markedText,
   menuPendingLabelOf,
@@ -312,7 +313,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     if (key === 'pause-series') return setSeriesPaused(true)
     if (key === 'resume-series') return setSeriesPaused(false)
     if (key === 'show-info') return openShowInfo(current)
-    if (key === 'move') return openMove(importedEpisodesOf(current))
+    if (key === 'move') return openMove(importedEpisodesOf(current).filter(isRecorded))
     if (key === 'plex') return openInPlex(`${keyPath()}/plex-link`)
     if (key === 'change-picture') {
       pictureOpen.value = true

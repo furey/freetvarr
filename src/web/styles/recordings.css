@@ -1096,6 +1096,16 @@
   margin-top: 1px;
 }
 
+.library-dialog-block .library-dialog-path {
+  margin-top: 2px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.library-dialog-block li > span {
+  min-width: 0;
+}
+
 .library-dialog-block b {
   display: block;
   font-size: 15px;

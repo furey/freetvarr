@@ -86,9 +86,10 @@ export const LibraryInfoSheet = {
   template: `
     <ui-sheet :open="open && Boolean(info)" :title="info?.title || ''" :subtitle="info?.subtitle || ''" @close="$emit('close')">
       <template v-if="info">
+        <p v-if="info.note" class="library-info-text">{{ info.note }}</p>
         <p v-if="info.text" class="library-info-text">{{ info.text }}</p>
         <dl class="ui-group library-info-rows">
-          <div v-for="row in info.rows" :key="row.label" class="ui-group-row library-info-row">
+          <div v-for="(row, index) in info.rows" :key="index" class="ui-group-row library-info-row">
             <dt class="library-info-label">{{ row.label }}</dt>
             <dd :class="['library-info-value', { 'ui-mono': row.mono }]">{{ row.value }}</dd>
           </div>
@@ -119,10 +120,11 @@ export const DeleteConfirm = {
               </span>
               <span class="library-dialog-episode-text">
                 <span class="library-dialog-episode-title">{{ leadTitle }}</span>
-                <span class="library-dialog-episode-meta">{{ request.leadMeta }}</span>
+                <span class="library-dialog-episode-meta"><meta-line :text="request.leadMeta" /></span>
               </span>
             </div>
             <h2 :id="titleId" class="library-dialog-title">{{ copy ? copy.title : loadingTitle }}</h2>
+            <ui-segmented v-if="copy?.chooser.length" fill v-model="choice" :options="copy.chooser" :disabled="busy" aria-label="Which copies to delete" />
             <div :id="bodyId" class="library-dialog-body">
               <p v-if="loadError" class="library-dialog-note is-error" role="alert"><menu-icon name="warning" /><span>{{ loadError }}</span></p>
               <template v-else-if="!copy">
@@ -133,10 +135,11 @@ export const DeleteConfirm = {
                 <div class="library-dialog-block is-deleted">
                   <h3 class="library-dialog-block-title">What gets deleted</h3>
                   <ul>
-                    <li v-for="line in copy.deleted" :key="line.title"><menu-icon name="trash" /><span><b>{{ line.title }}</b><small v-if="line.detail">{{ line.detail }}</small></span></li>
+                    <li v-for="line in copy.deleted" :key="line.title"><menu-icon name="trash" /><span><b>{{ line.title }}</b><small v-if="line.detail">{{ line.detail }}</small><small v-if="line.path" class="library-dialog-path ui-mono">{{ line.path }}</small></span></li>
                   </ul>
                 </div>
                 <p v-if="copy.missingNote" class="library-dialog-note"><menu-icon name="warning" /><span>{{ copy.missingNote }}</span></p>
+                <p v-for="note in copy.notes" :key="note" class="library-dialog-note"><menu-icon name="warning" /><span>{{ note }}</span></p>
                 <div v-if="copy.stays.length" class="library-dialog-block is-kept">
                   <h3 class="library-dialog-block-title">What stays</h3>
                   <ul>
@@ -148,8 +151,13 @@ export const DeleteConfirm = {
                   <span class="library-dialog-check-box" aria-hidden="true"><menu-icon name="check" /></span>
                   <span>Stop recording this show too</span>
                 </label>
+                <label v-if="copy.offersRemoveSeries" class="library-dialog-check">
+                  <input v-model="removeSeries" type="checkbox" :disabled="busy" />
+                  <span class="library-dialog-check-box" aria-hidden="true"><menu-icon name="check" /></span>
+                  <span>Remove the series from Sonarr too</span>
+                </label>
                 <p v-if="refusal" class="library-dialog-note" role="alert"><menu-icon name="warning" /><span>{{ refusal }}</span></p>
-                <p class="library-dialog-undo">You can't undo this.</p>
+                <p class="library-dialog-undo">{{ copy.undoText }}</p>
               </template>
             </div>
             <div class="library-dialog-buttons">
@@ -173,6 +181,8 @@ export const DeleteConfirm = {
     const refusal = ref('')
     const busy = ref(false)
     const stopSeries = ref(false)
+    const removeSeries = ref(false)
+    const choice = ref('both')
     const leadFailed = ref(false)
     const titleId = `library-dialog-title-${++dialogCount}`
     const bodyId = `${titleId}-body`
@@ -191,14 +201,20 @@ export const DeleteConfirm = {
         episodes: props.request.episodes.filter((episode) => preview.value.items.some((item) => item.recordingId === episode.recordingId)),
         totalCount: props.request.totalCount,
         stopSeries: stopSeries.value,
+        removeSeries: removeSeries.value,
+        choice: choice.value,
       })
       : null))
+
+    const versions = computed(() => (props.request?.variant === 'episode' && ids.value.length === 1 && choice.value !== 'both'
+      ? { [ids.value[0]]: choice.value }
+      : undefined))
 
     const loadPreview = async () => {
       const run = ++loadRun
       loadError.value = ''
       try {
-        const result = await api('POST', '/api/library/delete/preview', { recording_ids: ids.value })
+        const result = await api('POST', '/api/library/delete/preview', { recording_ids: ids.value, versions: versions.value })
         if (run === loadRun) preview.value = result
       } catch (err) {
         if (run === loadRun) loadError.value = `Could not check what to delete: ${err.message}`
@@ -209,9 +225,15 @@ export const DeleteConfirm = {
       preview.value = null
       refusal.value = ''
       stopSeries.value = false
+      removeSeries.value = false
+      choice.value = 'both'
       leadFailed.value = false
       loadPreview()
     }
+
+    watch(choice, () => {
+      if (props.request) loadPreview()
+    })
 
     const cancel = () => {
       if (!busy.value) emit('cancel')
@@ -246,11 +268,13 @@ export const DeleteConfirm = {
           task: () => api('POST', '/api/library/delete', {
             recording_ids: preview.value.items.map((item) => item.recordingId),
             expected_count: preview.value.count,
+            versions: versions.value,
+            remove_series: Boolean(copy.value.offersRemoveSeries && removeSeries.value),
           }),
         })
         const seriesFailure = copy.value.offersStopSeries && stopSeries.value ? await stopSeriesRecording() : ''
         const labelsById = Object.fromEntries(props.request.episodes.map((episode) => [episode.recordingId, episodeHeading(episode)]))
-        const outcome = deleteOutcomeOf({ body, labelsById })
+        const outcome = deleteOutcomeOf({ body, labelsById, recycleBin: preview.value.recycleBin })
         refreshAfterRecordingChange()
         busy.value = false
         emit('done', {
@@ -269,7 +293,7 @@ export const DeleteConfirm = {
     useAlertDialog({ dialog, isOpen: () => Boolean(props.request), onOpen, cancel: () => cancel(), zIndex, initialFocus: () => cancelButton.value })
 
     return {
-      dialog, cancelButton, zIndex, preview, loadError, refusal, busy, stopSeries, leadFailed, titleId, bodyId,
+      dialog, cancelButton, zIndex, preview, loadError, refusal, busy, stopSeries, removeSeries, choice, leadFailed, titleId, bodyId,
       lead, leadTitle, leadStyle, loadingTitle, copy, cancel, confirm,
     }
   },
@@ -293,7 +317,7 @@ export const ActionConfirm = {
               </span>
               <span class="library-dialog-episode-text">
                 <span class="library-dialog-episode-title">{{ request.lead.title }}</span>
-                <span class="library-dialog-episode-meta">{{ request.lead.meta }}</span>
+                <span class="library-dialog-episode-meta"><meta-line :text="request.lead.meta" /></span>
               </span>
             </div>
             <h2 :id="titleId" class="library-dialog-title">{{ copy.title }}</h2>
