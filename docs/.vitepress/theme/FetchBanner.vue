@@ -10,8 +10,8 @@ const isLeavingFetchPage = computed(() => page.value.relativePath === 'guide/lea
   <a v-if="!isLeavingFetchPage" class="fetch-banner" :href="withBase('/guide/leaving-fetch')">
     <span class="fetch-banner__text">
       <strong>Leaving Fetch TV?</strong>
-      <span class="fetch-banner__long">A step-by-step guide to owning your setup</span>
-      <span class="fetch-banner__short">Read the step-by-step guide</span>
+      <span class="fetch-banner__long">Read the guide</span>
+      <span class="fetch-banner__short">Read the guide</span>
     </span>
     <svg class="fetch-banner__arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 8h10M9 4l4 4-4 4"/>
