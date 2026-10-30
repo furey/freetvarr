@@ -249,3 +249,14 @@ test('settleShowIdentity: an unclear match keeps the bare folder and asks the ow
   assert.equal(show.dest_folder, 'The Office')
   assert.equal(show.identity_state, 'choose')
 })
+
+test('renameShowFolder: refuses a folder that Sonarr downloads into, so Sonarr keeps its series path', async () => {
+  const sonarrPath = path.join(mediaRoot, 'Big Brother', 'Season 17', 'Big Brother - S17E07 - WEBDL.mkv')
+  await fs.writeFile(sonarrPath, 'download')
+  await db('library_items').insert({ rating_key: '11', part_id: '2', section_id: '2', kind: 'episode', file_path: sonarrPath, seen_at: 1, manager: 'sonarr', manager_file_id: '9', manager_series_id: '3' })
+  const plan = await planFolderFix(options({ identityFor: async () => AU_MATCH }))
+  assert.equal(plan.state, 'managed')
+  await assert.rejects(renameShowFolder(options({ to: NEW_FOLDER })), { code: 'managed' })
+  assert.deepEqual(await folderNames(), ['Big Brother'])
+  assert.equal((await db('shows').where({ id: showId }).first()).dest_folder, 'Big Brother')
+})

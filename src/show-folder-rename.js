@@ -23,13 +23,14 @@ export const planFolderFix = async ({
   if (target === show.dest_folder) return { state: 'done', from: show.dest_folder, to: target, identity }
   const mediaRoot = await mediaRootOf()
   const paths = folderPathsOf({ mediaRoot, from: show.dest_folder, to: target })
-  const [recordings, folderExists, targetExists] = await Promise.all([
+  const [recordings, libraryItems, folderExists, targetExists] = await Promise.all([
     recordingsUnder({ database, folder: paths.from }),
+    libraryItemsUnder({ database, folder: paths.from }),
     exists({ fsApi, filePath: paths.from }),
     exists({ fsApi, filePath: paths.to }),
   ])
   return {
-    state: targetExists ? 'target-exists' : 'ready',
+    state: libraryItems.some(isManaged) ? 'managed' : targetExists ? 'target-exists' : 'ready',
     from: show.dest_folder,
     to: target,
     recordings: recordings.length,
@@ -62,6 +63,8 @@ export const renameShowFolder = async ({
     libraryItemsUnder({ database, folder: paths.from }),
     exists({ fsApi, filePath: paths.from }),
   ])
+  const managed = libraryItems.find(isManaged)
+  if (managed) throw managedFolderError(managerNameOf(managed.manager))
   if (recordings.some((row) => isRecordingBusy(row.recording_id))) {
     throw folderFixError('busy', 'Ad removal is running on one of these recordings. Try again when it finishes.')
   }
@@ -116,8 +119,14 @@ const isUnder = ({ filePath, folder }) => Boolean(filePath) && filePath.startsWi
 const recordingsUnder = async ({ database, folder }) => (await database('recordings').whereNotNull('file_path').select('recording_id', 'file_path'))
   .filter((row) => isUnder({ filePath: row.file_path, folder }))
 
-const libraryItemsUnder = async ({ database, folder }) => (await database('library_items').whereNotNull('file_path').select('rating_key', 'part_id', 'file_path'))
+const libraryItemsUnder = async ({ database, folder }) => (await database('library_items').whereNotNull('file_path').select('rating_key', 'part_id', 'file_path', 'manager'))
   .filter((row) => isUnder({ filePath: row.file_path, folder }))
+
+const managedFolderError = (name) => folderFixError('managed', `${name} also saves episodes in this folder. Rename the series in ${name} instead, so ${name} keeps finding its files.`)
+
+const isManaged = (row) => Boolean(row.manager)
+
+const managerNameOf = (manager) => ({ sonarr: 'Sonarr', radarr: 'Radarr' }[manager] || 'Another app')
 
 const isPlainFolderName = (name) => typeof name === 'string'
   && name.trim() === name
