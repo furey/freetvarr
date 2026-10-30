@@ -1079,7 +1079,7 @@ kbd {
   padding: 6px;
 }
 
-/* The hero image slot carries the browser-framed demo video, so let it grow
+/* The hero image slot carries the iPad and iPhone demo video, so let it grow
    past the default VPImage box. */
 .VPHero .image {
   max-width: none;
