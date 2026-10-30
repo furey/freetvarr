@@ -98,6 +98,12 @@ export const FolderEditor = {
               <span class="ui-group-row-meta">{{ candidateMetaOf({ candidate, current: identity.current }) }}</span>
             </span>
           </button>
+          <button type="button" class="ui-group-row is-tall move-show-row" :disabled="saving" @click="declineShow">
+            <span class="ui-group-row-main">
+              <span class="ui-group-row-title">None of these</span>
+              <span class="ui-group-row-meta">The folder keeps the plain name.</span>
+            </span>
+          </button>
         </div>
       </ui-sheet>
       <ui-sheet v-if="folderFix" :open="renaming" title="Rename folder" @close="closeRename">
@@ -234,6 +240,20 @@ export const FolderEditor = {
       }
     }
 
+    const declineShow = async () => {
+      saving.value = true
+      chooseError.value = ''
+      try {
+        await holdAtLeast({ task: () => api('DELETE', `/api/shows/${props.folder.id}/identity`) })
+        await Promise.all([loadIdentity(), loadFolderFix()])
+        choosing.value = false
+      } catch (err) {
+        chooseError.value = `Error: ${err.message}`
+      } finally {
+        saving.value = false
+      }
+    }
+
     onMounted(() => (props.isSeries ? Promise.all([loadFolderFix(), loadIdentity()]) : null))
 
     const remove = async () => {
@@ -253,7 +273,7 @@ export const FolderEditor = {
     return {
       destFolder, seasonTemplate, pattern, adRemoval, deleteAfter, saving, confirming, closeEditor,
       folderFix, renaming, renameError, renameOutcome, closeRename, renameFolder, keepName,
-      identity, identityRow, choosing, chooseError, closeChoosing, chooseShow, candidateMetaOf, artFallbackStyle,
+      identity, identityRow, choosing, chooseError, closeChoosing, chooseShow, declineShow, candidateMetaOf, artFallbackStyle,
       removeOutcome, save, remove, statusText, statusKind, mediaRootPrefix, FOLDER_HINT,
     }
   },

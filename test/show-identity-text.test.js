@@ -29,6 +29,11 @@ test('identityRowOf: shows nothing without a match or candidates', () => {
   assert.equal(identityRowOf({ status: null, title: 'Gruen' }), null)
 })
 
+test('identityRowOf: None of these keeps the plain name and offers the picker again', () => {
+  const row = identityRowOf({ status: { state: 'declined', current: null, candidates: [OFFICE_US, OFFICE_UK] }, title: 'The Office' })
+  assert.deepEqual(row, { title: 'None of these', meta: 'The folder keeps the plain name. Press to pick a show.' })
+})
+
 test('candidateMetaOf: marks the current show', () => {
   assert.equal(candidateMetaOf({ candidate: OFFICE_UK, current: { tvmazeId: '1214' } }), 'UK · BBC Two · 2001–2003 · Current')
   assert.equal(candidateMetaOf({ candidate: OFFICE_US, current: { tvmazeId: '1214' } }), 'US · NBC · 2005–2013')

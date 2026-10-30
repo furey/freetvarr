@@ -30,7 +30,7 @@ export const settleShowIdentity = async ({ showId, title, airing = {}, identityF
   const match = await Promise.resolve().then(() => identityFor({ ...airing, title, wait })).catch(() => null)
   if (!match || match.state === 'none') return null
   const show = await db('shows').where({ id: showId }).first()
-  if (!show || show.identity_state === 'chosen') return null
+  if (!show || OWNER_STATES.has(show.identity_state)) return null
   const columns = identityColumnsOf({ identity: match.identity, state: match.state })
   const mediaRoot = await getMediaRoot()
   if (await hasRecordingsOnDisk({ show, mediaRoot })) {
@@ -90,6 +90,7 @@ const hasRecordingsOnDisk = async ({ show, mediaRoot }) => {
 }
 
 const BACKGROUND_WAIT_MS = 60000
+const OWNER_STATES = new Set(['chosen', 'declined'])
 const ID_HINT = /\{(tvdb|tmdb|imdb)-([^}]*)\}/gi
 const COUNTRY_TAG = /\(([a-z]{2,3})\)$/i
 const FOLDER_SUFFIX = /^(?:(?: \((?:\d{4}|[a-z]{2,3})\)){1,2}(?: \{(?:tvdb|tmdb|imdb)-[a-z0-9]+\})?| \{(?:tvdb|tmdb|imdb)-[a-z0-9]+\})$/

@@ -109,7 +109,7 @@ export const keptFolderPatchOf = ({ show, patch }) => (patch.dest_folder !== und
 export const folderFixError = (code, message) => Object.assign(new Error(message), { code })
 
 const lookedUpIdentityOf = async ({ show, database, identityFor }) => {
-  if (show.identity_state === 'choose') return null
+  if (UNPICKED_STATES.has(show.identity_state)) return null
   const match = await Promise.resolve()
     .then(async () => identityFor({ title: show.show_pattern, channelName: await channelNameOfShow({ showId: show.id, database }) }))
     .catch(() => null)
@@ -152,5 +152,7 @@ const isPlainFolderName = (name) => typeof name === 'string'
   && name !== '.'
   && name !== '..'
   && !/[\\/]/.test(name)
+
+const UNPICKED_STATES = new Set(['choose', 'declined'])
 
 const exists = ({ fsApi, filePath }) => fsApi.access(filePath).then(() => true, () => false)

@@ -2,7 +2,7 @@ import { db } from './db.js'
 import { showTitleKey } from './show-artwork.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
 import { networkFamilyOf } from './show-match.js'
-import { channelNameOfShow, identityColumnsOf, saveIdentityPick, storedIdentityOf } from './show-identity-store.js'
+import { channelNameOfShow, clearIdentityPick, identityColumnsOf, saveIdentityPick, storedIdentityOf } from './show-identity-store.js'
 
 export const showIdentityStatus = async ({ showId, database = db, identityFor = showIdentityFor, waitMs = STATUS_WAIT_MS }) => {
   const show = await database('shows').where({ id: showId }).first()
@@ -33,6 +33,17 @@ export const chooseShowIdentity = async ({ showId, tvmazeId, database = db, iden
     await saveIdentityPick({ titleKey: showTitleKey(show.show_pattern), family: networkFamilyOf(channelName), identity, database: trx })
   })
   return { ...identity, folder: identityFolderOf(identity) }
+}
+
+export const declineShowIdentity = async ({ showId, database = db }) => {
+  const show = await database('shows').where({ id: showId }).first()
+  if (!show) return null
+  const channelName = await channelNameOfShow({ showId, database })
+  await database.transaction(async (trx) => {
+    await trx('shows').where({ id: showId }).update(identityColumnsOf({ identity: null, state: 'declined' }))
+    await clearIdentityPick({ titleKey: showTitleKey(show.show_pattern), family: networkFamilyOf(channelName), database: trx })
+  })
+  return { state: 'declined', folder: show.dest_folder }
 }
 
 const STATUS_WAIT_MS = 20000

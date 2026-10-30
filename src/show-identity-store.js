@@ -18,6 +18,11 @@ export const saveIdentityPick = ({ titleKey, family, identity, database = db, no
   .onConflict(['title_key', 'network_family'])
   .merge()
 
+export const clearIdentityPick = ({ titleKey, family, database = db }) => database('show_identity_picks')
+  .where({ title_key: titleKey })
+  .whereIn('network_family', [...new Set([family || '', ''])])
+  .delete()
+
 export const channelNameOfShow = async ({ showId, database = db }) => (await database('recordings')
   .where({ show_id: showId })
   .whereNotNull('channel_name')

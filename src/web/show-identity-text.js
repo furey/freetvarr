@@ -7,6 +7,7 @@ export const identityRowOf = ({ status, title }) => {
       ? { title: 'Check which show this is', meta: `Freetvarr found more than one show called ${title}. Pick yours so Plex matches the right one.` }
       : null
   }
+  if (status.state === 'declined') return { title: 'None of these', meta: 'The folder keeps the plain name. Press to pick a show.' }
   if (!current) return null
   const details = currentCandidate ? detailsOf(currentCandidate) : ''
   if (status.state === 'confirm') {

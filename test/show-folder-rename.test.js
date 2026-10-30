@@ -10,7 +10,7 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 const { db, setSetting } = await import('../src/db.js')
 const { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
 const { ensureShowFolder, settleShowIdentity } = await import('../src/show-folders.js')
-const { chooseShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
+const { chooseShowIdentity, declineShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
 const { loadIdentityPick } = await import('../src/show-identity-store.js')
 
 const AU_IDENTITY = { tvmazeId: '87106', name: 'Big Brother (AU)', tvdbId: '76237', tmdbId: null }
@@ -303,6 +303,24 @@ test('keepShowFolder: Keep this name stops the rename offer until the show is pi
   const choices = { state: 'choose', identity: null, candidates: [{ tvmazeId: '87106', name: 'Big Brother', identity: AU_IDENTITY }] }
   await chooseShowIdentity({ showId, tvmazeId: '87106', identityFor: async () => choices })
   assert.equal((await planFolderFix(options())).state, 'ready')
+})
+
+test('declineShowIdentity: None of these clears the pick and keeps the plain name', async () => {
+  const [id] = await db('shows').insert({ show_pattern: 'The Office', dest_folder: 'The Office', identity_state: 'choose' })
+  await db('recordings').insert({ recording_id: 'o1', show_id: id, title: 'The Office', file_path: path.join(mediaRoot, 'The Office', 'e1.ts'), channel_name: 'ABC TV Plus', aired_at: 5, status: 'done' })
+  await chooseShowIdentity({ showId: id, tvmazeId: '1214', identityFor: async () => OFFICE_CHOICES })
+  await declineShowIdentity({ showId: id })
+  const show = await db('shows').where({ id }).first()
+  assert.equal(show.identity_state, 'declined')
+  assert.equal(show.tvdb_id, null)
+  assert.equal(show.dest_folder, 'The Office')
+  assert.equal(await loadIdentityPick({ titleKey: 'office', family: 'abc' }), null)
+  const plan = await planFolderFix(options({ showId: id, identityFor: async () => { throw new Error('no lookup expected') } }))
+  assert.equal(plan.state, 'no-match')
+  const status = await showIdentityStatus({ showId: id, identityFor: async () => OFFICE_CHOICES })
+  assert.equal(status.state, 'declined')
+  await settleShowIdentity({ showId: id, title: 'The Office', identityFor: async () => ({ state: 'matched', identity: OFFICE_CHOICES.candidates[0].identity, candidates: [] }) })
+  assert.equal((await db('shows').where({ id }).first()).identity_state, 'declined')
 })
 
 test('keptFolderPatchOf: a Saves to the owner types by hand is kept', () => {

@@ -17,7 +17,7 @@ import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone,
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
 import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
-import { chooseShowIdentity, showIdentityStatus } from './show-identity-choice.js'
+import { chooseShowIdentity, declineShowIdentity, showIdentityStatus } from './show-identity-choice.js'
 import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
 import {
   startSync,
@@ -1590,6 +1590,16 @@ app.post('/api/shows/:id/identity', doubleCsrfProtection, async (req, res) => {
     res.json({ ok: true, chosen })
   } catch (err) {
     res.status(err.code ? 409 : 500).json({ error: err.message, code: err.code ?? null })
+  }
+})
+
+app.delete('/api/shows/:id/identity', doubleCsrfProtection, async (req, res) => {
+  try {
+    const declined = await declineShowIdentity({ showId: Number(req.params.id) })
+    if (!declined) return res.status(404).json({ error: 'not found' })
+    res.json({ ok: true, ...declined })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 
