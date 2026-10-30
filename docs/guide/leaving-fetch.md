@@ -50,19 +50,24 @@ Fetch's paid channel packs and streamed international channels have no free repl
 
 ## The deadline
 
-The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of mid-October 2026:
+The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of `30 October 2026`:
 
-- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack). Apps billed through Fetch, such as Netflix, do not count.
+- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack). Apps billed through Fetch, such as Netflix, do not count. The cheapest subscription that avoids the levy is Movie Box at `$3.99` a month.
 - **More than one box**: a second box needs Multiroom at `$4.49` a month, so most homes with two or more boxes do not pay the levy. They already pay Fetch `$53.88` a year.
 - **How much**: `$29.99` once per household, however many Gen 3 boxes you have.
-- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in) by `31 October 2026`. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026.
-- **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that.
+- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in) by `31 October 2026`. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026. The deadline has not moved.
+- **Concessions and hardship**: pensioners, eligible concession card holders, and households in financial difficulty can ask Fetch Customer Support to review their circumstances. Members of Fetch user groups report that Fetch asks for evidence (e.g. a letter from a financial counsellor, a bank statement, or a statutory declaration), and that some had to raise a concession card more than once.
+- **Credit if you upgrade**: if you buy a new Fetch box or start an eligible subscription within 30 days of the levy charge, Fetch credits the full levy to your account. There is no credit after 30 days, or while the account is suspended.
+- **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that. Members report that some Fetch support replies give "at least 31 October 2027" instead, so check the date in your own Fetch email or account.
 - **Free trials**: levy payers can claim one month of the Ultimate Pack and Movie Box at `$0`. Each trial continues at the full monthly price unless you cancel it before the month ends.
 - **If you do nothing**: Fetch suspends the box in November 2026, then deactivates it permanently. A Mighty loses its recordings for good. While the account is suspended, Fetch can still restore it on request.
 - **If you cancel**: Fetch says a cancelled box "cannot be reactivated in the future by you or anyone else". The box stops working completely, free-to-air TV included.
-- **Apps**: Fetch removes some apps from Gen 3 boxes whether you pay or not. [CyberShack reports](https://cybershack.com.au/consumer-advice/fetch-tv-gen-3/) that the Mini loses Netflix, Paramount+, SBS On Demand, and Hayu, and the Mighty loses Paramount+.
+- **Used boxes**: Fetch says Gen 3 boxes "should not be re-sold", because Fetch does not reactivate a cancelled box. Members report that a Gen 3 box bought secondhand was deactivated and factory reset remotely when its original account was unknown. Do not buy or sell a used Gen 3 box.
+- **Apps**: Fetch removes some apps from Gen 3 boxes whether you pay the levy or not. [CyberShack reports](https://cybershack.com.au/consumer-advice/fetch-tv-gen-3/) that the Mini loses Netflix, Paramount+, SBS On Demand, and Hayu, and the Mighty loses Paramount+.
 
 Fetch changed these terms in October 2026. Its September emails said Fetch would charge the card automatically on `1 November 2026` and cover the box until 2027. If your email says that, the FAQ is newer.
+
+Members report that Fetch emailed opt-in links on 28 and 29 October, and that some cannot sign in or reset their password. If that happens to you, contact Fetch through its [contact page](https://www.fetchtv.com.au/contact-us) (an email form or Live Chat) before `31 October 2026`, and keep a copy of what you send.
 
 Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at `$4.99` a month.
 
@@ -72,7 +77,7 @@ Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at
 </div>
 
 > [!WARNING]<br>
-> Save your recordings first. Once the box is cancelled or suspended, you cannot play or copy them. [Saving your Fetch recordings](#saving-your-fetch-recordings) takes an afternoon; do it before you cancel and before `1 November 2026`.
+> Save your recordings before `31 October 2026`. Once the box is cancelled or suspended, you cannot play or copy them. [Saving your Fetch recordings](#saving-your-fetch-recordings) takes an afternoon; do it before you cancel.
 
 ## Two paths
 
@@ -87,13 +92,15 @@ The first path needs no technical skill. The second path means installing and se
 | Your time        | about `30 minutes`                  | `1–2` evenings                                                                                    |
 | Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC                                   |
 
-On cost alone, a new Fetch box can come out cheaper. [Staying with Fetch](#staying-with-fetch) has the numbers.
+On cost alone, paying the levy or buying a new Fetch box can come out cheaper. [Staying with Fetch](#staying-with-fetch) has the numbers.
+
+Some households leaving Fetch report two other routes: a smart TV that records free-to-air to a USB drive (check the TV's manual for USB recording), or no recording at all, with the channels' free catch-up apps instead.
 
 ### Path 1: Watch only
 
 Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays live TV from the tuner on your TV, tablet, or phone (e.g. the HDHomeRun app, Kodi, or VLC). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short TV guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
 
-Add Path 2 later and the TV apps get TVHeadend's 7-day guide too: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)).
+Add Path 2 later and the TV apps get TVHeadend's 7-day guide too: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)). Members report that with a guide from another source, Jellyfin showed no programmes until they matched each guide channel to a tuner channel by hand in Jellyfin's TV guide settings.
 
 SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer TV guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
@@ -183,6 +190,8 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a Fetch box over your home network. It does not need your Fetch account. It runs on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
 
+Save your recordings before `31 October 2026`. Once Fetch suspends the box, you cannot reach them.
+
 1. Install Node.js, the free software that runs the tool. Download the LTS installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **PowerShell** on Windows.
 3. Find the box. In the terminal, type `npx fetchtv` and press Enter. If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
@@ -191,7 +200,7 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 6. Check that the computer has enough free disk space. Each hour of HD takes about `3–6GB`.
 7. Copy every recording. In the terminal, run `npx fetchtv recordings --ip=192.168.1.50 --for-plex --save=./fetch-recordings`, with your box's IP address in place of the example. The `--for-plex` option names each file the way Freetvarr, Plex, Jellyfin, and Kodi expect.
 
-The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show and a `Season` folder inside it (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). While a recording copies, the tool saves it as a `.part` file and renames it when the copy is complete, so a half-copied recording never looks finished. If the copy stops, run the same command again (the tool skips the files it already copied and resumes the one that was part-way).
+The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show and a `Season` folder inside it (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). While a recording copies, the tool saves it as a `.part` file and renames it when the copy is complete, so a half-copied recording never looks finished. If the copy stops, run the same command again (the tool skips the files it already copied and resumes the one that was part-way). With hundreds of recordings, expect to run the command several times.
 
 To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --for-plex --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
 
@@ -269,7 +278,7 @@ flowchart LR
   split --> tuner
 ```
 
-If the new setup will not be ready by the deadline, opt in to the `$29.99` levy by `31 October 2026`. It keeps the Fetch box going until mid-2028 while you finish.
+If the new setup will not be ready by the deadline, opt in to the `$29.99` levy by `31 October 2026`. It keeps the Fetch box going until at least `30 June 2028` while you finish.
 
 ## FAQ
 
@@ -299,7 +308,9 @@ If the Fetch box gets a clear picture now, the tuner will too: it uses the same 
 
 ### Staying with Fetch
 
-On cost alone, a new Fetch box can come out cheaper than either path. Fetch's prices, from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in October 2026:
+For many households the cheapest choice is the `$29.99` levy: it keeps the box you already have until at least `30 June 2028`, against about `A$280–1,400` for the two paths. It does not keep the apps Fetch removes ([The deadline](#the-deadline)). This guide is for people who want to leave Fetch anyway.
+
+A new Fetch box can also come out cheaper than either path. Fetch's prices, from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in October 2026:
 
 | Box              | Price                                  | Records         | Three years with Fetch Access |
 | ---------------- | -------------------------------------- | --------------- | ----------------------------- |
