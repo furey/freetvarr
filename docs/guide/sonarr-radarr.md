@@ -21,6 +21,12 @@ Without a connection, Freetvarr leaves files that Sonarr or Radarr downloaded al
 
 ## Connect Sonarr and Radarr
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/settings/arr">
+  <img src="../img/screenshot-arr.png" alt="Settings → Recording → Sonarr and Radarr, with both apps connected" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 1. Open Settings → Recording → Sonarr and Radarr.
 2. Press **Find Sonarr and Radarr**. Freetvarr looks on its own server, at ports `8989` and `7878`, and fills in each empty address it finds. The line beside the button says what it found, such as `Sonarr found. Radarr found; paste its API key.`
 3. Check the **Sonarr URL** and **Radarr URL**. Each is the address you open Sonarr or Radarr at in a browser, such as `http://192.168.1.10:8989`.
@@ -46,6 +52,12 @@ Under each **API key** field, Settings then says `Read from Sonarr's config.xml.
 ## When you delete
 
 An episode can have two copies: Freetvarr's recording and a file that Sonarr, Radarr, or you added. The delete dialog for that episode asks which to delete: **Both**, **Recording**, or the other copy (**Sonarr copy**, **Radarr copy**, or **Other copy**). The dialog lists each file, its size, and whether it goes through Sonarr, through Radarr, or from the disk.
+
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/the-block">
+  <img src="../img/screenshot-delete.png" alt="The delete dialog for an episode with two copies, offering Both, Recording, or Sonarr copy" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 **Stop downloading it again**, in the **When you delete** group, is on by default. Turn it off only if you want Sonarr and Radarr to download a deleted episode or film again.
 

@@ -110,6 +110,12 @@ The **Your whole library** group in Settings → Recording → Plex has these co
 - **Show your whole Plex library**: on by default once Plex is connected.
 - **Libraries to show**: the Plex TV and movie libraries it lists. At first these are your **TV section** and **Movies section**. The one-off library is never listed, because it holds only Freetvarr's own recordings.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/settings/plex">
+  <img src="../img/screenshot-plex.png" alt="Settings → Recording → Plex, with the Your whole library and Watched state groups" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 Freetvarr reads the libraries during the watched state check: new and changed items after each sync (every `30` minutes by default), and every item once a day. Press **Sync watched now** to read them at once. Watched, unwatched, and resume points for these files always go back to Plex, because Plex keeps their watched state.
 
 To delete these files from Freetvarr, connect [Sonarr and Radarr](/guide/sonarr-radarr) first, so a deleted download does not download again.

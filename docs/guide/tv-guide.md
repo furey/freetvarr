@@ -75,6 +75,12 @@ Freetvarr decides from the guide whether a programme is a movie, part of a serie
 
 When Freetvarr gets it wrong, the programme sheet has a link to correct it. A programme with no season, episode, or episode title that Freetvarr counts as a movie shows **Not a movie**. A programme of `75` minutes or more that is not news or sport, and that Freetvarr does not count as a movie, shows **This is a movie**. The same choice is in the **⋯** menus on Home and For you. The correction applies to every airing with that title. Settings → Watching → Film and TV info lists your corrections under **Movie corrections**, each with **Undo**.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/guide">
+  <img src="../img/screenshot-programme-movie.png" alt="A programme sheet for a film, with the Not a movie link" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 [Scheduled](/guide/recordings#scheduled) lists what will record: the recordings TVHeadend has scheduled, plus the episodes your series recordings will catch over the next 7 days. [Series rules](/guide/series) lists the series recordings themselves.
 
 ## Watchlist

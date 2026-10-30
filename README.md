@@ -115,6 +115,16 @@ The setup wizard, from the time zone to the ready step.
 </p>
 
 <p align="center">
+  <img src="https://furey.github.io/freetvarr/img/screenshot-scheduled.png" alt="Scheduled recordings" width="100%"/>
+  <br/><em>Scheduled recordings</em>
+</p>
+
+<p align="center">
+  <img src="https://furey.github.io/freetvarr/img/screenshot-for-you.png" alt="For you suggestions" width="100%"/>
+  <br/><em>For you</em>
+</p>
+
+<p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-syncs.png" alt="Activity" width="100%"/>
   <br/><em>Activity (Settings → System)</em>
 </p>

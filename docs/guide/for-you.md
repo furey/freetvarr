@@ -18,6 +18,12 @@ Suggestions show in three places:
 
 ## The For you page
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/for-you">
+  <img src="../img/screenshot-for-you.png" alt="The For you page, with suggestions grouped under headings" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 The page groups its suggestions under these headings, and leaves out any heading with nothing in it:
 
 - **Coming up this week for you**, sorted by air time.

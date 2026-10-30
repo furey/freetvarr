@@ -80,13 +80,33 @@ A show page has these parts:
 - **Episodes**: a row for each episode, with a thumbnail and a bar for how much you watched, the title, the air date, the length, and the synopsis. A `New` badge marks an episode you have not started, and a `REC` badge an episode that records now. A recording in progress has a red bar for how much of the programme has aired, and its row says how much is recorded and how many minutes are left.
 - **Scheduled episode**: the next episode that TVHeadend has scheduled for the show, at the top of its season, with its day and time, such as `Tomorrow 8:30pm`. Press it to open its [programme sheet](/guide/tv-guide#recording-a-programme), where you can change or cancel the recording.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/the-block">
+  <img src="../img/screenshot-show.png" alt="A show page with the next scheduled episode above the recorded episodes" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 Press an episode row to play it. Press **⋯** on the row, or hold the row on a touch screen, to open the [episode menu](#episode-menu).
 
 A show with a series recording but no episodes yet still gets a poster. The page says when the first episode records, for example `First episode records Tue 8:30pm`. A show with only a scheduled episode also opens a full show page, with that episode in the list.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/1-euro-house">
+  <img src="../img/screenshot-show-scheduled.png" alt="A show page with one scheduled episode and no recordings yet" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 ### Recordings in progress
 
 A recording shows in the Library from the moment TVHeadend starts it. Its show page opens from the Library, from **RECORDING NOW** in [Scheduled](#scheduled), or from the recording chip in the header. On a phone, a banner under the page title takes the place of the chip: its first line is the show's title, and its second line says `Recording` and how many minutes are left. From the chip or the banner, **Back** goes to the Library; from Scheduled, it goes to Scheduled. When recordings of more than one show run at once, the chip says how many, for example `Recording 2 shows`, the banner lists their titles, and both open Scheduled.
+
+<!-- markdownlint-disable MD033 -->
+<div class="phone-frames">
+  <BrowserFrame phone label="freetvarr.lan/#/recordings/show/the-block">
+    <img src="../img/screenshot-mobile-recording-banner.png" alt="A phone with the recording banner under the page title, showing the show title and Recording with the minutes left" width="780" height="1688" loading="lazy">
+  </BrowserFrame>
+</div>
+<!-- markdownlint-enable MD033 -->
 
 When the show has no other episodes, the line under the title says `Series recording`, `One-off recording`, or `Movie recording`, to match the shelf, and the show page has these parts:
 
@@ -165,6 +185,12 @@ When the TV guide gives some episodes of a show a different title, those episode
 3. Type part of the right show's title.
 4. Press that show. To start a new show instead, type its full title and press **New show named "…"**.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/the-block">
+  <img src="../img/screenshot-merge.png" alt="The Merge into another show sheet, listing shows that match what you type" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 The message that confirms the merge has **Undo**, which puts the episodes back. Only recorded episodes can merge; episodes from your Plex library stay with the show Plex gives them.
 
 ### Select mode
@@ -228,6 +254,12 @@ An episode with two versions, such as your recording and a Sonarr download, offe
 ## Scheduled
 
 **Scheduled** lists what TVHeadend records now and what it will record over the next 7 days. The TV guide's `N scheduled` chip and the **Recording tonight** row on Home open it, and so does the recording chip in the header while recordings of more than one show run.
+
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/recordings/scheduled">
+  <img src="../img/screenshot-scheduled.png" alt="Recordings → Scheduled, with RECORDING NOW, this week, and the tuners" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 The list has these sections:
 
