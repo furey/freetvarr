@@ -15,6 +15,11 @@ set -euo pipefail
 # docs/public/demo.mp4 with a matching poster frame, and cuts the opening
 # seconds into the README's docs/img/hero.webp.
 #
+# HERO_SHOWCASE sets the Home hero slides and their order, as titles joined
+# by | (default Big Brother first, then films and big entertainment shows).
+# A title missing from the seeded library comes from tonight's guide as a
+# For you or Top rated slide; a title missing from both is skipped.
+#
 # Needs host `node` + `ffmpeg`, and the server from capture-local-server.sh.
 #
 #   ./scripts/capture-walkthrough.sh
@@ -65,7 +70,7 @@ rm -rf "$FRAMES_DIR" "$TOUR_LOG"
 HERO="${REPO_ROOT}/docs/img/hero.webp"
 HERO_SECONDS="${WALKTHROUGH_HERO_SECONDS:-9.2}"
 ffmpeg -y -loglevel error -t "$HERO_SECONDS" -i "$MP4" -vf "fps=12,scale=800:-1:flags=lanczos" \
-  -c:v libwebp -quality 65 -compression_level 6 -loop 0 -an "$HERO"
+  -c:v libwebp_anim -quality 65 -compression_level 6 -loop 0 -an "$HERO"
 
 echo "[walkthrough] done:"
 ls -lh "$MP4" "$POSTER" "$HERO"

@@ -12,6 +12,12 @@ public wizard-demo-poster.jpg
 public record-demo-poster.jpg
 public install-demo-poster.jpg
 public home-screen-demo-poster.jpg
+public devices-light.mp4
+public devices-light-1x.mp4
+public devices-light-poster.jpg
+public devices-dark.mp4
+public devices-dark-1x.mp4
+public devices-dark-poster.jpg
 img hero.webp
 img screenshot-channels.png
 img screenshot-dashboard.png

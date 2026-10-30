@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 import {
-  TIMEZONE, simulatedNow, prepareDemoContext, waitForImages,
+  TIMEZONE, simulatedNow, prepareDemoContext, restartHeroCarousel, waitForAllArt, startArtWatch, artWatchReport,
   installCursor, cursorTo, cursorToBox, clickWithCursor, glideScroll, clickTab,
 } from './capture-demo-api.mjs'
 import { startScreencast } from './capture-screencast.mjs'
@@ -66,11 +66,12 @@ const searchFor = async (page, term) => {
   await page.waitForTimeout(600)
 }
 
-const openShow = async (page, title) => {
+const openShow = async (page, title, settle) => {
   const poster = page.locator('a.ui-poster', { hasText: title }).first()
   const target = (await poster.count()) ? poster : page.locator('a.ui-poster').first()
   if (!(await clickWithCursor(page, target))) return
   await page.waitForSelector('.show-hero', { timeout: 8000 }).catch(() => {})
+  await settle(page)
   await page.waitForTimeout(1400)
   await scrollDownAndBack(page, { dy: 520, hold: 1000, selector: await scrollerOf(page) })
   await page.goBack()
@@ -111,42 +112,60 @@ const run = async () => {
 
   const page = await context.newPage()
   await page.goto(`${BASE}/#/home`, { waitUntil: 'networkidle' })
-  await page.waitForTimeout(2500)
-  const screencast = await startScreencast({ page, dir: FRAMES_DIR })
-  const { startedAt } = screencast
-  await page.goto(`${BASE}/#/home`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('a.app-nav-item:visible', { timeout: 20000 })
-  await waitForImages(page, '.app-content img')
   await page.addStyleTag({
     content: '::-webkit-scrollbar{width:0!important;height:0!important}html,body,*{scrollbar-width:none!important}',
   })
   await installCursor(page)
+  await waitForAllArt(page)
+  console.log('warming every screen of the tour')
+  await tour(page, { picks, settle: waitForAllArt })
+  await waitForAllArt(page)
+  const screencast = await startScreencast({ page, dir: FRAMES_DIR })
+  const { startedAt } = screencast
   await cursorTo(page, 700, 300)
-  await page.waitForTimeout(400)
+  await restartHeroCarousel(page)
+  await startArtWatch(page)
   const settledAt = Date.now()
+  await tour(page, { picks, settle: async () => {} })
+  const artIssues = await artWatchReport(page)
 
+  await screencast.stop()
+  await context.close()
+  await browser.close()
+  const trim = (settledAt - startedAt) / 1000 + 0.4
+  console.log(`TOUR_TRIM=${trim.toFixed(1)}`)
+  reportArtCheck(artIssues)
+}
+
+const tour = async (page, { picks, settle }) => {
   await page.waitForTimeout(3600)
   await scrollDownAndBack(page, { dy: 560, hold: 1200, selector: await scrollerOf(page) })
 
   await clickTab(page, 'live')
   await page.waitForSelector('.live-row', { timeout: 8000 }).catch(() => {})
+  await settle(page)
   await page.waitForTimeout(900)
   await watchLiveBriefly(page)
 
   await clickTab(page, 'guide')
   await page.waitForSelector('.epg-cell', { timeout: 8000 }).catch(() => {})
+  await settle(page)
   await page.waitForTimeout(1000)
   await openProgramme(page, picks.upNext)
   await searchFor(page, picks.searchTerm)
 
   await clickTab(page, 'recordings')
   await page.waitForSelector('a.ui-poster', { timeout: 8000 }).catch(() => {})
+  await settle(page)
   await page.waitForTimeout(1200)
-  await openShow(page, 'My Kitchen Rules')
+  await openShow(page, 'My Kitchen Rules', settle)
   await clickWithCursor(page, page.getByRole('tab', { name: /Scheduled/ }).or(page.getByRole('link', { name: /Scheduled/ })).or(page.locator('a, button', { hasText: /^Scheduled/ })).first()).catch(() => {})
+  await settle(page)
   await page.waitForTimeout(2400)
 
   await clickTab(page, 'for-you')
+  await settle(page)
   await page.waitForTimeout(2200)
   await scrollDownAndBack(page, { dy: 480, hold: 900, selector: await scrollerOf(page) })
 
@@ -157,14 +176,16 @@ const run = async () => {
   await page.waitForTimeout(1600)
 
   await clickTab(page, 'home')
+  await settle(page)
   await cursorTo(page, 700, 300)
   await page.waitForTimeout(2200)
+}
 
-  await screencast.stop()
-  await context.close()
-  await browser.close()
-  const trim = (settledAt - startedAt) / 1000 + 0.4
-  console.log(`TOUR_TRIM=${trim.toFixed(1)}`)
+const reportArtCheck = (issues) => {
+  if (!issues.length) return console.log('ART_CHECK=pass (no unloaded or placeholder art on screen while recording)')
+  console.log(`ART_CHECK=fail (${issues.length} on-screen art problems while recording)`)
+  for (const issue of issues) console.log(`  ${issue.atMs} ms ${issue.hash} ${issue.kind}: ${issue.label}`)
+  if (process.env.ALLOW_ART_ISSUES !== '1') process.exitCode = 1
 }
 
 const VIEW_SETTLE_MS = 900

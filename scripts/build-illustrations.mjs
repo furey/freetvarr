@@ -12,7 +12,7 @@ export const palettes = {
   },
   light: {
     p: '#ffffff', k1: '#e6ebf0', k2: '#d9e0e7', k3: '#b4c0cb',
-    ink: '#5b6773', hi: '#0b1117', b: '#1a87e6', o: '#d9730f', y: '#c08a08'
+    ink: '#5b6773', hi: '#0b1117', b: '#1a87e6', o: '#d9730f', y: '#e0b000'
   }
 }
 

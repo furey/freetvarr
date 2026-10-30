@@ -2,6 +2,7 @@ import DefaultTheme from 'vitepress/theme'
 import { useData } from 'vitepress'
 import { h, onMounted, watch } from 'vue'
 import BrowserFrame from './BrowserFrame.vue'
+import DevicesHero from './DevicesHero.vue'
 import FetchBanner from './FetchBanner.vue'
 import Illustration from './Illustration.vue'
 import NavWordmark from './NavWordmark.vue'
@@ -31,6 +32,6 @@ export default {
     h(DefaultTheme.Layout, null, {
       'layout-top': () => h(FetchBanner),
       'nav-bar-title-after': () => h(NavWordmark),
-      'home-hero-image': () => h(BrowserFrame)
+      'home-hero-image': () => h(DevicesHero)
     })
 }

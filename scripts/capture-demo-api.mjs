@@ -1,5 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { existsSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { loopbackRouterOf } from './capture-loopback.mjs'
 
 export const TIMEZONE = process.env.TZ || 'Australia/Sydney'
 
@@ -16,10 +19,13 @@ export const simulatedNow = () => {
 }
 
 export const prepareDemoContext = async ({ context, base, simNow }) => {
+  loopbackRouterOf(base)?.reset()
   const guide = withLiveDemoSlot(simNow)(await fetchJson({ request: context.request, url: `${base}/api/epg/guide?day=0` }))
   const picks = await pickShowcase({ request: context.request, base, guide, simNow })
+  const state = await fetchJson({ request: context.request, url: `${base}/api/epg/state` })
   const fixtures = demoFixtures({ simNow, picks })
   const desk = createRecordingDesk({ guide, simNow })
+  prepareLiveDemoPoster()
   await context.clock.install({ time: simNow })
   await context.addInitScript(({ local, session }) => {
     try {
@@ -28,38 +34,53 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
     } catch {}
   }, { local: DEMO_PREFS, session: DEMO_SESSION_PREFS })
   await context.addInitScript(keepRequestsRoutable)
+  await context.addInitScript(loadImagesEagerly)
+  await context.addInitScript(installArtWatch)
+  await context.addInitScript(showPicturesWithoutFade)
   context.on('response', reportServerWrites)
-  await context.route('**/*', refuseWrites)
-  await context.route('**/api/**', passThroughRead)
-  await context.route('**/api/epg/guide**', rewriteJson(withLiveDemoSlot(simNow)))
-  await context.route('**/api/epg/now**', rewriteJson(withLiveDemoNow(simNow)))
-  await context.route('**/api/epg/channel-now**', rewriteJson(withLiveDemoChannelNow({ guide, simNow })))
-  await context.route('**/api/epg/state**', rewriteJson((data) => desk.applyTo(withActiveRecording({ data, simNow, recording: picks.recording }))))
-  await context.route('**/api/settings', rewriteJson(maskSettings))
-  await context.route(/\/api\/sync-status(\?|$)/, (route) => fulfillJson(route, fixtures.syncStatus))
-  await context.route(/\/api\/recording-now(\?|$)/, (route) => fulfillJson(route, fixtures.recordingNow))
-  await context.route(/\/api\/activity(\?|$)/, (route) => fulfillJson(route, fixtures.activity))
-  await context.route(/\/api\/activity\/summary(\?|$)/, (route) => fulfillJson(route, { running: fixtures.activity.runningCount }))
-  await context.route('**/api/activity/stream', (route) => route.fulfill({
+  const route = routerFor({ context, base })
+  await route('**/*', refuseWrites)
+  await route('**/api/**', passThroughRead)
+  await route('**/api/epg/guide**', rewriteJson(withLiveDemoSlot(simNow)))
+  await route('**/api/epg/image/**', liveDemoPoster)
+  await route('**/api/epg/show-image**', liveDemoPoster)
+  await route('**/api/epg/now**', rewriteJson(withLiveDemoNow(simNow)))
+  await route('**/api/epg/channel-now**', rewriteJson(withLiveDemoChannelNow({ guide, simNow })))
+  await route('**/api/epg/state**', rewriteJson((data) => desk.applyTo(withActiveRecording({ data, simNow, recording: picks.recording }))))
+  await route('**/api/settings', rewriteJson(maskSettings))
+  await route('**/api/home/hero', rewriteJson(withHeroShowcase({ guide, upcoming: state.upcomingRecordings ?? [], simNow })))
+  await route(/\/hero-remix\.js(\?|$)/, keepHeroOrder)
+  await route(/\/api\/sync-status(\?|$)/, (route) => fulfillJson(route, fixtures.syncStatus))
+  await route(/\/api\/recording-now(\?|$)/, (route) => fulfillJson(route, fixtures.recordingNow))
+  await route(/\/api\/activity(\?|$)/, (route) => fulfillJson(route, fixtures.activity))
+  await route(/\/api\/activity\/summary(\?|$)/, (route) => fulfillJson(route, { running: fixtures.activity.runningCount }))
+  await route('**/api/activity/stream', (route) => route.fulfill({
     status: 200,
     contentType: 'text/event-stream',
     body: `event: jobs\ndata: ${JSON.stringify(jobsOf(fixtures.activity))}\n\n`,
   }))
-  await context.route(/\/api\/health-summary(\?|$)/, (route) => fulfillJson(route, fixtures.healthSummary))
-  await context.route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
-  await context.route(/\/api\/plex\/whole-library(\?|$)/, (route) => fulfillJson(route, fixtures.wholeLibrary))
-  await context.route(/\/api\/plex\/watch-sync(\?|$)/, (route) => fulfillJson(route, fixtures.watchSync))
-  await context.route(/\/api\/arr(\?|$)/, (route) => fulfillJson(route, fixtures.arr))
-  await context.route('**/api/arr/*/test', (route) => fulfillJson(route, fixtures.arrTest(route.request().url())))
-  await context.route('**/api/live/tuner-status', (route) => fulfillJson(route, fixtures.tunerStatus))
-  await context.route('**/api/library/items/*/image**', plexItemImage({ base }))
-  await context.route('**/api/tv-login', (route) => fulfillJson(route, {}))
-  await context.route('**/api/library/delete/preview', (route) => route.continue())
-  await context.route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
-  await context.route(/\/api\/live(\/|\?|$)(?!tuner-status)/, demoLiveTv())
-  await context.route('**/api/epg/record', desk.recordOneOff)
-  await context.route('**/api/epg/record-series', desk.recordSeries)
+  await route(/\/api\/health-summary(\?|$)/, (route) => fulfillJson(route, fixtures.healthSummary))
+  await route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
+  await route(/\/api\/plex\/whole-library(\?|$)/, (route) => fulfillJson(route, fixtures.wholeLibrary))
+  await route(/\/api\/plex\/watch-sync(\?|$)/, (route) => fulfillJson(route, fixtures.watchSync))
+  await route(/\/api\/arr(\?|$)/, (route) => fulfillJson(route, fixtures.arr))
+  await route('**/api/arr/*/test', (route) => fulfillJson(route, fixtures.arrTest(route.request().url())))
+  await route('**/api/live/tuner-status', (route) => fulfillJson(route, fixtures.tunerStatus))
+  await route('**/api/library/items/*/image**', plexItemImage({ base }))
+  await route('**/api/tv-login', (route) => fulfillJson(route, {}))
+  await route('**/api/library/delete/preview', (route) => route.continue())
+  await route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
+  await route(/\/api\/live(\/|\?|$)(?!tuner-status)/, demoLiveTv())
+  await route('**/api/epg/record', desk.recordOneOff)
+  await route('**/api/epg/record-series', desk.recordSeries)
   return picks
+}
+
+const routerFor = ({ context, base }) => {
+  const loopback = loopbackRouterOf(base)
+  if (!loopback) return (pattern, handler) => context.route(pattern, handler)
+  loopback.reset()
+  return async (pattern, handler) => loopback.route(pattern, handler)
 }
 
 export const onAirCell = (page, { program }) => page.locator('.epg-cell.is-now, .epg-cell.on-now')
@@ -76,9 +97,114 @@ export const waitForProgrammeImages = (page) => page.waitForFunction(() => [...d
 
 export const waitForImages = (page, selector) => page.waitForFunction((sel) => {
   const images = [...document.querySelectorAll(sel)]
-    .filter((img) => img.getBoundingClientRect().top < window.innerHeight)
+    .filter((img) => {
+      const box = img.getBoundingClientRect()
+      return box.top < window.innerHeight && box.left < window.innerWidth
+    })
   return images.length > 0 && images.every((img) => img.complete && img.naturalWidth > 0)
 }, selector, { timeout: 10_000 }).catch(() => console.log(`  images not ready: ${selector}`))
+
+export const loadImagesEagerly = () => {
+  const setAttribute = Element.prototype.setAttribute
+  Element.prototype.setAttribute = function (name, value) {
+    const isLoading = this instanceof HTMLImageElement && String(name).toLowerCase() === 'loading'
+    return setAttribute.call(this, name, isLoading ? 'eager' : value)
+  }
+  Object.defineProperty(HTMLImageElement.prototype, 'loading', { configurable: true, get: () => 'eager', set: () => {} })
+}
+
+export const showPicturesWithoutFade = () => {
+  const css = [
+    'img:is([src^="/api/"]):not(.is-focus-ready){opacity:1!important}',
+    '.programme-image img{opacity:1!important;transition:none!important}',
+    ':root img.is-focus-fading{transition:none!important}',
+  ].join('')
+  const install = () => {
+    const style = document.createElement('style')
+    style.textContent = css
+    document.head.append(style)
+  }
+  if (document.head) install()
+  else document.addEventListener('DOMContentLoaded', install, { once: true })
+}
+
+export const installArtWatch = () => {
+  const ART_IMAGES = '.ui-card-art img, .ui-poster-art img, .programme-image img, .hero-slide.is-active .hero-slide-backdrop img, .show-hero img'
+  const PLACEHOLDERS = [
+    ['title card', '.ui-art-title, .programme-title-card.is-shown'],
+    ['fallback logo', '.programme-image-fallback'],
+    ['loading art', '.programme-image.is-loading'],
+    ['hero fallback', '.hero-slide.is-active .hero-slide-backdrop.ui-art-fallback'],
+  ]
+  const isVisible = (el) => {
+    const box = el.getBoundingClientRect()
+    if (box.width < 4 || box.height < 4) return false
+    if (box.bottom <= 0 || box.right <= 0 || box.top >= innerHeight || box.left >= innerWidth) return false
+    return getComputedStyle(el).visibility !== 'hidden'
+  }
+  const labelOf = (el) => {
+    const card = el.closest('a, li, article, .ui-card, .ui-poster, .live-row, .hero-slide, section') || el
+    const text = (card.getAttribute('aria-label') || card.textContent || '').replace(/\s+/g, ' ').trim()
+    return (text || el.getAttribute('src') || el.className || '').slice(0, 60)
+  }
+  const issuesNow = () => [
+    ...PLACEHOLDERS.flatMap(([kind, selector]) => [...document.querySelectorAll(selector)]
+      .filter((el) => isVisible(el) && !el.closest('.epg-cell')).map((el) => ({ kind, label: labelOf(el) }))),
+    ...[...document.querySelectorAll(ART_IMAGES)]
+      .filter((img) => isVisible(img) && !(img.complete && img.naturalWidth > 0))
+      .map((img) => ({ kind: 'unloaded image', label: labelOf(img) })),
+  ]
+  const watch = { since: null, issues: new Map() }
+  window.__artWatch = watch
+  window.__artIssuesNow = issuesNow
+  const sample = () => {
+    if (watch.since !== null) {
+      const atMs = Math.round(performance.now() - watch.since)
+      for (const issue of issuesNow()) {
+        const key = `${location.hash} | ${issue.kind} | ${issue.label}`
+        const seen = watch.issues.get(key)
+        if (seen && atMs - seen.lastMs < 100) seen.lastMs = atMs
+        else if (!seen) watch.issues.set(key, { ...issue, hash: location.hash, atMs, lastMs: atMs })
+      }
+    }
+    requestAnimationFrame(sample)
+  }
+  requestAnimationFrame(sample)
+}
+
+export const startArtWatch = (page) => page.evaluate(() => {
+  window.__artWatch.since = performance.now()
+  window.__artWatch.issues.clear()
+})
+
+export const artWatchReport = (page, { toleranceMs = ART_FLICKER_MS } = {}) => page.evaluate((tolerance) => [...window.__artWatch.issues.values()]
+  .map((issue) => ({ ...issue, forMs: issue.lastMs - issue.atMs }))
+  .filter((issue) => issue.forMs > tolerance), toleranceMs)
+
+export const waitForAllArt = (page, { timeout = 30_000 } = {}) => page.waitForFunction(() => {
+  const images = [...document.querySelectorAll('img')].filter((img) => img.getAttribute('src'))
+  return images.every((img) => img.complete) && window.__artIssuesNow().length === 0
+}, null, { timeout }).catch(async () => {
+  const issues = await page.evaluate(() => window.__artIssuesNow())
+  console.log(`  art still missing on ${await page.evaluate(() => location.hash)}: ${JSON.stringify(issues)}`)
+})
+
+export const requireAllArt = async (page, { label }) => {
+  await waitForAllArt(page)
+  const issues = await page.evaluate(() => window.__artIssuesNow())
+  if (!issues.length) return console.log(`ART_CHECK=pass ${label}`)
+  console.log(`ART_CHECK=fail ${label}: ${JSON.stringify(issues)}`)
+  if (process.env.ALLOW_ART_ISSUES !== '1') throw new Error(`art missing on screen in ${label}`)
+}
+
+export const restartHeroCarousel = async (page) => {
+  const restarted = await page.evaluate(() => {
+    const firstDot = document.querySelector('.hero-carousel-dot')
+    firstDot?.click()
+    return Boolean(firstDot)
+  })
+  if (restarted) await page.waitForTimeout(HERO_SETTLE_MS)
+}
 
 export const installCursor = (page) =>
   page.evaluate(() => {
@@ -220,14 +346,18 @@ export const refuseUnknownGet = (route) => {
 }
 
 const SCROLL_MS = 1600
+const HERO_SETTLE_MS = 900
+const ART_FLICKER_MS = Number(process.env.ART_FLICKER_MS ?? 50)
 const VIEW_REVEAL_MS = 850
 const PRIME_TIME = { hour: 19, minute: 45 }
 const LIVE_DEMO_DIR = process.env.LIVE_DEMO_DIR || '/work/scripts/.cache/live-demo'
+const LIVE_DEMO_POSTER = join(LIVE_DEMO_DIR, 'poster.jpg')
 const PATH_ROOT = process.env.CAPTURE_PATH_ROOT || ''
 const SHOWN_PATH_ROOT = '/data'
 const LIVE_SESSION_ID = 'demo-live'
-const LIVE_TUNING_MS = 2_600
+const LIVE_TUNING_MS = Number(process.env.LIVE_TUNING_MS ?? 2_600)
 const LIVE_WINDOW_SEGMENTS = 3
+const LIVE_BUFFER_SECONDS = 30 * 60
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
 const SYNC_INTERVAL_MIN = 30
@@ -244,9 +374,21 @@ const LIVE_DEMO_PROGRAMME = {
   episode_no: null,
   genre: null,
   kind: 'series',
-  has_image: false,
+  has_image: true,
   classification: 'PG',
 }
+const HERO_SHOWCASE = (process.env.HERO_SHOWCASE ?? 'Big Brother|The Witches Of Eastwick|Civil War|Seven|Vera')
+  .split('|')
+  .map((title) => title.trim())
+  .filter(Boolean)
+const GUIDE_PICK_TYPES = ['for-you', 'top-rated']
+const HIDDEN_TITLES = new Set((process.env.HIDDEN_TITLES ?? 'Manuka Honey Spring Renewal|Pawn Stars|Summer In The Isles Of Scilly|Millionaire Hot Seat|Millionaire Hot Seat Encore|Rugby League World Cup 2026|Jeopardy!|Anthony Bourdain: A Cook\'s Tour|Bargain Hunt|Bargain Block|Bargain Mansions')
+  .split('|')
+  .map((title) => title.trim().toLowerCase())
+  .filter(Boolean))
+const KEEPS_EVERY_TITLE = /^\/api\/(epg\/guide|epg\/state|home\/hero)/
+const HERO_ORDER_SOURCE = 'export const hourlyOrderOf = ('
+const HERO_ORDER_KEPT = 'export const hourlyOrderOf = ({ candidates = [] }) => candidates\nconst remixedOrderOf = ('
 const DEMO_PREFS = {
   'freetvarr.guideZoom': 'm',
   'freetvarr.guideImages': '1',
@@ -293,7 +435,7 @@ const upNextOf = ({ guide, simNow, fits }) => {
   const channels = visibleChannels(guide)
   return [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
     .flatMap((channel) => programsOf(guide, channel)
-      .filter((p) => p.start > simNow && p.start < simNow + 3 * HOUR_MS && p.has_image && fits(p))
+      .filter((p) => p.start > simNow && p.start < simNow + 3 * HOUR_MS && p.has_image && !isHiddenEntry(p) && fits(p))
       .slice(0, 1)
       .map((program) => ({ channel, program })))[0] ?? null
 }
@@ -316,7 +458,7 @@ const upNextTitle = ({ guide, simNow }) => {
   const ranked = [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
   const titles = ranked
     .map((channel) => nowAndNext(programsOf(guide, channel), simNow).next)
-    .filter((p) => p?.has_image && (p.title || '').length <= SEARCH_TITLE_MAX)
+    .filter((p) => p?.has_image && !isHiddenEntry(p) && (p.title || '').length <= SEARCH_TITLE_MAX)
     .map((p) => p.title)
   return titles[0] ?? null
 }
@@ -334,7 +476,25 @@ const nowAndNext = (programs, ms) => ({
 
 const isLiveDemoChannel = (channel) => LIVE_DEMO_CHANNEL_PATTERN.test(channel?.name || '')
 
-const liveDemoProgramme = (program) => ({ ...program, ...LIVE_DEMO_PROGRAMME, series_link: `${program.channel_id}|big wave season` })
+const liveDemoProgramIds = new Set()
+
+const liveDemoProgramme = (program) => {
+  liveDemoProgramIds.add(String(program.program_id ?? program.id))
+  return { ...program, ...LIVE_DEMO_PROGRAMME, series_link: `${program.channel_id}|big wave season` }
+}
+
+const liveDemoPoster = async (route) => {
+  const url = new URL(route.request().url())
+  const programId = decodeURIComponent(url.pathname.split('/').at(-1))
+  const isLiveDemo = liveDemoProgramIds.has(programId) || url.searchParams.get('title') === LIVE_DEMO_PROGRAMME.title
+  if (!isLiveDemo || !existsSync(LIVE_DEMO_POSTER)) return route.fallback()
+  return route.fulfill({ path: LIVE_DEMO_POSTER, contentType: 'image/jpeg' })
+}
+
+const prepareLiveDemoPoster = () => {
+  if (existsSync(LIVE_DEMO_POSTER) || !existsSync(join(LIVE_DEMO_DIR, 'index.m3u8'))) return
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', join(LIVE_DEMO_DIR, 'index.m3u8'), '-ss', '4', '-frames:v', '1', '-vf', 'scale=1280:-2', '-q:v', '3', LIVE_DEMO_POSTER])
+}
 
 const withLiveDemoSlot = (simNow) => (data) => {
   const channel = (data.channels || []).find(isLiveDemoChannel)
@@ -696,14 +856,43 @@ const maskPaths = (text) => (PATH_ROOT ? text.split(PATH_ROOT).join(SHOWN_PATH_R
 
 const ignoreClosed = (handler) => (route) => handler(route).catch(() => route.abort().catch(() => {}))
 
+const imageMemory = new Map()
+
 const passThroughRead = ignoreClosed(async (route) => {
   const request = route.request()
   if (!['GET', 'HEAD'].includes(request.method())) return route.fallback()
+  const remembered = request.method() === 'GET' && imageMemory.get(request.url())
+  if (remembered) return route.fulfill(remembered)
   const response = await route.fetch()
   const type = response.headers()['content-type'] || ''
+  if (type.startsWith('image/') && response.ok()) return route.fulfill(rememberImage({ url: request.url(), response, body: await response.body() }))
   if (!type.includes('application/json')) return route.fulfill({ response })
-  return route.fulfill({ response, body: maskPaths(await response.text()) })
+  const text = maskPaths(await response.text())
+  if (!response.ok()) return route.fulfill({ response, body: text })
+  return route.fulfill({ response, body: JSON.stringify(withoutHiddenTitles(JSON.parse(text), new URL(request.url()))) })
 })
+
+const rememberImage = ({ url, response, body }) => {
+  const reply = { status: response.status(), headers: response.headers(), body }
+  imageMemory.set(url, reply)
+  return reply
+}
+
+const withoutHiddenTitles = (data, url) => {
+  if (!HIDDEN_TITLES.size || KEEPS_EVERY_TITLE.test(url.pathname)) return data
+  const prune = (value) => {
+    if (Array.isArray(value)) return value.filter((entry) => !isHiddenEntry(entry)).map(prune)
+    if (!value || typeof value !== 'object') return value
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, prune(entry)]))
+  }
+  return prune(data)
+}
+
+const isHiddenEntry = (entry) => {
+  if (!entry || typeof entry !== 'object') return false
+  const titles = [entry.title, entry.name, entry.showTitle, entry.show_title, entry.now?.title, entry.item?.title, entry.program?.title, entry.episode?.showTitle]
+  return titles.some((title) => typeof title === 'string' && HIDDEN_TITLES.has(title.toLowerCase()))
+}
 
 const rewriteJson = (transform) => ignoreClosed(async (route) => {
   const url = new URL(route.request().url())
@@ -715,7 +904,99 @@ const rewriteJson = (transform) => ignoreClosed(async (route) => {
   } catch {
     return route.fulfill({ response })
   }
-  return fulfillJson(route, transform(data, url))
+  return fulfillJson(route, withoutHiddenTitles(transform(data, url), url))
+})
+
+const withHeroShowcase = ({ guide, upcoming, simNow }) => (data) => {
+  if (!HERO_SHOWCASE.length || !Array.isArray(data?.candidates)) return data
+  const settled = data.candidates.filter((c) => c.type !== 'recording')
+  let guidePicks = 0
+  const pickFor = (title) => {
+    const listed = settled.find((c) => c.art?.title === title)
+    if (listed) return listed
+    const scheduled = upcomingRecordingOf({ upcoming, title, simNow })
+    if (scheduled) return upcomingCandidate(scheduled)
+    const airing = guideAiringOf({ guide, title, simNow })
+    if (!airing) return null
+    const type = GUIDE_PICK_TYPES[guidePicks % GUIDE_PICK_TYPES.length]
+    guidePicks += 1
+    return guidePickCandidate({ ...airing, type })
+  }
+  const chosen = HERO_SHOWCASE.map(pickFor).filter(Boolean)
+  const chosenTitles = new Set(chosen.map((c) => c.art?.title))
+  const rest = settled.filter((c) => !chosenTitles.has(c.art?.title))
+  console.log(`  hero showcase: ${chosen.map((c) => `${c.art?.title} (${c.type})`).join(', ') || 'none found'}`)
+  return { ...data, candidates: [...chosen, ...rest] }
+}
+
+const upcomingRecordingOf = ({ upcoming, title, simNow }) => upcoming
+  .filter((item) => item.name === title && item.hasImage && item.startDate > simNow)
+  .sort((a, b) => a.startDate - b.startDate)[0] ?? null
+
+const upcomingCandidate = (item) => {
+  const image = `/api/epg/show-image?title=${encodeURIComponent(item.name)}`
+  return {
+    key: `upcoming:${item.programId}`,
+    type: 'upcoming',
+    source: { item, hasRule: true },
+    startsAt: item.startDate,
+    endsAt: item.startDate,
+    art: { title: item.name, image: `${image}&w=768`, images: [heroImageOf({ image, identity: `show:${item.name}` })] },
+  }
+}
+
+const heroImageOf = ({ image, identity }) => ({
+  url: `${image}${image.includes('?') ? '&' : '?'}w=768`,
+  srcset: [768, 1280, 1920].map((width) => `${image}${image.includes('?') ? '&' : '?'}w=${width} ${width}w`).join(', '),
+  focus: null,
+  identity,
+})
+
+const guideAiringOf = ({ guide, title, simNow }) => {
+  for (const channel of visibleChannels(guide)) {
+    const program = programsOf(guide, channel).find((p) => p.title === title && p.has_image && p.end > simNow)
+    if (program) return { channel, program, simNow }
+  }
+  return null
+}
+
+const guidePickCandidate = ({ channel, program, simNow, type }) => {
+  const id = String(program.program_id)
+  const image = `/api/epg/image/${id}`
+  const item = {
+    id,
+    programmeKey: `${program.channel_id}:${program.start}`,
+    seriesKey: program.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+    title: program.title,
+    episodeTitle: program.episode_title || null,
+    synopsis: program.synopsis || null,
+    image,
+    channelId: program.channel_id,
+    channelName: channel.name,
+    start: program.start,
+    stop: program.end,
+    onNow: airsAt(program, simNow),
+    kind: 'liked',
+    programmeKind: program.kind,
+    canRecordSeries: false,
+    movieChoice: 'not-movie',
+    classification: null,
+  }
+  return {
+    key: `${type}:${id}`,
+    type,
+    source: { item },
+    startsAt: program.start,
+    endsAt: type === 'top-rated' ? program.start : program.end,
+    art: { title: program.title, image: `${image}?w=768`, images: [heroImageOf({ image, identity: `epg:${id}` })] },
+  }
+}
+
+const keepHeroOrder = ignoreClosed(async (route) => {
+  const response = await route.fetch()
+  const source = await response.text()
+  if (!source.includes(HERO_ORDER_SOURCE)) throw new Error('hero-remix.js changed: update keepHeroOrder')
+  return route.fulfill({ response, body: source.replace(HERO_ORDER_SOURCE, HERO_ORDER_KEPT) })
 })
 
 const plexItemImage = ({ base }) => ignoreClosed(async (route) => {
@@ -733,7 +1014,7 @@ const demoLiveTv = () => {
     status: Date.now() - session.startedAt < LIVE_TUNING_MS ? 'tuning' : 'live',
     reason: null,
     startedAt: session.startedAt,
-    bufferSeconds: 0,
+    bufferSeconds: LIVE_BUFFER_SECONDS,
     captions: false,
     playlist: `/api/live/${LIVE_SESSION_ID}/index.m3u8`,
   }

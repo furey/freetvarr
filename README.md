@@ -90,6 +90,21 @@ The setup wizard, from the time zone to the ready step.
 </p>
 
 <p align="center">
+  <img src="https://furey.github.io/freetvarr/img/screenshot-guide.png" alt="TV guide" width="100%"/>
+  <br/><em>TV guide</em>
+</p>
+
+<p align="center">
+  <img src="https://furey.github.io/freetvarr/img/screenshot-recordings.png" alt="Recordings library" width="100%"/>
+  <br/><em>Recordings</em>
+</p>
+
+<p align="center">
+  <img src="https://furey.github.io/freetvarr/img/screenshot-for-you.png" alt="For you suggestions" width="100%"/>
+  <br/><em>For you</em>
+</p>
+
+<p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-live.png" alt="Live TV" width="100%"/>
   <br/><em>Live TV</em>
 </p>
@@ -100,8 +115,15 @@ The setup wizard, from the time zone to the ready step.
 </p>
 
 <p align="center">
-  <img src="https://furey.github.io/freetvarr/img/screenshot-guide.png" alt="TV guide" width="100%"/>
-  <br/><em>TV guide</em>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-scheduled.png" alt="Scheduled recordings" width="100%"/>
+  <br/><em>Scheduled recordings</em>
+</p>
+
+<p align="center">
+  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-dashboard.png" alt="Home on mobile" width="32%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-live.png" alt="Live TV on mobile" width="32%"/>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-recordings.png" alt="Recordings on mobile" width="32%"/>
+  <br/><em>Mobile</em>
 </p>
 
 <p align="center">
@@ -110,30 +132,8 @@ The setup wizard, from the time zone to the ready step.
 </p>
 
 <p align="center">
-  <img src="https://furey.github.io/freetvarr/img/screenshot-recordings.png" alt="Recordings library" width="100%"/>
-  <br/><em>Recordings</em>
-</p>
-
-<p align="center">
-  <img src="https://furey.github.io/freetvarr/img/screenshot-scheduled.png" alt="Scheduled recordings" width="100%"/>
-  <br/><em>Scheduled recordings</em>
-</p>
-
-<p align="center">
-  <img src="https://furey.github.io/freetvarr/img/screenshot-for-you.png" alt="For you suggestions" width="100%"/>
-  <br/><em>For you</em>
-</p>
-
-<p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-syncs.png" alt="Activity" width="100%"/>
   <br/><em>Activity (Settings → System)</em>
-</p>
-
-<p align="center">
-  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-dashboard.png" alt="Home on mobile" width="32%"/>
-  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-live.png" alt="Live TV on mobile" width="32%"/>
-  <img src="https://furey.github.io/freetvarr/img/screenshot-mobile-recordings.png" alt="Recordings on mobile" width="32%"/>
-  <br/><em>Mobile</em>
 </p>
 
 ## Prerequisites

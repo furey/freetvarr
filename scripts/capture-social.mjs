@@ -2,7 +2,7 @@ import { readFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { TIMEZONE, simulatedNow, prepareDemoContext, waitForImages } from './capture-demo-api.mjs'
+import { TIMEZONE, simulatedNow, prepareDemoContext, requireAllArt } from './capture-demo-api.mjs'
 import { startLoopback } from './capture-loopback.mjs'
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
@@ -93,9 +93,9 @@ const captureHome = async (browser) => {
   await page.waitForSelector('.home-page .hero-carousel', { timeout: 20_000 })
   await showHeroSlide(page, HERO_TITLE)
   await page.addStyleTag({ content: HIDE_SCROLLBARS })
-  await waitForImages(page, '.app-content img')
   await page.mouse.move(0, 0)
-  await page.waitForTimeout(1200)
+  await requireAllArt(page, { label: 'social Home' })
+  await page.waitForTimeout(400)
   const shot = await page.screenshot({ type: 'png' })
   await context.close()
   console.log(`[social] captured Home from ${FREETVARR_URL}`)

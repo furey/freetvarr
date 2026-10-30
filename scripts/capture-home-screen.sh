@@ -12,6 +12,11 @@ set -euo pipefail
 # to docs/public/home-screen-demo.mp4 and home-screen-demo-1x.mp4 with a
 # matching poster.
 #
+# HERO_SHOWCASE sets the Home hero slides and their order, as titles joined
+# by | (default Big Brother first, then films and big entertainment shows).
+# A title missing from the seeded library comes from tonight's guide as a
+# For you or Top rated slide; a title missing from both is skipped.
+#
 # Needs host `node` + `ffmpeg`, and a running freetvarr with a reachable
 # TVHeadend EPG.
 #
