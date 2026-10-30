@@ -39,3 +39,9 @@ test('show page reuses the last loaded detail for an instant repeat visit', () =
   assert.match(view, /const show = ref\(cachedDetails\.get\(key\.value\) \|\| null\)/)
   assert.match(view, /const isStale = \(\) => requestedKey !== key\.value \|\| !loads\.accept\(ticket\)/)
 })
+
+test('a show that empties while open goes back to Recordings instead of the not-in-library page', () => {
+  assert.match(view, /if \(show\.value\) return leaveEmptiedShow\(\)\n\s*missing\.value = true/)
+  assert.match(view, /const leaveEmptiedShow = \(\) => \{\n\s*show\.value = null\n\s*navigate\(BACK_FALLBACK\.route\)/)
+  assert.match(view, /<div v-else-if="ruleStatus" class="show-rule is-static">/)
+})

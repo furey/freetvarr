@@ -202,6 +202,17 @@ test('show page lines: hero meta, play label and rule status', () => {
   assert.equal(ruleStatusOf({ show: { ...detail, rule: null }, timeZone: TZ }).tone, 'idle')
 })
 
+test('show page lines: a show only from Plex, Sonarr, or Radarr counts episodes plainly and has no series line', () => {
+  const downloaded = show({
+    rule: null,
+    seasons: [{ season: 22, episodes: [episode({ source: 'plex' }), episode({ recordingId: 'e44', episode: 44, source: 'plex' })] }],
+  })
+  assert.equal(heroMetaOf({ show: downloaded }), 'Season 22 · 2 episodes')
+  assert.equal(ruleStatusOf({ show: downloaded, timeZone: TZ }), null)
+  const mixed = { ...downloaded, seasons: [{ season: 22, episodes: [episode(), episode({ recordingId: 'e44', episode: 44, source: 'plex' })] }] }
+  assert.equal(ruleStatusOf({ show: mixed, timeZone: TZ }).headline, 'Not recording new episodes')
+})
+
 test('steppers walk the option lists and stop at the ends', () => {
   assert.equal(stepOption({ options: LEAD_OPTIONS, value: 2, direction: 1 }), 3)
   assert.equal(stepOption({ options: LEAD_OPTIONS, value: 4, direction: -1 }), 3)

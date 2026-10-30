@@ -65,6 +65,8 @@ export const scheduledMetaOf = ({ episode }) => [
 
 export const recordedEpisodesOf = (show) => (show?.seasons || []).flatMap((s) => s.episodes).filter((e) => !e.scheduled)
 
+export const hasRecordingsIn = (show) => recordedEpisodesOf(show).some((episode) => episode.source !== 'plex')
+
 export const scheduledEpisodeIn = (show) => (show?.seasons || []).flatMap((s) => s.episodes).find((e) => e.scheduled) || null
 
 export const episodeStateText = (episode) => {
@@ -88,7 +90,7 @@ export const heroMetaOf = ({ show }) => {
   return [
     channel,
     latestSeason != null ? `Season ${latestSeason}` : '',
-    recordedCountText({ count: episodes, series: isSeriesShow(show) }) || (scheduledEpisodeIn(show) ? '1 scheduled' : ''),
+    countText({ count: episodes, series: isSeriesShow(show), recorded: hasRecordingsIn(show) }) || (scheduledEpisodeIn(show) ? '1 scheduled' : ''),
   ].filter(Boolean).join(' · ')
 }
 
@@ -118,6 +120,7 @@ export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now
         : 'This episode only. To record every episode, open it in the TV guide and choose Every episode.',
     }
   }
+  if (!rule && !hasRecordingsIn(show)) return null
   if (!rule) {
     return {
       tone: 'idle',
@@ -237,10 +240,11 @@ const STATE_TEXT = {
   replaced: 'Replaced in library',
 }
 
-const recordedCountText = ({ count, series }) => {
+const countText = ({ count, series, recorded }) => {
   if (!count) return ''
-  if (!series) return `${count} ${count === 1 ? 'recording' : 'recordings'}`
-  return `${count} ${count === 1 ? 'episode' : 'episodes'} recorded`
+  if (!series) return recorded ? `${count} ${count === 1 ? 'recording' : 'recordings'}` : ''
+  const episodes = `${count} ${count === 1 ? 'episode' : 'episodes'}`
+  return recorded ? `${episodes} recorded` : episodes
 }
 
 const yearsIn = (title) => [...String(title ?? '').matchAll(/\b(19|20)\d{2}\b/g)].map((match) => Number(match[0]))

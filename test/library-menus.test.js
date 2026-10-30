@@ -165,6 +165,8 @@ test('episodeInfoOf and showInfoOf: plain rows, empty ones left out', () => {
     { label: 'Episodes', value: '2 recorded · 1 unwatched' },
     { label: 'Series recording', value: 'Not recording new episodes' },
   ])
+  const downloaded = showInfoOf({ show: showWith([episode({ source: 'plex' }), episode({ recordingId: 'b', watched: true, source: 'plex' })], { rule: null }), timeZone: 'UTC' })
+  assert.deepEqual(downloaded.rows, [{ label: 'Episodes', value: '2 in your library · 1 unwatched' }])
 })
 
 test('menuPendingLabelOf: actions that wait keep the menu open with an -ing label', () => {

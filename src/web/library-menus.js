@@ -1,7 +1,7 @@
 import { adMenuItemOf, restoreMenuItemOf } from './ad-confirm.js'
 import { weekdayClockOf } from './library-shelves.js'
 import { airedRangeText, durationText } from './recording-info.js'
-import { episodeHeading } from './show-page.js'
+import { episodeHeading, hasRecordingsIn } from './show-page.js'
 import { showKeyOf } from './show-key.js'
 
 export const allEpisodesOf = (show) => (show?.seasons || []).flatMap((season) => season.episodes).filter((episode) => !episode.scheduled)
@@ -225,17 +225,23 @@ const resolutionText = (resolution) => {
 
 const audioCodecText = (codec) => ({ aac: 'AAC', ac3: 'AC-3', eac3: 'E-AC-3', mp2: 'MP2', dca: 'DTS', truehd: 'TrueHD' }[String(codec || '').toLowerCase()] || '')
 
+const seriesRecordingTextOf = ({ show, recorded }) => {
+  if (show.rule) return show.rule.summary || 'On'
+  return recorded ? 'Not recording new episodes' : ''
+}
+
 export const showInfoOf = ({ show, timeZone, nicknames = [] }) => {
   const episodes = allEpisodesOf(show)
   const unwatched = episodes.filter((e) => !e.watched && !e.failed).length
+  const recorded = hasRecordingsIn(show)
   const next = show.nextAiring
   return {
     title: show.title,
     subtitle: '',
     text: '',
     rows: [
-      { label: 'Episodes', value: `${episodes.length} recorded · ${unwatched} unwatched` },
-      { label: 'Series recording', value: show.rule ? show.rule.summary || 'On' : 'Not recording new episodes' },
+      { label: 'Episodes', value: `${episodes.length} ${recorded ? 'recorded' : 'in your library'} · ${unwatched} unwatched` },
+      { label: 'Series recording', value: seriesRecordingTextOf({ show, recorded }) },
       { label: 'Next airing', value: next ? `${weekdayClockOf({ ms: next.startDate, timeZone })}${next.channelName ? ` on ${next.channelName}` : ''}` : '' },
       { label: 'Saves to', value: show.rule?.savesTo?.path || '', mono: true },
       { label: 'Also known as', value: nicknames.join(', ') },

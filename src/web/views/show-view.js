@@ -46,7 +46,7 @@ import { overlayStack } from '/overlay-stack.js'
 import { playback } from '/shared/player-shared.js'
 import { recordingNow, recordingChangeTick, recordingSetKey } from '/shared/recording-now.js'
 import { routeParams, cameFromHash, cameFromHistory, navigate } from '/shared/router.js'
-import { backTargetOf } from '/back-target.js'
+import { backTargetOf, BACK_FALLBACK } from '/back-target.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { now, tz } from '/shared/time.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
@@ -159,7 +159,7 @@ export const ShowView = {
           </span>
           <button v-if="cardFromStart" type="button" class="ui-button ui-button-sm" @click="watchFromStart(currentEpisode)">Watch from the start</button>
         </div>
-        <div v-else class="show-rule is-static">
+        <div v-else-if="ruleStatus" class="show-rule is-static">
           <span :class="['show-rule-mark', 'is-' + ruleStatus.tone]" aria-hidden="true"><span></span></span>
           <span class="show-rule-text">
             <span class="show-rule-headline">{{ ruleStatus.headline }}</span>
@@ -297,6 +297,11 @@ export const ShowView = {
       navigate(backTarget.value.route)
     }
 
+    const leaveEmptiedShow = () => {
+      show.value = null
+      navigate(BACK_FALLBACK.route)
+    }
+
     const loads = createResponseOrder()
     const load = async () => {
       const requestedKey = key.value
@@ -316,6 +321,7 @@ export const ShowView = {
         if (isStale()) return
         if (err.status === 404) {
           cachedDetails.delete(requestedKey)
+          if (show.value) return leaveEmptiedShow()
           missing.value = true
           show.value = null
         } else {
