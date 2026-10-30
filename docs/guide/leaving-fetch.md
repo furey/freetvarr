@@ -189,29 +189,38 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 5. List your recordings. In the terminal, run `npx fetchtv shows --ip=192.168.1.50`, with your box's IP address in place of the example.
 6. Check that the computer has enough free disk space. Each hour of HD takes about `3–6GB`.
-7. Copy every recording. In the terminal, run `npx fetchtv recordings --ip=192.168.1.50 --save=./fetch-recordings`, with your box's IP address in place of the example.
+7. Copy every recording. In the terminal, run `npx fetchtv recordings --ip=192.168.1.50 --for-plex --save=./fetch-recordings`, with your box's IP address in place of the example. The `--for-plex` option names each file the way Freetvarr, Plex, Jellyfin, and Kodi expect.
 
-The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show. If the copy stops, run the same command again (the tool skips the files it already copied).
+The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show and a `Season` folder inside it (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). While a recording copies, the tool saves it as a `.part` file and renames it when the copy is complete, so a half-copied recording never looks finished. If the copy stops, run the same command again (the tool skips the files it already copied and resumes the one that was part-way).
 
-To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
+To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --for-plex --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
 
 The files play in VLC (a free video player).
 
 ### Adding them to your media library
 
-On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. The names `fetchtv` gives already suit them: a folder for each show, and file names that start with the season and episode (e.g. `Gogglebox Australia/S20 E8 - Episode 8 of Season 20 - Thu 03 Oct.ts`). You do not rename anything.
+On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. With `--for-plex`, `fetchtv` names the files the way they expect: a folder for each show, a `Season` folder inside it, and file names that end with the season and episode (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). You do not rename anything.
 
 Once the NAS and Freetvarr are set up, open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac) and drag each folder out of `fetch-recordings` into one of the folders inside Freetvarr's `media` folder:
 
-| Fetch folder                                                                   | Goes into                                                                         |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| A series, with file names that start with a season and episode (e.g. `S20 E8`) | `tv`                                                                              |
-| A film                                                                         | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
-| Anything else, such as a news bulletin or a sports final                       | `one-offs`                                                                        |
+| Fetch folder                                                                                      | Goes into                                                                         |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| A series, with `Season` folders and file names that end with a season and episode (e.g. `S20E08`) | `tv`                                                                              |
+| A film (saved without a season folder)                                                            | `movies`, if you set a [movies folder](/guide/series#films); otherwise `one-offs` |
+| Anything else, such as a news bulletin or a sports final                                          | `one-offs`                                                                        |
 
 Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex.
 
-If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac), and add `--exclude=` with the name of each film or news show to leave it out. Then save those with `--show=` into `movies` or `one-offs`.
+If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex` and use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac). This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy.
+
+Add `--exclude=` with the name of each film or news show to leave it out (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`:
+
+```console
+npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/data/media/movies
+npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/data/media/one-offs
+```
+
+Fetch numbers episodes from its own guide data, and the numbers can differ from the guide that Freetvarr and Plex use by one (e.g. The Block `S22 E34` on Fetch is `S22E35` in the guide). When a show has Fetch and Freetvarr recordings from the same weeks, compare the air dates and rename the Fetch files where the numbers differ. `fetchtv` cannot see the guide, so it cannot fix the numbers itself.
 
 ## Setting up
 
