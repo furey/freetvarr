@@ -37,12 +37,13 @@ export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCo
   const single = variant === 'episode'
   const onlyFiles = !recorded.length && copies.length > 0 && copies.every((copy) => copy.route === 'disk')
   const chooser = single && items[0]?.canChoose ? choicesOf(items[0].otherManager) : []
+  const tvheadendEpisodes = recorded.length ? episodes.filter((episode) => episode.source !== 'plex') : []
   return {
     title: onlyFiles && single ? 'Delete this file?' : titleOf({ variant, count, showTitle: show.title }),
     deleted: [
       plainRecordingLineOf({ variant, single, copies, recorded: plainRecorded, bytes: recordingBytes, filePath: episodes[0]?.filePath }),
       ...managedRecordingLinesOf({ copies: managedRecordings, single, unmonitor: preview.unmonitor !== false, episodeLabel: single ? episodeLabelOf(items[0] || {}) : '' }),
-      tvheadendLineOf({ variant, count: recorded.length || count, episodes: recorded.length ? episodes.filter((episode) => episode.source !== 'plex') : [], missingCount: missing.length }),
+      tvheadendLineOf({ variant, count: recorded.length || count, episodes: tvheadendEpisodes, missingCount: missing.length }),
       ...copyLinesOf({ copies, single, withRecording: recorded.length > 0, unmonitor: preview.unmonitor !== false, episodeLabel: single ? episodeLabelOf(items[0] || {}) : '' }),
       stopsSeries ? { title: 'The series recording', detail: 'New episodes stop recording' } : null,
       removesSeries ? { title: 'The series in Sonarr', detail: 'Sonarr stops downloading new episodes' } : null,
@@ -51,9 +52,14 @@ export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCo
     notes: [managedRecordingNoteOf({ copies: managedRecordings, single }), ...copyNotesOf({ copies, single })].filter(Boolean),
     stays: [
       ...staysOf({ variant, count, totalCount, episodes, show, stopsSeries }),
-      allCopies.some((copy) => copy.route === 'sonarr') && !removesSeries ? { title: `The rest of ${show.title} in Sonarr`, detail: 'New episodes still download' } : null,
+      allCopies.some((copy) => copy.route === 'sonarr') && !removesSeries ? sonarrStaysLineOf({ showTitle: show.title, series: preview.sonarrSeries || [] }) : null,
     ].filter(Boolean),
-    undoText: undoTextOf({ copies: allCopies, recorded: recorded.length > 0, recycleBin: preview.recycleBin || {} }),
+    undoText: undoTextOf({
+      copies: allCopies,
+      plainRecordings: plainRecorded.filter((item) => !item.missing).length,
+      tvheadendRecordings: inTvheadendCountOf(tvheadendEpisodes),
+      recycleBin: preview.recycleBin || {},
+    }),
     confirmLabel: confirmLabelOf({ variant, count, choice, chooser, onlyFiles }),
     busyLabel: 'Deleting…',
     offersStopSeries,
@@ -149,17 +155,45 @@ const copyNotesOf = ({ copies, single }) => {
   ].filter(Boolean)
 }
 
-const undoTextOf = ({ copies, recorded, recycleBin }) => {
-  const recycled = ['sonarr', 'radarr']
-    .filter((route) => copies.some((copy) => copy.route === route) && recycleBin[route]?.on)
-  const permanent = recorded || copies.some((copy) => copy.route === 'disk' || (['sonarr', 'radarr'].includes(copy.route) && !recycleBin[copy.route]?.on))
+const undoTextOf = ({ copies, plainRecordings, tvheadendRecordings, recycleBin }) => {
+  const isRecycled = (copy) => ARR_ROUTES.includes(copy.route) && Boolean(recycleBin[copy.route]?.on)
+  const recycled = copies.filter(isRecycled)
   if (!recycled.length) return "You can't undo this."
-  const days = recycleBin[recycled[0]].days
-  const name = appNameOf(recycled[0])
-  const keeps = `${name} keeps ${permanent ? 'its copy' : 'deleted files'} in its recycle bin${days ? ` for ${daysText(days)}` : ''}.`
-  if (!permanent) return keeps
-  return `${keeps} ${recorded ? 'The recording cannot be undone.' : 'The other files cannot be undone.'}`
+  const app = recycled[0].route
+  const days = recycleBin[app].days
+  const kept = keptNounOf({ recycled, plainRecordings })
+  const keeps = `${appNameOf(app)} keeps ${kept} in its recycle bin${days ? ` for ${daysText(days)}` : ''}.`
+  const permanent = permanentLabelsOf({ copies: copies.filter((copy) => !isRecycled(copy)), plainRecordings, tvheadendRecordings })
+  return permanent.length ? `${keeps} ${capitalised(listText(permanent))} cannot be undone.` : keeps
 }
+
+const keptNounOf = ({ recycled, plainRecordings }) => {
+  if (plainRecordings && recycled.every((copy) => !copy.recording)) return recycled.length === 1 ? 'its copy' : 'its copies'
+  return recycled.length === 1 ? 'the file' : 'the files'
+}
+
+const permanentLabelsOf = ({ copies, plainRecordings, tvheadendRecordings }) => {
+  const disk = copies.filter((copy) => copy.route === 'disk' && !copy.outside)
+  const arr = copies.filter((copy) => ARR_ROUTES.includes(copy.route))
+  return [
+    plainRecordings ? (plainRecordings === 1 ? 'the recording' : 'the recordings') : '',
+    !plainRecordings && tvheadendRecordings ? (tvheadendRecordings === 1 ? 'the TVHeadend recording' : 'the TVHeadend recordings') : '',
+    disk.length ? (disk.length === 1 ? 'the other file' : 'the other files') : '',
+    ...ARR_ROUTES.filter((route) => arr.some((copy) => copy.route === route))
+      .map((route) => `the ${appNameOf(route)} ${arr.filter((copy) => copy.route === route).length === 1 ? 'copy' : 'copies'}`),
+  ].filter(Boolean)
+}
+
+const sonarrStaysLineOf = ({ showTitle, series }) => {
+  const title = `The rest of ${showTitle} in Sonarr`
+  if (series.some((entry) => entry.monitored === true)) return { title, detail: 'New episodes still download' }
+  if (series.length && series.every((entry) => entry.monitored === false)) return { title, detail: 'Sonarr is not monitoring this series' }
+  return { title }
+}
+
+const inTvheadendCountOf = (episodes) => episodes.filter((episode) => !episode.deletedFromTvhAt).length
+
+const capitalised = (text) => text.charAt(0).toUpperCase() + text.slice(1)
 
 const coversText = (copy) => {
   const covers = copy.covers || []
@@ -234,7 +268,7 @@ const presentLabelOf = ({ variant, present }) => {
 }
 
 const tvheadendLineOf = ({ variant, count, episodes, missingCount }) => {
-  const inTvheadend = episodes.filter((episode) => !episode.deletedFromTvhAt).length
+  const inTvheadend = inTvheadendCountOf(episodes)
   if (!inTvheadend) return null
   if (variant === 'episode') return { title: 'Its recording in TVHeadend' }
   if (inTvheadend < count) return { title: `${inTvheadend === 1 ? '1 recording' : `${inTvheadend} recordings`} in TVHeadend` }
@@ -284,6 +318,7 @@ const sentenceOf = (text) => {
 const trimmed = (value) => (value < 10 ? String(Number(value.toFixed(1))) : String(Math.round(value)))
 
 const LISTED_MAX = 3
+const ARR_ROUTES = ['sonarr', 'radarr']
 const MEGABYTE = 1e6
 const GIGABYTE = 1e9
 const TERABYTE = 1e12

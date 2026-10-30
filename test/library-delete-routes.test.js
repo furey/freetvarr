@@ -31,6 +31,7 @@ const answerSonarr = ({ req, res, url }) => {
     res.end(JSON.stringify(body))
   }
   if (route === '/api/v3/series') return reply(200, [{ id: 3, path: '/tv/The Block' }, { id: 4, path: '/tv/Other Show' }])
+  if (route === '/api/v3/series/3') return reply(200, { id: 3, path: '/tv/The Block', monitored: false })
   if (route === '/api/v3/episodefile') return reply(200, fake.sonarrFiles.filter((file) => String(file.seriesId) === url.searchParams.get('seriesId')))
   if (route === '/api/v3/episode') return reply(200, [{ id: 900, monitored: true }])
   if (route === '/api/v3/config/mediamanagement') return reply(200, { recycleBin: '' })
@@ -258,6 +259,7 @@ test('delete: a recording Sonarr adopted is deleted through Sonarr, which stops 
   assert.equal(preview.status, 200)
   assert.deepEqual(preview.body.items[0].copies.map((copy) => [copy.route, copy.recording, copy.bytes]), [['sonarr', true, 0]])
   assert.equal(preview.body.blocked, undefined)
+  assert.deepEqual(preview.body.sonarrSeries, [{ id: 3, monitored: false }])
   const { status, body } = await post('/api/library/delete', { recording_ids: ['s1'], expected_count: 1 })
   assert.equal(status, 200)
   assert.equal(body.results[0].ok, true)

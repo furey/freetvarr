@@ -27,6 +27,7 @@ import {
   previewForeign,
   removeSeriesFromSonarr,
   runForeign,
+  withSeriesMonitoring,
   versionChoicesFrom,
 } from './foreign-delete.js'
 import {
@@ -151,7 +152,7 @@ const previewPlan = async ({ plan, context }) => {
     items,
     recycleBin: await recycleBinsOf(connected),
     unmonitor: arrSettings.unmonitorOnDelete,
-    sonarrSeries: sonarrSeriesOf(plan.targets),
+    sonarrSeries: await sonarrSeriesWithMonitoring({ targets: plan.targets, connected, arrSettings }),
     ...(plan.blocked ? { blocked: plan.blocked } : {}),
   }
 }
@@ -201,6 +202,13 @@ const recycleBinsOf = async (connected) => {
     return [app, management ? recycleBinOf(management) : null]
   }))
   return Object.fromEntries(entries)
+}
+
+const sonarrSeriesWithMonitoring = async ({ targets, connected, arrSettings }) => {
+  const series = sonarrSeriesOf(targets)
+  if (!series.length) return series
+  const client = connected.sonarr ? await arrClientFor('sonarr', { settings: arrSettings }).catch(() => null) : null
+  return withSeriesMonitoring({ series, client })
 }
 
 const sonarrSeriesOf = (targets) => [...new Map(targets

@@ -14,6 +14,7 @@ import {
   routeOf,
   runForeign,
   versionChoicesFrom,
+  withSeriesMonitoring,
 } from '../src/foreign-delete.js'
 import { ArrError } from '../src/arr-client.js'
 
@@ -178,4 +179,19 @@ test('removeSeriesFromSonarr and combineResults: per-step results join the recor
   assert.equal(results[0].error, 'Sonarr did not delete it')
   assert.equal(results[1].ok, true)
   assert.equal(results[1].bytesFreed, 3)
+})
+
+test('withSeriesMonitoring: reads each series monitored flag; unknown when Sonarr fails or is not connected', async () => {
+  const client = {
+    seriesById: async (id) => {
+      if (id === 9) throw new ArrError('Sonarr HTTP 500', { app: 'sonarr', status: 500 })
+      return { id, monitored: id === 5 }
+    },
+  }
+  assert.deepEqual(await withSeriesMonitoring({ series: [{ id: 5 }, { id: 6 }, { id: 9 }], client }), [
+    { id: 5, monitored: true },
+    { id: 6, monitored: false },
+    { id: 9, monitored: null },
+  ])
+  assert.deepEqual(await withSeriesMonitoring({ series: [{ id: 5 }], client: null }), [{ id: 5, monitored: null }])
 })

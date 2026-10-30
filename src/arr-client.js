@@ -74,6 +74,7 @@ export const createArrClient = ({ app, url, apiKey, request = axiosRequest, brea
     status: () => get('/api/v3/system/status'),
     mediaManagement: () => get('/api/v3/config/mediamanagement'),
     series: () => get('/api/v3/series'),
+    seriesById: (id) => get(`/api/v3/series/${encodeURIComponent(id)}`),
     episodeFiles: (seriesId) => get('/api/v3/episodefile', { seriesId }),
     episodesOfFile: (episodeFileId) => get('/api/v3/episode', { episodeFileId }),
     movies: () => get('/api/v3/movie'),

@@ -74,6 +74,16 @@ export const runForeign = async ({ targets, roots, connected, clientFor, unmonit
   return outcomes
 }
 
+export const withSeriesMonitoring = async ({ series, client }) => {
+  if (!client) return series.map((entry) => ({ ...entry, monitored: null }))
+  return Promise.all(series.map(async (entry) => ({ ...entry, monitored: await monitoredFlagOf({ id: entry.id, client }) })))
+}
+
+const monitoredFlagOf = async ({ id, client }) => {
+  const found = await client.seriesById(id).catch(() => null)
+  return typeof found?.monitored === 'boolean' ? found.monitored : null
+}
+
 export const removeSeriesFromSonarr = async ({ seriesIds, client }) => {
   const results = []
   for (const id of seriesIds) {

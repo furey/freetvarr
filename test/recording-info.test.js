@@ -40,6 +40,10 @@ test('durationText: hours and minutes', () => {
   assert.equal(durationText(3600), '1 hr')
   assert.equal(durationText(1500), '25 mins')
   assert.equal(durationText(null), '')
+  assert.equal(durationText(20), 'under 1 min')
+  assert.equal(durationText(45), 'under 1 min')
+  assert.equal(durationText(60), '1 min')
+  assert.equal(durationText(0), '')
 })
 
 test('watchedPercent: clamps to 0–100', () => {
