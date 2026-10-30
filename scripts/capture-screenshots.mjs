@@ -8,7 +8,10 @@ const ONLY = (process.env.SHOT_FILTER || '').trim()
 const DESKTOP_VIEWPORT = { width: 1280, height: 936 }
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
 const LIVE_SHOT_AT_S = 4
-const CONTROLS_FADE_MS = 4500
+const CONTROLS_HIDE_KEY = 'freetvarr.controlsHideAfterS'
+const CONTROLS_HOLD_S = 5
+const TUNE_IN_SETTLE_MS = 600
+const LIVE_FRAME = '.live-frame:not(.play-stage)'
 
 const DESKTOP_SHOTS = [
   { hash: '#/home', file: 'screenshot-dashboard.png', wait: '.home-hero, .home-row' },
@@ -82,13 +85,29 @@ const openChannelSettings = async (page) => {
 }
 
 const playLive = async (page, picks) => {
+  await page.evaluate(([key, seconds]) => localStorage.setItem(key, String(seconds)),
+    [CONTROLS_HIDE_KEY, CONTROLS_HOLD_S])
   const row = page.locator('.live-row, .live-list-row').filter({ hasText: 'Big Wave Season' }).first()
   await row.click()
   await page.mouse.move(0, 0)
   await page.waitForFunction((at) => [...document.querySelectorAll('video')].some((v) => v.currentTime >= at),
     LIVE_SHOT_AT_S, { timeout: 40_000 }).catch(() => console.log('  live video did not reach the shot time'))
-  await page.mouse.move(0, 0)
-  await page.waitForTimeout(CONTROLS_FADE_MS)
+  await page.waitForSelector(`${LIVE_FRAME}:not(.is-tune-in):not(.is-tune-in-exit)`, { timeout: 20_000 })
+  await page.waitForTimeout(TUNE_IN_SETTLE_MS)
+  await revealPlayerControls(page)
+}
+
+const revealPlayerControls = async (page) => {
+  const frame = await page.locator(LIVE_FRAME).boundingBox()
+  const x = frame.x + frame.width * 0.25
+  const y = frame.y + frame.height * 0.4
+  const isTouch = await page.evaluate(() => matchMedia('(pointer: coarse)').matches)
+  if (isTouch) await page.touchscreen.tap(x, y)
+  else {
+    await page.mouse.move(x, y)
+    await page.mouse.move(x + 12, y + 8)
+  }
+  await page.waitForSelector(`${LIVE_FRAME}:not(.is-controls-hidden) .pl-bottom`, { timeout: 5_000 })
 }
 
 const resolveHash = (hash, picks) => hash

@@ -228,6 +228,7 @@ const SHOWN_PATH_ROOT = '/data'
 const LIVE_SESSION_ID = 'demo-live'
 const LIVE_TUNING_MS = 2_600
 const LIVE_WINDOW_SEGMENTS = 3
+const LIVE_BUFFER_SECONDS = 30 * 60
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
 const SYNC_INTERVAL_MIN = 30
@@ -733,7 +734,7 @@ const demoLiveTv = () => {
     status: Date.now() - session.startedAt < LIVE_TUNING_MS ? 'tuning' : 'live',
     reason: null,
     startedAt: session.startedAt,
-    bufferSeconds: 0,
+    bufferSeconds: LIVE_BUFFER_SECONDS,
     captions: false,
     playlist: `/api/live/${LIVE_SESSION_ID}/index.m3u8`,
   }
