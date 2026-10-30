@@ -1646,6 +1646,10 @@ a.ui-banner:hover {
   text-decoration: none;
 }
 
+.ui-meta-part {
+  white-space: nowrap;
+}
+
 .ui-banner-text {
   flex: 1;
   min-width: 0;

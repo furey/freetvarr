@@ -208,7 +208,7 @@ export const ShowView = {
               <div class="show-episode-text">
                 <h3 class="show-episode-title">{{ episodeHeading(e) }} <span v-if="episodeBadge(e) === 'rec'" class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span><span v-else-if="episodeBadge(e) === 'new'" class="ui-new-badge">New</span></h3>
                 <p v-if="e.scheduled" class="show-episode-when"><span class="ui-chip is-small show-scheduled-chip">{{ scheduledWhen(e) }}</span></p>
-                <p class="show-episode-meta">{{ episodeMeta(e) }}</p>
+                <p class="show-episode-meta"><meta-line :text="episodeMeta(e)" /></p>
                 <p v-if="episodeLine(e)" class="show-episode-synopsis">{{ episodeLine(e) }}</p>
               </div>
               <button v-if="!selecting && !e.scheduled" type="button" class="ui-icon-button is-plain show-episode-more" :aria-label="'Actions for ' + episodeHeading(e)"

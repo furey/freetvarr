@@ -105,6 +105,7 @@ import { registerViewLoader, warmView } from '/shared/route-warmup.js'
 import { VIEW_ENTRIES } from '/view-modules.js'
 import { FolderEditor, FolderSyncButton } from '/views/folder-editor.js'
 import { HomeView } from '/views/home-view.js'
+import { MetaLine } from '/components/meta-line.js'
 
 const VIEW_LOADERS = Object.fromEntries(Object.entries(VIEW_ENTRIES)
   .map(([key, entry]) => [key, () => loadView(entry)]))
@@ -234,6 +235,7 @@ installPullToRefresh({ onRefresh: refreshFromPull })
 
 const app = createApp(App)
 app.component('app-nav', AppNav)
+app.component('meta-line', MetaLine)
 app.component('brand-mark', BrandMark)
 app.component('brand-wordmark', BrandWordmark)
 app.component('page-header', PageHeader)

@@ -29,7 +29,7 @@ export const PlexWatchSetting = {
           <button type="button" class="ui-button ui-button-sm" @click="syncNow" :disabled="syncing || !status?.configured">
             <template v-if="syncing">Syncing…</template><template v-else><refresh-icon /> Sync watched now</template>
           </button>
-          <span v-if="readout.text" :class="['status-readout', readout.kind]" role="status">{{ readout.text }}</span>
+          <span v-if="readout.text" :class="['status-readout', readout.kind]" role="status"><meta-line :text="readout.text" /></span>
         </div>
       </div>
       <p class="settings-hint">It uses the Plex account that owns the token. Other Plex Home users keep their own watched state. It runs after each sync and when you open Recordings.</p>
