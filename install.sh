@@ -34,10 +34,10 @@ setup_colour() {
   case "${TERM:-}:${COLORTERM:-}" in
     *truecolor*|*24bit*)
       orange="38;5;208" chip_blue="38;2;30;182;255" chip_orange="38;2;255;138;0"
-      chip_yellow="38;2;226;176;60" plate="48;2;26;22;17" ;;
+      chip_yellow="38;2;226;176;60" plate="48;2;11;17;23" ;;
     *256color*)
       orange="38;5;208" chip_blue="38;5;39" chip_orange="38;5;208"
-      chip_yellow="38;5;178" plate="48;5;234" ;;
+      chip_yellow="38;5;178" plate="48;5;233" ;;
   esac
   RESET="$(paint 0)" BOLD="$(paint 1)" DIM="$(paint 2)" ACCENT="$(paint "1;$orange")"
   YELLOW="$(paint 93)" GREEN="$(paint 32)" LINK="$(paint "1;4;$orange")"
