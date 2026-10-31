@@ -203,7 +203,7 @@ import { mountPlexLibraryRoutes } from './plex-library-routes.js'
 import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
-import { artworkKindOf } from './artwork-match.js'
+import { artworkKindOf, MISSES_RETRIED_AFTER_MS } from './artwork-match.js'
 import { listWatchlist, mountWatchlist } from './watchlist.js'
 import { mountSearchRoutes } from './search-aliases.js'
 import { applyInProgressPositions, rememberInProgressPosition } from './in-progress-positions.js'
@@ -786,8 +786,8 @@ const guideHints = createGuideHints({ loadGuide: getGuideSnapshot })
 const LOOKUP_WAIT_MS = 1500
 const RATINGS_WARM_DELAY_MS = 2 * 60_000
 const RATINGS_WARM_WINDOW_MS = 24 * 60 * 60_000
-const programmeRatings = createProgrammeRatings({ hintsFor: guideHints, externalIdsFor: loadExternalIds, waitMs: LOOKUP_WAIT_MS })
-const programmeCredits = createProgrammeCredits({ hintsFor: guideHints, externalIdsFor: loadExternalIds, waitMs: LOOKUP_WAIT_MS })
+const programmeRatings = createProgrammeRatings({ hintsFor: guideHints, externalIdsFor: loadExternalIds, waitMs: LOOKUP_WAIT_MS, missesBeforeMs: MISSES_RETRIED_AFTER_MS })
+const programmeCredits = createProgrammeCredits({ hintsFor: guideHints, externalIdsFor: loadExternalIds, waitMs: LOOKUP_WAIT_MS, missesBeforeMs: MISSES_RETRIED_AFTER_MS })
 
 const programmeCategories = createClassificationStore()
 const warmUpcomingRatings = async () => {
