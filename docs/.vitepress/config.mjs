@@ -110,7 +110,8 @@ export default withMermaid(defineConfig({
           { text: 'Hardware', link: '/guide/hardware' },
           { text: 'Windows (untested)', link: '/guide/windows' },
           { text: 'TVHeadend', link: '/guide/tvheadend' },
-          { text: 'Getting started', link: '/guide/getting-started' }
+          { text: 'Getting started', link: '/guide/getting-started' },
+          { text: 'Updating Freetvarr', link: '/guide/updating' }
         ]
       },
       {
