@@ -141,7 +141,7 @@ TVHeadend finished a recording, but nothing appears in Recordings or in your med
 
 - **No series folder matches it, and Import every recording is off.** With **Import every recording** off (Settings → RECORDING → Media library), Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)), and recordings made with **Add to library** on. Pick **Every episode** and press **Record series** in the TV guide, use **Add title** in Settings → RECORDING → [Title matches](/guide/series#title-matches), or turn on **Import every recording**. The [recording log](/guide/recordings#recording-log) row says `No series folder for this title, and Import every recording is off`.
 - **It was recorded with Add to library off.** The recording log row shows **NOT IMPORTED** and says `Recorded with Add to library off`. Press **Import** on the row to import it.
-- **The folder is off.** Scheduled syncs skip a series folder that is switched off.
+- **The Sync button on its row is dimmed.** The series folder or title match is switched off, and syncs skip it. Freetvarr's pages have no switch for this; only a call to Freetvarr's API turns a folder off. Open the row in Settings → RECORDING → [Series rules](/guide/series) or Title matches and press **Save**; saving switches it back on.
 - **The sync hasn't run yet.** Freetvarr syncs about a minute after a recording finishes, and on the **Sync schedule** in Settings → SYSTEM → Schedule (default `Every 30 minutes`). To run one at once, open the **Syncs** tab in Settings → SYSTEM → [Activity](/guide/syncs) and press **Sync now**.
 - **It came in as SKIPPED or PARTIAL.** See the next two sections.
 
