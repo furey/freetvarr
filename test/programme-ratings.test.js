@@ -66,6 +66,7 @@ const ratingsWith = ({
   lookUp = null,
   linkOf = (url) => url,
   externalIdsFor = async () => null,
+  missesBeforeMs = 0,
 }) => {
   const client = fakeClient(routes || {})
   const ratings = createProgrammeRatings({
@@ -82,6 +83,7 @@ const ratingsWith = ({
     failureBackoffMs: 50,
     linkOf,
     staleBeforeMs: 0,
+    missesBeforeMs,
   })
   return { ratings, client, cache, clock }
 }
@@ -762,4 +764,17 @@ test('ratingsFor: a failing id lookup in the store falls back to the title match
   const { ratings, client } = ratingsWith({ routes: {}, apiKey: null, externalIdsFor: async () => { throw new Error('database locked') } })
   await settled(ratings, 'Dark')
   assert.ok(client.calls.some((call) => call.path === '/search/shows'))
+})
+
+
+test('a miss saved before the retry cut-off is looked up again, and a later miss is not', async () => {
+  const cache = memoryCache()
+  const calls = []
+  const lookUp = async ({ title }) => { calls.push(title); return null }
+  const before = ratingsWith({ cache, lookUp, clock: { ms: 1000 } })
+  await settled(before.ratings, 'Die Hard', { kind: 'movie' })
+  const after = ratingsWith({ cache, lookUp, clock: { ms: 1002 }, missesBeforeMs: 1001 })
+  await settled(after.ratings, 'Die Hard', { kind: 'movie' })
+  await settled(after.ratings, 'Die Hard', { kind: 'movie' })
+  assert.deepEqual(calls, ['Die Hard', 'Die Hard'])
 })

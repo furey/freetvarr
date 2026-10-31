@@ -55,8 +55,9 @@ export const createProgrammeRatings = ({
   linkOf = linkHealth.linkOf,
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
   isAllowed = lookupAllowed,
+  missesBeforeMs = 0,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage, staleBeforeMs, isAllowed })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage, staleBeforeMs, isAllowed, missesBeforeMs })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
@@ -114,6 +115,7 @@ export const createProgrammeRatings = ({
 
 export const createBackgroundLookups = ({
   lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0, isOutdated = () => false, staleBeforeMs = 0, isAllowed = async () => true,
+  missesBeforeMs = 0,
 }) => {
   const inflight = new Map()
   const failedUntil = new Map()
@@ -135,6 +137,7 @@ export const createBackgroundLookups = ({
 
   const cachedFound = async (cacheKey) => {
     const cached = await cache.read(cacheKey).catch(() => null)
+    if (cached && !cached.found && cached.expiresAt - missTtlMs < missesBeforeMs) return null
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue: Boolean(cached?.found), staleBeforeMs })
     return state === 'missing' ? null : { ...cached, stale: state === 'stale' }
   }
