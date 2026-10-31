@@ -56,34 +56,67 @@ export const buildScenes = ({ clips, marks }) => {
     }
   }
 
+  const opening = ({ headline, lineOne, lineTwo, closer }) => (root, scene) => {
+    const bg = glow(root)
+    const [c0, c1] = cueTimes(scene)
+    const right = el(root, 'div', 'layer')
+    const a = appWindow(right, { x: 820, y: 120, w: 1240, url: 'freetvarr.lan/#/guide', clip: 'guide' })
+    const b = appWindow(right, { x: 980, y: 520, w: 1000, url: 'freetvarr.lan/#/home', clip: 'home' })
+    const shade = el(root, 'div', 'layer', '', { background: 'linear-gradient(90deg, #0b1117 0%, #0b1117 38%, rgba(11,17,23,0.55) 62%, rgba(11,17,23,0) 100%)' })
+    const h1 = el(root, 'div', 'headline', headline, { position: 'absolute', left: '120px', top: '300px', fontSize: '120px' })
+    const s1 = el(root, 'div', 'subline', lineOne, { position: 'absolute', left: '124px', top: '470px', color: '#f2f5f7' })
+    const s2 = el(root, 'div', 'subline', lineTwo, { position: 'absolute', left: '124px', top: '535px', color: '#f2f5f7' })
+    const s3 = el(root, 'div', 'subline', closer, { position: 'absolute', left: '124px', top: '640px' })
+    void shade
+    return (t) => {
+      bg(t, scene.duration)
+      const drift = t / scene.duration
+      place(a.win, { x: lerp(60, -20, drift), y: 0, opacity: ramp(t, 0.1, 0.8), scale: lerp(1.0, 1.03, drift) })
+      place(b.win, { x: lerp(90, -10, drift), y: lerp(40, 0, ramp(t, 0.6, 1.2)), opacity: ramp(t, 0.6, 0.8) })
+      a.show(mark('guide', 'start') + 0.5 + t * 0.9)
+      b.show(1 + t)
+      rise(h1, t, c0 - 0.1, { dy: 60 })
+      rise(s1, t, c0 + 1.1)
+      rise(s2, t, c0 + 2.9)
+      rise(s3, t, c1)
+      const out = ramp(t, scene.duration - 0.5, 0.5, (q) => q)
+      root.style.opacity = String(1 - out)
+    }
+  }
+
+  const ending = (links) => (root, scene) => {
+    const bg = glow(root)
+    const [c0, c1, c2] = cueTimes(scene)
+    const word = el(root, 'div', 'wordmark', '<span class="free">Free</span><span class="tv">tv</span><span class="arr">arr</span>', { position: 'absolute', left: '120px', top: '150px', fontSize: '150px' })
+    const free = el(root, 'div', 'subline', 'Free and open source', { position: 'absolute', left: '126px', top: '330px', color: '#f2f5f7', fontWeight: '600' })
+    const link = (top, k, v, mint) => el(root, 'div', 'card', `<div style="font-size:26px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${mint ? '#5ce1c6' : '#8d9aa7'}">${k}</div><div class="mono" style="font-size:44px;margin-top:10px">${v}</div>`, { left: '120px', top: `${top}px`, width: '1680px', padding: '30px 44px', borderColor: mint ? 'rgba(92,225,198,0.6)' : 'rgba(255,255,255,0.08)' })
+    const [l1, l2, l3] = links.map(([k, v], i) => link(450 + i * 190, k, v, i === 0))
+    return (t) => {
+      bg(t, scene.duration)
+      rise(word, t, 0, { dy: 30 })
+      rise(free, t, c0 + 0.4)
+      rise(l1, t, c1)
+      rise(l2, t, c1 + 1.2)
+      rise(l3, t, c1 + 2.0)
+      void c2
+      root.style.opacity = String(1 - ramp(t, scene.duration - 1.2, 1.2, (q) => q))
+    }
+  }
+
   return {
-    open: (root, scene) => {
-      const bg = glow(root)
-      const [c0, c1] = cueTimes(scene)
-      const right = el(root, 'div', 'layer')
-      const a = appWindow(right, { x: 820, y: 120, w: 1240, url: 'freetvarr.lan/#/guide', clip: 'guide' })
-      const b = appWindow(right, { x: 980, y: 520, w: 1000, url: 'freetvarr.lan/#/home', clip: 'home' })
-      const shade = el(root, 'div', 'layer', '', { background: 'linear-gradient(90deg, #0b1117 0%, #0b1117 38%, rgba(11,17,23,0.55) 62%, rgba(11,17,23,0) 100%)' })
-      const h1 = el(root, 'div', 'headline', 'Leaving Fetch?', { position: 'absolute', left: '120px', top: '300px', fontSize: '120px' })
-      const s1 = el(root, 'div', 'subline', 'Keep recording free-to-air TV.', { position: 'absolute', left: '124px', top: '470px', color: '#f2f5f7' })
-      const s2 = el(root, 'div', 'subline', 'Keep watching it on your TV.', { position: 'absolute', left: '124px', top: '535px', color: '#f2f5f7' })
-      const s3 = el(root, 'div', 'subline', '<span style="color:#5ce1c6">Hardware you own.</span><br>Nothing more to pay each month.', { position: 'absolute', left: '124px', top: '640px' })
-      void shade
-      return (t) => {
-        bg(t, scene.duration)
-        const drift = t / scene.duration
-        place(a.win, { x: lerp(60, -20, drift), y: 0, opacity: ramp(t, 0.1, 0.8), scale: lerp(1.0, 1.03, drift) })
-        place(b.win, { x: lerp(90, -10, drift), y: lerp(40, 0, ramp(t, 0.6, 1.2)), opacity: ramp(t, 0.6, 0.8) })
-        a.show(mark('guide', 'start') + 0.5 + t * 0.9)
-        b.show(1 + t)
-        rise(h1, t, c0 - 0.1, { dy: 60 })
-        rise(s1, t, c0 + 1.1)
-        rise(s2, t, c0 + 2.9)
-        rise(s3, t, c1)
-        const out = ramp(t, scene.duration - 0.5, 0.5, (q) => q)
-        root.style.opacity = String(1 - out)
-      }
-    },
+    open: opening({
+      headline: 'Leaving Fetch?',
+      lineOne: 'Keep recording free-to-air TV.',
+      lineTwo: 'Keep watching it on your TV.',
+      closer: '<span style="color:#5ce1c6">Hardware you own.</span><br>Nothing more to pay each month.',
+    }),
+
+    pitch: opening({
+      headline: 'Your own TV recorder',
+      lineOne: 'Record free-to-air TV.',
+      lineTwo: 'Watch it on any screen.',
+      closer: '<span style="color:#5ce1c6">No subscription. Hardware you own.</span><br>Ad breaks out, if you want.',
+    }),
 
     title: (root, scene) => {
       const bg = glow(root)
@@ -482,25 +515,16 @@ export const buildScenes = ({ clips, marks }) => {
       }
     },
 
-    end: (root, scene) => {
-      const bg = glow(root)
-      const [c0, c1, c2] = cueTimes(scene)
-      const word = el(root, 'div', 'wordmark', '<span class="free">Free</span><span class="tv">tv</span><span class="arr">arr</span>', { position: 'absolute', left: '120px', top: '150px', fontSize: '150px' })
-      const free = el(root, 'div', 'subline', 'Free and open source', { position: 'absolute', left: '126px', top: '330px', color: '#f2f5f7', fontWeight: '600' })
-      const link = (top, k, v, mint) => el(root, 'div', 'card', `<div style="font-size:26px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${mint ? '#5ce1c6' : '#8d9aa7'}">${k}</div><div class="mono" style="font-size:44px;margin-top:10px">${v}</div>`, { left: '120px', top: `${top}px`, width: '1680px', padding: '30px 44px', borderColor: mint ? 'rgba(92,225,198,0.6)' : 'rgba(255,255,255,0.08)' })
-      const l1 = link(450, 'Leaving Fetch guide', 'furey.github.io/freetvarr/guide/leaving-fetch', true)
-      const l2 = link(640, 'Website and docs', 'furey.github.io/freetvarr', false)
-      const l3 = link(830, 'Source code', 'github.com/furey/freetvarr', false)
-      return (t) => {
-        bg(t, scene.duration)
-        rise(word, t, 0, { dy: 30 })
-        rise(free, t, c0 + 0.4)
-        rise(l1, t, c1)
-        rise(l2, t, c1 + 1.2)
-        rise(l3, t, c1 + 2.0)
-        void c2
-        root.style.opacity = String(1 - ramp(t, scene.duration - 1.2, 1.2, (q) => q))
-      }
-    },
+    end: ending([
+      ['Leaving Fetch guide', 'furey.github.io/freetvarr/guide/leaving-fetch'],
+      ['Website and docs', 'furey.github.io/freetvarr'],
+      ['Source code', 'github.com/furey/freetvarr'],
+    ]),
+
+    outro: ending([
+      ['Getting started', 'furey.github.io/freetvarr/guide/getting-started'],
+      ['Website and docs', 'furey.github.io/freetvarr'],
+      ['Source code', 'github.com/furey/freetvarr'],
+    ]),
   }
 }

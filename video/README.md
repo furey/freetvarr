@@ -22,6 +22,7 @@ The sources for the Freetvarr YouTube videos: the overview, the guide series (on
 ### Parts: Overview video
 
 - `build.sh`: builds `freetvarr-overview.mp4`, its captions, and `youtube.md`
+- `build.sh intro`: builds `freetvarr-intro.mp4`, the overview without the Fetch scenes, and `intro/youtube-intro.md`; `intro/script.mjs` reuses the overview's lines and adds its own opening and ending
 - `overview/script.mjs`: the voiceover lines, one array for each scene, with the chapter names
 - `eleven/build-vo.mjs` and `eleven/eleven.mjs`: turn each line into ElevenLabs speech; each clip is cached by a hash of the voice, the settings, and the text, so an unchanged line costs no credits
 - `overview/build-timeline.mjs`: places each line on the timeline and writes `overview/timeline.json` and `stage/timeline.js`
@@ -92,6 +93,12 @@ Overview (`WORKERS` sets the number of parallel render workers, default `4`):
 
 ```sh
 FTV_VIDEO_PYTHON=~/venvs/video/bin/python3 video/build.sh
+```
+
+Intro (the overview without Fetch):
+
+```sh
+FTV_VIDEO_PYTHON=~/venvs/video/bin/python3 video/build.sh intro
 ```
 
 One series video:

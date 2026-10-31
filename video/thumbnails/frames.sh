@@ -7,6 +7,7 @@ grab() { ffmpeg -v error -y -ss "$3" -i "$2" -frames:v 1 "$OUT/$1.png"; }
 S=$SRC/series
 grab overview-home     $SRC/freetvarr-overview.mp4                 103.5
 grab ov-98           $SRC/freetvarr-overview.mp4                 98
+grab intro-guide      $SRC/freetvarr-intro.mp4                    75.1
 grab fetch-diagram     $S/leaving-fetch/video-leaving-fetch.mp4    9.62
 grab fetch-copy        $S/leaving-fetch/video-leaving-fetch.mp4    7.22
 grab fetch-folders     $S/leaving-fetch/video-leaving-fetch.mp4    102.61

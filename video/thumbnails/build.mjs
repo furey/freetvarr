@@ -47,10 +47,16 @@ const THUMBS = [
   {n: 7, slug: 'home-settings', title: 'Freetvarr Home, For you, Activity, Health, and Settings',
     lines: ['What can I', '<em>watch now?</em>'], sub: 'Home and For you', shift: 64,
     hero: () => homeHero()},
+  {n: 8, slug: 'intro', title: 'Freetvarr: your own free-to-air TV recorder',
+    lines: ['Your own', '<em>TV</em>', '<em>recorder</em>'], sub: 'Record free-to-air TV',
+    hero: () => introHero()},
 ].map(thumb => ({...thumb, file: `thumb-${thumb.n}-${thumb.slug}`}))
 
 const overviewHero = () =>
   bleedScreen({frame: 'ov-98', x: 395, y: 190, w: 900, h: 668, width: 700})
+
+const introHero = () =>
+  bleedScreen({frame: 'intro-guide', x: 395, y: 190, w: 900, h: 668, width: 700})
 
 const leavingFetchHero = () => `
   <svg class="arc" width="1280" height="720" viewBox="0 0 1280 720">
