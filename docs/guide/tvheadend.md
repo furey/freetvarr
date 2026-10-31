@@ -75,7 +75,7 @@ When setup finds a TVHeadend with only the default entry, it asks for three thin
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **Restore open access** in Settings → System → TVHeadend.
+Freetvarr signs in with both new logins before it removes the default entry. If either login fails, Freetvarr deletes the logins it created and keeps the open access, so a typo cannot lock you out. It then checks that TVHeadend asks for a login. To put the default entry back, press **Restore open access** in Settings → SYSTEM → TVHeadend.
 
 If you installed TVHeadend yourself, setup asks for the TVHeadend username and password you created for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. [Health](/guide/doctor#tvh-open) warns while the default entry is still there.
 
@@ -239,12 +239,12 @@ If you already set up TVHeadend users, create one for Freetvarr by hand in TVHea
 
 | Right              | Tick                              | Why Freetvarr needs it                                                                                                                                                 |
 | ------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for **Check TVHeadend** in Settings → Recording → Media library) |
+| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for **Check TVHeadend** in Settings → RECORDING → Media library) |
 | **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series recordings, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend                      |
 | **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                                              |
 | **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web interface as this user                                                                                                      |
 
-Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, **Test connection** in Settings → System → TVHeadend still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
+Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, **Test connection** in Settings → SYSTEM → TVHeadend still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
 
 TVHeadend's default configuration accepts only HTTP Digest logins. Freetvarr answers whichever challenge TVHeadend sends, Digest or Basic, so leave TVHeadend's authentication setting as it is.
 

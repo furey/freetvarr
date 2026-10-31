@@ -23,11 +23,11 @@ Without a connection, Freetvarr leaves files that Sonarr or Radarr downloaded al
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/arr">
-  <img src="../img/screenshot-arr.png" alt="Settings → Recording → Sonarr and Radarr, with both apps connected" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-arr.png" alt="Settings → RECORDING → Sonarr and Radarr, with both apps connected" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-1. Open Settings → Recording → Sonarr and Radarr.
+1. Open Settings → RECORDING → Sonarr and Radarr.
 2. Press **Find Sonarr and Radarr**. Freetvarr looks on its own server, at ports `8989` and `7878`, and fills in each empty address it finds. The line beside the button says what it found, such as `Sonarr found. Radarr found; paste its API key.`
 3. Check the **Sonarr URL** and **Radarr URL**. Each is the address you open Sonarr or Radarr at in a browser, such as `http://192.168.1.10:8989`.
 4. If an **API key** field is empty, open Sonarr or Radarr, go to **Settings → General**, copy the **API Key**, and paste it into the field.
@@ -59,7 +59,7 @@ An episode can have two copies: Freetvarr's recording and a file that Sonarr, Ra
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-**Stop downloading it again**, in the **WHEN YOU DELETE** group of Settings → Recording → Sonarr and Radarr, is on by default. Turn it off only if you want Sonarr and Radarr to download a deleted episode or film again.
+**Stop downloading it again**, in the **WHEN YOU DELETE** group of Settings → RECORDING → Sonarr and Radarr, is on by default. Turn it off only if you want Sonarr and Radarr to download a deleted episode or film again.
 
 **Delete all episodes** on a show that Sonarr downloads also offers **Remove the series from Sonarr too**. It is off until you tick it. When ticked, Sonarr removes the series and adds it to its import list exclusions, so a list does not add it back.
 

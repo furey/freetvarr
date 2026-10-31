@@ -58,7 +58,7 @@ A switch in the sheet picks what to do. One line under it says what the main but
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** follows the show to another channel. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library. The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → Recording → Media library. To change a folder later, open [Series rules](/guide/series).
+- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library. The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
 - **Watch from the start** shows when TVHeadend is recording the programme. It plays the recording from its first minute while it keeps recording. The line under it says the time it plays from.
 - **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
@@ -76,7 +76,7 @@ Freetvarr decides from the guide whether a programme is a movie, part of a serie
 - **Series**: it has a season number, an episode number, or an episode title, or it airs `3` or more times in the next 7 days, or [TVmaze](https://www.tvmaze.com) (a free online TV database) knows it as a TV show. A show with a series recording always counts as a series.
 - **One-off**: anything else, such as a sports final or a short special.
 
-When Freetvarr gets it wrong, the programme sheet has a link to correct it. A programme with no season, episode, or episode title that Freetvarr counts as a movie shows **Not a movie**. A programme of `75` minutes or more that is not news or sport, and that Freetvarr does not count as a movie, shows **This is a movie**. The same choice is in the **⋯** menus on Home and For you. The correction applies to every airing with that title. Settings → Watching → Film and TV info lists your corrections under **Movie corrections**, each with **Undo**.
+When Freetvarr gets it wrong, the programme sheet has a link to correct it. A programme with no season, episode, or episode title that Freetvarr counts as a movie shows **Not a movie**. A programme of `75` minutes or more that is not news or sport, and that Freetvarr does not count as a movie, shows **This is a movie**. The same choice is in the **⋯** menus on Home and For you. The correction applies to every airing with that title. Settings → WATCHING → Film and TV info lists your corrections under **Movie corrections**, each with **Undo**.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -88,7 +88,7 @@ When Freetvarr gets it wrong, the programme sheet has a link to correct it. A pr
 
 ## Watchlist
 
-**Add to watchlist** lists a show under **Watchlist** in [Scheduled](/guide/recordings#scheduled) when nothing in the next 7 days matches its title. Each time a programme with the same title is in the TV guide, the list shows when it next airs, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
+**Add to watchlist** lists a show under **WATCHLIST** in [Scheduled](/guide/recordings#scheduled) when nothing in the next 7 days matches its title. Each time a programme with the same title is in the TV guide, the list shows when it next airs, with a number badge for new airings. Nothing records unless you turn on **Record when it appears**.
 
 To add a show to your watchlist:
 
@@ -101,7 +101,7 @@ To add a show to your watchlist:
 
 Freetvarr matches by title. Case, accents, and punctuation do not matter, so `Gogglebox` also matches `GOGGLEBOX`. A different title does not match: a watchlist entry for `Utopia` does not catch `Utopia: The Series`.
 
-**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide, with the padding you set. Freetvarr checks the TV guide every 15 minutes. To take a show off your watchlist, open **Scheduled**, then **Watchlist**, and press **Remove from watchlist**.
+**Record when it appears** sets an any-channel series recording the first time the show is in the TV guide, with the padding you set. Freetvarr checks the TV guide every 15 minutes. To take a show off your watchlist, open **Scheduled**, then **WATCHLIST**, and press **Remove from watchlist**.
 
 Freetvarr sends no push message or email. The list in Scheduled is the notice.
 
@@ -157,7 +157,7 @@ Freetvarr also turns off TVHeadend's **Auto EPG channel** setting (EPG: electron
 
 Shows that already ended stay in the TV guide under their old listings. A scheduled recording on the channel stays at its time, but no longer follows a guide programme.
 
-If the pencils are missing, the TV guide is not set up yet. Open Settings → System → Setup and press **Guide**.
+If the pencils are missing, the TV guide is not set up yet. Open Settings → SYSTEM → Setup and press **Guide**.
 
 A [series recording](/guide/series#how-a-series-recording-works) matches on title and channel. When you fix a channel's listings, that channel gets different programmes, so its series recordings can catch different episodes. Check [Scheduled](/guide/recordings#scheduled) after the change.
 
@@ -185,7 +185,7 @@ For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wi
 
 While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 
-A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. After 30 days, Freetvarr keeps showing the old answer while it asks again, for up to 6 months. When a service does not answer, Freetvarr keeps the answer it has, waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → Watching → Film and TV info and turn off **Missing pictures**.
+A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TMDB when you add a key. Freetvarr keeps each answer for 30 days, or 7 days when there is no match. After 30 days, Freetvarr keeps showing the old answer while it asks again, for up to 6 months. When a service does not answer, Freetvarr keeps the answer it has, waits 10 minutes before it asks about that title again, and stops asking a service that keeps failing for up to 30 minutes. To turn the lookups off, go to Settings → WATCHING → Film and TV info and turn off **Missing pictures**.
 
 ### TMDB key
 
@@ -203,7 +203,7 @@ A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and b
 
    TMDB also asks for your name, email address, phone number, and street address before it shows the key.
 3. TMDB shows two values: an **API Key** (32 letters and numbers) and an **API Read Access Token** (a much longer one). Either works in Freetvarr. Copy the **API Key**; it is shorter to paste.
-4. In Freetvarr, go to Settings → Watching → Film and TV info and paste it into **TMDB API key (optional)** under **TMDB key**.
+4. In Freetvarr, go to Settings → WATCHING → Film and TV info and paste it into **TMDB API key (optional)** under **TMDB KEY**.
 5. Press **Test key**, then **Save key**.
 
 The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Some show ratings and cast lists come from [TVmaze](https://www.tvmaze.com).
@@ -222,7 +222,7 @@ Only films and scripted, animated, documentary, and miniseries shows get a score
 
 Films come from [TMDB](https://www.themoviedb.org), which needs a [TMDB key](#tmdb-key). With a TMDB key, series come from TMDB first. Freetvarr uses a TMDB series only when the synopsis matches it, or when it comes from your country and its network matches a channel in your guide. When TMDB has no such match, or fewer than `50` votes for it, the score comes from [TVmaze](https://www.tvmaze.com), which needs no key. Without a TMDB key, series scores come from TVmaze. Freetvarr matches a title with the same checks as [Missing pictures](#missing-pictures), and shows nothing when it is not sure of the match. A score from TMDB with fewer than `50` votes is hidden.
 
-Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down. When the site of a link does not answer, the score card shows no link. To turn these off, go to Settings → Watching → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
+Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down. When the site of a link does not answer, the score card shows no link. To turn these off, go to Settings → WATCHING → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
 
 ### Classification
 
@@ -247,7 +247,7 @@ The page of a recorded show lists its cast and crew; see [Recordings](/guide/rec
 
 Freetvarr keeps a copy of each photo on the server, so photos still show when TVmaze or TMDB is down. A name links to the person's TMDB or TVmaze page; when that site does not answer, the name has no link.
 
-Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → Watching → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down.
+Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → WATCHING → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down.
 
 ## Caching
 

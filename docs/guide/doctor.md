@@ -7,13 +7,13 @@ description: >-
 
 # Health
 
-Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → System → **Health**, from the alert on [Home](/guide/home#health-alert), or from **Health checks** in Settings → About. The old address `#/doctor` opens it.
+Health checks the parts Freetvarr depends on and says what to fix. Open it from Settings → SYSTEM → **Health**, from the alert on [Home](/guide/home#health-alert), or from **Health checks** in Settings → ABOUT → About Freetvarr. The old address `#/doctor` opens it.
 
 The page has three groups:
 
-- **Sync**: the last sync, the next sync (a sync is Freetvarr's pass over TVHeadend's finished recordings to import them), and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
-- **Checks**: the read-only checks described below. Settings → About calls them **Health checks**.
-- **Storage**: the free space on the recordings and media folders ([Configuration](/guide/configuration#the-two-recordings-paths) describes both), with a bar for each.
+- **SYNC**: the last sync, the next sync (a sync is Freetvarr's pass over TVHeadend's finished recordings to import them), and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
+- **CHECKS**: the read-only checks described below. Settings → ABOUT → About Freetvarr calls them **Health checks**.
+- **STORAGE**: the free space on the recordings and media folders ([Configuration](/guide/configuration#the-two-recordings-paths) describes both), with a bar for each.
 
 The sentence under the page title summarises the result, for example `Everything is working.`
 
@@ -76,7 +76,7 @@ Checks that the recordings folder exists inside the Freetvarr Docker container a
 
 ## TVHeadend recording path {#paths-match}
 
-Compares **Recording system path** on TVHeadend's default DVR profile with **As TVHeadend sees it**, under **Recordings folder** in Settings → Recording → Media library. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
+Compares **Recording system path** on TVHeadend's default DVR profile with **As TVHeadend sees it**, under **RECORDINGS FOLDER** in Settings → RECORDING → Media library. They must match. See [Check TVHeadend mismatch](/guide/troubleshooting#check-tvheadend-mismatch).
 
 ## Media folder {#paths-media}
 
@@ -112,4 +112,4 @@ Runs only when ad removal is on. It checks that `comskip`, `ffmpeg`, and `ffprob
 
 ## Time zone and network {#host-env}
 
-Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings → System → Schedule, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).
+Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or the stored zone is not a known zone, because the TV guide and recordings then show the wrong times. Choose your zone in Settings → SYSTEM → Schedule, or correct `TZ` in your `.env` (for example `Australia/Sydney`). It also warns when Freetvarr has only Docker bridge addresses, which means it is not on host networking. See [Wrong timestamps](/guide/troubleshooting#wrong-timestamps) and [Container name lookups](/guide/troubleshooting#container-name-lookups).

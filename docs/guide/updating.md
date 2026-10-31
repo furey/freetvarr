@@ -69,9 +69,9 @@ These releases change something on your install when you update to them. Read ea
 This is the update from Freetvarr 1.x. Back up first: Freetvarr 1.x cannot open the database after this update.
 
 - **Database**: the first start adds 30 database changes (migrations `0007` to `0036`).
-- **Files move once**: about 3 minutes after the first start, Freetvarr sorts every title as a show, a one-off, or a movie, and moves the files once to match. A move never overwrites a file. Freetvarr skips that file and lists it in Settings → System → Activity, under the **Library folders** job.
-- **Plex watched sync**: if Plex is set up, watched state syncs both ways (**From Plex** and **Back to Plex**). Turn either off in Settings → Recording → Plex.
-- **Your whole Plex library**: Recordings lists the episodes and films in your Plex TV and Movies libraries. Turn it off in Settings → Recording → Plex → **Show your whole Plex library**.
+- **Files move once**: about 3 minutes after the first start, Freetvarr sorts every title as a show, a one-off, or a movie, and moves the files once to match. A move never overwrites a file. Freetvarr skips that file and lists it in Settings → SYSTEM → Activity, under the **Library folders** job.
+- **Plex watched sync**: if Plex is set up, watched state syncs both ways (**From Plex** and **Back to Plex**). Turn either off in Settings → RECORDING → Plex.
+- **Your whole Plex library**: Recordings lists the episodes and films in your Plex TV and Movies libraries. Turn it off in Settings → RECORDING → Plex → **Show your whole Plex library**.
 - **Live streams at once**: a `docker-compose.yml` from before 2.0.0 caps live streams at `2`. To let Freetvarr choose the limit for your computer, change `${LIVE_TV_MAX_SESSIONS:-2}` to `${LIVE_TV_MAX_SESSIONS:-}` in your `docker-compose.yml`, then run `docker compose up -d`.
 - **Sonarr and Radarr mounts (optional)**: to let Freetvarr read their API keys, add the lines from [`docker-compose.example.yml`](https://github.com/furey/freetvarr/blob/main/docker-compose.example.yml) to your `docker-compose.yml` ([Sonarr and Radarr](/guide/sonarr-radarr)).
 

@@ -96,7 +96,7 @@ To copy a recording to Windows, open `\\wsl$\Ubuntu\home\<linux username>\freetv
 
 TVHeadend records only while the PC is on and Ubuntu is running:
 
-- In Windows **Settings → System → Power**, set sleep to **Never**.
+- In Windows **Settings → SYSTEM → Power**, set sleep to **Never**.
 - Windows Update restarts the PC. Set **Active hours** in **Settings → Windows Update → Advanced options** to cover the times you record most.
 - After a restart, WSL does not start until something starts it. A Task Scheduler task that runs `wsl.exe -d Ubuntu` when you sign in starts Ubuntu, and Docker Engine then starts the containers. Forum reports say a task that runs before sign-in is unreliable, so sign-in after each restart may be necessary.
 

@@ -7,13 +7,13 @@ description: >-
 
 # Series rules and folders
 
-A series has two parts: a [series recording](#how-a-series-recording-works) in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync (a [sync](/guide/syncs) is one pass over TVHeadend's finished recordings). Settings → Recording → **Series rules** lists both parts together. Settings → Recording → **Title matches** lists the [title matches](#title-matches).
+A series has two parts: a [series recording](#how-a-series-recording-works) in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync (a [sync](/guide/syncs) is one pass over TVHeadend's finished recordings). Settings → RECORDING → **Series rules** lists both parts together. Settings → RECORDING → **Title matches** lists the [title matches](#title-matches).
 
 [Recording options](/guide/recordings#recording-options) on a show page change one show.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/series">
-  <img src="../img/screenshot-series.png" alt="Settings → Recording → Series rules" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-series.png" alt="Settings → RECORDING → Series rules" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -24,7 +24,7 @@ A series has two parts: a [series recording](#how-a-series-recording-works) in T
 3. Pick **Every episode**.
 4. Press **Record series**.
 
-Freetvarr creates the series folder at the same time, unless you first turn off **Add to library** under **Advanced** in the programme sheet. The default for **Add to library** is in Settings → Recording → Media library. [Series folder names](#series-folder-names) explains how Freetvarr names the folder.
+Freetvarr creates the series folder at the same time, unless you first turn off **Add to library** under **Advanced** in the programme sheet. The default for **Add to library** is in Settings → RECORDING → Media library. [Series folder names](#series-folder-names) explains how Freetvarr names the folder.
 
 Matching is by title: a recording goes to the folder whose title appears in the recording's title. When more than one folder matches, the longest title wins, so `NRL Grand Final` beats `NRL`.
 
@@ -45,7 +45,7 @@ Freetvarr uses an existing folder first:
 2. A folder with the same name as the show, such as `Big Brother (AU)`.
 3. A folder with the same name as the series, such as `Big Brother`, or with the name plus a year or a country, such as `Bluey (2018)` or `Ghosts (US)`, when only one such folder exists. Freetvarr skips a folder that names another country or carries another show's number.
 
-When TVmaze finds no show, finds more than one with no clear winner, or does not answer in time, the folder is named after the series, such as `Big Brother`. The **Show** row in the [edit form](#edit-a-series-folder) of the series then says why, and you can [check which show it is](#check-which-show-this-is) and [rename the folder](#rename-folder) later. Freetvarr does not look up shows when **Missing pictures** is off in Settings → Watching → Film and TV info.
+When TVmaze finds no show, finds more than one with no clear winner, or does not answer in time, the folder is named after the series, such as `Big Brother`. The **Show** row in the [edit form](#edit-a-series-folder) of the series then says why, and you can [check which show it is](#check-which-show-this-is) and [rename the folder](#rename-folder) later. Freetvarr does not look up shows when **Missing pictures** is off in Settings → WATCHING → Film and TV info.
 
 Folders that already exist keep their names. New episodes of a series keep going to its folder until you rename it.
 
@@ -113,7 +113,7 @@ Each row shows one series:
 
 - The title, with the channels and the number of episodes to keep.
 - **Next**: the next airing, or the next expected airing, with its channel.
-- **Saves to**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no series folder shows the new folder that its next import makes, named after the series recording, such as `/media/tv/Bluey`; after that import, the row shows that folder. A series you moved to One-offs in [Recordings](/guide/recordings#library) shows a path in the [one-off folder](#recordings-with-no-series), such as `/media/one-offs/Bluey`. When **Import every recording** is off in Settings → Recording → Media library, a series with no series folder shows that its episodes wait in the [recording log](/guide/recordings#recording-log).
+- **Saves to**: the full path where the next sync saves new episodes, such as `/media/tv/Bluey (2018)/Season 01`. The season comes from the next airing; when the TV guide has no season number, the path shows `Season …`. A series with no series folder shows the new folder that its next import makes, named after the series recording, such as `/media/tv/Bluey`; after that import, the row shows that folder. A series you moved to One-offs in [Recordings](/guide/recordings#library) shows a path in the [one-off folder](#recordings-with-no-series), such as `/media/one-offs/Bluey`. When **Import every recording** is off in Settings → RECORDING → Media library, a series with no series folder shows that its episodes wait in the [recording log](/guide/recordings#recording-log).
 
 A row shows a **Paused** badge when the series recording in TVHeadend is paused. A row with no badge records new episodes as normal.
 
@@ -150,7 +150,7 @@ To change nothing, close the question. **Keep series** goes back.
 
 Press a series with no series folder, then **Assign folder**. A dialog opens before anything changes:
 
-1. Check the folder name. Freetvarr fills in an existing folder with the same name under your media root (the TV folder of your media library, set as **Media root** in Settings → Recording → Media library), or a new folder named after the series.
+1. Check the folder name. Freetvarr fills in an existing folder with the same name under your media root (the TV folder of your media library, set as **Media root** in Settings → RECORDING → Media library), or a new folder named after the series.
 2. To use another folder, type its name, or choose it from the list of existing folders.
 3. Press **Assign folder** to save the folder for the series.
 
@@ -164,7 +164,7 @@ Press a series with a series folder to open these fields under the row:
 - **Show**: the show the folder is named after. See [Check which show this is](#check-which-show-this-is). Title matches have no **Show** row.
 - **Season folders**: the [season template](#season-template).
 - **Recording titles that contain**: the title that Freetvarr matches. It ignores case.
-- **Ad removal**: **Off**, **Detect**, or **Cut**. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in Settings → Recording → Ad removal.
+- **Ad removal**: **Off**, **Detect**, or **Cut**. See [Ad removal](/guide/ad-removal). The field is off until you turn on ad removal in Settings → RECORDING → Ad removal.
 - **Remove from TVHeadend after import**: remove the TVHeadend copy once Plex confirms the file. See [Remove from TVHeadend](/guide/remove-from-tvheadend).
 
 Press **Save** to keep the changes. To close the form without saving, press the row again, or press `Esc`. A change to **Saves to** applies to future episodes only (episodes already imported stay where they are). To move the episodes as well, use [Rename folder](#rename-folder) when the form offers it.
@@ -212,11 +212,11 @@ The other file stays as it is. This happens, for example, when Sonarr already do
 
 ## Title matches
 
-A recording whose title contains this text saves to its folder, even without a series recording. Settings → Recording → **Title matches** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
+A recording whose title contains this text saves to its folder, even without a series recording. Settings → RECORDING → **Title matches** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
 
 To add a title:
 
-1. Under **Add title**, enter the **Recording titles that contain** text. Press **Refresh titles** to list the titles TVHeadend has recorded.
+1. Under **ADD TITLE**, enter the **Recording titles that contain** text. Press **Refresh titles** to list the titles TVHeadend has recorded.
 2. Under **Saves to**, enter the folder under your media root. Freetvarr suggests an existing folder, or a new folder named after the title.
 3. Set the season folders, ad removal, and **Remove from TVHeadend after import**.
 4. Press **Add title**.
@@ -231,11 +231,11 @@ NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts
 
 A TV series with no series folder does not go there. Freetvarr adds a series folder for it on its first import, named after the series recording or the title. See [Library](/guide/recordings#library) for how Freetvarr tells a series from a one-off.
 
-The one-off folder stays out of the TV folder on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. In your media server, point a separate library at the folder instead (in Plex, use the **Other Videos** library type). See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the **Import every recording** switch in Settings → Recording → Media library that turns this off.
+The one-off folder stays out of the TV folder on purpose. Plex, Jellyfin, and Infuse match a TV library against online listings, and a one-off title rarely matches. In your media server, point a separate library at the folder instead (in Plex, use the **Other Videos** library type). See [Configuration](/guide/configuration#the-one-off-folder) for the mount and the **Import every recording** switch in Settings → RECORDING → Media library that turns this off.
 
 ## Films
 
-Set a **movies folder** in Settings → Recording → Media library, and a film with no series folder goes there instead, named the way movie libraries expect:
+Set a **movies folder** in Settings → RECORDING → Media library, and a film with no series folder goes there instead, named the way movie libraries expect:
 
 ```text
 Isle Of Dogs (2018)/Isle Of Dogs (2018).ts
@@ -243,7 +243,7 @@ Isle Of Dogs (2018)/Isle Of Dogs (2018).ts
 
 Freetvarr treats a recording as a film when the TV guide gives it a film or drama genre, no season or episode number, and a length of at least 75 minutes. A title that has a series recording or a series folder is never a film. The year appears only when the TV guide supplies one. Without a movies folder, films go to the one-off folder.
 
-When Freetvarr gets a film wrong, choose **Not a movie** or **This is a movie** in its menu on Home or For you, or from the link in the programme sheet. The choice decides the folder of the next recording, and you can undo it in Settings → Watching → Film and TV info → **Movie corrections**.
+When Freetvarr gets a film wrong, choose **Not a movie** or **This is a movie** in its menu on Home or For you, or from the link in the programme sheet. The choice decides the folder of the next recording, and you can undo it in Settings → WATCHING → Film and TV info → **Movie corrections**.
 
 ## Import, not download
 

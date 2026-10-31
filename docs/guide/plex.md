@@ -26,10 +26,10 @@ The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the
    ```
 
 4. In a terminal in the `freetvarr` folder, start the Docker containers: `docker compose up -d`. The first start downloads the Plex Docker image. If you have not installed Freetvarr yet, run the [install script](/guide/getting-started#_1-install) instead.
-5. In Freetvarr in a browser, proceed to the **Plex** step of setup. Freetvarr finds Plex and its token itself. If you already finished setup, open Settings → Recording → Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
+5. In Freetvarr in a browser, proceed to the **Plex** step of setup. Freetvarr finds Plex and its token itself. If you already finished setup, open Settings → RECORDING → Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
 6. Check the library names and folders, then press **Create libraries** to create the libraries in Plex.
 
-Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a [movies folder](/guide/configuration#the-one-off-folder), it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings → Recording → Plex. Each library uses the language and rating system of the country from your time zone.
+Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a [movies folder](/guide/configuration#the-one-off-folder), it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings → RECORDING → Plex. Each library uses the language and rating system of the country from your time zone.
 
 Plex keeps its settings in `${CONFIG_PATH}/plex`, where `CONFIG_PATH` is the host config folder set in the `.env` ([Configuration](/guide/configuration#compose-environment)). Plex reads your library at `/data/media`, the same paths as Freetvarr. To finish the Plex setup (for example, to name the server), open `http://<host-ip>:32400/web` in a browser.
 
@@ -42,11 +42,11 @@ If the claim code expired before Plex started, Plex runs without an account and 
 
 The **Plex** step of setup looks for Plex servers on your network and reads the token from Plex's settings file. When setup connects to Plex, it picks the TV library that reads Freetvarr's TV folder. Check that library, or pick another. If setup finds no Plex server, press **Next**. If it finds Plex but no token, press **Connect Plex by hand** and paste the token ([The token](#the-token)).
 
-In Settings → Recording → Plex, set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. **Auto-discover Plex** finds Plex servers on your network.
+In Settings → RECORDING → Plex, set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. **Auto-discover Plex** finds Plex servers on your network.
 
 ## Create the libraries
 
-When Plex has no library for a Freetvarr folder, the **Plex** step of setup and Settings → Recording → Plex show **Create libraries**. The button needs the Plex URL and token. To check for missing libraries, press **Load sections** in Settings → Recording → Plex.
+When Plex has no library for a Freetvarr folder, the **Plex** step of setup and Settings → RECORDING → Plex show **Create libraries**. The button needs the Plex URL and token. To check for missing libraries, press **Load sections** in Settings → RECORDING → Plex.
 
 Each library has a name and a folder. The folder is the path as Plex sees it. With the Plex from the Docker compose file, that path is the same as Freetvarr's. For a Plex installed some other way, enter the path that Plex shows when you add a folder to a library. Freetvarr refuses a folder that Plex cannot see.
 
@@ -56,14 +56,14 @@ Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/t
 
 ## The one-off library
 
-Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off section** in Settings → Recording → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title.
+Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off section** in Settings → RECORDING → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title.
 
 If you set a movies folder, point a **Movies** library at it and choose that library as the **Movies section**.
 
 ## The token
 
-- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and setup does this for you. If you installed Plex yourself on the same computer, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the Freetvarr Docker container: run `docker compose up -d freetvarr` in a terminal in the `freetvarr` folder. If you share the file with Freetvarr at another path, open **Token not found?** in Settings → Recording → Plex and enter the path Freetvarr sees.
-- Otherwise **paste the token manually** into Settings → Recording → Plex. Copy it from `app.plex.tv` (Plex's own support article explains how to find your token).
+- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and setup does this for you. If you installed Plex yourself on the same computer, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the Freetvarr Docker container: run `docker compose up -d freetvarr` in a terminal in the `freetvarr` folder. If you share the file with Freetvarr at another path, open **Token not found?** in Settings → RECORDING → Plex and enter the path Freetvarr sees.
+- Otherwise **paste the token manually** into Settings → RECORDING → Plex. Copy it from `app.plex.tv` (Plex's own support article explains how to find your token).
 
 Where `Preferences.xml` lives depends on how Plex is installed:
 
@@ -77,15 +77,15 @@ Auto-detect fails with `PlexOnlineToken attribute not found` when that Plex serv
 
 ## Refresh
 
-After any sync that imported a file, Freetvarr refreshes the configured section so new episodes appear without waiting for Plex's own scan interval. Press **Refresh Plex now** in Settings → Recording → Plex to refresh at any time.
+After any sync that imported a file, Freetvarr refreshes the configured section so new episodes appear without waiting for Plex's own scan interval. Press **Refresh Plex now** in Settings → RECORDING → Plex to refresh at any time.
 
-A recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)). The **Wait for Plex before removing recordings from TVHeadend** switch at the end of Settings → Recording → Plex controls this. Leave it on.
+A recording is only removed from TVHeadend after Plex confirms the file ([Remove from TVHeadend](/guide/remove-from-tvheadend)). The **Wait for Plex before removing recordings from TVHeadend** switch at the end of Settings → RECORDING → Plex controls this. Leave it on.
 
 ## Watched state
 
 Freetvarr and Plex keep the same watched state and resume point for each recording. An episode you watch in Plex, or in Infuse through Plex, shows as watched in Freetvarr and loses its **New** pill. An episode you watch or mark in Freetvarr shows as watched in Plex.
 
-The **Watched state** group in Settings → Recording → Plex has these controls:
+The **WATCHED STATE** group in Settings → RECORDING → Plex has these controls:
 
 - **From Plex**: copies watched, unwatched, and resume points from Plex to Freetvarr.
 - **Back to Plex**: sends watched, unwatched, and resume points from Freetvarr to Plex.
@@ -105,14 +105,14 @@ It uses the Plex account that owns the token. Other Plex Home users keep their o
 
 Recordings can list everything in your Plex TV and Movies libraries, not only what Freetvarr recorded. Files from Sonarr, Radarr, and your own copies show on the same shelves and show pages, and play in Freetvarr's player. Freetvarr does not import, rename, or move these files.
 
-The **Your whole library** group in Settings → Recording → Plex has these controls:
+The **YOUR WHOLE LIBRARY** group in Settings → RECORDING → Plex has these controls:
 
 - **Show your whole Plex library**: on by default once Plex is connected.
 - **Libraries to show**: the Plex TV and movie libraries it lists. At first these are your **TV section** and **Movies section**. The one-off library is never listed, because it holds only Freetvarr's own recordings.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/plex">
-  <img src="../img/screenshot-plex.png" alt="Settings → Recording → Plex, with the Your whole library and Watched state groups" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-plex.png" alt="Settings → RECORDING → Plex, with the YOUR WHOLE LIBRARY and WATCHED STATE groups" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

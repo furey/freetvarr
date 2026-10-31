@@ -96,11 +96,11 @@ The first visit to `http://<host-ip>:3733` in a browser opens setup. Setup fills
 
 **You're set** lists what setup saved. If channels or the TV guide are missing, the list says so and links back to that step. Press **Start watching** to finish and open [Home](/guide/home) (**Open Freetvarr** when something is still missing).
 
-**Finish later** leaves setup and keeps what you saved so far. To check or change any part later, open Settings → System → Setup ([Settings](/guide/settings#system)).
+**Finish later** leaves setup and keeps what you saved so far. To check or change any part later, open Settings → SYSTEM → Setup ([Settings](/guide/settings#system)).
 
 ## 3. Record something
 
-In Freetvarr, open the [TV guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. About a minute after a recording finishes, Freetvarr imports it into your library (it [hardlinks or copies](/guide/series#import-not-download) the file into the folders of your media library). Freetvarr also checks for finished recordings every `30` minutes (change it in Settings → System → Schedule) ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
+In Freetvarr, open the [TV guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. About a minute after a recording finishes, Freetvarr imports it into your library (it [hardlinks or copies](/guide/series#import-not-download) the file into the folders of your media library). Freetvarr also checks for finished recordings every `30` minutes (change it in Settings → SYSTEM → Schedule) ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → SYSTEM → [Health](/guide/doctor).
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the TV guide: press the programme and press Record for one airing, then pick Every episode on another programme and press Record series" />
