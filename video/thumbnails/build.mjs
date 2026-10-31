@@ -48,7 +48,7 @@ const THUMBS = [
     lines: ['What can I', '<em>watch now?</em>'], sub: 'Home and For you', shift: 64,
     hero: () => homeHero()},
   {n: 8, slug: 'intro', title: 'Freetvarr: your own free-to-air TV recorder',
-    lines: ['Your own', '<em>TV</em>', '<em>recorder</em>'], sub: 'Record free-to-air TV',
+    lines: ['Your own', '<em>TV recorder</em>'], sub: 'Record free-to-air TV', shift: 150,
     hero: () => introHero()},
 ].map(thumb => ({...thumb, file: `thumb-${thumb.n}-${thumb.slug}`}))
 
