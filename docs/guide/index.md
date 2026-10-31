@@ -12,9 +12,6 @@ description: >-
 
 Freetvarr records free-to-air TV and files each episode into your media library. Watch it on your TV in Plex, Jellyfin, Kodi, or another media player, with pause, rewind, and skip.
 
-<!-- markdownlint-disable-next-line MD033 -->
-<BrowserFrame />
-
 With it, you can:
 
 - **[Record from a 7-day guide](/guide/tv-guide)** on your phone or computer: one episode, or every episode of a series.
@@ -24,6 +21,9 @@ With it, you can:
 - **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
 - **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install. Pause or rewind up to `30` minutes, start a programme over while it records, or watch up to four channels at once with [Multiview](/guide/player#multiview) (two on a phone). To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
 - **[Clear out TVHeadend](/guide/remove-from-tvheadend).** Freetvarr can delete each recording from TVHeadend once the episode is in your media library.
+
+<!-- markdownlint-disable-next-line MD033 -->
+<BrowserFrame />
 
 Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
 
