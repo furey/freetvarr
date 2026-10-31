@@ -227,14 +227,16 @@ Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up))
 
 Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex. When Plex has them, Freetvarr's [Recordings](/guide/recordings#library) lists them beside your new recordings, on the same show page (Settings → RECORDING → Plex → [YOUR WHOLE LIBRARY](/guide/plex#your-whole-library) turns this off).
 
-If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex` and use the shared folder's network path in `--save` (e.g. `--save=\\NAS\data\media\tv` on Windows, or `--save=/Volumes/data/media/tv` on a Mac). This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy. `fetchtv` also writes a `fetchtv.json` file at the top of the save folder, with a list of the files it saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
+If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex`, and put the path of the `tv` folder in `--save`. That folder is `freetvarr/data/media/tv`, inside the NAS shared folder where you installed Freetvarr. To get its path, open the `tv` folder from your computer. On Windows, click the File Explorer address bar and copy the path. On a Mac, hold Option, Control-click the folder in Finder, and choose **Copy as Pathname**. For example, with Freetvarr in a shared folder named `docker` on a NAS named `NAS`, use `--save=\\NAS\docker\freetvarr\data\media\tv` on Windows, or `--save=/Volumes/docker/freetvarr/data/media/tv` on a Mac. Use your own path in place of the example.
 
-Add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`:
+This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy. `fetchtv` also writes a `fetchtv.json` file at the top of the save folder, with a list of the files it saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
+
+Add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`. These lines use the example path from above:
 
 ```console
-npx fetchtv recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/data/media/tv
-npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/data/media/movies
-npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/data/media/one-offs
+npx fetchtv recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/docker/freetvarr/data/media/tv
+npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/docker/freetvarr/data/media/movies
+npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/docker/freetvarr/data/media/one-offs
 ```
 
 Fetch numbers episodes from its own guide data, and the numbers can differ from the guide that Freetvarr and Plex use by one (e.g. The Block `S22 E34` on Fetch is `S22E35` in the guide). When a show has Fetch and Freetvarr recordings from the same weeks, compare the air dates and rename the Fetch files where the numbers differ. `fetchtv` cannot see the guide, so it cannot fix the numbers itself.
